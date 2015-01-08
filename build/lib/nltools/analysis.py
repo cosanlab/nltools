@@ -23,7 +23,8 @@ from nilearn.plotting import *
 import seaborn as sns    
 
 # Paths
-resource_dir = os.path.join(os.path.dirname(__file__)],'resources')
+# resource_dir = 'resources'
+resource_dir = os.path.join(os.path.dirname(__file__),'resources')
   
 
 class Predict:
@@ -56,10 +57,9 @@ class Predict:
         
         if type(data) is not nib.nifti1.Nifti1Image:
             raise ValueError("data is not a nibabel instance")
-        nifti_masker = NiftiMasker(mask_img=mask)
-        self.data = nifti_masker.fit_transform(data)
+        self.nifti_masker = NiftiMasker(mask_img=mask)
+        self.data = self.nifti_masker.fit_transform(data)
         
-        # Could check if running classification or prediction for Y
         if self.data.shape[0]!= len(Y):
             raise ValueError("Y does not match the correct size of data")
         self.Y = Y
@@ -73,13 +73,15 @@ class Predict:
             self.subject_id = subject_id    
 
 
-    def predict(self, algorithm=None, save_images=True, save_output=True, 
+    def predict(self, algorithm=None, cv = None, save_images=True, save_output=True, 
                 save_plot = True, **kwargs):
         """ Run prediction
         Args:
             algorithm: Algorithm to use for prediction.  Must be one of 'svm', 'svr', 
                 'linear', 'logistic', 'lasso', 'ridge', 'ridgeClassifier','randomforest', 
                 or 'randomforestClassifier'
+            cv: Type of cross_validation to use. Either a string or an (uninitialized)
+                scikit-learn cv object. If string, must be one of 'kfold' or 'loso'.
             save_images: Boolean indicating whether or not to save images to file.
             save_output: Boolean indicating whether or not to save prediction output to file.
             save_plot: Boolean indicating whether or not to create plots.
@@ -92,33 +94,35 @@ class Predict:
         # Overall Fit for weight map
         predicter = self.predicter
         predicter.fit(self.data, self.Y)
-        
+        self.yfit = predicter.predict(self.data)
+
         if save_images:
             self._save_image(predicter)
 
         if cv is not None:
-            predicter_cv = self.predicter
-            self.xval_dist_from_hyperplane = np.array(len(self.Y))
-            for train, test in cv:
-                predicter_cv.fit(self.data[train], self.Y[train])
-                self.yfit[test] = self.predict(self.data[test])
-                if algorithm is 'svm':
-                    self.xval_dist_from_hyperplane[test] = predicter_cv.decision_function(self.data[test])
+            if hasattr(self,'cv'):
+                predicter_cv = self.predicter
+                self.xval_dist_from_hyperplane = np.array(len(self.Y))
+                for train, test in cv:
+                    predicter_cv.fit(self.data[train], self.Y[train])
+                    self.yfit[test] = predicter_cv.predict(self.data[test])
+                    if algorithm is 'svm':
+                        self.xval_dist_from_hyperplane[test] = predicter_cv.decision_function(self.data[test])
 
-            if save_output:
-                stats = pd.DataFrame({
-                            'SubID' : self.subject_id, 
-                            'Y' : self.Y, 
-                            'yfit' : self.yfit,
-                            'xval_dist_from_hyperplane' : self.xval_dist_from_hyperplane})
-                self._save_stats_output(stats)
+                if save_output:
+                    stats = pd.DataFrame({
+                                'SubID' : self.subject_id, 
+                                'Y' : self.Y, 
+                                'yfit' : self.yfit,
+                                'xval_dist_from_hyperplane' : self.xval_dist_from_hyperplane})
+                    self._save_stats_output(stats)
 
         if self.prediction_type is 'classification':
             self.mcr = np.mean(self.yfit==self.Y)
             print 'overall CV accuracy: %.2f' % self.mcr
         elif self.prediction_type is 'prediction':
             self.rmse = np.sqrt(np.mean((self.yfit-self.Y)**2))
-            self.r = np.corrcoef(Y,yfit)[0,1]
+            self.r = np.corrcoef(self.Y,self.yfit)[0,1]
             print 'overall Root Mean Squared Error: %.2f' % self.rmse
             print 'overall Correlation: %.2f' % self.r
 
@@ -145,27 +149,27 @@ class Predict:
                 'svm': sklearn.svm.SVC,
                 'logistic': sklearn.linear_model.LogisticRegression,
                 'ridgeClassifier': sklearn.linear_model.RidgeClassifier,
-                'randomforestClassifier': sklearn.ensemble.RandomForestClassifier
+                # 'randomforestClassifier': sklearn.ensemble.RandomForestClassifier
             }
             algs_predict = {
                 'svr': sklearn.svm.SVR,
                 'linear': sklearn.linear_model.LinearRegression,
                 'lasso': sklearn.linear_model.Lasso,
                 'ridge': sklearn.linear_model.Ridge,
-                'randomforest': sklearn.ensemble.RandomForestClassifier
+                # 'randomforest': sklearn.ensemble.RandomForestRegressor
             }
             if algorithm in algs_classify.keys():
                 self.prediction_type = 'classification'
+                algorithm = algs_classify[algorithm]
             elif algorithm in algs_predict.keys():
                 self.prediction_type = 'prediction'
+                algorithm = algs_predict[algorithm]
             else:
                 raise ValueError("Invalid prediction algorithm name. Valid options are " + 
                     "'svm','svr', 'linear', 'logistic', 'lasso', 'ridge', 'ridgeClassifier'" +
                     "'randomforest', or 'randomforestClassifier'.")
 
-            algorithm = algs[algorithm]
-
-        self.predicter = algorithm(**kwargs)
+        self.predicter = algorithm(kwargs)
 
 
     def set_cv(self, cv, **kwargs):
@@ -204,11 +208,11 @@ class Predict:
             predicter_weightmap.nii.gz: Will output a nifti image of weightmap
         """
 
-        if not isdir(self.output_dir):
+        if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
 
-        coef_img = nifti_masker.inverse_transform(predicter.coef_)
-        nib.save(coef_img, os.path.abspath(self.output_dir, self.algorithm + '_weightmap.nii.gz'))
+        coef_img = self.nifti_masker.inverse_transform(predicter.coef_)
+        nib.save(coef_img, os.path.join(self.output_dir, self.algorithm + '_weightmap.nii.gz'))
 
 
     def _save_stats_output(self, stats_output):
@@ -219,7 +223,7 @@ class Predict:
             predicter_stats_output.csv: Will output a csv file of stats output
         """
 
-        if not isdir(self.output_dir):
+        if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
         stats_output.to_csv(os.path.join(self.output_dir, self.algorithm + '_Stats_Output.csv'))
 
@@ -233,11 +237,11 @@ class Predict:
             predicter_prediction.png: Will output a plot of prediction
         """
 
-        if not isdir(self.output_dir):
+        if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
         
-        coef_img = nifti_masker.inverse_transform(predicter.coef_)
-        overlay_img = nib.load(os.path.join(resource_dir,'MNI152_T1_2mm_brain.nii.gz'))
+        coef_img = self.nifti_masker.inverse_transform(predicter.coef_)
+        overlay_img = nib.load(os.path.join(self.output_dir,'MNI152_T1_2mm_brain.nii.gz'))
 
         fig1 = plot_stat_map(coef_img, overlay_img, title=algorithm + "weights", 
                             cut_coords=range(-40, 40, 10), display_mode='z')
