@@ -3,6 +3,7 @@
 *.pyc
 doc/_build/
 *.log
+nltools.egg-info
  
 # Logs and databases #
 ######################
@@ -12,7 +13,8 @@ doc/_build/
 
 # iPython Notebook Caches #
 ###########################
-scripts/ilearn_cache/
+scripts/nilearn_cache/
+.ipynb_checkpoints
  
 # OS generated files #
 ######################
@@ -21,5 +23,5 @@ scripts/ilearn_cache/
 ._*
 .Spotlight-V100
 .Trashes
-ehthumbs.db
+thumbs.db
 Thumbs.db
