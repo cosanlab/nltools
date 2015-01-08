@@ -4,6 +4,8 @@
 doc/_build/
 *.log
 nltools.egg-info
+build/
+dist/
  
 # Logs and databases #
 ######################
