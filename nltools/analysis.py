@@ -23,7 +23,7 @@ from nilearn.plotting import *
 import seaborn as sns    
 
 # Paths
-resource_dir = os.path.join(os.path.dirname(__file__)],'resources')
+resource_dir = os.path.join(os.path.dirname(__file__),'resources')
   
 
 class Predict:
