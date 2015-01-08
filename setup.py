@@ -1,7 +1,14 @@
+import os
+import sys
+
 try:
     from setuptools.core import setup
 except ImportError:
     from distutils.core import setup
+
+# fetch version from within neurosynth module
+with open(os.path.join('nltools', 'version.py')) as f:
+    exec(f.read())
 
 setup(
     name='nltools',
