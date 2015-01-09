@@ -13,8 +13,8 @@
 # 2) add thresholding functionality
 # 3) add bootstrapping functionality
 # 4) add tests
-# 5) add probability for classification to output
-# 6) add within subject checks and plots
+# 5) add within subject checks and plots
+# 6) Plot probabilities
 
 import os
 import nibabel as nib
@@ -310,6 +310,55 @@ class Predict:
             fig2 = scatterplot(self.stats_output)
             fig2.savefig(os.path.join(self.output_dir, self.algorithm + '_scatterplot.png'))
 
+def apply_mask(data=None, Y=None, weight_map=None, mask=None, subject_id=None, method='dot_product', 
+                save_output=True, save_plot=True,output_dir='.', **kwargs):
+    """ Apply Nifti weight map to Nifti Images. 
+        Args:
+            data: nibabel instance of data to be applied
+            Y: vector of training labels
+            weight_map: nibabel instance of weight map
+            mask: binary nibabel mask
+            subject_id: vector of labels corresponding to each subject
+            method: type of pattern expression (e.g,. 'dot_product','correlation')
+            save_output: Save pattern expression values to csv file
+            save_plot: Boolean indicating whether or not to create plots.
+            output_dir: Directory to use for writing all outputs
+            **kwargs: Additional parameters to pass
+        Outputs:
+            pexp: Outputs a vector of pattern expression values
+    """ 
 
+    if mask is not None:
+        if type(mask) is not nib.nifti1.Nifti1Image:
+            raise ValueError("Mask is not a nibabel instance")
+    else:
+        mask = nib.load(os.path.join(resource_dir,'MNI152_T1_2mm_brain_mask_dil.nii.gz'))
+    
+    if type(data) is not nib.nifti1.Nifti1Image:
+        raise ValueError("Data is not a nibabel instance")
+    
+    nifti_masker = NiftiMasker(mask_img=mask)
+    
+    data_masked = nifti_masker.fit_transform(data)
 
+    if type(weight_map) is not nib.nifti1.Nifti1Image:
+        raise ValueError("Weight_map is not a nibabel instance")
+    
+    weight_map_masked = nifti_masker.fit_transform(weight_map)
+
+    # Calculate pattern expression
+    pexp = np.dot(data_masked,np.transpose(weight_map_masked))
+    stats_output = pd.DataFrame({
+                                'SubID' : subject_id, 
+                                'Y' : Y, 
+                                'xval_dist_from_hyperplane' : pexp[:,0]})
+    if save_output:
+        stats_output.to_csv(os.path.join(output_dir, 'Pexp_' + method + '_Stats_Output.csv'))
+
+    # Display results
+    if save_plot:
+        fig2 = dist_from_hyperplane_plot(stats_output)
+        fig2.savefig(output_dir + '/Pattern_Expression_by_Subject_' + method + '.png')
+
+    return pexp
 
