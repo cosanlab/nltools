@@ -19,6 +19,7 @@ import os
 import importlib
 import nibabel as nib
 import sklearn
+from sklearn.pipeline import Pipeline
 from nilearn.input_data import NiftiMasker
 import pandas as pd
 import numpy as np
@@ -168,9 +169,9 @@ class Predict:
         """ Set the algorithm to use in subsequent prediction analyses.
         Args:
             algorithm: The prediction algorithm to use. Either a string or an (uninitialized)
-                scikit-learn prediction object. If string, must be one of 'svm', 'svr', 
-                'linear', 'logistic', 'lasso', 'ridge', 'ridgeClassifier','randomforest', 
-                or 'randomforestClassifier'
+                scikit-learn prediction object. If string, must be one of 'svm','svr', linear', 
+                'logistic','lasso','lassopcr','lassoCV','ridge','ridgeCV','ridgeClassifier',
+                'randomforest', or 'randomforestClassifier'
             kwargs: Additional keyword arguments to pass onto the scikit-learn clustering
                 object.
         """
@@ -204,14 +205,23 @@ class Predict:
         if algorithm  in algs_classify.keys():
             self.prediction_type = 'classification'
             alg = load_class(algs_classify[algorithm])
+            self.predicter = alg(**kwargs)
         elif algorithm in algs_predict:
             self.prediction_type = 'prediction'
             alg = load_class(algs_predict[algorithm])
+            self.predicter = alg(**kwargs)
+        elif algorithm is 'lassopcr':
+            self.prediction_type = 'prediction'
+            from sklearn.linear_model import Lasso
+            from sklearn.decomposition import PCA
+            self._lasso = Lasso()
+            self._pca = PCA()
+            self.predicter = Pipeline(steps=[('pca', self._pca), ('lasso', self._lasso)])
         else:
             raise ValueError("""Invalid prediction/classification algorithm name. Valid 
-                    options are 'svm','svr', 'linear', 'logistic', 'lasso', lassoCV','ridge',
-                    'ridgeCV','ridgeClassifier', 'randomforest', or 'randomforestClassifier'.""")
-        self.predicter = alg(**kwargs)
+                    options are 'svm','svr', 'linear', 'logistic', 'lasso', 'lassopcr', 
+                    'lassoCV','ridge','ridgeCV','ridgeClassifier', 'randomforest', or 
+                    'randomforestClassifier'.""")
 
 
     def set_cv(self, cv_dict):
@@ -244,7 +254,11 @@ class Predict:
         if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
 
-        coef_img = self.nifti_masker.inverse_transform(predicter.coef_)
+        if self.algorithm is not 'lassopcr':
+            coef_img = self.nifti_masker.inverse_transform(predicter.coef_)
+        else:
+            coef = np.dot(self._pca.components_.T,self._lasso.coef_)
+            coef_img = self.nifti_masker.inverse_transform(np.transpose(coef))
         nib.save(coef_img, os.path.join(self.output_dir, self.algorithm + '_weightmap.nii.gz'))
 
 
@@ -273,7 +287,12 @@ class Predict:
         if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
         
-        coef_img = self.nifti_masker.inverse_transform(predicter.coef_)
+        if self.algorithm is not 'lassopcr':
+            coef_img = self.nifti_masker.inverse_transform(predicter.coef_)
+        else:
+            coef = np.dot(self._pca.components_.T,self._lasso.coef_)
+            coef_img = self.nifti_masker.inverse_transform(np.transpose(coef))
+
         overlay_img = nib.load(os.path.join(resource_dir,'MNI152_T1_2mm_brain.nii.gz'))
 
         fig1 = plot_stat_map(coef_img, overlay_img, title=self.algorithm + " weights", 
