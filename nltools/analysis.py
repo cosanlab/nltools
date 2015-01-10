@@ -3,7 +3,6 @@
     =========================
     These tools provide the ability to quickly run 
     machine-learning analyses on imaging data
-
     Author: Luke Chang
     License: MIT
 '''
@@ -17,15 +16,17 @@
 # 6) Plot probabilities
 
 import os
+import importlib
 import nibabel as nib
 import sklearn
 from nilearn.input_data import NiftiMasker
 import pandas as pd
 import numpy as np
-from nilearn.plotting import *
+from nilearn.plotting import plot_stat_map
 import seaborn as sns    
 import matplotlib.pyplot as plt
 from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot
+from nltools.stats import pearson
 
 # Paths
 resource_dir = os.path.join(os.path.dirname(__file__),'resources')
@@ -175,57 +176,42 @@ class Predict:
         """
 
         self.algorithm = algorithm
-
-        if isinstance(algorithm, basestring):
             
-            algs_classify = ['svm','logistic','ridgeClassifier','ridgeClassifierCV','randomforestClassifier']
-            algs_predict = ['svr','linear','lasso','lassoCV','ridge','ridgeCV','randomforest']
+        def load_class(import_string):
+            class_data = import_string.split(".")
+            module_path = '.'.join(class_data[:-1])
+            class_str = class_data[-1]
+            module = importlib.import_module(module_path)
+            return getattr(module, class_str)
 
-            if algorithm in algs_classify:
-                self.prediction_type = 'classification'
-            elif algorithm in algs_predict:
-                self.prediction_type = 'prediction'
-            else:
-                raise ValueError("Invalid prediction/classification algorithm name. Valid " +
-                    "options are 'svm','svr', 'linear', 'logistic', 'lasso', 'ridge', " +
-                    "'ridgeClassifier', 'randomforest', or 'randomforestClassifier'.")
+        algs_classify = {
+            'svm':'sklearn.svm.SVC',
+            'logistic':'sklearn.linear_model.LogisticRegression',
+            'ridgeClassifier':'sklearn.linear_model.RidgeClassifier',
+            'ridgeClassifierCV':'sklearn.linear_model.RidgeClassifierCV',
+            'randomforestClassifier':'sklearn.ensemble.RandomForestClassifier'
+            }
+        algs_predict = {
+            'svr':'sklearn.svm.SVR',
+            'linear':'sklearn.linear_model.LinearRegression',
+            'lasso':'sklearn.linear_model.Lasso',
+            'lassoCV':'sklearn.linear_model.LassoCV',
+            'ridge':'sklearn.linear_model.Ridge',
+            'ridgeCV':'sklearn.linear_model.RidgeCV',
+            'randomforest':'sklearn.ensemble.RandomForest'
+            }
 
-            # Not particularly happy with this code.
-            # Unfortunately, Dictionary method wasn't able to load the modules correctly
-            if self.algorithm == 'svm':
-                from sklearn.svm import SVC
-                self.predicter = SVC(**kwargs)
-            elif self.algorithm == 'svr':
-                from sklearn.svm import SVR
-                self.predicter = SVR(**kwargs)
-            elif self.algorithm == 'linear':
-                from sklearn.linear_model import LinearRegression
-                self.predicter = LinearRegression(**kwargs)
-            elif self.algorithm == 'logistic':
-                from sklearn.linear_model import LogisticRegression
-                self.predicter = LogisticRegression(**kwargs)
-            elif self.algorithm == 'ridge':
-                from sklearn.linear_model import Ridge
-            elif self.algorithm == 'ridgeCV':
-                from sklearn.linear_model import RidgeCV
-                self.predicter = RidgeCV(**kwargs)
-            elif self.algorithm == 'ridgeClassifier':
-                from sklearn.linear_model import RidgeClassifier
-                self.predicter = RidgeClassifier(**kwargs)
-            elif self.algorithm == 'ridgeClassifierCV':
-                from sklearn.linear_model import RidgeClassifierCV
-                self.predicter = RidgeClassifierCV(**kwargs)
-            elif self.algorithm == 'lasso':
-                from sklearn.linear_model import Lasso
-            elif self.algorithm == 'lassoCV':
-                from sklearn.linear_model import LassoCV
-                self.predicter = LassoCV(**kwargs)
-            elif self.algorithm == 'randomforestClassifier':
-                from sklearn.ensemble import RandomForestClassifier
-                self.predicter = RandomForestClassifier(**kwargs)
-            elif self.algorithm == 'randomforest':
-                from sklearn.ensemble import RandomForestRegressor
-                self.predicter = RandomForestRegressor(**kwargs)
+        if algorithm  in algs_classify.keys():
+            self.prediction_type = 'classification'
+            alg = load_class(algs_classify[algorithm])
+        elif algorithm in algs_predict:
+            self.prediction_type = 'prediction'
+            alg = load_class(algs_predict[algorithm])
+        else:
+            raise ValueError("""Invalid prediction/classification algorithm name. Valid 
+                    options are 'svm','svr', 'linear', 'logistic', 'lasso', lassoCV','ridge',
+                    'ridgeCV','ridgeClassifier', 'randomforest', or 'randomforestClassifier'.""")
+        self.predicter = alg(**kwargs)
 
 
     def set_cv(self, cv_dict):
@@ -310,18 +296,14 @@ class Predict:
             fig2 = scatterplot(self.stats_output)
             fig2.savefig(os.path.join(self.output_dir, self.algorithm + '_scatterplot.png'))
 
-def apply_mask(data=None, Y=None, weight_map=None, mask=None, subject_id=None, method='dot_product', 
-                save_output=True, save_plot=True,output_dir='.', **kwargs):
+def apply_mask(data=None, weight_map=None, mask=None, method='dot_product', save_output=False, output_dir='.'):
     """ Apply Nifti weight map to Nifti Images. 
         Args:
             data: nibabel instance of data to be applied
-            Y: vector of training labels
             weight_map: nibabel instance of weight map
             mask: binary nibabel mask
-            subject_id: vector of labels corresponding to each subject
             method: type of pattern expression (e.g,. 'dot_product','correlation')
-            save_output: Save pattern expression values to csv file
-            save_plot: Boolean indicating whether or not to create plots.
+            save_output: Boolean indicating whether or not to save output to csv file.
             output_dir: Directory to use for writing all outputs
             **kwargs: Additional parameters to pass
         Outputs:
@@ -338,7 +320,6 @@ def apply_mask(data=None, Y=None, weight_map=None, mask=None, subject_id=None, m
         raise ValueError("Data is not a nibabel instance")
     
     nifti_masker = NiftiMasker(mask_img=mask)
-    
     data_masked = nifti_masker.fit_transform(data)
 
     if type(weight_map) is not nib.nifti1.Nifti1Image:
@@ -347,18 +328,13 @@ def apply_mask(data=None, Y=None, weight_map=None, mask=None, subject_id=None, m
     weight_map_masked = nifti_masker.fit_transform(weight_map)
 
     # Calculate pattern expression
-    pexp = np.dot(data_masked,np.transpose(weight_map_masked))
-    stats_output = pd.DataFrame({
-                                'SubID' : subject_id, 
-                                'Y' : Y, 
-                                'xval_dist_from_hyperplane' : pexp[:,0]})
-    if save_output:
-        stats_output.to_csv(os.path.join(output_dir, 'Pexp_' + method + '_Stats_Output.csv'))
+    if method is 'dot_product':
+        pexp = np.dot(data_masked,np.transpose(weight_map_masked)).squeeze()
+    elif method is 'correlation':
+        pexp = pearson(data_masked,weight_map_masked)
 
-    # Display results
-    if save_plot:
-        fig2 = dist_from_hyperplane_plot(stats_output)
-        fig2.savefig(output_dir + '/Pattern_Expression_by_Subject_' + method + '.png')
+    if save_output:
+        np.savetxt(os.path.join(output_dir,"Pattern_Expression_" + method + ".csv"), pexp, delimiter=",")
 
     return pexp
 
