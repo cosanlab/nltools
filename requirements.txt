@@ -1,0 +1,11 @@
+importlib
+nibabel
+scikit-learn
+nilearn
+pandas
+numpy
+seaborn
+matplotlib
+scipy
+
+
