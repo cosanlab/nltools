@@ -255,7 +255,7 @@ class Predict:
             os.makedirs(self.output_dir)
 
         if self.algorithm is not 'lassopcr':
-            coef_img = self.nifti_masker.inverse_transform(predicter.coef_)
+            coef_img = self.nifti_masker.inverse_transform(predicter.coef_.squeeze())
         else:
             coef = np.dot(self._pca.components_.T,self._lasso.coef_)
             coef_img = self.nifti_masker.inverse_transform(np.transpose(coef))
