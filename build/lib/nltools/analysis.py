@@ -26,8 +26,9 @@ import numpy as np
 from nilearn.plotting import plot_stat_map
 import seaborn as sns    
 import matplotlib.pyplot as plt
-from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot
-from nltools.stats import pearson
+from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
+from nltools.stats import pearson, auc
+from scipy.stats import norm, binom_test
 
 # Paths
 resource_dir = os.path.join(os.path.dirname(__file__),'resources')
@@ -217,6 +218,13 @@ class Predict:
             self._lasso = Lasso()
             self._pca = PCA()
             self.predicter = Pipeline(steps=[('pca', self._pca), ('lasso', self._lasso)])
+        elif algorithm is 'pcr':
+            self.prediction_type = 'prediction'
+            from sklearn.linear_model import LinearRegression
+            from sklearn.decomposition import PCA
+            self._regress = LinearRegression()
+            self._pca = PCA()
+            self.predicter = Pipeline(steps=[('pca', self._pca), ('regress', self._regress)])
         else:
             raise ValueError("""Invalid prediction/classification algorithm name. Valid 
                     options are 'svm','svr', 'linear', 'logistic', 'lasso', 'lassopcr', 
@@ -254,11 +262,14 @@ class Predict:
         if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
 
-        if self.algorithm is not 'lassopcr':
-            coef_img = self.nifti_masker.inverse_transform(predicter.coef_.squeeze())
-        else:
+        if self.algorithm is 'lassopcr':
             coef = np.dot(self._pca.components_.T,self._lasso.coef_)
             coef_img = self.nifti_masker.inverse_transform(np.transpose(coef))
+        elif self.algorithm is 'pcr':
+            coef = np.dot(self._pca.components_.T,self._regress.coef_)
+            coef_img = self.nifti_masker.inverse_transform(np.transpose(coef))
+        else:
+            coef_img = self.nifti_masker.inverse_transform(predicter.coef_.squeeze())
         nib.save(coef_img, os.path.join(self.output_dir, self.algorithm + '_weightmap.nii.gz'))
 
 
@@ -287,11 +298,14 @@ class Predict:
         if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
         
-        if self.algorithm is not 'lassopcr':
-            coef_img = self.nifti_masker.inverse_transform(predicter.coef_)
-        else:
+        if self.algorithm is 'lassopcr':
             coef = np.dot(self._pca.components_.T,self._lasso.coef_)
             coef_img = self.nifti_masker.inverse_transform(np.transpose(coef))
+        elif self.algorithm is 'pcr':
+            coef = np.dot(self._pca.components_.T,self._regress.coef_)
+            coef_img = self.nifti_masker.inverse_transform(np.transpose(coef))
+        else:
+            coef_img = self.nifti_masker.inverse_transform(predicter.coef_)
 
         overlay_img = nib.load(os.path.join(resource_dir,'MNI152_T1_2mm_brain.nii.gz'))
 
@@ -356,4 +370,141 @@ def apply_mask(data=None, weight_map=None, mask=None, method='dot_product', save
         np.savetxt(os.path.join(output_dir,"Pattern_Expression_" + method + ".csv"), pexp, delimiter=",")
 
     return pexp
+
+class Roc:
+
+    def __init__(self, input_values=None, binary_outcome=None, threshold_type='optimal_overall', **kwargs):
+        """ Initialize Roc instance. Object-Oriented version based on
+        Tor Wager's Matlab roc_plot.m function
+        Args:
+            input_values: nibabel data instance
+            binary_outcome: vector of training labels
+            threshold_type: ['optimal_overall', 'optimal_balanced','minimum_sdt_bias']
+            **kwargs: Additional keyword arguments to pass to the prediction algorithm
+        """
+        
+        if len(input_values) != len(binary_outcome):
+            raise ValueError("Data Problem: input_value and binary_outcome are different lengths.")
+
+        if not any(binary_outcome):
+            raise ValueError("Data Problem: binary_outcome may not be boolean")
+
+        thr_type = ['optimal_overall', 'optimal_balanced','minimum_sdt_bias']
+        if threshold_type not in thr_type:
+            raise ValueError("threshold_type must be ['optimal_overall', 'optimal_balanced','minimum_sdt_bias']")
+
+        self.input_values = input_values
+        self.binary_outcome = binary_outcome
+        self.threshold_type = threshold_type
+
+    def calculate(self, input_values=None, binary_outcome=None, criterion_values=None,
+        threshold_type='optimal_overall', forced_choice=False, balanced_acc=False):
+        """ Calculate Receiver Operating Characteristic plot (ROC) for single-interval
+        classification.
+        Args:
+            input_values: nibabel data instance
+            binary_outcome: vector of training labels
+            criterion_values: (optional) criterion values for calculating fpr & tpr
+            threshold_type: ['optimal_overall', 'optimal_balanced','minimum_sdt_bias']
+            forced_choice: within-subject forced classification (bool)
+            balanced_acc: balanced accuracy for single-interval classification (bool)
+            **kwargs: Additional keyword arguments to pass to the prediction algorithm
+        """
+
+        if input_values is not None:
+            self.input_values = input_values
+
+        if binary_outcome is not None:
+            self.binary_outcome = binary_outcome
+
+        # Create Criterion Values
+        if criterion_values is not None:
+            self.criterion_values = criterion_values
+        else:
+            self.criterion_values = np.linspace(min(self.input_values), max(self.input_values), num=50*len(self.binary_outcome))
+
+        # Calculate true positive and false positive rate
+        self.tpr = np.zeros(self.criterion_values.shape)
+        self.fpr = np.zeros(self.criterion_values.shape)
+        for i,x in enumerate(self.criterion_values):
+            wh = self.input_values >= x
+            self.tpr[i] = float(sum(wh[self.binary_outcome]))/float(sum(self.binary_outcome))
+            self.fpr[i] = float(sum(wh[~self.binary_outcome]))/float(sum(~self.binary_outcome))
+        self.n_true = float(sum(self.binary_outcome))
+        self.n_false = float(sum(~self.binary_outcome))
+
+        # Calculate Area Under the Curve
+        self.auc = auc(self.fpr, self.tpr)
+
+        # Get criterion threshold
+        self.threshold_type = threshold_type
+        if threshold_type is 'optimal_balanced':
+            mn = (tpr+fpr)/2
+            self.class_thr = self.criterion_values[np.argmax(mn)]
+        elif threshold_type is 'optimal_overall':
+            n_corr_t = self.tpr*self.n_true
+            n_corr_f = (1-self.fpr)*self.n_false
+            sm = (n_corr_t+n_corr_f)
+            self.class_thr = self.criterion_values[np.argmax(sm)]
+        elif threshold_type is 'minimum_sdt_bias':
+            # Calculate  MacMillan and Creelman 2005 Response Bias (c_bias)
+            c_bias = ( norm.ppf(np.maximum(.0001, np.minimum(0.9999, self.tpr))) + norm.ppf(np.maximum(.0001, np.minimum(0.9999, self.fpr))) ) / float(2)
+            self.class_thr = self.criterion_values[np.argmin(abs(c_bias))]
+
+        # Calculate output
+        self.false_positive = (self.input_values >= self.class_thr) & (~self.binary_outcome)
+        self.false_negative = (self.input_values < self.class_thr) & (self.binary_outcome)
+        self.misclass = (self.false_negative) | (self.false_positive)
+        self.true_positive = (self.binary_outcome) & (~self.misclass)
+        self.true_negative = (~self.binary_outcome) & (~self.misclass)
+        self.sensitivity = sum(self.input_values[self.binary_outcome] >= self.class_thr)/self.n_true
+        self.specificity = 1 - sum(self.input_values[~self.binary_outcome] >= self.class_thr)/self.n_false
+        self.ppv = float(sum(self.true_positive))/(float(sum(self.true_positive)) + float(sum(self.false_positive)))
+
+        # Calculate Accuracy
+        if balanced_acc:
+            self.accuracy = 1 - np.mean(self.misclass)
+        else:
+            self.accuracy = np.mean([self.sensitivity,self.specificity]) #See Brodersen, Ong, Stephan, Buhmann (2010)
+
+        # Calculate p-Value using binomial test (can add hierarchical version of binomial test)
+        self.n = len(self.misclass)
+        self.accuracy_p = binom_test(int(sum(~self.misclass)), self.n, p=.5)
+        self.accuracy_se = np.sqrt(float(np.mean(~self.misclass)) * (float(np.mean(~self.misclass))) / self.n)
+
+
+    def plot(self, plot_method = 'gaussian'):
+        """ Create a speciic kind of ROC curve plot, based on input values
+        along a continuous distribution and a binary outcome variable (logical).
+        Args:
+            plot_method: type of plot ['gaussian','observed']
+            binary_outcome: vector of training labels
+            **kwargs: Additional keyword arguments to pass to the prediction algorithm
+        """
+
+        self.calculate() # Calculate ROC parameters
+
+        if plot_method is 'gaussian':
+            mn_true = np.mean(self.input_values[self.binary_outcome])
+            mn_false = np.mean(self.input_values[~self.binary_outcome])
+            var_true = np.var(self.input_values[self.binary_outcome])
+            var_false = np.var(self.input_values[~self.binary_outcome])
+            pooled_sd = np.sqrt((var_true*(self.n_true-1))/(self.n_true + self.n_false - 2))
+            d = (mn_true-mn_false)/pooled_sd
+            z_true = mn_true/pooled_sd
+            z_false = mn_false/pooled_sd
+
+            x = np.arange(z_false-3,z_true+3,.1)
+            tpr_smooth = 1-(norm.cdf(x, z_true,1))
+            fpr_smooth = 1-(norm.cdf(x, z_false,1))
+
+            roc_plot(fpr_smooth,tpr_smooth)
+        elif plot_method is 'observed':
+            roc_plot(self.fpr, self.tpr)
+        else:
+            raise ValueError("plot_method must be 'gaussian' or 'observed'")
+
+
+
+
 
