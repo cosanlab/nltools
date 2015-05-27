@@ -21,9 +21,9 @@ def dist_from_hyperplane_plot(stats_output):
 
     fig = sns.factorplot("SubID", "xval_dist_from_hyperplane", hue="Y", data=stats_output,
                         kind='point')
-    plt.xlabel('Subject')
-    plt.ylabel('Distance from Hyperplane')
-    plt.title('Classification')
+    plt.xlabel('Subject', fontsize=16)
+    plt.ylabel('Distance from Hyperplane', fontsize=16)
+    plt.title('Classification', fontsize=18)
     return fig
 
 
@@ -36,9 +36,9 @@ def scatterplot(stats_output):
     """
 
     fig = sns.lmplot("Y", "yfit", data=stats_output)
-    plt.xlabel('Y')
-    plt.ylabel('Predicted Value')
-    plt.title('Prediction')
+    plt.xlabel('Y', fontsize=16)
+    plt.ylabel('Predicted Value', fontsize=16)
+    plt.title('Prediction', fontsize=18)
     return fig
 
 
@@ -51,9 +51,9 @@ def probability_plot(stats_output):
     """
 
     fig = sns.lmplot("Y", "Probability", data=stats_output,logistic=True)
-    plt.xlabel('Y')
-    plt.ylabel('Predicted Probability')
-    plt.title('Prediction')
+    plt.xlabel('Y', fontsize=16)
+    plt.ylabel('Predicted Probability', fontsize=16)
+    plt.title('Prediction', fontsize=18)
     return fig
 
     # # and plot the result
@@ -67,5 +67,20 @@ def probability_plot(stats_output):
     #     return 1 / (1 + np.exp(-x))
     # loss = model(X_test * clf.coef_ + clf.intercept_).ravel()
     # plt.plot(X_test, loss, color='blue', linewidth=3)
+
+def roc_plot(fpr, tpr):
+    """ Plot 1-Specificity by Sensitivity
+    Args:
+        fpr: false positive rate from Roc.calculate
+        tpr: true positive rate from Roc.calculate
+    Returns:
+        fig: Will return an ROC plot
+    """     
+
+    fig = plt.plot(fpr, tpr, linewidth=3.0, color='red')
+    plt.xlabel('(1 - Specificity)', fontsize=16);
+    plt.ylabel('Sensitivity', fontsize=16)
+    plt.title('ROC Plot', fontsize=18)
+    return fig
 
 
