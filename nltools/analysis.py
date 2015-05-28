@@ -27,8 +27,9 @@ from nilearn.plotting import plot_stat_map
 import seaborn as sns    
 import matplotlib.pyplot as plt
 from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
-from nltools.stats import pearson, auc
+from nltools.stats import pearson
 from scipy.stats import norm, binom_test
+from sklearn.metrics import auc
 
 # Paths
 resource_dir = os.path.join(os.path.dirname(__file__),'resources')
@@ -373,7 +374,8 @@ def apply_mask(data=None, weight_map=None, mask=None, method='dot_product', save
 
 class Roc:
 
-    def __init__(self, input_values=None, binary_outcome=None, threshold_type='optimal_overall', **kwargs):
+    def __init__(self, input_values=None, binary_outcome=None, threshold_type='optimal_overall', 
+        forced_choice=False, **kwargs):
         """ Initialize Roc instance. Object-Oriented version based on
         Tor Wager's Matlab roc_plot.m function
         Args:
@@ -396,6 +398,7 @@ class Roc:
         self.input_values = input_values
         self.binary_outcome = binary_outcome
         self.threshold_type = threshold_type
+        self.forced_choice=forced_choice    
 
     def calculate(self, input_values=None, binary_outcome=None, criterion_values=None,
         threshold_type='optimal_overall', forced_choice=False, balanced_acc=False):
@@ -406,7 +409,8 @@ class Roc:
             binary_outcome: vector of training labels
             criterion_values: (optional) criterion values for calculating fpr & tpr
             threshold_type: ['optimal_overall', 'optimal_balanced','minimum_sdt_bias']
-            forced_choice: within-subject forced classification (bool)
+            forced_choice: within-subject forced classification (bool).  Data must be 
+                            stacked on top of each other (e.g., [1 1 1 0 0 0]).
             balanced_acc: balanced accuracy for single-interval classification (bool)
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
         """
@@ -423,6 +427,13 @@ class Roc:
         else:
             self.criterion_values = np.linspace(min(self.input_values), max(self.input_values), num=50*len(self.binary_outcome))
 
+        if (forced_choice) | (self.forced_choice):
+            self.forced_choice=True
+            mn_scores = (self.input_values[self.binary_outcome] + self.input_values[self.binary_outcome])/2
+            self.input_values[self.binary_outcome] = self.input_values[self.binary_outcome] - mn_scores;
+            self.input_values[~self.binary_outcome] = self.input_values[~self.binary_outcome] - mn_scores;
+            self.class_thr = 0;
+
         # Calculate true positive and false positive rate
         self.tpr = np.zeros(self.criterion_values.shape)
         self.fpr = np.zeros(self.criterion_values.shape)
@@ -434,22 +445,30 @@ class Roc:
         self.n_false = float(sum(~self.binary_outcome))
 
         # Calculate Area Under the Curve
-        self.auc = auc(self.fpr, self.tpr)
+        
+        # fix for AUC = 1 if no overlap
+        fpr_unique = np.unique(self.fpr)
+        tpr_unique = np.unique(self.tpr)
+        if any((fpr_unique == 0) & (tpr_unique == 1)):
+            self.auc = 1 # Fix for AUC = 1 if no overlap;
+        else:
+            self.auc = auc(self.fpr, self.tpr) # Use sklearn auc otherwise
 
         # Get criterion threshold
-        self.threshold_type = threshold_type
-        if threshold_type is 'optimal_balanced':
-            mn = (tpr+fpr)/2
-            self.class_thr = self.criterion_values[np.argmax(mn)]
-        elif threshold_type is 'optimal_overall':
-            n_corr_t = self.tpr*self.n_true
-            n_corr_f = (1-self.fpr)*self.n_false
-            sm = (n_corr_t+n_corr_f)
-            self.class_thr = self.criterion_values[np.argmax(sm)]
-        elif threshold_type is 'minimum_sdt_bias':
-            # Calculate  MacMillan and Creelman 2005 Response Bias (c_bias)
-            c_bias = ( norm.ppf(np.maximum(.0001, np.minimum(0.9999, self.tpr))) + norm.ppf(np.maximum(.0001, np.minimum(0.9999, self.fpr))) ) / float(2)
-            self.class_thr = self.criterion_values[np.argmin(abs(c_bias))]
+        if not self.forced_choice:
+            self.threshold_type = threshold_type
+            if threshold_type is 'optimal_balanced':
+                mn = (tpr+fpr)/2
+                self.class_thr = self.criterion_values[np.argmax(mn)]
+            elif threshold_type is 'optimal_overall':
+                n_corr_t = self.tpr*self.n_true
+                n_corr_f = (1-self.fpr)*self.n_false
+                sm = (n_corr_t+n_corr_f)
+                self.class_thr = self.criterion_values[np.argmax(sm)]
+            elif threshold_type is 'minimum_sdt_bias':
+                # Calculate  MacMillan and Creelman 2005 Response Bias (c_bias)
+                c_bias = ( norm.ppf(np.maximum(.0001, np.minimum(0.9999, self.tpr))) + norm.ppf(np.maximum(.0001, np.minimum(0.9999, self.fpr))) ) / float(2)
+                self.class_thr = self.criterion_values[np.argmin(abs(c_bias))]
 
         # Calculate output
         self.false_positive = (self.input_values >= self.class_thr) & (~self.binary_outcome)
@@ -460,6 +479,12 @@ class Roc:
         self.sensitivity = sum(self.input_values[self.binary_outcome] >= self.class_thr)/self.n_true
         self.specificity = 1 - sum(self.input_values[~self.binary_outcome] >= self.class_thr)/self.n_false
         self.ppv = float(sum(self.true_positive))/(float(sum(self.true_positive)) + float(sum(self.false_positive)))
+        if self.forced_choice:
+            self.true_positive = self.true_positive[self.binary_outcome]
+            self.true_negative = self.true_negative[~self.binary_outcome]
+            self.false_negative = self.false_negative[self.binary_outcome]
+            self.false_positive = self.false_positive[~self.binary_outcome]
+            self.misclass = (self.false_positive) | (self.false_negative)
 
         # Calculate Accuracy
         if balanced_acc:
@@ -485,26 +510,52 @@ class Roc:
         self.calculate() # Calculate ROC parameters
 
         if plot_method is 'gaussian':
-            mn_true = np.mean(self.input_values[self.binary_outcome])
-            mn_false = np.mean(self.input_values[~self.binary_outcome])
-            var_true = np.var(self.input_values[self.binary_outcome])
-            var_false = np.var(self.input_values[~self.binary_outcome])
-            pooled_sd = np.sqrt((var_true*(self.n_true-1))/(self.n_true + self.n_false - 2))
-            d = (mn_true-mn_false)/pooled_sd
-            z_true = mn_true/pooled_sd
-            z_false = mn_false/pooled_sd
+            if self.forced_choice:
+                diff_scores = self.input_values[self.binary_outcome] - self.input_values[~self.binary_outcome]
+                mn_diff = np.mean(diff_scores)
+                d = mn_diff / np.std(diff_scores)                
+                pooled_sd = np.std(diff_scores) / np.sqrt(2);
+                d_a_model = mn_diff / pooled_sd
+    
+                x = np.arange(-3,3,.1)
+                tpr_smooth = 1 - norm.cdf(x, d, 1)
+                fpr_smooth = 1 - norm.cdf(x, -d, 1)
+            else:
+                mn_true = np.mean(self.input_values[self.binary_outcome])
+                mn_false = np.mean(self.input_values[~self.binary_outcome])
+                var_true = np.var(self.input_values[self.binary_outcome])
+                var_false = np.var(self.input_values[~self.binary_outcome])
+                pooled_sd = np.sqrt((var_true*(self.n_true-1))/(self.n_true + self.n_false - 2))
+                d = (mn_true-mn_false)/pooled_sd
+                z_true = mn_true/pooled_sd
+                z_false = mn_false/pooled_sd
 
-            x = np.arange(z_false-3,z_true+3,.1)
-            tpr_smooth = 1-(norm.cdf(x, z_true,1))
-            fpr_smooth = 1-(norm.cdf(x, z_false,1))
+                x = np.arange(z_false-3,z_true+3,.1)
+                tpr_smooth = 1-(norm.cdf(x, z_true,1))
+                fpr_smooth = 1-(norm.cdf(x, z_false,1))
 
             roc_plot(fpr_smooth,tpr_smooth)
+
         elif plot_method is 'observed':
             roc_plot(self.fpr, self.tpr)
         else:
             raise ValueError("plot_method must be 'gaussian' or 'observed'")
 
+    def summary(self):
+        """ Display a formatted summary of ROC analysis.
+        """
 
+        print("------------------------")
+        print(".:ROC Analysis Summary:.")
+        print("------------------------")
+        print("{:20s}".format("Accuracy:") + "{:.2f}".format(self.accuracy))
+        print("{:20s}".format("Accuracy SE:") + "{:.2f}".format(self.accuracy_se))
+        print("{:20s}".format("Accuracy p-value:") + "{:.2f}".format(self.accuracy_p))
+        print("{:20s}".format("Sensitivity:") + "{:.2f}".format(self.sensitivity))
+        print("{:20s}".format("Specificity:") + "{:.2f}".format(self.specificity))
+        print("{:20s}".format("AUC:") + "{:.2f}".format(self.auc))
+        print("{:20s}".format("PPV:") + "{:.2f}".format(self.ppv))
+        print("------------------------")
 
 
 
