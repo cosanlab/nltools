@@ -7,8 +7,7 @@ numpy
 seaborn
 matplotlib
 scipy
-sphinx
-sphinxcontrib-napoleon
+
 
 
 
