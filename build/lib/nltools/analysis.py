@@ -446,14 +446,15 @@ class Roc:
 
         # Calculate Area Under the Curve
         
-        # fix for AUC = 1 if no overlap
-        fpr_unique = np.unique(self.fpr)
-        tpr_unique = np.unique(self.tpr)
-        if any((fpr_unique == 0) & (tpr_unique == 1)):
-            self.auc = 1 # Fix for AUC = 1 if no overlap;
-        else:
-            self.auc = auc(self.fpr, self.tpr) # Use sklearn auc otherwise
-
+        # fix for AUC = 1 if no overlap - code not working (tpr_unique and fpr_unique can be different lengths)
+        # fpr_unique = np.unique(self.fpr)
+        # tpr_unique = np.unique(self.tpr)
+        # if any((fpr_unique == 0) & (tpr_unique == 1)):
+        #     self.auc = 1 # Fix for AUC = 1 if no overlap;
+        # else:
+        #     self.auc = auc(self.fpr, self.tpr) # Use sklearn auc otherwise
+        self.auc = auc(self.fpr, self.tpr) # Use sklearn auc otherwise
+        
         # Get criterion threshold
         if not self.forced_choice:
             self.threshold_type = threshold_type
@@ -488,9 +489,9 @@ class Roc:
 
         # Calculate Accuracy
         if balanced_acc:
-            self.accuracy = 1 - np.mean(self.misclass)
-        else:
             self.accuracy = np.mean([self.sensitivity,self.specificity]) #See Brodersen, Ong, Stephan, Buhmann (2010)
+        else:
+            self.accuracy = 1 - np.mean(self.misclass)
 
         # Calculate p-Value using binomial test (can add hierarchical version of binomial test)
         self.n = len(self.misclass)
