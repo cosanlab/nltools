@@ -11,29 +11,21 @@ This reference provides detailed documentation for all modules, classes, and
 methods in the current release of Neurolearn. The root Neurolearn package
 is comprised of two modules: nltools.analysis and nltools.plotting.  The analysis module contains functionality for prediction/classification, testing pattern response, and ROC analyses. 
 
-.. Contents:
-
-.. .. toctree::
-..    :maxdepth: 4
-
-..    neurolearn
+.. toctree::
+  :maxdepth: 2
 
 
 :mod:`nltools.analysis`: Analysis Tools
 =======================================
 
 Analysis modules
-------------
+----------------
 
-.. currentmodule:: nltools
-
-.. autosummary::
-    :toctree: generated
+.. automodule:: nltools.analysis
+  :members:
 
 Index
 =====
 
 * :ref:`genindex`
 * :ref:`modindex`
-.. * :ref:`search`
-
