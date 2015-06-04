@@ -40,6 +40,7 @@ class Predict:
     def __init__(self, data, Y, subject_id = None, algorithm=None, cv_dict=None, mask=None, 
                 output_dir='.', **kwargs):
         """ Initialize Predict.
+
         Args:
             data: nibabel data instance
             Y: vector of training labels
@@ -85,6 +86,7 @@ class Predict:
     def predict(self, algorithm=None, cv_dict=None, save_images=True, save_output=True, 
                 save_plot = True, **kwargs):
         """ Run prediction
+
         Args:
             algorithm: Algorithm to use for prediction.  Must be one of 'svm', 'svr', 
                 'linear', 'logistic', 'lasso', 'ridge', 'ridgeClassifier','randomforest', 
@@ -95,6 +97,7 @@ class Predict:
             save_output: Boolean indicating whether or not to save prediction output to file.
             save_plot: Boolean indicating whether or not to create plots.
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
+ 
         """
             
         if algorithm is not None:
@@ -169,6 +172,7 @@ class Predict:
 
     def set_algorithm(self, algorithm, **kwargs):
         """ Set the algorithm to use in subsequent prediction analyses.
+        
         Args:
             algorithm: The prediction algorithm to use. Either a string or an (uninitialized)
                 scikit-learn prediction object. If string, must be one of 'svm','svr', linear', 
@@ -176,6 +180,7 @@ class Predict:
                 'randomforest', or 'randomforestClassifier'
             kwargs: Additional keyword arguments to pass onto the scikit-learn clustering
                 object.
+
         """
 
         self.algorithm = algorithm
@@ -235,8 +240,10 @@ class Predict:
 
     def set_cv(self, cv_dict):
         """ Set the CV algorithm to use in subsequent prediction analyses.
+        
         Args:
             cv_dict: Type of cross_validation to use. A dictionary of {'kfold',5} or {'loso':subject_id}.
+        
         """
 
         if type(cv_dict) is dict:
@@ -254,10 +261,13 @@ class Predict:
 
     def _save_image(self, predicter):
         """ Write out weight map to Nifti image. 
+        
         Args:
             predicter: predicter instance
-        Outputs:
+
+        Returns:
             predicter_weightmap.nii.gz: Will output a nifti image of weightmap
+        
         """
 
         if not os.path.isdir(self.output_dir):
@@ -276,10 +286,13 @@ class Predict:
 
     def _save_stats_output(self):
         """ Write stats output to csv file. 
+        
         Args:
             stats_output: a pandas file with prediction output
-        Outputs:
+
+        Returns:
             predicter_stats_output.csv: Will output a csv file of stats output
+        
         """
 
         if not os.path.isdir(self.output_dir):
@@ -289,11 +302,14 @@ class Predict:
 
     def _save_plot(self, predicter):
         """ Save Plots. 
+        
         Args:
             predicter: predicter instance
-        Outputs:
+
+        Returns:
             predicter_weightmap_montage.png: Will output a montage of axial slices of weightmap
             predicter_prediction.png: Will output a plot of prediction
+
         """
 
         if not os.path.isdir(self.output_dir):
@@ -332,6 +348,7 @@ class Predict:
 
 def apply_mask(data=None, weight_map=None, mask=None, method='dot_product', save_output=False, output_dir='.'):
     """ Apply Nifti weight map to Nifti Images. 
+ 
         Args:
             data: nibabel instance of data to be applied
             weight_map: nibabel instance of weight map
@@ -340,8 +357,10 @@ def apply_mask(data=None, weight_map=None, mask=None, method='dot_product', save
             save_output: Boolean indicating whether or not to save output to csv file.
             output_dir: Directory to use for writing all outputs
             **kwargs: Additional parameters to pass
-        Outputs:
+
+        Returns:
             pexp: Outputs a vector of pattern expression values
+
     """ 
 
     if mask is not None:
@@ -404,6 +423,7 @@ class Roc:
         threshold_type='optimal_overall', forced_choice=False, balanced_acc=False):
         """ Calculate Receiver Operating Characteristic plot (ROC) for single-interval
         classification.
+   
         Args:
             input_values: nibabel data instance
             binary_outcome: vector of training labels
@@ -413,6 +433,7 @@ class Roc:
                             stacked on top of each other (e.g., [1 1 1 0 0 0]).
             balanced_acc: balanced accuracy for single-interval classification (bool)
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
+ 
         """
 
         if input_values is not None:
@@ -500,12 +521,16 @@ class Roc:
 
 
     def plot(self, plot_method = 'gaussian'):
-        """ Create a speciic kind of ROC curve plot, based on input values
+        """ Create ROC Plot
+
+        Create a specific kind of ROC curve plot, based on input values
         along a continuous distribution and a binary outcome variable (logical).
+        
         Args:
             plot_method: type of plot ['gaussian','observed']
             binary_outcome: vector of training labels
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
+        
         """
 
         self.calculate() # Calculate ROC parameters
@@ -544,6 +569,7 @@ class Roc:
 
     def summary(self):
         """ Display a formatted summary of ROC analysis.
+        
         """
 
         print("------------------------")
