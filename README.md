@@ -17,5 +17,5 @@ Python toolbox for analyzing neuroimaging data.  It is based off of Tor Wager's 
 
 <h3>Documentation</h3>
 <p>
-Current Documentation can be found at <a href=http://neurolearn.readthedocs.org/en/latest/>readthedocs</a>
+Current Documentation can be found at <a href=http://neurolearn.readthedocs.org/en/latest/>readthedocs</a>.  Please see the ipython notebook for a <a href=https://github.com/ljchang/neurolearn/blob/master/scripts/Chang_ML_fMRI_Tutorial.ipynb>tutorial</a> of using each of the main functions.
 </p>
