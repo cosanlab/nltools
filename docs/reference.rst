@@ -18,10 +18,25 @@ is comprised of two modules: nltools.analysis and nltools.plotting.  The analysi
 :mod:`nltools.analysis`: Analysis Tools
 =======================================
 
-Analysis modules
-----------------
+.. autoclass:: nltools.analysis.Predict
+  :members:
+
+.. autoclass:: nltools.analysis.Roc
+  :members:
 
 .. automodule:: nltools.analysis
+  :members:
+
+:mod:`nltools.plotting`: Plotting Tools
+=======================================
+
+.. automodule:: nltools.plotting
+  :members:
+
+:mod:`nltools.plotting`: Stats Tools
+=======================================
+
+.. automodule:: nltools.stats
   :members:
 
 Index
