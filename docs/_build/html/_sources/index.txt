@@ -13,6 +13,4 @@ Neurolearn is a Python package to perform supervised machine-learning analyses o
 
 	reference
 	GitHub repository <https://github.com/ljchang/neurolearn>
-
-
-
+	iPython Notebook Tutorial <http://nbviewer.ipython.org/github/ljchang/neurolearn/blob/master/scripts/Chang_ML_fMRI_Tutorial.ipynb>

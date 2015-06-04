@@ -89,10 +89,10 @@ class Predict:
 
         Args:
             algorithm: Algorithm to use for prediction.  Must be one of 'svm', 'svr', 
-                'linear', 'logistic', 'lasso', 'ridge', 'ridgeClassifier','randomforest', 
-                or 'randomforestClassifier'
+            'linear', 'logistic', 'lasso', 'ridge', 'ridgeClassifier','randomforest', 
+            or 'randomforestClassifier'
             cv_dict: Type of cross_validation to use. A dictionary of {'kfold',5} or 
-                {'loso':subject_id}.
+            {'loso':subject_id}.
             save_images: Boolean indicating whether or not to save images to file.
             save_output: Boolean indicating whether or not to save prediction output to file.
             save_plot: Boolean indicating whether or not to create plots.
@@ -175,11 +175,11 @@ class Predict:
         
         Args:
             algorithm: The prediction algorithm to use. Either a string or an (uninitialized)
-                scikit-learn prediction object. If string, must be one of 'svm','svr', linear', 
-                'logistic','lasso','lassopcr','lassoCV','ridge','ridgeCV','ridgeClassifier',
-                'randomforest', or 'randomforestClassifier'
+            scikit-learn prediction object. If string, must be one of 'svm','svr', linear', 
+            'logistic','lasso','lassopcr','lassoCV','ridge','ridgeCV','ridgeClassifier',
+            'randomforest', or 'randomforestClassifier'
             kwargs: Additional keyword arguments to pass onto the scikit-learn clustering
-                object.
+            object.
 
         """
 
@@ -393,15 +393,15 @@ def apply_mask(data=None, weight_map=None, mask=None, method='dot_product', save
 
 class Roc:
 
-    def __init__(self, input_values=None, binary_outcome=None, threshold_type='optimal_overall', 
-        forced_choice=False, **kwargs):
-        """ Initialize Roc instance. Object-Oriented version based on
-        Tor Wager's Matlab roc_plot.m function
+    def __init__(self, input_values=None, binary_outcome=None, threshold_type='optimal_overall', orced_choice=False, **kwargs):
+        """ Initialize Roc instance. Object-Oriented version based on Tor Wager's Matlab roc_plot.m function
+
         Args:
             input_values: nibabel data instance
             binary_outcome: vector of training labels
             threshold_type: ['optimal_overall', 'optimal_balanced','minimum_sdt_bias']
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
+
         """
         
         if len(input_values) != len(binary_outcome):
@@ -430,7 +430,7 @@ class Roc:
             criterion_values: (optional) criterion values for calculating fpr & tpr
             threshold_type: ['optimal_overall', 'optimal_balanced','minimum_sdt_bias']
             forced_choice: within-subject forced classification (bool).  Data must be 
-                            stacked on top of each other (e.g., [1 1 1 0 0 0]).
+            stacked on top of each other (e.g., [1 1 1 0 0 0]).
             balanced_acc: balanced accuracy for single-interval classification (bool)
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
  

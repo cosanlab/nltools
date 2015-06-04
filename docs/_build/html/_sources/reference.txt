@@ -34,7 +34,7 @@ is comprised of two modules: nltools.analysis and nltools.plotting.  The analysi
   :members:
 
 :mod:`nltools.plotting`: Stats Tools
-=======================================
+====================================
 
 .. automodule:: nltools.stats
   :members:
