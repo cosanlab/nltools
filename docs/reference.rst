@@ -17,11 +17,12 @@ is comprised of two modules: nltools.analysis and nltools.plotting.  The analysi
 
 :mod:`nltools.analysis`: Analysis Tools
 =======================================
+.. currentmodule:: ../nltools
 
-.. autoclass:: ../nltools.analysis.Predict
+.. autoclass:: analysis.Predict
   :members:
 
-.. autoclass:: ../nltools.analysis.Roc
+.. autoclass:: nltools.analysis.Roc
   :members:
 
 .. automodule:: ../nltools.analysis
