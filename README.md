@@ -6,6 +6,7 @@ Python toolbox for analyzing neuroimaging data.  It is based off of Tor Wager's 
 <ul>
 <li>Predict: apply various classification and prediction algorithms to 4D dataset</li>
 <li>apply_mask: apply 3D weight map to 4D dataset</li>
+<li>Roc: perform ROC analysis</li>
 </ul>
 
 <h3>Installation</h3>
@@ -13,3 +14,8 @@ Python toolbox for analyzing neuroimaging data.  It is based off of Tor Wager's 
 <li>Clone github repository</li>
 <li>python setup.py install</li>
 </ol>
+
+<h3>Documentation</h3>
+<p>
+Current Documentation can be found at <a href=http://neurolearn.readthedocs.org/en/latest/>readthedocs</a>
+</p>
