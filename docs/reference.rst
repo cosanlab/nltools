@@ -1,5 +1,5 @@
-.. neurosynth documentation master file, created by
-   sphinx-quickstart on Tue Dec 30 10:29:31 2014.
+.. neurolearn documentation master file, created by
+   sphinx-quickstart on Thu Jun  4 07:22:28 2015.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
@@ -16,21 +16,19 @@ is comprised of two modules: nltools.analysis and nltools.plotting.  The analysi
 .. .. toctree::
 ..    :maxdepth: 4
 
-..    neurosynth
+..    neurolearn
 
 
 :mod:`nltools.analysis`: Analysis Tools
-===============================================================
+=======================================
 
-Base modules
+Analysis modules
 ------------
 
 .. currentmodule:: nltools
 
 .. autosummary::
     :toctree: generated
-
-	analysis
 
 Index
 =====

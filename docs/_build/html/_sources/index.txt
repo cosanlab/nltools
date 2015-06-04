@@ -6,12 +6,13 @@
 Neurolearn
 ==========
 
-Neurolearn is a Python package to perform supervised machine-learning analyses of neuroimaging data.  It is based off of Tor Wager's object-oriented Matlab toolbox <https://github.com/CanlabCore/CanlabCore> and provides a wrapper to algorithms provided by <http://scikit-learn.org>
+Neurolearn is a Python package to perform supervised machine-learning analyses of neuroimaging data.  It is based off of Tor Wager's object-oriented Matlab `toolbox <https://github.com/canlab/CanlabCore>`_ and provides a wrapper to algorithms provided by `scikit-learn <http://scikit-learn.org>`_
 
 .. toctree::
    :maxdepth: 2
 
-    reference
-    GitHub repository <https://github.com/neurolearn/nltools>
+	reference
+	GitHub repository <https://github.com/ljchang/neurolearn>
+
 
 
