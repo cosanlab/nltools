@@ -1,0 +1,165 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>API Reference &mdash; neurolearn .1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="neurolearn .1 documentation" href="index.html" />
+    <link rel="prev" title="Neurolearn" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Neurolearn"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">neurolearn .1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="api-reference">
+<h1>API Reference<a class="headerlink" href="#api-reference" title="Permalink to this headline">¶</a></h1>
+<p>This reference provides detailed documentation for all modules, classes, and
+methods in the current release of Neurolearn. The root Neurolearn package
+is comprised of two modules: nltools.analysis and nltools.plotting.  The analysis module contains functionality for prediction/classification, testing pattern response, and ROC analyses.</p>
+<div class="toctree-wrapper compound">
+<ul class="simple">
+</ul>
+</div>
+<div class="section" id="nltools-analysis-analysis-tools">
+<h2><a class="reference internal" href="#module-nltools.analysis" title="nltools.analysis"><tt class="xref py py-mod docutils literal"><span class="pre">nltools.analysis</span></tt></a>: Analysis Tools<a class="headerlink" href="#nltools-analysis-analysis-tools" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="module-nltools.analysis">
+<span id="analysis-modules"></span><h3>Analysis modules<a class="headerlink" href="#module-nltools.analysis" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="neurolearn-analysis-tools">
+<h4>NeuroLearn Analysis Tools<a class="headerlink" href="#neurolearn-analysis-tools" title="Permalink to this headline">¶</a></h4>
+<p>These tools provide the ability to quickly run
+machine-learning analyses on imaging data
+Author: Luke Chang
+License: MIT</p>
+<dl class="function">
+<dt id="nltools.analysis.apply_mask">
+<tt class="descclassname">nltools.analysis.</tt><tt class="descname">apply_mask</tt><big>(</big><em>data=None</em>, <em>weight_map=None</em>, <em>mask=None</em>, <em>method='dot_product'</em>, <em>save_output=False</em>, <em>output_dir='.'</em><big>)</big><a class="headerlink" href="#nltools.analysis.apply_mask" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply Nifti weight map to Nifti Images.
+:param data: nibabel instance of data to be applied
+:param weight_map: nibabel instance of weight map
+:param mask: binary nibabel mask
+:param method: type of pattern expression (e.g,. &#8216;dot_product&#8217;,&#8217;correlation&#8217;)
+:param save_output: Boolean indicating whether or not to save output to csv file.
+:param output_dir: Directory to use for writing all outputs
+:param **kwargs: Additional parameters to pass</p>
+<dl class="docutils">
+<dt>Outputs:</dt>
+<dd>pexp: Outputs a vector of pattern expression values</dd>
+</dl>
+</dd></dl>
+
+</div>
+</div>
+</div>
+<div class="section" id="index">
+<h2>Index<a class="headerlink" href="#index" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><em>Index</em></a></li>
+<li><a class="reference internal" href="py-modindex.html"><em>Module Index</em></a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">API Reference</a><ul>
+<li><a class="reference internal" href="#nltools-analysis-analysis-tools"><tt class="docutils literal"><span class="pre">nltools.analysis</span></tt>: Analysis Tools</a><ul>
+<li><a class="reference internal" href="#module-nltools.analysis">Analysis modules</a><ul>
+<li><a class="reference internal" href="#neurolearn-analysis-tools">NeuroLearn Analysis Tools</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#index">Index</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Neurolearn</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/reference.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Neurolearn"
+             >previous</a> |</li>
+        <li><a href="index.html">neurolearn .1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Luke Chang.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>
