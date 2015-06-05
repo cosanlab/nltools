@@ -1,7 +1,7 @@
 # Python Related #
 ###################
 *.pyc
-doc/_build/
+docs/_*/*
 *.log
 nltools.egg-info
 build/
