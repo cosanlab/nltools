@@ -15,6 +15,28 @@
 import sys
 import os
 import shlex
+sys.path.insert(0, os.path.abspath("../nltools"))
+
+# ReadTheDocks doesn't support necessary C dependencies (e.g., Atlas), so we
+# mock them out per https://docs.readthedocs.org/en/latest/faq.html#i-get-import-errors-on-libraries-that-depend-on-c-modules.
+try:
+    from unittest.mock import MagicMock
+except ImportError:
+    from mock import MagicMock
+
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+            return Mock()
+
+# Ugh.
+MOCK_MODULES = ['numpy', 'scipy', 'pandas', 'ply', 'sklearn', 'nibabel', 
+'matplotlib', 'sklearn.feature_selection.univariate_selection',
+'scipy.stats', 'sklearn.feature_selection', 'sklearn.preprocessing',
+'sklearn.metrics', 'sklearn.svm', 'sklearn.ensemble', 'sklearn.dummy',
+'sklearn.grid_search', 'numpy.testing']
+sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
