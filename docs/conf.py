@@ -15,33 +15,28 @@
 import sys
 import os
 import shlex
-import mock
+# import mock
  
-sys.path.insert(0, os.path.abspath("../nltools"))
-MOCK_MODULES = ['numpy', 'scipy', 'pandas', 'sklearn', 'nibabel', 
-'matplotlib', 'matplotlib.pyplot','seaborn','sklearn.pipeline','nilearn.input_data',
-'nilearn.plotting','scipy.stats','sklearn.metrics']
-for mod_name in MOCK_MODULES:
-  sys.modules[mod_name] = mock.Mock()
+# sys.path.insert(0, os.path.abspath("../nltools"))
+# MOCK_MODULES = ['numpy', 'scipy', 'pandas', 'sklearn', 'nibabel', 
+# 'matplotlib', 'matplotlib.pyplot','seaborn','sklearn.pipeline','nilearn.input_data','scipy.stats','sklearn.metrics']
+# for mod_name in MOCK_MODULES:
+#   sys.modules[mod_name] = mock.Mock()
 
 
 # ReadTheDocks doesn't support necessary C dependencies (e.g., Atlas), so we
 # mock them out per https://docs.readthedocs.org/en/latest/faq.html#i-get-import-errors-on-libraries-that-depend-on-c-modules.
-# try:
-#     from unittest.mock import MagicMock
-# except ImportError:
-#     from mock import MagicMock
+from mock import MagicMock
 
-# class Mock(MagicMock):
-#     @classmethod
-#     def __getattr__(cls, name):
-#             return Mock()
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+            return Mock()
 
-# # Ugh.
-
-
-# sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
-
+MOCK_MODULES = ['numpy', 'scipy', 'pandas', 'sklearn', 'nibabel', 
+'matplotlib', 'matplotlib.pyplot','seaborn','sklearn.pipeline',
+'nilearn.input_data','scipy.stats','sklearn.metrics']
+sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
