@@ -55,6 +55,7 @@ class Predict:
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
         
         """
+
         self.output_dir = output_dir
         
         if subject_id is not None:
@@ -81,10 +82,10 @@ class Predict:
 
         if cv_dict is not None:
             self.set_cv(cv_dict)
-            
 
     def predict(self, algorithm=None, cv_dict=None, save_images=True, save_output=True, 
-                save_plot = True, **kwargs):
+        save_plot = True, **kwargs):
+
         """ Run prediction
 
         Args:
@@ -172,7 +173,7 @@ class Predict:
 
     def set_algorithm(self, algorithm, **kwargs):
         """ Set the algorithm to use in subsequent prediction analyses.
-        
+
         Args:
             algorithm: The prediction algorithm to use. Either a string or an (uninitialized)
             scikit-learn prediction object. If string, must be one of 'svm','svr', linear', 
@@ -184,7 +185,7 @@ class Predict:
         """
 
         self.algorithm = algorithm
-            
+
         def load_class(import_string):
             class_data = import_string.split(".")
             module_path = '.'.join(class_data[:-1])
@@ -233,10 +234,9 @@ class Predict:
             self.predicter = Pipeline(steps=[('pca', self._pca), ('regress', self._regress)])
         else:
             raise ValueError("""Invalid prediction/classification algorithm name. Valid 
-                    options are 'svm','svr', 'linear', 'logistic', 'lasso', 'lassopcr', 
-                    'lassoCV','ridge','ridgeCV','ridgeClassifier', 'randomforest', or 
-                    'randomforestClassifier'.""")
-
+                options are 'svm','svr', 'linear', 'logistic', 'lasso', 'lassopcr', 
+                'lassoCV','ridge','ridgeCV','ridgeClassifier', 'randomforest', or 
+                'randomforestClassifier'.""")
 
     def set_cv(self, cv_dict):
         """ Set the CV algorithm to use in subsequent prediction analyses.
@@ -257,7 +257,6 @@ class Predict:
                 raise ValueError("Make sure you specify a dictionary of {'kfold',5} or {'loso':subject_id}.")
         else:
             raise ValueError("Make sure 'cv_dict' is a dictionary.")
-
 
     def _save_image(self, predicter):
         """ Write out weight map to Nifti image. 
@@ -283,7 +282,6 @@ class Predict:
             coef_img = self.nifti_masker.inverse_transform(predicter.coef_.squeeze())
         nib.save(coef_img, os.path.join(self.output_dir, self.algorithm + '_weightmap.nii.gz'))
 
-
     def _save_stats_output(self):
         """ Write stats output to csv file. 
         
@@ -298,7 +296,6 @@ class Predict:
         if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
         self.stats_output.to_csv(os.path.join(self.output_dir, self.algorithm + '_Stats_Output.csv'))
-
 
     def _save_plot(self, predicter):
         """ Save Plots. 
@@ -393,7 +390,8 @@ def apply_mask(data=None, weight_map=None, mask=None, method='dot_product', save
 
 class Roc:
 
-    def __init__(self, input_values=None, binary_outcome=None, threshold_type='optimal_overall', orced_choice=False, **kwargs):
+    def __init__(self, input_values=None, binary_outcome=None, threshold_type='optimal_overall', 
+        forced_choice=False, **kwargs):
         """ Initialize Roc instance. Object-Oriented version based on Tor Wager's Matlab roc_plot.m function
 
         Args:
