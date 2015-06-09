@@ -34,9 +34,6 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
-        <li class="right" >
           <a href="index.html" title="Neurolearn"
              accesskey="P">previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="index.html">neurolearn .1 documentation</a> &raquo;</li> 
@@ -57,256 +54,14 @@ is comprised of two modules: nltools.analysis and nltools.plotting.  The analysi
 <ul class="simple">
 </ul>
 </div>
-<div class="section" id="module-nltools.analysis">
-<span id="nltools-analysis-analysis-tools"></span><h2><a class="reference internal" href="#module-nltools.analysis" title="nltools.analysis"><code class="xref py py-mod docutils literal"><span class="pre">nltools.analysis</span></code></a>: Analysis Tools<a class="headerlink" href="#module-nltools.analysis" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="neurolearn-analysis-tools">
-<h3>NeuroLearn Analysis Tools<a class="headerlink" href="#neurolearn-analysis-tools" title="Permalink to this headline">¶</a></h3>
-<p>These tools provide the ability to quickly run
-machine-learning analyses on imaging data
-Author: Luke Chang
-License: MIT</p>
-<dl class="function">
-<dt id="nltools.analysis.apply_mask">
-<code class="descclassname">nltools.analysis.</code><code class="descname">apply_mask</code><span class="sig-paren">(</span><em>data=None</em>, <em>weight_map=None</em>, <em>mask=None</em>, <em>method='dot_product'</em>, <em>save_output=False</em>, <em>output_dir='.'</em><span class="sig-paren">)</span><a class="headerlink" href="#nltools.analysis.apply_mask" title="Permalink to this definition">¶</a></dt>
-<dd><p>Apply Nifti weight map to Nifti Images.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>data</strong> &#8211; nibabel instance of data to be applied</li>
-<li><strong>weight_map</strong> &#8211; nibabel instance of weight map</li>
-<li><strong>mask</strong> &#8211; binary nibabel mask</li>
-<li><strong>method</strong> &#8211; type of pattern expression (e.g,. &#8216;dot_product&#8217;,&#8217;correlation&#8217;)</li>
-<li><strong>save_output</strong> &#8211; Boolean indicating whether or not to save output to csv file.</li>
-<li><strong>output_dir</strong> &#8211; Directory to use for writing all outputs</li>
-<li><strong>**kwargs</strong> &#8211; Additional parameters to pass</li>
-</ul>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Outputs a vector of pattern expression values</p>
-</td>
-</tr>
-<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">pexp</p>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
+<div class="section" id="nltools-analysis-analysis-tools">
+<h2><code class="xref py py-mod docutils literal"><span class="pre">nltools.analysis</span></code>: Analysis Tools<a class="headerlink" href="#nltools-analysis-analysis-tools" title="Permalink to this headline">¶</a></h2>
 </div>
-<dl class="class">
-<dt id="nltools.analysis.Predict">
-<em class="property">class </em><code class="descclassname">nltools.analysis.</code><code class="descname">Predict</code><span class="sig-paren">(</span><em>data</em>, <em>Y</em>, <em>subject_id=None</em>, <em>algorithm=None</em>, <em>cv_dict=None</em>, <em>mask=None</em>, <em>output_dir='.'</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#nltools.analysis.Predict" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="method">
-<dt id="nltools.analysis.Predict.predict">
-<code class="descname">predict</code><span class="sig-paren">(</span><em>algorithm=None</em>, <em>cv_dict=None</em>, <em>save_images=True</em>, <em>save_output=True</em>, <em>save_plot=True</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#nltools.analysis.Predict.predict" title="Permalink to this definition">¶</a></dt>
-<dd><p>Run prediction</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>algorithm</strong> &#8211; Algorithm to use for prediction.  Must be one of &#8216;svm&#8217;, &#8216;svr&#8217;,</li>
-<li><strong>'logistic', 'lasso', 'ridge', 'ridgeClassifier','randomforest',</strong> (<em>&#8216;linear&#8217;,</em>) &#8211; </li>
-<li><strong>'randomforestClassifier'</strong> (<em>or</em>) &#8211; </li>
-<li><strong>cv_dict</strong> &#8211; Type of cross_validation to use. A dictionary of {&#8216;kfold&#8217;,5} or</li>
-<li><strong>{'loso'</strong> &#8211; subject_id}.</li>
-<li><strong>save_images</strong> &#8211; Boolean indicating whether or not to save images to file.</li>
-<li><strong>save_output</strong> &#8211; Boolean indicating whether or not to save prediction output to file.</li>
-<li><strong>save_plot</strong> &#8211; Boolean indicating whether or not to create plots.</li>
-<li><strong>**kwargs</strong> &#8211; Additional keyword arguments to pass to the prediction algorithm</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
-<dt id="nltools.analysis.Predict.set_algorithm">
-<code class="descname">set_algorithm</code><span class="sig-paren">(</span><em>algorithm</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#nltools.analysis.Predict.set_algorithm" title="Permalink to this definition">¶</a></dt>
-<dd><p>Set the algorithm to use in subsequent prediction analyses.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>algorithm</strong> &#8211; The prediction algorithm to use. Either a string or an (uninitialized)</li>
-<li><strong>prediction object. If string, must be one of 'svm','svr', linear',</strong> (<em>scikit-learn</em>) &#8211; </li>
-<li><strong>'logistic','lasso','lassopcr','lassoCV','ridge','ridgeCV','ridgeClassifier',</strong> &#8211; </li>
-<li><strong>or 'randomforestClassifier'</strong> (<em>&#8216;randomforest&#8217;,</em>) &#8211; </li>
-<li><strong>kwargs</strong> &#8211; Additional keyword arguments to pass onto the scikit-learn clustering</li>
-<li><strong>object.</strong> &#8211; </li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
-<dt id="nltools.analysis.Predict.set_cv">
-<code class="descname">set_cv</code><span class="sig-paren">(</span><em>cv_dict</em><span class="sig-paren">)</span><a class="headerlink" href="#nltools.analysis.Predict.set_cv" title="Permalink to this definition">¶</a></dt>
-<dd><p>Set the CV algorithm to use in subsequent prediction analyses.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>cv_dict</strong> &#8211; Type of cross_validation to use. A dictionary of {&#8216;kfold&#8217;,5} or {&#8216;loso&#8217;:subject_id}.</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="class">
-<dt id="nltools.analysis.Roc">
-<em class="property">class </em><code class="descclassname">nltools.analysis.</code><code class="descname">Roc</code><span class="sig-paren">(</span><em>input_values=None</em>, <em>binary_outcome=None</em>, <em>threshold_type='optimal_overall'</em>, <em>forced_choice=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#nltools.analysis.Roc" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="method">
-<dt id="nltools.analysis.Roc.calculate">
-<code class="descname">calculate</code><span class="sig-paren">(</span><em>input_values=None</em>, <em>binary_outcome=None</em>, <em>criterion_values=None</em>, <em>threshold_type='optimal_overall'</em>, <em>forced_choice=False</em>, <em>balanced_acc=False</em><span class="sig-paren">)</span><a class="headerlink" href="#nltools.analysis.Roc.calculate" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate Receiver Operating Characteristic plot (ROC) for single-interval
-classification.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>input_values</strong> &#8211; nibabel data instance</li>
-<li><strong>binary_outcome</strong> &#8211; vector of training labels</li>
-<li><strong>criterion_values</strong> &#8211; (optional) criterion values for calculating fpr &amp; tpr</li>
-<li><strong>threshold_type</strong> &#8211; [&#8216;optimal_overall&#8217;, &#8216;optimal_balanced&#8217;,&#8217;minimum_sdt_bias&#8217;]</li>
-<li><strong>forced_choice</strong> &#8211; within-subject forced classification (bool).  Data must be</li>
-<li><strong>on top of each other</strong> (<em>stacked</em>) &#8211; </li>
-<li><strong>balanced_acc</strong> &#8211; balanced accuracy for single-interval classification (bool)</li>
-<li><strong>**kwargs</strong> &#8211; Additional keyword arguments to pass to the prediction algorithm</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
-<dt id="nltools.analysis.Roc.plot">
-<code class="descname">plot</code><span class="sig-paren">(</span><em>plot_method='gaussian'</em><span class="sig-paren">)</span><a class="headerlink" href="#nltools.analysis.Roc.plot" title="Permalink to this definition">¶</a></dt>
-<dd><p>Create ROC Plot</p>
-<p>Create a specific kind of ROC curve plot, based on input values
-along a continuous distribution and a binary outcome variable (logical).</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>plot_method</strong> &#8211; type of plot [&#8216;gaussian&#8217;,&#8217;observed&#8217;]</li>
-<li><strong>binary_outcome</strong> &#8211; vector of training labels</li>
-<li><strong>**kwargs</strong> &#8211; Additional keyword arguments to pass to the prediction algorithm</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
-<dt id="nltools.analysis.Roc.summary">
-<code class="descname">summary</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#nltools.analysis.Roc.summary" title="Permalink to this definition">¶</a></dt>
-<dd><p>Display a formatted summary of ROC analysis.</p>
-</dd></dl>
-
-</dd></dl>
-
+<div class="section" id="nltools-plotting-plotting-tools">
+<h2><code class="xref py py-mod docutils literal"><span class="pre">nltools.plotting</span></code>: Plotting Tools<a class="headerlink" href="#nltools-plotting-plotting-tools" title="Permalink to this headline">¶</a></h2>
 </div>
-<div class="section" id="module-nltools.plotting">
-<span id="nltools-plotting-plotting-tools"></span><h2><a class="reference internal" href="#module-nltools.plotting" title="nltools.plotting"><code class="xref py py-mod docutils literal"><span class="pre">nltools.plotting</span></code></a>: Plotting Tools<a class="headerlink" href="#module-nltools.plotting" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="neurolearn-plotting-tools">
-<h3>NeuroLearn Plotting Tools<a class="headerlink" href="#neurolearn-plotting-tools" title="Permalink to this headline">¶</a></h3>
-<p>Numerous functions to plot data</p>
-<p>Author: Luke Chang
-License: MIT</p>
-<dl class="function">
-<dt id="nltools.plotting.dist_from_hyperplane_plot">
-<code class="descclassname">nltools.plotting.</code><code class="descname">dist_from_hyperplane_plot</code><span class="sig-paren">(</span><em>stats_output</em><span class="sig-paren">)</span><a class="headerlink" href="#nltools.plotting.dist_from_hyperplane_plot" title="Permalink to this definition">¶</a></dt>
-<dd><p>Plot SVM Classification Distance from Hyperplane
-:param stats_output: a pandas file with prediction output</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Will return a seaborn plot of distance from hyperplane</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">fig</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="function">
-<dt id="nltools.plotting.probability_plot">
-<code class="descclassname">nltools.plotting.</code><code class="descname">probability_plot</code><span class="sig-paren">(</span><em>stats_output</em><span class="sig-paren">)</span><a class="headerlink" href="#nltools.plotting.probability_plot" title="Permalink to this definition">¶</a></dt>
-<dd><p>Plot Classification Probability
-:param stats_output: a pandas file with prediction output</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Will return a seaborn scatterplot</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">fig</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="function">
-<dt id="nltools.plotting.roc_plot">
-<code class="descclassname">nltools.plotting.</code><code class="descname">roc_plot</code><span class="sig-paren">(</span><em>fpr</em>, <em>tpr</em><span class="sig-paren">)</span><a class="headerlink" href="#nltools.plotting.roc_plot" title="Permalink to this definition">¶</a></dt>
-<dd><p>Plot 1-Specificity by Sensitivity
-:param fpr: false positive rate from Roc.calculate
-:param tpr: true positive rate from Roc.calculate</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Will return an ROC plot</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">fig</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="function">
-<dt id="nltools.plotting.scatterplot">
-<code class="descclassname">nltools.plotting.</code><code class="descname">scatterplot</code><span class="sig-paren">(</span><em>stats_output</em><span class="sig-paren">)</span><a class="headerlink" href="#nltools.plotting.scatterplot" title="Permalink to this definition">¶</a></dt>
-<dd><p>Plot Prediction Scatterplot
-:param stats_output: a pandas file with prediction output</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Will return a seaborn scatterplot</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">fig</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-</div>
-</div>
-<div class="section" id="module-nltools.stats">
-<span id="nltools-plotting-stats-tools"></span><h2><a class="reference internal" href="#module-nltools.plotting" title="nltools.plotting"><code class="xref py py-mod docutils literal"><span class="pre">nltools.plotting</span></code></a>: Stats Tools<a class="headerlink" href="#module-nltools.stats" title="Permalink to this headline">¶</a></h2>
-<p>Various statistical helper functions</p>
-<dl class="function">
-<dt id="nltools.stats.pearson">
-<code class="descclassname">nltools.stats.</code><code class="descname">pearson</code><span class="sig-paren">(</span><em>x</em>, <em>y</em><span class="sig-paren">)</span><a class="headerlink" href="#nltools.stats.pearson" title="Permalink to this definition">¶</a></dt>
-<dd><p>Correlates row vector x with each row vector in 2D array y.
-From neurosynth.stats.py - author: Tal Yarkoni</p>
-</dd></dl>
-
+<div class="section" id="nltools-plotting-stats-tools">
+<h2><code class="xref py py-mod docutils literal"><span class="pre">nltools.plotting</span></code>: Stats Tools<a class="headerlink" href="#nltools-plotting-stats-tools" title="Permalink to this headline">¶</a></h2>
 </div>
 <div class="section" id="index">
 <h2>Index<a class="headerlink" href="#index" title="Permalink to this headline">¶</a></h2>
@@ -326,15 +81,9 @@ From neurosynth.stats.py - author: Tal Yarkoni</p>
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">API Reference</a><ul>
-<li><a class="reference internal" href="#module-nltools.analysis"><code class="docutils literal"><span class="pre">nltools.analysis</span></code>: Analysis Tools</a><ul>
-<li><a class="reference internal" href="#neurolearn-analysis-tools">NeuroLearn Analysis Tools</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#module-nltools.plotting"><code class="docutils literal"><span class="pre">nltools.plotting</span></code>: Plotting Tools</a><ul>
-<li><a class="reference internal" href="#neurolearn-plotting-tools">NeuroLearn Plotting Tools</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#module-nltools.stats"><code class="docutils literal"><span class="pre">nltools.plotting</span></code>: Stats Tools</a></li>
+<li><a class="reference internal" href="#nltools-analysis-analysis-tools"><code class="docutils literal"><span class="pre">nltools.analysis</span></code>: Analysis Tools</a></li>
+<li><a class="reference internal" href="#nltools-plotting-plotting-tools"><code class="docutils literal"><span class="pre">nltools.plotting</span></code>: Plotting Tools</a></li>
+<li><a class="reference internal" href="#nltools-plotting-stats-tools"><code class="docutils literal"><span class="pre">nltools.plotting</span></code>: Stats Tools</a></li>
 <li><a class="reference internal" href="#index">Index</a></li>
 </ul>
 </li>
@@ -373,9 +122,6 @@ From neurosynth.stats.py - author: Tal Yarkoni</p>
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              >index</a></li>
-        <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
         <li class="right" >
           <a href="index.html" title="Neurolearn"
              >previous</a> |</li>

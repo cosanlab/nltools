@@ -1,11 +1,13 @@
 import os
 import sys
-import nltools.version as __version__
+# import nltools.version as __version__
 
 try:
     from setuptools.core import setup
 except ImportError:
     from distutils.core import setup
+
+__version__ = '0.1'
 
 setup(
     name='nltools',
