@@ -1,9 +1,9 @@
 importlib
-nibabel
+nibabel>=2.0
 scikit-learn
-nilearn
-pandas
-numpy
+nilearn>=0.1.2
+pandas>=0.13
+numpy>=1.9
 seaborn
 matplotlib
 scipy
