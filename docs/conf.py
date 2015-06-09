@@ -17,7 +17,7 @@ import os
 import shlex
 # import mock
  
-# sys.path.insert(0, os.path.abspath("../nltools"))
+# sys.path.insert(0, os.path.abspath(".."))
 # MOCK_MODULES = ['numpy', 'scipy', 'pandas', 'sklearn', 'nibabel', 
 # 'matplotlib', 'matplotlib.pyplot','seaborn','sklearn.pipeline','nilearn.input_data','scipy.stats','sklearn.metrics']
 # for mod_name in MOCK_MODULES:
