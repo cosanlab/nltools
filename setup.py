@@ -1,6 +1,5 @@
 import os
 import sys
-# import nltools.version as __version__
 
 try:
     from setuptools.core import setup
