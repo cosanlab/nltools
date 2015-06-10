@@ -33,10 +33,13 @@ class Mock(MagicMock):
     def __getattr__(cls, name):
             return Mock()
 
-MOCK_MODULES = ['numpy', 'scipy', 'pandas', 'sklearn', 'nibabel', 
+MOCK_MODULES = ['importlib','numpy', 'scipy', 'pandas', 'sklearn', 'nibabel', 
 'matplotlib', 'matplotlib.pyplot','seaborn','sklearn.pipeline',
-'nilearn.input_data','scipy.stats','sklearn.metrics']
+'sklearn.pipeline.Pipeline','nilearn','nilearn.input_data','nilearn.plotting',
+'nilearn.input_data.NiftiMasker','scipy.stats','scipy.stats.norm',
+'scipy.stats.binom_test','sklearn.metrics','sklearn.metrics.auc']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
