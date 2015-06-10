@@ -15,14 +15,6 @@
 import sys
 import os
 import shlex
-# import mock
- 
-# sys.path.insert(0, os.path.abspath(".."))
-# MOCK_MODULES = ['numpy', 'scipy', 'pandas', 'sklearn', 'nibabel', 
-# 'matplotlib', 'matplotlib.pyplot','seaborn','sklearn.pipeline','nilearn.input_data','scipy.stats','sklearn.metrics']
-# for mod_name in MOCK_MODULES:
-#   sys.modules[mod_name] = mock.Mock()
-
 
 # ReadTheDocks doesn't support necessary C dependencies (e.g., Atlas), so we
 # mock them out per https://docs.readthedocs.org/en/latest/faq.html#i-get-import-errors-on-libraries-that-depend-on-c-modules.
