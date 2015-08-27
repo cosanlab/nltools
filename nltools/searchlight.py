@@ -29,7 +29,8 @@ from sklearn.svm import SVR
 from nilearn import masking
 from nilearn.input_data import NiftiMasker
 
-from analysis import Predict
+from nltools.analysis import Predict
+import glob
 
 ########## HELPER FUNCTIONS ############
 
@@ -121,78 +122,79 @@ from analysis import Predict
 ########## CLASS DEFINITIONS ############
         
 class Searchlight:
-    def __init__(self, brain_mask_dir=None, process_mask_dir=None, radius=4): #no scoring param
-        def_brain_mask_dir = os.path.join(os.path.dirname(__file__),'resources/MNI152_T1_2mm_brain_mask_dil.nii.gz')
-        def_process_mask_dir = os.path.join(os.path.dirname(__file__),'resources/FSL_RIns_thr0.nii')
-        self.results_save_dir = os.path.join(os.path.dirname(__file__),'outfolder/')
-
-        if brain_mask_dir is None:
-            brain = nib.load(def_brain_mask_dir)
-        else:
-            brain = nib.load(brain_mask_dir)
+    def __init__(self, brain_mask=None, process_mask=None, radius=4): #no scoring param
+        self.outfolder = 'outfolder/'
+        
+        if type(brain_mask) is str:
+            brain_mask = nib.load(brain_mask)
+        elif brain_mask is None:
+            brain_mask = nib.load("resources/MNI152_T1_2mm_brain_mask_dil.nii.gz")  
+        elif type(brain_mask) is not nib.nifti1.Nifti1Image:
+            raise ValueError("process_mask is not a nibabel instance")
+        self.brain_mask = brain_mask
+        
+        if type(process_mask) is str:
+            process_mask = nib.load(process_mask)
+        elif process_mask is None:
+            process_mask = nib.load("resources/FSL_RIns_thr0.nii")
+        elif type(brain_mask) is not nib.nifti1.Nifti1Image:
+            raise ValueError("process_mask is not a nibabel instance")
+        self.process_mask = process_mask
             
-        if process_mask_dir is None:
-            mask = nib.load(def_process_mask_dir)
-        else:
-            mask = nib.load(process_mask_dir)
-            
-        self.brain_mask = brain 
-        self.process_mask = mask
         self.radius = radius
         self.nifti_masker = NiftiMasker(mask_img=self.brain_mask)
         
-    def predict(self, brain_data, y, core_i, n_cores, params): #CHANGE NAME
+    def predict(self, core_i, n_cores, params): #CHANGE NAME
         
-        (A, self.nifti_masker, subject_id, algorithm, cv_dict, output_dir, kwargs) = params
+        (bdata, A, self.nifti_masker, subject_id, algorithm, cv_dict, output_dir, kwargs) = params
         
+        print("getting data")
+        if isinstance(bdata, str):
+            file_list = glob.glob(bdata + '*.nii.gz')
+            bdata = nib.funcs.concat_images(file_list[0:9])
+            y = np.array([3, 1, 2, 3, 1, 2, 3, 1, 2]).T
+        
+        print("making core divs")
         core_divs = [] #a list of lists of indices
         for i in range(0,n_cores):
             a = i*A.shape[0] / n_cores
             b = (i+1)*A.shape[0] / n_cores
             core_divs.append( range(a,b) )
         
-        #transform fMRI into a nibabel format using full brain mask
-#         X = masking._apply_mask_fmri(brain_data, self.brain_mask)
-        y = np.array([1])
-        
-#         print(X.shape)
-        print(y.shape) 
-        
-        div = A[core_divs[core_i]].shape[0]
+        divs = A[core_divs[core_i]].shape[0]
         tot = A.shape[0]
-        print("This core will be doing " + str(div) + " searchlights out of " + str(tot) + " total.")
+        print("This core will be doing " + str(divs) + " searchlights out of " + str(tot) + " total.")
         
         # clear the text file's contents if there are any
         title  = "out" + str(core_i)
-        text_file = open(self.results_save_dir + title + ".txt", "w")
+        text_file = open(self.outfolder + title + ".txt", "w")
         text_file.close()
         
-        text_file = open(self.results_save_dir + "progress.txt", "a")
+        text_file = open(self.outfolder + "progress.txt", "a")
         text_file.close()
 
+        print("starting process loop")
         results = []
         for i in range( A[core_divs[core_i]].shape[0] ):
 
-#             searchlight = A[core_divs[core_i]][i].toarray() #1D vector
+            searchlight = A[core_divs[core_i]][i].toarray() #1D vector
             
-#             searchlight_mask = self.nifti_masker.inverse_transform( searchlight )
+            searchlight_mask = self.nifti_masker.inverse_transform( searchlight )
 
             #apply the Predict method
-            #@ problem: I need to figure out the subject_id and the ouput_dir
-#             svr = Predict(brain_data, y, mask = searchlight_mask, algorithm=algorithm,subject_id = subject_id, output_dir=output_dir, cv_dict = cv_dict, **kwargs) #{'kfolds':1}
-#             svr.predict()
-#             results.append(svr.rmse)
-            r = random.random()
-            print("==========>" + str(r) )
-            results.append(core_i*10 + r)
+            svr = Predict(bdata, y, mask = searchlight_mask, algorithm=algorithm, subject_id = subject_id, output_dir=output_dir, cv_dict = cv_dict, **kwargs)
+            svr.predict()
+            
+            print(svr.rmse)
+            results.append(svr.rmse)
             
             title  = "out" + str(core_i)
-            text_file = open(self.results_save_dir + title + ".txt", "a")
-            text_file.write(str(r) + "\n")
+            text_file = open(self.outfolder + title + ".txt", "a")
+            text_file.write(str(svr.rmse) + "\n")
             text_file.close()
             
         #check progress of all cores. If all cores are finished, run the reassemble helper function
-        progress_fn = self.results_save_dir + "progress.txt"
+        progress_fn = self.outfolder + "progress.txt"
         cores_finished = ""
         with open(progress_fn, 'r') as f:
             cores_finished = f.readline()
@@ -211,7 +213,7 @@ class Searchlight:
     def get_coords(self):
         # Compute world coordinates of all in-mask voxels.
         # Return indices as sparse matrix of 0's and 1's
-        
+        print("start get coords")
         world_process_mask = self.nifti_masker.fit_transform(self.process_mask)
         world_brain_mask = self.nifti_masker.fit_transform(self.brain_mask)
         
@@ -249,38 +251,43 @@ class Searchlight:
 #         print("~~~~~~~~~~~~~~~~")
 #         print(A.shape)
 #         print(A[1000].toarray())
-        print(sum(sum(A[0].toarray())))
-        
+        print("There are " + str( sum(sum(A[0].toarray())) ) + " voxels in each searchlight")
+        print("finish searchlight")
         return (A.tolil(), self.nifti_masker)
     
     @staticmethod
-    def run_searchlight_(radius=4, n_cores = 0, bdata_dir = None, brain_mask_dir=None, process_mask_dir=None):
-        if bdata_dir is None:
-            bdata_dir = os.path.join(os.path.dirname(__file__),'resources/MNI152_T1_2mm_brain.nii.gz')
+    def run_searchlight_(bdata, brain_mask = None, process_mask = None, radius=4, n_cores = 0):
+        
+        print("start run searchlight")
         
         os.system("mkdir outfolder")
         os.system("mkdir div_scripts")
+        
         #n_cores start at 0, so if the input param is 10, there are 11 cores
-        sl = Searchlight(brain_mask_dir=brain_mask_dir, process_mask_dir=process_mask_dir, radius=radius)
+        sl = Searchlight(brain_mask=brain_mask, process_mask=process_mask, radius=radius)
         
         # parameters for Predict function
         (A, nifti_masker) = sl.get_coords()
         subject_id = None
         algorithm = 'svr'
         cv_dict = None #{'kfolds':5}
-        output_dir = os.path.join(os.path.dirname(__file__),'outfolder')
+        output_dir = 'outfolder'
         kwargs = {'kernel':"linear"}
         
+        print("finished making data")
+        
         # save all parameters in a file in the same directory that the code is being executed
-        cPickle.dump([A, nifti_masker, subject_id, algorithm, cv_dict, output_dir, kwargs], open("searchlight.pickle", "w"))
+        cPickle.dump([bdata, A.tolil(), nifti_masker, subject_id, algorithm, cv_dict, output_dir, kwargs], open("searchlight.pickle", "w"))
+        
+        print("finished storing data")
         
         #generate BA$H scripts
         for ith_core in range(n_cores):
-            Searchlight.make_scripts_(bdata_dir, ith_core, n_cores) # create a script
+            Searchlight.make_scripts_(ith_core, n_cores) # create a script
             os.system("qsub div_scripts/div_script" + str(ith_core) + ".pbs") # run it on a core
 
     @staticmethod        
-    def make_scripts_(bdata_dir, ith_core = 0, n_cores = 0):
+    def make_scripts_(ith_core = 0, n_cores = 0):
         title  = "div_script" + str(ith_core)
         text_file = open( "div_scripts/" + title + ".pbs", "w")
         
@@ -309,25 +316,9 @@ from nltools import Searchlight \n\
 import cPickle \n\
 params = cPickle.load(open(\"searchlight.pickle\")) \n\
 sl = Searchlight() \n\
-(bdata, y) = sl.load_data_(\"" + str(bdata_dir) + "\") \n\
-sl.predict(bdata, y, " + str(ith_core) + ", " + str(n_cores) + ", params) \n\
+sl.predict(" + str(ith_core) + ", " + str(n_cores) + ", params) \n\
 exit 0" )
         text_file.close()
-  
-    @staticmethod
-    def load_data_(bdata_dir):
-        lowest_id = 7509
-        highest_id = 7518
-        bdata = nib.funcs.concat_images([os.path.join(os.path.dirname(__file__),'resources','resampled','00' + str(x) + '.nii.gz') for x in range(lowest_id, highest_id)])
-
-#         bdata = nib.load(bdata_dir)
-        y = np.array([3, 1, 2, 3, 1, 2, 3, 1, 2])
-#         y = np.array([1])
-        
-        print(y.shape)
-        print(bdata.shape)
-        
-        return (bdata, y)
     
     @staticmethod
     def reassemble_():
