@@ -136,7 +136,7 @@ class Searchlight:
         if type(process_mask) is str:
             process_mask = nib.load(process_mask)
         elif process_mask is None:
-            process_mask = nib.load("resources/FSL_RIns_thr0.nii")
+            process_mask = nib.load("resources/FSL_RIns_thr0.nii.gz")
         elif type(brain_mask) is not nib.nifti1.Nifti1Image:
             raise ValueError("process_mask is not a nibabel instance")
         self.process_mask = process_mask
