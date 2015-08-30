@@ -123,7 +123,7 @@ import glob
         
 class Searchlight:
     def __init__(self, brain_mask=None, process_mask=None, radius=4): #no scoring param
-        self.outfolder = 'outfolder/'
+        self.outfolder = '/ihome/sgreydan/searchlight_simulation/outfolder/'
         
         if type(brain_mask) is str:
             brain_mask = nib.load(brain_mask)
