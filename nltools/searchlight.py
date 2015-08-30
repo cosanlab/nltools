@@ -318,7 +318,7 @@ cd $PBS_O_WORKDIR \n\
 ipython  \n\
 from nltools import Searchlight \n\
 import cPickle \n\
-params = cPickle.load(open(\"~/searchlight_simulation/searchlight.pickle\")) \n\
+params = cPickle.load(open(\"/ihome/sgreydan/searchlight_simulation/searchlight.pickle\")) \n\
 sl = Searchlight() \n\
 sl.predict(" + str(ith_core) + ", " + str(n_cores) + ", params) \n\
 exit 0" )
