@@ -130,6 +130,7 @@ class Searchlight:
         elif brain_mask is None:
             brain_mask = nib.load("/ihome/sgreydan/searchlight_simulation/resources/MNI152_T1_2mm_brain_mask_dil.nii.gz")
         elif type(brain_mask) is not nib.nifti1.Nifti1Image:
+            print(brain_mask)
             print(type(brain_mask))
             raise ValueError("brain_mask is not a nibabel instance")
         self.brain_mask = brain_mask
@@ -139,6 +140,7 @@ class Searchlight:
         elif process_mask is None:
             process_mask = nib.load("/ihome/sgreydan/searchlight_simulation/resources/FSL_RIns_thr0.nii.gz")
         elif type(brain_mask) is not nib.nifti1.Nifti1Image:
+            print(process_mask)
             print(type(process_mask))
             raise ValueError("process_mask is not a nibabel instance")
         self.process_mask = process_mask
