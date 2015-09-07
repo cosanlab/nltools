@@ -320,7 +320,7 @@ from nltools import Searchlight \n\
 import cPickle \n\
 import os \n\
 pdir = os.path.join(os.getcwd(),'searchlight.pickle') \n\
-params = cPickle.load(pdir) \n\
+params = cPickle.load(open(pdir)) \n\
 sl = Searchlight() \n\
 sl.predict(" + str(ith_core) + ", " + str(n_cores) + ", params) \n\
 exit 0" )
