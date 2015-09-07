@@ -188,7 +188,7 @@ class Searchlight:
 
             #apply the Predict method
             svr = Predict(bdata, y, mask = searchlight_mask, algorithm=algorithm, output_dir=output_dir, cv_dict = cv_dict, **kwargs)
-            svr.predict()
+            svr.predict(save_plot=False)
             
             print(svr.rmse)
             results.append(svr.rmse)
