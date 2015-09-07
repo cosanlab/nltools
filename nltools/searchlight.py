@@ -175,7 +175,7 @@ class Searchlight:
         text_file = open(self.outfolder + title + ".txt", "w")
         text_file.close()
         
-        text_file = open(self.outfolder + "progress.txt", "a")
+        text_file = open(self.outfolder + "/ihome/sgreydan/searchlight_simulation/progress.txt", "a")
         text_file.close()
 
         print("starting process loop")
