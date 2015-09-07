@@ -190,12 +190,12 @@ class Searchlight:
             svr = Predict(bdata, y, mask = searchlight_mask, algorithm=algorithm, output_dir=output_dir, cv_dict = cv_dict, **kwargs)
             svr.predict(save_plot=False)
             
-            print(svr.rmse)
-            results.append(svr.rmse)
+            print(svr.rmse_all)
+            results.append(svr.rmse_all)
             
             title  = "out" + str(core_i)
             text_file = open(os.path.join(self.outfolder,title + ".txt"), "a")
-            text_file.write(str(svr.rmse) + "\n")
+            text_file.write(str(svr.rmse_all) + "\n")
             text_file.close()
             
         #check progress of all cores. If all cores are finished, run the reassemble helper function
