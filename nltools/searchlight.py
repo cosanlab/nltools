@@ -151,7 +151,7 @@ class Searchlight:
         
     def predict(self, core_i, n_cores, params): #CHANGE NAME
         
-        (bdata, A, self.nifti_masker, subject_id, algorithm, cv_dict, output_dir, kwargs) = params
+        (bdata, A, self.nifti_masker, algorithm, cv_dict, output_dir, kwargs) = params
         
         print("getting data")
         if isinstance(bdata, str):
@@ -187,7 +187,7 @@ class Searchlight:
             searchlight_mask = self.nifti_masker.inverse_transform( searchlight )
 
             #apply the Predict method
-            svr = Predict(bdata, y, mask = searchlight_mask, algorithm=algorithm, subject_id = subject_id, output_dir=output_dir, cv_dict = cv_dict, **kwargs)
+            svr = Predict(bdata, y, mask = searchlight_mask, algorithm=algorithm, output_dir=output_dir, cv_dict = cv_dict, **kwargs)
             svr.predict()
             
             print(svr.rmse)
@@ -272,16 +272,15 @@ class Searchlight:
         
         # parameters for Predict function
         (A, nifti_masker) = sl.get_coords()
-        subject_id = None
         algorithm = 'svr'
         cv_dict = None #{'kfolds':5}
-        output_dir = 'outfolder'
+        output_dir = os.path.join(os.getcwd(),'outfolder')
         kwargs = {'kernel':"linear"}
         
         print("finished making data")
         
         # save all parameters in a file in the same directory that the code is being executed
-        cPickle.dump([bdata, A.tolil(), nifti_masker, subject_id, algorithm, cv_dict, output_dir, kwargs], open("searchlight.pickle", "w"))
+        cPickle.dump([bdata, A.tolil(), nifti_masker, algorithm, cv_dict, output_dir, kwargs], open("searchlight.pickle", "w"))
         
         print("finished storing data")
         
@@ -316,7 +315,7 @@ class Searchlight:
 cd $PBS_O_WORKDIR \n\
 # run the program using the relative path \n\
 ipython  \n\
-from nltools import Searchlight \n\
+from nltools.searchlight import Searchlight \n\
 import cPickle \n\
 import os \n\
 pdir = os.path.join(os.getcwd(),'searchlight.pickle') \n\
