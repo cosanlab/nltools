@@ -120,16 +120,16 @@ import glob
 #             yield list_i
     
 ########## CLASS DEFINITIONS ############
-resource_dir = os.path.join(os.path.dirname(__file__),'resources')
 
 class Searchlight:
     def __init__(self, brain_mask=None, process_mask=None, radius=4): #no scoring param
-        self.outfolder = '/ihome/sgreydan/searchlight_simulation/outfolder/'
+        self.resource_folder = os.path.join(os.path.dirname(__file__),'resources')
+        self.outfolder = os.path.join(__file__,'outfolder')
         
         if type(brain_mask) is str:
             brain_mask = nib.load(brain_mask)
         elif brain_mask is None:
-            brain_mask = nib.load(os.path.join(resources_dir,'MNI152_T1_2mm_brain_mask.nii.gz'))
+            brain_mask = nib.load(os.path.join(resource_folder,'MNI152_T1_2mm_brain_mask.nii.gz'))
         elif type(brain_mask) is not nib.nifti1.Nifti1Image:
             print(brain_mask)
             print(type(brain_mask))
@@ -139,7 +139,7 @@ class Searchlight:
         if type(process_mask) is str:
             process_mask = nib.load(process_mask)
         elif process_mask is None:
-            process_mask = nib.load("/ihome/sgreydan/searchlight_simulation/resources/FSL_RIns_thr0.nii.gz")
+            process_mask = nib.load(os.path.join(resource_folder,"FSL_RIns_thr0.nii.gz"))
         elif type(brain_mask) is not nib.nifti1.Nifti1Image:
             print(process_mask)
             print(type(process_mask))
@@ -172,10 +172,10 @@ class Searchlight:
         
         # clear the text file's contents if there are any
         title  = "out" + str(core_i)
-        text_file = open(self.outfolder + title + ".txt", "w")
+        text_file = open(os.path.join(self.outfolder, title + ".txt"), "w")
         text_file.close()
         
-        text_file = open(self.outfolder + "/ihome/sgreydan/searchlight_simulation/progress.txt", "a")
+        text_file = open(os.path.join(self.outfolder, "progress.txt"), "w")
         text_file.close()
 
         print("starting process loop")
@@ -194,12 +194,12 @@ class Searchlight:
             results.append(svr.rmse)
             
             title  = "out" + str(core_i)
-            text_file = open(self.outfolder + title + ".txt", "a")
+            text_file = open(os.path.join(self.outfolder,title + ".txt"), "a")
             text_file.write(str(svr.rmse) + "\n")
             text_file.close()
             
         #check progress of all cores. If all cores are finished, run the reassemble helper function
-        progress_fn = self.outfolder + "progress.txt"
+        progress_fn = os.path.join(self.outfolder,"progress.txt")
         cores_finished = ""
         with open(progress_fn, 'r') as f:
             cores_finished = f.readline()
@@ -266,7 +266,6 @@ class Searchlight:
         print("start run searchlight")
         
         os.system("mkdir outfolder")
-        os.system("mkdir div_scripts")
         
         #n_cores start at 0, so if the input param is 10, there are 11 cores
         sl = Searchlight(brain_mask=brain_mask, process_mask=process_mask, radius=radius)
@@ -289,12 +288,12 @@ class Searchlight:
         #generate BA$H scripts
         for ith_core in range(n_cores):
             Searchlight.make_scripts_(ith_core, n_cores) # create a script
-            os.system("qsub div_scripts/div_script" + str(ith_core) + ".pbs") # run it on a core
+            os.system("qsub div_script" + str(ith_core) + ".pbs") # run it on a core
 
     @staticmethod        
     def make_scripts_(ith_core = 0, n_cores = 0):
         title  = "div_script" + str(ith_core)
-        text_file = open( "div_scripts/" + title + ".pbs", "w")
+        text_file = open(title + ".pbs", "w")
         
         text_file.write("#!/bin/bash -l \n\
 # declare a name for this job to be my_serial_job \n\
@@ -319,7 +318,9 @@ cd $PBS_O_WORKDIR \n\
 ipython  \n\
 from nltools import Searchlight \n\
 import cPickle \n\
-params = cPickle.load(open(\"/ihome/sgreydan/searchlight_simulation/searchlight.pickle\")) \n\
+import os \n\
+pdir = os.path.join(os.getcwd(),'searchlight.pickle' \n\
+params = cPickle.load(pdir) \n\
 sl = Searchlight() \n\
 sl.predict(" + str(ith_core) + ", " + str(n_cores) + ", params) \n\
 exit 0" )
@@ -329,7 +330,8 @@ exit 0" )
     def reassemble_():
         # if there is already data in the reassembled.txt file, delete it
         rs_fn = "reassembled"
-        rs = open(str(rs_fn) + ".txt", "w")
+        rs_dir = os.path.join(os.path.dirname(__file__), rs_fn + '.txt')
+        rs = open(rs_fn, 'w')
         rs.seek(0)
         rs.truncate()
         rs.close()
@@ -337,18 +339,18 @@ exit 0" )
         #get name and location of div file
         div_fn_prefix = "out"
         ith_core = 0
-        div_fn = "outfolder/" + div_fn_prefix + str(ith_core) + ".txt"
+        div_fn = os.path.join(self.outfolder, div_fn_prefix + str(ith_core) + ".txt")
         print(div_fn)
 
         while (os.path.isfile(div_fn)):
             with open (div_fn, "r") as div_file:
                 data=div_file.read()
 
-                rs = open(str(rs_fn) + ".txt", "a")
+                rs = open(str(rs_dir), "a")
                 rs.write(data + "\n")
                 rs.close()
 
-            command = "rm div_scripts/div_script" + str(ith_core) + ".pbs"
+            command = "rm div_script" + str(ith_core) + ".pbs"
             os.system(command) # delete all the scripts we generated
 
             command = "rm " + str(div_fn)
