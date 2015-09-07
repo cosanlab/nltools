@@ -317,9 +317,11 @@ cd $PBS_O_WORKDIR \n\
 ipython  \n\
 from nltools.searchlight import Searchlight \n\
 import cPickle \n\
+print(\"hello world\") \n\
 params = cPickle.load( open(\"searchlight.pickle\") ) \n\
-sl = Searchlight() \n\
-sl.predict(" + str(ith_core) + ", " + str(n_cores) + ", params) \n\
+print(\"!!!!!!!!!!!\") \n\
+# sl = Searchlight() \n\
+# sl.predict(" + str(ith_core) + ", " + str(n_cores) + ", params) \n\
 exit 0" )
         text_file.close()
     
