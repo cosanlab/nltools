@@ -312,16 +312,14 @@ class Searchlight:
 # By default, PBS scripts execute in your home directory, not the \n\
 # directory from which they were submitted. The following line \n\
 # places the job in the directory from which the job was submitted. \n\
-cd $PBS_O_WORKDIR \n\
+cd /ihome/sgreydan/searchlight_simulation \n\
 # run the program using the relative path \n\
 ipython  \n\
 from nltools.searchlight import Searchlight \n\
 import cPickle \n\
-print('hello world') \n\
 params = cPickle.load( open('searchlight.pickle') ) \n\
-print('!!!!!!!!!!!') \n\
-# sl = Searchlight() \n\
-# sl.predict(" + str(ith_core) + ", " + str(n_cores) + ", params) \n\
+sl = Searchlight() \n\
+sl.predict(" + str(ith_core) + ", " + str(n_cores) + ", params) \n\
 exit 0" )
         text_file.close()
     
