@@ -123,8 +123,8 @@ import glob
 
 class Searchlight:
     def __init__(self, brain_mask=None, process_mask=None, radius=4): #no scoring param
-        self.resource_folder = os.path.join(os.path.dirname(__file__),'resources')
-        self.outfolder = os.path.join(__file__,'outfolder')
+        self.resource_folder = os.path.join(os.getcwd(),'resources')
+        self.outfolder = os.path.join(os.getcwd(),'outfolder')
         
         if type(brain_mask) is str:
             brain_mask = nib.load(brain_mask)
@@ -319,7 +319,7 @@ ipython  \n\
 from nltools import Searchlight \n\
 import cPickle \n\
 import os \n\
-pdir = os.path.join(os.getcwd(),'searchlight.pickle' \n\
+pdir = os.path.join(os.getcwd(),'searchlight.pickle') \n\
 params = cPickle.load(pdir) \n\
 sl = Searchlight() \n\
 sl.predict(" + str(ith_core) + ", " + str(n_cores) + ", params) \n\
@@ -330,7 +330,7 @@ exit 0" )
     def reassemble_():
         # if there is already data in the reassembled.txt file, delete it
         rs_fn = "reassembled"
-        rs_dir = os.path.join(os.path.dirname(__file__), rs_fn + '.txt')
+        rs_dir = os.path.join(os.getcwd(), rs_fn + '.txt')
         rs = open(rs_fn, 'w')
         rs.seek(0)
         rs.truncate()
