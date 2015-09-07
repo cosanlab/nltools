@@ -35,9 +35,9 @@ def scatterplot(stats_output):
         fig: Will return a seaborn scatterplot
     """
 
-    try:
+    if "yfit_xval" in stats_output.columns:
         fig = sns.lmplot("Y", "yfit_xval", data=stats_output)
-    except NameError:
+    else:
         fig = sns.lmplot("Y", "yfit_all", data=stats_output)
     plt.xlabel('Y', fontsize=16)
     plt.ylabel('Predicted Value', fontsize=16)

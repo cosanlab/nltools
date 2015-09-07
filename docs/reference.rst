@@ -39,6 +39,18 @@ is comprised of two modules: nltools.analysis and nltools.plotting.  The analysi
 .. automodule:: nltools.stats
   :members:
 
+:mod:`nltools.cross_validation`: Cross-Validation Tools
+====================================
+
+.. automodule:: nltools.cross_validation
+  :members:
+
+:mod:`nltools.util`: Utilities
+====================================
+
+.. automodule:: nltools.util
+  :members:
+
 Index
 =====
 

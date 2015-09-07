@@ -1,7 +1,7 @@
 '''
     NeuroLearn Analysis Tools
     =========================
-    These tools provide the ability to quickly run 
+    These tools provide the ability to quickly run
     machine-learning analyses on imaging data
     Author: Luke Chang <luke.j.chang@dartmouth.edu>
     License: MIT
@@ -28,15 +28,13 @@ from nilearn.input_data import NiftiMasker
 import pandas as pd
 import numpy as np
 from nilearn.plotting import plot_stat_map
-import seaborn as sns    
+import seaborn as sns
 import matplotlib.pyplot as plt
 from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
 from nltools.stats import pearson
+from nltools.utils import get_resource_path
 from scipy.stats import norm, binom_test
 from sklearn.metrics import auc
-
-# Paths
-resource_dir = os.path.join(os.path.dirname(__file__),'resources')
 
 
 class Predict:
@@ -49,38 +47,34 @@ class Predict:
             data: nibabel data instance
             Y: vector of training labels
             subject_id: vector of labels corresponding to each subject
-            algorithm: Algorithm to use for prediction.  Must be one of 'svm', 'svr', 
-                'linear', 'logistic', 'lasso', 'ridge', 'ridgeClassifier','randomforest', 
+            algorithm: Algorithm to use for prediction.  Must be one of 'svm', 'svr',
+                'linear', 'logistic', 'lasso', 'ridge', 'ridgeClassifier','randomforest',
                 or 'randomforestClassifier'
             cv_dict: Type of cross_validation to use. A dictionary of 
                 {'type': 'kfolds', 'n_folds': n},
                 {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or 
                 {'type': 'loso', 'subject_id': holdout},
                 where n = number of folds, and subject = vector of subject ids that corresponds to self.Y
-
             mask: binary nibabel mask
             output_dir: Directory to use for writing all outputs
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
-        
+
         """
 
         self.output_dir = output_dir
-        
-        # if subject_id is not None:
-        #     self.subject_id = subject_id    
 
         if mask is not None:
             if type(mask) is not nib.nifti1.Nifti1Image:
                 raise ValueError("mask is not a nibabel instance")
             self.mask = mask
         else:
-            self.mask = nib.load(os.path.join(resource_dir,'MNI152_T1_2mm_brain_mask.nii.gz'))
+            self.mask = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm_brain_mask.nii.gz'))
         
         if type(data) is not nib.nifti1.Nifti1Image:
             raise ValueError("data is not a nibabel instance")
         self.nifti_masker = NiftiMasker(mask_img=mask)
         self.data = self.nifti_masker.fit_transform(data)
-        
+
         if self.data.shape[0]!= len(Y):
             raise ValueError("Y does not match the correct size of data")
         self.Y = Y
@@ -91,14 +85,14 @@ class Predict:
         if cv_dict is not None:
             self.set_cv(cv_dict)
 
-    def predict(self, algorithm=None, cv_dict=None, save_images=True, save_output=True, 
+    def predict(self, algorithm=None, cv_dict=None, save_images=True, save_output=True,
         save_plot = True, **kwargs):
 
         """ Run prediction
 
         Args:
-            algorithm: Algorithm to use for prediction.  Must be one of 'svm', 'svr', 
-            'linear', 'logistic', 'lasso', 'ridge', 'ridgeClassifier','randomforest', 
+            algorithm: Algorithm to use for prediction.  Must be one of 'svm', 'svr',
+            'linear', 'logistic', 'lasso', 'ridge', 'ridgeClassifier','randomforest',
             or 'randomforestClassifier'
             cv_dict: Type of cross_validation to use. A dictionary of 
                 {'type': 'kfolds', 'n_folds': n},
@@ -109,12 +103,12 @@ class Predict:
             save_output: Boolean indicating whether or not to save prediction output to file.
             save_plot: Boolean indicating whether or not to create plots.
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
- 
+
         """
-            
+
         if algorithm is not None:
             self.set_algorithm(algorithm, **kwargs)
-        
+
         if self.algorithm is None:
             raise ValueError("Make sure you specify an 'algorithm' to use.")
 
@@ -123,17 +117,13 @@ class Predict:
         predicter.fit(self.data, self.Y)
         self.yfit_all = predicter.predict(self.data)
 
-        if save_images:
-            self._save_image(predicter)
-
         # Cross-Validation Fit
         if cv_dict is not None:
-            self.set_cv(cv_dict)    
-        
+            self.set_cv(cv_dict)
+
         if hasattr(self,'cv'):
             predicter_cv = self.predicter
             self.yfit_xval = self.yfit_all.copy()
-            
             if self.prediction_type is 'classification':
                 if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
                     self.prob = np.zeros(len(self.Y))
@@ -145,7 +135,6 @@ class Predict:
             for train, test in self.cv:
                 predicter_cv.fit(self.data[train], self.Y[train])
                 self.yfit_xval[test] = predicter_cv.predict(self.data[test])
-            
                 if self.prediction_type is 'classification':
                     if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
                         self.prob[test] = predicter_cv.predict_proba(self.data[test])
@@ -153,27 +142,34 @@ class Predict:
                         xval_dist_from_hyperplane[test] = predicter_cv.decision_function(self.data[test])
                         if self.algorithm is 'svm' and self.predicter.probability:
                             self.prob[test] = predicter_cv.predict_proba(self.data[test])
-            
+    
+        # Save Outputs        
+        if save_images:
+            self._save_image(predicter)
+
         if save_output:            
             self._save_stats_output()
                 
         if save_plot:
-            self._save_plot(predicter_cv)
+            if hasattr(self,'cv'):
+                self._save_plot(predicter_cv)
+            else:
+                self._save_plot(predicter)
 
-            # Print Results
-            if self.prediction_type is 'classification':
-                print 'overall accuracy: %.2f' % np.mean(self.yfit_all==self.Y)
-                if hasattr(self,'cv'):  
-                    self.mcr = np.mean(self.yfit_xval==self.Y)
-                    print 'overall CV accuracy: %.2f' % self.mcr
-            elif self.prediction_type is 'prediction':
-                print 'overall Root Mean Squared Error: %.2f' % np.sqrt(np.mean((self.yfit_all-self.Y)**2))
-                print 'overall Correlation: %.2f' % np.corrcoef(self.Y,self.yfit_all)[0,1]
-                if hasattr(self,'cv'):  
-                    self.rmse = np.sqrt(np.mean((self.yfit_xval-self.Y)**2))
-                    self.r = np.corrcoef(self.Y,self.yfit_xval)[0,1]
-                    print 'overall CV Root Mean Squared Error: %.2f' % self.rmse
-                    print 'overall CV Correlation: %.2f' % self.r
+        # Print Results
+        if self.prediction_type is 'classification':
+            print 'overall accuracy: %.2f' % np.mean(self.yfit_all==self.Y)
+            if hasattr(self,'cv'):  
+                self.mcr = np.mean(self.yfit_xval==self.Y)
+                print 'overall CV accuracy: %.2f' % self.mcr
+        elif self.prediction_type is 'prediction':
+            print 'overall Root Mean Squared Error: %.2f' % np.sqrt(np.mean((self.yfit_all-self.Y)**2))
+            print 'overall Correlation: %.2f' % np.corrcoef(self.Y,self.yfit_all)[0,1]
+            if hasattr(self,'cv'):  
+                self.rmse = np.sqrt(np.mean((self.yfit_xval-self.Y)**2))
+                self.r = np.corrcoef(self.Y,self.yfit_xval)[0,1]
+                print 'overall CV Root Mean Squared Error: %.2f' % self.rmse
+                print 'overall CV Correlation: %.2f' % self.r
 
 
     def set_algorithm(self, algorithm, **kwargs):
@@ -181,7 +177,7 @@ class Predict:
 
         Args:
             algorithm: The prediction algorithm to use. Either a string or an (uninitialized)
-            scikit-learn prediction object. If string, must be one of 'svm','svr', linear', 
+            scikit-learn prediction object. If string, must be one of 'svm','svr', linear',
             'logistic','lasso','lassopcr','lassoCV','ridge','ridgeCV','ridgeClassifier',
             'randomforest', or 'randomforestClassifier'
             kwargs: Additional keyword arguments to pass onto the scikit-learn clustering
@@ -238,22 +234,21 @@ class Predict:
             self._pca = PCA()
             self.predicter = Pipeline(steps=[('pca', self._pca), ('regress', self._regress)])
         else:
-            raise ValueError("""Invalid prediction/classification algorithm name. Valid 
-                options are 'svm','svr', 'linear', 'logistic', 'lasso', 'lassopcr', 
-                'lassoCV','ridge','ridgeCV','ridgeClassifier', 'randomforest', or 
+            raise ValueError("""Invalid prediction/classification algorithm name. Valid
+                options are 'svm','svr', 'linear', 'logistic', 'lasso', 'lassopcr',
+                'lassoCV','ridge','ridgeCV','ridgeClassifier', 'randomforest', or
                 'randomforestClassifier'.""")
 
     def set_cv(self, cv_dict):
         """ Set the CV algorithm to use in subsequent prediction analyses.
-        
+
         Args:
             cv_dict: Type of cross_validation to use. A dictionary of 
                 {'type': 'kfolds', 'n_folds': n},
                 {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or 
                 {'type': 'loso'', 'subject_id': holdout},
-                where n = number of folds, and subject = vector of subject ids that corresponds to self.Y
-        
-        """
+ 
+         """
 
         if 'subject_id' in cv_dict:
             self.subject_id = np.array(cv_dict['subject_id'])
@@ -282,14 +277,14 @@ class Predict:
             raise ValueError("Make sure 'cv_dict' is a dictionary.")
 
     def _save_image(self, predicter):
-        """ Write out weight map to Nifti image. 
-        
+        """ Write out weight map to Nifti image.
+
         Args:
             predicter: predicter instance
 
         Returns:
             predicter_weightmap.nii.gz: Will output a nifti image of weightmap
-        
+
         """
 
         if not os.path.isdir(self.output_dir):
@@ -306,14 +301,14 @@ class Predict:
         nib.save(coef_img, os.path.join(self.output_dir, self.algorithm + '_weightmap.nii.gz'))
 
     def _save_stats_output(self):
-        """ Write stats output to csv file. 
-        
+        """ Write stats output to csv file.
+
         Args:
             stats_output: a pandas file with prediction output
 
         Returns:
             predicter_stats_output.csv: Will output a csv file of stats output
-        
+
         """
 
         if not os.path.isdir(self.output_dir):
@@ -340,8 +335,8 @@ class Predict:
         self.stats_output.to_csv(os.path.join(self.output_dir, self.algorithm + '_Stats_Output.csv'),index=False)
 
     def _save_plot(self, predicter):
-        """ Save Plots. 
-        
+        """ Save Plots.
+
         Args:
             predicter: predicter instance
 
@@ -353,7 +348,7 @@ class Predict:
 
         if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
-        
+
         if self.algorithm is 'lassopcr':
             coef = np.dot(self._pca.components_.T,self._lasso.coef_)
             coef_img = self.nifti_masker.inverse_transform(np.transpose(coef))
@@ -363,9 +358,9 @@ class Predict:
         else:
             coef_img = self.nifti_masker.inverse_transform(predicter.coef_)
 
-        overlay_img = nib.load(os.path.join(resource_dir,'MNI152_T1_2mm_brain.nii.gz'))
+        overlay_img = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm_brain.nii.gz'))
 
-        fig1 = plot_stat_map(coef_img, overlay_img, title=self.algorithm + " weights", 
+        fig1 = plot_stat_map(coef_img, overlay_img, title=self.algorithm + " weights",
                             cut_coords=range(-40, 40, 10), display_mode='z')
         fig1.savefig(os.path.join(self.output_dir, self.algorithm + '_weightmap_axial.png'))
 
@@ -375,7 +370,7 @@ class Predict:
                 fig2.savefig(os.path.join(self.output_dir, self.algorithm + '_prob_plot.png'))
             else:
                 fig2 = dist_from_hyperplane_plot(self.stats_output)
-                fig2.savefig(os.path.join(self.output_dir, self.algorithm + 
+                fig2.savefig(os.path.join(self.output_dir, self.algorithm +
                             '_xVal_Distance_from_Hyperplane.png'))
                 if self.algorithm is 'svm' and self.predicter.probability:
                     fig3 = probability_plot(self.stats_output)
@@ -386,8 +381,8 @@ class Predict:
             fig2.savefig(os.path.join(self.output_dir, self.algorithm + '_scatterplot.png'))
 
 def apply_mask(data=None, weight_map=None, mask=None, method='dot_product', save_output=False, output_dir='.'):
-    """ Apply Nifti weight map to Nifti Images. 
- 
+    """ Apply Nifti weight map to Nifti Images.
+
         Args:
             data: nibabel instance of data to be applied
             weight_map: nibabel instance of weight map
@@ -400,23 +395,23 @@ def apply_mask(data=None, weight_map=None, mask=None, method='dot_product', save
         Returns:
             pexp: Outputs a vector of pattern expression values
 
-    """ 
+    """
 
     if mask is not None:
         if type(mask) is not nib.nifti1.Nifti1Image:
             raise ValueError("Mask is not a nibabel instance")
     else:
-        mask = nib.load(os.path.join(resource_dir,'MNI152_T1_2mm_brain_mask.nii.gz'))
-    
+        mask = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm_brain_mask.nii.gz'))
+
     if type(data) is not nib.nifti1.Nifti1Image:
         raise ValueError("Data is not a nibabel instance")
-    
+
     nifti_masker = NiftiMasker(mask_img=mask)
     data_masked = nifti_masker.fit_transform(data)
 
     if type(weight_map) is not nib.nifti1.Nifti1Image:
         raise ValueError("Weight_map is not a nibabel instance")
-    
+
     weight_map_masked = nifti_masker.fit_transform(weight_map)
 
     # Calculate pattern expression
@@ -432,7 +427,7 @@ def apply_mask(data=None, weight_map=None, mask=None, method='dot_product', save
 
 class Roc:
 
-    def __init__(self, input_values=None, binary_outcome=None, threshold_type='optimal_overall', 
+    def __init__(self, input_values=None, binary_outcome=None, threshold_type='optimal_overall',
         forced_choice=False, **kwargs):
         """ Initialize Roc instance. Object-Oriented version based on Tor Wager's Matlab roc_plot.m function
 
@@ -443,7 +438,7 @@ class Roc:
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
 
         """
-        
+
         if len(input_values) != len(binary_outcome):
             raise ValueError("Data Problem: input_value and binary_outcome are different lengths.")
 
@@ -457,23 +452,23 @@ class Roc:
         self.input_values = input_values
         self.binary_outcome = binary_outcome
         self.threshold_type = threshold_type
-        self.forced_choice=forced_choice    
+        self.forced_choice=forced_choice
 
     def calculate(self, input_values=None, binary_outcome=None, criterion_values=None,
         threshold_type='optimal_overall', forced_choice=False, balanced_acc=False):
         """ Calculate Receiver Operating Characteristic plot (ROC) for single-interval
         classification.
-   
+
         Args:
             input_values: nibabel data instance
             binary_outcome: vector of training labels
             criterion_values: (optional) criterion values for calculating fpr & tpr
             threshold_type: ['optimal_overall', 'optimal_balanced','minimum_sdt_bias']
-            forced_choice: within-subject forced classification (bool).  Data must be 
+            forced_choice: within-subject forced classification (bool).  Data must be
             stacked on top of each other (e.g., [1 1 1 0 0 0]).
             balanced_acc: balanced accuracy for single-interval classification (bool)
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
- 
+
         """
 
         if input_values is not None:
@@ -506,7 +501,7 @@ class Roc:
         self.n_false = float(sum(~self.binary_outcome))
 
         # Calculate Area Under the Curve
-        
+
         # fix for AUC = 1 if no overlap - code not working (tpr_unique and fpr_unique can be different lengths)
         # fpr_unique = np.unique(self.fpr)
         # tpr_unique = np.unique(self.tpr)
@@ -565,12 +560,12 @@ class Roc:
 
         Create a specific kind of ROC curve plot, based on input values
         along a continuous distribution and a binary outcome variable (logical).
-        
+
         Args:
             plot_method: type of plot ['gaussian','observed']
             binary_outcome: vector of training labels
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
-        
+
         """
 
         self.calculate() # Calculate ROC parameters
@@ -579,10 +574,10 @@ class Roc:
             if self.forced_choice:
                 diff_scores = self.input_values[self.binary_outcome] - self.input_values[~self.binary_outcome]
                 mn_diff = np.mean(diff_scores)
-                d = mn_diff / np.std(diff_scores)                
+                d = mn_diff / np.std(diff_scores)
                 pooled_sd = np.std(diff_scores) / np.sqrt(2);
                 d_a_model = mn_diff / pooled_sd
-    
+
                 x = np.arange(-3,3,.1)
                 tpr_smooth = 1 - norm.cdf(x, d, 1)
                 fpr_smooth = 1 - norm.cdf(x, -d, 1)
@@ -609,7 +604,7 @@ class Roc:
 
     def summary(self):
         """ Display a formatted summary of ROC analysis.
-        
+
         """
 
         print("------------------------")
