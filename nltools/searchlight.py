@@ -120,7 +120,8 @@ import glob
 #             yield list_i
     
 ########## CLASS DEFINITIONS ############
-        
+resource_dir = os.path.join(os.path.dirname(__file__),'resources')
+
 class Searchlight:
     def __init__(self, brain_mask=None, process_mask=None, radius=4): #no scoring param
         self.outfolder = '/ihome/sgreydan/searchlight_simulation/outfolder/'
@@ -128,7 +129,7 @@ class Searchlight:
         if type(brain_mask) is str:
             brain_mask = nib.load(brain_mask)
         elif brain_mask is None:
-            brain_mask = nib.load("/ihome/sgreydan/searchlight_simulation/resources/MNI152_T1_2mm_brain_mask_dil.nii.gz")
+            brain_mask = nib.load(os.path.join(resources_dir,'MNI152_T1_2mm_brain_mask.nii.gz'))
         elif type(brain_mask) is not nib.nifti1.Nifti1Image:
             print(brain_mask)
             print(type(brain_mask))
