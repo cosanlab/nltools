@@ -53,8 +53,8 @@ class Predict:
                 'linear', 'logistic', 'lasso', 'ridge', 'ridgeClassifier','randomforest', 
                 or 'randomforestClassifier'
             cv_dict: Type of cross_validation to use. A dictionary of 
-                {'type': 'kfolds', 'folds': n},
-                {'type': 'kfolds', 'folds': n, 'subject_id': holdout}, or 
+                {'type': 'kfolds', 'n_folds': n},
+                {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or 
                 {'type': 'loso', 'subject_id': holdout},
                 where n = number of folds, and subject = vector of subject ids that corresponds to self.Y
 
@@ -101,8 +101,8 @@ class Predict:
             'linear', 'logistic', 'lasso', 'ridge', 'ridgeClassifier','randomforest', 
             or 'randomforestClassifier'
             cv_dict: Type of cross_validation to use. A dictionary of 
-                {'type': 'kfolds', 'folds': n},
-                {'type': 'kfolds', 'folds': n, 'subject_id': holdout}, or 
+                {'type': 'kfolds', 'n_folds': n},
+                {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or 
                 {'type': 'loso'', 'subject_id': holdout},
                 where n = number of folds, and subject = vector of subject ids that corresponds to self.Y
             save_images: Boolean indicating whether or not to save images to file.
@@ -248,8 +248,8 @@ class Predict:
         
         Args:
             cv_dict: Type of cross_validation to use. A dictionary of 
-                {'type': 'kfolds', 'folds': n},
-                {'type': 'kfolds', 'folds': n, 'subject_id': holdout}, or 
+                {'type': 'kfolds', 'n_folds': n},
+                {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or 
                 {'type': 'loso'', 'subject_id': holdout},
                 where n = number of folds, and subject = vector of subject ids that corresponds to self.Y
         
@@ -263,19 +263,19 @@ class Predict:
                 if 'subject_id' in cv_dict:
                     # Hold out subjects within each fold
                     from  nltools.cross_validation import KFoldSubject
-                    self.cv = KFoldSubject(len(self.Y), cv_dict['subject_id'], n_folds=cv_dict['folds'])
+                    self.cv = KFoldSubject(len(self.Y), cv_dict['subject_id'], n_folds=cv_dict['n_folds'])
                 else:
                     # Normal Stratified K-Folds
                     from  sklearn.cross_validation import StratifiedKFold
-                    self.cv = StratifiedKFold(self.Y, n_folds=cv_dict['folds'])
+                    self.cv = StratifiedKFold(self.Y, n_folds=cv_dict['n_folds'])
             elif cv_dict['type'] is 'loso':
                 # Leave One Subject Out
                 from sklearn.cross_validation import LeaveOneLabelOut
                 self.cv = LeaveOneLabelOut(labels=cv_dict['subject_id'])
             else:
                 raise ValueError("""Make sure you specify a dictionary of A dictionary of 
-                {'type': 'kfolds', 'folds': n},
-                {'type': 'kfolds', 'folds': n, 'subject_id': holdout}, or 
+                {'type': 'kfolds', 'n_folds': n},
+                {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or 
                 {'type': 'loso'', 'subject_id': holdout},
                 where n = number of folds, and subject = vector of subject ids that corresponds to self.Y""")
         else:
