@@ -3,7 +3,7 @@
     =========================
     These tools provide the ability to quickly run 
     machine-learning analyses on imaging data
-    Author: Luke Chang
+    Author: Luke Chang <luke.j.chang@dartmouth.edu>
     License: MIT
 '''
 
@@ -14,6 +14,10 @@
 # 4) add tests
 # 5) add within subject checks and plots
 # 6) Plot probabilities
+
+__all__ = ['Predict',
+            'apply_mask',
+            'ROC']
 
 import os
 import importlib
@@ -258,9 +262,8 @@ class Predict:
             if cv_dict['type'] is 'kfolds':
                 if 'subject_id' in cv_dict:
                     # Hold out subjects within each fold
-                    from  sklearn.cross_validation import LeavePLabelOut
-                    n_subs = len(np.unique(cv_dict['subject_id']))/cv_dict['folds']
-                    self.cv = LeavePLabelOut(labels=cv_dict, p=n_subs)
+                    from  nltools.cross_validation import KFoldSubject
+                    self.cv = KFoldSubject(len(self.Y), cv_dict['subject_id'], n_folds=cv_dict['folds'])
                 else:
                     # Normal Stratified K-Folds
                     from  sklearn.cross_validation import StratifiedKFold
