@@ -32,7 +32,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
 from nltools.stats import pearson
-from nltools.util import get_resource_dir
+from nltools.utils import get_resource_path
 from scipy.stats import norm, binom_test
 from sklearn.metrics import auc
 
@@ -68,7 +68,7 @@ class Predict:
                 raise ValueError("mask is not a nibabel instance")
             self.mask = mask
         else:
-            self.mask = nib.load(os.path.join(get_resource_dir(),'MNI152_T1_2mm_brain_mask.nii.gz'))
+            self.mask = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm_brain_mask.nii.gz'))
         
         if type(data) is not nib.nifti1.Nifti1Image:
             raise ValueError("data is not a nibabel instance")
@@ -117,9 +117,6 @@ class Predict:
         predicter.fit(self.data, self.Y)
         self.yfit_all = predicter.predict(self.data)
 
-        if save_images:
-            self._save_image(predicter)
-
         # Cross-Validation Fit
         if cv_dict is not None:
             self.set_cv(cv_dict)
@@ -145,12 +142,19 @@ class Predict:
                         xval_dist_from_hyperplane[test] = predicter_cv.decision_function(self.data[test])
                         if self.algorithm is 'svm' and self.predicter.probability:
                             self.prob[test] = predicter_cv.predict_proba(self.data[test])
-            
+    
+        # Save Outputs        
+        if save_images:
+            self._save_image(predicter)
+
         if save_output:            
             self._save_stats_output()
                 
         if save_plot:
-            self._save_plot(predicter_cv)
+            if hasattr(self,'cv'):
+                self._save_plot(predicter_cv)
+            else:
+                self._save_plot(predicter)
 
         # Print Results
         if self.prediction_type is 'classification':
@@ -354,7 +358,7 @@ class Predict:
         else:
             coef_img = self.nifti_masker.inverse_transform(predicter.coef_)
 
-        overlay_img = nib.load(os.path.join(resource_dir,'MNI152_T1_2mm_brain.nii.gz'))
+        overlay_img = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm_brain.nii.gz'))
 
         fig1 = plot_stat_map(coef_img, overlay_img, title=self.algorithm + " weights",
                             cut_coords=range(-40, 40, 10), display_mode='z')
@@ -397,7 +401,7 @@ def apply_mask(data=None, weight_map=None, mask=None, method='dot_product', save
         if type(mask) is not nib.nifti1.Nifti1Image:
             raise ValueError("Mask is not a nibabel instance")
     else:
-        mask = nib.load(os.path.join(get_resource_dir(),'MNI152_T1_2mm_brain_mask.nii.gz'))
+        mask = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm_brain_mask.nii.gz'))
 
     if type(data) is not nib.nifti1.Nifti1Image:
         raise ValueError("Data is not a nibabel instance")
