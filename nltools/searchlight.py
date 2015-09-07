@@ -129,7 +129,7 @@ class Searchlight:
         if type(brain_mask) is str:
             brain_mask = nib.load(brain_mask)
         elif brain_mask is None:
-            brain_mask = nib.load(os.path.join(self.resource_folder,'MNI152_T1_2mm_brain_mask.nii.gz'))
+            brain_mask = nib.load(os.path.join(self.resource_folder,'MNI152_T1_2mm_brain_mask_dil.nii.gz'))
         elif type(brain_mask) is not nib.nifti1.Nifti1Image:
             print(brain_mask)
             print(type(brain_mask))
