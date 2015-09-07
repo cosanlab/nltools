@@ -158,17 +158,20 @@ class Predict:
 
         # Print Results
         if self.prediction_type is 'classification':
-            print 'overall accuracy: %.2f' % np.mean(self.yfit_all==self.Y)
+            self.mcr_all = np.mean(self.yfit_all==self.Y)
+            print 'overall accuracy: %.2f' % self.mcr_all
             if hasattr(self,'cv'):  
-                self.mcr = np.mean(self.yfit_xval==self.Y)
-                print 'overall CV accuracy: %.2f' % self.mcr
+                self.mcr_xval = np.mean(self.yfit_xval==self.Y)
+                print 'overall CV accuracy: %.2f' % self.mcr_xval
         elif self.prediction_type is 'prediction':
-            print 'overall Root Mean Squared Error: %.2f' % np.sqrt(np.mean((self.yfit_all-self.Y)**2))
-            print 'overall Correlation: %.2f' % np.corrcoef(self.Y,self.yfit_all)[0,1]
+            self.rmse_all = np.sqrt(np.mean((self.yfit_all-self.Y)**2))
+            self.r_all = np.corrcoef(self.Y,self.yfit_all)[0,1]
+            print 'overall Root Mean Squared Error: %.2f' % self.rmse_all
+            print 'overall Correlation: %.2f' % self.r_all
             if hasattr(self,'cv'):  
-                self.rmse = np.sqrt(np.mean((self.yfit_xval-self.Y)**2))
-                self.r = np.corrcoef(self.Y,self.yfit_xval)[0,1]
-                print 'overall CV Root Mean Squared Error: %.2f' % self.rmse
+                self.rmse_xval = np.sqrt(np.mean((self.yfit_xval-self.Y)**2))
+                self.r_xval = np.corrcoef(self.Y,self.yfit_xval)[0,1]
+                print 'overall CV Root Mean Squared Error: %.2f' % self.rmse_xval
                 print 'overall CV Correlation: %.2f' % self.r
 
 

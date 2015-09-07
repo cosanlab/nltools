@@ -172,7 +172,7 @@ class Predict:
                 self.rmse_xval = np.sqrt(np.mean((self.yfit_xval-self.Y)**2))
                 self.r_xval = np.corrcoef(self.Y,self.yfit_xval)[0,1]
                 print 'overall CV Root Mean Squared Error: %.2f' % self.rmse_xval
-                print 'overall CV Correlation: %.2f' % self.r
+                print 'overall CV Correlation: %.2f' % self.r_xval
 
 
     def set_algorithm(self, algorithm, **kwargs):
