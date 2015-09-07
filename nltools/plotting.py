@@ -19,7 +19,11 @@ def dist_from_hyperplane_plot(stats_output):
         fig: Will return a seaborn plot of distance from hyperplane
     """
 
-    fig = sns.factorplot("SubID", "xval_dist_from_hyperplane", hue="Y", data=stats_output,
+    if "dist_from_hyperplane_xval" in stats_output.columns:
+        fig = sns.factorplot("SubID", "dist_from_hyperplane_xval", hue="Y", data=stats_output,
+                        kind='point')
+    else:
+        fig = sns.factorplot("SubID", "dist_from_hyperplane_all", hue="Y", data=stats_output,
                         kind='point')
     plt.xlabel('Subject', fontsize=16)
     plt.ylabel('Distance from Hyperplane', fontsize=16)
@@ -52,8 +56,10 @@ def probability_plot(stats_output):
     Returns:
         fig: Will return a seaborn scatterplot
     """
-
-    fig = sns.lmplot("Y", "Probability", data=stats_output,logistic=True)
+    if "Probability_xval" in stats_output.columns:
+        fig = sns.lmplot("Y", "Probability_xval", data=stats_output,logistic=True)
+    else:
+        fig = sns.lmplot("Y", "Probability_all", data=stats_output,logistic=True)
     plt.xlabel('Y', fontsize=16)
     plt.ylabel('Predicted Probability', fontsize=16)
     plt.title('Prediction', fontsize=18)

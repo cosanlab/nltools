@@ -116,6 +116,13 @@ class Predict:
         predicter = self.predicter
         predicter.fit(self.data, self.Y)
         self.yfit_all = predicter.predict(self.data)
+        if self.prediction_type is 'classification':
+            if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
+                self.prob_all = predicter.predict_proba(self.data)
+            else:
+                dist_from_hyperplane_all = predicter.decision_function(self.data)
+                if self.algorithm is 'svm' and self.predicter.probability:
+                    self.prob_all = predicter.predict_proba(self.data)
 
         # Cross-Validation Fit
         if cv_dict is not None:
@@ -126,22 +133,22 @@ class Predict:
             self.yfit_xval = self.yfit_all.copy()
             if self.prediction_type is 'classification':
                 if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
-                    self.prob = np.zeros(len(self.Y))
+                    self.prob_xval = np.zeros(len(self.Y))
                 else:
-                    xval_dist_from_hyperplane = np.zeros(len(self.Y))
+                    dist_from_hyperplane_xval = np.zeros(len(self.Y))
                     if self.algorithm is 'svm' and self.predicter.probability:
-                        self.prob = np.zeros(len(self.Y))
+                        self.prob_xval = np.zeros(len(self.Y))
 
             for train, test in self.cv:
                 predicter_cv.fit(self.data[train], self.Y[train])
                 self.yfit_xval[test] = predicter_cv.predict(self.data[test])
                 if self.prediction_type is 'classification':
                     if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
-                        self.prob[test] = predicter_cv.predict_proba(self.data[test])
+                        self.prob_xval[test] = predicter_cv.predict_proba(self.data[test])
                     else:
-                        xval_dist_from_hyperplane[test] = predicter_cv.decision_function(self.data[test])
+                        dist_from_hyperplane_xval[test] = predicter_cv.decision_function(self.data[test])
                         if self.algorithm is 'svm' and self.predicter.probability:
-                            self.prob[test] = predicter_cv.predict_proba(self.data[test])
+                            self.prob_xval[test] = predicter_cv.predict_proba(self.data[test])
     
         # Save Outputs        
         if save_images:
@@ -331,7 +338,7 @@ class Predict:
             if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
                 self.stats_output['Probability'] = self.prob
             else:
-                self.stats_output['xval_dist_from_hyperplane']=xval_dist_from_hyperplane
+                self.stats_output['dist_from_hyperplane_xval']=dist_from_hyperplane_xval
                 if self.algorithm is 'svm' and self.predicter.probability:
                     self.stats_output['Probability'] = self.prob        
 
@@ -374,7 +381,7 @@ class Predict:
             else:
                 fig2 = dist_from_hyperplane_plot(self.stats_output)
                 fig2.savefig(os.path.join(self.output_dir, self.algorithm +
-                            '_xVal_Distance_from_Hyperplane.png'))
+                            '_Distance_from_Hyperplane_xval.png'))
                 if self.algorithm is 'svm' and self.predicter.probability:
                     fig3 = probability_plot(self.stats_output)
                     fig3.savefig(os.path.join(self.output_dir, self.algorithm + '_prob_plot.png'))
