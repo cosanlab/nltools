@@ -6,11 +6,11 @@ try:
 except ImportError:
     from distutils.core import setup
 
-__version__ = '0.1'
+__version__ = '0.2'
 
 setup(
     name='nltools',
-    version='0.1',
+    version='0.2',
     author='Luke Chang',
     author_email='luke.j.chang@dartmouth.edu',
     packages=['nltools'],
