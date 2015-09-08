@@ -412,7 +412,7 @@ exit 0")
         os.system("rm inner_searchlight_script*")
 
         #get data from reassembled.txt and convert it to a .nii file
-        if (reconstruct_flag && os.path.isfile(rs_dir)):
+        if (reconstruct_flag and os.path.isfile(rs_dir)):
             #get location of searchlight pickle and retrieve its contents
             pdir = os.path.join(os.getcwd(),'searchlight.pickle')
             (bdata, A, nifti_masker, process_mask_1D, algorithm, cv_dict, output_dir, kwargs) = cPickle.load( open(pdir) )
