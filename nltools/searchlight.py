@@ -412,7 +412,7 @@ exit 0")
         os.system("rm inner_searchlight_script*")
         os.system("rm email_alert_pbs*")
 
-        get data from reassembled.txt and convert it to a .nii file
+        #get data from reassembled.txt and convert it to a .nii file
         if reconstruct_flag:
             #get location of searchlight pickle and retrieve its contents
             pdir = os.path.join(os.getcwd(),'searchlight.pickle')
@@ -429,7 +429,7 @@ exit 0")
 
             data_3D = nifti_masker.inverse_transform( process_mask_1D ) #transform scores to 3D nifti image
             data_3D.to_filename(os.path.join(os.getcwd(),'data_3D.nii.gz')) #save nifti image
-            
+
         os.system("rm searchlight.pickle")
 
 
