@@ -283,16 +283,22 @@ class Searchlight:
         cPickle.dump([bdata, A.tolil(), nifti_masker, algorithm, cv_dict, output_dir, kwargs], open("searchlight.pickle", "w"))
         
         print("finished storing data")
+
+        make_inner_python_script_()
+        print("wrote inner script)")
         
         #generate BA$H scripts
         for ith_core in range(n_cores):
-            Searchlight.make_scripts_(ith_core, n_cores) # create a script
+            Searchlight.make_pbs_scripts_(ith_core, n_cores) # create a script
             os.system("qsub div_script" + str(ith_core) + ".pbs") # run it on a core
 
+        print("wrote div scripts")
+        print("finished...")
+
     @staticmethod        
-    def make_scripts_(ith_core = 0, n_cores = 0):
+    def make_pbs_scripts_(ith_core = 0, n_cores = 0):
         title  = "div_script" + str(ith_core)
-        text_file = open(title + ".pbs", "w")
+        text_file = open(os.path.join(os.getcwd(), title + ".pbs"), "w")
         
         text_file.write("#!/bin/bash -l \n\
 # declare a name for this job to be my_serial_job \n\
@@ -314,9 +320,25 @@ class Searchlight:
 # places the job in the directory from which the job was submitted. \n\
 cd /ihome/sgreydan/searchlight_simulation \n\
 # run the program using the relative path \n\
-python nltools.searchlight.reassemble_() \n\
+python inner_searchlight_script.py " + str(ith_core) + " " + str(n_cores) + " params) \n\
 exit 0" )
         text_file.close()
+
+    @staticmethod
+    def make_inner_python_script_():
+        title  = "inner_searchlight_script.py"
+        f = open(os.path.join(os.getcwd(), title), "w")
+        f.write("from nltools.searchlight import Searchlight \n\
+import cPickle \n\
+import os \n\
+pdir = " + os.path.join(os.getcwd(),'searchlight.pickle') + " \n\
+params = cPickle.load( open(pdir) ) \n\
+sl = Searchlight() \n\
+ith_core = int(sys.argv[1]) \n\
+n_cores = = int(sys.argv[2]) \n\
+params = = int(sys.argv[3]) \n\
+sl.predict(ith_core, n_cores, params) ")
+        f.close()
     
     @staticmethod
     def reassemble_():
