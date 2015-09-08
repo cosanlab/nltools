@@ -151,7 +151,7 @@ class Searchlight:
         
     def predict(self, core_i, n_cores, params): #CHANGE NAME
         
-        (bdata, A, self.nifti_masker, process_mask_coords, algorithm, cv_dict, output_dir, kwargs) = params
+        (bdata, A, self.nifti_masker, process_mask_1D, algorithm, cv_dict, output_dir, kwargs) = params
         
         print("getting data")
         if isinstance(bdata, str):
@@ -225,10 +225,10 @@ class Searchlight:
         world_process_mask = self.nifti_masker.fit_transform(self.process_mask)
         world_brain_mask = self.nifti_masker.fit_transform(self.brain_mask)
         
-        selected = world_brain_mask.copy()
-        selected[:,:] = 0
+        process_mask_1D = world_brain_mask.copy()
+        process_mask_1D[:,:] = 0
         no_overlap = np.where( world_process_mask * world_brain_mask > 0 ) #get the indices where at least one entry is 0
-        selected[no_overlap] = 1 #delete entries for which there is no overlap
+        process_mask_1D[no_overlap] = 1 #delete entries for which there is no overlap
         
         mask, mask_affine = masking._load_mask_img(self.brain_mask)
         mask_coords = np.where(mask != 0)
@@ -241,7 +241,7 @@ class Searchlight:
 #         print(mask_coords)
 #         print(mask_coords.shape)
         
-        selected_3D = self.nifti_masker.inverse_transform( selected )
+        selected_3D = self.nifti_masker.inverse_transform( process_mask_1D )
         process_mask_coords = np.where(selected_3D.get_data()[:,:,:,0] != 0)
         pmc1 = np.reshape(process_mask_coords[0], (1, -1))
         pmc2 = np.reshape(process_mask_coords[1], (1, -1))
@@ -254,14 +254,14 @@ class Searchlight:
         
         clf = neighbors.NearestNeighbors(radius = self.radius)
         A = clf.fit(mask_coords).radius_neighbors_graph(process_mask_coords)
-        del mask_coords
+        del mask_coords, process_mask_coords, selected_3D, no_overlap
         
 #         print("~~~~~~~~~~~~~~~~")
 #         print(A.shape)
 #         print(A[1000].toarray())
         print("There are " + str( sum(sum(A[0].toarray())) ) + " voxels in each searchlight")
         print("finish searchlight")
-        return (A.tolil(), self.nifti_masker, process_mask_coords)
+        return (A.tolil(), self.nifti_masker, process_mask_1D)
     
     @staticmethod
     def run_searchlight_(bdata, brain_mask = None, process_mask = None, radius=4, n_cores = 0):
@@ -274,7 +274,7 @@ class Searchlight:
         sl = Searchlight(brain_mask=brain_mask, process_mask=process_mask, radius=radius)
         
         # parameters for Predict function
-        (A, nifti_masker, process_mask_coords) = sl.get_coords()
+        (A, nifti_masker, process_mask_1D) = sl.get_coords()
         print("getting A, nifti_masker, and process_mask_coords")
         algorithm = 'svr'
         cv_dict = None #{'kfolds':5}
@@ -284,7 +284,7 @@ class Searchlight:
         print("finished making data")
         
         # save all parameters in a file in the same directory that the code is being executed
-        cPickle.dump([bdata, A.tolil(), nifti_masker, process_mask_coords, algorithm, cv_dict, output_dir, kwargs], open("searchlight.pickle", "w"))
+        cPickle.dump([bdata, A.tolil(), nifti_masker, process_mask_1D, algorithm, cv_dict, output_dir, kwargs], open("searchlight.pickle", "w"))
         
         print("finished storing data")
 
