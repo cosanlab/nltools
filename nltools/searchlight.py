@@ -409,7 +409,7 @@ exit 0")
 
         #send user an alert email by executing a blank script with an email alert tag
         Searchlight.make_email_alert_pbs_()
-        os.system("qsub email_alert.pbs")
+        os.system("qsub email_alert_pbs.pbs")
         os.system("rm inner_searchlight_script*")
 
         pdir = os.path.join(os.getcwd(),'searchlight.pickle')
