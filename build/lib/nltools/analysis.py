@@ -116,6 +116,13 @@ class Predict:
         predicter = self.predicter
         predicter.fit(self.data, self.Y)
         self.yfit_all = predicter.predict(self.data)
+        if self.prediction_type is 'classification':
+            if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
+                self.prob_all = predicter.predict_proba(self.data)
+            else:
+                dist_from_hyperplane_all = predicter.decision_function(self.data)
+                if self.algorithm is 'svm' and self.predicter.probability:
+                    self.prob_all = predicter.predict_proba(self.data)
 
         # Cross-Validation Fit
         if cv_dict is not None:
@@ -126,22 +133,22 @@ class Predict:
             self.yfit_xval = self.yfit_all.copy()
             if self.prediction_type is 'classification':
                 if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
-                    self.prob = np.zeros(len(self.Y))
+                    self.prob_xval = np.zeros(len(self.Y))
                 else:
-                    xval_dist_from_hyperplane = np.zeros(len(self.Y))
+                    dist_from_hyperplane_xval = np.zeros(len(self.Y))
                     if self.algorithm is 'svm' and self.predicter.probability:
-                        self.prob = np.zeros(len(self.Y))
+                        self.prob_xval = np.zeros(len(self.Y))
 
             for train, test in self.cv:
                 predicter_cv.fit(self.data[train], self.Y[train])
                 self.yfit_xval[test] = predicter_cv.predict(self.data[test])
                 if self.prediction_type is 'classification':
                     if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
-                        self.prob[test] = predicter_cv.predict_proba(self.data[test])
+                        self.prob_xval[test] = predicter_cv.predict_proba(self.data[test])
                     else:
-                        xval_dist_from_hyperplane[test] = predicter_cv.decision_function(self.data[test])
+                        dist_from_hyperplane_xval[test] = predicter_cv.decision_function(self.data[test])
                         if self.algorithm is 'svm' and self.predicter.probability:
-                            self.prob[test] = predicter_cv.predict_proba(self.data[test])
+                            self.prob_xval[test] = predicter_cv.predict_proba(self.data[test])
     
         # Save Outputs        
         if save_images:
@@ -331,7 +338,7 @@ class Predict:
             if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
                 self.stats_output['Probability'] = self.prob
             else:
-                self.stats_output['xval_dist_from_hyperplane']=xval_dist_from_hyperplane
+                self.stats_output['dist_from_hyperplane_xval']=dist_from_hyperplane_xval
                 if self.algorithm is 'svm' and self.predicter.probability:
                     self.stats_output['Probability'] = self.prob        
 
@@ -374,7 +381,7 @@ class Predict:
             else:
                 fig2 = dist_from_hyperplane_plot(self.stats_output)
                 fig2.savefig(os.path.join(self.output_dir, self.algorithm +
-                            '_xVal_Distance_from_Hyperplane.png'))
+                            '_Distance_from_Hyperplane_xval.png'))
                 if self.algorithm is 'svm' and self.predicter.probability:
                     fig3 = probability_plot(self.stats_output)
                     fig3.savefig(os.path.join(self.output_dir, self.algorithm + '_prob_plot.png'))
@@ -407,24 +414,44 @@ def apply_mask(data=None, weight_map=None, mask=None, method='dot_product', save
         mask = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm_brain_mask.nii.gz'))
 
     if type(data) is not nib.nifti1.Nifti1Image:
-        raise ValueError("Data is not a nibabel instance")
+        if type(data) is str:
+            if os.path.isfile(data):
+                data = nib.load(data)
+        elif type(data) is list:
+            data = nib.funcs.concat_images(data)
+        else:
+            raise ValueError("Data is not a nibabel instance, list of files, or a valid file name.")
 
     nifti_masker = NiftiMasker(mask_img=mask)
     data_masked = nifti_masker.fit_transform(data)
+    if len(data_masked.shape) > 2:
+        data_masked = data_masked.squeeze()
 
     if type(weight_map) is not nib.nifti1.Nifti1Image:
-        raise ValueError("Weight_map is not a nibabel instance")
+        if type(weight_map) is str:
+            if os.path.isfile(weight_map):
+                data = nib.load(weight_map)
+        elif type(weight_map) is list:
+            weight_map = nib.funcs.concat_images(weight_map)
+        else:
+            raise ValueError("Weight_map is not a nibabel instance, list of files, or a valid file name.")
 
     weight_map_masked = nifti_masker.fit_transform(weight_map)
+    if len(weight_map_masked.shape) > 2:
+        weight_map_masked = weight_map_masked.squeeze()
 
     # Calculate pattern expression
-    if method is 'dot_product':
-        pexp = np.dot(data_masked,np.transpose(weight_map_masked)).squeeze()
-    elif method is 'correlation':
-        pexp = pearson(data_masked,weight_map_masked)
+    pexp = pd.DataFrame()
+    for w in range(0, weight_map_masked.shape[0]):
+        if method is 'dot_product':
+            pexp = pexp.append(pd.Series(np.dot(data_masked,np.transpose(weight_map_masked[w,:]))), ignore_index=True)
+        elif method is 'correlation':
+            pexp = pexp.append(pd.Series(pearson(data_masked,weight_map_masked[w,:])), ignore_index=True)
+    pexp = pexp.T
 
     if save_output:
-        np.savetxt(os.path.join(output_dir,"Pattern_Expression_" + method + ".csv"), pexp, delimiter=",")
+        pexp.to_csv(os.path.join(output_dir,"Pattern_Expression_" + method + ".csv"))
+        # np.savetxt(os.path.join(output_dir,"Pattern_Expression_" + method + ".csv"), pexp, delimiter=",")
 
     return pexp
 
