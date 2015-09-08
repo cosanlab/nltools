@@ -357,7 +357,7 @@ exit 0")
 
     
     @staticmethod
-    def reassemble_(reconstruct_flag = true):
+    def reassemble_(reconstruct_flag = True):
         # if there is already data in the reassembled.txt file, delete it
         outfolder = os.path.join(os.getcwd(),'outfolder')
 
