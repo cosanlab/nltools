@@ -408,9 +408,7 @@ exit 0")
         #send user an alert email by executing a blank script with an email alert tag
         Searchlight.make_email_alert_pbs_()
         os.system("qsub email_alert.pbs")
-        os.system("rm email_alert_pbs*")
         os.system("rm inner_searchlight_script*")
-        os.system("rm email_alert_pbs*")
 
         #get data from reassembled.txt and convert it to a .nii file
         if reconstruct_flag:
@@ -431,5 +429,6 @@ exit 0")
             data_3D.to_filename(os.path.join(os.getcwd(),'data_3D.nii.gz')) #save nifti image
 
         os.system("rm searchlight.pickle")
+        os.system("rm email_alert_pbs*")
 
 
