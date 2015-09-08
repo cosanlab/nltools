@@ -151,7 +151,7 @@ class Searchlight:
         
     def predict(self, core_i, n_cores, params): #CHANGE NAME
         
-        (bdata, A, self.nifti_masker, algorithm, cv_dict, output_dir, kwargs) = params
+        (bdata, A, self.nifti_masker, process_mask_coords, algorithm, cv_dict, output_dir, kwargs) = params
         
         print("getting data")
         if isinstance(bdata, str):
@@ -261,7 +261,7 @@ class Searchlight:
 #         print(A[1000].toarray())
         print("There are " + str( sum(sum(A[0].toarray())) ) + " voxels in each searchlight")
         print("finish searchlight")
-        return (A.tolil(), self.nifti_masker)
+        return (A.tolil(), self.nifti_masker, process_mask_coords)
     
     @staticmethod
     def run_searchlight_(bdata, brain_mask = None, process_mask = None, radius=4, n_cores = 0):
@@ -274,7 +274,8 @@ class Searchlight:
         sl = Searchlight(brain_mask=brain_mask, process_mask=process_mask, radius=radius)
         
         # parameters for Predict function
-        (A, nifti_masker) = sl.get_coords()
+        (A, nifti_masker, process_mask_coords) = sl.get_coords()
+        print("getting A, nifti_masker, and process_mask_coords")
         algorithm = 'svr'
         cv_dict = None #{'kfolds':5}
         output_dir = os.path.join(os.getcwd(),'outfolder')
@@ -283,7 +284,7 @@ class Searchlight:
         print("finished making data")
         
         # save all parameters in a file in the same directory that the code is being executed
-        cPickle.dump([bdata, A.tolil(), nifti_masker, algorithm, cv_dict, output_dir, kwargs], open("searchlight.pickle", "w"))
+        cPickle.dump([bdata, A.tolil(), nifti_masker, process_mask_coords, algorithm, cv_dict, output_dir, kwargs], open("searchlight.pickle", "w"))
         
         print("finished storing data")
 
@@ -356,7 +357,7 @@ exit 0")
 
     
     @staticmethod
-    def reassemble_():
+    def reassemble_(reconstruct_flag = true):
         # if there is already data in the reassembled.txt file, delete it
         outfolder = os.path.join(os.getcwd(),'outfolder')
 
@@ -410,6 +411,11 @@ exit 0")
         os.system("rm email_alert_pbs*")
         os.system("rm inner_searchlight_script*")
         os.system("rm email_alert_pbs*")
+
+        #get data from reassembled.txt and convert it to a .nii file
+        # if reconstruct_flag:
+        #     with open(rs_dir, 'r') as rs:
+        #         data = rs.read()
         os.system("rm searchlight.pickle")
 
 
