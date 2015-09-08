@@ -284,7 +284,7 @@ class Searchlight:
         
         print("finished storing data")
 
-        make_inner_python_script_()
+        Searchlight.make_inner_python_script_()
         print("wrote inner script)")
         
         #generate BA$H scripts
