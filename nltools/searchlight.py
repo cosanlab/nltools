@@ -373,12 +373,13 @@ exit 0")
         ith_core = 0
         div_dir = os.path.join(outfolder, div_fn_prefix + str(ith_core) + ".txt")
 
+        #write results from all cores to one text file in a csv format
         while (os.path.isfile(div_dir)):
             with open (div_dir, "r") as div_file:
                 data=div_file.read()
 
-                rs = open(str(rs_dir), "a")
-                rs.write(data + "\n")
+                rs = open(rs_dir, "a")
+                rs.write(data + ',')
                 rs.close()
 
             command = "rm div_script" + str(ith_core) + ".pbs"
@@ -390,6 +391,11 @@ exit 0")
             ith_core = ith_core + 1
 
             div_dir = "outfolder/" + div_fn_prefix + str(ith_core) + ".txt"
+
+        #delete the last comma in the csv file we just generated
+        with open(rs_dir, 'rb+') as f:
+            f.seek(-1, os.SEEK_END)
+            f.truncate()
 
         print( "Finished reassembly (reassembled " + str(ith_core) + " items)" )
 
