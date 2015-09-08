@@ -414,24 +414,44 @@ def apply_mask(data=None, weight_map=None, mask=None, method='dot_product', save
         mask = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm_brain_mask.nii.gz'))
 
     if type(data) is not nib.nifti1.Nifti1Image:
-        raise ValueError("Data is not a nibabel instance")
+        if type(data) is str:
+            if os.path.isfile(data):
+                data = nib.load(data)
+        elif type(data) is list:
+            data = nib.funcs.concat_images(data)
+        else:
+            raise ValueError("Data is not a nibabel instance, list of files, or a valid file name.")
 
     nifti_masker = NiftiMasker(mask_img=mask)
     data_masked = nifti_masker.fit_transform(data)
+    if len(data_masked.shape) > 2:
+        data_masked = data_masked.squeeze()
 
     if type(weight_map) is not nib.nifti1.Nifti1Image:
-        raise ValueError("Weight_map is not a nibabel instance")
+        if type(weight_map) is str:
+            if os.path.isfile(weight_map):
+                data = nib.load(weight_map)
+        elif type(weight_map) is list:
+            weight_map = nib.funcs.concat_images(weight_map)
+        else:
+            raise ValueError("Weight_map is not a nibabel instance, list of files, or a valid file name.")
 
     weight_map_masked = nifti_masker.fit_transform(weight_map)
+    if len(weight_map_masked.shape) > 2:
+        weight_map_masked = weight_map_masked.squeeze()
 
     # Calculate pattern expression
-    if method is 'dot_product':
-        pexp = np.dot(data_masked,np.transpose(weight_map_masked)).squeeze()
-    elif method is 'correlation':
-        pexp = pearson(data_masked,weight_map_masked)
+    pexp = pd.DataFrame()
+    for w in range(1, weight_map_masked.shape[0]):
+        if method is 'dot_product':
+            pexp = pexp.append(pd.Series(np.dot(data_masked,np.transpose(weight_map_masked[w,:]))))
+        elif method is 'correlation':
+            pexp = pexp.append(pd.Series(pearson(data_masked,weight_map_masked[w,:])))
+    pexp = pexp.T
 
     if save_output:
-        np.savetxt(os.path.join(output_dir,"Pattern_Expression_" + method + ".csv"), pexp, delimiter=",")
+        pexp.to_csv(os.path.join(output_dir,"Pattern_Expression_" + method + ".csv"))
+        # np.savetxt(os.path.join(output_dir,"Pattern_Expression_" + method + ".csv"), pexp, delimiter=",")
 
     return pexp
 
