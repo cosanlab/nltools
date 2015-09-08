@@ -331,7 +331,7 @@ exit 0" )
         f.write("from nltools.searchlight import Searchlight \n\
 import cPickle \n\
 import os \n\
-pdir = " + os.path.join(os.getcwd(),'searchlight.pickle') + " \n\
+pdir = \"" + os.path.join(os.getcwd(),'searchlight.pickle') + "\" \n\
 params = cPickle.load( open(pdir) ) \n\
 sl = Searchlight() \n\
 ith_core = int(sys.argv[1]) \n\
