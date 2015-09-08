@@ -371,7 +371,7 @@ exit 0")
 
         #get name and location of div file
         div_fn_prefix = "out"
-        ith_core = 0
+        ith_core = -1
         div_dir = os.path.join(outfolder, div_fn_prefix + str(ith_core) + ".txt")
 
         #write results from all cores to one text file in a csv format
@@ -383,18 +383,18 @@ exit 0")
                 rs.write(data + ',')
                 rs.close()
 
+            ith_core = ith_core + 1
+            
             command = "rm div_script" + str(ith_core) + ".pbs"
             os.system(command) # delete all the scripts we generated
 
             command = "rm " + str(div_dir)
             os.system(command) # delete all the smaller text files we generated
 
-            ith_core = ith_core + 1
-
             div_dir = "outfolder/" + div_fn_prefix + str(ith_core) + ".txt"
 
         #delete the last comma in the csv file we just generated
-        if (os.path.isfile(rs_dir)):
+        if (ith_core >= 0):
             with open(rs_dir, 'rb+') as f:
                 f.seek(-1, os.SEEK_END)
                 f.truncate()
