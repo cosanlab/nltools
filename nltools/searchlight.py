@@ -254,7 +254,7 @@ class Searchlight:
         
         clf = neighbors.NearestNeighbors(radius = self.radius)
         A = clf.fit(mask_coords).radius_neighbors_graph(process_mask_coords)
-        del process_mask_coords, mask_coords
+        del mask_coords
         
 #         print("~~~~~~~~~~~~~~~~")
 #         print(A.shape)
