@@ -442,11 +442,11 @@ def apply_mask(data=None, weight_map=None, mask=None, method='dot_product', save
 
     # Calculate pattern expression
     pexp = pd.DataFrame()
-    for w in range(1, weight_map_masked.shape[0]):
+    for w in range(0, weight_map_masked.shape[0]):
         if method is 'dot_product':
-            pexp = pexp.append(pd.Series(np.dot(data_masked,np.transpose(weight_map_masked[w,:]))))
+            pexp = pexp.append(pd.Series(np.dot(data_masked,np.transpose(weight_map_masked[w,:]))), ignore_index=True)
         elif method is 'correlation':
-            pexp = pexp.append(pd.Series(pearson(data_masked,weight_map_masked[w,:])))
+            pexp = pexp.append(pd.Series(pearson(data_masked,weight_map_masked[w,:])), ignore_index=True)
     pexp = pexp.T
 
     if save_output:
