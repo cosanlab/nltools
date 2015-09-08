@@ -64,7 +64,7 @@ import glob
         
 #         ######## REGRESSION HAPPENS HERE ########
 #         #svr = Predict(X[:, row], y, algorithm='svr', cv_dict = {'kfolds':5}, **{'kernel':"linear"})
-#         #svr.predict(save_images=False, save_output=False).rmse
+#         #svr.predict(save_images=False, save_output=False).r_all
         
 #         #svr_lin = SVR(kernel='linear', C=1e3)
 #         #y_lin = svr_lin.fit(X, y).predict(X)
@@ -190,15 +190,15 @@ class Searchlight:
             svr = Predict(bdata, y, mask = searchlight_mask, algorithm=algorithm, output_dir=output_dir, cv_dict = cv_dict, **kwargs)
             svr.predict(save_plot=False)
             
-            print(svr.rmse_all)
-            results.append(svr.rmse_all)
+            print(svr.r_all)
+            results.append(svr.r_all)
             
             title  = "out" + str(core_i)
             text_file = open(os.path.join(self.outfolder,title + ".txt"), "a")
             if i + 1 == A[core_divs[core_i]].shape[0]:
-                text_file.write(str(svr.rmse_all))
+                text_file.write(str(svr.r_all))
             else:
-                text_file.write(str(svr.rmse_all) + ",")
+                text_file.write(str(svr.r_all) + ",")
             text_file.close()
             
         #check progress of all cores. If all cores are finished, run the reassemble helper function
@@ -419,13 +419,13 @@ exit 0")
             #get location of searchlight pickle and retrieve its contents
             (bdata, A, nifti_masker, process_mask_1D, algorithm, cv_dict, output_dir, kwargs) = cPickle.load( open(pdir) )
 
-            #open the reassembled rmse data and build a python list of float type numbers
+            #open the reassembled correlation data and build a python list of float type numbers
             with open(rs_dir, 'r') as rs:
                 data = np.fromstring(rs.read(), dtype=float, sep=',')
 
             coords = np.where(process_mask_1D == 1)[1] #find coords of all values in process mask that are equal to 1
 
-            #in all the locations that are equal to 1, store the rmse data (coords and data should have same length)
+            #in all the locations that are equal to 1, store the correlation data (coords and data should have same length)
             process_mask_1D[0][coords] = data
 
             data_3D = nifti_masker.inverse_transform( process_mask_1D ) #transform scores to 3D nifti image
