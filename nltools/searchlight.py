@@ -428,7 +428,7 @@ exit 0")
 
             data_3D = nifti_masker.inverse_transform( process_mask_1D ) #transform scores to 3D nifti image
             data_3D.to_filename(os.path.join(os.getcwd(),'data_3D.nii.gz')) #save nifti image
-        else if reconstruct_flag:
+        elif reconstruct_flag:
             print("File 'reassembled.txt' does not exist in directory: " + os.getcwd())
 
         os.system("rm searchlight.pickle")
