@@ -349,6 +349,7 @@ sl.predict(ith_core, n_cores, params) ")
         title  = "email_alert.pbs"
         f = open(os.path.join(os.getcwd(), title), "w")
         f.write("#PBS -m ea \n\
+#PBS -N finished_pbs \n\
 #PBS -M samuel.j.greydanus.17@dartmouth.edu \n\
 exit 0")
         f.close()
@@ -400,5 +401,6 @@ exit 0")
         #send user an alert email by executing a blank script with an email alert tag
         Searchlight.make_email_alert_pbs_()
         os.system("qsub email_alert.pbs")
+        os.system("rm finished_pbs*")
 
 
