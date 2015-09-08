@@ -331,11 +331,12 @@ exit 0" )
         f.write("from nltools.searchlight import Searchlight \n\
 import cPickle \n\
 import os \n\
+import sys \n\
 pdir = \"" + os.path.join(os.getcwd(),'searchlight.pickle') + "\" \n\
 params = cPickle.load( open(pdir) ) \n\
 sl = Searchlight() \n\
 ith_core = int(sys.argv[1]) \n\
-n_cores = = int(sys.argv[2]) \n\
+n_cores = int(sys.argv[2]) \n\
 sl.predict(ith_core, n_cores, params) ")
         f.close()
     
