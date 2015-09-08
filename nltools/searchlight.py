@@ -411,10 +411,11 @@ exit 0")
         os.system("qsub email_alert.pbs")
         os.system("rm inner_searchlight_script*")
 
+        pdir = os.path.join(os.getcwd(),'searchlight.pickle')
+
         #get data from reassembled.txt and convert it to a .nii file
-        if (reconstruct_flag and os.path.isfile(rs_dir)):
+        if (reconstruct_flag and os.path.isfile(pdir) and ith_core >= 0):
             #get location of searchlight pickle and retrieve its contents
-            pdir = os.path.join(os.getcwd(),'searchlight.pickle')
             (bdata, A, nifti_masker, process_mask_1D, algorithm, cv_dict, output_dir, kwargs) = cPickle.load( open(pdir) )
 
             #open the reassembled rmse data and build a python list of float type numbers
@@ -429,7 +430,7 @@ exit 0")
             data_3D = nifti_masker.inverse_transform( process_mask_1D ) #transform scores to 3D nifti image
             data_3D.to_filename(os.path.join(os.getcwd(),'data_3D.nii.gz')) #save nifti image
         elif reconstruct_flag:
-            print("File 'reassembled.txt' does not exist in directory: " + os.getcwd())
+            print("File 'searchlight.pickle' does not exist or 'reassemble.txt' is empty (in directory: " + os.getcwd() + ")")
 
         os.system("rm searchlight.pickle")
         os.system("rm email_alert_pbs.e*")
