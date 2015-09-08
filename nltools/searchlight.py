@@ -412,10 +412,24 @@ exit 0")
         os.system("rm inner_searchlight_script*")
         os.system("rm email_alert_pbs*")
 
-        #get data from reassembled.txt and convert it to a .nii file
-        # if reconstruct_flag:
-        #     with open(rs_dir, 'r') as rs:
-        #         data = rs.read()
+        get data from reassembled.txt and convert it to a .nii file
+        if reconstruct_flag:
+            #get location of searchlight pickle and retrieve its contents
+            pdir = os.path.join(os.getcwd(),'searchlight.pickle')
+            (bdata, A, nifti_masker, process_mask_1D, algorithm, cv_dict, output_dir, kwargs) = cPickle.load( open(pdir) )
+
+            #open the reassembled rmse data and build a python list of float type numbers
+            with open(rs_dir, 'r') as rs:
+                data = np.fromstring(rs.read(), dtype=float, sep=',')
+
+            coords = np.where(process_mask_1D == 1)[1] #find coords of all values in process mask that are equal to 1
+
+            #in all the locations that are equal to 1, store the rmse data (coords and data should have same length)
+            process_mask_1D[0][coords] = data
+
+            data_3D = nifti_masker.inverse_transform( process_mask_1D ) #transform scores to 3D nifti image
+            data_3D.to_filename(os.path.join(os.getcwd(),'data_3D.nii.gz')) #save nifti image
+            
         os.system("rm searchlight.pickle")
 
 
