@@ -195,7 +195,10 @@ class Searchlight:
             
             title  = "out" + str(core_i)
             text_file = open(os.path.join(self.outfolder,title + ".txt"), "a")
-            text_file.write(str(svr.rmse_all) + "\n")
+            if i + 1 == A[core_divs[core_i]].shape[0]:
+                text_file.write(str(svr.rmse_all))
+            else:
+                text_file.write(str(svr.rmse_all) + ",")
             text_file.close()
             
         #check progress of all cores. If all cores are finished, run the reassemble helper function
