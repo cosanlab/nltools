@@ -394,9 +394,10 @@ exit 0")
             div_dir = "outfolder/" + div_fn_prefix + str(ith_core) + ".txt"
 
         #delete the last comma in the csv file we just generated
-        with open(rs_dir, 'rb+') as f:
-            f.seek(-1, os.SEEK_END)
-            f.truncate()
+        if (os.path.isfile(rs_dir)):
+            with open(rs_dir, 'rb+') as f:
+                f.seek(-1, os.SEEK_END)
+                f.truncate()
 
         print( "Finished reassembly (reassembled " + str(ith_core) + " items)" )
 
@@ -411,7 +412,7 @@ exit 0")
         os.system("rm inner_searchlight_script*")
 
         #get data from reassembled.txt and convert it to a .nii file
-        if reconstruct_flag:
+        if reconstruct_flag && os.path.isfile(rs_dir):
             #get location of searchlight pickle and retrieve its contents
             pdir = os.path.join(os.getcwd(),'searchlight.pickle')
             (bdata, A, nifti_masker, process_mask_1D, algorithm, cv_dict, output_dir, kwargs) = cPickle.load( open(pdir) )
@@ -427,6 +428,8 @@ exit 0")
 
             data_3D = nifti_masker.inverse_transform( process_mask_1D ) #transform scores to 3D nifti image
             data_3D.to_filename(os.path.join(os.getcwd(),'data_3D.nii.gz')) #save nifti image
+        else if reconstruct_flag:
+            print("File 'reassembled.txt' does not exist in directory: " + os.getcwd())
 
         os.system("rm searchlight.pickle")
         os.system("rm email_alert_pbs*")
