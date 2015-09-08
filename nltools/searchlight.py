@@ -303,7 +303,7 @@ class Searchlight:
         text_file.write("#!/bin/bash -l \n\
 # declare a name for this job to be my_serial_job \n\
 # it is recommended that this name be kept to 16 characters or less \n\
-#PBS -N my_serial_job \n\
+#PBS -N parallel_searchlight \n\
 # request the queue (enter the possible names, if omitted, default is the default) \n\
 # this job is going to use the default \n\
 #PBS -q default \n\
