@@ -343,6 +343,8 @@ sl.predict(ith_core, n_cores, params) ")
     @staticmethod
     def reassemble_():
         # if there is already data in the reassembled.txt file, delete it
+        outfolder = os.path.join(os.getcwd(),'outfolder')
+        
         rs_fn = "reassembled"
         rs_dir = os.path.join(os.getcwd(), rs_fn + '.txt')
         rs = open(rs_fn, 'w')
@@ -353,7 +355,7 @@ sl.predict(ith_core, n_cores, params) ")
         #get name and location of div file
         div_fn_prefix = "out"
         ith_core = 0
-        div_fn = os.path.join(self.outfolder, div_fn_prefix + str(ith_core) + ".txt")
+        div_fn = os.path.join(outfolder, div_fn_prefix + str(ith_core) + ".txt")
         print(div_fn)
 
         while (os.path.isfile(div_fn)):
