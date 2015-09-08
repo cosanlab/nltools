@@ -320,7 +320,7 @@ class Searchlight:
 # places the job in the directory from which the job was submitted. \n\
 cd /ihome/sgreydan/searchlight_simulation \n\
 # run the program using the relative path \n\
-python inner_searchlight_script.py " + str(ith_core) + " " + str(n_cores) + " params) \n\
+python inner_searchlight_script.py " + str(ith_core) + " " + str(n_cores) + " \n\
 exit 0" )
         text_file.close()
 
@@ -336,7 +336,6 @@ params = cPickle.load( open(pdir) ) \n\
 sl = Searchlight() \n\
 ith_core = int(sys.argv[1]) \n\
 n_cores = = int(sys.argv[2]) \n\
-params = = int(sys.argv[3]) \n\
 sl.predict(ith_core, n_cores, params) ")
         f.close()
     
