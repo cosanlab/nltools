@@ -384,7 +384,7 @@ exit 0")
                 rs.close()
 
             ith_core = ith_core + 1
-            
+
             command = "rm div_script" + str(ith_core) + ".pbs"
             os.system(command) # delete all the scripts we generated
 
@@ -432,6 +432,7 @@ exit 0")
             print("File 'reassembled.txt' does not exist in directory: " + os.getcwd())
 
         os.system("rm searchlight.pickle")
-        os.system("rm email_alert_pbs*")
+        os.system("rm email_alert_pbs.e*")
+        os.system("rm email_alert_pbs.o*")
 
 
