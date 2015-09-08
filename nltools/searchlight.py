@@ -344,10 +344,11 @@ sl.predict(ith_core, n_cores, params) ")
     def reassemble_():
         # if there is already data in the reassembled.txt file, delete it
         outfolder = os.path.join(os.getcwd(),'outfolder')
-        
+
+        #clear data in reassembled.txt
         rs_fn = "reassembled"
         rs_dir = os.path.join(os.getcwd(), rs_fn + '.txt')
-        rs = open(rs_fn, 'w')
+        rs = open(rs_dir, 'w')
         rs.seek(0)
         rs.truncate()
         rs.close()
@@ -355,11 +356,10 @@ sl.predict(ith_core, n_cores, params) ")
         #get name and location of div file
         div_fn_prefix = "out"
         ith_core = 0
-        div_fn = os.path.join(outfolder, div_fn_prefix + str(ith_core) + ".txt")
-        print(div_fn)
+        div_dir = os.path.join(outfolder, div_fn_prefix + str(ith_core) + ".txt")
 
-        while (os.path.isfile(div_fn)):
-            with open (div_fn, "r") as div_file:
+        while (os.path.isfile(div_dir)):
+            with open (div_dir, "r") as div_file:
                 data=div_file.read()
 
                 rs = open(str(rs_dir), "a")
@@ -369,12 +369,12 @@ sl.predict(ith_core, n_cores, params) ")
             command = "rm div_script" + str(ith_core) + ".pbs"
             os.system(command) # delete all the scripts we generated
 
-            command = "rm " + str(div_fn)
+            command = "rm " + str(div_dir)
             os.system(command) # delete all the smaller text files we generated
 
             ith_core = ith_core + 1
 
-            div_fn = "outfolder/" + div_fn_prefix + str(ith_core) + ".txt"
+            div_dir = "outfolder/" + div_fn_prefix + str(ith_core) + ".txt"
 
         print( "Finished reassembly (reassembled " + str(ith_core) + " items)" )
 
