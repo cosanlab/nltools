@@ -152,7 +152,7 @@ class Searchlight:
     def predict(self, core_i, n_cores, params): #CHANGE NAME
         tic = time.time()
 
-        errf = open(os.path.join(os.getcwd(),'errf.txt'), 'w')
+        errf = open(os.path.join(os.getcwd(),'errf.txt'), 'a')
 
         errf.write('Start loading pickle: ' + str((time.time() - tic)) + ' seconds')
         (bdata, A, self.nifti_masker, process_mask_1D, algorithm, cv_dict, output_dir, kwargs) = params
