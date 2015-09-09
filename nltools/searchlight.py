@@ -154,16 +154,16 @@ class Searchlight:
 
         errf = open(os.path.join(os.getcwd(),'errf.txt'), 'w')
 
-        errf.write('Start loading pickle: %.2f seconds' % (time.time() - tic))
+        errf.write('Start loading pickle: ' + str((time.time() - tic)) + ' seconds')
         (bdata, A, self.nifti_masker, process_mask_1D, algorithm, cv_dict, output_dir, kwargs) = params
         
-        errf.write('Finished loading pickle. Start loading data: %.2f seconds' % (time.time() - tic))
+        errf.write('Finished loading pickle. Start loading data: ' + str((time.time() - tic)) + ' seconds')
         if isinstance(bdata, str):
             file_list = glob.glob(bdata + '*.nii.gz')
             bdata = nib.funcs.concat_images(file_list[0:9])
             y = np.array([3, 1, 2, 3, 1, 2, 3, 1, 2]).T
         
-        errf.write(print 'Finished reading data. Start making core divs: %.2f seconds' % (time.time() - tic))
+        errf.write(print 'Finished reading data. Start making core divs: ' + str((time.time() - tic)) + ' seconds')
         core_divs = [] #a list of lists of indices
         for i in range(0,n_cores):
             a = i*A.shape[0] / n_cores
@@ -173,7 +173,7 @@ class Searchlight:
         divs = A[core_divs[core_i]].shape[0]
         tot = A.shape[0]
         errf.write("This core will be doing " + str(divs) + " searchlights out of " + str(tot) + " total."))
-        errf.write('Time: %.2f seconds' % (time.time() - tic))
+        errf.write("Time: " + str((time.time() - tic)) + " seconds")
         
         # clear the text file's contents if there are any
         title  = "out" + str(core_i)
@@ -183,22 +183,22 @@ class Searchlight:
         text_file = open(os.path.join(self.outfolder, "progress.txt"), "w")
         text_file.close()
 
-        errf.write('Starting process loop (restart timer once in loop): %.2f seconds' % (time.time() - tic))
+        errf.write('Starting process loop (restart timer once in loop): ' + str((time.time() - tic)) + ' seconds')
         results = []
         for i in range( A[core_divs[core_i]].shape[0] ):
 
             tic = time.time()
             searchlight = A[core_divs[core_i]][i].toarray() #1D vector
-            errf.write('After loading searchlight: %.2f seconds' % (time.time() - tic))
+            errf.write('After loading searchlight: ' + str((time.time() - tic)) + ' seconds')
             
             searchlight_mask = self.nifti_masker.inverse_transform( searchlight )
-            errf.write('After transforming searchlight mask: %.2f seconds' % (time.time() - tic))
+            errf.write('After transforming searchlight mask: ' + str((time.time() - tic)) + ' seconds')
 
             #apply the Predict method
             svr = Predict(bdata, y, mask = searchlight_mask, algorithm=algorithm, output_dir=output_dir, cv_dict = cv_dict, **kwargs)
-            errf.write('After initializing Predict: %.2f seconds' % (time.time() - tic))
+            errf.write('After initializing Predict: ' + str((time.time() - tic)) + ' seconds')
             svr.predict(save_plot=False)
-            errf.write('After running predict: %.2f seconds' % (time.time() - tic))
+            errf.write('After running predict: ' + str((time.time() - tic)) + ' seconds'
             
             results.append(svr.r_all)
             
