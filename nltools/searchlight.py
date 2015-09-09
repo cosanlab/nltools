@@ -172,7 +172,7 @@ class Searchlight:
         
         divs = A[core_divs[core_i]].shape[0]
         tot = A.shape[0]
-        errf.write("This core will be doing " + str(divs) + " searchlights out of " + str(tot) + " total."))
+        errf.write("This core will be doing " + str(divs) + " searchlights out of " + str(tot) + " total.")
         errf.write("Time: " + str((time.time() - tic)) + " seconds")
         
         # clear the text file's contents if there are any
