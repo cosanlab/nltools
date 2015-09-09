@@ -150,35 +150,38 @@ class Searchlight:
         self.nifti_masker = NiftiMasker(mask_img=self.brain_mask)
 
     @staticmethod
-    def errf(text):
-        f = open(os.path.join(os.getcwd(),'errf.txt'), 'a')
-        f.write(text + "\n")
-        f.close()
+    def errf(text, ith_core):
+        if ith_core == 0:
+            f = open(os.path.join(os.getcwd(),'errf.txt'), 'a')
+            f.write(text + "\n")
+            f.close()
         
     def predict(self, core_i, n_cores, params): #CHANGE NAME
         tic = time.time()
 
-        Searchlight.errf("Start loading pickle: " + str((time.time() - tic)) + " seconds")
+        Searchlight.errf("Start loading pickle: " + str((time.time() - tic)) + " seconds", core_i)
 
         (bdata, A, self.nifti_masker, process_mask_1D, algorithm, cv_dict, output_dir, kwargs) = params
         
-        Searchlight.errf("Finished loading pickle. Start loading data: " + str((time.time() - tic)) + " seconds")
+        Searchlight.errf("Finished loading pickle. Start loading data: " + str((time.time() - tic)) + " seconds", core_i)
         if isinstance(bdata, str):
             file_list = glob.glob(bdata + "*.nii.gz")
             bdata = nib.funcs.concat_images(file_list[0:9])
             y = np.array([3, 1, 2, 3, 1, 2, 3, 1, 2]).T
         
-        Searchlight.errf("Finished reading data. Start making core divs: " + str((time.time() - tic)) + " seconds")
+        Searchlight.errf("Finished reading data. Start making core divs: " + str((time.time() - tic)) + " seconds", core_i)
         core_divs = [] #a list of lists of indices
         for i in range(0,n_cores):
             a = i*A.shape[0] / n_cores
             b = (i+1)*A.shape[0] / n_cores
             core_divs.append( range(a,b) )
-        
+
+        Searchlight.errf("Finished making core divs " + str((time.time() - tic)) + " seconds", core_i)
+
         divs = A[core_divs[core_i]].shape[0]
         tot = A.shape[0]
-        Searchlight.errf("This core will be doing " + str(divs) + " searchlights out of " + str(tot) + " total.")
-        Searchlight.errf("Time: " + str((time.time() - tic)) + " seconds")
+        Searchlight.errf("This core will be doing " + str(divs) + " searchlights out of " + str(tot) + " total.", core_i)
+        Searchlight.errf("Time: " + str((time.time() - tic)) + " seconds", core_i)
         
         # clear the text file's contents if there are any
         title  = "out" + str(core_i)
@@ -188,22 +191,22 @@ class Searchlight:
         text_file = open(os.path.join(self.outfolder, "progress.txt"), "w")
         text_file.close()
 
-        Searchlight.errf("Starting process loop (restart timer once in loop): " + str((time.time() - tic)) + " seconds")
+        Searchlight.errf("Starting process loop (restart timer once in loop): " + str((time.time() - tic)) + " seconds", core_i)
         results = []
         for i in range( A[core_divs[core_i]].shape[0] ):
 
             tic = time.time()
             searchlight = A[core_divs[core_i]][i].toarray() #1D vector
-            Searchlight.errf("After loading searchlight: " + str((time.time() - tic)) + " seconds")
+            Searchlight.errf("After loading searchlight: " + str((time.time() - tic)) + " seconds", core_i)
             
             searchlight_mask = self.nifti_masker.inverse_transform( searchlight )
-            Searchlight.errf("After transforming searchlight mask: " + str((time.time() - tic)) + " seconds")
+            Searchlight.errf("After transforming searchlight mask: " + str((time.time() - tic)) + " seconds", core_i)
 
             #apply the Predict method
             svr = Predict(bdata, y, mask = searchlight_mask, algorithm=algorithm, output_dir=output_dir, cv_dict = cv_dict, **kwargs)
-            Searchlight.errf("After initializing Predict: " + str((time.time() - tic)) + " seconds")
+            Searchlight.errf("After initializing Predict: " + str((time.time() - tic)) + " seconds", core_i)
             svr.predict(save_plot=False)
-            Searchlight.errf("After running predict: " + str((time.time() - tic)) + " seconds")
+            Searchlight.errf("After running predict: " + str((time.time() - tic)) + " seconds", core_i)
             
             results.append(svr.r_all)
             
