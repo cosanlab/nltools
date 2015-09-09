@@ -163,7 +163,7 @@ class Searchlight:
             bdata = nib.funcs.concat_images(file_list[0:9])
             y = np.array([3, 1, 2, 3, 1, 2, 3, 1, 2]).T
         
-        errf.write(print 'Finished reading data. Start making core divs: ' + str((time.time() - tic)) + ' seconds')
+        errf.write('Finished reading data. Start making core divs: ' + str((time.time() - tic)) + ' seconds')
         core_divs = [] #a list of lists of indices
         for i in range(0,n_cores):
             a = i*A.shape[0] / n_cores
