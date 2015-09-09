@@ -148,22 +148,27 @@ class Searchlight:
             
         self.radius = radius
         self.nifti_masker = NiftiMasker(mask_img=self.brain_mask)
+
+    @staticmethod
+    def errf(text):
+        errf = open(os.path.join(os.getcwd(),'errf.txt'), 'a')
+        errf.write(text + "\n")
+        errt.close()
         
     def predict(self, core_i, n_cores, params): #CHANGE NAME
         tic = time.time()
 
-        errf = open(os.path.join(os.getcwd(),'errf.txt'), 'a')
+        errf("Start loading pickle: " + str((time.time() - tic)) + " seconds")
 
-        errf.write('Start loading pickle: ' + str((time.time() - tic)) + ' seconds')
         (bdata, A, self.nifti_masker, process_mask_1D, algorithm, cv_dict, output_dir, kwargs) = params
         
-        errf.write('Finished loading pickle. Start loading data: ' + str((time.time() - tic)) + ' seconds')
+        errf("Finished loading pickle. Start loading data: " + str((time.time() - tic)) + " seconds")
         if isinstance(bdata, str):
-            file_list = glob.glob(bdata + '*.nii.gz')
+            file_list = glob.glob(bdata + "*.nii.gz")
             bdata = nib.funcs.concat_images(file_list[0:9])
             y = np.array([3, 1, 2, 3, 1, 2, 3, 1, 2]).T
         
-        errf.write('Finished reading data. Start making core divs: ' + str((time.time() - tic)) + ' seconds')
+        errf("Finished reading data. Start making core divs: " + str((time.time() - tic)) + " seconds")
         core_divs = [] #a list of lists of indices
         for i in range(0,n_cores):
             a = i*A.shape[0] / n_cores
@@ -172,8 +177,8 @@ class Searchlight:
         
         divs = A[core_divs[core_i]].shape[0]
         tot = A.shape[0]
-        errf.write("This core will be doing " + str(divs) + " searchlights out of " + str(tot) + " total.")
-        errf.write("Time: " + str((time.time() - tic)) + " seconds")
+        errf("This core will be doing " + str(divs) + " searchlights out of " + str(tot) + " total.")
+        errf("Time: " + str((time.time() - tic)) + " seconds")
         
         # clear the text file's contents if there are any
         title  = "out" + str(core_i)
@@ -183,22 +188,22 @@ class Searchlight:
         text_file = open(os.path.join(self.outfolder, "progress.txt"), "w")
         text_file.close()
 
-        errf.write('Starting process loop (restart timer once in loop): ' + str((time.time() - tic)) + ' seconds')
+        errf("Starting process loop (restart timer once in loop): " + str((time.time() - tic)) + " seconds")
         results = []
         for i in range( A[core_divs[core_i]].shape[0] ):
 
             tic = time.time()
             searchlight = A[core_divs[core_i]][i].toarray() #1D vector
-            errf.write('After loading searchlight: ' + str((time.time() - tic)) + ' seconds')
+            errf("After loading searchlight: " + str((time.time() - tic)) + " seconds")
             
             searchlight_mask = self.nifti_masker.inverse_transform( searchlight )
-            errf.write('After transforming searchlight mask: ' + str((time.time() - tic)) + ' seconds')
+            errf("After transforming searchlight mask: " + str((time.time() - tic)) + " seconds")
 
             #apply the Predict method
             svr = Predict(bdata, y, mask = searchlight_mask, algorithm=algorithm, output_dir=output_dir, cv_dict = cv_dict, **kwargs)
-            errf.write('After initializing Predict: ' + str((time.time() - tic)) + ' seconds')
+            errf("After initializing Predict: " + str((time.time() - tic)) + " seconds")
             svr.predict(save_plot=False)
-            errf.write('After running predict: ' + str((time.time() - tic)) + ' seconds')
+            errf("After running predict: " + str((time.time() - tic)) + " seconds")
             
             results.append(svr.r_all)
             
@@ -210,7 +215,6 @@ class Searchlight:
                 text_file.write(str(svr.r_all) + ",")
             text_file.close()
             
-        errf.close()
         #check progress of all cores. If all cores are finished, run the reassemble helper function
         progress_fn = os.path.join(self.outfolder,"progress.txt")
         cores_finished = ""
