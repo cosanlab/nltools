@@ -151,6 +151,7 @@ class Searchlight:
         
     def predict(self, core_i, n_cores, params): #CHANGE NAME
         
+        print("loading pickle")
         (bdata, A, self.nifti_masker, process_mask_1D, algorithm, cv_dict, output_dir, kwargs) = params
         
         print("getting data")
