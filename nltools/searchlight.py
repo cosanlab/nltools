@@ -198,7 +198,7 @@ class Searchlight:
             svr = Predict(bdata, y, mask = searchlight_mask, algorithm=algorithm, output_dir=output_dir, cv_dict = cv_dict, **kwargs)
             errf.write('After initializing Predict: ' + str((time.time() - tic)) + ' seconds')
             svr.predict(save_plot=False)
-            errf.write('After running predict: ' + str((time.time() - tic)) + ' seconds'
+            errf.write('After running predict: ' + str((time.time() - tic)) + ' seconds')
             
             results.append(svr.r_all)
             
