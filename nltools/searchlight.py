@@ -150,17 +150,18 @@ class Searchlight:
         self.nifti_masker = NiftiMasker(mask_img=self.brain_mask)
         
     def predict(self, core_i, n_cores, params): #CHANGE NAME
-        
-        print("loading pickle")
+        tic = time.time()
+
+        print 'Start loading pickle: %.2f seconds' % (time.time() - tic)
         (bdata, A, self.nifti_masker, process_mask_1D, algorithm, cv_dict, output_dir, kwargs) = params
         
-        print("getting data")
+        print 'Finished loading pickle. Start loading data: %.2f seconds' % (time.time() - tic)
         if isinstance(bdata, str):
             file_list = glob.glob(bdata + '*.nii.gz')
             bdata = nib.funcs.concat_images(file_list[0:9])
             y = np.array([3, 1, 2, 3, 1, 2, 3, 1, 2]).T
         
-        print("making core divs")
+        print 'Finished reading data. Start making core divs: %.2f seconds' % (time.time() - tic)
         core_divs = [] #a list of lists of indices
         for i in range(0,n_cores):
             a = i*A.shape[0] / n_cores
@@ -170,6 +171,7 @@ class Searchlight:
         divs = A[core_divs[core_i]].shape[0]
         tot = A.shape[0]
         print("This core will be doing " + str(divs) + " searchlights out of " + str(tot) + " total.")
+        print 'Time: %.2f seconds' % (time.time() - tic)
         
         # clear the text file's contents if there are any
         title  = "out" + str(core_i)
@@ -179,7 +181,7 @@ class Searchlight:
         text_file = open(os.path.join(self.outfolder, "progress.txt"), "w")
         text_file.close()
 
-        print("starting process loop")
+        print 'Starting process loop (restart timer once in loop): %.2f seconds' % (time.time() - tic)
         results = []
         for i in range( A[core_divs[core_i]].shape[0] ):
 
