@@ -182,13 +182,18 @@ class Searchlight:
         results = []
         for i in range( A[core_divs[core_i]].shape[0] ):
 
+            tic = time.time()
             searchlight = A[core_divs[core_i]][i].toarray() #1D vector
+            print 'After loading searchlight: %.2f seconds' % (time.time() - tic)
             
             searchlight_mask = self.nifti_masker.inverse_transform( searchlight )
+            print 'After transforming searchlight mask: %.2f seconds' % (time.time() - tic)
 
             #apply the Predict method
             svr = Predict(bdata, y, mask = searchlight_mask, algorithm=algorithm, output_dir=output_dir, cv_dict = cv_dict, **kwargs)
+            print 'After initializing Predict: %.2f seconds' % (time.time() - tic)
             svr.predict(save_plot=False)
+            print 'After running predict: %.2f seconds' % (time.time() - tic)
             
             print(svr.r_all)
             results.append(svr.r_all)
