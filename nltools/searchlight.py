@@ -434,7 +434,7 @@ exit 0")
         pdir = os.path.join(os.getcwd(),'searchlight.pickle')
 
         #get data from reassembled.txt and convert it to a .nii file
-        if (reconstruct_flag and os.path.isfile(pdir)):
+        if (reconstruct_flag and os.path.isfile(pdir) and success):
             #get location of searchlight pickle and retrieve its contents
             (bdata, A, nifti_masker, process_mask_1D, algorithm, cv_dict, output_dir, kwargs) = cPickle.load( open(pdir) )
 
@@ -452,7 +452,7 @@ exit 0")
         elif reconstruct_flag:
             print("File 'searchlight.pickle' does not exist or 'reassemble.txt' is empty (in directory: " + os.getcwd() + ")")
 
-        # os.system("rm searchlight.pickle")
+        os.system("rm searchlight.pickle")
         os.system("rm email_alert_pbs.e*")
         os.system("rm email_alert_pbs.o*")
 
