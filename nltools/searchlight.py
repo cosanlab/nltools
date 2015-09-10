@@ -388,9 +388,10 @@ exit 0")
 
         #get name and location of div file
         div_fn_prefix = "out"
-        ith_core = -1
+        ith_core = 0
         div_dir = os.path.join(outfolder, div_fn_prefix + str(ith_core) + ".txt")
 
+        success = False
         #write results from all cores to one text file in a csv format
         while (os.path.isfile(div_dir)):
             with open (div_dir, "r") as div_file:
@@ -400,18 +401,19 @@ exit 0")
                 rs.write(data + ',')
                 rs.close()
 
-            ith_core = ith_core + 1
-
             command = "rm div_script" + str(ith_core) + ".pbs"
             os.system(command) # delete all the scripts we generated
 
             # command = "rm " + str(div_dir)
             os.system(command) # delete all the smaller text files we generated
 
+            ith_core = ith_core + 1
             div_dir = "outfolder/" + div_fn_prefix + str(ith_core) + ".txt"
 
+            success = True
+
         #delete the last comma in the csv file we just generated
-        if (ith_core >= 0):
+        if (success):
             with open(rs_dir, 'rb+') as f:
                 f.seek(-1, os.SEEK_END)
                 f.truncate()
@@ -432,7 +434,7 @@ exit 0")
         pdir = os.path.join(os.getcwd(),'searchlight.pickle')
 
         #get data from reassembled.txt and convert it to a .nii file
-        if (reconstruct_flag and os.path.isfile(pdir) and ith_core >= 0):
+        if (reconstruct_flag and os.path.isfile(pdir) and success):
             #get location of searchlight pickle and retrieve its contents
             (bdata, A, nifti_masker, process_mask_1D, algorithm, cv_dict, output_dir, kwargs) = cPickle.load( open(pdir) )
 
