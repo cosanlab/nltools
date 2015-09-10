@@ -374,7 +374,7 @@ exit 0")
 
     
     @staticmethod
-    def reassemble_(reconstruct_flag = True):
+    def reassemble_(reconstruct_flag = True, email_flag = True):
         # if there is already data in the reassembled.txt file, delete it
         outfolder = os.path.join(os.getcwd(),'outfolder')
 
@@ -405,7 +405,7 @@ exit 0")
             command = "rm div_script" + str(ith_core) + ".pbs"
             os.system(command) # delete all the scripts we generated
 
-            command = "rm " + str(div_dir)
+            # command = "rm " + str(div_dir)
             os.system(command) # delete all the smaller text files we generated
 
             div_dir = "outfolder/" + div_fn_prefix + str(ith_core) + ".txt"
@@ -424,8 +424,9 @@ exit 0")
         os.system("rm *search* *div* *errf*")
 
         #send user an alert email by executing a blank script with an email alert tag
-        Searchlight.make_email_alert_pbs_()
-        os.system("qsub email_alert_pbs.pbs")
+        if email_flag:
+            Searchlight.make_email_alert_pbs_()
+            os.system("qsub email_alert_pbs.pbs")
         os.system("rm inner_searchlight_script*")
 
         pdir = os.path.join(os.getcwd(),'searchlight.pickle')
