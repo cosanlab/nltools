@@ -332,7 +332,7 @@ class Searchlight:
 #PBS -l nodes=1:ppn=1 \n\
 # request 0 hours and 15 minutes of wall time \n\
 # (Default is 1 hour without this directive) \n\
-#PBS -l walltime=02:10:00 \n\
+#PBS -l walltime=06:00:00 \n\
 # mail is sent to you when the job starts and when it terminates or aborts \n\
 # specify your email address \n\
 #PBS -M samuel.j.greydanus.17@dartmouth.edu \n\
