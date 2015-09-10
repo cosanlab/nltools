@@ -212,7 +212,7 @@ class Searchlight:
             
             title  = "out" + str(core_i)
             text_file = open(os.path.join(self.outfolder,title + ".txt"), "a")
-            if i + 1 == A[core_divs[core_i]].shape[0]:
+            if i + 1 == divs:
                 text_file.write(str(svr.r_all))
             else:
                 text_file.write(str(svr.r_all) + ",")
