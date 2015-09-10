@@ -178,7 +178,7 @@ class Searchlight:
 
         Searchlight.errf("Finished making core divs " + str((time.time() - tic)) + " seconds", core_i)
 
-        divs = A[core_divs[core_i]].shape[0]
+        divs = len(core_divs[core_i])
         tot = A.shape[0]
         Searchlight.errf("This core will be doing " + str(divs) + " searchlights out of " + str(tot) + " total.", core_i)
         Searchlight.errf("Time: " + str((time.time() - tic)) + " seconds", core_i)
@@ -193,10 +193,10 @@ class Searchlight:
 
         Searchlight.errf("Starting process loop (restart timer once in loop): " + str((time.time() - tic)) + " seconds", core_i)
         results = []
-        for i in range( A[core_divs[core_i]].shape[0] ):
+        for i in xrange( divs ):
 
             tic = time.time()
-            searchlight = A[core_divs[core_i]][i].toarray() #1D vector
+            searchlight = A[core_divs[core_i][i]][:].toarray() #1D vector
             Searchlight.errf("After loading searchlight: " + str((time.time() - tic)) + " seconds", core_i)
             
             searchlight_mask = self.nifti_masker.inverse_transform( searchlight )
