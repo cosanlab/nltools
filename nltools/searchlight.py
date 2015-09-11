@@ -177,11 +177,11 @@ class Searchlight:
         with open(ratef, 'w') as f:
             if (len(maxrate) > 0):
                 if (float(maxrate) < tdif/jobs):
-                    f.write(str(tdif/jobs) + "\n" + str(time.time()) + "\nCore " + str(core) + " is slowest: " + str(tdif/jobs) + " seconds/job")
+                    f.write(str(tdif/jobs) + "\n" + str(time.time()) + "\nCore " + str(core) + " is slowest: " + str(tdif/jobs) + " seconds/job\n")
                 else:
                     f.write(maxrate + "\n" + prevtime + "\n" + coreid)
             elif (len(prevtime) == 0):
-                f.write(str(tdif/jobs) + "\n" + str(time.time()) + "\nCore " + str(core) + " is slowest: " + str(tdif/jobs) + " seconds/job")
+                f.write(str(tdif/jobs) + "\n" + str(time.time()) + "\nCore " + str(core) + " is slowest: " + str(tdif/jobs) + " seconds/job\n")
             elif abs(time.time() - float(prevtime)) > 10:
                 Searchlight.errf("TIMEOUT ON RATE FILE", 0)
                 os.system("rm rate.txt")
