@@ -406,9 +406,6 @@ exit 0")
         print( "Finished reassembly (reassembled " + str(ith_core) + " items)" )
 
         print("Cleaning up...")
-        
-        os.system("rm outfolder/progress.txt")
-        os.system("rm *search* *div* *errf*")
 
         #send user an alert email by executing a blank script with an email alert tag
         if email_flag:
@@ -439,7 +436,9 @@ exit 0")
             print("ERROR: File 'searchlight.pickle' does not exist or 'reassemble.txt' is empty (in directory: " + os.getcwd() + ")")
 
         # os.system("rm searchlight.pickle")
+        print("Cleaning up...")
         os.system("rm email_alert_pbs.e*")
         os.system("rm email_alert_pbs.o*")
+        os.system("rm *searchlight_* *div* *errf*")
 
 
