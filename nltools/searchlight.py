@@ -153,14 +153,19 @@ class Searchlight:
         self.nifti_masker = NiftiMasker(mask_img=self.brain_mask)
 
     @staticmethod
-    def errf(text, ith_core):
-        if ith_core == 0:
-            f = open(os.path.join(os.getcwd(),'errf.txt'), 'a')
-            f.write(text + "\n")
-            f.close()
+    def t_est(rate, jobs, divs):
+        t = int(rate*(divs-jobs))
+        t_day = t / (60*60*24)
+        t -= t_day*60*60*24
+        t_hr = t / (60*60)
+        t -= t_hr*60*60
+        t_min = t / (60)
+        t -= t_min*60
+        t_sec = t
+        return str(t_day) + "d" + str(t_hr) + "h" + str(t_min) + "m" + str(t_sec) + "s"
 
     @staticmethod
-    def write_predict_rate_(core, tdif, jobs):
+    def write_predict_rate_(core, tdif, jobs, divs):
         ratef = os.path.join(os.getcwd(),"rate.txt")
 
         if not os.path.isfile(ratef):
@@ -172,19 +177,21 @@ class Searchlight:
         with open(ratef, 'r') as f:
             maxrate = f.readline().strip('\n')
             prevtime = f.readline().strip('\n')
-            coreid = f.readline()
+            coreid = f.readline().strip('\n')
+            est = f.readline().strip('\n')
 
         with open(ratef, 'w') as f:
             if (len(maxrate) > 0):
                 if (float(maxrate) < tdif/jobs):
-                    f.write(str(tdif/jobs) + "\n" + str(time.time()) + "\nCore " + str(core) + " is slowest: " + str(tdif/jobs) + " seconds/job\n")
+                    est = t_est(tdif/jobs, jobs, divs)
+                    f.write(str(tdif/jobs) + "\n" + str(time.time()) + "\nCore " + str(core) + " is slowest: " + str(tdif/jobs) + " seconds/job\n" \
+                        + "This run will finish in " + est + "\n")
                 else:
-                    f.write(maxrate + "\n" + prevtime + "\n" + coreid)
+                    f.write(maxrate + "\n" + prevtime + "\n" + coreid + "\n" + est + "\n")
             elif (len(prevtime) == 0):
-                f.write(str(tdif/jobs) + "\n" + str(time.time()) + "\nCore " + str(core) + " is slowest: " + str(tdif/jobs) + " seconds/job\n")
-            elif abs(time.time() - float(prevtime)) > 10:
-                Searchlight.errf("TIMEOUT ON RATE FILE", 0)
-                os.system("rm rate.txt")
+                est = t_est(tdif/jobs, jobs, divs)
+                f.write(str(tdif/jobs) + "\n" + str(time.time()) + "\nCore " + str(core) + " is slowest: " + str(tdif/jobs) + " seconds/job\n" \
+                        + "This run will finish in " + est + "\n")
         
     def predict(self, core_i, n_cores, params): #CHANGE NAME
         tic = time.time()
@@ -245,7 +252,9 @@ class Searchlight:
             text_file.close()
 
             if i%3 == 0:
-                Searchlight.write_predict_rate_(core_i, (time.time() - t0), i + 1)
+                Searchlight.write_predict_rate_(core_i, (time.time() - t0), i + 1, divs)
+                if i%9 = 9:
+                    os.system("rm *rate.txt")
             
         #check progress of all cores. If all cores are finished, run the reassemble helper function
         progress_fn = os.path.join(self.output_dir,"progress.txt")
