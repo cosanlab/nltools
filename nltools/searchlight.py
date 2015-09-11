@@ -162,7 +162,7 @@ class Searchlight:
     def predict(self, core_i, n_cores, params): #CHANGE NAME
         tic = time.time()
 
-        (predict_params, A, nifti_masker, process_mask_1D) = params
+        (predict_params, A, self.nifti_masker, process_mask_1D) = params
         (bdata, y, algorithm, cv_dict, output_dir, kwargs) = predict_params
         
         if isinstance(bdata, str):
