@@ -314,8 +314,7 @@ exit 0")
         div_fn_prefix = "out"
         ith_core = 0
         div_dir = os.path.join(output_dir, div_fn_prefix + str(ith_core) + ".txt")
-
-        success = False
+        
         #write results from all cores to one text file in a csv format
         while (os.path.isfile(div_dir)):
             with open (div_dir, "r") as div_file:
@@ -330,8 +329,6 @@ exit 0")
 
             ith_core = ith_core + 1
             div_dir = "outfolder/" + div_fn_prefix + str(ith_core) + ".txt"
-
-            success = True
 
         #delete the last comma in the csv file we just generated
         if (success):
@@ -353,7 +350,7 @@ exit 0")
 
         #get data from reassembled.txt and convert it to a .nii file
         print 
-        if (reconstruct_flag and os.path.isfile(pdir) and success):
+        if (reconstruct_flag and os.path.isfile(pdir)):
             #get location of searchlight pickle and retrieve its contents
             (predict_params, A, nifti_masker, process_mask_1D) = cPickle.load( open(pdir) )
 
