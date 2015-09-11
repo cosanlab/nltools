@@ -75,12 +75,15 @@ class Searchlight:
         ratef = os.path.join(os.getcwd(),"rate.txt")
 
         maxrate = 0
+        
+        f = open(ratef, 'w')
+        f.close()
         with open(ratef, 'r') as f:
-            maxrate = float(f.readline().strip('\n'))
-            prevtime = float(f.readline().strip('\n'))
+            maxrate = f.readline().strip('\n')
+            prevtime = f.readline().strip('\n')
 
         #refresh this value every 10 seconds
-        if time - prevtime > 10:
+        if len(prevtime) > 0 and abs(time - prevtime) > 10:
             with open(ratef, 'w') as f:
                 f.seek(0)
                 f.truncate()
@@ -90,7 +93,7 @@ class Searchlight:
                 if (float(maxrate) < rate):
                     f.write(str(rate) + "\n" + str(time) + "\nCore " + str(core) + " is slowest: " + str(rate) + " seconds/job")
             else:
-                f.write(str(rate) + "\n" + str(time) + "\nCore " + str(core) + " is slowest: " + str(rate) + "seconds/job")
+                f.write(str(rate) + "\n" + str(time) + "\nCore " + str(core) + " is slowest: " + str(rate) + " seconds/job")
         
     def predict(self, core_i, n_cores, params): #CHANGE NAME
         tic = time.time()
