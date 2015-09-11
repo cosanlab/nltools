@@ -156,7 +156,7 @@ class Searchlight:
                 text_file.write(str(svr.r_all) + ",")
             text_file.close()
 
-            if i%3 = 0:
+            if i%3 == 0:
                 Searchlight.write_predict_rate_(core_i, (time.time() - t0), i + 1)
             
         #check progress of all cores. If all cores are finished, run the reassemble helper function
