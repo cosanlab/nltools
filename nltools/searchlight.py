@@ -178,13 +178,13 @@ class Searchlight:
         with open(ratef, 'w') as f:
             if (len(maxrate) > 0):
                 if (float(maxrate) < tdif/jobs):
-                    est = t_est(tdif/jobs, jobs, divs)
+                    est = Searchlight.t_est(tdif/jobs, jobs, divs)
                     f.write(str(tdif/jobs) + "\n" + str(time.time()) + "\nCore " + str(core) + " is slowest: " + str(tdif/jobs) + " seconds/job\n" \
                         + "This run will finish in " + est + "\n")
                 else:
                     f.write(maxrate + "\n" + prevtime + "\n" + coreid + "\n" + est + "\n")
             elif (len(prevtime) == 0):
-                est = t_est(tdif/jobs, jobs, divs)
+                est = Searchlight.t_est(tdif/jobs, jobs, divs)
                 f.write(str(tdif/jobs) + "\n" + str(time.time()) + "\nCore " + str(core) + " is slowest: " + str(tdif/jobs) + " seconds/job\n" \
                         + "This run will finish in " + est + "\n")
         
