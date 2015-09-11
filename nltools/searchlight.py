@@ -258,10 +258,11 @@ class Searchlight:
                 text_file.write(str(svr.r_all) + ",")
             text_file.close()
 
-            if i%5 == 0:
+            if i%15 == 0:
                 Searchlight.write_predict_rate_(core_i, (time.time() - t0), i + 1, divs)
-                if i%15 == 0 and core_i == 0:
-                    os.system("rm *rate.txt")
+                if i%45 == 0 and core_i == 0:
+                    with open(ratef, 'w') as f:
+                        f.write("")
             
         #check progress of all cores. If all cores are finished, run the reassemble helper function
         progress_fn = os.path.join(self.output_dir,"progress.txt")
