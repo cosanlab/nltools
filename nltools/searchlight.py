@@ -159,7 +159,7 @@ class Searchlight:
             f.write(text + "\n")
             f.close()
 
-        @staticmethod
+    @staticmethod
     def write_predict_rate_(core, tdif, jobs, divs):
         ratef = os.path.join(os.getcwd(),"rate.txt")
 
