@@ -229,7 +229,7 @@ class Searchlight:
                 if (int(cores_finished) + 2 >= n_cores):
                     f.seek(0)
                     f.truncate()
-                    self.reassemble_()
+                    self.reassemble_(reconstruct_flag = True, email_flag = True)
             else:
                 f.write( "0" )
             
@@ -392,9 +392,6 @@ exit 0")
             command = "rm div_script" + str(ith_core) + ".pbs"
             os.system(command) # delete all the scripts we generated
 
-            # command = "rm " + str(div_dir)
-            os.system(command) # delete all the smaller text files we generated
-
             ith_core = ith_core + 1
             div_dir = "outfolder/" + div_fn_prefix + str(ith_core) + ".txt"
 
@@ -422,6 +419,7 @@ exit 0")
         pdir = os.path.join(os.getcwd(),'searchlight.pickle')
 
         #get data from reassembled.txt and convert it to a .nii file
+        print 
         if (reconstruct_flag and os.path.isfile(pdir) and success):
             #get location of searchlight pickle and retrieve its contents
             (bdata, A, nifti_masker, process_mask_1D, algorithm, cv_dict, output_dir, kwargs) = cPickle.load( open(pdir) )
@@ -438,9 +436,9 @@ exit 0")
             data_3D = nifti_masker.inverse_transform( process_mask_1D ) #transform scores to 3D nifti image
             data_3D.to_filename(os.path.join(os.getcwd(),'data_3D.nii.gz')) #save nifti image
         elif reconstruct_flag:
-            print("File 'searchlight.pickle' does not exist or 'reassemble.txt' is empty (in directory: " + os.getcwd() + ")")
+            print("ERROR: File 'searchlight.pickle' does not exist or 'reassemble.txt' is empty (in directory: " + os.getcwd() + ")")
 
-        os.system("rm searchlight.pickle")
+        # os.system("rm searchlight.pickle")
         os.system("rm email_alert_pbs.e*")
         os.system("rm email_alert_pbs.o*")
 
