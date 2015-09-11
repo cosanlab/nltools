@@ -122,9 +122,12 @@ import glob
 ########## CLASS DEFINITIONS ############
 
 class Searchlight:
-    def __init__(self, brain_mask=None, process_mask=None, radius=4): #no scoring param
+    def __init__(self, brain_mask=None, process_mask=None, radius=4, output_dir = None): #no scoring param
         self.resource_folder = os.path.join(os.getcwd(),'resources')
-        self.outfolder = os.path.join(os.getcwd(),'outfolder')
+        if oufolder is None:
+            self.output_dir = os.path.join(os.getcwd(),'outfolder')
+        else:
+            self.output_dir = output_dir
         
         if type(brain_mask) is str:
             brain_mask = nib.load(brain_mask)
@@ -159,24 +162,25 @@ class Searchlight:
     def predict(self, core_i, n_cores, params): #CHANGE NAME
         tic = time.time()
 
-        Searchlight.errf("Start loading pickle: " + str((time.time() - tic)) + " seconds", core_i)
-
-        (bdata, A, self.nifti_masker, process_mask_1D, algorithm, cv_dict, output_dir, kwargs) = params
+        (predict_params, A, nifti_masker, process_mask_1D) = params
+        (bdata, y, algorithm, cv_dict, output_dir, kwargs) = predict_params
         
-        Searchlight.errf("Finished loading pickle. Start loading data: " + str((time.time() - tic)) + " seconds", core_i)
         if isinstance(bdata, str):
             file_list = glob.glob(bdata + "*.nii.gz")
-            bdata = nib.funcs.concat_images(file_list[0:9])
-            y = np.array([3, 1, 2, 3, 1, 2, 3, 1, 2]).T
+            if y is None: #in the case that y is None, we will run a default subset of the pain data - this is hard coding which is bad
+                #in the future, we will raise an error here:
+                bdata = nib.funcs.concat_images(file_list[0:9])
+                y = np.array([3, 1, 2, 3, 1, 2, 3, 1, 2]).T
+            else:
+                bdata = nib.funcs.concat_images(file_list)
         
         Searchlight.errf("Finished reading data. Start making core divs: " + str((time.time() - tic)) + " seconds", core_i)
+
         core_divs = [] #a list of lists of indices
         for i in range(0,n_cores):
             a = i*A.shape[0] / n_cores
             b = (i+1)*A.shape[0] / n_cores
             core_divs.append( range(a,b) )
-
-        Searchlight.errf("Finished making core divs " + str((time.time() - tic)) + " seconds", core_i)
 
         divs = len(core_divs[core_i])
         tot = A.shape[0]
@@ -185,41 +189,37 @@ class Searchlight:
         
         # clear the text file's contents if there are any
         title  = "out" + str(core_i)
-        text_file = open(os.path.join(self.outfolder, title + ".txt"), "w")
+        text_file = open(os.path.join(self.output_dir, title + ".txt"), "w")
         text_file.close()
         
-        text_file = open(os.path.join(self.outfolder, "progress.txt"), "w")
+        text_file = open(os.path.join(self.output_dir, "progress.txt"), "w")
         text_file.close()
 
-        Searchlight.errf("Starting process loop (restart timer once in loop): " + str((time.time() - tic)) + " seconds", core_i)
-        results = []
         for i in xrange( divs ):
 
             tic = time.time()
             searchlight = A[core_divs[core_i][i]][:].toarray() #1D vector
-            Searchlight.errf("After loading searchlight: " + str((time.time() - tic)) + " seconds", core_i)
+            Searchlight.errf("      After loading searchlight: " + str((time.time() - tic)) + " seconds", core_i)
             
             searchlight_mask = self.nifti_masker.inverse_transform( searchlight )
-            Searchlight.errf("After transforming searchlight mask: " + str((time.time() - tic)) + " seconds", core_i)
+            Searchlight.errf("      After transforming searchlight mask: " + str((time.time() - tic)) + " seconds", core_i)
 
             #apply the Predict method
             svr = Predict(bdata, y, mask = searchlight_mask, algorithm=algorithm, output_dir=output_dir, cv_dict = cv_dict, **kwargs)
-            Searchlight.errf("After initializing Predict: " + str((time.time() - tic)) + " seconds", core_i)
-            svr.predict(save_plot=False)
-            Searchlight.errf("After running predict: " + str((time.time() - tic)) + " seconds", core_i)
-            
-            results.append(svr.r_all)
+            Searchlight.errf("      After initializing Predict: " + str((time.time() - tic)) + " seconds", core_i)
+            svr.predict() #save_plot=False
+            Searchlight.errf("      After running Predict: " + str((time.time() - tic)) + " seconds\n", core_i)
             
             title  = "out" + str(core_i)
-            text_file = open(os.path.join(self.outfolder,title + ".txt"), "a")
+            text_file = open(os.path.join(self.output_dir,title + ".txt"), "a")
             if i + 1 == divs:
-                text_file.write(str(svr.r_all))
+                text_file.write(str(svr.r_all)) #if it's the last entry, don't add a comma at the end
             else:
                 text_file.write(str(svr.r_all) + ",")
             text_file.close()
             
         #check progress of all cores. If all cores are finished, run the reassemble helper function
-        progress_fn = os.path.join(self.outfolder,"progress.txt")
+        progress_fn = os.path.join(self.output_dir,"progress.txt")
         cores_finished = ""
         with open(progress_fn, 'r') as f:
             cores_finished = f.readline()
@@ -254,10 +254,6 @@ class Searchlight:
         mc3 = np.reshape(mask_coords[2], (1, -1))
         mask_coords = np.concatenate((mc1.T,mc2.T, mc3.T), axis = 1)
         
-#         print("FULL BRAIN COORDS")
-#         print(mask_coords)
-#         print(mask_coords.shape)
-        
         selected_3D = self.nifti_masker.inverse_transform( process_mask_1D )
         process_mask_coords = np.where(selected_3D.get_data()[:,:,:,0] != 0)
         pmc1 = np.reshape(process_mask_coords[0], (1, -1))
@@ -265,50 +261,42 @@ class Searchlight:
         pmc3 = np.reshape(process_mask_coords[2], (1, -1))
         process_mask_coords = np.concatenate((pmc1.T,pmc2.T, pmc3.T), axis = 1)
         
-#         print("PROCESS REGION COORDS")
-#         print(process_mask_coords)
-#         print(process_mask_coords.shape)
-        
         clf = neighbors.NearestNeighbors(radius = self.radius)
         A = clf.fit(mask_coords).radius_neighbors_graph(process_mask_coords)
         del mask_coords, process_mask_coords, selected_3D, no_overlap
         
-#         print("~~~~~~~~~~~~~~~~")
-#         print(A.shape)
-#         print(A[1000].toarray())
         print("There are " + str( sum(sum(A[0].toarray())) ) + " voxels in each searchlight")
         print("finish searchlight")
         return (A.tolil(), self.nifti_masker, process_mask_1D)
     
     @staticmethod
-    def run_searchlight_(bdata, brain_mask = None, process_mask = None, radius=4, n_cores = 0):
+    def run_searchlight_(bdata, y, algorithm='svr', cv_dict=None, output_dir=None, kwargs=None, n_cores=1, radius=3, brain_mask=None, process_mask=None):
         
         print("start run searchlight")
         
         os.system("mkdir outfolder")
         
         #n_cores start at 0, so if the input param is 10, there are 11 cores
-        sl = Searchlight(brain_mask=brain_mask, process_mask=process_mask, radius=radius)
+        output_dir = os.path.join(os.getcwd(),'outfolder')
+        sl = Searchlight(brain_mask=brain_mask, process_mask=process_mask, radius=radius, output_dir = output_dir)
         
         # parameters for Predict function
         (A, nifti_masker, process_mask_1D) = sl.get_coords()
-        print("getting A, nifti_masker, and process_mask_coords")
-        algorithm = 'svr'
-        cv_dict = None #{'kfolds':5}
-        output_dir = os.path.join(os.getcwd(),'outfolder')
-        kwargs = {'kernel':"linear"}
-        
-        print("finished making data")
+        print("got A, nifti_masker, and process_mask_1D")
+
+        # kwargs = {'kernel':"linear"}
+        predict_params = [bdata, y, algorithm, cv_dict, output_dir, kwargs]
         
         # save all parameters in a file in the same directory that the code is being executed
-        cPickle.dump([bdata, A.tolil(), nifti_masker, process_mask_1D, algorithm, cv_dict, output_dir, kwargs], open("searchlight.pickle", "w"))
+        cPickle.dump([predict_params, A, nifti_masker, process_mask_1D], open("searchlight.pickle", "w"))
+        del predict_params, A, nifti_masker, process_mask_1D
         
         print("finished storing data")
 
         Searchlight.make_inner_python_script_()
         print("wrote inner script)")
         
-        #generate BA$H scripts
+        #generate shell scripts
         for ith_core in range(n_cores):
             Searchlight.make_pbs_scripts_(ith_core, n_cores) # create a script
             os.system("qsub div_script" + str(ith_core) + ".pbs") # run it on a core
@@ -376,7 +364,7 @@ exit 0")
     @staticmethod
     def reassemble_(reconstruct_flag = True, email_flag = True):
         # if there is already data in the reassembled.txt file, delete it
-        outfolder = os.path.join(os.getcwd(),'outfolder')
+        output_dir = os.path.join(os.getcwd(),'outfolder')
 
         #clear data in reassembled.txt
         rs_fn = "reassembled"
@@ -389,7 +377,7 @@ exit 0")
         #get name and location of div file
         div_fn_prefix = "out"
         ith_core = 0
-        div_dir = os.path.join(outfolder, div_fn_prefix + str(ith_core) + ".txt")
+        div_dir = os.path.join(output_dir, div_fn_prefix + str(ith_core) + ".txt")
 
         success = False
         #write results from all cores to one text file in a csv format
