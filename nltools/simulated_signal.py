@@ -71,29 +71,30 @@ class Searchlight:
             f.close()
 
     @staticmethod
-    def write_predict_rate_(core, rate, time):
+    def write_predict_rate_(core, tdif, jobs):
         ratef = os.path.join(os.getcwd(),"rate.txt")
-
-        maxrate = 0
         
-        f = open(ratef, 'w')
-        f.close()
+        if not os.path.isfile(ratef):
+            with open(ratef, 'w') as f:
+                f.write("")
+
+        maxrate = ''
+        prevtime = ''
         with open(ratef, 'r') as f:
             maxrate = f.readline().strip('\n')
             prevtime = f.readline().strip('\n')
-
-        #refresh this value every 10 seconds
-        if len(prevtime) > 0 and abs(time - prevtime) > 10:
-            with open(ratef, 'w') as f:
-                f.seek(0)
-                f.truncate()
+            coreid = f.readline()
 
         with open(ratef, 'w') as f:
             if (len(maxrate) > 0):
-                if (float(maxrate) < rate):
-                    f.write(str(rate) + "\n" + str(time) + "\nCore " + str(core) + " is slowest: " + str(rate) + " seconds/job")
-            else:
-                f.write(str(rate) + "\n" + str(time) + "\nCore " + str(core) + " is slowest: " + str(rate) + " seconds/job")
+                if (float(maxrate) < tdif/jobs):
+                    f.write(str(tdif/jobs) + "\n" + str(time.time()) + "\nCore " + str(core) + " is slowest: " + str(tdif/jobs) + " seconds/job")
+                else:
+                    f.write(maxrate + "\n" + prevtime + "\nCore " + coreid)
+            elif (len(prevtime) == 0):
+                f.write(str(tdif/jobs) + "\n" + str(time.time()) + "\nCore " + str(core) + " is slowest: " + str(tdif/jobs) + " seconds/job")
+            elif abs(time.time() - float(prevtime)) > 10:
+                f.write(str(tdif/jobs) + "\n" + str(time.time()) + "\nCore " + str(core) + " is slowest: " + str(tdif/jobs) + " seconds/job")
         
     def predict(self, core_i, n_cores, params): #CHANGE NAME
         tic = time.time()
@@ -131,7 +132,7 @@ class Searchlight:
         text_file = open(os.path.join(self.output_dir, "progress.txt"), "w")
         text_file.close()
 
-        t0 = time.tic()
+        t0 = time.time()
         for i in xrange( divs ):
 
             tic = time.time()
@@ -144,7 +145,7 @@ class Searchlight:
             #apply the Predict method
             svr = Predict(bdata, y, mask = searchlight_mask, algorithm=algorithm, output_dir=output_dir, cv_dict = cv_dict, **kwargs)
             Searchlight.errf("      After initializing Predict: " + str((time.time() - tic)) + " seconds", core_i)
-            svr.predict() #save_plot=False
+            svr.predict(save_plot=False)
             Searchlight.errf("      After running Predict: " + str((time.time() - tic)) + " seconds\n", core_i)
             
             title  = "out" + str(core_i)
@@ -155,7 +156,8 @@ class Searchlight:
                 text_file.write(str(svr.r_all) + ",")
             text_file.close()
 
-            Searchlight.write_predict_rate_(core_i, (time.time() - t0)/(i + 1), time.time() - tic)
+            if i%3 = 0:
+                write_predict_rate_(core_i, (time.time() - t0), i + 1)
             
         #check progress of all cores. If all cores are finished, run the reassemble helper function
         progress_fn = os.path.join(self.output_dir,"progress.txt")
