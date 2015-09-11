@@ -160,6 +160,18 @@ class Searchlight:
             f.close()
 
     @staticmethod
+    def t_est(rate, jobs, divs):
+        t = int(rate*(divs-jobs))
+        t_day = t / (60*60*24)
+        t -= t_day*60*60*24
+        t_hr = t / (60*60)
+        t -= t_hr*60*60
+        t_min = t / (60)
+        t -= t_min*60
+        t_sec = t
+        return str(t_day) + "d" + str(t_hr) + "h" + str(t_min) + "m" + str(t_sec) + "s"
+
+    @staticmethod
     def write_predict_rate_(core, tdif, jobs, divs):
         ratef = os.path.join(os.getcwd(),"rate.txt")
 
