@@ -183,7 +183,8 @@ class Searchlight:
             elif (len(prevtime) == 0):
                 f.write(str(tdif/jobs) + "\n" + str(time.time()) + "\nCore " + str(core) + " is slowest: " + str(tdif/jobs) + " seconds/job")
             elif abs(time.time() - float(prevtime)) > 10:
-                f.write(str(tdif/jobs) + "\n" + str(time.time()) + "\nCore " + str(core) + " is slowest: " + str(tdif/jobs) + " seconds/job")
+                Searchlight.errf("TIMEOUT ON RATE FILE", 0)
+                os.system("rm rate.txt")
         
     def predict(self, core_i, n_cores, params): #CHANGE NAME
         tic = time.time()
