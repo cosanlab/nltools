@@ -74,6 +74,8 @@ class Searchlight:
     def write_predict_rate_(core, tdif, jobs):
         ratef = os.path.join(os.getcwd(),"rate.txt")
         
+        print "HIT THE RATE FILE"
+
         if not os.path.isfile(ratef):
             with open(ratef, 'w') as f:
                 f.write("")
