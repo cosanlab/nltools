@@ -116,12 +116,12 @@ class Predict:
         predicter = self.predicter
         predicter.fit(self.data, self.Y)
         self.yfit_all = predicter.predict(self.data)
-        if self.prediction_type is 'classification':
+        if self.prediction_type == 'classification':
             if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
                 self.prob_all = predicter.predict_proba(self.data)
             else:
                 dist_from_hyperplane_all = predicter.decision_function(self.data)
-                if self.algorithm is 'svm' and self.predicter.probability:
+                if self.algorithm == 'svm' and self.predicter.probability:
                     self.prob_all = predicter.predict_proba(self.data)
 
         # Cross-Validation Fit
@@ -131,23 +131,23 @@ class Predict:
         if hasattr(self,'cv'):
             predicter_cv = self.predicter
             self.yfit_xval = self.yfit_all.copy()
-            if self.prediction_type is 'classification':
+            if self.prediction_type == 'classification':
                 if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
                     self.prob_xval = np.zeros(len(self.Y))
                 else:
                     dist_from_hyperplane_xval = np.zeros(len(self.Y))
-                    if self.algorithm is 'svm' and self.predicter.probability:
+                    if self.algorithm == 'svm' and self.predicter.probability:
                         self.prob_xval = np.zeros(len(self.Y))
 
             for train, test in self.cv:
                 predicter_cv.fit(self.data[train], self.Y[train])
                 self.yfit_xval[test] = predicter_cv.predict(self.data[test])
-                if self.prediction_type is 'classification':
+                if self.prediction_type == 'classification':
                     if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
                         self.prob_xval[test] = predicter_cv.predict_proba(self.data[test])
                     else:
                         dist_from_hyperplane_xval[test] = predicter_cv.decision_function(self.data[test])
-                        if self.algorithm is 'svm' and self.predicter.probability:
+                        if self.algorithm == 'svm' and self.predicter.probability:
                             self.prob_xval[test] = predicter_cv.predict_proba(self.data[test])
 
         # Save Outputs
@@ -164,13 +164,13 @@ class Predict:
                 self._save_plot(predicter)
 
         # Print Results
-        if self.prediction_type is 'classification':
+        if self.prediction_type == 'classification':
             self.mcr_all = np.mean(self.yfit_all==self.Y)
             print 'overall accuracy: %.2f' % self.mcr_all
             if hasattr(self,'cv'):
                 self.mcr_xval = np.mean(self.yfit_xval==self.Y)
                 print 'overall CV accuracy: %.2f' % self.mcr_xval
-        elif self.prediction_type is 'prediction':
+        elif self.prediction_type == 'prediction':
             self.rmse_all = np.sqrt(np.mean((self.yfit_all-self.Y)**2))
             self.r_all = np.corrcoef(self.Y,self.yfit_all)[0,1]
             print 'overall Root Mean Squared Error: %.2f' % self.rmse_all
@@ -221,7 +221,7 @@ class Predict:
             'randomforest':'sklearn.ensemble.RandomForest'
             }
 
-        if algorithm  in algs_classify.keys():
+        if algorithm in algs_classify.keys():
             self.prediction_type = 'classification'
             alg = load_class(algs_classify[algorithm])
             self.predicter = alg(**kwargs)
@@ -229,14 +229,14 @@ class Predict:
             self.prediction_type = 'prediction'
             alg = load_class(algs_predict[algorithm])
             self.predicter = alg(**kwargs)
-        elif algorithm is 'lassopcr':
+        elif algorithm == 'lassopcr':
             self.prediction_type = 'prediction'
             from sklearn.linear_model import Lasso
             from sklearn.decomposition import PCA
             self._lasso = Lasso()
             self._pca = PCA()
             self.predicter = Pipeline(steps=[('pca', self._pca), ('lasso', self._lasso)])
-        elif algorithm is 'pcr':
+        elif algorithm == 'pcr':
             self.prediction_type = 'prediction'
             from sklearn.linear_model import LinearRegression
             from sklearn.decomposition import PCA
@@ -264,7 +264,7 @@ class Predict:
             self.subject_id = np.array(cv_dict['subject_id'])
 
         if type(cv_dict) is dict:
-            if cv_dict['type'] is 'kfolds':
+            if cv_dict['type'] == 'kfolds':
                 if 'subject_id' in cv_dict:
                     # Hold out subjects within each fold
                     from  nltools.cross_validation import KFoldSubject
@@ -273,7 +273,7 @@ class Predict:
                     # Normal Stratified K-Folds
                     from  sklearn.cross_validation import StratifiedKFold
                     self.cv = StratifiedKFold(self.Y, n_folds=cv_dict['n_folds'])
-            elif cv_dict['type'] is 'loso':
+            elif cv_dict['type'] == 'loso':
                 # Leave One Subject Out
                 from sklearn.cross_validation import LeaveOneLabelOut
                 self.cv = LeaveOneLabelOut(labels=cv_dict['subject_id'])
@@ -300,10 +300,10 @@ class Predict:
         if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
 
-        if self.algorithm is 'lassopcr':
+        if self.algorithm == 'lassopcr':
             coef = np.dot(self._pca.components_.T,self._lasso.coef_)
             coef_img = self.nifti_masker.inverse_transform(np.transpose(coef))
-        elif self.algorithm is 'pcr':
+        elif self.algorithm == 'pcr':
             coef = np.dot(self._pca.components_.T,self._regress.coef_)
             coef_img = self.nifti_masker.inverse_transform(np.transpose(coef))
         else:
@@ -334,12 +334,12 @@ class Predict:
             if hasattr(self, 'subject_id'):
                 self.stats_output['subject_id'] = self.subject_id
 
-        if self.prediction_type is 'classification':
+        if self.prediction_type == 'classification':
             if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
                 self.stats_output['Probability'] = self.prob
             else:
                 self.stats_output['dist_from_hyperplane_xval']=dist_from_hyperplane_xval
-                if self.algorithm is 'svm' and self.predicter.probability:
+                if self.algorithm == 'svm' and self.predicter.probability:
                     self.stats_output['Probability'] = self.prob
 
         self.stats_output.to_csv(os.path.join(self.output_dir, self.algorithm + '_Stats_Output.csv'),index=False)
@@ -359,10 +359,10 @@ class Predict:
         if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
 
-        if self.algorithm is 'lassopcr':
+        if self.algorithm == 'lassopcr':
             coef = np.dot(self._pca.components_.T,self._lasso.coef_)
             coef_img = self.nifti_masker.inverse_transform(np.transpose(coef))
-        elif self.algorithm is 'pcr':
+        elif self.algorithm == 'pcr':
             coef = np.dot(self._pca.components_.T,self._regress.coef_)
             coef_img = self.nifti_masker.inverse_transform(np.transpose(coef))
         else:
@@ -382,7 +382,7 @@ class Predict:
                 fig2 = dist_from_hyperplane_plot(self.stats_output)
                 fig2.savefig(os.path.join(self.output_dir, self.algorithm +
                             '_Distance_from_Hyperplane_xval.png'))
-                if self.algorithm is 'svm' and self.predicter.probability:
+                if self.algorithm == 'svm' and self.predicter.probability:
                     fig3 = probability_plot(self.stats_output)
                     fig3.savefig(os.path.join(self.output_dir, self.algorithm + '_prob_plot.png'))
 
@@ -443,9 +443,9 @@ def apply_mask(data=None, weight_map=None, mask=None, method='dot_product', save
     # Calculate pattern expression
     pexp = pd.DataFrame()
     for w in range(0, weight_map_masked.shape[0]):
-        if method is 'dot_product':
+        if method == 'dot_product':
             pexp = pexp.append(pd.Series(np.dot(data_masked,np.transpose(weight_map_masked[w,:]))), ignore_index=True)
-        elif method is 'correlation':
+        elif method == 'correlation':
             pexp = pexp.append(pd.Series(pearson(data_masked,weight_map_masked[w,:])), ignore_index=True)
     pexp = pexp.T
 
@@ -544,15 +544,15 @@ class Roc:
         # Get criterion threshold
         if not self.forced_choice:
             self.threshold_type = threshold_type
-            if threshold_type is 'optimal_balanced':
+            if threshold_type == 'optimal_balanced':
                 mn = (tpr+fpr)/2
                 self.class_thr = self.criterion_values[np.argmax(mn)]
-            elif threshold_type is 'optimal_overall':
+            elif threshold_type == 'optimal_overall':
                 n_corr_t = self.tpr*self.n_true
                 n_corr_f = (1-self.fpr)*self.n_false
                 sm = (n_corr_t+n_corr_f)
                 self.class_thr = self.criterion_values[np.argmax(sm)]
-            elif threshold_type is 'minimum_sdt_bias':
+            elif threshold_type == 'minimum_sdt_bias':
                 # Calculate  MacMillan and Creelman 2005 Response Bias (c_bias)
                 c_bias = ( norm.ppf(np.maximum(.0001, np.minimum(0.9999, self.tpr))) + norm.ppf(np.maximum(.0001, np.minimum(0.9999, self.fpr))) ) / float(2)
                 self.class_thr = self.criterion_values[np.argmin(abs(c_bias))]
@@ -600,7 +600,7 @@ class Roc:
 
         self.calculate() # Calculate ROC parameters
 
-        if plot_method is 'gaussian':
+        if plot_method == 'gaussian':
             if self.forced_choice:
                 diff_scores = self.input_values[self.binary_outcome] - self.input_values[~self.binary_outcome]
                 mn_diff = np.mean(diff_scores)
@@ -627,7 +627,7 @@ class Roc:
 
             roc_plot(fpr_smooth,tpr_smooth)
 
-        elif plot_method is 'observed':
+        elif plot_method == 'observed':
             roc_plot(self.fpr, self.tpr)
         else:
             raise ValueError("plot_method must be 'gaussian' or 'observed'")
