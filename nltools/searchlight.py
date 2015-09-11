@@ -261,6 +261,7 @@ class Searchlight:
             if i%15 == 0:
                 Searchlight.write_predict_rate_(core_i, (time.time() - t0), i + 1, divs)
                 if i%45 == 0 and core_i == 0:
+                    ratef = os.path.join(os.getcwd(),"rate.txt")
                     with open(ratef, 'w') as f:
                         f.write("")
             
