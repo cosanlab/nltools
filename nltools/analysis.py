@@ -39,7 +39,7 @@ from sklearn.metrics import auc
 
 class Predict:
 
-    def __init__(self, data, Y, algorithm=None, cv_dict=None, mask=None, 
+    def __init__(self, data, Y, algorithm=None, cv_dict=None, mask=None,
                 output_dir='.', **kwargs):
         """ Initialize Predict.
 
@@ -50,9 +50,9 @@ class Predict:
             algorithm: Algorithm to use for prediction.  Must be one of 'svm', 'svr',
                 'linear', 'logistic', 'lasso', 'ridge', 'ridgeClassifier','randomforest',
                 or 'randomforestClassifier'
-            cv_dict: Type of cross_validation to use. A dictionary of 
+            cv_dict: Type of cross_validation to use. A dictionary of
                 {'type': 'kfolds', 'n_folds': n},
-                {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or 
+                {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
                 {'type': 'loso', 'subject_id': holdout},
                 where n = number of folds, and subject = vector of subject ids that corresponds to self.Y
             mask: binary nibabel mask
@@ -69,7 +69,7 @@ class Predict:
             self.mask = mask
         else:
             self.mask = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm_brain_mask.nii.gz'))
-        
+
         if type(data) is not nib.nifti1.Nifti1Image:
             raise ValueError("data is not a nibabel instance")
         self.nifti_masker = NiftiMasker(mask_img=mask)
@@ -94,9 +94,9 @@ class Predict:
             algorithm: Algorithm to use for prediction.  Must be one of 'svm', 'svr',
             'linear', 'logistic', 'lasso', 'ridge', 'ridgeClassifier','randomforest',
             or 'randomforestClassifier'
-            cv_dict: Type of cross_validation to use. A dictionary of 
+            cv_dict: Type of cross_validation to use. A dictionary of
                 {'type': 'kfolds', 'n_folds': n},
-                {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or 
+                {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
                 {'type': 'loso'', 'subject_id': holdout},
                 where n = number of folds, and subject = vector of subject ids that corresponds to self.Y
             save_images: Boolean indicating whether or not to save images to file.
@@ -149,14 +149,14 @@ class Predict:
                         dist_from_hyperplane_xval[test] = predicter_cv.decision_function(self.data[test])
                         if self.algorithm is 'svm' and self.predicter.probability:
                             self.prob_xval[test] = predicter_cv.predict_proba(self.data[test])
-    
-        # Save Outputs        
+
+        # Save Outputs
         if save_images:
             self._save_image(predicter)
 
-        if save_output:            
+        if save_output:
             self._save_stats_output()
-                
+
         if save_plot:
             if hasattr(self,'cv'):
                 self._save_plot(predicter_cv)
@@ -167,7 +167,7 @@ class Predict:
         if self.prediction_type is 'classification':
             self.mcr_all = np.mean(self.yfit_all==self.Y)
             print 'overall accuracy: %.2f' % self.mcr_all
-            if hasattr(self,'cv'):  
+            if hasattr(self,'cv'):
                 self.mcr_xval = np.mean(self.yfit_xval==self.Y)
                 print 'overall CV accuracy: %.2f' % self.mcr_xval
         elif self.prediction_type is 'prediction':
@@ -175,7 +175,7 @@ class Predict:
             self.r_all = np.corrcoef(self.Y,self.yfit_all)[0,1]
             print 'overall Root Mean Squared Error: %.2f' % self.rmse_all
             print 'overall Correlation: %.2f' % self.r_all
-            if hasattr(self,'cv'):  
+            if hasattr(self,'cv'):
                 self.rmse_xval = np.sqrt(np.mean((self.yfit_xval-self.Y)**2))
                 self.r_xval = np.corrcoef(self.Y,self.yfit_xval)[0,1]
                 print 'overall CV Root Mean Squared Error: %.2f' % self.rmse_xval
@@ -253,11 +253,11 @@ class Predict:
         """ Set the CV algorithm to use in subsequent prediction analyses.
 
         Args:
-            cv_dict: Type of cross_validation to use. A dictionary of 
+            cv_dict: Type of cross_validation to use. A dictionary of
                 {'type': 'kfolds', 'n_folds': n},
-                {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or 
+                {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
                 {'type': 'loso'', 'subject_id': holdout},
- 
+
          """
 
         if 'subject_id' in cv_dict:
@@ -278,9 +278,9 @@ class Predict:
                 from sklearn.cross_validation import LeaveOneLabelOut
                 self.cv = LeaveOneLabelOut(labels=cv_dict['subject_id'])
             else:
-                raise ValueError("""Make sure you specify a dictionary of A dictionary of 
+                raise ValueError("""Make sure you specify a dictionary of
                 {'type': 'kfolds', 'n_folds': n},
-                {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or 
+                {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
                 {'type': 'loso'', 'subject_id': holdout},
                 where n = number of folds, and subject = vector of subject ids that corresponds to self.Y""")
         else:
@@ -325,22 +325,22 @@ class Predict:
             os.makedirs(self.output_dir)
 
         self.stats_output = pd.DataFrame({
-                                'Y' : self.Y, 
+                                'Y' : self.Y,
                                 'yfit_all' : self.yfit_all})
 
-        if hasattr(self,'cv'):  
+        if hasattr(self,'cv'):
             self.stats_output['yfit_xval']  = self.yfit_xval
-        
+
             if hasattr(self, 'subject_id'):
                 self.stats_output['subject_id'] = self.subject_id
-               
+
         if self.prediction_type is 'classification':
             if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
                 self.stats_output['Probability'] = self.prob
             else:
                 self.stats_output['dist_from_hyperplane_xval']=dist_from_hyperplane_xval
                 if self.algorithm is 'svm' and self.predicter.probability:
-                    self.stats_output['Probability'] = self.prob        
+                    self.stats_output['Probability'] = self.prob
 
         self.stats_output.to_csv(os.path.join(self.output_dir, self.algorithm + '_Stats_Output.csv'),index=False)
 
