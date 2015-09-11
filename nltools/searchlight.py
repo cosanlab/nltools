@@ -124,7 +124,7 @@ import glob
 class Searchlight:
     def __init__(self, brain_mask=None, process_mask=None, radius=4, output_dir = None): #no scoring param
         self.resource_folder = os.path.join(os.getcwd(),'resources')
-        if save_output is None:
+        if output_dir is None:
             self.output_dir = os.path.join(os.getcwd(),'outfolder')
         else:
             self.output_dir = output_dir
