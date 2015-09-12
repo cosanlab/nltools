@@ -317,7 +317,7 @@ class Searchlight:
         return (A.tolil(), self.nifti_masker, process_mask_1D)
     
     @staticmethod
-    def run_searchlight_(bdata, y, algorithm='svr', cv_dict=None, output_dir=None, kwargs=None, n_cores=1, radius=3, brain_mask=None, process_mask=None):
+    def run_searchlight_(bdata, y, algorithm='svr', cv_dict=None, output_dir=None, kwargs=None, n_cores=1, radius=3, brain_mask=None, process_mask=None, walltime='07:30:00'):
         
         print("start run searchlight")
         
@@ -345,14 +345,14 @@ class Searchlight:
         
         #generate shell scripts
         for ith_core in range(n_cores):
-            Searchlight.make_pbs_scripts_(ith_core, n_cores) # create a script
+            Searchlight.make_pbs_scripts_(ith_core, n_cores, walltime) # create a script
             os.system("qsub div_script" + str(ith_core) + ".pbs") # run it on a core
 
         print("wrote div scripts")
         print("finished...")
 
     @staticmethod        
-    def make_pbs_scripts_(ith_core = 0, n_cores = 0):
+    def make_pbs_scripts_(ith_core, n_cores, walltime):
         title  = "div_script" + str(ith_core)
         text_file = open(os.path.join(os.getcwd(), title + ".pbs"), "w")
         
@@ -367,7 +367,7 @@ class Searchlight:
 #PBS -l nodes=1:ppn=1 \n\
 # request 0 hours and 15 minutes of wall time \n\
 # (Default is 1 hour without this directive) \n\
-#PBS -l walltime=07:30:00 \n\
+#PBS -l walltime="+walltime+" \n\
 # mail is sent to you when the job starts and when it terminates or aborts \n\
 # specify your email address \n\
 #PBS -M samuel.j.greydanus.17@dartmouth.edu \n\
