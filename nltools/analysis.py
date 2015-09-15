@@ -154,17 +154,6 @@ class Predict:
         if save_images:
             self._save_image(predictor)
 
-        #TEMP - Sam's debugging test
-        if self.algorithm == 'lassopcr':
-            coef = np.dot(self._pca.components_.T,self._lasso.coef_)
-            self.coef = np.transpose(coef)
-        elif self.algorithm == 'pcr':
-            coef = np.dot(self._pca.components_.T,self._regress.coef_)
-            self.coef = np.transpose(coef)
-        else:
-            self.coef = predictor.coef_.squeeze()
-        #END TEMP - Sam's debugging test
-
         if save_output:
             self._save_stats_output()
 
@@ -182,7 +171,6 @@ class Predict:
                 self.mcr_xval = np.mean(self.yfit_xval==self.Y)
                 print 'overall CV accuracy: %.2f' % self.mcr_xval
         elif self.prediction_type == 'prediction':
-            self.coef = "SAM WROTE THIS"
             self.rmse_all = np.sqrt(np.mean((self.yfit_all-self.Y)**2))
             self.r_all = np.corrcoef(self.Y,self.yfit_all)[0,1]
             print 'overall Root Mean Squared Error: %.2f' % self.rmse_all
