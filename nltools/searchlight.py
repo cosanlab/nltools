@@ -227,11 +227,13 @@ class Searchlight:
         tot = A.shape[0]
         Searchlight.errf("This core will be doing " + str(divs) + " searchlights out of " + str(tot) + " total.", core_i)
         Searchlight.errf("Time: " + str((time.time() - tic)) + " seconds", core_i)
-        
-        # clear the text file's contents if there are any
-        title  = "out" + str(core_i)
-        text_file = open(os.path.join(self.output_dir, title + ".txt"), "w")
-        text_file.close()
+
+        #clear data in r_all and weights files, if any
+        rs_dir = os.path.join(self.output_dir, "r_all" + str(core_i) + '.txt')
+        w_dir = os.path.join(self.output_dir, "weights" + str(core_i) + '.txt')
+        with open(rs_dir, 'w') as rs, open(w_dir, 'w') as w:
+            rs.seek(0), w.seek(0)
+            rs.truncate(), w.truncate()
         
         text_file = open(os.path.join(self.output_dir, "progress.txt"), "w")
         text_file.close()
@@ -250,7 +252,8 @@ class Searchlight:
             svr.predict(save_plot=False)
             Searchlight.errf("      After running Predict: " + str((time.time() - tic)) + " seconds\n", core_i)
             
-            title  = "out" + str(core_i)
+            #save r correlation values
+            title  = "r_all" + str(core_i)
             text_file = open(os.path.join(self.output_dir,title + ".txt"), "a")
             if i + 1 == divs:
                 text_file.write(str(svr.r_all)) #if it's the last entry, don't add a comma at the end
@@ -258,6 +261,16 @@ class Searchlight:
                 text_file.write(str(svr.r_all) + ",")
             text_file.close()
 
+            #save weights
+            title  = "weights" + str(core_i)
+            text_file = open(os.path.join(self.output_dir,title + ".txt"), "a")
+            if i + 1 == divs:
+                text_file.write( str(svr.coef_.squeeze()) ) #if it's the last entry, don't add a comma at the end
+            else:
+                text_file.write( str(svr.coef_.squeeze() ) + ",")
+            text_file.close()
+
+            #periodically update estimate of processing rate
             if i%7 == 0:
                 Searchlight.write_predict_rate_(core_i, (time.time() - t0), i + 1, divs)
                 if i%21 == 0 and core_i == 0:
@@ -413,63 +426,62 @@ exit 0")
         # if there is already data in the reassembled.txt file, delete it
         output_dir = os.path.join(os.getcwd(),'outfolder')
 
-        #clear data in reassembled.txt
-        rs_fn = "reassembled"
-        rs_dir = os.path.join(os.getcwd(), rs_fn + '.txt')
-        rs = open(rs_dir, 'w')
-        rs.seek(0)
-        rs.truncate()
-        rs.close()
+        #clear data in reassembled and weights files, if any
+        rs_fn = "correlations"
+        rs_all = os.path.join(os.getcwd(), rs_fn + '.txt')
+        w_fn = "weights"
+        w_all = os.path.join(os.getcwd(), rs_fn + '.txt')
+        with open(rs_all, 'w') as rs, open(w_all, 'w') as w:
+            rs.seek(0), w.seek(0)
+            rs.truncate(), w.truncate()
 
-        #get name and location of div file
-        div_fn_prefix = "out"
+        #get name and location of each core's correlation, weights file
         ith_core = 0
-        div_dir = os.path.join(output_dir, div_fn_prefix + str(ith_core) + ".txt")
+        rdiv_name, wdiv_name, = "r_all", "weights"
+        rdiv_dir = os.path.join(output_dir, rdiv_name + str(ith_core) + ".txt")
+        wdiv_dir = os.path.join(output_dir, wdiv_name + str(ith_core) + ".txt")
 
         success = False
         #write results from all cores to one text file in a csv format
-        while (os.path.isfile(div_dir)):
-            with open (div_dir, "r") as div_file:
-                data=div_file.read()
+        while (os.path.isfile(rdiv_dir) and os.path.isfile(wdiv_dir)):
+            with open (rdiv_dir, "r") as rdiv, open (wdiv_dir, "r") as wdiv:
+                data = rdiv.read()
+                weights = wdiv.read()
 
-                rs = open(rs_dir, "a")
-                rs.write(data + ',')
-                rs.close()
+                with open(rs_all, "a") as rs, open(w_all, "a") as w,
+                    rs.write(data + ','), w.write(weights + ',')
+
 
             command = "rm div_script" + str(ith_core) + ".pbs"
             os.system(command) # delete all the scripts we generated
 
             ith_core = ith_core + 1
-            div_dir = "outfolder/" + div_fn_prefix + str(ith_core) + ".txt"
+            rdiv_dir = os.path.join(output_dir, rdiv_name + str(ith_core) + ".txt")
+            wdiv_dir = os.path.join(output_dir, wdiv_name + str(ith_core) + ".txt")
 
             success = True
 
         #delete the last comma in the csv file we just generated
         if (success):
-            with open(rs_dir, 'rb+') as f:
-                f.seek(-1, os.SEEK_END)
-                f.truncate()
+            with open(rs_all, 'rb+') as f1, open(w_all, 'rb+') as f2:
+                f1.seek(-1, os.SEEK_END), f2.seek(-1, os.SEEK_END)
+                f1.truncate(), f2.truncate()
 
         print( "Finished reassembly (reassembled " + str(ith_core) + " items)" )
-
-        print("Cleaning up...")
 
         #send user an alert email by executing a blank script with an email alert tag
         if email_flag:
             Searchlight.make_email_alert_pbs_()
             os.system("qsub email_alert_pbs.pbs")
-        os.system("rm inner_searchlight_script*")
-
-        pdir = os.path.join(os.getcwd(),'searchlight.pickle')
 
         #get data from reassembled.txt and convert it to a .nii file
-        print 
+        pdir = os.path.join(os.getcwd(),'searchlight.pickle')
         if (reconstruct_flag and os.path.isfile(pdir) and success):
             #get location of searchlight pickle and retrieve its contents
             (predict_params, A, nifti_masker, process_mask_1D) = cPickle.load( open(pdir) )
 
             #open the reassembled correlation data and build a python list of float type numbers
-            with open(rs_dir, 'r') as rs:
+            with open(rs_all, 'r') as rs:
                 data = np.fromstring(rs.read(), dtype=float, sep=',')
 
             coords = np.where(process_mask_1D == 1)[1] #find coords of all values in process mask that are equal to 1
@@ -479,7 +491,7 @@ exit 0")
 
             data_3D = nifti_masker.inverse_transform( process_mask_1D ) #transform scores to 3D nifti image
             data_3D.to_filename(os.path.join(os.getcwd(),'data_3D.nii.gz')) #save nifti image
-            os.system("rm reassembled.txt")
+            os.system("rm correlations.txt")
         elif reconstruct_flag:
             print("ERROR: File 'searchlight.pickle' does not exist or 'reassemble.txt' is empty (in directory: " + os.getcwd() + ")")
 
@@ -488,5 +500,6 @@ exit 0")
         os.system("rm email_alert_pbs.e*")
         os.system("rm email_alert_pbs.o*")
         os.system("rm *searchlight_* *div* *errf* rate.txt errf.txt")
+        os.system("rm inner_searchlight_script*")
 
 

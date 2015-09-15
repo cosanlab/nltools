@@ -51,6 +51,7 @@ class Simulator:
             print(type(brain_mask))
             raise ValueError("brain_mask is not a string or a nibabel instance")
         self.brain_mask = brain_mask
+        self.nifti_masker = NiftiMasker(mask_img=self.brain_mask)
 
 
     def gaussian(self, mu, sigma, i_tot):
@@ -71,15 +72,42 @@ class Simulator:
         g = np.multiply(i_tot/np.sum(g),g)
 
         return g
+
+    def sphere(self, r, p):
+        dims = self.brain_mask.shape
+
+        x, y, z = np.ogrid[-p[0]:dims[0]-p[0], -p[1]:dims[1]-p[1], -p[2]:dims[2]-p[2]]
+        mask = x*x + y*y + z*z <= r*r
+
+        activation = np.zeros(dims)
+        activation[mask] = 1
         
-    def simulate(self, mu, sigma, i_tot=1):
-        # coordinates of center of gaussian (center in brain mask)
-        if mu == 'center':
-            mu = np.array([self.brain_mask.shape[0]/2.0, self.brain_mask.shape[1]/2.0, self.brain_mask.shape[2]/2.0])
+        return activation
 
-        g = self.gaussian(mu, sigma, i_tot)
-
-        n = nib.Nifti1Image(g, affine=np.eye(4))
-        n.to_filename(os.path.join(os.getcwd(),'data_3D.nii.gz'))
-
+    def normal_noise(self, mu, sigma):
+        vmask = self.nifti_masker.fit_transform(brain_mask)
+        
+        vlength = np.sum(brain_mask.get_data())
+        n = np.random.normal(mu, sigma, vlength)
+        n = n.reshape(1, -1)
         return n
+
+    def to_nifti(m):
+        if not (type(m) == numpy.ndarray and len(m.shape) == 3):
+            raise("ERROR: need 3D numpy.ndarray to create a nifti file")
+
+        return nib.Nifti1Image(m, affine=np.eye(4))
+
+
+        
+    # def getnifti(self, mu, sigma, i_tot=1):
+    #     # coordinates of center of gaussian (center in brain mask)
+    #     if mu == 'center':
+    #         mu = np.array([self.brain_mask.shape[0]/2.0, self.brain_mask.shape[1]/2.0, self.brain_mask.shape[2]/2.0])
+
+    #     g = self.gaussian(mu, sigma, i_tot)
+
+    #     n = nib.Nifti1Image(g, affine=np.eye(4))
+    #     n.to_filename(os.path.join(os.getcwd(),'data_3D.nii.gz'))
+
+    #     return n
