@@ -448,7 +448,7 @@ exit 0")
                 data = rdiv.read()
                 weights = wdiv.read()
 
-                with open(rs_all, "a") as rs, open(w_all, "a") as w,
+                with open(rs_all, "a") as rs, open(w_all, "a") as w:
                     rs.write(data + ','), w.write(weights + ',')
 
 
