@@ -113,30 +113,30 @@ class Predict:
             raise ValueError("Make sure you specify an 'algorithm' to use.")
 
         # Overall Fit for weight map
-        predicter = self.predicter
-        predicter.fit(self.data, self.Y)
-        self.yfit_all = predicter.predict(self.data)
+        predictor = self.predictor
+        predictor.fit(self.data, self.Y)
+        self.yfit_all = predictor.predict(self.data)
         if self.prediction_type == 'classification':
             if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
-                self.prob_all = predicter.predict_proba(self.data)
+                self.prob_all = predictor.predict_proba(self.data)
             else:
-                dist_from_hyperplane_all = predicter.decision_function(self.data)
-                if self.algorithm == 'svm' and self.predicter.probability:
-                    self.prob_all = predicter.predict_proba(self.data)
+                dist_from_hyperplane_all = predictor.decision_function(self.data)
+                if self.algorithm == 'svm' and self.predictor.probability:
+                    self.prob_all = predictor.predict_proba(self.data)
 
         # Cross-Validation Fit
         if cv_dict is not None:
             self.set_cv(cv_dict)
 
         if hasattr(self,'cv'):
-            predicter_cv = self.predicter
+            predicter_cv = self.predictor
             self.yfit_xval = self.yfit_all.copy()
             if self.prediction_type == 'classification':
                 if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
                     self.prob_xval = np.zeros(len(self.Y))
                 else:
                     dist_from_hyperplane_xval = np.zeros(len(self.Y))
-                    if self.algorithm == 'svm' and self.predicter.probability:
+                    if self.algorithm == 'svm' and self.predictor.probability:
                         self.prob_xval = np.zeros(len(self.Y))
 
             for train, test in self.cv:
@@ -147,12 +147,12 @@ class Predict:
                         self.prob_xval[test] = predicter_cv.predict_proba(self.data[test])
                     else:
                         dist_from_hyperplane_xval[test] = predicter_cv.decision_function(self.data[test])
-                        if self.algorithm == 'svm' and self.predicter.probability:
+                        if self.algorithm == 'svm' and self.predictor.probability:
                             self.prob_xval[test] = predicter_cv.predict_proba(self.data[test])
 
         # Save Outputs
         if save_images:
-            self._save_image(predicter)
+            self._save_image(predictor)
 
         if save_output:
             self._save_stats_output()
@@ -161,7 +161,7 @@ class Predict:
             if hasattr(self,'cv'):
                 self._save_plot(predicter_cv)
             else:
-                self._save_plot(predicter)
+                self._save_plot(predictor)
 
         # Print Results
         if self.prediction_type == 'classification':
@@ -224,25 +224,25 @@ class Predict:
         if algorithm in algs_classify.keys():
             self.prediction_type = 'classification'
             alg = load_class(algs_classify[algorithm])
-            self.predicter = alg(**kwargs)
+            self.predictor = alg(**kwargs)
         elif algorithm in algs_predict:
             self.prediction_type = 'prediction'
             alg = load_class(algs_predict[algorithm])
-            self.predicter = alg(**kwargs)
+            self.predictor = alg(**kwargs)
         elif algorithm == 'lassopcr':
             self.prediction_type = 'prediction'
             from sklearn.linear_model import Lasso
             from sklearn.decomposition import PCA
             self._lasso = Lasso()
             self._pca = PCA()
-            self.predicter = Pipeline(steps=[('pca', self._pca), ('lasso', self._lasso)])
+            self.predictor = Pipeline(steps=[('pca', self._pca), ('lasso', self._lasso)])
         elif algorithm == 'pcr':
             self.prediction_type = 'prediction'
             from sklearn.linear_model import LinearRegression
             from sklearn.decomposition import PCA
             self._regress = LinearRegression()
             self._pca = PCA()
-            self.predicter = Pipeline(steps=[('pca', self._pca), ('regress', self._regress)])
+            self.predictor = Pipeline(steps=[('pca', self._pca), ('regress', self._regress)])
         else:
             raise ValueError("""Invalid prediction/classification algorithm name. Valid
                 options are 'svm','svr', 'linear', 'logistic', 'lasso', 'lassopcr',
@@ -286,11 +286,11 @@ class Predict:
         else:
             raise ValueError("Make sure 'cv_dict' is a dictionary.")
 
-    def _save_image(self, predicter):
+    def _save_image(self, predictor):
         """ Write out weight map to Nifti image.
 
         Args:
-            predicter: predicter instance
+            predictor: predictor instance
 
         Returns:
             predicter_weightmap.nii.gz: Will output a nifti image of weightmap
@@ -307,7 +307,7 @@ class Predict:
             coef = np.dot(self._pca.components_.T,self._regress.coef_)
             coef_img = self.nifti_masker.inverse_transform(np.transpose(coef))
         else:
-            coef_img = self.nifti_masker.inverse_transform(predicter.coef_.squeeze())
+            coef_img = self.nifti_masker.inverse_transform(predictor.coef_.squeeze())
         nib.save(coef_img, os.path.join(self.output_dir, self.algorithm + '_weightmap.nii.gz'))
 
     def _save_stats_output(self):
@@ -339,16 +339,16 @@ class Predict:
                 self.stats_output['Probability'] = self.prob
             else:
                 self.stats_output['dist_from_hyperplane_xval']=dist_from_hyperplane_xval
-                if self.algorithm == 'svm' and self.predicter.probability:
+                if self.algorithm == 'svm' and self.predictor.probability:
                     self.stats_output['Probability'] = self.prob
 
         self.stats_output.to_csv(os.path.join(self.output_dir, self.algorithm + '_Stats_Output.csv'),index=False)
 
-    def _save_plot(self, predicter):
+    def _save_plot(self, predictor):
         """ Save Plots.
 
         Args:
-            predicter: predicter instance
+            predictor: predictor instance
 
         Returns:
             predicter_weightmap_montage.png: Will output a montage of axial slices of weightmap
@@ -366,7 +366,7 @@ class Predict:
             coef = np.dot(self._pca.components_.T,self._regress.coef_)
             coef_img = self.nifti_masker.inverse_transform(np.transpose(coef))
         else:
-            coef_img = self.nifti_masker.inverse_transform(predicter.coef_)
+            coef_img = self.nifti_masker.inverse_transform(predictor.coef_)
 
         overlay_img = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm_brain.nii.gz'))
 
@@ -382,7 +382,7 @@ class Predict:
                 fig2 = dist_from_hyperplane_plot(self.stats_output)
                 fig2.savefig(os.path.join(self.output_dir, self.algorithm +
                             '_Distance_from_Hyperplane_xval.png'))
-                if self.algorithm == 'svm' and self.predicter.probability:
+                if self.algorithm == 'svm' and self.predictor.probability:
                     fig3 = probability_plot(self.stats_output)
                     fig3.savefig(os.path.join(self.output_dir, self.algorithm + '_prob_plot.png'))
 

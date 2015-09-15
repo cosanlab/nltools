@@ -265,9 +265,9 @@ class Searchlight:
             title  = "weights" + str(core_i)
             text_file = open(os.path.join(self.output_dir,title + ".txt"), "a")
             if i + 1 == divs:
-                text_file.write( str(svr.coef_.squeeze()) ) #if it's the last entry, don't add a comma at the end
+                text_file.write( str(svr.predictor.coef_.squeeze()) ) #if it's the last entry, don't add a comma at the end
             else:
-                text_file.write( str(svr.coef_.squeeze() ) + ",")
+                text_file.write( str(svr.predictor.coef_.squeeze() ) + ",")
             text_file.close()
 
             #periodically update estimate of processing rate
