@@ -264,10 +264,16 @@ class Searchlight:
             #save weights
             title  = "weights" + str(core_i)
             text_file = open(os.path.join(self.output_dir,title + ".txt"), "a")
-            if i + 1 == divs:
-                text_file.write( str(svr.predictor.coef_.squeeze()) ) #if it's the last entry, don't add a comma at the end
+            if i + 1 != divs:
+                l = svr.predicter.coef_.squeeze()
+                for j in xrange(len(l) - 1):
+                    text_file.write(str(l[j]) + ',')
+                text_file.write( str(l[j]) +  "\n") #if it's the last entry, don't add a comma at the end
             else:
-                text_file.write( str(svr.predictor.coef_.squeeze() ) + ",")
+                l = svr.predicter.coef_.squeeze()
+                for j in xrange(len(l) - 1):
+                    text_file.write(str(l[j]) + ',')
+                text_file.write( str(l[j])) #if it's the last entry, don't add a comma or a \n at the end
             text_file.close()
 
             #periodically update estimate of processing rate
@@ -430,7 +436,7 @@ exit 0")
         rs_fn = "correlations"
         rs_all = os.path.join(os.getcwd(), rs_fn + '.txt')
         w_fn = "weights"
-        w_all = os.path.join(os.getcwd(), rs_fn + '.txt')
+        w_all = os.path.join(os.getcwd(), w_fn + '.txt')
         with open(rs_all, 'w') as rs, open(w_all, 'w') as w:
             rs.seek(0), w.seek(0)
             rs.truncate(), w.truncate()
@@ -441,6 +447,7 @@ exit 0")
         rdiv_dir = os.path.join(output_dir, rdiv_name + str(ith_core) + ".txt")
         wdiv_dir = os.path.join(output_dir, wdiv_name + str(ith_core) + ".txt")
 
+        print "LOLOLOLOLOLOL"
         success = False
         #write results from all cores to one text file in a csv format
         while (os.path.isfile(rdiv_dir) and os.path.isfile(wdiv_dir)):
@@ -449,7 +456,7 @@ exit 0")
                 weights = wdiv.read()
 
                 with open(rs_all, "a") as rs, open(w_all, "a") as w:
-                    rs.write(data + ','), w.write(weights + ',')
+                    rs.write(data + ','), w.write(weights + '\n')
 
 
             command = "rm div_script" + str(ith_core) + ".pbs"
