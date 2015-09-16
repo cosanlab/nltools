@@ -96,8 +96,8 @@ class Simulator:
     def to_nifti(self, v):
         print len(v.shape)
         print type(v)
-        if not (type(v) == np.ndarray and len(v.shape) == 1):
-            raise ValueError("ERROR: need 1D np.ndarray to create a nifti file")
+        if not (type(v) == np.ndarray and len(v.shape) == 2):
+            raise ValueError("ERROR: need 2D np.ndarray vector to create a nifti file")
 
         m = self.nifti_masker.inverse_transform(v)
         return nib.Nifti1Image(m, affine=np.eye(4))
