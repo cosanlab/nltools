@@ -82,28 +82,25 @@ class Simulator:
         activation = np.zeros(dims)
         activation[mask] = 1
         activation = nib.Nifti1Image(activation, affine=np.eye(4))
-
-        #change vector to a fit transform version of brain_mask so we are using same coord transform for all generative models
-        va = self.nifti_masker.fit_transform(activation)
-        vm = self.nifti_masker.fit_transform(self.brain_mask)
-        combo = self.nifti_masker.inverse_transform(np.multiply(va,vm))
         
-        return self.nifti_masker.fit_transform(combo)
+        #return the 3D numpy matrix of zeros containing the sphere as a region of ones
+        return activation.get_data()
 
     def normal_noise(self, mu, sigma):
         vmask = self.nifti_masker.fit_transform(self.brain_mask)
         
         vlength = np.sum(self.brain_mask.get_data())
         n = np.random.normal(mu, sigma, vlength)
-        n = np.reshape(n, (1,-1))
-        return n
+        m = self.nifti_masker.inverse_transform(n)
 
-    def to_nifti(self, v):
-        if not (type(v) == np.ndarray and len(v.shape) == 2):
-            raise ValueError("ERROR: need 2D ([n x 1] or [1 x n]) np.ndarray vector to create a nifti file")
-        v = np.reshape(v, (1,-1))
-        m = self.nifti_masker.inverse_transform(v)
-        return m
+        #return the 3D numpy matrix of zeros containing the brain mask filled with noise produced over a normal distribution
+        return m.get_data()
+
+    def to_nifti(self, m):
+        if not (type(m) == np.ndarray and len(v.shape) == 3):
+            raise ValueError("ERROR: need 3D np.ndarray matrix to create the nifti file")
+        ni = nib.Nifti1Image(m, affine=np.eye(4))
+        return ni
 
 
         
