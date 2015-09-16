@@ -148,7 +148,7 @@ class Simulator:
             return (NF_list, I_list)
 
     @staticmethod
-    def collection_centered_spheres(self, r, sigma, I = None, output_dir = None):
+    def collection_of_centered_spheres(self, r, sigma, I = None, output_dir = None):
         dims = self.brain_mask.get_data().shape
         p = [dims[0]/2, dims[1]/2, dims[2]/2]
         A = self.sphere(r, p)
