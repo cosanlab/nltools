@@ -88,7 +88,7 @@ class Simulator:
         vm = self.nifti_masker.fit_transform(self.brain_mask)
         combo = self.nifti_masker.inverse_transform(np.multiply(va,vm))
         
-        return combo
+        return self.nifti_masker.fit_transform(combo)
 
     def normal_noise(self, mu, sigma):
         vmask = self.nifti_masker.fit_transform(self.brain_mask)
