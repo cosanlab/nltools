@@ -114,9 +114,13 @@ class Simulator:
         
         return A
 
-    def collection_from_pattern(self, A, sigma, I = None, output_dir = None):
+    def collection_from_pattern(self, A, sigma, reps = 1, I = None, output_dir = None):
             if I is None:
                 I = [sigma/10.0]
+
+            temp = I
+            for i in xrange(reps - 1):
+                I = I + temp
             
             #initialize useful values
             dims = self.brain_mask.get_data().shape
@@ -140,7 +144,7 @@ class Simulator:
             if output_dir is not None:
                 if type(output_dir) is str:
                     for i in xrange(len(I)):
-                        NF_list[i].to_filename(os.path.join(output_dir,'centered_sphere_' + str(i) + "_" + str(I[i]) + '.nii.gz'))
+                        NF_list[i].to_filename(os.path.join(output_dir,'centered_sphere_' + str(i%reps) + "_" + str(I[i]) + '.nii.gz'))
                 else:
                     raise ValueError("ERROR. output_dir must be a string")
             
