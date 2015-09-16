@@ -93,7 +93,7 @@ class Simulator:
         dims = self.brain_mask.get_data().shape
         return n
 
-    def to_nifti(v):
+    def to_nifti(self, v):
         if not (type(m) == numpy.ndarray and len(m.shape) == 1):
             raise("ERROR: need 1D numpy.ndarray to create a nifti file")
 
