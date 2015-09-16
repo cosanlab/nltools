@@ -144,7 +144,7 @@ class Simulator:
             if output_dir is not None:
                 if type(output_dir) is str:
                     for i in xrange(len(I)):
-                        NF_list[i].to_filename(os.path.join(output_dir,'centered_sphere_' + str(i) + "_" + str(i%reps) + '.nii.gz'))
+                        NF_list[i].to_filename(os.path.join(output_dir,'centered_sphere_' + str(i) + "_" + str(i%len(I)) + '.nii.gz'))
                 else:
                     raise ValueError("ERROR. output_dir must be a string")
             
