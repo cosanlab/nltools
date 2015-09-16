@@ -81,6 +81,7 @@ class Simulator:
 
         activation = np.zeros(dims)
         activation[mask] = 1
+        activation = np.multiply(activation, self.brain_mask.get_data())
         activation = nib.Nifti1Image(activation, affine=np.eye(4))
         
         #return the 3D numpy matrix of zeros containing the sphere as a region of ones
@@ -101,6 +102,60 @@ class Simulator:
             raise ValueError("ERROR: need 3D np.ndarray matrix to create the nifti file")
         ni = nib.Nifti1Image(m, affine=np.eye(4))
         return ni
+
+    def n_spheres(self, r, p_list):
+        #initialize useful values
+        dims = self.brain_mask.get_data().shape
+        
+        #generate and sum spheres of 0's and 1's
+        A = np.zeros_like(brain_mask.get_data())
+        for p in p_list:
+            A = np.add(A, self.sphere(r, p))
+        
+        return A
+
+    @staticmethod
+    def collection_from_pattern(self, A, sigma, I = None, output_dir = None):
+            if I is None:
+                I = [sigma/10.0]
+            
+            #initialize useful values
+            dims = self.brain_mask.get_data().shape
+            
+            #for each intensity
+            A_list = []
+            for i in I:
+                A_list.append(np.multiply(A, i))
+
+            #generate a different gaussian noise profile for each mask
+            mu = 0 #values centered around 0
+            N_list = []
+            for i in xrange(len(I)):
+                N_list.append(self.normal_noise(mu, sigma))
+            
+            #add noise and signal together, then convert to nifti files
+            NF_list = []
+            for i in xrange(len(I)):
+                NF_list.append(self.to_nifti(np.add(A_list[i],N_list[i])))
+                
+            if output_dir is not None:
+                if type(output_dir) is str:
+                    for i in xrange(len(I)):
+                        NF_list[i].to_filename(os.path.join(output_dir,'centered_sphere_' + str(I[i]) + '.nii.gz'))
+                else:
+                    raise ValueError("ERROR. output_dir must be a string")
+            
+            return (NF_list, I_list)
+
+    @staticmethod
+    def collection_centered_spheres(self, r, sigma, I = None, output_dir = None):
+        dims = self.brain_mask.get_data().shape
+        p = [dims[0]/2, dims[1]/2, dims[2]/2]
+        A = self.sphere(r, p)
+
+        c = self.collection_from_pattern(A, sigma, I = I, output_dir = output_dir)
+
+        return c
 
 
         
