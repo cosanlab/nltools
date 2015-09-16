@@ -150,12 +150,12 @@ class Simulator:
             
             return (NF_list, I)
 
-    def collection_of_centered_spheres(self, r, sigma, I = None, output_dir = None):
+    def collection_of_centered_spheres(self, r, sigma, reps = 1, I = None, output_dir = None):
         dims = self.brain_mask.get_data().shape
         p = [dims[0]/2, dims[1]/2, dims[2]/2]
         A = self.sphere(r, p)
 
-        c = self.collection_from_pattern(A, sigma, I = I, output_dir = output_dir)
+        c = self.collection_from_pattern(A, sigma, reps = reps, I = I, output_dir = output_dir)
 
         return c
 
