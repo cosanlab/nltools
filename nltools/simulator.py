@@ -81,24 +81,23 @@ class Simulator:
 
         activation = np.zeros(dims)
         activation[mask] = 1
-
+        activation = nib.Nifti1Image(activation, affine=np.eye(4))
         
-        return activation
+        return self.nifti_masker.fit_transform(activation)
 
     def normal_noise(self, mu, sigma):
         vmask = self.nifti_masker.fit_transform(self.brain_mask)
         
         vlength = np.sum(self.brain_mask.get_data())
         n = np.random.normal(mu, sigma, vlength)
-
         dims = self.brain_mask.get_data().shape
-        n = np.reshape(n, dims)
         return n
 
-    def to_nifti(m):
-        if not (type(m) == numpy.ndarray and len(m.shape) == 3):
-            raise("ERROR: need 3D numpy.ndarray to create a nifti file")
+    def to_nifti(v):
+        if not (type(m) == numpy.ndarray and len(m.shape) == 1):
+            raise("ERROR: need 1D numpy.ndarray to create a nifti file")
 
+        m = self.nifti_masker.inverse_transform(v)
         return nib.Nifti1Image(m, affine=np.eye(4))
 
 
