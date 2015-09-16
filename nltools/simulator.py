@@ -144,7 +144,7 @@ class Simulator:
                 else:
                     raise ValueError("ERROR. output_dir must be a string")
             
-            return (NF_list, I_list)
+            return (NF_list, I)
 
     def collection_of_centered_spheres(self, r, sigma, I = None, output_dir = None):
         dims = self.brain_mask.get_data().shape
