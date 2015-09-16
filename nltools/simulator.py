@@ -118,6 +118,7 @@ class Simulator:
             if I is None:
                 I = [sigma/10.0]
 
+            levels = len(I)
             temp = I
             for i in xrange(reps - 1):
                 I = I + temp
@@ -144,7 +145,7 @@ class Simulator:
             if output_dir is not None:
                 if type(output_dir) is str:
                     for i in xrange(len(I)):
-                        NF_list[i].to_filename(os.path.join(output_dir,'centered_sphere_' + str(i) + "_" + str(i%len(I)) + '.nii.gz'))
+                        NF_list[i].to_filename(os.path.join(output_dir,'centered_sphere_' + str(i) + "_" + str(i%levels + '.nii.gz'))
                 else:
                     raise ValueError("ERROR. output_dir must be a string")
             
