@@ -85,9 +85,9 @@ class Simulator:
         return activation
 
     def normal_noise(self, mu, sigma):
-        vmask = self.nifti_masker.fit_transform(brain_mask)
+        vmask = self.nifti_masker.fit_transform(self.brain_mask)
         
-        vlength = np.sum(brain_mask.get_data())
+        vlength = np.sum(self.brain_mask.get_data())
         n = np.random.normal(mu, sigma, vlength)
         n = n.reshape(1, -1)
         return n
