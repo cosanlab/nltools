@@ -108,7 +108,7 @@ class Simulator:
         dims = self.brain_mask.get_data().shape
         
         #generate and sum spheres of 0's and 1's
-        A = np.zeros_like(brain_mask.get_data())
+        A = np.zeros_like(self.brain_mask.get_data())
         for p in p_list:
             A = np.add(A, self.sphere(r, p))
         
