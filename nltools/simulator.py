@@ -81,6 +81,7 @@ class Simulator:
 
         activation = np.zeros(dims)
         activation[mask] = 1
+
         
         return activation
 
@@ -89,7 +90,9 @@ class Simulator:
         
         vlength = np.sum(self.brain_mask.get_data())
         n = np.random.normal(mu, sigma, vlength)
-        n = n.reshape(1, -1)
+
+        dims = self.brain_mask.get_data().shape
+        n = n.reshape(dims[0], dims[1],dims[2])
         return n
 
     def to_nifti(m):
