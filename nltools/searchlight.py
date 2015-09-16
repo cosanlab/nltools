@@ -447,7 +447,6 @@ exit 0")
         rdiv_dir = os.path.join(output_dir, rdiv_name + str(ith_core) + ".txt")
         wdiv_dir = os.path.join(output_dir, wdiv_name + str(ith_core) + ".txt")
 
-        print "LOLOLOLOLOLOL"
         success = False
         #write results from all cores to one text file in a csv format
         while (os.path.isfile(rdiv_dir) and os.path.isfile(wdiv_dir)):
