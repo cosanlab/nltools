@@ -94,7 +94,7 @@ class Simulator:
         return n
 
     def to_nifti(self, v):
-        if not (type(m) == numpy.ndarray and len(m.shape) == 1):
+        if not (type(v) == numpy.ndarray and len(v.shape) == 1):
             raise("ERROR: need 1D numpy.ndarray to create a nifti file")
 
         m = self.nifti_masker.inverse_transform(v)
