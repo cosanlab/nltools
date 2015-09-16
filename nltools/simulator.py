@@ -97,7 +97,7 @@ class Simulator:
         return m.get_data()
 
     def to_nifti(self, m):
-        if not (type(m) == np.ndarray and len(v.shape) == 3):
+        if not (type(m) == np.ndarray and len(m.shape) == 3):
             raise ValueError("ERROR: need 3D np.ndarray matrix to create the nifti file")
         ni = nib.Nifti1Image(m, affine=np.eye(4))
         return ni
