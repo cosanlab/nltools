@@ -98,7 +98,7 @@ class Simulator:
             raise ValueError("ERROR: need 2D ([n x 1] or [1 x n]) np.ndarray vector to create a nifti file")
         v = np.reshape(v, (1,-1))
         m = self.nifti_masker.inverse_transform(v)
-        return nib.Nifti1Image(m, affine=np.eye(4))
+        return m
 
 
         
