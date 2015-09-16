@@ -82,8 +82,13 @@ class Simulator:
         activation = np.zeros(dims)
         activation[mask] = 1
         activation = nib.Nifti1Image(activation, affine=np.eye(4))
+
+        #change vector to a fit transform version of brain_mask so we are using same coord transform for all generative models
+        va = self.nifti_masker.fit_transform(activation)
+        vm = self.nifti_masker.fit_transform(self.brain_mask)
+        combo = self.nifti_masker.inverse_transform(np.multiply(va,vm))
         
-        return self.nifti_masker.fit_transform(activation)
+        return combo
 
     def normal_noise(self, mu, sigma):
         vmask = self.nifti_masker.fit_transform(self.brain_mask)
