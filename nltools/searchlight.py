@@ -140,8 +140,9 @@ class Searchlight:
         self.brain_mask = brain_mask
         
         if type(process_mask) is str:
-            process_mask = nib.load(process_mask)
             print "-------- Loaded process mask" + "---" + process_mask + "---"
+            process_mask = nib.load(process_mask)
+            print "NOW WE HAVE: " + str(process_mask)
         elif process_mask is None:
             process_mask = nib.load(os.path.join(self.resource_folder,"FSL_RIns_thr0.nii.gz"))
         elif type(brain_mask) is not nib.nifti1.Nifti1Image:
