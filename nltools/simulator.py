@@ -101,6 +101,8 @@ class Simulator:
         vmask = self.nifti_masker.fit_transform(self.brain_mask)
         
         vlength = np.sum(self.brain_mask.get_data())
+        print vlength
+        print np.ones_like(vlength).shape
         n = np.multiply(c, np.ones_like(vlength))
         m = self.nifti_masker.inverse_transform(n)
 
