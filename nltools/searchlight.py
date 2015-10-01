@@ -141,7 +141,7 @@ class Searchlight:
         
         if type(process_mask) is str:
             process_mask = nib.load(process_mask)
-            print "-------- Loaded process mask"
+            print "-------- Loaded process mask" + "---" + process_mask + "---"
         elif process_mask is None:
             process_mask = nib.load(os.path.join(self.resource_folder,"FSL_RIns_thr0.nii.gz"))
         elif type(brain_mask) is not nib.nifti1.Nifti1Image:
@@ -204,7 +204,7 @@ class Searchlight:
     def predict(self, core_i, n_cores, params): #CHANGE NAME
         tic = time.time()
 
-        (predict_params, A, self.nifti_masker, process_mask_1D) = params
+        (predict_params, A, self.nifti_masker, self.process_mask, process_mask_1D) = params
         (bdata, y, algorithm, cv_dict, output_dir, kwargs) = predict_params
         
         if isinstance(bdata, str):
@@ -352,7 +352,7 @@ class Searchlight:
         
         #n_cores start at 0, so if the input param is 10, there are 11 cores
         output_dir = os.path.join(os.getcwd(),'outfolder')
-        
+
         print "The process mask is: " + process_mask
         sl = Searchlight(brain_mask=brain_mask, process_mask=process_mask, radius=radius, output_dir = output_dir)
         
@@ -364,7 +364,7 @@ class Searchlight:
         predict_params = [bdata, y, algorithm, cv_dict, output_dir, kwargs]
         
         # save all parameters in a file in the same directory that the code is being executed
-        cPickle.dump([predict_params, A, nifti_masker, process_mask_1D], open("searchlight.pickle", "w"))
+        cPickle.dump([predict_params, A, nifti_masker, self.process_mask, process_mask_1D], open("searchlight.pickle", "w"))
         del predict_params, A, nifti_masker, process_mask_1D
         
         print("finished storing data")
