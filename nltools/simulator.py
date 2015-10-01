@@ -98,8 +98,8 @@ class Simulator:
     def constant_activation(self, c):
         vlength = np.sum(self.brain_mask.get_data())
         print vlength
-        print np.ones(vlength,1).shape
-        n = np.multiply(c, np.ones(vlength,1))
+        print np.ones((vlength,1)).shape
+        n = np.multiply(c, np.ones((vlength,1)))
         m = self.nifti_masker.inverse_transform(n)
         print m.shape
 
