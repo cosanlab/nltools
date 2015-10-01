@@ -141,6 +141,7 @@ class Searchlight:
         
         if type(process_mask) is str:
             process_mask = nib.load(process_mask)
+            print "-------- Loaded process mask"
         elif process_mask is None:
             process_mask = nib.load(os.path.join(self.resource_folder,"FSL_RIns_thr0.nii.gz"))
         elif type(brain_mask) is not nib.nifti1.Nifti1Image:
@@ -351,6 +352,8 @@ class Searchlight:
         
         #n_cores start at 0, so if the input param is 10, there are 11 cores
         output_dir = os.path.join(os.getcwd(),'outfolder')
+        
+        print "The process mask is: " + process_mask
         sl = Searchlight(brain_mask=brain_mask, process_mask=process_mask, radius=radius, output_dir = output_dir)
         
         # parameters for Predict function
