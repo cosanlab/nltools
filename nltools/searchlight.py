@@ -248,15 +248,19 @@ class Searchlight:
 
             #apply the Predict method
             svr = Predict(bdata, y, mask = searchlight_mask, algorithm=algorithm, output_dir=output_dir, cv_dict = cv_dict, **kwargs)
-            Searchlight.errf("      After initializing Predict: " + str((time.time() - tic)) + " seconds", core_i)
+            # Searchlight.errf("      After initializing Predict: " + str((time.time() - tic)) + " seconds", core_i)
             svr.predict(save_plot=False)
-            Searchlight.errf("      After running Predict: " + str((time.time() - tic)) + " seconds\n", core_i)
+            # Searchlight.errf("      After running Predict: " + str((time.time() - tic)) + " seconds\n", core_i)
             
             #save r correlation values
             title  = "r_all" + str(core_i)
             text_file = open(os.path.join(self.output_dir,title + ".txt"), "a")
             r_all = svr.r_all
+
+            Searchlight.errf("Before: " + r_all)
             if r_all is np.nan: r_all=0.0
+            Searchlight.errf("After: " + r_all)
+
             if i + 1 == divs:
                 text_file.write(str(r_all)) #if it's the last entry, don't add a comma at the end
             else:
