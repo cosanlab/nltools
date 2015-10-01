@@ -256,12 +256,7 @@ class Searchlight:
             title  = "r_all" + str(core_i)
             text_file = open(os.path.join(self.output_dir,title + ".txt"), "a")
             r_all = svr.r_all
-
-            Searchlight.errf("Type: " + str(type(r_all)), core_i)
-            Searchlight.errf("Before: " + str(r_all), core_i)
             if r_all != r_all: r_all=0.0
-            Searchlight.errf("After: " + str(r_all), core_i)
-
             if i + 1 == divs:
                 text_file.write(str(r_all)) #if it's the last entry, don't add a comma at the end
             else:
