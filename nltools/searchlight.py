@@ -499,7 +499,7 @@ exit 0")
 
             data_3D = nifti_masker.inverse_transform( process_mask_1D ) #transform scores to 3D nifti image
             data_3D.to_filename(os.path.join(os.getcwd(),'data_3D.nii.gz')) #save nifti image
-            os.system("rm correlations.txt")
+            # os.system("rm correlations.txt")
         elif reconstruct_flag:
             print("ERROR: File 'searchlight.pickle' does not exist or 'reassemble.txt' is empty (in directory: " + os.getcwd() + ")")
 
