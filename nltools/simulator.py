@@ -88,19 +88,13 @@ class Simulator:
         return activation.get_data()
 
     def normal_noise(self, mu, sigma):
+        vmask = self.nifti_masker.fit_transform(self.brain_mask)
+        
         vlength = np.sum(self.brain_mask.get_data())
         n = np.random.normal(mu, sigma, vlength)
         m = self.nifti_masker.inverse_transform(n)
 
         #return the 3D numpy matrix of zeros containing the brain mask filled with noise produced over a normal distribution
-        return m.get_data()
-
-    def constant_activation(self, c):
-        vlength = np.sum(self.brain_mask.get_data())
-        n = np.random.normal(mu, sigma, vlength)
-        n = np.multiply(c, np.zeros_like(n))
-        m = self.nifti_masker.inverse_transform(n)
-        #return the 3D numpy matrix of zeros containing the brain mask filled a constant activation c
         return m.get_data()
 
     def to_nifti(self, m):
@@ -143,17 +137,13 @@ class Simulator:
             N_list = []
             for i in xrange(len(I)):
                 N_list.append(self.normal_noise(mu, sigma))
-
-            #generate a constant activation mask
-            c = 1.0 #values centered around 0
-            C_list = []
-            for i in xrange(len(I)):
-                C_list.append(self.constant_activation(c))
             
             #add noise and signal together, then convert to nifti files
             NF_list = []
             for i in xrange(len(I)):
-                NF_list.append(self.to_nifti(np.add(np.add(A_list[i],N_list[i]),C_list[i])))
+                c = 1.0
+                const = self.brain_mask.get_data() * c
+                NF_list.append(self.to_nifti(np.add( const,np.add(A_list[i],N_list[i])) ))
                 
             if output_dir is not None:
                 if type(output_dir) is str:
