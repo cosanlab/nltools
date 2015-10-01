@@ -257,6 +257,7 @@ class Searchlight:
             text_file = open(os.path.join(self.output_dir,title + ".txt"), "a")
             r_all = svr.r_all
 
+            Searchlight.errf("Type: " + type(r_all), core_i)
             Searchlight.errf("Before: " + str(r_all), core_i)
             if r_all is np.nan: r_all=0.0
             Searchlight.errf("After: " + str(r_all), core_i)
