@@ -259,7 +259,7 @@ class Searchlight:
 
             Searchlight.errf("Type: " + str(type(r_all)), core_i)
             Searchlight.errf("Before: " + str(r_all), core_i)
-            if r_all is np.nan: r_all=0.0
+            if r_all != r_all: r_all=0.0
             Searchlight.errf("After: " + str(r_all), core_i)
 
             if i + 1 == divs:
