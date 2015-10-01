@@ -140,11 +140,9 @@ class Searchlight:
         self.brain_mask = brain_mask
         
         if type(process_mask) is str:
-            print "-------- Loaded process mask" + "---" + process_mask + "---"
             process_mask = nib.load(process_mask)
-            print "NOW WE HAVE: " + str(process_mask)
         elif process_mask is None:
-            process_mask = nib.load(os.path.join(self.resource_folder,"FSL_RIns_thr0.nii.gz"))
+            process_mask = nib.load(os.path.join(self.resource_folder,"gray_matter_mask.nii.gz"))
         elif type(brain_mask) is not nib.nifti1.Nifti1Image:
             print(process_mask)
             print(type(process_mask))
@@ -365,8 +363,8 @@ class Searchlight:
         predict_params = [bdata, y, algorithm, cv_dict, output_dir, kwargs]
         
         # save all parameters in a file in the same directory that the code is being executed
-        cPickle.dump([predict_params, A, nifti_masker, self.process_mask, process_mask_1D], open("searchlight.pickle", "w"))
-        del predict_params, A, nifti_masker, process_mask_1D
+        cPickle.dump([predict_params, A, nifti_masker, sl.process_mask, process_mask_1D], open("searchlight.pickle", "w"))
+        del predict_params, A, nifti_masker, process_mask_1D, sl
         
         print("finished storing data")
 
