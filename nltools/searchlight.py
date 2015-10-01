@@ -265,12 +265,12 @@ class Searchlight:
             title  = "weights" + str(core_i)
             text_file = open(os.path.join(self.output_dir,title + ".txt"), "a")
             if i + 1 != divs:
-                l = svr.predicter.coef_.squeeze()
+                l = svr.predictor.coef_.squeeze()
                 for j in xrange(len(l) - 1):
                     text_file.write(str(l[j]) + ',')
                 text_file.write( str(l[j]) +  "\n") #if it's the last entry, don't add a comma at the end
             else:
-                l = svr.predicter.coef_.squeeze()
+                l = svr.predictor.coef_.squeeze()
                 for j in xrange(len(l) - 1):
                     text_file.write(str(l[j]) + ',')
                 text_file.write( str(l[j])) #if it's the last entry, don't add a comma or a \n at the end
