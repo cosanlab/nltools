@@ -90,6 +90,7 @@ class Simulator:
     def normal_noise(self, mu, sigma):
         vlength = np.sum(self.brain_mask.get_data())
         n = np.random.normal(mu, sigma, vlength)
+        print n.shape
         m = self.nifti_masker.inverse_transform(n)
 
         #return the 3D numpy matrix of zeros containing the brain mask filled with noise produced over a normal distribution
@@ -98,8 +99,8 @@ class Simulator:
     def constant_activation(self, c):
         vlength = np.sum(self.brain_mask.get_data())
         print vlength
-        print np.ones((vlength,1)).shape
-        n = np.multiply(c, np.ones((vlength,1)))
+        print np.ones((1,vlength)).shape
+        n = np.multiply(c, np.ones((1,vlength)))
         m = self.nifti_masker.inverse_transform(n)
         print m.shape
 
