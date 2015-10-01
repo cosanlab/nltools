@@ -257,9 +257,9 @@ class Searchlight:
             text_file = open(os.path.join(self.output_dir,title + ".txt"), "a")
             r_all = svr.r_all
 
-            Searchlight.errf("Before: " + r_all)
+            Searchlight.errf("Before: " + str(r_all))
             if r_all is np.nan: r_all=0.0
-            Searchlight.errf("After: " + r_all)
+            Searchlight.errf("After: " + str(r_all))
 
             if i + 1 == divs:
                 text_file.write(str(r_all)) #if it's the last entry, don't add a comma at the end
