@@ -353,7 +353,7 @@ class Searchlight:
         (A, nifti_masker, process_mask_1D) = sl.get_coords()
         print("got A, nifti_masker, and process_mask_1D")
 
-        # kwargs = {'kernel':"linear"}
+        y = np.array(y)
         predict_params = [bdata, y, algorithm, cv_dict, output_dir, kwargs]
         
         # save all parameters in a file in the same directory that the code is being executed
