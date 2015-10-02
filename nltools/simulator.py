@@ -92,8 +92,6 @@ class Simulator:
         
         vlength = np.sum(self.brain_mask.get_data())
         n = np.random.normal(mu, sigma, vlength)
-        print "mu: " + str(mu)
-        print "sigma: " + str(sigma)
         m = self.nifti_masker.inverse_transform(n)
 
         #return the 3D numpy matrix of zeros containing the brain mask filled with noise produced over a normal distribution
@@ -143,7 +141,7 @@ class Simulator:
             #add noise and signal together, then convert to nifti files
             NF_list = []
             for i in xrange(len(I)):
-                NF_list.append(self.to_nifti(np.add(N_list[i],N_list[i]) ))
+                NF_list.append(self.to_nifti(np.add(A_list[i],A_list[i]) ))
                 
             if output_dir is not None:
                 if type(output_dir) is str:
