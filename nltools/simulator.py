@@ -143,7 +143,7 @@ class Simulator:
             #add noise and signal together, then convert to nifti files
             NF_list = []
             for i in xrange(len(I)):
-                NF_list.append(self.to_nifti(np.add(A_list[i],N_list[i]) ))
+                NF_list.append(self.to_nifti(np.add(N_list[i],N_list[i]) ))
                 
             if output_dir is not None:
                 if type(output_dir) is str:
