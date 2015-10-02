@@ -255,12 +255,12 @@ class Searchlight:
             #save r correlation values
             title  = "r_all" + str(core_i)
             text_file = open(os.path.join(self.output_dir,title + ".txt"), "a")
-            r_all = svr.r_all
-            if r_all != r_all: r_all=0.0
+            r = svr.r_xval
+            if r != r: r=0.0
             if i + 1 == divs:
-                text_file.write(str(r_all)) #if it's the last entry, don't add a comma at the end
+                text_file.write(str(r)) #if it's the last entry, don't add a comma at the end
             else:
-                text_file.write(str(r_all) + ",")
+                text_file.write(str(r) + ",")
             text_file.close()
 
             #save weights
