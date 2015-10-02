@@ -397,7 +397,7 @@ class Searchlight:
 # By default, PBS scripts execute in your home directory, not the \n\
 # directory from which they were submitted. The following line \n\
 # places the job in the directory from which the job was submitted. \n\
-cd /ihome/sgreydan/searchlight_simulation \n\
+cd /ihome/sgreydan/slsim \n\
 # run the program using the relative path \n\
 python inner_searchlight_script.py " + str(ith_core) + " " + str(n_cores) + " \n\
 exit 0" )
