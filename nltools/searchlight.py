@@ -347,7 +347,6 @@ class Searchlight:
         #n_cores start at 0, so if the input param is 10, there are 11 cores
         output_dir = os.path.join(os.getcwd(),'outfolder')
 
-        print "The process mask is: " + process_mask
         sl = Searchlight(brain_mask=brain_mask, process_mask=process_mask, radius=radius, output_dir = output_dir)
         
         # parameters for Predict function
