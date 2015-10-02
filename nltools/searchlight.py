@@ -488,7 +488,7 @@ exit 0")
         pdir = os.path.join(os.getcwd(),'searchlight.pickle')
         if (reconstruct_flag and os.path.isfile(pdir) and success):
             #get location of searchlight pickle and retrieve its contents
-            (predict_params, A, nifti_masker, process_mask_1D) = cPickle.load( open(pdir) )
+            (predict_params, A, self.nifti_masker, _, process_mask_1D) = cPickle.load( open(pdir) )
 
             #open the reassembled correlation data and build a python list of float type numbers
             with open(rs_all, 'r') as rs:
