@@ -92,6 +92,7 @@ class Simulator:
         
         vlength = np.sum(self.brain_mask.get_data())
         n = np.random.normal(mu, sigma, vlength)
+        print np.sum(n)
         m = self.nifti_masker.inverse_transform(n)
 
         #return the 3D numpy matrix of zeros containing the brain mask filled with noise produced over a normal distribution
