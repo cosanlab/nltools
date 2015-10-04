@@ -40,7 +40,7 @@ from sklearn.metrics import auc
 class Predict:
 
     def __init__(self, data, Y, algorithm=None, cv_dict=None, mask=None,
-                output_dir='.', **kwargs):
+                 output_dir='.', **kwargs):
         """ Initialize Predict.
 
         Args:
@@ -86,7 +86,7 @@ class Predict:
             self.set_cv(cv_dict)
 
     def predict(self, algorithm=None, cv_dict=None, save_images=True, save_output=True,
-        save_plot = True, **kwargs):
+                save_plot=True, **kwargs):
 
         """ Run prediction
 
@@ -128,7 +128,9 @@ class Predict:
         if cv_dict is not None:
             self.set_cv(cv_dict)
 
-        if hasattr(self,'cv'):
+        dist_from_hyperplane_xval = None
+
+        if hasattr(self, 'cv'):
             predicter_cv = self.predictor
             self.yfit_xval = self.yfit_all.copy()
             if self.prediction_type == 'classification':
@@ -155,10 +157,10 @@ class Predict:
             self._save_image(predictor)
 
         if save_output:
-            self._save_stats_output()
+            self._save_stats_output(dist_from_hyperplane_xval)
 
         if save_plot:
-            if hasattr(self,'cv'):
+            if hasattr(self, 'cv'):
                 self._save_plot(predicter_cv)
             else:
                 self._save_plot(predictor)
@@ -180,7 +182,6 @@ class Predict:
                 self.r_xval = np.corrcoef(self.Y,self.yfit_xval)[0,1]
                 print 'overall CV Root Mean Squared Error: %.2f' % self.rmse_xval
                 print 'overall CV Correlation: %.2f' % self.r_xval
-
 
     def set_algorithm(self, algorithm, **kwargs):
         """ Set the algorithm to use in subsequent prediction analyses.
@@ -310,7 +311,7 @@ class Predict:
             coef_img = self.nifti_masker.inverse_transform(predictor.coef_.squeeze())
         nib.save(coef_img, os.path.join(self.output_dir, self.algorithm + '_weightmap.nii.gz'))
 
-    def _save_stats_output(self):
+    def _save_stats_output(self, dist_from_hyperplane_xval=None):
         """ Write stats output to csv file.
 
         Args:
@@ -324,25 +325,30 @@ class Predict:
         if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
 
-        self.stats_output = pd.DataFrame({
-                                'Y' : self.Y,
-                                'yfit_all' : self.yfit_all})
+        self.stats_output = pd.DataFrame({'Y': self.Y,
+                                          'yfit_all': self.yfit_all})
 
-        if hasattr(self,'cv'):
-            self.stats_output['yfit_xval']  = self.yfit_xval
+        if hasattr(self, 'cv'):
+            self.stats_output['yfit_xval'] = self.yfit_xval
 
             if hasattr(self, 'subject_id'):
                 self.stats_output['subject_id'] = self.subject_id
 
         if self.prediction_type == 'classification':
-            if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
+            if self.algorithm not in ['svm', 'ridgeClassifier',
+                                      'ridgeClassifierCV']:
                 self.stats_output['Probability'] = self.prob
             else:
-                self.stats_output['dist_from_hyperplane_xval']=dist_from_hyperplane_xval
+                if dist_from_hyperplane_xval:
+                    self.stats_output[
+                        'dist_from_hyperplane_xval'] = dist_from_hyperplane_xval
                 if self.algorithm == 'svm' and self.predictor.probability:
                     self.stats_output['Probability'] = self.prob
 
-        self.stats_output.to_csv(os.path.join(self.output_dir, self.algorithm + '_Stats_Output.csv'),index=False)
+        self.stats_output.to_csv(
+            os.path.join(self.output_dir,
+                         self.algorithm + '_Stats_Output.csv'),
+            index=False)
 
     def _save_plot(self, predictor):
         """ Save Plots.
@@ -389,6 +395,7 @@ class Predict:
         elif self.prediction_type == 'prediction':
             fig2 = scatterplot(self.stats_output)
             fig2.savefig(os.path.join(self.output_dir, self.algorithm + '_scatterplot.png'))
+
 
 def apply_mask(data=None, weight_map=None, mask=None, method='dot_product', save_output=False, output_dir='.'):
     """ Apply Nifti weight map to Nifti Images.
@@ -454,6 +461,7 @@ def apply_mask(data=None, weight_map=None, mask=None, method='dot_product', save
         # np.savetxt(os.path.join(output_dir,"Pattern_Expression_" + method + ".csv"), pexp, delimiter=",")
 
     return pexp
+
 
 class Roc:
 
