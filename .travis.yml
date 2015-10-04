@@ -13,8 +13,9 @@ install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
   - conda info -a
-  - conda create -q -n testenv python=$TRAVIS_PYTHON_VERSION pip pytest numpy scipy matplotlib scikit-learn
+  - conda create -q -n testenv python=$TRAVIS_PYTHON_VERSION pip pytest numpy pandas scipy matplotlib scikit-learn
   - source activate testenv
+  - pip install -r requirements.txt
   - python setup.py install
 
 script: py.test
