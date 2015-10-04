@@ -336,11 +336,11 @@ class Predict:
 
         if self.prediction_type == 'classification':
             if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
-                self.stats_output['Probability'] = self.prob
+                self.stats_output['Probability'] = self.prob_xval
             else:
                 self.stats_output['dist_from_hyperplane_xval']=dist_from_hyperplane_xval
                 if self.algorithm == 'svm' and self.predictor.probability:
-                    self.stats_output['Probability'] = self.prob
+                    self.stats_output['Probability'] = self.prob_xval
 
         self.stats_output.to_csv(os.path.join(self.output_dir, self.algorithm + '_Stats_Output.csv'),index=False)
 
