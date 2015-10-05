@@ -335,15 +335,14 @@ class Predict:
                 self.stats_output['subject_id'] = self.subject_id
 
         if self.prediction_type == 'classification':
-            if self.algorithm not in ['svm', 'ridgeClassifier',
-                                      'ridgeClassifierCV']:
-                self.stats_output['Probability'] = self.prob
+            if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
+                self.stats_output['Probability'] = self.prob_xval
             else:
                 if dist_from_hyperplane_xval:
                     self.stats_output[
                         'dist_from_hyperplane_xval'] = dist_from_hyperplane_xval
                 if self.algorithm == 'svm' and self.predictor.probability:
-                    self.stats_output['Probability'] = self.prob
+                    self.stats_output['Probability'] = self.prob_xval
 
         self.stats_output.to_csv(
             os.path.join(self.output_dir,
