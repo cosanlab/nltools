@@ -338,7 +338,7 @@ class Predict:
             if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
                 self.stats_output['Probability'] = self.prob_xval
             else:
-                if dist_from_hyperplane_xval:
+                if dist_from_hyperplane_xval is not None:
                     self.stats_output[
                         'dist_from_hyperplane_xval'] = dist_from_hyperplane_xval
                 if self.algorithm == 'svm' and self.predictor.probability:
