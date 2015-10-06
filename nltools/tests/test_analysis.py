@@ -24,7 +24,7 @@ def test_predict(tmpdir):
                                cv_dict=cv,
                                **extra)
 
-    predict.predict(save_output=False, save_plot=False)
+    predict.predict()
 
     weightmap_img = nb.load(os.path.join(output_dir, weightmap_name))
 
