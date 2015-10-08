@@ -32,11 +32,13 @@ from nilearn.input_data import NiftiMasker
 from scipy.stats import multivariate_normal
 
 from nltools.analysis import Predict
+from nltools.utils import get_resource_path
 import glob
+import csv
 
 class Simulator:
     def __init__(self, brain_mask=None, output_dir = None): #no scoring param
-        self.resource_folder = os.path.join(os.getcwd(),'resources')
+        # self.resource_folder = os.path.join(os.getcwd(),'resources')
         if output_dir is None:
             self.output_dir = os.path.join(os.getcwd())
         else:
@@ -45,7 +47,7 @@ class Simulator:
         if type(brain_mask) is str:
             brain_mask = nib.load(brain_mask)
         elif brain_mask is None:
-            brain_mask = nib.load(os.path.join(self.resource_folder,'MNI152_T1_2mm_brain_mask_dil.nii.gz'))
+            brain_mask = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm_brain_mask.nii.gz'))
         elif type(brain_mask) is not nib.nifti1.Nifti1Image:
             print(brain_mask)
             print(type(brain_mask))
@@ -161,7 +163,75 @@ class Simulator:
 
         return c
 
+    def create_data(self, y, sigma, radius = 5, reps = 1, cov = None, output_dir = None):
+        """ create simulated data
 
+        Args:
+            y: vector of intensities or class labels
+            sigma: amount of noise to add
+            radius: vector of radius.  Will create multiple spheres if len(radius) > 1
+            reps: number of data repetitions useful for trials or subjects 
+            noise: amount of noise to add
+            save_plot: Boolean indicating whether or not to create plots.
+            **kwargs: Additional keyword arguments to pass to the prediction algorithm
+
+        """
+
+        # Create reps
+        levels = len(y)
+        temp = y
+        rep_id = [1] * len(temp)
+        for i in xrange(reps - 1):
+            y = y + temp
+            rep_id.extend([i+2] * len(temp))
+        
+        #initialize useful values
+        dims = self.brain_mask.get_data().shape
+        
+        # Initialize Spheres
+        if type(radius) is int:
+            p = [dims[0]/2, dims[1]/2, dims[2]/2]
+            A = self.sphere(radius, p)
+        else:
+            raise ValueError("More than one sphere not implemented yet.")
+
+        #for each intensity
+        A_list = []
+        for i in y:
+            A_list.append(np.multiply(A, i))
+
+        #generate a different gaussian noise profile for each mask
+        mu = 0 #values centered around 0
+        N_list = []
+        for i in xrange(len(y)):
+            N_list.append(self.normal_noise(mu, sigma))
+        
+        #add noise and signal together, then convert to nifti files
+        NF_list = []
+        for i in xrange(len(y)):
+            NF_list.append(self.to_nifti(np.add(N_list[i],A_list[i]) ))
+        
+        # Assign variables to object
+        self.data = NF_list
+        self.y = y
+        self.rep_id = rep_id
+
+        # Write Data to files if requested
+        if output_dir is not None:
+            if type(output_dir) is str:
+                for i in xrange(len(y)):
+                    NF_list[i].to_filename(os.path.join(output_dir,'centered_sphere_' + str(i) + "_" + str(i%levels) + '.nii.gz'))
+                y_file = open(os.path.join(output_dir,'y.csv'), 'wb')
+                wr = csv.writer(y_file, quoting=csv.QUOTE_ALL)
+                wr.writerow(self.y)
+
+                rep_id_file = open(os.path.join(output_dir,'rep_id.csv'), 'wb')
+                wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
+                wr.writerow(self.rep_id)
+            else:
+                raise ValueError("ERROR. output_dir must be a string")
+            
+            # return (NF_list, y)
         
     # def getnifti(self, mu, sigma, i_tot=1):
     #     # coordinates of center of gaussian (center in brain mask)

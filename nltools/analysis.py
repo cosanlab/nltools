@@ -70,11 +70,16 @@ class Predict:
         else:
             self.mask = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm_brain_mask.nii.gz'))
 
+        if type(data) is list:
+            data=nib.concat_images(data)
+
         if type(data) is not nib.nifti1.Nifti1Image:
             raise ValueError("data is not a nibabel instance")
         self.nifti_masker = NiftiMasker(mask_img=mask)
         self.data = self.nifti_masker.fit_transform(data)
 
+        if type(Y) is list:
+            Y=np.array(Y)
         if self.data.shape[0]!= len(Y):
             raise ValueError("Y does not match the correct size of data")
         self.Y = Y
