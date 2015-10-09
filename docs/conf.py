@@ -31,7 +31,7 @@ MOCK_MODULES = ['importlib','numpy', 'scipy', 'pandas', 'sklearn', 'nibabel',
 'sklearn.cross_validation.StratifiedKFold','sklearn.cross_validation.LeaveOneLabelOut',
 'nilearn','nilearn.input_data','nilearn.plotting',
 'nilearn.input_data.NiftiMasker','scipy.stats','scipy.stats.norm',
-'scipy.stats.binom_test','sklearn.metrics','sklearn.metrics.auc','os']
+'scipy.stats.binom_test','sklearn.metrics','sklearn.metrics.auc']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 
