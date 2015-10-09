@@ -20,10 +20,10 @@ def dist_from_hyperplane_plot(stats_output):
     """
 
     if "dist_from_hyperplane_xval" in stats_output.columns:
-        fig = sns.factorplot("SubID", "dist_from_hyperplane_xval", hue="Y", data=stats_output,
+        fig = sns.factorplot("subject_id", "dist_from_hyperplane_xval", hue="Y", data=stats_output,
                         kind='point')
     else:
-        fig = sns.factorplot("SubID", "dist_from_hyperplane_all", hue="Y", data=stats_output,
+        fig = sns.factorplot("subject_id", "dist_from_hyperplane_all", hue="Y", data=stats_output,
                         kind='point')
     plt.xlabel('Subject', fontsize=16)
     plt.ylabel('Distance from Hyperplane', fontsize=16)
