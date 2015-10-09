@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/ljchang/neurolearn.png)](https://travis-ci.org/ljchang/neurolearn/)
+[![Build Status](https://api.travis-ci.org/ljchang/neurolearn.png)](https://travis-ci.org/ljchang/neurolearn/)
 
 neurolearn
 ==========
