@@ -21,7 +21,8 @@ def test_predict_svm(tmpdir):
     sigma = .2
     y = [0,1]
     n_reps = 10
-    sim.create_data(y, sigma, reps = n_reps, output_dir = tmpdir)
+    output_dir = str(tmpdir)
+    sim.create_data(y, sigma, reps = n_reps, output_dir = output_dir)
 
     # shape = (40, 41, 42)
     # length = 17
@@ -53,7 +54,8 @@ def test_predict_svr(tmpdir):
     sigma = .1
     y = [1,2,3]
     n_reps = 10
-    sim.create_data(y, sigma, reps = n_reps, output_dir = tmpdir)
+    output_dir = str(tmpdir)
+    sim.create_data(y, sigma, reps = n_reps, output_dir = output_dir)
 
     algorithm = 'svm'
     output_dir = str(tmpdir)
