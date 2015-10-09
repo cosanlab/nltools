@@ -45,7 +45,7 @@ def test_predict_svm(tmpdir):
 
     weightmap_img = nb.load(os.path.join(output_dir, weightmap_name))
 
-    assert predict.mcr_xval==.99
+    assert predict.mcr_xval>=.99
     assert weightmap_img.shape == sim.data[0].shape
 
 def test_predict_svr(tmpdir):
