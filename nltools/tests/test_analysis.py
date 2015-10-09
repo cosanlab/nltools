@@ -102,7 +102,7 @@ def test_roc(tmpdir):
     predict.predict()
 
     # Single-Interval
-    roc = Roc(input_values=predict.yfit_xval, binary_outcome=np.array(sim.y)==1)
+    roc = analysis.Roc(input_values=predict.yfit_xval, binary_outcome=np.array(sim.y)==1)
     roc.plot()
     roc.summary()
     assert roc.accuracy==1
