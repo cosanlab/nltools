@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/ljchang/neurolearn.png)](https://travis-ci.org/ljchang/neurolearn/)
+
 neurolearn
 ==========
 Python toolbox for analyzing neuroimaging data.  It is based off of Tor Wager's object oriented matlab <a href=http://wagerlab.colorado.edu/tools>canlab core tools</a> and relies heavily on <a href = http://nilearn.github.io>nilearn</a> and <a href=http://scikit-learn.org/stable/index.html>scikit learn</a>
