@@ -11,7 +11,7 @@ def test_simulator():
     sigma = 1
     y = [0,1]
     n_reps = 10
-    sim.create_data(y, sigma, reps = n_reps, output_dir = None)
+    sim.create_data(y, sigma, reps = n_reps, output_dir = tmpdir)
     assert len(sim.data) == n_reps*len(y)
 
 def test_predict_svm(tmpdir):
