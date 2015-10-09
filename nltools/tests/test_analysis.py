@@ -1,11 +1,11 @@
 import os
 import numpy as np
 import nibabel as nb
-from nilearn._utils import testing
+# from nilearn._utils import testing
 
 from nltools import analysis, simulator
 
-def test_simulator():
+def test_simulator(tmpdir):
     sim = simulator.Simulator()
     r = 10
     sigma = 1
