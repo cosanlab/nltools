@@ -208,12 +208,7 @@ class Searchlight:
         
         if isinstance(bdata, str):
             file_list = glob.glob(bdata + "*.nii.gz")
-            if y is None: #in the case that y is None, we will run a default subset of the pain data - this is hard coding which is bad
-                #in the future, we will raise an error here:
-                bdata = nib.funcs.concat_images(file_list[0:9])
-                y = np.array([3, 1, 2, 3, 1, 2, 3, 1, 2]).T
-            else:
-                bdata = nib.funcs.concat_images(file_list)
+            bdata = nib.funcs.concat_images(file_list)
         
         Searchlight.errf("Finished reading data. Start making core divs: " + str((time.time() - tic)) + " seconds", core_i)
 
