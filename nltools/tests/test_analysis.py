@@ -19,8 +19,7 @@ def test_simulator(tmpdir):
     assert len(sim.data) == n_reps*len(y)
     assert sim_img.shape == shape
 
-def test_predict_svm(tmpdir):
-    sim = simulator.Simulator()
+def test_predict_svm(tmpdir, sim):
     r = 10
     sigma = .2
     y = [0,1]
@@ -52,8 +51,7 @@ def test_predict_svm(tmpdir):
     assert predict.mcr_xval>=.99
     assert weightmap_img.shape == sim.data[0].shape
 
-def test_predict_svr(tmpdir):
-    sim = simulator.Simulator()
+def test_predict_svr(tmpdir, sim):
     r = 10
     sigma = .1
     y = [1,2,3]
@@ -79,8 +77,7 @@ def test_predict_svr(tmpdir):
     assert predict.r_xval >= .99
     assert weightmap_img.shape == sim.data[0].shape
 
-def test_roc(tmpdir):
-    sim = simulator.Simulator()
+def test_roc(tmpdir, sim):
     r = 10
     sigma = .1
     y = [0,1]
@@ -105,6 +102,4 @@ def test_roc(tmpdir):
     roc = analysis.Roc(input_values=predict.yfit_xval, binary_outcome=np.array(sim.y)==1)
     roc.plot()
     roc.summary()
-    assert roc.accuracy==1
-
-
+    assert roc.accuracy == 1
