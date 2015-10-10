@@ -100,7 +100,8 @@ class Simulator:
         return m.get_data()
 
     def to_nifti(self, m):
-        if not (type(m) == np.ndarray and len(m.shape) == 3):
+        if not (type(m) == np.ndarray and len(m.shape) == 4): #try 4D
+        # if not (type(m) == np.ndarray and len(m.shape) == 3):
             raise ValueError("ERROR: need 3D np.ndarray matrix to create the nifti file")
         m = m.astype(np.float32)
         ni = nib.Nifti1Image(m, affine=self.brain_mask.affine)
@@ -163,7 +164,7 @@ class Simulator:
 
         return c
 
-    def create_data(self, y, sigma, radius = 5, reps = 1, cov = None, output_dir = None):
+    def create_data(self, y, sigma, radius = 5, reps = 1, output_dir = None):
         """ create simulated data
 
         Args:
@@ -171,8 +172,8 @@ class Simulator:
             sigma: amount of noise to add
             radius: vector of radius.  Will create multiple spheres if len(radius) > 1
             reps: number of data repetitions useful for trials or subjects 
-            noise: amount of noise to add
-            save_plot: Boolean indicating whether or not to create plots.
+            reps: number of data repetitions
+            output_dir: string path of directory to output data.  If None, no data will be written
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
 
         """
@@ -228,17 +229,77 @@ class Simulator:
                 rep_id_file = open(os.path.join(output_dir,'rep_id.csv'), 'wb')
                 wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
                 wr.writerow(self.rep_id)
-            
-            # return (NF_list, y)
+
+    def create_cov_data(self, cor, cov, sigma, radius = 5, reps = 1, output_dir = None):
+        """ create simulated data
+
+        Args:
+            cor: amount of covariance between each voxel and Y variable
+            cov: amount of covariance between voxels
+            sigma: amount of noise to add
+            radius: vector of radius.  Will create multiple spheres if len(radius) > 1
+            reps: number of data repetitions
+            output_dir: string path of directory to output data.  If None, no data will be written
+            **kwargs: Additional keyword arguments to pass to the prediction algorithm
+
+        """
         
-    # def getnifti(self, mu, sigma, i_tot=1):
-    #     # coordinates of center of gaussian (center in brain mask)
-    #     if mu == 'center':
-    #         mu = np.array([self.brain_mask.shape[0]/2.0, self.brain_mask.shape[1]/2.0, self.brain_mask.shape[2]/2.0])
+        #initialize useful values
+        dims = self.brain_mask.get_data().shape
+        
+        # Initialize Spheres
+        if type(radius) is int:
+            p = [dims[0]/2, dims[1]/2, dims[2]/2]
+            A = self.sphere(radius, p)
+        else:
+            raise ValueError("More than one sphere not implemented yet.")
 
-    #     g = self.gaussian(mu, sigma, i_tot)
+        # Create n_reps with cov for each voxel within sphere
+        # Build covariance matrix with each variable correlated with y amount 'cor' and each other amount 'cov'
+        
+        nifti_sphere = nib.Nifti1Image(A.astype(np.float32), affine=self.brain_mask.affine)
+        flat_sphere = self.nifti_masker.fit_transform(nifti_sphere)
 
-    #     n = nib.Nifti1Image(g, affine=np.eye(4))
-    #     n.to_filename(os.path.join(os.getcwd(),'data_3D.nii.gz'))
+        n_vox = np.sum(flat_sphere==1)
+        cov_matrix = np.ones([n_vox+1,n_vox+1]) * cov
+        cov_matrix[0,:] = cor # set covariance with y
+        cov_matrix[:,0] = cor # set covariance with all other voxels
+        np.fill_diagonal(cov_matrix,1) # set diagonal to 1
+        mv_sim = np.random.multivariate_normal(np.zeros([n_vox+1]),cov_matrix, size=reps)
+        self.y = mv_sim[:,0] 
+        mv_sim = mv_sim[:,1:]
+        new_dat = np.ones([mv_sim.shape[0],flat_sphere.shape[1]])
+        new_dat[:,np.where(flat_sphere==1)[1]] = mv_sim
+        self.data = self.nifti_masker.inverse_transform(np.add(new_dat,np.random.standard_normal(size=new_dat.shape)*sigma)) #add noise scaled by sigma
+        # self.rep_id = ???  # need to add this later
 
-    #     return n
+
+        # # Old method in 4 D space - much slower
+        # x,y,z = np.where(A==1)
+        # cov_matrix = np.ones([len(x)+1,len(x)+1]) * cov
+        # cov_matrix[0,:] = cor # set covariance with y
+        # cov_matrix[:,0] = cor # set covariance with all other voxels
+        # np.fill_diagonal(cov_matrix,1) # set diagonal to 1
+        # mv_sim = np.random.multivariate_normal(np.zeros([len(x)+1]),cov_matrix, size=reps) # simulate data from multivariate covar
+        # self.y = mv_sim[:,0] 
+        # mv_sim = mv_sim[:,1:]
+        # A_4d = np.resize(A,(reps,A.shape[0],A.shape[1],A.shape[2]))
+        # for i in xrange(len(x)):
+        #     A_4d[:,x[i],y[i],z[i]]=mv_sim[:,i]
+        # A_4d = np.rollaxis(A_4d,0,4) # reorder shape of matrix so that time is in 4th dimension
+        # self.data = self.to_nifti(np.add(A_4d,np.random.standard_normal(size=A_4d.shape)*sigma)) #add noise scaled by sigma
+        # self.rep_id = ???  # need to add this later
+
+        # Write Data to files if requested
+        if output_dir is not None:
+            if type(output_dir) is str:
+                self.data.to_filename(os.path.join(output_dir,'centered_sphere_cor' + str(cor) + "_cov" + str(cov) + '_sigma' + str(sigma) + '.nii.gz'))
+                y_file = open(os.path.join(output_dir,'y.csv'), 'wb')
+                wr = csv.writer(y_file, quoting=csv.QUOTE_ALL)
+                wr.writerow(self.y)
+
+                # rep_id_file = open(os.path.join(output_dir,'rep_id.csv'), 'wb')
+                # wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
+                # wr.writerow(self.rep_id)
+
+
