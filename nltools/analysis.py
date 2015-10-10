@@ -147,6 +147,8 @@ class Predict:
                         self.prob_xval = np.zeros(len(self.Y))
 
             for train, test in self.cv:
+                print self.data[train].shape, self.Y[train].shape
+
                 predicter_cv.fit(self.data[train], self.Y[train])
                 self.yfit_xval[test] = predicter_cv.predict(self.data[test])
                 if self.prediction_type == 'classification':
