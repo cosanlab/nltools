@@ -100,7 +100,7 @@ class Simulator:
         return m.get_data()
 
     def to_nifti(self, m):
-        if not (type(m) == np.ndarray and len(m.shape) == 4): #try 4D
+        if not (type(m) == np.ndarray and len(m.shape) >= 3): #try 4D
         # if not (type(m) == np.ndarray and len(m.shape) == 3):
             raise ValueError("ERROR: need 3D np.ndarray matrix to create the nifti file")
         m = m.astype(np.float32)
