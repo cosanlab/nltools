@@ -279,8 +279,8 @@ class Predict:
                     self.cv = KFoldSubject(len(self.Y), cv_dict['subject_id'], n_folds=cv_dict['n_folds'])
                 else:
                     # Normal Stratified K-Folds
-                    from  sklearn.cross_validation import StratifiedKFold
-                    self.cv = StratifiedKFold(self.Y, n_folds=cv_dict['n_folds'])
+                    from  nltools.cross_validation import KFoldStratified
+                    self.cv = KFoldStratified(self.Y, n_folds=cv_dict['n_folds'])
             elif cv_dict['type'] == 'loso':
                 # Leave One Subject Out
                 from sklearn.cross_validation import LeaveOneLabelOut
