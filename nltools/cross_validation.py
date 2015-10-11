@@ -1,5 +1,5 @@
 
-__all__ = ['KFoldSubject']
+__all__ = ['KFoldSubject','KFoldStratified']
 
 from sklearn.cross_validation import _BaseKFold
 import numpy as np
@@ -56,6 +56,57 @@ class KFoldSubject(_BaseKFold):
             self.__class__.__name__,
             self.n,
             self.n_subs,
+            self.n_folds,
+            self.shuffle,
+            self.random_state,
+        )
+
+    def __len__(self):
+        return self.n_folds
+
+class KFoldStratified(_BaseKFold):
+    """K-Folds cross validation iterator which stratifies continuous data (unlike scikit-learn equivalent).
+
+    Provides train/test indices to split data in train test sets. Split
+    dataset into k consecutive folds while ensuring that same subject is held
+    out within each fold 
+    Each fold is then used a validation set once while the k - 1 remaining
+    fold form the training set.
+    Extension of KFold from scikit-learn cross_validation model
+    
+    Args:
+        y : array-like, [n_samples]
+            Samples to split in K folds.
+        n_folds: int, default=5
+            Number of folds. Must be at least 2.
+        shuffle: boolean, optional
+            Whether to shuffle the data before splitting into batches.
+        random_state: None, int or RandomState
+            Pseudo-random number generator state used for random
+            sampling. If None, use default numpy RNG for shuffling
+    
+    """
+
+    def __init__(self, y, n_folds=5, indices=None, shuffle=False, random_state=None):
+        super(KFoldStratified, self).__init__(
+            len(y), n_folds, indices, shuffle, random_state)
+        self.y = y
+        self.idxs = np.arange(len(y))
+        self.sort_indx = self.y.argsort()
+        if shuffle:
+            rng = check_random_state(self.random_state)
+            rng.shuffle(self.idxs)
+
+    def _iter_test_indices(self):
+        for k in range(0, self.n_folds):
+            # yield self.idxs[self.sort_indx[range(k,len(self.y),self.n_folds)]]
+            yield self.sort_indx[range(k,len(self.y),self.n_folds)]
+
+    def __repr__(self):
+        return '%s.%s(n_folds=%i, shuffle=%s, random_state=%s)' % (
+            self.__class__.__module__,
+            self.__class__.__name__,
+            self.y,
             self.n_folds,
             self.shuffle,
             self.random_state,

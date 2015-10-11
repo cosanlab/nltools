@@ -165,7 +165,7 @@ class Simulator:
         return c
 
     def create_data(self, y, sigma, radius = 5, reps = 1, output_dir = None):
-        """ create simulated data
+        """ create simulated data with integers
 
         Args:
             y: vector of intensities or class labels
@@ -231,7 +231,7 @@ class Simulator:
                 wr.writerow(self.rep_id)
 
     def create_cov_data(self, cor, cov, sigma, radius = 5, reps = 1, output_dir = None):
-        """ create simulated data
+        """ create continuous simulated data with covariance
 
         Args:
             cor: amount of covariance between each voxel and Y variable
