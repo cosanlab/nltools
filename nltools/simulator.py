@@ -230,7 +230,7 @@ class Simulator:
                 wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
                 wr.writerow(self.rep_id)
 
-    def create_cov_data(self, cor, cov, sigma, radius = 5, reps = 1, output_dir = None):
+    def create_cov_data(self, cor, cov, sigma, radius = 5, reps = 1, n_sub = 1, output_dir = None):
         """ create continuous simulated data with covariance
 
         Args:
@@ -239,6 +239,7 @@ class Simulator:
             sigma: amount of noise to add
             radius: vector of radius.  Will create multiple spheres if len(radius) > 1
             reps: number of data repetitions
+            n_sub: number of subjects to simulate
             output_dir: string path of directory to output data.  If None, no data will be written
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
 
@@ -266,12 +267,21 @@ class Simulator:
         cov_matrix[:,0] = cor # set covariance with all other voxels
         np.fill_diagonal(cov_matrix,1) # set diagonal to 1
         mv_sim = np.random.multivariate_normal(np.zeros([n_vox+1]),cov_matrix, size=reps)
-        self.y = mv_sim[:,0] 
+        y = mv_sim[:,0]
+        self.y = y
         mv_sim = mv_sim[:,1:]
         new_dat = np.ones([mv_sim.shape[0],flat_sphere.shape[1]])
         new_dat[:,np.where(flat_sphere==1)[1]] = mv_sim
         self.data = self.nifti_masker.inverse_transform(np.add(new_dat,np.random.standard_normal(size=new_dat.shape)*sigma)) #add noise scaled by sigma
-        # self.rep_id = ???  # need to add this later
+        self.rep_id = [1] * len(y)
+        if n_sub > 1:
+            self.y = list(self.y)
+            for s in range(1,n_sub):
+                self.data = nib.concat_images([self.data,self.nifti_masker.inverse_transform(np.add(new_dat,np.random.standard_normal(size=new_dat.shape)*sigma))],axis=3) #add noise scaled by sigma
+                noise_y = list(y + np.random.randn(len(y))*sigma)
+                self.y = self.y + noise_y
+                self.rep_id = self.rep_id + [s+1] * len(mv_sim[:,0])
+            self.y = np.array(self.y)
 
 
         # # Old method in 4 D space - much slower
@@ -298,8 +308,8 @@ class Simulator:
                 wr = csv.writer(y_file, quoting=csv.QUOTE_ALL)
                 wr.writerow(self.y)
 
-                # rep_id_file = open(os.path.join(output_dir,'rep_id.csv'), 'wb')
-                # wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
-                # wr.writerow(self.rep_id)
+                rep_id_file = open(os.path.join(output_dir,'rep_id.csv'), 'wb')
+                wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
+                wr.writerow(self.rep_id)
 
 
