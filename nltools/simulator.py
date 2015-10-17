@@ -208,12 +208,9 @@ class Simulator:
         self.y = y
         self.rep_id = rep_id
 
-        print output_dir
-        print type(output_dir)
         # Write Data to files if requested
         if output_dir is not None and type(output_dir) is str:
                 for i in xrange(len(y)):
-                    print "wrote to file: " + output_dir + "/" + 'centered_sphere_' + str(self.rep_id[i]) + "_" + str(i%nlevels) + '.nii.gz'
                     NF_list[i].to_filename(os.path.join(output_dir,'centered_sphere_' + str(self.rep_id[i]) + "_" + str(i%nlevels) + '.nii.gz'))
                 y_file = open(os.path.join(output_dir,'y.csv'), 'wb')
                 wr = csv.writer(y_file, quoting=csv.QUOTE_ALL)
