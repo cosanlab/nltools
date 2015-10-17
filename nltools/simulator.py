@@ -57,6 +57,13 @@ class Simulator:
 
 
     def gaussian(self, mu, sigma, i_tot):
+        """ create a 3D gaussian signal normalized to a given intensity
+
+        Args:
+            mu: average value of the gaussian signal (usually set to 0)
+            sigma: standard deviation
+            i_tot: sum total of activation (numerical integral over the gaussian returns this value)
+        """
         x, y, z = np.mgrid[0:self.brain_mask.shape[0], 0:self.brain_mask.shape[1], 0:self.brain_mask.shape[2]]
         
         # Need an (N, 3) array of (x, y) pairs.
@@ -76,6 +83,12 @@ class Simulator:
         return g
 
     def sphere(self, r, p):
+        """ create a sphere of given radius at some point p in the brain mask
+
+        Args:
+            r: radius of the sphere
+            p: point (in coordinates of the brain mask) of the center of the sphere
+        """
         dims = self.brain_mask.shape
 
         x, y, z = np.ogrid[-p[0]:dims[0]-p[0], -p[1]:dims[1]-p[1], -p[2]:dims[2]-p[2]]
@@ -90,16 +103,30 @@ class Simulator:
         return activation.get_data()
 
     def normal_noise(self, mu, sigma):
+        """ produce a normal noise distribution for all all points in the brain mask
+
+        Args:
+            mu: average value of the gaussian signal (usually set to 0)
+            sigma: standard deviation
+        """
         vmask = self.nifti_masker.fit_transform(self.brain_mask)
         
         vlength = np.sum(self.brain_mask.get_data())
-        n = np.random.normal(mu, sigma, vlength)
+        if sigma is not 0:
+            n = np.random.normal(mu, sigma, vlength)
+        else:
+            n = [mu]*vlength
         m = self.nifti_masker.inverse_transform(n)
 
         #return the 3D numpy matrix of zeros containing the brain mask filled with noise produced over a normal distribution
         return m.get_data()
 
     def to_nifti(self, m):
+        """ convert a numpy matrix to the nifti format and assign to it the brain_mask's affine matrix
+
+        Args:
+            m: the 3D numpy matrix we wish to convert to .nii
+        """
         if not (type(m) == np.ndarray and len(m.shape) >= 3): #try 4D
         # if not (type(m) == np.ndarray and len(m.shape) == 3):
             raise ValueError("ERROR: need 3D np.ndarray matrix to create the nifti file")
@@ -107,94 +134,58 @@ class Simulator:
         ni = nib.Nifti1Image(m, affine=self.brain_mask.affine)
         return ni
 
-    def n_spheres(self, r, p_list):
+    def n_spheres(self, radius, center):
+        """ generate a set of spheres in the brain mask space
+
+        Args:
+            radius: vector of radius.  Will create multiple spheres if len(radius) > 1
+            centers: a vector of sphere centers of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]]
+        """
         #initialize useful values
         dims = self.brain_mask.get_data().shape
-        
-        #generate and sum spheres of 0's and 1's
-        A = np.zeros_like(self.brain_mask.get_data())
-        for p in p_list:
-            A = np.add(A, self.sphere(r, p))
-        
-        return A
 
-    def collection_from_pattern(self, A, sigma, reps = 1, I = None, output_dir = None):
-            if I is None:
-                I = [sigma/10.0]
+        # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
+        if type(radius) is int:
+            radius = [radius]
+        if center is None:
+            center = [[dims[0]/2, dims[1]/2, dims[2]/2] * len(radius)] #default value for centers
+        elif type(center) is list and type(center[0]) is int and len(radius) is 1:
+            centers = [center]
+        if (type(radius)) is list and (type(center) is list) and (len(radius) == len(center)):
+            A = np.zeros_like(self.brain_mask.get_data())
+            for i in xrange(len(radius)):
+                A = np.add(A, self.sphere(radius[i], center[i]))
+            return A
+        else:
+            raise ValueError("Data type for sphere or radius(ii) or center(s) not recognized.")
 
-            levels = len(I)
-            temp = I
-            for i in xrange(reps - 1):
-                I = I + temp
-            
-            #initialize useful values
-            dims = self.brain_mask.get_data().shape
-            
-            #for each intensity
-            A_list = []
-            for i in I:
-                A_list.append(np.multiply(A, i))
-
-            #generate a different gaussian noise profile for each mask
-            mu = 0 #values centered around 0
-            N_list = []
-            for i in xrange(len(I)):
-                N_list.append(self.normal_noise(mu, sigma))
-            
-            #add noise and signal together, then convert to nifti files
-            NF_list = []
-            for i in xrange(len(I)):
-                NF_list.append(self.to_nifti(np.add(N_list[i],A_list[i]) ))
-                
-            if output_dir is not None:
-                if type(output_dir) is str:
-                    for i in xrange(len(I)):
-                        NF_list[i].to_filename(os.path.join(output_dir,'centered_sphere_' + str(i) + "_" + str(i%levels) + '.nii.gz'))
-                else:
-                    raise ValueError("ERROR. output_dir must be a string")
-            
-            return (NF_list, I)
-
-    def collection_of_centered_spheres(self, r, sigma, reps = 1, I = None, output_dir = None):
-        dims = self.brain_mask.get_data().shape
-        p = [dims[0]/2, dims[1]/2, dims[2]/2]
-        A = self.sphere(r, p)
-
-        c = self.collection_from_pattern(A, sigma, reps = reps, I = I, output_dir = output_dir)
-
-        return c
-
-    def create_data(self, y, sigma, radius = 5, reps = 1, output_dir = None):
+    def create_data(self, levels, sigma, radius = 5, center = None, reps = 1, output_dir = None):
         """ create simulated data with integers
 
         Args:
-            y: vector of intensities or class labels
+            levels: vector of intensities or class labels
             sigma: amount of noise to add
             radius: vector of radius.  Will create multiple spheres if len(radius) > 1
+            center: center(s) of sphere(s) of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]]
             reps: number of data repetitions useful for trials or subjects 
-            reps: number of data repetitions
             output_dir: string path of directory to output data.  If None, no data will be written
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
 
         """
 
         # Create reps
-        levels = len(y)
-        temp = y
-        rep_id = [1] * len(temp)
+        nlevels = len(levels)
+        y = levels
+        rep_id = [1] * len(levels)
         for i in xrange(reps - 1):
-            y = y + temp
-            rep_id.extend([i+2] * len(temp))
+            y = y + levels
+            rep_id.extend([i+2] * nlevels)
         
         #initialize useful values
         dims = self.brain_mask.get_data().shape
         
-        # Initialize Spheres
-        if type(radius) is int:
-            p = [dims[0]/2, dims[1]/2, dims[2]/2]
-            A = self.sphere(radius, p)
-        else:
-            raise ValueError("More than one sphere not implemented yet.")
+        # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
+        A = self.n_spheres(radius, center)
 
         #for each intensity
         A_list = []
@@ -217,11 +208,13 @@ class Simulator:
         self.y = y
         self.rep_id = rep_id
 
+        print output_dir
+        print type(output_dir)
         # Write Data to files if requested
-        if output_dir is not None:
-            if type(output_dir) is str:
+        if output_dir is not None and type(output_dir) is str:
                 for i in xrange(len(y)):
-                    NF_list[i].to_filename(os.path.join(output_dir,'centered_sphere_' + str(i) + "_" + str(i%levels) + '.nii.gz'))
+                    print "wrote to file: " + output_dir + "/" + 'centered_sphere_' + str(self.rep_id[i]) + "_" + str(i%nlevels) + '.nii.gz'
+                    NF_list[i].to_filename(os.path.join(output_dir,'centered_sphere_' + str(self.rep_id[i]) + "_" + str(i%nlevels) + '.nii.gz'))
                 y_file = open(os.path.join(output_dir,'y.csv'), 'wb')
                 wr = csv.writer(y_file, quoting=csv.QUOTE_ALL)
                 wr.writerow(self.y)
@@ -229,8 +222,9 @@ class Simulator:
                 rep_id_file = open(os.path.join(output_dir,'rep_id.csv'), 'wb')
                 wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
                 wr.writerow(self.rep_id)
+        return NF_list, y, rep_id
 
-    def create_cov_data(self, cor, cov, sigma, radius = 5, reps = 1, n_sub = 1, output_dir = None):
+    def create_cov_data(self, cor, cov, sigma, radius = 5, center = None, reps = 1, n_sub = 1, output_dir = None):
         """ create continuous simulated data with covariance
 
         Args:
@@ -238,6 +232,7 @@ class Simulator:
             cov: amount of covariance between voxels
             sigma: amount of noise to add
             radius: vector of radius.  Will create multiple spheres if len(radius) > 1
+            center: center(s) of sphere(s) of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]]
             reps: number of data repetitions
             n_sub: number of subjects to simulate
             output_dir: string path of directory to output data.  If None, no data will be written
@@ -248,12 +243,8 @@ class Simulator:
         #initialize useful values
         dims = self.brain_mask.get_data().shape
         
-        # Initialize Spheres
-        if type(radius) is int:
-            p = [dims[0]/2, dims[1]/2, dims[2]/2]
-            A = self.sphere(radius, p)
-        else:
-            raise ValueError("More than one sphere not implemented yet.")
+        # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
+        A = self.n_spheres(radius, center)
 
         # Create n_reps with cov for each voxel within sphere
         # Build covariance matrix with each variable correlated with y amount 'cor' and each other amount 'cov'
