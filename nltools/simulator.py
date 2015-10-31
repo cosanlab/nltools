@@ -291,6 +291,8 @@ class Simulator:
         # Write Data to files if requested
         if output_dir is not None:
             if type(output_dir) is str:
+                if not os.path.isdir(output_dir):
+                    os.makedirs(output_dir)
                 self.data.to_filename(os.path.join(output_dir,'centered_sphere_cor' + str(cor) + "_cov" + str(cov) + '_sigma' + str(sigma) + '.nii.gz'))
                 y_file = open(os.path.join(output_dir,'y.csv'), 'wb')
                 wr = csv.writer(y_file, quoting=csv.QUOTE_ALL)
