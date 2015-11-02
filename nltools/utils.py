@@ -8,4 +8,3 @@ import pandas as pd
 def get_resource_path():
 	return join(dirname(__file__), 'resources') + pathsep
 
-
