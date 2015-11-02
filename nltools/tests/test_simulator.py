@@ -12,7 +12,7 @@ def test_simulator(tmpdir):
     n_reps = 3
     output_dir = str(tmpdir)
     sim.create_data(y, sigma, reps=n_reps, output_dir=output_dir)
-    flist = glob.glob(os.path.join(tmpdir,'centered*nii.gz'))
+    flist = glob.glob(str(tmpdir.join('centered*nii.gz')))
 
     shape = (91, 109, 91)
     sim_img = nb.concat_images(flist)

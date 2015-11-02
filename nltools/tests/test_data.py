@@ -1,9 +1,11 @@
 import os
 import numpy as np
 import nibabel as nb
+import pandas as pd
 import glob
 from nltools.simulator import Simulator
 from nltools.data import Brain_Data
+from nltools.stats import threshold
 
 def test_data(tmpdir):
     sim = Simulator()
@@ -16,9 +18,9 @@ def test_data(tmpdir):
 
     shape_3d = (91, 109, 91)
     shape_2d = (6, 238955)
-    flist = glob.glob(os.path.join(tmpdir,'centered*nii.gz'))
-    y=pd.read_csv(os.path.join(output_dir,'y.csv'),header=None,index_col=None)
+    y=pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))),header=None,index_col=None)
     y=np.array(y)[0]
+    flist = glob.glob(str(tmpdir.join('centered*.nii.gz')))
     dat = Brain_Data(data=flist,Y=y)
 
     # Test shape
