@@ -57,13 +57,10 @@ class Brain_Data:
             self.anatomical = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm.nii.gz'))
 
         if type(data) is str:
-            if os.path.isfile(data):
-                data=nib.load(data)
-            else:
-                raise ValueError("data is not a valid filename")
+            data=nib.load(data)
         elif type(data) is list:
             data=nib.concat_images(data)
-        elif type(data) is not nib.nifti1.Nifti1Image:
+        elif ~isinstance(data, nib.Nifti1Image):
             raise ValueError("data is not a nibabel instance")
 
         self.nifti_masker = NiftiMasker(mask_img=mask)
@@ -100,14 +97,14 @@ class Brain_Data:
         return new
 
     # def __repr__(self):
-    #    return '%s.%s(data=%size, Y=%s, X=%s, output_file=%s)' % (
-    #       self.__class__.__module__,
-    #       self.__class__.__name__,
-    #       self.data.shape,
-    #       self.Y.shape,
-    #       self.X.shape,
-    #       self.file_name,
-    #    )
+    #   return '%s.%s(data=%size, Y=%s, X=%s, output_file=%s)' % (
+    #      self.__class__.__module__,
+    #      self.__class__.__name__,
+    #      self.data.shape,
+    #      self.Y.shape,
+    #      self.X.shape,
+    #      self.file_name,
+    #   )
 
     def shape(self):
         """ Get images by voxels shape.
