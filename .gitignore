@@ -6,6 +6,7 @@ docs/_*/*
 nltools.egg-info
 build/
 dist/
+.cache/
  
 # Logs and databases #
 ######################
