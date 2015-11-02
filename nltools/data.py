@@ -235,6 +235,7 @@ class Brain_Data:
         Args:
             self: Brain_Data instance
             threshold_dict: a dictionary of threshold parameters {'unc':.001} or {'fdr':.05}
+
         Returns:
             out: dictionary of regression statistics in Brain_Data instances {'t','p'}
         
@@ -261,5 +262,16 @@ class Brain_Data:
         return out
 
     def resample(self, target):
-        pass
+        """ Resample data into target space
+
+        Args:
+            self: Brain_Data instance
+            target: Brain_Data instance of target space
+        
+        """ 
+
+    if not isinstance(target, Brain_Data):
+        raise ValueError('Make sure target is a Brain_Data instance')
+ 
+    pass
 
