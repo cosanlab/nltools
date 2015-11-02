@@ -7,6 +7,10 @@
     License: MIT
 '''
 
+## Notes:
+# Might consider moving anatomical field out of object and just request when needed.  Probably only when plotting
+# Need to figure out how to speed up loading and resampling of data
+
 __all__ = ['Brain_Data',
             ]
 
@@ -19,6 +23,7 @@ import pandas as pd
 import numpy as np
 from nilearn.plotting.img_plotting import plot_epi, plot_roi
 from scipy.stats import ttest_1samp
+from scipy.stats import t
 
 
 class Brain_Data:
@@ -29,7 +34,7 @@ class Brain_Data:
         Args:
             data: nibabel data instance or list of files
             Y: vector of training labels
-            X: matrix for running univariate models
+            X: Pandas DataFrame Design Matrix for running univariate models 
             mask: binary nifiti file to mask brain data
             output_file: Name to write out to nifti file
             anatomical: anatomical image to overlay plots
@@ -82,12 +87,17 @@ class Brain_Data:
                 raise ValueError("X does not match the correct size of data")
             self.X = X
         else:
-            self.X = []
+            self.X = pd.DataFrame()
 
         if output_file is not None:
             self.file_name = output_file
         else:
             self.file_name = []
+
+    def __getitem__(self, i):
+        new = deepcopy(self)
+        new.data = np.array(new.data[i,:]).flatten()
+        return new
 
     # def __repr__(self):
     #    return '%s.%s(data=%size, Y=%s, X=%s, output_file=%s)' % (
@@ -155,47 +165,72 @@ class Brain_Data:
 
         Args:
             self: Brain_Data instance
-            mask: Binary nifti mask to calculate mean
+            file_name: name of nifti file
 
         """
 
         to_nifti(self).write(file_name)
 
-    def plot(self):
+    def plot(self, limit=5):
         """ Create a quick plot of self.data.  Will plot each image separately
 
         Args:
             self: Brain_Data instance
+            limit: max number of images to return
             mask: Binary nifti mask to calculate mean
 
         """
 
-        plot_roi(self.to_nifti(), self.anatomical)
+        if self.data.ndim == 1:
+            plot_roi(self.to_nifti(), self.anatomical)
+        else:
+            for i in xrange(self.data.shape[0]):
+                if i < limit:
+                    plot_roi(self.nifti_masker.inverse_transform(self.data[i,:]), self.anatomical)
 
 
     def regress(self):
-        """ Get standard deviation of each voxel across images.
+        """ run vectorized OLS regression across voxels.
 
         Args:
             self: Brain_Data instance
 
         Returns:
-            out: Brain_Data instance
+            out: dictionary of regression statistics in Brain_Data instances {'beta','t','p','df','residual'}
         
         """ 
 
-        if self.X is empty:
+        if not isinstance(self.X, pd.DataFrame):
+            raise ValueError('Make sure self.X is a pandas DataFrame.')
+
+        if self.X.empty:
             raise ValueError('Make sure self.X is not empty.')
 
         if self.data.shape[0]!= self.X.shape[0]:
             raise ValueError("self.X does not match the correct size of self.data")
 
-        t = deepcopy(self)
-        df = deepcopy(self)
+        b = np.dot(np.linalg.pinv(self.X), self.data)
+        res = self.data - np.dot(self.X,b)
+        sigma = np.std(res,axis=0)
+        stderr = np.dot(np.matrix(np.diagonal(np.linalg.inv(np.dot(self.X.T,self.X)))**.5).T,np.matrix(sigma))
+        b_out = deepcopy(self)
+        b_out.data = b
+        t_out = deepcopy(self)
+        t_out.data = b /stderr
+        df = np.array([self.X.shape[0]-self.X.shape[1]] * t_out.data.shape[1])
+        p_out = deepcopy(self)
+        p_out.data = 2*(1-t.cdf(np.abs(t_out.data),df))
 
-        out = deepcopy(self)
-        out.data = np.std(out.data, axis=0)
-        return b, t, df, sigma, res
+ 
+        # Might want to not output this info
+        df_out = deepcopy(self)
+        df_out.data = df
+        sigma_out = deepcopy(self)
+        sigma_out.data = sigma
+        res_out = deepcopy(self)
+        res_out.data = res
+
+        return {'beta':b_out, 't':t_out, 'p':p_out, 'df':df_out, 'sigma':sigma_out, 'residual':res_out}
 
     def ttest(self, threshold_dict=None):
         """ Calculate one sample t-test across each voxel (two-sided)
@@ -204,7 +239,7 @@ class Brain_Data:
             self: Brain_Data instance
             threshold_dict: a dictionary of threshold parameters {'unc':.001} or {'fdr':.05}
         Returns:
-            out: Brain_Data instance
+            out: dictionary of regression statistics in Brain_Data instances {'t','p'}
         
         """ 
 
@@ -224,7 +259,9 @@ class Brain_Data:
             else:
                 raise ValueError("threshold_dict is not a dictionary.  Make sure it is in the form of {'unc':.001} or {'fdr':.05}")
 
-        return t, p
+        out = {'t':t, 'p':p}
+
+        return out
 
     def resample(self, target):
         pass
