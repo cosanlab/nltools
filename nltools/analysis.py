@@ -33,6 +33,7 @@ import matplotlib.pyplot as plt
 from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
 from nltools.stats import pearson
 from nltools.utils import get_resource_path
+from nltools.data import Brain_Data
 from scipy.stats import norm, binom_test
 from sklearn.metrics import auc
 
@@ -73,7 +74,7 @@ class Predict:
         if type(data) is list:
             data=nib.concat_images(data)
 
-        if type(data) is not nib.nifti1.Nifti1Image:
+        if not isinstance(data,(nib.nifti1.Nifti1Image, nib.nifti1.Nifti1Pair)):
             raise ValueError("data is not a nibabel instance")
         self.nifti_masker = NiftiMasker(mask_img=mask)
         self.data = self.nifti_masker.fit_transform(data)
