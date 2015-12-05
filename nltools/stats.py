@@ -51,7 +51,7 @@ def threshold(stat, p, threshold_dict={'unc':.001}):
  
     if not isinstance(stat, Brain_Data):
         raise ValueError('Make sure stat is a Brain_Data instance')
- 
+        
     if not isinstance(p, Brain_Data):
         raise ValueError('Make sure p is a Brain_Data instance')
 
@@ -100,7 +100,7 @@ def test_model(data=None, weight_map=None, method='correlation'):
 
     if not isinstance(data, Brain_Data):
         raise ValueError('Make sure data is a Brain_Data instance')
- 
+
     if not isinstance(weight_map, Brain_Data):
         raise ValueError('Make sure weight_map is a Brain_Data instance')
 

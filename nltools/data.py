@@ -47,14 +47,14 @@ class Brain_Data:
         """
 
         if mask is not None:
-            if type(mask) is not nib.nifti1.Nifti1Image:
+            if not isinstance(mask, nib.Nifti1Image):
                 raise ValueError("mask is not a nibabel instance")
             self.mask = mask
         else:
             self.mask = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm_brain_mask.nii.gz'))
 
         if anatomical is not None:
-            if type(anatomical) is not nib.nifti1.Nifti1Image:
+            if not isinstance(anatomical, nib.Nifti1Image):
                 raise ValueError("anatomical is not a nibabel instance")
             self.anatomical = anatomical
         else:
@@ -64,7 +64,7 @@ class Brain_Data:
             data=nib.load(data)
         elif type(data) is list:
             data=nib.concat_images(data)
-        elif ~isinstance(data, nib.Nifti1Image):
+        elif not isinstance(data, nib.Nifti1Image):
             raise ValueError("data is not a nibabel instance")
 
         self.nifti_masker = NiftiMasker(mask_img=mask)
@@ -73,8 +73,7 @@ class Brain_Data:
         if Y is not None:
             if type(Y) is str:
                 if os.path.isfile(Y):
-                    Y=pd.read_csv(os.path.join(output_dir,'y.csv'),header=None,index_col=None)
-                    Y=np.array(Y)[0]
+                    Y=np.array(pd.read_csv(Y,header=None,index_col=None))
             elif type(Y) is list:
                 Y=np.array(Y)
             if self.data.shape[0]!= len(Y):
@@ -95,20 +94,31 @@ class Brain_Data:
         else:
             self.file_name = []
 
-    def __getitem__(self, i):
-        new = deepcopy(self)
-        new.data = np.array(new.data[i,:]).flatten()
-        return new
+    def __repr__(self):
+        return '%s.%s(data=%s, Y=%s, X=%s, mask=%s, output_file=%s, anatomical=%s)' % (
+            self.__class__.__module__,
+            self.__class__.__name__,
+            self.shape(),
+            self.Y.shape,
+            self.X.shape,
+            os.path.basename(self.mask.get_filename()),
+            self.file_name,
+            os.path.basename(self.anatomical.get_filename())            
+            )
 
-    # def __repr__(self):
-    #   return '%s.%s(data=%size, Y=%s, X=%s, output_file=%s)' % (
-    #     self.__class__.__module__,
-    #     self.__class__.__name__,
-    #     self.data.shape,
-    #     self.Y.shape,
-    #     self.X.shape,
-    #     self.file_name,
-    #   )
+    def __getitem__(self, index):
+        new = deepcopy(self)
+        if isinstance(index, int):
+            new.data = np.array(self.data[index,:]).flatten()
+        elif isinstance(index, slice):
+            new.data = np.array(self.data[index,:])            
+        else:
+            raise TypeError("index must be int or slice")
+        if self.Y.size:
+            new.Y = self.Y[index]
+        if self.X.size:
+            new.X = self.X[:,index]
+        return new
 
     def shape(self):
         """ Get images by voxels shape.
@@ -158,7 +168,7 @@ class Brain_Data:
         
         """
         
-        nifti_dat = self.nifti_masker.inverse_transform(self.data) #add noise scaled by sigma
+        nifti_dat = self.nifti_masker.inverse_transform(self.data)
         return nifti_dat
 
     def write(self, file_name=None):
@@ -170,7 +180,7 @@ class Brain_Data:
 
         """
 
-        to_nifti(self).write(file_name)
+        self.to_nifti().to_filename(file_name)
 
     def plot(self, limit=5):
         """ Create a quick plot of self.data.  Will plot each image separately
@@ -269,7 +279,6 @@ class Brain_Data:
         """ Append data to Brain_Data instance
 
         Args:
-            self: Brain_Data instance
             data: Brain_Data instance to append
         
         """   
@@ -277,13 +286,57 @@ class Brain_Data:
         if not isinstance(data, Brain_Data):
             raise ValueError('Make sure data is a Brain_Data instance')
  
-        if self.shape()[1]!=data.shape()[1]:
-            raise ValueError('Data is a different number of voxels then the weight_map.')
-
         out = deepcopy(self)
-        out.data = np.vstack([self.data,data.data])
+
+        if out.isempty():
+            out.data = data.data            
+        else:
+            if len(self.shape())==1 & len(data.shape())==1:
+                if self.shape()[0]!=data.shape()[0]:
+                    raise ValueError('Data is a different number of voxels then the weight_map.')
+            elif len(self.shape())==1 & len(data.shape())>1:
+                if self.shape()[0]!=data.shape()[1]:
+                    raise ValueError('Data is a different number of voxels then the weight_map.')
+            elif len(self.shape())>1 & len(data.shape())==1:
+                if self.shape()[1]!=data.shape()[0]:
+                    raise ValueError('Data is a different number of voxels then the weight_map.')
+            elif self.shape()[1]!=data.shape()[1]:
+                raise ValueError('Data is a different number of voxels then the weight_map.')
+
+            out.data = np.vstack([self.data,data.data])
 
         return out
+
+    def empty(self):
+        """ Initalize Brain_Data.data as empty
+        
+        """
+        
+        tmp = deepcopy(self)
+        tmp.data = []
+        # tmp.data = np.array([]).reshape(0,n_voxels)
+        return tmp
+
+    def isempty(self):
+        """ Check if Brain_Data.data is empty
+        
+        Returns:
+            bool
+        """ 
+
+        if not isinstance(self, Brain_Data):
+            raise ValueError('Make sure data is a Brain_Data instance')
+
+        if isinstance(self.data, list):
+            if not self.data:
+                boolean = True
+            else:
+                boolean = False
+        else: #need to make this more precise later
+            # if isinstance(self.data, np.ndarray) or isinstance(self.data, np.array) or isinstance(self.data, np.matrix):
+            boolean = False
+        
+        return boolean
 
     def predict(self, algorithm=None, cv_dict=None, save_images=False, save_output=False,
                 save_plot=False, **kwargs):
@@ -487,8 +540,39 @@ class Brain_Data:
                 print 'overall CV Root Mean Squared Error: %.2f' % self.rmse_xval
                 print 'overall CV Correlation: %.2f' % self.r_xval
 
-       
+    def similarity(self, image=None, method='correlation', ignore_missing=True):
+        """ Calculate similarity of Brain_Data() instance with single Brain_Data image
 
+            Args:
+                self: Brain_Data instance of data to be applied
+                weight_map: Brain_Data instance of weight map
+                **kwargs: Additional parameters to pass
+
+            Returns:
+                pexp: Outputs a vector of pattern expression values
+
+        """
+
+        if not isinstance(self, Brain_Data):
+            raise ValueError('Make sure data is a Brain_Data instance')
+
+        if not isinstance(image, Brain_Data):
+            raise ValueError('Make sure image is a Brain_Data instance')
+
+        if self.shape()[1]!=image.shape()[0]:
+            print 'Warning: Different number of voxels detected.  Resampling image into data space.'
+
+            # raise ValueError('Data is a different number of voxels then the image.')
+
+        # Calculate pattern expression
+        if method is 'dot_product':
+            pexp = np.dot(self.data, image.data)
+        elif method is 'correlation':
+            pexp=[]
+            for w in xrange(self.data.shape[0]):
+                pexp.append(pearson(self.data[w,:], image.data))
+            pexp = np.array(pexp).flatten()
+        return pexp
 
     def resample(self, target):
         """ Resample data into target space
