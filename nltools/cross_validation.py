@@ -43,7 +43,7 @@ class KFoldSubject(_BaseKFold):
         n_folds = self.n_folds
         n_subs_fold = self.n/self.n_subs
         subs = np.unique(self.labels)
-        random.shuffle(subs) # shuffle subjects       
+        random.shuffle(subs) # shuffle subjects    
         divide_subs = lambda x,y: [ x[i:i+y] for i in range(0,len(x),y)]
         sub_divs = divide_subs(subs, self.n_folds+1) # seems to be adding one fold for some reason
         for d in sub_divs:
@@ -88,8 +88,7 @@ class KFoldStratified(_BaseKFold):
     """
 
     def __init__(self, y, n_folds=5, indices=None, shuffle=False, random_state=None):
-        super(KFoldStratified, self).__init__(
-            len(y), n_folds, indices, shuffle, random_state)
+        super(KFoldStratified, self).__init__(len(y), n_folds, indices, shuffle, random_state)
         self.y = y
         self.idxs = np.arange(len(y))
         self.sort_indx = self.y.argsort()

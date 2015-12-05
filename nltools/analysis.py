@@ -549,9 +549,9 @@ class Roc:
         # fpr_unique = np.unique(self.fpr)
         # tpr_unique = np.unique(self.tpr)
         # if any((fpr_unique == 0) & (tpr_unique == 1)):
-        #     self.auc = 1 # Fix for AUC = 1 if no overlap;
+        #    self.auc = 1 # Fix for AUC = 1 if no overlap;
         # else:
-        #     self.auc = auc(self.fpr, self.tpr) # Use sklearn auc otherwise
+        #    self.auc = auc(self.fpr, self.tpr) # Use sklearn auc otherwise
         self.auc = auc(self.fpr, self.tpr) # Use sklearn auc
 
         # Get criterion threshold
