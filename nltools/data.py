@@ -23,8 +23,7 @@ from copy import deepcopy
 import pandas as pd
 import numpy as np
 from nilearn.plotting.img_plotting import plot_epi, plot_roi, plot_stat_map
-from scipy.stats import ttest_1samp
-from scipy.stats import t
+from scipy.stats import ttest_1samp, t, norm
 
 import sklearn
 from sklearn.pipeline import Pipeline
@@ -113,17 +112,15 @@ class Brain_Data(object):
         new = deepcopy(self)
         if isinstance(index, int):
             new.data = np.array(self.data[index,:]).flatten()
-        elif isinstance(index, slice):
-            new.data = np.array(self.data[index,:])            
         else:
-            raise TypeError("index must be int or slice")
+            new.data = np.array(self.data[index,:])           
         if self.Y.size:
             new.Y = self.Y[index]
         if self.X.size:
             if isinstance(self.X,pd.DataFrame):
-                new.X = self.X[index]
+                new.X = self.X.iloc[index]
             else:
-                new.X = self.X[:,index]
+                new.X = self.X[index,:]
         return new
 
     def shape(self):
@@ -286,17 +283,18 @@ class Brain_Data(object):
 
         Args:
             data: Brain_Data instance to append
-        
+
+        Returns:
+            out: new appended Brain_Data instance
         """
 
         if not isinstance(data, Brain_Data):
             raise ValueError('Make sure data is a Brain_Data instance')
  
-        out = deepcopy(self)
-
-        if out.isempty():
-            out.data = data.data            
+        if self.isempty():
+            out = deepcopy(data)           
         else:
+            out = deepcopy(self)
             if len(self.shape())==1 & len(data.shape())==1:
                 if self.shape()[0]!=data.shape()[0]:
                     raise ValueError('Data is a different number of voxels then the weight_map.')
@@ -310,7 +308,13 @@ class Brain_Data(object):
                 raise ValueError('Data is a different number of voxels then the weight_map.')
 
             out.data = np.vstack([self.data,data.data])
-
+            if out.Y.size:
+                out.Y = np.vstack([self.Y, data.Y])
+            if self.X.size:
+                if isinstance(self.X,pd.DataFrame):
+                    out.X = self.X.append(data.X)
+                else:
+                    out.X = np.vstack([self.X, data.X])
         return out
 
     def empty(self, data=True, Y=True, X=True):
@@ -410,9 +414,7 @@ class Brain_Data(object):
                 {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
                 {'type': 'loso'', 'subject_id': holdout},
                 where n = number of folds, and subject = vector of subject ids that corresponds to self.Y
-            save_images: Boolean indicating whether or not to save images to file.
-            save_output: Boolean indicating whether or not to save prediction output to file.
-            save_plot: Boolean indicating whether or not to create plots.
+            plot: Boolean indicating whether or not to create plots.
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
 
         Returns:
@@ -430,7 +432,7 @@ class Brain_Data(object):
         # Initialize output dictionary
         output = {}
         output['Y'] = self.Y
-
+        
         # Overall Fit for weight map
         predictor = predictor_settings['predictor']
         predictor.fit(self.data, self.Y)
@@ -526,4 +528,106 @@ class Brain_Data(object):
 
         return output
 
+    def bootstrap(self, analysis_type=None, n_samples=10, save_weights=False, **kwargs):
+        """ Bootstrap various Brain_Data analaysis methods (e.g., mean, std, regress, predict).  Currently  
+
+        Args:
+            analysis_type: Type of analysis to bootstrap (mean,std,regress,predict)
+            n_samples: Number of samples to boostrap
+            **kwargs: Additional keyword arguments to pass to the analysis method
+
+        Returns:
+            output: a dictionary of prediction parameters
+
+        """
+
+        # Notes:
+        # might want to add options for [studentized, percentile, bias corrected, bias corrected accelerated] methods
+
+        def summarize_bootstrap(sample):
+            """ Calculate summary of bootstrap samples
+
+            Args:
+                sample: Brain_Data instance of samples
+
+            Returns:
+                output: dictionary of Brain_Data summary images
+                
+            """
+
+            output = {}
+
+            # Calculate SE of bootstraps
+            wstd = sample.std()
+            wmean = sample.mean()
+            wz = deepcopy(wmean)
+            wz.data = wmean.data / wstd.data
+            wp = deepcopy(wmean)
+            wp.data = 2*(1-norm.cdf(np.abs(wz.data)))
+
+            # Create outputs
+            output['Z'] = wz
+            output['p'] = wp
+            output['mean'] = wmean
+            if save_weights:
+                output['samples'] = sample
+
+            return output
+
+        analysis_list = ['mean','std','regress','predict']
+        
+        if analysis_type in analysis_list:
+            data_row_id = range(self.shape()[0])
+            sample = self.empty()
+            if analysis_type is 'regress': #initialize dictionary of empty betas
+                beta={}
+                for i in range(self.X.shape[1]):
+                    beta['b' + str(i)] = self.empty()
+            for i in range(n_samples):
+                this_sample = np.random.choice(data_row_id, size=len(data_row_id), replace=True) # gives sampled row numbers
+                if analysis_type is 'mean':
+                    sample = sample.append(self[this_sample].mean())
+                elif analysis_type is 'std':
+                    sample = sample.append(self[this_sample].std())
+                elif analysis_type is 'regress':
+                    out = self[this_sample].regress()
+                    # Aggegate bootstraps for each beta separately
+                    for i, b in enumerate(beta.iterkeys()):
+                        beta[b]=beta[b].append(out['beta'][i])
+                elif analysis_type is 'predict':
+                    if 'algorithm' in kwargs:
+                        algorithm = kwargs['algorithm']
+                        del kwargs['algorithm']
+                    else:
+                        algorithm='ridge'
+                    if 'cv_dict' in kwargs:
+                        cv_dict = kwargs['cv_dict']
+                        del kwargs['cv_dict']
+                    else:
+                        cv_dict=None
+                    if 'plot' in ['kwargs']:
+                        plot=kwargs['plot']
+                        del kwargs['plot']
+                    else:
+                        plot=False
+                    out = self[this_sample].predict(algorithm=algorithm,cv_dict=cv_dict, plot=plot,**kwargs)
+                    sample = sample.append(out['weight_map'])
+        else:
+            raise ValueError('The analysis_type you specified (%s) is not yet implemented.' % (analysis_type))
+
+        # Save outputs
+        if analysis_type is 'regress':
+            reg_out={}
+            for i, b in enumerate(beta.iterkeys()):
+                reg_out[b] = summarize_bootstrap(beta[b])
+            output = {}
+            for b in reg_out.iteritems():
+                for o in b[1].iteritems():
+                    if o[0] in output:
+                        output[o[0]] = output[o[0]].append(o[1])
+                    else:
+                        output[o[0]]=o[1]
+        else:
+            output = summarize_bootstrap(sample)
+        return output
 
