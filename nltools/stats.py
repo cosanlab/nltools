@@ -85,37 +85,7 @@ def fdr(p, q=.05):
     fdr_p = s[max(below)] if any(below) else -1
     return fdr_p
 
-def test_model(data=None, weight_map=None, method='correlation'):
-    """ Test Brain_Data weight map on Brain_Data images.
 
-        Args:
-            data: Brain_Data instance of data to be applied
-            weight_map: Brain_Data instance of weight map
-            **kwargs: Additional parameters to pass
-
-        Returns:
-            pexp: Outputs a vector of pattern expression values
-
-    """
-
-    if not isinstance(data, Brain_Data):
-        raise ValueError('Make sure data is a Brain_Data instance')
-
-    if not isinstance(weight_map, Brain_Data):
-        raise ValueError('Make sure weight_map is a Brain_Data instance')
-
-    if data.shape()[1]!=weight_map.shape()[0]:
-        raise ValueError('Data is a different number of voxels then the weight_map.')
-
-    # Calculate pattern expression
-    if method is 'dot_product':
-        pexp = np.dot(data.data, weight_map.data)
-    elif method is 'correlation':
-        pexp=[]
-        for w in xrange(data.data.shape[0]):
-            pexp.append(pearson(data.data[w,:], weight_map.data))
-        pexp = np.array(pexp).flatten()
-    return pexp
 
 
 
