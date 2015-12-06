@@ -5,34 +5,83 @@ __all__ = ['get_resource_path']
 from os.path import dirname, join, pardir, sep as pathsep
 import pandas as pd
 import nibabel as nib
+import importlib
 
 def get_resource_path():
 	return join(dirname(__file__), 'resources') + pathsep
 
-def sphere(r, p, mask=None):
-        """ create a sphere of given radius at some point p in the brain mask
+def set_algorithm(algorithm, **kwargs):
+    """ Setup the algorithm to use in subsequent prediction analyses.
 
-        Args:
-            r: radius of the sphere
-            p: point (in coordinates of the brain mask) of the center of the sphere
-        
-        """
+    Args:
+        algorithm: The prediction algorithm to use. Either a string or an (uninitialized)
+        scikit-learn prediction object. If string, must be one of 'svm','svr', linear',
+        'logistic','lasso','lassopcr','lassoCV','ridge','ridgeCV','ridgeClassifier',
+        'randomforest', or 'randomforestClassifier'
+        kwargs: Additional keyword arguments to pass onto the scikit-learn clustering
+        object.
 
-	if mask is not None:
-	    if not isinstance(mask,nib.Nifti1Image):
-	        raise ValueError("mask is not a nibabel instance")
-	else:
-	    mask = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm_brain_mask.nii.gz'))
-	dims = mask
+    Returns:
+        predictor_settings: dictionary of settings for prediction
 
-	x, y, z = np.ogrid[-p[0]:dims[0]-p[0], -p[1]:dims[1]-p[1], -p[2]:dims[2]-p[2]]
-	mask = x*x + y*y + z*z <= r*r
+    """
 
-	activation = np.zeros(dims)
-	activation[mask] = 1
-	activation = np.multiply(activation, self.brain_mask.get_data())
-	activation = nib.Nifti1Image(activation, affine=np.eye(4))
+    # NOTE: function currently located here instead of analysis.py to avoid circular imports
+    
+    predictor_settings={}
+    predictor_settings['algorithm'] = algorithm
 
-	#return the 3D numpy matrix of zeros containing the sphere as a region of ones
-	return activation.get_data()
+    def load_class(import_string):
+        class_data = import_string.split(".")
+        module_path = '.'.join(class_data[:-1])
+        class_str = class_data[-1]
+        module = importlib.import_module(module_path)
+        return getattr(module, class_str)
+
+    algs_classify = {
+        'svm':'sklearn.svm.SVC',
+        'logistic':'sklearn.linear_model.LogisticRegression',
+        'ridgeClassifier':'sklearn.linear_model.RidgeClassifier',
+        'ridgeClassifierCV':'sklearn.linear_model.RidgeClassifierCV',
+        'randomforestClassifier':'sklearn.ensemble.RandomForestClassifier'
+        }
+    algs_predict = {
+        'svr':'sklearn.svm.SVR',
+        'linear':'sklearn.linear_model.LinearRegression',
+        'lasso':'sklearn.linear_model.Lasso',
+        'lassoCV':'sklearn.linear_model.LassoCV',
+        'ridge':'sklearn.linear_model.Ridge',
+        'ridgeCV':'sklearn.linear_model.RidgeCV',
+        'randomforest':'sklearn.ensemble.RandomForest'
+        }
+
+    if algorithm in algs_classify.keys():
+        predictor_settings['prediction_type'] = 'classification'
+        alg = load_class(algs_classify[algorithm])
+        predictor_settings['predictor'] = alg(**kwargs)
+    elif algorithm in algs_predict:
+        predictor_settings['prediction_type'] = 'prediction'
+        alg = load_class(algs_predict[algorithm])
+        predictor_settings['predictor'] = alg(**kwargs)
+    elif algorithm == 'lassopcr':
+        predictor_settings['prediction_type'] = 'prediction'
+        from sklearn.linear_model import Lasso
+        from sklearn.decomposition import PCA
+        predictor_settings['_lasso'] = Lasso()
+        predictor_settings['_pca'] = PCA()
+        predictor_settings['predictor'] = Pipeline(steps=[('pca', predictor_settings['_pca']), ('lasso', predictor_settings['_lasso'])])
+    elif algorithm == 'pcr':
+        predictor_settings['prediction_type'] = 'prediction'
+        from sklearn.linear_model import LinearRegression
+        from sklearn.decomposition import PCA
+        predictor_settings['_regress'] = LinearRegression()
+        predictor_settings['_pca'] = PCA()
+        self.predictor = Pipeline(steps=[('pca', predictor_settings['_pca']), ('regress', predictor_settings['_regress'])])
+    else:
+        raise ValueError("""Invalid prediction/classification algorithm name. Valid
+            options are 'svm','svr', 'linear', 'logistic', 'lasso', 'lassopcr',
+            'lassoCV','ridge','ridgeCV','ridgeClassifier', 'randomforest', or
+            'randomforestClassifier'.""")
+
+    return predictor_settings
 

@@ -113,3 +113,48 @@ class KFoldStratified(_BaseKFold):
 
     def __len__(self):
         return self.n_folds
+
+def set_cv(cv_dict):
+    """ Helper function to create a sci-kit learn compatible cv object using common parameters for prediction analyses.
+
+    Args:
+        cv_dict: Type of cross_validation to use. A dictionary of
+            {'type': 'kfolds', 'n_folds': n},
+            {'type': 'kfolds', 'n_folds': n, 'stratified': Y},
+            {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
+            {'type': 'loso'', 'subject_id': holdout}
+    Returns:
+        cv: a scikit-learn cross-validation instance
+
+     """
+
+    if type(cv_dict) is dict:
+        if cv_dict['type'] == 'kfolds':
+            if 'subject_id' in cv_dict:
+                # Hold out subjects within each fold
+                from  nltools.cross_validation import KFoldSubject
+                cv = KFoldSubject(len(cv_dict['subject_id']), cv_dict['subject_id'], n_folds=cv_dict['n_folds'])
+            elif 'stratified' in cv_dict:
+                # Stratified K-Folds
+                from  nltools.cross_validation import KFoldStratified
+                cv = KFoldStratified(cv_dict['stratified'], n_folds=cv_dict['n_folds'])
+            else:
+                # Normal K-Folds
+                from sklearn.cross_validation import KFold
+                cv = KFold(n_folds=cv_dict['n_folds'])
+        elif cv_dict['type'] == 'loso':
+            # Leave One Subject Out
+            from sklearn.cross_validation import LeaveOneLabelOut
+            cv = LeaveOneLabelOut(labels=cv_dict['subject_id'])
+        else:
+            raise ValueError("""Make sure you specify a dictionary of
+            {'type': 'kfolds', 'n_folds': n},
+            {'type': 'kfolds', 'n_folds': n, 'stratified': Y},
+            {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
+            {'type': 'loso'', 'subject_id': holdout},
+            where n = number of folds, and subject = vector of subject ids that corresponds to self.Y""")
+    else:
+        raise ValueError("Make sure 'cv_dict' is a dictionary.")
+    return cv
+
+

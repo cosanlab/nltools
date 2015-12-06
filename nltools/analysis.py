@@ -15,9 +15,7 @@
 # 5) add within subject checks and plots
 # 6) Plot probabilities
 
-__all__ = ['Predict',
-            'apply_mask',
-            'ROC']
+__all__ = ['Predict','apply_mask','ROC']
 
 import os
 import importlib
@@ -32,13 +30,13 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
 from nltools.stats import pearson
-from nltools.utils import get_resource_path
-from nltools.data import Brain_Data
+from nltools.utils import get_resource_path, set_algorithm
+from nltools.cross_validation import set_cv
 from scipy.stats import norm, binom_test
 from sklearn.metrics import auc
 
 
-class Predict:
+class Predict(object):
 
     def __init__(self, data, Y, algorithm=None, cv_dict=None, mask=None,
                  output_dir='.', **kwargs):
@@ -89,7 +87,7 @@ class Predict:
             self.set_algorithm(algorithm, **kwargs)
 
         if cv_dict is not None:
-            self.set_cv(cv_dict)
+            self.cv = set_cv(cv_dict)
 
     def predict(self, algorithm=None, cv_dict=None, save_images=True, save_output=True,
                 save_plot=True, **kwargs):
@@ -114,8 +112,7 @@ class Predict:
 
         if algorithm is not None:
             self.set_algorithm(algorithm, **kwargs)
-
-        if self.algorithm is None:
+        else:
             raise ValueError("Make sure you specify an 'algorithm' to use.")
 
         # Overall Fit for weight map
@@ -132,7 +129,7 @@ class Predict:
 
         # Cross-Validation Fit
         if cv_dict is not None:
-            self.set_cv(cv_dict)
+            self.cv = set_cv(cv_dict)
 
         dist_from_hyperplane_xval = None
 
@@ -191,7 +188,6 @@ class Predict:
 
     def set_algorithm(self, algorithm, **kwargs):
         """ Set the algorithm to use in subsequent prediction analyses.
-
         Args:
             algorithm: The prediction algorithm to use. Either a string or an (uninitialized)
             scikit-learn prediction object. If string, must be one of 'svm','svr', linear',
@@ -199,7 +195,6 @@ class Predict:
             'randomforest', or 'randomforestClassifier'
             kwargs: Additional keyword arguments to pass onto the scikit-learn clustering
             object.
-
         """
 
         self.algorithm = algorithm
@@ -255,16 +250,14 @@ class Predict:
                 options are 'svm','svr', 'linear', 'logistic', 'lasso', 'lassopcr',
                 'lassoCV','ridge','ridgeCV','ridgeClassifier', 'randomforest', or
                 'randomforestClassifier'.""")
-
+            
     def set_cv(self, cv_dict):
         """ Set the CV algorithm to use in subsequent prediction analyses.
-
         Args:
             cv_dict: Type of cross_validation to use. A dictionary of
                 {'type': 'kfolds', 'n_folds': n},
                 {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
                 {'type': 'loso'', 'subject_id': holdout},
-
          """
 
         if 'subject_id' in cv_dict:
@@ -401,7 +394,6 @@ class Predict:
             fig2 = scatterplot(self.stats_output)
             fig2.savefig(os.path.join(self.output_dir, self.algorithm + '_scatterplot.png'))
 
-
 def apply_mask(data=None, weight_map=None, mask=None, method='dot_product', save_output=False, output_dir='.'):
     """ Apply Nifti weight map to Nifti Images.
 
@@ -468,7 +460,7 @@ def apply_mask(data=None, weight_map=None, mask=None, method='dot_product', save
     return pexp
 
 
-class Roc:
+class Roc(object):
 
     def __init__(self, input_values=None, binary_outcome=None, threshold_type='optimal_overall',
         forced_choice=False, **kwargs):

@@ -11,26 +11,26 @@
 # Might consider moving anatomical field out of object and just request when needed.  Probably only when plotting
 # Need to figure out how to speed up loading and resampling of data
 
-__all__ = ['Brain_Data',
-            ]
+__all__ = ['Brain_Data']
 
 import os
 import nibabel as nib
-from nltools.utils import get_resource_path
+from nltools.utils import get_resource_path, set_algorithm
+from nltools.cross_validation import set_cv
+from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
 from nilearn.input_data import NiftiMasker
 from copy import deepcopy
 import pandas as pd
 import numpy as np
-from nilearn.plotting.img_plotting import plot_epi, plot_roi
+from nilearn.plotting.img_plotting import plot_epi, plot_roi, plot_stat_map
 from scipy.stats import ttest_1samp
 from scipy.stats import t
 
-import importlib
 import sklearn
 from sklearn.pipeline import Pipeline
 from nilearn.input_data import NiftiMasker
 
-class Brain_Data:
+class Brain_Data(object):
 
     def __init__(self, data=None, Y=None, X=None, mask=None, output_file=None, anatomical=None, **kwargs):
         """ Initialize Brain_Data Instance.
@@ -78,7 +78,10 @@ class Brain_Data:
                 Y=np.array(Y)
             if self.data.shape[0]!= len(Y):
                 raise ValueError("Y does not match the correct size of data")
-            self.Y = Y
+            if 1 in Y.shape:
+                self.Y = np.array(Y).flatten()
+            else:
+                self.Y = Y
         else:
             self.Y = []
 
@@ -117,7 +120,10 @@ class Brain_Data:
         if self.Y.size:
             new.Y = self.Y[index]
         if self.X.size:
-            new.X = self.X[:,index]
+            if isinstance(self.X,pd.DataFrame):
+                new.X = self.X[index]
+            else:
+                new.X = self.X[:,index]
         return new
 
     def shape(self):
@@ -281,7 +287,7 @@ class Brain_Data:
         Args:
             data: Brain_Data instance to append
         
-        """   
+        """
 
         if not isinstance(data, Brain_Data):
             raise ValueError('Make sure data is a Brain_Data instance')
@@ -307,13 +313,18 @@ class Brain_Data:
 
         return out
 
-    def empty(self):
+    def empty(self, data=True, Y=True, X=True):
         """ Initalize Brain_Data.data as empty
         
         """
         
         tmp = deepcopy(self)
-        tmp.data = []
+        if data:
+            tmp.data = np.array([])
+        if Y:
+            tmp.Y = np.array([])
+        if X:
+            tmp.X = np.array([])
         # tmp.data = np.array([]).reshape(0,n_voxels)
         return tmp
 
@@ -324,221 +335,19 @@ class Brain_Data:
             bool
         """ 
 
-        if not isinstance(self, Brain_Data):
-            raise ValueError('Make sure data is a Brain_Data instance')
+        if isinstance(self.data,np.ndarray):
+            if self.data.size:
+                boolean = False
+            else:
+                boolean = True
 
         if isinstance(self.data, list):
             if not self.data:
                 boolean = True
             else:
                 boolean = False
-        else: #need to make this more precise later
-            # if isinstance(self.data, np.ndarray) or isinstance(self.data, np.array) or isinstance(self.data, np.matrix):
-            boolean = False
         
         return boolean
-
-    def predict(self, algorithm=None, cv_dict=None, save_images=False, save_output=False,
-                save_plot=False, **kwargs):
-
-        """ Run prediction
-
-        Args:
-            algorithm: Algorithm to use for prediction.  Must be one of 'svm', 'svr',
-            'linear', 'logistic', 'lasso', 'ridge', 'ridgeClassifier','randomforest',
-            or 'randomforestClassifier'
-            cv_dict: Type of cross_validation to use. A dictionary of
-                {'type': 'kfolds', 'n_folds': n},
-                {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
-                {'type': 'loso'', 'subject_id': holdout},
-                where n = number of folds, and subject = vector of subject ids that corresponds to self.Y
-            save_images: Boolean indicating whether or not to save images to file.
-            save_output: Boolean indicating whether or not to save prediction output to file.
-            save_plot: Boolean indicating whether or not to create plots.
-            **kwargs: Additional keyword arguments to pass to the prediction algorithm
-
-        """
-
-        def set_algorithm(self, algorithm, **kwargs):
-            """ Set the algorithm to use in subsequent prediction analyses.
-
-            Args:
-                algorithm: The prediction algorithm to use. Either a string or an (uninitialized)
-                scikit-learn prediction object. If string, must be one of 'svm','svr', linear',
-                'logistic','lasso','lassopcr','lassoCV','ridge','ridgeCV','ridgeClassifier',
-                'randomforest', or 'randomforestClassifier'
-                kwargs: Additional keyword arguments to pass onto the scikit-learn clustering
-                object.
-
-            """
-
-            self.algorithm = algorithm
-
-            def load_class(import_string):
-                class_data = import_string.split(".")
-                module_path = '.'.join(class_data[:-1])
-                class_str = class_data[-1]
-                module = importlib.import_module(module_path)
-                return getattr(module, class_str)
-
-            algs_classify = {
-                'svm':'sklearn.svm.SVC',
-                'logistic':'sklearn.linear_model.LogisticRegression',
-                'ridgeClassifier':'sklearn.linear_model.RidgeClassifier',
-                'ridgeClassifierCV':'sklearn.linear_model.RidgeClassifierCV',
-                'randomforestClassifier':'sklearn.ensemble.RandomForestClassifier'
-                }
-            algs_predict = {
-                'svr':'sklearn.svm.SVR',
-                'linear':'sklearn.linear_model.LinearRegression',
-                'lasso':'sklearn.linear_model.Lasso',
-                'lassoCV':'sklearn.linear_model.LassoCV',
-                'ridge':'sklearn.linear_model.Ridge',
-                'ridgeCV':'sklearn.linear_model.RidgeCV',
-                'randomforest':'sklearn.ensemble.RandomForest'
-                }
-
-            if algorithm in algs_classify.keys():
-                self.prediction_type = 'classification'
-                alg = load_class(algs_classify[algorithm])
-                self.predictor = alg(**kwargs)
-            elif algorithm in algs_predict:
-                self.prediction_type = 'prediction'
-                alg = load_class(algs_predict[algorithm])
-                self.predictor = alg(**kwargs)
-            elif algorithm == 'lassopcr':
-                self.prediction_type = 'prediction'
-                from sklearn.linear_model import Lasso
-                from sklearn.decomposition import PCA
-                self._lasso = Lasso()
-                self._pca = PCA()
-                self.predictor = Pipeline(steps=[('pca', self._pca), ('lasso', self._lasso)])
-            elif algorithm == 'pcr':
-                self.prediction_type = 'prediction'
-                from sklearn.linear_model import LinearRegression
-                from sklearn.decomposition import PCA
-                self._regress = LinearRegression()
-                self._pca = PCA()
-                self.predictor = Pipeline(steps=[('pca', self._pca), ('regress', self._regress)])
-            else:
-                raise ValueError("""Invalid prediction/classification algorithm name. Valid
-                    options are 'svm','svr', 'linear', 'logistic', 'lasso', 'lassopcr',
-                    'lassoCV','ridge','ridgeCV','ridgeClassifier', 'randomforest', or
-                    'randomforestClassifier'.""")
-
-            def set_cv(self, cv_dict):
-                """ Set the CV algorithm to use in subsequent prediction analyses.
-
-                Args:
-                    cv_dict: Type of cross_validation to use. A dictionary of
-                        {'type': 'kfolds', 'n_folds': n},
-                        {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
-                        {'type': 'loso'', 'subject_id': holdout},
-
-                 """
-
-                if 'subject_id' in cv_dict:
-                    self.subject_id = np.array(cv_dict['subject_id'])
-
-                if type(cv_dict) is dict:
-                    if cv_dict['type'] == 'kfolds':
-                        if 'subject_id' in cv_dict:
-                            # Hold out subjects within each fold
-                            from  nltools.cross_validation import KFoldSubject
-                            self.cv = KFoldSubject(len(self.Y), cv_dict['subject_id'], n_folds=cv_dict['n_folds'])
-                        else:
-                            # Normal Stratified K-Folds
-                            from  nltools.cross_validation import KFoldStratified
-                            self.cv = KFoldStratified(self.Y, n_folds=cv_dict['n_folds'])
-                    elif cv_dict['type'] == 'loso':
-                        # Leave One Subject Out
-                        from sklearn.cross_validation import LeaveOneLabelOut
-                        self.cv = LeaveOneLabelOut(labels=cv_dict['subject_id'])
-                    else:
-                        raise ValueError("""Make sure you specify a dictionary of
-                        {'type': 'kfolds', 'n_folds': n},
-                        {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
-                        {'type': 'loso'', 'subject_id': holdout},
-                        where n = number of folds, and subject = vector of subject ids that corresponds to self.Y""")
-                else:
-                    raise ValueError("Make sure 'cv_dict' is a dictionary.")
-
-        if algorithm is not None:
-            self.set_algorithm(algorithm, **kwargs)
-
-        if self.algorithm is None:
-            raise ValueError("Make sure you specify an 'algorithm' to use.")
-
-        # Overall Fit for weight map
-        predictor = self.predictor
-        predictor.fit(self.data, self.Y)
-        self.yfit_all = predictor.predict(self.data)
-        if self.prediction_type == 'classification':
-            if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
-                self.prob_all = predictor.predict_proba(self.data)
-            else:
-                dist_from_hyperplane_all = predictor.decision_function(self.data)
-                if self.algorithm == 'svm' and self.predictor.probability:
-                    self.prob_all = predictor.predict_proba(self.data)
-
-        # Cross-Validation Fit
-        if cv_dict is not None:
-            self.set_cv(cv_dict)
-
-        dist_from_hyperplane_xval = None
-
-        if hasattr(self, 'cv'):
-            predicter_cv = self.predictor
-            self.yfit_xval = self.yfit_all.copy()
-            if self.prediction_type == 'classification':
-                if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
-                    self.prob_xval = np.zeros(len(self.Y))
-                else:
-                    dist_from_hyperplane_xval = np.zeros(len(self.Y))
-                    if self.algorithm == 'svm' and self.predictor.probability:
-                        self.prob_xval = np.zeros(len(self.Y))
-
-            for train, test in self.cv:
-                predicter_cv.fit(self.data[train], self.Y[train])
-                self.yfit_xval[test] = predicter_cv.predict(self.data[test])
-                if self.prediction_type == 'classification':
-                    if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
-                        self.prob_xval[test] = predicter_cv.predict_proba(self.data[test])
-                    else:
-                        dist_from_hyperplane_xval[test] = predicter_cv.decision_function(self.data[test])
-                        if self.algorithm == 'svm' and self.predictor.probability:
-                            self.prob_xval[test] = predicter_cv.predict_proba(self.data[test])
-
-        # Save Outputs
-        if save_images:
-            self._save_image(predictor)
-
-        if save_output:
-            self._save_stats_output(dist_from_hyperplane_xval)
-
-        if save_plot:
-            if hasattr(self, 'cv'):
-                self._save_plot(predicter_cv)
-            else:
-                self._save_plot(predictor)
-
-        # Print Results
-        if self.prediction_type == 'classification':
-            self.mcr_all = np.mean(self.yfit_all==self.Y)
-            print 'overall accuracy: %.2f' % self.mcr_all
-            if hasattr(self,'cv'):
-                self.mcr_xval = np.mean(self.yfit_xval==self.Y)
-                print 'overall CV accuracy: %.2f' % self.mcr_xval
-        elif self.prediction_type == 'prediction':
-            self.rmse_all = np.sqrt(np.mean((self.yfit_all-self.Y)**2))
-            self.r_all = np.corrcoef(self.Y,self.yfit_all)[0,1]
-            print 'overall Root Mean Squared Error: %.2f' % self.rmse_all
-            print 'overall Correlation: %.2f' % self.r_all
-            if hasattr(self,'cv'):
-                self.rmse_xval = np.sqrt(np.mean((self.yfit_xval-self.Y)**2))
-                self.r_xval = np.corrcoef(self.Y,self.yfit_xval)[0,1]
-                print 'overall CV Root Mean Squared Error: %.2f' % self.rmse_xval
-                print 'overall CV Correlation: %.2f' % self.r_xval
 
     def similarity(self, image=None, method='correlation', ignore_missing=True):
         """ Calculate similarity of Brain_Data() instance with single Brain_Data image
@@ -587,4 +396,134 @@ class Brain_Data:
             raise ValueError('Make sure target is a Brain_Data instance')
  
         pass
+
+    def predict(self, algorithm=None, cv_dict=None, plot=True, **kwargs):
+
+        """ Run prediction
+
+        Args:
+            algorithm: Algorithm to use for prediction.  Must be one of 'svm', 'svr',
+            'linear', 'logistic', 'lasso', 'ridge', 'ridgeClassifier','randomforest',
+            or 'randomforestClassifier'
+            cv_dict: Type of cross_validation to use. A dictionary of
+                {'type': 'kfolds', 'n_folds': n},
+                {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
+                {'type': 'loso'', 'subject_id': holdout},
+                where n = number of folds, and subject = vector of subject ids that corresponds to self.Y
+            save_images: Boolean indicating whether or not to save images to file.
+            save_output: Boolean indicating whether or not to save prediction output to file.
+            save_plot: Boolean indicating whether or not to create plots.
+            **kwargs: Additional keyword arguments to pass to the prediction algorithm
+
+        Returns:
+            output: a dictionary of prediction parameters
+
+        """
+
+        # Set algorithm
+        if algorithm is not None:
+            predictor_settings = set_algorithm(algorithm, **kwargs)
+        else:
+            # Use SVR as a default
+            predictor_settings = set_algorithm('svr', **{'kernel':"linear"})
+
+        # Initialize output dictionary
+        output = {}
+        output['Y'] = self.Y
+
+        # Overall Fit for weight map
+        predictor = predictor_settings['predictor']
+        predictor.fit(self.data, self.Y)
+        output['yfit_all'] = predictor.predict(self.data)
+        if predictor_settings['prediction_type'] == 'classification':
+            if predictor_settings['algorithm'] not in ['svm','ridgeClassifier','ridgeClassifierCV']:
+                output['prob_all'] = predictor.predict_proba(self.data)
+            else:
+                output['dist_from_hyperplane_all'] = predictor.decision_function(self.data)
+                if predictor_settings['algorithm'] == 'svm' and predictor.probability:
+                    output['prob_all'] = predictor.predict_proba(self.data)
+       
+        output['intercept'] = predictor.intercept_
+
+        # Weight map
+        output['weight_map'] = deepcopy(self)
+        if predictor_settings['algorithm'] == 'lassopcr':
+            output['weight_map'].data = np.dot(predictor_settings['_pca'].components_.T,predictor_settings['_lasso'].coef_)
+        elif predictor_settings['algorithm'] == 'pcr':
+            output['weight_map'].data = np.dot(predictor_settings['_pca'].components_.T,predictor_settings['_regress'].coef_)
+        else:
+            output['weight_map'].data = predictor.coef_.squeeze()
+
+        # Cross-Validation Fit
+        if cv_dict is not None:
+            cv = set_cv(cv_dict)
+
+            predictor_cv = predictor_settings['predictor']
+            output['yfit_xval'] = output['yfit_all'].copy()
+            output['intercept_xval'] = []
+            output['weight_map_xval'] = deepcopy(output['weight_map'])
+            wt_map_xval = [];
+            if predictor_settings['prediction_type'] == 'classification':
+                if predictor_settings['algorithm'] not in ['svm','ridgeClassifier','ridgeClassifierCV']:
+                    output['prob_xval'] = np.zeros(len(self.Y))
+                else:
+                    dist_from_hyperplane_xval = np.zeros(len(self.Y))
+                    if predictor_settings['algorithm'] == 'svm' and predictor_cv.probability:
+                        output['prob_xval'] = np.zeros(len(self.Y))
+
+            for train, test in cv:
+                predictor_cv.fit(self.data[train], self.Y[train])
+                output['yfit_xval'][test] = predictor_cv.predict(self.data[test])
+                if predictor_settings['prediction_type'] == 'classification':
+                    if predictor_settings['algorithm'] not in ['svm','ridgeClassifier','ridgeClassifierCV']:
+                        output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])
+                    else:
+                        output['dist_from_hyperplane_xval'][test] = predictor_cv.decision_function(self.data[test])
+                        if predictor_settings['algorithm'] == 'svm' and predictor_cv.probability:
+                            output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])
+                output['intercept_xval'].append(predictor_cv.intercept_)
+
+                # Weight map
+                if predictor_settings['algorithm'] == 'lassopcr':
+                    wt_map_xval.append(np.dot(predictor_settings['_pca'].components_.T,predictor_settings['_lasso'].coef_))
+                elif predictor_settings['algorithm'] == 'pcr':
+                    wt_map_xval.append(np.dot(predictor_settings['_pca'].components_.T,predictor_settings['_regress'].coef_))
+                else:
+                    wt_map_xval.append(predictor_cv.coef_.squeeze())
+                output['weight_map_xval'].data = np.array(wt_map_xval)
+        
+        # Print Results
+        if predictor_settings['prediction_type'] == 'classification':
+            output['mcr_all'] = np.mean(output['yfit_all']==self.Y)
+            print 'overall accuracy: %.2f' % output['mcr_all']
+            if cv_dict is not None:
+                output['mcr_xval'] = np.mean(output['yfit_xval']==self.Y)
+                print 'overall CV accuracy: %.2f' % output['mcr_xval']
+        elif predictor_settings['prediction_type'] == 'prediction':
+            output['rmse_all'] = np.sqrt(np.mean((output['yfit_all']-self.Y)**2))
+            output['r_all'] = np.corrcoef(self.Y,output['yfit_all'])[0,1]
+            print 'overall Root Mean Squared Error: %.2f' % output['rmse_all']
+            print 'overall Correlation: %.2f' % output['r_all']
+            if cv_dict is not None:
+                output['rmse_xval'] = np.sqrt(np.mean((output['yfit_xval']-self.Y)**2))
+                output['r_xval'] = np.corrcoef(self.Y,output['yfit_xval'])[0,1]
+                print 'overall CV Root Mean Squared Error: %.2f' % output['rmse_xval']
+                print 'overall CV Correlation: %.2f' % output['r_xval']
+
+        # Plot
+        if plot:
+            fig1 = plot_stat_map(output['weight_map'].to_nifti(), self.anatomical, title=predictor_settings['algorithm'] + " weights",
+                            cut_coords=range(-40, 40, 10), display_mode='z')
+            if predictor_settings['prediction_type'] == 'prediction':
+                fig2 = scatterplot(pd.DataFrame({'Y': output['Y'], 'yfit_xval':output['yfit_xval']}))
+            elif self.prediction_type == 'classification':
+                if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
+                    fig2 = probability_plot(pd.DataFrame({'Y': output['Y'], 'Probability_xval':output['prob_xval']})) 
+                else:
+                    fig2 = dist_from_hyperplane_plot(pd.DataFrame({'Y': output['Y'], 'dist_from_hyperplane_xval':output['dist_from_hyperplane_xval']}))
+                    if self.algorithm == 'svm' and self.predictor.probability:
+                        fig3 = probability_plot(pd.DataFrame({'Y': output['Y'], 'Probability_xval':output['prob_xval']}))
+
+        return output
+
 
