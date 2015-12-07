@@ -122,7 +122,7 @@ def set_cv(cv_dict):
             {'type': 'kfolds', 'n_folds': n},
             {'type': 'kfolds', 'n_folds': n, 'stratified': Y},
             {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
-            {'type': 'loso'', 'subject_id': holdout}
+            {'type': 'loso', 'subject_id': holdout}
     Returns:
         cv: a scikit-learn cross-validation instance
 
@@ -151,7 +151,7 @@ def set_cv(cv_dict):
             {'type': 'kfolds', 'n_folds': n},
             {'type': 'kfolds', 'n_folds': n, 'stratified': Y},
             {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
-            {'type': 'loso'', 'subject_id': holdout},
+            {'type': 'loso', 'subject_id': holdout},
             where n = number of folds, and subject = vector of subject ids that corresponds to self.Y""")
     else:
         raise ValueError("Make sure 'cv_dict' is a dictionary.")

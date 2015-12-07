@@ -92,4 +92,68 @@ def roc_plot(fpr, tpr):
     plt.title('ROC Plot', fontsize=18)
     return fig
 
+def decode_radar_plot(data, n_top=3, overplot=False, labels=None, palette='husl'):
+    """ Create a radar plot for displaying decoding results
+    Args:
+        data: pandas object with labels as indices
+        n_top: number of top results to display
+        overplot: overlay multiple decoding results
+        labels: Decoding labels
+        palette: seaborn color palette
+    Returns:
+        plt: Will return a matplotlib plot
+    """     
+
+    r = np.linspace(0, 10, num=100)
+    n_panels = data.shape[1]
+
+    if labels is None:
+        labels = []
+        for i in range(n_panels):
+            labels.extend(data.iloc[:, i].order(ascending=False)
+                          .index[:n_top])
+        labels = np.unique(labels)
+
+    data = data.loc[labels, :]
+
+    # Use hierarchical clustering to order
+    from scipy.spatial.distance import pdist
+    from scipy.cluster.hierarchy import linkage, leaves_list
+    dists = pdist(data, metric='correlation')
+    pairs = linkage(dists)
+    order = leaves_list(pairs)
+    data = data.iloc[order, :]
+    labels = [labels[i] for i in order]
+
+    theta = np.linspace(0.0, 2 * np.pi, len(labels), endpoint=False)
+    import matplotlib.pyplot as plt
+    if overplot:
+        fig, ax = plt.subplots(1, 1, subplot_kw=dict(polar=True))
+        fig.set_size_inches(10, 10)
+    else:
+        fig, axes = plt.subplots(1, n_panels, sharex=False, sharey=False,
+                                 subplot_kw=dict(polar=True))
+        fig.set_size_inches((6 * n_panels, 6))
+    # A bit silly to import seaborn just for this...
+    # should extract just the color_palette functionality.
+    import seaborn as sns
+    colors = sns.color_palette(palette, n_panels)
+    for i in range(n_panels):
+        if overplot:
+            alpha = 0.2
+        else:
+            ax = axes[i]
+            alpha = 0.8
+        ax.set_ylim(data.values.min(), data.values.max())
+        d = data.iloc[:, i].values
+        ax.fill(theta, d, color=colors[i], alpha=alpha, ec='k',
+                linewidth=0)
+        ax.fill(theta, d, alpha=1.0, ec=colors[i],
+                linewidth=2, fill=False)
+        ax.set_xticks(theta)
+        ax.set_xticklabels(labels, fontsize=18)
+        [lab.set_fontsize(18) for lab in ax.get_yticklabels()]
+        ax.set_title('Cluster %d' % i, fontsize=22, y=1.12)
+    plt.tight_layout()
+    return plt
 
