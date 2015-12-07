@@ -8,7 +8,6 @@
 '''
 
 ## Notes:
-# Might consider moving anatomical field out of object and just request when needed.  Probably only when plotting
 # Need to figure out how to speed up loading and resampling of data
 
 __all__ = ['Brain_Data']
@@ -21,6 +20,7 @@ from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability
 from nltools.stats import pearson
 from nilearn.input_data import NiftiMasker
 from nilearn.image import resample_img
+from nilearn.masking import intersect_masks
 from nilearn.plotting.img_plotting import plot_epi, plot_roi, plot_stat_map
 from copy import deepcopy
 import pandas as pd
@@ -49,6 +49,10 @@ class Brain_Data(object):
 
         if mask is not None:
             if not isinstance(mask, nib.Nifti1Image):
+                if type(mask) is str:
+                    if os.path.isfile(mask):
+                        mask = nib.load(mask)
+            else:
                 raise ValueError("mask is not a nibabel instance")
             self.mask = mask
         else:
@@ -65,7 +69,7 @@ class Brain_Data(object):
         if not ((self.mask.get_affine()==data.get_affine()).all()) & (self.mask.shape[0:3]==data.shape[0:3]):
             data = resample_img(data,target_affine=self.mask.get_affine(),target_shape=self.mask.shape)
 
-        self.nifti_masker = NiftiMasker(mask_img=mask)
+        self.nifti_masker = NiftiMasker(mask_img=self.mask)
         self.data = self.nifti_masker.fit_transform(data)
 
         if Y is not None:
@@ -363,52 +367,42 @@ class Brain_Data(object):
         
         return boolean
 
-    def similarity(self, image=None, method='correlation', ignore_missing=True):
-        """ Calculate similarity of Brain_Data() instance with single Brain_Data image
+    def similarity(self, image=None, method='correlation'):
+        """ Calculate similarity of Brain_Data() instance with single Brain_Data or Nibabel image
 
             Args:
                 self: Brain_Data instance of data to be applied
-                weight_map: Brain_Data instance of weight map
-                **kwargs: Additional parameters to pass
+                image: Brain_Data or Nibabel instance of weight map
 
             Returns:
                 pexp: Outputs a vector of pattern expression values
 
         """
 
-        if isinstance(image, Brain_Data):
-            image = self.nifti_masker.fit_transform(image.to_nifti())
-        elif isinstance(image,nib.Nifti1Image):
-            image = self.nifti_masker.fit_transform(image)
-        elif type(image) is str:
-            if os.path.isfile(image):
-                image = nib.load(image)
+        if not isinstance(image, Brain_Data):
+            if isinstance(image, nib.Nifti1Image):
+                image = self.nifti_masker.fit_transform(image)
+            else:
+                raise ValueError("Image is not a Brain_Data or nibabel instance")
+        dim = image.shape()
+
+        # Check to make sure masks are the same for each dataset and if not create a union mask
+        # This might be handy code for a new Brain_Data method
+        if np.sum(self.nifti_masker.mask_img.get_data()==1)!=np.sum(image.nifti_masker.mask_img.get_data()==1):
+            new_mask = intersect_masks([self.nifti_masker.mask_img, image.nifti_masker.mask_img], threshold=1, connected=False)
+            new_nifti_masker = NiftiMasker(mask_img=new_mask)
+            data2 = new_nifti_masker.fit_transform(self.to_nifti())
+            image2 = new_nifti_masker.fit_transform(image.to_nifti())
         else:
-            raise ValueError('Make sure image is a Brain_Data or nibabel instance')
+            data2 = self.data
+            image2 = image.data
 
         # Calculate pattern expression
         if method is 'dot_product':
-            pexp = np.dot(self.data, image.data)
+            pexp = np.dot(data2, image2)
         elif method is 'correlation':
-            pexp=[]
-            for w in xrange(self.data.shape[0]):
-                pexp.append(pearson(self.data[w,:], image.data))
-            pexp = np.array(pexp).flatten()
+            pexp = pearson(data2, image2)
         return pexp
-
-    def resample(self, target):
-        """ Resample data into target space
-
-        Args:
-            self: Brain_Data instance
-            target: Brain_Data instance of target space
-        
-        """ 
-
-        if not isinstance(target, Brain_Data):
-            raise ValueError('Make sure target is a Brain_Data instance')
- 
-        pass
 
     def predict(self, algorithm=None, cv_dict=None, plot=True, **kwargs):
 
@@ -421,7 +415,7 @@ class Brain_Data(object):
             cv_dict: Type of cross_validation to use. A dictionary of
                 {'type': 'kfolds', 'n_folds': n},
                 {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
-                {'type': 'loso'', 'subject_id': holdout},
+                {'type': 'loso', 'subject_id': holdout},
                 where n = number of folds, and subject = vector of subject ids that corresponds to self.Y
             plot: Boolean indicating whether or not to create plots.
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
@@ -467,7 +461,7 @@ class Brain_Data(object):
 
         # Cross-Validation Fit
         if cv_dict is not None:
-            cv = set_cv(cv_dict)
+            output['cv'] = set_cv(cv_dict)
 
             predictor_cv = predictor_settings['predictor']
             output['yfit_xval'] = output['yfit_all'].copy()
@@ -482,7 +476,7 @@ class Brain_Data(object):
                     if predictor_settings['algorithm'] == 'svm' and predictor_cv.probability:
                         output['prob_xval'] = np.zeros(len(self.Y))
 
-            for train, test in cv:
+            for train, test in output['cv']:
                 predictor_cv.fit(self.data[train], self.Y[train])
                 output['yfit_xval'][test] = predictor_cv.predict(self.data[test])
                 if predictor_settings['prediction_type'] == 'classification':
@@ -651,7 +645,7 @@ class Brain_Data(object):
         if not isinstance(mask, (nib.Nifti1Image,Brain_Data)):
             if type(mask) is str:
                 if os.path.isfile(mask):
-                    data = nib.load(mask)
+                    mask = nib.load(mask)
             else:
                 raise ValueError("Mask is not a nibabel instance, Brain_Data instance, or a valid file name.")
         
@@ -669,6 +663,17 @@ class Brain_Data(object):
             masked.data = masked.data.squeeze()
         masked.nifti_masker = nifti_masker
         return masked
+
+    def resample(self, target):
+        """ Resample data into target space
+
+        Args:
+            self: Brain_Data instance
+            target: Brain_Data instance of target space
+        
+        """ 
+
+        raise NotImplementedError()
 
 def threshold(stat, p, threshold_dict={'unc':.001}):
     """ Calculate one sample t-test across each voxel (two-sided)
