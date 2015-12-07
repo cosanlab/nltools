@@ -15,14 +15,15 @@ __all__ = ['Brain_Data']
 
 import os
 import nibabel as nib
-from nltools.utils import get_resource_path, set_algorithm
+from nltools.utils import get_resource_path, set_algorithm, get_anatomical
 from nltools.cross_validation import set_cv
 from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
 from nilearn.input_data import NiftiMasker
+from nilearn.image import resample_img
+from nilearn.plotting.img_plotting import plot_epi, plot_roi, plot_stat_map
 from copy import deepcopy
 import pandas as pd
 import numpy as np
-from nilearn.plotting.img_plotting import plot_epi, plot_roi, plot_stat_map
 from scipy.stats import ttest_1samp, t, norm
 
 import sklearn
@@ -31,7 +32,7 @@ from nilearn.input_data import NiftiMasker
 
 class Brain_Data(object):
 
-    def __init__(self, data=None, Y=None, X=None, mask=None, output_file=None, anatomical=None, **kwargs):
+    def __init__(self, data=None, Y=None, X=None, mask=None, output_file=None, resample=True, **kwargs):
         """ Initialize Brain_Data Instance.
 
         Args:
@@ -40,7 +41,7 @@ class Brain_Data(object):
             X: Pandas DataFrame Design Matrix for running univariate models 
             mask: binary nifiti file to mask brain data
             output_file: Name to write out to nifti file
-            anatomical: anatomical image to overlay plots
+            resample: resample to mask space (on by default)
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
 
         """
@@ -52,19 +53,16 @@ class Brain_Data(object):
         else:
             self.mask = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm_brain_mask.nii.gz'))
 
-        if anatomical is not None:
-            if not isinstance(anatomical, nib.Nifti1Image):
-                raise ValueError("anatomical is not a nibabel instance")
-            self.anatomical = anatomical
-        else:
-            self.anatomical = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm.nii.gz'))
-
         if type(data) is str:
             data=nib.load(data)
         elif type(data) is list:
             data=nib.concat_images(data)
         elif not isinstance(data, nib.Nifti1Image):
             raise ValueError("data is not a nibabel instance")
+
+        # Check if data need to be resampled into mask space
+        if not ((self.mask.get_affine()==data.get_affine()).all()) & (self.mask.shape[0:3]==data.shape[0:3]):
+            data = resample_img(data,target_affine=self.mask.get_affine(),target_shape=self.mask.shape)
 
         self.nifti_masker = NiftiMasker(mask_img=mask)
         self.data = self.nifti_masker.fit_transform(data)
@@ -97,15 +95,14 @@ class Brain_Data(object):
             self.file_name = []
 
     def __repr__(self):
-        return '%s.%s(data=%s, Y=%s, X=%s, mask=%s, output_file=%s, anatomical=%s)' % (
+        return '%s.%s(data=%s, Y=%s, X=%s, mask=%s, output_file=%s)' % (
             self.__class__.__module__,
             self.__class__.__name__,
             self.shape(),
             self.Y.shape,
             self.X.shape,
             os.path.basename(self.mask.get_filename()),
-            self.file_name,
-            os.path.basename(self.anatomical.get_filename())            
+            self.file_name
             )
 
     def __getitem__(self, index):
@@ -185,23 +182,35 @@ class Brain_Data(object):
 
         self.to_nifti().to_filename(file_name)
 
-    def plot(self, limit=5):
+    def plot(self, limit=5, anatomical=None):
         """ Create a quick plot of self.data.  Will plot each image separately
 
         Args:
-            self: Brain_Data instance
             limit: max number of images to return
-            mask: Binary nifti mask to calculate mean
+            anatomical: nifti image or file name to overlay
 
         """
 
+        if anatomical is not None:
+            if not isinstance(anatomical, nib.Nifti1Image):
+                if type(anatomical) is str:
+                    anatomical = nib.load(anatomical)
+                else:
+                    raise ValueError("anatomical is not a nibabel instance")
+        else:
+            anatomical = get_anatomical()
+
+    
         if self.data.ndim == 1:
-            plot_roi(self.to_nifti(), self.anatomical)
+            plot_stat_map(self.to_nifti(), anatomical, cut_coords=range(-40, 50, 10), display_mode='z', 
+                black_bg=True, colorbar=True, draw_cross=False)
         else:
             for i in xrange(self.data.shape[0]):
                 if i < limit:
-                    plot_roi(self.nifti_masker.inverse_transform(self.data[i,:]), self.anatomical)
-
+                    # plot_roi(self.nifti_masker.inverse_transform(self.data[i,:]), self.anatomical)
+                    # plot_stat_map(self.nifti_masker.inverse_transform(self.data[i,:]), 
+                    plot_stat_map(self[i].to_nifti(), anatomical, cut_coords=range(-40, 50, 10), display_mode='z', 
+                        black_bg=True, colorbar=True, draw_cross=False)
 
     def regress(self):
         """ run vectorized OLS regression across voxels.
@@ -514,8 +523,7 @@ class Brain_Data(object):
 
         # Plot
         if plot:
-            fig1 = plot_stat_map(output['weight_map'].to_nifti(), self.anatomical, title=predictor_settings['algorithm'] + " weights",
-                            cut_coords=range(-40, 40, 10), display_mode='z')
+            fig1 = output['weight_map'].plot()
             if predictor_settings['prediction_type'] == 'prediction':
                 fig2 = scatterplot(pd.DataFrame({'Y': output['Y'], 'yfit_xval':output['yfit_xval']}))
             elif self.prediction_type == 'classification':
@@ -543,6 +551,7 @@ class Brain_Data(object):
 
         # Notes:
         # might want to add options for [studentized, percentile, bias corrected, bias corrected accelerated] methods
+        # Regress method is pretty convoluted and slow, this should be optimized better.  
 
         def summarize_bootstrap(sample):
             """ Calculate summary of bootstrap samples
@@ -631,3 +640,32 @@ class Brain_Data(object):
             output = summarize_bootstrap(sample)
         return output
 
+    def apply_mask(self, mask):
+        """ Mask Brain_Data instance
+
+        Args:
+            mask: mask (Brain_Data or nifti object)
+            
+        """
+
+        if not isinstance(mask, (nib.Nifti1Image,Brain_Data)):
+            if type(mask) is str:
+                if os.path.isfile(mask):
+                    data = nib.load(mask)
+            else:
+                raise ValueError("Mask is not a nibabel instance, Brain_Data instance, or a valid file name.")
+        
+        # Check if mask need to be resampled into Brain_Data mask space
+        if not ((self.mask.get_affine()==mask.get_affine()).all()) & (self.mask.shape[0:3]==mask.shape[0:3]):
+            mask = resample_img(mask,target_affine=self.mask.get_affine(),target_shape=self.mask.shape)
+
+        # transform mask into Brain_Data
+        # new_mask = self.nifti_masker.fit_transform(mask)
+
+        masked = deepcopy(self)
+        nifti_masker = NiftiMasker(mask_img=mask)
+        masked.data = nifti_masker.fit_transform(self.to_nifti())
+        if len(self.data.shape) > 2:
+            masked.data = masked.data.squeeze()
+        masked.nifti_masker = nifti_masker
+        return masked

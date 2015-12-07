@@ -6,9 +6,13 @@ from os.path import dirname, join, pardir, sep as pathsep
 import pandas as pd
 import nibabel as nib
 import importlib
+import os
 
 def get_resource_path():
 	return join(dirname(__file__), 'resources') + pathsep
+
+def get_anatomical():
+	return nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm.nii.gz'))
 
 def set_algorithm(algorithm, **kwargs):
     """ Setup the algorithm to use in subsequent prediction analyses.
@@ -27,7 +31,7 @@ def set_algorithm(algorithm, **kwargs):
     """
 
     # NOTE: function currently located here instead of analysis.py to avoid circular imports
-    
+
     predictor_settings={}
     predictor_settings['algorithm'] = algorithm
 
