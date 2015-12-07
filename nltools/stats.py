@@ -1,10 +1,9 @@
 """Various statistical helper functions"""
 
-__all__ = ['pearson', 'zscore', 'threshold', 'fdr']
+__all__ = ['pearson', 'zscore', 'fdr']
 
 import numpy as np
 from scipy.stats import ss
-from nltools.data import Brain_Data
 from copy import deepcopy
 
 def pearson(x, y):
@@ -35,32 +34,6 @@ def zscore(df):
     z_df = df.apply(lambda x: (x - x.mean())/x.std())
 
     return z_df
-
-def threshold(stat, p, threshold_dict={'unc':.001}):
-    """ Calculate one sample t-test across each voxel (two-sided)
-
-    Args:
-        stat: Brain_Data instance of arbitrary statistic metric (e.g., beta, t, etc)
-        p: Brain_data instance of p-values
-        threshold_dict: a dictionary of threshold parameters {'unc':.001} or {'fdr':.05}
- 
-    Returns:
-        out: Thresholded Brain_Data instance
-    
-    """
- 
-    if not isinstance(stat, Brain_Data):
-        raise ValueError('Make sure stat is a Brain_Data instance')
-        
-    if not isinstance(p, Brain_Data):
-        raise ValueError('Make sure p is a Brain_Data instance')
-
-    out = deepcopy(stat)
-    if 'unc' in threshold_dict:
-        out.data[p.data > threshold_dict['unc']] = np.nan
-    elif 'fdr' in threshold_dict:
-        out.data[p.data > threshold_dict['fdr']] = np.nan
-    return out
 
 def fdr(p, q=.05):
     """ Determine FDR threshold given a p value array and desired false

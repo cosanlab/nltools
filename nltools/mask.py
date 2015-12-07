@@ -23,7 +23,7 @@ import numpy as np
 
 
 def create_sphere(coordinates, radius=5, mask=None):
-    """ generate a set of spheres in the brain mask space
+    """ generate a set of spheres in the brain mask space (Written by Sam Greydanus)
 
     Args:
         radius: vector of radius.  Will create multiple spheres if len(radius) > 1
