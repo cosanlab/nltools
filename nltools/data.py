@@ -18,6 +18,7 @@ import nibabel as nib
 from nltools.utils import get_resource_path, set_algorithm, get_anatomical
 from nltools.cross_validation import set_cv
 from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
+from nltools.stats import pearson
 from nilearn.input_data import NiftiMasker
 from nilearn.image import resample_img
 from nilearn.plotting.img_plotting import plot_epi, plot_roi, plot_stat_map
@@ -375,16 +376,15 @@ class Brain_Data(object):
 
         """
 
-        if not isinstance(self, Brain_Data):
-            raise ValueError('Make sure data is a Brain_Data instance')
-
-        if not isinstance(image, Brain_Data):
-            raise ValueError('Make sure image is a Brain_Data instance')
-
-        if self.shape()[1]!=image.shape()[0]:
-            print 'Warning: Different number of voxels detected.  Resampling image into data space.'
-
-            # raise ValueError('Data is a different number of voxels then the image.')
+        if isinstance(image, Brain_Data):
+            image = self.nifti_masker.fit_transform(image.to_nifti())
+        elif isinstance(image,nib.Nifti1Image):
+            image = self.nifti_masker.fit_transform(image)
+        elif type(image) is str:
+            if os.path.isfile(image):
+                image = nib.load(image)
+        else:
+            raise ValueError('Make sure image is a Brain_Data or nibabel instance')
 
         # Calculate pattern expression
         if method is 'dot_product':
@@ -669,3 +669,30 @@ class Brain_Data(object):
             masked.data = masked.data.squeeze()
         masked.nifti_masker = nifti_masker
         return masked
+
+def threshold(stat, p, threshold_dict={'unc':.001}):
+    """ Calculate one sample t-test across each voxel (two-sided)
+
+    Args:
+        stat: Brain_Data instance of arbitrary statistic metric (e.g., beta, t, etc)
+        p: Brain_data instance of p-values
+        threshold_dict: a dictionary of threshold parameters {'unc':.001} or {'fdr':.05}
+ 
+    Returns:
+        out: Thresholded Brain_Data instance
+    
+    """
+ 
+    if not isinstance(stat, Brain_Data):
+        raise ValueError('Make sure stat is a Brain_Data instance')
+        
+    if not isinstance(p, Brain_Data):
+        raise ValueError('Make sure p is a Brain_Data instance')
+
+    out = deepcopy(stat)
+    if 'unc' in threshold_dict:
+        out.data[p.data > threshold_dict['unc']] = np.nan
+    elif 'fdr' in threshold_dict:
+        out.data[p.data > threshold_dict['fdr']] = np.nan
+    return out
+
