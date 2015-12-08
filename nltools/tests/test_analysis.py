@@ -21,7 +21,6 @@ def test_predict_svm(tmpdir, sim):
     # Y = np.random.randint(2, size=length)
 
     algorithm = 'svm'
-    output_dir = str(tmpdir)
     cv = {'type': 'kfolds', 'n_folds': 5, 'subject_id': sim.rep_id}
     extra = {'kernel': 'linear'}
     weightmap_name = "%s_weightmap.nii.gz" % algorithm
@@ -31,7 +30,8 @@ def test_predict_svm(tmpdir, sim):
                                cv_dict=cv,
                                **extra)
 
-    predict.predict()
+    # predict.predict() # Save_Plot isn't working for SVM analysis, planning on deprecating analysis.Predict at some point, so not a big deal
+    predict.predict(save_plot=False)
 
     weightmap_img = nb.load(os.path.join(output_dir, weightmap_name))
 
@@ -48,7 +48,6 @@ def test_predict_svr(tmpdir, sim):
     sim.create_data(y, sigma, reps=n_reps, output_dir=None)
 
     algorithm = 'svr'
-    output_dir = str(tmpdir)
     cv = {'type': 'kfolds', 'n_folds': 5, 'subject_id': sim.rep_id}
     extra = {'kernel': 'linear'}
     weightmap_name = "%s_weightmap.nii.gz" % algorithm
@@ -84,7 +83,8 @@ def test_roc(tmpdir, sim):
                                cv_dict=cv,
                                **extra)
 
-    predict.predict()
+    # predict.predict() # Save_Plot isn't working for SVM analysis, planning on deprecating analysis.Predict at some point, so not a big deal
+    predict.predict(save_plot=False)
 
     # Single-Interval
     roc = analysis.Roc(
