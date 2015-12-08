@@ -29,8 +29,8 @@ class KFoldSubject(_BaseKFold):
     
     """
 
-    def __init__(self, n, labels, n_folds=3, indices=None, shuffle=False, random_state=None):
-        super(KFoldSubject, self).__init__(n, n_folds, indices, shuffle, random_state)
+    def __init__(self, n, labels, n_folds=3, shuffle=False, random_state=None):
+        super(KFoldSubject, self).__init__(n, n_folds, shuffle, random_state)
         self.idxs = np.arange(n)
         self.labels = np.array(labels, copy=True)
         self.n_subs = len(np.unique(self.labels))
@@ -87,8 +87,8 @@ class KFoldStratified(_BaseKFold):
     
     """
 
-    def __init__(self, y, n_folds=5, indices=None, shuffle=False, random_state=None):
-        super(KFoldStratified, self).__init__(len(y), n_folds, indices, shuffle, random_state)
+    def __init__(self, y, n_folds=5, shuffle=False, random_state=None):
+        super(KFoldStratified, self).__init__(len(y), n_folds, shuffle, random_state)
         self.y = y
         self.idxs = np.arange(len(y))
         self.sort_indx = self.y.argsort()
