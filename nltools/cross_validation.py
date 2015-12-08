@@ -9,7 +9,7 @@
     License: MIT
 '''
 
-__all__ = ['KFoldSubject','KFoldStratified']
+__all__ = ['KFoldSubject','KFoldStratified','LeaveOneSubjectOut']
 
 from sklearn.cross_validation import _BaseKFold
 import numpy as np
@@ -81,7 +81,7 @@ class KFoldStratified(_BaseKFold):
     dataset into k consecutive folds while ensuring that same subject is held
     out within each fold 
     Each fold is then used a validation set once while the k - 1 remaining
-    fold form the training set.
+    folds form the training set.
     Extension of KFold from scikit-learn cross_validation model
     
     Args:
@@ -124,6 +124,52 @@ class KFoldStratified(_BaseKFold):
     def __len__(self):
         return self.n_folds
 
+class LeaveOneSubjectOut(_BaseKFold):
+    """LOSO cross validation iterator which holds out same subjects.
+
+    Provides train/test indices to split data in train test sets. Split
+    dataset into n_subject consecutive folds
+    Each fold is then used a validation set once while the n_subject - 1 remaining
+    folds form the training set.
+    Extension of KFold from scikit-learn cross_validation model
+
+    Args:
+        labels: vector of length Y indicating subject IDs
+        shuffle: boolean, optional
+            Whether to shuffle the data before splitting into batches.
+        random_state: None, int or RandomState
+            Pseudo-random number generator state used for random
+            sampling. If None, use default numpy RNG for shuffling
+
+    """
+
+    def __init__(self, n, labels, shuffle=False, random_state=None):
+        super(LeaveOneSubjectOut, self).__init__(n, len(np.unique(labels)), shuffle, random_state)
+        self.idxs = np.arange(len(labels))
+        self.labels = np.array(labels, copy=True)
+        self.n_subs = len(np.unique(self.labels))
+        if shuffle:
+            rng = check_random_state(self.random_state)
+            rng.shuffle(self.idxs)
+
+    def _iter_test_indices(self):
+        for d in np.unique(self.labels):
+            idx = np.in1d(self.labels,d)
+            yield self.idxs[np.where(idx)[0]]
+
+    def __repr__(self):
+        return '%s.%s(n=%i, n_subs=%i, shuffle=%s, random_state=%s)' % (
+            self.__class__.__module__,
+            self.__class__.__name__,
+            self.n,
+            self.n_subs,
+            self.shuffle,
+            self.random_state,
+        )
+
+    def __len__(self):
+        return self.n_subs
+
 def set_cv(cv_dict):
     """ Helper function to create a sci-kit learn compatible cv object using common parameters for prediction analyses.
 
@@ -154,8 +200,8 @@ def set_cv(cv_dict):
                 cv = KFold(n_folds=cv_dict['n_folds'])
         elif cv_dict['type'] == 'loso':
             # Leave One Subject Out
-            from sklearn.cross_validation import LeaveOneLabelOut
-            cv = LeaveOneLabelOut(labels=cv_dict['subject_id'])
+            from nltools.cross_validation import LeaveOneSubjectOut
+            cv = LeaveOneSubjectOut(labels=cv_dict['subject_id'])
         else:
             raise ValueError("""Make sure you specify a dictionary of
             {'type': 'kfolds', 'n_folds': n},
