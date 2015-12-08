@@ -19,5 +19,7 @@ Python toolbox for analyzing neuroimaging data.  It is based off of Tor Wager's 
 
 <h3>Documentation</h3>
 <p>
-Current Documentation can be found at <a href=http://neurolearn.readthedocs.org/en/latest/>readthedocs</a>.  Please see the ipython notebook for a <a href=https://github.com/ljchang/neurolearn/blob/master/scripts/Chang_ML_fMRI_Tutorial.ipynb>tutorial</a> of using each of the main functions.
+Current Documentation can be found at <a href=http://neurolearn.readthedocs.org/en/latest/>readthedocs</a>.  Please see the ipython notebook examples for walkthroughs of how to use most of the toolbox.
+<br><br>
+Here is a <a href=https://github.com/ljchang/neurolearn/blob/master/scripts/NLTools_Brain_Data_Class_Tutorial.ipynb>notebook</a> with a detailed overview of how to use the main Brain_Data class.  We also have a <a href=https://github.com/ljchang/neurolearn/blob/master/scripts/Chang_ML_fMRI_Tutorial.ipynb>notebook</a> containing other analysis methods such as prediction and ROI curves (note it is now recommended to use the prediction Brain_Data method).
 </p>
