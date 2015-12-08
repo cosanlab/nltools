@@ -5,7 +5,7 @@ import pandas as pd
 import glob
 from nltools.simulator import Simulator
 from nltools.data import Brain_Data
-from nltools.stats import threshold
+from nltools.data import threshold
 
 def test_data(tmpdir):
     sim = Simulator()

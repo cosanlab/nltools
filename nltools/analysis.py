@@ -30,7 +30,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
 from nltools.stats import pearson
-from nltools.utils import get_resource_path, set_algorithm
+from nltools.utils import get_resource_path
 from nltools.cross_validation import set_cv
 from scipy.stats import norm, binom_test
 from sklearn.metrics import auc
@@ -110,10 +110,11 @@ class Predict(object):
 
         """
 
-        if algorithm is not None:
-            self.set_algorithm(algorithm, **kwargs)
-        else:
-            raise ValueError("Make sure you specify an 'algorithm' to use.")
+        if not hasattr(self,'algorithm'):
+            if algorithm is not None:
+                self.set_algorithm(algorithm, **kwargs)
+            else:
+                raise ValueError("Make sure you specify an 'algorithm' to use.")
 
         # Overall Fit for weight map
         predictor = self.predictor
@@ -197,6 +198,8 @@ class Predict(object):
             object.
         """
 
+        # There is a newer version of this function in utils, but leaving for now as this is pretty deeply embedded in the object
+
         self.algorithm = algorithm
 
         def load_class(import_string):
@@ -250,41 +253,6 @@ class Predict(object):
                 options are 'svm','svr', 'linear', 'logistic', 'lasso', 'lassopcr',
                 'lassoCV','ridge','ridgeCV','ridgeClassifier', 'randomforest', or
                 'randomforestClassifier'.""")
-            
-    def set_cv(self, cv_dict):
-        """ Set the CV algorithm to use in subsequent prediction analyses.
-        Args:
-            cv_dict: Type of cross_validation to use. A dictionary of
-                {'type': 'kfolds', 'n_folds': n},
-                {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
-                {'type': 'loso'', 'subject_id': holdout},
-         """
-
-        if 'subject_id' in cv_dict:
-            self.subject_id = np.array(cv_dict['subject_id'])
-
-        if type(cv_dict) is dict:
-            if cv_dict['type'] == 'kfolds':
-                if 'subject_id' in cv_dict:
-                    # Hold out subjects within each fold
-                    from  nltools.cross_validation import KFoldSubject
-                    self.cv = KFoldSubject(len(self.Y), cv_dict['subject_id'], n_folds=cv_dict['n_folds'])
-                else:
-                    # Normal Stratified K-Folds
-                    from  nltools.cross_validation import KFoldStratified
-                    self.cv = KFoldStratified(self.Y, n_folds=cv_dict['n_folds'])
-            elif cv_dict['type'] == 'loso':
-                # Leave One Subject Out
-                from sklearn.cross_validation import LeaveOneLabelOut
-                self.cv = LeaveOneLabelOut(labels=cv_dict['subject_id'])
-            else:
-                raise ValueError("""Make sure you specify a dictionary of
-                {'type': 'kfolds', 'n_folds': n},
-                {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
-                {'type': 'loso'', 'subject_id': holdout},
-                where n = number of folds, and subject = vector of subject ids that corresponds to self.Y""")
-        else:
-            raise ValueError("Make sure 'cv_dict' is a dictionary.")
 
     def _save_image(self, predictor):
         """ Write out weight map to Nifti image.
