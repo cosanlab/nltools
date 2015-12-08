@@ -1,4 +1,14 @@
 
+'''
+    Cross-Validation Data Classes
+    =============================
+    Scikit-learn compatible classes for performing various 
+    types of cross-validation
+
+    Author: Luke Chang
+    License: MIT
+'''
+
 __all__ = ['KFoldSubject','KFoldStratified']
 
 from sklearn.cross_validation import _BaseKFold
