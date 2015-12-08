@@ -135,7 +135,7 @@ class Predict(object):
         dist_from_hyperplane_xval = None
 
         if hasattr(self, 'cv'):
-            predicter_cv = self.predictor
+            predictor_cv = self.predictor
             self.yfit_xval = self.yfit_all.copy()
             if self.prediction_type == 'classification':
                 if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
@@ -146,15 +146,15 @@ class Predict(object):
                         self.prob_xval = np.zeros(len(self.Y))
 
             for train, test in self.cv:
-                predicter_cv.fit(self.data[train], self.Y[train])
-                self.yfit_xval[test] = predicter_cv.predict(self.data[test])
+                predictor_cv.fit(self.data[train], self.Y[train])
+                self.yfit_xval[test] = predictor_cv.predict(self.data[test])
                 if self.prediction_type == 'classification':
                     if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
-                        self.prob_xval[test] = predicter_cv.predict_proba(self.data[test])
+                        self.prob_xval[test] = predictor_cv.predict_proba(self.data[test])
                     else:
-                        dist_from_hyperplane_xval[test] = predicter_cv.decision_function(self.data[test])
+                        dist_from_hyperplane_xval[test] = predictor_cv.decision_function(self.data[test])
                         if self.algorithm == 'svm' and self.predictor.probability:
-                            self.prob_xval[test] = predicter_cv.predict_proba(self.data[test])
+                            self.prob_xval[test] = predictor_cv.predict_proba(self.data[test])
 
         # Save Outputs
         if save_images:
@@ -165,7 +165,7 @@ class Predict(object):
 
         if save_plot:
             if hasattr(self, 'cv'):
-                self._save_plot(predicter_cv)
+                self._save_plot(predictor_cv)
             else:
                 self._save_plot(predictor)
 
@@ -298,8 +298,8 @@ class Predict(object):
         if hasattr(self, 'cv'):
             self.stats_output['yfit_xval'] = self.yfit_xval
 
-            if hasattr(self, 'subject_id'):
-                self.stats_output['subject_id'] = self.subject_id
+        if hasattr(self, 'subject_id'):
+            self.stats_output['subject_id'] = self.subject_id
 
         if self.prediction_type == 'classification':
             if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
