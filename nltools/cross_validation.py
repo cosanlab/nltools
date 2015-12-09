@@ -201,7 +201,7 @@ def set_cv(cv_dict):
         elif cv_dict['type'] == 'loso':
             # Leave One Subject Out
             from nltools.cross_validation import LeaveOneSubjectOut
-            cv = LeaveOneSubjectOut(labels=cv_dict['subject_id'])
+            cv = LeaveOneSubjectOut(len(cv_dict['subject_id']), labels=cv_dict['subject_id'])
         else:
             raise ValueError("""Make sure you specify a dictionary of
             {'type': 'kfolds', 'n_folds': n},
