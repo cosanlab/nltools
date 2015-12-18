@@ -38,7 +38,7 @@ class Brain_Data(object):
 
         Args:
             data: nibabel data instance or list of files
-            Y: vector of training labels
+            Y: Pandas DataFrame of training labels
             X: Pandas DataFrame Design Matrix for running univariate models 
             mask: binary nifiti file to mask brain data
             output_file: Name to write out to nifti file
@@ -80,17 +80,15 @@ class Brain_Data(object):
         if Y is not None:
             if type(Y) is str:
                 if os.path.isfile(Y):
-                    Y=np.array(pd.read_csv(Y,header=None,index_col=None))
-            elif type(Y) is list:
-                Y=np.array(Y)
-            if self.data.shape[0]!= len(Y):
-                raise ValueError("Y does not match the correct size of data")
-            if 1 in Y.shape:
-                self.Y = np.array(Y).flatten()
-            else:
+                    Y=pd.read_csv(Y,header=None,index_col=None)
+            if isinstance(Y,pd.DataFrame):
+                if self.data.shape[0]!= len(Y):
+                    raise ValueError("Y does not match the correct size of data")
                 self.Y = Y
+            else:
+                raise ValueError("Make sure Y is a pandas data frame.")
         else:
-            self.Y = []
+            self.Y = pd.DataFrame()
 
         if X is not None:
             if self.data.shape[0]!= X.shape[0]:
@@ -109,7 +107,7 @@ class Brain_Data(object):
             self.__class__.__module__,
             self.__class__.__name__,
             self.shape(),
-            self.Y.shape if self.Y else self.Y,
+            len(self.Y),
             self.X.shape,
             os.path.basename(self.mask.get_filename()),
             self.file_name
@@ -122,8 +120,8 @@ class Brain_Data(object):
         else:
             new.data = np.array(self.data[index,:])           
         if self.Y:
-            if self.Y.size:
-                new.Y = self.Y[index]
+            if not self.Y.empty:
+                new.Y = self.Y.loc[index]
         if self.X.size:
             if isinstance(self.X,pd.DataFrame):
                 new.X = self.X.iloc[index]
@@ -329,7 +327,7 @@ class Brain_Data(object):
 
             out.data = np.vstack([self.data,data.data])
             if out.Y.size:
-                out.Y = np.vstack([self.Y, data.Y])
+                out.Y = self.Y.append(data.Y)
             if self.X.size:
                 if isinstance(self.X,pd.DataFrame):
                     out.X = self.X.append(data.X)
@@ -496,7 +494,7 @@ class Brain_Data(object):
                         output['prob_xval'] = np.zeros(len(self.Y))
 
             for train, test in output['cv']:
-                predictor_cv.fit(self.data[train], self.Y[train])
+                predictor_cv.fit(self.data[train], self.Y.loc[train])
                 output['yfit_xval'][test] = predictor_cv.predict(self.data[test])
                 if predictor_settings['prediction_type'] == 'classification':
                     if predictor_settings['algorithm'] not in ['svm','ridgeClassifier','ridgeClassifierCV']:
