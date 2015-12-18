@@ -72,6 +72,11 @@ class Brain_Data(object):
         self.nifti_masker = NiftiMasker(mask_img=self.mask)
         self.data = self.nifti_masker.fit_transform(data)
 
+
+        # Collapse any extra dimension
+        if any([x==1 for x in self.data.shape]):
+            self.data=self.data.squeeze()
+
         if Y is not None:
             if type(Y) is str:
                 if os.path.isfile(Y):
@@ -368,7 +373,7 @@ class Brain_Data(object):
         
         return boolean
 
-    def similarity(self, image=None, method='correlation'):
+    def similarity(self, image, method='correlation'):
         """ Calculate similarity of Brain_Data() instance with single Brain_Data or Nibabel image
 
             Args:
@@ -398,11 +403,24 @@ class Brain_Data(object):
             data2 = self.data
             image2 = image.data
 
+
         # Calculate pattern expression
         if method is 'dot_product':
-            pexp = np.dot(data2, image2)
+            if (len(self.shape()) > 1 & (self.shape()[0]>1)):
+                pexp = []
+                for i in range(self.shape()[0]):
+                    pexp.append(np.dot(data2, image2[i]))
+                pexp = np.array(pexp)
+            else:
+                pexp = np.dot(data2, image2)
         elif method is 'correlation':
-            pexp = pearson(data2, image2)
+            if (len(self.shape()) > 1 & (self.shape()[0]>1)):
+                pexp = []
+                for i in range(self.shape()[0]):
+                    pexp.append(pearson(data2, image2[i]))
+                pexp = np.array(pexp)
+            else:
+                pexp = pearson(data2, image2)
         return pexp
 
     def predict(self, algorithm=None, cv_dict=None, plot=True, **kwargs):
