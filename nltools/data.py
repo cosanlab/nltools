@@ -104,7 +104,7 @@ class Brain_Data(object):
             self.__class__.__module__,
             self.__class__.__name__,
             self.shape(),
-            self.Y.shape,
+            self.Y.shape if self.Y else self.Y,
             self.X.shape,
             os.path.basename(self.mask.get_filename()),
             self.file_name
@@ -116,8 +116,9 @@ class Brain_Data(object):
             new.data = np.array(self.data[index,:]).flatten()
         else:
             new.data = np.array(self.data[index,:])           
-        if self.Y.size:
-            new.Y = self.Y[index]
+        if self.Y:
+            if self.Y.size:
+                new.Y = self.Y[index]
         if self.X.size:
             if isinstance(self.X,pd.DataFrame):
                 new.X = self.X.iloc[index]
