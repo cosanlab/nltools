@@ -81,7 +81,7 @@ class Brain_Data(object):
             if type(Y) is str:
                 if os.path.isfile(Y):
                     Y=pd.read_csv(Y,header=None,index_col=None)
-            if isinstance(Y,pd.DataFrame):
+            if isinstance(Y, pd.DataFrame):
                 if self.data.shape[0]!= len(Y):
                     raise ValueError("Y does not match the correct size of data")
                 self.Y = Y
@@ -119,9 +119,8 @@ class Brain_Data(object):
             new.data = np.array(self.data[index,:]).flatten()
         else:
             new.data = np.array(self.data[index,:])           
-        if self.Y:
-            if not self.Y.empty:
-                new.Y = self.Y.loc[index]
+        if not self.Y.empty:
+            new.Y = self.Y.loc[index]
         if self.X.size:
             if isinstance(self.X,pd.DataFrame):
                 new.X = self.X.iloc[index]
@@ -344,7 +343,7 @@ class Brain_Data(object):
         if data:
             tmp.data = np.array([])
         if Y:
-            tmp.Y = np.array([])
+            tmp.Y = pd.DataFrame()
         if X:
             tmp.X = np.array([])
         # tmp.data = np.array([]).reshape(0,n_voxels)
@@ -404,19 +403,25 @@ class Brain_Data(object):
 
         # Calculate pattern expression
         if method is 'dot_product':
-            if image2.shape[0]>1:
-                pexp = []
-                for i in range(image2.shape[0]):
-                    pexp.append(np.dot(data2, image2[i,:]))
-                pexp = np.array(pexp)
+            if len(image2.shape) > 1:
+                if image2.shape[0]>1:
+                    pexp = []
+                    for i in range(image2.shape[0]):
+                        pexp.append(np.dot(data2, image2[i,:]))
+                    pexp = np.array(pexp)
+                else:
+                    pexp = np.dot(data2, image2)
             else:
                 pexp = np.dot(data2, image2)
         elif method is 'correlation':
-            if image2.shape[0]>1:
-                pexp = []
-                for i in range(image2.shape[0]):
-                    pexp.append(pearson(image2[i,:], data2))
-                pexp = np.array(pexp)
+            if len(image2.shape) > 1:
+                if image2.shape[0]>1:
+                    pexp = []
+                    for i in range(image2.shape[0]):
+                        pexp.append(pearson(image2[i,:], data2))
+                    pexp = np.array(pexp)
+                else:
+                    pexp = pearson(image2, data2)
             else:
                 pexp = pearson(image2, data2)
         return pexp
@@ -451,11 +456,11 @@ class Brain_Data(object):
 
         # Initialize output dictionary
         output = {}
-        output['Y'] = self.Y
+        output['Y'] = np.array(self.Y).flatten()
         
         # Overall Fit for weight map
         predictor = predictor_settings['predictor']
-        predictor.fit(self.data, self.Y)
+        predictor.fit(self.data, output['Y'])
         output['yfit_all'] = predictor.predict(self.data)
         if predictor_settings['prediction_type'] == 'classification':
             if predictor_settings['algorithm'] not in ['svm','ridgeClassifier','ridgeClassifierCV']:
@@ -468,7 +473,7 @@ class Brain_Data(object):
         output['intercept'] = predictor.intercept_
 
         # Weight map
-        output['weight_map'] = deepcopy(self)
+        output['weight_map'] = self.empty()
         if predictor_settings['algorithm'] == 'lassopcr':
             output['weight_map'].data = np.dot(predictor_settings['_pca'].components_.T,predictor_settings['_lasso'].coef_)
         elif predictor_settings['algorithm'] == 'pcr':
@@ -522,13 +527,13 @@ class Brain_Data(object):
                 output['mcr_xval'] = np.mean(output['yfit_xval']==self.Y)
                 print 'overall CV accuracy: %.2f' % output['mcr_xval']
         elif predictor_settings['prediction_type'] == 'prediction':
-            output['rmse_all'] = np.sqrt(np.mean((output['yfit_all']-self.Y)**2))
-            output['r_all'] = np.corrcoef(self.Y,output['yfit_all'])[0,1]
+            output['rmse_all'] = np.sqrt(np.mean((output['yfit_all']-output['Y'])**2))
+            output['r_all'] = np.corrcoef(output['Y'],output['yfit_all'])[0,1]
             print 'overall Root Mean Squared Error: %.2f' % output['rmse_all']
             print 'overall Correlation: %.2f' % output['r_all']
             if cv_dict is not None:
-                output['rmse_xval'] = np.sqrt(np.mean((output['yfit_xval']-self.Y)**2))
-                output['r_xval'] = np.corrcoef(self.Y,output['yfit_xval'])[0,1]
+                output['rmse_xval'] = np.sqrt(np.mean((output['yfit_xval']-output['Y'])**2))
+                output['r_xval'] = np.corrcoef(output['Y'],output['yfit_xval'])[0,1]
                 print 'overall CV Root Mean Squared Error: %.2f' % output['rmse_xval']
                 print 'overall CV Correlation: %.2f' % output['r_xval']
 
