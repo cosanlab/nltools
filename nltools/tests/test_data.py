@@ -18,8 +18,7 @@ def test_data(tmpdir):
 
     shape_3d = (91, 109, 91)
     shape_2d = (6, 238955)
-    y=pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))),header=None,index_col=None)
-    y=np.array(y)[0]
+    y=pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))),header=None,index_col=None).T
     flist = glob.glob(str(tmpdir.join('centered*.nii.gz')))
     dat = Brain_Data(data=flist,Y=y)
 
@@ -41,7 +40,7 @@ def test_data(tmpdir):
     assert out['t'].shape()[0]==shape_2d[1]
 
     # Test Regress
-    dat.X = pd.DataFrame({'Intercept':np.ones(len(dat.Y)),'X1':dat.Y},index=None)
+    dat.X = pd.DataFrame({'Intercept':np.ones(len(dat.Y)),'X1':np.array(dat.Y).flatten()},index=None)
     out = dat.regress()
     assert out['beta'].shape() == (2,shape_2d[1])
 

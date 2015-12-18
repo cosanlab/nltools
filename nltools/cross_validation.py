@@ -14,6 +14,7 @@ __all__ = ['KFoldSubject','KFoldStratified','LeaveOneSubjectOut']
 from sklearn.cross_validation import _BaseKFold
 import numpy as np
 import random
+import pandas as pd
 
 class KFoldSubject(_BaseKFold):
     """K-Folds cross validation iterator which holds out same subjects.
@@ -193,11 +194,14 @@ def set_cv(cv_dict):
             elif 'stratified' in cv_dict:
                 # Stratified K-Folds
                 from  nltools.cross_validation import KFoldStratified
+                if isinstance(cv_dict['stratified'],pd.DataFrame):
+                    # need to pass numpy array not pandas
+                    cv_dict['stratified'] = np.array(cv_dict['stratified']).flatten()
                 cv = KFoldStratified(cv_dict['stratified'], n_folds=cv_dict['n_folds'])
             else:
                 # Normal K-Folds
                 from sklearn.cross_validation import KFold
-                cv = KFold(n_folds=cv_dict['n_folds'])
+                cv = KFold(n=cv_dict['n'], n_folds=cv_dict['n_folds'])
         elif cv_dict['type'] == 'loso':
             # Leave One Subject Out
             from nltools.cross_validation import LeaveOneSubjectOut
