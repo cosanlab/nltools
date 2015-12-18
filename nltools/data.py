@@ -406,21 +406,21 @@ class Brain_Data(object):
 
         # Calculate pattern expression
         if method is 'dot_product':
-            if (len(self.shape()) > 1 & (self.shape()[0]>1)):
+            if image2.shape[0]>1:
                 pexp = []
-                for i in range(self.shape()[0]):
-                    pexp.append(np.dot(data2, image2[i]))
+                for i in range(image2.shape[0]):
+                    pexp.append(np.dot(data2, image2[i,:]))
                 pexp = np.array(pexp)
             else:
                 pexp = np.dot(data2, image2)
         elif method is 'correlation':
-            if (len(self.shape()) > 1 & (self.shape()[0]>1)):
+            if image2.shape[0]>1:
                 pexp = []
-                for i in range(self.shape()[0]):
-                    pexp.append(pearson(data2, image2[i]))
+                for i in range(image2.shape[0]):
+                    pexp.append(pearson(image2[i,:], data2))
                 pexp = np.array(pexp)
             else:
-                pexp = pearson(data2, image2)
+                pexp = pearson(image2, data2)
         return pexp
 
     def predict(self, algorithm=None, cv_dict=None, plot=True, **kwargs):
