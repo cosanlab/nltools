@@ -3,6 +3,7 @@
 __all__ = ['pearson', 'zscore', 'fdr']
 
 import numpy as np
+import pandas as pd
 from scipy.stats import ss
 from copy import deepcopy
 
