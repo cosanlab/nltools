@@ -728,7 +728,7 @@ class Brain_Data(object):
         # make pbs job submission scripts (pbs)
         for core_i in range(ncores):
             script_name = "core_pbs_script_" + str(core_i) + ".pbs"
-            parallel_job.write_pbs_scripts(script_name, core_i, ncores, walltime) # create a script
+            parallel_job.make_pbs_scripts(script_name, core_i, ncores, walltime) # create a script
             os.system("qsub " + script_name) # run it on a core
 
 def threshold(stat, p, threshold_dict={'unc':.001}):
