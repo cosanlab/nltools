@@ -711,7 +711,7 @@ class Brain_Data(object):
                   'cv_dict':cv_dict,\
                   'predict_kwargs':kwargs}
 
-        parallel_job = PBS_Job(X_dat, y_dat, core_out_dir=core_out_dir, brain_mask=None, process_mask=None, radius=radius, kwargs=kwargs)
+        parallel_job = PBS_Job(X_dat, y_dat, core_out_dir=None, brain_mask=None, process_mask=None, radius=radius, kwargs=kwargs)
 
         # make and store data we will need to access on the worker core level
         parallel_job.make_searchlight_masks()
