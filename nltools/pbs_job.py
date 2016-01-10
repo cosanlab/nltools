@@ -1,5 +1,4 @@
 # Sam Greydanus and Luke Chang 2015
-# Some code taken from nilearn searchlight implementation: https://github.com/nilearn/nilearn/blob/master/nilearn/decoding/searchlight.py
 
 import os
 
@@ -37,6 +36,7 @@ class PBS_Job:
         
         self.bdata = bdata
         self.y = np.array(y)
+        self.data_dir = os.path.join(os.getcwd(),'/resources')
 
         #set up core_out_dir
         if core_out_dir is None:
