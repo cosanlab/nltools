@@ -135,7 +135,7 @@ exit 0" )
         t0 = time.time()
         for i in range( runs_per_core ):
             tic = time.time()
-            searchlight_sphere = A[core_groups[core_i][i]][:].toarray() #1D vector
+            searchlight_sphere = self.A[core_groups[core_i][i]][:].toarray() #1D vector
             searchlight_mask = self.nifti_masker.inverse_transform( searchlight_sphere )
 
             #apply the Predict method
