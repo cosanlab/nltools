@@ -145,7 +145,7 @@ exit 0" )
             model = Predict(self.bdata, self.y, \
                     mask = searchlight_mask, \
                     algorithm=self.kwargs['algorithm'], \
-                    output_dir=core_out_dir, \
+                    output_dir=self.core_out_dir, \
                     cv_dict = self.kwargs['cv_dict'], \
                     **self.kwargs['predict_kwargs'])
             model.predict(save_plot=False)
