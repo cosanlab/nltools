@@ -700,7 +700,7 @@ class Brain_Data(object):
         raise NotImplementedError()
 
     def searchlight(self, ncores, output_dir=None, radius=3, walltime='24:00:00', \
-        email=None, algorithm='svr', cv_dict=None, kwargs=None,):
+        email=None, algorithm='svr', cv_dict=None, kwargs={},):
 
         X_dat = []
         for i in self:
