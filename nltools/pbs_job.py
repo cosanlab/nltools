@@ -8,7 +8,6 @@ import warnings
 from distutils.version import LooseVersion
 import random
 
-import cPickle 
 import numpy as np
 import matplotlib.pyplot as plt
 from nilearn import datasets
