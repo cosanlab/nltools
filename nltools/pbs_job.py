@@ -119,7 +119,7 @@ exit 0" )
 
         runs_per_core = len(core_groups[core_i])
         runs_total = self.A.shape[0]
-        self.errf("Started run_core", core_i = core_i, time = (time.time() - tic))
+        self.errf("Started run_core", core_i = core_i, dt=(time.time() - tic))
         Searchlight.errf("This core will be doing " + str(runs_per_core) + " runs out of " \
              + str(runs_total) + " total.", core_i=core_i, dt=(time.time() - tic))
 
@@ -131,7 +131,7 @@ exit 0" )
             r_file.seek(0), w_file.seek(0), p_file.seek(0)
             r_file.truncate(), w_file.truncate(), p_file.truncate()
 
-        self.errf("Begin main loop", core_i = core_i, time = (time.time() - tic))
+        self.errf("Begin main loop", core_i = core_i, dt=(time.time() - tic))
         t0 = time.time()
         for i in range( core_groups ):
             tic = time.time()
