@@ -704,7 +704,7 @@ class Brain_Data(object):
         X_dat = []
         for i in self:
             X_dat.append(i.to_nifti())
-        y_dat = np.array(dat.Y).flatten()
+        y_dat = np.array(self.Y).flatten()
         
         # new parallel job
         kwargs = {'algorithm':algorithm,\
