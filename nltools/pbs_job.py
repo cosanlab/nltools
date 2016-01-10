@@ -30,7 +30,6 @@ from nilearn import masking
 from nilearn.input_data import NiftiMasker
 
 from nltools.analysis import Predict
-from nltools.pbs_job import PBS_Job
 import glob
 
 class PBS_Job:
