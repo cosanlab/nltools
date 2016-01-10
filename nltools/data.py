@@ -31,6 +31,8 @@ import sklearn
 from sklearn.pipeline import Pipeline
 from nilearn.input_data import NiftiMasker
 
+from nltools.pbs_job import PBS_Job
+
 class Brain_Data(object):
 
     def __init__(self, data=None, Y=None, X=None, mask=None, output_file=None, resample=True, **kwargs):
@@ -705,8 +707,7 @@ class Brain_Data(object):
                   'cv_dict':cv_dict,\
                   'predict_kwargs':kwargs}
 
-        parallel_job = new PBS_Job(self.X, self.Y, core_out_dir=core_out_dir, brain_mask=None, \
-            process_mask=None, radius=radius, kwargs=kwargs)
+        #parallel_job = new PBS_Job(self.X, self.Y, core_out_dir=core_out_dir, brain_mask=None, process_mask=None, radius=radius, kwargs=kwargs)
 
         # make and store data we will need to access on the worker core level
         parallel_job.make_searchlight_masks()
