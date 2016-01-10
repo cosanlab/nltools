@@ -69,6 +69,7 @@ class PBS_Job:
         #set up other parameters
         self.radius = radius
         self.kwargs = kwargs
+        print self.kwargs
         self.nifti_masker = NiftiMasker(mask_img=self.brain_mask)
 
     def make_startup_script(self, fn):
