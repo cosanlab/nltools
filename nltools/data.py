@@ -697,6 +697,34 @@ class Brain_Data(object):
 
         raise NotImplementedError()
 
+    def searchlight(self, output_dir=core_out_dir, n_cores=1, radius=3, walltime='24:00:00', \
+        email=None, algorithm='svr', cv_dict=None, kwargs=None,):
+        
+        # new parallel job
+        kwargs = {'algorithm':algorithm,\
+                  'cv_dict':cv_dict,\
+                  'predict_kwargs':kwargs}
+
+        parallel_job = new PBS_Job(self.X, self.Y, core_out_dir=core_out_dir, brain_mask=None, \
+            process_mask=None, radius=radius, kwargs=kwargs)
+
+        # make and store data we will need to access on the worker core level
+        parallel_job.make_searchlight_masks()
+        cPickle.dump(parallel_job, open("pbs_searchlight.pkl", "w"))
+
+        #make core startup script (python)
+        parallel_job.make_startup_script("core_startup.py")
+        
+        # make email notification script (pbs)
+        if type(email) is str:
+            parallel_job.make_pbs_email_alert(email)
+
+        # make pbs job submission scripts (pbs)
+        for core_i in range(ncores):
+            script_name = "core_pbs_script_" + str(core_i) + ".pbs"
+            parallel_job.write_pbs_scripts(script_name, core_i, ncores, walltime) # create a script
+            os.system("qsub " + script_name) # run it on a core
+
 def threshold(stat, p, threshold_dict={'unc':.001}):
     """ Calculate one sample t-test across each voxel (two-sided)
 
