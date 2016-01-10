@@ -104,7 +104,7 @@ exit 0")
 # execute core-level code in same directory as head core \n\
 cd " + os.getcwd() + " \n\
 # run a startup python script \n\
-python icore_startup.py " + str(core_i) + " " + str(n_cores) + " \n\
+python core_startup.py " + str(core_i) + " " + str(ncores) + " \n\
 exit 0" )
 
     def run_core(self, core_i, ncores):
