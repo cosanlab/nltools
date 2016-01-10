@@ -133,7 +133,7 @@ exit 0" )
 
         self.errf("Begin main loop", core_i = core_i, dt=(time.time() - tic))
         t0 = time.time()
-        for i in range( core_groups ):
+        for i in range( runs_per_core ):
             tic = time.time()
             searchlight_sphere = A[core_groups[core_i][i]][:].toarray() #1D vector
             searchlight_mask = self.nifti_masker.inverse_transform( searchlight_sphere )
