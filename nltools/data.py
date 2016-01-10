@@ -707,6 +707,8 @@ class Brain_Data(object):
             X_dat.append(i.to_nifti())
         y_dat = np.array(self.Y).flatten()
         
+        kwargs['kernel']= 'linear'
+        
         # new parallel job
         pbs_kwargs = {'algorithm':algorithm,\
                   'cv_dict':cv_dict,\
