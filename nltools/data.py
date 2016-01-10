@@ -708,11 +708,11 @@ class Brain_Data(object):
         y_dat = np.array(self.Y).flatten()
         
         # new parallel job
-        kwargs = {'algorithm':algorithm,\
+        pbs_kwargs = {'algorithm':algorithm,\
                   'cv_dict':cv_dict,\
                   'predict_kwargs':kwargs}
 
-        parallel_job = PBS_Job(X_dat, y_dat, core_out_dir=None, brain_mask=None, process_mask=None, radius=radius, kwargs=kwargs)
+        parallel_job = PBS_Job(X_dat, y_dat, core_out_dir=None, brain_mask=None, process_mask=None, radius=radius, kwargs=pbs_kwargs)
 
         # make and store data we will need to access on the worker core level
         parallel_job.make_searchlight_masks()
