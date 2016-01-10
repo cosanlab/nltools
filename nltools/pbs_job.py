@@ -70,7 +70,7 @@ class PBS_Job:
         self.radius = radius
         self.nifti_masker = NiftiMasker(mask_img=self.brain_mask)
 
-    def make_startup_script(fn):
+    def make_startup_script(self, fn):
         with open(os.path.join(os.getcwd(), fn), "w") as f:
             f.write("from nltools.pbs_job import PBS_Job \n\
 import cPickle \n\
