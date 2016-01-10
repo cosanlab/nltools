@@ -1,4 +1,4 @@
-__all__ = [ 'data', 'analysis', 'cross_validation', 'plotting', 'stats', 'utils', 'searchlight', 'masks','__version__']
+__all__ = [ 'data', 'analysis', 'cross_validation', 'plotting', 'stats', 'utils', 'searchlight', 'pbs_job', 'masks','__version__']
 
 from analysis import Predict, Roc, apply_mask
 from cross_validation import set_cv
