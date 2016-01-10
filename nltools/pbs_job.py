@@ -120,7 +120,7 @@ exit 0" )
         runs_per_core = len(core_groups[core_i])
         runs_total = self.A.shape[0]
         self.errf("Started run_core", core_i = core_i, dt=(time.time() - tic))
-        Searchlight.errf("This core will be doing " + str(runs_per_core) + " runs out of " \
+        self.errf("This core will be doing " + str(runs_per_core) + " runs out of " \
              + str(runs_total) + " total.", core_i=core_i, dt=(time.time() - tic))
 
         #clear data in r_all and weights files, if any
@@ -328,7 +328,7 @@ exit 0" )
         if email_flag:
             os.system("qsub email_alert.pbs")
 
-        # os.system("rm pbs_searchlight.pickle")
+        # os.system("rm pbs_searchlight.pkl")
         print("Cleaning up...")
         os.system("rm email_alert*")
         os.system("rm *searchlight_* *div* *errf* *rate*")
