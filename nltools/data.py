@@ -13,6 +13,7 @@
 __all__ = ['Brain_Data']
 
 import os
+import cPickle 
 import nibabel as nib
 from nltools.utils import get_resource_path, set_algorithm, get_anatomical
 from nltools.cross_validation import set_cv
