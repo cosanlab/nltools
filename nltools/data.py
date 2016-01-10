@@ -699,7 +699,7 @@ class Brain_Data(object):
 
         raise NotImplementedError()
 
-    def searchlight(self, output_dir=None, n_cores=1, radius=3, walltime='24:00:00', \
+    def searchlight(self, output_dir=None, ncores=1, radius=3, walltime='24:00:00', \
         email=None, algorithm='svr', cv_dict=None, kwargs=None,):
 
         X_dat = []
