@@ -702,7 +702,7 @@ class Brain_Data(object):
         email=None, algorithm='svr', cv_dict=None, kwargs=None,):
 
         X_dat = []
-        for i in dat:
+        for i in self:
             X_dat.append(i.to_nifti())
         y_dat = np.array(dat.Y).flatten()
         
