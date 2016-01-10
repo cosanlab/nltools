@@ -30,6 +30,7 @@ from nilearn import masking
 from nilearn.input_data import NiftiMasker
 
 from nltools.analysis import Predict
+from nltools.pbs_job import PBS_Job
 import glob
 
 class PBS_Job:
@@ -150,7 +151,7 @@ exit 0" )
             model.predict(save_plot=False)
             
             #save r correlation values
-            with open(os.path.join(self.core_out_dir, "r_all" + str(core_i) + ".txt"), "a") f:
+            with open(os.path.join(self.core_out_dir, "r_all" + str(core_i) + ".txt"), "a") as f:
                 r = model.r_xval
                 if r != r: r=0.0
                 if i + 1 == runs_per_core:
@@ -319,6 +320,8 @@ exit 0" )
 
             #get data from combo file and convert it to a .nii file
             self.reconstruct(rf)
+        else:
+            print("ERROR: data not merged correctly (in directory: " + os.getcwd() + ")")
 
         print( "Finished reassembly (reassembled " + str(core_i) + " items)" )
 
@@ -348,5 +351,3 @@ exit 0" )
             rdata_3D = self.nifti_masker.inverse_transform( self.process_mask_1D )
             rdata_3D.to_filename(os.path.join(os.getcwd(),'rdata_3D.nii.gz')) #save nifti image
             # os.system("rm correlations.txt")
-        else:
-            print("ERROR: data not merged correctly (in directory: " + os.getcwd() + ")")
