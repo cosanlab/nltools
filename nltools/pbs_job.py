@@ -274,10 +274,11 @@ exit 0" )
         A = clf.fit(mask_coords).radius_neighbors_graph(process_mask_coords)
         del mask_coords, process_mask_coords, selected_3D, no_overlap
         
-        print("Built searchlight masks./nEach searchlight has on the order of " + str( sum(sum(A[0].toarray())) ) + " voxels")
+        print("Built searchlight masks.")
+        print("Each searchlight has on the order of " + str( sum(sum(A[0].toarray())) ) + " voxels")
 
         self.A = A.tolil()
-        self.process_mask_1D = self.process_mask_1D
+        self.process_mask_1D = process_mask_1D
             
     def clean_up(self, email_flag = True):
         #clear data in reassembled and weights files, if any
