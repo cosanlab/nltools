@@ -114,11 +114,11 @@ exit 0" )
         core_groups = [] #a list of lists of indices
         for i in range(0,ncores):
             start_i = i*self.A.shape[0] / ncores
-            stop_i = (i+1)*A.shape[0] / ncores
+            stop_i = (i+1)*self.A.shape[0] / ncores
             core_groups.append( range(start_i, stop_i) )
 
         runs_per_core = len(core_groups[core_i])
-        runs_total = A.shape[0]
+        runs_total = self.A.shape[0]
         self.errf("Started run_core", core_i = core_i, time = (time.time() - tic))
         Searchlight.errf("This core will be doing " + str(runs_per_core) + " runs out of " \
              + str(runs_total) + " total.", core_i=core_i, dt=(time.time() - tic))
