@@ -701,13 +701,18 @@ class Brain_Data(object):
 
     def searchlight(self, output_dir=None, n_cores=1, radius=3, walltime='24:00:00', \
         email=None, algorithm='svr', cv_dict=None, kwargs=None,):
+
+        X_dat = []
+        for i in dat:
+            X_dat.append(i.to_nifti())
+        y_dat = np.array(dat.Y).flatten()
         
         # new parallel job
         kwargs = {'algorithm':algorithm,\
                   'cv_dict':cv_dict,\
                   'predict_kwargs':kwargs}
 
-        #parallel_job = new PBS_Job(self.X, self.Y, core_out_dir=core_out_dir, brain_mask=None, process_mask=None, radius=radius, kwargs=kwargs)
+        parallel_job = new PBS_Job(X_dat, y_dat, core_out_dir=core_out_dir, brain_mask=None, process_mask=None, radius=radius, kwargs=kwargs)
 
         # make and store data we will need to access on the worker core level
         parallel_job.make_searchlight_masks()
