@@ -700,9 +700,10 @@ class Brain_Data(object):
         raise NotImplementedError()
 
     def searchlight(self, ncores, output_dir=None, radius=3, walltime='24:00:00', \
-        email=None, algorithm='svr', cv_dict=None, kwargs={},):
+        email=None, algorithm='svr', cv_dict=None, kwargs={}):
         
-        kwargs['kernel']= 'linear'
+        if len(kwargs) is 0:
+            kwargs['kernel']= 'linear'
         
         # new parallel job
         pbs_kwargs = {'algorithm':algorithm,\
