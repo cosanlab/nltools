@@ -724,9 +724,6 @@ class Brain_Data(object):
         if type(email) is str:
             parallel_job.make_pbs_email_alert(email)
 
-        #clear all the data files that this project will use
-        parallel_job.clear_files()
-
         # make pbs job submission scripts (pbs)
         for core_i in range(ncores):
             script_name = "core_pbs_script_" + str(core_i) + ".pbs"
