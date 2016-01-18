@@ -33,7 +33,6 @@ class PBS_Job:
     def __init__(self, data, core_out_dir = None, process_mask=None, radius=4, kwargs=None): #no scoring param
         
         self.data = data
-        self.y = np.array(y)
         self.data_dir = os.path.join(os.getcwd(), 'resources')
 
         #set up core_out_dir
