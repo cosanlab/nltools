@@ -21,7 +21,6 @@ from sklearn.externals.joblib import Parallel, delayed, cpu_count
 from sklearn import svm
 from sklearn.cross_validation import cross_val_score
 from sklearn.base import BaseEstimator
-from sklearn import neighbors
 from sklearn.svm import SVR
 
 from nilearn import masking
@@ -31,9 +30,9 @@ from nltools.analysis import Predict
 import glob
 
 class PBS_Job:
-    def __init__(self, bdata, y, core_out_dir = None, brain_mask=None, process_mask=None, radius=4, kwargs=None): #no scoring param
+    def __init__(self, data, core_out_dir = None, process_mask=None, radius=4, kwargs=None): #no scoring param
         
-        self.bdata = bdata
+        self.data = data
         self.y = np.array(y)
         self.data_dir = os.path.join(os.getcwd(), 'resources')
 
@@ -44,23 +43,12 @@ class PBS_Job:
         else:
             self.core_out_dir = core_out_dir
         
-        #set up brain_mask
-        if type(brain_mask) is str:
-            brain_mask = nib.load(brain_mask)
-        elif brain_mask is None:
-            brain_mask = nib.load(os.path.join(self.data_dir,'MNI152_T1_2mm_brain_mask_dil.nii.gz'))
-        elif type(brain_mask) is not nib.nifti1.Nifti1Image:
-            print(brain_mask)
-            print(type(brain_mask))
-            raise ValueError("brain_mask is not a nibabel instance")
-        self.brain_mask = brain_mask
-        
         #set up process_mask
         if type(process_mask) is str:
             process_mask = nib.load(process_mask)
         elif process_mask is None:
             process_mask = nib.load(os.path.join(self.data_dir,"FSL_RIns_thr0.nii.gz"))
-        elif type(brain_mask) is not nib.nifti1.Nifti1Image:
+        elif type(process_mask) is not nib.nifti1.Nifti1Image:
             print(process_mask)
             print(type(process_mask))
             raise ValueError("process_mask is not a nibabel instance")
@@ -69,8 +57,6 @@ class PBS_Job:
         #set up other parameters
         self.radius = radius
         self.kwargs = kwargs
-        print self.kwargs
-        self.nifti_masker = NiftiMasker(mask_img=self.brain_mask)
 
     def make_startup_script(self, fn):
         with open(os.path.join(os.getcwd(), fn), "w") as f:
@@ -140,19 +126,18 @@ exit 0" )
             searchlight_sphere = self.A[core_groups[core_i][i]][:].toarray() #1D vector
             searchlight_mask = self.nifti_masker.inverse_transform( searchlight_sphere )
 
-            #apply the Predict method
+            #select some data
+            data_sphere = self.data.apply_mask(searchlight_mask)
+            data_sphere.file_name = os.path.join( self.core_out_dir,'data_core_' + str(core_i) + '_run_' + str(i) )
 
-            model = Predict(self.bdata, self.y, \
-                    mask = searchlight_mask, \
-                    algorithm=self.kwargs['algorithm'], \
-                    output_dir=self.core_out_dir, \
-                    cv_dict = self.kwargs['cv_dict'], \
-                    **self.kwargs['predict_kwargs'])
-            model.predict(save_plot=False)
+            #apply the Predict method
+            output = data_sphere.predict(algorithm=self.kwargs['algorithm'], \
+                cv_dict=self.kwargs['cv_dict'], \
+                plot=False)
             
             #save r correlation values
             with open(os.path.join(self.core_out_dir, "r_all" + str(core_i) + ".txt"), "a") as f:
-                r = model.r_xval
+                r = output['r_xval']
                 if r != r: r=0.0
                 if i + 1 == runs_per_core:
                     f.write(str(r)) #if it's the last entry, don't add a comma at the end
@@ -162,12 +147,12 @@ exit 0" )
             #save weights
             with open(os.path.join(self.output_dir, "weights" + str(core_i) + ".txt"), "a") as f:
                 if i + 1 < runs_per_core:
-                    l = model.predictor.coef_.squeeze()
+                    l = output['weight_map_xval'].data
                     for j in range(len(l) - 1):
                         f.write(str(l[j]) + ',')
                     f.write( str(l[j]) +  "\n") #if it's the last entry, don't add a comma at the end
                 else:
-                    l = model.predictor.coef_.squeeze()
+                    l = output['weight_map_xval'].data
                     for j in range(len(l) - 1):
                         f.write(str(l[j]) + ',')
                     f.write( str(l[j])) #if it's the last entry, don't add a comma or a \n at the end
@@ -245,39 +230,38 @@ exit 0" )
                     + est + "\n")
         
     # helper function which finds the indices of each searchlight and returns a lil file
-    def make_searchlight_masks(self):
+    def make_searchlight_masks():
         # Compute world coordinates of all in-mask voxels.
         # Return indices as sparse matrix of 0's and 1's
         print("start get coords")
-        world_process_mask = self.nifti_masker.fit_transform(self.process_mask)
-        world_brain_mask = self.nifti_masker.fit_transform(self.brain_mask)
-        
+        world_process_mask = self.data.nifti_masker.fit_transform(self.process_mask)
+        world_brain_mask = self.data.nifti_masker.fit_transform(self.data.mask)
+
         process_mask_1D = world_brain_mask.copy()
         process_mask_1D[:,:] = 0
         no_overlap = np.where( world_process_mask * world_brain_mask > 0 ) #get the indices where at least one entry is 0
         process_mask_1D[no_overlap] = 1 #delete entries for which there is no overlap
-        
-        mask, mask_affine = masking._load_mask_img(self.brain_mask)
+
+        mask, mask_affine = masking._load_mask_img(self.data.mask)
         mask_coords = np.where(mask != 0)
         mc1 = np.reshape(mask_coords[0], (1, -1))
         mc2 = np.reshape(mask_coords[1], (1, -1))
         mc3 = np.reshape(mask_coords[2], (1, -1))
         mask_coords = np.concatenate((mc1.T,mc2.T, mc3.T), axis = 1)
-        
-        selected_3D = self.nifti_masker.inverse_transform( process_mask_1D )
+
+        selected_3D = self.data.nifti_masker.inverse_transform( process_mask_1D )
         process_mask_coords = np.where(selected_3D.get_data()[:,:,:,0] != 0)
         pmc1 = np.reshape(process_mask_coords[0], (1, -1))
         pmc2 = np.reshape(process_mask_coords[1], (1, -1))
         pmc3 = np.reshape(process_mask_coords[2], (1, -1))
         process_mask_coords = np.concatenate((pmc1.T,pmc2.T, pmc3.T), axis = 1)
-        
-        clf = neighbors.NearestNeighbors(radius = self.radius)
+
+        clf = neighbors.NearestNeighbors(radius = 3)
         A = clf.fit(mask_coords).radius_neighbors_graph(process_mask_coords)
         del mask_coords, process_mask_coords, selected_3D, no_overlap
-        
+
         print("Built searchlight masks.")
         print("Each searchlight has on the order of " + str( sum(sum(A[0].toarray())) ) + " voxels")
-
         self.A = A.tolil()
         self.process_mask_1D = process_mask_1D
             
@@ -349,6 +333,6 @@ exit 0" )
             self.process_mask_1D[0][coords] = rdata
 
             #transform rdata to 3D "correlation heat map" (nifti format)
-            rdata_3D = self.nifti_masker.inverse_transform( self.process_mask_1D )
+            rdata_3D = self.data.nifti_masker.inverse_transform( self.process_mask_1D )
             rdata_3D.to_filename(os.path.join(os.getcwd(),'rdata_3D.nii.gz')) #save nifti image
             # os.system("rm correlations.txt")
