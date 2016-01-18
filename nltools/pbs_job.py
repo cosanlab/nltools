@@ -110,6 +110,13 @@ exit 0" )
         self.errf("This core will be doing " + str(runs_per_core) + " runs out of " \
              + str(runs_total) + " total.", core_i=core_i, dt=(time.time() - tic))
 
+        #clear data in r_all and weight files
+        rf = os.path.join(self.core_out_dir, "r_all" + str(core_i) + '.txt') #correlation file
+        wf = os.path.join(self.core_out_dir, "weights" + str(core_i) + '.txt') # weight file
+        with open(rf, 'w') as r_file, open(wf, 'w') as w_file:
+            r_file.seek(0), w_file.seek(0)
+            r_file.truncate(), w_file.truncate()
+
         self.errf("Begin main loop", core_i = core_i, dt=(time.time() - tic))
         t0 = time.time()
         for i in range( runs_per_core ):
@@ -256,14 +263,10 @@ exit 0" )
         self.process_mask_1D = process_mask_1D
 
     def clear_files(self):
-        #clear data in r_all and weights files, if any
-        rf = os.path.join(self.core_out_dir, "r_all" + str(core_i) + '.txt') #correlation file
-        wf = os.path.join(self.core_out_dir, "weights" + str(core_i) + '.txt') # weight file
+        #clear data in progress file, if any
         pf = os.path.join(self.core_out_dir, "progress.txt") # progress file
-        with open(rf, 'w') as r_file, open(wf, 'w') as w_file, open(pf, 'w') as p_file:
-            r_file.seek(0), w_file.seek(0), p_file.seek(0)
-            r_file.truncate(), w_file.truncate(), p_file.truncate()
-            p_file.write("0") #0 cores have finished
+        with open(pf, 'w') as p_file:
+            p_file.seek(0); p_file.truncate(); p_file.write("0") #0 cores have finished
 
         #clear data in reassembled and weights files, if any
         rf = os.path.join(self.os.getcwd(), "correlations.txt") # correlation file (for combined nodes)
