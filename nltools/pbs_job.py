@@ -145,7 +145,7 @@ exit 0" )
                     f.write(str(r) + ",")
 
             #save weights
-            with open(os.path.join(self.output_dir, "weights" + str(core_i) + ".txt"), "a") as f:
+            with open(os.path.join(self.core_out_dir, "weights" + str(core_i) + ".txt"), "a") as f:
                 if i + 1 < runs_per_core:
                     l = output['weight_map_xval'].data
                     for j in range(len(l) - 1):
@@ -167,12 +167,12 @@ exit 0" )
                         f.write("") #clear the file
             
         # read the count of the number of cores that have finished
-        with open(os.path.join(self.output_dir,"progress.txt"), 'r') as f:
+        with open(os.path.join(self.core_out_dir,"progress.txt"), 'r') as f:
             cores_finished = f.readline()
 
         # if all cores are finished, run a clean up method
         # otherwise, increment number of finished cores and terminate process
-        with open(os.path.join(self.output_dir,"progress.txt"), 'w') as f:
+        with open(os.path.join(self.core_out_dir,"progress.txt"), 'w') as f:
             if (len(cores_finished) > 0):
                 f.write( str(int(cores_finished) + 1) )
                 if (int(cores_finished) + 2 >= ncores):
