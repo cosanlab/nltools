@@ -266,7 +266,9 @@ exit 0" )
         #clear data in progress file, if any
         pf = os.path.join(self.core_out_dir, "progress.txt") # progress file
         with open(pf, 'w') as p_file:
-            p_file.seek(0); p_file.truncate(); p_file.write("0") #0 cores have finished
+            p_file.seek(0)
+            p_file.truncate()
+            p_file.write("0") #0 cores have finished
 
         #clear data in reassembled and weights files, if any
         rf = os.path.join(self.os.getcwd(), "correlations.txt") # correlation file (for combined nodes)
