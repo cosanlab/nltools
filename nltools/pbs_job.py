@@ -132,7 +132,8 @@ exit 0" )
             #apply the Predict method
             output = data_sphere.predict(algorithm=self.kwargs['algorithm'], \
                 cv_dict=self.kwargs['cv_dict'], \
-                plot=False)
+                plot=False, \
+                **self.kwargs['predict_kwargs'])
             
             #save r correlation values
             with open(os.path.join(self.core_out_dir, "r_all" + str(core_i) + ".txt"), "a") as f:
