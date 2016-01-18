@@ -110,15 +110,6 @@ exit 0" )
         self.errf("This core will be doing " + str(runs_per_core) + " runs out of " \
              + str(runs_total) + " total.", core_i=core_i, dt=(time.time() - tic))
 
-        #clear data in r_all and weights files, if any
-        rf = os.path.join(self.core_out_dir, "r_all" + str(core_i) + '.txt') #correlation file
-        wf = os.path.join(self.core_out_dir, "weights" + str(core_i) + '.txt') # weight file
-        pf = os.path.join(self.core_out_dir, "progress.txt") # progress file
-        with open(rf, 'w') as r_file, open(wf, 'w') as w_file, open(pf, 'w') as p_file:
-            r_file.seek(0), w_file.seek(0), p_file.seek(0)
-            r_file.truncate(), w_file.truncate(), p_file.truncate()
-            p_file.write("0") #0 cores have finished
-
         self.errf("Begin main loop", core_i = core_i, dt=(time.time() - tic))
         t0 = time.time()
         for i in range( runs_per_core ):
@@ -263,17 +254,25 @@ exit 0" )
         print("Each searchlight has on the order of " + str( sum(sum(A[0].toarray())) ) + " voxels")
         self.A = A.tolil()
         self.process_mask_1D = process_mask_1D
-            
-    def clean_up(self, email_flag = True):
-        #clear data in reassembled and weights files, if any
 
-                #clear data in r_all and weights files, if any
+    def clear_files(self):
+        #clear data in r_all and weights files, if any
+        rf = os.path.join(self.core_out_dir, "r_all" + str(core_i) + '.txt') #correlation file
+        wf = os.path.join(self.core_out_dir, "weights" + str(core_i) + '.txt') # weight file
+        pf = os.path.join(self.core_out_dir, "progress.txt") # progress file
+        with open(rf, 'w') as r_file, open(wf, 'w') as w_file, open(pf, 'w') as p_file:
+            r_file.seek(0), w_file.seek(0), p_file.seek(0)
+            r_file.truncate(), w_file.truncate(), p_file.truncate()
+            p_file.write("0") #0 cores have finished
+
+        #clear data in reassembled and weights files, if any
         rf = os.path.join(self.os.getcwd(), "correlations.txt") # correlation file (for combined nodes)
         wf = os.path.join(self.os.getcwd(), "weights.txt") # weight file (for combined nodes)
         with open(rf, 'w') as r_combo, open(wf, 'w') as w_combo:
             r_combo.seek(0), w_combo.seek(0)
             r_combo.truncate(), w_combo.truncate()
-
+            
+    def clean_up(self, email_flag = True):
         #get name and location of each core's correlation, weights file
         core_i = 0
         r_prefix, w_prefix, = "r_all", "weights"
