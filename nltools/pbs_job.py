@@ -159,7 +159,7 @@ exit 0" )
 
             #periodically update estimate of processing rate
             if i%7 == 0:
-                self.estimate_rate(core_i, (time.time() - t0), i + 1, core_groups)
+                self.estimate_rate(core_i, (time.time() - t0), i + 1, runs_per_core)
                 #every so often, clear the file
                 if i%21 == 0 and core_i == 0:
                     ratef = os.path.join(os.getcwd(),"rate.txt")
@@ -189,8 +189,8 @@ exit 0" )
                 if dt is not None:
                     f.write("       ->Time: " + str(dt) + " seconds")
 
-    def get_t_remaining(self, rate, jobs, core_groups):
-        t = int(rate*(core_groups-jobs))
+    def get_t_remaining(self, rate, jobs, runs_per_core):
+        t = int(rate*(runs_per_core-jobs))
         t_day = t / (60*60*24)
         t -= t_day*60*60*24
         t_hr = t / (60*60)
@@ -200,7 +200,7 @@ exit 0" )
         t_sec = t
         return str(t_day) + "d" + str(t_hr) + "h" + str(t_min) + "m" + str(t_sec) + "s"
 
-    def estimate_rate(self, core, tdif, jobs, core_groups):
+    def estimate_rate(self, core, tdif, jobs, runs_per_core):
         ratef = os.path.join(os.getcwd(),"rate.txt")
         if not os.path.isfile(ratef):
             with open(ratef, 'w') as f:
@@ -217,14 +217,14 @@ exit 0" )
         with open(ratef, 'w') as f:
             if (len(maxrate) > 0):
                 if (float(maxrate) < tdif/jobs):
-                    est = self.get_t_remaining(tdif/jobs, jobs, core_groups)
+                    est = self.get_t_remaining(tdif/jobs, jobs, runs_per_core)
                     f.write(str(tdif/jobs) + "\n" + str(time.time()) + "\nCore " + \
                         str(core) + " is slowest: " + str(tdif/jobs) + " seconds/job\n" + \
                         "This run will finish in " + est + "\n")
                 else:
                     f.write(maxrate + "\n" + prevtime + "\n" + coreid + "\n" + est + "\n")
             elif (len(prevtime) == 0):
-                est = self.get_t_remaining(tdif/jobs, jobs, core_groups)
+                est = self.get_t_remaining(tdif/jobs, jobs, runs_per_core)
                 f.write(str(tdif/jobs) + "\n" + str(time.time()) + "\nCore " + str(core) + \
                     " is slowest: " + str(tdif/jobs) + " seconds/job\n" + "This run will finish in " \
                     + est + "\n")
