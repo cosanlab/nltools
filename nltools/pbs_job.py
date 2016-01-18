@@ -229,7 +229,7 @@ exit 0" )
                     + est + "\n")
         
     # helper function which finds the indices of each searchlight and returns a lil file
-    def make_searchlight_masks():
+    def make_searchlight_masks(self):
         # Compute world coordinates of all in-mask voxels.
         # Return indices as sparse matrix of 0's and 1's
         print("start get coords")
