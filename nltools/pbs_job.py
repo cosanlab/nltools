@@ -58,6 +58,13 @@ class PBS_Job:
         self.kwargs = kwargs
 
     def make_startup_script(self, fn):
+        #clear data in r_all and weights files, if any
+        pf = os.path.join(self.core_out_dir, "progress.txt") # progress file
+        with open(pf, 'w') as p_file:
+            p_file.seek(0)
+            p_file.truncate()
+            p_file.write("0") #0 cores have finished
+
         with open(os.path.join(os.getcwd(), fn), "w") as f:
             f.write("from nltools.pbs_job import PBS_Job \n\
 import cPickle \n\
@@ -78,13 +85,6 @@ parallel_job.run_core(core_i, ncores) ")
 exit 0")
 
     def make_pbs_scripts(self, script_name, core_i, ncores, walltime):
-        #clear data in r_all and weights files, if any
-        pf = os.path.join(self.core_out_dir, "progress.txt") # progress file
-        with open(pf, 'w') as p_file:
-            p_file.seek(0)
-            p_file.truncate()
-            p_file.write("0") #0 cores have finished
-
         with open(os.path.join(os.getcwd(), script_name), "w") as f:
             f.write("#!/bin/bash -l \n\
 # declare a job name \n\
