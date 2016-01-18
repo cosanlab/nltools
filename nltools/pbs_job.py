@@ -176,7 +176,7 @@ exit 0" )
         with open(os.path.join(self.core_out_dir,"progress.txt"), 'w') as f:
             cores_finished += 1
             f.write( str(cores_finished) )
-            if (cores_finished = ncores):
+            if (cores_finished == ncores):
                 f.seek(0)
                 f.truncate()
                 self.clean_up( email_flag = True)
