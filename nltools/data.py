@@ -701,11 +701,6 @@ class Brain_Data(object):
 
     def searchlight(self, ncores, output_dir=None, radius=3, walltime='24:00:00', \
         email=None, algorithm='svr', cv_dict=None, kwargs={},):
-
-        X_dat = []
-        for i in self:
-            X_dat.append(i.to_nifti())
-        y_dat = np.array(self.Y).flatten()
         
         kwargs['kernel']= 'linear'
         
@@ -713,8 +708,9 @@ class Brain_Data(object):
         pbs_kwargs = {'algorithm':algorithm,\
                   'cv_dict':cv_dict,\
                   'predict_kwargs':kwargs}
+        #cv_dict={'type': 'kfolds','n_folds': 5,'stratified':dat.Y}
 
-        parallel_job = PBS_Job(X_dat, y_dat, core_out_dir=None, brain_mask=None, process_mask=None, radius=radius, kwargs=pbs_kwargs)
+        parallel_job = PBS_Job(self, core_out_dir=None, process_mask=None, radius=radius, kwargs=pbs_kwargs)
 
         # make and store data we will need to access on the worker core level
         parallel_job.make_searchlight_masks()
