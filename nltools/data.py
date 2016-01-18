@@ -428,6 +428,52 @@ class Brain_Data(object):
                 pexp = pearson(image2, data2)
         return pexp
 
+    def multivariate_similarity(self, images, method='ols'):
+        """ Predict spatial distribution of Brain_Data() instance from linear combination of other Brain_Data() instances or Nibabel images
+
+            Args:
+                self: Brain_Data instance of data to be applied
+                images: Brain_Data instance of weight map
+
+            Returns:
+                out: dictionary of regression statistics in Brain_Data instances {'beta','t','p','df','residual'}
+
+        """
+        ## Notes:  Should add ridge, and lasso, elastic net options options
+
+        if len(self.shape()) > 1:
+            raise ValueError("This method can only decompose a single brain image.")
+
+        if not isinstance(images, Brain_Data):
+            raise ValueError("Images are not a Brain_Data instance")
+        dim = images.shape()
+
+        # Check to make sure masks are the same for each dataset and if not create a union mask
+        # This might be handy code for a new Brain_Data method
+        if np.sum(self.nifti_masker.mask_img.get_data()==1)!=np.sum(images.nifti_masker.mask_img.get_data()==1):
+            new_mask = intersect_masks([self.nifti_masker.mask_img, images.nifti_masker.mask_img], threshold=1, connected=False)
+            new_nifti_masker = NiftiMasker(mask_img=new_mask)
+            data2 = new_nifti_masker.fit_transform(self.to_nifti())
+            image2 = new_nifti_masker.fit_transform(images.to_nifti())
+        else:
+            data2 = self.data
+            image2 = images.data
+
+        # Add intercept and transpose
+        image2 = np.vstack((np.ones(image2.shape[1]),image2)).T
+
+        # Calculate pattern expression
+        if method is 'ols':
+            b = np.dot(np.linalg.pinv(image2), data2)
+            res = data2 - np.dot(image2,b)
+            sigma = np.std(res,axis=0)
+            stderr = np.dot(np.matrix(np.diagonal(np.linalg.inv(np.dot(image2.T,image2)))**.5).T,np.matrix(sigma))
+            t_out = b /stderr
+            df = image2.shape[0]-image2.shape[1]
+            p = 2*(1-t.cdf(np.abs(t_out),df))
+
+        return {'beta':b, 't':t_out, 'p':p, 'df':df, 'sigma':sigma, 'residual':res}
+
     def predict(self, algorithm=None, cv_dict=None, plot=True, **kwargs):
 
         """ Run prediction
