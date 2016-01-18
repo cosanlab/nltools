@@ -117,6 +117,7 @@ exit 0" )
         with open(rf, 'w') as r_file, open(wf, 'w') as w_file, open(pf, 'w') as p_file:
             r_file.seek(0), w_file.seek(0), p_file.seek(0)
             r_file.truncate(), w_file.truncate(), p_file.truncate()
+            p_file.write("0") #0 cores have finished
 
         self.errf("Begin main loop", core_i = core_i, dt=(time.time() - tic))
         t0 = time.time()
@@ -168,19 +169,17 @@ exit 0" )
             
         # read the count of the number of cores that have finished
         with open(os.path.join(self.core_out_dir,"progress.txt"), 'r') as f:
-            cores_finished = f.readline()
+            cores_finished = int(f.readline())
 
         # if all cores are finished, run a clean up method
         # otherwise, increment number of finished cores and terminate process
         with open(os.path.join(self.core_out_dir,"progress.txt"), 'w') as f:
-            if (len(cores_finished) > 0):
-                f.write( str(int(cores_finished) + 1) )
-                if (int(cores_finished) + 2 >= ncores):
-                    f.seek(0)
-                    f.truncate()
-                    self.clean_up( email_flag = True)
-            else:
-                f.write( "0" )
+            cores_finished += 1
+            f.write( str(cores_finished) )
+            if (cores_finished = ncores):
+                f.seek(0)
+                f.truncate()
+                self.clean_up( email_flag = True)
 
     def errf(self, text, core_i = None, dt = None):
         if core_i is None or core_i == 0:
