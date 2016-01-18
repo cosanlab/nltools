@@ -123,7 +123,7 @@ exit 0" )
         for i in range( runs_per_core ):
             tic = time.time()
             searchlight_sphere = self.A[core_groups[core_i][i]][:].toarray() #1D vector
-            searchlight_mask = self.nifti_masker.inverse_transform( searchlight_sphere )
+            searchlight_mask = self.data.nifti_masker.inverse_transform( searchlight_sphere )
 
             #select some data
             data_sphere = self.data.apply_mask(searchlight_mask)
