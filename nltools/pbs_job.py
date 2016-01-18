@@ -121,7 +121,7 @@ exit 0" )
         rf = os.path.join(self.core_out_dir, "r_all" + str(core_i) + '.txt') #correlation file
         wf = os.path.join(self.core_out_dir, "weights" + str(core_i) + '.txt') # weight file
         with open(rf, 'w') as r_file, open(wf, 'w') as w_file:
-            r_file.seek(0), w_file.seek(0), p_file.seek(0)
+            r_file.seek(0), w_file.seek(0)
             r_file.truncate(), w_file.truncate()
 
         self.errf("Begin main loop", core_i = core_i, dt=(time.time() - tic))
