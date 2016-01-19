@@ -40,6 +40,7 @@ class PBS_Job:
             os.system("mkdir core_out_dir")
             self.core_out_dir = os.path.join(os.getcwd(),'core_out_dir')
         else:
+            os.system("mkdir " + core_out_dir) #make directory if it does not exist
             self.core_out_dir = core_out_dir
         
         #set up process_mask
@@ -318,7 +319,6 @@ exit 0" )
         if email_flag:
             os.system("qsub email_alert.pbs")
 
-        # os.system("rm pbs_searchlight.pkl")
         print("Cleaning up...")
         os.system("rm sl_core_*")
         os.system("rm rate* *core_pbs_script_*")
