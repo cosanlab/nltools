@@ -320,9 +320,9 @@ exit 0" )
 
         # os.system("rm pbs_searchlight.pkl")
         print("Cleaning up...")
-        # os.system("rm sl_core*")
-        # os.system("rm errf* rate* *core_pbs_script_*")
-        # os.system("rm inner_searchlight_script*")
+        os.system("rm sl_core_*")
+        os.system("rm rate* *core_pbs_script_*")
+        os.system("rm core_startup.py*")
 
     def reconstruct(self, rf):
             #open the reassembled correlation data and build a python list of float type numbers
