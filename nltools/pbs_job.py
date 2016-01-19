@@ -320,8 +320,8 @@ exit 0" )
 
         # os.system("rm pbs_searchlight.pkl")
         print("Cleaning up...")
-        os.system("rm email_alert*")
-        os.system("rm *searchlight_* *div* *errf* *rate*")
+        os.system("rm sl_core*")
+        os.system("rm errf* rate* *core_pbs_script_*")
         os.system("rm inner_searchlight_script*")
 
     def reconstruct(self, rf):
