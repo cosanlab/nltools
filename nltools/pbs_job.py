@@ -271,8 +271,8 @@ exit 0" )
         #clear data in reassembled and weights files, if any
 
                 #clear data in r_all and weights files, if any
-        rf = os.path.join(self.os.getcwd(), "correlations.txt") # correlation file (for combined nodes)
-        wf = os.path.join(self.os.getcwd(), "weights.txt") # weight file (for combined nodes)
+        rf = os.path.join(os.getcwd(), "correlations.txt") # correlation file (for combined nodes)
+        wf = os.path.join(os.getcwd(), "weights.txt") # weight file (for combined nodes)
         with open(rf, 'w') as r_combo, open(wf, 'w') as w_combo:
             r_combo.seek(0), w_combo.seek(0)
             r_combo.truncate(), w_combo.truncate()
