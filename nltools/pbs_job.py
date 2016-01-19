@@ -181,8 +181,7 @@ exit 0" )
             cores_finished += 1
             f.write( str(cores_finished) )
             if (cores_finished == ncores):
-                f.seek(0)
-                f.truncate()
+                self.errf("Last core is finished", dt=(time.time() - tic))
                 self.clean_up( email_flag = True)
 
     def errf(self, text, core_i = None, dt = None):
@@ -190,7 +189,7 @@ exit 0" )
             with open(os.path.join(os.getcwd(),'errf.txt'), 'a') as f:
                 f.write(text + "\n")
                 if dt is not None:
-                    f.write("       ->Time: " + str(dt) + " seconds")
+                    f.write("       ->Time: " + str(dt) + " seconds\n")
 
     def get_t_remaining(self, rate, jobs, runs_per_core):
         t = int(rate*(runs_per_core-jobs))
