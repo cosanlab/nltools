@@ -39,7 +39,7 @@ class PBS_Job:
         if core_out_dir is None:
             os.system("mkdir core_out_dir")
             self.core_out_dir = os.path.join(os.getcwd(),'core_out_dir')
-        else if type(core_out_dir) is str:
+        elif type(core_out_dir) is str:
             os.system("mkdir " + core_out_dir) #make directory if it does not exist
             self.core_out_dir = core_out_dir
         else:
