@@ -284,7 +284,9 @@ exit 0" )
         w_core_data = os.path.join(self.core_out_dir, w_prefix + str(core_i) + ".txt")
 
         data_was_merged = False
-        print( "Merging data to one file" )
+        print( "Merging data to combined files:" )
+        print( "   -->" + r_core_data )
+        print( "   -->" + w_core_data )
         #write results from all cores to one text file in a csv format
         while (os.path.isfile(r_core_data) and os.path.isfile(w_core_data)):
             with open (r_core_data, "r") as r_core, open (w_core_data, "r") as w_core:
