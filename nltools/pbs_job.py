@@ -92,12 +92,11 @@ exit 0")
 # request a queue \n\
 #PBS -q default \n\
 # request 1 core \n\
-#PBS -l cores=1:ppn=1 \n\
+#PBS -l nodes=1:ppn=1 \n\
 # request wall time (default is 1 hr if not set)\n\
 #PBS -l walltime=" + walltime + " \n\
 # execute core-level code in same directory as head core \n\
 cd " + os.getcwd() + " \n\
-# run a startup python script \n\
 python core_startup.py " + str(core_i) + " " + str(ncores) + " \n\
 exit 0" )
 
