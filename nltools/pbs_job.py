@@ -39,9 +39,12 @@ class PBS_Job:
         if core_out_dir is None:
             os.system("mkdir core_out_dir")
             self.core_out_dir = os.path.join(os.getcwd(),'core_out_dir')
-        else:
+        else if type(core_out_dir) is str:
             os.system("mkdir " + core_out_dir) #make directory if it does not exist
             self.core_out_dir = core_out_dir
+        else:
+            print(type(core_out_dir))
+            raise ValueError("core_out_dir should be a string")
         
         #set up process_mask
         if type(process_mask) is str:
