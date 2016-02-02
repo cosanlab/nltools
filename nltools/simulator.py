@@ -221,7 +221,7 @@ class Simulator:
                 wr.writerow(self.rep_id)
         return NF_list, y, rep_id
 
-    def create_cov_data(self, cor, cov, sigma, radius = 5, center = None, reps = 1, n_sub = 1, output_dir = None):
+    def create_cov_data(self, cor, cov, sigma, mask=None, reps = 1, n_sub = 1, output_dir = None):
         """ create continuous simulated data with covariance
 
         Args:
@@ -237,17 +237,14 @@ class Simulator:
 
         """
         
-        #initialize useful values
-        dims = self.brain_mask.get_data().shape
-        
-        # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
-        A = self.n_spheres(radius, center)
+        if mask is None:
+            # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
+            A = self.n_spheres(radius, center)
+            mask = nib.Nifti1Image(A.astype(np.float32), affine=self.brain_mask.affine)
 
         # Create n_reps with cov for each voxel within sphere
         # Build covariance matrix with each variable correlated with y amount 'cor' and each other amount 'cov'
-        
-        nifti_sphere = nib.Nifti1Image(A.astype(np.float32), affine=self.brain_mask.affine)
-        flat_sphere = self.nifti_masker.fit_transform(nifti_sphere)
+        flat_sphere = self.nifti_masker.fit_transform(mask)
 
         n_vox = np.sum(flat_sphere==1)
         cov_matrix = np.ones([n_vox+1,n_vox+1]) * cov
