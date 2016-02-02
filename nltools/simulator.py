@@ -299,4 +299,87 @@ class Simulator:
                 wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
                 wr.writerow(self.rep_id)
 
+    def create_ncov_data(self, cor, cov, sigma, mask=None, reps = 1, n_sub = 1, output_dir = None):
+        """ create continuous simulated data with covariance
 
+        Args:
+            cor: amount of covariance between each voxel and Y variable (an int or a vector)
+            cov: amount of covariance between voxels (an int or a matrix)
+            sigma: amount of noise to add
+            mask: region(s) where we will have activations (list if more than one)
+            reps: number of data repetitions
+            n_sub: number of subjects to simulate
+            output_dir: string path of directory to output data.  If None, no data will be written
+            **kwargs: Additional keyword arguments to pass to the prediction algorithm
+
+        """
+        
+        if mask is None:
+            # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
+            A = self.n_spheres(10, None) #parameters are (radius, center)
+            mask = nib.Nifti1Image(A.astype(np.float32), affine=self.brain_mask.affine)
+
+        if type(mask) is nib.nifti1.Nifti1Image:
+            mask = [mask]
+        if type(cor) is float or type(cor) is int:
+            cor = [cor]
+        if type(cov) is float or type(cor) is int:
+            cov = [cov]
+        if not len(cor) != len(mask):
+            raise ValueError("cor matrix has incompatible dimensions for mask list of length " + str(len(mask)))
+        if not len(cov) != len(mask) or (len(mask)>0 and len(cov[0]) != len(mask)):
+            raise ValueError("cov matrix has incompatible dimensions for mask list of length " + str(len(mask)))
+
+        # Create n_reps with cov for each voxel within sphere
+        # Build covariance matrix with each variable correlated with y amount 'cor' and each other amount 'cov'
+        flat_masks = [self.nifti_masker.fit_transform(m) for m in mask]
+
+        n_vox = [np.sum(fm==1) for fm in flat_masks]
+        cov_matrix = np.zeros([np.sum(n_vox)+1, np.sum(n_vox)+1])
+        for i, nv in enumerate(n_vox):
+            cstart = np.sum(n_vox[:i]) + 1
+            cstop = start + nv
+            cov_matrix[0,cstart:cstop] = cor # set covariance with y
+            cov_matrix[cstart:cstop,0] = cor # set covariance with all other voxels
+            for j in range(len(mask)):
+                rstart = np.sum(n_vox[:j]) + 1
+                rstop = start + nv
+                cov_matrix[cstart:cstop,rstart:rstop] = cov[i][j] # set covariance of this mask's voxels with each of other masks
+
+        np.fill_diagonal(cov_matrix,1) # set diagonal to 1
+        mv_sim = np.random.multivariate_normal(np.zeros([np.sum(n_vox)+1]),cov_matrix, size=reps)
+        y = mv_sim[:,0] #not sure if we still want this (we're getting a y label for EVERY voxel...in some cases we won't want to)
+        self.y = y
+        mv_sim = mv_sim[:,1:]
+        new_dats = [np.ones([mv_sim.shape[0],fm.shape[1]]) for fm in flat_masks]
+        for i, nd in enumerate(new_dats):
+            # new_dat[:,np.where(flat_sphere==1)[1]] = mv_sim
+            start = np.sum(n_vox[:i]) + 1
+            stop = start + nv
+            new_dats[i][:,np.where(flat_masks[i]==1)[1]] = mv_sim
+
+        new_dats = [nd[:,np.where(flat_masks[i]==1)[1]] = mv_sim for i, nd in enumerate(new_dats)
+        self.data = self.nifti_masker.inverse_transform(np.add(new_dat,np.random.standard_normal(size=new_dat.shape)*sigma)) #add noise scaled by sigma
+        self.rep_id = [1] * len(y)
+        if n_sub > 1:
+            self.y = list(self.y)
+            for s in range(1,n_sub):
+                self.data = nib.concat_images([self.data,self.nifti_masker.inverse_transform(np.add(new_dat,np.random.standard_normal(size=new_dat.shape)*sigma))],axis=3) #add noise scaled by sigma
+                noise_y = list(y + np.random.randn(len(y))*sigma)
+                self.y = self.y + noise_y
+                self.rep_id = self.rep_id + [s+1] * len(mv_sim[:,0])
+            self.y = np.array(self.y)
+
+        # Write Data to files if requested
+        if output_dir is not None:
+            if type(output_dir) is str:
+                if not os.path.isdir(output_dir):
+                    os.makedirs(output_dir)
+                self.data.to_filename(os.path.join(output_dir,'maskdata_cor' + str(cor) + "_cov" + str(cov) + '_sigma' + str(sigma) + '.nii.gz'))
+                y_file = open(os.path.join(output_dir,'y.csv'), 'wb')
+                wr = csv.writer(y_file, quoting=csv.QUOTE_ALL)
+                wr.writerow(self.y)
+
+                rep_id_file = open(os.path.join(output_dir,'rep_id.csv'), 'wb')
+                wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
+                wr.writerow(self.rep_id)
