@@ -239,7 +239,7 @@ class Simulator:
         
         if mask is None:
             # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
-            A = self.n_spheres(radius, center)
+            A = self.n_spheres(10, None) #parameters are (radius, center)
             mask = nib.Nifti1Image(A.astype(np.float32), affine=self.brain_mask.affine)
 
         # Create n_reps with cov for each voxel within sphere
