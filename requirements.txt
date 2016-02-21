@@ -1,13 +1,9 @@
 importlib
 nibabel>=2.0.1
-scikit-learn
+scikit-learn>=0.17
 nilearn>=0.1.2
 pandas>=0.13
 numpy>=1.9
 seaborn
 matplotlib
 scipy
-
-
-
-
