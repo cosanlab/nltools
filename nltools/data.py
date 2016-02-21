@@ -122,7 +122,7 @@ class Brain_Data(object):
         else:
             new.data = np.array(self.data[index,:])           
         if not self.Y.empty:
-            new.Y = self.Y.loc[index]
+            new.Y = self.Y.iloc[index]
         if self.X.size:
             if isinstance(self.X,pd.DataFrame):
                 new.X = self.X.iloc[index]
