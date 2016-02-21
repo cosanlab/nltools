@@ -1,5 +1,5 @@
 importlib
-nibabel>=2.0
+nibabel>=2.0.1
 scikit-learn
 nilearn>=0.1.2
 pandas>=0.13
