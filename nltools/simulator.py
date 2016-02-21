@@ -358,7 +358,7 @@ class Simulator:
             stop = start + nv
             new_dats[i][:,np.where(flat_masks[i]==1)[1]] = mv_sim
 
-        new_dats = [nd[:,np.where(flat_masks[i]==1)[1]] = mv_sim for i, nd in enumerate(new_dats)
+        # new_dats = [nd[:,np.where(flat_masks[i]==1)[1]] = mv_sim for i, nd in enumerate(new_dats)  #invalid syntax error needs to be fixed - lc
         self.data = self.nifti_masker.inverse_transform(np.add(new_dat,np.random.standard_normal(size=new_dat.shape)*sigma)) #add noise scaled by sigma
         self.rep_id = [1] * len(y)
         if n_sub > 1:
