@@ -386,7 +386,7 @@ class Brain_Data(object):
 
         if not isinstance(image, Brain_Data):
             if isinstance(image, nib.Nifti1Image):
-                image = self.nifti_masker.fit_transform(image)
+                image = Brain_Data(image)
             else:
                 raise ValueError("Image is not a Brain_Data or nibabel instance")
         dim = image.shape()
