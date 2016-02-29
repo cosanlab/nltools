@@ -512,11 +512,11 @@ class Brain_Data(object):
         output['yfit_all'] = predictor.predict(self.data)
         if predictor_settings['prediction_type'] == 'classification':
             if predictor_settings['algorithm'] not in ['svm','ridgeClassifier','ridgeClassifierCV']:
-                output['prob_all'] = predictor.predict_proba(self.data)
+                output['prob_all'] = predictor.predict_proba(self.data)[:,1]
             else:
                 output['dist_from_hyperplane_all'] = predictor.decision_function(self.data)
                 if predictor_settings['algorithm'] == 'svm' and predictor.probability:
-                    output['prob_all'] = predictor.predict_proba(self.data)
+                    output['prob_all'] = predictor.predict_proba(self.data)[:,1]
        
         output['intercept'] = predictor.intercept_
 
@@ -542,7 +542,7 @@ class Brain_Data(object):
                 if predictor_settings['algorithm'] not in ['svm','ridgeClassifier','ridgeClassifierCV']:
                     output['prob_xval'] = np.zeros(len(self.Y))
                 else:
-                    dist_from_hyperplane_xval = np.zeros(len(self.Y))
+                    output['dist_from_hyperplane_xval'] = np.zeros(len(self.Y))
                     if predictor_settings['algorithm'] == 'svm' and predictor_cv.probability:
                         output['prob_xval'] = np.zeros(len(self.Y))
 
@@ -551,11 +551,11 @@ class Brain_Data(object):
                 output['yfit_xval'][test] = predictor_cv.predict(self.data[test])
                 if predictor_settings['prediction_type'] == 'classification':
                     if predictor_settings['algorithm'] not in ['svm','ridgeClassifier','ridgeClassifierCV']:
-                        output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])
+                        output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])[:,1]
                     else:
                         output['dist_from_hyperplane_xval'][test] = predictor_cv.decision_function(self.data[test])
                         if predictor_settings['algorithm'] == 'svm' and predictor_cv.probability:
-                            output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])
+                            output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])[:,1]
                 output['intercept_xval'].append(predictor_cv.intercept_)
 
                 # Weight map
@@ -569,10 +569,10 @@ class Brain_Data(object):
         
         # Print Results
         if predictor_settings['prediction_type'] == 'classification':
-            output['mcr_all'] = np.mean(output['yfit_all']==self.Y)
+            output['mcr_all'] = np.mean(output['yfit_all']==np.array(self.Y).flatten())
             print 'overall accuracy: %.2f' % output['mcr_all']
             if cv_dict is not None:
-                output['mcr_xval'] = np.mean(output['yfit_xval']==self.Y)
+                output['mcr_xval'] = np.mean(output['yfit_xval']==np.array(self.Y).flatten())
                 print 'overall CV accuracy: %.2f' % output['mcr_xval']
         elif predictor_settings['prediction_type'] == 'prediction':
             output['rmse_all'] = np.sqrt(np.mean((output['yfit_all']-output['Y'])**2))
@@ -590,13 +590,14 @@ class Brain_Data(object):
             fig1 = output['weight_map'].plot()
             if predictor_settings['prediction_type'] == 'prediction':
                 fig2 = scatterplot(pd.DataFrame({'Y': output['Y'], 'yfit_xval':output['yfit_xval']}))
-            elif self.prediction_type == 'classification':
-                if self.algorithm not in ['svm','ridgeClassifier','ridgeClassifierCV']:
-                    fig2 = probability_plot(pd.DataFrame({'Y': output['Y'], 'Probability_xval':output['prob_xval']})) 
-                else:
-                    fig2 = dist_from_hyperplane_plot(pd.DataFrame({'Y': output['Y'], 'dist_from_hyperplane_xval':output['dist_from_hyperplane_xval']}))
-                    if self.algorithm == 'svm' and self.predictor.probability:
-                        fig3 = probability_plot(pd.DataFrame({'Y': output['Y'], 'Probability_xval':output['prob_xval']}))
+            elif predictor_settings['prediction_type'] == 'classification':
+                Warning('Not implemented yet.')
+                # if predictor_settings['algorithm'] not in ['svm','ridgeClassifier','ridgeClassifierCV']:
+                #     fig2 = probability_plot(pd.DataFrame({'Y': output['Y'], 'Probability_xval':output['prob_xval']})) 
+                # else:
+                #     fig2 = dist_from_hyperplane_plot(pd.DataFrame({'Y': output['Y'], 'dist_from_hyperplane_xval':output['dist_from_hyperplane_xval']}))
+                #     if predictor_settings['algorithm']  == 'svm' and predictor_cv.probability:
+                #         fig3 = probability_plot(pd.DataFrame({'Y': output['Y'], 'Probability_xval':output['prob_xval']}))
 
         return output
 
