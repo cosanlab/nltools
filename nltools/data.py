@@ -19,6 +19,7 @@ from nltools.utils import get_resource_path, set_algorithm, get_anatomical
 from nltools.cross_validation import set_cv
 from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
 from nltools.stats import pearson
+from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
 from nilearn.image import resample_img
 from nilearn.masking import intersect_masks
@@ -588,16 +589,18 @@ class Brain_Data(object):
         # Plot
         if plot:
             fig1 = output['weight_map'].plot()
-            if predictor_settings['prediction_type'] == 'prediction':
-                fig2 = scatterplot(pd.DataFrame({'Y': output['Y'], 'yfit_xval':output['yfit_xval']}))
-            elif predictor_settings['prediction_type'] == 'classification':
-                Warning('Not implemented yet.')
-                # if predictor_settings['algorithm'] not in ['svm','ridgeClassifier','ridgeClassifierCV']:
-                #     fig2 = probability_plot(pd.DataFrame({'Y': output['Y'], 'Probability_xval':output['prob_xval']})) 
-                # else:
-                #     fig2 = dist_from_hyperplane_plot(pd.DataFrame({'Y': output['Y'], 'dist_from_hyperplane_xval':output['dist_from_hyperplane_xval']}))
-                #     if predictor_settings['algorithm']  == 'svm' and predictor_cv.probability:
-                #         fig3 = probability_plot(pd.DataFrame({'Y': output['Y'], 'Probability_xval':output['prob_xval']}))
+            if cv_dict is not None:
+                if predictor_settings['prediction_type'] == 'prediction':
+                    fig2 = scatterplot(pd.DataFrame({'Y': output['Y'], 'yfit_xval':output['yfit_xval']}))
+                elif predictor_settings['prediction_type'] == 'classification':
+                    if predictor_settings['algorithm'] not in ['svm','ridgeClassifier','ridgeClassifierCV']:
+                        output['roc'] = Roc(input_values=output['prob_xval'], binary_outcome=output['Y'].astype('bool'))
+                    else:
+                        output['roc'] = Roc(input_values=output['dist_from_hyperplane_xval'], binary_outcome=output['Y'].astype('bool'))
+                        if predictor_settings['algorithm'] == 'svm' and predictor_cv.probability:
+                            output['roc'] = Roc(input_values=output['prob_xval'], binary_outcome=output['Y'].astype('bool'))
+                    output['roc'].plot()
+                    # output['roc'].summary()
 
         return output
 
