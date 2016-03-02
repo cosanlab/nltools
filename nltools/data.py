@@ -588,7 +588,6 @@ class Brain_Data(object):
 
         # Plot
         if plot:
-            fig1 = output['weight_map'].plot()
             if cv_dict is not None:
                 if predictor_settings['prediction_type'] == 'prediction':
                     fig2 = scatterplot(pd.DataFrame({'Y': output['Y'], 'yfit_xval':output['yfit_xval']}))
@@ -599,8 +598,9 @@ class Brain_Data(object):
                         output['roc'] = Roc(input_values=output['dist_from_hyperplane_xval'], binary_outcome=output['Y'].astype('bool'))
                         if predictor_settings['algorithm'] == 'svm' and predictor_cv.probability:
                             output['roc'] = Roc(input_values=output['prob_xval'], binary_outcome=output['Y'].astype('bool'))
-                    output['roc'].plot()
+                    fig2 = output['roc'].plot()
                     # output['roc'].summary()
+            fig1=output['weight_map'].plot()
 
         return output
 
