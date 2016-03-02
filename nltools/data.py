@@ -68,10 +68,6 @@ class Brain_Data(object):
         elif not isinstance(data, nib.Nifti1Image):
             raise ValueError("data is not a nibabel instance")
 
-        # Check if data need to be resampled into mask space - This is really slow and unnecessary as nifti_masker.fit_transform probably resamples anyway.
-        # if not ((self.mask.get_affine()==data.get_affine()).all()) & (self.mask.shape[0:3]==data.shape[0:3]):
-        #     data = resample_img(data,target_affine=self.mask.get_affine(),target_shape=self.mask.shape)
-
         self.nifti_masker = NiftiMasker(mask_img=self.mask)
         self.data = self.nifti_masker.fit_transform(data)
 
