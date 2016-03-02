@@ -98,7 +98,8 @@ def roc_plot(fpr, tpr):
 
     """     
 
-    fig = plt.plot(fpr,tpr,color='red',linewidth=3)
+    fig = plt.figure()
+    plt.plot(fpr,tpr,color='red',linewidth=3)
     # fig = sns.tsplot(tpr,fpr,color='red',linewidth=3)
     plt.xlabel('(1 - Specificity)', fontsize=16);
     plt.ylabel('Sensitivity', fontsize=16)
