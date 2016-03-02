@@ -13,10 +13,13 @@ import matplotlib.pyplot as plt
 
 def dist_from_hyperplane_plot(stats_output):
     """ Plot SVM Classification Distance from Hyperplane
+
     Args:
         stats_output: a pandas file with prediction output
+
     Returns:
         fig: Will return a seaborn plot of distance from hyperplane
+
     """
 
     if "dist_from_hyperplane_xval" in stats_output.columns:
@@ -33,10 +36,13 @@ def dist_from_hyperplane_plot(stats_output):
 
 def scatterplot(stats_output):
     """ Plot Prediction Scatterplot
+
     Args:
         stats_output: a pandas file with prediction output
+
     Returns:
         fig: Will return a seaborn scatterplot
+
     """
 
     if "yfit_xval" in stats_output.columns:
@@ -51,10 +57,13 @@ def scatterplot(stats_output):
 
 def probability_plot(stats_output):
     """ Plot Classification Probability
+
     Args:
         stats_output: a pandas file with prediction output
+
     Returns:
         fig: Will return a seaborn scatterplot
+
     """
     if "Probability_xval" in stats_output.columns:
         fig = sns.lmplot("Y", "Probability_xval", data=stats_output,logistic=True)
@@ -79,14 +88,17 @@ def probability_plot(stats_output):
 
 def roc_plot(fpr, tpr):
     """ Plot 1-Specificity by Sensitivity
+
     Args:
         fpr: false positive rate from Roc.calculate
         tpr: true positive rate from Roc.calculate
+
     Returns:
-        fig: Will return an ROC plot
+        fig: Will return a matplotlib ROC plot
+
     """     
 
-    fig = plt.plot(fpr, tpr, linewidth=3.0, color='red')
+    fig = sns.tsplot(tpr,fpr,color='red',linewidth=3)
     plt.xlabel('(1 - Specificity)', fontsize=16);
     plt.ylabel('Sensitivity', fontsize=16)
     plt.title('ROC Plot', fontsize=18)
@@ -94,14 +106,17 @@ def roc_plot(fpr, tpr):
 
 def decode_radar_plot(data, n_top=3, overplot=False, labels=None, palette='husl'):
     """ Create a radar plot for displaying decoding results
+
     Args:
         data: pandas object with labels as indices
         n_top: number of top results to display
         overplot: overlay multiple decoding results
         labels: Decoding labels
         palette: seaborn color palette
+
     Returns:
         plt: Will return a matplotlib plot
+
     """     
 
     r = np.linspace(0, 10, num=100)
@@ -131,7 +146,7 @@ def decode_radar_plot(data, n_top=3, overplot=False, labels=None, palette='husl'
         fig, ax = plt.subplots(1, 1, subplot_kw=dict(polar=True))
         fig.set_size_inches(10, 10)
     else:
-        fig, axes = plt.subplots(1, n_panels, sharex=False, sharey=False,
+        fig, ax = plt.subplots(1, n_panels, sharex=False, sharey=False,
                                  subplot_kw=dict(polar=True))
         fig.set_size_inches((6 * n_panels, 6))
     # A bit silly to import seaborn just for this...

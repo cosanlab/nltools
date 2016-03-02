@@ -569,6 +569,9 @@ class Roc(object):
             binary_outcome: vector of training labels
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
 
+        Returns:
+            fig
+            
         """
 
         self.calculate() # Calculate ROC parameters
@@ -598,12 +601,13 @@ class Roc(object):
                 tpr_smooth = 1-(norm.cdf(x, z_true,1))
                 fpr_smooth = 1-(norm.cdf(x, z_false,1))
 
-            roc_plot(fpr_smooth,tpr_smooth)
+            fig = roc_plot(fpr_smooth,tpr_smooth)
 
         elif plot_method == 'observed':
-            roc_plot(self.fpr, self.tpr)
+            fig = roc_plot(self.fpr, self.tpr)
         else:
             raise ValueError("plot_method must be 'gaussian' or 'observed'")
+        return fig
 
     def summary(self):
         """ Display a formatted summary of ROC analysis.
