@@ -31,12 +31,13 @@ from scipy.stats import ttest_1samp, t, norm
 
 import sklearn
 from sklearn.pipeline import Pipeline
+from sklearn.metrics.pairwise import pairwise_distances
 
 from nltools.pbs_job import PBS_Job
 
 class Brain_Data(object):
 
-    def __init__(self, data=None, Y=None, X=None, mask=None, output_file=None, resample=True, **kwargs):
+    def __init__(self, data=None, Y=None, X=None, mask=None, output_file=None, **kwargs):
         """ Initialize Brain_Data Instance.
 
         Args:
@@ -45,7 +46,6 @@ class Brain_Data(object):
             X: Pandas DataFrame Design Matrix for running univariate models 
             mask: binary nifiti file to mask brain data
             output_file: Name to write out to nifti file
-            resample: resample to mask space (on by default)
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
 
         """
@@ -60,21 +60,22 @@ class Brain_Data(object):
             self.mask = mask
         else:
             self.mask = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm_brain_mask.nii.gz'))
-
-        if type(data) is str:
-            data=nib.load(data)
-        elif type(data) is list:
-            data=nib.concat_images(data)
-        elif not isinstance(data, nib.Nifti1Image):
-            raise ValueError("data is not a nibabel instance")
-
         self.nifti_masker = NiftiMasker(mask_img=self.mask)
-        self.data = self.nifti_masker.fit_transform(data)
 
+        if data is not None:
+            if type(data) is str:
+                data=nib.load(data)
+            elif type(data) is list:
+                data=nib.concat_images(data)
+            elif not isinstance(data, nib.Nifti1Image):
+                raise ValueError("data is not a nibabel instance")
+            self.data = self.nifti_masker.fit_transform(data)
 
-        # Collapse any extra dimension
-        if any([x==1 for x in self.data.shape]):
-            self.data=self.data.squeeze()
+            # Collapse any extra dimension
+            if any([x==1 for x in self.data.shape]):
+                self.data=self.data.squeeze()
+        else:
+            self.data = np.array([])
 
         if Y is not None:
             if type(Y) is str:
@@ -424,6 +425,21 @@ class Brain_Data(object):
             else:
                 pexp = pearson(image2, data2)
         return pexp
+
+    def distance(self, method='euclidean', **kwargs):
+        """ Calculate distance between images within a Brain_Data() instance.
+
+            Args:
+                self: Brain_Data instance of data to be applied
+                method: type of distance metric
+
+            Returns:
+                dist: Outputs a 2D distance matrix.
+
+        """
+
+        return pairwise_distances(self.data, method = method, n_jobs=1)
+
 
     def multivariate_similarity(self, images, method='ols'):
         """ Predict spatial distribution of Brain_Data() instance from linear combination of other Brain_Data() instances or Nibabel images
