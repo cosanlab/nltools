@@ -431,14 +431,14 @@ class Brain_Data(object):
 
             Args:
                 self: Brain_Data instance of data to be applied
-                method: type of distance metric
+                method: type of distance metric (can use any scikit learn or sciypy metric)
 
             Returns:
                 dist: Outputs a 2D distance matrix.
 
         """
 
-        return pairwise_distances(self.data, method = method, n_jobs=1)
+        return pairwise_distances(self.data, metric = method, n_jobs=1)
 
 
     def multivariate_similarity(self, images, method='ols'):
