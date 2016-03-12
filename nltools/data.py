@@ -128,6 +128,17 @@ class Brain_Data(object):
                 new.X = self.X[index,:]
         return new
 
+    def __setitem__(self, index, value):
+        if not isinstance(value,Brain_Data):
+            raise ValueError('Make sure the value you are trying to set is a Brain_Data() instance.')
+        self.data[index,:] = value.data
+        if not value.Y.empty:
+            self.Y.values[index] = value.Y
+        if not value.X.empty:
+            if self.X.shape[1] != value.X.shape[1]:
+                raise ValueError('Make sure self.X is the same size as value.X.')
+            self.X.values[index] = value.X
+
     def shape(self):
         """ Get images by voxels shape.
 
