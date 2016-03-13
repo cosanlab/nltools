@@ -140,6 +140,9 @@ class Brain_Data(object):
                 raise ValueError('Make sure self.X is the same size as value.X.')
             self.X.values[index] = value.X
 
+    def __len__(self):
+        return self.shape()[0]
+
     def shape(self):
         """ Get images by voxels shape.
 
@@ -185,11 +188,13 @@ class Brain_Data(object):
 
         Args:
             self: Brain_Data instance
+
+        Returns:
+            out: nibabel instance
         
         """
         
-        nifti_dat = self.nifti_masker.inverse_transform(self.data)
-        return nifti_dat
+        return self.nifti_masker.inverse_transform(self.data)
 
     def write(self, file_name=None):
         """ Write out Brain_Data object to Nifti File.
