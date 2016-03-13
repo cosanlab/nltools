@@ -3,7 +3,7 @@
 __all__ = ['pearson', 'zscore', 'fdr']
 
 import numpy as np
-import pandas as pd
+import pandas as pdg
 from scipy.stats import ss
 from copy import deepcopy
 
@@ -32,9 +32,7 @@ def zscore(df):
     if not isinstance(df, pd.DataFrame):
         raise ValueError("Data is not a Pandas DataFrame instance")
     
-    z_df = df.apply(lambda x: (x - x.mean())/x.std())
-
-    return z_df
+    return df.apply(lambda x: (x - x.mean())/x.std())
 
 def fdr(p, q=.05):
     """ Determine FDR threshold given a p value array and desired false
