@@ -1,6 +1,6 @@
 '''
     NeuroLearn Mask Classes
-    =========================
+    =======================
     Classes to represent masks
 
     Author: Luke Chang
@@ -28,6 +28,7 @@ def create_sphere(coordinates, radius=5, mask=None):
     Args:
         radius: vector of radius.  Will create multiple spheres if len(radius) > 1
         centers: a vector of sphere centers of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]]
+
     """
     
     if mask is not None:
@@ -47,6 +48,7 @@ def create_sphere(coordinates, radius=5, mask=None):
         Args:
             r: radius of the sphere
             p: point (in coordinates of the brain mask) of the center of the sphere
+ 
         """
         dims = mask.shape
 
@@ -77,5 +79,28 @@ def create_sphere(coordinates, radius=5, mask=None):
     else:
         raise ValueError("Data type for sphere or radius(ii) or center(s) not recognized.")
 
+def expand_mask(mask):
+    """ expand a mask with multiple integers into separate binary masks
+
+        Args:
+            mask: nibabel or Brain_Data instance
+
+        Returns:
+            out: Brain_Data instance of multiple binary masks
+
+     """
+
+    from nltools.data import Brain_Data
+    if isinstance(mask,nib.Nifti1Image):
+        mask = Brain_Data(mask)
+    if not isinstance(mask,Brain_Data):
+        raise ValueError('Make sure mask is a nibabel or Brain_Data instance.')
+    mask.data = mask.data.astype(int)
+    tmp = []
+    for i in np.unique(mask.data):
+        tmp.append((mask.data==i)*1)
+    out = mask.empty()
+    out.data = np.array(tmp)
+    return out
 
 
