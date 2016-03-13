@@ -19,6 +19,7 @@ from nltools.utils import get_resource_path, set_algorithm, get_anatomical
 from nltools.cross_validation import set_cv
 from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
 from nltools.stats import pearson
+from nltools.mask import expand_mask
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
 from nilearn.image import resample_img
@@ -739,19 +740,17 @@ class Brain_Data(object):
             
         """
 
-        if not isinstance(mask, (nib.Nifti1Image,Brain_Data)):
+        if isinstance(mask,Brain_Data):
+            mask = mask.to_nifti() # convert to nibabel
+        if not isinstance(mask, nib.Nifti1Image):
             if type(mask) is str:
                 if os.path.isfile(mask):
                     mask = nib.load(mask)
+               # Check if mask need to be resampled into Brain_Data mask space
+                if not ((self.mask.get_affine()==mask.get_affine()).all()) & (self.mask.shape[0:3]==mask.shape[0:3]):
+                    mask = resample_img(mask,target_affine=self.mask.get_affine(),target_shape=self.mask.shape)
             else:
                 raise ValueError("Mask is not a nibabel instance, Brain_Data instance, or a valid file name.")
-        
-        # Check if mask need to be resampled into Brain_Data mask space
-        if not ((self.mask.get_affine()==mask.get_affine()).all()) & (self.mask.shape[0:3]==mask.shape[0:3]):
-            mask = resample_img(mask,target_affine=self.mask.get_affine(),target_shape=self.mask.shape)
-
-        # transform mask into Brain_Data
-        # new_mask = self.nifti_masker.fit_transform(mask)
 
         masked = deepcopy(self)
         nifti_masker = NiftiMasker(mask_img=mask)
@@ -802,6 +801,35 @@ class Brain_Data(object):
             script_name = "core_pbs_script_" + str(core_i) + ".pbs"
             parallel_job.make_pbs_scripts(script_name, core_i, ncores, walltime) # create a script
             os.system("qsub " + script_name) # run it on a core
+
+    def extract_roi(self, mask, method='mean'):
+        """ Extract activity from mask
+
+        Args:
+            mask: nibabel mask can be binary or numbered for different rois
+            method: type of extraction method (default=mean)    
+
+        Returns:
+            out: mean within each ROI across images
+        
+        """
+
+        if not isinstance(mask, nib.Nifti1Image):
+            raise ValueError('Make sure mask is a nibabel instance')
+
+        if len(np.unique(mask.get_data())) == 2:
+            all_mask = Brain_Data(mask)
+            if method is 'mean':
+                out = np.mean(self.data[:,np.where(all_mask.data)].squeeze(),axis=1)
+        elif len(np.unique(mask.get_data())) > 2:
+            all_mask = expand_mask(mask)
+            out = []
+            for i in range(all_mask.shape()[0]):
+                if method is 'mean':
+                    out.append(np.mean(self.data[:,np.where(all_mask[i].data)].squeeze(),axis=1))
+            out = np.array(out)
+
+        return out
 
 def threshold(stat, p, threshold_dict={'unc':.001}):
     """ Calculate one sample t-test across each voxel (two-sided)
