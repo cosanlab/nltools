@@ -9,12 +9,12 @@
 
 '''
 
-from nipype.interfaces import spm
 import nipype.interfaces.io as nio           # Data i/o
 import nipype.interfaces.utility as util     # utility
 from nipype.pipeline.engine import Node, Workflow
 from nipype.interfaces.base import BaseInterface, TraitedSpec, File, traits
 import nipype.algorithms.rapidart as ra      # artifact detection
+from nipype.interfaces import spm
 from nipype.interfaces.nipy.preprocess import ComputeMask
 import nipype.interfaces.matlab as mlab
 import os
@@ -98,7 +98,7 @@ def create_spm_preproc_func_pipeline(data_dir=None, subject_id=None, task_list=N
 	#Smooth
 	#implicit masking (.im) = 0, dtype = 0
 	smooth = Node(interface=spm.Smooth(), name = "smooth")
-	fwhmlist = [8]
+	fwhmlist = [0,5,8]
 	smooth.iterables = ('fwhm',fwhmlist)
 
 	#Create Covariate matrix

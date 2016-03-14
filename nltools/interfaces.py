@@ -8,8 +8,9 @@
 
 '''
 
+__all__ = ['Plot_Coregistration_Montage', 'PlotRealignmentParameters', 'Create_Covariates']
+
 # import matplotlib
-# matplotlib.use('Agg')
 # from nipype.interfaces import spm
 # import nipype.interfaces.io as nio           # Data i/o
 # import nipype.interfaces.utility as util     # utility
@@ -21,6 +22,8 @@
 # from IPython.display import Image
 # import glob
 
+import matplotlib
+matplotlib.use('Agg')
 import pandas as pd
 import numpy as np
 import numpy as np
@@ -198,38 +201,5 @@ class Create_Covariates(BaseInterface):
 		outputs = self._outputs().get()
 		outputs["covariates"] = os.path.abspath(self._covariates)
 		return outputs
-
-class MB_Distortion_Correction_InputSpec(TraitedSpec):	
-	ap_file = File(exists=True, mandatory=True) 
-	pa_file = File(exists=True, mandatory=True) 
-	encodings_file = File(exists=True, mandatory=True)
-	direction = traits.Str("AP", usedefault=True)
-
-class MB_Distortion_Correction_OutputSpec(TraitedSpec):
-	distortion_correction = File(exists=True)
-
-class MB_Distortion_Correction(BaseInterface):
-	input_spec = MB_Distortion_Correction_InputSpec
-	output_spec = MB_Distortion_Correction_OutputSpec
-
-	from nipype.interfaces.fsl import Merge
-	merger = Merge()
-	merger.inputs.dimension = 't'
-	merger.inputs.output_type = 'NIFTI_GZ'
-	merger.inputs.merged_file = 'dist_corr_merged.nii.gz'
-	if direction is "AP":
-		merger.inputs.in_files = [ap_file, pa_file]
-	elif direction is "PA":
-		merger.inputs.in_files = [pa_file, ap_file]
-	else:
-		raise ValueError("direction variable should be 'AP' or 'PA'.")
-
-	from nipype.interfaces.fsl import topup
-	topup = TOPUP()
-	topup.inputs.in_file = 'dist_corr_merged.nii.gz'
-	topup.inputs.encoding_file = encodings_file
-	topup.inputs.output_type = "NIFTI_GZ"
-	topup.inputs.config = 'b02b0.cnf'
-	topup.inputs.out_base = 'topup_distortion_correction_' + direction
 
 
