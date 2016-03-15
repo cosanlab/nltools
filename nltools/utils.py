@@ -103,6 +103,14 @@ def get_slice_order(volume):
     n_slices = nii.get_shape()[2]
     return range(1,n_slices+1)
 
+def get_n_volumes(volume):   
+    import nibabel as nib
+    nii = nib.load(volume)
+    if len(nib.shape)<4:
+        return 1
+    else:
+        return nii.shape[-1]
+
 def get_vox_dims(volume):
     import nibabel as nib
     if isinstance(volume, list):
