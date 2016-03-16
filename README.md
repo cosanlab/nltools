@@ -14,12 +14,16 @@ Python toolbox for analyzing neuroimaging data.  It is based off of Tor Wager's 
 - *pipelines.Couple_Preproc_Pipeline*: preprocessing pipeline for multiband data
 - *simulator.Simulator*: Class for simulating multivariate data
 - *mask.create_sphere*: Create spherical masks
+
 ### Installation
 1. Method 1
+  
    ```
    git clone git+https://github.com/ljchang/neurolearn
    ```
+
 2. Method 2
+
    ```
    git clone https://github.com/ljchang/neurolearn
    python setup.py install
