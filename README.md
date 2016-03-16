@@ -1,28 +1,30 @@
 [![Build Status](https://api.travis-ci.org/ljchang/neurolearn.png)](https://travis-ci.org/ljchang/neurolearn/)
 
-neurolearn
-==========
-Python toolbox for analyzing neuroimaging data.  It is based off of Tor Wager's object oriented matlab <a href=http://wagerlab.colorado.edu/tools>canlab core tools</a> and relies heavily on <a href = http://nilearn.github.io>nilearn</a> and <a href=http://scikit-learn.org/stable/index.html>scikit learn</a>
+# neurolearn
+Python toolbox for analyzing neuroimaging data.  It is based off of Tor Wager's object oriented matlab [canlab core tools](http://wagerlab.colorado.edu/tools) and relies heavily on [nilearn](http://nilearn.github.io) and [scikit learn](http://scikit-learn.org/stable/index.html)
 
-<h3>Current Tools</h3>
-<ul>
-<li>Predict: apply various classification and prediction algorithms to 4D dataset</li>
-<li>apply_mask: apply 3D weight map to 4D dataset</li>
-<li>Roc: perform ROC analysis</li>
-</ul>
+### Current Tools
+- *data.Brain_Data*: Class to work with 4D imaging data in Python
+- *data.Brain_Data.predict*: Multivariate Prediction 
+- *data.Brain_Data.similarity*: Calculate spatial similarity with another image
+- *data.Brain_Data.distance*: Calculate spatial distance of a group of images
+- *data.Brain_Data.regress*: Univariate Regression 
+- *data.Brain_Data.ttest*: Univariate One Sample t-test 
+- *analysis.Roc*: perform ROC analysis
+- *pipelines.Couple_Preproc_Pipeline*: preprocessing pipeline for multiband data
+- *simulator.Simulator*: Class for simulating multivariate data
+- *mask.create_sphere*: Create spherical masks
+### Installation
+1. Method 1
+   - git clone git+https://github.com/ljchang/neurolearn
+2. Method 2
+    - Clone github repository
+    - python setup.py install
 
-<h3>Installation</h3>
-<ol>
-<li>Clone github repository</li>
-<li>python setup.py install</li>
-</ol>
+### Documentation
+Current Documentation can be found at [readthedocs](http://neurolearn.readthedocs.org/en/latest).  Please see the ipython notebook examples for walkthroughs of how to use most of the toolbox.
 
-<h3>Documentation</h3>
-<p>
-Current Documentation can be found at <a href=http://neurolearn.readthedocs.org/en/latest/>readthedocs</a>.  Please see the ipython notebook examples for walkthroughs of how to use most of the toolbox.
-<br><br>
-Here is a <a href=https://github.com/ljchang/neurolearn/blob/master/scripts/NLTools_Brain_Data_Class_Tutorial.ipynb>notebook</a> with a detailed overview of how to use the main Brain_Data class.  We also have a <a href=https://github.com/ljchang/neurolearn/blob/master/scripts/Chang_ML_fMRI_Tutorial.ipynb>notebook</a> containing other analysis methods such as prediction and ROI curves (note it is now recommended to use the prediction Brain_Data method).
-</p>
+Here is a [jupyter notebook](https://github.com/ljchang/neurolearn/blob/master/scripts/NLTools_Brain_Data_Class_Tutorial.ipynb) with a detailed overview of how to use the main *Brain_Data* class.  We also have a [notebook](https://github.com/ljchang/neurolearn/blob/master/scripts/Chang_ML_fMRI_Tutorial.ipynb) containing other analysis methods such as prediction and ROI curves (note it is now recommended to use the prediction Brain_Data method).
 
 ### Preprocessing
 
@@ -43,7 +45,7 @@ Here is an example preprocessing pipeline for multiband data.  It uses [nipype](
 
 Here is an example script.
 
-```
+``` python
 from nltools.pipelines import Couple_Preproc_Pipeline
 import os
 
@@ -58,6 +60,10 @@ subject_id = subject_list[1]
 #Run Pipeline
 wf = Couple_Preproc_Pipeline(base_dir=base_dir, output_dir=output_dir, subject_id=subject_id, spm_path=spm_path)
 # wf.run('MultiProc', plugin_args={'n_procs': 8}) # This command runs the pipeline in parallel (using 8 cores)
+wf.write_graph(dotfilename=os.path.join(output_dir,'Workflow_Pipeline.dot'),format='png')
 wf.run()
 ```
+![pipeline](https://github.com/ljchang/neurolearn/blob/master/docs/img/Workflow_Pipeline.dot.png)
+
+
 
