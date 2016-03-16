@@ -353,8 +353,7 @@ def Couple_Preproc_Pipeline(base_dir=None, output_dir=None, subject_id=None, spm
                         (smooth, datasink, [('smoothed_files', 'functional.@smooth')]),
                         (plot_realign, datasink, [('plot', 'functional.@plot_realign')]),
                         (plot_normalization_check, datasink, [('plot', 'functional.@plot_normalization')]),
-                        (make_cov, datasink, [('covariates', 'functional.@covariates')]),
-                     ])
+                        (make_cov, datasink, [('covariates', 'functional.@covariates')])])
     return workflow
 
    
