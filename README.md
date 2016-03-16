@@ -16,10 +16,14 @@ Python toolbox for analyzing neuroimaging data.  It is based off of Tor Wager's 
 - *mask.create_sphere*: Create spherical masks
 ### Installation
 1. Method 1
-   - git clone git+https://github.com/ljchang/neurolearn
+   ```
+   git clone git+https://github.com/ljchang/neurolearn
+   ```
 2. Method 2
-    - Clone github repository
-    - python setup.py install
+   ```
+   git clone https://github.com/ljchang/neurolearn
+   python setup.py install
+   ```
 
 ### Documentation
 Current Documentation can be found at [readthedocs](http://neurolearn.readthedocs.org/en/latest).  Please see the ipython notebook examples for walkthroughs of how to use most of the toolbox.
