@@ -3,9 +3,11 @@
     =========================
     Numerous functions to plot data
 
-    Author: Luke Chang
-    License: MIT
 '''
+
+__all__ = ['dist_from_hyperplane_plot','scatterplot','probability_plot','roc_plot','decode_radar_plot']
+__author__ = ["Luke Chang"]
+__license__ = "MIT"
 
 import pandas as pd
 import seaborn as sns    

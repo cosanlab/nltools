@@ -15,16 +15,31 @@ is comprised of two modules: nltools.analysis and nltools.plotting.  The analysi
   :maxdepth: 4
 
 
+:mod:`nltools.data`: Data Types
+===============================
+
+.. automodule:: nltools.data
+    :members:
+
+.. autoclass:: nltools.data.Brain_Data
+    :members:
+
 :mod:`nltools.analysis`: Analysis Tools
 =======================================
 
 .. automodule:: nltools.analysis
     :members:
 
-.. autoclass:: nltools.analysis.Predict
+.. autoclass:: nltools.analysis.Roc
     :members:
 
-.. autoclass:: nltools.analysis.Roc
+:mod:`nltools.searchlight`: Searchlight Tools
+=============================================
+
+.. automodule:: nltools.searchlight
+    :members:
+
+.. autoclass:: nltools.searchlight.Searchlight
     :members:
 
 :mod:`nltools.plotting`: Plotting Tools
@@ -45,11 +60,57 @@ is comprised of two modules: nltools.analysis and nltools.plotting.  The analysi
 .. automodule:: nltools.cross_validation
     :members:
 
+.. autoclass:: nltools.cross_validation.KFoldSubject
+    :members:
+
+.. autoclass:: nltools.cross_validation.KFoldStratified
+    :members:
+
+.. autoclass:: nltools.cross_validation.LeaveOneSubjectOut
+    :members:
+
+:mod:`nltools.mask`: Mask Tools
+===============================
+
+.. automodule:: nltools.mask
+    :members:
+
+:mod:`nltools.simulator`: Simulator Tools
+=========================================
+
+.. automodule:: nltools.simulator
+    :members:
+
+.. autoclass:: nltools.simulator.Simulator
+    :members:
+
 :mod:`nltools.util`: Utilities
 ==============================
 
 .. automodule:: nltools.utils
     :members:
+
+:mod:`nltools.pipelines`: Preprocessing Pipelines
+=================================================
+
+.. automodule:: nltools.pipelines
+    :members:
+
+:mod:`nltools.interfaces`: Nipype Interfaces
+============================================
+
+.. automodule:: nltools.interfaces
+    :members:
+
+:mod:`nltools.pbs_job`: Discovery Scheduler Interface
+=====================================================
+
+.. automodule:: nltools.pbs_job
+    :members:
+
+.. autoclass:: nltools.pbs_job.PBS_Job
+    :members:
+
 
 Index
 =====

@@ -1,5 +1,14 @@
-# Sam Greydanus and Luke Chang 2015
-# Some code taken from nilearn searchlight implementation: https://github.com/nilearn/nilearn/blob/master/nilearn/decoding/searchlight.py
+'''
+    NeuroLearn Simulator Tools
+    ==========================
+    Tools to simulate multivariate data.
+
+'''
+
+__all__ = ['Simulator']
+__author__ = ["Sam Greydanus","Luke Chang"]
+__license__ = "MIT"
+
 
 import os
 

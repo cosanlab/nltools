@@ -1,16 +1,16 @@
 '''
     NeuroLearn Data Classes
-    =========================
-    Classes to represent various types of fdata
+    ==========================================
+    Classes to represent various types of data
 
-    Author: Luke Chang
-    License: MIT
 '''
 
 ## Notes:
 # Need to figure out how to speed up loading and resampling of data
 
 __all__ = ['Brain_Data']
+__author__ = ["Luke Chang"]
+__license__ = "MIT"
 
 import os
 import cPickle 

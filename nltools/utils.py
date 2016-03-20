@@ -1,6 +1,8 @@
 """Handy utilities"""
 
-__all__ = ['get_resource_path']
+__all__ = ['get_resource_path','get_anatomical','set_algorithm','get_n_slices','get_ta','get_slice_order','get_n_volumes','get_vox_dims']
+__author__ = ["Luke Chang"]
+__license__ = "MIT"
 
 from os.path import dirname, join, pardir, sep as pathsep
 import pandas as pd
@@ -9,10 +11,12 @@ import importlib
 import os
 
 def get_resource_path():
-	return join(dirname(__file__), 'resources') + pathsep
+    """ Get path to nltools resource directory. """
+    return join(dirname(__file__), 'resources') + pathsep
 
 def get_anatomical():
-	return nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm.nii.gz'))
+    """ Get nltools default anatomical image. """
+    return nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm.nii.gz'))
 
 def set_algorithm(algorithm, **kwargs):
     """ Setup the algorithm to use in subsequent prediction analyses.
