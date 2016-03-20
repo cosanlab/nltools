@@ -3,14 +3,11 @@
     =======================
     Classes to represent masks
 
-    Author: Luke Chang
-    License: MIT
 '''
 
-## Notes:
-
-
 __all__ = ['create_sphere']
+__author__ = ["Luke Chang"]
+__license__ = "MIT"
 
 import os
 import nibabel as nib

@@ -4,12 +4,11 @@
     =============================
     Scikit-learn compatible classes for performing various 
     types of cross-validation
-
-    Author: Luke Chang
-    License: MIT
 '''
 
-__all__ = ['KFoldSubject','KFoldStratified','LeaveOneSubjectOut']
+__all__ = ['KFoldSubject','KFoldStratified','LeaveOneSubjectOut','set_cv']
+__author__ = ["Luke Chang"]
+__license__ = "MIT"
 
 from sklearn.cross_validation import _BaseKFold
 import numpy as np

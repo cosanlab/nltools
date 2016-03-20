@@ -1,4 +1,13 @@
-# Sam Greydanus and Luke Chang 2015
+'''
+    NeuroLearn pbs_job
+    ==================
+    Tools to run distributed jobs on Dartmouth Discovery PBS scheduler
+
+'''
+
+__all__ = ['PBS_Job']
+__author__ = ["Sam Greydanus","Luke Chang"]
+__license__ = "MIT"
 
 import os
 

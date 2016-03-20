@@ -1,26 +1,14 @@
 '''
     nltools Nipype Interfaces
-    =====================================
+    =========================
+    
     Classes for various nipype interfaces
-
-    Author: Luke Chang
-    License: MIT
 
 '''
 
 __all__ = ['Plot_Coregistration_Montage', 'PlotRealignmentParameters', 'Create_Covariates']
-
-# import matplotlib
-# from nipype.interfaces import spm
-# import nipype.interfaces.io as nio           # Data i/o
-# import nipype.interfaces.utility as util     # utility
-# from nipype.pipeline.engine import Node, Workflow
-# from nipype.interfaces.base import BaseInterface, TraitedSpec, File, traits
-# import nipype.algorithms.rapidart as ra      # artifact detection
-# from nipype.interfaces.nipy.preprocess import ComputeMask
-# import nipype.interfaces.matlab as mlab
-# from IPython.display import Image
-# import glob
+__author__ = ["Luke Chang"]
+__license__ = "MIT"
 
 import matplotlib
 matplotlib.use('Agg')
@@ -33,17 +21,6 @@ import nibabel as nib
 from nipype.interfaces.base import isdefined, BaseInterface, TraitedSpec, File, traits
 from nilearn import plotting, datasets, image
 import nibabel as nib
-
-# # Specify various inputs files for pipeline
-# spm_path = '/Users/lukechang/Documents/MATLAB/spm8/'
-# data_dir='/Users/lukechang/Dropbox/PTSD/Data/Imaging'
-# canonical_file = spm_path + 'canonical/single_subj_T1.nii'
-# t1_template_file = spm_path + 'templates/T1.nii'
-
-# # Set the way matlab should be called
-# mlab.MatlabCommand.set_default_matlab_cmd("matlab -nodesktop -nosplash")
-# mlab.MatlabCommand.set_default_paths(spm_path)
-
 
 
 class Plot_Coregistration_Montage_InputSpec(TraitedSpec):	
