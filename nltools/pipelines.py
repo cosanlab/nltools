@@ -4,16 +4,17 @@
     ========================
     Various nipype pipelines
 
-    Author: Luke Chang
-    License: MIT
-
 '''
 
-import nipype.interfaces.io as nio           # Data i/o
-import nipype.interfaces.utility as util     # utility
+__all__ = ['create_spm_preproc_func_pipeline','Couple_Preproc_Pipeline']
+__author__ = ["Luke Chang"]
+__license__ = "MIT"
+
+import nipype.interfaces.io as nio 
+import nipype.interfaces.utility as util
 from nipype.pipeline.engine import Node, Workflow
 from nipype.interfaces.base import BaseInterface, TraitedSpec, File, traits
-import nipype.algorithms.rapidart as ra      # artifact detection
+import nipype.algorithms.rapidart as ra
 from nipype.interfaces import spm
 from nipype.interfaces.nipy.preprocess import ComputeMask
 import nipype.interfaces.matlab as mlab
