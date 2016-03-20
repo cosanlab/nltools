@@ -12,7 +12,7 @@ methods in the current release of Neurolearn. The root Neurolearn package
 is comprised of two modules: nltools.analysis and nltools.plotting.  The analysis module contains functionality for prediction/classification, testing pattern response, and ROC analyses. 
 
 .. toctree::
-  :maxdepth: 4
+  :maxdepth: 2
 
 
 :mod:`nltools.data`: Data Types
