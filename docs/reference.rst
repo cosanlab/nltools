@@ -12,44 +12,44 @@ methods in the current release of Neurolearn. The root Neurolearn package
 is comprised of two modules: nltools.analysis and nltools.plotting.  The analysis module contains functionality for prediction/classification, testing pattern response, and ROC analyses. 
 
 .. toctree::
-  :maxdepth: 2
+  :maxdepth: 4
 
 
 :mod:`nltools.analysis`: Analysis Tools
 =======================================
 
 .. automodule:: nltools.analysis
-  :members:
+    :members:
 
 .. autoclass:: nltools.analysis.Predict
-  :members:
+    :members:
 
 .. autoclass:: nltools.analysis.Roc
-  :members:
+    :members:
 
 :mod:`nltools.plotting`: Plotting Tools
 =======================================
 
 .. automodule:: nltools.plotting
-  :members:
+    :members:
 
 :mod:`nltools.plotting`: Stats Tools
 ====================================
 
 .. automodule:: nltools.stats
-  :members:
+    :members:
 
 :mod:`nltools.cross_validation`: Cross-Validation Tools
-====================================
+=======================================================
 
 .. automodule:: nltools.cross_validation
-  :members:
+    :members:
 
 :mod:`nltools.util`: Utilities
-====================================
+==============================
 
-.. automodule:: nltools.util
-  :members:
+.. automodule:: nltools.utils
+    :members:
 
 Index
 =====

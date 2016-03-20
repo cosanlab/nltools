@@ -16,29 +16,68 @@ import sys
 import os
 import shlex
 
-# ReadTheDocks doesn't support necessary C dependencies (e.g., Atlas), so we
-# mock them out per https://docs.readthedocs.org/en/latest/faq.html#i-get-import-errors-on-libraries-that-depend-on-c-modules.
-from mock import MagicMock
-
-class Mock(MagicMock):
-  @classmethod
-  def __getattr__(cls, name):
-    return Mock()
-
-MOCK_MODULES = ['importlib','numpy', 'scipy', 'pandas', 'sklearn', 'nibabel', 
-'matplotlib', 'matplotlib.pyplot','seaborn','sklearn.pipeline',
-'sklearn.pipeline.Pipeline','sklearn.cross_validation','sklearn.cross_validation._BaseKFold',
-'sklearn.cross_validation.StratifiedKFold','sklearn.cross_validation.LeaveOneLabelOut',
-'nilearn','nilearn.input_data','nilearn.plotting',
-'nilearn.input_data.NiftiMasker','scipy.stats','scipy.stats.norm',
-'scipy.stats.binom_test','sklearn.metrics','sklearn.metrics.auc']
-sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
-
-
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('../'))
+# ReadTheDocks doesn't support necessary C dependencies (e.g., Atlas), so we
+# mock them out per https://docs.readthedocs.org/en/latest/faq.html#i-get-import-errors-on-libraries-that-depend-on-c-modules.
+from mock import Mock as MagicMock
+
+class Mock(MagicMock):
+    __all__ = []
+    @classmethod
+    def __getattr__(cls, name):
+            return Mock()
+
+# To keep compatibility with RTD and for sphinx to build properly this list needs to be updated if new modules are utilized anywhere in the project code
+MOCK_MODULES = [
+'importlib',
+'numpy',
+'pandas', 
+'nibabel', 
+'matplotlib', 
+'matplotlib.pyplot',
+'seaborn',
+'sklearn',
+'sklearn.base',
+'sklearn.base.BaseEstimator',
+'sklearn.externals',
+'sklearn.externals.joblib',
+'sklearn.externals.joblib.Parallel',
+'skleanr.externals.joblib.delayed',
+'skleanr.externals.joblib.cpu_count',
+'sklearn.metrics',
+'sklearn.metrics.pairwise',
+'sklearn.metrics.pairwise.pairwise_distances', 
+'sklearn.pipeline',
+'sklearn.pipeline.Pipeline',
+'sklearn.svm',
+'sklearn.svm.SVR',
+'sklearn.cross_validation',
+'sklearn.cross_validation._BaseKFold',
+'sklearn.cross_validation.StratifiedKFold',
+'sklearn.cross_validation.LeaveOneLabelOut',
+'nilearn',
+'nilearn.plotting', 
+'nilearn.plotting.img_plotting',
+'nilearn.plotting.img_plotting.plot_epi',
+'nilearn.plotting.img_plotting.plot_roi',
+'nilearn.plotting.img_plotting.plot_stat_map',
+'nilearn.image',
+'nilearn.image.resample_img',
+'nilearn.masking',
+'nilearn.masking.intersec_masks',
+'nilearn.input_data',
+'nilearn.input_data.NiftiMasker',
+'scipy',
+'scipy.stats',
+'scipy.stats.norm',
+'scipy.stats.binom_test',
+'sklearn.metrics',
+'sklearn.metrics.auc']
+
+sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 # -- General configuration ------------------------------------------------
 
