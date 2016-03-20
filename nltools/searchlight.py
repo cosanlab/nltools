@@ -1,5 +1,15 @@
-# Sam Greydanus and Luke Chang 2015
-# Some code taken from nilearn searchlight implementation: https://github.com/nilearn/nilearn/blob/master/nilearn/decoding/searchlight.py
+'''
+    NeuroLearn Searchlight Tools
+    ============================
+    
+    Tools to perform searchlight analyses. Some code taken from nilearn searchlight 
+    implementation: https://github.com/nilearn/nilearn/blob/master/nilearn/decoding/searchlight.py
+
+'''
+
+__all__ = ['Searchlight']
+__author__ = ["Sam Greydanus","Luke Chang"]
+__license__ = "MIT"
 
 import os
 

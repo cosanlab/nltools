@@ -3,8 +3,6 @@
     =========================
     These tools provide the ability to quickly run
     machine-learning analyses on imaging data
-    Author: Luke Chang <luke.j.chang@dartmouth.edu>
-    License: MIT
 '''
 
 # ToDo
@@ -15,7 +13,9 @@
 # 5) add within subject checks and plots
 # 6) Plot probabilities
 
-__all__ = ['Predict','apply_mask','ROC']
+__all__ = ['Predict','apply_mask','Roc']
+__author__ = ["Luke Chang"]
+__license__ = "MIT"
 
 import os
 import importlib
