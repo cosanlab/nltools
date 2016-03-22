@@ -38,19 +38,21 @@ from nltools.pbs_job import PBS_Job
 
 class Brain_Data(object):
 
+    """
+    Brain_Data is a class to represent neuroimaging data in python as a vector rather than a 3-dimensional matrix.  
+    This makes it easier to perform data manipulation and analyses.
+
+    Args:
+        data: nibabel data instance or list of files
+        Y: Pandas DataFrame of training labels
+        X: Pandas DataFrame Design Matrix for running univariate models 
+        mask: binary nifiti file to mask brain data
+        output_file: Name to write out to nifti file
+        **kwargs: Additional keyword arguments to pass to the prediction algorithm
+
+    """
+
     def __init__(self, data=None, Y=None, X=None, mask=None, output_file=None, **kwargs):
-        """ Initialize Brain_Data Instance.
-
-        Args:
-            data: nibabel data instance or list of files
-            Y: Pandas DataFrame of training labels
-            X: Pandas DataFrame Design Matrix for running univariate models 
-            mask: binary nifiti file to mask brain data
-            output_file: Name to write out to nifti file
-            **kwargs: Additional keyword arguments to pass to the prediction algorithm
-
-        """
-
         if mask is not None:
             if not isinstance(mask, nib.Nifti1Image):
                 if type(mask) is str:

@@ -430,18 +430,20 @@ def apply_mask(data=None, weight_map=None, mask=None, method='dot_product', save
 
 class Roc(object):
 
-    def __init__(self, input_values=None, binary_outcome=None, threshold_type='optimal_overall',
-        forced_choice=False, **kwargs):
-        """ Initialize Roc instance. Object-Oriented version based on Tor Wager's Matlab roc_plot.m function
+    """ Roc Class
+    
+    The Roc class is based on Tor Wager's Matlab roc_plot.m function and allows a user to easily run different types of 
+    receiver operator characteristic curves.  For example, one might be interested in single interval or forced choice.
 
-        Args:
-            input_values: nibabel data instance
-            binary_outcome: vector of training labels
-            threshold_type: ['optimal_overall', 'optimal_balanced','minimum_sdt_bias']
-            **kwargs: Additional keyword arguments to pass to the prediction algorithm
+    Args:
+        input_values: nibabel data instance
+        binary_outcome: vector of training labels
+        threshold_type: ['optimal_overall', 'optimal_balanced','minimum_sdt_bias']
+        **kwargs: Additional keyword arguments to pass to the prediction algorithm
 
-        """
+    """
 
+    def __init__(self, input_values=None, binary_outcome=None, threshold_type='optimal_overall', forced_choice=False, **kwargs):
         if len(input_values) != len(binary_outcome):
             raise ValueError("Data Problem: input_value and binary_outcome are different lengths.")
 
