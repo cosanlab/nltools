@@ -5,8 +5,8 @@
 
 '''
 
-__all__ = ['create_sphere']
-__author__ = ["Luke Chang"]
+__all__ = ['create_sphere', 'expand_mask']
+__author__ = ["Luke Chang", "Sam Greydanus"]
 __license__ = "MIT"
 
 import os
@@ -20,7 +20,7 @@ import numpy as np
 
 
 def create_sphere(coordinates, radius=5, mask=None):
-    """ generate a set of spheres in the brain mask space (Written by Sam Greydanus)
+    """ Generate a set of spheres in the brain mask space
 
     Args:
         radius: vector of radius.  Will create multiple spheres if len(radius) > 1

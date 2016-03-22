@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# neurolearn documentation build configuration file, created by
+# nltools documentation build configuration file, created by
 # sphinx-quickstart on Thu Jun  4 07:22:28 2015.
 #
 # This file is execfile()d with the current directory set to its
@@ -91,6 +91,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinxcontrib.napoleon',
+    'sphinx.ext.viewcode'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -108,7 +109,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'neurolearn'
+project = u'nltools'
 copyright = u'2015, Luke Chang'
 author = u'Luke Chang'
 
@@ -143,15 +144,15 @@ exclude_patterns = ['_build']
 #default_role = None
 
 # If true, '()' will be appended to :func: etc. cross-reference text.
-#add_function_parentheses = True
+add_function_parentheses = True
 
 # If true, the current module name will be prepended to all description
 # unit titles (such as .. function::).
-#add_module_names = True
+add_module_names = True
 
 # If true, sectionauthor and moduleauthor directives will be shown in the
 # output. They are ignored by default.
-#show_authors = False
+show_authors = True
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
@@ -174,7 +175,9 @@ todo_include_todos = False
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 
 if not on_rtd:  # only import and set the theme if we're building docs locally
-    html_theme = 'nature'
+  import sphinx_rtd_theme                                                      
+  html_theme = 'sphinx_rtd_theme'                                              
+  html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]    
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -226,22 +229,22 @@ html_static_path = ['_static']
 #html_additional_pages = {}
 
 # If false, no module index is generated.
-#html_domain_indices = True
+html_domain_indices = True
 
 # If false, no index is generated.
-#html_use_index = True
+html_use_index = True
 
 # If true, the index is split into individual pages for each letter.
 #html_split_index = False
 
 # If true, links to the reST sources are added to the pages.
-#html_show_sourcelink = True
+html_show_sourcelink = True
 
 # If true, "Created using Sphinx" is shown in the HTML footer. Default is True.
 #html_show_sphinx = True
 
 # If true, "(C) Copyright ..." is shown in the HTML footer. Default is True.
-#html_show_copyright = True
+html_show_copyright = True
 
 # If true, an OpenSearch description file will be output, and all pages will
 # contain a <link> tag referring to it.  The value of this option must be the
@@ -266,7 +269,7 @@ html_static_path = ['_static']
 #html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'neurolearndoc'
+htmlhelp_basename = 'nltoolsdoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -288,7 +291,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  (master_doc, 'neurolearn.tex', u'neurolearn Documentation',
+  (master_doc, 'nltools.tex', u'nltools Documentation',
    u'Luke Chang', 'manual'),
 ]
 
@@ -318,7 +321,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'neurolearn', u'neurolearn Documentation',
+    (master_doc, 'nltools', u'nltools Documentation',
      [author], 1)
 ]
 
@@ -332,8 +335,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  (master_doc, 'neurolearn', u'neurolearn Documentation',
-   author, 'neurolearn', 'One line description of project.',
+  (master_doc, 'nltools', u'nltools Documentation',
+   author, 'nltools', 'One line description of project.',
    'Miscellaneous'),
 ]
 
