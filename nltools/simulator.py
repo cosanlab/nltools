@@ -308,7 +308,7 @@ class Simulator:
                 wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
                 wr.writerow(self.rep_id)
 
-    def create_ncov_data(self, cor, cov, sigma, mask=None, reps = 1, n_sub = 1, output_dir = None):
+    def create_ncov_data(self, cor, cov, sigma, masks=None, reps = 1, n_sub = 1, output_dir = None):
         """ create continuous simulated data with covariance
 
         Args:
@@ -328,33 +328,49 @@ class Simulator:
             A = self.n_spheres(10, None) #parameters are (radius, center)
             mask = nib.Nifti1Image(A.astype(np.float32), affine=self.brain_mask.affine)
 
-        if type(mask) is nib.nifti1.Nifti1Image:
-            mask = [mask]
+        if type(masks) is nib.nifti1.Nifti1Image:
+            masks = [masks]
         if type(cor) is float or type(cor) is int:
             cor = [cor]
         if type(cov) is float or type(cor) is int:
             cov = [cov]
-        if not len(cor) != len(mask):
-            raise ValueError("cor matrix has incompatible dimensions for mask list of length " + str(len(mask)))
-        if not len(cov) != len(mask) or (len(mask)>0 and len(cov[0]) != len(mask)):
-            raise ValueError("cov matrix has incompatible dimensions for mask list of length " + str(len(mask)))
+        if not len(cor) != len(masks):
+            raise ValueError("cor matrix has incompatible dimensions for mask list of length " + str(len(masks)))
+        if not len(cov) != len(masks) or (len(mask)>0 and len(cov[0]) != len(masks)):
+            raise ValueError("cov matrix has incompatible dimensions for mask list of length " + str(len(masks)))
 
         # Create n_reps with cov for each voxel within sphere
         # Build covariance matrix with each variable correlated with y amount 'cor' and each other amount 'cov'
-        flat_masks = [self.nifti_masker.fit_transform(m) for m in mask]
+        flat_masks = nifti_masker.fit_transform(masks)
 
-        n_vox = [np.sum(fm==1) for fm in flat_masks]
-        cov_matrix = np.zeros([np.sum(n_vox)+1, np.sum(n_vox)+1])
+        n_vox = np.sum(flat_masks==1,axis=1) #this is a list, each entry contains number voxels for given mask
+        cov_matrix = np.zeros([np.sum(n_vox)+1, np.sum(n_vox)+1]) #one big covariance matrix
         for i, nv in enumerate(n_vox):
             cstart = np.sum(n_vox[:i]) + 1
-            cstop = start + nv
-            cov_matrix[0,cstart:cstop] = cor # set covariance with y
-            cov_matrix[cstart:cstop,0] = cor # set covariance with all other voxels
-            for j in range(len(mask)):
+            cstop = cstart + nv
+            cov_matrix[0,cstart:cstop] = cor[i] # set covariance with y
+            cov_matrix[cstart:cstop,0] = cor[i] # set covariance with all other voxels
+            for j in range(len(masks)):
                 rstart = np.sum(n_vox[:j]) + 1
-                rstop = start + nv
+                rstop = rstart + nv
                 cov_matrix[cstart:cstop,rstart:rstop] = cov[i][j] # set covariance of this mask's voxels with each of other masks
 
+<<<<<<< HEAD
+        # these operations happen in one vector that we'll later split into the separate regions
+        mv_sim_l = np.random.multivariate_normal(np.zeros([np.sum(n_vox)+1]),cov_matrix, size=reps)
+
+        self.y = mv_sim_l[:,0]
+        mv_sim = mv_sim_l[:,1:]
+        new_dats = np.ones([mv_sim.shape[0], flat_masks.shape[1]])
+
+        for i in range(len(new_dats)):
+            start = int( np.sum(n_vox[:i]) )
+            stop = int( start + n_vox[i] )
+            new_dats[i,np.where(flat_masks[i,:]==1)] = mv_sim[i,start:stop]
+
+        self.data = nifti_masker.inverse_transform(np.sum(new_dats,axis=0))
+        self.rep_id = [1] * len(self.y)
+=======
         np.fill_diagonal(cov_matrix,1) # set diagonal to 1
         mv_sim = np.random.multivariate_normal(np.zeros([np.sum(n_vox)+1]),cov_matrix, size=reps)
         y = mv_sim[:,0] #not sure if we still want this (we're getting a y label for EVERY voxel...in some cases we won't want to)
@@ -370,16 +386,15 @@ class Simulator:
         # new_dats = [nd[:,np.where(flat_masks[i]==1)[1]] = mv_sim for i, nd in enumerate(new_dats)  #invalid syntax error needs to be fixed - lc
         self.data = self.nifti_masker.inverse_transform(np.add(new_dat,np.random.standard_normal(size=new_dat.shape)*sigma)) #add noise scaled by sigma
         self.rep_id = [1] * len(y)
+>>>>>>> origin/master
         if n_sub > 1:
             self.y = list(self.y)
             for s in range(1,n_sub):
-                self.data = nib.concat_images([self.data,self.nifti_masker.inverse_transform(np.add(new_dat,np.random.standard_normal(size=new_dat.shape)*sigma))],axis=3) #add noise scaled by sigma
-                noise_y = list(y + np.random.randn(len(y))*sigma)
-                self.y = self.y + noise_y
-                self.rep_id = self.rep_id + [s+1] * len(mv_sim[:,0])
+                #there used to be more noise added to data here - ask Luke about that
+                self.y += list(self.y + np.random.randn(len(self.y))*sigma)
+                self.rep_id += [s+1] * len(mv_sim[:,0])
             self.y = np.array(self.y)
 
-        # Write Data to files if requested
         if output_dir is not None:
             if type(output_dir) is str:
                 if not os.path.isdir(output_dir):
@@ -392,3 +407,6 @@ class Simulator:
                 rep_id_file = open(os.path.join(output_dir,'rep_id.csv'), 'wb')
                 wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
                 wr.writerow(self.rep_id)
+
+
+
