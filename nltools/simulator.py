@@ -341,7 +341,7 @@ class Simulator:
 
         # Create n_reps with cov for each voxel within sphere
         # Build covariance matrix with each variable correlated with y amount 'cor' and each other amount 'cov'
-        flat_masks = nifti_masker.fit_transform(masks)
+        flat_masks = self.nifti_masker.fit_transform(masks)
 
         n_vox = np.sum(flat_masks==1,axis=1) #this is a list, each entry contains number voxels for given mask
         cov_matrix = np.zeros([np.sum(n_vox)+1, np.sum(n_vox)+1]) #one big covariance matrix
@@ -367,7 +367,7 @@ class Simulator:
             stop = int( start + n_vox[i] )
             new_dats[i,np.where(flat_masks[i,:]==1)] = mv_sim[i,start:stop]
 
-        self.data = nifti_masker.inverse_transform(np.sum(new_dats,axis=0))
+        self.data = self.nifti_masker.inverse_transform(np.sum(new_dats,axis=0))
         self.rep_id = [1] * len(self.y)
 
         np.fill_diagonal(cov_matrix,1) # set diagonal to 1
