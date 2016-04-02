@@ -334,9 +334,9 @@ class Simulator:
             cor = [cor]
         if type(cov) is float or type(cor) is int:
             cov = [cov]
-        if not len(cor) != len(masks):
+        if not len(cor) == len(masks):
             raise ValueError("cor matrix has incompatible dimensions for mask list of length " + str(len(masks)))
-        if not len(cov) != len(masks) or (len(mask)>0 and len(cov[0]) != len(masks)):
+        if not len(cov) == len(masks) or (len(mask)>0 or not len(cov[0]) == len(masks)):
             raise ValueError("cov matrix has incompatible dimensions for mask list of length " + str(len(masks)))
 
         # Create n_reps with cov for each voxel within sphere
