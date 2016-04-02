@@ -355,7 +355,6 @@ class Simulator:
                 rstop = rstart + nv
                 cov_matrix[cstart:cstop,rstart:rstop] = cov[i][j] # set covariance of this mask's voxels with each of other masks
 
-<<<<<<< HEAD
         # these operations happen in one vector that we'll later split into the separate regions
         mv_sim_l = np.random.multivariate_normal(np.zeros([np.sum(n_vox)+1]),cov_matrix, size=reps)
 
@@ -370,7 +369,7 @@ class Simulator:
 
         self.data = nifti_masker.inverse_transform(np.sum(new_dats,axis=0))
         self.rep_id = [1] * len(self.y)
-=======
+
         np.fill_diagonal(cov_matrix,1) # set diagonal to 1
         mv_sim = np.random.multivariate_normal(np.zeros([np.sum(n_vox)+1]),cov_matrix, size=reps)
         y = mv_sim[:,0] #not sure if we still want this (we're getting a y label for EVERY voxel...in some cases we won't want to)
@@ -386,7 +385,7 @@ class Simulator:
         # new_dats = [nd[:,np.where(flat_masks[i]==1)[1]] = mv_sim for i, nd in enumerate(new_dats)  #invalid syntax error needs to be fixed - lc
         self.data = self.nifti_masker.inverse_transform(np.add(new_dat,np.random.standard_normal(size=new_dat.shape)*sigma)) #add noise scaled by sigma
         self.rep_id = [1] * len(y)
->>>>>>> origin/master
+
         if n_sub > 1:
             self.y = list(self.y)
             for s in range(1,n_sub):
