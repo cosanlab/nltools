@@ -343,6 +343,7 @@ class Simulator:
         # Build covariance matrix with each variable correlated with y amount 'cor' and each other amount 'cov'
         flat_masks = self.nifti_masker.fit_transform(masks)
 
+        print("Building correlation/covariation matrix...")
         n_vox = np.sum(flat_masks==1,axis=1) #this is a list, each entry contains number voxels for given mask
         cov_matrix = np.zeros([np.sum(n_vox)+1, np.sum(n_vox)+1]) #one big covariance matrix
         for i, nv in enumerate(n_vox):
@@ -356,6 +357,7 @@ class Simulator:
                 cov_matrix[cstart:cstop,rstart:rstop] = cov[i][j] # set covariance of this mask's voxels with each of other masks
 
         # these operations happen in one vector that we'll later split into the separate regions
+        print("Generating multivariate normal distribution...")
         mv_sim_l = np.random.multivariate_normal(np.zeros([np.sum(n_vox)+1]),cov_matrix, size=reps)
 
         self.y = mv_sim_l[:,0]
@@ -369,22 +371,6 @@ class Simulator:
 
         self.data = self.nifti_masker.inverse_transform(np.sum(new_dats,axis=0))
         self.rep_id = [1] * len(self.y)
-
-        np.fill_diagonal(cov_matrix,1) # set diagonal to 1
-        mv_sim = np.random.multivariate_normal(np.zeros([np.sum(n_vox)+1]),cov_matrix, size=reps)
-        y = mv_sim[:,0] #not sure if we still want this (we're getting a y label for EVERY voxel...in some cases we won't want to)
-        self.y = y
-        mv_sim = mv_sim[:,1:]
-        new_dats = [np.ones([mv_sim.shape[0],fm.shape[1]]) for fm in flat_masks]
-        for i, nd in enumerate(new_dats):
-            # new_dat[:,np.where(flat_sphere==1)[1]] = mv_sim
-            start = np.sum(n_vox[:i]) + 1
-            stop = start + nv
-            new_dats[i][:,np.where(flat_masks[i]==1)[1]] = mv_sim
-
-        # new_dats = [nd[:,np.where(flat_masks[i]==1)[1]] = mv_sim for i, nd in enumerate(new_dats)  #invalid syntax error needs to be fixed - lc
-        self.data = self.nifti_masker.inverse_transform(np.add(new_dat,np.random.standard_normal(size=new_dat.shape)*sigma)) #add noise scaled by sigma
-        self.rep_id = [1] * len(y)
 
         if n_sub > 1:
             self.y = list(self.y)
