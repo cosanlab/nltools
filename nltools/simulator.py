@@ -323,10 +323,10 @@ class Simulator:
 
         """
         
-        if mask is None:
+        if masks is None:
             # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
             A = self.n_spheres(10, None) #parameters are (radius, center)
-            mask = nib.Nifti1Image(A.astype(np.float32), affine=self.brain_mask.affine)
+            masks = nib.Nifti1Image(A.astype(np.float32), affine=self.brain_mask.affine)
 
         if type(masks) is nib.nifti1.Nifti1Image:
             masks = [masks]
