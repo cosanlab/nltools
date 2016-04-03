@@ -371,6 +371,7 @@ class Simulator:
         self.y = mv_sim_l[:,0]
         mv_sim = mv_sim_l[:,1:]
         new_dats = np.ones([mv_sim.shape[0], flat_masks.shape[1]])
+        print "new_dats" + str(new_dats)
 
         for rep in range(reps):
             for mask_i in range(len(masks)):
