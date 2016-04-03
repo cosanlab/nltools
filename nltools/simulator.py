@@ -364,18 +364,25 @@ class Simulator:
         mv_sim = mv_sim_l[:,1:]
         new_dats = np.ones([mv_sim.shape[0], flat_masks.shape[1]])
 
-        for i in range(len(new_dats)):
-            start = int( np.sum(n_vox[:i]) )
-            stop = int( start + n_vox[i] )
-            new_dats[i,np.where(flat_masks[i,:]==1)] = mv_sim[i,start:stop]
+        for rep in range(reps):
+            for mask_i in range(len(masks)):
+                start = int( np.sum(n_vox[:mask_i]) )
+                stop = int( start + n_vox[mask_i] )
+                print i, start, stop
+                new_dats[rep,np.where(flat_masks[mask_i,:]==1)] += mv_sim[mask_i,start:stop]
 
-        self.data = self.nifti_masker.inverse_transform(np.sum(new_dats,axis=0))
+        noise = np.random.standard_normal(size=new_dats.shape[1])*sigma
+        data = nifti_masker.inverse_transform(np.add(new_dats, noise)) #append 3d simulated data to list
         self.rep_id = [1] * len(self.y)
 
         if n_sub > 1:
             self.y = list(self.y)
             for s in range(1,n_sub):
-                #there used to be more noise added to data here - ask Luke about that
+                #ask Luke about this new version
+                noise = np.random.standard_normal(size=new_dats.shape[1])*sigma
+                next_subj = nifti_masker.inverse_transform(np.add(new_dats, noise))
+                data = nib.concat_images([data,next_subj],axis=3)
+
                 self.y += list(self.y + np.random.randn(len(self.y))*sigma)
                 self.rep_id += [s+1] * len(mv_sim[:,0])
             self.y = np.array(self.y)
