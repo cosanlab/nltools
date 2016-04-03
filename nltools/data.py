@@ -778,7 +778,7 @@ class Brain_Data(object):
 
         raise NotImplementedError()
 
-    def searchlight(self, ncores, process_mask=None, core_out_dir=None, radius=3, walltime='24:00:00', \
+    def searchlight(self, ncores, process_mask=None, searchlight_out=None, radius=3, walltime='24:00:00', \
         email=None, algorithm='svr', cv_dict=None, kwargs={}):
         
         if len(kwargs) is 0:
@@ -790,7 +790,7 @@ class Brain_Data(object):
                   'predict_kwargs':kwargs}
         #cv_dict={'type': 'kfolds','n_folds': 5,'stratified':dat.Y}
 
-        parallel_job = PBS_Job(self, core_out_dir=core_out_dir, process_mask=process_mask, radius=radius, kwargs=pbs_kwargs)
+        parallel_job = PBS_Job(self, searchlight_out=searchlight_out, process_mask=process_mask, radius=radius, kwargs=pbs_kwargs)
 
         # make and store data we will need to access on the worker core level
         parallel_job.make_searchlight_masks()
