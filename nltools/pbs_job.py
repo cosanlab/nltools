@@ -36,30 +36,32 @@ from nilearn import masking
 from nilearn.input_data import NiftiMasker
 
 from nltools.analysis import Predict
+from nltools.utils import get_resource_path
 import glob
 
 class PBS_Job:
-    def __init__(self, data, core_out_dir = None, process_mask=None, radius=4, kwargs=None): #no scoring param
+    def __init__(self, data, parallel_out = None, process_mask=None, radius=4, kwargs=None): #no scoring param
         
         self.data = data
-        self.data_dir = os.path.join(os.getcwd(), 'resources')
 
-        #set up core_out_dir
-        if core_out_dir is None:
-            os.system("mkdir core_out_dir")
-            self.core_out_dir = os.path.join(os.getcwd(),'core_out_dir')
-        elif type(core_out_dir) is str:
-            os.system("mkdir " + core_out_dir) #make directory if it does not exist
-            self.core_out_dir = core_out_dir
+        #set up parallel_out
+        if parallel_out is None:
+            os.system("mkdir parallel_out")
+            self.parallel_out = os.path.join(os.getcwd(),'parallel_out')
+        elif type(parallel_out) is str:
+            os.system("mkdir " + parallel_out) #make directory if it does not exist
+            self.parallel_out = parallel_out
         else:
-            print(type(core_out_dir))
-            raise ValueError("core_out_dir should be a string")
+            print(type(parallel_out))
+            raise ValueError("parallel_out should be a string")
+        os.system('mkdir ' + os.path.join(self.parallel_out,'core_out') )
+        self.core_out = os.path.join(self.parallel_out,'core_out')
         
         #set up process_mask
         if type(process_mask) is str:
             process_mask = nib.load(process_mask)
         elif process_mask is None:
-            process_mask = nib.load(os.path.join(self.data_dir,"FSL_RIns_thr0.nii.gz"))
+            process_mask = nib.load(os.path.join(get_resource_path(),"FSL_RIns_thr0.nii.gz"))
         elif type(process_mask) is not nib.nifti1.Nifti1Image:
             print(process_mask)
             print(type(process_mask))
@@ -72,18 +74,18 @@ class PBS_Job:
 
     def make_startup_script(self, fn):
         #clear data in r_all and weights files, if any
-        pf = os.path.join(self.core_out_dir, "progress.txt") # progress file
+        pf = os.path.join(self.core_out, "progress.txt") # progress file
         with open(pf, 'w') as p_file:
             p_file.seek(0)
             p_file.truncate()
             p_file.write("0") #0 cores have finished
 
-        with open(os.path.join(os.getcwd(), fn), "w") as f:
+        with open(os.path.join(self.parallel_out, fn), "w") as f:
             f.write("from nltools.pbs_job import PBS_Job \n\
 import cPickle \n\
 import os \n\
 import sys \n\
-pdir = \"" + os.path.join(os.getcwd(),'pbs_searchlight.pkl') + "\" \n\
+pdir = \"" + os.path.join(self.parallel_out,'pbs_searchlight.pkl') + "\" \n\
 parallel_job = cPickle.load( open(pdir) ) \n\
 core_i = int(sys.argv[1]) \n\
 ncores = int(sys.argv[2]) \n\
@@ -91,14 +93,14 @@ parallel_job.run_core(core_i, ncores) ")
       
     def make_pbs_email_alert(self, email):
         title  = "email_alert.pbs"
-        with open(os.path.join(os.getcwd(), title), "w") as f:
+        with open(os.path.join(self.parallel_out, title), "w") as f:
             f.write("#PBS -m ea \n\
 #PBS -N email_alert \n\
 #PBS -M " + email + " \n\
 exit 0")
 
     def make_pbs_scripts(self, script_name, core_i, ncores, walltime):
-        with open(os.path.join(os.getcwd(), script_name), "w") as f:
+        with open(os.path.join(self.parallel_out, script_name), "w") as f:
             f.write("#!/bin/bash -l \n\
 # declare a job name \n\
 #PBS -N sl_core_" + str(core_i) + " \n\
@@ -109,7 +111,7 @@ exit 0")
 # request wall time (default is 1 hr if not set)\n\
 #PBS -l walltime=" + walltime + " \n\
 # execute core-level code in same directory as head core \n\
-cd " + os.getcwd() + " \n\
+cd " + self.parallel_out + " \n\
 python core_startup.py " + str(core_i) + " " + str(ncores) + " \n\
 exit 0" )
 
@@ -130,8 +132,8 @@ exit 0" )
              + str(runs_total) + " total.", core_i=core_i, dt=(time.time() - tic))
 
         #clear data in r_all and weights files, if any
-        rf = os.path.join(self.core_out_dir, "r_all" + str(core_i) + '.txt') #correlation file
-        wf = os.path.join(self.core_out_dir, "weights" + str(core_i) + '.txt') # weight file
+        rf = os.path.join(self.core_out, "r_all" + str(core_i) + '.txt') #correlation file
+        wf = os.path.join(self.core_out, "weights" + str(core_i) + '.txt') # weight file
         with open(rf, 'w') as r_file, open(wf, 'w') as w_file:
             r_file.seek(0), w_file.seek(0)
             r_file.truncate(), w_file.truncate()
@@ -145,7 +147,7 @@ exit 0" )
 
             #select some data
             data_sphere = self.data.apply_mask(searchlight_mask)
-            data_sphere.file_name = os.path.join( self.core_out_dir,'data_core_' + str(core_i) + '_run_' + str(i) )
+            data_sphere.file_name = os.path.join( self.core_out,'data_core_' + str(core_i) + '_run_' + str(i) )
 
             #apply the Predict method
             output = data_sphere.predict(algorithm=self.kwargs['algorithm'], \
@@ -154,7 +156,7 @@ exit 0" )
                 **self.kwargs['predict_kwargs'])
             
             #save r correlation values
-            with open(os.path.join(self.core_out_dir, "r_all" + str(core_i) + ".txt"), "a") as f:
+            with open(os.path.join(self.parallel_out, "r_all" + str(core_i) + ".txt"), "a") as f:
                 r = output['r_xval']
                 if r != r: r=0.0
                 if i + 1 == runs_per_core:
@@ -163,7 +165,7 @@ exit 0" )
                     f.write(str(r) + ",")
 
             #save weights
-            with open(os.path.join(self.core_out_dir, "weights" + str(core_i) + ".txt"), "a") as f:
+            with open(os.path.join(self.parallel_out, "weights" + str(core_i) + ".txt"), "a") as f:
                 if i + 1 < runs_per_core:
                     l = output['weight_map_xval'].data
                     for j in range(len(l) - 1):
@@ -180,17 +182,17 @@ exit 0" )
                 self.estimate_rate(core_i, (time.time() - t0), i + 1, runs_per_core)
                 #every so often, clear the file
                 if i%21 == 0 and core_i == 0:
-                    ratef = os.path.join(os.getcwd(),"rate.txt")
+                    ratef = os.path.join(self.parallel_out,"rate.txt")
                     with open(ratef, 'w') as f:
                         f.write("") #clear the file
             
         # read the count of the number of cores that have finished
-        with open(os.path.join(self.core_out_dir,"progress.txt"), 'r') as f:
+        with open(os.path.join(self.core_out,"progress.txt"), 'r') as f:
             cores_finished = int(f.readline())
 
         # if all cores are finished, run a clean up method
         # otherwise, increment number of finished cores and terminate process
-        with open(os.path.join(self.core_out_dir,"progress.txt"), 'w') as f:
+        with open(os.path.join(self.core_out,"progress.txt"), 'w') as f:
             cores_finished += 1
             f.write( str(cores_finished) )
             if (cores_finished == ncores):
@@ -199,7 +201,7 @@ exit 0" )
 
     def errf(self, text, core_i = None, dt = None):
         if core_i is None or core_i == 0:
-            with open(os.path.join(os.getcwd(),'errf.txt'), 'a') as f:
+            with open(os.path.join(self.parallel_out,'errf.txt'), 'a') as f:
                 f.write(text + "\n")
                 if dt is not None:
                     f.write("       ->Time: " + str(dt) + " seconds\n")
@@ -216,7 +218,7 @@ exit 0" )
         return str(t_day) + "d" + str(t_hr) + "h" + str(t_min) + "m" + str(t_sec) + "s"
 
     def estimate_rate(self, core, tdif, jobs, runs_per_core):
-        ratef = os.path.join(os.getcwd(),"rate.txt")
+        ratef = os.path.join(self.parallel_out,"rate.txt")
         if not os.path.isfile(ratef):
             with open(ratef, 'w') as f:
                 f.write("")
@@ -284,8 +286,8 @@ exit 0" )
         #clear data in reassembled and weights files, if any
 
                 #clear data in r_all and weights files, if any
-        rf = os.path.join(os.getcwd(), "correlations.txt") # correlation file (for combined nodes)
-        wf = os.path.join(os.getcwd(), "weights.txt") # weight file (for combined nodes)
+        rf = os.path.join(self.parallel_out, "correlations.txt") # correlation file (for combined nodes)
+        wf = os.path.join(self.parallel_out, "weights.txt") # weight file (for combined nodes)
         with open(rf, 'w') as r_combo, open(wf, 'w') as w_combo:
             r_combo.seek(0), w_combo.seek(0)
             r_combo.truncate(), w_combo.truncate()
@@ -293,8 +295,8 @@ exit 0" )
         #get name and location of each core's correlation, weights file
         core_i = 0
         r_prefix, w_prefix, = "r_all", "weights"
-        r_core_data = os.path.join(self.core_out_dir, r_prefix + str(core_i) + ".txt")
-        w_core_data = os.path.join(self.core_out_dir, w_prefix + str(core_i) + ".txt")
+        r_core_data = os.path.join(self.core_out, r_prefix + str(core_i) + ".txt")
+        w_core_data = os.path.join(self.core_out, w_prefix + str(core_i) + ".txt")
 
         data_was_merged = False
         print( "Merging data to combined files:" )
@@ -309,8 +311,8 @@ exit 0" )
                     r_combo.write(rdata + ','), w_combo.write(weights + '\n')
 
             core_i += 1
-            r_core_data = os.path.join(self.core_out_dir, r_prefix + str(core_i) + ".txt")
-            w_core_data = os.path.join(self.core_out_dir, w_prefix + str(core_i) + ".txt")
+            r_core_data = os.path.join(self.core_out, r_prefix + str(core_i) + ".txt")
+            w_core_data = os.path.join(self.core_out, w_prefix + str(core_i) + ".txt")
 
             data_was_merged = True
 
@@ -323,7 +325,7 @@ exit 0" )
             #get data from combo file and convert it to a .nii file
             self.reconstruct(rf)
         else:
-            print("ERROR: data not merged correctly (in directory: " + os.getcwd() + ")")
+            print("ERROR: data not merged correctly (in directory: " + self.parallel_out + ")")
 
         print( "Finished reassembly (reassembled " + str(core_i) + " items)" )
 
@@ -332,9 +334,10 @@ exit 0" )
             os.system("qsub email_alert.pbs")
 
         print("Cleaning up...")
-        os.system("rm sl_core_*")
-        os.system("rm rate* *core_pbs_script_*")
-        os.system("rm core_startup.py*")
+        os.system("rm " + os.path.join(self.parallel_out + "sl_core_*"))
+        os.system("rm " + os.path.join(self.parallel_out + "rate*"))
+        os.system("rm " + os.path.join(self.parallel_out + "*core_pbs_script_*"))
+        os.system("rm " + os.path.join(self.parallel_out + "core_startup.py*")
 
     def reconstruct(self, rf):
             #open the reassembled correlation data and build a python list of float type numbers
@@ -350,4 +353,4 @@ exit 0" )
 
             #transform rdata to 3D "correlation heat map" (nifti format)
             rdata_3D = self.data.nifti_masker.inverse_transform( self.process_mask_1D )
-            rdata_3D.to_filename(os.path.join(os.getcwd(),'rdata_3D.nii.gz')) #save nifti image
+            rdata_3D.to_filename(os.path.join(self.parallel_out,'rdata_3D.nii.gz')) #save nifti image
