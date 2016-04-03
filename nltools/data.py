@@ -794,7 +794,7 @@ class Brain_Data(object):
 
         # make and store data we will need to access on the worker core level
         parallel_job.make_searchlight_masks()
-        cPickle.dump(parallel_job, open("pbs_searchlight.pkl", "w"))
+        cPickle.dump(parallel_job, open(os.path.join(parallel_out,"pbs_searchlight.pkl"), "w"))
 
         #make core startup script (python)
         parallel_job.make_startup_script("core_startup.py")
@@ -807,7 +807,7 @@ class Brain_Data(object):
         for core_i in range(ncores):
             script_name = "core_pbs_script_" + str(core_i) + ".pbs"
             parallel_job.make_pbs_scripts(script_name, core_i, ncores, walltime) # create a script
-            os.system("qsub " + script_name) # run it on a core
+            os.system( "qsub " + os.path.join(parallel_job,script_name) ) # run it on a core
 
     def extract_roi(self, mask, method='mean'):
         """ Extract activity from mask
