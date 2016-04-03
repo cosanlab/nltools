@@ -260,7 +260,9 @@ class Simulator:
         cov_matrix[0,:] = cor # set covariance with y
         cov_matrix[:,0] = cor # set covariance with all other voxels
         np.fill_diagonal(cov_matrix,1) # set diagonal to 1
+        print cov_matrix
         mv_sim = np.random.multivariate_normal(np.zeros([n_vox+1]),cov_matrix, size=reps)
+        print mv_sim
         y = mv_sim[:,0]
         self.y = y
         mv_sim = mv_sim[:,1:]
