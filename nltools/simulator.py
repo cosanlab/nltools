@@ -372,7 +372,7 @@ class Simulator:
                 new_dats[rep,np.where(flat_masks[mask_i,:]==1)] += mv_sim[mask_i,start:stop]
 
         noise = np.random.standard_normal(size=new_dats.shape[1])*sigma
-        data = nifti_masker.inverse_transform(np.add(new_dats, noise)) #append 3d simulated data to list
+        data = self.nifti_masker.inverse_transform(np.add(new_dats, noise)) #append 3d simulated data to list
         self.rep_id = [1] * len(self.y)
 
         if n_sub > 1:
@@ -380,7 +380,7 @@ class Simulator:
             for s in range(1,n_sub):
                 #ask Luke about this new version
                 noise = np.random.standard_normal(size=new_dats.shape[1])*sigma
-                next_subj = nifti_masker.inverse_transform(np.add(new_dats, noise))
+                next_subj = self.nifti_masker.inverse_transform(np.add(new_dats, noise))
                 data = nib.concat_images([data,next_subj],axis=3)
 
                 self.y += list(self.y + np.random.randn(len(self.y))*sigma)
