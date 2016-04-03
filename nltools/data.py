@@ -807,6 +807,7 @@ class Brain_Data(object):
         for core_i in range(ncores):
             script_name = "core_pbs_script_" + str(core_i) + ".pbs"
             parallel_job.make_pbs_scripts(script_name, core_i, ncores, walltime) # create a script
+            print "python " + os.path.join(parallel_out, script_name)
             os.system( "qsub " + os.path.join(parallel_out, script_name) ) # run it on a core
 
     def extract_roi(self, mask, method='mean'):
