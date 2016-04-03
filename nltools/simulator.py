@@ -260,7 +260,6 @@ class Simulator:
         cov_matrix[0,:] = cor # set covariance with y
         cov_matrix[:,0] = cor # set covariance with all other voxels
         np.fill_diagonal(cov_matrix,1) # set diagonal to 1
-        print cov_matrix
         mv_sim = np.random.multivariate_normal(np.zeros([n_vox+1]),cov_matrix, size=reps)
         print mv_sim
         y = mv_sim[:,0]
@@ -361,12 +360,11 @@ class Simulator:
                 rstop = rstart + nv
                 cov_matrix[cstart:cstop,rstart:rstop] = cov[i][j] # set covariance of this mask's voxels with each of other masks
         np.fill_diagonal(cov_matrix,1) # set diagonal to 1
-        print cov_matrix
 
         # these operations happen in one vector that we'll later split into the separate regions
         print("Generating multivariate normal distribution...")
         mv_sim_l = np.random.multivariate_normal(np.zeros([np.sum(n_vox)+1]),cov_matrix, size=reps)
-        print mv_sim_l
+        print mv_sim
 
         self.y = mv_sim_l[:,0]
         mv_sim = mv_sim_l[:,1:]
