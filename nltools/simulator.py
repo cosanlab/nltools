@@ -345,6 +345,9 @@ class Simulator:
 
         print("Building correlation/covariation matrix...")
         n_vox = np.sum(flat_masks==1,axis=1) #this is a list, each entry contains number voxels for given mask
+        if 0 in n_vox:
+            raise ValueError("one or more processing mask does not fit inside the brain mask")
+
         cov_matrix = np.zeros([np.sum(n_vox)+1, np.sum(n_vox)+1]) #one big covariance matrix
         for i, nv in enumerate(n_vox):
             cstart = np.sum(n_vox[:i]) + 1
@@ -375,6 +378,7 @@ class Simulator:
         self.data = self.nifti_masker.inverse_transform(np.add(new_dats, noise)) #append 3d simulated data to list
         self.rep_id = [1] * len(self.y)
 
+        print("Generating subject-level noise...")
         if n_sub > 1:
             self.y = list(self.y)
             for s in range(1,n_sub):
@@ -387,6 +391,7 @@ class Simulator:
                 self.rep_id += [s+1] * len(mv_sim[:,0])
             self.y = np.array(self.y)
 
+        print("Saving to " + str(output_dir))
         if output_dir is not None:
             if type(output_dir) is str:
                 if not os.path.isdir(output_dir):
