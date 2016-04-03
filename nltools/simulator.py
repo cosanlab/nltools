@@ -360,7 +360,6 @@ class Simulator:
                 rstart = np.sum(n_vox[:j]) + 1
                 rstop = rstart + nv
                 cov_matrix[cstart:cstop,rstart:rstop] = cov[i][j] # set covariance of this mask's voxels with each of other masks
-        np.fill_diagonal(cov_matrix,1) # set diagonal to 1
         print cov_matrix
 
         # these operations happen in one vector that we'll later split into the separate regions
