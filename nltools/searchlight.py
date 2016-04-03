@@ -40,109 +40,23 @@ from nilearn import masking
 from nilearn.input_data import NiftiMasker
 
 from nltools.analysis import Predict
+from nltools.utils import get_resource_path
 import glob
-
-########## HELPER FUNCTIONS ############
-
-# # parallelizable searchlight function (called within different cores)
-# def parallel_searchlight(X, y, estimator, A, n_jobs=-1,verbose=0):
-#     group_iter = GroupIterator(A.shape[0], n_jobs)
-#     scores = Parallel(n_jobs=n_jobs, verbose=verbose)(
-#         delayed(_group_iter_search_light)(
-#             A.rows[list_i],
-#             estimator, X, y,
-#             thread_id + 1, A.shape[0], verbose)
-#         for thread_id, list_i in enumerate(group_iter))
-#     return np.concatenate(scores)
-
-
-# #code that is executed on each of the cores (core searchlight functionality)
-# def _group_iter_search_light(list_rows, estimator, X, y,
-#                              scoring, thread_id, total, verbose=0):
-#     par_scores = np.zeros(len(list_rows))
-#     t0 = time.time()
-#     for i, row in enumerate(list_rows):
-#         kwargs = dict()
-#         if not LooseVersion(sklearn.__version__) < LooseVersion('0.15'):
-#             kwargs['scoring'] = scoring
-#         elif scoring is not None:
-#             warnings.warn('Scikit-learn version is too old. '
-#                           'scoring argument ignored', stacklevel=2)
-#         #import random
-#         #par_scores[i] = random.random() #np.mean(cross_val_score(estimator, X[:, row],y, n_jobs=1,**kwargs))
-        
-        
-#         ######## REGRESSION HAPPENS HERE ########
-#         #svr = Predict(X[:, row], y, algorithm='svr', cv_dict = {'kfolds':5}, **{'kernel':"linear"})
-#         #svr.predict(save_images=False, save_output=False).r_all
-        
-#         #svr_lin = SVR(kernel='linear', C=1e3)
-#         #y_lin = svr_lin.fit(X, y).predict(X)
-        
-#         import random
-#         par_scores[i] = random.random()
-        
-#         ########
-        
-        
-#         if verbose > 0:
-#             # One can't print less than each 10 iterations
-#             step = 11 - min(verbose, 10)
-#             if (i % step == 0):
-#                 # If there is only one job, progress information is fixed
-#                 if total == len(list_rows):
-#                     crlf = "\r"
-#                 else:
-#                     crlf = "\n"
-#                 percent = float(i) / len(list_rows)
-#                 percent = round(percent * 100, 2)
-#                 dt = time.time() - t0
-#                 # We use a max to avoid a division by zero
-#                 remaining = (100. - percent) / max(0.01, percent) * dt
-#                 sys.stderr.write(
-#                     "Job #%d, processed %d/%d voxels "
-#                     "(%0.2f%%, %i seconds remaining)%s"
-#                     % (thread_id, i, len(list_rows), percent, remaining, crlf))
-#     return par_scores
-
-# # iterator that helps with parallelization process
-# class GroupIterator(object):
-#     """Group iterator
-#     Provides group of features for search_light loop
-#     that may be used with Parallel.
-#     Parameters
-#     ----------
-#     n_features : int
-#         Total number of features
-#     n_jobs : int, optional
-#         The number of CPUs to use to do the computation. -1 means
-#         'all CPUs'. Defaut is 1
-#     """
-#     def __init__(self, n_features, n_jobs=1):
-#         self.n_features = n_features
-#         if n_jobs == -1:
-#             n_jobs = cpu_count()
-#         self.n_jobs = n_jobs
-
-#     def __iter__(self):
-#         split = np.array_split(np.arange(self.n_features), self.n_jobs)
-#         for list_i in split:
-#             yield list_i
     
 ########## CLASS DEFINITIONS ############
 
 class Searchlight:
-    def __init__(self, brain_mask=None, process_mask=None, radius=4, output_dir = None): #no scoring param
-        self.resource_folder = os.path.join(os.getcwd(),'resources')
-        if output_dir is None:
-            self.output_dir = os.path.join(os.getcwd(),'outfolder')
+    def __init__(self, brain_mask=None, process_mask=None, radius=4, searchlight_out = None): #no scoring param
+        if searchlight_out is None:
+            self.searchlight_out = os.path.join(self.searchlight_out,'searchlight')
         else:
-            self.output_dir = output_dir
+            self.searchlight_out = searchlight_out
+        os.system('mkdir ' + os.path.join(self.searchlight_out,'core_out') )
         
         if type(brain_mask) is str:
             brain_mask = nib.load(brain_mask)
         elif brain_mask is None:
-            brain_mask = nib.load(os.path.join(self.resource_folder,'MNI152_T1_2mm_brain_mask_dil.nii.gz'))
+            brain_mask = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm_brain_mask_dil.nii.gz'))
         elif type(brain_mask) is not nib.nifti1.Nifti1Image:
             print(brain_mask)
             print(type(brain_mask))
@@ -152,7 +66,7 @@ class Searchlight:
         if type(process_mask) is str:
             process_mask = nib.load(process_mask)
         elif process_mask is None:
-            process_mask = nib.load(os.path.join(self.resource_folder,"FSL_RIns_thr0.nii.gz"))
+            process_mask = nib.load(os.path.join(get_resource_path(),'FSL_RIns_thr0.nii.gz'))
         elif type(brain_mask) is not nib.nifti1.Nifti1Image:
             print(process_mask)
             print(type(process_mask))
@@ -165,7 +79,7 @@ class Searchlight:
     @staticmethod
     def errf(text, ith_core):
         if ith_core == 0:
-            f = open(os.path.join(os.getcwd(),'errf.txt'), 'a')
+            f = open(os.path.join(self.searchlight_out,'errf.txt'), 'a')
             f.write(text + "\n")
             f.close()
 
@@ -183,7 +97,7 @@ class Searchlight:
 
     @staticmethod
     def write_predict_rate_(core, tdif, jobs, divs):
-        ratef = os.path.join(os.getcwd(),"rate.txt")
+        ratef = os.path.join(self.searchlight_out,"rate.txt")
 
         if not os.path.isfile(ratef):
             with open(ratef, 'w') as f:
@@ -214,7 +128,7 @@ class Searchlight:
         tic = time.time()
 
         (predict_params, A, self.nifti_masker, self.process_mask, process_mask_1D) = params
-        (bdata, y, algorithm, cv_dict, output_dir, kwargs) = predict_params
+        (bdata, y, algorithm, cv_dict, searchlight_out, kwargs) = predict_params
         
         if isinstance(bdata, str):
             file_list = glob.glob(bdata + "*.nii.gz")
@@ -234,13 +148,13 @@ class Searchlight:
         Searchlight.errf("Time: " + str((time.time() - tic)) + " seconds", core_i)
 
         #clear data in r_all and weights files, if any
-        rs_dir = os.path.join(self.output_dir, "r_all" + str(core_i) + '.txt')
-        w_dir = os.path.join(self.output_dir, "weights" + str(core_i) + '.txt')
+        rs_dir = os.path.join(self.searchlight_out, "r_all" + str(core_i) + '.txt')
+        w_dir = os.path.join(self.searchlight_out, "weights" + str(core_i) + '.txt')
         with open(rs_dir, 'w') as rs, open(w_dir, 'w') as w:
             rs.seek(0), w.seek(0)
             rs.truncate(), w.truncate()
         
-        text_file = open(os.path.join(self.output_dir, "progress.txt"), "w")
+        text_file = open(os.path.join(self.searchlight_out, "progress.txt"), "w")
         text_file.close()
 
         t0 = time.time()
@@ -252,14 +166,14 @@ class Searchlight:
             searchlight_mask = self.nifti_masker.inverse_transform( searchlight )
 
             #apply the Predict method
-            svr = Predict(bdata, y, mask = searchlight_mask, algorithm=algorithm, output_dir=output_dir, cv_dict = cv_dict, **kwargs)
+            svr = Predict(bdata, y, mask = searchlight_mask, algorithm=algorithm, searchlight_out=searchlight_out, cv_dict = cv_dict, **kwargs)
             # Searchlight.errf("      After initializing Predict: " + str((time.time() - tic)) + " seconds", core_i)
             svr.predict(save_plot=False)
             # Searchlight.errf("      After running Predict: " + str((time.time() - tic)) + " seconds\n", core_i)
             
             #save r correlation values
             title  = "r_all" + str(core_i)
-            text_file = open(os.path.join(self.output_dir,title + ".txt"), "a")
+            text_file = open(os.path.join(self.searchlight_out,title + ".txt"), "a")
             r = svr.r_xval
             if r != r: r=0.0
             if i + 1 == divs:
@@ -270,7 +184,7 @@ class Searchlight:
 
             #save weights
             title  = "weights" + str(core_i)
-            text_file = open(os.path.join(self.output_dir,title + ".txt"), "a")
+            text_file = open(os.path.join(self.searchlight_out,title + ".txt"), "a")
             if i + 1 != divs:
                 l = svr.predictor.coef_.squeeze()
                 for j in xrange(len(l) - 1):
@@ -287,12 +201,12 @@ class Searchlight:
             if i%7 == 0:
                 Searchlight.write_predict_rate_(core_i, (time.time() - t0), i + 1, divs)
                 if i%21 == 0 and core_i == 0:
-                    ratef = os.path.join(os.getcwd(),"rate.txt")
+                    ratef = os.path.join(self.searchlight_out,"rate.txt")
                     with open(ratef, 'w') as f:
                         f.write("")
             
         #check progress of all cores. If all cores are finished, run the reassemble helper function
-        progress_fn = os.path.join(self.output_dir,"progress.txt")
+        progress_fn = os.path.join(self.searchlight_out,"progress.txt")
         cores_finished = ""
         with open(progress_fn, 'r') as f:
             cores_finished = f.readline()
@@ -343,23 +257,23 @@ class Searchlight:
         return (A.tolil(), self.nifti_masker, process_mask_1D)
     
     @staticmethod
-    def run_searchlight_(bdata, y, algorithm='svr', cv_dict=None, output_dir=None, kwargs=None, n_cores=1, radius=3, brain_mask=None, process_mask=None, walltime='07:30:00'):
+    def run_searchlight_(bdata, y, algorithm='svr', cv_dict=None, searchlight_out=None, kwargs=None, n_cores=1, radius=3, brain_mask=None, process_mask=None, walltime='07:30:00'):
         
         print("start run searchlight")
         
         os.system("mkdir outfolder")
         
         #n_cores start at 0, so if the input param is 10, there are 11 cores
-        output_dir = os.path.join(os.getcwd(),'outfolder')
+        searchlight_out = os.path.join(self.searchlight_out,'outfolder')
 
-        sl = Searchlight(brain_mask=brain_mask, process_mask=process_mask, radius=radius, output_dir = output_dir)
+        sl = Searchlight(brain_mask=brain_mask, process_mask=process_mask, radius=radius, searchlight_out = searchlight_out)
         
         # parameters for Predict function
         (A, nifti_masker, process_mask_1D) = sl.get_coords()
         print("got A, nifti_masker, and process_mask_1D")
 
         y = np.array(y)
-        predict_params = [bdata, y, algorithm, cv_dict, output_dir, kwargs]
+        predict_params = [bdata, y, algorithm, cv_dict, searchlight_out, kwargs]
         
         # save all parameters in a file in the same directory that the code is being executed
         cPickle.dump([predict_params, A, nifti_masker, sl.process_mask, process_mask_1D], open("searchlight.pickle", "w"))
@@ -381,7 +295,7 @@ class Searchlight:
     @staticmethod        
     def make_pbs_scripts_(ith_core, n_cores, walltime):
         title  = "div_script" + str(ith_core)
-        text_file = open(os.path.join(os.getcwd(), title + ".pbs"), "w")
+        text_file = open(os.path.join(self.searchlight_out, title + ".pbs"), "w")
         
         text_file.write("#!/bin/bash -l \n\
 # declare a name for this job to be my_serial_job \n\
@@ -401,7 +315,7 @@ class Searchlight:
 # By default, PBS scripts execute in your home directory, not the \n\
 # directory from which they were submitted. The following line \n\
 # places the job in the directory from which the job was submitted. \n\
-cd " + os.getcwd() + " \n\
+cd " + self.searchlight_out + " \n\
 # run the program using the relative path \n\
 python inner_searchlight_script.py " + str(ith_core) + " " + str(n_cores) + " \n\
 exit 0" )
@@ -410,12 +324,12 @@ exit 0" )
     @staticmethod
     def make_inner_python_script_():
         title  = "inner_searchlight_script.py"
-        f = open(os.path.join(os.getcwd(), title), "w")
+        f = open(os.path.join(self.searchlight_out, title), "w")
         f.write("from nltools.searchlight import Searchlight \n\
 import cPickle \n\
 import os \n\
 import sys \n\
-pdir = \"" + os.path.join(os.getcwd(),'searchlight.pickle') + "\" \n\
+pdir = \"" + os.path.join(self.searchlight_out,'searchlight.pickle') + "\" \n\
 params = cPickle.load( open(pdir) ) \n\
 sl = Searchlight() \n\
 ith_core = int(sys.argv[1]) \n\
@@ -427,7 +341,7 @@ sl.predict(ith_core, n_cores, params) ")
     @staticmethod
     def make_email_alert_pbs_():
         title  = "email_alert_pbs.pbs"
-        f = open(os.path.join(os.getcwd(), title), "w")
+        f = open(os.path.join(self.searchlight_out, title), "w")
         f.write("#PBS -m ea \n\
 #PBS -N email_alert_pbs \n\
 #PBS -M samuel.j.greydanus.17@dartmouth.edu \n\
@@ -438,13 +352,13 @@ exit 0")
     @staticmethod
     def reassemble_(reconstruct_flag = True, email_flag = True):
         # if there is already data in the reassembled.txt file, delete it
-        output_dir = os.path.join(os.getcwd(),'outfolder')
+        searchlight_out = os.path.join(self.searchlight_out,'outfolder')
 
         #clear data in reassembled and weights files, if any
         rs_fn = "correlations"
-        rs_all = os.path.join(os.getcwd(), rs_fn + '.txt')
+        rs_all = os.path.join(self.searchlight_out, rs_fn + '.txt')
         w_fn = "weights"
-        w_all = os.path.join(os.getcwd(), w_fn + '.txt')
+        w_all = os.path.join(self.searchlight_out, w_fn + '.txt')
         with open(rs_all, 'w') as rs, open(w_all, 'w') as w:
             rs.seek(0), w.seek(0)
             rs.truncate(), w.truncate()
@@ -452,8 +366,8 @@ exit 0")
         #get name and location of each core's correlation, weights file
         ith_core = 0
         rdiv_name, wdiv_name, = "r_all", "weights"
-        rdiv_dir = os.path.join(output_dir, rdiv_name + str(ith_core) + ".txt")
-        wdiv_dir = os.path.join(output_dir, wdiv_name + str(ith_core) + ".txt")
+        rdiv_dir = os.path.join(searchlight_out, rdiv_name + str(ith_core) + ".txt")
+        wdiv_dir = os.path.join(searchlight_out, wdiv_name + str(ith_core) + ".txt")
 
         success = False
         #write results from all cores to one text file in a csv format
@@ -470,8 +384,8 @@ exit 0")
             os.system(command) # delete all the scripts we generated
 
             ith_core = ith_core + 1
-            rdiv_dir = os.path.join(output_dir, rdiv_name + str(ith_core) + ".txt")
-            wdiv_dir = os.path.join(output_dir, wdiv_name + str(ith_core) + ".txt")
+            rdiv_dir = os.path.join(searchlight_out, rdiv_name + str(ith_core) + ".txt")
+            wdiv_dir = os.path.join(searchlight_out, wdiv_name + str(ith_core) + ".txt")
 
             success = True
 
@@ -489,7 +403,7 @@ exit 0")
             os.system("qsub email_alert_pbs.pbs")
 
         #get data from reassembled.txt and convert it to a .nii file
-        pdir = os.path.join(os.getcwd(),'searchlight.pickle')
+        pdir = os.path.join(self.searchlight_out,'searchlight.pickle')
         if (reconstruct_flag and os.path.isfile(pdir) and success):
             #get location of searchlight pickle and retrieve its contents
             (predict_params, A, nifti_masker, _, process_mask_1D) = cPickle.load( open(pdir) )
@@ -504,10 +418,10 @@ exit 0")
             process_mask_1D[0][coords] = data
 
             data_3D = nifti_masker.inverse_transform( process_mask_1D ) #transform scores to 3D nifti image
-            data_3D.to_filename(os.path.join(os.getcwd(),'data_3D.nii.gz')) #save nifti image
+            data_3D.to_filename(os.path.join(self.searchlight_out,'data_3D.nii.gz')) #save nifti image
             # os.system("rm correlations.txt")
         elif reconstruct_flag:
-            print("ERROR: File 'searchlight.pickle' does not exist or 'reassemble.txt' is empty (in directory: " + os.getcwd() + ")")
+            print("ERROR: File 'searchlight.pickle' does not exist or 'reassemble.txt' is empty (in directory: " + self.searchlight_out + ")")
 
         # os.system("rm searchlight.pickle")
         print("Cleaning up...")
