@@ -156,7 +156,7 @@ exit 0" )
                 **self.kwargs['predict_kwargs'])
             
             #save r correlation values
-            with open(os.path.join(self.parallel_out, "r_all" + str(core_i) + ".txt"), "a") as f:
+            with open(os.path.join(self.core_out, "r_all" + str(core_i) + ".txt"), "a") as f:
                 r = output['r_xval']
                 if r != r: r=0.0
                 if i + 1 == runs_per_core:
@@ -165,7 +165,7 @@ exit 0" )
                     f.write(str(r) + ",")
 
             #save weights
-            with open(os.path.join(self.parallel_out, "weights" + str(core_i) + ".txt"), "a") as f:
+            with open(os.path.join(self.core_out, "weights" + str(core_i) + ".txt"), "a") as f:
                 if i + 1 < runs_per_core:
                     l = output['weight_map_xval'].data
                     for j in range(len(l) - 1):
