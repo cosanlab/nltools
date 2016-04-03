@@ -364,7 +364,7 @@ class Simulator:
         # these operations happen in one vector that we'll later split into the separate regions
         print("Generating multivariate normal distribution...")
         mv_sim_l = np.random.multivariate_normal(np.zeros([np.sum(n_vox)+1]),cov_matrix, size=reps)
-        print mv_sim
+        print mv_sim_l
 
         self.y = mv_sim_l[:,0]
         mv_sim = mv_sim_l[:,1:]
