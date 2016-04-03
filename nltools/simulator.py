@@ -384,7 +384,7 @@ class Simulator:
             if type(output_dir) is str:
                 if not os.path.isdir(output_dir):
                     os.makedirs(output_dir)
-                self.data.to_filename(os.path.join(output_dir,'simulated_data_' + str(len(masks)) + 'regions_' + str(sigma) + 'sigma_' + str(n_sub) + 'sub.nii.gz'))
+                self.data.to_filename(os.path.join(output_dir,'simulated_data_' + str(sigma) + 'sigma_' + str(n_sub) + 'subj.nii.gz'))
                 y_file = open(os.path.join(output_dir,'y.csv'), 'wb')
                 wr = csv.writer(y_file, quoting=csv.QUOTE_ALL)
                 wr.writerow(self.y)
