@@ -370,7 +370,7 @@ class Simulator:
 
         self.y = mv_sim_l[:,0]
         mv_sim = mv_sim_l[:,1:]
-        new_dats = np.ones([mv_sim.shape[0], flat_masks.shape[1]])
+        new_dats = np.zeros([mv_sim.shape[0], flat_masks.shape[1]])
 
         for rep in range(reps):
             for mask_i in range(len(masks)):
@@ -378,7 +378,7 @@ class Simulator:
                 stop = int( start + n_vox[mask_i] )
                 print rep, start, stop
                 new_dats[rep,np.where(flat_masks[mask_i,:]==1)] = mv_sim[mask_i,start:stop]
-        print "new_dats" + str(new_dats)
+        print "new_dats_" + str(new_dats)
 
         noise = np.random.standard_normal(size=new_dats.shape[1])*sigma
         self.data = self.nifti_masker.inverse_transform(np.add(new_dats, noise)) #append 3d simulated data to list
