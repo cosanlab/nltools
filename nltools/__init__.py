@@ -3,8 +3,7 @@ __all__ = [ 'data',
 			'cross_validation', 
 			'plotting', 
 			'stats', 
-			'utils', 
-			'searchlight', 
+			'utils',  
 			'pbs_job', 
 			'masks',
 			'interfaces',
@@ -14,7 +13,6 @@ __all__ = [ 'data',
 from analysis import Predict, Roc, apply_mask
 from cross_validation import set_cv
 from data import Brain_Data
-from searchlight import Searchlight 
 from pbs_job import PBS_Job
 from simulator import Simulator
 from version import __version__
