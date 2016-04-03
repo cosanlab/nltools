@@ -377,7 +377,7 @@ class Simulator:
                 start = int( np.sum(n_vox[:mask_i]) )
                 stop = int( start + n_vox[mask_i] )
                 print rep, start, stop
-                new_dats[rep,np.where(flat_masks[mask_i,:]==1)] += mv_sim[mask_i,start:stop]
+                new_dats[rep,np.where(flat_masks[mask_i,:]==1)] = mv_sim[mask_i,start:stop]
         print "new_dats" + str(new_dats)
 
         noise = np.random.standard_normal(size=new_dats.shape[1])*sigma
