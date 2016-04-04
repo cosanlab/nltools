@@ -334,10 +334,10 @@ exit 0" )
             os.system("qsub email_alert.pbs")
 
         print("Cleaning up...")
-        os.system("rm " + os.path.join(self.parallel_out + "sl_core_*"))
-        os.system("rm " + os.path.join(self.parallel_out + "rate*"))
-        os.system("rm " + os.path.join(self.parallel_out + "*core_pbs_script_*"))
-        os.system("rm " + os.path.join(self.parallel_out + "core_startup.py*"))
+        os.system("rm " + os.path.join(self.parallel_out, "sl_core_*"))
+        os.system("rm " + os.path.join(self.parallel_out, "rate*"))
+        os.system("rm " + os.path.join(self.parallel_out, "*core_pbs_script_*"))
+        os.system("rm " + os.path.join(self.parallel_out, "core_startup.py*"))
 
     def reconstruct(self, rf):
             #open the reassembled correlation data and build a python list of float type numbers
