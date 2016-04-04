@@ -194,7 +194,7 @@ exit 0" )
         # otherwise, increment number of finished cores and terminate process
         with open(os.path.join(self.core_out,"progress.txt"), 'w') as f:
             cores_finished += 1
-            f.write( str(cores_finished) )
+            f.write( str(cores_finished) + "/n" + str(cores_finished == ncores) )
             if (cores_finished == ncores):
                 self.errf("Last core is finished", dt=(time.time() - tic))
                 self.clean_up( email_flag = True)
