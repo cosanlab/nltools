@@ -395,6 +395,8 @@ class Simulator:
             self.y = np.array(self.y)
 
         print("Saving to " + str(output_dir))
+        print("dat == " + str(self.data.shape))
+        print("dat == " + str(self.y.shape))
         if output_dir is not None:
             if type(output_dir) is str:
                 if not os.path.isdir(output_dir):
