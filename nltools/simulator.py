@@ -392,7 +392,7 @@ class Simulator:
                 self.data = nib.concat_images([self.data,next_subj],axis=3)
 
                 self.y += list(self.y + np.random.randn(len(self.y))*sigma)
-                print("y == " + str(len(self.y))
+                print("y == " + str(len(self.y)))
                 self.rep_id += [s+1] * len(mv_sim[:,0])
             self.y = np.array(self.y)
 
