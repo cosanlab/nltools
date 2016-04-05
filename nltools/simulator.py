@@ -382,6 +382,7 @@ class Simulator:
         self.rep_id = [1] * len(self.y)
 
         print("Generating subject-level noise...")
+        print("y == " + str(self.y.shape))
         if n_sub > 1:
             self.y = list(self.y)
             for s in range(1,n_sub):
@@ -391,12 +392,13 @@ class Simulator:
                 self.data = nib.concat_images([self.data,next_subj],axis=3)
 
                 self.y += list(self.y + np.random.randn(len(self.y))*sigma)
+                print("y == " + str(self.y.shape))
                 self.rep_id += [s+1] * len(mv_sim[:,0])
             self.y = np.array(self.y)
 
         print("Saving to " + str(output_dir))
         print("dat == " + str(self.data.shape))
-        print("dat == " + str(self.y.shape))
+        print("y == " + str(self.y.shape))
         if output_dir is not None:
             if type(output_dir) is str:
                 if not os.path.isdir(output_dir):
