@@ -385,16 +385,17 @@ class Simulator:
         print("y == " + str(self.y.shape))
         if n_sub > 1:
             self.y = list(self.y)
+            y = list(self.y)
             for s in range(1,n_sub):
                 #ask Luke about this new version
                 noise = np.random.standard_normal(size=new_dats.shape[1])*sigma
                 next_subj = self.nifti_masker.inverse_transform(np.add(new_dats, noise))
                 self.data = nib.concat_images([self.data,next_subj],axis=3)
 
-                self.y += list(self.y + np.random.randn(len(self.y))*sigma)
-                print("y == " + str(len(self.y)))
+                y += list(self.y + np.random.randn(len(self.y))*sigma)
+                print("y == " + str(len(y)))
                 self.rep_id += [s+1] * len(mv_sim[:,0])
-            self.y = np.array(self.y)
+            self.y = np.array(y)
 
         print("Saving to " + str(output_dir))
         print("dat == " + str(self.data.shape))
