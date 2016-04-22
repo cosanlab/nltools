@@ -16,8 +16,15 @@ setup(
     packages=['nltools'],
     package_data={'nltools': ['resources/*']},
     license='LICENSE.txt',
-    description='Neurolearn: a web-enabled imaging analysis toolbox',
+    description='A Python package to analyze neuroimaging data',
+    long_description='nltools is a collection of python tools to perform preprocessing, univariate GLMs, and predictive multivariate modeling of neuroimaging data. It is the analysis engine powering www.neuro-learn.org.',
+    url='http://neurolearn.readthedocs.org/en/latest/',
+    keywords = ['neuroimaging', 'preprocessing', 'analysis','machine-learning'],
+    classifiers = [
+        "Programming Language :: Python",
+        "Operating System :: OS Independent",
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: MIT License",
+        ]
 )
 
-  # url='http://github.com/ljchang/neurolearn',
-    # download_url = 'https://github.com/ljchang/neurolearn/tarball/%s' % __version__,
