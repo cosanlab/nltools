@@ -196,7 +196,7 @@ def Couple_Preproc_Pipeline(base_dir=None, output_dir=None, subject_id=None, spm
 
     # iterate over functional scans to define paths
     scan_file_list = glob.glob(os.path.join(base_dir,subject_id,'Study*','*'))
-    func_list = [s for s in scan_file_list if "romcon" in s]
+    func_list = [s for s in scan_file_list if "romcon_ap_32ch_mb8" in s]
     func_list = [s for s in func_list if "SBRef" not in s] # Exclude sbref for now.
     func_source = Node(interface=util.IdentityInterface(fields=['scan']),name="func_source")
     func_source.iterables = ('scan', func_list)
