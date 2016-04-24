@@ -873,7 +873,7 @@ class Brain_Data(object):
         SST = ((Y - mean_Y) ** 2).sum()
 
         # create the design matrix for the different levels
-        x = np.kron(eye(k), np.ones((n, 1)))  # sessions
+        x = np.kron(np.eye(k), np.ones((n, 1)))  # sessions
         x0 = np.tile(np.eye(n), (k, 1))  # subjects
         X = np.hstack([x, x0])
 
