@@ -846,6 +846,9 @@ class Brain_Data(object):
         Shrout, P. E., & Fleiss, J. L. (1979). Intraclass correlations: uses in assessing rater reliability. 
         Psychological bulletin, 86(2), 420.
 
+        icc1:  x_ij = mu + beta_j + w_ij
+        icc2/3:  x_ij = mu + alpha_i + beta_j + (ab)_ij + epsilon_ij
+
         Code modifed from nipype algorithms.icc
         https://github.com/nipy/nipype/blob/master/nipype/algorithms/icc.py
         
@@ -891,7 +894,8 @@ class Brain_Data(object):
 
         if icc_type == 'icc1':
             # ICC(2,1) = (mean square subject - mean square error) / (mean square subject + (k-1)*mean square error + k*(mean square columns - mean square error)/n)
-            ICC = (MSR - MSRW) / (MSR + (k-1) * MSRW)
+            # ICC = (MSR - MSRW) / (MSR + (k-1) * MSRW)
+            NotImplementedError("This method isn't implemented yet.")
             
         elif icc_type == 'icc2':
             # ICC(2,1) = (mean square subject - mean square error) / (mean square subject + (k-1)*mean square error + k*(mean square columns - mean square error)/n)
