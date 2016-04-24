@@ -869,23 +869,23 @@ class Brain_Data(object):
         dfr = n - 1
 
         # Sum Square Total
-        mean_Y = mean(Y)
+        mean_Y = np.mean(Y)
         SST = ((Y - mean_Y) ** 2).sum()
 
         # create the design matrix for the different levels
-        x = kron(eye(k), ones((n, 1)))  # sessions
-        x0 = tile(eye(n), (k, 1))  # subjects
-        X = hstack([x, x0])
+        x = np.kron(eye(k), np.ones((n, 1)))  # sessions
+        x0 = np.tile(np.eye(n), (k, 1))  # subjects
+        X = np.hstack([x, x0])
 
         # Sum Square Error
-        predicted_Y = dot(dot(dot(X, pinv(dot(X.T, X))), X.T), Y.flatten('F'))
+        predicted_Y = np.dot(np.dot(np.dot(X, np.linalg.pinv(np.dot(X.T, X))), X.T), Y.flatten('F'))
         residuals = Y.flatten('F') - predicted_Y
         SSE = (residuals ** 2).sum()
 
         MSE = SSE / dfe
 
         # Sum square column effect - between colums
-        SSC = ((mean(Y, 0) - mean_Y) ** 2).sum() * n
+        SSC = ((np.mean(Y, 0) - mean_Y) ** 2).sum() * n
         MSC = SSC / dfc / n
         
         # Sum Square subject effect - between rows/subjects
