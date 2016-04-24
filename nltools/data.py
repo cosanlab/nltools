@@ -865,3 +865,67 @@ def threshold(stat, p, threshold_dict={'unc':.001}):
         out.data[p.data > threshold_dict['fdr']] = np.nan
     return out
 
+def icc(self, icc_type='icc2'):
+    ''' Calculate intraclass correlation coefficient for data within Brain_Data class
+    
+    ICC Formulas are based on:
+    Shrout, P. E., & Fleiss, J. L. (1979). Intraclass correlations: uses in assessing rater reliability. 
+    Psychological bulletin, 86(2), 420.
+
+    Code modifed from nipype algorithms.icc
+    https://github.com/nipy/nipype/blob/master/nipype/algorithms/icc.py
+    
+    Args:
+        icc_type: type of icc to calculate (icc: voxel random effect, icc2: voxel and column random effect, icc3: voxel and column fixed effect)
+
+    Returns:
+        ICC: intraclass correlation coefficient
+
+'''
+    
+    Y = self.data.T
+    [n, k] = Y.shape
+    dfc = k - 1
+    dfe = (n - 1) * (k-1)
+    dfr = n - 1
+
+    # Compute the repeated measure effect
+    # ------------------------------------
+
+    # Sum Square Total
+    mean_Y = mean(Y)
+    SST = ((Y - mean_Y) ** 2).sum()
+
+    # create the design matrix for the different levels
+    x = kron(eye(k), ones((n, 1)))  # sessions
+    x0 = tile(eye(n), (k, 1))  # subjects
+    X = hstack([x, x0])
+
+    # Sum Square Error
+    predicted_Y = dot(dot(dot(X, pinv(dot(X.T, X))), X.T), Y.flatten('F'))
+    residuals = Y.flatten('F') - predicted_Y
+    SSE = (residuals ** 2).sum()
+
+    MSE = SSE / dfe
+
+    # Sum square column effect - between colums
+    SSC = ((mean(Y, 0) - mean_Y) ** 2).sum() * n
+    MSC = SSC / dfc / n
+    
+    # Sum Square subject effect - between rows/subjects
+    SSR = SST - SSC - SSE
+    MSR = SSR / dfr
+
+    if icc_type == 'icc1':
+        # ICC(2,1) = (mean square subject - mean square error) / (mean square subject + (k-1)*mean square error + k*(mean square columns - mean square error)/n)
+        ICC = (MSR - MSRW) / (MSR + (k-1) * MSRW)
+        
+    elif icc_type == 'icc2':
+        # ICC(2,1) = (mean square subject - mean square error) / (mean square subject + (k-1)*mean square error + k*(mean square columns - mean square error)/n)
+        ICC = (MSR - MSE) / (MSR + (k-1) * MSE + k * (MSC - MSE) / n)
+
+    elif icc_type =='icc3':
+        # ICC(3,1) = (mean square subject - mean square error) / (mean square subject + (k-1)*mean square error)
+        ICC = (MSR - MSE) / (MSR + (k-1) * MSE)
+
+    return ICC
