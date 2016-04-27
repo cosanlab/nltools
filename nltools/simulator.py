@@ -460,7 +460,7 @@ class Simulator:
                 new_dats[subj*reps + rep,np.where(flat_masks[0,:]==1)] = m[subj*reps + rep,:]
                 new_dats[subj*reps + rep,np.where(flat_masks[1,:]==1)] = x[subj*reps + rep,:]
                 new_dats[subj*reps + rep,:] += rep_noise_mx + subj_noise_mx
-                y[subj*reps + rep] += rep_noise_y + subj_noise_y
+                self.y[subj*reps + rep] += rep_noise_y + subj_noise_y
         
 
         self.data = self.nifti_masker.inverse_transform(new_dats) #append 3d simulated data to list
