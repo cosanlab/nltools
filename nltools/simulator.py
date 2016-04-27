@@ -444,9 +444,9 @@ class Simulator:
 
         #x region
         x_length = np.sum(flat_masks[1,:])
-        x = x_y*np.matlib.repmat(y, 1, x_length) + noise_x_y*np.random.standard_normal(size=[n_sub*reps,x_length])
+        x = x_y*np.matlib.repmat(self.y, 1, x_length) + noise_x_y*np.random.standard_normal(size=[n_sub*reps,x_length])
 
-        new_dats = np.zeros([y.shape[0], flat_masks.shape[1]])
+        new_dats = np.zeros([self.y.shape[0], flat_masks.shape[1]])
 
         #index the data using the flat_masks
         for subj in range(n_sub):
