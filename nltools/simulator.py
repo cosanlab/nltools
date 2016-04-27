@@ -479,5 +479,5 @@ class Simulator:
 
                 rep_id_file = open(os.path.join(output_dir,'rep_id.csv'), 'wb')
                 wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
-                wr.writerow(self.rep_id)
+                wr.writerow(rep_id)
 
