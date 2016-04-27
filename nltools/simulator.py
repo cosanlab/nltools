@@ -440,7 +440,7 @@ class Simulator:
 
         #mediation region
         m_length = np.sum(flat_masks[0,:])
-        m = m_y*np.matlib.repmat(y, 1, m_length) + noise_m_y*np.random.standard_normal(size=[n_sub*reps,m_length])
+        m = m_y*np.matlib.repmat(self.y, 1, m_length) + noise_m_y*np.random.standard_normal(size=[n_sub*reps,m_length])
 
         #x region
         x_length = np.sum(flat_masks[1,:])
