@@ -413,5 +413,70 @@ class Simulator:
                 wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
                 wr.writerow(self.rep_id)
 
+    def mediation(self, masks, m_y, x_y, sigma, reps = 1, n_sub = 1, output_dir = None):
+        """ create continuous simulated data with covariance
 
+        Args:
+            masks: region(s) where we will have activations (there must be 2 for mediation)
+            m_y: measure of noise between mediation region and y labels
+            x_y: measure of noise between x region and mediation region
+            sigma: amount of noise to add between subjects and reps
+            reps: number of data repetitions
+            n_sub: number of subjects to simulate
+            output_dir: string path of directory to output data.  If None, no data will be written
+            **kwargs: Additional keyword arguments to pass to the prediction algorithm
+
+        """
+
+        if masks is None or len(masks) is not 2 or type(masks[0]) is not nib.nifti1.Nifti1Image:
+            raise ValueError("Parameter 'masks' must contain a list of three masks for mediation to work")
+
+        flat_masks = self.nifti_masker.fit_transform(masks)
+
+        noise_m_y = 1 - m_y
+        noise_x_y = 1 - x_y
+        self.y = np.random.standard_normal(size=[n_sub*reps,1])
+
+        #mediation region
+        m_length = np.sum(flat_masks[0,:])
+        m = m_y*np.matlib.repmat(y, 1, m_length) + noise_m_y*np.random.standard_normal(size=[n_sub*reps,m_length])
+
+        #x region
+        x_length = np.sum(flat_masks[1,:])
+        x = x_y*np.matlib.repmat(y, 1, x_length) + noise_x_y*np.random.standard_normal(size=[n_sub*reps,x_length])
+
+        new_dats = np.zeros([y.shape[0], flat_masks.shape[1]])
+
+        #index the data using the flat_masks
+        for subj in range(n_sub):
+            subj_noise_mx = np.random.standard_normal(size=new_dats.shape[1])*sigma
+            subj_noise_y = np.random.standard_normal(size=1)*sigma
+            for rep in range(reps):
+                rep_noise_mx = np.random.standard_normal(size=new_dats.shape[1])*sigma
+                rep_noise_y = np.random.standard_normal(size=1)*sigma
+                
+                #assume no overlap between regions m and x
+                new_dats[subj*reps + rep,np.where(flat_masks[0,:]==1)] = m[subj*reps + rep,:]
+                new_dats[subj*reps + rep,np.where(flat_masks[1,:]==1)] = x[subj*reps + rep,:]
+                new_dats[subj*reps + rep,:] += rep_noise_mx + subj_noise_mx
+                y[subj*reps + rep] += rep_noise_y + subj_noise_y
+        
+
+        self.data = self.nifti_masker.inverse_transform(new_dats) #append 3d simulated data to list
+
+        print("Saving to " + str(output_dir))
+        print("dat == " + str(self.data.shape))
+        print("y == " + str(self.y.shape))
+        if output_dir is not None:
+            if type(output_dir) is str:
+                if not os.path.isdir(output_dir):
+                    os.makedirs(output_dir)
+                self.data.to_filename(os.path.join(output_dir,'simulated_med_' + str(sigma) + 'sigma_' + str(n_sub) + 'subj.nii.gz'))
+                y_file = open(os.path.join(output_dir,'y.csv'), 'wb')
+                wr = csv.writer(y_file, quoting=csv.QUOTE_ALL)
+                wr.writerow(self.y)
+
+                rep_id_file = open(os.path.join(output_dir,'rep_id.csv'), 'wb')
+                wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
+                wr.writerow(self.rep_id)
 
