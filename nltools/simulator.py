@@ -20,6 +20,7 @@ import random
 
 import cPickle 
 import numpy as np
+import numpy.matlib
 import matplotlib.pyplot as plt
 from nilearn import datasets
 from nilearn import plotting
