@@ -447,7 +447,7 @@ class Simulator:
         x = x_y*np.matlib.repmat(self.y, 1, x_length) + noise_x_y*np.random.standard_normal(size=[n_sub*reps,x_length])
 
         new_dats = np.zeros([self.y.shape[0], flat_masks.shape[1]])
-
+        self.rep_id = [1] * len(self.y)
         #index the data using the flat_masks
         for subj in range(n_sub):
             subj_noise_mx = np.random.standard_normal(size=new_dats.shape[1])*sigma
@@ -460,6 +460,7 @@ class Simulator:
                 new_dats[subj*reps + rep,np.where(flat_masks[0,:]==1)] = m[subj*reps + rep,:]
                 new_dats[subj*reps + rep,np.where(flat_masks[1,:]==1)] = x[subj*reps + rep,:]
                 new_dats[subj*reps + rep,:] += rep_noise_mx + subj_noise_mx
+                self.rep_id[subj*reps + rep] = rep
                 self.y[subj*reps + rep] += rep_noise_y + subj_noise_y
         
 
