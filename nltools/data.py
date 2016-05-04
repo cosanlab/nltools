@@ -68,11 +68,14 @@ class Brain_Data(object):
         if data is not None:
             if type(data) is str:
                 data=nib.load(data)
+                self.data = self.nifti_masker.fit_transform(data)
             elif type(data) is list:
-                data=nib.concat_images(data)
+                # Load and transform each image in list separately (nib.concat_images(data) can't handle images of different sizes)
+                self.data = []
+                [self.data.append(self.nifti_masker.fit_transform(nib.load(x))) for x in data]
+                self.data = np.array(self.data)
             elif not isinstance(data, nib.Nifti1Image):
                 raise ValueError("data is not a nibabel instance")
-            self.data = self.nifti_masker.fit_transform(data)
 
             # Collapse any extra dimension
             if any([x==1 for x in self.data.shape]):
