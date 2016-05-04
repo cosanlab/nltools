@@ -72,7 +72,11 @@ class Brain_Data(object):
             elif type(data) is list:
                 # Load and transform each image in list separately (nib.concat_images(data) can't handle images of different sizes)
                 self.data = []
-                [self.data.append(self.nifti_masker.fit_transform(nib.load(x))) for x in data]
+                for i in data:
+                    if isinstance(i,str):
+                        self.data.append(self.nifti_masker.fit_transform(nib.load(i)))
+                    elif isinstance(i,nib.Nifti1Image):
+                        self.data.append(self.nifti_masker.fit_transform(i))
                 self.data = np.array(self.data)
             elif not isinstance(data, nib.Nifti1Image):
                 raise ValueError("data is not a nibabel instance")
