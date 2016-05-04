@@ -7,3 +7,4 @@ numpy>=1.9
 seaborn>=0.7.0
 matplotlib
 scipy
+six

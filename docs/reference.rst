@@ -41,7 +41,7 @@ methods in the current release of Neurolearn.
 .. automodule:: nltools.plotting
     :members:
 
-:mod:`nltools.plotting`: Stats Tools
+:mod:`nltools.stats`: Stats Tools
 ====================================
 
 .. automodule:: nltools.stats
