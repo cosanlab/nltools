@@ -29,7 +29,7 @@ from copy import deepcopy
 import pandas as pd
 import numpy as np
 from scipy.stats import ttest_1samp, t, norm
-
+import six
 import sklearn
 from sklearn.pipeline import Pipeline
 from sklearn.metrics.pairwise import pairwise_distances
@@ -73,7 +73,7 @@ class Brain_Data(object):
                 # Load and transform each image in list separately (nib.concat_images(data) can't handle images of different sizes)
                 self.data = []
                 for i in data:
-                    if isinstance(i,str):
+                    if isinstance(i,six.string_types):
                         self.data.append(self.nifti_masker.fit_transform(nib.load(i)))
                     elif isinstance(i,nib.Nifti1Image):
                         self.data.append(self.nifti_masker.fit_transform(i))
