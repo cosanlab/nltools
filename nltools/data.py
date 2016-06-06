@@ -78,7 +78,9 @@ class Brain_Data(object):
                     elif isinstance(i,nib.Nifti1Image):
                         self.data.append(self.nifti_masker.fit_transform(i))
                 self.data = np.array(self.data)
-            elif not isinstance(data, nib.Nifti1Image):
+            elif isinstance(data,nib.Nifti1Image):
+                self.data = np.array(self.nifti_masker.fit_transform(data))
+            else:
                 raise ValueError("data is not a nibabel instance")
 
             # Collapse any extra dimension
@@ -414,6 +416,7 @@ class Brain_Data(object):
             else:
                 raise ValueError("Image is not a Brain_Data or nibabel instance")
         dim = image.shape()
+
 
         # Check to make sure masks are the same for each dataset and if not create a union mask
         # This might be handy code for a new Brain_Data method
