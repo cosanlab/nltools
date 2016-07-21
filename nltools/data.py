@@ -832,14 +832,20 @@ class Brain_Data(object):
         
         """
 
-        if not isinstance(mask, nib.Nifti1Image):
-            raise ValueError('Make sure mask is a nibabel instance')
+        if not isinstance(mask, Brain_Data):
+            if isinstance(mask, nib.Nifti1Image):
+                mask = Brain_Data(mask)
+            else:
+                raise ValueError('Make sure mask is a Brain_Data or nibabel instance')
 
-        if len(np.unique(mask.get_data())) == 2:
+        # make sure each ROI id is an integer
+        mask.data = np.round(mask.data).astype(int)
+
+        if len(np.unique(mask.data)) == 2:
             all_mask = Brain_Data(mask)
             if method is 'mean':
                 out = np.mean(self.data[:,np.where(all_mask.data)].squeeze(),axis=1)
-        elif len(np.unique(mask.get_data())) > 2:
+        elif len(np.unique(mask.data)) > 2:
             all_mask = expand_mask(mask)
             out = []
             for i in range(all_mask.shape()[0]):
