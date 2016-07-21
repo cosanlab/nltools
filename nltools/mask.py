@@ -92,7 +92,7 @@ def expand_mask(mask):
         mask = Brain_Data(mask)
     if not isinstance(mask,Brain_Data):
         raise ValueError('Make sure mask is a nibabel or Brain_Data instance.')
-    mask.data = mask.data.astype(int)
+    mask.data = np.round(mask.data).astype(int)
     tmp = []
     for i in np.unique(mask.data):
         tmp.append((mask.data==i)*1)
