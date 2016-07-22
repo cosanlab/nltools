@@ -842,9 +842,8 @@ class Brain_Data(object):
         mask.data = np.round(mask.data).astype(int)
 
         if len(np.unique(mask.data)) == 2:
-            all_mask = Brain_Data(mask)
             if method is 'mean':
-                out = np.mean(self.data[:,np.where(all_mask.data)].squeeze(),axis=1)
+                out = np.mean(self.data[:,np.where(mask.data)].squeeze(),axis=1)
         elif len(np.unique(mask.data)) > 2:
             all_mask = expand_mask(mask)
             out = []
