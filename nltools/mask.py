@@ -16,6 +16,8 @@ from nilearn.input_data import NiftiMasker
 from copy import deepcopy
 import pandas as pd
 import numpy as np
+import warnings
+
 # from neurosynth.masks import Masker
 
 
@@ -100,4 +102,40 @@ def expand_mask(mask):
     out.data = np.array(tmp)
     return out
 
+def collapse_mask(mask):
+    """ collapse separate masks into one mask with multiple integers overlapping areas are ignored
+
+        Args:
+            mask: nibabel or Brain_Data instance
+
+        Returns:
+            out: Brain_Data instance of a mask with different integers indicating different masks
+
+     """
+
+    if not isinstance(mask,Brain_Data):
+        if isinstance(mask,nib.Nifti1Image):
+            mask = Brain_Data(mask)
+        else:
+            raise ValueError('Make sure mask is a nibabel or Brain_Data instance.')
+    
+    if len(mask.shape()) > 1:
+        if len(mask) > 1:
+            out = mask.empty()
+
+            # Create list of masks and find any overlaps
+            m_list = []
+            for x in range(len(a)):
+                m_list.append(a[x].to_nifti())
+            intersect = intersect_masks(m_list, threshold=1, connected=False)
+            intersect = Brain_Data(nib.Nifti1Image(np.abs(intersect.get_data()-1),intersect.get_affine()))
+
+            # Combine all masks into sequential order ignoring any areas of overlap
+            merge = []
+            for i in range(len(m_list)):
+                merge.append(np.multiply(Brain_Data(m_list[i]).data,intersect.data)*(i+1))
+            out.data = np.sum(np.array(merge).T,1).astype(int)
+            return out
+    else:
+        warnings.warn("Doesn't need to be collapased")
 
