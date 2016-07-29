@@ -19,7 +19,7 @@ Python toolbox for analyzing neuroimaging data.  It is based off of Tor Wager's 
 1. Method 1
   
    ```
-   git clone git+https://github.com/ljchang/neurolearn
+   pip install git+https://github.com/ljchang/neurolearn
    ```
 
 2. Method 2
