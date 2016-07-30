@@ -47,7 +47,7 @@ def fdr(p, q=.05):
 
     """
     
-    if not isinstance(p, np.array):
+    if not isinstance(p, (np.array,np.ndarray)):
         raise ValueError('Make sure vector of p-values is a numpy array')
 
     s = np.sort(p)
