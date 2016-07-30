@@ -18,7 +18,7 @@ import nibabel as nib
 from nltools.utils import get_resource_path, set_algorithm, get_anatomical
 from nltools.cross_validation import set_cv
 from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
-from nltools.stats import pearson
+from nltools.stats import pearson,fdr
 from nltools.mask import expand_mask
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
@@ -33,7 +33,7 @@ import six
 import sklearn
 from sklearn.pipeline import Pipeline
 from sklearn.metrics.pairwise import pairwise_distances
-
+from mne.stats import (spatio_temporal_cluster_1samp_test
 from nltools.pbs_job import PBS_Job
 
 class Brain_Data(object):
@@ -236,7 +236,6 @@ class Brain_Data(object):
         else:
             anatomical = get_anatomical()
 
-    
         if self.data.ndim == 1:
             plot_stat_map(self.to_nifti(), anatomical, cut_coords=range(-40, 50, 10), display_mode='z', 
                 black_bg=True, colorbar=True, draw_cross=False)
@@ -312,14 +311,15 @@ class Brain_Data(object):
         if threshold_dict is not None:
             if type(threshold_dict) is dict:
                 if 'unc' in threshold_dict:
-                    #Uncorrected Thresholding
-                    t.data[np.where(p.data>threshold_dict['unc'])] = np.nan
+                    threshold = threshold_dict['unc']
                 elif 'fdr' in threshold_dict:
-                    pass
+                    threshold = fdr(p.data, q=threshold['fdr'])
+                thr_t = threshold(t,p,threshold)    
+                out = {'t':t, 'p':p,'thr_t':thr_t}
             else:
                 raise ValueError("threshold_dict is not a dictionary.  Make sure it is in the form of {'unc':.001} or {'fdr':.05}")
-
-        out = {'t':t, 'p':p}
+        else:
+            out = {'t':t, 'p':p}
 
         return out
 
@@ -922,13 +922,13 @@ class Brain_Data(object):
 
         return ICC
 
-def threshold(stat, p, threshold_dict={'unc':.001}):
-    """ Calculate one sample t-test across each voxel (two-sided)
+def threshold(stat, p, threshold=.05):
+    """ Threshold test image by p-value from p image
 
     Args:
         stat: Brain_Data instance of arbitrary statistic metric (e.g., beta, t, etc)
         p: Brain_data instance of p-values
-        threshold_dict: a dictionary of threshold parameters {'unc':.001} or {'fdr':.05}
+        threshold: p-value to threshold stat image
  
     Returns:
         out: Thresholded Brain_Data instance
@@ -941,11 +941,21 @@ def threshold(stat, p, threshold_dict={'unc':.001}):
     if not isinstance(p, Brain_Data):
         raise ValueError('Make sure p is a Brain_Data instance')
 
+    # Create Mask
+    mask = deepcopy(p)
+    if threshold >0:
+        mask.data = (mask.data<threshold).astype(int)
+    else:
+        mask.data = np.zeros(len(mask.data),dtype=int)
+   
+    # Apply Threshold Mask
     out = deepcopy(stat)
-    if 'unc' in threshold_dict:
-        out.data[p.data > threshold_dict['unc']] = np.nan
-    elif 'fdr' in threshold_dict:
-        out.data[p.data > threshold_dict['fdr']] = np.nan
+    if np.sum(mask.data) > 0:
+        out = out.apply_mask(mask)
+        out.data = out.data.squeeze()
+    else:
+        out.data = np.zeros(len(mask.data),dtype=int)
+
     return out
 
 
