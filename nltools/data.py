@@ -33,7 +33,7 @@ import six
 import sklearn
 from sklearn.pipeline import Pipeline
 from sklearn.metrics.pairwise import pairwise_distances
-from mne.stats import (spatio_temporal_cluster_1samp_test
+from mne.stats import spatio_temporal_cluster_1samp_test
 from nltools.pbs_job import PBS_Job
 
 class Brain_Data(object):
@@ -295,18 +295,50 @@ class Brain_Data(object):
 
         Args:
             self: Brain_Data instance
-            threshold_dict: a dictionary of threshold parameters {'unc':.001} or {'fdr':.05}
+            threshold_dict: a dictionary of threshold parameters {'unc':.001} or {'fdr':.05} or {'permutation':tcfe,n_permutation:5000}
 
         Returns:
             out: dictionary of regression statistics in Brain_Data instances {'t','p'}
         
         """ 
 
-        # Notes:  Need to add FDR Option
-
         t = deepcopy(self)
         p = deepcopy(self)
-        t.data, p.data = ttest_1samp(self.data, 0, 0)
+
+        if threshold_dict is not None:
+            if 'permutation' in threshold_dict:
+                # Convert data to correct shape (subjects, time, space)
+                data_convert_shape = deepcopy(self.data)
+                data_convert_shape = np.expand_dims(data_convert_shape, axis=1)
+                if 'n_permutations' in threshold_dict:
+                    n_permutations = threshold_dict['n_permutations']
+                else:
+                    n_permutations = 1000
+                    warn.warnings('n_permutations not set:  running with 1000 permutations')
+                if 'connectivity' in threshold_dict:
+                    connectivity=threshold_dict['connectivity']
+                else:
+                    connectivity=None
+                if 'n_jobs' in threshold_dict:
+                    n_jobs = threshold_dict['n_jobs']
+                else:
+                    n_jobs = 1
+                if threshold_dict['permutation'] is 'tfce':
+                    threshold = dict(start=0, step=0.2)
+                else:
+                    threshold = None
+
+                t.data, clusters, p_values = spatio_temporal_cluster_1samp_test(
+                    data_convert_shape, tail=0, threshold=threshold, 
+                    connectivity=connectivity, n_permutations=n_permutations, n_jobs=n_jobs)
+
+                t.data = t.data.squeeze()
+
+                p = deepcopy(t)
+                for cl,pval in zip(clusters,p_values):
+                    p.data[cl[1][0]] = pval
+        else:
+            t.data, p.data = ttest_1samp(self.data, 0, 0)
 
         if threshold_dict is not None:
             if type(threshold_dict) is dict:
@@ -314,8 +346,11 @@ class Brain_Data(object):
                     threshold = threshold_dict['unc']
                 elif 'fdr' in threshold_dict:
                     threshold = fdr(p.data, q=threshold['fdr'])
+                elif 'permutation' in threshold_dict:
+                    threshold = .05
                 thr_t = threshold(t,p,threshold)    
                 out = {'t':t, 'p':p,'thr_t':thr_t}
+
             else:
                 raise ValueError("threshold_dict is not a dictionary.  Make sure it is in the form of {'unc':.001} or {'fdr':.05}")
         else:
