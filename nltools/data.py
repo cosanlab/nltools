@@ -18,7 +18,7 @@ import nibabel as nib
 from nltools.utils import get_resource_path, set_algorithm, get_anatomical
 from nltools.cross_validation import set_cv
 from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
-from nltools.stats import pearson,fdr
+from nltools.stats import pearson,fdr,threshold
 from nltools.mask import expand_mask
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
@@ -35,6 +35,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.metrics.pairwise import pairwise_distances
 from mne.stats import spatio_temporal_cluster_1samp_test
 from nltools.pbs_job import PBS_Job
+import warnings
 
 class Brain_Data(object):
 
@@ -294,7 +295,6 @@ class Brain_Data(object):
         """ Calculate one sample t-test across each voxel (two-sided)
 
         Args:
-            self: Brain_Data instance
             threshold_dict: a dictionary of threshold parameters {'unc':.001} or {'fdr':.05} or {'permutation':tcfe,n_permutation:5000}
 
         Returns:
@@ -314,7 +314,7 @@ class Brain_Data(object):
                     n_permutations = threshold_dict['n_permutations']
                 else:
                     n_permutations = 1000
-                    warn.warnings('n_permutations not set:  running with 1000 permutations')
+                    warnings.warn('n_permutations not set:  running with 1000 permutations')
                 if 'connectivity' in threshold_dict:
                     connectivity=threshold_dict['connectivity']
                 else:
@@ -324,12 +324,12 @@ class Brain_Data(object):
                 else:
                     n_jobs = 1
                 if threshold_dict['permutation'] is 'tfce':
-                    threshold = dict(start=0, step=0.2)
+                    perm_threshold = dict(start=0, step=0.2)
                 else:
-                    threshold = None
+                    perm_threshold = None
 
-                t.data, clusters, p_values = spatio_temporal_cluster_1samp_test(
-                    data_convert_shape, tail=0, threshold=threshold, 
+                t.data, clusters, p_values, h0 = spatio_temporal_cluster_1samp_test(
+                    data_convert_shape, tail=0, threshold=perm_threshold, 
                     connectivity=connectivity, n_permutations=n_permutations, n_jobs=n_jobs)
 
                 t.data = t.data.squeeze()
@@ -337,20 +337,21 @@ class Brain_Data(object):
                 p = deepcopy(t)
                 for cl,pval in zip(clusters,p_values):
                     p.data[cl[1][0]] = pval
+            else:
+                t.data, p.data = ttest_1samp(self.data, 0, 0)
         else:
             t.data, p.data = ttest_1samp(self.data, 0, 0)
 
         if threshold_dict is not None:
             if type(threshold_dict) is dict:
                 if 'unc' in threshold_dict:
-                    threshold = threshold_dict['unc']
+                    thr = threshold_dict['unc']
                 elif 'fdr' in threshold_dict:
-                    threshold = fdr(p.data, q=threshold['fdr'])
+                    thr = fdr(p.data, q=threshold_dict['fdr'])
                 elif 'permutation' in threshold_dict:
-                    threshold = .05
-                thr_t = threshold(t,p,threshold)    
+                    thr = .05
+                thr_t = threshold(t,p,thr)    
                 out = {'t':t, 'p':p,'thr_t':thr_t}
-
             else:
                 raise ValueError("threshold_dict is not a dictionary.  Make sure it is in the form of {'unc':.001} or {'fdr':.05}")
         else:
@@ -957,40 +958,6 @@ class Brain_Data(object):
 
         return ICC
 
-def threshold(stat, p, threshold=.05):
-    """ Threshold test image by p-value from p image
 
-    Args:
-        stat: Brain_Data instance of arbitrary statistic metric (e.g., beta, t, etc)
-        p: Brain_data instance of p-values
-        threshold: p-value to threshold stat image
- 
-    Returns:
-        out: Thresholded Brain_Data instance
-    
-    """
- 
-    if not isinstance(stat, Brain_Data):
-        raise ValueError('Make sure stat is a Brain_Data instance')
-        
-    if not isinstance(p, Brain_Data):
-        raise ValueError('Make sure p is a Brain_Data instance')
-
-    # Create Mask
-    mask = deepcopy(p)
-    if threshold >0:
-        mask.data = (mask.data<threshold).astype(int)
-    else:
-        mask.data = np.zeros(len(mask.data),dtype=int)
-   
-    # Apply Threshold Mask
-    out = deepcopy(stat)
-    if np.sum(mask.data) > 0:
-        out = out.apply_mask(mask)
-        out.data = out.data.squeeze()
-    else:
-        out.data = np.zeros(len(mask.data),dtype=int)
-
-    return out
 
 
