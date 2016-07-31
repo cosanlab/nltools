@@ -33,7 +33,7 @@ import six
 import sklearn
 from sklearn.pipeline import Pipeline
 from sklearn.metrics.pairwise import pairwise_distances
-from mne.stats import spatio_temporal_cluster_1samp_test
+from mne.stats import spatio_temporal_cluster_1samp_test, ttest_1samp_no_p
 from nltools.pbs_job import PBS_Job
 import warnings
 
@@ -357,7 +357,7 @@ class Brain_Data(object):
                 if 'stat_fun' in threshold_dict:
                     stat_fun = threshold_dict['stat_fun']
                 else:
-                    stat_fun = None
+                    stat_fun = ttest_1samp_no_p
 
                 t.data, clusters, p_values, h0 = spatio_temporal_cluster_1samp_test(
                     data_convert_shape, tail=0, threshold=perm_threshold, stat_fun=stat_fun,
