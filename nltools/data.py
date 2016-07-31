@@ -155,6 +155,33 @@ class Brain_Data(object):
     def __len__(self):
         return self.shape()[0]
 
+    def __add__(self, y):
+        if not isinstance(y,Brain_Data):
+            raise ValueError('Make sure you are adding a Brain_Data() instance.')
+        if self.shape() != y.shape():
+            raise ValueError('Both Brain_Data() instances need to be the same shape.')
+        new = deepcopy(self)
+        new.data = new.data + y.data
+        return new
+
+    def __sub__(self, y):
+        if not isinstance(y,Brain_Data):
+            raise ValueError('Make sure you are subtracting a Brain_Data() instance.')
+        if self.shape() != y.shape():
+            raise ValueError('Both Brain_Data() instances need to be the same shape.')
+        new = deepcopy(self)
+        new.data = new.data - y.data
+        return new
+
+    def __mul__(self, y):
+        if not isinstance(y,Brain_Data):
+            raise ValueError('Make sure you are multiplying a Brain_Data() instance.')
+        if self.shape() != y.shape():
+            raise ValueError('Both Brain_Data() instances need to be the same shape.')
+        new = deepcopy(self)
+        new.data = np.multiply(new.data,y.data)
+        return new           
+
     def shape(self):
         """ Get images by voxels shape.
 
@@ -327,9 +354,13 @@ class Brain_Data(object):
                     perm_threshold = dict(start=0, step=0.2)
                 else:
                     perm_threshold = None
+                if 'stat_fun' in threshold_dict:
+                    stat_fun = threshold_dict['stat_fun']
+                else:
+                    stat_fun = None
 
                 t.data, clusters, p_values, h0 = spatio_temporal_cluster_1samp_test(
-                    data_convert_shape, tail=0, threshold=perm_threshold, 
+                    data_convert_shape, tail=0, threshold=perm_threshold, stat_fun=stat_fun,
                     connectivity=connectivity, n_permutations=n_permutations, n_jobs=n_jobs)
 
                 t.data = t.data.squeeze()
