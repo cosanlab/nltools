@@ -17,6 +17,7 @@ from copy import deepcopy
 import pandas as pd
 import numpy as np
 import warnings
+from nilearn.masking import intersect_masks
 
 # from neurosynth.masks import Masker
 
@@ -113,6 +114,7 @@ def collapse_mask(mask):
 
      """
 
+    from nltools.data import Brain_Data
     if not isinstance(mask,Brain_Data):
         if isinstance(mask,nib.Nifti1Image):
             mask = Brain_Data(mask)
@@ -125,8 +127,8 @@ def collapse_mask(mask):
 
             # Create list of masks and find any overlaps
             m_list = []
-            for x in range(len(a)):
-                m_list.append(a[x].to_nifti())
+            for x in range(len(mask)):
+                m_list.append(mask[x].to_nifti())
             intersect = intersect_masks(m_list, threshold=1, connected=False)
             intersect = Brain_Data(nib.Nifti1Image(np.abs(intersect.get_data()-1),intersect.get_affine()))
 
