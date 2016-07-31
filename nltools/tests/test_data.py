@@ -44,8 +44,25 @@ def test_data(tmpdir):
     # Test Std
     assert dat.std().shape()[0] == shape_2d[1]
 
+    # Test add
+    new = dat + dat
+    assert new.shape()[0] == shape_2d[1]
+
+    # Test subtract
+    new = dat - dat
+    assert new.shape()[0] == shape_2d[1]
+
+    # Test multiply
+    new = dat * dat
+    assert new.shape()[0] == shape_2d[1]
+
+
     # # Test T-test
     out = dat.ttest()
+    assert out['t'].shape()[0]==shape_2d[1]
+
+    # # Test T-test - permutation method
+    out = dat.ttest(threshold_dict={'permutation':'tfce','n_permutations':50,'n_jobs':1}})
     assert out['t'].shape()[0]==shape_2d[1]
 
     # Test Regress
