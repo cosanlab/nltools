@@ -46,16 +46,15 @@ def test_data(tmpdir):
 
     # Test add
     new = dat + dat
-    assert new.shape()[0] == shape_2d[1]
+    assert new.shape() == shape_2d
 
     # Test subtract
     new = dat - dat
-    assert new.shape()[0] == shape_2d[1]
+    assert new.shape() == shape_2d
 
     # Test multiply
     new = dat * dat
-    assert new.shape()[0] == shape_2d[1]
-
+    assert new.shape() == shape_2d
 
     # # Test T-test
     out = dat.ttest()
@@ -75,7 +74,7 @@ def test_data(tmpdir):
 
     # Test threshold
     i=1
-    tt = threshold(out['t'][i], out['p'][i], threshold_dict={'fdr':.05})
+    tt = threshold(out['t'][i], out['p'][i], .05)
     assert tt.shape()[0] == shape_2d[1]
 
     # Test write
