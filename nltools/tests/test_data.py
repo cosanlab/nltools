@@ -62,7 +62,7 @@ def test_data(tmpdir):
     assert out['t'].shape()[0]==shape_2d[1]
 
     # # Test T-test - permutation method
-    out = dat.ttest(threshold_dict={'permutation':'tfce','n_permutations':50,'n_jobs':1}})
+    out = dat.ttest(threshold_dict={'permutation':'tfce','n_permutations':50,'n_jobs':1})
     assert out['t'].shape()[0]==shape_2d[1]
 
     # Test Regress
