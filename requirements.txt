@@ -8,3 +8,4 @@ seaborn>=0.7.0
 matplotlib
 scipy
 six
+mne

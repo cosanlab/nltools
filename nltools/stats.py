@@ -47,7 +47,7 @@ def fdr(p, q=.05):
 
     """
     
-    if not isinstance(p, (np.array,np.ndarray)):
+    if not isinstance(p, np.ndarray):
         raise ValueError('Make sure vector of p-values is a numpy array')
 
     s = np.sort(p)
@@ -70,7 +70,7 @@ def threshold(stat, p, thr=.05):
     
     """
     from nltools.data import Brain_Data
-    
+
     if not isinstance(stat, Brain_Data):
         raise ValueError('Make sure stat is a Brain_Data instance')
         
