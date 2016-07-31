@@ -75,7 +75,7 @@ def test_data(tmpdir):
     # Test threshold
     i=1
     tt = threshold(out['t'][i], out['p'][i], .05)
-    assert tt.shape()[0] == shape_2d[1]
+    assert isinstance(tt,Brain_Data)
 
     # Test write
     dat.write(os.path.join(str(tmpdir.join('test_write.nii'))))
