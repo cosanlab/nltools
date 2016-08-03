@@ -1,3 +1,5 @@
+from __future__ import division
+
 '''
     NeuroLearn Analysis Tools
     =========================
@@ -34,7 +36,6 @@ from nltools.utils import get_resource_path
 from nltools.cross_validation import set_cv
 from scipy.stats import norm, binom_test
 from sklearn.metrics import auc
-
 
 class Predict(object):
 
@@ -458,6 +459,10 @@ class Roc(object):
         self.binary_outcome = binary_outcome
         self.threshold_type = threshold_type
         self.forced_choice=forced_choice
+        if isinstance(self.binary_outcome,pd.DataFrame):
+            self.binary_outcome = np.array(self.binary_outcome).flatten()
+        else:
+            self.binary_outcome = binary_outcome
 
     def calculate(self, input_values=None, binary_outcome=None, criterion_values=None,
         threshold_type='optimal_overall', forced_choice=False, balanced_acc=False):
@@ -500,10 +505,10 @@ class Roc(object):
         self.fpr = np.zeros(self.criterion_values.shape)
         for i,x in enumerate(self.criterion_values):
             wh = self.input_values >= x
-            self.tpr[i] = float(sum(wh[self.binary_outcome]))/float(sum(self.binary_outcome))
-            self.fpr[i] = float(sum(wh[~self.binary_outcome]))/float(sum(~self.binary_outcome))
-        self.n_true = float(sum(self.binary_outcome))
-        self.n_false = float(sum(~self.binary_outcome))
+            self.tpr[i] = np.sum(wh[self.binary_outcome])/np.sum(self.binary_outcome)
+            self.fpr[i] = np.sum(wh[~self.binary_outcome])/np.sum(~self.binary_outcome)
+        self.n_true = np.sum(self.binary_outcome)
+        self.n_false = np.sum(~self.binary_outcome)
 
         # Calculate Area Under the Curve
 
@@ -538,9 +543,9 @@ class Roc(object):
         self.misclass = (self.false_negative) | (self.false_positive)
         self.true_positive = (self.binary_outcome) & (~self.misclass)
         self.true_negative = (~self.binary_outcome) & (~self.misclass)
-        self.sensitivity = sum(self.input_values[self.binary_outcome] >= self.class_thr)/self.n_true
-        self.specificity = 1 - sum(self.input_values[~self.binary_outcome] >= self.class_thr)/self.n_false
-        self.ppv = float(sum(self.true_positive))/(float(sum(self.true_positive)) + float(sum(self.false_positive)))
+        self.sensitivity = np.sum(self.input_values[self.binary_outcome] >= self.class_thr)/self.n_true
+        self.specificity = 1 - np.sum(self.input_values[~self.binary_outcome] >= self.class_thr)/self.n_false
+        self.ppv = np.sum(self.true_positive)/(np.sum(self.true_positive) + np.sum(self.false_positive))
         if self.forced_choice:
             self.true_positive = self.true_positive[self.binary_outcome]
             self.true_negative = self.true_negative[~self.binary_outcome]
@@ -556,8 +561,8 @@ class Roc(object):
 
         # Calculate p-Value using binomial test (can add hierarchical version of binomial test)
         self.n = len(self.misclass)
-        self.accuracy_p = binom_test(int(sum(~self.misclass)), self.n, p=.5)
-        self.accuracy_se = np.sqrt(float(np.mean(~self.misclass)) * (float(np.mean(~self.misclass))) / self.n)
+        self.accuracy_p = binom_test(int(np.sum(~self.misclass)), self.n, p=.5)
+        self.accuracy_se = np.sqrt(np.mean(~self.misclass) * (np.mean(~self.misclass)) / self.n)
 
 
     def plot(self, plot_method = 'gaussian'):
