@@ -38,6 +38,10 @@ MOCK_MODULES = [
 'nibabel', 
 'matplotlib', 
 'matplotlib.pyplot',
+'mne',
+'mne.stats',
+'mne.stats.spatio_temporal_cluster_1samp_test', 
+'mne.stats.ttest_1samp_no_p',
 'seaborn',
 'sklearn',
 'sklearn.base',
@@ -75,10 +79,8 @@ MOCK_MODULES = [
 'scipy.stats.norm',
 'scipy.stats.binom_test',
 'sklearn.metrics',
-'sklearn.metrics.auc'
-'mne'
-'mne.stats.spatio_temporal_cluster_1samp_test', 
-'mne.stats.ttest_1samp_no_p']
+'sklearn.metrics.auc',
+'warnings']
 
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
