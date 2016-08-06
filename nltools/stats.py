@@ -1,6 +1,8 @@
+from __future__ import division
+
 """Various statistical helper functions"""
 
-__all__ = ['pearson', 'zscore', 'fdr', 'threshold']
+__all__ = ['pearson', 'zscore', 'fdr', 'threshold', 'winsorize','calc_bpm','downsample']
 
 import numpy as np
 import pandas as pdg
@@ -94,4 +96,72 @@ def threshold(stat, p, thr=.05):
 
     return out
 
+def winsorize(data, cutoff=None):
+    ''' Winsorize a Pandas Series 
+    
+        Args:
+            data: a pandas.Series
+            cutoff: a dictionary with keys {'std':[low,high]} or {'quantile':[low,high]}
+            
+        Returns:
+            pandas.Series
+    '''
+    
+    if not isinstance(data,pd.Series):
+        raise ValueError('Make sure that you are applying winsorize to a pandas series.')
+    
+    if isinstance(cutoff,dict):
+        if 'quantile' in cutoff:
+            q = data.quantile(cutoff['quantile'])
+        elif 'std' in cutoff:
+            std = [data.mean()-data.std()*cutoff['std'][0],data.mean()+data.std()*cutoff['std'][1]]
+            q = pd.Series(index=cutoff['std'],data=std)
+    else:
+        raise ValueError('cutoff must be a dictionary with quantile or std keys.')
+    if isinstance(q, pd.Series) and len(q) == 2:
+        data[data < q.iloc[0]] = q.iloc[0]
+        data[data > q.iloc[1]] = q.iloc[1]
+    return data
+
+def calc_bpm(beat_interval, sampling_freq):
+    ''' Calculate instantaneous BPM from beat to beat interval
+
+        Args: 
+            beat_interval: number of samples in between each beat (typically R-R Interval)
+            sampling_freq: sampling frequency in Hz
+
+        Returns:
+            bpm:  beats per minute for time interval
+    '''
+    return 60*sampling_freq*(1/(beat_interval))
+
+def downsample(data,sampling_freq=None, target=None, target_type='samples'):
+    ''' Downsample pandas to a new target frequency or number of samples using averaging.
+    
+        Args:
+            data: Pandas DataFrame or Series
+            sampling_freq:  Sampling frequency of data 
+            target: downsampling target
+            target_type: type of target can be [samples,seconds,hz]
+        Returns:
+            downsampled pandas object
+            
+    '''
+      
+    if not isinstance(data,pd.DataFrame) or not isinstance(data,pd.Series):
+        raise ValueError('Data must by a pandas DataFrame or Series instance.')
+               
+    if target_type is 'samples':
+        n_samples = target
+    elif target_type is 'seconds':
+        n_samples = target*sampling_freq
+    elif target_type is 'hz':
+        n_samples = sampling_freq/target
+    else:
+        raise ValueError('Make sure target_type is "samples", "seconds", or "hz".')
+
+    idx = np.sort(np.repeat(np.arange(1,d.shape[0]/n_samples,1),n_samples))
+    if d.shape[0] % n_samples:
+        idx = np.concatenate([idx, np.repeat(idx[-1],d.shape[0]-len(idx))])
+    return d.groupby(idx).mean()
     
