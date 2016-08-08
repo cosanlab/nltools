@@ -5,7 +5,7 @@ from __future__ import division
 __all__ = ['pearson', 'zscore', 'fdr', 'threshold', 'winsorize','calc_bpm','downsample']
 
 import numpy as np
-import pandas as pdg
+import pandas as pd
 from scipy.stats import ss
 from copy import deepcopy
 
