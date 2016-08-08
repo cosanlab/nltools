@@ -1,4 +1,6 @@
 
+from __future__ import division
+
 '''
     Cross-Validation Data Classes
     =============================
@@ -10,7 +12,7 @@ __all__ = ['KFoldSubject','KFoldStratified','LeaveOneSubjectOut','set_cv']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
-from sklearn.cross_validation import _BaseKFold
+from sklearn.cross_validation import _BaseKFold, check_random_state
 import numpy as np
 import random
 import pandas as pd
@@ -49,13 +51,11 @@ class KFoldSubject(_BaseKFold):
             rng.shuffle(self.idxs)
 
     def _iter_test_indices(self):
-        n = self.n
-        n_folds = self.n_folds
-        n_subs_fold = self.n/self.n_subs
         subs = np.unique(self.labels)
+        n_sub_fold = self.n_subs/self.n_folds
         random.shuffle(subs) # shuffle subjects    
-        divide_subs = lambda x,y: [ x[i:i+y] for i in range(0,len(x),y)]
-        sub_divs = divide_subs(subs, self.n_folds+1) # seems to be adding one fold for some reason
+        divide_subs = lambda x,y: [ x[i:i+y] for i in np.arange(0,len(x),y)]
+        sub_divs = divide_subs(subs, n_sub_fold)
         for d in sub_divs:
             idx = np.in1d(self.labels,d)
             yield self.idxs[np.where(idx)[0]]
