@@ -148,7 +148,7 @@ def downsample(data,sampling_freq=None, target=None, target_type='samples'):
             
     '''
       
-    if not isinstance(data,pd.DataFrame) or not isinstance(data,pd.Series):
+    if not isinstance(data,(pd.DataFrame,pd.Series)):
         raise ValueError('Data must by a pandas DataFrame or Series instance.')
                
     if target_type is 'samples':
@@ -160,8 +160,8 @@ def downsample(data,sampling_freq=None, target=None, target_type='samples'):
     else:
         raise ValueError('Make sure target_type is "samples", "seconds", or "hz".')
 
-    idx = np.sort(np.repeat(np.arange(1,d.shape[0]/n_samples,1),n_samples))
-    if d.shape[0] % n_samples:
-        idx = np.concatenate([idx, np.repeat(idx[-1],d.shape[0]-len(idx))])
-    return d.groupby(idx).mean()
+    idx = np.sort(np.repeat(np.arange(1,data.shape[0]/n_samples,1),n_samples))
+    if data.shape[0] % n_samples:
+        idx = np.concatenate([idx, np.repeat(idx[-1],data.shape[0]-len(idx))])
+    return data.groupby(idx).mean()
     
