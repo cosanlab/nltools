@@ -29,6 +29,7 @@ from copy import deepcopy
 import pandas as pd
 import numpy as np
 from scipy.stats import ttest_1samp, t, norm
+from scipy.signal import detrend
 import six
 import sklearn
 from sklearn.pipeline import Pipeline
@@ -989,6 +990,23 @@ class Brain_Data(object):
 
         return ICC
 
+    def detrend(self, method='linear'):
+        """ Remove linear trend from each voxel
+        
+        Args:
+            type: {'linear','constant'} optional   
+
+        Returns:
+            out: detrended Brain_Data instance
+        
+        """
+
+        if len(self.shape())==1:
+            raise ValueError('Make sure there is more than one image in order to detrend.')
+
+        out = deepcopy(self)
+        out.data = detrend(out.data,type=method, axis=0)
+        return out
 
 
 
