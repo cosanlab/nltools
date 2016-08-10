@@ -22,16 +22,16 @@ def pearson(x, y):
     return rs
 
 def zscore(df):
-    """ zscore every column in a pandas dataframe.
+    """ zscore every column in a pandas dataframe or series.
         
         Args:
             df: Pandas DataFrame instance
         
         Returns:
-            z_data: z-scored pandas DataFrame instance
+            z_data: z-scored pandas DataFrame or series instance
     """
 
-    if not isinstance(df, pd.DataFrame):
+    if not isinstance(df, (pd.DataFrame,pd.Series)):
         raise ValueError("Data is not a Pandas DataFrame instance")
     
     return df.apply(lambda x: (x - x.mean())/x.std())
