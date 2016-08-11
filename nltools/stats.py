@@ -31,10 +31,12 @@ def zscore(df):
             z_data: z-scored pandas DataFrame or series instance
     """
 
-    if not isinstance(df, (pd.DataFrame,pd.Series)):
-        raise ValueError("Data is not a Pandas DataFrame instance")
-    
-    return df.apply(lambda x: (x - x.mean())/x.std())
+    if isinstance(df, pd.DataFrame):
+        return df.apply(lambda x: (x - x.mean())/x.std())
+    elif isinstance(df, pd.Series):
+        return (df-np.mean(df))/np.std(df)
+    else:
+        raise ValueError("Data is not a Pandas DataFrame or Series instance")
 
 def fdr(p, q=.05):
     """ Determine FDR threshold given a p value array and desired false
@@ -164,4 +166,3 @@ def downsample(data,sampling_freq=None, target=None, target_type='samples'):
     if data.shape[0] % n_samples:
         idx = np.concatenate([idx, np.repeat(idx[-1],data.shape[0]-len(idx))])
     return data.groupby(idx).mean()
-    
