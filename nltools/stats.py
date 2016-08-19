@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import ss
 from copy import deepcopy
+import nibabel as nib
 
 def pearson(x, y):
     """ Correlates row vector x with each row vector in 2D array y. 
@@ -97,6 +98,44 @@ def threshold(stat, p, thr=.05):
         out.data = np.zeros(len(mask.data),dtype=int)
 
     return out
+
+def multi_threshold(t_map,p_map,thresh):
+    """ Threshold test image by multiple p-value from p image
+
+    Args:
+        stat: Brain_Data instance of arbitrary statistic metric (e.g., beta, t, etc)
+        p: Brain_data instance of p-values
+        threshold: list of p-values to threshold stat image
+ 
+    Returns:
+        out: Thresholded Brain_Data instance
+    
+    """
+    from nltools.data import Brain_Data
+
+    if not isinstance(t_map, Brain_Data):
+        raise ValueError('Make sure stat is a Brain_Data instance')
+        
+    if not isinstance(p_map, Brain_Data):
+        raise ValueError('Make sure p is a Brain_Data instance')
+        
+    if not isinstance(thresh,list):
+        raise ValueError('Make sure thresh is a list of p-values')
+
+    affine = t_map.to_nifti().get_affine()
+    pos_out = np.zeros(t_map.to_nifti().shape)
+    neg_out = deepcopy(pos_out)
+    for thr in thresh:
+        t = threshold(t_map,p_map,thr=thr)
+        t_pos = deepcopy(t)
+        t_pos.data = np.zeros(len(t_pos.data))
+        t_neg = deepcopy(t_pos)
+        t_pos.data[t.data>0] = 1
+        t_neg.data[t.data<0] = 1
+        pos_out = pos_out+t_pos.to_nifti().get_data()
+        neg_out = neg_out+t_neg.to_nifti().get_data()
+    pos_out = pos_out + neg_out*-1
+    return Brain_Data(nib.Nifti1Image(pos_out,affine))
 
 def winsorize(data, cutoff=None):
     ''' Winsorize a Pandas Series 
