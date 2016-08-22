@@ -2,7 +2,7 @@ from __future__ import division
 
 """Various statistical helper functions"""
 
-__all__ = ['pearson', 'zscore', 'fdr', 'threshold', 'winsorize','calc_bpm','downsample']
+__all__ = ['pearson', 'zscore', 'fdr', 'threshold', 'multi_threshold','winsorize','calc_bpm','downsample']
 
 import numpy as np
 import pandas as pd
