@@ -1008,5 +1008,51 @@ class Brain_Data(object):
         out.data = detrend(out.data,type=method, axis=0)
         return out
 
+    def upload_neurovault(self, access_token=None, collection_name=None, collection_id=None, 
+        img_type=None, img_modality=None):
+        """ Upload Data to Neurovault.  Will add any columns in self.X to image metdata.
+        
+        Args:
+            access_token: (Required) Neurovault api access token
+            collection_name: (Optional) name of new collection to create
+            collection_id: (Optional) neurovault collection_id if adding images to existing collection
+            img_type: (Required) Neurovault map_type
+            img_modality: (Required) Neurovault image modality
+
+        Returns:
+            collection: neurovault collection information
+        
+        """
+
+        if access_token is None:
+            raise ValueError('You must supply a valid neurovault access token')
+
+        api = Client(access_token=access_token)
+
+        # Check if collection exists
+        if collection_id is not None:
+            collection = api.get_collection(collection_id)
+        else:
+            try:
+                collection = api.create_collection(collection_name)
+            except:
+                raise ValueError('Collection Name already exists.  Pick a different name or specify an existing collection id')
+
+        tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
+        os.makedirs(tmp_dir)
+        for i,x in enumerate(self):
+            img_name = collection['name'] + '_' + str(i) + '.nii.gz'
+            f_path = os.path.join(tmp_dir,img_name)
+            x.write(f_path)
+            image = api.add_image(
+                collection['id'],
+                f_path,
+                name=img_name,
+                modality=img_modality,
+                map_type=img_type,
+                **dict([(k,data.X.loc[i,k]) for k in data.X.keys()])
+            )
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        return collection
 
 
