@@ -15,6 +15,7 @@
 import sys
 import os
 import shlex
+from mock import Mock as MagicMock
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -22,7 +23,6 @@ import shlex
 sys.path.insert(0, os.path.abspath('../'))
 # ReadTheDocks doesn't support necessary C dependencies (e.g., Atlas), so we
 # mock them out per https://docs.readthedocs.org/en/latest/faq.html#i-get-import-errors-on-libraries-that-depend-on-c-modules.
-from mock import Mock as MagicMock
 
 class Mock(MagicMock):
     __all__ = []
@@ -32,16 +32,23 @@ class Mock(MagicMock):
 
 # To keep compatibility with RTD and for sphinx to build properly this list needs to be updated if new modules are utilized anywhere in the project code
 MOCK_MODULES = [
+'copy',
+'cPickle',
+'distutils',
+'distutils.version',
+'distutils.version.LooseVersion',
+'glob',
+'IPython',
+'IPython.display',
+'IPython.display.Image',
 'importlib',
-'numpy',
-'pandas', 
-'nibabel', 
 'matplotlib', 
 'matplotlib.pyplot',
 'mne',
 'mne.stats',
 'mne.stats.spatio_temporal_cluster_1samp_test', 
 'mne.stats.ttest_1samp_no_p',
+'nibabel', 
 'nilearn',
 'nilearn.plotting', 
 'nilearn.plotting.img_plotting',
@@ -54,10 +61,43 @@ MOCK_MODULES = [
 'nilearn.masking.intersec_masks',
 'nilearn.input_data',
 'nilearn.input_data.NiftiMasker',
+'nipype',
+'nipype.algorithms',
+'nipype.algorithms.rapidart',
+'nipype.interfaces.base.traits',
+'nipype.interfaces.base',
+'nipype.interfaces.base.isdefined',
+'nipype.interfaces.base.BaseInterface',
+'nipype.interfaces.base.TraitedSpec',
+'nipype.interfaces.base.File',
+'nipype.interfaces.io',
+'nipype.interfaces.matlab',
+'nipype.interfaces.nipy',
+'nipype.interfaces.nipy.preprocess',
+'nipype.interfaces.nipy.preprocess.ComputeMask',
+'nipype.interfaces.spm',
+'nipype.interfaces.utility',
+'nipype.pipeline',
+'nipype.pipeline.engine',
+'nipype.pipeline.engine.Node',
+'nipype.pipeline.engine.Workflow',
+'numpy',
+'os',
+'pandas', 
 'pyneurovault_upload',
 'pyneurovault_upload.Client',
+'random',
+'scipy',
+'scipy.signal',
+'scipy.signal.detrend',
+'scipy.stats',
+'scipy.stats.ttest_1samp',
+'scipy.stats.t',
+'scipy.stats.norm',
+'scipy.stats.binom_test',
 'seaborn',
 'shutil',
+'six',
 'sklearn',
 'sklearn.base',
 'sklearn.base.BaseEstimator',
@@ -70,6 +110,7 @@ MOCK_MODULES = [
 'sklearn.metrics.auc',
 'sklearn.metrics.pairwise',
 'sklearn.metrics.pairwise.pairwise_distances', 
+'sklearn.neighbors',
 'sklearn.pipeline',
 'sklearn.pipeline.Pipeline',
 'sklearn.svm',
@@ -77,17 +118,10 @@ MOCK_MODULES = [
 'sklearn.cross_validation',
 'sklearn.cross_validation._BaseKFold',
 'sklearn.cross_validation.check_random_state',
-'sklearn.cross_validation.StratifiedKFold',
-'sklearn.cross_validation.LeaveOneLabelOut',
-'scipy',
-'scipy.signal',
-'scipy.signal.detrend',
-'scipy.stats',
-'scipy.stats.norm',
-'scipy.stats.binom_test',
-'sklearn.metrics',
-'sklearn.metrics.auc',
+'sklearn.cross_validation.cross_val_score',
+'sklearn.cross_validation.KFold',
 'tempfile',
+'time',
 'warnings',
 'warnings.warn']
 
