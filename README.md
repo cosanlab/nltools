@@ -3,26 +3,20 @@
 # neurolearn
 Python toolbox for analyzing neuroimaging data.  It is based off of Tor Wager's object oriented matlab [canlab core tools](http://wagerlab.colorado.edu/tools) and relies heavily on [nilearn](http://nilearn.github.io) and [scikit learn](http://scikit-learn.org/stable/index.html)
 
-### Current Tools
-- *data.Brain_Data*: Class to work with 4D imaging data in Python
-- *data.Brain_Data.predict*: Multivariate Prediction 
-- *data.Brain_Data.similarity*: Calculate spatial similarity with another image
-- *data.Brain_Data.distance*: Calculate spatial distance of a group of images
-- *data.Brain_Data.regress*: Univariate Regression 
-- *data.Brain_Data.ttest*: Univariate One Sample t-test 
-- *analysis.Roc*: perform ROC analysis
-- *pipelines.Couple_Preproc_Pipeline*: preprocessing pipeline for multiband data
-- *simulator.Simulator*: Class for simulating multivariate data
-- *mask.create_sphere*: Create spherical masks
-
 ### Installation
 1. Method 1
+  
+   ```
+   pip install nltools
+   ```
+
+2. Method 2
   
    ```
    pip install git+https://github.com/ljchang/neurolearn
    ```
 
-2. Method 2
+3. Method 3
 
    ```
    git clone https://github.com/ljchang/neurolearn
@@ -33,6 +27,11 @@ Python toolbox for analyzing neuroimaging data.  It is based off of Tor Wager's 
 Current Documentation can be found at [readthedocs](http://neurolearn.readthedocs.org/en/latest).  Please see the ipython notebook examples for walkthroughs of how to use most of the toolbox.
 
 Here is a [jupyter notebook](https://github.com/ljchang/neurolearn/blob/master/scripts/NLTools_Brain_Data_Class_Tutorial.ipynb) with a detailed overview of how to use the main *Brain_Data* class.  We also have a [notebook](https://github.com/ljchang/neurolearn/blob/master/scripts/Chang_ML_fMRI_Tutorial.ipynb) containing other analysis methods such as prediction and ROI curves (note it is now recommended to use the prediction Brain_Data method).
+
+### Brain_Data()
+
+The nltools toolbox is built around the Brain_Data class which provides an intuitive 2-D representation of imaging data.  It is possible to do simple data manipulations, merging, plotting, and masking.  The main advanatage of the toolbox is that it provides an intuitive method to perform flexible data-analysis.  
+
 
 ### Preprocessing
 
