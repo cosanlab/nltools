@@ -5,7 +5,7 @@
 
 '''
 
-__all__ = ['create_sphere', 'expand_mask']
+__all__ = ['create_sphere', 'expand_mask', 'collapse_mask']
 __author__ = ["Luke Chang", "Sam Greydanus"]
 __license__ = "MIT"
 
@@ -81,14 +81,14 @@ def create_sphere(coordinates, radius=5, mask=None):
 
 def expand_mask(mask):
     """ expand a mask with multiple integers into separate binary masks
+    
+    Args:
+        mask: nibabel or Brain_Data instance
+    
+    Returns:
+        out: Brain_Data instance of multiple binary masks
 
-        Args:
-            mask: nibabel or Brain_Data instance
-
-        Returns:
-            out: Brain_Data instance of multiple binary masks
-
-     """
+    """
 
     from nltools.data import Brain_Data
     if isinstance(mask,nib.Nifti1Image):
@@ -106,13 +106,13 @@ def expand_mask(mask):
 def collapse_mask(mask):
     """ collapse separate masks into one mask with multiple integers overlapping areas are ignored
 
-        Args:
-            mask: nibabel or Brain_Data instance
+    Args:
+        mask: nibabel or Brain_Data instance
 
-        Returns:
-            out: Brain_Data instance of a mask with different integers indicating different masks
+    Returns:
+        out: Brain_Data instance of a mask with different integers indicating different masks
 
-     """
+    """
 
     from nltools.data import Brain_Data
     if not isinstance(mask,Brain_Data):
@@ -140,4 +140,6 @@ def collapse_mask(mask):
             return out
     else:
         warnings.warn("Doesn't need to be collapased")
+
+
 
