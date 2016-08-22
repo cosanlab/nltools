@@ -9,3 +9,4 @@ matplotlib
 scipy
 six
 mne
+pyneurovault_upload
