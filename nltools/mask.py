@@ -97,7 +97,7 @@ def expand_mask(mask):
         raise ValueError('Make sure mask is a nibabel or Brain_Data instance.')
     mask.data = np.round(mask.data).astype(int)
     tmp = []
-    for i in np.unique(mask.data):
+    for i in np.nonzero(np.unique(mask.data))[0]:
         tmp.append((mask.data==i)*1)
     out = mask.empty()
     out.data = np.array(tmp)
