@@ -67,6 +67,7 @@ MOCK_MODULES = [
 'sklearn.externals.joblib.delayed',
 'sklearn.externals.joblib.cpu_count',
 'sklearn.metrics',
+'sklearn.metrics.auc',
 'sklearn.metrics.pairwise',
 'sklearn.metrics.pairwise.pairwise_distances', 
 'sklearn.pipeline',
@@ -87,7 +88,8 @@ MOCK_MODULES = [
 'sklearn.metrics',
 'sklearn.metrics.auc',
 'tempfile',
-'warnings']
+'warnings',
+'warnings.warn']
 
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
