@@ -32,12 +32,10 @@ class Mock(MagicMock):
 
 # To keep compatibility with RTD and for sphinx to build properly this list needs to be updated if new modules are utilized anywhere in the project code
 MOCK_MODULES = [
-'copy',
 'cPickle',
 'distutils',
 'distutils.version',
 'distutils.version.LooseVersion',
-'glob',
 'IPython',
 'IPython.display',
 'IPython.display.Image',
@@ -82,11 +80,9 @@ MOCK_MODULES = [
 'nipype.pipeline.engine.Node',
 'nipype.pipeline.engine.Workflow',
 'numpy',
-'os',
 'pandas', 
 'pyneurovault_upload',
 'pyneurovault_upload.Client',
-'random',
 'scipy',
 'scipy.signal',
 'scipy.signal.detrend',
@@ -96,8 +92,6 @@ MOCK_MODULES = [
 'scipy.stats.norm',
 'scipy.stats.binom_test',
 'seaborn',
-'shutil',
-'six',
 'sklearn',
 'sklearn.base',
 'sklearn.base.BaseEstimator',
@@ -119,11 +113,8 @@ MOCK_MODULES = [
 'sklearn.cross_validation._BaseKFold',
 'sklearn.cross_validation.check_random_state',
 'sklearn.cross_validation.cross_val_score',
-'sklearn.cross_validation.KFold',
-'tempfile',
-'time',
-'warnings',
-'warnings.warn']
+'sklearn.cross_validation.KFold'
+]
 
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
