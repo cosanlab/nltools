@@ -37,6 +37,7 @@ from sklearn.metrics.pairwise import pairwise_distances
 from mne.stats import spatio_temporal_cluster_1samp_test, ttest_1samp_no_p
 from nltools.pbs_job import PBS_Job
 import warnings
+from pyneurovault_upload import Client
 
 class Brain_Data(object):
 
