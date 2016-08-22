@@ -26,15 +26,6 @@ methods in the current release of Neurolearn.
 .. autoclass:: nltools.analysis.Roc
     :members:
 
-:mod:`nltools.searchlight`: Searchlight Tools
-=============================================
-
-.. automodule:: nltools.searchlight
-    :members:
-
-.. autoclass:: nltools.searchlight.Searchlight
-    :members:
-
 :mod:`nltools.plotting`: Plotting Tools
 =======================================
 
