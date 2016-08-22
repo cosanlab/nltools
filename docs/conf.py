@@ -57,6 +57,7 @@ MOCK_MODULES = [
 'pyneurovault_upload',
 'pyneurovault_upload.Client',
 'seaborn',
+'shutil',
 'sklearn',
 'sklearn.base',
 'sklearn.base.BaseEstimator',
@@ -85,6 +86,7 @@ MOCK_MODULES = [
 'scipy.stats.binom_test',
 'sklearn.metrics',
 'sklearn.metrics.auc',
+'tempfile',
 'warnings']
 
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
