@@ -108,9 +108,15 @@ class Brain_Data(object):
             self.Y = pd.DataFrame()
 
         if X is not None:
-            if self.data.shape[0]!= X.shape[0]:
-                raise ValueError("X does not match the correct size of data")
-            self.X = X
+            if type(X) is str:
+                if os.path.isfile(X):
+                    X=pd.read_csv(X,header=None,index_col=None)
+            if isinstance(X, pd.DataFrame):
+                if self.data.shape[0]!= X.shape[0]:
+                    raise ValueError("X does not match the correct size of data")
+                self.X = X
+            else:
+                raise ValueError("Make sure X is a pandas data frame.")
         else:
             self.X = pd.DataFrame()
 
@@ -138,11 +144,8 @@ class Brain_Data(object):
             new.data = np.array(self.data[index,:])           
         if not self.Y.empty:
             new.Y = self.Y.iloc[index]
-        if self.X.size:
-            if isinstance(self.X,pd.DataFrame):
-                new.X = self.X.iloc[index]
-            else:
-                new.X = self.X[index,:]
+        if not self.X.empty:
+            new.X = self.X.iloc[index]  
         return new
 
     def __setitem__(self, index, value):
@@ -444,8 +447,7 @@ class Brain_Data(object):
         if Y:
             tmp.Y = pd.DataFrame()
         if X:
-            tmp.X = np.array([])
-        # tmp.data = np.array([]).reshape(0,n_voxels)
+            tmp.X = pd.DataFrame()
         return tmp
 
     def isempty(self):
@@ -1011,8 +1013,17 @@ class Brain_Data(object):
         out.data = detrend(out.data,type=method, axis=0)
         return out
 
+    def copy(self):
+        """ Create a copy of a Brain_Data instance
+        
+        Returns:
+            copy: Copy of a Brain_Data instance
+        """
+
+        return deepcopy(self)
+
     def upload_neurovault(self, access_token=None, collection_name=None, collection_id=None, 
-        img_type=None, img_modality=None):
+        img_type=None, img_modality=None,**kwargs):
         """ Upload Data to Neurovault.  Will add any columns in self.X to image metdata.
         
         Args:
@@ -1047,13 +1058,15 @@ class Brain_Data(object):
             img_name = collection['name'] + '_' + str(i) + '.nii.gz'
             f_path = os.path.join(tmp_dir,img_name)
             x.write(f_path)
+            if ~x.X.empty:
+                kwargs.update(dict([(k,self.X.loc[i,k]) for k in self.X.keys()]))
             image = api.add_image(
                 collection['id'],
                 f_path,
                 name=img_name,
                 modality=img_modality,
                 map_type=img_type,
-                **dict([(k,data.X.loc[i,k]) for k in data.X.keys()])
+                **kwargs
             )
         shutil.rmtree(tmp_dir, ignore_errors=True)
         return collection
