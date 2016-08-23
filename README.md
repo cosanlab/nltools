@@ -1,5 +1,5 @@
 [![Build Status](https://api.travis-ci.org/ljchang/neurolearn.png)](https://travis-ci.org/ljchang/neurolearn/)
-[![Coverage Status](https://coveralls.io/repos/github/ljchang/neurolearn/badge.svg?branch=master&1)](https://coveralls.io/github/ljchang/neurolearn/?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/ljchang/neurolearn/badge.svg?branch=master)](https://coveralls.io/github/ljchang/neurolearn?branch=master)
 # neurolearn
 Python toolbox for analyzing neuroimaging data.  It is based off of Tor Wager's object oriented matlab [canlab core tools](http://wagerlab.colorado.edu/tools) and relies heavily on [nilearn](http://nilearn.github.io) and [scikit learn](http://scikit-learn.org/stable/index.html)
 
