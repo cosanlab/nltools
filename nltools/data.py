@@ -190,55 +190,26 @@ class Brain_Data(object):
         return new           
 
     def shape(self):
-        """ Get images by voxels shape.
-
-        Args:
-            self: Brain_Data instance
-
-        """
+        """ Get images by voxels shape. """
 
         return self.data.shape
 
     def mean(self):
-        """ Get mean of each voxel across images.
-
-        Args:
-            self: Brain_Data instance
-
-        Returns:
-            out: Brain_Data instance
-        
-        """ 
+        """ Get mean of each voxel across images. """ 
 
         out = deepcopy(self)
         out.data = np.mean(out.data, axis=0)
         return out
 
     def std(self):
-        """ Get standard deviation of each voxel across images.
-
-        Args:
-            self: Brain_Data instance
-
-        Returns:
-            out: Brain_Data instance
-        
-        """ 
+        """ Get standard deviation of each voxel across images. """ 
 
         out = deepcopy(self)
         out.data = np.std(out.data, axis=0)
         return out
 
     def to_nifti(self):
-        """ Convert Brain_Data Instance into Nifti Object
-
-        Args:
-            self: Brain_Data instance
-
-        Returns:
-            out: nibabel instance
-        
-        """
+        """ Convert Brain_Data Instance into Nifti Object """
         
         return self.nifti_masker.inverse_transform(self.data)
 
@@ -246,7 +217,6 @@ class Brain_Data(object):
         """ Write out Brain_Data object to Nifti File.
 
         Args:
-            self: Brain_Data instance
             file_name: name of nifti file
 
         """
@@ -277,16 +247,11 @@ class Brain_Data(object):
         else:
             for i in xrange(self.data.shape[0]):
                 if i < limit:
-                    # plot_roi(self.nifti_masker.inverse_transform(self.data[i,:]), self.anatomical)
-                    # plot_stat_map(self.nifti_masker.inverse_transform(self.data[i,:]), 
-                    plot_stat_map(self[i].to_nifti(), anatomical, cut_coords=range(-40, 50, 10), display_mode='z', 
+                     plot_stat_map(self[i].to_nifti(), anatomical, cut_coords=range(-40, 50, 10), display_mode='z', 
                         black_bg=True, colorbar=True, draw_cross=False)
 
     def regress(self):
         """ run vectorized OLS regression across voxels.
-
-        Args:
-            self: Brain_Data instance
 
         Returns:
             out: dictionary of regression statistics in Brain_Data instances {'beta','t','p','df','residual'}
@@ -349,18 +314,22 @@ class Brain_Data(object):
                 else:
                     n_permutations = 1000
                     warnings.warn('n_permutations not set:  running with 1000 permutations')
+                
                 if 'connectivity' in threshold_dict:
                     connectivity=threshold_dict['connectivity']
                 else:
                     connectivity=None
+                
                 if 'n_jobs' in threshold_dict:
                     n_jobs = threshold_dict['n_jobs']
                 else:
                     n_jobs = 1
+                
                 if threshold_dict['permutation'] is 'tfce':
                     perm_threshold = dict(start=0, step=0.2)
                 else:
                     perm_threshold = None
+                
                 if 'stat_fun' in threshold_dict:
                     stat_fun = threshold_dict['stat_fun']
                 else:
@@ -451,11 +420,7 @@ class Brain_Data(object):
         return tmp
 
     def isempty(self):
-        """ Check if Brain_Data.data is empty
-        
-        Returns:
-            bool
-        """ 
+        """ Check if Brain_Data.data is empty """ 
 
         if isinstance(self.data,np.ndarray):
             if self.data.size:
@@ -475,7 +440,6 @@ class Brain_Data(object):
         """ Calculate similarity of Brain_Data() instance with single Brain_Data or Nibabel image
 
             Args:
-                self: Brain_Data instance of data to be applied
                 image: Brain_Data or Nibabel instance of weight map
 
             Returns:
@@ -532,7 +496,6 @@ class Brain_Data(object):
         """ Calculate distance between images within a Brain_Data() instance.
 
             Args:
-                self: Brain_Data instance of data to be applied
                 method: type of distance metric (can use any scikit learn or sciypy metric)
 
             Returns:
@@ -586,6 +549,8 @@ class Brain_Data(object):
             t_out = b /stderr
             df = image2.shape[0]-image2.shape[1]
             p = 2*(1-t.cdf(np.abs(t_out),df))
+        else:
+            raise NotImplementedError
 
         return {'beta':b, 't':t_out, 'p':p, 'df':df, 'sigma':sigma, 'residual':res}
 
@@ -850,17 +815,6 @@ class Brain_Data(object):
         masked.nifti_masker = nifti_masker
         return masked
 
-    def resample(self, target):
-        """ Resample data into target space
-
-        Args:
-            self: Brain_Data instance
-            target: Brain_Data instance of target space
-        
-        """ 
-
-        raise NotImplementedError()
-
     def searchlight(self, ncores, process_mask=None, parallel_out=None, radius=3, walltime='24:00:00', \
         email=None, algorithm='svr', cv_dict=None, kwargs={}):
         
@@ -1014,11 +968,7 @@ class Brain_Data(object):
         return out
 
     def copy(self):
-        """ Create a copy of a Brain_Data instance
-        
-        Returns:
-            copy: Copy of a Brain_Data instance
-        """
+        """ Create a copy of a Brain_Data instance.  """
 
         return deepcopy(self)
 
