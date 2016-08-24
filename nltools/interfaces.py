@@ -71,6 +71,8 @@ class Plot_Coregistration_Montage(BaseInterface):
 class Plot_Quality_Control_InputSpec(TraitedSpec):	
 	dat_img = File(exists=True, mandatory=True)
 	title = traits.Str("Quality Control Plot", usedefault=True)
+	global_outlier_cutoff = traits.Float(3, usedefault=True)
+	frame_outlier_cutoff = traits.Float(3, usedefault=True)
 
 class Plot_Quality_Control_OutputSpec(TraitedSpec):
 	plot = File(exists=True)
@@ -100,11 +102,11 @@ class Plot_Quality_Control(BaseInterface):
 		masked_data = apply_mask(dat_img, mask)
 		global_mn = np.mean(masked_data,axis=1)
 		global_sd = np.std(masked_data,axis=1)
-		global_outlier = np.append(np.where(global_mn>np.mean(global_mn)+np.std(global_mn)*3),
-		                           np.where(global_mn<np.mean(global_mn)-np.std(global_mn)*3))
+		global_outlier = np.append(np.where(global_mn>np.mean(global_mn)+np.std(global_mn)*global_outlier_cutoff),
+		                           np.where(global_mn<np.mean(global_mn)-np.std(global_mn)*global_outlier_cutoff))
 		frame_diff = np.mean(np.abs(np.diff(masked_data,axis=0)),axis=1)
-		frame_outlier = np.append(np.where(frame_diff>np.mean(frame_diff)+np.std(frame_diff)*3),
-		                           np.where(frame_diff<np.mean(frame_diff)-np.std(frame_diff)*3))
+		frame_outlier = np.append(np.where(frame_diff>np.mean(frame_diff)+np.std(frame_diff)*frame_outlier_cutoff),
+		                           np.where(frame_diff<np.mean(frame_diff)-np.std(frame_diff)*frame_outlier_cutoff))
 
 		title = self.inputs.title
 
