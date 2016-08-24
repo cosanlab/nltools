@@ -67,7 +67,93 @@ class Plot_Coregistration_Montage(BaseInterface):
 		outputs = self._outputs().get()
 		outputs["plot"] = os.path.abspath(self._plot)
 		return outputs
-    
+
+class Plot_Quality_Control_InputSpec(TraitedSpec):	
+	dat_img = File(exists=True, mandatory=True)
+	title = traits.Str("Quality Control Plot", usedefault=True)
+
+class Plot_Quality_Control_OutputSpec(TraitedSpec):
+	plot = File(exists=True)
+
+class Plot_Quality_Control(BaseInterface):
+	# This function creates quality control plots for a 4D time series.
+	# Recommend running this after realignment.
+
+	input_spec = Plot_Quality_Control_InputSpec
+	output_spec = Plot_Quality_Control_OutputSpec
+
+	def _run_interface(self, runtime):
+		from __future__ import division
+		import numpy as np
+		import nibabel as nib
+		from nilearn.masking import compute_epi_mask, apply_mask
+		from nilearn.plotting import plot_stat_map
+		import matplotlib
+		matplotlib.use('Agg')
+		import pylab as plt
+
+		dat_img = nib.load(self.inputs.dat_img)
+		mn = nib.Nifti1Image(np.mean(dat_img.get_data(),axis=3),affine=dat_img.get_affine())
+		sd = nib.Nifti1Image(np.std(dat_img.get_data(),axis=3),affine=dat_img.get_affine())
+		snr = nib.Nifti1Image(mn.get_data()/sd.get_data(),affine=dat_img.get_affine())
+		mask = compute_epi_mask(dat_img)
+		masked_data = apply_mask(dat_img, mask)
+		global_mn = np.mean(masked_data,axis=1)
+		global_sd = np.std(masked_data,axis=1)
+		global_outlier = np.append(np.where(global_mn>np.mean(global_mn)+np.std(global_mn)*3),
+		                           np.where(global_mn<np.mean(global_mn)-np.std(global_mn)*3))
+		frame_diff = np.mean(np.abs(np.diff(masked_data,axis=0)),axis=1)
+		frame_outlier = np.append(np.where(frame_diff>np.mean(frame_diff)+np.std(frame_diff)*3),
+		                           np.where(frame_diff<np.mean(frame_diff)-np.std(frame_diff)*3))
+
+		title = self.inputs.title
+
+		if title != "":
+			filename = title.replace(" ", "_")+".pdf"
+		else:
+			filename = "Quality_Control_Plot.pdf"
+
+		f, ax = plt.subplots(6,figsize=(15,15))
+		plot_stat_map(mn, title="Mean",cut_coords=range(-40, 40, 10), display_mode='z',axes=ax[0],
+		              draw_cross=False, black_bg='True',annotate=False,)
+
+		plot_stat_map(sd, title="Standard Deviation",cut_coords=range(-40, 40, 10), display_mode='z',axes=ax[1],
+		              draw_cross=False, black_bg='True',annotate=False,)
+
+		plot_stat_map(snr, title="SNR (mn/sd)",cut_coords=range(-40, 40, 10), display_mode='z',axes=ax[2],
+		              draw_cross=False, black_bg='True',annotate=False,)
+
+		ax[3].plot(global_mn)
+		# ax[3].set_title('Average Signal Intensity')
+		ax[3].set_xlabel('TR')
+		ax[3].set_ylabel('Global Signal Mean')
+		for x in global_outlier:
+		    ax[3].axvline(x, color='r', linestyle='--')
+		    
+		ax[4].plot(global_sd)
+		# ax[4].set_title('Frame Differencing')
+		ax[4].set_xlabel('TR')
+		ax[4].set_ylabel('Global Signal Std')
+
+		ax[5].plot(frame_diff)
+		# ax[4].set_title('Frame Differencing')
+		ax[5].set_xlabel('TR')
+		ax[5].set_ylabel('Avg Abs Diff')
+		for x in frame_outlier:
+		    ax[5].axvline(x, color='r', linestyle='--')
+		f.savefig(filename) 
+		f.close()
+
+		self._plot = filename
+
+		runtime.returncode=0
+		return runtime
+
+	def _list_outputs(self):
+		outputs = self._outputs().get()
+		outputs["plot"] = os.path.abspath(self._plot)
+		return outputs
+
 class PlotRealignmentParametersInputSpec(TraitedSpec):
 	realignment_parameters = File(exists=True, mandatory=True)
 	outlier_files = File(exists=True)
