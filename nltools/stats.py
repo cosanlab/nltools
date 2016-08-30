@@ -2,7 +2,15 @@ from __future__ import division
 
 """Various statistical helper functions"""
 
-__all__ = ['pearson', 'zscore', 'fdr', 'threshold', 'multi_threshold','winsorize','calc_bpm','downsample']
+__all__ = ['pearson', 
+            'zscore', 
+            'fdr', 
+            'threshold', 
+            'multi_threshold',
+            'winsorize',
+            'calc_bpm',
+            'downsample',
+            'fisher_r_to_z']
 
 import numpy as np
 import pandas as pd
@@ -205,3 +213,10 @@ def downsample(data,sampling_freq=None, target=None, target_type='samples'):
     if data.shape[0] % n_samples:
         idx = np.concatenate([idx, np.repeat(idx[-1],data.shape[0]-len(idx))])
     return data.groupby(idx).mean()
+
+def fisher_r_to_z(r):
+    ''' Use Fisher transformation to convert correlation to z score '''
+
+    return .5*np.log((1+r)/(1-r))
+
+
