@@ -18,7 +18,7 @@ import nibabel as nib
 from nltools.utils import get_resource_path, set_algorithm, get_anatomical
 from nltools.cross_validation import set_cv
 from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
-from nltools.stats import pearson,fdr,threshold
+from nltools.stats import pearson,fdr,threshold, fisher_r_to_z
 from nltools.mask import expand_mask
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
@@ -1021,4 +1021,10 @@ class Brain_Data(object):
         shutil.rmtree(tmp_dir, ignore_errors=True)
         return collection
 
+    def r_to_z(self):
+        ''' Apply Fisher's r to z transformation to each element of the data object.'''
+
+        out = self.copy()
+        out.data = fisher_r_to_z(out.data)
+        return out
 
