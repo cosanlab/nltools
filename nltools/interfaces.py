@@ -1,3 +1,5 @@
+from __future__ import division
+
 '''
     nltools Nipype Interfaces
     =========================
@@ -85,7 +87,7 @@ class Plot_Quality_Control(BaseInterface):
 	output_spec = Plot_Quality_Control_OutputSpec
 
 	def _run_interface(self, runtime):
-		from __future__ import division
+		# from __future__ import division
 		import numpy as np
 		import nibabel as nib
 		from nilearn.masking import compute_epi_mask, apply_mask
@@ -95,18 +97,18 @@ class Plot_Quality_Control(BaseInterface):
 		import pylab as plt
 
 		dat_img = nib.load(self.inputs.dat_img)
-		mn = nib.Nifti1Image(np.mean(dat_img.get_data(),axis=3),affine=dat_img.get_affine())
-		sd = nib.Nifti1Image(np.std(dat_img.get_data(),axis=3),affine=dat_img.get_affine())
+		mn = nib.Nifti1Image(np.mean(dat_img.get_data(), axis=3), affine=dat_img.get_affine())
+		sd = nib.Nifti1Image(np.std(dat_img.get_data(), axis=3), affine=dat_img.get_affine())
 		snr = nib.Nifti1Image(mn.get_data()/sd.get_data(),affine=dat_img.get_affine())
 		mask = compute_epi_mask(dat_img)
 		masked_data = apply_mask(dat_img, mask)
 		global_mn = np.mean(masked_data,axis=1)
 		global_sd = np.std(masked_data,axis=1)
-		global_outlier = np.append(np.where(global_mn>np.mean(global_mn)+np.std(global_mn)*global_outlier_cutoff),
-		                           np.where(global_mn<np.mean(global_mn)-np.std(global_mn)*global_outlier_cutoff))
+		global_outlier = np.append(np.where(global_mn>np.mean(global_mn)+np.std(global_mn)*self.inputs.global_outlier_cutoff),
+		                           np.where(global_mn<np.mean(global_mn)-np.std(global_mn)*self.inputs.global_outlier_cutoff))
 		frame_diff = np.mean(np.abs(np.diff(masked_data,axis=0)),axis=1)
-		frame_outlier = np.append(np.where(frame_diff>np.mean(frame_diff)+np.std(frame_diff)*frame_outlier_cutoff),
-		                           np.where(frame_diff<np.mean(frame_diff)-np.std(frame_diff)*frame_outlier_cutoff))
+		frame_outlier = np.append(np.where(frame_diff>np.mean(frame_diff)+np.std(frame_diff)*self.inputs.frame_outlier_cutoff),
+		                           np.where(frame_diff<np.mean(frame_diff)-np.std(frame_diff)*self.inputs.frame_outlier_cutoff))
 
 		title = self.inputs.title
 
@@ -214,7 +216,7 @@ class PlotRealignmentParameters(BaseInterface):
 		else:
 			filename = "plot.pdf"
 
-		F.savefig(filename,papertype="a4",dpi=self.inputs.dpi)
+		F.savefig(filename, papertype="a4",dpi=self.inputs.dpi)
 		plt.clf()
 		plt.close()
 		del F
