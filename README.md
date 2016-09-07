@@ -23,6 +23,21 @@ Python toolbox for analyzing neuroimaging data.  It is based off of Tor Wager's 
    python setup.py install
    ```
 
+### Dependencies
+nltools requires several dependencies.  All are available in pypi.  Can use `pip install 'package'`
+ - importlib
+ - nibabel>=2.0.1
+ - scikit-learn>=0.17
+ - nilearn>=0.2
+ - pandas>=0.16
+ - numpy>=1.9
+ - seaborn>=0.7.0
+ - matplotlib
+ - scipy
+ - six
+ - mne
+ - pyneurovault_upload
+ 
 ### Documentation
 Current Documentation can be found at [readthedocs](http://neurolearn.readthedocs.org/en/latest).  Please see the ipython notebook examples for walkthroughs of how to use most of the toolbox.
 
