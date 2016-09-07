@@ -36,7 +36,7 @@ nltools requires several dependencies.  All are available in pypi.  Can use `pip
  - scipy
  - six
  - mne
- - pyneurovault_upload
+ - pyneurovault_upload (`pip install git+https://github.com/neurolearn/pyneurovault_upload`)
  
 ### Documentation
 Current Documentation can be found at [readthedocs](http://neurolearn.readthedocs.org/en/latest).  Please see the ipython notebook examples for walkthroughs of how to use most of the toolbox.
