@@ -35,7 +35,6 @@ from sklearn.svm import SVR
 from nilearn import masking
 from nilearn.input_data import NiftiMasker
 
-from nltools.analysis import Predict
 from nltools.utils import get_resource_path
 import glob
 

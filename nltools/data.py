@@ -1,3 +1,5 @@
+from __future__ import division
+
 '''
     NeuroLearn Data Classes
     ==========================================
@@ -196,7 +198,11 @@ class Brain_Data(object):
             raise ValueError('Both Brain_Data() instances need to be the same shape.')
         new = deepcopy(self)
         new.data = np.multiply(new.data,y.data)
-        return new           
+        return new
+
+    def __iter__(self):
+        for x in range(len(self)):
+            yield self[x]       
 
     def shape(self):
         """ Get images by voxels shape. """
