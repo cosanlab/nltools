@@ -5,7 +5,8 @@ import pandas as pd
 # from nilearn._utils import testing
 from nltools import analysis, simulator
 from nltools.data import Brain_Data
-
+import matplotlib
+matplotlib.use('TkAgg')
 
 def test_roc(tmpdir, sim):
     r = 10
