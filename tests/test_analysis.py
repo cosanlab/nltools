@@ -9,6 +9,8 @@ import matplotlib
 matplotlib.use('TkAgg')
 
 def test_roc(tmpdir, sim):
+    sim = Simulator()
+
     r = 10
     sigma = .1
     y = [0, 1]
@@ -26,10 +28,8 @@ def test_roc(tmpdir, sim):
 
     # Single-Interval
     roc = analysis.Roc(input_values=output['yfit_all'], binary_outcome=output['Y'] == 1)
-    # roc = analysis.Roc(
-    #     input_values=predict.yfit_xval, binary_outcome=np.array(sim.y) == 1)
 
-    # roc.plot()
+    roc.plot()
 
     roc.summary()
     assert roc.accuracy == 1
