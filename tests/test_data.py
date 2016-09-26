@@ -7,6 +7,8 @@ from nltools.simulator import Simulator
 from nltools.data import Brain_Data
 from nltools.data import threshold
 from nltools.mask import create_sphere
+import matplotlib
+matplotlib.use('TkAgg')
 
 def test_data(tmpdir):
     sim = Simulator()
@@ -122,6 +124,9 @@ def test_data(tmpdir):
     mask = create_sphere([41, 64, 55], radius=10)
     assert len(dat.extract_roi(mask))==shape_2d[0]
 
+    # Test Plot
+    dat.plot()
+    
     # Test Bootstrap
 
     # Test multivariate_similarity
