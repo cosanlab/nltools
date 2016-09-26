@@ -124,8 +124,8 @@ def test_data(tmpdir):
     mask = create_sphere([41, 64, 55], radius=10)
     assert len(dat.extract_roi(mask))==shape_2d[0]
 
-    # Test Plot
-    dat.plot()
+    # # Test Plot
+    # dat.plot()
     
     # Test Bootstrap
 
