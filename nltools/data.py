@@ -659,20 +659,20 @@ class Brain_Data(object):
         # Print Results
         if predictor_settings['prediction_type'] == 'classification':
             output['mcr_all'] = np.mean(output['yfit_all']==np.array(self.Y).flatten())
-            print 'overall accuracy: %.2f' % output['mcr_all']
+            print('overall accuracy: %.2f' % output['mcr_all'])
             if cv_dict is not None:
                 output['mcr_xval'] = np.mean(output['yfit_xval']==np.array(self.Y).flatten())
-                print 'overall CV accuracy: %.2f' % output['mcr_xval']
+                print('overall CV accuracy: %.2f' % output['mcr_xval'])
         elif predictor_settings['prediction_type'] == 'prediction':
             output['rmse_all'] = np.sqrt(np.mean((output['yfit_all']-output['Y'])**2))
             output['r_all'] = np.corrcoef(output['Y'],output['yfit_all'])[0,1]
-            print 'overall Root Mean Squared Error: %.2f' % output['rmse_all']
-            print 'overall Correlation: %.2f' % output['r_all']
+            print('overall Root Mean Squared Error: %.2f' % output['rmse_all'])
+            print('overall Correlation: %.2f' % output['r_all'])
             if cv_dict is not None:
                 output['rmse_xval'] = np.sqrt(np.mean((output['yfit_xval']-output['Y'])**2))
                 output['r_xval'] = np.corrcoef(output['Y'],output['yfit_xval'])[0,1]
-                print 'overall CV Root Mean Squared Error: %.2f' % output['rmse_xval']
-                print 'overall CV Correlation: %.2f' % output['r_xval']
+                print('overall CV Root Mean Squared Error: %.2f' % output['rmse_xval'])
+                print('overall CV Correlation: %.2f' % output['r_xval'])
 
         # Plot
         if plot:
@@ -853,7 +853,7 @@ class Brain_Data(object):
         for core_i in range(ncores):
             script_name = "core_pbs_script_" + str(core_i) + ".pbs"
             parallel_job.make_pbs_scripts(script_name, core_i, ncores, walltime) # create a script
-            print "python " + os.path.join(parallel_out, script_name)
+            print("python " + os.path.join(parallel_out, script_name))
             os.system( "qsub " + os.path.join(parallel_out, script_name) ) # run it on a core
 
     def extract_roi(self, mask, method='mean'):
