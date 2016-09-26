@@ -10,7 +10,7 @@ __all__ = [ 'data',
 			'pipelines',
 			'__version__']
 
-from analysis import Predict, Roc, apply_mask
+from analysis import Roc
 from cross_validation import set_cv
 from data import Brain_Data
 from pbs_job import PBS_Job
