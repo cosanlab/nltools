@@ -58,6 +58,11 @@ def test_data(tmpdir):
     new = dat * dat
     assert new.shape() == shape_2d
 
+    # Test Iterator
+    x = [x for x in dat]
+    assert len(x)==len(dat)
+    assert len(x[0].data.shape)==1
+
     # # Test T-test
     out = dat.ttest()
     assert out['t'].shape()[0]==shape_2d[1]
@@ -124,6 +129,18 @@ def test_data(tmpdir):
     mask = create_sphere([41, 64, 55], radius=10)
     assert len(dat.extract_roi(mask))==shape_2d[0]
 
+    # Test r_to_z
+    z = dat.r_to_z()
+    assert z.shape() == dat.shape()
+
+    # Test copy
+    d_copy = dat.copy()
+    assert d_copy.shape() == dat.shape()
+
+    # Test detrend
+    detrend = dat.detrend()
+    assert detrend.shape() == dat.shape()
+
     # # Test Plot
     # dat.plot()
     
@@ -131,4 +148,3 @@ def test_data(tmpdir):
 
     # Test multivariate_similarity
 
-    # Test plot
