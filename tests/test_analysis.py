@@ -28,6 +28,8 @@ def test_roc(tmpdir, sim):
     roc = analysis.Roc(input_values=output['yfit_all'], binary_outcome=output['Y'] == 1)
     # roc = analysis.Roc(
     #     input_values=predict.yfit_xval, binary_outcome=np.array(sim.y) == 1)
-    roc.plot()
+
+    # roc.plot()
+
     roc.summary()
     assert roc.accuracy == 1
