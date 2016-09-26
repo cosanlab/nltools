@@ -1,12 +1,10 @@
-importlib
-nibabel>=2.0.1
-scikit-learn>=0.17
-nilearn>=0.2
-pandas>=0.16
-numpy>=1.9
-seaborn>=0.7.0
-matplotlib
-scipy
-six
-mne
-pyneurovault_upload
+	importlib
+	nibabel>=2.0.1
+	scikit-learn>=0.17
+	nilearn>=0.2
+	pandas>=0.16
+	numpy>=1.9
+	seaborn>=0.7.0
+	matplotlib
+	scipy
+	six

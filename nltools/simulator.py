@@ -40,7 +40,6 @@ from nilearn.input_data import NiftiMasker
 
 from scipy.stats import multivariate_normal
 
-from nltools.analysis import Predict
 from nltools.utils import get_resource_path
 import glob
 import csv
