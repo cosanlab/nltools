@@ -21,7 +21,7 @@ def test_roc(tmpdir, sim):
     # cv = {'type': 'kfolds', 'n_folds': 5, 'subject_id': sim.rep_id}
     extra = {'kernel': 'linear'}
 
-    output = dat.predict(algorithm='svm',**extra)
+    output = dat.predict(algorithm='svm', plot=False, **extra)
 
     # Single-Interval
     roc = analysis.Roc(input_values=output['yfit_all'], binary_outcome=output['Y'] == 1)
