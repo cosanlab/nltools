@@ -40,7 +40,9 @@ import glob
 
 class PBS_Job:
     def __init__(self, data, parallel_out = None, process_mask=None, radius=4, kwargs=None): #no scoring param
-        
+        '''The __init__ function gives the PBS_Job object access to brain data, brain mask,
+            and all the other fundamental parameters it needs to run the task. Note: the PBS_Job runs on every
+            core in a distributed task and each of those cores gets an identical copy of these class variables'''
         self.data = data
 
         #set up parallel_out
@@ -72,6 +74,8 @@ class PBS_Job:
         self.kwargs = kwargs
 
     def make_startup_script(self, fn):
+        '''When we run the PBS script which starts each of the cores, these cores need to start
+            up by running a startup script. This function writes that startup script to a .py file'''
         #clear data in r_all and weights files, if any
         pf = os.path.join(self.core_out, "progress.txt") # progress file
         with open(pf, 'w') as p_file:
@@ -91,6 +95,7 @@ ncores = int(sys.argv[2]) \n\
 parallel_job.run_core(core_i, ncores) ")
       
     def make_pbs_email_alert(self, email):
+        ''' Simply sends an email alert when it's run'''
         title  = "email_alert.pbs"
         with open(os.path.join(self.parallel_out, title), "w") as f:
             f.write("#PBS -m ea \n\
@@ -99,6 +104,8 @@ parallel_job.run_core(core_i, ncores) ")
 exit 0")
 
     def make_pbs_scripts(self, script_name, core_i, ncores, walltime):
+        '''Essentially a hacky interface between python and Discovery's job submission
+            process. It writes a PBS job submission file with the given parameters.'''
         with open(os.path.join(self.parallel_out, script_name), "w") as f:
             f.write("#!/bin/bash -l \n\
 # declare a job name \n\
@@ -115,6 +122,8 @@ python core_startup.py " + str(core_i) + " " + str(ncores) + " \n\
 exit 0" )
 
     def run_core(self, core_i, ncores):
+        '''This is the main processing loop. A copy of this runs on each
+            of the cores we've requested'''
         tic = time.time()
         self.errf("Started run_core", core_i = core_i, dt = (time.time() - tic))
 
@@ -199,6 +208,9 @@ exit 0" )
                 self.clean_up( email_flag = True)
 
     def errf(self, text, core_i = None, dt = None):
+        '''There are many cores simultaneously running the run_core code.
+            Call this function if we only want one core to print debug information.
+            Appends a time stamp'''
         if core_i is None or core_i == 0:
             with open(os.path.join(self.parallel_out,'errf.txt'), 'a') as f:
                 f.write(text + "\n")
@@ -206,6 +218,9 @@ exit 0" )
                     f.write("       ->Time: " + str(dt) + " seconds\n")
 
     def get_t_remaining(self, rate, jobs, runs_per_core):
+        '''Based on the rates that cores have finished jobs in the past (see estimate_rate() function),
+            estimate how much time is left. This is a really rough estimater,
+            but it works well in practice'''
         t = int(rate*(runs_per_core-jobs))
         t_day = t / (60*60*24)
         t -= t_day*60*60*24
@@ -217,6 +232,8 @@ exit 0" )
         return str(t_day) + "d" + str(t_hr) + "h" + str(t_min) + "m" + str(t_sec) + "s"
 
     def estimate_rate(self, core, tdif, jobs, runs_per_core):
+        '''Write progress of a given core to a text file,
+            then use this file to estimate the rate that cores are finishing'''
         ratef = os.path.join(self.parallel_out,"rate.txt")
         if not os.path.isfile(ratef):
             with open(ratef, 'w') as f:
@@ -247,6 +264,10 @@ exit 0" )
         
     # helper function which finds the indices of each searchlight and returns a lil file
     def make_searchlight_masks(self):
+        ''' Compute world coordinates of all in-mask voxels.
+            Returns a list of masks, one mask for each searchlight. For a whole brain,
+            this will generate thousands of masks. Returns masks in lil format
+            (efficient for storing sparse matrices)'''
         # Compute world coordinates of all in-mask voxels.
         # Return indices as sparse matrix of 0's and 1's
         print("start get coords")
@@ -282,6 +303,10 @@ exit 0" )
         self.process_mask_1D = process_mask_1D
             
     def clean_up(self, email_flag = True):
+        '''Once all the cores have finished running, the last core will call this function.
+            It deletes temporary text files and merges the output files from all the cores into 
+            one single file. Finally, it parses this file and transforms it into a 3D nifti file
+            which can be opened with MRIcroGL or any other .nii viewing software'''
         #clear data in reassembled and weights files, if any
 
                 #clear data in r_all and weights files, if any
@@ -339,6 +364,8 @@ exit 0" )
         os.system("rm " + os.path.join(self.parallel_out, "core_startup.py*"))
 
     def reconstruct(self, rf):
+        '''This is a helper for the clean_up function. It reads a single file with all the 
+                correlation coefficients, ocnverts them to a numpy array and then to a 3D .nii file'''
             #open the reassembled correlation data and build a python list of float type numbers
             with open(rf, 'r') as r_combo:
                 rdata = np.fromstring(r_combo.read(), dtype=float, sep=',')
