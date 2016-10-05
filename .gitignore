@@ -29,3 +29,7 @@ scripts/nilearn_cache/
 .Trashes
 thumbs.db
 Thumbs.db
+
+# Tests & Coverage
+.coverage
+htmlcov/
