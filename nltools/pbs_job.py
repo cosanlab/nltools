@@ -367,8 +367,8 @@ exit 0" )
         '''This is a helper for the clean_up function. It reads a single file with all the 
                 correlation coefficients, ocnverts them to a numpy array and then to a 3D .nii file'''
             #open the reassembled correlation data and build a python list of float type numbers
-            with open(rf, 'r') as r_combo:
-                rdata = np.fromstring(r_combo.read(), dtype=float, sep=',')
+        with open(rf, 'r') as r_combo:
+            rdata = np.fromstring(r_combo.read(), dtype=float, sep=',')
 
             #find coords of all values in process mask that are equal to 1
             coords = np.where(self.process_mask_1D == 1)[1]
