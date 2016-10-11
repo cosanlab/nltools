@@ -31,5 +31,10 @@ thumbs.db
 Thumbs.db
 
 # Tests & Coverage
+######################
 .coverage
 htmlcov/
+
+# PyCharm
+######################
+.idea
