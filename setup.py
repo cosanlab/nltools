@@ -1,11 +1,14 @@
-import os
-import sys
 from nltools.version import __version__
+from setuptools import setup, find_packages
 
-try:
-    from setuptools.core import setup
-except ImportError:
-    from distutils.core import setup
+# try:
+#     from setuptools.core import setup
+# except ImportError:
+#     from distutils.core import setup
+
+extra_setuptools_args = dict(
+    tests_require=['pytest']
+)
 
 setup(
     name='nltools',
@@ -15,7 +18,7 @@ setup(
     url='http://neurolearn.readthedocs.org/en/latest/',
     install_requires=['numpy', 'scipy', 'nilearn', 'pandas', 'six', 'importlib',
                       'seaborn', 'matplotlib', 'scikit-learn'],
-    packages=['nltools'],
+    packages=find_packages(exclude=['nltools/tests']),
     package_data={'nltools': ['resources/*']},
     license='LICENSE.txt',
     description='A Python package to analyze neuroimaging data',
@@ -25,7 +28,8 @@ setup(
         "Programming Language :: Python",
         "Operating System :: OS Independent",
         "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: MIT License",
-        ]
+        "License :: OSI Approved :: MIT License"
+    ],
+    **extra_setuptools_args
 )
 
