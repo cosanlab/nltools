@@ -2,7 +2,6 @@ import os
 import numpy as np
 import nibabel as nb
 import pandas as pd
-# from nilearn._utils import testing
 from nltools import analysis, simulator
 from nltools.data import Brain_Data
 import matplotlib
