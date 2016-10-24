@@ -146,7 +146,8 @@ class Plot_Quality_Control(BaseInterface):
 		for x in frame_outlier:
 		    ax[5].axvline(x, color='r', linestyle='--')
 		f.savefig(filename) 
-		f.close()
+		plt.close(f)
+		del f
 
 		self._plot = filename
 
