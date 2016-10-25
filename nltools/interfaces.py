@@ -55,11 +55,21 @@ class Plot_Coregistration_Montage(BaseInterface):
 		else:
 			filename = "plot.pdf"
 
-		fig = plotting.plot_anat(mean_wraimg, title="wrafunc & canonical single subject", cut_coords=range(-40, 40, 10), display_mode='z')
-		fig.add_edges(canonical_img)     
-		fig.savefig(filename)
-		fig.close()
+		# fig = plotting.plot_anat(mean_wraimg, title="wrafunc & canonical single subject", cut_coords=range(-40, 40, 10), display_mode='z')
+		# fig.add_edges(canonical_img)     
+		# fig.savefig(filename)
+		# fig.close()
 
+		#JC: Added Saggital slice plotting
+		f, (ax1, ax2) = plt.subplots(2,figsize=(15,8))
+		fig = plotting.plot_anat(mean_wraimg, title="sag: wrafunc & canonical single subject", cut_coords=range(-30, 20, 8), display_mode='x',axes=ax1)
+		fig.add_edges(canonical_img)     
+		fig = plotting.plot_anat(mean_wraimg, title="axial: wrafunc & canonical single subject", cut_coords=range(-40, 40, 10), display_mode='z',axes=ax2)
+		fig.add_edges(canonical_img)  
+		f.savefig(filename)
+		plt.close(f) #f.close()
+		plt.close()
+		del f
 		self._plot = filename
 
 		runtime.returncode=0
