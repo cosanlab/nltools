@@ -98,13 +98,13 @@ class Plot_Quality_Control(BaseInterface):
 
 	def _run_interface(self, runtime):
 		# from __future__ import division
+		import matplotlib
+		matplotlib.use('Agg')
+		import pylab as plt
 		import numpy as np
 		import nibabel as nib
 		from nilearn.masking import compute_epi_mask, apply_mask
 		from nilearn.plotting import plot_stat_map
-		import matplotlib
-		matplotlib.use('Agg')
-		import pylab as plt
 
 		dat_img = nib.load(self.inputs.dat_img)
 		mn = nib.Nifti1Image(np.mean(dat_img.get_data(), axis=3), affine=dat_img.get_affine())
