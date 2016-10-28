@@ -12,11 +12,11 @@ __all__ = ['Plot_Coregistration_Montage', 'PlotRealignmentParameters', 'Create_C
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
-# import matplotlib
-# matplotlib.use('Agg')
+import matplotlib
+matplotlib.use('Agg')
 import pandas as pd
 import numpy as np
-# import pylab as plt
+import pylab as plt
 import os
 import nibabel as nib
 from nipype.interfaces.base import isdefined, BaseInterface, TraitedSpec, File, traits
