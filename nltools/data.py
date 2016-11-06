@@ -989,7 +989,7 @@ class Brain_Data(object):
 
     def upload_neurovault(self, access_token=None, collection_name=None, collection_id=None, 
         img_type=None, img_modality=None,**kwargs):
-        """ Upload Data to Neurovault.  Will add any columns in self.X to image metdata.
+        """ Upload Data to Neurovault.  Will add any columns in self.X to image metadata. Index will be used as image name.
         
         Args:
             access_token: (Required) Neurovault api access token
@@ -1020,7 +1020,10 @@ class Brain_Data(object):
         tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
         os.makedirs(tmp_dir)
         for i,x in enumerate(self):
-            img_name = collection['name'] + '_' + str(i) + '.nii.gz'
+            if isinstance(i,str):
+                img_name = i
+            else:
+                img_name = collection['name'] + '_' + str(i) + '.nii.gz'
             f_path = os.path.join(tmp_dir,img_name)
             x.write(f_path)
             if ~x.X.empty:
