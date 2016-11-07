@@ -1029,8 +1029,8 @@ class Brain_Data(object):
                 img_name = collection['name'] + '_' + str(i) + '.nii.gz'
             f_path = os.path.join(tmp_dir,img_name)
             x.write(f_path)
-            if ~x.X.empty:
-                kwargs.update(dict([(k,self.X.loc[i,k]) for k in self.X.keys()]))
+            if not x.X.empty:
+                kwargs.update(dict([(k,x.X.loc[k]) for k in x.X.keys()]))
             image = api.add_image(
                 collection['id'],
                 f_path,
