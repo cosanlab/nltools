@@ -1020,8 +1020,11 @@ class Brain_Data(object):
         tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
         os.makedirs(tmp_dir)
         for i,x in enumerate(self):
-            if isinstance(i,str):
-                img_name = i
+            if self.X.empty:
+                if isinstance(x.X.name,str):
+                    img_name = x.X.name
+                else:
+                    img_name = collection['name'] + '_' + str(i) + '.nii.gz'
             else:
                 img_name = collection['name'] + '_' + str(i) + '.nii.gz'
             f_path = os.path.join(tmp_dir,img_name)
