@@ -10,7 +10,7 @@ from nltools.mask import create_sphere
 import matplotlib
 matplotlib.use('TkAgg')
 
-def test_data(tmpdir):
+def test_brain_data(tmpdir):
     sim = Simulator()
     r = 10
     sigma = 1
@@ -147,4 +147,26 @@ def test_data(tmpdir):
     # Test Bootstrap
 
     # Test multivariate_similarity
+
+def test_adjacency(tmpdir):
+    dat = Adjacency(data)
+    dat.plot()
+
+    # Test write
+    dat.write(os.path.join(tmpdir,'Test.csv'))
+    dat2 = Adjacency(os.path.join(str(tmpdir.join('Test.csv'))))
+    assert np.any(dat.data==dat2.data)
+
+    # Test mean
+    assert dat.mean()==np.mean(dat.data)
+
+    # Test std
+    assert dat.std()==np.std(dat.data)
+
+    # Test copy
+    assert np.all(dat.data==dat.copy().data)
+
+    # Test squareform
+    assert dat.squareform().shape==data.shape
+
 
