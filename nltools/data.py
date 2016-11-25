@@ -20,7 +20,7 @@ import nibabel as nib
 from nltools.utils import get_resource_path, set_algorithm, get_anatomical
 from nltools.cross_validation import set_cv
 from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
-from nltools.stats import pearson,fdr,threshold, fisher_r_to_z
+from nltools.stats import pearson,fdr,threshold, fisher_r_to_z, correlation_permutation
 from nltools.mask import expand_mask
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
@@ -32,6 +32,7 @@ import pandas as pd
 import numpy as np
 from scipy.stats import ttest_1samp, t, norm
 from scipy.signal import detrend
+from scipy.spatial.distance import squareform
 import six
 import sklearn
 from sklearn.pipeline import Pipeline
@@ -40,6 +41,7 @@ from nltools.pbs_job import PBS_Job
 import warnings
 import shutil
 import tempfile
+import seaborn as sns
 
 # Optional dependencies
 try:
@@ -49,6 +51,11 @@ except ImportError:
 
 try:
     from pyneurovault_upload import Client
+except ImportError:
+    pass
+
+try:
+    import requests
 except ImportError:
     pass
 
@@ -82,8 +89,14 @@ class Brain_Data(object):
         self.nifti_masker = NiftiMasker(mask_img=self.mask)
 
         if data is not None:
-            if type(data) is str:
-                data=nib.load(data)
+            if isinstance(data,(str,unicode)):
+                if 'http://' in data:
+                    tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
+                    os.makedirs(tmp_dir)
+                    data=download_nifti(data,base_dir=tmp_dir)
+                    shutil.rmtree(tmp_dir, ignore_errors=True)
+                else:
+                    data=nib.load(data)
                 self.data = self.nifti_masker.fit_transform(data)
             elif type(data) is list:
                 # Load and transform each image in list separately (nib.concat_images(data) can't handle images of different sizes)
@@ -174,30 +187,33 @@ class Brain_Data(object):
         return self.shape()[0]
 
     def __add__(self, y):
-        if not isinstance(y,Brain_Data):
-            raise ValueError('Make sure you are adding a Brain_Data() instance.')
-        if self.shape() != y.shape():
-            raise ValueError('Both Brain_Data() instances need to be the same shape.')
         new = deepcopy(self)
-        new.data = new.data + y.data
+        if isinstance(y,(int,float)):
+            new.data = new.data + y
+        if isinstance(y,Brain_Data):
+            if self.shape() != y.shape():
+                raise ValueError('Both Brain_Data() instances need to be the same shape.')
+            new.data = new.data + y.data
         return new
 
     def __sub__(self, y):
-        if not isinstance(y,Brain_Data):
-            raise ValueError('Make sure you are subtracting a Brain_Data() instance.')
-        if self.shape() != y.shape():
-            raise ValueError('Both Brain_Data() instances need to be the same shape.')
         new = deepcopy(self)
-        new.data = new.data - y.data
+        if isinstance(y,int):
+            new.data = new.data + y
+        if isinstance(y,Brain_Data):
+            if self.shape() != y.shape():
+                raise ValueError('Both Brain_Data() instances need to be the same shape.')
+            new.data = new.data - y.data
         return new
 
     def __mul__(self, y):
-        if not isinstance(y,Brain_Data):
-            raise ValueError('Make sure you are multiplying a Brain_Data() instance.')
-        if self.shape() != y.shape():
-            raise ValueError('Both Brain_Data() instances need to be the same shape.')
         new = deepcopy(self)
-        new.data = np.multiply(new.data,y.data)
+        if isinstance(y,int):
+            new.data = new.data * y
+        if isinstance(y,Brain_Data):
+            if self.shape() != y.shape():
+                raise ValueError('Both Brain_Data() instances need to be the same shape.')
+            new.data = np.multiply(new.data,y.data)
         return new
 
     def __iter__(self):
@@ -238,7 +254,7 @@ class Brain_Data(object):
 
         self.to_nifti().to_filename(file_name)
 
-    def plot(self, limit=5, anatomical=None):
+    def plot(self, limit=5, anatomical=None, **kwargs):
         """ Create a quick plot of self.data.  Will plot each image separately
 
         Args:
@@ -263,7 +279,7 @@ class Brain_Data(object):
             for i in xrange(self.data.shape[0]):
                 if i < limit:
                      plot_stat_map(self[i].to_nifti(), anatomical, cut_coords=range(-40, 50, 10), display_mode='z', 
-                        black_bg=True, colorbar=True, draw_cross=False)
+                        black_bg=True, colorbar=True, draw_cross=False,**kwargs)
 
     def regress(self):
         """ run vectorized OLS regression across voxels.
@@ -1020,14 +1036,17 @@ class Brain_Data(object):
         tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
         os.makedirs(tmp_dir)
         for i,x in enumerate(self):
-            if isinstance(i,str):
-                img_name = i
+            if not self.X.empty:
+                if isinstance(x.X.name,str):
+                    img_name = x.X.name
+                else:
+                    img_name = collection['name'] + '_' + str(i) + '.nii.gz'
             else:
                 img_name = collection['name'] + '_' + str(i) + '.nii.gz'
             f_path = os.path.join(tmp_dir,img_name)
             x.write(f_path)
-            if ~x.X.empty:
-                kwargs.update(dict([(k,self.X.loc[i,k]) for k in self.X.keys()]))
+            if not x.X.empty:
+                kwargs.update(dict([(k,x.X.loc[k]) for k in x.X.keys()]))
             image = api.add_image(
                 collection['id'],
                 f_path,
@@ -1045,4 +1064,105 @@ class Brain_Data(object):
         out = self.copy()
         out.data = fisher_r_to_z(out.data)
         return out
+
+    def dtype(self):
+        ''' Get data type of Brain_Data.data.'''
+        return self.data.dtype
+
+    def astype(self,dtype):
+        ''' Cast Brain_Data.data as type.'''
+        out = self.copy()
+        out.data = out.data.astype(dtype)
+        return out
+
+class Adjacency(object):
+    def __init__(self, data=None, matrix_type=None, **kwargs):
+        if isinstance(data,str):
+            data = pd.read_csv(data)
+        if data.shape[0]!=data.shape[1]:
+            raise ValueError('Data matrix must be square')
+        data = np.array(data)
+        if np.all(data[np.triu_indices(data.shape[0],k=1)]==data.T[np.triu_indices(data.shape[0],k=1)]):
+            self.issymmetric = True
+        else:
+            self.issymmetric = False
+
+        if self.issymmetric:
+            if np.sum(np.diag(data)) == 0:
+                    self.matrix_type = 'distance'
+            elif np.sum(np.diag(data)) == data.shape[0]:
+                    self.matrix_type = 'similarity'
+            self.data = data[np.triu_indices(data.shape[0],k=1)]
+        else:
+            self.matrix_type = 'directed'
+            self.data = data.values.flatten()
+            
+    def __repr__(self):
+        return '%s.%s(shape=%s, length=%s, is_symmetric=%s, matrix_type=%s)' % (
+            self.__class__.__module__,
+            self.__class__.__name__,
+            self.shape(),
+            len(self),
+            self.issymmetric,
+            self.matrix_type
+            )
+
+    def __len__(self):
+        return len(self.data)
+    
+    def squareform(self):
+        '''Convert adjacency back to squareform'''
+        return squareform(self.data)
+
+    def plot(self, **kwargs):
+        ''' Create Heatmap of Adjacency Matrix'''
+        return sns.heatmap(self.squareform(),square=True,**kwargs)
+
+    def mean(self):
+        ''' Calculate mean of upper triangle'''
+        return np.mean(self.data)
+    
+    def std(self):
+        ''' Calculate standard deviation of upper triangle'''
+        return np.std(self.data)
+    
+    def shape(self):
+        ''' Calculate shape of data. Return shape of data and squareform. '''
+        return self.squareform().shape
+    
+    def copy(self):
+        ''' Create a copy of Adjacency object.'''
+        return deepcopy(self)
+    
+    def write(self,file_name):
+        ''' Write out Adjacency object to csv file. 
+        
+            Args:
+                file_name (str):  name of file name to write
+        
+        '''
+        out = pd.DataFrame(self.squareform()).to_csv(file_name,index=None)
+
+    def similarity(self, data, **kwargs):
+        ''' Calculate similarity between two Adjacency matrices.  
+        Default is to use spearman correlation and permutation test.'''
+        if not isinstance(data,Adjacency):
+            data2 = Adjacency(data)
+        else:
+            data2 = data.copy()
+        return correlation_permutation(self.data,data2.data,**kwargs)
+
+
+def download_nifti(url,base_dir=None):
+    local_filename = url.split('/')[-1]
+    if base_dir is not None:
+        if not os.path.isdir(base_dir):
+            os.makedirs(base_dir)
+        local_filename = os.path.join(base_dir,local_filename)
+    r = requests.get(url, stream=True)
+    with open(local_filename, 'wb') as f:
+        for chunk in r.iter_content(chunk_size=1024): 
+            if chunk: # filter out keep-alive new chunks
+                f.write(chunk)
+    return nib.load(local_filename)
 
