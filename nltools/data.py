@@ -249,7 +249,7 @@ class Brain_Data(object):
 
         self.to_nifti().to_filename(file_name)
 
-    def plot(self, limit=5, anatomical=None):
+    def plot(self, limit=5, anatomical=None, **kwargs):
         """ Create a quick plot of self.data.  Will plot each image separately
 
         Args:
@@ -274,7 +274,7 @@ class Brain_Data(object):
             for i in xrange(self.data.shape[0]):
                 if i < limit:
                      plot_stat_map(self[i].to_nifti(), anatomical, cut_coords=range(-40, 50, 10), display_mode='z', 
-                        black_bg=True, colorbar=True, draw_cross=False)
+                        black_bg=True, colorbar=True, draw_cross=False,**kwargs)
 
     def regress(self):
         """ run vectorized OLS regression across voxels.
