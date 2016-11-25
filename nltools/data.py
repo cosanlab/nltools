@@ -52,6 +52,11 @@ try:
 except ImportError:
     pass
 
+try:
+    import requests
+except ImportError:
+    pass
+
 class Brain_Data(object):
 
     """
@@ -82,8 +87,14 @@ class Brain_Data(object):
         self.nifti_masker = NiftiMasker(mask_img=self.mask)
 
         if data is not None:
-            if type(data) is str:
-                data=nib.load(data)
+            if isinstance(data,(str,unicode)):
+                if 'http://' in data:
+                    tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
+                    os.makedirs(tmp_dir)
+                    data=download_nifti(data,base_dir=tmp_dir)
+                    shutil.rmtree(tmp_dir, ignore_errors=True)
+                else:
+                    data=nib.load(data)
                 self.data = self.nifti_masker.fit_transform(data)
             elif type(data) is list:
                 # Load and transform each image in list separately (nib.concat_images(data) can't handle images of different sizes)
@@ -1048,4 +1059,17 @@ class Brain_Data(object):
         out = self.copy()
         out.data = fisher_r_to_z(out.data)
         return out
+
+def download_nifti(url,base_dir=None):
+    local_filename = url.split('/')[-1]
+    if base_dir is not None:
+        if not os.path.isdir(base_dir):
+            os.makedirs(base_dir)
+        local_filename = os.path.join(base_dir,local_filename)
+    r = requests.get(url, stream=True)
+    with open(local_filename, 'wb') as f:
+        for chunk in r.iter_content(chunk_size=1024): 
+            if chunk: # filter out keep-alive new chunks
+                f.write(chunk)
+    return nib.load(local_filename)
 
