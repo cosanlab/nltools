@@ -14,7 +14,7 @@ __all__ = ['pearson',
 
 import numpy as np
 import pandas as pd
-from scipy.stats import ss
+from scipy.stats import ss, pearsonr, spearmanr
 from copy import deepcopy
 import nibabel as nib
 
@@ -218,5 +218,91 @@ def fisher_r_to_z(r):
     ''' Use Fisher transformation to convert correlation to z score '''
 
     return .5*np.log((1+r)/(1-r))
+
+def one_sample_permutation(data, n_permute = 5000):
+    ''' One sample permutation test using randomization.
+
+        Args:
+            data: Pandas DataFrame or Series or numpy array
+            n_permute: (int) number of permutations
+        Returns:
+            stats: (dict) dictionary of permutation results ['mean','p']
+    
+    '''
+
+    data = np.array(data)
+    stats = dict()
+    stats['mean'] = np.mean(data)
+    all_p = []
+    for p in range(n_permute):
+        all_p.append(np.mean(data*np.random.choice([1,-1],len(data))))
+    if stats['mean']>=0:
+        stats['p'] = np.mean(all_p>=stats['mean'])
+    else:
+        stats['p'] = np.mean(all_p<=stats['mean'])
+    return stats
+
+def two_sample_permutation(data1, data2, n_permute=5000):
+    ''' Independent sample permutation test.
+
+        Args:
+            data1: Pandas DataFrame or Series or numpy array
+            data2: Pandas DataFrame or Series or numpy array
+            n_permute: (int) number of permutations
+        Returns:
+            stats: (dict) dictionary of permutation results ['mean','p']
+    
+    '''
+
+    stats = dict()
+    stats['mean'] = np.mean(data1)-np.mean(data2)
+    data = pd.DataFrame(data={'Values':data1,'Group':np.ones(len(data1))})
+    data = data.append(pd.DataFrame(data={'Values':data2,'Group':np.zeros(len(data2))}))
+    all_p = []
+    for p in range(n_permute):
+        perm_label = np.random.permutation(data['Group'])
+        all_p.append(np.mean(data.loc[perm_label==1,'Values'])-np.mean(data.loc[perm_label==0,'Values']))
+    if stats['mean']>=0:
+        stats['p'] = np.mean(all_p>=stats['mean'])
+    else:
+        stats['p'] = np.mean(all_p<=stats['mean'])
+    return stats
+
+def correlation_permutation(data1, data2, n_permute=5000, metric='spearman'):
+    ''' Permute correlation.
+
+        Args:
+            data1: Pandas DataFrame or Series or numpy array
+            data2: Pandas DataFrame or Series or numpy array
+            n_permute: (int) number of permutations
+            metric: (str) type of association metric ['spearman','pearson']
+        Returns:
+            stats: (dict) dictionary of permutation results ['correlation','p']
+    
+    '''
+
+    data1 = np.array(data1)
+    data2 = np.array(data2)
+
+    if metric is 'spearman':
+        stats['correlation'] = spearmanr(data1,data2)[0]
+    elif metric is 'pearson':
+        stats['correlation'] = pearsonr(data1,data2)[0]
+    else:
+        raise ValueError('metric must be "spearman" or "pearson"')
+
+    stats = dict()
+    all_p = []
+    for p in range(n_permute):
+        if metric is 'spearman':
+            stats['correlation'] = spearmanr(data1,data2)[0]
+            all_p.append(spearmanr(np.random.permutation(data1),data2)[0])
+        elif metric is 'pearson':
+            all_p.append(pearsonr(np.random.permutation(data1),data2)[0])
+    if stats['correlation']>=0:
+        stats['p'] = np.mean(all_p>=stats['correlation'])
+    else:
+        stats['p'] = np.mean(all_p<=stats['correlation'])
+    return stats
 
 
