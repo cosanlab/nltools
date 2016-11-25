@@ -186,7 +186,7 @@ class Brain_Data(object):
 
     def __add__(self, y):
         new = deepcopy(self)
-        if instance(y,int):
+        if isinstance(y,(int,float)):
             new.data = new.data + y
         if isinstance(y,Brain_Data):
             if self.shape() != y.shape():
@@ -196,7 +196,7 @@ class Brain_Data(object):
 
     def __sub__(self, y):
         new = deepcopy(self)
-        if instance(y,int):
+        if isinstance(y,int):
             new.data = new.data + y
         if isinstance(y,Brain_Data):
             if self.shape() != y.shape():
@@ -206,7 +206,7 @@ class Brain_Data(object):
 
     def __mul__(self, y):
         new = deepcopy(self)
-        if instance(y,int):
+        if isinstance(y,int):
             new.data = new.data * y
         if isinstance(y,Brain_Data):
             if self.shape() != y.shape():
@@ -1062,6 +1062,15 @@ class Brain_Data(object):
         out = self.copy()
         out.data = fisher_r_to_z(out.data)
         return out
+
+    def dtype(self):
+        ''' Get data type of Brain_Data.data.'''
+        return self.data.dtype
+
+    def astype(self,dtype):
+        ''' Cast Brain_Data.data as type.'''
+        out = self.copy()
+        return out.data = out.data.astype(dtype)
 
 def download_nifti(url,base_dir=None):
     local_filename = url.split('/')[-1]
