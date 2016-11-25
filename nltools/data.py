@@ -185,30 +185,33 @@ class Brain_Data(object):
         return self.shape()[0]
 
     def __add__(self, y):
-        if not isinstance(y,Brain_Data):
-            raise ValueError('Make sure you are adding a Brain_Data() instance.')
-        if self.shape() != y.shape():
-            raise ValueError('Both Brain_Data() instances need to be the same shape.')
         new = deepcopy(self)
-        new.data = new.data + y.data
+        if instance(y,int):
+            new.data = new.data + y
+        if isinstance(y,Brain_Data):
+            if self.shape() != y.shape():
+                raise ValueError('Both Brain_Data() instances need to be the same shape.')
+            new.data = new.data + y.data
         return new
 
     def __sub__(self, y):
-        if not isinstance(y,Brain_Data):
-            raise ValueError('Make sure you are subtracting a Brain_Data() instance.')
-        if self.shape() != y.shape():
-            raise ValueError('Both Brain_Data() instances need to be the same shape.')
         new = deepcopy(self)
-        new.data = new.data - y.data
+        if instance(y,int):
+            new.data = new.data + y
+        if isinstance(y,Brain_Data):
+            if self.shape() != y.shape():
+                raise ValueError('Both Brain_Data() instances need to be the same shape.')
+            new.data = new.data - y.data
         return new
 
     def __mul__(self, y):
-        if not isinstance(y,Brain_Data):
-            raise ValueError('Make sure you are multiplying a Brain_Data() instance.')
-        if self.shape() != y.shape():
-            raise ValueError('Both Brain_Data() instances need to be the same shape.')
         new = deepcopy(self)
-        new.data = np.multiply(new.data,y.data)
+        if instance(y,int):
+            new.data = new.data * y
+        if isinstance(y,Brain_Data):
+            if self.shape() != y.shape():
+                raise ValueError('Both Brain_Data() instances need to be the same shape.')
+            new.data = np.multiply(new.data,y.data)
         return new
 
     def __iter__(self):
