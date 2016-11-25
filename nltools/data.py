@@ -41,6 +41,7 @@ from nltools.pbs_job import PBS_Job
 import warnings
 import shutil
 import tempfile
+import seaborn as sns
 
 # Optional dependencies
 try:
@@ -1071,7 +1072,8 @@ class Brain_Data(object):
     def astype(self,dtype):
         ''' Cast Brain_Data.data as type.'''
         out = self.copy()
-        return out.data = out.data.astype(dtype)
+        out.data = out.data.astype(dtype)
+        return out
 
 class Adjacency(object):
     def __init__(self, data=None, matrix_type=None, **kwargs):
@@ -1088,7 +1090,7 @@ class Adjacency(object):
         if self.issymmetric:
             if np.sum(np.diag(data)) == 0:
                     self.matrix_type = 'distance'
-            elif np.sum(np.diag(data)) == data.shape[0]*data.shape[1]:
+            elif np.sum(np.diag(data)) == data.shape[0]:
                     self.matrix_type = 'similarity'
             self.data = data[np.triu_indices(data.shape[0],k=1)]
         else:
