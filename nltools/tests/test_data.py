@@ -160,7 +160,6 @@ def test_adjacency(tmpdir):
     assert dat.matrix_type is 'distance'
     dat2 = Adjacency(1-data)
     assert dat2.matrix_type is 'similarity'
-    dat.plot()
 
     # Test write
     dat.write(os.path.join(str(tmpdir.join('Test.csv'))))
