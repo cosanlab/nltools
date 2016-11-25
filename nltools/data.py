@@ -20,7 +20,7 @@ import nibabel as nib
 from nltools.utils import get_resource_path, set_algorithm, get_anatomical
 from nltools.cross_validation import set_cv
 from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
-from nltools.stats import pearson,fdr,threshold, fisher_r_to_z
+from nltools.stats import pearson,fdr,threshold, fisher_r_to_z, correlation_permutation
 from nltools.mask import expand_mask
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
@@ -32,6 +32,7 @@ import pandas as pd
 import numpy as np
 from scipy.stats import ttest_1samp, t, norm
 from scipy.signal import detrend
+from scipy.spatial.distance import squareform
 import six
 import sklearn
 from sklearn.pipeline import Pipeline
@@ -1074,6 +1075,8 @@ class Brain_Data(object):
 
 class Adjacency(object):
     def __init__(self, data=None, matrix_type=None, **kwargs):
+        if isinstance(data,str):
+            data = pd.read_csv(data)
         if data.shape[0]!=data.shape[1]:
             raise ValueError('Data matrix must be square')
         data = np.array(data)
@@ -1136,7 +1139,7 @@ class Adjacency(object):
                 file_name (str):  name of file name to write
         
         '''
-        pd.DataFrame(self.squareform,header=None).to_csv(file_name,index=None)
+        out = pd.DataFrame(self.squareform()).to_csv(file_name,index=None)
 
     def similarity(self, data, **kwargs):
         ''' Calculate similarity between two Adjacency matrices.  
@@ -1146,7 +1149,7 @@ class Adjacency(object):
         else:
             data2 = data.copy()
         return correlation_permutation(self.data,data2.data,**kwargs)
-        
+
 
 def download_nifti(url,base_dir=None):
     local_filename = url.split('/')[-1]
