@@ -281,6 +281,7 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman'):
     
     '''
 
+    stats = dict()
     data1 = np.array(data1)
     data2 = np.array(data2)
 
@@ -291,7 +292,6 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman'):
     else:
         raise ValueError('metric must be "spearman" or "pearson"')
 
-    stats = dict()
     all_p = []
     for p in range(n_permute):
         if metric is 'spearman':
