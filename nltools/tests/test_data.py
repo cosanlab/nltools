@@ -4,9 +4,10 @@ import nibabel as nb
 import pandas as pd
 import glob
 from nltools.simulator import Simulator
-from nltools.data import Brain_Data
+from nltools.data import Brain_Data, Adjacency
 from nltools.data import threshold
 from nltools.mask import create_sphere
+from sklearn.metrics import pairwise_distances
 import matplotlib
 matplotlib.use('TkAgg')
 
@@ -149,13 +150,22 @@ def test_brain_data(tmpdir):
     # Test multivariate_similarity
 
 def test_adjacency(tmpdir):
+    dat = np.random.multivariate_normal([0,0,0,0],[[1, 0.8, 0.1, 0.4],
+                                         [0.8, 1, 0.6, 0.1],
+                                         [0.1, 0.6, 1, 0.3],
+                                         [0.4, 0.1, 0.3, 1]],100)
+
+    data = pairwise_distances(dat,metric='correlation')
     dat = Adjacency(data)
+    assert dat.matrix_type is 'distance'
+    dat2 = Adjacency(1-data)
+    assert dat2.matrix_type is 'similarity'
     dat.plot()
 
     # Test write
-    dat.write(os.path.join(tmpdir,'Test.csv'))
+    dat.write(os.path.join(str(tmpdir.join('Test.csv'))))
     dat2 = Adjacency(os.path.join(str(tmpdir.join('Test.csv'))))
-    assert np.any(dat.data==dat2.data)
+    assert np.all(np.isclose(dat.data,dat2.data))
 
     # Test mean
     assert dat.mean()==np.mean(dat.data)
