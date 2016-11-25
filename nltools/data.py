@@ -1072,6 +1072,82 @@ class Brain_Data(object):
         out = self.copy()
         return out.data = out.data.astype(dtype)
 
+class Adjacency(object):
+    def __init__(self, data=None, matrix_type=None, **kwargs):
+        if data.shape[0]!=data.shape[1]:
+            raise ValueError('Data matrix must be square')
+        data = np.array(data)
+        if np.all(data[np.triu_indices(data.shape[0],k=1)]==data.T[np.triu_indices(data.shape[0],k=1)]):
+            self.issymmetric = True
+        else:
+            self.issymmetric = False
+
+        if self.issymmetric:
+            if np.sum(np.diag(data)) == 0:
+                    self.matrix_type = 'distance'
+            elif np.sum(np.diag(data)) == data.shape[0]*data.shape[1]:
+                    self.matrix_type = 'similarity'
+            self.data = data[np.triu_indices(data.shape[0],k=1)]
+        else:
+            self.matrix_type = 'directed'
+            self.data = data.values.flatten()
+            
+    def __repr__(self):
+        return '%s.%s(shape=%s, length=%s, is_symmetric=%s, matrix_type=%s)' % (
+            self.__class__.__module__,
+            self.__class__.__name__,
+            self.shape(),
+            len(self),
+            self.issymmetric,
+            self.matrix_type
+            )
+
+    def __len__(self):
+        return len(self.data)
+    
+    def squareform(self):
+        '''Convert adjacency back to squareform'''
+        return squareform(self.data)
+
+    def plot(self, **kwargs):
+        ''' Create Heatmap of Adjacency Matrix'''
+        return sns.heatmap(self.squareform(),square=True,**kwargs)
+
+    def mean(self):
+        ''' Calculate mean of upper triangle'''
+        return np.mean(self.data)
+    
+    def std(self):
+        ''' Calculate standard deviation of upper triangle'''
+        return np.std(self.data)
+    
+    def shape(self):
+        ''' Calculate shape of data. Return shape of data and squareform. '''
+        return self.squareform().shape
+    
+    def copy(self):
+        ''' Create a copy of Adjacency object.'''
+        return deepcopy(self)
+    
+    def write(self,file_name):
+        ''' Write out Adjacency object to csv file. 
+        
+            Args:
+                file_name (str):  name of file name to write
+        
+        '''
+        pd.DataFrame(self.squareform,header=None).to_csv(file_name,index=None)
+
+    def similarity(self, data, **kwargs):
+        ''' Calculate similarity between two Adjacency matrices.  
+        Default is to use spearman correlation and permutation test.'''
+        if not isinstance(data,Adjacency):
+            data2 = Adjacency(data)
+        else:
+            data2 = data.copy()
+        return correlation_permutation(self.data,data2.data,**kwargs)
+        
+
 def download_nifti(url,base_dir=None):
     local_filename = url.split('/')[-1]
     if base_dir is not None:
