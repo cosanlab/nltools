@@ -150,32 +150,57 @@ def test_brain_data(tmpdir):
     # Test multivariate_similarity
 
 def test_adjacency(tmpdir):
-    dat = np.random.multivariate_normal([0,0,0,0],[[1, 0.8, 0.1, 0.4],
+    n=10
+    sim = np.random.multivariate_normal([0,0,0,0],[[1, 0.8, 0.1, 0.4],
                                          [0.8, 1, 0.6, 0.1],
                                          [0.1, 0.6, 1, 0.3],
                                          [0.4, 0.1, 0.3, 1]],100)
+    data = pairwise_distances(sim.T,metric='correlation')
+    dat_all = []
+    for t in range(n):
+        tmp = data
+        dat_all.append(tmp)
 
-    data = pairwise_distances(dat,metric='correlation')
-    dat = Adjacency(data)
-    assert dat.matrix_type is 'distance'
-    dat2 = Adjacency(1-data)
-    assert dat2.matrix_type is 'similarity'
+    dat_single = Adjacency(dat_all[0])
+    dat_multiple = Adjacency(dat_all)
 
-    # Test write
-    dat.write(os.path.join(str(tmpdir.join('Test.csv'))))
-    dat2 = Adjacency(os.path.join(str(tmpdir.join('Test.csv'))))
-    assert np.all(np.isclose(dat.data,dat2.data))
+    # Test automatic distance/similarity detection
+    assert dat_single.matrix_type is 'distance'
+    dat_single2 = Adjacency(1-data)
+    assert dat_single2.matrix_type is 'similarity'
 
-    # Test mean
-    assert dat.mean()==np.mean(dat.data)
+    # Test length
+    assert len(dat_multiple)==dat_multiple.data.shape[0]
+    assert len(dat[0])==1
 
-    # Test std
-    assert dat.std()==np.std(dat.data)
+    # Test Indexing
+    assert len(dat_multiple[0]) == 1
+    assert len(dat_multiple[0:4]) == 4
+    assert len(dat_multiple[0,2,3]) == 3
 
     # Test copy
-    assert np.all(dat.data==dat.copy().data)
+    assert np.all(dat_multiple.data==dat_multiple.copy().data)
 
-    # Test squareform
-    assert dat.squareform().shape==data.shape
+    # Test squareform & iterable
+    if len(dat) > 1:
+        assert len(dat_multiple.squareform())==len(dat_multiple)
+    else:
+        assert dat_single.squareform().shape==data.shape
+
+    # # Test write
+    # dat.write(os.path.join(base_dir,'Analyses','Test.csv'))
+    # dat2 = Adjacency(os.path.join(base_dir,'Analyses','Test.csv'))
+    # assert np.all(np.isclose(dat.data,dat2.data))
+
+    # Test mean
+    assert len(dat_multiple.mean(axis=0))==len(np.mean(dat_multiple.data,axis=0))
+    assert len(dat_multiple.mean(axis=1))==len(np.mean(dat_multiple.data,axis=1))
+
+    # Test std
+    assert len(dat_multiple.std(axis=1))==len(np.std(dat_multiple.data,axis=1))
+    assert len(dat_multiple.std(axis=0))==len(np.std(dat_multiple.data,axis=0))
+
+    # Test similarity
+    assert len(dat_multiple.similarity(dat_single.squareform()))==len(dat_multiple)
 
 
