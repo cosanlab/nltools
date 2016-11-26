@@ -1076,72 +1076,259 @@ class Brain_Data(object):
         return out
 
 class Adjacency(object):
-    def __init__(self, data=None, matrix_type=None, **kwargs):
-        if isinstance(data,str):
-            data = pd.read_csv(data)
-        if data.shape[0]!=data.shape[1]:
-            raise ValueError('Data matrix must be square')
-        data = np.array(data)
-        if np.all(data[np.triu_indices(data.shape[0],k=1)]==data.T[np.triu_indices(data.shape[0],k=1)]):
-            self.issymmetric = True
+    def __init__(self, data=None, Y = None, matrix_type=None, **kwargs):
+        
+        if matrix_type is not None:
+            if matrix_type.lower() not in ['distance','similarity','weighted','distance_flat','similarity_flat','weighted_flat']:
+                raise ValueError("matrix_type must be [None,'distance','similarity','weighted','distance_flat','similarity_flat','weighted_flat']")
+        
+        if isinstance(data,list):
+            d_all = []; symmetric_all = []; matrix_type_all = []
+            for d in data:
+                data_tmp, issymmetric_tmp, matrix_type_tmp, is_single_matrix = self._import_single_data(d,matrix_type=matrix_type)
+                d_all.append(data_tmp)
+                symmetric_all.append(issymmetric_tmp)
+                matrix_type_all.append(matrix_type_tmp) 
+            if not all_same(symmetric_all):
+                raise ValueError('Not all matrices are of the same symmetric type.')
+            if not all_same(matrix_type_all):
+                raise ValueError('Not all matrices are of the same matrix type.')
+            print(len(d_all))
+            self.data = np.array(d_all)
+            self.issymmetric = symmetric_all[0]
+            self.matrix_type = matrix_type_all[0]
+            self.is_single_matrix = False
         else:
-            self.issymmetric = False
+            self.data,self.issymmetric,self.matrix_type,self.is_single_matrix = self._import_single_data(data, matrix_type=matrix_type)
 
-        if self.issymmetric:
-            if np.sum(np.diag(data)) == 0:
-                    self.matrix_type = 'distance'
-            elif np.sum(np.diag(data)) == data.shape[0]:
-                    self.matrix_type = 'similarity'
-            self.data = data[np.triu_indices(data.shape[0],k=1)]
+        if Y is not None:
+            if type(Y) is str:
+                if os.path.isfile(Y):
+                    Y=pd.read_csv(Y,header=None,index_col=None)
+            if isinstance(Y, pd.DataFrame):
+                if self.data.shape[0]!= len(Y):
+                    raise ValueError("Y does not match the correct size of data")
+                self.Y = Y
+            else:
+                raise ValueError("Make sure Y is a pandas data frame.")
         else:
-            self.matrix_type = 'directed'
-            self.data = data.values.flatten()
-            
+            self.Y = pd.DataFrame()
+
     def __repr__(self):
-        return '%s.%s(shape=%s, length=%s, is_symmetric=%s, matrix_type=%s)' % (
+        return '%s.%s(shape=%s, square_shape=%s, Y=%s, is_symmetric=%s, matrix_type=%s)' % (
             self.__class__.__module__,
             self.__class__.__name__,
             self.shape(),
-            len(self),
+            self.square_shape(),
+            len(self.Y),
             self.issymmetric,
             self.matrix_type
             )
 
-    def __len__(self):
-        return len(self.data)
+    def __getitem__(self,index):
+        new = self.copy()
+        if isinstance(index, int):
+            new.data = np.array(self.data[index,:]).flatten()
+            new.is_single_matrix = True
+        else:
+            new.data = np.array(self.data[index,:])           
+        if not self.Y.empty:
+            new.Y = self.Y.iloc[index] 
+        return new
     
+    def __len__(self):
+        if self.is_single_matrix:
+            return 1
+        else:
+            return self.data.shape[0]
+
+    def __iter__(self):
+        for x in range(len(self)):
+            yield self[x]  
+
+    def _import_single_data(self, data, matrix_type=None):
+        ''' Helper function to import single data matrix.'''
+        
+        if isinstance(data,str):
+            if os.path.isfile(data):
+                data = pd.read_csv(data)
+            else:
+                raise ValueError('Make sure you have specified a valid file path.')
+
+        def test_is_single_matrix(data):
+            if len(data.shape)==1:
+                return True
+            else:
+                return False
+            
+        if matrix_type is not None:
+            if matrix_type.lower() is 'distance_flatten':
+                matrix_type = 'distance'
+                data = np.array(data)
+                issymmetric = True
+                is_single_matrix = test_is_single_matrix(data)
+            if matrix_type.lower() is 'similarity_flatten':
+                matrix_type = 'similarity'
+                data = np.array(data)
+                issymmetric = True
+                is_single_matrix = test_is_single_matrix(data)
+            if matrix_type.lower() is 'directed_flatten':
+                matrix_type = 'directed'
+                data = np.array(data)
+                issymmetric = False
+                is_single_matrix = test_is_single_matrix(data)
+            if matrix_type.lower() in ['distance','similarity','directed']:
+                if data.shape[0]!=data.shape[1]:
+                    raise ValueError('Data matrix must be square')
+                data = np.array(data)
+                matrix_type = matrix_type.lower()
+                if matrix_type in ['distance','similarity']:
+                    issymmetric = True
+                    data = data[np.triu_indices(data.shape[0],k=1)]
+                else:
+                    issymmetric = False
+                    data = data.flatten()
+                is_single_matrix = True
+        else:
+            if len(data.shape)==1: # Single Vector
+                try:
+                    data = squareform(data)
+                except:
+                    raise ValueError('Data is not flattened upper triangle from similarity/distance matrix or flattened directed matrix.')
+                is_single_matrix = True
+            elif data.shape[0]==data.shape[1]: # Square Matrix
+                is_single_matrix = True
+            else: # Rectangular Matrix
+                data_all = deepcopy(data)
+                try:
+                    data = squareform(data_all[0,:])
+                except:
+                    raise ValueError('Data is not flattened upper triangle from multiple similarity/distance matrices or flattened directed matrices.')
+                is_single_matrix = False
+            
+            # Test if matrix is symmetrical
+            if np.all(data[np.triu_indices(data.shape[0],k=1)]==data.T[np.triu_indices(data.shape[0],k=1)]):
+                issymmetric = True
+            else:
+                issymmetric = False 
+                
+            # Determine matrix type
+            if issymmetric:
+                if np.sum(np.diag(data)) == 0:
+                    matrix_type = 'distance'
+                elif np.sum(np.diag(data)) == data.shape[0]:
+                    matrix_type = 'similarity'
+                data = data[np.triu_indices(data.shape[0],k=1)]
+            else:
+                matrix_type = 'directed'
+                data = data.flatten()
+            
+            if not is_single_matrix:
+                data = data_all
+                
+        return (data, issymmetric, matrix_type, is_single_matrix)
+
     def squareform(self):
         '''Convert adjacency back to squareform'''
-        return squareform(self.data)
+        if self.is_single_matrix:
+            return squareform(self.data)  
+        else:
+            return [squareform(x.data) for x in self]
 
-    def plot(self, **kwargs):
+    def plot(self, limit=3, **kwargs):
         ''' Create Heatmap of Adjacency Matrix'''
-        return sns.heatmap(self.squareform(),square=True,**kwargs)
+        if self.is_single_matrix:
+            return sns.heatmap(self.squareform(),square=True,**kwargs)
+        else:
+            f,a = plt.subplots(ncols=limit,figsize=(12,5))
+            for i in range(limit):
+                sns.heatmap(self[i].squareform(),square=True,ax=a[i],**kwargs)
+            return f
 
-    def mean(self):
-        ''' Calculate mean of upper triangle'''
-        return np.mean(self.data)
+    def mean(self, axis=0):
+        ''' Calculate mean of upper triangle
+
+        Args:
+            axis:  calculate mean over features (0) or data (1)
+
+        '''
+        if self.is_single_matrix:
+            return np.mean(self.data)
+        else:
+            return np.mean(self.data,axis=axis)
     
-    def std(self):
-        ''' Calculate standard deviation of upper triangle'''
-        return np.std(self.data)
+    def std(self, axis=0):
+        ''' Calculate standard deviation of upper triangle
+
+        Args:
+            axis:  calculate standard deviation over features (0) or data (1)
+
+        '''
+        if self.is_single_matrix:
+            return np.mean(self.data)
+        else:
+            return np.mean(self.data,axis=axis)
     
     def shape(self):
-        ''' Calculate shape of data. Return shape of data and squareform. '''
-        return self.squareform().shape
-    
+        ''' Calculate shape of data. '''
+        return self.data.shape
+
+    def square_shape(self):
+        ''' Calculate shape of squareform data. '''
+        if self.is_single_matrix:
+            return self.squareform().shape  
+        else:
+            return self[0].squareform().shape
+
     def copy(self):
         ''' Create a copy of Adjacency object.'''
         return deepcopy(self)
     
-    def write(self,file_name):
+    def append(self, data):
+        ''' Append data to Adjacency instance
+
+        Args:
+            data:  Adjacency instance to append
+
+        Returns:
+            out: new appended Adjacency instance
+
+        '''
+
+        if not isinstance(data, Adjacency):
+            raise ValueError('Make sure data is a Adjacency instance.')
+
+        out = self.copy()
+        
+        if self.square_shape() != data.square_shape():
+            raise ValueError('Data is not the same shape as Adjacency instance.')
+
+        out.data = np.vstack([self.data,data.data])
+        if out.Y.size:
+            out.Y = self.Y.append(data.Y)
+        
+        return out
+
+    def write(self, file_name, method='long'):
         ''' Write out Adjacency object to csv file. 
         
             Args:
                 file_name (str):  name of file name to write
+                method (str):     method to write out data ['long','square']
         
         '''
-        out = pd.DataFrame(self.squareform()).to_csv(file_name,index=None)
+        if method not in ['long','square']:
+            raise ValueError('Make sure method is ["long","square"].')
+        if self.is_single_matrix:
+            if method is 'long':
+                out = pd.DataFrame(self.data).to_csv(file_name,index=None)
+            elif method is 'square':
+                out = pd.DataFrame(self.squareform()).to_csv(file_name,index=None)
+        else:
+            if method is 'long':
+                out = pd.DataFrame(self.data).to_csv(file_name,index=None)
+            elif method is 'square':
+                raise NotImplementedError('Need to decide how we should write out multiple matrices.  As separate files?')
 
     def similarity(self, data, **kwargs):
         ''' Calculate similarity between two Adjacency matrices.  
@@ -1150,8 +1337,10 @@ class Adjacency(object):
             data2 = Adjacency(data)
         else:
             data2 = data.copy()
-        return correlation_permutation(self.data,data2.data,**kwargs)
-
+        if self.is_single_matrix:
+            return correlation_permutation(self.data, data2.data,**kwargs)
+        else:
+            return [correlation_permutation(x.data, data2.data,**kwargs) for x in self]
 
 def download_nifti(url,base_dir=None):
     local_filename = url.split('/')[-1]
@@ -1166,3 +1355,5 @@ def download_nifti(url,base_dir=None):
                 f.write(chunk)
     return nib.load(local_filename)
 
+def all_same(items):
+    return np.all(x == items[0] for x in items)
