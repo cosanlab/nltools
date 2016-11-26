@@ -171,7 +171,7 @@ def test_adjacency(tmpdir):
 
     # Test length
     assert len(dat_multiple)==dat_multiple.data.shape[0]
-    assert len(dat[0])==1
+    assert len(dat_multiple[0])==1
 
     # Test Indexing
     assert len(dat_multiple[0]) == 1
@@ -182,7 +182,7 @@ def test_adjacency(tmpdir):
     assert np.all(dat_multiple.data==dat_multiple.copy().data)
 
     # Test squareform & iterable
-    if len(dat) > 1:
+    if len(dat_multiple) > 1:
         assert len(dat_multiple.squareform())==len(dat_multiple)
     else:
         assert dat_single.squareform().shape==data.shape
