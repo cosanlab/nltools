@@ -187,10 +187,10 @@ def test_adjacency(tmpdir):
     else:
         assert dat_single.squareform().shape==data.shape
 
-    # # Test write
-    # dat.write(os.path.join(base_dir,'Analyses','Test.csv'))
-    # dat2 = Adjacency(os.path.join(base_dir,'Analyses','Test.csv'))
-    # assert np.all(np.isclose(dat.data,dat2.data))
+    # Test write
+    dat.write(os.path.join(base_dir,'Analyses','Test.csv'),method='long')
+    dat2 = Adjacency(os.path.join(base_dir,'Analyses','Test.csv'),matrix_type='distance_flat')
+    assert np.all(np.isclose(dat.data,dat2.data))
 
     # Test mean
     assert len(dat_multiple.mean(axis=0))==len(np.mean(dat_multiple.data,axis=0))
