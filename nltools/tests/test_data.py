@@ -182,15 +182,13 @@ def test_adjacency(tmpdir):
     assert np.all(dat_multiple.data==dat_multiple.copy().data)
 
     # Test squareform & iterable
-    if len(dat_multiple) > 1:
-        assert len(dat_multiple.squareform())==len(dat_multiple)
-    else:
-        assert dat_single.squareform().shape==data.shape
+    assert len(dat_multiple.squareform())==len(dat_multiple)
+    assert dat_single.squareform().shape==data.shape
 
-    # # Test write
-    # dat.write(os.path.join(base_dir,'Analyses','Test.csv'))
-    # dat2 = Adjacency(os.path.join(base_dir,'Analyses','Test.csv'))
-    # assert np.all(np.isclose(dat.data,dat2.data))
+    # Test write
+    dat_multiple.write(os.path.join(str(tmpdir.join('Test.csv'))),method='long')
+    dat_multiple2 = Adjacency(os.path.join(str(tmpdir.join('Test.csv'))),matrix_type='distance_flat')
+    assert np.all(np.isclose(dat_multiple.data,dat_multiple2.data))
 
     # Test mean
     assert len(dat_multiple.mean(axis=0))==len(np.mean(dat_multiple.data,axis=0))
@@ -203,4 +201,15 @@ def test_adjacency(tmpdir):
     # Test similarity
     assert len(dat_multiple.similarity(dat_single.squareform()))==len(dat_multiple)
 
+    # Test ttest
+    mn,p = dat_multiple.ttest()
+    assert len(mn)==1
+    assert len(p)==1
+    assert mn.shape()[0]==dat_multiple.shape()[1]
+    assert p.shape()[0]==dat_multiple.shape()[1]
+
+    # Test stats_label_distance
+    labels = np.array(['group1','group1','group2','group2'])
+    stats = dat_multiple[0].stats_label_distance(labels)
+    assert np.isclose(stats['group1']['mean'],-1*stats['group2']['mean'])
 
