@@ -182,10 +182,8 @@ def test_adjacency(tmpdir):
     assert np.all(dat_multiple.data==dat_multiple.copy().data)
 
     # Test squareform & iterable
-    if len(dat_multiple) > 1:
-        assert len(dat_multiple.squareform())==len(dat_multiple)
-    else:
-        assert dat_single.squareform().shape==data.shape
+    assert len(dat_multiple.squareform())==len(dat_multiple)
+    assert dat_single.squareform().shape==data.shape
 
     # Test write
     dat_multiple.write(os.path.join(str(tmpdir.join('Test.csv'))),method='long')
@@ -210,4 +208,8 @@ def test_adjacency(tmpdir):
     assert mn.shape()[0]==dat_multiple.shape()[1]
     assert p.shape()[0]==dat_multiple.shape()[1]
 
+    # Test stats_label_distance
+    labels = np.array(['group1','group1','group2','group2'])
+    stats = dat_multiple[0].stats_label_distance(labels)
+    assert np.isclose(stats['group1']['mean'],-1*stats['group2']['mean'])
 
