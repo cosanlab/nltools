@@ -1093,7 +1093,6 @@ class Adjacency(object):
                 raise ValueError('Not all matrices are of the same symmetric type.')
             if not all_same(matrix_type_all):
                 raise ValueError('Not all matrices are of the same matrix type.')
-            print(len(d_all))
             self.data = np.array(d_all)
             self.issymmetric = symmetric_all[0]
             self.matrix_type = matrix_type_all[0]
@@ -1162,22 +1161,22 @@ class Adjacency(object):
                 return False
             
         if matrix_type is not None:
-            if matrix_type.lower() is 'distance_flatten':
+            if matrix_type.lower() == 'distance_flat':
                 matrix_type = 'distance'
                 data = np.array(data)
                 issymmetric = True
                 is_single_matrix = test_is_single_matrix(data)
-            if matrix_type.lower() is 'similarity_flatten':
+            elif matrix_type.lower() == 'similarity_flat':
                 matrix_type = 'similarity'
                 data = np.array(data)
                 issymmetric = True
                 is_single_matrix = test_is_single_matrix(data)
-            if matrix_type.lower() is 'directed_flatten':
+            elif matrix_type.lower() == 'directed_flat':
                 matrix_type = 'directed'
                 data = np.array(data)
                 issymmetric = False
                 is_single_matrix = test_is_single_matrix(data)
-            if matrix_type.lower() in ['distance','similarity','directed']:
+            elif matrix_type.lower() in ['distance','similarity','directed']:
                 if data.shape[0]!=data.shape[1]:
                     raise ValueError('Data matrix must be square')
                 data = np.array(data)
@@ -1341,6 +1340,19 @@ class Adjacency(object):
             return correlation_permutation(self.data, data2.data,**kwargs)
         else:
             return [correlation_permutation(x.data, data2.data,**kwargs) for x in self]
+            
+    def ttest(self, **kwargs):
+        ''' Calculate ttest across samples. '''
+        if self.is_single_matrix:
+            raise ValueError('t-test cannot be run on single matrices.')
+        m = []; p = []
+        for i in range(self.data.shape[1]):
+            stats = one_sample_permutation(self.data[:,i],**kwargs)
+            m.append(stats['mean'])
+            p.append(stats['p'])
+        mn = Adjacency(np.array(m))
+        pval = Adjacency(np.array(p))
+        return (mn,pval)
 
 def download_nifti(url,base_dir=None):
     local_filename = url.split('/')[-1]
