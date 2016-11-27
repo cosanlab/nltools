@@ -20,7 +20,7 @@ import nibabel as nib
 from nltools.utils import get_resource_path, set_algorithm, get_anatomical
 from nltools.cross_validation import set_cv
 from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
-from nltools.stats import pearson,fdr,threshold, fisher_r_to_z, correlation_permutation
+from nltools.stats import pearson,fdr,threshold, fisher_r_to_z, correlation_permutation,one_sample_permutation
 from nltools.mask import expand_mask
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
@@ -1340,7 +1340,7 @@ class Adjacency(object):
             return correlation_permutation(self.data, data2.data,**kwargs)
         else:
             return [correlation_permutation(x.data, data2.data,**kwargs) for x in self]
-            
+
     def ttest(self, **kwargs):
         ''' Calculate ttest across samples. '''
         if self.is_single_matrix:
