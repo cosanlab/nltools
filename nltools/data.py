@@ -20,7 +20,7 @@ import nibabel as nib
 from nltools.utils import get_resource_path, set_algorithm, get_anatomical
 from nltools.cross_validation import set_cv
 from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
-from nltools.stats import pearson,fdr,threshold, fisher_r_to_z, correlation_permutation,one_sample_permutation
+from nltools.stats import pearson,fdr,threshold, fisher_r_to_z, correlation_permutation,one_sample_permutation,two_sample_permutation
 from nltools.mask import expand_mask
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
@@ -1354,6 +1354,88 @@ class Adjacency(object):
         pval = Adjacency(np.array(p))
         return (mn,pval)
 
+    def plot_label_distance(self, labels, ax=None):
+        ''' Create a violin plot indicating within and between label distance
+
+            Args:
+                labels (np.array):  numpy array of labels to plot
+        
+            Returns:
+                violin plot handles
+        
+        '''
+
+        if not self.is_single_matrix:
+            raise ValueError('This function only works on single adjacency matrices.')
+
+        distance = pd.DataFrame(self.squareform())
+
+        if len(labels) != distance.shape[0]:
+            raise ValueError('Labels must be same length as distance matrix')
+
+        within = []; between = []
+        out = pd.DataFrame(columns=['Distance','Group','Type'],index=None)
+        for i in np.unique(labels):
+            tmp_w = pd.DataFrame(columns=out.columns,index=None)
+            tmp_w['Distance'] = distance.loc[labels==i,labels==i].values[np.triu_indices(sum(labels==i),k=1)]
+            tmp_w['Type'] = 'Within'
+            tmp_w['Group'] = i
+            tmp_b = pd.DataFrame(columns=out.columns,index=None)
+            tmp_b['Distance'] = distance.loc[labels!=i,labels!=i].values[np.triu_indices(sum(labels==i),k=1)]
+            tmp_b['Type'] = 'Between'
+            tmp_b['Group'] = i
+            out = out.append(tmp_w).append(tmp_b)
+        f = sns.violinplot(x="Group", y="Distance", hue="Type", data=out, split=True, inner='quartile',
+              palette={"Within": "lightskyblue", "Between": "red"},ax=ax)
+        f.set_ylabel('Average Distance')
+        f.set_title('Average Group Distance')
+        return f
+        
+    def stats_label_distance(self, labels, n_permute=5000):
+        ''' Calculate permutation tests on within and between label distance.
+
+            Args:
+                labels (np.array):  numpy array of labels to plot
+                n_permute (int): number of permutations to run (default=5000)
+
+            Returns:
+                dict:  dictionary of within and between group differences and p-values
+        
+        '''
+
+        if not self.is_single_matrix:
+            raise ValueError('This function only works on single adjacency matrices.')
+
+        distance = pd.DataFrame(self.squareform())
+
+        if len(labels) != distance.shape[0]:
+            raise ValueError('Labels must be same length as distance matrix')
+
+        within = []; between = []
+        out = pd.DataFrame(columns=['Distance','Group','Type'],index=None)
+        for i in np.unique(labels):
+            tmp_w = pd.DataFrame(columns=out.columns,index=None)
+            tmp_w['Distance'] = distance.loc[labels==i,labels==i].values[np.triu_indices(sum(labels==i),k=1)]
+            tmp_w['Type'] = 'Within'
+            tmp_w['Group'] = i
+            tmp_b = pd.DataFrame(columns=out.columns,index=None)
+            tmp_b['Distance'] = distance.loc[labels!=i,labels!=i].values[np.triu_indices(sum(labels==i),k=1)]
+            tmp_b['Type'] = 'Between'
+            tmp_b['Group'] = i
+            out = out.append(tmp_w).append(tmp_b)
+        stats = dict()
+        for i in np.unique(labels):
+            # Within group test
+            tmp = out.loc[(out['Group']==i) & (out['Type']=='Within'),'Distance']-out.loc[(out['Group']==i) & (out['Type']=='Between'),'Distance']
+            stats[str(i)] = one_sample_permutation(tmp,n_permute=n_permute)
+            for j in np.unique(labels):
+                if i != j:
+                    # Between group test
+                    tmp1 = out.loc[(out['Group']==i) & (out['Type']=='Within'),'Distance']
+                    tmp2 = out.loc[(out['Group']==j) & (out['Type']=='Within'),'Distance']
+                    stats['%s_v_%s' % (i,j)] = two_sample_permutation(tmp1,tmp2,n_permute=n_permute)
+        return stats
+
 def download_nifti(url,base_dir=None):
     local_filename = url.split('/')[-1]
     if base_dir is not None:
@@ -1369,3 +1451,4 @@ def download_nifti(url,base_dir=None):
 
 def all_same(items):
     return np.all(x == items[0] for x in items)
+
