@@ -1419,21 +1419,16 @@ class Adjacency(object):
             tmp_w['Type'] = 'Within'
             tmp_w['Group'] = i
             tmp_b = pd.DataFrame(columns=out.columns,index=None)
-            tmp_b['Distance'] = distance.loc[labels!=i,labels!=i].values[np.triu_indices(sum(labels==i),k=1)]
+            tmp_b['Distance'] = distance.loc[labels==i,labels!=i].values.flatten()
             tmp_b['Type'] = 'Between'
             tmp_b['Group'] = i
             out = out.append(tmp_w).append(tmp_b)
         stats = dict()
         for i in np.unique(labels):
             # Within group test
-            tmp = out.loc[(out['Group']==i) & (out['Type']=='Within'),'Distance']-out.loc[(out['Group']==i) & (out['Type']=='Between'),'Distance']
-            stats[str(i)] = one_sample_permutation(tmp,n_permute=n_permute)
-            for j in np.unique(labels):
-                if i != j:
-                    # Between group test
-                    tmp1 = out.loc[(out['Group']==i) & (out['Type']=='Within'),'Distance']
-                    tmp2 = out.loc[(out['Group']==j) & (out['Type']=='Within'),'Distance']
-                    stats['%s_v_%s' % (i,j)] = two_sample_permutation(tmp1,tmp2,n_permute=n_permute)
+            tmp1 = out.loc[(out['Group']==i) & (out['Type']=='Within'),'Distance']
+            tmp2 = out.loc[(out['Group']==i) & (out['Type']=='Between'),'Distance']
+            stats[str(i)] = two_sample_permutation(tmp1,tmp2,n_permute=n_permute)
         return stats
 
 def download_nifti(url,base_dir=None):
