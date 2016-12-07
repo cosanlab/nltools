@@ -1093,6 +1093,16 @@ class Brain_Data(object):
         out.data = out.data.astype(dtype)
         return out
 
+    def groupby(self,mask):
+        '''Create groupby instance'''
+        return Groupby(self,mask)
+
+    def aggregate(self, mask, func):
+        '''Create new Brain_Data instance that aggregages func over mask'''
+        dat = self.groupby(mask)
+        values = dat.apply(func)
+        return dat.combine(values)
+
 class Adjacency(object):
     def __init__(self, data=None, Y = None, matrix_type=None, **kwargs):
         
