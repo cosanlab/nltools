@@ -21,7 +21,7 @@ from nltools.utils import get_resource_path, set_algorithm, get_anatomical
 from nltools.cross_validation import set_cv
 from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
 from nltools.stats import pearson,fdr,threshold, fisher_r_to_z, correlation_permutation,one_sample_permutation,two_sample_permutation
-from nltools.mask import expand_mask
+from nltools.mask import expand_mask,collapse_mask
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
 from nilearn.image import resample_img
@@ -229,14 +229,30 @@ class Brain_Data(object):
         """ Get mean of each voxel across images. """ 
 
         out = deepcopy(self)
-        out.data = np.mean(out.data, axis=0)
+        if len(self.shape())>1:
+            out.data = np.mean(self.data, axis=0)
+        else:
+            out = np.mean(self.data)
         return out
 
     def std(self):
         """ Get standard deviation of each voxel across images. """ 
 
         out = deepcopy(self)
-        out.data = np.std(out.data, axis=0)
+        if len(self.shape())>1:
+            out.data = np.std(self.data, axis=0)
+        else:
+            out = np.std(self.data)
+        return out
+
+    def sum(self):
+        """ Sum over voxels."""
+
+        out = deepcopy(self)
+        if len(self.shape())>1:
+            out.data = np.sum(out.data,axis=0)
+        else:
+            out = np.sum(self.data)
         return out
 
     def to_nifti(self):
@@ -844,6 +860,8 @@ class Brain_Data(object):
         if len(self.data.shape) > 2:
             masked.data = masked.data.squeeze()
         masked.nifti_masker = nifti_masker
+        if len(masked.shape()) > 1 & masked.shape()[0]==1:
+            masked.data = masked.data.flatten()
         return masked
 
     def searchlight(self, ncores, process_mask=None, parallel_out=None, radius=3, walltime='24:00:00', \
@@ -1430,6 +1448,73 @@ class Adjacency(object):
             tmp2 = out.loc[(out['Group']==i) & (out['Type']=='Between'),'Distance']
             stats[str(i)] = two_sample_permutation(tmp1,tmp2,n_permute=n_permute)
         return stats
+
+class Groupby(object):
+    def __init__(self, data, mask):
+        
+        if not isinstance(data,Brain_Data):
+            raise ValueError('Groupby requires a Brain_Data instance.')
+        if not isinstance(mask,Brain_Data):
+            if isinstance(mask, nib.Nifti1Image):
+                mask = Brain_Data(mask)
+            else:
+                raise ValueError('mask must be a Brain_Data instance.')
+        
+        mask.data = np.round(mask.data).astype(int)
+        if len(mask.shape()) <= 1:
+            if len(np.unique(mask.data)) > 2:
+                mask = expand_mask(mask)
+            else:
+                raise ValueError('mask does not have enough groups.')
+        
+        self.mask = mask
+        self.split(data,mask)
+
+    def __repr__(self):
+        return '%s.%s(len=%s)' % (
+            self.__class__.__module__,
+            self.__class__.__name__,
+            len(self),
+            )
+    
+    def __len__(self):
+        return len(self.data)
+    
+    def __iter__(self):
+        for x in self.data:
+            yield (x,self.data[x])
+            
+    def __getitem__(self,index):
+        if isinstance(index, int):
+            return self.data[index]
+        else:
+            raise ValueError('Groupby currently only supports integer indexing')
+            
+    def split(self, data, mask):
+        '''Split Brain_Data instance into separate masks and store as a dictionary.'''
+        
+        self.data = {}
+        for i,m in enumerate(mask):
+            self.data[i] = data.apply_mask(m)
+            
+    def apply(self, method):
+        '''Apply Brain_Data instance methods to each element of Groupby object.'''
+        return dict([(i,getattr(x,method)()) for i,x in self])
+    
+    def combine(self, value_dict):
+        '''Combine value dictionary back into masks'''
+        out = self.mask.copy().astype(float)
+        for i in value_dict.iterkeys():
+            if isinstance(value_dict[i],Brain_Data):
+                if value_dict[i].shape()[0]==np.sum(self.mask[i].data):
+                    out.data[i,out.data[i,:]==1] = value_dict[i].data
+                else:
+                    raise ValueError('Brain_Data instances are different shapes.')
+            elif isinstance(value_dict[i],(float,int,bool,np.number)):
+                out.data[i,:] = out.data[i,:]*value_dict[i]
+            else:
+                raise ValueError('No method for aggregation implented for %s yet.' % type(value_dict[i]))
+        return out.sum()
 
 def download_nifti(url,base_dir=None):
     local_filename = url.split('/')[-1]
