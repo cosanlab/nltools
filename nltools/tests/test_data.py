@@ -146,6 +146,18 @@ def test_brain_data(tmpdir):
     s = dat.sum()
     assert s.shape()==dat[1].shape()
 
+    # Test Groupby
+    s1 = create_sphere([45, 55, 45], radius=10)
+    s2 = create_sphere([30, 30, 40], radius=10)
+    mask = Brain_Data([s1,s2])
+    d = dat.groupby(mask)
+    assert isinstance(d,Groupby)
+
+    # Test Aggregate
+    mn = dat.aggregate(mask,'mean')
+    assert isinstance(mn,Brain_Data)
+    assert len(mn.shape())==1
+
     # # Test Plot
     # dat.plot()
     
