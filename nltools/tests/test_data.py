@@ -5,7 +5,7 @@ import pandas as pd
 import glob
 from nltools.simulator import Simulator
 from nltools.data import Brain_Data, Adjacency, Groupby
-from nltools.data import threshold
+from nltools.stats import threshold
 from nltools.mask import create_sphere
 from sklearn.metrics import pairwise_distances
 import matplotlib
