@@ -24,6 +24,7 @@ from nltools.stats import pearson,fdr,threshold, fisher_r_to_z, correlation_perm
 from nltools.mask import expand_mask,collapse_mask
 from nltools.analysis import Roc
 from nltools.utils import download_nifti
+from nltools.data import Groupby
 from nilearn.input_data import NiftiMasker
 from nilearn.image import resample_img
 from nilearn.masking import intersect_masks
