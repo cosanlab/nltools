@@ -6,8 +6,6 @@ __all__ = [ 'data',
 			'utils',  
 			'pbs_job', 
 			'masks',
-			'interfaces',
-			'pipelines',
 			'__version__']
 
 from analysis import Roc
