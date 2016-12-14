@@ -5,7 +5,7 @@ import pandas as pd
 import glob
 from nltools.simulator import Simulator
 from nltools.data import Brain_Data, Adjacency, Groupby
-from nltools.data import threshold
+from nltools.stats import threshold
 from nltools.mask import create_sphere
 from sklearn.metrics import pairwise_distances
 import matplotlib
@@ -216,6 +216,11 @@ def test_adjacency(tmpdir):
 
     # Test similarity
     assert len(dat_multiple.similarity(dat_single.squareform()))==len(dat_multiple)
+
+    # Test distance
+    assert dat_multiple.distance().shape[0] == len(dat_multiple)
+    assert dat_multiple.distance()[0,1] == 0.0
+    assert type(dat_multiple.distance()) == np.ndarray
 
     # Test ttest
     mn,p = dat_multiple.ttest()

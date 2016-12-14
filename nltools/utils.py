@@ -9,6 +9,7 @@ import pandas as pd
 import nibabel as nib
 import importlib
 import os
+import requests
 
 def get_resource_path():
     """ Get path to nltools resource directory. """
@@ -134,4 +135,16 @@ def get_vox_dims(volume):
     voxdims = hdr.get_zooms()
     return [float(voxdims[0]), float(voxdims[1]), float(voxdims[2])]
 
+def download_nifti(url,base_dir=None):
+    local_filename = url.split('/')[-1]
+    if base_dir is not None:
+        if not os.path.isdir(base_dir):
+            os.makedirs(base_dir)
+        local_filename = os.path.join(base_dir,local_filename)
+    r = requests.get(url, stream=True)
+    with open(local_filename, 'wb') as f:
+        for chunk in r.iter_content(chunk_size=1024): 
+            if chunk: # filter out keep-alive new chunks
+                f.write(chunk)
+    return nib.load(local_filename)
 
