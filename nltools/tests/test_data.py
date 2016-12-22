@@ -158,6 +158,18 @@ def test_brain_data(tmpdir):
     assert isinstance(mn,Brain_Data)
     assert len(mn.shape())==1
 
+    # Test Threshold
+    s1 = create_sphere([45, 55, 45], radius=10)
+    s2 = create_sphere([30, 30, 40], radius=10)
+    mask = Brain_Data(s1)*5
+    mask = mask + Brain_Data(s2)
+
+    m1 = mask.threshold(threshold=.5)
+    m2 = mask.threshold(threshold=3)
+    m3 = mask.threshold(threshold='98%')
+    assert np.sum(m1.data>0) > np.sum(m2.data>0)
+    assert np.sum(m1.data>0) == np.sum(m3.data>0)
+
     # # Test Plot
     # dat.plot()
     
