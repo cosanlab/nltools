@@ -94,7 +94,8 @@ def test_brain_data(tmpdir):
 
     # Test distance
     distance = dat.distance(method='euclidean')
-    assert distance.shape==(shape_2d[0],shape_2d[0])
+    assert isinstance(distance,Adjacency)
+    assert distance.square_shape()[0]==shape_2d[0]
 
     # Test predict
     stats = dat.predict(algorithm='svm', cv_dict={'type': 'kfolds','n_folds': 2, 'n':len(dat.Y)}, plot=False,**{'kernel':"linear"})

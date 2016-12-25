@@ -550,7 +550,7 @@ class Brain_Data(object):
 
         """
 
-        return pairwise_distances(self.data, metric = method, n_jobs=1)
+        return Adjacency(pairwise_distances(self.data, metric = method, **kwargs), matrix_type='Distance')
 
 
     def multivariate_similarity(self, images, method='ols'):
