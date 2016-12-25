@@ -26,6 +26,7 @@ from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
 from nilearn.image import resample_img
 from nilearn.masking import intersect_masks
+from nilearn.regions import connected_regions
 from nilearn.plotting.img_plotting import plot_epi, plot_roi, plot_stat_map
 from copy import deepcopy
 import pandas as pd
@@ -1088,7 +1089,16 @@ class Brain_Data(object):
         return self.data.dtype
 
     def astype(self,dtype):
-        ''' Cast Brain_Data.data as type.'''
+        ''' Cast Brain_Data.data as type.
+
+        Args:
+            dtype: datatype to convert
+
+        Returns:
+            Brain_Data: Brain_Data instance with new datatype
+        
+        '''
+
         out = self.copy()
         out.data = out.data.astype(dtype)
         return out
@@ -1102,6 +1112,50 @@ class Brain_Data(object):
         dat = self.groupby(mask)
         values = dat.apply(func)
         return dat.combine(values)
+
+    def threshold(self, threshold=0, binarize=False):
+        '''Threshold Brain_Data instance
+        
+        Args:
+            threshold: cutoff to threshold image (float).  if 'threshold'=50%, will calculate percentile.
+            binarize (bool): if 'binarize'=True then binarize output
+        Returns:
+            Brain_Data: thresholded Brain_Data instance
+        
+        '''
+
+        b = self.copy()
+        if isinstance(threshold,str):
+            if threshold[-1] is '%':
+                threshold = np.percentile(b.data, float(threshold[:-1]))
+        if binarize:
+            b.data = b.data>threshold
+        else:
+            b.data[b.data<threshold] = 0
+        return b
+
+    def regions(self, min_region_size=1350, extract_type = 'local_regions', smoothing_fwhm = 6):
+        ''' Extract brain connected regions into separate regions.
+
+        Args:
+            min_region_size (int): Minimum volume in mm3 for a region to be kept. 
+            extract_type (str): Type of extraction method ['connected_components', 'local_regions'].
+                                If 'connected_components', each component/region in the image is extracted 
+                                automatically by labelling each region based upon the presence of unique 
+                                features in their respective regions. If 'local_regions', each 
+                                component/region is extracted based on their maximum peak value to define 
+                                a seed marker and then using random walker segementation algorithm on these 
+                                markers for region separation.
+            smoothing_fwhm (scalar): Smooth an image to extract more sparser regions. 
+                                    Only works for extract_type 'local_regions'.
+
+        Returns:
+            Brain_Data: Brain_Data instance with extracted ROIs as data.
+        '''
+
+        regions, index = connected_regions(self.to_nifti(), min_region_size, extract_type, smoothing_fwhm)
+        return Brain_Data(regions)
+
 
 class Adjacency(object):
     def __init__(self, data=None, Y = None, matrix_type=None, **kwargs):
