@@ -94,7 +94,8 @@ def test_brain_data(tmpdir):
 
     # Test distance
     distance = dat.distance(method='euclidean')
-    assert distance.shape==(shape_2d[0],shape_2d[0])
+    assert isinstance(distance,Adjacency)
+    assert distance.square_shape()[0]==shape_2d[0]
 
     # Test predict
     stats = dat.predict(algorithm='svm', cv_dict={'type': 'kfolds','n_folds': 2, 'n':len(dat.Y)}, plot=False,**{'kernel':"linear"})
@@ -102,10 +103,9 @@ def test_brain_data(tmpdir):
     # Support Vector Regression, with 5 fold cross-validation with Platt Scaling
     # This will output probabilities of each class
     stats = dat.predict(algorithm='svm', cv_dict=None, plot=False,**{'kernel':'linear','probability':True})
-
     assert isinstance(stats['weight_map'],Brain_Data)
-    # Logistic classificiation, with 5 fold stratified cross-validation.  
 
+    # Logistic classificiation, with 5 fold stratified cross-validation.  
     stats = dat.predict(algorithm='logistic', cv_dict={'type': 'kfolds','n_folds': 5, 'n':len(dat.Y)}, plot=False)
     assert isinstance(stats['weight_map'],Brain_Data)
 
@@ -157,6 +157,26 @@ def test_brain_data(tmpdir):
     mn = dat.aggregate(mask,'mean')
     assert isinstance(mn,Brain_Data)
     assert len(mn.shape())==1
+
+    # Test Threshold
+    s1 = create_sphere([45, 55, 45], radius=10)
+    s2 = create_sphere([30, 30, 40], radius=10)
+    mask = Brain_Data(s1)*5
+    mask = mask + Brain_Data(s2)
+
+    m1 = mask.threshold(threshold=.5)
+    m2 = mask.threshold(threshold=3)
+    m3 = mask.threshold(threshold='98%')
+    assert np.sum(m1.data>0) > np.sum(m2.data>0)
+    assert np.sum(m1.data>0) == np.sum(m3.data>0)
+
+    # Test Regions
+    r = mask.regions(min_region_size=10)
+    m1 = Brain_Data(s1)
+    m2 = r[1].threshold(1,binarize=True)
+    assert len(r)==2
+    diff = m2-m1
+    assert np.sum(diff.data)==0
 
     # # Test Plot
     # dat.plot()
