@@ -1,5 +1,3 @@
-nibabel
-nltools
 mock
 sphinx-gallery
 sphinxcontrib-napoleon
