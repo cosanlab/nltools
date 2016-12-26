@@ -1,5 +1,5 @@
 """ 
-Basic nltools example: Downloading data
+Basic Data Operations
 =======================================
 
 A simple example showing how to download a dataset from neurovault
