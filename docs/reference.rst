@@ -25,6 +25,12 @@ methods in the current release of Neurolearn.
 .. automodule:: nltools.stats
     :members:
 
+:mod:`nltools.datasets`: Dataset Tools
+===============================
+
+.. automodule:: nltools.datasets
+    :members:
+
 :mod:`nltools.cross_validation`: Cross-Validation Tools
 =======================================================
 
