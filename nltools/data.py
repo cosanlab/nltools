@@ -23,6 +23,7 @@ from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability
 from nltools.stats import pearson,fdr,threshold, fisher_r_to_z, correlation_permutation,one_sample_permutation,two_sample_permutation
 from nltools.mask import expand_mask,collapse_mask
 from nltools.analysis import Roc
+from nltools.datasets import download_nifti
 from nilearn.input_data import NiftiMasker
 from nilearn.image import resample_img
 from nilearn.masking import intersect_masks
@@ -1422,6 +1423,17 @@ class Adjacency(object):
         else:
             return [correlation_permutation(x.data, data2.data,**kwargs) for x in self]
 
+    def distance(self, method='correlation', **kwargs):
+        """ Calculate distance between images within an Adjacency() instance.
+
+        Args:
+            method: type of distance metric (can use any scikit learn or sciypy metric)
+
+        Returns:
+            dist: Outputs a 2D distance matrix.
+        """
+        return Adjacency(pairwise_distances(self.data, metric = method, **kwargs),matrix_type='distance')
+
     def ttest(self, **kwargs):
         ''' Calculate ttest across samples. '''
         if self.is_single_matrix:
@@ -1578,19 +1590,6 @@ class Groupby(object):
             else:
                 raise ValueError('No method for aggregation implented for %s yet.' % type(value_dict[i]))
         return out.sum()
-
-def download_nifti(url,base_dir=None):
-    local_filename = url.split('/')[-1]
-    if base_dir is not None:
-        if not os.path.isdir(base_dir):
-            os.makedirs(base_dir)
-        local_filename = os.path.join(base_dir,local_filename)
-    r = requests.get(url, stream=True)
-    with open(local_filename, 'wb') as f:
-        for chunk in r.iter_content(chunk_size=1024): 
-            if chunk: # filter out keep-alive new chunks
-                f.write(chunk)
-    return nib.load(local_filename)
 
 def all_same(items):
     return np.all(x == items[0] for x in items)
