@@ -24,7 +24,7 @@ import sphinx_gallery
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('../'))
 
-version = '0.2.4'
+version = '0.2.5'
 
 # ReadTheDocks doesn't support necessary C dependencies (e.g., Atlas), so we
 # mock them out per https://docs.readthedocs.org/en/latest/faq.html#i-get-import-errors-on-libraries-that-depend-on-c-modules.
@@ -36,7 +36,7 @@ class Mock(MagicMock):
             return Mock()
 
 # # To keep compatibility with RTD and for sphinx to build properly this list needs to be updated if new modules are utilized anywhere in the project code
-# MOCK_MODULES = [
+MOCK_MODULES = [
 # 'cPickle',
 # 'distutils',
 # 'distutils.version',
@@ -51,7 +51,7 @@ class Mock(MagicMock):
 # 'mne.stats',
 # 'mne.stats.spatio_temporal_cluster_1samp_test', 
 # 'mne.stats.ttest_1samp_no_p',
-# 'nibabel', 
+'nibabel', 
 # 'nilearn',
 # 'nilearn.plotting', 
 # 'nilearn.plotting.img_plotting',
@@ -64,31 +64,11 @@ class Mock(MagicMock):
 # 'nilearn.masking.intersec_masks',
 # 'nilearn.input_data',
 # 'nilearn.input_data.NiftiMasker',
-# 'nipype',
-# 'nipype.algorithms',
-# 'nipype.algorithms.rapidart',
-# 'nipype.interfaces.base.traits',
-# 'nipype.interfaces.base',
-# 'nipype.interfaces.base.isdefined',
-# 'nipype.interfaces.base.BaseInterface',
-# 'nipype.interfaces.base.TraitedSpec',
-# 'nipype.interfaces.base.File',
-# 'nipype.interfaces.io',
-# 'nipype.interfaces.matlab',
-# 'nipype.interfaces.nipy',
-# 'nipype.interfaces.nipy.preprocess',
-# 'nipype.interfaces.nipy.preprocess.ComputeMask',
-# 'nipype.interfaces.spm',
-# 'nipype.interfaces.utility',
-# 'nipype.pipeline',
-# 'nipype.pipeline.engine',
-# 'nipype.pipeline.engine.Node',
-# 'nipype.pipeline.engine.Workflow',
-# 'numpy',
-# 'pandas', 
+'numpy',
+'pandas', 
 # 'pyneurovault_upload',
 # 'pyneurovault_upload.Client',
-# 'scipy',
+'scipy',
 # 'scipy.signal',
 # 'scipy.signal.detrend',
 # 'scipy.stats',
@@ -96,7 +76,7 @@ class Mock(MagicMock):
 # 'scipy.stats.t',
 # 'scipy.stats.norm',
 # 'scipy.stats.binom_test',
-# 'seaborn',
+'seaborn',
 # 'sklearn',
 # 'sklearn.base',
 # 'sklearn.base.BaseEstimator',
@@ -119,7 +99,7 @@ class Mock(MagicMock):
 # 'sklearn.cross_validation.check_random_state',
 # 'sklearn.cross_validation.cross_val_score',
 # 'sklearn.cross_validation.KFold'
-# ]
+]
 
 # sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
