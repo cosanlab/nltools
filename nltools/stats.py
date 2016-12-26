@@ -277,6 +277,7 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman'):
             data2: Pandas DataFrame or Series or numpy array
             n_permute: (int) number of permutations
             metric: (str) type of association metric ['spearman','pearson']
+            
         Returns:
             stats: (dict) dictionary of permutation results ['correlation','p']
     
