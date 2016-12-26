@@ -551,8 +551,7 @@ class Brain_Data(object):
 
         """
 
-        return pairwise_distances(self.data, metric = method, n_jobs=1)
-
+        return Adjacency(pairwise_distances(self.data, metric = method, **kwargs), matrix_type='Distance')
 
     def multivariate_similarity(self, images, method='ols'):
         """ Predict spatial distribution of Brain_Data() instance from linear combination of other Brain_Data() instances or Nibabel images
