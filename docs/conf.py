@@ -36,7 +36,7 @@ class Mock(MagicMock):
             return Mock()
 
 # # To keep compatibility with RTD and for sphinx to build properly this list needs to be updated if new modules are utilized anywhere in the project code
-MOCK_MODULES = [
+# MOCK_MODULES = [
 # 'cPickle',
 # 'distutils',
 # 'distutils.version',
@@ -51,7 +51,7 @@ MOCK_MODULES = [
 # 'mne.stats',
 # 'mne.stats.spatio_temporal_cluster_1samp_test', 
 # 'mne.stats.ttest_1samp_no_p',
-'nibabel', 
+# 'nibabel', 
 # 'nilearn',
 # 'nilearn.plotting', 
 # 'nilearn.plotting.img_plotting',
@@ -64,11 +64,11 @@ MOCK_MODULES = [
 # 'nilearn.masking.intersec_masks',
 # 'nilearn.input_data',
 # 'nilearn.input_data.NiftiMasker',
-'numpy',
-'pandas', 
+# 'numpy',
+# 'pandas', 
 # 'pyneurovault_upload',
 # 'pyneurovault_upload.Client',
-'scipy',
+# 'scipy',
 # 'scipy.signal',
 # 'scipy.signal.detrend',
 # 'scipy.stats',
@@ -76,7 +76,7 @@ MOCK_MODULES = [
 # 'scipy.stats.t',
 # 'scipy.stats.norm',
 # 'scipy.stats.binom_test',
-'seaborn',
+# 'seaborn',
 # 'sklearn',
 # 'sklearn.base',
 # 'sklearn.base.BaseEstimator',
@@ -99,7 +99,7 @@ MOCK_MODULES = [
 # 'sklearn.cross_validation.check_random_state',
 # 'sklearn.cross_validation.cross_val_score',
 # 'sklearn.cross_validation.KFold'
-]
+# ]
 
 # sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
