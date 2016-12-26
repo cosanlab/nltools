@@ -1,5 +1,5 @@
 """
-Example of two level univariate regression on simulated data
+Univariate Regression
 ============================================================
 
 This example simulates data according to a very simple sketch of brain
@@ -7,66 +7,68 @@ imaging data and applies a standard two-level univariate GLM to identify
 significant voxels.
 
 """
-#
-# Load Modules
 
-import glob
-import numpy as np
-import pandas as pd
-import seaborn as sns
-import os
-import sys
-from nltools.simulator import Simulator
-from nltools.utils import get_resource_path, get_anatomical
-from nltools.analysis import Roc
-from nltools.data import Brain_Data
-from nltools.stats import threshold
-from nltools.mask import create_sphere
-import matplotlib.pyplot as plt
-import shutil
-import tempfile
+#########################################################################
+# Download pain dataset from neurovault
+# ---------------------------------------------------
+# 
+# Here we fetch the pain dataset used in Chang et al., 2015.  In this dataset
+# there are 28 subjects with 3 separate beta images reflecting varying intensities
+# of thermal pain (i.e., high, medium, low).  The data will be downloaded to ~/nilearn_data,
+# and automatically loaded as a Brain_Data() instance.  The metadata will be stored in data.X.
 
-tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
+from nltools.datasets import fetch_pain
 
-###############################################################################
-# Create data
+data = fetch_pain()
+metadata = data.X.copy()
+subject_id = metadata['SubjectID']
 
-sim = Simulator()
-r=10
-sigma = .5
-cor = .8
-cov = .6
-n_trials = 10
-n_subs = 5
-s1 = create_sphere([41, 64, 55], radius=r)
-sim.create_cov_data(cor, cov, sigma, mask=s1, reps = n_trials, n_sub = n_subs, output_dir = tmp_dir)
+#########################################################################
+# Run Univariate Regression
+# ---------------------------------------------------
+# 
+# We can loop over subjects and predict the intensity of each voxel from a 
+# simple model of pain intensity and an intercept.  This is just for illustration
+# purposes as there are only 3 observations per subject.  We initialize an empty
+# Brain_Data() instance and loop over all subjects running a univariate regression 
+# separately for each participant.  We aggregate the beta estimates for pain intensity
+# across subjects.
 
-###############################################################################
-# Load data
+all_sub = Brain_Data()
+for s in subject_id.unique():
+    sdat = data[np.where(metadata['SubjectID']==s)[0]]
+    sdat.X = pd.DataFrame(data={'Intercept':np.ones(sdat.shape()[0]),'Pain':sdat.X['PainLevel']})
+    stats = sdat.regress()
+    all_sub = all_sub.append(stats['beta'][1])
 
-y=pd.read_csv(os.path.join(tmp_dir,'y.csv'),header=None,index_col=None).T
-dat = Brain_Data(data=os.path.join(tmp_dir,'maskdata_cor0.8_cov0.6_sigma0.5.nii.gz'),Y=y)
-dat.X = pd.DataFrame({'Intercept':np.ones(len(dat.Y)),'X1':np.array(dat.Y).flatten()},index=None)
-holdout = pd.read_csv(os.path.join(tmp_dir,'rep_id.csv'),header=None,index_col=None).T
+#########################################################################
+# We can now run a one-sample t-test at every voxel to test whether it is 
+# significantly different from zero across participants.  We will threshold
+# the results using FDR correction, q < 0.001.
 
-###############################################################################
-# Run Regression separately for each subject
+t_stats = all_sub.ttest(threshold_dict={'fdr':.001})
+t_stats['thr_t'].plot()
 
-start = 0
-stop = n_trials
-dat.X = pd.DataFrame({'Intercept':np.ones(len(dat.Y)),'X1':np.array(dat.Y).flatten()},index=None)
-all = dat.empty()
-for i in xrange(n_subs):
-    sub_out = dat[start:stop].regress()
-    start = start + n_trials
-    stop = stop + n_trials
-    tmp = sub_out['beta'].empty(data=False)[1]
-    all = all.append(tmp)
+#########################################################################
+# Run Linear Contrast
+# ---------------------------------------------------
+# 
+# Obviously, the univariate regression isn't a great idea when there are only
+# three observations per subject.  As we predict a monotonic increase in pain
+# across pain intensities, we can also calculate a linear contrast c=(-1,0,1).
+# This is simple using matrix multiplication on the centered pain intensity values.
 
-###############################################################################
-# Run One sample t-test
+all_sub = Brain_Data()
+for s in subject_id.unique():
+    sdat = data[np.where(metadata['SubjectID']==s)[0]]
+    sdat.X = pd.DataFrame(data={'Pain':sdat.X['PainLevel']})
+    sdat.data = np.dot(sdat.data.T,sdat.X['Pain']-2)
+    all_sub = all_sub.append(sdat)
 
-l2 = all.ttest(threshold_dict={'fdr':.05})
-l2['thr_t'].plot()
+#########################################################################
+# We can again run a one-sample t-test at every voxel using an FDR threshold
+# of q < 0.001.
 
-shutil.rmtree(tmp_dir, ignore_errors=True) # Delete Data
+t_stats = all_sub.ttest(threshold_dict={'fdr':.001})
+t_stats['thr_t'].plot()
+
