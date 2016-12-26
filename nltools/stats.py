@@ -209,9 +209,10 @@ def downsample(data,sampling_freq=None, target=None, target_type='samples'):
     else:
         raise ValueError('Make sure target_type is "samples", "seconds", or "hz".')
 
-    idx = np.sort(np.repeat(np.arange(1,(data.shape[0]/n_samples)+1,1),n_samples))
-    if data.shape[0] % n_samples:
-        idx = np.concatenate([idx, np.repeat(idx[-1],data.shape[0]-len(idx))])
+    idx = np.sort(np.repeat(np.arange(1,data.shape[0]/n_samples,1),n_samples))
+    # if data.shape[0] % n_samples:
+    if data.shape[0] > len(idx):
+        idx = np.concatenate([idx, np.repeat(idx[-1]+1,data.shape[0]-len(idx))])
     return data.groupby(idx).mean()
 
 def fisher_r_to_z(r):
