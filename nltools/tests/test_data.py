@@ -103,10 +103,9 @@ def test_brain_data(tmpdir):
     # Support Vector Regression, with 5 fold cross-validation with Platt Scaling
     # This will output probabilities of each class
     stats = dat.predict(algorithm='svm', cv_dict=None, plot=False,**{'kernel':'linear','probability':True})
-
     assert isinstance(stats['weight_map'],Brain_Data)
-    # Logistic classificiation, with 5 fold stratified cross-validation.  
 
+    # Logistic classificiation, with 5 fold stratified cross-validation.  
     stats = dat.predict(algorithm='logistic', cv_dict={'type': 'kfolds','n_folds': 5, 'n':len(dat.Y)}, plot=False)
     assert isinstance(stats['weight_map'],Brain_Data)
 
