@@ -43,7 +43,7 @@ methods in the current release of Neurolearn.
 :mod:`nltools.mask`: Mask Tools
 ===============================
 
-.. automodule:: nltools.Mask
+.. automodule:: nltools.mask
     :members:
 
 :mod:`nltools.util`: Utilities

@@ -16,11 +16,16 @@ import sys
 import os
 import shlex
 from mock import Mock as MagicMock
+sys.path.insert(0, os.path.abspath('sphinxext'))
+import sphinx_gallery
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('../'))
+
+version = '0.2.5'
+
 # ReadTheDocks doesn't support necessary C dependencies (e.g., Atlas), so we
 # mock them out per https://docs.readthedocs.org/en/latest/faq.html#i-get-import-errors-on-libraries-that-depend-on-c-modules.
 
@@ -30,93 +35,73 @@ class Mock(MagicMock):
     def __getattr__(cls, name):
             return Mock()
 
-# To keep compatibility with RTD and for sphinx to build properly this list needs to be updated if new modules are utilized anywhere in the project code
-MOCK_MODULES = [
-'cPickle',
-'distutils',
-'distutils.version',
-'distutils.version.LooseVersion',
-'IPython',
-'IPython.display',
-'IPython.display.Image',
-'importlib',
-'matplotlib', 
-'matplotlib.pyplot',
-'mne',
-'mne.stats',
-'mne.stats.spatio_temporal_cluster_1samp_test', 
-'mne.stats.ttest_1samp_no_p',
-'nibabel', 
-'nilearn',
-'nilearn.plotting', 
-'nilearn.plotting.img_plotting',
-'nilearn.plotting.img_plotting.plot_epi',
-'nilearn.plotting.img_plotting.plot_roi',
-'nilearn.plotting.img_plotting.plot_stat_map',
-'nilearn.image',
-'nilearn.image.resample_img',
-'nilearn.masking',
-'nilearn.masking.intersec_masks',
-'nilearn.input_data',
-'nilearn.input_data.NiftiMasker',
-'nipype',
-'nipype.algorithms',
-'nipype.algorithms.rapidart',
-'nipype.interfaces.base.traits',
-'nipype.interfaces.base',
-'nipype.interfaces.base.isdefined',
-'nipype.interfaces.base.BaseInterface',
-'nipype.interfaces.base.TraitedSpec',
-'nipype.interfaces.base.File',
-'nipype.interfaces.io',
-'nipype.interfaces.matlab',
-'nipype.interfaces.nipy',
-'nipype.interfaces.nipy.preprocess',
-'nipype.interfaces.nipy.preprocess.ComputeMask',
-'nipype.interfaces.spm',
-'nipype.interfaces.utility',
-'nipype.pipeline',
-'nipype.pipeline.engine',
-'nipype.pipeline.engine.Node',
-'nipype.pipeline.engine.Workflow',
-'numpy',
-'pandas', 
-'pyneurovault_upload',
-'pyneurovault_upload.Client',
-'scipy',
-'scipy.signal',
-'scipy.signal.detrend',
-'scipy.stats',
-'scipy.stats.ttest_1samp',
-'scipy.stats.t',
-'scipy.stats.norm',
-'scipy.stats.binom_test',
-'seaborn',
-'sklearn',
-'sklearn.base',
-'sklearn.base.BaseEstimator',
-'sklearn.externals',
-'sklearn.externals.joblib',
-'sklearn.externals.joblib.Parallel',
-'sklearn.externals.joblib.delayed',
-'sklearn.externals.joblib.cpu_count',
-'sklearn.metrics',
-'sklearn.metrics.auc',
-'sklearn.metrics.pairwise',
-'sklearn.metrics.pairwise.pairwise_distances', 
-'sklearn.neighbors',
-'sklearn.pipeline',
-'sklearn.pipeline.Pipeline',
-'sklearn.svm',
-'sklearn.svm.SVR',
-'sklearn.cross_validation',
-'sklearn.cross_validation._BaseKFold',
-'sklearn.cross_validation.check_random_state',
-'sklearn.cross_validation.cross_val_score',
-'sklearn.cross_validation.KFold'
-]
+# # To keep compatibility with RTD and for sphinx to build properly this list needs to be updated if new modules are utilized anywhere in the project code
+# MOCK_MODULES = [
+# 'cPickle',
+# 'distutils',
+# 'distutils.version',
+# 'distutils.version.LooseVersion',
+# 'IPython',
+# 'IPython.display',
+# 'IPython.display.Image',
+# 'importlib',
+# 'matplotlib', 
+# 'matplotlib.pyplot',
+# 'mne',
+# 'mne.stats',
+# 'mne.stats.spatio_temporal_cluster_1samp_test', 
+# 'mne.stats.ttest_1samp_no_p',
+# 'nibabel', 
+# 'nilearn',
+# 'nilearn.plotting', 
+# 'nilearn.plotting.img_plotting',
+# 'nilearn.plotting.img_plotting.plot_epi',
+# 'nilearn.plotting.img_plotting.plot_roi',
+# 'nilearn.plotting.img_plotting.plot_stat_map',
+# 'nilearn.image',
+# 'nilearn.image.resample_img',
+# 'nilearn.masking',
+# 'nilearn.masking.intersec_masks',
+# 'nilearn.input_data',
+# 'nilearn.input_data.NiftiMasker',
+# 'numpy',
+# 'pandas', 
+# 'pyneurovault_upload',
+# 'pyneurovault_upload.Client',
+# 'scipy',
+# 'scipy.signal',
+# 'scipy.signal.detrend',
+# 'scipy.stats',
+# 'scipy.stats.ttest_1samp',
+# 'scipy.stats.t',
+# 'scipy.stats.norm',
+# 'scipy.stats.binom_test',
+# 'seaborn',
+# 'sklearn',
+# 'sklearn.base',
+# 'sklearn.base.BaseEstimator',
+# 'sklearn.externals',
+# 'sklearn.externals.joblib',
+# 'sklearn.externals.joblib.Parallel',
+# 'sklearn.externals.joblib.delayed',
+# 'sklearn.externals.joblib.cpu_count',
+# 'sklearn.metrics',
+# 'sklearn.metrics.auc',
+# 'sklearn.metrics.pairwise',
+# 'sklearn.metrics.pairwise.pairwise_distances', 
+# 'sklearn.neighbors',
+# 'sklearn.pipeline',
+# 'sklearn.pipeline.Pipeline',
+# 'sklearn.svm',
+# 'sklearn.svm.SVR',
+# 'sklearn.cross_validation',
+# 'sklearn.cross_validation._BaseKFold',
+# 'sklearn.cross_validation.check_random_state',
+# 'sklearn.cross_validation.cross_val_score',
+# 'sklearn.cross_validation.KFold'
+# ]
 
-sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+# sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 # -- General configuration ------------------------------------------------
 
@@ -130,11 +115,29 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinxcontrib.napoleon',
-    'sphinx.ext.viewcode'
-]
+    'sphinx.ext.viewcode',
+    'sphinx_gallery.gen_gallery'
+ ]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
+
+# Paths for sphinx gallery auto generated examples
+sphinx_gallery_conf = {
+    # path to your examples scripts
+    'examples_dirs' : '../examples',
+    # path where to save gallery generated examples
+    'gallery_dirs'  : 'auto_examples'}
+
+sphinx_gallery_conf = {
+    'download_section_examples'  : True}
+
+
+# Generate the plots for the gallery
+plot_gallery = True
+
+# generate autosummary even if no references
+autosummary_generate = True
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
@@ -157,9 +160,10 @@ author = u'Luke Chang'
 # built documents.
 #
 # The short X.Y version.
-version = '.1'
+version = version
+
 # The full version, including alpha/beta/rc tags.
-release = '.1'
+release = version
 
 # The language for content autogenerated by Sphinx. Refer to documentation
 # for a list of supported languages.
