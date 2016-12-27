@@ -3,7 +3,7 @@
 .. _sphx_glr_auto_examples_01_DataOperations_plot_download.py:
 
  
-Basic nltools example: Downloading data
+Basic Data Operations
 =======================================
 
 A simple example showing how to download a dataset from neurovault
@@ -200,7 +200,7 @@ There is also a fast montage plotting method.  Here we plot the average image
 
 
 
-**Total running time of the script:** ( 0 minutes  27.678 seconds)
+**Total running time of the script:** ( 0 minutes  25.299 seconds)
 
 
 

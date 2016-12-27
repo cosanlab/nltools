@@ -8,7 +8,12 @@
 ## Notes:
 # Need to figure out how to speed up loading and resampling of data
 
-__all__ = ['Brain_Data']
+__all__ = ['download_nifti',
+			'get_collection_image_metadata',
+			'download_collection',
+			'fetch_emotion_ratings',
+			'fetch_pain'
+			]
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
@@ -20,7 +25,6 @@ import warnings
 import shutil
 import tempfile
 from nltools.data import Brain_Data
-import tempfile
 from nilearn.datasets.utils import (_get_dataset_dir,_fetch_file)
 
 # Optional dependencies
@@ -92,6 +96,9 @@ def download_collection(collection=None, data_dir=None, overwrite=False,
 
 	'''
 	
+	if data_dir is None:
+		data_dir = _get_dataset_dir(str(collection), data_dir=data_dir,verbose=verbose)
+
 	# Get collection Metadata
 	metadata = get_collection_image_metadata(collection=collection,data_dir=data_dir)
 
