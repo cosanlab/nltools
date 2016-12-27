@@ -10,7 +10,9 @@ from __future__ import division
 ## Notes:
 # Need to figure out how to speed up loading and resampling of data
 
-__all__ = ['Brain_Data']
+__all__ = ['Brain_Data',
+            'Adjacency',
+            'Groupby']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
@@ -36,7 +38,6 @@ from scipy.signal import detrend
 from scipy.spatial.distance import squareform
 import six
 import sklearn
-from sklearn.pipeline import Pipeline
 from sklearn.metrics.pairwise import pairwise_distances
 from nltools.pbs_job import PBS_Job
 import warnings
@@ -92,10 +93,10 @@ class Brain_Data(object):
         if data is not None:
             if isinstance(data,(str,unicode)):
                 if 'http://' in data:
+                    from nltools.datasets import download_nifti
                     tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
                     os.makedirs(tmp_dir)
-                    data=download_nifti(data,base_dir=tmp_dir)
-                    shutil.rmtree(tmp_dir, ignore_errors=True)
+                    data=nib.load(download_nifti(data,data_dir=tmp_dir))
                 else:
                     data=nib.load(data)
                 self.data = self.nifti_masker.fit_transform(data)
@@ -1422,6 +1423,17 @@ class Adjacency(object):
         else:
             return [correlation_permutation(x.data, data2.data,**kwargs) for x in self]
 
+    def distance(self, method='correlation', **kwargs):
+        """ Calculate distance between images within an Adjacency() instance.
+
+        Args:
+            method: type of distance metric (can use any scikit learn or sciypy metric)
+
+        Returns:
+            dist: Outputs a 2D distance matrix.
+        """
+        return Adjacency(pairwise_distances(self.data, metric = method, **kwargs),matrix_type='distance')
+
     def ttest(self, **kwargs):
         ''' Calculate ttest across samples. '''
         if self.is_single_matrix:
@@ -1578,19 +1590,6 @@ class Groupby(object):
             else:
                 raise ValueError('No method for aggregation implented for %s yet.' % type(value_dict[i]))
         return out.sum()
-
-def download_nifti(url,base_dir=None):
-    local_filename = url.split('/')[-1]
-    if base_dir is not None:
-        if not os.path.isdir(base_dir):
-            os.makedirs(base_dir)
-        local_filename = os.path.join(base_dir,local_filename)
-    r = requests.get(url, stream=True)
-    with open(local_filename, 'wb') as f:
-        for chunk in r.iter_content(chunk_size=1024): 
-            if chunk: # filter out keep-alive new chunks
-                f.write(chunk)
-    return nib.load(local_filename)
 
 def all_same(items):
     return np.all(x == items[0] for x in items)
