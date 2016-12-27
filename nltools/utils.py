@@ -9,6 +9,7 @@ import pandas as pd
 import nibabel as nib
 import importlib
 import os
+from sklearn.pipeline import Pipeline
 
 def get_resource_path():
     """ Get path to nltools resource directory. """
@@ -84,7 +85,7 @@ def set_algorithm(algorithm, **kwargs):
         from sklearn.decomposition import PCA
         predictor_settings['_regress'] = LinearRegression()
         predictor_settings['_pca'] = PCA()
-        self.predictor = Pipeline(steps=[('pca', predictor_settings['_pca']), ('regress', predictor_settings['_regress'])])
+        predictor_settings['predictor'] = Pipeline(steps=[('pca', predictor_settings['_pca']), ('regress', predictor_settings['_regress'])])
     else:
         raise ValueError("""Invalid prediction/classification algorithm name. Valid
             options are 'svm','svr', 'linear', 'logistic', 'lasso', 'lassopcr',
