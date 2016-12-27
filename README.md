@@ -2,7 +2,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/ljchang/nltools/badge.svg?branch=master)](https://coveralls.io/github/ljchang/nltools?branch=master)
 [![Documentation Status](https://readthedocs.org/projects/neurolearn/badge/?version=latest)](http://neurolearn.readthedocs.io/en/latest/?badge=latest)
 
-# ''NLTools
+# NLTools
 Python toolbox for analyzing neuroimaging data.  It is based off of Tor Wager's object oriented matlab [canlab core tools](http://wagerlab.colorado.edu/tools) and relies heavily on [nilearn](http://nilearn.github.io) and [scikit learn](http://scikit-learn.org/stable/index.html)
 
 ### Installation
@@ -45,7 +45,7 @@ nltools requires several dependencies.  All are available in pypi.  Can use `pip
 ### Documentation
 Current Documentation can be found at [readthedocs](http://neurolearn.readthedocs.org/en/latest).  
 
-Please see our [jupyter notebook](https://github.com/ljchang/neurolearn/blob/master/scripts/NLTools_Brain_Data_Class_Tutorial.ipynb), which provides a detailed overview of how to use the main *Brain_Data* class.  
+Please see our [tutorials](http://neurolearn.readthedocs.io/en/latest/auto_examples/index.html), which provide numerous examples for how to use the toolbox.  
 
 ### Brain_Data()
 
