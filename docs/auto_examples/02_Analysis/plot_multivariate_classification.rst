@@ -4,13 +4,13 @@
 
  
 Multivariate Classification
-===========
+===========================
 This tutorial provides an example of how to run classification analyses.
 
 
 
 Load & Prepare Data
----------------------------------------------------
+-------------------
 
 First, let's load the pain data for this example.  We need to create a data 
 object with high and low pain intensities.  These labels need to be specified in the
@@ -40,7 +40,7 @@ so that subject images can be held out together in cross-validation.
 
 
 Classification with Cross-Validation
----------------------------------------------------------
+------------------------------------
 
 We can now train a brain model to classify the different labels specified in dat.Y.
 First, we will use a support vector machine with 5 fold cross-validation in which the 
@@ -79,7 +79,7 @@ estimate the cross-validated predictive accuracy.
  Out::
 
     overall accuracy: 1.00
-    overall CV accuracy: 0.86
+    overall CV accuracy: 0.84
 
 
 SVMs can be converted to predicted probabilities using Platt Scaling
@@ -148,7 +148,7 @@ Standard OLS Logistic Regression.
  Out::
 
     overall accuracy: 1.00
-    overall CV accuracy: 0.77
+    overall CV accuracy: 0.79
 
 
 Ridge classification
@@ -182,7 +182,7 @@ Ridge classification
  Out::
 
     overall accuracy: 1.00
-    overall CV accuracy: 0.84
+    overall CV accuracy: 0.82
 
 
 ROC Analyses
@@ -223,13 +223,13 @@ to run the analysis without plotting.
     ------------------------
     .:ROC Analysis Summary:.
     ------------------------
-    Accuracy:           0.86
-    Accuracy SE:        0.11
+    Accuracy:           0.88
+    Accuracy SE:        0.12
     Accuracy p-value:   0.00
     Sensitivity:        0.86
-    Specificity:        0.86
+    Specificity:        0.89
     AUC:                0.88
-    PPV:                0.86
+    PPV:                0.89
     ------------------------
 
 
@@ -273,7 +273,7 @@ the relative classification accuracy between two images.
     ------------------------
 
 
-**Total running time of the script:** ( 0 minutes  55.945 seconds)
+**Total running time of the script:** ( 0 minutes  56.501 seconds)
 
 
 

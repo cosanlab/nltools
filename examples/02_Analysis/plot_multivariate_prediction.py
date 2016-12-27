@@ -1,6 +1,6 @@
 """ 
 Multivariate Prediction
-===========
+=======================
 Running MVPA style analyses using multivariate regression is even easier and faster 
 than univariate methods. All you need to do is specify the algorithm and 
 cross-validation parameters. Currently, we have several different linear algorithms
@@ -10,7 +10,7 @@ implemented from scikit-learn.
 
 #########################################################################
 # Load Data
-# ---------------------------------------------------
+# ---------
 # 
 # First, let's load the pain data for this example.  We need to specify the
 # training levels.  We will grab the pain intensity variable from the data.X
@@ -23,7 +23,7 @@ data.Y = data.X['PainLevel']
 
 #########################################################################
 # Prediction with Cross-Validation
-# ---------------------------------------------------------
+# --------------------------------
 #
 # We can now predict the output variable is a dictionary of the most 
 # useful output from the prediction analyses. The predict function runs 
@@ -51,7 +51,7 @@ stats['yfit_xval']
 
 #########################################################################
 # Algorithms
-# ---------------------------------------------------
+# ----------
 # 
 # There are several types of linear algorithms implemented including:
 # Support Vector Machines (svr), Principal Components Analysis (pcr), and 
@@ -72,7 +72,7 @@ lasso_stats = data.predict(algorithm='lasso',
 
 #########################################################################
 # Cross-Validation Schemes
-# ---------------------------------------------------
+# ------------------------
 # 
 # There are several different ways to perform cross-validation.  The standard 
 # approach is to use k-folds, where the data is equally divided into k subsets

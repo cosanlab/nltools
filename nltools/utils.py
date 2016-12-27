@@ -1,6 +1,8 @@
 """Handy utilities"""
 
-__all__ = ['get_resource_path','get_anatomical','set_algorithm']
+__all__ = ['get_resource_path',
+            'get_anatomical',
+            'set_algorithm']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 

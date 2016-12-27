@@ -1,13 +1,13 @@
 """ 
 Neurovault I/O
-===========
+==============
 Data can be easily downloaded and uploaded to neurovault.
 
 """
 
 #########################################################################
 # Download a Collection
-# ---------------------------------------------------------
+# ---------------------
 #
 # Entire collections from neurovault can be downloaded along with the
 # accompanying image metadata.  You just need to know the collection ID.
@@ -20,7 +20,7 @@ mask = Brain_Data(files,X=metadata)
 
 #########################################################################
 # Download a Single Image from the Web
-# ---------------------------------------------------------
+# ------------------------------------
 #
 # It's possible to load a single image from a web URL using the Brain_Data 
 # load method.  The files are downloaded to a temporary directory and will 
@@ -36,7 +36,7 @@ plot_glass_brain(mask.to_nifti())
 
 #########################################################################
 # Upload Data to Neurovault
-# ---------------------------------------------------------
+# -------------------------
 #
 # There is a method to easily upload a Brain_Data() instance to 
 # http://neurovault.org.  This requires using your api key, which can be found

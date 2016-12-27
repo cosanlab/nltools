@@ -1,4 +1,3 @@
-
 from __future__ import division
 
 '''
@@ -8,7 +7,10 @@ from __future__ import division
     types of cross-validation
 '''
 
-__all__ = ['KFoldSubject','KFoldStratified','LeaveOneSubjectOut','set_cv']
+__all__ = ['KFoldSubject',
+            'KFoldStratified',
+            'LeaveOneSubjectOut',
+            'set_cv']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 

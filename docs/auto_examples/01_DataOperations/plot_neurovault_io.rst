@@ -4,13 +4,13 @@
 
  
 Neurovault I/O
-===========
+==============
 Data can be easily downloaded and uploaded to neurovault.
 
 
 
 Download a Collection
----------------------------------------------------------
+---------------------
 
 Entire collections from neurovault can be downloaded along with the
 accompanying image metadata.  You just need to know the collection ID.
@@ -33,7 +33,7 @@ accompanying image metadata.  You just need to know the collection ID.
 
 
 Download a Single Image from the Web
----------------------------------------------------------
+------------------------------------
 
 It's possible to load a single image from a web URL using the Brain_Data 
 load method.  The files are downloaded to a temporary directory and will 
@@ -62,7 +62,7 @@ function.
 
 
 Upload Data to Neurovault
----------------------------------------------------------
+-------------------------
 
 There is a method to easily upload a Brain_Data() instance to 
 http://neurovault.org.  This requires using your api key, which can be found
@@ -87,7 +87,7 @@ for additional information.
 
 
 
-**Total running time of the script:** ( 0 minutes  5.028 seconds)
+**Total running time of the script:** ( 0 minutes  4.307 seconds)
 
 
 
