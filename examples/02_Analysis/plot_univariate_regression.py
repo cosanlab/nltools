@@ -1,6 +1,6 @@
 """
 Univariate Regression
-============================================================
+=====================
 
 This example simulates data according to a very simple sketch of brain
 imaging data and applies a standard two-level univariate GLM to identify
@@ -10,7 +10,7 @@ significant voxels.
 
 #########################################################################
 # Download pain dataset from neurovault
-# ---------------------------------------------------
+# -------------------------------------
 # 
 # Here we fetch the pain dataset used in Chang et al., 2015.  In this dataset
 # there are 28 subjects with 3 separate beta images reflecting varying intensities
@@ -25,7 +25,7 @@ subject_id = metadata['SubjectID']
 
 #########################################################################
 # Run Univariate Regression
-# ---------------------------------------------------
+# -------------------------
 # 
 # We can loop over subjects and predict the intensity of each voxel from a 
 # simple model of pain intensity and an intercept.  This is just for illustration
@@ -55,7 +55,7 @@ t_stats['thr_t'].plot()
 
 #########################################################################
 # Run Linear Contrast
-# ---------------------------------------------------
+# -------------------
 # 
 # Obviously, the univariate regression isn't a great idea when there are only
 # three observations per subject.  As we predict a monotonic increase in pain

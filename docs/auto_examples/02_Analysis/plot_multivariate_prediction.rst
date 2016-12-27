@@ -4,7 +4,7 @@
 
  
 Multivariate Prediction
-===========
+=======================
 Running MVPA style analyses using multivariate regression is even easier and faster 
 than univariate methods. All you need to do is specify the algorithm and 
 cross-validation parameters. Currently, we have several different linear algorithms
@@ -13,7 +13,7 @@ implemented from scikit-learn.
 
 
 Load Data
----------------------------------------------------
+---------
 
 First, let's load the pain data for this example.  We need to specify the
 training levels.  We will grab the pain intensity variable from the data.X
@@ -36,7 +36,7 @@ field.
 
 
 Prediction with Cross-Validation
----------------------------------------------------------
+--------------------------------
 
 We can now predict the output variable is a dictionary of the most 
 useful output from the prediction analyses. The predict function runs 
@@ -128,7 +128,7 @@ Return the cross-validated predicted data
 
 
 Algorithms
----------------------------------------------------
+----------
 
 There are several types of linear algorithms implemented including:
 Support Vector Machines (svr), Principal Components Analysis (pcr), and 
@@ -171,7 +171,7 @@ cross-validation.
 
 
 Cross-Validation Schemes
----------------------------------------------------
+------------------------
 
 There are several different ways to perform cross-validation.  The standard 
 approach is to use k-folds, where the data is equally divided into k subsets
@@ -200,8 +200,8 @@ correspond to the images in the data frame.
 
     overall Root Mean Squared Error: 0.00
     overall Correlation: 1.00
-    overall CV Root Mean Squared Error: 0.94
-    overall CV Correlation: 0.57
+    overall CV Root Mean Squared Error: 0.90
+    overall CV Correlation: 0.58
 
 
 Sometimes we want to ensure that the training labels are balanced across 
@@ -286,7 +286,7 @@ ridgeCV and lassoCV algorithms.
     overall CV Correlation: 0.69
 
 
-**Total running time of the script:** ( 1 minutes  0.776 seconds)
+**Total running time of the script:** ( 0 minutes  59.341 seconds)
 
 
 
