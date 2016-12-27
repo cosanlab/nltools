@@ -10,7 +10,7 @@ from __future__ import division
 ## Notes:
 # Need to figure out how to speed up loading and resampling of data
 
-__all__ = ['Brain_Data']
+__all__ = ['Brain_Data','Adjacency','Groupby']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
@@ -23,7 +23,6 @@ from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability
 from nltools.stats import pearson,fdr,threshold, fisher_r_to_z, correlation_permutation,one_sample_permutation,two_sample_permutation
 from nltools.mask import expand_mask,collapse_mask
 from nltools.analysis import Roc
-from nltools.datasets import download_nifti
 from nilearn.input_data import NiftiMasker
 from nilearn.image import resample_img
 from nilearn.masking import intersect_masks
@@ -93,10 +92,10 @@ class Brain_Data(object):
         if data is not None:
             if isinstance(data,(str,unicode)):
                 if 'http://' in data:
+                    from nltools.datasets import download_nifti
                     tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
                     os.makedirs(tmp_dir)
-                    data=download_nifti(data,base_dir=tmp_dir)
-                    shutil.rmtree(tmp_dir, ignore_errors=True)
+                    data=nib.load(download_nifti(data,data_dir=tmp_dir))
                 else:
                     data=nib.load(data)
                 self.data = self.nifti_masker.fit_transform(data)
