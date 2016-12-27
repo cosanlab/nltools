@@ -34,6 +34,10 @@ subject_id = metadata['SubjectID']
 # separately for each participant.  We aggregate the beta estimates for pain intensity
 # across subjects.
 
+from nltools.data import Brain_Data
+import numpy as np
+import pandas as pd
+
 all_sub = Brain_Data()
 for s in subject_id.unique():
     sdat = data[np.where(metadata['SubjectID']==s)[0]]

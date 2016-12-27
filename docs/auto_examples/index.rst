@@ -32,6 +32,46 @@ Neuroimaging Data Operations Examples
    :hidden:
 
    /auto_examples/01_DataOperations/plot_download
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="">
+
+.. only:: html
+
+    .. figure:: /auto_examples/01_DataOperations/images/thumb/sphx_glr_plot_neurovault_io_thumb.png
+
+        :ref:`sphx_glr_auto_examples_01_DataOperations_plot_neurovault_io.py`
+
+.. raw:: html
+
+    </div>
+
+
+.. toctree::
+   :hidden:
+
+   /auto_examples/01_DataOperations/plot_neurovault_io
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="">
+
+.. only:: html
+
+    .. figure:: /auto_examples/01_DataOperations/images/thumb/sphx_glr_plot_mask_thumb.png
+
+        :ref:`sphx_glr_auto_examples_01_DataOperations_plot_mask.py`
+
+.. raw:: html
+
+    </div>
+
+
+.. toctree::
+   :hidden:
+
+   /auto_examples/01_DataOperations/plot_mask
 .. raw:: html
 
     <div style='clear:both'></div>
@@ -40,6 +80,26 @@ Neuroimaging Analysis Examples
 ------------------------------
 
 
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="">
+
+.. only:: html
+
+    .. figure:: /auto_examples/02_Analysis/images/thumb/sphx_glr_plot_similarity_example_thumb.png
+
+        :ref:`sphx_glr_auto_examples_02_Analysis_plot_similarity_example.py`
+
+.. raw:: html
+
+    </div>
+
+
+.. toctree::
+   :hidden:
+
+   /auto_examples/02_Analysis/plot_similarity_example
 
 .. raw:: html
 
@@ -60,6 +120,46 @@ Neuroimaging Analysis Examples
    :hidden:
 
    /auto_examples/02_Analysis/plot_univariate_regression
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="">
+
+.. only:: html
+
+    .. figure:: /auto_examples/02_Analysis/images/thumb/sphx_glr_plot_multivariate_classification_thumb.png
+
+        :ref:`sphx_glr_auto_examples_02_Analysis_plot_multivariate_classification.py`
+
+.. raw:: html
+
+    </div>
+
+
+.. toctree::
+   :hidden:
+
+   /auto_examples/02_Analysis/plot_multivariate_classification
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="">
+
+.. only:: html
+
+    .. figure:: /auto_examples/02_Analysis/images/thumb/sphx_glr_plot_multivariate_prediction_thumb.png
+
+        :ref:`sphx_glr_auto_examples_02_Analysis_plot_multivariate_prediction.py`
+
+.. raw:: html
+
+    </div>
+
+
+.. toctree::
+   :hidden:
+
+   /auto_examples/02_Analysis/plot_multivariate_prediction
 .. raw:: html
 
     <div style='clear:both'></div>
