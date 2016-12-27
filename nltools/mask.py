@@ -18,7 +18,6 @@ import pandas as pd
 import numpy as np
 import warnings
 from nilearn.masking import intersect_masks
-
 # from neurosynth.masks import Masker
 
 
@@ -30,7 +29,8 @@ def create_sphere(coordinates, radius=5, mask=None):
         centers: a vector of sphere centers of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]]
 
     """
-    
+    from nltools.data import Brain_Data
+
     if mask is not None:
         if not isinstance(mask,nib.Nifti1Image):
             if type(mask) is str:
@@ -51,19 +51,28 @@ def create_sphere(coordinates, radius=5, mask=None):
  
         """
         dims = mask.shape
-
-        x, y, z = np.ogrid[-p[0]:dims[0]-p[0], -p[1]:dims[1]-p[1], -p[2]:dims[2]-p[2]]
+        m = [dims[0]/2, dims[1]/2, dims[2]/2] # JC edit: default value for centers
+        x, y, z = np.ogrid[-m[0]:dims[0]-m[0], -m[1]:dims[1]-m[1], -m[2]:dims[2]-m[2]] #JC edit: creates sphere
+        # x, y, z = np.ogrid[-p[0]:dims[0]-p[0], -p[1]:dims[1]-p[1], -p[2]:dims[2]-p[2]]
         mask_r = x*x + y*y + z*z <= r*r
 
         activation = np.zeros(dims)
         activation[mask_r] = 1
-        activation = np.multiply(activation, mask.get_data())
-        activation = nib.Nifti1Image(activation, affine=np.eye(4))
-        
+        # JC edit shift mask to proper location
+        translation_affine= np.array([[1, 0, 0, p[0]-m[0]],
+                                [0, 1, 0, p[1]-m[1]],
+                                [0, 0, 1, p[2]-m[2]],
+                                 [0, 0, 0, 1]])
+
+        # activation = np.multiply(activation, mask.get_data())
+        # activation = nib.Nifti1Image(activation, affine=np.eye(4))
+        activation = nib.Nifti1Image(activation,affine=translation_affine)
         #return the 3D numpy matrix of zeros containing the sphere as a region of ones
-        return activation.get_data()
+        # return activation.get_data(), translation_affine
+        return activation
 
     # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
+    # return sphere(radius,coordinates,mask)
     if type(radius) is int:
         radius = [radius]
     if coordinates is None:
@@ -72,10 +81,18 @@ def create_sphere(coordinates, radius=5, mask=None):
         coordinates = [coordinates]
     if (type(radius)) is list and (type(coordinates) is list) and (len(radius) == len(coordinates)):
         A = np.zeros_like(mask.get_data())
+        A = Brain_Data(nib.Nifti1Image(A,affine=mask.get_affine()))
         for i in xrange(len(radius)):
-            A = np.add(A, sphere(radius[i], coordinates[i], mask))
-        nifti_sphere = nib.Nifti1Image(A.astype(np.float32), affine=mask.get_affine())
-        return nifti_sphere
+            A = A + Brain_Data(sphere(radius[i], coordinates[i], mask))
+            # B,translation_affine = sphere(radius[i], coordinates[i], mask)
+            # A = np.add(A, B)
+            # A = np.add(A, sphere(radius[i], coordinates[i], mask))
+        # nifti_sphere = nib.Nifti1Image(A.astype(np.float32), affine=translation_affine)
+        # return nifti_sphere
+        A = A.to_nifti()
+        A.get_data()[A.get_data()>0.5]=1
+        A.get_data()[A.get_data()<0.5]=0
+        return A
     else:
         raise ValueError("Data type for sphere or radius(ii) or center(s) not recognized.")
 
