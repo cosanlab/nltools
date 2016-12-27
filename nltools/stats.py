@@ -10,7 +10,10 @@ __all__ = ['pearson',
             'winsorize',
             'calc_bpm',
             'downsample',
-            'fisher_r_to_z']
+            'fisher_r_to_z',
+            'one_sample_permutation',
+            'two_sample_permutation',
+            'correlation_permutation']
 
 import numpy as np
 import pandas as pd

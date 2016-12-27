@@ -5,7 +5,11 @@
 
 '''
 
-__all__ = ['dist_from_hyperplane_plot','scatterplot','probability_plot','roc_plot','decode_radar_plot']
+__all__ = ['dist_from_hyperplane_plot',
+            'scatterplot',
+            'probability_plot',
+            'roc_plot',
+            'decode_radar_plot']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 

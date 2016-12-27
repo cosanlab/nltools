@@ -10,7 +10,9 @@ from __future__ import division
 ## Notes:
 # Need to figure out how to speed up loading and resampling of data
 
-__all__ = ['Brain_Data','Adjacency','Groupby']
+__all__ = ['Brain_Data',
+            'Adjacency',
+            'Groupby']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
@@ -36,7 +38,6 @@ from scipy.signal import detrend
 from scipy.spatial.distance import squareform
 import six
 import sklearn
-from sklearn.pipeline import Pipeline
 from sklearn.metrics.pairwise import pairwise_distances
 from nltools.pbs_job import PBS_Job
 import warnings

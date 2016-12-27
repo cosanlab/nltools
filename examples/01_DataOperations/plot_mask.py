@@ -1,13 +1,13 @@
 """ 
 Masking Example
-===========
+===============
 This tutorial illustrates methods to help with masking data.
 
 """
 
 #########################################################################
 # Load Data
-# ---------------------------------------------------
+# ---------
 # 
 # First, let's load the pain data for this example.
 
@@ -17,7 +17,7 @@ data = fetch_pain()
 
 #########################################################################
 # Apply_Mask
-# ---------------------------------------------------------
+# ----------
 #
 # Spherical masks can be created using the create_sphere function.
 # It requires specifying a center voxel and the radius of the sphere.
@@ -30,7 +30,7 @@ masked_data.mean().plot()
 
 #########################################################################
 # Extract Mean Within ROI
-# ---------------------------------------------------------
+# -----------------------
 #
 # We can easily calculate the mean within an ROI for each image within a 
 # Brain_Data() instance using the extract_roi() method. 
@@ -42,7 +42,7 @@ plt.plot(mean)
 
 #########################################################################
 # Expand and Contract ROIs
-# ---------------------------------------------------------
+# ------------------------
 #
 # Some masks have many ROIs indicated by a unique ID.  It is possible to
 # expand these masks into separate ROIs and also collapse them into a single
@@ -64,7 +64,7 @@ mask_c.plot()
 
 #########################################################################
 # Threshold and Regions
-# ---------------------------------------------------------
+# ---------------------
 #
 # Images can be thresholded using an arbitrary cutoff or a percentile using the 
 # threshold method.  Here we calculate the mean of the high pain images and

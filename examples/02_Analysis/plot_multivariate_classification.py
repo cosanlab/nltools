@@ -1,13 +1,13 @@
 """ 
 Multivariate Classification
-===========
+===========================
 This tutorial provides an example of how to run classification analyses.
 
 """
 
 #########################################################################
 # Load & Prepare Data
-# ---------------------------------------------------
+# -------------------
 # 
 # First, let's load the pain data for this example.  We need to create a data 
 # object with high and low pain intensities.  These labels need to be specified in the
@@ -27,7 +27,7 @@ subject_id = np.concatenate([high.X['SubjectID'].values,low.X['SubjectID'].value
 
 #########################################################################
 # Classification with Cross-Validation
-# ---------------------------------------------------------
+# ------------------------------------
 #
 # We can now train a brain model to classify the different labels specified in dat.Y.
 # First, we will use a support vector machine with 5 fold cross-validation in which the 

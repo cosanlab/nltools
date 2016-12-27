@@ -4,13 +4,13 @@
 
  
 Masking Example
-===========
+===============
 This tutorial illustrates methods to help with masking data.
 
 
 
 Load Data
----------------------------------------------------
+---------
 
 First, let's load the pain data for this example.
 
@@ -30,7 +30,7 @@ First, let's load the pain data for this example.
 
 
 Apply_Mask
----------------------------------------------------------
+----------
 
 Spherical masks can be created using the create_sphere function.
 It requires specifying a center voxel and the radius of the sphere.
@@ -56,7 +56,7 @@ It requires specifying a center voxel and the radius of the sphere.
 
 
 Extract Mean Within ROI
----------------------------------------------------------
+-----------------------
 
 We can easily calculate the mean within an ROI for each image within a 
 Brain_Data() instance using the extract_roi() method. 
@@ -81,7 +81,7 @@ Brain_Data() instance using the extract_roi() method.
 
 
 Expand and Contract ROIs
----------------------------------------------------------
+------------------------
 
 Some masks have many ROIs indicated by a unique ID.  It is possible to
 expand these masks into separate ROIs and also collapse them into a single
@@ -151,7 +151,7 @@ http://neurovault.org.
 
 
 Threshold and Regions
----------------------------------------------------------
+---------------------
 
 Images can be thresholded using an arbitrary cutoff or a percentile using the 
 threshold method.  Here we calculate the mean of the high pain images and
@@ -235,7 +235,7 @@ We might also want to create separate images from each contiguous ROI.
 
 
 
-**Total running time of the script:** ( 0 minutes  48.770 seconds)
+**Total running time of the script:** ( 0 minutes  49.925 seconds)
 
 
 

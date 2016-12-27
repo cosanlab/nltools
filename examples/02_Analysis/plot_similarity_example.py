@@ -1,13 +1,13 @@
 """ 
 Similarity and Distance
-===========
+=======================
 This tutorial illustrates how to calculate similarity and distance between images.
 
 """
 
 #########################################################################
 # Load Data
-# ---------------------------------------------------
+# ---------
 # 
 # First, let's load the pain data for this example.
 
@@ -17,7 +17,7 @@ data = fetch_pain()
 
 #########################################################################
 # Distance
-# ---------------------------------------------------------
+# --------
 #
 # We can calculate the pairwise spatial distance between all images in a Brain_Data()
 # instance using any method from sklearn or scipy.  This outputs an Adjacency() class
@@ -28,7 +28,7 @@ d.plot()
 
 #########################################################################
 # Similarity
-# ---------------------------------------------------
+# ----------
 # 
 # The similarity of an image to other images can be computed using the similarity()
 # method.  Here we calculate the mean image for high pain intensity across all participants
