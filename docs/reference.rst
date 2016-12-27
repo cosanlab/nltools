@@ -10,7 +10,13 @@ methods in the current release of Neurolearn.
 :mod:`nltools.data`: Data Types
 ===============================
 
-.. automodule:: nltools.data
+.. autoclass:: nltools.data.Brain_Data
+    :members:
+
+.. autoclass:: nltools.data.Adjacency
+    :members:
+
+.. autoclass:: nltools.data.Groupby
     :members:
 
 :mod:`nltools.analysis`: Analysis Tools
@@ -20,13 +26,13 @@ methods in the current release of Neurolearn.
     :members:
 
 :mod:`nltools.stats`: Stats Tools
-====================================
+=================================
 
 .. automodule:: nltools.stats
     :members:
 
 :mod:`nltools.datasets`: Dataset Tools
-===============================
+======================================
 
 .. automodule:: nltools.datasets
     :members:

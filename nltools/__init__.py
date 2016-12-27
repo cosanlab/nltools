@@ -1,4 +1,5 @@
-__all__ = [ 'data', 
+__all__ = [ 'data',
+ 			'datasets',
 			'analysis', 
 			'cross_validation', 
 			'plotting', 

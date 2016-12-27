@@ -8,7 +8,12 @@
 ## Notes:
 # Need to figure out how to speed up loading and resampling of data
 
-__all__ = ['Brain_Data']
+__all__ = ['download_nifti',
+			'get_collection_image_metadata',
+			'download_collection',
+			'fetch_emotion_ratings',
+			'fetch_pain'
+			]
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
