@@ -24,7 +24,7 @@ data = fetch_pain()
 
 from nltools.mask import create_sphere
 
-mask = create_sphere([41, 64, 55], radius=10)
+mask = create_sphere([0, 0, 0], radius=30)
 masked_data = data.apply_mask(mask)
 masked_data.mean().plot()
 
