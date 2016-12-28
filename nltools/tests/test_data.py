@@ -174,7 +174,8 @@ def test_brain_data(tmpdir):
     r = mask.regions(min_region_size=10)
     m1 = Brain_Data(s1)
     m2 = r.threshold(1,binarize=True)
-    assert len(r)==2
+    # assert len(r)==2
+    assert len(np.unique(r.to_nifti().get_data())) == 2 # JC edit: I think this is what you were trying to do
     diff = m2-m1
     assert np.sum(diff.data)==0
 
@@ -282,7 +283,8 @@ def test_groupby(tmpdir):
     # Test apply
     mn = dat.apply('mean')
     assert len(dat)==len(mn)
-    assert mn[0].mean() > mn[1].mean()
+    # assert mn[0].mean() > mn[1].mean()
+    assert mn[0].mean() < mn[1].mean() # JC edit: changed sphere location and values changed.
     assert mn[1].shape()==np.sum(mask[1].data==1)
     reg = dat.apply('regress')
     assert len(dat)==len(mn)
