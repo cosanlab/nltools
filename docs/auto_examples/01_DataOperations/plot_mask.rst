@@ -97,25 +97,32 @@ http://neurovault.org.
     from nltools.data import Brain_Data
 
     mask = Brain_Data('http://neurovault.org/media/images/2099/Neurosynth%20Parcellation_0.nii.gz')
-
     mask.plot()
+
+
+
+
+.. image:: /auto_examples/01_DataOperations/images/sphx_glr_plot_mask_003.png
+    :align: center
+
+
+
+
+We can expand this mask into 50 separate regions
+
+
+
+.. code-block:: python
+
 
     mask_x = expand_mask(mask)
     mask_x.plot()
-
-    mask_c = collapse_mask(mask_x)
-    mask_c.plot()
 
 
 
 
 .. rst-class:: sphx-glr-horizontal
 
-
-    *
-
-      .. image:: /auto_examples/01_DataOperations/images/sphx_glr_plot_mask_003.png
-            :scale: 47
 
     *
 
@@ -142,10 +149,24 @@ http://neurovault.org.
       .. image:: /auto_examples/01_DataOperations/images/sphx_glr_plot_mask_008.png
             :scale: 47
 
-    *
 
-      .. image:: /auto_examples/01_DataOperations/images/sphx_glr_plot_mask_009.png
-            :scale: 47
+
+
+We can collapse these 50 separate regions as unique values in a single image 
+
+
+
+.. code-block:: python
+
+
+    mask_c = collapse_mask(mask_x)
+    mask_c.plot()
+
+
+
+
+.. image:: /auto_examples/01_DataOperations/images/sphx_glr_plot_mask_009.png
+    :align: center
 
 
 
@@ -184,9 +205,13 @@ We might be interested in creating a binary mask from this threshold.
 
 
     mask = high.mean().threshold(threshold='95%',binarize=True)
+    mask.plot()
 
 
 
+
+.. image:: /auto_examples/01_DataOperations/images/sphx_glr_plot_mask_011.png
+    :align: center
 
 
 
@@ -209,11 +234,6 @@ We might also want to create separate images from each contiguous ROI.
 
     *
 
-      .. image:: /auto_examples/01_DataOperations/images/sphx_glr_plot_mask_011.png
-            :scale: 47
-
-    *
-
       .. image:: /auto_examples/01_DataOperations/images/sphx_glr_plot_mask_012.png
             :scale: 47
 
@@ -232,10 +252,15 @@ We might also want to create separate images from each contiguous ROI.
       .. image:: /auto_examples/01_DataOperations/images/sphx_glr_plot_mask_015.png
             :scale: 47
 
+    *
+
+      .. image:: /auto_examples/01_DataOperations/images/sphx_glr_plot_mask_016.png
+            :scale: 47
 
 
 
-**Total running time of the script:** ( 0 minutes  49.925 seconds)
+
+**Total running time of the script:** ( 0 minutes  49.105 seconds)
 
 
 
