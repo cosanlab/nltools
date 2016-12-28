@@ -173,7 +173,7 @@ def test_brain_data(tmpdir):
     # Test Regions
     r = mask.regions(min_region_size=10)
     m1 = Brain_Data(s1)
-    m2 = r[1].threshold(1,binarize=True)
+    m2 = r.threshold(1,binarize=True)
     assert len(r)==2
     diff = m2-m1
     assert np.sum(diff.data)==0
