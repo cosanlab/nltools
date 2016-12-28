@@ -53,11 +53,16 @@ from nltools.mask import expand_mask, collapse_mask
 from nltools.data import Brain_Data
 
 mask = Brain_Data('http://neurovault.org/media/images/2099/Neurosynth%20Parcellation_0.nii.gz')
-
 mask.plot()
+
+#########################################################################
+# We can expand this mask into 50 separate regions
 
 mask_x = expand_mask(mask)
 mask_x.plot()
+
+#########################################################################
+# We can collapse these 50 separate regions as unique values in a single image 
 
 mask_c = collapse_mask(mask_x)
 mask_c.plot()
@@ -79,6 +84,7 @@ high.mean().threshold(threshold='95%').plot()
 # We might be interested in creating a binary mask from this threshold.
 
 mask = high.mean().threshold(threshold='95%',binarize=True)
+mask.plot()
 
 #########################################################################
 # We might also want to create separate images from each contiguous ROI.

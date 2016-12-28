@@ -19,7 +19,7 @@ setup(
     author_email='luke.j.chang@dartmouth.edu',
     url='http://neurolearn.readthedocs.org/en/latest/',
     install_requires=['numpy', 'scipy', 'nilearn', 'nibabel','pandas', 'six', 'importlib',
-                      'seaborn', 'matplotlib', 'scikit-learn'],
+                      'seaborn', 'matplotlib', 'scikit-learn','pynv'],
     packages=find_packages(exclude=['nltools/tests']),
     package_data={'nltools': ['resources/*']},
     license='LICENSE.txt',
