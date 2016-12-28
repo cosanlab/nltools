@@ -120,14 +120,14 @@ def test_brain_data(tmpdir):
     assert len(r2)==shape_2d[0]
     
     # Test apply_mask - might move part of this to test mask suite
-    s1 = create_sphere([41, 64, 55], radius=10)
+    s1 = create_sphere([12, 10, -8], radius=10)
     assert isinstance(s1,nb.Nifti1Image)
     s2 = Brain_Data(s1)
     masked_dat = dat.apply_mask(s1)
     assert masked_dat.shape()[1]==np.sum(s2.data!=0)
 
     # Test extract_roi
-    mask = create_sphere([41, 64, 55], radius=10)
+    mask = create_sphere([12, 10, -8], radius=10)
     assert len(dat.extract_roi(mask))==shape_2d[0]
 
     # Test r_to_z
@@ -147,8 +147,8 @@ def test_brain_data(tmpdir):
     assert s.shape()==dat[1].shape()
 
     # Test Groupby
-    s1 = create_sphere([45, 55, 45], radius=10)
-    s2 = create_sphere([30, 30, 40], radius=10)
+    s1 = create_sphere([12, 10, -8], radius=10)
+    s2 = create_sphere([22, -2, -22], radius=10)
     mask = Brain_Data([s1,s2])
     d = dat.groupby(mask)
     assert isinstance(d,Groupby)
@@ -159,8 +159,8 @@ def test_brain_data(tmpdir):
     assert len(mn.shape())==1
 
     # Test Threshold
-    s1 = create_sphere([45, 55, 45], radius=10)
-    s2 = create_sphere([30, 30, 40], radius=10)
+    s1 = create_sphere([12, 10, -8], radius=10)
+    s2 = create_sphere([22, -2, -22], radius=10)
     mask = Brain_Data(s1)*5
     mask = mask + Brain_Data(s2)
 
