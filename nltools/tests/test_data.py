@@ -263,8 +263,8 @@ def test_groupby(tmpdir):
     output_dir = str(tmpdir)
     sim.create_data(y, sigma, reps=n_reps, output_dir=output_dir)
 
-    s1 = create_sphere([45, 55, 45], radius=r)
-    s2 = create_sphere([30, 30, 40], radius=r)
+    s1 = create_sphere([12, 10, -8], radius=r)
+    s2 = create_sphere([22, -2, -22], radius=r)
     mask = Brain_Data([s1,s2])
 
     y=pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))),header=None,index_col=None).T
