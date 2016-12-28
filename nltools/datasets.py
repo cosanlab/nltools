@@ -26,13 +26,9 @@ import shutil
 import tempfile
 from nltools.data import Brain_Data
 from nilearn.datasets.utils import (_get_dataset_dir,_fetch_file)
+from pynv import Client
 
 # Optional dependencies
-try:
-	from pyneurovault_upload import Client
-except ImportError:
-	pass
-
 try:
 	import requests
 except ImportError:
