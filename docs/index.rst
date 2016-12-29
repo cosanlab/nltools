@@ -55,6 +55,7 @@ Optional Dependencies
 ^^^^^^^^^^^^^^^^^^^^^
 
  - mne
+ - requests
 
 Tutorials
 ---------
