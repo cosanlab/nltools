@@ -44,20 +44,11 @@ import warnings
 import shutil
 import tempfile
 import seaborn as sns
+from pynv import Client
 
 # Optional dependencies
 try:
     from mne.stats import spatio_temporal_cluster_1samp_test, ttest_1samp_no_p
-except ImportError:
-    pass
-
-try:
-    from pyneurovault_upload import Client
-except ImportError:
-    pass
-
-try:
-    import requests
 except ImportError:
     pass
 

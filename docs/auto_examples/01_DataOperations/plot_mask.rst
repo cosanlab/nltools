@@ -42,7 +42,7 @@ It requires specifying a center voxel and the radius of the sphere.
 
     from nltools.mask import create_sphere
 
-    mask = create_sphere([41, 64, 55], radius=10)
+    mask = create_sphere([0, 0, 0], radius=30)
     masked_data = data.apply_mask(mask)
     masked_data.mean().plot()
 
@@ -260,7 +260,7 @@ We might also want to create separate images from each contiguous ROI.
 
 
 
-**Total running time of the script:** ( 0 minutes  49.105 seconds)
+**Total running time of the script:** ( 0 minutes  45.594 seconds)
 
 
 
