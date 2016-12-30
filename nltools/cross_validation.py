@@ -104,7 +104,8 @@ def set_cv(Y=None, cv_dict=None):
                 cv = gkf.split(X=np.zeros(len(Y)), y=Y, groups=cv_dict['subject_id'])
             elif 'stratified' in cv_dict: # Stratified K-Folds Continuous
                 from  nltools.cross_validation import KFoldStratified
-                cv = KFoldStratified(cv_dict['stratified'], n_splits=cv_dict['n_folds'])
+                kfs = KFoldStratified(cv_dict['stratified'], n_splits=cv_dict['n_folds'])
+                cv = kfs.split(X=np.zeros(len(Y)), y=Y)
             else: # Normal K-Folds
                 from sklearn.model_selection import KFold
                 kf = KFold(n_splits=cv_dict['n_folds'])
