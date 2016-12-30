@@ -1,5 +1,10 @@
-"""Handy utilities"""
+'''
+NeuroLearn Utilities
+====================
 
+handy utilities.
+
+'''
 __all__ = ['get_resource_path',
             'get_anatomical',
             'set_algorithm']
