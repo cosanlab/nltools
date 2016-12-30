@@ -1,6 +1,7 @@
 """ 
 Similarity and Distance
 =======================
+
 This tutorial illustrates how to calculate similarity and distance between images.
 
 """

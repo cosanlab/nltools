@@ -1,7 +1,8 @@
 '''
-    NeuroLearn Simulator Tools
-    ==========================
-    Tools to simulate multivariate data.
+NeuroLearn Simulator Tools
+==========================
+
+Tools to simulate multivariate data.
 
 '''
 

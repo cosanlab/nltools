@@ -5,6 +5,7 @@
  
 Masking Example
 ===============
+
 This tutorial illustrates methods to help with masking data.
 
 
@@ -260,7 +261,7 @@ We might also want to create separate images from each contiguous ROI.
 
 
 
-**Total running time of the script:** ( 0 minutes  45.594 seconds)
+**Total running time of the script:** ( 0 minutes  45.097 seconds)
 
 
 
