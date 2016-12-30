@@ -30,7 +30,7 @@ import sklearn
 from sklearn import neighbors
 from sklearn.externals.joblib import Parallel, delayed, cpu_count
 from sklearn import svm
-from sklearn.cross_validation import cross_val_score
+# from sklearn.cross_validation import cross_val_score
 from sklearn.base import BaseEstimator
 from sklearn import neighbors
 from sklearn.svm import SVR
