@@ -43,14 +43,9 @@ methods in the current release of Neurolearn.
 .. automodule:: nltools.cross_validation
     :members:
 
-.. autoclass:: nltools.cross_validation.KFoldSubject
-    :members:
-
 .. autoclass:: nltools.cross_validation.KFoldStratified
     :members:
 
-.. autoclass:: nltools.cross_validation.LeaveOneSubjectOut
-    :members:
 
 :mod:`nltools.mask`: Mask Tools
 ===============================

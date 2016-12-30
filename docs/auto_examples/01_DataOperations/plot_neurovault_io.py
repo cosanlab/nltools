@@ -1,7 +1,10 @@
 """ 
 Neurovault I/O
 ==============
-Data can be easily downloaded and uploaded to neurovault.
+
+Data can be easily downloaded and uploaded to `neurovault <http://neurovault.org/>`_
+using `pynv <https://github.com/neurolearn/pynv>`_, a python wrapper for the
+neurovault api.
 
 """
 
@@ -11,6 +14,9 @@ Data can be easily downloaded and uploaded to neurovault.
 #
 # Entire collections from neurovault can be downloaded along with the
 # accompanying image metadata.  You just need to know the collection ID.
+# Data will be downloaded to the path specified in the 'data_dir' flag 
+# or '~/nilearn_data' by default.  These files can then be imported into
+# nltools as a Brain_Data() instance.
 
 from nltools.datasets import download_collection
 from nltools.data import Brain_Data
@@ -39,11 +45,11 @@ plot_glass_brain(mask.to_nifti())
 # -------------------------
 #
 # There is a method to easily upload a Brain_Data() instance to 
-# http://neurovault.org.  This requires using your api key, which can be found
+# `neurovault <http://neurovault.org>`_.  This requires using your api key, which can be found
 # under your account settings.  Anything stored in data.X will be uploaded as
 # image metadata.  The required fields include collection_name, the img_type,
 # img_modality, and analysis_level.  See https://github.com/neurolearn/pyneurovault_upload
-# for additional information.
+# for additional information about the required fields.  (Don't forget to uncomment the line!)
 
 api_key = 'your_neurovault_api_key'
 

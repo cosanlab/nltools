@@ -5,6 +5,7 @@
  
 Multivariate Classification
 ===========================
+
 This tutorial provides an example of how to run classification analyses.
 
 
@@ -53,6 +54,7 @@ estimate the cross-validated predictive accuracy.
 
 .. code-block:: python
 
+
     svm_stats = dat.predict(algorithm='svm', 
     						cv_dict={'type': 'kfolds','n_folds': 5, 'subject_id':subject_id},
     						**{'kernel':"linear"})
@@ -79,7 +81,7 @@ estimate the cross-validated predictive accuracy.
  Out::
 
     overall accuracy: 1.00
-    overall CV accuracy: 0.84
+    overall CV accuracy: 0.80
 
 
 SVMs can be converted to predicted probabilities using Platt Scaling
@@ -87,6 +89,7 @@ SVMs can be converted to predicted probabilities using Platt Scaling
 
 
 .. code-block:: python
+
 
     platt_stats = dat.predict(algorithm='svm', 
     						cv_dict={'type': 'kfolds','n_folds': 5, 'subject_id':subject_id},
@@ -114,7 +117,7 @@ SVMs can be converted to predicted probabilities using Platt Scaling
  Out::
 
     overall accuracy: 1.00
-    overall CV accuracy: 0.82
+    overall CV accuracy: 0.80
 
 
 Standard OLS Logistic Regression.  
@@ -148,7 +151,7 @@ Standard OLS Logistic Regression.
  Out::
 
     overall accuracy: 1.00
-    overall CV accuracy: 0.79
+    overall CV accuracy: 0.75
 
 
 Ridge classification
@@ -182,7 +185,7 @@ Ridge classification
  Out::
 
     overall accuracy: 1.00
-    overall CV accuracy: 0.82
+    overall CV accuracy: 0.79
 
 
 ROC Analyses
@@ -223,13 +226,13 @@ to run the analysis without plotting.
     ------------------------
     .:ROC Analysis Summary:.
     ------------------------
-    Accuracy:           0.88
-    Accuracy SE:        0.12
+    Accuracy:           0.82
+    Accuracy SE:        0.11
     Accuracy p-value:   0.00
-    Sensitivity:        0.86
+    Sensitivity:        0.75
     Specificity:        0.89
     AUC:                0.88
-    PPV:                0.89
+    PPV:                0.88
     ------------------------
 
 
@@ -268,12 +271,12 @@ the relative classification accuracy between two images.
     Accuracy p-value:   0.00
     Sensitivity:        1.00
     Specificity:        1.00
-    AUC:                0.93
+    AUC:                0.82
     PPV:                1.00
     ------------------------
 
 
-**Total running time of the script:** ( 0 minutes  56.501 seconds)
+**Total running time of the script:** ( 0 minutes  58.055 seconds)
 
 
 

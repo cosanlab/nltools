@@ -1,7 +1,8 @@
 '''
-    NeuroLearn pbs_job
-    ==================
-    Tools to run distributed jobs on Dartmouth Discovery PBS scheduler
+NeuroLearn pbs_job
+==================
+
+Tools to run distributed jobs on Dartmouth Discovery PBS scheduler
 
 '''
 

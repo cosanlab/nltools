@@ -5,10 +5,11 @@
  
 Multivariate Prediction
 =======================
+
 Running MVPA style analyses using multivariate regression is even easier and faster 
 than univariate methods. All you need to do is specify the algorithm and 
 cross-validation parameters. Currently, we have several different linear algorithms
-implemented from scikit-learn.
+implemented from `scikit-learn <http://scikit-learn.org/stable/>`_.
 
 
 
@@ -363,7 +364,7 @@ ridgeCV and lassoCV algorithms.
     overall CV Correlation: 0.74
 
 
-**Total running time of the script:** ( 1 minutes  22.230 seconds)
+**Total running time of the script:** ( 1 minutes  24.320 seconds)
 
 
 
