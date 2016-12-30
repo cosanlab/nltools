@@ -56,18 +56,25 @@ stats['yfit_xval']
 # There are several types of linear algorithms implemented including:
 # Support Vector Machines (svr), Principal Components Analysis (pcr), and 
 # penalized methods such as ridge and lasso.  These examples use 5-fold
-# cross-validation.
+# cross-validation holding out the same subject in each fold.
 
+subject_id = data.X['SubjectID']
 svr_stats = data.predict(algorithm='svr', 
-                        cv_dict={'type': 'kfolds','n_folds': 5}, 
-                        **{'kernel':"linear"})
+                        cv_dict={'type': 'kfolds','n_folds': 5,
+                        'subject_id':subject_id}, **{'kernel':"linear"})
 
-pcr_stats = data.predict(algorithm='pcr', 
-                        cv_dict={'type': 'kfolds','n_folds': 5})
+#########################################################################
+# Lasso Regression
 
 lasso_stats = data.predict(algorithm='lasso', 
-                        cv_dict={'type': 'kfolds','n_folds': 5}, 
-                        **{'alpha':.1})
+                        cv_dict={'type': 'kfolds','n_folds': 5,
+                        'subject_id':subject_id}, **{'alpha':.1})
+
+#########################################################################
+# Principal Components Regression
+pcr_stats = data.predict(algorithm='pcr', 
+                        cv_dict={'type': 'kfolds','n_folds': 5,
+                        'subject_id':subject_id})
 
 #########################################################################
 # Cross-Validation Schemes
