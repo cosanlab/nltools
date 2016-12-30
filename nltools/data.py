@@ -666,7 +666,7 @@ class Brain_Data(object):
                     if predictor_settings['algorithm'] == 'svm' and predictor_cv.probability:
                         output['prob_xval'] = np.zeros(len(self.Y))
 
-            for train, test in output['cv']:
+            for train, test in cv:
                 predictor_cv.fit(self.data[train], self.Y.loc[train])
                 output['yfit_xval'][test] = predictor_cv.predict(self.data[test])
                 if predictor_settings['prediction_type'] == 'classification':

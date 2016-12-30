@@ -15,5 +15,5 @@ def test_permutation():
 	assert stats['p']< .001
 	print(stats)
 	stats = correlation_permutation(x,y)
-	assert (stats['correlation']>.4) & (stats['correlation']<.8)
+	assert (stats['correlation']>.4) & (stats['correlation']<.85)
 	assert stats['p']< .001
