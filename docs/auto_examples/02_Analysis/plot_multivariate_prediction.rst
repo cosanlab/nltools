@@ -133,23 +133,17 @@ Algorithms
 There are several types of linear algorithms implemented including:
 Support Vector Machines (svr), Principal Components Analysis (pcr), and 
 penalized methods such as ridge and lasso.  These examples use 5-fold
-cross-validation.
+cross-validation holding out the same subject in each fold.
 
 
 
 .. code-block:: python
 
 
+    subject_id = data.X['SubjectID']
     svr_stats = data.predict(algorithm='svr', 
-                            cv_dict={'type': 'kfolds','n_folds': 5}, 
-                            **{'kernel':"linear"})
-
-    pcr_stats = data.predict(algorithm='pcr', 
-                            cv_dict={'type': 'kfolds','n_folds': 5})
-
-    lasso_stats = data.predict(algorithm='lasso', 
-                            cv_dict={'type': 'kfolds','n_folds': 5}, 
-                            **{'alpha':.1})
+                            cv_dict={'type': 'kfolds','n_folds': 5,
+                            'subject_id':subject_id}, **{'kernel':"linear"})
 
 
 
@@ -167,6 +161,34 @@ cross-validation.
       .. image:: /auto_examples/02_Analysis/images/sphx_glr_plot_multivariate_prediction_005.png
             :scale: 47
 
+
+.. rst-class:: sphx-glr-script-out
+
+ Out::
+
+    overall Root Mean Squared Error: 0.10
+    overall Correlation: 0.99
+    overall CV Root Mean Squared Error: 0.88
+    overall CV Correlation: 0.57
+
+
+Lasso Regression
+
+
+
+.. code-block:: python
+
+
+    lasso_stats = data.predict(algorithm='lasso', 
+                            cv_dict={'type': 'kfolds','n_folds': 5,
+                            'subject_id':subject_id}, **{'alpha':.1})
+
+
+
+
+.. rst-class:: sphx-glr-horizontal
+
+
     *
 
       .. image:: /auto_examples/02_Analysis/images/sphx_glr_plot_multivariate_prediction_006.png
@@ -176,6 +198,33 @@ cross-validation.
 
       .. image:: /auto_examples/02_Analysis/images/sphx_glr_plot_multivariate_prediction_007.png
             :scale: 47
+
+
+.. rst-class:: sphx-glr-script-out
+
+ Out::
+
+    overall Root Mean Squared Error: 0.69
+    overall Correlation: 0.58
+    overall CV Root Mean Squared Error: 0.74
+    overall CV Correlation: 0.43
+
+
+Principal Components Regression
+
+
+
+.. code-block:: python
+
+    pcr_stats = data.predict(algorithm='pcr', 
+                            cv_dict={'type': 'kfolds','n_folds': 5,
+                            'subject_id':subject_id})
+
+
+
+
+.. rst-class:: sphx-glr-horizontal
+
 
     *
 
@@ -192,18 +241,10 @@ cross-validation.
 
  Out::
 
-    overall Root Mean Squared Error: 0.10
-    overall Correlation: 0.99
-    overall CV Root Mean Squared Error: 0.86
-    overall CV Correlation: 0.59
     overall Root Mean Squared Error: 0.00
     overall Correlation: 1.00
-    overall CV Root Mean Squared Error: 0.91
-    overall CV Correlation: 0.59
-    overall Root Mean Squared Error: 0.69
-    overall Correlation: 0.58
-    overall CV Root Mean Squared Error: 0.76
-    overall CV Correlation: 0.40
+    overall CV Root Mean Squared Error: 0.90
+    overall CV Correlation: 0.58
 
 
 Cross-Validation Schemes
@@ -322,7 +363,7 @@ ridgeCV and lassoCV algorithms.
     overall CV Correlation: 0.74
 
 
-**Total running time of the script:** ( 1 minutes  18.013 seconds)
+**Total running time of the script:** ( 1 minutes  22.230 seconds)
 
 
 
