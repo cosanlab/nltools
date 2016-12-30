@@ -603,9 +603,10 @@ class Brain_Data(object):
             or 'randomforestClassifier'
             cv_dict: Type of cross_validation to use. A dictionary of
                 {'type': 'kfolds', 'n_folds': n},
+                {'type': 'kfolds', 'n_folds': n, 'stratified': Y},
                 {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
-                {'type': 'loso', 'subject_id': holdout},
-                where n = number of folds, and subject = vector of subject ids that corresponds to self.Y
+                {'type': 'loso', 'subject_id': holdout}
+                where 'n' = number of folds, and 'holdout' = vector of subject ids that corresponds to self.Y
             plot: Boolean indicating whether or not to create plots.
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
 
