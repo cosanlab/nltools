@@ -59,16 +59,15 @@ stats['yfit_xval']
 # cross-validation.
 
 svr_stats = data.predict(algorithm='svr', 
-                        cv_dict={'type': 'kfolds','n_folds': 5, 'n':len(data.Y)}, 
-                        plot=False, **{'kernel':"linear"})
+                        cv_dict={'type': 'kfolds','n_folds': 5}, 
+                        **{'kernel':"linear"})
 
-# pcr_stats = data.predict(algorithm='pcr', 
-#                         cv_dict={'type': 'kfolds','n_folds': 5, 'n':len(data.Y)}, 
-#                         plot=False)
+pcr_stats = data.predict(algorithm='pcr', 
+                        cv_dict={'type': 'kfolds','n_folds': 5})
 
 lasso_stats = data.predict(algorithm='lasso', 
-                        cv_dict={'type': 'kfolds','n_folds': 5, 'n':len(data.Y)}, 
-                        plot=False, **{'alpha':.1})
+                        cv_dict={'type': 'kfolds','n_folds': 5}, 
+                        **{'alpha':.1})
 
 #########################################################################
 # Cross-Validation Schemes
