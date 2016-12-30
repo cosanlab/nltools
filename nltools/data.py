@@ -50,7 +50,7 @@ from pynv import Client
 try:
     from mne.stats import spatio_temporal_cluster_1samp_test, ttest_1samp_no_p
 except ImportError:
-    pass
+    pass 
 
 class Brain_Data(object):
 
@@ -650,12 +650,13 @@ class Brain_Data(object):
 
         # Cross-Validation Fit
         if cv_dict is not None:
-            output['cv'] = set_cv(cv_dict)
+            cv = set_cv(Y=self.Y, cv_dict=cv_dict)
 
             predictor_cv = predictor_settings['predictor']
             output['yfit_xval'] = output['yfit_all'].copy()
             output['intercept_xval'] = []
-            output['weight_map_xval'] = deepcopy(output['weight_map'])
+            output['weight_map_xval'] = output['weight_map'].copy()
+            output['cv_idx'] = []
             wt_map_xval = [];
             if predictor_settings['prediction_type'] == 'classification':
                 if predictor_settings['algorithm'] not in ['svm','ridgeClassifier','ridgeClassifierCV']:
@@ -676,6 +677,7 @@ class Brain_Data(object):
                         if predictor_settings['algorithm'] == 'svm' and predictor_cv.probability:
                             output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])[:,1]
                 output['intercept_xval'].append(predictor_cv.intercept_)
+                output['cv_idx'].append((train,test))
 
                 # Weight map
                 if predictor_settings['algorithm'] == 'lassopcr':
