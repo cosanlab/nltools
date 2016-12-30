@@ -75,8 +75,8 @@ the cross-validated predictive accuracy.
 
     overall Root Mean Squared Error: 0.00
     overall Correlation: 1.00
-    overall CV Root Mean Squared Error: 0.61
-    overall CV Correlation: 0.69
+    overall CV Root Mean Squared Error: 0.56
+    overall CV Correlation: 0.74
 
 
 Display the available data in the output dictionary
@@ -141,19 +141,51 @@ cross-validation.
 
 
     svr_stats = data.predict(algorithm='svr', 
-                            cv_dict={'type': 'kfolds','n_folds': 5, 'n':len(data.Y)}, 
-                            plot=False, **{'kernel':"linear"})
+                            cv_dict={'type': 'kfolds','n_folds': 5}, 
+                            **{'kernel':"linear"})
 
-    # pcr_stats = data.predict(algorithm='pcr', 
-    #                         cv_dict={'type': 'kfolds','n_folds': 5, 'n':len(data.Y)}, 
-    #                         plot=False)
+    pcr_stats = data.predict(algorithm='pcr', 
+                            cv_dict={'type': 'kfolds','n_folds': 5})
 
     lasso_stats = data.predict(algorithm='lasso', 
-                            cv_dict={'type': 'kfolds','n_folds': 5, 'n':len(data.Y)}, 
-                            plot=False, **{'alpha':.1})
+                            cv_dict={'type': 'kfolds','n_folds': 5}, 
+                            **{'alpha':.1})
 
 
 
+
+.. rst-class:: sphx-glr-horizontal
+
+
+    *
+
+      .. image:: /auto_examples/02_Analysis/images/sphx_glr_plot_multivariate_prediction_004.png
+            :scale: 47
+
+    *
+
+      .. image:: /auto_examples/02_Analysis/images/sphx_glr_plot_multivariate_prediction_005.png
+            :scale: 47
+
+    *
+
+      .. image:: /auto_examples/02_Analysis/images/sphx_glr_plot_multivariate_prediction_006.png
+            :scale: 47
+
+    *
+
+      .. image:: /auto_examples/02_Analysis/images/sphx_glr_plot_multivariate_prediction_007.png
+            :scale: 47
+
+    *
+
+      .. image:: /auto_examples/02_Analysis/images/sphx_glr_plot_multivariate_prediction_008.png
+            :scale: 47
+
+    *
+
+      .. image:: /auto_examples/02_Analysis/images/sphx_glr_plot_multivariate_prediction_009.png
+            :scale: 47
 
 
 .. rst-class:: sphx-glr-script-out
@@ -163,6 +195,10 @@ cross-validation.
     overall Root Mean Squared Error: 0.10
     overall Correlation: 0.99
     overall CV Root Mean Squared Error: 0.86
+    overall CV Correlation: 0.59
+    overall Root Mean Squared Error: 0.00
+    overall Correlation: 1.00
+    overall CV Root Mean Squared Error: 0.91
     overall CV Correlation: 0.59
     overall Root Mean Squared Error: 0.69
     overall Correlation: 0.58
@@ -226,8 +262,8 @@ folds.  This can be done using the stratified k-folds method.
 
     overall Root Mean Squared Error: 0.00
     overall Correlation: 1.00
-    overall CV Root Mean Squared Error: 0.61
-    overall CV Correlation: 0.69
+    overall CV Root Mean Squared Error: 0.56
+    overall CV Correlation: 0.74
 
 
 Leave One Subject Out Cross-Validaiton (LOSO) is when k=n subjects.  
@@ -282,11 +318,11 @@ ridgeCV and lassoCV algorithms.
 
     overall Root Mean Squared Error: 0.00
     overall Correlation: 1.00
-    overall CV Root Mean Squared Error: 0.61
-    overall CV Correlation: 0.69
+    overall CV Root Mean Squared Error: 0.56
+    overall CV Correlation: 0.74
 
 
-**Total running time of the script:** ( 0 minutes  59.341 seconds)
+**Total running time of the script:** ( 1 minutes  18.013 seconds)
 
 
 
