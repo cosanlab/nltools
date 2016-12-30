@@ -1,7 +1,8 @@
 '''
-    NeuroLearn Plotting Tools
-    =========================
-    Numerous functions to plot data
+NeuroLearn Plotting Tools
+=========================
+
+Numerous functions to plot data
 
 '''
 

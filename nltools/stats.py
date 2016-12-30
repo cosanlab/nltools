@@ -1,6 +1,12 @@
 from __future__ import division
 
-"""Various statistical helper functions"""
+'''
+NeuroLearn Statistics Tools
+===========================
+
+Tools to help with statistical analyses.
+
+'''
 
 __all__ = ['pearson', 
             'zscore', 

@@ -15,7 +15,7 @@ Neuroimaging Data Operations Examples
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="A simple example showing how to download a dataset from neurovault">
+    <div class="sphx-glr-thumbcontainer" tooltip="A simple example showing how to download a dataset from neurovault and perform basic data opera...">
 
 .. only:: html
 
@@ -35,7 +35,7 @@ Neuroimaging Data Operations Examples
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="">
+    <div class="sphx-glr-thumbcontainer" tooltip="Data can be easily downloaded and uploaded to `neurovault <http://neurovault.org/>`_ using `pyn...">
 
 .. only:: html
 
@@ -55,7 +55,7 @@ Neuroimaging Data Operations Examples
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="">
+    <div class="sphx-glr-thumbcontainer" tooltip="This tutorial illustrates methods to help with masking data.">
 
 .. only:: html
 
@@ -83,7 +83,7 @@ Neuroimaging Analysis Examples
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="">
+    <div class="sphx-glr-thumbcontainer" tooltip="This tutorial illustrates how to calculate similarity and distance between images.">
 
 .. only:: html
 
@@ -123,7 +123,7 @@ Neuroimaging Analysis Examples
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="">
+    <div class="sphx-glr-thumbcontainer" tooltip="This tutorial provides an example of how to run classification analyses.">
 
 .. only:: html
 
@@ -143,7 +143,7 @@ Neuroimaging Analysis Examples
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="">
+    <div class="sphx-glr-thumbcontainer" tooltip="Running MVPA style analyses using multivariate regression is even easier and faster  than univa...">
 
 .. only:: html
 

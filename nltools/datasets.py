@@ -1,7 +1,8 @@
 '''
-	NeuroLearn datasets
-	==========================================
-	functions to help download datasets
+NeuroLearn datasets
+===================
+
+functions to help download datasets
 
 '''
 

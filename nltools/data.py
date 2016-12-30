@@ -1,9 +1,10 @@
 from __future__ import division
 
 '''
-    NeuroLearn Data Classes
-    ==========================================
-    Classes to represent various types of data
+NeuroLearn Data Classes
+=======================
+
+Classes to represent various types of data
 
 '''
 

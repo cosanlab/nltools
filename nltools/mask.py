@@ -1,7 +1,8 @@
 '''
-    NeuroLearn Mask Classes
-    =======================
-    Classes to represent masks
+NeuroLearn Mask Classes
+=======================
+
+Classes to represent masks
 
 '''
 

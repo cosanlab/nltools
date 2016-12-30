@@ -1,6 +1,7 @@
 """ 
 Multivariate Classification
 ===========================
+
 This tutorial provides an example of how to run classification analyses.
 
 """
@@ -35,12 +36,14 @@ subject_id = np.concatenate([high.X['SubjectID'].values,low.X['SubjectID'].value
 # The predict function runs the classification multiple times. One of the 
 # iterations uses all of the data to calculate the 'weight_map'. The other iterations 
 # estimate the cross-validated predictive accuracy.
+
 svm_stats = dat.predict(algorithm='svm', 
 						cv_dict={'type': 'kfolds','n_folds': 5, 'subject_id':subject_id},
 						**{'kernel':"linear"})
 
 #########################################################################
 # SVMs can be converted to predicted probabilities using Platt Scaling
+
 platt_stats = dat.predict(algorithm='svm', 
 						cv_dict={'type': 'kfolds','n_folds': 5, 'subject_id':subject_id},
     					**{'kernel':'linear','probability':True})

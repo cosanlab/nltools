@@ -5,6 +5,7 @@
  
 Similarity and Distance
 =======================
+
 This tutorial illustrates how to calculate similarity and distance between images.
 
 
@@ -91,7 +92,7 @@ for all participants.  This is a useful method for calculating pattern responses
 
 
 
-**Total running time of the script:** ( 0 minutes  22.536 seconds)
+**Total running time of the script:** ( 0 minutes  24.795 seconds)
 
 
 
