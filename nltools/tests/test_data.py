@@ -23,6 +23,7 @@ def test_brain_data(tmpdir):
     shape_3d = (91, 109, 91)
     shape_2d = (6, 238955)
     y=pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))),header=None,index_col=None).T
+    holdout=pd.read_csv(os.path.join(str(tmpdir.join('rep_id.csv'))),header=None,index_col=None).T
     flist = glob.glob(str(tmpdir.join('centered*.nii.gz')))
     
     # Test load list
@@ -98,20 +99,29 @@ def test_brain_data(tmpdir):
     assert distance.square_shape()[0]==shape_2d[0]
 
     # Test predict
-    stats = dat.predict(algorithm='svm', cv_dict={'type': 'kfolds','n_folds': 2, 'n':len(dat.Y)}, plot=False,**{'kernel':"linear"})
+    stats = dat.predict(algorithm='svm', cv_dict={'type': 'kfolds','n_folds': 2}, plot=False,**{'kernel':"linear"})
 
     # Support Vector Regression, with 5 fold cross-validation with Platt Scaling
     # This will output probabilities of each class
     stats = dat.predict(algorithm='svm', cv_dict=None, plot=False,**{'kernel':'linear','probability':True})
     assert isinstance(stats['weight_map'],Brain_Data)
 
-    # Logistic classificiation, with 5 fold stratified cross-validation.  
-    stats = dat.predict(algorithm='logistic', cv_dict={'type': 'kfolds','n_folds': 5, 'n':len(dat.Y)}, plot=False)
+    # Logistic classificiation, with 2 fold cross-validation.  
+    stats = dat.predict(algorithm='logistic', cv_dict={'type': 'kfolds','n_folds': 2}, plot=False)
     assert isinstance(stats['weight_map'],Brain_Data)
 
-    # Ridge classificiation, with 5 fold between-subject cross-validation, where data for each subject is held out together.
+    # Ridge classificiation, 
     stats = dat.predict(algorithm='ridgeClassifier', cv_dict=None,plot=False)
     assert isinstance(stats['weight_map'],Brain_Data)
+
+    # Ridge
+    stats = dat.predict(algorithm='ridge', cv_dict={'type': 'kfolds','n_folds': 2,'subject_id':holdout}, plot=False,**{'alpha':.1})
+
+    # Lasso
+    stats = dat.predict(algorithm='lasso', cv_dict={'type': 'kfolds','n_folds': 2,'stratified':dat.Y}, plot=False,**{'alpha':.1})
+
+    # PCR
+    stats = dat.predict(algorithm='pcr', cv_dict=None, plot=False)
 
     # Test Similarity
     r = dat.similarity(stats['weight_map'])
