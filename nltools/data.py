@@ -638,7 +638,13 @@ class Brain_Data(object):
                 if predictor_settings['algorithm'] == 'svm' and predictor.probability:
                     output['prob_all'] = predictor.predict_proba(self.data)[:,1]
        
-        output['intercept'] = predictor.intercept_
+        # Intercept
+        if predictor_settings['algorithm'] == 'pcr':
+            output['intercept'] = predictor_settings['_regress'].intercept_
+        elif predictor_settings['algorithm'] == 'lassopcr':
+            output['intercept'] = predictor_settings['_lasso'].intercept_
+        else:
+            output['intercept'] = predictor.intercept_
 
         # Weight map
         output['weight_map'] = self.empty()
@@ -677,7 +683,13 @@ class Brain_Data(object):
                         output['dist_from_hyperplane_xval'][test] = predictor_cv.decision_function(self.data[test])
                         if predictor_settings['algorithm'] == 'svm' and predictor_cv.probability:
                             output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])[:,1]
-                output['intercept_xval'].append(predictor_cv.intercept_)
+                # Intercept
+                if predictor_settings['algorithm'] == 'pcr':
+                    output['intercept_xval'].append(predictor_settings['_regress'].intercept_)
+                elif predictor_settings['algorithm'] == 'lassopcr':
+                    output['intercept_xval'].append(predictor_settings['_lasso'].intercept_)
+                else:
+                    output['intercept_xval'].append(predictor_cv.intercept_)
                 output['cv_idx'].append((train,test))
 
                 # Weight map
