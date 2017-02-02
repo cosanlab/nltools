@@ -46,6 +46,7 @@ import shutil
 import tempfile
 import seaborn as sns
 from pynv import Client
+import matplotlib.pyplot as plt
 
 # Optional dependencies
 try:
@@ -53,6 +54,11 @@ try:
 except ImportError:
     pass 
 
+try:
+    import networkx as nx
+except ImportError:
+    pass
+    
 class Brain_Data(object):
 
     """
@@ -192,8 +198,8 @@ class Brain_Data(object):
 
     def __sub__(self, y):
         new = deepcopy(self)
-        if isinstance(y,int):
-            new.data = new.data + y
+        if isinstance(y,(int,float)):
+            new.data = new.data - y
         if isinstance(y,Brain_Data):
             if self.shape() != y.shape():
                 raise ValueError('Both Brain_Data() instances need to be the same shape.')
@@ -202,7 +208,7 @@ class Brain_Data(object):
 
     def __mul__(self, y):
         new = deepcopy(self)
-        if isinstance(y,int):
+        if isinstance(y,(int,float)):
             new.data = new.data * y
         if isinstance(y,Brain_Data):
             if self.shape() != y.shape():
@@ -1165,13 +1171,33 @@ class Brain_Data(object):
 
 
 class Adjacency(object):
+
+    '''
+    Adjacency is a class to represent Adjacency matrices as a vector rather than a 2-dimensional matrix.  
+    This makes it easier to perform data manipulation and analyses.
+
+    Args:
+        data: pandas data instance or list of files
+        matrix_type: (str) type of matrix.  Possible values include:
+                    ['distance','similarity','directed','distance_flat',
+                    'similarity_flat','directed_flat']
+        Y: Pandas DataFrame of training labels
+        **kwargs: Additional keyword arguments
+
+    '''
+
     def __init__(self, data=None, Y = None, matrix_type=None, **kwargs):
         
         if matrix_type is not None:
-            if matrix_type.lower() not in ['distance','similarity','weighted','distance_flat','similarity_flat','weighted_flat']:
-                raise ValueError("matrix_type must be [None,'distance','similarity','weighted','distance_flat','similarity_flat','weighted_flat']")
+            if matrix_type.lower() not in ['distance','similarity','directed','distance_flat','similarity_flat','directed_flat']:
+                raise ValueError("matrix_type must be [None,'distance','similarity','directed','distance_flat','similarity_flat','directed_flat']")
         
-        if isinstance(data,list):
+        if data is None:
+            self.data = np.array([])
+            self.matrix_type='empty'
+            self.is_single_matrix = np.nan
+            self.issymmetric = np.nan
+        elif isinstance(data,list):
             d_all = []; symmetric_all = []; matrix_type_all = []
             for d in data:
                 data_tmp, issymmetric_tmp, matrix_type_tmp, is_single_matrix = self._import_single_data(d,matrix_type=matrix_type)
@@ -1232,7 +1258,37 @@ class Adjacency(object):
 
     def __iter__(self):
         for x in range(len(self)):
-            yield self[x]  
+            yield self[x] 
+
+    def __add__(self, y):
+        new = deepcopy(self)
+        if isinstance(y,(int,float)):
+            new.data = new.data + y
+        if isinstance(y,Adjacency):
+            if self.shape() != y.shape():
+                raise ValueError('Both Adjacency() instances need to be the same shape.')
+            new.data = new.data + y.data
+        return new
+
+    def __sub__(self, y):
+        new = deepcopy(self)
+        if isinstance(y,(int,float)):
+            new.data = new.data - y
+        if isinstance(y,Adjacency):
+            if self.shape() != y.shape():
+                raise ValueError('Both Adjacency() instances need to be the same shape.')
+            new.data = new.data - y.data
+        return new
+
+    def __mul__(self, y):
+        new = deepcopy(self)
+        if isinstance(y,(int,float)):
+            new.data = new.data * y
+        if isinstance(y,Adjacency):
+            if self.shape() != y.shape():
+                raise ValueError('Both Adjacency() instances need to be the same shape.')
+            new.data = np.multiply(new.data,y.data)
+        return new
 
     def _import_single_data(self, data, matrix_type=None):
         ''' Helper function to import single data matrix.'''
@@ -1275,7 +1331,10 @@ class Adjacency(object):
                     data = data[np.triu_indices(data.shape[0],k=1)]
                 else:
                     issymmetric = False
-                    data = data.flatten()
+                    if isinstance(data,pd.DataFrame):
+                        data = data.values.flatten()
+                    elif isinstance(data,np.ndarray):
+                        data = data.flatten()
                 is_single_matrix = True
         else:
             if len(data.shape)==1: # Single Vector
@@ -1316,46 +1375,76 @@ class Adjacency(object):
                 
         return (data, issymmetric, matrix_type, is_single_matrix)
 
+    def isempty(self):
+        '''Check if Adjacency object is empty'''
+        if self.matrix_type is 'empty':
+            return True
+        else:
+            return False
+
     def squareform(self):
         '''Convert adjacency back to squareform'''
-        if self.is_single_matrix:
-            return squareform(self.data)  
+        if self.issymmetric:
+            if self.is_single_matrix:
+                return squareform(self.data)  
+            else:
+                return [squareform(x.data) for x in self]
         else:
-            return [squareform(x.data) for x in self]
+            if self.is_single_matrix:
+                return self.data.reshape(int(np.sqrt(self.data.shape[0])),int(np.sqrt(self.data.shape[0])))
+            else:
+                return [x.data.reshape(int(np.sqrt(x.data.shape[0])),int(np.sqrt(x.data.shape[0]))) for x in self] 
 
     def plot(self, limit=3, **kwargs):
         ''' Create Heatmap of Adjacency Matrix'''
         if self.is_single_matrix:
             return sns.heatmap(self.squareform(),square=True,**kwargs)
         else:
-            f,a = plt.subplots(ncols=limit,figsize=(12,5))
+            f,a = plt.subplots(limit)
             for i in range(limit):
                 sns.heatmap(self[i].squareform(),square=True,ax=a[i],**kwargs)
             return f
 
     def mean(self, axis=0):
-        ''' Calculate mean of upper triangle
+        ''' Calculate mean of Adjacency
 
         Args:
-            axis:  calculate mean over features (0) or data (1)
+            axis:  calculate mean over features (0) or data (1).  
+                    For data it will be on upper triangle.
+
+        Returns:
+            mean:  float if single, adjacency if axis=0, np.array if axis=1 and multiple
 
         '''
+
         if self.is_single_matrix:
             return np.mean(self.data)
         else:
-            return np.mean(self.data,axis=axis)
-    
+            if axis == 0:
+                return Adjacency(data=np.mean(self.data,axis=axis),matrix_type=self.matrix_type + '_flat')
+            elif axis==1:
+                return np.mean(self.data,axis=axis)
+
     def std(self, axis=0):
-        ''' Calculate standard deviation of upper triangle
+        ''' Calculate standard deviation of Adjacency
 
         Args:
-            axis:  calculate standard deviation over features (0) or data (1)
+            axis:  calculate std over features (0) or data (1).  
+                    For data it will be on upper triangle.
+
+        Returns:
+            std:  float if single, adjacency if axis=0, np.array if axis=1 and multiple
 
         '''
+
+
         if self.is_single_matrix:
-            return np.mean(self.data)
+            return np.std(self.data)
         else:
-            return np.mean(self.data,axis=axis)
+            if axis == 0:
+                return Adjacency(data=np.std(self.data,axis=axis),matrix_type=self.matrix_type + '_flat')
+            elif axis==1:
+                return np.std(self.data,axis=axis)
     
     def shape(self):
         ''' Calculate shape of data. '''
@@ -1363,10 +1452,13 @@ class Adjacency(object):
 
     def square_shape(self):
         ''' Calculate shape of squareform data. '''
-        if self.is_single_matrix:
-            return self.squareform().shape  
+        if self.matrix_type is 'empty':
+            return np.array([])
         else:
-            return self[0].squareform().shape
+            if self.is_single_matrix:
+                return self.squareform().shape  
+            else:
+                return self[0].squareform().shape
 
     def copy(self):
         ''' Create a copy of Adjacency object.'''
@@ -1386,14 +1478,16 @@ class Adjacency(object):
         if not isinstance(data, Adjacency):
             raise ValueError('Make sure data is a Adjacency instance.')
 
-        out = self.copy()
-        
-        if self.square_shape() != data.square_shape():
-            raise ValueError('Data is not the same shape as Adjacency instance.')
+        if self.isempty():
+            out = data.copy()
+        else:
+            out = self.copy()
+            if self.square_shape() != data.square_shape():
+                raise ValueError('Data is not the same shape as Adjacency instance.')
 
-        out.data = np.vstack([self.data,data.data])
-        if out.Y.size:
-            out.Y = self.Y.append(data.Y)
+            out.data = np.vstack([self.data,data.data])
+            if out.Y.size:
+                out.Y = self.Y.append(data.Y)
         
         return out
 
@@ -1431,15 +1525,48 @@ class Adjacency(object):
             return [correlation_permutation(x.data, data2.data,**kwargs) for x in self]
 
     def distance(self, method='correlation', **kwargs):
-        """ Calculate distance between images within an Adjacency() instance.
+        ''' Calculate distance between images within an Adjacency() instance.
 
         Args:
             method: type of distance metric (can use any scikit learn or sciypy metric)
 
         Returns:
             dist: Outputs a 2D distance matrix.
-        """
+
+        '''
         return Adjacency(pairwise_distances(self.data, metric = method, **kwargs),matrix_type='distance')
+
+    def threshold(self, threshold=0, binarize=False):
+        '''Threshold Adjacency instance
+        
+        Args:
+            threshold: cutoff to threshold image (float).  if 'threshold'=50%, will calculate percentile.
+            binarize (bool): if 'binarize'=True then binarize output
+        Returns:
+            Brain_Data: thresholded Brain_Data instance
+        
+        '''
+
+        b = self.copy()
+        if isinstance(threshold,str):
+            if threshold[-1] is '%':
+                threshold = np.percentile(b.data, float(threshold[:-1]))
+        if binarize:
+            b.data = b.data>threshold
+        else:
+            b.data[b.data<threshold] = 0
+        return b
+
+    def to_graph(self):
+        ''' Convert Adjacency into networkx graph.  only works on single_matrix for now.'''
+        
+        if self.is_single_matrix:
+            if self.matrix_type == 'directed':
+                return nx.DiGraph(self.squareform())
+            else:
+                return nx.Graph(self.squareform())
+        else:
+            raise NotImplementedError('This function currently only works on single matrices.')
 
     def ttest(self, **kwargs):
         ''' Calculate ttest across samples. '''
