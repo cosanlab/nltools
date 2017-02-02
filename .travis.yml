@@ -17,6 +17,7 @@ install:
   - source activate testenv
   - pip install python-coveralls
   - pip install -r requirements.txt
+  - pip install -r optional-dependencies.txt
   - python setup.py install
 
 script: coverage run --source nltools -m py.test
