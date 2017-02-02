@@ -1,2 +1,3 @@
 mne
 requests
+networkx

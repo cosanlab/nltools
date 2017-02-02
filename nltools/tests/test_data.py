@@ -9,6 +9,8 @@ from nltools.data import threshold
 from nltools.mask import create_sphere
 from sklearn.metrics import pairwise_distances
 import matplotlib
+import networkx as nx
+
 matplotlib.use('TkAgg')
 
 def test_brain_data(tmpdir):
@@ -207,14 +209,20 @@ def test_adjacency(tmpdir):
     for t in range(n):
         tmp = data
         dat_all.append(tmp)
-
+    sim_directed = np.array([[1, 0.5, 0.3, 0.4],
+              [0.8, 1, 0.2, 0.1],
+              [0.7, 0.6, 1, 0.5],
+              [0.85, 0.4, 0.3, 1]])
     dat_single = Adjacency(dat_all[0])
     dat_multiple = Adjacency(dat_all)
+    dat_directed = Adjacency(sim_directed,matrix_type='directed')
 
     # Test automatic distance/similarity detection
     assert dat_single.matrix_type is 'distance'
     dat_single2 = Adjacency(1-data)
     assert dat_single2.matrix_type is 'similarity'
+    assert not dat_directed.issymmetric
+    assert dat_single.issymmetric
 
     # Test length
     assert len(dat_multiple)==dat_multiple.data.shape[0]
@@ -225,12 +233,20 @@ def test_adjacency(tmpdir):
     assert len(dat_multiple[0:4]) == 4
     assert len(dat_multiple[0,2,3]) == 3
 
+    # Test basic arithmetic
+    assert(dat_directed+5).data[0] ==dat_directed.data[0]+5
+    assert(dat_directed-.5).data[0] ==dat_directed.data[0]-.5
+    assert(dat_directed*5).data[0] ==dat_directed.data[0]*5
+    assert np.all(np.isclose((dat_directed+dat_directed).data,(dat_directed*2).data))
+    assert np.all(np.isclose((dat_directed*2-dat_directed).data,dat_directed.data))
+
     # Test copy
     assert np.all(dat_multiple.data==dat_multiple.copy().data)
 
     # Test squareform & iterable
     assert len(dat_multiple.squareform())==len(dat_multiple)
     assert dat_single.squareform().shape==data.shape
+    assert dat_directed.squareform().shape==sim_directed.shape
 
     # Test write
     dat_multiple.write(os.path.join(str(tmpdir.join('Test.csv'))),method='long')
@@ -238,12 +254,14 @@ def test_adjacency(tmpdir):
     assert np.all(np.isclose(dat_multiple.data,dat_multiple2.data))
 
     # Test mean
-    assert len(dat_multiple.mean(axis=0))==len(np.mean(dat_multiple.data,axis=0))
+    assert isinstance(dat_multiple.mean(axis=0),Adjacency)
+    assert len(dat_multiple.mean(axis=0))==1
     assert len(dat_multiple.mean(axis=1))==len(np.mean(dat_multiple.data,axis=1))
 
     # Test std
+    assert isinstance(dat_multiple.std(axis=0),Adjacency)
+    assert len(dat_multiple.std(axis=0))==1
     assert len(dat_multiple.std(axis=1))==len(np.std(dat_multiple.data,axis=1))
-    assert len(dat_multiple.std(axis=0))==len(np.std(dat_multiple.data,axis=0))
 
     # Test similarity
     assert len(dat_multiple.similarity(dat_single.squareform()))==len(dat_multiple)
@@ -258,6 +276,15 @@ def test_adjacency(tmpdir):
     assert len(p)==1
     assert mn.shape()[0]==dat_multiple.shape()[1]
     assert p.shape()[0]==dat_multiple.shape()[1]
+
+    # Test Threshold
+    assert np.sum(dat_directed.threshold(.8).data==0)==10
+    assert dat_directed.threshold(.8,binarize=True).data[0]
+    assert np.sum(dat_directed.threshold('70%',binarize=True).data)==5
+
+    # Test to_graph()
+    assert isinstance(dat_directed.to_graph(),nx.DiGraph)
+    assert isinstance(dat_single.to_graph(),nx.Graph)
 
     # # Test stats_label_distance - FAILED - Need to sort this out
     # labels = np.array(['group1','group1','group2','group2'])

@@ -120,7 +120,7 @@ class Simulator:
         """
         vmask = self.nifti_masker.fit_transform(self.brain_mask)
         
-        vlength = np.sum(self.brain_mask.get_data())
+        vlength = int(np.sum(self.brain_mask.get_data()))
         if sigma is not 0:
             n = np.random.normal(mu, sigma, vlength)
         else:
