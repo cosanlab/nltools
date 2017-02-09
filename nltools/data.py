@@ -871,8 +871,6 @@ class Brain_Data(object):
         masked = deepcopy(self)
         nifti_masker = NiftiMasker(mask_img=mask)
         masked.data = nifti_masker.fit_transform(self.to_nifti())
-        if len(self.data.shape) > 2:
-            masked.data = masked.data.squeeze()
         masked.nifti_masker = nifti_masker
         if len(masked.shape()) > 1 & masked.shape()[0]==1:
             masked.data = masked.data.flatten()
