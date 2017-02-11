@@ -1099,7 +1099,7 @@ class Brain_Data(object):
         ''' Get data type of Brain_Data.data.'''
         return self.data.dtype
 
-    def astype(self,dtype):
+    def astype(self, dtype):
         ''' Cast Brain_Data.data as type.
 
         Args:
@@ -1112,6 +1112,27 @@ class Brain_Data(object):
 
         out = self.copy()
         out.data = out.data.astype(dtype)
+        return out
+
+    def standardize(self, method='center'):
+        ''' Standardize Brain_Data() instance.
+            
+        Args:
+            method: ['center','zscore']
+
+        Returns:
+            Brain_Data Instance
+
+        '''
+
+        out = self.copy()
+        if method is 'center':
+            out.data = out.data - np.repeat(np.array([np.mean(out.data,axis=0)]).T,len(out),axis=1).T
+        elif method is 'zscore':
+            out.data = out.data - np.repeat(np.array([np.mean(out.data,axis=0)]).T,len(out),axis=1).T
+            out.data = out.data/np.repeat(np.array([np.std(out.data,axis=0)]).T,len(out),axis=1).T
+        else:
+            raise ValueError('method must be ["center","zscore"')
         return out
 
     def groupby(self,mask):
