@@ -154,6 +154,14 @@ def test_brain_data(tmpdir):
     detrend = dat.detrend()
     assert detrend.shape() == dat.shape()
 
+    # Test standardize
+    s = dat.standardize()
+    assert s.shape() == dat.shape()
+    assert np.isclose(np.sum(s.mean().data),0,atol=.1)
+    s = dat.standardize(method='zscore')
+    assert s.shape() == dat.shape()
+    assert np.isclose(np.sum(s.mean().data),0,atol=.1)
+    
     # Test Sum
     s = dat.sum()
     assert s.shape()==dat[1].shape()
