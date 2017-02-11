@@ -157,10 +157,10 @@ def test_brain_data(tmpdir):
     # Test standardize
     s = dat.standardize()
     assert s.shape() == dat.shape()
-    assert np.isclose(np.sum(s.mean().data),0)
+    assert np.isclose(np.sum(s.mean().data),0,rtol=.1)
     s = dat.standardize(method='zscore')
     assert s.shape() == dat.shape()
-    assert np.isclose(np.sum(s.mean().data),0)
+    assert np.isclose(np.sum(s.mean().data),0,rtol=.1)
     
     # Test Sum
     s = dat.sum()
