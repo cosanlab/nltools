@@ -294,6 +294,13 @@ def test_adjacency(tmpdir):
     assert isinstance(dat_directed.to_graph(),nx.DiGraph)
     assert isinstance(dat_single.to_graph(),nx.Graph)
 
+    # Test Append
+    a = Adjacency()
+    a = a.append(dat_single)
+    assert a.shape() == dat_single.shape()
+    a = a.append(a)
+    assert a.shape() == (2,6)
+    
     # # Test stats_label_distance - FAILED - Need to sort this out
     # labels = np.array(['group1','group1','group2','group2'])
     # stats = dat_multiple[0].stats_label_distance(labels)
