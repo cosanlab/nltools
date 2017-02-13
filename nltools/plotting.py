@@ -10,13 +10,18 @@ __all__ = ['dist_from_hyperplane_plot',
             'scatterplot',
             'probability_plot',
             'roc_plot',
-            'decode_radar_plot']
+            'decode_radar_plot',
+            'plot_stacked_adjacency',
+            'plot_mean_label_distance',
+            'plot_between_label_distance']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
 import pandas as pd
 import seaborn as sns    
 import matplotlib.pyplot as plt
+import numpy as np
+from nltools.stats import two_sample_permutation
 
 def dist_from_hyperplane_plot(stats_output):
     """ Plot SVM Classification Distance from Hyperplane
@@ -113,71 +118,141 @@ def roc_plot(fpr, tpr):
     plt.title('ROC Plot', fontsize=18)
     return fig
 
-def decode_radar_plot(data, n_top=3, overplot=False, labels=None, palette='husl'):
-    """ Create a radar plot for displaying decoding results
-
+def plot_stacked_adjacency(adjacency1,adjacency2, normalize=True, **kwargs):
+    ''' Create stacked adjacency to illustrate similarity.
+    
     Args:
-        data: pandas object with labels as indices
-        n_top: number of top results to display
-        overplot: overlay multiple decoding results
-        labels: Decoding labels
-        palette: seaborn color palette
-
+        matrix1:  Adjacency instance 1
+        matrix2:  Adjacency instance 2
+        normalize: (boolean) Normalize matrices.
+        
     Returns:
-        plt: Will return a matplotlib plot
+        matplotlib figure
+    '''
+    from nltools.data import Adjacency
 
-    """     
+    if not isinstance(adjacency1,Adjacency) or not isinstance(adjacency2,Adjacency):
+        raise ValueError('This function requires Adjacency() instances as input.')
+    
+    upper = np.triu(adjacency2.squareform(),k=1)
+    lower = np.tril(adjacency1.squareform(),k=-1)
+    if normalize:
+        upper = upper/np.max(upper)
+        lower = lower/np.max(lower)
+    dist = upper+lower
+    return sns.heatmap(dist,xticklabels=False,yticklabels=False, square=True,**kwargs)
 
-    r = np.linspace(0, 10, num=100)
-    n_panels = data.shape[1]
+def plot_mean_label_distance(distance, labels, ax=None, permutation_test=False,
+                            n_permute=5000, fontsize=18, **kwargs):
+    ''' Create a violin plot indicating within and between label distance.
+    
+    Args:
+        distance:  pandas dataframe of distance
+        labels: labels indicating columns and rows to group
+        ax: matplotlib axis to plot on
+        permutation_test: (bool) indicates whether to run permuatation test or not
+        n_permute: (int) number of permutations to run
+        fontsize: (int) fontsize for plot labels
+    Returns:
+        f: heatmap
+        stats: (optional if permutation_test=True) permutation results
+        
+    '''
 
-    if labels is None:
-        labels = []
-        for i in range(n_panels):
-            labels.extend(data.iloc[:, i].order(ascending=False)
-                          .index[:n_top])
-        labels = np.unique(labels)
+    if not isinstance(distance, pd.DataFrame):
+        raise ValueError('distance must be a pandas dataframe')
 
-    data = data.loc[labels, :]
+    if distance.shape[0] != distance.shape[1]:
+        raise ValueError('distance must be square.')
 
-    # Use hierarchical clustering to order
-    from scipy.spatial.distance import pdist
-    from scipy.cluster.hierarchy import linkage, leaves_list
-    dists = pdist(data, metric='correlation')
-    pairs = linkage(dists)
-    order = leaves_list(pairs)
-    data = data.iloc[order, :]
-    labels = [labels[i] for i in order]
+    if len(labels) != distance.shape[0]:
+        raise ValueError('Labels must be same length as distance matrix')
 
-    theta = np.linspace(0.0, 2 * np.pi, len(labels), endpoint=False)
-    import matplotlib.pyplot as plt
-    if overplot:
-        fig, ax = plt.subplots(1, 1, subplot_kw=dict(polar=True))
-        fig.set_size_inches(10, 10)
+    within = []; between = []
+    out = pd.DataFrame(columns=['Distance','Group','Type'],index=None)
+    for i in labels.unique():
+        tmp_w = pd.DataFrame(columns=out.columns,index=None)
+        tmp_w['Distance'] = distance.loc[labels==i,labels==i].values[np.triu_indices(sum(labels==i),k=1)]
+        tmp_w['Type'] = 'Within'
+        tmp_w['Group'] = i
+        tmp_b = pd.DataFrame(columns=out.columns,index=None)
+        tmp_b['Distance'] = distance.loc[labels==i,labels!=i].values.flatten()
+        tmp_b['Type'] = 'Between'
+        tmp_b['Group'] = i
+        out = out.append(tmp_w).append(tmp_b)
+    f = sns.violinplot(x="Group", y="Distance", hue="Type", data=out, split=True, inner='quartile',
+          palette={"Within": "lightskyblue", "Between": "red"},ax=ax,**kwargs)
+    f.set_ylabel('Average Distance',fontsize=fontsize)
+    f.set_title('Average Group Distance',fontsize=fontsize)
+    if permutation_test:
+        stats = dict()
+        for i in labels.unique():
+            # Between group test
+            tmp1 = out.loc[(out['Group']==i) & (out['Type']=='Within'),'Distance']
+            tmp2 = out.loc[(out['Group']==i) & (out['Type']=='Between'),'Distance']
+            stats[str(i)] = two_sample_permutation(tmp1,tmp2,n_permute=n_permute)
+        return (f,stats)
     else:
-        fig, ax = plt.subplots(1, n_panels, sharex=False, sharey=False,
-                                 subplot_kw=dict(polar=True))
-        fig.set_size_inches((6 * n_panels, 6))
-    # A bit silly to import seaborn just for this...
-    # should extract just the color_palette functionality.
-    import seaborn as sns
-    colors = sns.color_palette(palette, n_panels)
-    for i in range(n_panels):
-        if overplot:
-            alpha = 0.2
-        else:
-            ax = axes[i]
-            alpha = 0.8
-        ax.set_ylim(data.values.min(), data.values.max())
-        d = data.iloc[:, i].values
-        ax.fill(theta, d, color=colors[i], alpha=alpha, ec='k',
-                linewidth=0)
-        ax.fill(theta, d, alpha=1.0, ec=colors[i],
-                linewidth=2, fill=False)
-        ax.set_xticks(theta)
-        ax.set_xticklabels(labels, fontsize=18)
-        [lab.set_fontsize(18) for lab in ax.get_yticklabels()]
-        ax.set_title('Cluster %d' % i, fontsize=22, y=1.12)
-    plt.tight_layout()
-    return plt
+        return f
 
+def plot_between_label_distance(distance, labels, ax=None, permutation_test=True,
+                                n_permute=5000, fontsize=18, **kwargs):
+    ''' Create a heatmap indicating average between label distance
+    
+    
+        Args:
+            distance: (pandas dataframe) brain_distance matrix
+            labels: (pandas dataframe) group labels
+            ax: axis to plot (default=None)
+            permutation_test: (boolean)
+            n_permute: (int) number of samples for permuation test
+            fontsize: (int) size of font for plot
+        Returns:
+            f: heatmap
+            out: pandas dataframe of pairwise distance between conditions
+            within_dist_out: average pairwise distance matrix
+            mn_dist_out: (optional if permutation_test=True) average difference in distance between conditions
+            p_dist_out: (optional if permutation_test=True) p-value for difference in distance between conditions
+    '''
+
+    out = pd.DataFrame(columns=['Distance','Group','Comparison'],index=None)
+    for i in labels.unique():
+        for j in labels.unique():
+            tmp_b = pd.DataFrame(columns=out.columns,index=None)
+            if distance.loc[labels==i,labels==j].shape[0]==distance.loc[labels==i,labels==j].shape[1]:
+                tmp_b['Distance'] = distance.loc[labels==i,labels==i].values[np.triu_indices(sum(labels==i),k=1)]
+            else:
+                tmp_b['Distance'] = distance.loc[labels==i,labels==j].values.flatten()
+            tmp_b['Comparison'] = j
+            tmp_b['Group'] = i
+            out = out.append(tmp_b)
+
+    within_dist_out = pd.DataFrame(np.zeros((len(out['Group'].unique()),len(out['Group'].unique()))),
+                               columns=out['Group'].unique(),index=out['Group'].unique())
+    for i in out['Group'].unique():
+        for j in out['Comparison'].unique():
+            within_dist_out.loc[i,j] = out.loc[(out['Group']==i) & (out['Comparison']==j)]['Distance'].mean()  
+    
+    if ax is None:
+        f,ax = plt.subplots(1)
+    else:
+        f = plt.figure()
+    
+    if permutation_test:
+        mn_dist_out = pd.DataFrame(np.zeros((len(out['Group'].unique()),len(out['Group'].unique()))),
+                               columns=out['Group'].unique(),index=out['Group'].unique())
+        p_dist_out = pd.DataFrame(np.zeros((len(out['Group'].unique()),len(out['Group'].unique()))),
+                               columns=out['Group'].unique(),index=out['Group'].unique())
+        for i in out['Group'].unique():
+            for j in out['Comparison'].unique():
+                tmp1 = out.loc[(out['Group']==i) & (out['Comparison']==i),'Distance']
+                tmp2 = out.loc[(out['Group']==i) & (out['Comparison']==j),'Distance']
+                s = two_sample_permutation(tmp1,tmp2,n_permute=n_permute)
+                mn_dist_out.loc[i,j] = s['mean']
+                p_dist_out.loc[i,j] = s['p']
+        sns.heatmap(mn_dist_out,ax=ax,square=True,**kwargs)
+        sns.heatmap(mn_dist_out,mask=p_dist_out>.05,square=True,linewidth=2,annot=True,ax=ax,cbar=False)
+        return (f, out, within_dist_out,mn_dist_out,p_dist_out)
+    else:
+        f = sns.heatmap(within_dist_out,ax=ax,square=True,**kwargs)
+        return (f, out, within_dist_out)
