@@ -22,7 +22,11 @@ import cPickle
 import nibabel as nib
 from nltools.utils import get_resource_path, set_algorithm, get_anatomical
 from nltools.cross_validation import set_cv
-from nltools.plotting import dist_from_hyperplane_plot, scatterplot, probability_plot, roc_plot
+from nltools.plotting import (dist_from_hyperplane_plot, 
+                            scatterplot, 
+                            probability_plot, 
+                            roc_plot,
+                            plot_stacked_adjacency)
 from nltools.stats import pearson,fdr,threshold, fisher_r_to_z, correlation_permutation,one_sample_permutation,two_sample_permutation
 from nltools.mask import expand_mask,collapse_mask
 from nltools.analysis import Roc
@@ -1531,7 +1535,7 @@ class Adjacency(object):
             elif method is 'square':
                 raise NotImplementedError('Need to decide how we should write out multiple matrices.  As separate files?')
 
-    def similarity(self, data, **kwargs):
+    def similarity(self, data, plot=False, **kwargs):
         ''' Calculate similarity between two Adjacency matrices.  
         Default is to use spearman correlation and permutation test.'''
         if not isinstance(data,Adjacency):
@@ -1539,8 +1543,14 @@ class Adjacency(object):
         else:
             data2 = data.copy()
         if self.is_single_matrix:
+            if plot:
+                plot_stacked_adjacency(self,data)
             return correlation_permutation(self.data, data2.data,**kwargs)
         else:
+            if plot:
+                f,a = plt.subplots(len(self))
+                for i in a:
+                    plot_stacked_adjacency(self,data,ax=i)
             return [correlation_permutation(x.data, data2.data,**kwargs) for x in self]
 
     def distance(self, method='correlation', **kwargs):
