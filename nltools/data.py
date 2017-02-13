@@ -1509,6 +1509,7 @@ class Adjacency(object):
                 raise ValueError('Data is not the same shape as Adjacency instance.')
 
             out.data = np.vstack([self.data,data.data])
+            out.is_single_matrix = False
             if out.Y.size:
                 out.Y = self.Y.append(data.Y)
         
