@@ -259,7 +259,10 @@ def test_adjacency(tmpdir):
     # Test write
     dat_multiple.write(os.path.join(str(tmpdir.join('Test.csv'))),method='long')
     dat_multiple2 = Adjacency(os.path.join(str(tmpdir.join('Test.csv'))),matrix_type='distance_flat')
+    dat_directed.write(os.path.join(str(tmpdir.join('Test.csv'))),method='long')
+    dat_directed2 = Adjacency(os.path.join(str(tmpdir.join('Test.csv'))),matrix_type='directed_flat')
     assert np.all(np.isclose(dat_multiple.data,dat_multiple2.data))
+    assert np.all(np.isclose(dat_directed.data,dat_directed2.data))
 
     # Test mean
     assert isinstance(dat_multiple.mean(axis=0),Adjacency)
