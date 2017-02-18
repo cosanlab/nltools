@@ -1341,7 +1341,7 @@ class Adjacency(object):
                 is_single_matrix = test_is_single_matrix(data)
             elif matrix_type.lower() == 'directed_flat':
                 matrix_type = 'directed'
-                data = np.array(data)
+                data = np.array(data).flatten()
                 issymmetric = False
                 is_single_matrix = test_is_single_matrix(data)
             elif matrix_type.lower() in ['distance','similarity','directed']:
