@@ -930,20 +930,20 @@ class Brain_Data(object):
             else:
                 raise ValueError('Make sure mask is a Brain_Data or nibabel instance')
 
-        # make sure each ROI id is an integer
-        mask.data = np.round(mask.data).astype(int)
+        ma = mask.copy()
 
-        if len(np.unique(mask.data)) == 2:
+        if len(np.unique(ma.data)) == 2:
             if method is 'mean':
-                out = np.mean(self.data[:,np.where(mask.data)].squeeze(),axis=1)
-        elif len(np.unique(mask.data)) > 2:
-            all_mask = expand_mask(mask)
+                out = np.mean(self.data[:,np.where(ma.data)].squeeze(),axis=1)
+        elif len(np.unique(ma.data)) > 2:
+            # make sure each ROI id is an integer
+            ma.data = np.round(ma.data).astype(int)
+            all_mask = expand_mask(ma)
             out = []
             for i in range(all_mask.shape()[0]):
                 if method is 'mean':
                     out.append(np.mean(self.data[:,np.where(all_mask[i].data)].squeeze(),axis=1))
             out = np.array(out)
-
         return out
 
     def icc(self, icc_type='icc2'):
