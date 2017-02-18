@@ -137,6 +137,8 @@ def plot_stacked_adjacency(adjacency1,adjacency2, normalize=True, **kwargs):
     upper = np.triu(adjacency2.squareform(),k=1)
     lower = np.tril(adjacency1.squareform(),k=-1)
     if normalize:
+        upper = np.triu((adjacency1-adjacency1.mean()).squareform(),k=1)
+        lower = np.tril((adjacency2-adjacency2.mean()).squareform(),k=-1)
         upper = upper/np.max(upper)
         lower = lower/np.max(lower)
     dist = upper+lower
