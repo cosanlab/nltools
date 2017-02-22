@@ -17,3 +17,6 @@ def test_permutation():
 	stats = correlation_permutation(x,y)
 	assert (stats['correlation']>.4) & (stats['correlation']<.85)
 	assert stats['p']< .001
+	stats = correlation_permutation(x,y,metric='kendall')
+	assert (stats['correlation']>.4) & (stats['correlation']<.85)
+	assert stats['p']< .001
