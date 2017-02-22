@@ -21,6 +21,7 @@ from nltools.stats import pearson
 from nltools.utils import get_resource_path
 from scipy.stats import norm, binom_test
 from sklearn.metrics import auc
+from copy import deepcopy
 
 
 class Roc(object):
@@ -49,14 +50,14 @@ class Roc(object):
         if threshold_type not in thr_type:
             raise ValueError("threshold_type must be ['optimal_overall', 'optimal_balanced','minimum_sdt_bias']")
 
-        self.input_values = input_values
-        self.binary_outcome = binary_outcome
-        self.threshold_type = threshold_type
+        self.input_values = deepcopy(input_values)
+        self.binary_outcome = deepcopy(binary_outcome)
+        self.threshold_type = deepcopy(threshold_type)
         self.forced_choice=forced_choice
         if isinstance(self.binary_outcome,pd.DataFrame):
             self.binary_outcome = np.array(self.binary_outcome).flatten()
-        else:
-            self.binary_outcome = binary_outcome
+        else:   
+            self.binary_outcome = deepcopy(binary_outcome)
 
     def calculate(self, input_values=None, binary_outcome=None, criterion_values=None,
         threshold_type='optimal_overall', forced_choice=False, balanced_acc=False):
@@ -76,14 +77,14 @@ class Roc(object):
         """
 
         if input_values is not None:
-            self.input_values = input_values
+            self.input_values = deepcopy(input_values)
 
         if binary_outcome is not None:
-            self.binary_outcome = binary_outcome
+            self.binary_outcome = deepcopy(binary_outcome)
 
         # Create Criterion Values
         if criterion_values is not None:
-            self.criterion_values = criterion_values
+            self.criterion_values = deepcopy(criterion_values)
         else:
             self.criterion_values = np.linspace(min(self.input_values), max(self.input_values), num=50*len(self.binary_outcome))
 
