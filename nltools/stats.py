@@ -23,7 +23,7 @@ __all__ = ['pearson',
 
 import numpy as np
 import pandas as pd
-from scipy.stats import ss, pearsonr, spearmanr
+from scipy.stats import ss, pearsonr, spearmanr, kendalltau
 from copy import deepcopy
 import nibabel as nib
 
@@ -285,7 +285,7 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman'):
             data1: Pandas DataFrame or Series or numpy array
             data2: Pandas DataFrame or Series or numpy array
             n_permute: (int) number of permutations
-            metric: (str) type of association metric ['spearman','pearson']
+            metric: (str) type of association metric ['spearman','pearson','kendall']
             
         Returns:
             stats: (dict) dictionary of permutation results ['correlation','p']
@@ -300,8 +300,10 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman'):
         stats['correlation'] = spearmanr(data1,data2)[0]
     elif metric is 'pearson':
         stats['correlation'] = pearsonr(data1,data2)[0]
+    elif metric is 'kendall':
+        stats['correlation'] = kendalltau(data1,data2)[0]
     else:
-        raise ValueError('metric must be "spearman" or "pearson"')
+        raise ValueError('metric must be "spearman" or "pearson" or "kendall"')
 
     all_p = []
     for p in range(n_permute):
@@ -310,6 +312,8 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman'):
             all_p.append(spearmanr(np.random.permutation(data1),data2)[0])
         elif metric is 'pearson':
             all_p.append(pearsonr(np.random.permutation(data1),data2)[0])
+        elif metric is 'kendall':
+            all_p.append(kendalltau(np.random.permutation(data1),data2)[0])
     if stats['correlation']>=0:
         stats['p'] = np.mean(all_p>=stats['correlation'])
     else:
