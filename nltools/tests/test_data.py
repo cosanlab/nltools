@@ -276,6 +276,8 @@ def test_adjacency(tmpdir):
 
     # Test similarity
     assert len(dat_multiple.similarity(dat_single.squareform()))==len(dat_multiple)
+    assert len(dat_multiple.similarity(dat_single.squareform(),metric='pearson'))==len(dat_multiple)
+    assert len(dat_multiple.similarity(dat_single.squareform(),metric='kendall'))==len(dat_multiple)
 
     # Test distance
     assert isinstance(dat_multiple.distance(),Adjacency)
