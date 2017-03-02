@@ -90,7 +90,7 @@ class Roc(object):
 
         if (forced_choice) | (self.forced_choice):
             self.forced_choice=True
-            mn_scores = (self.input_values[self.binary_outcome] + self.input_values[self.binary_outcome])/2
+            mn_scores = (self.input_values[self.binary_outcome] + self.input_values[~self.binary_outcome])/2
             self.input_values[self.binary_outcome] = self.input_values[self.binary_outcome] - mn_scores;
             self.input_values[~self.binary_outcome] = self.input_values[~self.binary_outcome] - mn_scores;
             self.class_thr = 0;
