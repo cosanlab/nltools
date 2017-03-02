@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from nltools.stats import one_sample_permutation,two_sample_permutation,correlation_permutation
+from nltools.stats import one_sample_permutation,two_sample_permutation,correlation_permutation, downsample
 
 def test_permutation():
 	dat = np.random.multivariate_normal([2,6],[[.5,2],[.5,3]],100)
@@ -20,3 +20,10 @@ def test_permutation():
 	stats = correlation_permutation(x,y,metric='kendall')
 	assert (stats['correlation']>.4) & (stats['correlation']<.85)
 	assert stats['p']< .001
+
+def test_downsample():
+	dat = pd.DataFrame()
+	dat['x'] = range(0,100)
+	dat['y'] = np.repeat(range(1,11),10)
+	assert((dat.groupby('y').mean().values.ravel() == downsample(data=dat['x'],sampling_freq=10,target=1,target_type='hz',method='mean').values).all)
+	assert((dat.groupby('y').median().values.ravel() == downsample(data=dat['x'],sampling_freq=10,target=1,target_type='hz',method='median').values).all)
