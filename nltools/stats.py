@@ -193,7 +193,7 @@ def calc_bpm(beat_interval, sampling_freq):
     '''
     return 60*sampling_freq*(1/(beat_interval))
 
-def downsample(data,sampling_freq=None, target=None, target_type='samples'):
+def downsample(data,sampling_freq=None, target=None, target_type='samples',method='mean'):
     ''' Downsample pandas to a new target frequency or number of samples using averaging.
     
         Args:
@@ -201,6 +201,7 @@ def downsample(data,sampling_freq=None, target=None, target_type='samples'):
             sampling_freq:  Sampling frequency of data 
             target: downsampling target
             target_type: type of target can be [samples,seconds,hz]
+            method: (str) type of downsample method ['mean','median'], default: mean
         Returns:
             downsampled pandas object
             
@@ -208,7 +209,9 @@ def downsample(data,sampling_freq=None, target=None, target_type='samples'):
       
     if not isinstance(data,(pd.DataFrame,pd.Series)):
         raise ValueError('Data must by a pandas DataFrame or Series instance.')
-               
+    if not (method=='median') | (method=='mean'):
+        raise ValueError("Metric must be either 'mean' or 'median' ")
+
     if target_type is 'samples':
         n_samples = target
     elif target_type is 'seconds':
@@ -222,7 +225,10 @@ def downsample(data,sampling_freq=None, target=None, target_type='samples'):
     # if data.shape[0] % n_samples:
     if data.shape[0] > len(idx):
         idx = np.concatenate([idx, np.repeat(idx[-1]+1,data.shape[0]-len(idx))])
-    return data.groupby(idx).mean()
+    if method=='mean':
+        return data.groupby(idx).mean()
+    elif method=='median':
+        return data.groupby(idx).median()
 
 def fisher_r_to_z(r):
     ''' Use Fisher transformation to convert correlation to z score '''
