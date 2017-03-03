@@ -13,7 +13,7 @@ Classes to represent various types of data
 
 __all__ = ['Brain_Data',
             'Adjacency',
-            'Groupby']
+            'Groupby','Design_Mat','Design_Mat_Series']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
@@ -37,6 +37,7 @@ from nilearn.regions import connected_regions
 from nilearn.plotting.img_plotting import plot_epi, plot_roi, plot_stat_map
 from copy import deepcopy
 import pandas as pd
+from pandas import DataFrame, Series
 import numpy as np
 from scipy.stats import ttest_1samp, t, norm
 from scipy.signal import detrend
@@ -51,6 +52,7 @@ import tempfile
 import seaborn as sns
 from pynv import Client
 import matplotlib.pyplot as plt
+from statsmodels.stats.outliers_influence import variance_inflation_factor as vif
 
 # Optional dependencies
 try:
@@ -1754,6 +1756,116 @@ class Groupby(object):
             else:
                 raise ValueError('No method for aggregation implented for %s yet.' % type(value_dict[i]))
         return out.sum()
+
+class Design_Mat_Series(Series):
+
+    """
+    This is a sub-class of pandas series. While not having additional methods of it's own required to retain normal slicing functionality for the Design_Mat class, i.e. how slicing is typically handled in pandas. All methods should be called on Design_Mat below.
+    """
+
+    @property
+    def _constructor(self):
+        return Design_Mat_Series
+
+    @property
+    def _constructor_expanddim(self):
+        return Design_Mat
+
+class Design_Mat(DataFrame):
+    """
+    Design_Mat is a class to represent design matrices with convenience functionality for convolution, upsampling and downsample. It plays nicely with Brain_Data and can be used to build an experimental design to pass to Brain_Data's X attribute. 
+
+    This makes it easier to perform data manipulation and analyses.
+
+    Args:
+        data: nibabel data instance or list of files
+        Y: Pandas DataFrame of training labels
+        X: Pandas DataFrame Design Matrix for running univariate models 
+        mask: binary nifiti file to mask brain data
+        output_file: Name to write out to nifti file
+        **kwargs: Additional keyword arguments to pass to the prediction algorithm
+
+    """
+
+    _metadata = ['TR','hrf','convolved']
+
+    def __init__(self,*args,**kwargs):
+        
+        TR = kwargs.pop('TR',None)
+        hrf = kwargs.pop('hrf',None)
+        convolved= kwargs.pop('convolved',False)
+        
+        super(Design_Mat,self).__init__(*args,**kwargs)
+
+        self.TR = TR
+        self.hrf = hrf
+        self.convolved = convolved
+        
+
+    @property
+    def _constructor(self):
+        return Design_Mat
+
+    @property
+    def _constructor_sliced(self):
+        return Design_Mat_Series
+
+
+    def vif(self,columns=None):
+        
+        """
+        Compute variance inflation factor amongst columns of design matrix.
+
+        Args:
+            columns: optional list of column names
+        
+        """
+        if columns is not None:
+            assert len(columns) > 1, "Can't compute vif with only 1 column!"
+            out = self[columns]
+            return np.array([vif(out.values,i) for i in xrange(out.shape[1])])
+        else:
+            return np.array([vif(self.values,i) for i in xrange(self.shape[1])])
+
+
+    def image(self):
+
+        """
+        Visualize dataframe spm style. Use .plot() for typical pandas plotting functionality
+        
+        """
+        ax = sns.heatmap(self,cmap='gray',cbar=False)
+        for _, spine in ax.spines.items():
+            spine.set_visible(True);
+        for i, label in enumerate(ax.get_yticklabels()):
+            if i==0 or i==self.shape[0]-1:
+                label.set_visible(True);
+            else:
+                label.set_visible(False);
+        ax.axhline(linewidth=4, color="k");  
+        ax.axvline(linewidth=4, color="k")
+        ax.axhline(y=self.shape[0],color='k',linewidth=4)
+        ax.axvline(x=self.shape[1],color='k',linewidth=4)
+        plt.yticks(rotation=0)
+
+    def convolve(self,colNames,hrf=None,TR=None):
+        """
+        Perform convolution on specified columns of design matrix.
+
+        Args:
+            hrf: the output of a function to use for convolution. Defaults to glover hrf
+            TR: what TR use for convolution
+
+        """
+
+    def add_filter(self):
+        """
+        """
+
+
+
+
+
 
 def all_same(items):
     return np.all(x == items[0] for x in items)
