@@ -53,6 +53,8 @@ import seaborn as sns
 from pynv import Client
 import matplotlib.pyplot as plt
 from statsmodels.stats.outliers_influence import variance_inflation_factor as vif
+from nipy.modalities.fmri.hemodynamic_models import glover_hrf
+
 
 # Optional dependencies
 try:
@@ -1792,7 +1794,7 @@ class Design_Mat(DataFrame):
     def __init__(self,*args,**kwargs):
         
         TR = kwargs.pop('TR',None)
-        hrf = kwargs.pop('hrf',None)
+        hrf = kwargs.pop('hrf',glover_hrf)
         convolved= kwargs.pop('convolved',False)
         
         super(Design_Mat,self).__init__(*args,**kwargs)
@@ -1841,15 +1843,35 @@ class Design_Mat(DataFrame):
         ax.axvline(x=self.shape[1],color='k',linewidth=4)
         plt.yticks(rotation=0)
 
-    def convolve(self,colNames,hrf=None,TR=None):
+    def convolve(self,colNames=None,inplace=True,**kwargs):
         """
-        Perform convolution on specified columns of design matrix.
+        Perform convolution using an hrf function. Defaults to inplace convolution, and can perform convolution optionally on specific columns
 
         Args:
-            hrf: the output of a function to use for convolution. Defaults to glover hrf
-            TR: what TR use for convolution
+            colNames: what columns to perform convolution on
+            inplace: perform convolution in place, else return a new instance
+            hrf: a different hrf function that takes TR and oversampling args
 
         """
+        assert self.TR is not None, "No TR specified!"
+
+        if 'hrf' in kwargs.keys():
+            self.hrf = kwargs['hrf']
+        hrfDat = self.hrf(self.TR,oversampling=1)
+
+        if colNames is not None:
+            out = self[colNames].apply(lambda x: np.convolve(x,hrfDat)[:self.shape[0]])
+            nonConvolved = [col for col in self.columns if col not in colNames]
+            out = pd.concat([out,self[nonConvolved]],axis=1)
+        else:
+            out = self.apply(lambda x: np.convolve(x,hrfDat)[:self.shape[0]])
+
+        if inplace:
+            for col in self:
+                self.loc[:,col] = out.loc[:,col]
+            return
+        else:
+            return out
 
     def add_filter(self):
         """
