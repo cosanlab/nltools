@@ -1866,6 +1866,7 @@ class Design_Mat(DataFrame):
         else:
             out = self.apply(lambda x: np.convolve(x,hrfDat)[:self.shape[0]])
 
+        self.convolved = True
         if inplace:
             for col in self:
                 self.loc[:,col] = out.loc[:,col]
