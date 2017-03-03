@@ -1811,30 +1811,23 @@ class Design_Mat(DataFrame):
         return Design_Mat_Series
 
 
-    def vif(self,columns=None):
+    def vif(self):
         
         """
         Compute variance inflation factor amongst columns of design matrix.
-
-        Args:
-            columns: optional list of column names
         
         """
-        if columns is not None:
-            assert len(columns) > 1, "Can't compute vif with only 1 column!"
-            out = self[columns]
-            return np.array([vif(out.values,i) for i in xrange(out.shape[1])])
-        else:
-            return np.array([vif(self.values,i) for i in xrange(self.shape[1])])
+        assert self.shape[1] > 1, "Can't compute vif with only 1 column!"
+        return np.array([vif(self.values,i) for i in xrange(self.shape[1])])
 
 
-    def image(self):
+    def image(self,**kwargs):
 
         """
-        Visualize dataframe spm style. Use .plot() for typical pandas plotting functionality
+        Visualize dataframe spm style. Use .plot() for typical pandas plotting functionality. Can pass optional keyword args to seaborn heatmap.
         
         """
-        ax = sns.heatmap(self,cmap='gray',cbar=False)
+        ax = sns.heatmap(self,cmap='gray',cbar=False,**kwargs)
         for _, spine in ax.spines.items():
             spine.set_visible(True);
         for i, label in enumerate(ax.get_yticklabels()):
