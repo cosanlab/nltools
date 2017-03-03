@@ -1789,20 +1789,45 @@ class Design_Mat(DataFrame):
 
     """
 
-    _metadata = ['TR','hrf','convolved']
+    _metadata = ['TR','hrf','convolved','onsets','covariates','header','addIntercept']
 
     def __init__(self,*args,**kwargs):
         
         TR = kwargs.pop('TR',None)
         hrf = kwargs.pop('hrf',glover_hrf)
-        convolved= kwargs.pop('convolved',False)
-        
-        super(Design_Mat,self).__init__(*args,**kwargs)
+        onsets = kwargs.pop('onsets',None)
+        covariates = kwargs.pop('covariates',None)
+        convolved= kwargs.pop('convolved',[])
+        header = kwargs.pop('header',None)
+        addIntercept = kwargs.pop('addIntercept',True)
 
-        self.TR = TR
+        if (covariates is not None or onsets is not None) and TR is None:
+            raise ValueError("A TR in seconds must be specified if a covariates or onsets file is passed!")
+        else:
+            self.TR = TR
+
         self.hrf = hrf
         self.convolved = convolved
-        
+        self.header = header
+
+        if covariates is not None:
+            C = self._loadCovs(covariates)
+
+        if onsets is not None:
+            #Convert onsets in seconds to TRs
+            O = self._loadOnsets(onsets)
+
+        #Build dummy codes
+        if onsets is not None and covariates is not None:
+            X = pd.DataFrame(columns=O['Stim'].unique(),data=np.zeros([C.shape[0],len(O['Stim'].unique())]))
+            for i, row in O.iterrows():
+                dur = np.ceil(row['Dur']/self.TR)
+                X.ix[row['Onset']-1:row['Onset']+dur-1,row['Stim']] = 1
+
+            X = pd.concat([X,C],axis=1)
+            super(Design_Mat,self).__init__(X,*args,**kwargs)
+        else:
+            super(Design_Mat,self).__init__(X,*args,**kwargs)
 
     @property
     def _constructor(self):
@@ -1811,6 +1836,24 @@ class Design_Mat(DataFrame):
     @property
     def _constructor_sliced(self):
         return Design_Mat_Series
+
+
+    def add_covariates(self,covariates,addIntercept=True):
+
+        if not isinstance(covariates,Design_Mat) or not isinstance(covariates,DataFrame):
+            covariates = self._loadCovs(covariates)
+            #Should this happen here, or in the _loadCovs function
+            if addIntercept:
+                if len(list(covariates)) == 1:
+                    covariates['intercept'] = 1
+                else:
+                    numRuns = len(covariates)
+                    numTRs = covariates.shape[0]/numRuns
+                    runDummies = pd.DataFrame(runDummies,columns = ['run'+str(elem) for elem in xrange(numRuns)])
+                covariates = pd.concat([covariates,runDummies],axis=1)
+
+
+        self = self.merge(covariates,left_index=True,right_index=True)
 
 
     def vif(self):
@@ -1878,8 +1921,75 @@ class Design_Mat(DataFrame):
         """
         """
 
+    def _loadCovs(self,covariates,**kwargs):
+
+        #Single file 
+        if isinstance(covariates,six.string_types):
+            C = pd.read_csv(covariates,**kwargs)
+            if self.addIntercept:
+                C['Intercept'] = 1
+        #List
+        elif isinstance(covariates,list):
+            covs = []
+            for i, f in enumerate(covariates):
+                F = pd.read_csv(f,**kwargs)
+                F.columns = [str(i)+'_' + c if 'spike' in c else c for c in F.columns]
+                covs.append(F)
+            C = pd.concat(covs,axis=0,ignore_index=True)
+            
+            if self.addIntercept:
+                numRuns = len(covariates)
+                numTRs = C.shape[0]/numRuns
+                runDummies = np.zeros([C.shape[0],numRuns])
+
+                for runCount in xrange(len(covs)):
+                    runDummies[runCount*numTRs:runCount*numTRs+numTRs,runCount] = 1
+
+                runDummies = pd.DataFrame(runDummies,columns = ['run'+str(elem) for elem in xrange(numRuns)])
+                C = pd.concat([C,runDummies],axis=1)
+        else:
+            raise TypeError("Covariates file must be file path or list of file paths!")
+        return C
+
+    def _loadOnsets(self,onsets):
+
+        #Convert onsets in seconds to TRs
+        #Single file instance 
+        if isinstance(onsets,six.string_types):
+            O= pd.read_csv(onsets,self.header=header,**kwargs)
+            if self.header is None:
+                O = headerCheck(O)
+            O['Onset'] = O['Onset'].apply(lambda x: int(np.floor(x/self.TR)))
+        #List
+        elif isinstance(onsets,list):
+            onsets,numTRs = [],[]
+            for i, o in enumerate(onsets):
+                F = pd.read_csv(o,header=header,**kwargs)
+                numTRs.append(F.shape[0])
+                if header is None:
+                    F = headerCheck(F)
+                F['Onset'] = F['Onset'].apply(lambda x: int(np.floor(x/self.TR)))
+                #Handle runs of different numbers of TRs
+                if i > 0:
+                    F['Onset'] += numTRs*(i-1)
+                onsets.append(F)
+            O = pd.concat(onsets,axis=0,ignore_index=True)
+        else:
+            raise TypeError("Onsets file must be file path or list of file paths!")
+        return O
 
 
+def headerCheck(df):
+        
+    if isinstance(df.iloc[0,0],six.string_types):
+            df.columns = ['Stim','Onset','Duration']
+            return df
+    elif isinstance(df.iloc[0,2],six.string_types):
+            df.columns = ['Stim','Duration','Onset']
+            return df
+    else:
+        raise ValueError("Poorly formatted onsets file. Try adding a header, or making sure columns are ordered like: stim,onset,duration OR onset,duration,stim")
+        
 
 
 
