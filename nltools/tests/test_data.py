@@ -4,7 +4,7 @@ import nibabel as nb
 import pandas as pd
 import glob
 from nltools.simulator import Simulator
-from nltools.data import Brain_Data, Adjacency, Groupby
+from nltools.data import Brain_Data, Adjacency, Groupby, Design_Mat
 from nltools.data import threshold
 from nltools.mask import create_sphere
 from sklearn.metrics import pairwise_distances
@@ -349,4 +349,15 @@ def test_groupby(tmpdir):
     # Test combine
     combine_mn = dat.combine(mn)
     assert len(combine_mn.shape())==1
+
+def test_designmat(tmpdir):
+    d = Design_Mat({'X':[1,4,2,7,5,9,2,1,3,2],'Y':[3,0,0,6,9,9,10,10,1,10],'Z':[2,2,2,2,7,0,1,3,3,2]},TR=2.0)
+    
+    #Test vifs
+    expectedVifs =  np.array([ 2.18629784,  2.51063482,  2.00165132])
+    assert np.allclose(expectedVifs,d.vif())
+    
+
+
+
 
