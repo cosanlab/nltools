@@ -1775,59 +1775,29 @@ class Design_Mat_Series(Series):
 
 class Design_Mat(DataFrame):
     """
-    Design_Mat is a class to represent design matrices with convenience functionality for convolution, upsampling and downsample. It plays nicely with Brain_Data and can be used to build an experimental design to pass to Brain_Data's X attribute. 
-
-    This makes it easier to perform data manipulation and analyses.
+    Design_Mat is a class to represent design matrices with convenience functionality for convolution, upsampling and downsamplingg. It plays nicely with Brain_Data and can be used to build an experimental design to pass to Brain_Data's X attribute. It is essentially an enhanced pandas df, with extra attributes and methods. Methods always return a new design matrix instance.
 
     Args:
-        data: nibabel data instance or list of files
-        Y: Pandas DataFrame of training labels
-        X: Pandas DataFrame Design Matrix for running univariate models 
-        mask: binary nifiti file to mask brain data
-        output_file: Name to write out to nifti file
-        **kwargs: Additional keyword arguments to pass to the prediction algorithm
-
+        hrf: (list) list of functions to apply when convolution is performed
+        convolved: (bool) whether convolution has been performed
+        hasIntercept: (bool) whether the design matrix has an intercept column
     """
 
-    _metadata = ['TR','hrf','convolved','onsets','covariates','header','addIntercept']
+    _metadata = ['TR','hrf','convolved','hasIntercept']
 
     def __init__(self,*args,**kwargs):
         
+        hrf = kwargs.pop('hrf',[glover_hrf])
+        convolved= kwargs.pop('convolved',False)
+        hasIntercept = kwargs.pop('hasIntercept',False)
         TR = kwargs.pop('TR',None)
-        hrf = kwargs.pop('hrf',glover_hrf)
-        onsets = kwargs.pop('onsets',None)
-        covariates = kwargs.pop('covariates',None)
-        convolved= kwargs.pop('convolved',[])
-        header = kwargs.pop('header',None)
-        addIntercept = kwargs.pop('addIntercept',True)
 
-        if (covariates is not None or onsets is not None) and TR is None:
-            raise ValueError("A TR in seconds must be specified if a covariates or onsets file is passed!")
-        else:
-            self.TR = TR
-
+        self.TR = TR
         self.hrf = hrf
         self.convolved = convolved
-        self.header = header
+        self.hasIntercept = hasIntercept
 
-        if covariates is not None:
-            C = self._loadCovs(covariates)
-
-        if onsets is not None:
-            #Convert onsets in seconds to TRs
-            O = self._loadOnsets(onsets)
-
-        #Build dummy codes
-        if onsets is not None and covariates is not None:
-            X = pd.DataFrame(columns=O['Stim'].unique(),data=np.zeros([C.shape[0],len(O['Stim'].unique())]))
-            for i, row in O.iterrows():
-                dur = np.ceil(row['Dur']/self.TR)
-                X.ix[row['Onset']-1:row['Onset']+dur-1,row['Stim']] = 1
-
-            X = pd.concat([X,C],axis=1)
-            super(Design_Mat,self).__init__(X,*args,**kwargs)
-        else:
-            super(Design_Mat,self).__init__(X,*args,**kwargs)
+        super(Design_Mat,self).__init__(*args,**kwargs)
 
     @property
     def _constructor(self):
@@ -1838,23 +1808,69 @@ class Design_Mat(DataFrame):
         return Design_Mat_Series
 
 
-    def add_covariates(self,covariates,addIntercept=True):
+    def info(self):
+        return '%s.%s(shape=%s, hrf=%s, convolved=%s, hasIntercept=%s)' % (
+            self.__class__.__module__,
+            self.__class__.__name__,
+            self.shape,
+            self.hrf,
+            self.convolved,
+            self.hasIntercept
+            )
 
-        if not isinstance(covariates,Design_Mat) or not isinstance(covariates,DataFrame):
-            covariates = self._loadCovs(covariates)
-            #Should this happen here, or in the _loadCovs function
-            if addIntercept:
-                if len(list(covariates)) == 1:
-                    covariates['intercept'] = 1
-                else:
-                    numRuns = len(covariates)
-                    numTRs = covariates.shape[0]/numRuns
-                    runDummies = pd.DataFrame(runDummies,columns = ['run'+str(elem) for elem in xrange(numRuns)])
-                covariates = pd.concat([covariates,runDummies],axis=1)
+    def horzCat(self,df,inplace=False):
+        """
+            Append another design matrix, column-wise (horz cat). Always returns a new design_matrix.
+        """
+        assert self.shape[0] == df.shape[0], "Can't append differently sized design matrices!"
+        out = pd.concat([self,df],axis=1)
+        out.TR = self.TR
+        out.convolved = self.convolved
+        out.hasIntercept = self.hasIntercept
+        return out
 
 
-        self = self.merge(covariates,left_index=True,right_index=True)
+    def vertCat(self,df,separate=True,addIntercept=False,uniqueCols=[]):
+        """
+            Append another design matrix row-wise (vert cat). Always returns a new design matrix
+            Args:
+                df: (Design_Matrix) other design mat to append
+                separate: (bool) whether to treat dataframe as separate; if true will by default uniquify intercepts; if uniqueCols is also passed, will uniquify those columns as well
+                addIntercept: (bool) whether to add intercepts to each design matrix before appending
+                uniqueCols: (list) additional columns to separate before appending
+        """
+        assert self.hasIntercept == df.hasIntercept, "Intercepts are ambigious. Both design matrices should match in whether they do or don't have intercepts."
+        
+        if addIntercept:
+            self['intercept'] = 1
+            self.hasIntercept = True
+            df['intercept'] = 1 
+            df.hasIntercept = True
+        if separate:
+            if self.hasIntercept:
+                uniqueCols += ['intercept']
+            idx_1 = []
+            idx_2 = []
+            for col in uniqueCols:
+                if col in set(self.columns) & set(df.columns):
+                    idx_1 += [i for i,elem in enumerate(self.columns) if col in elem]
+                    idx_2 += [i for i,elem in enumerate(df.columns) if col in elem]
+            aRename = {self.columns[elem]:'0_'+self.columns[elem] for i,elem in enumerate(idx_1)}
+            bRename = {df.columns[elem]:'1_'+df.columns[elem] for i,elem in enumerate(idx_2)}
+            if aRename:
+                out = self.rename(columns=aRename)
+                outdf = df.rename(columns=bRename)
+                out = out.append(outdf,ignore_index=True).fillna(0)
+            else:
+                out = self.append(df,ignore_index=True).fillna(0)
+        else:
+            out = self.append(df,ignore_index=True).fillna(0)
+        
+        out.convolved = self.convolved
+        out.TR = self.TR
+        out.hasIntercept = self.hasIntercept
 
+        return out
 
     def vif(self):
         
@@ -1865,14 +1881,14 @@ class Design_Mat(DataFrame):
         assert self.shape[1] > 1, "Can't compute vif with only 1 column!"
         return np.array([vif(self.values,i) for i in xrange(self.shape[1])])
 
-
-    def image(self,**kwargs):
+    def heatmap(self,figsize=(8,6),**kwargs):
 
         """
         Visualize dataframe spm style. Use .plot() for typical pandas plotting functionality. Can pass optional keyword args to seaborn heatmap.
         
         """
-        ax = sns.heatmap(self,cmap='gray',cbar=False,**kwargs)
+        fig, ax = plt.subplots(1,figsize=figsize)
+        ax = sns.heatmap(self,cmap='gray',cbar=False,ax=ax,**kwargs)
         for _, spine in ax.spines.items():
             spine.set_visible(True);
         for i, label in enumerate(ax.get_yticklabels()):
@@ -1886,7 +1902,7 @@ class Design_Mat(DataFrame):
         ax.axvline(x=self.shape[1],color='k',linewidth=4)
         plt.yticks(rotation=0)
 
-    def convolve(self,colNames=None,inplace=True,**kwargs):
+    def convolve(self,colNames=None,**kwargs):
         """
         Perform convolution using an hrf function. Defaults to inplace convolution, and can perform convolution optionally on specific columns
 
@@ -1897,101 +1913,35 @@ class Design_Mat(DataFrame):
 
         """
         assert self.TR is not None, "No TR specified!"
+        assert len(self.hrf) != 0, "No convolution function(s) specified!"
+        
+        if colNames is None:
+            colNames = [col for col in self.columns if col != 'intercept']
+        nonConvolved = [col for col in self.columns if col not in colNames]
+        
+        convolvedMats = []
+        for i,func in enumerate(self.hrf):
+            hrfDat = func(self.TR,oversampling=1)
+            c = self[colNames].apply(lambda x: np.convolve(x,hrfDat)[:self.shape[0]])
+            c.columns = [col+'_c'+str(i) for col in c.columns]
+            convolvedMats.append(c)
+        out = pd.concat(convolvedMats+[self[nonConvolved]],axis=1)
 
-        if 'hrf' in kwargs.keys():
-            self.hrf = kwargs['hrf']
-        hrfDat = self.hrf(self.TR,oversampling=1)
-
-        if colNames is not None:
-            out = self[colNames].apply(lambda x: np.convolve(x,hrfDat)[:self.shape[0]])
-            nonConvolved = [col for col in self.columns if col not in colNames]
-            out = pd.concat([out,self[nonConvolved]],axis=1)
-        else:
-            out = self.apply(lambda x: np.convolve(x,hrfDat)[:self.shape[0]])
-
-        self.convolved = True
-        if inplace:
-            for col in self:
-                self.loc[:,col] = out.loc[:,col]
-            return
-        else:
-            return out
+        out.convolved = colNames
+        out.TR = self.TR
+        out.hrf = self.hrf
+        out.hasIntercept = self.hasIntercept
+        return out
+        # if inplace:
+        #     for col in self:
+        #         self.loc[:,col] = out.loc[:,col]
+        #     return
+        # else:
+        #     return out
 
     def add_filter(self):
         """
         """
-
-    def _loadCovs(self,covariates,**kwargs):
-
-        #Single file 
-        if isinstance(covariates,six.string_types):
-            C = pd.read_csv(covariates,**kwargs)
-            if self.addIntercept:
-                C['Intercept'] = 1
-        #List
-        elif isinstance(covariates,list):
-            covs = []
-            for i, f in enumerate(covariates):
-                F = pd.read_csv(f,**kwargs)
-                F.columns = [str(i)+'_' + c if 'spike' in c else c for c in F.columns]
-                covs.append(F)
-            C = pd.concat(covs,axis=0,ignore_index=True)
-            
-            if self.addIntercept:
-                numRuns = len(covariates)
-                numTRs = C.shape[0]/numRuns
-                runDummies = np.zeros([C.shape[0],numRuns])
-
-                for runCount in xrange(len(covs)):
-                    runDummies[runCount*numTRs:runCount*numTRs+numTRs,runCount] = 1
-
-                runDummies = pd.DataFrame(runDummies,columns = ['run'+str(elem) for elem in xrange(numRuns)])
-                C = pd.concat([C,runDummies],axis=1)
-        else:
-            raise TypeError("Covariates file must be file path or list of file paths!")
-        return C
-
-    def _loadOnsets(self,onsets):
-
-        #Convert onsets in seconds to TRs
-        #Single file instance 
-        if isinstance(onsets,six.string_types):
-            O= pd.read_csv(onsets,self.header=header,**kwargs)
-            if self.header is None:
-                O = headerCheck(O)
-            O['Onset'] = O['Onset'].apply(lambda x: int(np.floor(x/self.TR)))
-        #List
-        elif isinstance(onsets,list):
-            onsets,numTRs = [],[]
-            for i, o in enumerate(onsets):
-                F = pd.read_csv(o,header=header,**kwargs)
-                numTRs.append(F.shape[0])
-                if header is None:
-                    F = headerCheck(F)
-                F['Onset'] = F['Onset'].apply(lambda x: int(np.floor(x/self.TR)))
-                #Handle runs of different numbers of TRs
-                if i > 0:
-                    F['Onset'] += numTRs*(i-1)
-                onsets.append(F)
-            O = pd.concat(onsets,axis=0,ignore_index=True)
-        else:
-            raise TypeError("Onsets file must be file path or list of file paths!")
-        return O
-
-
-def headerCheck(df):
-        
-    if isinstance(df.iloc[0,0],six.string_types):
-            df.columns = ['Stim','Onset','Duration']
-            return df
-    elif isinstance(df.iloc[0,2],six.string_types):
-            df.columns = ['Stim','Duration','Onset']
-            return df
-    else:
-        raise ValueError("Poorly formatted onsets file. Try adding a header, or making sure columns are ordered like: stim,onset,duration OR onset,duration,stim")
-        
-
-
 
 def all_same(items):
     return np.all(x == items[0] for x in items)
