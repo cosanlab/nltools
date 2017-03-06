@@ -26,7 +26,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from nltools.stats import two_sample_permutation
 from nilearn.plotting import plot_glass_brain, plot_stat_map
-from ipywidgets import interact, fixed, widgets
 
 def plotTBrain(objIn,how='full',thr='unc',alpha=None,nperm=None,**kwargs):
     """
@@ -136,6 +135,8 @@ def ibrainViewer(objIn,figsize=(10,5)):
     Args:
         objIn: 3d nifti image to plot
     """
+    from ipywidgets import interact, fixed, widgets
+
     interact(_viewer, objIn=fixed(objIn),
          x=widgets.IntSlider(min=-70,max=70,step=1,value=0,continuous_update=False),
          y=widgets.IntSlider(min=-90,max=65,step=1,value=0,continuous_update=False),
@@ -143,7 +144,6 @@ def ibrainViewer(objIn,figsize=(10,5)):
          t=widgets.FloatSlider(min=-7,max=7,step=0.1,value=2,orientation='horizontal',continuous_update=False,description='T-threshold'),
          figsize=fixed(figsize))
     return
-
 
 def _viewer(objIn,x,y,z,t,figsize):
     """
