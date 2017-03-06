@@ -9,3 +9,4 @@
 	scipy
 	six
 	pynv
+	statsmodels>=0.6.1
