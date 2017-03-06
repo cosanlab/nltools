@@ -16,7 +16,7 @@ from nltools.data import Design_Mat
 import warnings
 
 
-def onsets_to_dm(F,TR,runLength,header='infer',sort=False,addIntercept=True,**kwargs):
+def onsets_to_dm(F,TR,runLength,header='infer',sort=False,addIntercept=False,**kwargs):
     """
         Function read in a 2 or 3 column onsets file, specified in seconds, organized as:
         'Stimulus,Onset','Onset,Stimulus','Stimulus,Onset,Duration', or 'Onset,Duration,Stimulus'.
