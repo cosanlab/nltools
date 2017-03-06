@@ -13,7 +13,10 @@ __all__ = ['dist_from_hyperplane_plot',
             'decode_radar_plot',
             'plot_stacked_adjacency',
             'plot_mean_label_distance',
-            'plot_between_label_distance']
+            'plot_between_label_distance',
+            'plotTBrain',
+            'plotBrain',
+            'ibrainViewer']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
@@ -22,6 +25,140 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 from nltools.stats import two_sample_permutation
+from nilearn.plotting import plot_glass_brain, plot_stat_map
+from ipywidgets import interact, fixed, widgets
+
+def plotTBrain(objIn,how='full',thr='unc',alpha=None,nperm=None,**kwargs):
+    """
+    Takes a brain data object and computes a 1 sample t-test across it's first axis. If a list is provided will compute difference between brain data objects in list (i.e. paired samples t-test).
+    Args:
+        objIn:(list/Brain_Data) if list will compute difference map first
+        how: (list) whether to plot a glass brain 'glass', 3 view-multi-slice mni 'mni', or both 'full'
+        thr: (str) what method to use for multiple comparisons correction unc, fdr, or tfce
+        alpha: (float) p-value threshold
+        nperm: (int) number of permutations for tcfe; default 1000 
+        kwargs: optionals args to nilearn plot functions (e.g. vmax)
+    
+    """
+    assert thr in ['unc','fdr','tfce'], "Acceptable threshold methods are 'unc','fdr','tfce'"
+    views = ['x','y','z']
+    coords = [range(-40,50,10),[-88,-72,-58,-38,-26,8,20,34,46],[-34,-22,-10,0,16,34,46,56,66]]
+    cmap = 'RdBu_r'
+    
+    if type(objIn) == list:
+        if len(objIn) == 2:
+            obj = objIn[0]-objIn[1]
+        else:
+            raise ValueError('Contrasts should contain only 2 list items!')
+    
+    thrDict = {}
+    if thr == 'tfce':
+        thrDict['permutation'] = thr
+        if nperm is None:
+            nperm = 1000
+        thrDict['n_permutations'] = nperm
+        print("1-sample t-test corrected using: TFCE w/ %s permutations" % nperm)
+    else:
+        if thr == 'unc':
+            if alpha is None:
+                alpha = .001
+            thrDict[thr] = alpha
+            print("1-sample t-test uncorrected at p < %.3f " %alpha)
+        elif thr == 'fdr':
+            if alpha is None:
+                alpha = .05
+            thrDict[thr] = alpha
+            print("1-sample t-test corrected at q < %.3f " % alpha)
+        else:
+            thrDict = None
+            print("1-sample test unthresholded")
+        
+    out = objIn.ttest(threshold_dict = thrDict) 
+    if thrDict is not None:
+        obj = out['thr_t']
+    else:
+        obj = out['t']
+
+    if how == 'full':
+        plot_glass_brain(obj.to_nifti(),display_mode='lzry',colorbar=True,cmap=cmap,plot_abs=False,**kwargs)
+        for v,c in zip(views,coords):
+            plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap,**kwargs)
+    elif how == 'glass':
+         plot_glass_brain(obj.to_nifti(),display_mode='lzry',colorbar=True,cmap=cmap,plot_abs=False,**kwargs)
+    elif how == 'mni':
+        for v,c in zip(views,coords):
+            plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap,**kwargs)
+    del obj
+    del out
+    return
+
+def plotBrain(objIn,how='full',thr=None):
+    """
+    More complete brain plotting of a Brain_Data instance
+    Args:
+        obj: (Brain_Data) object to plot
+        how: (str) whether to plot a glass brain 'glass', 3 view-multi-slice mni 'mni', or both 'full'
+        thr: (str/float) thresholding of image. Can be string for percentage, or float for data units (see Brain_Data.threshold()
+        kwargs: optional arguments to threshold (e.g binarize)
+    
+    """
+    if thr:
+        obj = objIn.threshold(thr)
+    else:
+        obj = obj.copy()
+
+    views = ['x','y','z']
+    coords = [range(-50,51,8),range(-80,50,10),range(-40,71,9)] #[-88,-72,-58,-38,-26,8,20,34,46]
+    cmap = 'RdBu_r'
+    
+    if thr is None:
+        print("Plotting unthresholded image")
+    elif type(thr) == str:
+        print("Plotting top %s of voxels" % thr)
+    elif type(thr) == float or type(thr) == int:
+        print("Plotting voxels with stat value >= %s" % thr)
+
+    if how == 'full':
+        plot_glass_brain(obj.to_nifti(),display_mode='lzry',colorbar=True,cmap=cmap,plot_abs=False)
+        for v,c in zip(views,coords):
+            plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap)
+    elif how == 'glass':
+         plot_glass_brain(obj.to_nifti(),display_mode='lzry',colorbar=True,cmap=cmap,plot_abs=False)
+    elif how == 'mni':
+        for v,c in zip(views,coords):
+            plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap)
+    del obj #save memory
+    return
+
+def ibrainViewer(objIn,figsize=(10,5)):
+    """
+    Simple interactive brain plotting using ipython widgets.
+    Args:
+        objIn: 3d nifti image to plot
+    """
+    interact(_viewer, objIn=fixed(objIn),
+         x=widgets.IntSlider(min=-70,max=70,step=1,value=0,continuous_update=False),
+         y=widgets.IntSlider(min=-90,max=65,step=1,value=0,continuous_update=False),
+         z=widgets.IntSlider(min=-40,max=70,step=1,value=0,continuous_update=False),
+         t=widgets.FloatSlider(min=-7,max=7,step=0.1,value=2,orientation='horizontal',continuous_update=False,description='T-threshold'),
+         figsize=fixed(figsize))
+    return
+
+
+def _viewer(objIn,x,y,z,t,figsize):
+    """
+    Generator function for ibrainViewer
+    """
+    _,ax= plt.subplots(1,figsize=figsize)
+    plot_stat_map(objIn.to_nifti(),
+        display_mode='ortho',
+        cut_coords=(x,y,z),
+        threshold=t,
+        draw_cross=False,
+        black_bg=True,
+        dim=.25,
+        axes=ax);
+    return
 
 def dist_from_hyperplane_plot(stats_output):
     """ Plot SVM Classification Distance from Hyperplane
