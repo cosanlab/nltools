@@ -54,13 +54,14 @@ class Roc(object):
         self.binary_outcome = deepcopy(binary_outcome)
         self.threshold_type = deepcopy(threshold_type)
         self.forced_choice=forced_choice
+
         if isinstance(self.binary_outcome,pd.DataFrame):
             self.binary_outcome = np.array(self.binary_outcome).flatten()
         else:   
             self.binary_outcome = deepcopy(binary_outcome)
 
     def calculate(self, input_values=None, binary_outcome=None, criterion_values=None,
-        threshold_type='optimal_overall', forced_choice=False, balanced_acc=False):
+        threshold_type='optimal_overall', forced_choice=False, balanced_acc=False, forced_choice_idx=None):
         """ Calculate Receiver Operating Characteristic plot (ROC) for single-interval
         classification.
 
@@ -75,7 +76,6 @@ class Roc(object):
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
 
         """
-
         if input_values is not None:
             self.input_values = deepcopy(input_values)
 
@@ -89,11 +89,22 @@ class Roc(object):
             self.criterion_values = np.linspace(min(self.input_values), max(self.input_values), num=50*len(self.binary_outcome))
 
         if (forced_choice) | (self.forced_choice):
+        #  setting a force_choice_idx to prevent misuse for force_choice option in analysis
+            idx_a = forced_choice_idx[0:len(forced_choice_idx)/2];
+            idx_b = forced_choice_idx[len(forced_choice_idx)/2:len(forced_choice_idx)];
+                for elem1, elem2 in zip(idx_a,idx_b):
+                    assert elem1 == elem2, "Index representing subject's ID needs to be in the same order across conditions!"
             self.forced_choice=True
             mn_scores = (self.input_values[self.binary_outcome] + self.input_values[~self.binary_outcome])/2
             self.input_values[self.binary_outcome] = self.input_values[self.binary_outcome] - mn_scores;
             self.input_values[~self.binary_outcome] = self.input_values[~self.binary_outcome] - mn_scores;
             self.class_thr = 0;
+            self.
+
+        # Checking whether     
+        if len(forced_choice_idx) != len(binary_outcome)
+
+
 
         # Calculate true positive and false positive rate
         self.tpr = np.zeros(self.criterion_values.shape)
