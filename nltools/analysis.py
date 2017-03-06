@@ -99,12 +99,6 @@ class Roc(object):
             self.input_values[self.binary_outcome] = self.input_values[self.binary_outcome] - mn_scores;
             self.input_values[~self.binary_outcome] = self.input_values[~self.binary_outcome] - mn_scores;
             self.class_thr = 0;
-            self.
-
-        # Checking whether     
-        if len(forced_choice_idx) != len(binary_outcome)
-
-
 
         # Calculate true positive and false positive rate
         self.tpr = np.zeros(self.criterion_values.shape)
