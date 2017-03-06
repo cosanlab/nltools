@@ -29,6 +29,7 @@ from nltools.plotting import (dist_from_hyperplane_plot,
                             plot_stacked_adjacency)
 from nltools.stats import pearson,fdr,threshold, fisher_r_to_z, correlation_permutation,one_sample_permutation,two_sample_permutation
 from nltools.mask import expand_mask,collapse_mask
+from nltools.stats import downsample, zscore
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
 from nilearn.image import resample_img
@@ -1938,6 +1939,38 @@ class Design_Mat(DataFrame):
         #     return
         # else:
         #     return out
+
+    def downsample(self,**kwargs):
+        """
+            Downsample columns of design matrix. Relies on nltools.stats.downsample, but ensures that returned object is a design matrix.
+        """
+        df = downsample(self,**kwargs)
+
+        # convert my_df to a design matrix
+        newMat = Design_Mat(df,hrf=self.hrf,TR=self.TR,convolved=self.convolved,hasIntercept=self.hasIntercept)
+
+        return newMat
+
+
+    def zscore(self,colNames=[]):
+        """
+            Z-score specific columns of design matrix. Relies on nltools.stats.downsample, but ensures that returned object is a design matrix. 
+            Args:
+                colNames: (list) columns to z-score; defaults to all columns
+
+        """
+        colOrder = self.columns
+        if not colNames:
+            colNames = self.columns
+        nonZ = [col for col in self.columns if col not in colNames]
+        df = zscore(self[colNames])
+        df = pd.concat([df,self[nonZ]],axis=1)
+        df = df[colOrder]
+        newMat =Design_Mat(df,hrf=self.hrf,TR=self.TR,convolved=self.convolved,hasIntercept=self.hasIntercept)
+        
+        return newMat
+
+
 
     def add_filter(self):
         """
