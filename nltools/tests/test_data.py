@@ -354,7 +354,7 @@ def test_designmat(tmpdir):
     d = Design_Mat({'X':[1,4,2,7,5,9,2,1,3,2],'Y':[3,0,0,6,9,9,10,10,1,10],'Z':[2,2,2,2,7,0,1,3,3,2]},TR=2.0)
     
     #Test vifs
-    expectedVifs =  np.array([ 2.18629784,  2.51063482,  2.00165132])
+    expectedVifs =  np.array([ 1.03984251,  1.02889877,  1.02261945])
     assert np.allclose(expectedVifs,d.vif())
     
 
