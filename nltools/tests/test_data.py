@@ -351,12 +351,33 @@ def test_groupby(tmpdir):
     assert len(combine_mn.shape())==1
 
 def test_designmat(tmpdir):
-    d = Design_Mat({'X':[1,4,2,7,5,9,2,1,3,2],'Y':[3,0,0,6,9,9,10,10,1,10],'Z':[2,2,2,2,7,0,1,3,3,2]},TR=2.0)
+    mat1 = Design_Mat({'X':[1,4,2,7,5,9,2,1,3,2],'Y':[3,0,0,6,9,9,10,10,1,10],'Z':[2,2,2,2,7,0,1,3,3,2],'intercept':[1,1,1,1,1,1,1,1,1,1]},TR=2.0,hasIntercept=True)
+    mat2 = Design_Mat({'X':[9,9,2,7,5,0,1,1,1,2],'Y':[3,3,3,6,9,0,1,10,1,10],'Z':[2,6,3,2,7,0,1,7,8,8],'intercept':[1,1,1,1,1,1,1,1,1,1]},TR=2.0,hasIntercept=True)
+
+    #appending
+    assert mat1.append(mat1,axis=1).shape == (mat1.shape[0],mat1.shape[1]+mat2.shape[1])
+    assert mat1.append(mat2,axis=0).shape == (mat1.shape[0]+mat2.shape[0],mat1.shape[1]+1)
+    
+    #convolution doesn't affect intercept
+    assert all(mat1.convolve().iloc[:,-1] == mat1.iloc[:,-1])
+    #but it still works
+    assert (mat1.convolve().iloc[:,:3].values != mat1.iloc[:,:3].values).any()
     
     #Test vifs
     expectedVifs =  np.array([ 1.03984251,  1.02889877,  1.02261945])
-    assert np.allclose(expectedVifs,d.vif())
+    assert np.allclose(expectedVifs,mat1.vif())
+
+    #poly
+    mat1.addpoly(order=4).shape[1] == mat1.shape[1]+4
+    mat1.addpoly(order=4,include_lower=False).shape[1] == mat1.shape[1]+1
     
+    #zscore
+    z = mat1.zscore(colNames=['X','Z'])
+    assert (z['Y'] == mat1['Y']).all()
+    assert z.shape == mat1.shape
+    
+    #downsample...might need to edit function
+
 
 
 
