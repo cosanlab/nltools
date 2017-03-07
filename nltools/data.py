@@ -1918,7 +1918,6 @@ class Design_Mat(DataFrame):
         
         #return np.array(map(lambda x: _vif(self.drop(x,axis=1),self[x]),self.columns))
 
-
     def heatmap(self,figsize=(8,6),**kwargs):
 
         """
