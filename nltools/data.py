@@ -1904,11 +1904,19 @@ class Design_Mat(DataFrame):
 
     def vif(self):
         """
-        Compute variance inflation factor amongst columns of design matrix.
+        Compute variance inflation factor amongst columns of design matrix, ignoring the intercept.
+        Much faster that statsmodels and more reliable too. Uses the same method as Matlab and R (diagonal elements of the inverted correlation matrix).
         """
         assert self.shape[1] > 1, "Can't compute vif with only 1 column!"
+        if self.hasIntercept:
+            idx = [i for i,elem in enumerate(self.columns) if 'intercept' not in elem]
+            out = self[self.columns[np.r_[idx]]]
+        else:
+            out = self[self.columns]
+
+        return np.diag(np.linalg.inv(out.corr()),0)
         
-        return np.array(map(lambda x: _vif(self.drop(x,axis=1),self[x]),self.columns))
+        #return np.array(map(lambda x: _vif(self.drop(x,axis=1),self[x]),self.columns))
 
 
     def heatmap(self,figsize=(8,6),**kwargs):
@@ -2040,14 +2048,16 @@ def all_same(items):
 
 def _vif(X,y):
     """
-        Helper function to compute variance inflation factor. Uses pandas to compute variances so performs N-1 ddof correction. Yields slightly higher vifs that those from stats model, but identical to what R and Matlab do.
+        DEPRECATED
+        Helper function to compute variance inflation factor. Unclear whether there are errors with this method relative to stats.models. Seems like stats.models is sometimes inconsistent with R. R always uses the diagonals of the inverted covariance matrix which is what's implemented instead of this.
+
         Args:
             X: (Dataframe) explanatory variables
             y: (Dataframe/Series) outcome variable
 
     """
     b,resid,_,_ = np.linalg.lstsq(X,y)
-    SStot = y.var()*len(y) 
+    SStot = y.var(ddof=0)*len(y) 
     if SStot == 0:
         SStot = .0001 #to prevent divide by 0 errors
     r2 = 1.0 - (resid/SStot)
