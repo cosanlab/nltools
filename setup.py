@@ -20,7 +20,10 @@ setup(
     url='http://neurolearn.readthedocs.org/en/latest/',
     install_requires=['numpy>=1.9', 'scipy', 'nilearn', 'nibabel>=2.0.1',
                     'pandas>=0.16', 'six', 'importlib','seaborn', 'matplotlib', 
-                    'scikit-learn>=0.18.1','pynv','statsmodels>=0.6.1','nipy>=0.4.0'],
+                    'scikit-learn>=0.18.1','pynv'],
+    extras_require={
+    'ibrainViewer':['ipywidgets>=5.2.2']
+    },
     packages=find_packages(exclude=['nltools/tests']),
     package_data={'nltools': ['resources/*']},
     license='LICENSE.txt',

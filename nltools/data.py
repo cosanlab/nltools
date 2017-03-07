@@ -44,7 +44,6 @@ from scipy.stats import ttest_1samp, t, norm
 from scipy.signal import detrend
 from scipy.spatial.distance import squareform
 import six
-import sklearn
 from sklearn.metrics.pairwise import pairwise_distances
 from nltools.pbs_job import PBS_Job
 import warnings
@@ -53,9 +52,7 @@ import tempfile
 import seaborn as sns
 from pynv import Client
 import matplotlib.pyplot as plt
-from statsmodels.stats.outliers_influence import variance_inflation_factor as vif
-from nipy.modalities.fmri.hemodynamic_models import glover_hrf
-
+from nltools.utils import glover_hrf
 
 # Optional dependencies
 try:
@@ -1819,11 +1816,29 @@ class Design_Mat(DataFrame):
             self.hasIntercept
             )
 
-    def horzCat(self,df,inplace=False):
+    def append(self,df,axis,**kwargs):
+        """
+            Method for concatenating another design matrix row or column-wise. Can "uniquify" certain columns when appending row-wise, and by default will attempt to do that with the intercept. 
+            Args:
+                axis: (int) 0 for row-wise, 1 for column-wise
+                separate: (bool) axis==0 only; whether try and uniquify columns (default intercept)
+                addIntercept: (bool) axis==0 only; whether to add intercepts to matrices before appending
+                uniqueCols: (list) axis==0 only; what additional columns to try to keep separated by uniquifying (defaults to intercept only)
+        """
+        if axis == 1:
+            return self.horzcat(df)
+        elif axis == 0:
+            return self.vertcat(df,**kwargs)
+        else:
+            raise ValueError("Axis must be 0 (row) or 1 (column)")
+
+
+    def horzcat(self,df):
         """
             Append another design matrix, column-wise (horz cat). Always returns a new design_matrix.
         """
-        assert self.shape[0] == df.shape[0], "Can't append differently sized design matrices!"
+        if self.shape[0] != df.shape[0]:
+            raise ValueError("Can't append differently sized design matrices! Mat 1 has "+str(self.shape[0])+" rows and Mat 2 has "+str(df.shape[0])+" rows.") 
         out = pd.concat([self,df],axis=1)
         out.TR = self.TR
         out.convolved = self.convolved
@@ -1831,7 +1846,7 @@ class Design_Mat(DataFrame):
         return out
 
 
-    def vertCat(self,df,separate=True,addIntercept=False,uniqueCols=[]):
+    def vertcat(self,df,separate=True,addIntercept=False,uniqueCols=[]):
         """
             Append another design matrix row-wise (vert cat). Always returns a new design matrix
             Args:
@@ -1840,33 +1855,47 @@ class Design_Mat(DataFrame):
                 addIntercept: (bool) whether to add intercepts to each design matrix before appending
                 uniqueCols: (list) additional columns to separate before appending
         """
-        assert self.hasIntercept == df.hasIntercept, "Intercepts are ambigious. Both design matrices should match in whether they do or don't have intercepts."
+        outdf = df.copy()
+        assert self.hasIntercept == outdf.hasIntercept, "Intercepts are ambigious. Both design matrices should match in whether they do or don't have intercepts."
         
         if addIntercept:
             self['intercept'] = 1
             self.hasIntercept = True
-            df['intercept'] = 1 
-            df.hasIntercept = True
+            outdf['intercept'] = 1 
+            outdf.hasIntercept = True
         if separate:
             if self.hasIntercept:
                 uniqueCols += ['intercept']
             idx_1 = []
             idx_2 = []
             for col in uniqueCols:
-                if col in set(self.columns) & set(df.columns):
+                #To match substrings within column names, we loop over each element and search for the uniqueCol as a substring within it; first we do to check if the uniqueCol actually occurs in both design matrices, if so then we change it's name before concatenating 
+                joint = set(self.columns) & set(outdf.columns)
+                shared = [elem for elem in joint if col in elem]
+                if shared:
                     idx_1 += [i for i,elem in enumerate(self.columns) if col in elem]
-                    idx_2 += [i for i,elem in enumerate(df.columns) if col in elem]
+                    idx_2 += [i for i,elem in enumerate(outdf.columns) if col in elem]
             aRename = {self.columns[elem]:'0_'+self.columns[elem] for i,elem in enumerate(idx_1)}
-            bRename = {df.columns[elem]:'1_'+df.columns[elem] for i,elem in enumerate(idx_2)}
+            bRename = {outdf.columns[elem]:'1_'+outdf.columns[elem] for i,elem in enumerate(idx_2)}
             if aRename:
                 out = self.rename(columns=aRename)
-                outdf = df.rename(columns=bRename)
-                out = out.append(outdf,ignore_index=True).fillna(0)
+                outdf = outdf.rename(columns=bRename)
+                colOrder = []
+                #retain original column order as closely as possible
+                for colA,colB in zip(out.columns,outdf.columns):
+                        colOrder.append(colA)
+                        if colA != colB:
+                            colOrder.append(colB)
+                out = super(Design_Mat,out).append(outdf,ignore_index=True)
+                #out = out.append(outdf,separate=False,axis=0,ignore_index=True).fillna(0)
+                out = out[colOrder].fillna(0)
             else:
-                out = self.append(df,ignore_index=True).fillna(0)
+                raise ValueError("Separate concatentation impossible. None of the requested unique columns were found in both design_matrices.")
         else:
-            out = self.append(df,ignore_index=True).fillna(0)
-        
+            out = super(Design_Mat,self).append(outdf,ignore_index=True)
+            #out = self.append(df,separate=False,axis=0,ignore_index=True).fillna(0)
+            out = out[self.columns]
+
         out.convolved = self.convolved
         out.TR = self.TR
         out.hasIntercept = self.hasIntercept
@@ -1874,13 +1903,13 @@ class Design_Mat(DataFrame):
         return out
 
     def vif(self):
-        
         """
         Compute variance inflation factor amongst columns of design matrix.
-        
         """
         assert self.shape[1] > 1, "Can't compute vif with only 1 column!"
-        return np.array([vif(self.values,i) for i in xrange(self.shape[1])])
+        
+        return np.array(map(lambda x: _vif(self.drop(x,axis=1),self[x]),self.columns))
+
 
     def heatmap(self,figsize=(8,6),**kwargs):
 
@@ -1933,21 +1962,15 @@ class Design_Mat(DataFrame):
         out.hrf = self.hrf
         out.hasIntercept = self.hasIntercept
         return out
-        # if inplace:
-        #     for col in self:
-        #         self.loc[:,col] = out.loc[:,col]
-        #     return
-        # else:
-        #     return out
 
-    def downsample(self,**kwargs):
+    def downsample(self,target,**kwargs):
         """
             Downsample columns of design matrix. Relies on nltools.stats.downsample, but ensures that returned object is a design matrix.
         """
-        df = downsample(self,**kwargs)
+        df = downsample(self,sampling_freq=self.TR,target=target,**kwargs)
 
-        # convert my_df to a design matrix
-        newMat = Design_Mat(df,hrf=self.hrf,TR=self.TR,convolved=self.convolved,hasIntercept=self.hasIntercept)
+        # convert df to a design matrix
+        newMat = Design_Mat(df,hrf=self.hrf,TR=target,convolved=self.convolved,hasIntercept=self.hasIntercept)
 
         return newMat
 
@@ -1970,12 +1993,64 @@ class Design_Mat(DataFrame):
         
         return newMat
 
-
+    def addpoly(self,order=0,include_lower=True):
+        """
+            Add nth order polynomial terms as columns to design matrix
+            Args:
+                order: (int) what order terms to add; 0 = constant, 1 = linear, 2 = quadratic, etc
+                include_lower: (bool) whether to add lower order terms if order > 0
+        """
+        #This method is kind of ugly
+        polyDict = {}
+        if include_lower:
+            if order > 0:
+                for i in xrange(0,order+1):
+                    if i == 0:
+                        if self.hasIntercept:
+                            warnings.warn("Design Matrix already has intercept...skipping")
+                        else:
+                            polyDict['intercept'] = np.repeat(1,self.shape[0])
+                    else:
+                        polyDict['poly_'+str(i)] = (range(self.shape[0])-np.mean(range(self.shape[0])))**i
+            else:
+                if self.hasIntercept:
+                    raise ValueError("Design Matrix already has intercept!")
+                else:
+                    polyDict['intercept'] = np.repeat(1,self.shape[0])
+        else:
+            if order == 0:
+                if self.hasIntercept:
+                    raise ValueError("Design Matrix already has intercept!")
+                else:
+                    polyDict['intercept'] = np.repeat(1,self.shape[0])
+            else:
+                polyDict['poly_'+str(order)] = (range(self.shape[0])-np.mean(range(self.shape[0])))**order
+       
+        toAdd = Design_Mat(polyDict)
+    
+        return self.append(toAdd,axis=1)
 
     def add_filter(self):
         """
         """
+        raise NotImplementedError("Filtering not yet implemented!")
 
 def all_same(items):
     return np.all(x == items[0] for x in items)
 
+def _vif(X,y):
+    """
+        Helper function to compute variance inflation factor. Uses pandas to compute variances so performs N-1 ddof correction. Yields slightly higher vifs that those from stats model, but identical to what R and Matlab do.
+        Args:
+            X: (Dataframe) explanatory variables
+            y: (Dataframe/Series) outcome variable
+
+    """
+    b,resid,_,_ = np.linalg.lstsq(X,y)
+    SStot = y.var()*len(y) 
+    if SStot == 0:
+        SStot = .0001 #to prevent divide by 0 errors
+    r2 = 1.0 - (resid/SStot)
+    if r2 == 1:
+        r2 = 0.9999 #to prevent divide by 0 errors
+    return (1.0/(1.0-r2))[0]
