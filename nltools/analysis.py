@@ -92,8 +92,8 @@ class Roc(object):
         #  setting a force_choice_idx to prevent misuse for force_choice option in analysis
             idx_a = forced_choice_idx[0:len(forced_choice_idx)/2];
             idx_b = forced_choice_idx[len(forced_choice_idx)/2:len(forced_choice_idx)];
-                for elem1, elem2 in zip(idx_a,idx_b):
-                    assert elem1 == elem2, "Index representing subject's ID needs to be in the same order across conditions!"
+            for elem1, elem2 in zip(idx_a,idx_b):
+                assert elem1 == elem2, "Index representing subject's ID needs to be in the same order across conditions!"
             self.forced_choice=True
             mn_scores = (self.input_values[self.binary_outcome] + self.input_values[~self.binary_outcome])/2
             self.input_values[self.binary_outcome] = self.input_values[self.binary_outcome] - mn_scores;
