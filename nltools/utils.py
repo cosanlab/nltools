@@ -7,7 +7,12 @@ handy utilities.
 '''
 __all__ = ['get_resource_path',
             'get_anatomical',
-            'set_algorithm']
+            'set_algorithm',
+            'spm_hrf',
+            'glover_hrf',
+            'spm_time_derivative',
+            'glover_time_derivative',
+            'spm_dispersion_derivative']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
@@ -16,6 +21,8 @@ import nibabel as nib
 import importlib
 import os
 from sklearn.pipeline import Pipeline
+from scipy.stats import gamma
+import numpy as np
 
 def get_resource_path():
     """ Get path to nltools resource directory. """
@@ -99,3 +106,117 @@ def set_algorithm(algorithm, **kwargs):
             'randomforestClassifier'.""")
 
     return predictor_settings
+
+
+#The following are nipy source code implementations of the hemodynamic response function HRF
+#See the included nipy license file for use permission. 
+
+def _gamma_difference_hrf(tr, oversampling=16, time_length=32., onset=0.,delay=6, undershoot=16., dispersion=1.,                         u_dispersion=1., ratio=0.167):
+    """ Compute an hrf as the difference of two gamma functions
+    Parameters
+    ----------
+    tr: float, scan repeat time, in seconds
+    oversampling: int, temporal oversampling factor, optional
+    time_length: float, hrf kernel length, in seconds
+    onset: float, onset of the hrf
+    Returns
+    -------
+    hrf: array of shape(length / tr * oversampling, float),
+         hrf sampling on the oversampled time grid
+    """
+    dt = tr / oversampling
+    time_stamps = np.linspace(0, time_length, float(time_length) / dt)
+    time_stamps -= onset / dt
+    hrf = gamma.pdf(time_stamps, delay / dispersion, dt / dispersion) - \
+        ratio * gamma.pdf(
+        time_stamps, undershoot / u_dispersion, dt / u_dispersion)
+    hrf /= hrf.sum()
+    return hrf
+
+
+def spm_hrf(tr, oversampling=16, time_length=32., onset=0.):
+    """ Implementation of the SPM hrf model
+    Parameters
+    ----------
+    tr: float, scan repeat time, in seconds
+    oversampling: int, temporal oversampling factor, optional
+    time_length: float, hrf kernel length, in seconds
+    onset: float, onset of the response
+    Returns
+    -------
+    hrf: array of shape(length / tr * oversampling, float),
+         hrf sampling on the oversampled time grid
+    """
+    return _gamma_difference_hrf(tr, oversampling, time_length, onset)
+
+def glover_hrf(tr, oversampling=16, time_length=32., onset=0.):
+    """ Implementation of the Glover hrf model
+    Parameters
+    ----------
+    tr: float, scan repeat time, in seconds
+    oversampling: int, temporal oversampling factor, optional
+    time_length: float, hrf kernel length, in seconds
+    onset: float, onset of the response
+    Returns
+    -------
+    hrf: array of shape(length / tr * oversampling, float),
+         hrf sampling on the oversampled time grid
+    """
+    return _gamma_difference_hrf(tr, oversampling, time_length, onset,
+                                delay=6, undershoot=12., dispersion=.9,
+                                u_dispersion=.9, ratio=.35)
+
+def spm_time_derivative(tr, oversampling=16, time_length=32., onset=0.):
+    """Implementation of the SPM time derivative hrf (dhrf) model
+    Parameters
+    ----------
+    tr: float, scan repeat time, in seconds
+    oversampling: int, temporal oversampling factor, optional
+    time_length: float, hrf kernel length, in seconds
+    onset: float, onset of the response
+    Returns
+    -------
+    dhrf: array of shape(length / tr, float),
+          dhrf sampling on the provided grid
+    """
+    do = .1
+    dhrf = 1. / do * (spm_hrf(tr, oversampling, time_length, onset + do) -
+                      spm_hrf(tr, oversampling, time_length, onset))
+    return dhrf
+
+def glover_time_derivative(tr, oversampling=16, time_length=32., onset=0.):
+    """Implementation of the flover time derivative hrf (dhrf) model
+    Parameters
+    ----------
+    tr: float, scan repeat time, in seconds
+    oversampling: int, temporal oversampling factor, optional
+    time_length: float, hrf kernel length, in seconds
+    onset: float, onset of the response
+    Returns
+    -------
+    dhrf: array of shape(length / tr, float),
+          dhrf sampling on the provided grid
+    """
+    do = .1
+    dhrf = 1. / do * (glover_hrf(tr, oversampling, time_length, onset + do) -
+                      glover_hrf(tr, oversampling, time_length, onset))
+    return dhrf
+
+def spm_dispersion_derivative(tr, oversampling=16, time_length=32., onset=0.):
+    """Implementation of the SPM dispersion derivative hrf model
+    Parameters
+    ----------
+    tr: float, scan repeat time, in seconds
+    oversampling: int, temporal oversampling factor, optional
+    time_length: float, hrf kernel length, in seconds
+    onset: float, onset of the response
+    Returns
+    -------
+    dhrf: array of shape(length / tr * oversampling, float),
+          dhrf sampling on the oversampled time grid
+    """
+    dd = .01
+    dhrf = 1. / dd * (_gamma_difference_hrf(tr, oversampling, time_length,
+                                           onset, dispersion=1. + dd) -
+                      spm_hrf(tr, oversampling, time_length, onset))
+    return dhrf
