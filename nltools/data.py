@@ -1914,6 +1914,9 @@ class Design_Mat(DataFrame):
         else:
             out = self[self.columns]
 
+        if any(out.corr() < 0):
+            warnings.warn("Correlation matrix has negative values!")
+
         return np.diag(np.linalg.inv(out.corr()),0)
         
         #return np.array(map(lambda x: _vif(self.drop(x,axis=1),self[x]),self.columns))
@@ -1960,7 +1963,7 @@ class Design_Mat(DataFrame):
         for i,func in enumerate(self.hrf):
             hrfDat = func(self.TR,oversampling=1)
             c = self[colNames].apply(lambda x: np.convolve(x,hrfDat)[:self.shape[0]])
-            c.columns = [col+'_c'+str(i) for col in c.columns]
+            c.columns = [str(col)+'_c'+str(i) for col in c.columns]
             convolvedMats.append(c)
         out = pd.concat(convolvedMats+[self[nonConvolved]],axis=1)
 
@@ -2035,7 +2038,12 @@ class Design_Mat(DataFrame):
        
         toAdd = Design_Mat(polyDict)
     
-        return self.append(toAdd,axis=1)
+        out =  self.append(toAdd,axis=1)
+        
+        if 'intercept' in polyDict.keys() or self.hasIntercept:
+            out.hasIntercept = True
+        return out
+
 
     def add_filter(self):
         """
