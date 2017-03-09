@@ -543,6 +543,8 @@ class Brain_Data(object):
                     pexp = pearson(image2, data2)
             else:
                 pexp = pearson(image2, data2)
+        else:
+            raise ValueError("Method must be one of: correlation, dot_product")
         return pexp
 
     def distance(self, method='euclidean', **kwargs):
