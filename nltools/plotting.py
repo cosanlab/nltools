@@ -16,7 +16,7 @@ __all__ = ['dist_from_hyperplane_plot',
             'plot_between_label_distance',
             'plotTBrain',
             'plotBrain',
-            'ibrainViewer']
+            'iBrainViewer']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
@@ -104,7 +104,7 @@ def plotBrain(objIn,how='full',thr=None):
     if thr:
         obj = objIn.threshold(thr)
     else:
-        obj = obj.copy()
+        obj = objIn.copy()
 
     views = ['x','y','z']
     coords = [range(-50,51,8),range(-80,50,10),range(-40,71,9)] #[-88,-72,-58,-38,-26,8,20,34,46]
@@ -129,11 +129,15 @@ def plotBrain(objIn,how='full',thr=None):
     del obj #save memory
     return
 
-def ibrainViewer(objIn,figsize=(10,5)):
+def iBrainViewer(objIn,statmin=-7,statmax=7,statstep=0.1,initThresh=2,figsize=(10,5)):
     """
     Simple interactive brain plotting using ipython widgets.
     Args:
         objIn: 3d nifti image to plot
+        statmin: (float) minimum threshold for statistic value
+        statmax: (float) maximum threshold for statistic value
+        statstep (float) step size for thresholding
+        initThresh: (float) what stat value to initialize the plot with 
     """
     from ipywidgets import interact, fixed, widgets
 
@@ -141,11 +145,11 @@ def ibrainViewer(objIn,figsize=(10,5)):
          x=widgets.IntSlider(min=-70,max=70,step=1,value=0,continuous_update=False),
          y=widgets.IntSlider(min=-90,max=65,step=1,value=0,continuous_update=False),
          z=widgets.IntSlider(min=-40,max=70,step=1,value=0,continuous_update=False),
-         t=widgets.FloatSlider(min=-7,max=7,step=0.1,value=2,orientation='horizontal',continuous_update=False,description='T-threshold'),
+         stat=widgets.FloatSlider(min=statmin,max=statmax,step=statstep,value=initThresh,orientation='horizontal',continuous_update=False,description='T-threshold'),
          figsize=fixed(figsize))
     return
 
-def _viewer(objIn,x,y,z,t,figsize):
+def _viewer(objIn,x,y,z,stat,figsize):
     """
     Generator function for ibrainViewer
     """
@@ -153,7 +157,7 @@ def _viewer(objIn,x,y,z,t,figsize):
     plot_stat_map(objIn.to_nifti(),
         display_mode='ortho',
         cut_coords=(x,y,z),
-        threshold=t,
+        threshold=stat,
         draw_cross=False,
         black_bg=True,
         dim=.25,
