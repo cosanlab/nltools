@@ -36,7 +36,8 @@ class Roc(object):
 
     """
 
-    def __init__(self, input_values=None, binary_outcome=None, threshold_type='optimal_overall', forced_choice=False, **kwargs):
+    def __init__(self, input_values=None, binary_outcome=None, 
+        threshold_type='optimal_overall', forced_choice=None, **kwargs):
         if len(input_values) != len(binary_outcome):
             raise ValueError("Data Problem: input_value and binary_outcome are different lengths.")
 
@@ -50,7 +51,7 @@ class Roc(object):
         self.input_values = deepcopy(input_values)
         self.binary_outcome = deepcopy(binary_outcome)
         self.threshold_type = deepcopy(threshold_type)
-        self.forced_choice=forced_choice
+        self.forced_choice = deepcopy(forced_choice)
 
         if isinstance(self.binary_outcome,pd.DataFrame):
             self.binary_outcome = np.array(self.binary_outcome).flatten()
@@ -58,7 +59,8 @@ class Roc(object):
             self.binary_outcome = deepcopy(binary_outcome)
 
     def calculate(self, input_values=None, binary_outcome=None, criterion_values=None,
-        threshold_type='optimal_overall', forced_choice=False, balanced_acc=False, forced_choice_idx=None):
+        threshold_type='optimal_overall', forced_choice=None, balanced_acc=False):
+        
         """ Calculate Receiver Operating Characteristic plot (ROC) for single-interval
         classification.
 
@@ -67,8 +69,7 @@ class Roc(object):
             binary_outcome: vector of training labels
             criterion_values: (optional) criterion values for calculating fpr & tpr
             threshold_type: ['optimal_overall', 'optimal_balanced','minimum_sdt_bias']
-            forced_choice: within-subject forced classification (bool).  Data must be
-            stacked on top of each other (e.g., [1 1 1 0 0 0]).
+            forced_choice: index indicating position for each unique subject (default=None)
             balanced_acc: balanced accuracy for single-interval classification (bool)
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
 
@@ -85,16 +86,18 @@ class Roc(object):
         else:
             self.criterion_values = np.linspace(min(self.input_values), max(self.input_values), num=50*len(self.binary_outcome))
 
-        if (forced_choice) | (self.forced_choice):
-        #  setting a force_choice_idx to prevent misuse for force_choice option in analysis
-            idx_a = forced_choice_idx[0:len(forced_choice_idx)/2];
-            idx_b = forced_choice_idx[len(forced_choice_idx)/2:len(forced_choice_idx)];
-            for elem1, elem2 in zip(idx_a,idx_b):
-                assert elem1 == elem2, "Index representing subject's ID needs to be in the same order across conditions!"
-            self.forced_choice=True
-            mn_scores = (self.input_values[self.binary_outcome] + self.input_values[~self.binary_outcome])/2
-            self.input_values[self.binary_outcome] = self.input_values[self.binary_outcome] - mn_scores;
-            self.input_values[~self.binary_outcome] = self.input_values[~self.binary_outcome] - mn_scores;
+        if forced_choice is not None:
+            self.forced_choice = deepcopy(forced_choice)
+
+        if self.forced_choice is not None:
+            sub_idx = np.unique(self.forced_choice)
+            assert len(sub_idx) == len(binary_outcome)/2, "Make sure that subject ids are correct for 'forced_choice'."
+            assert len(set(sub_idx).union(set(np.array(forced_choice)[binary_outcome]))) == len(sub_idx), "Issue with forced_choice subject labels."
+            assert len(set(sub_idx).union(set(np.array(forced_choice)[~binary_outcome]))) == len(sub_idx), "Issue with forced_choice subject labels."
+            for sub in sub_idx:
+                sub_mn = (input_values[(forced_choice==sub) & (binary_outcome==True)]+input_values[(forced_choice==sub) & (binary_outcome==False)])[0]/2
+                input_values[(forced_choice==sub) & (binary_outcome==True)] = input_values[(forced_choice==sub) & (binary_outcome==True)][0] - sub_mn
+                input_values[(forced_choice==sub) & (binary_outcome==False)] = input_values[(forced_choice==sub) & (binary_outcome==False)][0] - sub_mn
             self.class_thr = 0;
 
         # Calculate true positive and false positive rate
@@ -119,7 +122,7 @@ class Roc(object):
         self.auc = auc(self.fpr, self.tpr) # Use sklearn auc
 
         # Get criterion threshold
-        if not self.forced_choice:
+        if self.forced_choice is None:
             self.threshold_type = threshold_type
             if threshold_type == 'optimal_balanced':
                 mn = (tpr+fpr)/2
@@ -143,7 +146,7 @@ class Roc(object):
         self.sensitivity = np.sum(self.input_values[self.binary_outcome] >= self.class_thr)/self.n_true
         self.specificity = 1 - np.sum(self.input_values[~self.binary_outcome] >= self.class_thr)/self.n_false
         self.ppv = np.sum(self.true_positive)/(np.sum(self.true_positive) + np.sum(self.false_positive))
-        if self.forced_choice:
+        if self.forced_choice is not None:
             self.true_positive = self.true_positive[self.binary_outcome]
             self.true_negative = self.true_negative[~self.binary_outcome]
             self.false_negative = self.false_negative[self.binary_outcome]
