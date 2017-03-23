@@ -11,11 +11,8 @@ __all__ = ['Roc']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
-import os
-import importlib
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from nltools.plotting import roc_plot
 from nltools.stats import pearson
 from nltools.utils import get_resource_path

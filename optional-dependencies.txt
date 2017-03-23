@@ -1,3 +1,4 @@
 mne
 requests
 networkx
+ipywidgets>=5.2.2
