@@ -83,10 +83,11 @@ roc.summary()
 # determine the optimal classification interval. However, sometimes we are 
 # intersted in directly comparing responses to two images within the same person. 
 # In this situation we should use forced-choice classification, which looks at 
-# the relative classification accuracy between two images.
+# the relative classification accuracy between two images.  You must pass a list 
+# indicating the ids of each unique subject.
 
 roc_fc = Roc(input_values=svm_stats['dist_from_hyperplane_xval'], 
-			binary_outcome=svm_stats['Y'].astype(bool), forced_choice=True)
+			binary_outcome=svm_stats['Y'].astype(bool), forced_choice=subject_id)
 roc_fc.plot()
 roc_fc.summary()
 
