@@ -27,12 +27,16 @@ def test_roc(tmpdir):
 
     # Single-Interval
     roc = analysis.Roc(input_values=output['yfit_all'], binary_outcome=output['Y'] == 1)
-    # roc = analysis.Roc(
-    #     input_values=predict.yfit_xval, binary_outcome=np.array(sim.y) == 1)
-
     roc.calculate()
-
-    # roc.plot()
-
     roc.summary()
     assert roc.accuracy == 1
+
+    # Forced Choice
+    binary_outcome = output['Y'] == 1
+    forced_choice = range(len(binary_outcome)/2) + range(len(binary_outcome)/2)
+    forced_choice = forced_choice.sort()
+    roc_fc = analysis.Roc(input_values=output['yfit_all'], binary_outcome=binary_outcome, forced_choice=forced_choice)
+    roc_fc.calculate()
+    assert roc_fc.accuracy == 1
+    assert roc_fc.accuracy == roc_fc.auc == roc_fc.sensitivity == roc_fc.specificity
+
