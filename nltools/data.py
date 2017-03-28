@@ -13,7 +13,7 @@ Classes to represent various types of data
 
 __all__ = ['Brain_Data',
             'Adjacency',
-            'Groupby','Design_Mat','Design_Mat_Series']
+            'Groupby','Design_Matrixrix','Design_Matrixrix_Series']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
@@ -1759,23 +1759,23 @@ class Groupby(object):
                 raise ValueError('No method for aggregation implented for %s yet.' % type(value_dict[i]))
         return out.sum()
 
-class Design_Mat_Series(Series):
+class Design_Matrix_Series(Series):
 
     """
-    This is a sub-class of pandas series. While not having additional methods of it's own required to retain normal slicing functionality for the Design_Mat class, i.e. how slicing is typically handled in pandas. All methods should be called on Design_Mat below.
+    This is a sub-class of pandas series. While not having additional methods of it's own required to retain normal slicing functionality for the Design_Matrix class, i.e. how slicing is typically handled in pandas. All methods should be called on Design_Matrix below.
     """
 
     @property
     def _constructor(self):
-        return Design_Mat_Series
+        return Design_Matrix_Series
 
     @property
     def _constructor_expanddim(self):
-        return Design_Mat
+        return Design_Matrix
 
-class Design_Mat(DataFrame):
+class Design_Matrix(DataFrame):
     """
-    Design_Mat is a class to represent design matrices with convenience functionality for convolution, upsampling and downsamplingg. It plays nicely with Brain_Data and can be used to build an experimental design to pass to Brain_Data's X attribute. It is essentially an enhanced pandas df, with extra attributes and methods. Methods always return a new design matrix instance.
+    Design_Matrix is a class to represent design matrices with convenience functionality for convolution, upsampling and downsamplingg. It plays nicely with Brain_Data and can be used to build an experimental design to pass to Brain_Data's X attribute. It is essentially an enhanced pandas df, with extra attributes and methods. Methods always return a new design matrix instance.
 
     Args:
         hrf: (list) list of functions to apply when convolution is performed
@@ -1797,15 +1797,15 @@ class Design_Mat(DataFrame):
         self.convolved = convolved
         self.hasIntercept = hasIntercept
 
-        super(Design_Mat,self).__init__(*args,**kwargs)
+        super(Design_Matrix,self).__init__(*args,**kwargs)
 
     @property
     def _constructor(self):
-        return Design_Mat
+        return Design_Matrix
 
     @property
     def _constructor_sliced(self):
-        return Design_Mat_Series
+        return Design_Matrix_Series
 
 
     def info(self):
@@ -1852,7 +1852,7 @@ class Design_Mat(DataFrame):
         """
             Append another design matrix row-wise (vert cat). Always returns a new design matrix
             Args:
-                df: (Design_Matrix) other design mat to append
+                df: (Design_Matrixrix) other design mat to append
                 separate: (bool) whether to treat dataframe as separate; if true will by default uniquify intercepts; if uniqueCols is also passed, will uniquify those columns as well
                 addIntercept: (bool) whether to add intercepts to each design matrix before appending
                 uniqueCols: (list) additional columns to separate before appending
@@ -1888,13 +1888,13 @@ class Design_Mat(DataFrame):
                         colOrder.append(colA)
                         if colA != colB:
                             colOrder.append(colB)
-                out = super(Design_Mat,out).append(outdf,ignore_index=True)
+                out = super(Design_Matrix,out).append(outdf,ignore_index=True)
                 #out = out.append(outdf,separate=False,axis=0,ignore_index=True).fillna(0)
                 out = out[colOrder].fillna(0)
             else:
                 raise ValueError("Separate concatentation impossible. None of the requested unique columns were found in both design_matrices.")
         else:
-            out = super(Design_Mat,self).append(outdf,ignore_index=True)
+            out = super(Design_Matrix,self).append(outdf,ignore_index=True)
             #out = self.append(df,separate=False,axis=0,ignore_index=True).fillna(0)
             out = out[self.columns]
 
@@ -1958,7 +1958,7 @@ class Design_Mat(DataFrame):
         assert len(self.hrf) != 0, "No convolution function(s) specified!"
         
         if colNames is None:
-            colNames = [col for col in self.columns if col != 'intercept']
+            colNames = [col for col in self.columns if 'intercept' not in col and 'poly' not in col]
         nonConvolved = [col for col in self.columns if col not in colNames]
         
         convolvedMats = []
@@ -1982,7 +1982,7 @@ class Design_Mat(DataFrame):
         df = downsample(self,sampling_freq=self.TR,target=target,**kwargs)
 
         # convert df to a design matrix
-        newMat = Design_Mat(df,hrf=self.hrf,TR=target,convolved=self.convolved,hasIntercept=self.hasIntercept)
+        newMat = Design_Matrix(df,hrf=self.hrf,TR=target,convolved=self.convolved,hasIntercept=self.hasIntercept)
 
         return newMat
 
@@ -2001,7 +2001,7 @@ class Design_Mat(DataFrame):
         df = zscore(self[colNames])
         df = pd.concat([df,self[nonZ]],axis=1)
         df = df[colOrder]
-        newMat =Design_Mat(df,hrf=self.hrf,TR=self.TR,convolved=self.convolved,hasIntercept=self.hasIntercept)
+        newMat =Design_Matrix(df,hrf=self.hrf,TR=self.TR,convolved=self.convolved,hasIntercept=self.hasIntercept)
         
         return newMat
 
@@ -2038,7 +2038,7 @@ class Design_Mat(DataFrame):
             else:
                 polyDict['poly_'+str(order)] = (range(self.shape[0])-np.mean(range(self.shape[0])))**order
        
-        toAdd = Design_Mat(polyDict)
+        toAdd = Design_Matrix(polyDict)
     
         out =  self.append(toAdd,axis=1)
         
