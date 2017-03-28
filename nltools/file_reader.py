@@ -12,7 +12,7 @@ __license__ = "MIT"
 import pandas as pd
 import numpy as np
 import six
-from nltools.data import Design_Mat
+from nltools.data import Design_Matrix
 import warnings
 
 
@@ -54,7 +54,7 @@ def onsets_to_dm(F,TR,runLength,header='infer',sort=False,addIntercept=False,**k
     df['Onset'] = df['Onset'].apply(lambda x: int(np.floor(x/TR)))
 
     #Build dummy codes
-    X = Design_Mat(columns=df['Stim'].unique(),data=np.zeros([runLength,len(df['Stim'].unique())]))
+    X = Design_Matrix(columns=df['Stim'].unique(),data=np.zeros([runLength,len(df['Stim'].unique())]))
     for i, row in df.iterrows():
         if df.shape[1] == 3:
             dur = np.ceil(row['Duration']/TR)
