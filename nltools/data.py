@@ -13,7 +13,7 @@ Classes to represent various types of data
 
 __all__ = ['Brain_Data',
             'Adjacency',
-            'Groupby','Design_Mat','Design_Mat_Series']
+            'Groupby','Design_Matrixrix','Design_Matrixrix_Series']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
@@ -1759,28 +1759,29 @@ class Groupby(object):
                 raise ValueError('No method for aggregation implented for %s yet.' % type(value_dict[i]))
         return out.sum()
 
-class Design_Mat_Series(Series):
+class Design_Matrix_Series(Series):
 
     """
-    This is a sub-class of pandas series. While not having additional methods of it's own required to retain normal slicing functionality for the Design_Mat class, i.e. how slicing is typically handled in pandas. All methods should be called on Design_Mat below.
+    This is a sub-class of pandas series. While not having additional methods of it's own required to retain normal slicing functionality for the Design_Matrix class, i.e. how slicing is typically handled in pandas. All methods should be called on Design_Matrix below.
     """
 
     @property
     def _constructor(self):
-        return Design_Mat_Series
+        return Design_Matrix_Series
 
     @property
     def _constructor_expanddim(self):
-        return Design_Mat
+        return Design_Matrix
 
-class Design_Mat(DataFrame):
-    """
-    Design_Mat is a class to represent design matrices with convenience functionality for convolution, upsampling and downsamplingg. It plays nicely with Brain_Data and can be used to build an experimental design to pass to Brain_Data's X attribute. It is essentially an enhanced pandas df, with extra attributes and methods. Methods always return a new design matrix instance.
+class Design_Matrix(DataFrame):
+
+    """Design_Matrix is a class to represent design matrices with convenience functionality for convolution, upsampling and downsampling. It plays nicely with Brain_Data and can be used to build an experimental design to pass to Brain_Data's X attribute. It is essentially an enhanced pandas df, with extra attributes and methods. Methods always return a new design matrix instance.
 
     Args:
-        hrf: (list) list of functions to apply when convolution is performed
-        convolved: (bool) whether convolution has been performed
-        hasIntercept: (bool) whether the design matrix has an intercept column
+        hrf (list, optional): functions to apply when convolution is performed; defaults to glover HRF
+        convolved (bool, optional): whether convolution has been performed; defaults to False
+        hasIntercept (bool, optional): whether the design matrix has an intercept column; defaults to False
+        TR (float, optional): sampling frequence of each row; defaults to None
     """
 
     _metadata = ['TR','hrf','convolved','hasIntercept']
@@ -1797,18 +1798,21 @@ class Design_Mat(DataFrame):
         self.convolved = convolved
         self.hasIntercept = hasIntercept
 
-        super(Design_Mat,self).__init__(*args,**kwargs)
+        super(Design_Matrix,self).__init__(*args,**kwargs)
 
     @property
     def _constructor(self):
-        return Design_Mat
+        return Design_Matrix
 
     @property
     def _constructor_sliced(self):
-        return Design_Mat_Series
+        return Design_Matrix_Series
 
 
     def info(self):
+        """Print class meta data.
+
+        """
         return '%s.%s(shape=%s, hrf=%s, convolved=%s, hasIntercept=%s)' % (
             self.__class__.__module__,
             self.__class__.__name__,
@@ -1819,13 +1823,14 @@ class Design_Mat(DataFrame):
             )
 
     def append(self,df,axis,**kwargs):
-        """
-            Method for concatenating another design matrix row or column-wise. Can "uniquify" certain columns when appending row-wise, and by default will attempt to do that with the intercept. 
-            Args:
-                axis: (int) 0 for row-wise, 1 for column-wise
-                separate: (bool) axis==0 only; whether try and uniquify columns (default intercept)
-                addIntercept: (bool) axis==0 only; whether to add intercepts to matrices before appending
-                uniqueCols: (list) axis==0 only; what additional columns to try to keep separated by uniquifying (defaults to intercept only)
+        """Method for concatenating another design matrix row or column-wise. Can "uniquify" certain columns when appending row-wise, and by default will attempt to do that with the intercept. 
+        
+        Args:
+            axis (int): 0 for row-wise (vert-cat), 1 for column-wise (horz-cat)
+            separate (bool,optional): whether try and uniquify columns; defaults to True; only applies when axis==0
+            addIntercept (bool,optional): whether to add intercepts to matrices before appending; defaults to False; only applies when axis==0
+            uniqueCols (list,optional): what additional columns to try to keep separated by uniquifying; defaults to intercept only; only applies when axis==0
+        
         """
         if axis == 1:
             return self.horzcat(df)
@@ -1836,8 +1841,8 @@ class Design_Mat(DataFrame):
 
 
     def horzcat(self,df):
-        """
-            Append another design matrix, column-wise (horz cat). Always returns a new design_matrix.
+        """Used by .append(). Append another design matrix, column-wise (horz cat). Always returns a new design_matrix.
+        
         """
         if self.shape[0] != df.shape[0]:
             raise ValueError("Can't append differently sized design matrices! Mat 1 has "+str(self.shape[0])+" rows and Mat 2 has "+str(df.shape[0])+" rows.") 
@@ -1849,13 +1854,8 @@ class Design_Mat(DataFrame):
 
 
     def vertcat(self,df,separate=True,addIntercept=False,uniqueCols=[]):
-        """
-            Append another design matrix row-wise (vert cat). Always returns a new design matrix
-            Args:
-                df: (Design_Matrix) other design mat to append
-                separate: (bool) whether to treat dataframe as separate; if true will by default uniquify intercepts; if uniqueCols is also passed, will uniquify those columns as well
-                addIntercept: (bool) whether to add intercepts to each design matrix before appending
-                uniqueCols: (list) additional columns to separate before appending
+        """Used by .append(). Append another design matrix row-wise (vert cat). Always returns a new design matrix.
+
         """
         outdf = df.copy()
         assert self.hasIntercept == outdf.hasIntercept, "Intercepts are ambigious. Both design matrices should match in whether they do or don't have intercepts."
@@ -1888,13 +1888,13 @@ class Design_Mat(DataFrame):
                         colOrder.append(colA)
                         if colA != colB:
                             colOrder.append(colB)
-                out = super(Design_Mat,out).append(outdf,ignore_index=True)
+                out = super(Design_Matrix,out).append(outdf,ignore_index=True)
                 #out = out.append(outdf,separate=False,axis=0,ignore_index=True).fillna(0)
                 out = out[colOrder].fillna(0)
             else:
                 raise ValueError("Separate concatentation impossible. None of the requested unique columns were found in both design_matrices.")
         else:
-            out = super(Design_Mat,self).append(outdf,ignore_index=True)
+            out = super(Design_Matrix,self).append(outdf,ignore_index=True)
             #out = self.append(df,separate=False,axis=0,ignore_index=True).fillna(0)
             out = out[self.columns]
 
@@ -1905,9 +1905,11 @@ class Design_Mat(DataFrame):
         return out
 
     def vif(self):
-        """
-        Compute variance inflation factor amongst columns of design matrix, ignoring the intercept.
+        """Compute variance inflation factor amongst columns of design matrix, ignoring the intercept.
         Much faster that statsmodels and more reliable too. Uses the same method as Matlab and R (diagonal elements of the inverted correlation matrix).
+
+        Returns:
+            vifs (list): list with length == number of columns - intercept
         """
         assert self.shape[1] > 1, "Can't compute vif with only 1 column!"
         if self.hasIntercept:
@@ -1924,9 +1926,7 @@ class Design_Mat(DataFrame):
         #return np.array(map(lambda x: _vif(self.drop(x,axis=1),self[x]),self.columns))
 
     def heatmap(self,figsize=(8,6),**kwargs):
-
-        """
-        Visualize dataframe spm style. Use .plot() for typical pandas plotting functionality. Can pass optional keyword args to seaborn heatmap.
+        """Visualize Design Matrix spm style. Use .plot() for typical pandas plotting functionality. Can pass optional keyword args to seaborn heatmap.
         
         """
         fig, ax = plt.subplots(1,figsize=figsize)
@@ -1944,21 +1944,18 @@ class Design_Mat(DataFrame):
         ax.axvline(x=self.shape[1],color='k',linewidth=4)
         plt.yticks(rotation=0)
 
-    def convolve(self,colNames=None,**kwargs):
-        """
-        Perform convolution using an hrf function. Defaults to inplace convolution, and can perform convolution optionally on specific columns
+    def convolve(self,colNames=None):
+        """Perform convolution using an hrf function.
 
         Args:
-            colNames: what columns to perform convolution on
-            inplace: perform convolution in place, else return a new instance
-            hrf: a different hrf function that takes TR and oversampling args
+            colNames (list): what columns to perform convolution on; defaults to all
 
         """
         assert self.TR is not None, "No TR specified!"
         assert len(self.hrf) != 0, "No convolution function(s) specified!"
         
         if colNames is None:
-            colNames = [col for col in self.columns if col != 'intercept']
+            colNames = [col for col in self.columns if 'intercept' not in col and 'poly' not in col]
         nonConvolved = [col for col in self.columns if col not in colNames]
         
         convolvedMats = []
@@ -1976,42 +1973,48 @@ class Design_Mat(DataFrame):
         return out
 
     def downsample(self,target,**kwargs):
-        """
-            Downsample columns of design matrix. Relies on nltools.stats.downsample, but ensures that returned object is a design matrix.
+        """Downsample columns of design matrix. Relies on nltools.stats.downsample, but ensures that returned object is a design matrix.
+
+        Args:
+            target(float): downsampling target, typically in samples not seconds
+            kwargs: additional inputs to nltools.stats.downsample
+
         """
         df = downsample(self,sampling_freq=self.TR,target=target,**kwargs)
 
         # convert df to a design matrix
-        newMat = Design_Mat(df,hrf=self.hrf,TR=target,convolved=self.convolved,hasIntercept=self.hasIntercept)
+        newMat = Design_Matrix(df,hrf=self.hrf,TR=target,convolved=self.convolved,hasIntercept=self.hasIntercept)
 
         return newMat
 
 
     def zscore(self,colNames=[]):
-        """
-            Z-score specific columns of design matrix. Relies on nltools.stats.downsample, but ensures that returned object is a design matrix. 
-            Args:
-                colNames: (list) columns to z-score; defaults to all columns
+        """Z-score specific columns of design matrix. Relies on nltools.stats.downsample, but ensures that returned object is a design matrix. 
+    
+        Args:
+            colNames (list): columns to z-score; defaults to all columns
 
         """
         colOrder = self.columns
-        if not colNames:
+        if not list(colNames):
             colNames = self.columns
         nonZ = [col for col in self.columns if col not in colNames]
         df = zscore(self[colNames])
         df = pd.concat([df,self[nonZ]],axis=1)
         df = df[colOrder]
-        newMat =Design_Mat(df,hrf=self.hrf,TR=self.TR,convolved=self.convolved,hasIntercept=self.hasIntercept)
+        newMat =Design_Matrix(df,hrf=self.hrf,TR=self.TR,convolved=self.convolved,hasIntercept=self.hasIntercept)
         
         return newMat
 
     def addpoly(self,order=0,include_lower=True):
+        """Add nth order polynomial terms as columns to design matrix. 
+        
+        Args:
+            order (int): what order terms to add; 0 = constant/intercept (default), 1 = linear, 2 = quadratic, etc
+            include_lower: (bool) whether to add lower order terms if order > 0
+        
         """
-            Add nth order polynomial terms as columns to design matrix
-            Args:
-                order: (int) what order terms to add; 0 = constant, 1 = linear, 2 = quadratic, etc
-                include_lower: (bool) whether to add lower order terms if order > 0
-        """
+        
         #This method is kind of ugly
         polyDict = {}
         if include_lower:
@@ -2038,7 +2041,7 @@ class Design_Mat(DataFrame):
             else:
                 polyDict['poly_'+str(order)] = (range(self.shape[0])-np.mean(range(self.shape[0])))**order
        
-        toAdd = Design_Mat(polyDict)
+        toAdd = Design_Matrix(polyDict)
     
         out =  self.append(toAdd,axis=1)
         
@@ -2048,7 +2051,8 @@ class Design_Mat(DataFrame):
 
 
     def add_filter(self):
-        """
+        """Not yet implemented.
+
         """
         raise NotImplementedError("Filtering not yet implemented!")
 

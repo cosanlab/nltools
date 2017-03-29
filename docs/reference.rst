@@ -19,6 +19,9 @@ methods in the current release of Neurolearn.
 .. autoclass:: nltools.data.Groupby
     :members:
 
+.. autoclass:: nltools.data.Design_Matrix
+    :members:
+
 :mod:`nltools.analysis`: Analysis Tools
 =======================================
 
@@ -51,6 +54,12 @@ methods in the current release of Neurolearn.
 ===============================
 
 .. automodule:: nltools.mask
+    :members:
+
+:mod:`nltools.file_reader`: File Reading
+========================================
+
+.. automodule:: nltools.file_reader
     :members:
 
 :mod:`nltools.util`: Utilities
