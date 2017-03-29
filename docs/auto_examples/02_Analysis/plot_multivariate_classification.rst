@@ -240,7 +240,8 @@ The above example uses single-interval classification, which attempts to
 determine the optimal classification interval. However, sometimes we are 
 intersted in directly comparing responses to two images within the same person. 
 In this situation we should use forced-choice classification, which looks at 
-the relative classification accuracy between two images.
+the relative classification accuracy between two images.  You must pass a list 
+indicating the ids of each unique subject.
 
 
 
@@ -248,35 +249,27 @@ the relative classification accuracy between two images.
 
 
     roc_fc = Roc(input_values=svm_stats['dist_from_hyperplane_xval'], 
-    			binary_outcome=svm_stats['Y'].astype(bool), forced_choice=True)
+    			binary_outcome=svm_stats['Y'].astype(bool), forced_choice=subject_id)
     roc_fc.plot()
     roc_fc.summary()
 
 
 
 
-.. image:: /auto_examples/02_Analysis/images/sphx_glr_plot_multivariate_classification_010.png
-    :align: center
+.. code-block:: pytb
+
+    Traceback (most recent call last):
+      File "/Users/Esh/anaconda/lib/python2.7/site-packages/sphinx_gallery/gen_rst.py", line 475, in execute_code_block
+        exec(code_block, example_globals)
+      File "<string>", line 4, in <module>
+      File "/Users/Esh/Documents/Python/Cosan/nltools/nltools/analysis.py", line 187, in plot
+        if self.forced_choice:
+    ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
 
 
-.. rst-class:: sphx-glr-script-out
-
- Out::
-
-    ------------------------
-    .:ROC Analysis Summary:.
-    ------------------------
-    Accuracy:           1.00
-    Accuracy SE:        0.19
-    Accuracy p-value:   0.00
-    Sensitivity:        1.00
-    Specificity:        1.00
-    AUC:                0.82
-    PPV:                1.00
-    ------------------------
 
 
-**Total running time of the script:** ( 0 minutes  58.055 seconds)
+**Total running time of the script:** ( 1 minutes  6.437 seconds)
 
 
 
