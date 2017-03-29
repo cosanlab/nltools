@@ -185,7 +185,11 @@ class Roc(object):
 
         if plot_method == 'gaussian':
             if self.forced_choice:
-                diff_scores = self.input_values[self.binary_outcome] - self.input_values[~self.binary_outcome]
+                sub_idx = np.unique(self.forced_choice)
+                diff_scores = []
+                for sub in sub_idx:
+                    diff_scores.append(self.input_values[(self.forced_choice==sub) & (self.binary_outcome==True)][0] - self.input_values[(self.forced_choice==sub) & (self.binary_outcome==False)][0])
+                diff_scores = np.array(diff_scores)
                 mn_diff = np.mean(diff_scores)
                 d = mn_diff / np.std(diff_scores)
                 pooled_sd = np.std(diff_scores) / np.sqrt(2);
