@@ -1,3 +1,5 @@
+:orphan:
+
 NLTools Usage Examples
 ======================
 
@@ -72,6 +74,26 @@ Neuroimaging Data Operations Examples
    :hidden:
 
    /auto_examples/01_DataOperations/plot_mask
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This tutorial illustrates how to use the Design_Matrix class to flexibly create design matrices...">
+
+.. only:: html
+
+    .. figure:: /auto_examples/01_DataOperations/images/thumb/sphx_glr_plot_design_matrix_thumb.png
+
+        :ref:`sphx_glr_auto_examples_01_DataOperations_plot_design_matrix.py`
+
+.. raw:: html
+
+    </div>
+
+
+.. toctree::
+   :hidden:
+
+   /auto_examples/01_DataOperations/plot_design_matrix
 .. raw:: html
 
     <div style='clear:both'></div>
@@ -171,13 +193,13 @@ Neuroimaging Analysis Examples
 
   .. container:: sphx-glr-download
 
-    :download:`Download all examples in Python source code: auto_examples_python.zip </auto_examples/auto_examples_python.zip>`
+    :download:`Download all examples in Python source code: auto_examples_python.zip <//Users/Esh/Documents/Python/Cosan/nltools/docs/auto_examples/auto_examples_python.zip>`
 
 
 
   .. container:: sphx-glr-download
 
-    :download:`Download all examples in Jupyter notebooks: auto_examples_jupyter.zip </auto_examples/auto_examples_jupyter.zip>`
+    :download:`Download all examples in Jupyter notebooks: auto_examples_jupyter.zip <//Users/Esh/Documents/Python/Cosan/nltools/docs/auto_examples/auto_examples_jupyter.zip>`
 
 .. rst-class:: sphx-glr-signature
 
