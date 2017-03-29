@@ -184,7 +184,7 @@ class Roc(object):
         self.calculate() # Calculate ROC parameters
 
         if plot_method == 'gaussian':
-            if self.forced_choice:
+            if self.forced_choice is not None:
                 sub_idx = np.unique(self.forced_choice)
                 diff_scores = []
                 for sub in sub_idx:
