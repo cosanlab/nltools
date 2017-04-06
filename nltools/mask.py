@@ -82,9 +82,9 @@ def create_sphere(coordinates, radius=5, mask=None):
         coordinates = [coordinates]
     if (type(radius)) is list and (type(coordinates) is list) and (len(radius) == len(coordinates)):
         A = np.zeros_like(mask.get_data())
-        A = Brain_Data(nib.Nifti1Image(A,affine=mask.get_affine()))
+        A = Brain_Data(nib.Nifti1Image(A,affine=mask.affine),mask=mask)
         for i in xrange(len(radius)):
-            A = A + Brain_Data(sphere(radius[i], coordinates[i], mask))
+            A = A + Brain_Data(sphere(radius[i], coordinates[i], mask),mask=mask)
             # B,translation_affine = sphere(radius[i], coordinates[i], mask)
             # A = np.add(A, B)
             # A = np.add(A, sphere(radius[i], coordinates[i], mask))
