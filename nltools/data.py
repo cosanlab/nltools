@@ -87,8 +87,8 @@ class Brain_Data(object):
                 if type(mask) is str:
                     if os.path.isfile(mask):
                         mask = nib.load(mask)
-            else:
-                raise ValueError("mask is not a nibabel instance")
+                else:
+                    raise ValueError("mask is not a nibabel instance or a valid file name")
             self.mask = mask
         else:
             self.mask = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm_brain_mask.nii.gz'))
