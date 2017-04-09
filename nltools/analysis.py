@@ -24,29 +24,35 @@ from copy import deepcopy
 class Roc(object):
 
     """ Roc Class
-    
-    The Roc class is based on Tor Wager's Matlab roc_plot.m function and allows a user to easily run different types of 
-    receiver operator characteristic curves.  For example, one might be interested in single interval or forced choice.
+
+    The Roc class is based on Tor Wager's Matlab roc_plot.m function and
+    allows a user to easily run different types of receiver operator
+    characteristic curves.  For example, one might be interested in single
+    interval or forced choice.
 
     Args:
         input_values: nibabel data instance
         binary_outcome: vector of training labels
-        threshold_type: ['optimal_overall', 'optimal_balanced','minimum_sdt_bias']
-        **kwargs: Additional keyword arguments to pass to the prediction algorithm
+        threshold_type: ['optimal_overall', 'optimal_balanced',
+                        'minimum_sdt_bias']
+        **kwargs: Additional keyword arguments to pass to the prediction
+                    algorithm
 
     """
 
-    def __init__(self, input_values=None, binary_outcome=None, 
+    def __init__(self, input_values=None, binary_outcome=None,
         threshold_type='optimal_overall', forced_choice=None, **kwargs):
         if len(input_values) != len(binary_outcome):
-            raise ValueError("Data Problem: input_value and binary_outcome are different lengths.")
+            raise ValueError("Data Problem: input_value and binary_outcome
+                            are different lengths.")
 
         if not any(binary_outcome):
             raise ValueError("Data Problem: binary_outcome may not be boolean")
 
         thr_type = ['optimal_overall', 'optimal_balanced','minimum_sdt_bias']
         if threshold_type not in thr_type:
-            raise ValueError("threshold_type must be ['optimal_overall', 'optimal_balanced','minimum_sdt_bias']")
+            raise ValueError("threshold_type must be ['optimal_overall',
+                            'optimal_balanced','minimum_sdt_bias']")
 
         self.input_values = deepcopy(input_values)
         self.binary_outcome = deepcopy(binary_outcome)
@@ -55,25 +61,32 @@ class Roc(object):
 
         if isinstance(self.binary_outcome,pd.DataFrame):
             self.binary_outcome = np.array(self.binary_outcome).flatten()
-        else:   
+        else:
             self.binary_outcome = deepcopy(binary_outcome)
 
-    def calculate(self, input_values=None, binary_outcome=None, criterion_values=None,
-        threshold_type='optimal_overall', forced_choice=None, balanced_acc=False):
-        
-        """ Calculate Receiver Operating Characteristic plot (ROC) for single-interval
-        classification.
+    def calculate(self, input_values=None, binary_outcome=None,
+                criterion_values=None, threshold_type='optimal_overall',
+                forced_choice=None, balanced_acc=False):
+
+        """ Calculate Receiver Operating Characteristic plot (ROC) for
+        single-interval classification.
 
         Args:
             input_values: nibabel data instance
             binary_outcome: vector of training labels
-            criterion_values: (optional) criterion values for calculating fpr & tpr
-            threshold_type: ['optimal_overall', 'optimal_balanced','minimum_sdt_bias']
-            forced_choice: index indicating position for each unique subject (default=None)
-            balanced_acc: balanced accuracy for single-interval classification (bool)
-            **kwargs: Additional keyword arguments to pass to the prediction algorithm
+            criterion_values: (optional) criterion values for calculating fpr
+                            & tpr
+            threshold_type: ['optimal_overall', 'optimal_balanced',
+                            'minimum_sdt_bias']
+            forced_choice: index indicating position for each unique subject
+                            (default=None)
+            balanced_acc: balanced accuracy for single-interval classification
+                            (bool)
+            **kwargs: Additional keyword arguments to pass to the prediction
+                            algorithm
 
         """
+
         if input_values is not None:
             self.input_values = deepcopy(input_values)
 
@@ -84,14 +97,17 @@ class Roc(object):
         if criterion_values is not None:
             self.criterion_values = deepcopy(criterion_values)
         else:
-            self.criterion_values = np.linspace(min(self.input_values), max(self.input_values), num=50*len(self.binary_outcome))
+            self.criterion_values = np.linspace(min(self.input_values),
+                                    max(self.input_values),
+                                    num=50*len(self.binary_outcome))
 
         if forced_choice is not None:
             self.forced_choice = deepcopy(forced_choice)
 
         if self.forced_choice is not None:
             sub_idx = np.unique(self.forced_choice)
-            assert len(sub_idx) == len(self.binary_outcome)/2, "Make sure that subject ids are correct for 'forced_choice'."
+            assert len(sub_idx) == len(self.binary_outcome)/2, ("Make sure
+                        that subject ids are correct for 'forced_choice'.")
             assert len(set(sub_idx).union(set(np.array(self.forced_choice)[self.binary_outcome]))) == len(sub_idx), "Issue with forced_choice subject labels."
             assert len(set(sub_idx).union(set(np.array(self.forced_choice)[~self.binary_outcome]))) == len(sub_idx), "Issue with forced_choice subject labels."
             for sub in sub_idx:
@@ -109,17 +125,7 @@ class Roc(object):
             self.fpr[i] = np.sum(wh[~self.binary_outcome])/np.sum(~self.binary_outcome)
         self.n_true = np.sum(self.binary_outcome)
         self.n_false = np.sum(~self.binary_outcome)
-
-        # Calculate Area Under the Curve
-
-        # fix for AUC = 1 if no overlap - code not working (tpr_unique and fpr_unique can be different lengths)
-        # fpr_unique = np.unique(self.fpr)
-        # tpr_unique = np.unique(self.tpr)
-        # if any((fpr_unique == 0) & (tpr_unique == 1)):
-        #    self.auc = 1 # Fix for AUC = 1 if no overlap;
-        # else:
-        #    self.auc = auc(self.fpr, self.tpr) # Use sklearn auc otherwise
-        self.auc = auc(self.fpr, self.tpr) # Use sklearn auc
+        self.auc = auc(self.fpr, self.tpr)
 
         # Get criterion threshold
         if self.forced_choice is None:
@@ -169,7 +175,7 @@ class Roc(object):
         """ Create ROC Plot
 
         Create a specific kind of ROC curve plot, based on input values
-        along a continuous distribution and a binary outcome variable (logical).
+        along a continuous distribution and a binary outcome variable (logical)
 
         Args:
             plot_method: type of plot ['gaussian','observed']
@@ -178,7 +184,7 @@ class Roc(object):
 
         Returns:
             fig
-            
+
         """
 
         self.calculate() # Calculate ROC parameters
@@ -188,7 +194,7 @@ class Roc(object):
                 sub_idx = np.unique(self.forced_choice)
                 diff_scores = []
                 for sub in sub_idx:
-                    diff_scores.append(self.input_values[(self.forced_choice==sub) & (self.binary_outcome==True)][0] - self.input_values[(self.forced_choice==sub) & (self.binary_outcome==False)][0])
+                    diff_scores.append(self.input_values[(self.forced_choice == sub) & (self.binary_outcome==True)][0] - self.input_values[(self.forced_choice==sub) & (self.binary_outcome==False)][0])
                 diff_scores = np.array(diff_scores)
                 mn_diff = np.mean(diff_scores)
                 d = mn_diff / np.std(diff_scores)
@@ -221,9 +227,7 @@ class Roc(object):
         return fig
 
     def summary(self):
-        """ Display a formatted summary of ROC analysis.
-
-        """
+        """ Display a formatted summary of ROC analysis. """
 
         print("------------------------")
         print(".:ROC Analysis Summary:.")
@@ -236,6 +240,3 @@ class Roc(object):
         print("{:20s}".format("AUC:") + "{:.2f}".format(self.auc))
         print("{:20s}".format("PPV:") + "{:.2f}".format(self.ppv))
         print("------------------------")
-
-
-
