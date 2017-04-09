@@ -13,7 +13,9 @@ Classes to represent various types of data
 
 __all__ = ['Brain_Data',
             'Adjacency',
-            'Groupby','Design_Matrixrix','Design_Matrixrix_Series']
+            'Groupby',
+            'Design_Matrix',
+            'Design_Matrix_Series']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
@@ -27,7 +29,13 @@ from nltools.plotting import (dist_from_hyperplane_plot,
                             probability_plot,
                             roc_plot,
                             plot_stacked_adjacency)
-from nltools.stats import pearson,fdr,threshold, fisher_r_to_z, correlation_permutation,one_sample_permutation,two_sample_permutation
+from nltools.stats import pearson,
+                        fdr,
+                        threshold,
+                        fisher_r_to_z,
+                        correlation_permutation,
+                        one_sample_permutation,
+                        two_sample_permutation
 from nltools.mask import expand_mask,collapse_mask
 from nltools.stats import downsample, zscore
 from nltools.analysis import Roc
@@ -56,7 +64,8 @@ from nltools.utils import glover_hrf
 
 # Optional dependencies
 try:
-    from mne.stats import spatio_temporal_cluster_1samp_test, ttest_1samp_no_p
+    from mne.stats import spatio_temporal_cluster_1samp_test,
+                        ttest_1samp_no_p
 except ImportError:
     pass
 
@@ -65,11 +74,13 @@ try:
 except ImportError:
     pass
 
+
 class Brain_Data(object):
 
     """
-    Brain_Data is a class to represent neuroimaging data in python as a vector rather than a 3-dimensional matrix.
-    This makes it easier to perform data manipulation and analyses.
+    Brain_Data is a class to represent neuroimaging data in python as a vector
+    rather than a 3-dimensional matrix.This makes it easier to perform data
+    manipulation and analyses.
 
     Args:
         data: nibabel data instance or list of files
@@ -77,11 +88,13 @@ class Brain_Data(object):
         X: Pandas DataFrame Design Matrix for running univariate models
         mask: binary nifiti file to mask brain data
         output_file: Name to write out to nifti file
-        **kwargs: Additional keyword arguments to pass to the prediction algorithm
+        **kwargs: Additional keyword arguments to pass to the prediction
+                algorithm
 
     """
 
-    def __init__(self, data=None, Y=None, X=None, mask=None, output_file=None, **kwargs):
+    def __init__(self, data=None, Y=None, X=None, mask=None, output_file=None,
+                **kwargs):
         if mask is not None:
             if not isinstance(mask, nib.Nifti1Image):
                 if type(mask) is str:
@@ -113,23 +126,23 @@ class Brain_Data(object):
                     elif isinstance(i,nib.Nifti1Image):
                         self.data.append(self.nifti_masker.fit_transform(i))
                 self.data = np.array(self.data)
-            elif isinstance(data,nib.Nifti1Image):
+            elif isinstance(data, nib.Nifti1Image):
                 self.data = np.array(self.nifti_masker.fit_transform(data))
             else:
                 raise ValueError("data is not a nibabel instance")
 
             # Collapse any extra dimension
-            if any([x==1 for x in self.data.shape]):
-                self.data=self.data.squeeze()
+            if any([x == 1 for x in self.data.shape]):
+                self.data = self.data.squeeze()
         else:
             self.data = np.array([])
 
         if Y is not None:
             if type(Y) is str:
                 if os.path.isfile(Y):
-                    Y=pd.read_csv(Y,header=None,index_col=None)
+                    Y=pd.read_csv(Y, header=None, index_col=None)
             if isinstance(Y, pd.DataFrame):
-                if self.data.shape[0]!= len(Y):
+                if self.data.shape[0] != len(Y):
                     raise ValueError("Y does not match the correct size of data")
                 self.Y = Y
             else:
@@ -140,9 +153,9 @@ class Brain_Data(object):
         if X is not None:
             if type(X) is str:
                 if os.path.isfile(X):
-                    X=pd.read_csv(X,header=None,index_col=None)
+                    X = pd.read_csv(X, header=None, index_col=None)
             if isinstance(X, pd.DataFrame):
-                if self.data.shape[0]!= X.shape[0]:
+                if self.data.shape[0] != X.shape[0]:
                     raise ValueError("X does not match the correct size of data")
                 self.X = X
             else:
@@ -169,9 +182,9 @@ class Brain_Data(object):
     def __getitem__(self, index):
         new = deepcopy(self)
         if isinstance(index, int):
-            new.data = np.array(self.data[index,:]).flatten()
+            new.data = np.array(self.data[index, :]).flatten()
         else:
-            new.data = np.array(self.data[index,:])
+            new.data = np.array(self.data[index, :])
         if not self.Y.empty:
             new.Y = self.Y.iloc[index]
         if not self.X.empty:
@@ -179,9 +192,9 @@ class Brain_Data(object):
         return new
 
     def __setitem__(self, index, value):
-        if not isinstance(value,Brain_Data):
+        if not isinstance(value, Brain_Data):
             raise ValueError('Make sure the value you are trying to set is a Brain_Data() instance.')
-        self.data[index,:] = value.data
+        self.data[index, :] = value.data
         if not value.Y.empty:
             self.Y.values[index] = value.Y
         if not value.X.empty:
@@ -219,7 +232,7 @@ class Brain_Data(object):
         if isinstance(y, Brain_Data):
             if self.shape() != y.shape():
                 raise ValueError('Both Brain_Data() instances need to be the same shape.')
-            new.data = np.multiply(new.data,y.data)
+            new.data = np.multiply(new.data, y.data)
         return new
 
     def __iter__(self):
@@ -256,7 +269,7 @@ class Brain_Data(object):
 
         out = deepcopy(self)
         if len(self.shape()) > 1:
-            out.data = np.sum(out.data,axis=0)
+            out.data = np.sum(out.data, axis=0)
         else:
             out = np.sum(self.data)
         return out
@@ -308,7 +321,8 @@ class Brain_Data(object):
         """ run vectorized OLS regression across voxels.
 
         Returns:
-            out: dictionary of regression statistics in Brain_Data instances {'beta','t','p','df','residual'}
+            out: dictionary of regression statistics in Brain_Data instances
+                {'beta','t','p','df','residual'}
 
         """
 
@@ -347,10 +361,13 @@ class Brain_Data(object):
         """ Calculate one sample t-test across each voxel (two-sided)
 
         Args:
-            threshold_dict: a dictionary of threshold parameters {'unc':.001} or {'fdr':.05} or {'permutation':tcfe,n_permutation:5000}
+            threshold_dict: a dictionary of threshold parameters {'unc':.001}
+                            or {'fdr':.05} or {'permutation':tcfe,
+                            n_permutation:5000}
 
         Returns:
-            out: dictionary of regression statistics in Brain_Data instances {'t','p'}
+            out: dictionary of regression statistics in Brain_Data instances
+                {'t','p'}
 
         """
 
@@ -411,7 +428,7 @@ class Brain_Data(object):
                 elif 'permutation' in threshold_dict:
                     thr = .05
                 thr_t = threshold(t, p, thr)
-                out = {'t':t, 'p':p,'thr_t':thr_t}
+                out = {'t': t, 'p': p,'thr_t': thr_t}
             else:
                 raise ValueError("threshold_dict is not a dictionary.  Make sure it is in the form of {'unc':.001} or {'fdr':.05}")
         else:
@@ -459,9 +476,7 @@ class Brain_Data(object):
         return out
 
     def empty(self, data=True, Y=True, X=True):
-        """ Initalize Brain_Data.data as empty
-
-        """
+        """ Initalize Brain_Data.data as empty """
 
         tmp = deepcopy(self)
         if data:
@@ -490,7 +505,8 @@ class Brain_Data(object):
         return boolean
 
     def similarity(self, image, method='correlation'):
-        """ Calculate similarity of Brain_Data() instance with single Brain_Data or Nibabel image
+        """ Calculate similarity of Brain_Data() instance with single
+            Brain_Data or Nibabel image
 
             Args:
                 image: Brain_Data or Nibabel instance of weight map
@@ -510,7 +526,7 @@ class Brain_Data(object):
 
         # Check to make sure masks are the same for each dataset and if not create a union mask
         # This might be handy code for a new Brain_Data method
-        if np.sum(self.nifti_masker.mask_img.get_data() == 1)!=np.sum(image.nifti_masker.mask_img.get_data()==1):
+        if np.sum(self.nifti_masker.mask_img.get_data() == 1) != np.sum(image.nifti_masker.mask_img.get_data()==1):
             new_mask = intersect_masks([self.nifti_masker.mask_img, image.nifti_masker.mask_img], threshold=1, connected=False)
             new_nifti_masker = NiftiMasker(mask_img=new_mask)
             data2 = new_nifti_masker.fit_transform(self.to_nifti())
@@ -551,7 +567,8 @@ class Brain_Data(object):
         """ Calculate distance between images within a Brain_Data() instance.
 
             Args:
-                method: type of distance metric (can use any scikit learn or sciypy metric)
+                method: type of distance metric (can use any scikit learn or
+                        sciypy metric)
 
             Returns:
                 dist: Outputs a 2D distance matrix.
@@ -561,14 +578,16 @@ class Brain_Data(object):
         return Adjacency(pairwise_distances(self.data, metric=method, **kwargs), matrix_type='Distance')
 
     def multivariate_similarity(self, images, method='ols'):
-        """ Predict spatial distribution of Brain_Data() instance from linear combination of other Brain_Data() instances or Nibabel images
+        """ Predict spatial distribution of Brain_Data() instance from linear
+            combination of other Brain_Data() instances or Nibabel images
 
             Args:
                 self: Brain_Data instance of data to be applied
                 images: Brain_Data instance of weight map
 
             Returns:
-                out: dictionary of regression statistics in Brain_Data instances {'beta','t','p','df','residual'}
+                out: dictionary of regression statistics in Brain_Data
+                    instances {'beta','t','p','df','residual'}
 
         """
         ## Notes:  Should add ridge, and lasso, elastic net options options
@@ -581,7 +600,7 @@ class Brain_Data(object):
 
         # Check to make sure masks are the same for each dataset and if not create a union mask
         # This might be handy code for a new Brain_Data method
-        if np.sum(self.nifti_masker.mask_img.get_data() == 1)!=np.sum(images.nifti_masker.mask_img.get_data()==1):
+        if np.sum(self.nifti_masker.mask_img.get_data() == 1) != np.sum(images.nifti_masker.mask_img.get_data()==1):
             new_mask = intersect_masks([self.nifti_masker.mask_img, images.nifti_masker.mask_img], threshold=1, connected=False)
             new_nifti_masker = NiftiMasker(mask_img=new_mask)
             data2 = new_nifti_masker.fit_transform(self.to_nifti())
@@ -612,17 +631,19 @@ class Brain_Data(object):
         """ Run prediction
 
         Args:
-            algorithm: Algorithm to use for prediction.  Must be one of 'svm', 'svr',
-            'linear', 'logistic', 'lasso', 'ridge', 'ridgeClassifier','randomforest',
-            or 'randomforestClassifier'
+            algorithm: Algorithm to use for prediction.  Must be one of 'svm',
+                    'svr', 'linear', 'logistic', 'lasso', 'ridge',
+                    'ridgeClassifier','randomforest',or 'randomforestClassifier'
             cv_dict: Type of cross_validation to use. A dictionary of
-                {'type': 'kfolds', 'n_folds': n},
-                {'type': 'kfolds', 'n_folds': n, 'stratified': Y},
-                {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
-                {'type': 'loso', 'subject_id': holdout}
-                where 'n' = number of folds, and 'holdout' = vector of subject ids that corresponds to self.Y
+                    {'type': 'kfolds', 'n_folds': n},
+                    {'type': 'kfolds', 'n_folds': n, 'stratified': Y},
+                    {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
+                    {'type': 'loso', 'subject_id': holdout}
+                    where 'n' = number of folds, and 'holdout' = vector of
+                    subject ids that corresponds to self.Y
             plot: Boolean indicating whether or not to create plots.
-            **kwargs: Additional keyword arguments to pass to the prediction algorithm
+            **kwargs: Additional keyword arguments to pass to the prediction
+                    algorithm
 
         Returns:
             output: a dictionary of prediction parameters
@@ -751,13 +772,17 @@ class Brain_Data(object):
 
         return output
 
-    def bootstrap(self, analysis_type=None, n_samples=10, save_weights=False, **kwargs):
-        """ Bootstrap various Brain_Data analaysis methods (e.g., mean, std, regress, predict).  Currently
+    def bootstrap(self, analysis_type=None, n_samples=10, save_weights=False,
+                **kwargs):
+        """ Bootstrap various Brain_Data analaysis methods (e.g., mean, std,
+            regress, predict).  Currently
 
         Args:
-            analysis_type: Type of analysis to bootstrap (mean,std,regress,predict)
+            analysis_type: Type of analysis to bootstrap (mean,std,regress,
+                        predict)
             n_samples: Number of samples to boostrap
-            **kwargs: Additional keyword arguments to pass to the analysis method
+            **kwargs: Additional keyword arguments to pass to the analysis
+                    method
 
         Returns:
             output: a dictionary of prediction parameters
@@ -950,11 +975,12 @@ class Brain_Data(object):
         return out
 
     def icc(self, icc_type='icc2'):
-        ''' Calculate intraclass correlation coefficient for data within Brain_Data class
+        ''' Calculate intraclass correlation coefficient for data within
+            Brain_Data class
 
         ICC Formulas are based on:
-        Shrout, P. E., & Fleiss, J. L. (1979). Intraclass correlations: uses in assessing rater reliability.
-        Psychological bulletin, 86(2), 420.
+        Shrout, P. E., & Fleiss, J. L. (1979). Intraclass correlations: uses in
+        assessing rater reliability. Psychological bulletin, 86(2), 420.
 
         icc1:  x_ij = mu + beta_j + w_ij
         icc2/3:  x_ij = mu + alpha_i + beta_j + (ab)_ij + epsilon_ij
@@ -963,7 +989,9 @@ class Brain_Data(object):
         https://github.com/nipy/nipype/blob/master/nipype/algorithms/icc.py
 
         Args:
-            icc_type: type of icc to calculate (icc: voxel random effect, icc2: voxel and column random effect, icc3: voxel and column fixed effect)
+            icc_type: type of icc to calculate (icc: voxel random effect,
+                    icc2: voxel and column random effect, icc3: voxel and
+                    column fixed effect)
 
         Returns:
             ICC: intraclass correlation coefficient
@@ -1040,14 +1068,17 @@ class Brain_Data(object):
 
         return deepcopy(self)
 
-    def upload_neurovault(self, access_token=None, collection_name=None, collection_id=None,
-        img_type=None, img_modality=None, **kwargs):
-        """ Upload Data to Neurovault.  Will add any columns in self.X to image metadata. Index will be used as image name.
+    def upload_neurovault(self, access_token=None, collection_name=None,
+                        collection_id=None,img_type=None, img_modality=None,
+                        **kwargs):
+        """ Upload Data to Neurovault.  Will add any columns in self.X to image
+            metadata. Index will be used as image name.
 
         Args:
             access_token: (Required) Neurovault api access token
             collection_name: (Optional) name of new collection to create
-            collection_id: (Optional) neurovault collection_id if adding images to existing collection
+            collection_id: (Optional) neurovault collection_id if adding images
+                            to existing collection
             img_type: (Required) Neurovault map_type
             img_modality: (Required) Neurovault image modality
 
@@ -1080,7 +1111,7 @@ class Brain_Data(object):
                     img_name = collection['name'] + '_' + str(i) + '.nii.gz'
             else:
                 img_name = collection['name'] + '_' + str(i) + '.nii.gz'
-            f_path = os.path.join(tmp_dir,img_name)
+            f_path = os.path.join(tmp_dir, img_name)
             x.write(f_path)
             if not x.X.empty:
                 kwargs.update(dict([(k, x.X.loc[k]) for k in x.X.keys()]))
@@ -1096,7 +1127,8 @@ class Brain_Data(object):
         return collection
 
     def r_to_z(self):
-        ''' Apply Fisher's r to z transformation to each element of the data object.'''
+        ''' Apply Fisher's r to z transformation to each element of the data
+            object.'''
 
         out = self.copy()
         out.data = fisher_r_to_z(out.data)
@@ -1134,10 +1166,10 @@ class Brain_Data(object):
 
         out = self.copy()
         if method is 'center':
-            out.data = out.data - np.repeat(np.array([np.mean(out.data, axis=0)]).T,len(out),axis=1).T
+            out.data = out.data - np.repeat(np.array([np.mean(out.data, axis=0)]).T, len(out), axis=1).T
         elif method is 'zscore':
-            out.data = out.data - np.repeat(np.array([np.mean(out.data, axis=0)]).T,len(out),axis=1).T
-            out.data = out.data/np.repeat(np.array([np.std(out.data, axis=0)]).T,len(out),axis=1).T
+            out.data = out.data - np.repeat(np.array([np.mean(out.data, axis=0)]).T, len(out), axis=1).T
+            out.data = out.data/np.repeat(np.array([np.std(out.data, axis=0)]).T, len(out), axis=1).T
         else:
             raise ValueError('method must be ["center","zscore"')
         return out
@@ -1152,11 +1184,12 @@ class Brain_Data(object):
         values = dat.apply(func)
         return dat.combine(values)
 
-    def threshold(self, threshold=0, binarize=False):
+    def threshold(self, thresh=0, binarize=False):
         '''Threshold Brain_Data instance
 
         Args:
-            threshold: cutoff to threshold image (float).  if 'threshold'=50%, will calculate percentile.
+            thresh: cutoff to threshold image (float).  if 'threshold'=50%,
+                    will calculate percentile.
             binarize (bool): if 'binarize'=True then binarize output
         Returns:
             Brain_Data: thresholded Brain_Data instance
@@ -1164,29 +1197,36 @@ class Brain_Data(object):
         '''
 
         b = self.copy()
-        if isinstance(threshold,str):
-            if threshold[-1] is '%':
-                threshold = np.percentile(b.data, float(threshold[:-1]))
+        if isinstance(thresh, str):
+            if thresh[-1] is '%':
+                thresh = np.percentile(b.data, float(thresh[:-1]))
         if binarize:
-            b.data = b.data > threshold
+            b.data = b.data > thresh
         else:
-            b.data[b.data < threshold] = 0
+            b.data[b.data < thresh] = 0
         return b
 
-    def regions(self, min_region_size=1350, extract_type = 'local_regions', smoothing_fwhm = 6):
+    def regions(self, min_region_size=1350, extract_type='local_regions',
+                smoothing_fwhm=6):
         ''' Extract brain connected regions into separate regions.
 
         Args:
-            min_region_size (int): Minimum volume in mm3 for a region to be kept.
-            extract_type (str): Type of extraction method ['connected_components', 'local_regions'].
-                                If 'connected_components', each component/region in the image is extracted
-                                automatically by labelling each region based upon the presence of unique
-                                features in their respective regions. If 'local_regions', each
-                                component/region is extracted based on their maximum peak value to define
-                                a seed marker and then using random walker segementation algorithm on these
+            min_region_size (int): Minimum volume in mm3 for a region to be
+                                kept.
+            extract_type (str): Type of extraction method
+                                ['connected_components', 'local_regions'].
+                                If 'connected_components', each component/region
+                                in the image is extracted automatically by
+                                labelling each region based upon the presence of
+                                unique features in their respective regions.
+                                If 'local_regions', each component/region is
+                                extracted based on their maximum peak value to
+                                define a seed marker and then using random
+                                walker segementation algorithm on these
                                 markers for region separation.
-            smoothing_fwhm (scalar): Smooth an image to extract more sparser regions.
-                                    Only works for extract_type 'local_regions'.
+            smoothing_fwhm (scalar): Smooth an image to extract more sparser
+                                regions. Only works for extract_type
+                                'local_regions'.
 
         Returns:
             Brain_Data: Brain_Data instance with extracted ROIs as data.
@@ -1212,7 +1252,7 @@ class Adjacency(object):
 
     '''
 
-    def __init__(self, data=None, Y = None, matrix_type=None, **kwargs):
+    def __init__(self, data=None, Y=None, matrix_type=None, **kwargs):
 
         if matrix_type is not None:
             if matrix_type.lower() not in ['distance','similarity','directed','distance_flat','similarity_flat','directed_flat']:
@@ -1226,7 +1266,7 @@ class Adjacency(object):
         elif isinstance(data, list):
             d_all = []; symmetric_all = []; matrix_type_all = []
             for d in data:
-                data_tmp, issymmetric_tmp, matrix_type_tmp, is_single_matrix = self._import_single_data(d,matrix_type=matrix_type)
+                data_tmp, issymmetric_tmp, matrix_type_tmp, _ = self._import_single_data(d,matrix_type=matrix_type)
                 d_all.append(data_tmp)
                 symmetric_all.append(issymmetric_tmp)
                 matrix_type_all.append(matrix_type_tmp)
@@ -1242,9 +1282,9 @@ class Adjacency(object):
             self.data, self.issymmetric, self.matrix_type, self.is_single_matrix = self._import_single_data(data, matrix_type=matrix_type)
 
         if Y is not None:
-            if type(Y) is str:
+            if isinstance(Y, str):
                 if os.path.isfile(Y):
-                    Y=pd.read_csv(Y,header=None,index_col=None)
+                    Y=pd.read_csv(Y, header=None, index_col=None)
             if isinstance(Y, pd.DataFrame):
                 if self.data.shape[0] != len(Y):
                     raise ValueError("Y does not match the correct size of data")
@@ -1283,8 +1323,8 @@ class Adjacency(object):
             return self.data.shape[0]
 
     def __iter__(self):
-        for x in range(len(self)):
-            yield self[x]
+        for i, x in enumerate(self):
+            yield self[i]
 
     def __add__(self, y):
         new = deepcopy(self)
@@ -1348,7 +1388,7 @@ class Adjacency(object):
                 issymmetric = False
                 is_single_matrix = test_is_single_matrix(data)
             elif matrix_type.lower() in ['distance', 'similarity', 'directed']:
-                if data.shape[0]!=data.shape[1]:
+                if data.shape[0] != data.shape[1]:
                     raise ValueError('Data matrix must be square')
                 data = np.array(data)
                 matrix_type = matrix_type.lower()
@@ -1366,8 +1406,8 @@ class Adjacency(object):
             if len(data.shape) == 1: # Single Vector
                 try:
                     data = squareform(data)
-                except:
-                    raise ValueError('Data is not flattened upper triangle from similarity/distance matrix or flattened directed matrix.')
+                except ValueError:
+                    print('Data is not flattened upper triangle from similarity/distance matrix or flattened directed matrix.')
                 is_single_matrix = True
             elif data.shape[0] == data.shape[1]: # Square Matrix
                 is_single_matrix = True
@@ -1375,12 +1415,12 @@ class Adjacency(object):
                 data_all = deepcopy(data)
                 try:
                     data = squareform(data_all[0, :])
-                except:
-                    raise ValueError('Data is not flattened upper triangle from multiple similarity/distance matrices or flattened directed matrices.')
+                except ValueError:
+                    print('Data is not flattened upper triangle from multiple similarity/distance matrices or flattened directed matrices.')
                 is_single_matrix = False
 
             # Test if matrix is symmetrical
-            if np.all(data[np.triu_indices(data.shape[0], k=1)]==data.T[np.triu_indices(data.shape[0], k=1)]):
+            if np.all(data[np.triu_indices(data.shape[0], k=1)] == data.T[np.triu_indices(data.shape[0], k=1)]):
                 issymmetric = True
             else:
                 issymmetric = False
@@ -1439,7 +1479,8 @@ class Adjacency(object):
                     For data it will be on upper triangle.
 
         Returns:
-            mean:  float if single, adjacency if axis=0, np.array if axis=1 and multiple
+            mean:  float if single, adjacency if axis=0, np.array if axis=1
+                    and multiple
 
         '''
 
@@ -1459,7 +1500,8 @@ class Adjacency(object):
                     For data it will be on upper triangle.
 
         Returns:
-            std:  float if single, adjacency if axis=0, np.array if axis=1 and multiple
+            std:  float if single, adjacency if axis=0, np.array if axis=1 and
+                    multiple
 
         '''
 
@@ -1561,19 +1603,22 @@ class Adjacency(object):
         ''' Calculate distance between images within an Adjacency() instance.
 
         Args:
-            method: type of distance metric (can use any scikit learn or sciypy metric)
+            method: type of distance metric (can use any scikit learn or
+                    sciypy metric)
 
         Returns:
             dist: Outputs a 2D distance matrix.
 
         '''
-        return Adjacency(pairwise_distances(self.data, metric=method, **kwargs), matrix_type='distance')
+        return Adjacency(pairwise_distances(self.data, metric=method, **kwargs),
+                        matrix_type='distance')
 
-    def threshold(self, threshold=0, binarize=False):
+    def threshold(self, thresh=0, binarize=False):
         '''Threshold Adjacency instance
 
         Args:
-            threshold: cutoff to threshold image (float).  if 'threshold'=50%, will calculate percentile.
+            thresh: cutoff to threshold image (float).  if 'threshold'=50%,
+                    will calculate percentile.
             binarize (bool): if 'binarize'=True then binarize output
         Returns:
             Brain_Data: thresholded Brain_Data instance
@@ -1581,13 +1626,13 @@ class Adjacency(object):
         '''
 
         b = self.copy()
-        if isinstance(threshold, str):
-            if threshold[-1] is '%':
-                threshold = np.percentile(b.data, float(threshold[:-1]))
+        if isinstance(thresh, str):
+            if thresh[-1] is '%':
+                thresh = np.percentile(b.data, float(thresh[:-1]))
         if binarize:
-            b.data = b.data > threshold
+            b.data = b.data > thresh
         else:
-            b.data[b.data < threshold] = 0
+            b.data[b.data < thresh] = 0
         return b
 
     def to_graph(self):
@@ -1612,7 +1657,7 @@ class Adjacency(object):
             p.append(stats['p'])
         mn = Adjacency(np.array(m))
         pval = Adjacency(np.array(p))
-        return (mn,pval)
+        return (mn, pval)
 
     def plot_label_distance(self, labels, ax=None):
         ''' Create a violin plot indicating within and between label distance
@@ -1637,11 +1682,11 @@ class Adjacency(object):
         out = pd.DataFrame(columns=['Distance', 'Group', 'Type'], index=None)
         for i in np.unique(labels):
             tmp_w = pd.DataFrame(columns=out.columns,index=None)
-            tmp_w['Distance'] = distance.loc[labels==i,labels==i].values[np.triu_indices(sum(labels == i), k=1)]
+            tmp_w['Distance'] = distance.loc[labels == i,labels == i].values[np.triu_indices(sum(labels == i), k=1)]
             tmp_w['Type'] = 'Within'
             tmp_w['Group'] = i
             tmp_b = pd.DataFrame(columns=out.columns, index=None)
-            tmp_b['Distance'] = distance.loc[labels != i, labels!=i].values[np.triu_indices(sum(labels == i), k=1)]
+            tmp_b['Distance'] = distance.loc[labels != i, labels != i].values[np.triu_indices(sum(labels == i), k=1)]
             tmp_b['Type'] = 'Between'
             tmp_b['Group'] = i
             out = out.append(tmp_w).append(tmp_b)
@@ -1659,7 +1704,8 @@ class Adjacency(object):
                 n_permute (int): number of permutations to run (default=5000)
 
             Returns:
-                dict:  dictionary of within and between group differences and p-values
+                dict:  dictionary of within and between group differences
+                        and p-values
 
         '''
 
@@ -1675,11 +1721,11 @@ class Adjacency(object):
         out = pd.DataFrame(columns=['Distance', 'Group', 'Type'], index=None)
         for i in np.unique(labels):
             tmp_w = pd.DataFrame(columns=out.columns, index=None)
-            tmp_w['Distance'] = distance.loc[labels == i, labels==i].values[np.triu_indices(sum(labels == i) ,k=1)]
+            tmp_w['Distance'] = distance.loc[labels == i, labels == i].values[np.triu_indices(sum(labels == i), k=1)]
             tmp_w['Type'] = 'Within'
             tmp_w['Group'] = i
             tmp_b = pd.DataFrame(columns=out.columns, index=None)
-            tmp_b['Distance'] = distance.loc[labels==i, labels!=i].values.flatten()
+            tmp_b['Distance'] = distance.loc[labels == i, labels != i].values.flatten()
             tmp_b['Type'] = 'Between'
             tmp_b['Group'] = i
             out = out.append(tmp_w).append(tmp_b)
@@ -1690,6 +1736,7 @@ class Adjacency(object):
             tmp2 = out.loc[(out['Group'] == i) & (out['Type'] == 'Between'), 'Distance']
             stats[str(i)] = two_sample_permutation(tmp1, tmp2, n_permute=n_permute)
         return stats
+
 
 class Groupby(object):
     def __init__(self, data, mask):
@@ -1724,7 +1771,7 @@ class Groupby(object):
 
     def __iter__(self):
         for x in self.data:
-            yield (x,self.data[x])
+            yield (x, self.data[x])
 
     def __getitem__(self, index):
         if isinstance(index, int):
@@ -1758,10 +1805,14 @@ class Groupby(object):
                 raise ValueError('No method for aggregation implented for %s yet.' % type(value_dict[i]))
         return out.sum()
 
+
 class Design_Matrix_Series(Series):
 
     """
-    This is a sub-class of pandas series. While not having additional methods of it's own required to retain normal slicing functionality for the Design_Matrix class, i.e. how slicing is typically handled in pandas. All methods should be called on Design_Matrix below.
+    This is a sub-class of pandas series. While not having additional methods
+    of it's own required to retain normal slicing functionality for the
+    Design_Matrix class, i.e. how slicing is typically handled in pandas.
+    All methods should be called on Design_Matrix below.
     """
 
     @property
@@ -1772,15 +1823,25 @@ class Design_Matrix_Series(Series):
     def _constructor_expanddim(self):
         return Design_Matrix
 
+
 class Design_Matrix(DataFrame):
 
-    """Design_Matrix is a class to represent design matrices with convenience functionality for convolution, upsampling and downsampling. It plays nicely with Brain_Data and can be used to build an experimental design to pass to Brain_Data's X attribute. It is essentially an enhanced pandas df, with extra attributes and methods. Methods always return a new design matrix instance.
+    """Design_Matrix is a class to represent design matrices with convenience
+        functionality for convolution, upsampling and downsampling. It plays
+        nicely with Brain_Data and can be used to build an experimental design
+        to pass to Brain_Data's X attribute. It is essentially an enhanced
+        pandas df, with extra attributes and methods. Methods always return a
+        new design matrix instance.
 
     Args:
-        hrf (list, optional): functions to apply when convolution is performed; defaults to glover HRF
-        convolved (bool, optional): whether convolution has been performed; defaults to False
-        hasIntercept (bool, optional): whether the design matrix has an intercept column; defaults to False
+        hrf (list, optional): functions to apply when convolution is performed;
+                            defaults to glover HRF
+        convolved (bool, optional): whether convolution has been performed;
+                            defaults to False
+        hasIntercept (bool, optional): whether the design matrix has an
+                            intercept column; defaults to False
         TR (float, optional): sampling frequence of each row; defaults to None
+
     """
 
     _metadata = ['TR', 'hrf', 'convolved', 'hasIntercept']
@@ -1822,13 +1883,22 @@ class Design_Matrix(DataFrame):
             )
 
     def append(self, df, axis, **kwargs):
-        """Method for concatenating another design matrix row or column-wise. Can "uniquify" certain columns when appending row-wise, and by default will attempt to do that with the intercept.
+        """Method for concatenating another design matrix row or column-wise.
+            Can "uniquify" certain columns when appending row-wise, and by
+            default will attempt to do that with the intercept.
 
         Args:
             axis (int): 0 for row-wise (vert-cat), 1 for column-wise (horz-cat)
-            separate (bool,optional): whether try and uniquify columns; defaults to True; only applies when axis==0
-            addIntercept (bool,optional): whether to add intercepts to matrices before appending; defaults to False; only applies when axis==0
-            uniqueCols (list,optional): what additional columns to try to keep separated by uniquifying; defaults to intercept only; only applies when axis==0
+            separate (bool,optional): whether try and uniquify columns;
+                                        defaults to True; only applies
+                                        when axis==0
+            addIntercept (bool,optional): whether to add intercepts to matrices
+                                        before appending; defaults to False;
+                                        only applies when axis==0
+            uniqueCols (list,optional): what additional columns to try to keep
+                                        separated by uniquifying; defaults to
+                                        intercept only; only applies when
+                                        axis==0
 
         """
         if axis == 1:
@@ -1840,7 +1910,8 @@ class Design_Matrix(DataFrame):
 
 
     def horzcat(self, df):
-        """Used by .append(). Append another design matrix, column-wise (horz cat). Always returns a new design_matrix.
+        """Used by .append(). Append another design matrix, column-wise
+            (horz cat). Always returns a new design_matrix.
 
         """
         if self.shape[0] != df.shape[0]:
@@ -1853,7 +1924,8 @@ class Design_Matrix(DataFrame):
 
 
     def vertcat(self, df, separate=True, addIntercept=False, uniqueCols=[]):
-        """Used by .append(). Append another design matrix row-wise (vert cat). Always returns a new design matrix.
+        """Used by .append(). Append another design matrix row-wise (vert cat).
+            Always returns a new design matrix.
 
         """
         outdf = df.copy()
@@ -1904,11 +1976,14 @@ class Design_Matrix(DataFrame):
         return out
 
     def vif(self):
-        """Compute variance inflation factor amongst columns of design matrix, ignoring the intercept.
-        Much faster that statsmodels and more reliable too. Uses the same method as Matlab and R (diagonal elements of the inverted correlation matrix).
+        """Compute variance inflation factor amongst columns of design matrix,
+            ignoring the intercept. Much faster that statsmodels and more
+            reliable too. Uses the same method as Matlab and R (diagonal
+            elements of the inverted correlation matrix).
 
         Returns:
             vifs (list): list with length == number of columns - intercept
+
         """
         assert self.shape[1] > 1, "Can't compute vif with only 1 column!"
         if self.hasIntercept:
@@ -1925,7 +2000,9 @@ class Design_Matrix(DataFrame):
         #return np.array(map(lambda x: _vif(self.drop(x,axis=1),self[x]),self.columns))
 
     def heatmap(self, figsize=(8,6), **kwargs):
-        """Visualize Design Matrix spm style. Use .plot() for typical pandas plotting functionality. Can pass optional keyword args to seaborn heatmap.
+        """Visualize Design Matrix spm style. Use .plot() for typical pandas
+            plotting functionality. Can pass optional keyword args to seaborn
+            heatmap.
 
         """
         fig, ax = plt.subplots(1, figsize=figsize)
@@ -1947,7 +2024,8 @@ class Design_Matrix(DataFrame):
         """Perform convolution using an hrf function.
 
         Args:
-            colNames (list): what columns to perform convolution on; defaults to all
+            colNames (list): what columns to perform convolution on; defaults
+                            to all
 
         """
         assert self.TR is not None, "No TR specified!"
@@ -1972,7 +2050,9 @@ class Design_Matrix(DataFrame):
         return out
 
     def downsample(self, target,**kwargs):
-        """Downsample columns of design matrix. Relies on nltools.stats.downsample, but ensures that returned object is a design matrix.
+        """Downsample columns of design matrix. Relies on
+            nltools.stats.downsample, but ensures that returned object is a
+            design matrix.
 
         Args:
             target(float): downsampling target, typically in samples not seconds
@@ -1988,7 +2068,9 @@ class Design_Matrix(DataFrame):
 
 
     def zscore(self, colNames=[]):
-        """Z-score specific columns of design matrix. Relies on nltools.stats.downsample, but ensures that returned object is a design matrix.
+        """Z-score specific columns of design matrix. Relies on
+            nltools.stats.downsample, but ensures that returned object is a
+            design matrix.
 
         Args:
             colNames (list): columns to z-score; defaults to all columns
@@ -2009,7 +2091,8 @@ class Design_Matrix(DataFrame):
         """Add nth order polynomial terms as columns to design matrix.
 
         Args:
-            order (int): what order terms to add; 0 = constant/intercept (default), 1 = linear, 2 = quadratic, etc
+            order (int): what order terms to add; 0 = constant/intercept
+                        (default), 1 = linear, 2 = quadratic, etc
             include_lower: (bool) whether to add lower order terms if order > 0
 
         """
@@ -2025,7 +2108,7 @@ class Design_Matrix(DataFrame):
                         else:
                             polyDict['intercept'] = np.repeat(1, self.shape[0])
                     else:
-                        polyDict['poly_'+str(i)] = (range(self.shape[0])-np.mean(range(self.shape[0])))**i
+                        polyDict['poly_' + str(i)] = (range(self.shape[0]) - np.mean(range(self.shape[0]))) ** i
             else:
                 if self.hasIntercept:
                     raise ValueError("Design Matrix already has intercept!")
@@ -2038,12 +2121,10 @@ class Design_Matrix(DataFrame):
                 else:
                     polyDict['intercept'] = np.repeat(1, self.shape[0])
             else:
-                polyDict['poly_'+str(order)] = (range(self.shape[0])-np.mean(range(self.shape[0])))**order
+                polyDict['poly_'+str(order)] = (range(self.shape[0]) - np.mean(range(self.shape[0])))**order
 
         toAdd = Design_Matrix(polyDict)
-
         out =  self.append(toAdd, axis=1)
-
         if 'intercept' in polyDict.keys() or self.hasIntercept:
             out.hasIntercept = True
         return out
@@ -2055,19 +2136,26 @@ class Design_Matrix(DataFrame):
         """
         raise NotImplementedError("Filtering not yet implemented!")
 
+
 def all_same(items):
     return np.all(x == items[0] for x in items)
+
 
 def _vif(X, y):
     """
         DEPRECATED
-        Helper function to compute variance inflation factor. Unclear whether there are errors with this method relative to stats.models. Seems like stats.models is sometimes inconsistent with R. R always uses the diagonals of the inverted covariance matrix which is what's implemented instead of this.
+        Helper function to compute variance inflation factor. Unclear whether
+        there are errors with this method relative to stats.models. Seems like
+        stats.models is sometimes inconsistent with R. R always uses the
+        diagonals of the inverted covariance matrix which is what's implemented
+        instead of this.
 
         Args:
             X: (Dataframe) explanatory variables
             y: (Dataframe/Series) outcome variable
 
     """
+
     b,resid, _, _ = np.linalg.lstsq(X, y)
     SStot = y.var(ddof=0)*len(y)
     if SStot == 0:
