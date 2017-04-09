@@ -26,8 +26,10 @@ def create_sphere(coordinates, radius=5, mask=None):
     """ Generate a set of spheres in the brain mask space
 
     Args:
-        radius: vector of radius.  Will create multiple spheres if len(radius) > 1
-        centers: a vector of sphere centers of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]]
+        radius: vector of radius.  Will create multiple spheres if
+                len(radius) > 1
+        centers: a vector of sphere centers of the form [px, py, pz] or
+                [[px1, py1, pz1], ..., [pxn, pyn, pzn]]
 
     """
     from nltools.data import Brain_Data
@@ -38,9 +40,11 @@ def create_sphere(coordinates, radius=5, mask=None):
                 if os.path.isfile(mask):
                     data = nib.load(mask)
             else:
-                raise ValueError("mask is not a nibabel instance or a valid file name")
+                raise ValueError("mask is not a nibabel instance or a valid
+                                file name")
     else:
-        mask = nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm_brain_mask.nii.gz'))
+        mask = nib.load(os.path.join(get_resource_path(),
+                                    'MNI152_T1_2mm_brain_mask.nii.gz'))
     dims = mask.get_data().shape
 
     def sphere(r, p, mask):
@@ -48,8 +52,9 @@ def create_sphere(coordinates, radius=5, mask=None):
 
         Args:
             r: radius of the sphere
-            p: point (in coordinates of the brain mask) of the center of the sphere
- 
+            p: point (in coordinates of the brain mask) of the center of the
+                sphere
+
         """
         dims = mask.shape
         m = [dims[0]/2, dims[1]/2, dims[2]/2] # JC edit: default value for centers
@@ -67,7 +72,7 @@ def create_sphere(coordinates, radius=5, mask=None):
 
         # activation = np.multiply(activation, mask.get_data())
         # activation = nib.Nifti1Image(activation, affine=np.eye(4))
-        activation = nib.Nifti1Image(activation,affine=translation_affine)
+        activation = nib.Nifti1Image(activation, affine=translation_affine)
         #return the 3D numpy matrix of zeros containing the sphere as a region of ones
         # return activation.get_data(), translation_affine
         return activation
@@ -82,53 +87,53 @@ def create_sphere(coordinates, radius=5, mask=None):
         coordinates = [coordinates]
     if (type(radius)) is list and (type(coordinates) is list) and (len(radius) == len(coordinates)):
         A = np.zeros_like(mask.get_data())
-        A = Brain_Data(nib.Nifti1Image(A,affine=mask.affine),mask=mask)
+        A = Brain_Data(nib.Nifti1Image(A, affine=mask.affine), mask=mask)
         for i in xrange(len(radius)):
-            A = A + Brain_Data(sphere(radius[i], coordinates[i], mask),mask=mask)
-            # B,translation_affine = sphere(radius[i], coordinates[i], mask)
-            # A = np.add(A, B)
-            # A = np.add(A, sphere(radius[i], coordinates[i], mask))
-        # nifti_sphere = nib.Nifti1Image(A.astype(np.float32), affine=translation_affine)
-        # return nifti_sphere
+            A = A + Brain_Data(sphere(radius[i], coordinates[i], mask),
+                                mask=mask)
         A = A.to_nifti()
         A.get_data()[A.get_data()>0.5]=1
         A.get_data()[A.get_data()<0.5]=0
         return A
     else:
-        raise ValueError("Data type for sphere or radius(ii) or center(s) not recognized.")
+        raise ValueError("Data type for sphere or radius(ii) or center(s)
+                        not recognized.")
+
 
 def expand_mask(mask):
     """ expand a mask with multiple integers into separate binary masks
-    
+
     Args:
         mask: nibabel or Brain_Data instance
-    
+
     Returns:
         out: Brain_Data instance of multiple binary masks
 
     """
 
     from nltools.data import Brain_Data
-    if isinstance(mask,nib.Nifti1Image):
+    if isinstance(mask, nib.Nifti1Image):
         mask = Brain_Data(mask)
-    if not isinstance(mask,Brain_Data):
+    if not isinstance(mask, Brain_Data):
         raise ValueError('Make sure mask is a nibabel or Brain_Data instance.')
     mask.data = np.round(mask.data).astype(int)
     tmp = []
     for i in np.nonzero(np.unique(mask.data))[0]:
-        tmp.append((mask.data==i)*1)
+        tmp.append((mask.data == i)*1)
     out = mask.empty()
     out.data = np.array(tmp)
     return out
 
 def collapse_mask(mask, auto_label=True):
-    """ collapse separate masks into one mask with multiple integers overlapping areas are ignored
+    """ collapse separate masks into one mask with multiple integers
+        overlapping areas are ignored
 
     Args:
         mask: nibabel or Brain_Data instance
 
     Returns:
-        out: Brain_Data instance of a mask with different integers indicating different masks
+        out: Brain_Data instance of a mask with different integers indicating
+            different masks
 
     """
 
@@ -137,8 +142,9 @@ def collapse_mask(mask, auto_label=True):
         if isinstance(mask,nib.Nifti1Image):
             mask = Brain_Data(mask)
         else:
-            raise ValueError('Make sure mask is a nibabel or Brain_Data instance.')
-    
+            raise ValueError('Make sure mask is a nibabel or Brain_Data
+                            instance.')
+
     if len(mask.shape()) > 1:
         if len(mask) > 1:
             out = mask.empty()
@@ -148,22 +154,25 @@ def collapse_mask(mask, auto_label=True):
             for x in range(len(mask)):
                 m_list.append(mask[x].to_nifti())
             intersect = intersect_masks(m_list, threshold=1, connected=False)
-            intersect = Brain_Data(nib.Nifti1Image(np.abs(intersect.get_data()-1),intersect.get_affine()))
+            intersect = Brain_Data(nib.Nifti1Image(
+                            np.abs(intersect.get_data()-1),
+                            intersect.get_affine()))
 
             merge = []
             if auto_label:
-                # Combine all masks into sequential order ignoring any areas of overlap            
+                # Combine all masks into sequential order ignoring any areas of overlap
                 for i in range(len(m_list)):
-                    merge.append(np.multiply(Brain_Data(m_list[i]).data,intersect.data)*(i+1))
+                    merge.append(np.multiply(
+                                Brain_Data(m_list[i]).data,
+                                intersect.data)*(i+1))
                 out.data = np.sum(np.array(merge).T,1).astype(int)
             else:
                 # Collapse masks using value as label
                 for i in range(len(m_list)):
-                    merge.append(np.multiply(Brain_Data(m_list[i]).data,intersect.data))
+                    merge.append(np.multiply(
+                                    Brain_Data(m_list[i]).data,
+                                    intersect.data))
                 out.data = np.sum(np.array(merge).T,1)
             return out
     else:
         warnings.warn("Doesn't need to be collapased")
-
-
-
