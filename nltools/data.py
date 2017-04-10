@@ -8,7 +8,7 @@ Classes to represent various types of data
 
 '''
 
-## Notes:
+# Notes:
 # Need to figure out how to speed up loading and resampling of data
 
 __all__ = ['Brain_Data',
@@ -110,7 +110,7 @@ class Brain_Data(object):
         self.nifti_masker = NiftiMasker(mask_img=self.mask)
 
         if data is not None:
-            if isinstance(data, (str,unicode)):
+            if isinstance(data, (str, unicode)):
                 if 'http://' in data:
                     from nltools.datasets import download_nifti
                     tmp_dir = os.path.join(tempfile.gettempdir(),
@@ -121,12 +121,11 @@ class Brain_Data(object):
                     data = nib.load(data)
                 self.data = self.nifti_masker.fit_transform(data)
             elif isinstance(data, list):
-                # Load and transform each image in list separately (nib.concat_images(data) can't handle images of different sizes)
                 self.data = []
                 for i in data:
                     if isinstance(i, six.string_types):
                         self.data.append(self.nifti_masker.fit_transform(
-                                        nib.load(i)))
+                                         nib.load(i)))
                     elif isinstance(i,nib.Nifti1Image):
                         self.data.append(self.nifti_masker.fit_transform(i))
                 self.data = np.array(self.data)
@@ -618,7 +617,7 @@ class Brain_Data(object):
                     instances {'beta','t','p','df','residual'}
 
         """
-        ## Notes:  Should add ridge, and lasso, elastic net options options
+        # Notes:  Should add ridge, and lasso, elastic net options options
 
         if len(self.shape()) > 1:
             raise ValueError("This method can only decompose a single brain "
@@ -748,11 +747,11 @@ class Brain_Data(object):
                 output['yfit_xval'][test] = predictor_cv.predict(self.data[test])
                 if predictor_settings['prediction_type'] == 'classification':
                     if predictor_settings['algorithm'] not in ['svm', 'ridgeClassifier', 'ridgeClassifierCV']:
-                        output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])[:,1]
+                        output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])[:, 1]
                     else:
                         output['dist_from_hyperplane_xval'][test] = predictor_cv.decision_function(self.data[test])
                         if predictor_settings['algorithm'] == 'svm' and predictor_cv.probability:
-                            output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])[:,1]
+                            output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])[:, 1]
                 # Intercept
                 if predictor_settings['algorithm'] == 'pcr':
                     output['intercept_xval'].append(predictor_settings['_regress'].intercept_)
@@ -780,7 +779,7 @@ class Brain_Data(object):
                 print('overall CV accuracy: %.2f' % output['mcr_xval'])
         elif predictor_settings['prediction_type'] == 'prediction':
             output['rmse_all'] = np.sqrt(np.mean((output['yfit_all']-output['Y'])**2))
-            output['r_all'] = np.corrcoef(output['Y'], output['yfit_all'])[0,1]
+            output['r_all'] = np.corrcoef(output['Y'], output['yfit_all'])[0, 1]
             print('overall Root Mean Squared Error: %.2f' % output['rmse_all'])
             print('overall Correlation: %.2f' % output['r_all'])
             if cv_dict is not None:
@@ -793,7 +792,7 @@ class Brain_Data(object):
         if plot:
             if cv_dict is not None:
                 if predictor_settings['prediction_type'] == 'prediction':
-                    fig2 = scatterplot(pd.DataFrame({'Y': output['Y'], 'yfit_xval': output['yfit_xval']}))
+                    scatterplot(pd.DataFrame({'Y': output['Y'], 'yfit_xval': output['yfit_xval']}))
                 elif predictor_settings['prediction_type'] == 'classification':
                     if predictor_settings['algorithm'] not in ['svm', 'ridgeClassifier', 'ridgeClassifierCV']:
                         output['roc'] = Roc(input_values=output['prob_xval'], binary_outcome=output['Y'].astype('bool'))
@@ -801,14 +800,13 @@ class Brain_Data(object):
                         output['roc'] = Roc(input_values=output['dist_from_hyperplane_xval'], binary_outcome=output['Y'].astype('bool'))
                         if predictor_settings['algorithm'] == 'svm' and predictor_cv.probability:
                             output['roc'] = Roc(input_values=output['prob_xval'], binary_outcome=output['Y'].astype('bool'))
-                    fig2 = output['roc'].plot()
-                    # output['roc'].summary()
-            fig1=output['weight_map'].plot()
+                    output['roc'].plot()
+            output['weight_map'].plot()
 
         return output
 
     def bootstrap(self, analysis_type=None, n_samples=10, save_weights=False,
-                **kwargs):
+                  **kwargs):
         """ Bootstrap various Brain_Data analaysis methods (e.g., mean, std,
             regress, predict).  Currently
 
@@ -867,7 +865,7 @@ class Brain_Data(object):
             data_row_id = range(self.shape()[0])
             sample = self.empty()
             if analysis_type is 'regress': #initialize dictionary of empty betas
-                beta={}
+                beta = {}
                 for i in range(self.X.shape[1]):
                     beta['b' + str(i)] = self.empty()
             for i in range(n_samples):
@@ -906,7 +904,7 @@ class Brain_Data(object):
                     sample = sample.append(out['weight_map'])
         else:
             raise ValueError("The analysis_type you specified (%s) is not yet "
-                            "implemented." % (analysis_type))
+                             "implemented." % (analysis_type))
 
         # Save outputs
         if analysis_type is 'regress':
@@ -935,10 +933,9 @@ class Brain_Data(object):
         if isinstance(mask, Brain_Data):
             mask = mask.to_nifti() # convert to nibabel
         if not isinstance(mask, nib.Nifti1Image):
-            if isinstance(mask, str):
+            if isinstance(mask, six.string_types):
                 if os.path.isfile(mask):
                     mask = nib.load(mask)
-               # Check if mask need to be resampled into Brain_Data mask space
                 if not ((self.mask.get_affine() == mask.get_affine()).all()) & (self.mask.shape[0:3] == mask.shape[0:3]):
                     mask = resample_img(mask, target_affine=self.mask.get_affine(), target_shape=self.mask.shape)
             else:
@@ -1006,7 +1003,7 @@ class Brain_Data(object):
                 mask = Brain_Data(mask)
             else:
                 raise ValueError('Make sure mask is a Brain_Data or nibabel '
-                                'instance')
+                                 'instance')
 
         ma = mask.copy()
 
@@ -1067,7 +1064,7 @@ class Brain_Data(object):
 
         # Sum Square Error
         predicted_Y = np.dot(np.dot(np.dot(X, np.linalg.pinv(np.dot(X.T, X))),
-                            X.T), Y.flatten('F'))
+                             X.T), Y.flatten('F'))
         residuals = Y.flatten('F') - predicted_Y
         SSE = (residuals ** 2).sum()
 
@@ -1082,16 +1079,21 @@ class Brain_Data(object):
         MSR = SSR / dfr
 
         if icc_type == 'icc1':
-            # ICC(2,1) = (mean square subject - mean square error) / (mean square subject + (k-1)*mean square error + k*(mean square columns - mean square error)/n)
+            # ICC(2,1) = (mean square subject - mean square error) /
+            # (mean square subject + (k-1)*mean square error +
+            # k*(mean square columns - mean square error)/n)
             # ICC = (MSR - MSRW) / (MSR + (k-1) * MSRW)
             NotImplementedError("This method isn't implemented yet.")
 
         elif icc_type == 'icc2':
-            # ICC(2,1) = (mean square subject - mean square error) / (mean square subject + (k-1)*mean square error + k*(mean square columns - mean square error)/n)
+            # ICC(2,1) = (mean square subject - mean square error) /
+            # (mean square subject + (k-1)*mean square error +
+            # k*(mean square columns - mean square error)/n)
             ICC = (MSR - MSE) / (MSR + (k-1) * MSE + k * (MSC - MSE) / n)
 
         elif icc_type == 'icc3':
-            # ICC(3,1) = (mean square subject - mean square error) / (mean square subject + (k-1)*mean square error)
+            # ICC(3,1) = (mean square subject - mean square error) /
+            # (mean square subject + (k-1)*mean square error)
             ICC = (MSR - MSE) / (MSR + (k-1) * MSE)
 
         return ICC
@@ -1109,7 +1111,7 @@ class Brain_Data(object):
 
         if len(self.shape()) == 1:
             raise ValueError('Make sure there is more than one image in order '
-                            'to detrend.')
+                             'to detrend.')
 
         out = deepcopy(self)
         out.data = detrend(out.data, type=method, axis=0)
@@ -1306,8 +1308,8 @@ class Brain_Data(object):
         '''
 
         regions, _ = connected_regions(self.to_nifti(),
-                                        min_region_size, extract_type,
-                                        smoothing_fwhm)
+                                       min_region_size, extract_type,
+                                       smoothing_fwhm)
         return Brain_Data(regions)
 
 
@@ -1329,7 +1331,6 @@ class Adjacency(object):
     '''
 
     def __init__(self, data=None, Y=None, matrix_type=None, **kwargs):
-
         if matrix_type is not None:
             if matrix_type.lower() not in ['distance','similarity','directed','distance_flat','similarity_flat','directed_flat']:
                 raise ValueError("matrix_type must be [None,'distance', "
@@ -1368,7 +1369,7 @@ class Adjacency(object):
             if isinstance(Y, pd.DataFrame):
                 if self.data.shape[0] != len(Y):
                     raise ValueError("Y does not match the correct size of "
-                                    "data")
+                                     "data")
                 self.Y = Y
             else:
                 raise ValueError("Make sure Y is a pandas data frame.")
@@ -1498,14 +1499,14 @@ class Adjacency(object):
                 is_single_matrix = True
             elif data.shape[0] == data.shape[1]:  # Square Matrix
                 is_single_matrix = True
-            else: # Rectangular Matrix
+            else:  # Rectangular Matrix
                 data_all = deepcopy(data)
                 try:
                     data = squareform(data_all[0, :])
                 except ValueError:
                     print('Data is not flattened upper triangle from multiple '
-                        'similarity/distance matrices or flattened directed '
-                        'matrices.')
+                          'similarity/distance matrices or flattened directed '
+                          'matrices.')
                 is_single_matrix = False
 
             # Test if matrix is symmetrical
@@ -1577,7 +1578,7 @@ class Adjacency(object):
             return np.mean(self.data)
         else:
             if axis == 0:
-                return Adjacency(data=np.mean(self.data,axis=axis),
+                return Adjacency(data=np.mean(self.data, axis=axis),
                                  matrix_type=self.matrix_type + '_flat')
             elif axis == 1:
                 return np.mean(self.data, axis=axis)
@@ -1666,14 +1667,14 @@ class Adjacency(object):
                 out = pd.DataFrame(self.data).to_csv(file_name, index=None)
             elif method is 'square':
                 out = pd.DataFrame(self.squareform()).to_csv(file_name,
-                                    index=None)
+                                                             index=None)
         else:
             if method is 'long':
                 out = pd.DataFrame(self.data).to_csv(file_name, index=None)
             elif method is 'square':
                 raise NotImplementedError('Need to decide how we should write '
-                                        'out multiple matrices.  As separate '
-                                        'files?')
+                                          'out multiple matrices.  As separate '
+                                          'files?')
 
     def similarity(self, data, plot=False, **kwargs):
         ''' Calculate similarity between two Adjacency matrices.
@@ -1778,8 +1779,8 @@ class Adjacency(object):
         within = []; between = []
         out = pd.DataFrame(columns=['Distance', 'Group', 'Type'], index=None)
         for i in np.unique(labels):
-            tmp_w = pd.DataFrame(columns=out.columns,index=None)
-            tmp_w['Distance'] = distance.loc[labels == i,labels == i].values[np.triu_indices(sum(labels == i), k=1)]
+            tmp_w = pd.DataFrame(columns=out.columns, index=None)
+            tmp_w['Distance'] = distance.loc[labels == i, labels == i].values[np.triu_indices(sum(labels == i), k=1)]
             tmp_w['Type'] = 'Within'
             tmp_w['Group'] = i
             tmp_b = pd.DataFrame(columns=out.columns, index=None)
@@ -1898,7 +1899,7 @@ class Groupby(object):
         for i in value_dict.iterkeys():
             if isinstance(value_dict[i], Brain_Data):
                 if value_dict[i].shape()[0] == np.sum(self.mask[i].data):
-                    out.data[i, out.data[i,:] == 1] = value_dict[i].data
+                    out.data[i, out.data[i, :] == 1] = value_dict[i].data
                 else:
                     raise ValueError('Brain_Data instances are different '
                                      'shapes.')
@@ -2051,7 +2052,11 @@ class Design_Matrix(DataFrame):
             idx_1 = []
             idx_2 = []
             for col in uniqueCols:
-                #To match substrings within column names, we loop over each element and search for the uniqueCol as a substring within it; first we do to check if the uniqueCol actually occurs in both design matrices, if so then we change it's name before concatenating
+                # To match substrings within column names, we loop over each
+                # element and search for the uniqueCol as a substring within it;
+                # first we do to check if the uniqueCol actually occurs in both
+                # design matrices, if so then we change it's name before
+                # concatenating
                 joint = set(self.columns) & set(outdf.columns)
                 shared = [elem for elem in joint if col in elem]
                 if shared:
@@ -2107,8 +2112,6 @@ class Design_Matrix(DataFrame):
             warnings.warn("Correlation matrix has negative values!")
 
         return np.diag(np.linalg.inv(out.corr()), 0)
-
-        #return np.array(map(lambda x: _vif(self.drop(x,axis=1),self[x]),self.columns))
 
     def heatmap(self, figsize=(8, 6), **kwargs):
         """Visualize Design Matrix spm style. Use .plot() for typical pandas
