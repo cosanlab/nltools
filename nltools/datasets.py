@@ -95,16 +95,18 @@ def download_collection(collection=None, data_dir=None, overwrite=False,
 	'''
 
 	if data_dir is None:
-		data_dir = _get_dataset_dir(str(collection), data_dir=data_dir, verbose=verbose)
+		data_dir = _get_dataset_dir(str(collection), data_dir=data_dir,
+									verbose=verbose)
 
 	# Get collection Metadata
-	metadata = get_collection_image_metadata(collection=collection, data_dir=data_dir)
+	metadata = get_collection_image_metadata(collection=collection,
+											data_dir=data_dir)
 
 	# Get images
 	files = []
 	for f in metadata['file']:
 		 files.append(_fetch_file(f, data_dir, resume=resume, verbose=verbose,
-		 	overwrite=overwrite))
+		 			overwrite=overwrite))
 
 	return (metadata,files)
 

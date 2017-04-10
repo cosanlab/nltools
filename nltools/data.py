@@ -25,18 +25,18 @@ import nibabel as nib
 from nltools.utils import get_resource_path, set_algorithm, get_anatomical
 from nltools.cross_validation import set_cv
 from nltools.plotting import (dist_from_hyperplane_plot,
-                            scatterplot,
-                            probability_plot,
-                            roc_plot,
-                            plot_stacked_adjacency)
-from nltools.stats import pearson,
-                        fdr,
-                        threshold,
-                        fisher_r_to_z,
-                        correlation_permutation,
-                        one_sample_permutation,
-                        two_sample_permutation
-from nltools.mask import expand_mask,collapse_mask
+                              scatterplot,
+                              probability_plot,
+                              roc_plot,
+                              plot_stacked_adjacency)
+from nltools.stats import (pearson,
+                           fdr,
+                           threshold,
+                           fisher_r_to_z,
+                           correlation_permutation,
+                           one_sample_permutation,
+                           two_sample_permutation)
+from nltools.mask import expand_mask, collapse_mask
 from nltools.stats import downsample, zscore
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
@@ -64,8 +64,8 @@ from nltools.utils import glover_hrf
 
 # Optional dependencies
 try:
-    from mne.stats import spatio_temporal_cluster_1samp_test,
-                        ttest_1samp_no_p
+    from mne.stats import (spatio_temporal_cluster_1samp_test,
+                           ttest_1samp_no_p)
 except ImportError:
     pass
 
@@ -94,15 +94,15 @@ class Brain_Data(object):
     """
 
     def __init__(self, data=None, Y=None, X=None, mask=None, output_file=None,
-                **kwargs):
+                 **kwargs):
         if mask is not None:
             if not isinstance(mask, nib.Nifti1Image):
-                if type(mask) is str:
+                if isinstance(mask, six.string_types):
                     if os.path.isfile(mask):
                         mask = nib.load(mask)
                 else:
-                    raise ValueError("mask is not a nibabel instance or a
-                                    valid file name")
+                    raise ValueError("mask is not a nibabel instance or a "
+                                     "valid file name")
             self.mask = mask
         else:
             self.mask = nib.load(os.path.join(get_resource_path(),
@@ -110,21 +110,21 @@ class Brain_Data(object):
         self.nifti_masker = NiftiMasker(mask_img=self.mask)
 
         if data is not None:
-            if isinstance(data,(str,unicode)):
+            if isinstance(data, (str,unicode)):
                 if 'http://' in data:
                     from nltools.datasets import download_nifti
                     tmp_dir = os.path.join(tempfile.gettempdir(),
                                             str(os.times()[-1]))
                     os.makedirs(tmp_dir)
-                    data=nib.load(download_nifti(data,data_dir=tmp_dir))
+                    data = nib.load(download_nifti(data, data_dir=tmp_dir))
                 else:
-                    data=nib.load(data)
+                    data = nib.load(data)
                 self.data = self.nifti_masker.fit_transform(data)
-            elif type(data) is list:
+            elif isinstance(data, list):
                 # Load and transform each image in list separately (nib.concat_images(data) can't handle images of different sizes)
                 self.data = []
                 for i in data:
-                    if isinstance(i,six.string_types):
+                    if isinstance(i, six.string_types):
                         self.data.append(self.nifti_masker.fit_transform(
                                         nib.load(i)))
                     elif isinstance(i,nib.Nifti1Image):
@@ -142,13 +142,13 @@ class Brain_Data(object):
             self.data = np.array([])
 
         if Y is not None:
-            if type(Y) is str:
+            if isinstance(Y, six.string_types):
                 if os.path.isfile(Y):
-                    Y=pd.read_csv(Y, header=None, index_col=None)
+                    Y = pd.read_csv(Y, header=None, index_col=None)
             if isinstance(Y, pd.DataFrame):
                 if self.data.shape[0] != len(Y):
-                    raise ValueError("Y does not match the correct size
-                                    of data")
+                    raise ValueError("Y does not match the correct size "
+                                     "of data")
                 self.Y = Y
             else:
                 raise ValueError("Make sure Y is a pandas data frame.")
@@ -156,13 +156,13 @@ class Brain_Data(object):
             self.Y = pd.DataFrame()
 
         if X is not None:
-            if type(X) is str:
+            if isinstance(X, six.string_types):
                 if os.path.isfile(X):
                     X = pd.read_csv(X, header=None, index_col=None)
             if isinstance(X, pd.DataFrame):
                 if self.data.shape[0] != X.shape[0]:
-                    raise ValueError("X does not match the correct size
-                                    of data")
+                    raise ValueError("X does not match the correct size "
+                                     "of data")
                 self.X = X
             else:
                 raise ValueError("Make sure X is a pandas data frame.")
@@ -199,15 +199,15 @@ class Brain_Data(object):
 
     def __setitem__(self, index, value):
         if not isinstance(value, Brain_Data):
-            raise ValueError('Make sure the value you are trying to set is a
-                            Brain_Data() instance.')
+            raise ValueError("Make sure the value you are trying to set is a "
+                             "Brain_Data() instance.")
         self.data[index, :] = value.data
         if not value.Y.empty:
             self.Y.values[index] = value.Y
         if not value.X.empty:
             if self.X.shape[1] != value.X.shape[1]:
-                raise ValueError('Make sure self.X is the same size as
-                                value.X.')
+                raise ValueError("Make sure self.X is the same size as "
+                                 "value.X.")
             self.X.values[index] = value.X
 
     def __len__(self):
@@ -215,12 +215,12 @@ class Brain_Data(object):
 
     def __add__(self, y):
         new = deepcopy(self)
-        if isinstance(y, (int,float)):
+        if isinstance(y, (int, float)):
             new.data = new.data + y
         if isinstance(y, Brain_Data):
             if self.shape() != y.shape():
-                raise ValueError('Both Brain_Data() instances need to be the
-                                same shape.')
+                raise ValueError("Both Brain_Data() instances need to be the "
+                                 "same shape.")
             new.data = new.data + y.data
         return new
 
@@ -230,8 +230,8 @@ class Brain_Data(object):
             new.data = new.data - y
         if isinstance(y, Brain_Data):
             if self.shape() != y.shape():
-                raise ValueError('Both Brain_Data() instances need to be the
-                                same shape.')
+                raise ValueError('Both Brain_Data() instances need to be the '
+                                 'same shape.')
             new.data = new.data - y.data
         return new
 
@@ -241,8 +241,8 @@ class Brain_Data(object):
             new.data = new.data * y
         if isinstance(y, Brain_Data):
             if self.shape() != y.shape():
-                raise ValueError('Both Brain_Data() instances need to be the
-                                same shape.')
+                raise ValueError("Both Brain_Data() instances need to be the "
+                                 "same shape.")
             new.data = np.multiply(new.data, y.data)
         return new
 
@@ -320,15 +320,18 @@ class Brain_Data(object):
 
         if self.data.ndim == 1:
             plot_stat_map(self.to_nifti(), anatomical,
-                cut_coords=range(-40, 50, 10), display_mode='z',
-                black_bg=True, colorbar=True, draw_cross=False)
+                          cut_coords=range(-40, 50, 10), display_mode='z',
+                          black_bg=True, colorbar=True, draw_cross=False)
         else:
             for i in xrange(self.data.shape[0]):
                 if i < limit:
                      plot_stat_map(self[i].to_nifti(), anatomical,
-                                cut_coords=range(-40, 50, 10), display_mode='z',
-                                black_bg=True, colorbar=True,
-                                draw_cross=False,**kwargs)
+                                   cut_coords=range(-40, 50, 10),
+                                   display_mode='z',
+                                   black_bg=True,
+                                   colorbar=True,
+                                   draw_cross=False,
+                                   **kwargs)
 
     def regress(self):
         """ run vectorized OLS regression across voxels.
@@ -346,8 +349,8 @@ class Brain_Data(object):
             raise ValueError('Make sure self.X is not empty.')
 
         if self.data.shape[0] != self.X.shape[0]:
-            raise ValueError("self.X does not match the correct size of
-                            self.data")
+            raise ValueError("self.X does not match the correct size of "
+                             "self.data")
 
         b = np.dot(np.linalg.pinv(self.X), self.data)
         res = self.data - np.dot(self.X, b)
@@ -399,8 +402,8 @@ class Brain_Data(object):
                     n_permutations = threshold_dict['n_permutations']
                 else:
                     n_permutations = 1000
-                    warnings.warn('n_permutations not set:  running with 1000
-                                permutations')
+                    warnings.warn("n_permutations not set:  running with 1000 "
+                                  "permutations")
 
                 if 'connectivity' in threshold_dict:
                     connectivity = threshold_dict['connectivity']
@@ -445,11 +448,11 @@ class Brain_Data(object):
                 elif 'permutation' in threshold_dict:
                     thr = .05
                 thr_t = threshold(t, p, thr)
-                out = {'t': t, 'p': p,'thr_t': thr_t}
+                out = {'t': t, 'p': p, 'thr_t': thr_t}
             else:
-                raise ValueError("threshold_dict is not a dictionary.
-                                Make sure it is in the form of {'unc':.001}
-                                or {'fdr':.05}")
+                raise ValueError("threshold_dict is not a dictionary. "
+                                 "Make sure it is in the form of {'unc': .001} "
+                                 "or {'fdr': .05}")
         else:
             out = {'t': t, 'p': p}
 
@@ -474,19 +477,19 @@ class Brain_Data(object):
             out = deepcopy(self)
             if len(self.shape()) == 1 & len(data.shape()) == 1:
                 if self.shape()[0] != data.shape()[0]:
-                    raise ValueError('Data is a different number of voxels
-                                    then the weight_map.')
+                    raise ValueError("Data is a different number of voxels "
+                                     "then the weight_map.")
             elif len(self.shape()) == 1 & len(data.shape()) > 1:
                 if self.shape()[0] != data.shape()[1]:
-                    raise ValueError('Data is a different number of voxels
-                                    then the weight_map.')
+                    raise ValueError("Data is a different number of voxels "
+                                     "then the weight_map.")
             elif len(self.shape()) > 1 & len(data.shape()) == 1:
                 if self.shape()[1] != data.shape()[0]:
-                    raise ValueError('Data is a different number of voxels
-                                    then the weight_map.')
+                    raise ValueError("Data is a different number of voxels "
+                                     "then the weight_map.")
             elif self.shape()[1] != data.shape()[1]:
-                raise ValueError('Data is a different number of voxels then
-                                    the weight_map.')
+                raise ValueError("Data is a different number of voxels then "
+                                 "the weight_map.")
 
             out.data = np.vstack([self.data, data.data])
             if out.Y.size:
@@ -543,10 +546,9 @@ class Brain_Data(object):
             if isinstance(image, nib.Nifti1Image):
                 image = Brain_Data(image)
             else:
-                raise ValueError("Image is not a Brain_Data or nibabel
-                                instance")
+                raise ValueError("Image is not a Brain_Data or nibabel "
+                                 "instance")
         dim = image.shape()
-
 
         # Check to make sure masks are the same for each dataset and if not create a union mask
         # This might be handy code for a new Brain_Data method
@@ -560,7 +562,6 @@ class Brain_Data(object):
         else:
             data2 = self.data
             image2 = image.data
-
 
         # Calculate pattern expression
         if method is 'dot_product':
@@ -602,7 +603,7 @@ class Brain_Data(object):
         """
 
         return Adjacency(pairwise_distances(self.data, metric=method, **kwargs),
-                        matrix_type='Distance')
+                         matrix_type='Distance')
 
     def multivariate_similarity(self, images, method='ols'):
         """ Predict spatial distribution of Brain_Data() instance from linear
@@ -620,8 +621,8 @@ class Brain_Data(object):
         ## Notes:  Should add ridge, and lasso, elastic net options options
 
         if len(self.shape()) > 1:
-            raise ValueError("This method can only decompose a single brain
-                            image.")
+            raise ValueError("This method can only decompose a single brain "
+                             "image.")
 
         if not isinstance(images, Brain_Data):
             raise ValueError("Images are not a Brain_Data instance")
@@ -665,7 +666,8 @@ class Brain_Data(object):
         Args:
             algorithm: Algorithm to use for prediction.  Must be one of 'svm',
                     'svr', 'linear', 'logistic', 'lasso', 'ridge',
-                    'ridgeClassifier','randomforest',or 'randomforestClassifier'
+                    'ridgeClassifier','randomforest', or
+                    'randomforestClassifier'
             cv_dict: Type of cross_validation to use. A dictionary of
                     {'type': 'kfolds', 'n_folds': n},
                     {'type': 'kfolds', 'n_folds': n, 'stratified': Y},
@@ -699,7 +701,7 @@ class Brain_Data(object):
         output['yfit_all'] = predictor.predict(self.data)
         if predictor_settings['prediction_type'] == 'classification':
             if predictor_settings['algorithm'] not in ['svm', 'ridgeClassifier',
-                                'ridgeClassifierCV']:
+                                  'ridgeClassifierCV']:
                 output['prob_all'] = predictor.predict_proba(self.data)[:, 1]
             else:
                 output['dist_from_hyperplane_all'] = predictor.decision_function(self.data)
@@ -823,8 +825,11 @@ class Brain_Data(object):
         """
 
         # Notes:
-        # might want to add options for [studentized, percentile, bias corrected, bias corrected accelerated] methods
-        # Regress method is pretty convoluted and slow, this should be optimized better.
+        # might want to add options for [studentized, percentile,
+        # bias corrected, bias corrected accelerated] methods
+
+        # Regress method is pretty convoluted and slow, this should be
+        # optimized better.
 
         def summarize_bootstrap(sample):
             """ Calculate summary of bootstrap samples
@@ -866,7 +871,9 @@ class Brain_Data(object):
                 for i in range(self.X.shape[1]):
                     beta['b' + str(i)] = self.empty()
             for i in range(n_samples):
-                this_sample = np.random.choice(data_row_id, size=len(data_row_id), replace=True) # gives sampled row numbers
+                this_sample = np.random.choice(data_row_id,
+                                               size=len(data_row_id),
+                                               replace=True)
                 if analysis_type is 'mean':
                     sample = sample.append(self[this_sample].mean())
                 elif analysis_type is 'std':
@@ -892,11 +899,14 @@ class Brain_Data(object):
                         del kwargs['plot']
                     else:
                         plot = False
-                    out = self[this_sample].predict(algorithm=algorithm,cv_dict=cv_dict, plot=plot,**kwargs)
+                    out = self[this_sample].predict(algorithm=algorithm,
+                                                    cv_dict=cv_dict,
+                                                    plot=plot,
+                                                    **kwargs)
                     sample = sample.append(out['weight_map'])
         else:
-            raise ValueError('The analysis_type you specified (%s) is not yet
-                            implemented.' % (analysis_type))
+            raise ValueError("The analysis_type you specified (%s) is not yet "
+                            "implemented." % (analysis_type))
 
         # Save outputs
         if analysis_type is 'regress':
@@ -932,8 +942,8 @@ class Brain_Data(object):
                 if not ((self.mask.get_affine() == mask.get_affine()).all()) & (self.mask.shape[0:3] == mask.shape[0:3]):
                     mask = resample_img(mask, target_affine=self.mask.get_affine(), target_shape=self.mask.shape)
             else:
-                raise ValueError("Mask is not a nibabel instance, Brain_Data
-                                instance, or a valid file name.")
+                raise ValueError("Mask is not a nibabel instance, Brain_Data "
+                                 "instance, or a valid file name.")
 
         masked = deepcopy(self)
         nifti_masker = NiftiMasker(mask_img=mask)
@@ -943,8 +953,9 @@ class Brain_Data(object):
             masked.data = masked.data.flatten()
         return masked
 
-    def searchlight(self, ncores, process_mask=None, parallel_out=None, radius=3, walltime='24:00:00', \
-        email=None, algorithm='svr', cv_dict=None, kwargs={}):
+    def searchlight(self, ncores, process_mask=None, parallel_out=None,
+                    radius=3, walltime='24:00:00', email=None,
+                    algorithm='svr', cv_dict=None, kwargs={}):
 
         if len(kwargs) is 0:
             kwargs['kernel']= 'linear'
@@ -955,11 +966,14 @@ class Brain_Data(object):
                   'predict_kwargs': kwargs}
         #cv_dict={'type': 'kfolds','n_folds': 5,'stratified':dat.Y}
 
-        parallel_job = PBS_Job(self, parallel_out=parallel_out, process_mask=process_mask, radius=radius, kwargs=pbs_kwargs)
+        parallel_job = PBS_Job(self, parallel_out=parallel_out,
+                                process_mask=process_mask, radius=radius,
+                                kwargs=pbs_kwargs)
 
         # make and store data we will need to access on the worker core level
         parallel_job.make_searchlight_masks()
-        cPickle.dump(parallel_job, open(os.path.join(parallel_out, "pbs_searchlight.pkl"), "w"))
+        cPickle.dump(parallel_job, open(
+                        os.path.join(parallel_out, "pbs_searchlight.pkl"), "w"))
 
         #make core startup script (python)
         parallel_job.make_startup_script("core_startup.py")
@@ -991,8 +1005,8 @@ class Brain_Data(object):
             if isinstance(mask, nib.Nifti1Image):
                 mask = Brain_Data(mask)
             else:
-                raise ValueError('Make sure mask is a Brain_Data or nibabel
-                                instance')
+                raise ValueError('Make sure mask is a Brain_Data or nibabel '
+                                'instance')
 
         ma = mask.copy()
 
@@ -1076,7 +1090,7 @@ class Brain_Data(object):
             # ICC(2,1) = (mean square subject - mean square error) / (mean square subject + (k-1)*mean square error + k*(mean square columns - mean square error)/n)
             ICC = (MSR - MSE) / (MSR + (k-1) * MSE + k * (MSC - MSE) / n)
 
-        elif icc_type =='icc3':
+        elif icc_type == 'icc3':
             # ICC(3,1) = (mean square subject - mean square error) / (mean square subject + (k-1)*mean square error)
             ICC = (MSR - MSE) / (MSR + (k-1) * MSE)
 
@@ -1094,8 +1108,8 @@ class Brain_Data(object):
         """
 
         if len(self.shape()) == 1:
-            raise ValueError('Make sure there is more than one image in order
-                            to detrend.')
+            raise ValueError('Make sure there is more than one image in order '
+                            'to detrend.')
 
         out = deepcopy(self)
         out.data = detrend(out.data, type=method, axis=0)
@@ -1107,8 +1121,8 @@ class Brain_Data(object):
         return deepcopy(self)
 
     def upload_neurovault(self, access_token=None, collection_name=None,
-                        collection_id=None,img_type=None, img_modality=None,
-                        **kwargs):
+                          collection_id=None, img_type=None, img_modality=None,
+                          **kwargs):
         """ Upload Data to Neurovault.  Will add any columns in self.X to image
             metadata. Index will be used as image name.
 
@@ -1136,33 +1150,51 @@ class Brain_Data(object):
         else:
             try:
                 collection = api.create_collection(collection_name)
-            except:
-                raise ValueError('Collection Name already exists.  Pick a
-                                different name or specify an existing
-                                collection id')
+            except ValueError:
+                print('Collection Name already exists.  Pick a '
+                      'different name or specify an existing collection id')
 
         tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
         os.makedirs(tmp_dir)
-        for i, x in enumerate(self):
-            if not self.X.empty:
-                if isinstance(x.X.name, str):
-                    img_name = x.X.name
+
+        def add_image_to_collection(api, collection, dat, tmp_dir, index_id=0,
+                                    **kwargs):
+            '''Upload image to collection
+            Args:
+                api: pynv Client instance
+                collection: collection information
+                dat: Brain_Data instance to upload
+                tmp_dir: temporary directory
+                index_id: (int) index for file naming
+            '''
+            if (len(dat.shape()) > 1) & (dat.shape()[0] > 1):
+                raise ValueError('"dat" must be a single image.')
+            if not dat.X.empty:
+                if isinstance(dat.X.name, six.string_types):
+                    img_name = dat.X.name
                 else:
-                    img_name = collection['name'] + '_' + str(i) + '.nii.gz'
+                    img_name = collection['name'] + '_' + str(index_id) + '.nii.gz'
             else:
-                img_name = collection['name'] + '_' + str(i) + '.nii.gz'
+                img_name = collection['name'] + '_' + str(index_id) + '.nii.gz'
             f_path = os.path.join(tmp_dir, img_name)
-            x.write(f_path)
-            if not x.X.empty:
-                kwargs.update(dict([(k, x.X.loc[k]) for k in x.X.keys()]))
-            image = api.add_image(
-                collection['id'],
-                f_path,
-                name=img_name,
-                modality=img_modality,
-                map_type=img_type,
-                **kwargs
-            )
+            dat.write(f_path)
+            if not dat.X.empty:
+                kwargs.update(dict([(k, dat.X.loc[k]) for k in dat.X.keys()]))
+            api.add_image(collection['id'],
+                          f_path,
+                          name=img_name,
+                          modality=img_modality,
+                          map_type=img_type,
+                          **kwargs)
+
+        if len(self.shape()) == 1:
+            add_image_to_collection(api, collection, self, tmp_dir, index_id=0,
+                                    **kwargs)
+        else:
+            for i, x in enumerate(self):
+                add_image_to_collection(api, collection, x, tmp_dir,
+                                        index_id=i, **kwargs)
+
         shutil.rmtree(tmp_dir, ignore_errors=True)
         return collection
 
@@ -1231,6 +1263,7 @@ class Brain_Data(object):
             thresh: cutoff to threshold image (float).  if 'threshold'=50%,
                     will calculate percentile.
             binarize (bool): if 'binarize'=True then binarize output
+
         Returns:
             Brain_Data: thresholded Brain_Data instance
 
@@ -1272,15 +1305,18 @@ class Brain_Data(object):
             Brain_Data: Brain_Data instance with extracted ROIs as data.
         '''
 
-        regions, _ = connected_regions(self.to_nifti(), min_region_size, extract_type, smoothing_fwhm)
+        regions, _ = connected_regions(self.to_nifti(),
+                                        min_region_size, extract_type,
+                                        smoothing_fwhm)
         return Brain_Data(regions)
 
 
 class Adjacency(object):
 
     '''
-    Adjacency is a class to represent Adjacency matrices as a vector rather than a 2-dimensional matrix.
-    This makes it easier to perform data manipulation and analyses.
+    Adjacency is a class to represent Adjacency matrices as a vector rather
+    than a 2-dimensional matrix. This makes it easier to perform data
+    manipulation and analyses.
 
     Args:
         data: pandas data instance or list of files
@@ -1296,9 +1332,9 @@ class Adjacency(object):
 
         if matrix_type is not None:
             if matrix_type.lower() not in ['distance','similarity','directed','distance_flat','similarity_flat','directed_flat']:
-                raise ValueError("matrix_type must be [None,'distance',
-                                'similarity','directed','distance_flat',
-                                'similarity_flat','directed_flat']")
+                raise ValueError("matrix_type must be [None,'distance', "
+                                "'similarity','directed','distance_flat', "
+                                "'similarity_flat','directed_flat']")
 
         if data is None:
             self.data = np.array([])
@@ -1313,11 +1349,11 @@ class Adjacency(object):
                 symmetric_all.append(issymmetric_tmp)
                 matrix_type_all.append(matrix_type_tmp)
             if not all_same(symmetric_all):
-                raise ValueError('Not all matrices are of the same symmetric
-                                type.')
+                raise ValueError('Not all matrices are of the same symmetric '
+                                'type.')
             if not all_same(matrix_type_all):
-                raise ValueError('Not all matrices are of the same matrix
-                                type.')
+                raise ValueError('Not all matrices are of the same matrix '
+                                'type.')
             self.data = np.array(d_all)
             self.issymmetric = symmetric_all[0]
             self.matrix_type = matrix_type_all[0]
@@ -1328,30 +1364,27 @@ class Adjacency(object):
         if Y is not None:
             if isinstance(Y, str):
                 if os.path.isfile(Y):
-                    Y=pd.read_csv(Y, header=None, index_col=None)
+                    Y = pd.read_csv(Y, header=None, index_col=None)
             if isinstance(Y, pd.DataFrame):
                 if self.data.shape[0] != len(Y):
-                    raise ValueError("Y does not match the correct size of
-                                    data")
+                    raise ValueError("Y does not match the correct size of "
+                                    "data")
                 self.Y = Y
             else:
                 raise ValueError("Make sure Y is a pandas data frame.")
         else:
             self.Y = pd.DataFrame()
 
-
     def __repr__(self):
-        return '%s.%s(shape=%s, square_shape=%s, Y=%s, is_symmetric=%s,
-                    matrix_type=%s)' % (
+        return ("%s.%s(shape=%s, square_shape=%s, Y=%s, is_symmetric=%s,"
+                "matrix_type=%s)") % (
                     self.__class__.__module__,
                     self.__class__.__name__,
                     self.shape(),
                     self.square_shape(),
                     len(self.Y),
                     self.issymmetric,
-                    self.matrix_type
-                    )
-
+                    self.matrix_type)
 
     def __getitem__(self,index):
         new = self.copy()
@@ -1371,8 +1404,8 @@ class Adjacency(object):
             return self.data.shape[0]
 
     def __iter__(self):
-        for i, x in enumerate(self):
-            yield self[i]
+        for x in range(len(self)):
+            yield self[x]
 
     def __add__(self, y):
         new = deepcopy(self)
@@ -1380,8 +1413,8 @@ class Adjacency(object):
             new.data = new.data + y
         if isinstance(y, Adjacency):
             if self.shape() != y.shape():
-                raise ValueError('Both Adjacency() instances need to be the
-                                same shape.')
+                raise ValueError('Both Adjacency() instances need to be the '
+                                 'same shape.')
             new.data = new.data + y.data
         return new
 
@@ -1391,8 +1424,8 @@ class Adjacency(object):
             new.data = new.data - y
         if isinstance(y, Adjacency):
             if self.shape() != y.shape():
-                raise ValueError('Both Adjacency() instances need to be the
-                                same shape.')
+                raise ValueError('Both Adjacency() instances need to be the '
+                                 'same shape.')
             new.data = new.data - y.data
         return new
 
@@ -1402,8 +1435,8 @@ class Adjacency(object):
             new.data = new.data * y
         if isinstance(y, Adjacency):
             if self.shape() != y.shape():
-                raise ValueError('Both Adjacency() instances need to be the
-                                same shape.')
+                raise ValueError('Both Adjacency() instances need to be the '
+                                 'same shape.')
             new.data = np.multiply(new.data, y.data)
         return new
 
@@ -1414,8 +1447,8 @@ class Adjacency(object):
             if os.path.isfile(data):
                 data = pd.read_csv(data)
             else:
-                raise ValueError('Make sure you have specified a valid file
-                                    path.')
+                raise ValueError('Make sure you have specified a valid file '
+                                 'path.')
 
         def test_is_single_matrix(data):
             if len(data.shape) == 1:
@@ -1455,24 +1488,24 @@ class Adjacency(object):
                         data = data.flatten()
                 is_single_matrix = True
         else:
-            if len(data.shape) == 1: # Single Vector
+            if len(data.shape) == 1:  # Single Vector
                 try:
                     data = squareform(data)
                 except ValueError:
-                    print('Data is not flattened upper triangle from
-                        similarity/distance matrix or flattened directed
-                        matrix.')
+                    print('Data is not flattened upper triangle from '
+                          'similarity/distance matrix or flattened directed '
+                          'matrix.')
                 is_single_matrix = True
-            elif data.shape[0] == data.shape[1]: # Square Matrix
+            elif data.shape[0] == data.shape[1]:  # Square Matrix
                 is_single_matrix = True
             else: # Rectangular Matrix
                 data_all = deepcopy(data)
                 try:
                     data = squareform(data_all[0, :])
                 except ValueError:
-                    print('Data is not flattened upper triangle from multiple
-                        similarity/distance matrices or flattened directed
-                        matrices.')
+                    print('Data is not flattened upper triangle from multiple '
+                        'similarity/distance matrices or flattened directed '
+                        'matrices.')
                 is_single_matrix = False
 
             # Test if matrix is symmetrical
@@ -1499,10 +1532,7 @@ class Adjacency(object):
 
     def isempty(self):
         '''Check if Adjacency object is empty'''
-        if self.matrix_type is 'empty':
-            return True
-        else:
-            return False
+        return bool(self.matrix_type is 'empty')
 
     def squareform(self):
         '''Convert adjacency back to squareform'''
@@ -1514,10 +1544,10 @@ class Adjacency(object):
         else:
             if self.is_single_matrix:
                 return self.data.reshape(int(np.sqrt(self.data.shape[0])),
-                        int(np.sqrt(self.data.shape[0])))
+                                         int(np.sqrt(self.data.shape[0])))
             else:
                 return [x.data.reshape(int(np.sqrt(x.data.shape[0])),
-                        int(np.sqrt(x.data.shape[0]))) for x in self]
+                            int(np.sqrt(x.data.shape[0]))) for x in self]
 
     def plot(self, limit=3, **kwargs):
         ''' Create Heatmap of Adjacency Matrix'''
@@ -1548,9 +1578,9 @@ class Adjacency(object):
         else:
             if axis == 0:
                 return Adjacency(data=np.mean(self.data,axis=axis),
-                                matrix_type=self.matrix_type + '_flat')
-            elif axis==1:
-                return np.mean(self.data,axis=axis)
+                                 matrix_type=self.matrix_type + '_flat')
+            elif axis == 1:
+                return np.mean(self.data, axis=axis)
 
     def std(self, axis=0):
         ''' Calculate standard deviation of Adjacency
@@ -1565,13 +1595,12 @@ class Adjacency(object):
 
         '''
 
-
         if self.is_single_matrix:
             return np.std(self.data)
         else:
             if axis == 0:
                 return Adjacency(data=np.std(self.data, axis=axis),
-                                matrix_type=self.matrix_type + '_flat')
+                                 matrix_type=self.matrix_type + '_flat')
             elif axis == 1:
                 return np.std(self.data, axis=axis)
 
@@ -1612,8 +1641,8 @@ class Adjacency(object):
         else:
             out = self.copy()
             if self.square_shape() != data.square_shape():
-                raise ValueError('Data is not the same shape as Adjacency
-                                instance.')
+                raise ValueError('Data is not the same shape as Adjacency '
+                                 'instance.')
 
             out.data = np.vstack([self.data, data.data])
             out.is_single_matrix = False
@@ -1636,15 +1665,15 @@ class Adjacency(object):
             if method is 'long':
                 out = pd.DataFrame(self.data).to_csv(file_name, index=None)
             elif method is 'square':
-                out = pd.DataFrame(self.squareform()).to_csv(file_name, i
-                                    ndex=None)
+                out = pd.DataFrame(self.squareform()).to_csv(file_name,
+                                    index=None)
         else:
             if method is 'long':
                 out = pd.DataFrame(self.data).to_csv(file_name, index=None)
             elif method is 'square':
-                raise NotImplementedError('Need to decide how we should write
-                                        out multiple matrices.  As separate
-                                        files?')
+                raise NotImplementedError('Need to decide how we should write '
+                                        'out multiple matrices.  As separate '
+                                        'files?')
 
     def similarity(self, data, plot=False, **kwargs):
         ''' Calculate similarity between two Adjacency matrices.
@@ -1659,7 +1688,7 @@ class Adjacency(object):
             return correlation_permutation(self.data, data2.data, **kwargs)
         else:
             if plot:
-                f, a = plt.subplots(len(self))
+                _, a = plt.subplots(len(self))
                 for i in a:
                     plot_stacked_adjacency(self, data, ax=i)
             return [correlation_permutation(x.data, data2.data, **kwargs) for x in self]
@@ -1676,7 +1705,7 @@ class Adjacency(object):
 
         '''
         return Adjacency(pairwise_distances(self.data, metric=method, **kwargs),
-                        matrix_type='distance')
+                         matrix_type='distance')
 
     def threshold(self, thresh=0, binarize=False):
         '''Threshold Adjacency instance
@@ -1710,8 +1739,8 @@ class Adjacency(object):
             else:
                 return nx.Graph(self.squareform())
         else:
-            raise NotImplementedError('This function currently only works on
-                                        single matrices.')
+            raise NotImplementedError('This function currently only works on '
+                                      'single matrices.')
 
     def ttest(self, **kwargs):
         ''' Calculate ttest across samples. '''
@@ -1738,8 +1767,8 @@ class Adjacency(object):
         '''
 
         if not self.is_single_matrix:
-            raise ValueError('This function only works on single adjacency
-                            matrices.')
+            raise ValueError('This function only works on single adjacency '
+                             'matrices.')
 
         distance = pd.DataFrame(self.squareform())
 
@@ -1778,8 +1807,8 @@ class Adjacency(object):
         '''
 
         if not self.is_single_matrix:
-            raise ValueError('This function only works on single adjacency
-                            matrices.')
+            raise ValueError('This function only works on single adjacency '
+                             'matrices.')
 
         distance = pd.DataFrame(self.squareform())
 
@@ -1871,13 +1900,13 @@ class Groupby(object):
                 if value_dict[i].shape()[0] == np.sum(self.mask[i].data):
                     out.data[i, out.data[i,:] == 1] = value_dict[i].data
                 else:
-                    raise ValueError('Brain_Data instances are different
-                                    shapes.')
-            elif isinstance(value_dict[i],(float, int, bool, np.number)):
+                    raise ValueError('Brain_Data instances are different '
+                                     'shapes.')
+            elif isinstance(value_dict[i], (float, int, bool, np.number)):
                 out.data[i, :] = out.data[i, :]*value_dict[i]
             else:
-                raise ValueError('No method for aggregation implented for %s
-                                yet.' % type(value_dict[i]))
+                raise ValueError('No method for aggregation implented for %s '
+                                 'yet.' % type(value_dict[i]))
         return out.sum()
 
 
@@ -1990,8 +2019,10 @@ class Design_Matrix(DataFrame):
 
         """
         if self.shape[0] != df.shape[0]:
-            raise ValueError("Can't append differently sized design matrices! Mat 1 has "+str(self.shape[0])+" rows and Mat 2 has "+str(df.shape[0])+" rows.")
-        out = pd.concat([self,df], axis=1)
+            raise ValueError("Can't append differently sized design matrices! "
+                             "Mat 1 has %s rows and Mat 2 has %s rows."
+                            % (self.shape[0]), df.shape[0])
+        out = pd.concat([self, df], axis=1)
         out.TR = self.TR
         out.convolved = self.convolved
         out.hasIntercept = self.hasIntercept
@@ -2005,9 +2036,9 @@ class Design_Matrix(DataFrame):
         """
 
         outdf = df.copy()
-        assert self.hasIntercept == outdf.hasIntercept, ("Intercepts are
-                ambigious. Both design matrices should match in whether
-                they do or don't have intercepts.")
+        assert self.hasIntercept == outdf.hasIntercept, ("Intercepts are "
+                "ambigious. Both design matrices should match in whether "
+                "they do or don't have intercepts.")
 
         if addIntercept:
             self['intercept'] = 1
@@ -2034,17 +2065,19 @@ class Design_Matrix(DataFrame):
                 colOrder = []
                 #retain original column order as closely as possible
                 for colA,colB in zip(out.columns, outdf.columns):
-                        colOrder.append(colA)
-                        if colA != colB:
-                            colOrder.append(colB)
+                    colOrder.append(colA)
+                    if colA != colB:
+                        colOrder.append(colB)
                 out = super(Design_Matrix, out).append(outdf, ignore_index=True)
-                #out = out.append(outdf,separate=False,axis=0,ignore_index=True).fillna(0)
+                # out = out.append(outdf,separate=False,axis=0,ignore_index=True).fillna(0)
                 out = out[colOrder].fillna(0)
             else:
-                raise ValueError("Separate concatentation impossible. None of the requested unique columns were found in both design_matrices.")
+                raise ValueError("Separate concatentation impossible. None of "
+                                "the requested unique columns were found in "
+                                "both design_matrices.")
         else:
             out = super(Design_Matrix, self).append(outdf, ignore_index=True)
-            #out = self.append(df,separate=False,axis=0,ignore_index=True).fillna(0)
+            # out = self.append(df,separate=False,axis=0,ignore_index=True).fillna(0)
             out = out[self.columns]
 
         out.convolved = self.convolved
@@ -2077,7 +2110,7 @@ class Design_Matrix(DataFrame):
 
         #return np.array(map(lambda x: _vif(self.drop(x,axis=1),self[x]),self.columns))
 
-    def heatmap(self, figsize=(8,6), **kwargs):
+    def heatmap(self, figsize=(8, 6), **kwargs):
         """Visualize Design Matrix spm style. Use .plot() for typical pandas
             plotting functionality. Can pass optional keyword args to seaborn
             heatmap.
@@ -2086,13 +2119,13 @@ class Design_Matrix(DataFrame):
         fig, ax = plt.subplots(1, figsize=figsize)
         ax = sns.heatmap(self, cmap='gray', cbar=False, ax=ax, **kwargs)
         for _, spine in ax.spines.items():
-            spine.set_visible(True);
+            spine.set_visible(True)
         for i, label in enumerate(ax.get_yticklabels()):
             if i == 0 or i == self.shape[0]-1:
                 label.set_visible(True)
             else:
                 label.set_visible(False)
-        ax.axhline(linewidth=4, color="k");
+        ax.axhline(linewidth=4, color="k")
         ax.axvline(linewidth=4, color="k")
         ax.axhline(y=self.shape[0], color='k', linewidth=4)
         ax.axvline(x=self.shape[1], color='k', linewidth=4)
@@ -2114,7 +2147,7 @@ class Design_Matrix(DataFrame):
         nonConvolved = [col for col in self.columns if col not in colNames]
 
         convolvedMats = []
-        for i,func in enumerate(self.hrf):
+        for i, func in enumerate(self.hrf):
             hrfDat = func(self.TR, oversampling=1)
             c = self[colNames].apply(lambda x: np.convolve(x, hrfDat)[:self.shape[0]])
             c.columns = [str(col)+'_c'+str(i) for col in c.columns]
@@ -2141,10 +2174,10 @@ class Design_Matrix(DataFrame):
         df = downsample(self, sampling_freq=self.TR, target=target, **kwargs)
 
         # convert df to a design matrix
-        newMat = Design_Matrix(df, hrf=self.hrf,TR=target, convolved=self.convolved, hasIntercept=self.hasIntercept)
-
+        newMat = Design_Matrix(df, hrf=self.hrf,TR=target,
+                               convolved=self.convolved,
+                               hasIntercept=self.hasIntercept)
         return newMat
-
 
     def zscore(self, colNames=[]):
         """Z-score specific columns of design matrix. Relies on
@@ -2162,7 +2195,9 @@ class Design_Matrix(DataFrame):
         df = zscore(self[colNames])
         df = pd.concat([df, self[nonZ]], axis=1)
         df = df[colOrder]
-        newMat = Design_Matrix(df, hrf=self.hrf, TR=self.TR, convolved=self.convolved, hasIntercept=self.hasIntercept)
+        newMat = Design_Matrix(df, hrf=self.hrf, TR=self.TR,
+                               convolved=self.convolved,
+                               hasIntercept=self.hasIntercept)
 
         return newMat
 
@@ -2183,8 +2218,8 @@ class Design_Matrix(DataFrame):
                 for i in xrange(0, order+1):
                     if i == 0:
                         if self.hasIntercept:
-                            warnings.warn("Design Matrix already has
-                                            intercept...skipping")
+                            warnings.warn("Design Matrix already has "
+                                          "intercept...skipping")
                         else:
                             polyDict['intercept'] = np.repeat(1, self.shape[0])
                     else:
@@ -2204,11 +2239,10 @@ class Design_Matrix(DataFrame):
                 polyDict['poly_'+str(order)] = (range(self.shape[0]) - np.mean(range(self.shape[0])))**order
 
         toAdd = Design_Matrix(polyDict)
-        out =  self.append(toAdd, axis=1)
+        out = self.append(toAdd, axis=1)
         if 'intercept' in polyDict.keys() or self.hasIntercept:
             out.hasIntercept = True
         return out
-
 
     def add_filter(self):
         """Not yet implemented.
@@ -2216,10 +2250,8 @@ class Design_Matrix(DataFrame):
         """
         raise NotImplementedError("Filtering not yet implemented!")
 
-
 def all_same(items):
     return np.all(x == items[0] for x in items)
-
 
 def _vif(X, y):
     """
