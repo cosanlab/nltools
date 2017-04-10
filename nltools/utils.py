@@ -36,12 +36,13 @@ def set_algorithm(algorithm, **kwargs):
     """ Setup the algorithm to use in subsequent prediction analyses.
 
     Args:
-        algorithm: The prediction algorithm to use. Either a string or an (uninitialized)
-        scikit-learn prediction object. If string, must be one of 'svm','svr', linear',
-        'logistic','lasso','lassopcr','lassoCV','ridge','ridgeCV','ridgeClassifier',
-        'randomforest', or 'randomforestClassifier'
-        kwargs: Additional keyword arguments to pass onto the scikit-learn clustering
-        object.
+        algorithm: The prediction algorithm to use. Either a string or an
+                    (uninitialized) scikit-learn prediction object. If string,
+                    must be one of 'svm','svr', linear','logistic','lasso',
+                    'lassopcr','lassoCV','ridge','ridgeCV','ridgeClassifier',
+                    'randomforest', or 'randomforestClassifier'
+        kwargs: Additional keyword arguments to pass onto the scikit-learn
+                clustering object.
 
     Returns:
         predictor_settings: dictionary of settings for prediction
@@ -50,7 +51,7 @@ def set_algorithm(algorithm, **kwargs):
 
     # NOTE: function currently located here instead of analysis.py to avoid circular imports
 
-    predictor_settings={}
+    predictor_settings = {}
     predictor_settings['algorithm'] = algorithm
 
     def load_class(import_string):
@@ -61,20 +62,20 @@ def set_algorithm(algorithm, **kwargs):
         return getattr(module, class_str)
 
     algs_classify = {
-        'svm':'sklearn.svm.SVC',
-        'logistic':'sklearn.linear_model.LogisticRegression',
-        'ridgeClassifier':'sklearn.linear_model.RidgeClassifier',
-        'ridgeClassifierCV':'sklearn.linear_model.RidgeClassifierCV',
-        'randomforestClassifier':'sklearn.ensemble.RandomForestClassifier'
+        'svm': 'sklearn.svm.SVC',
+        'logistic': 'sklearn.linear_model.LogisticRegression',
+        'ridgeClassifier': 'sklearn.linear_model.RidgeClassifier',
+        'ridgeClassifierCV': 'sklearn.linear_model.RidgeClassifierCV',
+        'randomforestClassifier': 'sklearn.ensemble.RandomForestClassifier'
         }
     algs_predict = {
-        'svr':'sklearn.svm.SVR',
-        'linear':'sklearn.linear_model.LinearRegression',
-        'lasso':'sklearn.linear_model.Lasso',
-        'lassoCV':'sklearn.linear_model.LassoCV',
-        'ridge':'sklearn.linear_model.Ridge',
-        'ridgeCV':'sklearn.linear_model.RidgeCV',
-        'randomforest':'sklearn.ensemble.RandomForest'
+        'svr': 'sklearn.svm.SVR',
+        'linear': 'sklearn.linear_model.LinearRegression',
+        'lasso': 'sklearn.linear_model.Lasso',
+        'lassoCV': 'sklearn.linear_model.LassoCV',
+        'ridge': 'sklearn.linear_model.Ridge',
+        'ridgeCV': 'sklearn.linear_model.RidgeCV',
+        'randomforest': 'sklearn.ensemble.RandomForest'
         }
 
     if algorithm in algs_classify.keys():
@@ -91,27 +92,33 @@ def set_algorithm(algorithm, **kwargs):
         from sklearn.decomposition import PCA
         predictor_settings['_lasso'] = Lasso()
         predictor_settings['_pca'] = PCA()
-        predictor_settings['predictor'] = Pipeline(steps=[('pca', predictor_settings['_pca']), ('lasso', predictor_settings['_lasso'])])
+        predictor_settings['predictor'] = Pipeline(
+                            steps=[('pca', predictor_settings['_pca']),
+                            ('lasso', predictor_settings['_lasso'])])
     elif algorithm == 'pcr':
         predictor_settings['prediction_type'] = 'prediction'
         from sklearn.linear_model import LinearRegression
         from sklearn.decomposition import PCA
         predictor_settings['_regress'] = LinearRegression()
         predictor_settings['_pca'] = PCA()
-        predictor_settings['predictor'] = Pipeline(steps=[('pca', predictor_settings['_pca']), ('regress', predictor_settings['_regress'])])
+        predictor_settings['predictor'] = Pipeline(
+                            steps=[('pca', predictor_settings['_pca']),
+                            ('regress', predictor_settings['_regress'])])
     else:
-        raise ValueError("""Invalid prediction/classification algorithm name. Valid
-            options are 'svm','svr', 'linear', 'logistic', 'lasso', 'lassopcr',
-            'lassoCV','ridge','ridgeCV','ridgeClassifier', 'randomforest', or
-            'randomforestClassifier'.""")
+        raise ValueError("""Invalid prediction/classification algorithm name.
+            Valid options are 'svm','svr', 'linear', 'logistic', 'lasso',
+            'lassopcr','lassoCV','ridge','ridgeCV','ridgeClassifier',
+            'randomforest', or 'randomforestClassifier'.""")
 
     return predictor_settings
 
 
-#The following are nipy source code implementations of the hemodynamic response function HRF
-#See the included nipy license file for use permission. 
+# The following are nipy source code implementations of the hemodynamic response function HRF
+# See the included nipy license file for use permission.
 
-def _gamma_difference_hrf(tr, oversampling=16, time_length=32., onset=0.,delay=6, undershoot=16., dispersion=1.,                         u_dispersion=1., ratio=0.167):
+def _gamma_difference_hrf(tr, oversampling=16, time_length=32., onset=0.,
+                        delay=6, undershoot=16., dispersion=1.,
+                        u_dispersion=1., ratio=0.167):
     """ Compute an hrf as the difference of two gamma functions
     Parameters
     ----------
@@ -136,48 +143,52 @@ def _gamma_difference_hrf(tr, oversampling=16, time_length=32., onset=0.,delay=6
 
 def spm_hrf(tr, oversampling=16, time_length=32., onset=0.):
     """ Implementation of the SPM hrf model
-    Parameters
-    ----------
-    tr: float, scan repeat time, in seconds
-    oversampling: int, temporal oversampling factor, optional
-    time_length: float, hrf kernel length, in seconds
-    onset: float, onset of the response
-    Returns
-    -------
-    hrf: array of shape(length / tr * oversampling, float),
-         hrf sampling on the oversampled time grid
+
+    Args:
+        tr: float, scan repeat time, in seconds
+        oversampling: int, temporal oversampling factor, optional
+        time_length: float, hrf kernel length, in seconds
+        onset: float, onset of the response
+
+    Returns:
+        hrf: array of shape(length / tr * oversampling, float),
+            hrf sampling on the oversampled time grid
+
     """
     return _gamma_difference_hrf(tr, oversampling, time_length, onset)
 
+
 def glover_hrf(tr, oversampling=16, time_length=32., onset=0.):
     """ Implementation of the Glover hrf model
-    Parameters
-    ----------
-    tr: float, scan repeat time, in seconds
-    oversampling: int, temporal oversampling factor, optional
-    time_length: float, hrf kernel length, in seconds
-    onset: float, onset of the response
-    Returns
-    -------
-    hrf: array of shape(length / tr * oversampling, float),
-         hrf sampling on the oversampled time grid
+
+    Args:
+        tr: float, scan repeat time, in seconds
+        oversampling: int, temporal oversampling factor, optional
+        time_length: float, hrf kernel length, in seconds
+        onset: float, onset of the response
+    Returns:
+        hrf: array of shape(length / tr * oversampling, float),
+            hrf sampling on the oversampled time grid
+
     """
     return _gamma_difference_hrf(tr, oversampling, time_length, onset,
                                 delay=6, undershoot=12., dispersion=.9,
                                 u_dispersion=.9, ratio=.35)
 
+
 def spm_time_derivative(tr, oversampling=16, time_length=32., onset=0.):
     """Implementation of the SPM time derivative hrf (dhrf) model
-    Parameters
-    ----------
-    tr: float, scan repeat time, in seconds
-    oversampling: int, temporal oversampling factor, optional
-    time_length: float, hrf kernel length, in seconds
-    onset: float, onset of the response
-    Returns
-    -------
-    dhrf: array of shape(length / tr, float),
-          dhrf sampling on the provided grid
+
+    Args:
+        tr: float, scan repeat time, in seconds
+        oversampling: int, temporal oversampling factor, optional
+        time_length: float, hrf kernel length, in seconds
+        onset: float, onset of the response
+
+    Returns:
+        dhrf: array of shape(length / tr, float),
+              dhrf sampling on the provided grid
+
     """
     do = .1
     dhrf = 1. / do * (spm_hrf(tr, oversampling, time_length, onset + do) -
@@ -186,16 +197,16 @@ def spm_time_derivative(tr, oversampling=16, time_length=32., onset=0.):
 
 def glover_time_derivative(tr, oversampling=16, time_length=32., onset=0.):
     """Implementation of the flover time derivative hrf (dhrf) model
-    Parameters
-    ----------
-    tr: float, scan repeat time, in seconds
-    oversampling: int, temporal oversampling factor, optional
-    time_length: float, hrf kernel length, in seconds
-    onset: float, onset of the response
-    Returns
-    -------
-    dhrf: array of shape(length / tr, float),
-          dhrf sampling on the provided grid
+
+    Args:
+        tr: float, scan repeat time, in seconds
+        oversampling: int, temporal oversampling factor, optional
+        time_length: float, hrf kernel length, in seconds
+        onset: float, onset of the response
+    Returns:
+        dhrf: array of shape(length / tr, float),
+              dhrf sampling on the provided grid
+
     """
     do = .1
     dhrf = 1. / do * (glover_hrf(tr, oversampling, time_length, onset + do) -
@@ -204,16 +215,16 @@ def glover_time_derivative(tr, oversampling=16, time_length=32., onset=0.):
 
 def spm_dispersion_derivative(tr, oversampling=16, time_length=32., onset=0.):
     """Implementation of the SPM dispersion derivative hrf model
-    Parameters
-    ----------
-    tr: float, scan repeat time, in seconds
-    oversampling: int, temporal oversampling factor, optional
-    time_length: float, hrf kernel length, in seconds
-    onset: float, onset of the response
-    Returns
-    -------
-    dhrf: array of shape(length / tr * oversampling, float),
-          dhrf sampling on the oversampled time grid
+
+    Args:
+        tr: float, scan repeat time, in seconds
+        oversampling: int, temporal oversampling factor, optional
+        time_length: float, hrf kernel length, in seconds
+        onset: float, onset of the response
+    Returns:
+        dhrf: array of shape(length / tr * oversampling, float),
+              dhrf sampling on the oversampled time grid
+
     """
     dd = .01
     dhrf = 1. / dd * (_gamma_difference_hrf(tr, oversampling, time_length,
