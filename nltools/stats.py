@@ -8,10 +8,10 @@ Tools to help with statistical analyses.
 
 '''
 
-__all__ = ['pearson', 
-            'zscore', 
-            'fdr', 
-            'threshold', 
+__all__ = ['pearson',
+            'zscore',
+            'fdr',
+            'threshold',
             'multi_threshold',
             'winsorize',
             'calc_bpm',
@@ -28,7 +28,7 @@ from copy import deepcopy
 import nibabel as nib
 
 def pearson(x, y):
-    """ Correlates row vector x with each row vector in 2D array y. 
+    """ Correlates row vector x with each row vector in 2D array y.
     From neurosynth.stats.py - author: Tal Yarkoni
     """
     data = np.vstack((x, y))
@@ -41,10 +41,10 @@ def pearson(x, y):
 
 def zscore(df):
     """ zscore every column in a pandas dataframe or series.
-        
+
         Args:
             df: Pandas DataFrame instance
-        
+
         Returns:
             z_data: z-scored pandas DataFrame or series instance
     """
@@ -58,17 +58,17 @@ def zscore(df):
 
 def fdr(p, q=.05):
     """ Determine FDR threshold given a p value array and desired false
-    discovery rate q. Written by Tal Yarkoni 
+    discovery rate q. Written by Tal Yarkoni
 
     Args:
         p: vector of p-values (numpy array) (only considers non-zero p-values)
         q: false discovery rate level
- 
+
     Returns:
         fdr_p: p-value threshold based on independence or positive dependence
 
     """
-    
+
     if not isinstance(p, np.ndarray):
         raise ValueError('Make sure vector of p-values is a numpy array')
 
@@ -83,99 +83,104 @@ def threshold(stat, p, thr=.05):
     """ Threshold test image by p-value from p image
 
     Args:
-        stat: Brain_Data instance of arbitrary statistic metric (e.g., beta, t, etc)
+        stat: Brain_Data instance of arbitrary statistic metric (e.g., beta,
+            t, etc)
         p: Brain_data instance of p-values
-        threshold: p-value to threshold stat image
- 
+            threshold: p-value to threshold stat image
+
     Returns:
         out: Thresholded Brain_Data instance
-    
+
     """
     from nltools.data import Brain_Data
 
     if not isinstance(stat, Brain_Data):
         raise ValueError('Make sure stat is a Brain_Data instance')
-        
+
     if not isinstance(p, Brain_Data):
         raise ValueError('Make sure p is a Brain_Data instance')
 
     # Create Mask
     mask = deepcopy(p)
-    if thr >0:
-        mask.data = (mask.data<thr).astype(int)
+    if thr > 0:
+        mask.data = (mask.data < thr).astype(int)
     else:
-        mask.data = np.zeros(len(mask.data),dtype=int)
-   
+        mask.data = np.zeros(len(mask.data), dtype=int)
+
     # Apply Threshold Mask
     out = deepcopy(stat)
     if np.sum(mask.data) > 0:
         out = out.apply_mask(mask)
         out.data = out.data.squeeze()
     else:
-        out.data = np.zeros(len(mask.data),dtype=int)
+        out.data = np.zeros(len(mask.data), dtype=int)
 
     return out
 
-def multi_threshold(t_map,p_map,thresh):
+def multi_threshold(t_map, p_map,thresh):
     """ Threshold test image by multiple p-value from p image
 
     Args:
-        stat: Brain_Data instance of arbitrary statistic metric (e.g., beta, t, etc)
+        stat: Brain_Data instance of arbitrary statistic metric
+            (e.g., beta, t, etc)
         p: Brain_data instance of p-values
-        threshold: list of p-values to threshold stat image
- 
+            threshold: list of p-values to threshold stat image
+
     Returns:
         out: Thresholded Brain_Data instance
-    
+
     """
     from nltools.data import Brain_Data
 
     if not isinstance(t_map, Brain_Data):
         raise ValueError('Make sure stat is a Brain_Data instance')
-        
+
     if not isinstance(p_map, Brain_Data):
         raise ValueError('Make sure p is a Brain_Data instance')
-        
-    if not isinstance(thresh,list):
+
+    if not isinstance(thresh, list):
         raise ValueError('Make sure thresh is a list of p-values')
 
     affine = t_map.to_nifti().get_affine()
     pos_out = np.zeros(t_map.to_nifti().shape)
     neg_out = deepcopy(pos_out)
     for thr in thresh:
-        t = threshold(t_map,p_map,thr=thr)
+        t = threshold(t_map, p_map, thr=thr)
         t_pos = deepcopy(t)
         t_pos.data = np.zeros(len(t_pos.data))
         t_neg = deepcopy(t_pos)
-        t_pos.data[t.data>0] = 1
-        t_neg.data[t.data<0] = 1
+        t_pos.data[t.data > 0] = 1
+        t_neg.data[t.data < 0] = 1
         pos_out = pos_out+t_pos.to_nifti().get_data()
         neg_out = neg_out+t_neg.to_nifti().get_data()
     pos_out = pos_out + neg_out*-1
-    return Brain_Data(nib.Nifti1Image(pos_out,affine))
+    return Brain_Data(nib.Nifti1Image(pos_out, affine))
 
 def winsorize(data, cutoff=None):
-    ''' Winsorize a Pandas Series 
-    
+    ''' Winsorize a Pandas Series
+
         Args:
             data: a pandas.Series
-            cutoff: a dictionary with keys {'std':[low,high]} or {'quantile':[low,high]}
-            
+            cutoff: a dictionary with keys {'std':[low,high]} or
+                    {'quantile':[low,high]}
+
         Returns:
             pandas.Series
     '''
-    
+
     if not isinstance(data,pd.Series):
-        raise ValueError('Make sure that you are applying winsorize to a pandas series.')
-    
+        raise ValueError('Make sure that you are applying winsorize to a '
+                        'pandas series.')
+
     if isinstance(cutoff,dict):
         if 'quantile' in cutoff:
             q = data.quantile(cutoff['quantile'])
         elif 'std' in cutoff:
-            std = [data.mean()-data.std()*cutoff['std'][0],data.mean()+data.std()*cutoff['std'][1]]
-            q = pd.Series(index=cutoff['std'],data=std)
+            std = [data.mean()-data.std()*cutoff['std'][0], data.mean()+data.std()*cutoff['std'][1]]
+            q = pd.Series(index=cutoff['std'], data=std)
     else:
-        raise ValueError('cutoff must be a dictionary with quantile or std keys.')
+        raise ValueError('cutoff must be a dictionary with quantile '
+                        'or std keys.')
     if isinstance(q, pd.Series) and len(q) == 2:
         data[data < q.iloc[0]] = q.iloc[0]
         data[data > q.iloc[1]] = q.iloc[1]
@@ -184,8 +189,9 @@ def winsorize(data, cutoff=None):
 def calc_bpm(beat_interval, sampling_freq):
     ''' Calculate instantaneous BPM from beat to beat interval
 
-        Args: 
-            beat_interval: number of samples in between each beat (typically R-R Interval)
+        Args:
+            beat_interval: number of samples in between each beat
+                            (typically R-R Interval)
             sampling_freq: sampling frequency in Hz
 
         Returns:
@@ -193,20 +199,23 @@ def calc_bpm(beat_interval, sampling_freq):
     '''
     return 60*sampling_freq*(1/(beat_interval))
 
-def downsample(data,sampling_freq=None, target=None, target_type='samples',method='mean'):
-    ''' Downsample pandas to a new target frequency or number of samples using averaging.
-    
+def downsample(data,sampling_freq=None, target=None, target_type='samples',
+            method='mean'):
+    ''' Downsample pandas to a new target frequency or number of samples
+        using averaging.
+
         Args:
             data: Pandas DataFrame or Series
-            sampling_freq:  Sampling frequency of data 
+                    sampling_freq:  Sampling frequency of data
             target: downsampling target
-            target_type: type of target can be [samples,seconds,hz]
-            method: (str) type of downsample method ['mean','median'], default: mean
+                    target_type: type of target can be [samples,seconds,hz]
+            method: (str) type of downsample method ['mean','median'],
+                    default: mean
         Returns:
             downsampled pandas object
-            
+
     '''
-      
+
     if not isinstance(data,(pd.DataFrame,pd.Series)):
         raise ValueError('Data must by a pandas DataFrame or Series instance.')
     if not (method=='median') | (method=='mean'):
@@ -219,7 +228,8 @@ def downsample(data,sampling_freq=None, target=None, target_type='samples',metho
     elif target_type is 'hz':
         n_samples = sampling_freq/target
     else:
-        raise ValueError('Make sure target_type is "samples", "seconds", or "hz".')
+        raise ValueError('Make sure target_type is "samples", "seconds", '
+                        ' or "hz".')
 
     idx = np.sort(np.repeat(np.arange(1,data.shape[0]/n_samples,1),n_samples))
     # if data.shape[0] % n_samples:
@@ -243,7 +253,7 @@ def one_sample_permutation(data, n_permute = 5000):
             n_permute: (int) number of permutations
         Returns:
             stats: (dict) dictionary of permutation results ['mean','p']
-    
+
     '''
 
     data = np.array(data)
@@ -251,11 +261,11 @@ def one_sample_permutation(data, n_permute = 5000):
     stats['mean'] = np.mean(data)
     all_p = []
     for p in range(n_permute):
-        all_p.append(np.mean(data*np.random.choice([1,-1],len(data))))
-    if stats['mean']>=0:
-        stats['p'] = np.mean(all_p>=stats['mean'])
+        all_p.append(np.mean(data*np.random.choice([1,-1], len(data))))
+    if stats['mean'] >= 0:
+        stats['p'] = np.mean(all_p >= stats['mean'])
     else:
-        stats['p'] = np.mean(all_p<=stats['mean'])
+        stats['p'] = np.mean(all_p <= stats['mean'])
     return stats
 
 def two_sample_permutation(data1, data2, n_permute=5000):
@@ -267,7 +277,7 @@ def two_sample_permutation(data1, data2, n_permute=5000):
             n_permute: (int) number of permutations
         Returns:
             stats: (dict) dictionary of permutation results ['mean','p']
-    
+
     '''
 
     stats = dict()
@@ -290,12 +300,13 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman'):
         Args:
             data1: Pandas DataFrame or Series or numpy array
             data2: Pandas DataFrame or Series or numpy array
-            n_permute: (int) number of permutations
-            metric: (str) type of association metric ['spearman','pearson','kendall']
-            
+                    n_permute: (int) number of permutations
+            metric: (str) type of association metric ['spearman','pearson',
+                    'kendall']
+
         Returns:
             stats: (dict) dictionary of permutation results ['correlation','p']
-    
+
     '''
 
     stats = dict()
@@ -303,27 +314,25 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman'):
     data2 = np.array(data2)
 
     if metric is 'spearman':
-        stats['correlation'] = spearmanr(data1,data2)[0]
+        stats['correlation'] = spearmanr(data1, data2)[0]
     elif metric is 'pearson':
-        stats['correlation'] = pearsonr(data1,data2)[0]
+        stats['correlation'] = pearsonr(data1, data2)[0]
     elif metric is 'kendall':
-        stats['correlation'] = kendalltau(data1,data2)[0]
+        stats['correlation'] = kendalltau(data1, data2)[0]
     else:
         raise ValueError('metric must be "spearman" or "pearson" or "kendall"')
 
     all_p = []
     for p in range(n_permute):
         if metric is 'spearman':
-            stats['correlation'] = spearmanr(data1,data2)[0]
-            all_p.append(spearmanr(np.random.permutation(data1),data2)[0])
+            stats['correlation'] = spearmanr(data1, data2)[0]
+            all_p.append(spearmanr(np.random.permutation(data1), data2)[0])
         elif metric is 'pearson':
-            all_p.append(pearsonr(np.random.permutation(data1),data2)[0])
+            all_p.append(pearsonr(np.random.permutation(data1), data2)[0])
         elif metric is 'kendall':
-            all_p.append(kendalltau(np.random.permutation(data1),data2)[0])
+            all_p.append(kendalltau(np.random.permutation(data1), data2)[0])
     if stats['correlation']>=0:
-        stats['p'] = np.mean(all_p>=stats['correlation'])
+        stats['p'] = np.mean(all_p >= stats['correlation'])
     else:
-        stats['p'] = np.mean(all_p<=stats['correlation'])
+        stats['p'] = np.mean(all_p <= stats['correlation'])
     return stats
-
-
