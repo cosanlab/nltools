@@ -169,7 +169,8 @@ def winsorize(data, cutoff=None):
     '''
 
     if not isinstance(data,pd.Series):
-        raise ValueError('Make sure that you are applying winsorize to a pandas series.')
+        raise ValueError('Make sure that you are applying winsorize to a '
+                        'pandas series.')
 
     if isinstance(cutoff,dict):
         if 'quantile' in cutoff:
@@ -178,7 +179,8 @@ def winsorize(data, cutoff=None):
             std = [data.mean()-data.std()*cutoff['std'][0], data.mean()+data.std()*cutoff['std'][1]]
             q = pd.Series(index=cutoff['std'], data=std)
     else:
-        raise ValueError('cutoff must be a dictionary with quantile or std keys.')
+        raise ValueError('cutoff must be a dictionary with quantile '
+                        'or std keys.')
     if isinstance(q, pd.Series) and len(q) == 2:
         data[data < q.iloc[0]] = q.iloc[0]
         data[data > q.iloc[1]] = q.iloc[1]
@@ -226,7 +228,8 @@ def downsample(data,sampling_freq=None, target=None, target_type='samples',
     elif target_type is 'hz':
         n_samples = sampling_freq/target
     else:
-        raise ValueError('Make sure target_type is "samples", "seconds", or "hz".')
+        raise ValueError('Make sure target_type is "samples", "seconds", '
+                        ' or "hz".')
 
     idx = np.sort(np.repeat(np.arange(1,data.shape[0]/n_samples,1),n_samples))
     # if data.shape[0] % n_samples:

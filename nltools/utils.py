@@ -92,14 +92,18 @@ def set_algorithm(algorithm, **kwargs):
         from sklearn.decomposition import PCA
         predictor_settings['_lasso'] = Lasso()
         predictor_settings['_pca'] = PCA()
-        predictor_settings['predictor'] = Pipeline(steps=[('pca', predictor_settings['_pca']), ('lasso', predictor_settings['_lasso'])])
+        predictor_settings['predictor'] = Pipeline(
+                            steps=[('pca', predictor_settings['_pca']),
+                            ('lasso', predictor_settings['_lasso'])])
     elif algorithm == 'pcr':
         predictor_settings['prediction_type'] = 'prediction'
         from sklearn.linear_model import LinearRegression
         from sklearn.decomposition import PCA
         predictor_settings['_regress'] = LinearRegression()
         predictor_settings['_pca'] = PCA()
-        predictor_settings['predictor'] = Pipeline(steps=[('pca', predictor_settings['_pca']), ('regress', predictor_settings['_regress'])])
+        predictor_settings['predictor'] = Pipeline(
+                            steps=[('pca', predictor_settings['_pca']),
+                            ('regress', predictor_settings['_regress'])])
     else:
         raise ValueError("""Invalid prediction/classification algorithm name.
             Valid options are 'svm','svr', 'linear', 'logistic', 'lasso',

@@ -43,16 +43,16 @@ class Roc(object):
     def __init__(self, input_values=None, binary_outcome=None,
         threshold_type='optimal_overall', forced_choice=None, **kwargs):
         if len(input_values) != len(binary_outcome):
-            raise ValueError("Data Problem: input_value and binary_outcome
-                            are different lengths.")
+            raise ValueError("Data Problem: input_value and binary_outcome"
+                            "are different lengths.")
 
         if not any(binary_outcome):
             raise ValueError("Data Problem: binary_outcome may not be boolean")
 
         thr_type = ['optimal_overall', 'optimal_balanced','minimum_sdt_bias']
         if threshold_type not in thr_type:
-            raise ValueError("threshold_type must be ['optimal_overall',
-                            'optimal_balanced','minimum_sdt_bias']")
+            raise ValueError("threshold_type must be ['optimal_overall', "
+                            "'optimal_balanced','minimum_sdt_bias']")
 
         self.input_values = deepcopy(input_values)
         self.binary_outcome = deepcopy(binary_outcome)
@@ -106,8 +106,8 @@ class Roc(object):
 
         if self.forced_choice is not None:
             sub_idx = np.unique(self.forced_choice)
-            assert len(sub_idx) == len(self.binary_outcome)/2, ("Make sure
-                        that subject ids are correct for 'forced_choice'.")
+            assert len(sub_idx) == len(self.binary_outcome)/2, ("Make sure "
+                        "that subject ids are correct for 'forced_choice'.")
             assert len(set(sub_idx).union(set(np.array(self.forced_choice)[self.binary_outcome]))) == len(sub_idx), "Issue with forced_choice subject labels."
             assert len(set(sub_idx).union(set(np.array(self.forced_choice)[~self.binary_outcome]))) == len(sub_idx), "Issue with forced_choice subject labels."
             for sub in sub_idx:
@@ -180,7 +180,8 @@ class Roc(object):
         Args:
             plot_method: type of plot ['gaussian','observed']
             binary_outcome: vector of training labels
-            **kwargs: Additional keyword arguments to pass to the prediction algorithm
+            **kwargs: Additional keyword arguments to pass to the prediction
+                        algorithm
 
         Returns:
             fig

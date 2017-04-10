@@ -40,8 +40,8 @@ def create_sphere(coordinates, radius=5, mask=None):
                 if os.path.isfile(mask):
                     data = nib.load(mask)
             else:
-                raise ValueError("mask is not a nibabel instance or a valid
-                                file name")
+                raise ValueError("mask is not a nibabel instance or a valid "
+                                "file name")
     else:
         mask = nib.load(os.path.join(get_resource_path(),
                                     'MNI152_T1_2mm_brain_mask.nii.gz'))
@@ -96,8 +96,8 @@ def create_sphere(coordinates, radius=5, mask=None):
         A.get_data()[A.get_data()<0.5]=0
         return A
     else:
-        raise ValueError("Data type for sphere or radius(ii) or center(s)
-                        not recognized.")
+        raise ValueError("Data type for sphere or radius(ii) or center(s) "
+                        "not recognized.")
 
 
 def expand_mask(mask):
@@ -138,12 +138,12 @@ def collapse_mask(mask, auto_label=True):
     """
 
     from nltools.data import Brain_Data
-    if not isinstance(mask,Brain_Data):
-        if isinstance(mask,nib.Nifti1Image):
+    if not isinstance(mask, Brain_Data):
+        if isinstance(mask, nib.Nifti1Image):
             mask = Brain_Data(mask)
         else:
-            raise ValueError('Make sure mask is a nibabel or Brain_Data
-                            instance.')
+            raise ValueError('Make sure mask is a nibabel or Brain_Data '
+                            'instance.')
 
     if len(mask.shape()) > 1:
         if len(mask) > 1:
@@ -165,14 +165,14 @@ def collapse_mask(mask, auto_label=True):
                     merge.append(np.multiply(
                                 Brain_Data(m_list[i]).data,
                                 intersect.data)*(i+1))
-                out.data = np.sum(np.array(merge).T,1).astype(int)
+                out.data = np.sum(np.array(merge).T, 1).astype(int)
             else:
                 # Collapse masks using value as label
                 for i in range(len(m_list)):
                     merge.append(np.multiply(
                                     Brain_Data(m_list[i]).data,
                                     intersect.data))
-                out.data = np.sum(np.array(merge).T,1)
+                out.data = np.sum(np.array(merge).T, 1)
             return out
     else:
         warnings.warn("Doesn't need to be collapased")
