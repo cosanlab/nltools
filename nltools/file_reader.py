@@ -44,8 +44,7 @@ def onsets_to_dm(F, TR, runLength, header='infer', sort=False,
     else:
         raise TypeError("Input needs to be file path or pandas dataframe!")
     if df.shape[1] == 2:
-        warnings.warn("Only 2 columns in file, assuming all stimuli are the
-                        same duration")
+        warnings.warn("Only 2 columns in file, assuming all stimuli are the same duration")
     elif df.shape[1] == 1 or df.shape[1] > 3:
         raise ValueError("Can only handle files with 2 or 3 columns!")
 
@@ -57,9 +56,7 @@ def onsets_to_dm(F, TR, runLength, header='infer', sort=False,
         elif isinstance(df.iloc[0,df.shape[1]-1],six.string_types):
             df.columns = possibleHeaders[1:] + [possibleHeaders[0]]
         else:
-            raise ValueError("Can't figure out data organization. Make sure
-                            file has no more than 3 columns specified as
-                            'Stim,Onset,Duration' or 'Onset,Duration,Stim'")
+            raise ValueError("Can't figure out data organization. Make sure file has no more than 3 columns specified as 'Stim,Onset,Duration' or 'Onset,Duration,Stim'")
     df['Onset'] = df['Onset'].apply(lambda x: int(np.floor(x/TR)))
 
     #Build dummy codes

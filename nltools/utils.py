@@ -24,7 +24,6 @@ import os
 from sklearn.pipeline import Pipeline
 from scipy.stats import gamma
 import numpy as np
-from nltools.data import Design_Matrix
 
 def get_resource_path():
     """ Get path to nltools resource directory. """
