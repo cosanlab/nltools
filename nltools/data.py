@@ -22,7 +22,7 @@ __license__ = "MIT"
 import os
 import cPickle
 import nibabel as nib
-from nltools.utils import get_resource_path, set_algorithm, get_anatomical
+from nltools.utils import get_resource_path, set_algorithm, get_anatomical, make_cosine_basis, glover_hrf
 from nltools.cross_validation import set_cv
 from nltools.plotting import (dist_from_hyperplane_plot,
                               scatterplot,
@@ -44,6 +44,7 @@ from nilearn.image import resample_img
 from nilearn.masking import intersect_masks
 from nilearn.regions import connected_regions
 from nilearn.plotting.img_plotting import plot_epi, plot_roi, plot_stat_map
+from nilearn.signal import clean
 from copy import deepcopy
 import pandas as pd
 from pandas import DataFrame, Series
@@ -60,7 +61,6 @@ import tempfile
 import seaborn as sns
 from pynv import Client
 import matplotlib.pyplot as plt
-from nltools.utils import glover_hrf
 
 # Optional dependencies
 try:
@@ -1208,6 +1208,22 @@ class Brain_Data(object):
         out.data = fisher_r_to_z(out.data)
         return out
 
+    def filter(self,high_pass=None,low_pass=None):
+        ''' Apply 5th order butterworth filter to data. Wraps nilearn functionality.
+
+        Args:
+            high_pass: high pass cutoff frequency
+            low_pass: low pass cutoff frequency
+
+        Returns:
+            Brain_Data: Filtered Brain_Data instance
+        '''
+
+        out = self.copy()
+        out.data = clean(out,detrend=False,standardize=False,high_pass=high_pass,low_pass=low_pass)
+        return out
+
+
     def dtype(self):
         ''' Get data type of Brain_Data.data.'''
         return self.data.dtype
@@ -2247,11 +2263,24 @@ class Design_Matrix(DataFrame):
             out.hasIntercept = True
         return out
 
-    def add_filter(self):
-        """Not yet implemented.
+    def add_dct_basis(self,duration=180):
+        """Adds cosine basis functions to Design_Matrix columns, based on spm-style discrete cosine transform for use in high-pass filtering.
+
+        Args:
+            duration (int): length of filter in seconds
 
         """
-        raise NotImplementedError("Filtering not yet implemented!")
+        assert self.TR is not None, "No TR specified!"
+        basis_mat = make_cosine_basis(self.shape[0],self.TR,duration)
+
+        basis_frame = Design_Matrix(basis_mat,TR=self.TR,hasIntercept=False,convolved=False)
+
+        basis_frame.columns = ['cosine_'+str(i+1) for i in xrange(basis_frame.shape[1])]
+
+        out = self.append(basis_frame,axis=1)
+
+        return out
+
 
 def all_same(items):
     return np.all(x == items[0] for x in items)
