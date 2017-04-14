@@ -12,17 +12,19 @@ __all__ = ['get_resource_path',
             'glover_hrf',
             'spm_time_derivative',
             'glover_time_derivative',
-            'spm_dispersion_derivative']
+            'spm_dispersion_derivative',
+            'make_cosine_basis']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
-from os.path import dirname, join, pardir, sep as pathsep
+from os.path import dirname, join, sep as pathsep
 import nibabel as nib
 import importlib
 import os
 from sklearn.pipeline import Pipeline
 from scipy.stats import gamma
 import numpy as np
+from nltools.data import Design_Matrix
 
 def get_resource_path():
     """ Get path to nltools resource directory. """
@@ -142,7 +144,7 @@ def _gamma_difference_hrf(tr, oversampling=16, time_length=32., onset=0.,
 
 
 def spm_hrf(tr, oversampling=16, time_length=32., onset=0.):
-    """ Implementation of the SPM hrf model
+    """ Implementation of the SPM hrf model.
 
     Args:
         tr: float, scan repeat time, in seconds
@@ -155,29 +157,32 @@ def spm_hrf(tr, oversampling=16, time_length=32., onset=0.):
             hrf sampling on the oversampled time grid
 
     """
+
     return _gamma_difference_hrf(tr, oversampling, time_length, onset)
 
 
 def glover_hrf(tr, oversampling=16, time_length=32., onset=0.):
-    """ Implementation of the Glover hrf model
+    """ Implementation of the Glover hrf model.
 
     Args:
         tr: float, scan repeat time, in seconds
         oversampling: int, temporal oversampling factor, optional
         time_length: float, hrf kernel length, in seconds
         onset: float, onset of the response
+
     Returns:
         hrf: array of shape(length / tr * oversampling, float),
             hrf sampling on the oversampled time grid
 
     """
+
     return _gamma_difference_hrf(tr, oversampling, time_length, onset,
                                 delay=6, undershoot=12., dispersion=.9,
                                 u_dispersion=.9, ratio=.35)
 
 
 def spm_time_derivative(tr, oversampling=16, time_length=32., onset=0.):
-    """Implementation of the SPM time derivative hrf (dhrf) model
+    """ Implementation of the SPM time derivative hrf (dhrf) model.
 
     Args:
         tr: float, scan repeat time, in seconds
@@ -190,44 +195,84 @@ def spm_time_derivative(tr, oversampling=16, time_length=32., onset=0.):
               dhrf sampling on the provided grid
 
     """
+
     do = .1
     dhrf = 1. / do * (spm_hrf(tr, oversampling, time_length, onset + do) -
                       spm_hrf(tr, oversampling, time_length, onset))
     return dhrf
 
 def glover_time_derivative(tr, oversampling=16, time_length=32., onset=0.):
-    """Implementation of the flover time derivative hrf (dhrf) model
+    """Implementation of the flover time derivative hrf (dhrf) model.
 
     Args:
         tr: float, scan repeat time, in seconds
         oversampling: int, temporal oversampling factor, optional
         time_length: float, hrf kernel length, in seconds
         onset: float, onset of the response
+
     Returns:
         dhrf: array of shape(length / tr, float),
               dhrf sampling on the provided grid
 
     """
+
     do = .1
     dhrf = 1. / do * (glover_hrf(tr, oversampling, time_length, onset + do) -
                       glover_hrf(tr, oversampling, time_length, onset))
     return dhrf
 
 def spm_dispersion_derivative(tr, oversampling=16, time_length=32., onset=0.):
-    """Implementation of the SPM dispersion derivative hrf model
+    """Implementation of the SPM dispersion derivative hrf model.
 
     Args:
         tr: float, scan repeat time, in seconds
         oversampling: int, temporal oversampling factor, optional
         time_length: float, hrf kernel length, in seconds
         onset: float, onset of the response
+
     Returns:
         dhrf: array of shape(length / tr * oversampling, float),
               dhrf sampling on the oversampled time grid
 
     """
+
     dd = .01
     dhrf = 1. / dd * (_gamma_difference_hrf(tr, oversampling, time_length,
                                            onset, dispersion=1. + dd) -
                       spm_hrf(tr, oversampling, time_length, onset))
     return dhrf
+
+def make_cosine_basis(nsamples,sampling_freq,filter_length):
+    """ Create a series of cosines basic functions for discrete cosine transform. Based off of implementation in spm_dctmtx because scipy dct can only apply transforms but not return the basis functions.
+
+    Args:
+        nsamples (int): number of observations (e.g. TRs)
+        sampling_freq (float): sampling frequency in seconds (e.g. TR length)
+        filter_length (int): length of filter in seconds
+
+    Returns:
+        out (ndarray): nsamples x number of basis sets numpy array
+
+    """
+
+    #Figure out number of basis functions to create
+    order = int(np.fix(2 * (nsamples * sampling_freq)/filter_length + 1))
+
+    n = np.arange(nsamples)
+
+    #Initialize basis function matrix
+    C = np.zeros((len(n),order))
+
+    #Add constant
+    C[:,0] = np.ones((1,len(n)))/np.sqrt(nsamples)
+
+    #Insert higher order cosine basis functions
+    for i in xrange(1,order):
+        C[:,i] = np.sqrt(2./nsamples) * np.cos(np.pi*(2*n+1) * i/(2*nsamples))
+
+    #Drop constant
+    C = C[:,1:]
+    if C.size == 0:
+        raise ValueError('Basis function creation failed! nsamples is too small for requested filter_length.')
+    else:
+        return C
