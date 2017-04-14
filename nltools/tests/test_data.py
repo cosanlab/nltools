@@ -5,7 +5,7 @@ import pandas as pd
 import glob
 from nltools.simulator import Simulator
 from nltools.data import Brain_Data, Adjacency, Groupby, Design_Matrix
-from nltools.data import threshold
+from nltools.stats import threshold
 from nltools.mask import create_sphere
 from sklearn.metrics import pairwise_distances
 import matplotlib
@@ -375,5 +375,7 @@ def test_designmat(tmpdir):
     z = mat1.zscore(colNames=['X','Z'])
     assert (z['Y'] == mat1['Y']).all()
     assert z.shape == mat1.shape
+
+    #DCT basis_mat
 
     #downsample...might need to edit function
