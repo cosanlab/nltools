@@ -2162,7 +2162,7 @@ class Design_Matrix(DataFrame):
         assert len(self.hrf) != 0, "No convolution function(s) specified!"
 
         if colNames is None:
-            colNames = [col for col in self.columns if 'intercept' not in col and 'poly' not in col]
+            colNames = [col for col in self.columns if 'intercept' not in col and 'poly' not in col and 'cosine' not in col]
         nonConvolved = [col for col in self.columns if col not in colNames]
 
         convolvedMats = []
