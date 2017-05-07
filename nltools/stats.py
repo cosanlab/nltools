@@ -26,6 +26,8 @@ import pandas as pd
 from scipy.stats import ss, pearsonr, spearmanr, kendalltau
 from copy import deepcopy
 import nibabel as nib
+from scipy.interpolate import interp1d
+import warnings
 
 def pearson(x, y):
     """ Correlates row vector x with each row vector in 2D array y.
@@ -268,19 +270,21 @@ def upsample(data,sampling_freq=None, target=None, target_type='samples',method=
         n_samples = sampling_freq/target
     else:
         raise ValueError('Make sure target_type is "samples", "seconds", or "hz".')
+
     orig_spacing = np.arange(0,data.shape[0],1)
     new_spacing = np.arange(0,data.shape[0]-1,n_samples)
+
     if isinstance(data,pd.Series):
         interpolate = interp1d(orig_spacing,data,kind=method)
         return interpolate(new_spacing)
     elif isinstance(data,pd.DataFrame):
         numeric_data = data._get_numeric_data()
-        if data.shape[1]!=numeric_data.shape[1]:
-            warnings.warn('Dropping %s non-numeric columns' % (data.shape[1]-numeric_data.shape[1]),UserWarning)
-        out = pd.DataFrame(columns=numeric_data.columns,index=None)
+        if data.shape[1] != numeric_data.shape[1]:
+            warnings.warn('Dropping %s non-numeric columns' % (data.shape[1] - numeric_data.shape[1]), UserWarning)
+        out = pd.DataFrame(columns=numeric_data.columns, index=None)
         for i,x in numeric_data.iteritems():
-            interpolate = interp1d(orig_spacing,x,kind=method)
-            out.loc[:,i] = interpolate(new_spacing)
+            interpolate = interp1d(orig_spacing, x, kind=method)
+            out.loc[:, i] = interpolate(new_spacing)
         return out
     else:
         raise ValueError('Data must by a pandas DataFrame or Series instance.')
