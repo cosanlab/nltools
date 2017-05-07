@@ -258,6 +258,7 @@ def upsample(data,sampling_freq=None, target=None, target_type='samples',method=
             upsampled pandas object
 
     '''
+
     methods = ['linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic']
     if not method in methods:
         raise ValueError("Method must be ‘linear’, ‘nearest’, ‘zero’, ‘slinear’, ‘quadratic’, ‘cubic’")
