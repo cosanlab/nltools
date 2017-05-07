@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from nltools.stats import one_sample_permutation,two_sample_permutation,correlation_permutation, downsample
+from nltools.stats import one_sample_permutation,two_sample_permutation,correlation_permutation, downsample, upsample
 
 def test_permutation():
 	dat = np.random.multivariate_normal([2,6],[[.5,2],[.5,3]],100)
@@ -25,11 +25,16 @@ def test_downsample():
 	dat = pd.DataFrame()
 	dat['x'] = range(0,100)
 	dat['y'] = np.repeat(range(1,11),10)
-	fs = 2
-	us = upsample(dat,sampling_freq=1,target=fs,target_type='hz')
-	assert(dat.shape[0]*fs-fs,us.shape[0])
-	fs = 3
-	us = upsample(dat,sampling_freq=1,target=fs,target_type='hz')
-	assert(dat.shape[0]*fs-fs,us.shape[0])
+	assert((dat.groupby('y').mean().values.ravel() == downsample(data=dat['x'],sampling_freq=10,target=1,target_type='hz',method='mean').values).all)
+	assert((dat.groupby('y').median().values.ravel() == downsample(data=dat['x'],sampling_freq=10,target=1,target_type='hz',method='median').values).all)
 
 def test_upsample():
+	dat = pd.DataFrame()
+	dat['x'] = range(0,100)
+	dat['y'] = np.repeat(range(1,11),10)
+	fs = 2
+	us = upsample(dat,sampling_freq=1,target=fs,target_type='hz')
+	assert(dat.shape[0]*fs-fs == us.shape[0])
+	fs = 3
+	us = upsample(dat,sampling_freq=1,target=fs,target_type='hz')
+	assert(dat.shape[0]*fs-fs == us.shape[0])
