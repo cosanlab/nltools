@@ -250,8 +250,8 @@ def upsample(data,sampling_freq=None, target=None, target_type='samples',method=
             sampling_freq:  Sampling frequency of data
             target: downsampling target
             target_type: type of target can be [samples,seconds,hz]
-            method: (str) (‘linear’, ‘nearest’, ‘zero’, ‘slinear’, ‘quadratic’, ‘cubic’
-                    where ‘zero’, ‘slinear’, ‘quadratic’ and ‘cubic’ refer to a spline
+            method: (str) ('linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic'
+                    where 'zero', 'slinear', 'quadratic' and 'cubic' refer to a spline
                     interpolation of zeroth, first, second or third order)
                     default: linear
         Returns:
@@ -261,7 +261,7 @@ def upsample(data,sampling_freq=None, target=None, target_type='samples',method=
 
     methods = ['linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic']
     if not method in methods:
-        raise ValueError("Method must be ‘linear’, ‘nearest’, ‘zero’, ‘slinear’, ‘quadratic’, ‘cubic’")
+        raise ValueError("Method must be 'linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic'")
 
     if target_type is 'samples':
         n_samples = target
