@@ -403,8 +403,8 @@ def plot_between_label_distance(distance, labels, ax=None, permutation_test=True
 
 def plot_silhouette(distance,labels,ax=None,permutation_test=True,n_permute=5000,**kwargs):
 
-	''' Create a silhouette plot indicating between relative to within label distance
-	
+    ''' Create a silhouette plot indicating between relative to within label distance
+    
         Args:
             distance: (pandas dataframe) brain_distance matrix
             labels: (pandas dataframe) group labels
@@ -412,90 +412,93 @@ def plot_silhouette(distance,labels,ax=None,permutation_test=True,n_permute=5000
             permutation_test: (boolean)
             n_permute: (int) number of samples for permuation test
         Optional keyword args:
-        	figsize: (list) dimensions of silhouette plot
+            figsize: (list) dimensions of silhouette plot
             colors: (list) color triplets for silhouettes. Length must equal number of unique labels
         Returns:
-		    # f: heatmap
-		    # out: pandas dataframe of pairwise distance between conditions
-		    # within_dist_out: average pairwise distance matrix
-		    # mn_dist_out: (optional if permutation_test=True) average difference in distance between conditions
-		    # p_dist_out: (optional if permutation_test=True) p-value for difference in distance between conditions
+            # f: heatmap
+            # out: pandas dataframe of pairwise distance between conditions
+            # within_dist_out: average pairwise distance matrix
+            # mn_dist_out: (optional if permutation_test=True) average difference in distance between conditions
+            # p_dist_out: (optional if permutation_test=True) p-value for difference in distance between conditions
     '''
 
-	#Define label set
-	labelSet = labels.unique()
-	n_clusters = len(labelSet)
+    #Define label set
+    labelSet = labels.unique()
+    n_clusters = len(labelSet)
 
-	#Defaults:
+    #Defaults:
     if 'colors' in locals():
+        print colors
     else:
-		colors = sns.color_palette("hls", n_clusters)
-	if 'figsize' in locals():
-	else:
-		figsize = (12,4)
-
-	#Compute silhouette scores
-	out = pd.DataFrame(columns=('Label','MeanWit','MeanBet','Sil'))
-	for index in range(len(labels)):
-	    label = labels.iloc[index]
-	    sameIndices = [i for i,labelcur in enumerate(labels) if (labelcur==label) & (i!=index)]
-	    within = distance.iloc[index,sameIndices].values.flatten()
-	    otherIndices = [i for i,labelcur in enumerate(labels) if (labelcur!=label)]
-	    between = distance.iloc[index,otherIndices].values.flatten()
-	    silhouetteScore = (np.mean(between)-np.mean(within))/max(np.mean(between),np.mean(within))
-	    out_tmp = pd.DataFrame(columns=out.columns)
-	    out_tmp.at[index] = index
-	    out_tmp['Label'] = label
-	    out_tmp['MeanWit'] = np.mean(within)
-	    out_tmp['MeanBet'] = np.mean(between)
-	    out_tmp['Sil'] = silhouetteScore
-	    out = out.append(out_tmp)
-	sample_silhouette_values = out['Sil']
-
-	#Plot
-	if ax is None:
-        f,ax = plt.subplots(1,figsize = figsize)
+        colors = sns.color_palette("hls", n_clusters)
+    if 'figsize' in locals():
+        print figsize
     else:
-		f = plt.plot(figsize = figsize)
-	x_lower = 10
-	labelX = []
-	for labelInd in range(n_clusters):
-	    label = labelSet[labelInd]
-	    ith_cluster_silhouette_values = sample_silhouette_values[labels == label]
-	    ith_cluster_silhouette_values.sort_values(inplace=True)
-	    size_cluster_i = ith_cluster_silhouette_values.shape[0]
-	    x_upper = x_lower + size_cluster_i
+        figsize = (6,4)
 
-	    color = colors[labelInd]
-	    with sns.axes_style("white"):
-	        plt.fill_between(np.arange(x_lower,x_upper),0,ith_cluster_silhouette_values,
-	                    facecolor=color,edgecolor=color)
-	    
-	    labelX = np.hstack((labelX,np.mean([x_lower,x_upper])))
-	    x_lower = x_upper + 3
+    #Compute silhouette scores
+    out = pd.DataFrame(columns=('Label','MeanWit','MeanBet','Sil'))
+    for index in range(len(labels)):
+        label = labels.iloc[index]
+        sameIndices = [i for i,labelcur in enumerate(labels) if (labelcur==label) & (i!=index)]
+        within = distance.iloc[index,sameIndices].values.flatten()
+        otherIndices = [i for i,labelcur in enumerate(labels) if (labelcur!=label)]
+        between = distance.iloc[index,otherIndices].values.flatten()
+        silhouetteScore = (np.mean(between)-np.mean(within))/max(np.mean(between),np.mean(within))
+        out_tmp = pd.DataFrame(columns=out.columns)
+        out_tmp.at[index] = index
+        out_tmp['Label'] = label
+        out_tmp['MeanWit'] = np.mean(within)
+        out_tmp['MeanBet'] = np.mean(between)
+        out_tmp['Sil'] = silhouetteScore
+        out = out.append(out_tmp)
+    sample_silhouette_values = out['Sil']
 
-	#Format plot
-	ax = plt.gca()
-	ax.set_xticks(labelX)
-	ax.set_xticklabels(labelSet)
-	ax.set_title('Silhouette',fontsize=18)
-	ax.set_xlim([5,10+len(labels)+n_clusters*3])
-	ylims = np.hstack([ylims,ax.get_ylim()])
+    #Plot
+    with sns.axes_style("white"):
+        if ax is None:
+            f,ax = plt.subplots(1,figsize = figsize)
+        else:
+            f = plt.plot(figsize = figsize)
+    x_lower = 10
+    labelX = []
+    for labelInd in range(n_clusters):
+        label = labelSet[labelInd]
+        ith_cluster_silhouette_values = sample_silhouette_values[labels == label]
+        ith_cluster_silhouette_values.sort_values(inplace=True)
+        size_cluster_i = ith_cluster_silhouette_values.shape[0]
+        x_upper = x_lower + size_cluster_i
 
-	#Permutation test on mean silhouette score per label
-	if permutation_test:
-		outAll = pd.DataFrame(columns=['mean','p'])
+        color = colors[labelInd]
+        with sns.axes_style("white"):
+            plt.fill_between(np.arange(x_lower,x_upper),0,ith_cluster_silhouette_values,
+                        facecolor=color,edgecolor=color)
+        
+        labelX = np.hstack((labelX,np.mean([x_lower,x_upper])))
+        x_lower = x_upper + 3
+
+    #Format plot
+    # ax = plt.gca()
+    ax.set_xticks(labelX)
+    ax.set_xticklabels(labelSet)
+    ax.set_title('Silhouettes',fontsize=18)
+    ax.set_xlim([5,10+len(labels)+n_clusters*3])
+    
+    #Permutation test on mean silhouette score per label
+    if permutation_test:
+        outAll = pd.DataFrame(columns=['label','mean','p'])
         for labelInd in range(n_clusters):
-	        temp = pd.DataFrame(columns=outAll.columns)
-	        label = labelSet[labelInd]
-	        data = sample_silhouette_values[labels == label]
-	        temp.loc[0,'mean'] = np.mean(data)
-	        if np.mean(data)>0: #Only test positive mean silhouette scores
-	            statsout = my_one_sample_permutation(data, n_permute = permutations)
-	            temp['p'] = statsout['p']
-	        else:
-	            temp['p'] = 999
-	        outAll = outAll.append(temp)
+            temp = pd.DataFrame(columns=outAll.columns)
+            label = labelSet[labelInd]
+            data = sample_silhouette_values[labels == label]
+            temp.loc[labelInd,'label'] = label
+            temp.loc[labelInd,'mean'] = np.mean(data)
+            if np.mean(data)>0: #Only test positive mean silhouette scores
+                statsout = my_one_sample_permutation(data, n_permute = n_permute)
+                temp['p'] = statsout['p']
+            else:
+                temp['p'] = 999
+            outAll = outAll.append(temp)
         return (f, outAll)
     else:
         return (f)
