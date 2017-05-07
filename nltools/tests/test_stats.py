@@ -25,5 +25,11 @@ def test_downsample():
 	dat = pd.DataFrame()
 	dat['x'] = range(0,100)
 	dat['y'] = np.repeat(range(1,11),10)
-	assert((dat.groupby('y').mean().values.ravel() == downsample(data=dat['x'],sampling_freq=10,target=1,target_type='hz',method='mean').values).all)
-	assert((dat.groupby('y').median().values.ravel() == downsample(data=dat['x'],sampling_freq=10,target=1,target_type='hz',method='median').values).all)
+	fs = 2
+	us = upsample(dat,sampling_freq=1,target=fs,target_type='hz')
+	assert(dat.shape[0]*fs-fs,us.shape[0])
+	fs = 3
+	us = upsample(dat,sampling_freq=1,target=fs,target_type='hz')
+	assert(dat.shape[0]*fs-fs,us.shape[0])
+
+def test_upsample():
