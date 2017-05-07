@@ -426,14 +426,10 @@ def plot_silhouette(distance,labels,ax=None,permutation_test=True,n_permute=5000
     labelSet = labels.unique()
     n_clusters = len(labelSet)
 
-    #Defaults:
-    if 'colors' in locals():
-        print colors
-    else:
+    #Set defaults for plot design
+    if 'colors' not in kwargs.keys():
         colors = sns.color_palette("hls", n_clusters)
-    if 'figsize' in locals():
-        print figsize
-    else:
+    if 'figsize' not in kwargs.keys():
         figsize = (6,4)
 
     #Compute silhouette scores
@@ -478,7 +474,6 @@ def plot_silhouette(distance,labels,ax=None,permutation_test=True,n_permute=5000
         x_lower = x_upper + 3
 
     #Format plot
-    # ax = plt.gca()
     ax.set_xticks(labelX)
     ax.set_xticklabels(labelSet)
     ax.set_title('Silhouettes',fontsize=18)
@@ -494,7 +489,7 @@ def plot_silhouette(distance,labels,ax=None,permutation_test=True,n_permute=5000
             temp.loc[labelInd,'label'] = label
             temp.loc[labelInd,'mean'] = np.mean(data)
             if np.mean(data)>0: #Only test positive mean silhouette scores
-                statsout = my_one_sample_permutation(data, n_permute = n_permute)
+                statsout = one_sample_permutation(data, n_permute = n_permute)
                 temp['p'] = statsout['p']
             else:
                 temp['p'] = 999
