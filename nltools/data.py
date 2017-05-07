@@ -1860,6 +1860,17 @@ class Adjacency(object):
             tmp2 = out.loc[(out['Group'] == i) & (out['Type'] == 'Between'), 'Distance']
             stats[str(i)] = two_sample_permutation(tmp1, tmp2, n_permute=n_permute)
         return stats
+    
+    def plot_silhouette(self,labels,ax=None,permutation_test=True,n_permute=5000,**kwargs):
+        
+        distance = pd.DataFrame(self.squareform())
+        
+        if len(labels) != distance.shape[0]:
+            raise ValueError('Labels must be same length as distance matrix')
+        
+        (f,outAll) = plot_silhouette(distance,labels,ax=None,permutation_test=True,n_permute=5000,**kwargs)
+        
+        return (f,outAll)
 
 
 class Groupby(object):
