@@ -26,6 +26,8 @@ import pandas as pd
 from scipy.stats import ss, pearsonr, spearmanr, kendalltau
 from copy import deepcopy
 import nibabel as nib
+from scipy.interpolate import interp1d
+import warnings
 
 def pearson(x, y):
     """ Correlates row vector x with each row vector in 2D array y.
@@ -239,6 +241,54 @@ def downsample(data,sampling_freq=None, target=None, target_type='samples',
         return data.groupby(idx).mean()
     elif method=='median':
         return data.groupby(idx).median()
+
+def upsample(data,sampling_freq=None, target=None, target_type='samples',method='linear'):
+    ''' Upsample pandas to a new target frequency or number of samples using interpolation.
+
+        Args:
+            data: Pandas Series or DataFrame (Note: will drop non-numeric columns from DataFrame)
+            sampling_freq:  Sampling frequency of data
+            target: downsampling target
+            target_type: type of target can be [samples,seconds,hz]
+            method: (str) ('linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic'
+                    where 'zero', 'slinear', 'quadratic' and 'cubic' refer to a spline
+                    interpolation of zeroth, first, second or third order)
+                    default: linear
+        Returns:
+            upsampled pandas object
+
+    '''
+
+    methods = ['linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic']
+    if not method in methods:
+        raise ValueError("Method must be 'linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic'")
+
+    if target_type is 'samples':
+        n_samples = target
+    elif target_type is 'seconds':
+        n_samples = target*sampling_freq
+    elif target_type is 'hz':
+        n_samples = sampling_freq/target
+    else:
+        raise ValueError('Make sure target_type is "samples", "seconds", or "hz".')
+
+    orig_spacing = np.arange(0,data.shape[0],1)
+    new_spacing = np.arange(0,data.shape[0]-1,n_samples)
+
+    if isinstance(data,pd.Series):
+        interpolate = interp1d(orig_spacing,data,kind=method)
+        return interpolate(new_spacing)
+    elif isinstance(data,pd.DataFrame):
+        numeric_data = data._get_numeric_data()
+        if data.shape[1] != numeric_data.shape[1]:
+            warnings.warn('Dropping %s non-numeric columns' % (data.shape[1] - numeric_data.shape[1]), UserWarning)
+        out = pd.DataFrame(columns=numeric_data.columns, index=None)
+        for i,x in numeric_data.iteritems():
+            interpolate = interp1d(orig_spacing, x, kind=method)
+            out.loc[:, i] = interpolate(new_spacing)
+        return out
+    else:
+        raise ValueError('Data must by a pandas DataFrame or Series instance.')
 
 def fisher_r_to_z(r):
     ''' Use Fisher transformation to convert correlation to z score '''
