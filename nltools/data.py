@@ -2108,7 +2108,7 @@ class Design_Matrix(DataFrame):
                         colOrder.append(colB)
                 out = super(Design_Matrix, out).append(outdf, ignore_index=True)
                 # out = out.append(outdf,separate=False,axis=0,ignore_index=True).fillna(0)
-                out = out[colOrder].fillna(0)
+                out = out[colOrder]
             else:
                 raise ValueError("Separate concatentation impossible. None of "
                                 "the requested unique columns were found in "
@@ -2116,7 +2116,6 @@ class Design_Matrix(DataFrame):
         else:
             out = super(Design_Matrix, self).append(outdf, ignore_index=True)
             # out = self.append(df,separate=False,axis=0,ignore_index=True).fillna(0)
-            out = out[self.columns]
 
         out.convolved = self.convolved
         out.sampling_rate = self.sampling_rate
@@ -2171,7 +2170,7 @@ class Design_Matrix(DataFrame):
         """Perform convolution using an arbitrary function.
 
         Args:
-            conv_func (ndarray or string): numpy array containing output of a function that you want to convolve; if string 'hrf' defaults to a glover HRF function at the Design_matrix's sampling_freq (default)
+            conv_func (ndarray or string): either a 1d numpy array containing output of a function that you want to convolve; a samples by kernel 2d array of several kernels to convolve; or th string 'hrf' which defaults to a glover HRF function at the Design_matrix's sampling_freq
             colNames (list): what columns to perform convolution on; defaults
                             to all skipping intercept, and columns containing 'poly' or 'cosine'
 
@@ -2182,14 +2181,28 @@ class Design_Matrix(DataFrame):
             colNames = [col for col in self.columns if 'intercept' not in col and 'poly' not in col and 'cosine' not in col]
         nonConvolved = [col for col in self.columns if col not in colNames]
 
-        if conv_func == 'hrf':
-            convDat = glover_hrf(self.sampling_rate,oversampling=1)
-        else:
-            assert conv_func is not None, 'Must provide a function for convolution!'
+        if type(conv_func) == str:
+            assert conv_func == 'hrf',"Did you mean 'hrf'? 'hrf' can generate a kernel for you, otherwise custom kernels should be passed in as 1d or 2d arrays."
 
-        c = self[colNames].apply(lambda x: np.convolve(x, convDat)[:self.shape[0]])
-        c.columns = [str(col)+'_c' for col in c.columns]
-        out = pd.concat([c,self[nonConvolved]], axis=1)
+            assert self.sampling_rate is not None, "Design_matrix sampling rate not set. Can't figure out how to generate HRF!"
+            conv_func = glover_hrf(self.sampling_rate,oversampling=1)
+
+        else:
+            assert type(conv_func) == np.ndarray, 'Must provide a function for convolution!'
+
+        if len(conv_func.shape) > 1:
+            assert conv_func.shape[0] > conv_func.shape[1], '2d conv_func must be formatted as, samples X kernels!'
+            conv_mats = []
+            for i in xrange(conv_func.shape[1]):
+                c = self[colNames].apply(lambda x: np.convolve(x, conv_func[:,i])[:self.shape[0]])
+                c.columns = [str(col)+'_c'+str(i) for col in c.columns]
+                conv_mats.append(c)
+                out = pd.concat(conv_mats+ [self[nonConvolved]], axis=1)
+        else:
+            c = self[colNames].apply(lambda x: np.convolve(x, conv_func)[:self.shape[0]])
+            c.columns = [str(col)+'_c0' for col in c.columns]
+            out = pd.concat([c,self[nonConvolved]], axis=1)
+
         out.convolved = colNames
         out.sampling_rate = self.sampling_rate
         out.hasIntercept = self.hasIntercept
