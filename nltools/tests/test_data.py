@@ -351,8 +351,22 @@ def test_groupby(tmpdir):
     assert len(combine_mn.shape())==1
 
 def test_designmat(tmpdir):
-    mat1 = Design_Matrix({'X':[1,4,2,7,5,9,2,1,3,2],'Y':[3,0,0,6,9,9,10,10,1,10],'Z':[2,2,2,2,7,0,1,3,3,2],'intercept':[1,1,1,1,1,1,1,1,1,1]},TR=2.0,hasIntercept=True)
-    mat2 = Design_Matrix({'X':[9,9,2,7,5,0,1,1,1,2],'Y':[3,3,3,6,9,0,1,10,1,10],'Z':[2,6,3,2,7,0,1,7,8,8],'intercept':[1,1,1,1,1,1,1,1,1,1]},TR=2.0,hasIntercept=True)
+
+    mat1 = Design_Matrix({
+    'X':[1,4,2,7,5,9,2,1,3,2],
+    'Y':[3,0,0,6,9,9,10,10,1,10],
+    'Z':[2,2,2,2,7,0,1,3,3,2],
+    'intercept':[1,1,1,1,1,1,1,1,1,1]
+    },
+    sampling_rate=2.0,hasIntercept=True)
+
+    mat2 = Design_Matrix({
+    'X':[9,9,2,7,5,0,1,1,1,2],
+    'Y':[3,3,3,6,9,0,1,10,1,10],
+    'Z':[2,6,3,2,7,0,1,7,8,8],
+    'intercept':[1,1,1,1,1,1,1,1,1,1]
+    },
+    sampling_rate=2.0,hasIntercept=True)
 
     #appending
     assert mat1.append(mat1,axis=1).shape == (mat1.shape[0],mat1.shape[1]+mat2.shape[1])

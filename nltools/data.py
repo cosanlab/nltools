@@ -28,7 +28,8 @@ from nltools.plotting import (dist_from_hyperplane_plot,
                               scatterplot,
                               probability_plot,
                               roc_plot,
-                              plot_stacked_adjacency)
+                              plot_stacked_adjacency,
+                              plot_silhouette)
 from nltools.stats import (pearson,
                            fdr,
                            threshold,
@@ -37,7 +38,7 @@ from nltools.stats import (pearson,
                            one_sample_permutation,
                            two_sample_permutation)
 from nltools.mask import expand_mask, collapse_mask
-from nltools.stats import downsample, zscore
+from nltools.stats import downsample, zscore, upsample
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
 from nilearn.image import resample_img
@@ -1225,11 +1226,13 @@ class Brain_Data(object):
             raise ValueError("Need to provide sampling rate!")
         if high_pass is None and low_pass is None:
             raise ValueError("high_pass and/or low_pass cutoff must be provided!")
+        if TR is None:
+            raise ValueError("Need to provide TR!")
 
         standardize = kwargs.get('standardize',False)
         detrend = kwargs.get('detrend',False)
         out = self.copy()
-        out.data = clean(out.data,t_r=sampling_rate,detrend=detrend,standardize=standardize,high_pass=high_pass,low_pass=low_pass,**kwargs)
+        out.data = clean(out.data,t_r=TR,detrend=detrend,standardize=standardize,high_pass=high_pass,low_pass=low_pass,**kwargs)
         return out
 
 
@@ -1860,16 +1863,16 @@ class Adjacency(object):
             tmp2 = out.loc[(out['Group'] == i) & (out['Type'] == 'Between'), 'Distance']
             stats[str(i)] = two_sample_permutation(tmp1, tmp2, n_permute=n_permute)
         return stats
-    
+
     def plot_silhouette(self,labels,ax=None,permutation_test=True,n_permute=5000,**kwargs):
-        
+
         distance = pd.DataFrame(self.squareform())
-        
+
         if len(labels) != distance.shape[0]:
             raise ValueError('Labels must be same length as distance matrix')
-        
+
         (f,outAll) = plot_silhouette(distance,labels,ax=None,permutation_test=True,n_permute=5000,**kwargs)
-        
+
         return (f,outAll)
 
 
@@ -1975,27 +1978,21 @@ class Design_Matrix(DataFrame):
         new design matrix instance.
 
     Args:
-        hrf (list, optional): functions to apply when convolution is performed;
-                            defaults to glover HRF
-        convolved (bool, optional): whether convolution has been performed;
-                            defaults to False
+        convolved (list, optional): on what columns convolution has been performed; defaults to None
         hasIntercept (bool, optional): whether the design matrix has an
                             intercept column; defaults to False
-        TR (float, optional): sampling frequence of each row; defaults to None
+        sampling_rate (float, optional): sampling rate of each row in seconds (e.g. TR in neuroimaging); defaults to None
 
     """
 
-    _metadata = ['TR', 'hrf', 'convolved', 'hasIntercept']
+    _metadata = ['sampling_rate', 'convolved', 'hasIntercept']
 
     def __init__(self, *args, **kwargs):
 
-        hrf = kwargs.pop('hrf', [glover_hrf])
-        convolved = kwargs.pop('convolved', False)
+        sampling_rate = kwargs.pop('sampling_rate',None)
+        convolved = kwargs.pop('convolved', None)
         hasIntercept = kwargs.pop('hasIntercept', False)
-        TR = kwargs.pop('TR', None)
-
-        self.TR = TR
-        self.hrf = hrf
+        self.sampling_rate = sampling_rate
         self.convolved = convolved
         self.hasIntercept = hasIntercept
 
@@ -2014,11 +2011,11 @@ class Design_Matrix(DataFrame):
         """Print class meta data.
 
         """
-        return '%s.%s(shape=%s, hrf=%s, convolved=%s, hasIntercept=%s)' % (
+        return '%s.%s(sampling_rate=%s, shape=%s, convolved=%s, hasIntercept=%s)' % (
             self.__class__.__module__,
             self.__class__.__name__,
+            self.sampling_rate,
             self.shape,
-            self.hrf,
             self.convolved,
             self.hasIntercept
             )
@@ -2060,7 +2057,7 @@ class Design_Matrix(DataFrame):
                              "Mat 1 has %s rows and Mat 2 has %s rows."
                             % (self.shape[0]), df.shape[0])
         out = pd.concat([self, df], axis=1)
-        out.TR = self.TR
+        out.sampling_rate = self.sampling_rate
         out.convolved = self.convolved
         out.hasIntercept = self.hasIntercept
         return out
@@ -2122,7 +2119,7 @@ class Design_Matrix(DataFrame):
             out = out[self.columns]
 
         out.convolved = self.convolved
-        out.TR = self.TR
+        out.sampling_rate = self.sampling_rate
         out.hasIntercept = self.hasIntercept
 
         return out
@@ -2170,32 +2167,31 @@ class Design_Matrix(DataFrame):
         ax.axvline(x=self.shape[1], color='k', linewidth=4)
         plt.yticks(rotation=0)
 
-    def convolve(self, colNames=None):
-        """Perform convolution using an hrf function.
+    def convolve(self, conv_func='hrf', colNames=None):
+        """Perform convolution using an arbitrary function.
 
         Args:
+            conv_func (ndarray or string): numpy array containing output of a function that you want to convolve; if string 'hrf' defaults to a glover HRF function at the Design_matrix's sampling_freq (default)
             colNames (list): what columns to perform convolution on; defaults
-                            to all
+                            to all skipping intercept, and columns containing 'poly' or 'cosine'
 
         """
-        assert self.TR is not None, "No TR specified!"
-        assert len(self.hrf) != 0, "No convolution function(s) specified!"
+        assert self.sampling_rate is not None, "Design_matrix has no sampling_rate set!"
 
         if colNames is None:
             colNames = [col for col in self.columns if 'intercept' not in col and 'poly' not in col and 'cosine' not in col]
         nonConvolved = [col for col in self.columns if col not in colNames]
 
-        convolvedMats = []
-        for i, func in enumerate(self.hrf):
-            hrfDat = func(self.TR, oversampling=1)
-            c = self[colNames].apply(lambda x: np.convolve(x, hrfDat)[:self.shape[0]])
-            c.columns = [str(col)+'_c'+str(i) for col in c.columns]
-            convolvedMats.append(c)
-        out = pd.concat(convolvedMats+[self[nonConvolved]], axis=1)
+        if conv_func == 'hrf':
+            convDat = glover_hrf(self.sampling_rate,oversampling=1)
+        else:
+            assert conv_func is not None, 'Must provide a function for convolution!'
 
+        c = self[colNames].apply(lambda x: np.convolve(x, convDat)[:self.shape[0]])
+        c.columns = [str(col)+'_c' for col in c.columns]
+        out = pd.concat([c,self[nonConvolved]], axis=1)
         out.convolved = colNames
-        out.TR = self.TR
-        out.hrf = self.hrf
+        out.sampling_rate = self.sampling_rate
         out.hasIntercept = self.hasIntercept
         return out
 
@@ -2210,10 +2206,29 @@ class Design_Matrix(DataFrame):
             kwargs: additional inputs to nltools.stats.downsample
 
         """
-        df = downsample(self, sampling_freq=self.TR, target=target, **kwargs)
+        df = downsample(self, sampling_freq=self.sampling_rate, target=target, **kwargs)
 
         # convert df to a design matrix
-        newMat = Design_Matrix(df, hrf=self.hrf,TR=target,
+        newMat = Design_Matrix(df, sampling_rate=target,
+                               convolved=self.convolved,
+                               hasIntercept=self.hasIntercept)
+        return newMat
+
+    def upsample(self, target,**kwargs):
+        """Upsample columns of design matrix. Relies on
+            nltools.stats.upsample, but ensures that returned object is a
+            design matrix.
+
+        Args:
+            target(float): downsampling target, typically in samples not
+                            seconds
+            kwargs: additional inputs to nltools.stats.downsample
+
+        """
+        df = upsample(self, sampling_freq=self.sampling_rate, target=target, **kwargs)
+
+        # convert df to a design matrix
+        newMat = Design_Matrix(df, sampling_rate=target,
                                convolved=self.convolved,
                                hasIntercept=self.hasIntercept)
         return newMat
@@ -2234,7 +2249,7 @@ class Design_Matrix(DataFrame):
         df = zscore(self[colNames])
         df = pd.concat([df, self[nonZ]], axis=1)
         df = df[colOrder]
-        newMat = Design_Matrix(df, hrf=self.hrf, TR=self.TR,
+        newMat = Design_Matrix(df, sampling_rate=self.sampling_rate,
                                convolved=self.convolved,
                                hasIntercept=self.hasIntercept)
 
@@ -2290,10 +2305,10 @@ class Design_Matrix(DataFrame):
             duration (int): length of filter in seconds
 
         """
-        assert self.TR is not None, "No TR specified!"
-        basis_mat = make_cosine_basis(self.shape[0],self.TR,duration)
+        assert self.sampling_rate is not None, "Design_Matrix has no sampling_rate set!"
+        basis_mat = make_cosine_basis(self.shape[0],self.sampling_rate,duration)
 
-        basis_frame = Design_Matrix(basis_mat,TR=self.TR,hasIntercept=False,convolved=False)
+        basis_frame = Design_Matrix(basis_mat,sampling_rate=self.sampling_rate,hasIntercept=False,convolved=False)
 
         basis_frame.columns = ['cosine_'+str(i+1) for i in xrange(basis_frame.shape[1])]
 
