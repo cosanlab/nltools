@@ -11,6 +11,7 @@ Tools to help with statistical analyses.
 __all__ = ['pearson',
             'zscore',
             'fdr',
+            'holm_bonf',
             'threshold',
             'multi_threshold',
             'winsorize',
@@ -81,6 +82,30 @@ def fdr(p, q=.05):
     below = np.where(s <= null)[0]
     fdr_p = s[max(below)] if any(below) else -1
     return fdr_p
+
+def holm_bonf(p, alpha=.05):
+    """ Compute corrected p-values based on the Holm-Bonferroni method, i.e. step-down procedure applying iteratively less correction to highest p-values. Modified from stats.models approach.
+
+    Args:
+        p: vector of p-values (numpy array)
+        alpha: alpha level
+
+    Returns:
+        p_corrected: numpy array of corrected p-values
+
+    """
+
+    if not isinstance(p, np.ndarray):
+        raise ValueError('Make sure vector of p-values is a numpy array')
+
+    idx = p.argsort()
+    s = p[idx]
+    s *= np.arange(len(s),0,-1)
+    s = np.maximum.accumulate(s)
+    p_corrected = np.empty_like(p)
+    p_corrected[idx] = s
+
+    return p_corrected
 
 def threshold(stat, p, thr=.05):
     """ Threshold test image by p-value from p image
