@@ -354,7 +354,7 @@ class Brain_Data(object):
 
         b = np.dot(np.linalg.pinv(self.X), self.data)
         res = self.data - np.dot(self.X, b)
-        sigma = np.std(res, axis=0)
+        sigma = np.std(res, axis=0, ddof=self.X.shape[0])
         stderr = np.dot(np.matrix(np.diagonal(np.linalg.inv(np.dot(self.X.T,
                         self.X)))**.5).T, np.matrix(sigma))
         b_out = deepcopy(self)
