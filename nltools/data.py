@@ -321,7 +321,7 @@ class Brain_Data(object):
         if self.data.ndim == 1:
             plot_stat_map(self.to_nifti(), anatomical,
                           cut_coords=range(-40, 50, 10), display_mode='z',
-                          black_bg=True, colorbar=True, draw_cross=False)
+                          black_bg=True, colorbar=True, draw_cross=False,**kwargs)
         else:
             for i in xrange(self.data.shape[0]):
                 if i < limit:
@@ -354,7 +354,7 @@ class Brain_Data(object):
 
         b = np.dot(np.linalg.pinv(self.X), self.data)
         res = self.data - np.dot(self.X, b)
-        sigma = np.std(res, axis=0, ddof=self.X.shape[0])
+        sigma = np.std(res, axis=0, ddof=self.X.shape[1])
         stderr = np.dot(np.matrix(np.diagonal(np.linalg.inv(np.dot(self.X.T,
                         self.X)))**.5).T, np.matrix(sigma))
         b_out = deepcopy(self)
