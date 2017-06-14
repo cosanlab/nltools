@@ -745,7 +745,7 @@ class Brain_Data(object):
 
             for train, test in cv:
                 predictor_cv.fit(self.data[train], self.Y.loc[train])
-                output['yfit_xval'][test] = predictor_cv.predict(self.data[test])
+                output['yfit_xval'][test] = predictor_cv.predict(self.data[test]).ravel()
                 if predictor_settings['prediction_type'] == 'classification':
                     if predictor_settings['algorithm'] not in ['svm', 'ridgeClassifier', 'ridgeClassifierCV']:
                         output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])[:, 1]
