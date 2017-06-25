@@ -19,7 +19,7 @@ import warnings
 from distutils.version import LooseVersion
 import random
 
-import cPickle 
+import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from nilearn import datasets
@@ -52,7 +52,7 @@ class Simulator:
             self.output_dir = os.path.join(os.getcwd())
         else:
             self.output_dir = output_dir
-        
+
         if type(brain_mask) is str:
             brain_mask = nib.load(brain_mask)
         elif brain_mask is None:
@@ -74,7 +74,7 @@ class Simulator:
             i_tot: sum total of activation (numerical integral over the gaussian returns this value)
         """
         x, y, z = np.mgrid[0:self.brain_mask.shape[0], 0:self.brain_mask.shape[1], 0:self.brain_mask.shape[2]]
-        
+
         # Need an (N, 3) array of (x, y) pairs.
         xyz = np.column_stack([x.flat, y.flat, z.flat])
 
@@ -83,7 +83,7 @@ class Simulator:
 
         # Reshape back to a 3D grid.
         g = g.reshape(x.shape).astype(float)
-        
+
         #select only the regions within the brain mask
         g = np.multiply(self.brain_mask.get_data(),g)
         #adjust total intensity of gaussian
@@ -107,7 +107,7 @@ class Simulator:
         activation[mask] = 1
         activation = np.multiply(activation, self.brain_mask.get_data())
         activation = nib.Nifti1Image(activation, affine=np.eye(4))
-        
+
         #return the 3D numpy matrix of zeros containing the sphere as a region of ones
         return activation.get_data()
 
@@ -119,7 +119,7 @@ class Simulator:
             sigma: standard deviation
         """
         vmask = self.nifti_masker.fit_transform(self.brain_mask)
-        
+
         vlength = int(np.sum(self.brain_mask.get_data()))
         if sigma is not 0:
             n = np.random.normal(mu, sigma, vlength)
@@ -176,7 +176,7 @@ class Simulator:
             sigma: amount of noise to add
             radius: vector of radius.  Will create multiple spheres if len(radius) > 1
             center: center(s) of sphere(s) of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]]
-            reps: number of data repetitions useful for trials or subjects 
+            reps: number of data repetitions useful for trials or subjects
             output_dir: string path of directory to output data.  If None, no data will be written
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
 
@@ -189,10 +189,10 @@ class Simulator:
         for i in xrange(reps - 1):
             y = y + levels
             rep_id.extend([i+2] * nlevels)
-        
+
         #initialize useful values
         dims = self.brain_mask.get_data().shape
-        
+
         # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
         A = self.n_spheres(radius, center)
 
@@ -206,12 +206,12 @@ class Simulator:
         N_list = []
         for i in xrange(len(y)):
             N_list.append(self.normal_noise(mu, sigma))
-        
+
         #add noise and signal together, then convert to nifti files
         NF_list = []
         for i in xrange(len(y)):
             NF_list.append(self.to_nifti(np.add(N_list[i],A_list[i]) ))
-        
+
         # Assign variables to object
         self.data = NF_list
         self.y = y
@@ -245,7 +245,7 @@ class Simulator:
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
 
         """
-        
+
         if mask is None:
             # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
             A = self.n_spheres(10, None) #parameters are (radius, center)
@@ -261,7 +261,7 @@ class Simulator:
         cov_matrix[:,0] = cor # set covariance with all other voxels
         np.fill_diagonal(cov_matrix,1) # set diagonal to 1
         mv_sim = np.random.multivariate_normal(np.zeros([n_vox+1]),cov_matrix, size=reps)
-        print mv_sim
+        print(mv_sim)
         y = mv_sim[:,0]
         self.y = y
         mv_sim = mv_sim[:,1:]
@@ -286,7 +286,7 @@ class Simulator:
         # cov_matrix[:,0] = cor # set covariance with all other voxels
         # np.fill_diagonal(cov_matrix,1) # set diagonal to 1
         # mv_sim = np.random.multivariate_normal(np.zeros([len(x)+1]),cov_matrix, size=reps) # simulate data from multivariate covar
-        # self.y = mv_sim[:,0] 
+        # self.y = mv_sim[:,0]
         # mv_sim = mv_sim[:,1:]
         # A_4d = np.resize(A,(reps,A.shape[0],A.shape[1],A.shape[2]))
         # for i in xrange(len(x)):
@@ -323,7 +323,7 @@ class Simulator:
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
 
         """
-        
+
         if masks is None:
             # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
             A = self.n_spheres(10, None) #parameters are (radius, center)
@@ -364,7 +364,7 @@ class Simulator:
         # these operations happen in one vector that we'll later split into the separate regions
         print("Generating multivariate normal distribution...")
         mv_sim_l = np.random.multivariate_normal(np.zeros([np.sum(n_vox)+1]),cov_matrix, size=reps)
-        print mv_sim_l
+        print(mv_sim_l)
 
         self.y = mv_sim_l[:,0]
         mv_sim = mv_sim_l[:,1:]
@@ -374,7 +374,7 @@ class Simulator:
             for mask_i in range(len(masks)):
                 start = int( np.sum(n_vox[:mask_i]) )
                 stop = int( start + n_vox[mask_i] )
-                print rep, start, stop
+                print(rep, start, stop)
                 new_dats[rep,np.where(flat_masks[mask_i,:]==1)] = mv_sim[rep,start:stop]
 
         noise = np.random.standard_normal(size=new_dats.shape[1])*sigma
@@ -412,6 +412,3 @@ class Simulator:
                 rep_id_file = open(os.path.join(output_dir,'rep_id.csv'), 'wb')
                 wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
                 wr.writerow(self.rep_id)
-
-
-
