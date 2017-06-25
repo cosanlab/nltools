@@ -20,7 +20,7 @@ __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
 import os
-import cPickle
+import pickle # import cPickle
 import nibabel as nib
 from nltools.utils import get_resource_path, set_algorithm, get_anatomical, make_cosine_basis, glover_hrf
 from nltools.cross_validation import set_cv
@@ -111,7 +111,7 @@ class Brain_Data(object):
         self.nifti_masker = NiftiMasker(mask_img=self.mask)
 
         if data is not None:
-            if isinstance(data, (str, unicode)):
+            if isinstance(data, six.string_types):
                 if 'http://' in data:
                     from nltools.datasets import download_nifti
                     tmp_dir = os.path.join(tempfile.gettempdir(),
@@ -311,7 +311,7 @@ class Brain_Data(object):
 
         if anatomical is not None:
             if not isinstance(anatomical, nib.Nifti1Image):
-                if isinstance(anatomical, str):
+                if isinstance(anatomical, six.string_types):
                     anatomical = nib.load(anatomical)
                 else:
                     raise ValueError("anatomical is not a nibabel instance")
@@ -970,8 +970,10 @@ class Brain_Data(object):
 
         # make and store data we will need to access on the worker core level
         parallel_job.make_searchlight_masks()
-        cPickle.dump(parallel_job, open(
+        pickle.dump(parallel_job, open(
                         os.path.join(parallel_out, "pbs_searchlight.pkl"), "w"))
+        # cPickle.dump(parallel_job, open(
+        #                 os.path.join(parallel_out, "pbs_searchlight.pkl"), "w"))
 
         #make core startup script (python)
         parallel_job.make_startup_script("core_startup.py")
@@ -1300,7 +1302,7 @@ class Brain_Data(object):
         '''
 
         b = self.copy()
-        if isinstance(thresh, str):
+        if isinstance(thresh, six.string_types):
             if thresh[-1] is '%':
                 thresh = np.percentile(b.data, float(thresh[:-1]))
         if binarize:
@@ -1391,7 +1393,7 @@ class Adjacency(object):
             self.data, self.issymmetric, self.matrix_type, self.is_single_matrix = self._import_single_data(data, matrix_type=matrix_type)
 
         if Y is not None:
-            if isinstance(Y, str):
+            if isinstance(Y, six.string_types):
                 if os.path.isfile(Y):
                     Y = pd.read_csv(Y, header=None, index_col=None)
             if isinstance(Y, pd.DataFrame):
@@ -1472,7 +1474,7 @@ class Adjacency(object):
     def _import_single_data(self, data, matrix_type=None):
         ''' Helper function to import single data matrix.'''
 
-        if isinstance(data, str):
+        if isinstance(data, six.string_types):
             if os.path.isfile(data):
                 data = pd.read_csv(data)
             else:
@@ -1749,7 +1751,7 @@ class Adjacency(object):
         '''
 
         b = self.copy()
-        if isinstance(thresh, str):
+        if isinstance(thresh, six.string_types):
             if thresh[-1] is '%':
                 thresh = np.percentile(b.data, float(thresh[:-1]))
         if binarize:
@@ -2181,7 +2183,7 @@ class Design_Matrix(DataFrame):
             colNames = [col for col in self.columns if 'intercept' not in col and 'poly' not in col and 'cosine' not in col]
         nonConvolved = [col for col in self.columns if col not in colNames]
 
-        if type(conv_func) == str:
+        if isintance(conv_func,six.string_types):
             assert conv_func == 'hrf',"Did you mean 'hrf'? 'hrf' can generate a kernel for you, otherwise custom kernels should be passed in as 1d or 2d arrays."
 
             assert self.sampling_rate is not None, "Design_matrix sampling rate not set. Can't figure out how to generate HRF!"
