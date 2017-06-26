@@ -224,7 +224,7 @@ class Simulator:
         if output_dir is not None and isinstance(output_dir, six.string_types):
             NF_list.write(os.path.join(output_dir,'data.nii.gz'))
             self.y.to_csv(os.path.join(output_dir, 'y.csv'), index=None,header=False)
-            self.rep_id.to_csv(os.path.join(output_dir, 'repi_id.csv'), index=None,header=False)
+            self.rep_id.to_csv(os.path.join(output_dir, 'rep_id.csv'), index=None,header=False)
         return dat
 
     def create_cov_data(self, cor, cov, sigma, mask=None, reps = 1, n_sub = 1, output_dir = None):
