@@ -12,7 +12,7 @@ __license__ = "MIT"
 
 
 import os
-
+import six
 import time
 import sys
 import warnings
@@ -24,7 +24,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from nilearn import datasets
 from nilearn import plotting
-
+import pandas as pd
 import nibabel as nib
 
 import sklearn
@@ -40,7 +40,7 @@ from nilearn import masking
 from nilearn.input_data import NiftiMasker
 
 from scipy.stats import multivariate_normal
-
+from nltools.data import Brain_Data
 from nltools.utils import get_resource_path
 import glob
 import csv
@@ -154,7 +154,7 @@ class Simulator:
         dims = self.brain_mask.get_data().shape
 
         # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
-        if type(radius) is int:
+        if isinstance(radius, int):
             radius = [radius]
         if center is None:
             center = [[dims[0]/2, dims[1]/2, dims[2]/2] * len(radius)] #default value for centers
@@ -162,7 +162,7 @@ class Simulator:
             centers = [center]
         if (type(radius)) is list and (type(center) is list) and (len(radius) == len(center)):
             A = np.zeros_like(self.brain_mask.get_data())
-            for i in xrange(len(radius)):
+            for i in range(len(radius)):
                 A = np.add(A, self.sphere(radius[i], center[i]))
             return A
         else:
@@ -186,7 +186,7 @@ class Simulator:
         nlevels = len(levels)
         y = levels
         rep_id = [1] * len(levels)
-        for i in xrange(reps - 1):
+        for i in range(reps - 1):
             y = y + levels
             rep_id.extend([i+2] * nlevels)
 
@@ -204,31 +204,28 @@ class Simulator:
         #generate a different gaussian noise profile for each mask
         mu = 0 #values centered around 0
         N_list = []
-        for i in xrange(len(y)):
+        for i in range(len(y)):
             N_list.append(self.normal_noise(mu, sigma))
 
         #add noise and signal together, then convert to nifti files
         NF_list = []
-        for i in xrange(len(y)):
-            NF_list.append(self.to_nifti(np.add(N_list[i],A_list[i]) ))
+        for i in range(len(y)):
+            NF_list.append(self.to_nifti(np.add(N_list[i], A_list[i]) ))
+        NF_list = Brain_Data(NF_list)
 
         # Assign variables to object
         self.data = NF_list
-        self.y = y
-        self.rep_id = rep_id
+        self.y = pd.DataFrame(data=y)
+        self.rep_id = pd.DataFrame(data=rep_id)
 
+        dat = self.data
+        dat.Y = self.y
         # Write Data to files if requested
-        if output_dir is not None and type(output_dir) is str:
-                for i in xrange(len(y)):
-                    NF_list[i].to_filename(os.path.join(output_dir,'centered_sphere_' + str(self.rep_id[i]) + "_" + str(i%nlevels) + '.nii.gz'))
-                y_file = open(os.path.join(output_dir,'y.csv'), 'wb')
-                wr = csv.writer(y_file, quoting=csv.QUOTE_ALL)
-                wr.writerow(self.y)
-
-                rep_id_file = open(os.path.join(output_dir,'rep_id.csv'), 'wb')
-                wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
-                wr.writerow(self.rep_id)
-        return NF_list, y, rep_id
+        if output_dir is not None and isinstance(output_dir, six.string_types):
+            NF_list.write(os.path.join(output_dir,'data.nii.gz'))
+            self.y.to_csv(os.path.join(output_dir, 'y.csv'), index=None,header=False)
+            self.rep_id.to_csv(os.path.join(output_dir, 'repi_id.csv'), index=None,header=False)
+        return dat
 
     def create_cov_data(self, cor, cov, sigma, mask=None, reps = 1, n_sub = 1, output_dir = None):
         """ create continuous simulated data with covariance
@@ -297,7 +294,7 @@ class Simulator:
 
         # Write Data to files if requested
         if output_dir is not None:
-            if type(output_dir) is str:
+            if isinstance(output_dir,six.string_types):
                 if not os.path.isdir(output_dir):
                     os.makedirs(output_dir)
                 self.data.to_filename(os.path.join(output_dir,'maskdata_cor' + str(cor) + "_cov" + str(cov) + '_sigma' + str(sigma) + '.nii.gz'))

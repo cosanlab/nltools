@@ -11,10 +11,7 @@ def test_simulator(tmpdir):
     y = [0, 1]
     n_reps = 3
     output_dir = str(tmpdir)
-    sim.create_data(y, sigma, reps=n_reps, output_dir=output_dir)
-    flist = glob.glob(str(tmpdir.join('centered*nii.gz')))
-
     shape = (91, 109, 91)
-    sim_img = nb.concat_images(flist)
-    assert len(sim.data) == n_reps*len(y)
-    assert sim_img.shape[0:3] == shape
+    dat = sim.create_data(y, sigma, reps=n_reps, output_dir=None)
+    assert len(dat) == n_reps*len(y)
+    assert len(dat.Y) == n_reps*len(y)
