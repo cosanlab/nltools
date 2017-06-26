@@ -127,7 +127,7 @@ class Brain_Data(object):
                     if isinstance(i, six.string_types):
                         self.data.append(self.nifti_masker.fit_transform(
                                          nib.load(i)))
-                    elif isinstance(i,nib.Nifti1Image):
+                    elif isinstance(i, nib.Nifti1Image):
                         self.data.append(self.nifti_masker.fit_transform(i))
                 self.data = np.array(self.data)
             elif isinstance(data, nib.Nifti1Image):
@@ -323,7 +323,7 @@ class Brain_Data(object):
                           cut_coords=range(-40, 50, 10), display_mode='z',
                           black_bg=True, colorbar=True, draw_cross=False,**kwargs)
         else:
-            for i in xrange(self.data.shape[0]):
+            for i in range(self.data.shape[0]):
                 if i < limit:
                      plot_stat_map(self[i].to_nifti(), anatomical,
                                    cut_coords=range(-40, 50, 10),
@@ -2183,11 +2183,11 @@ class Design_Matrix(DataFrame):
             colNames = [col for col in self.columns if 'intercept' not in col and 'poly' not in col and 'cosine' not in col]
         nonConvolved = [col for col in self.columns if col not in colNames]
 
-        if isintance(conv_func,six.string_types):
+        if isinstance(conv_func,six.string_types):
             assert conv_func == 'hrf',"Did you mean 'hrf'? 'hrf' can generate a kernel for you, otherwise custom kernels should be passed in as 1d or 2d arrays."
 
             assert self.sampling_rate is not None, "Design_matrix sampling rate not set. Can't figure out how to generate HRF!"
-            conv_func = glover_hrf(self.sampling_rate,oversampling=1)
+            conv_func = glover_hrf(self.sampling_rate, oversampling=1)
 
         else:
             assert type(conv_func) == np.ndarray, 'Must provide a function for convolution!'
@@ -2195,7 +2195,7 @@ class Design_Matrix(DataFrame):
         if len(conv_func.shape) > 1:
             assert conv_func.shape[0] > conv_func.shape[1], '2d conv_func must be formatted as, samples X kernels!'
             conv_mats = []
-            for i in xrange(conv_func.shape[1]):
+            for i in range(conv_func.shape[1]):
                 c = self[colNames].apply(lambda x: np.convolve(x, conv_func[:,i])[:self.shape[0]])
                 c.columns = [str(col)+'_c'+str(i) for col in c.columns]
                 conv_mats.append(c)
@@ -2284,7 +2284,7 @@ class Design_Matrix(DataFrame):
         polyDict = {}
         if include_lower:
             if order > 0:
-                for i in xrange(0, order+1):
+                for i in range(0, order+1):
                     if i == 0:
                         if self.hasIntercept:
                             warnings.warn("Design Matrix already has "
@@ -2325,7 +2325,7 @@ class Design_Matrix(DataFrame):
 
         basis_frame = Design_Matrix(basis_mat,sampling_rate=self.sampling_rate,hasIntercept=False,convolved=False)
 
-        basis_frame.columns = ['cosine_'+str(i+1) for i in xrange(basis_frame.shape[1])]
+        basis_frame.columns = ['cosine_'+str(i+1) for i in range(basis_frame.shape[1])]
 
         out = self.append(basis_frame,axis=1)
 
