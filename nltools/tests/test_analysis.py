@@ -35,7 +35,7 @@ def test_roc(tmpdir):
 
     # Forced Choice
     binary_outcome = output['Y'] == 1
-    forced_choice = list(range(int(len(binary_outcome)/2))) + list(int(range(len(binary_outcome)/2)))
+    forced_choice = list(range(int(len(binary_outcome)/2))) + list(range(int(len(binary_outcome)/2)))
     forced_choice = forced_choice.sort()
     roc_fc = Roc(input_values=output['yfit_all'], binary_outcome=binary_outcome, forced_choice=forced_choice)
     roc_fc.calculate()
