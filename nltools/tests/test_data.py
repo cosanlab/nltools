@@ -323,7 +323,7 @@ def test_groupby(tmpdir):
     mask = Brain_Data([s1, s2])
 
     y = pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))), header=None, index_col=None)
-    data = Brain_Data(glob.glob(str(tmpdir.join('centered*.nii.gz'))), Y=y)
+    data = Brain_Data(glob.glob(str(tmpdir.join('data.nii.gz'))), Y=y)
     data.X = pd.DataFrame({'Intercept':np.ones(len(data.Y)), 'X1':np.array(data.Y).flatten()},index=None)
 
     dat = Groupby(data, mask)
