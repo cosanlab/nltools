@@ -880,7 +880,7 @@ class Brain_Data(object):
                 elif analysis_type is 'regress':
                     out = self[this_sample].regress()
                     # Aggegate bootstraps for each beta separately
-                    for i, b in enumerate(beta.iterkeys()):
+                    for i, b in enumerate(iter(beta.keys())):
                         beta[b] = beta[b].append(out['beta'][i])
                 elif analysis_type is 'predict':
                     if 'algorithm' in kwargs:
@@ -910,7 +910,7 @@ class Brain_Data(object):
         # Save outputs
         if analysis_type is 'regress':
             reg_out = {}
-            for i, b in enumerate(beta.iterkeys()):
+            for i, b in enumerate(iter(beta.keys())):
                 reg_out[b] = summarize_bootstrap(beta[b])
             output = {}
             for b in reg_out.iteritems():
@@ -1937,7 +1937,7 @@ class Groupby(object):
     def combine(self, value_dict):
         '''Combine value dictionary back into masks'''
         out = self.mask.copy().astype(float)
-        for i in value_dict.iterkeys():
+        for i in iter(value_dict.keys()):
             if isinstance(value_dict[i], Brain_Data):
                 if value_dict[i].shape()[0] == np.sum(self.mask[i].data):
                     out.data[i, out.data[i, :] == 1] = value_dict[i].data
