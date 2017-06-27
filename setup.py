@@ -1,7 +1,7 @@
 # from nltools.version import __version__
 from setuptools import setup, find_packages
 
-__version__ = '0.2.9'
+__version__ = '0.3.0'
 
 # try:
 #     from setuptools.core import setup
