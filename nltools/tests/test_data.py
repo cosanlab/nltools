@@ -10,6 +10,7 @@ from nltools.mask import create_sphere
 from sklearn.metrics import pairwise_distances
 import matplotlib
 import networkx as nx
+import six
 
 matplotlib.use('TkAgg')
 
@@ -20,19 +21,15 @@ def test_brain_data(tmpdir):
     y = [0, 1]
     n_reps = 3
     output_dir = str(tmpdir)
-    sim.create_data(y, sigma, reps=n_reps, output_dir=output_dir)
+    dat = sim.create_data(y, sigma, reps=n_reps, output_dir=output_dir)
 
     shape_3d = (91, 109, 91)
     shape_2d = (6, 238955)
-    y=pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))), header=None,index_col=None).T
-    holdout=pd.read_csv(os.path.join(str(tmpdir.join('rep_id.csv'))),header=None,index_col=None).T
-    flist = glob.glob(str(tmpdir.join('centered*.nii.gz')))
+    y = pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))),header=None, index_col=None)
+    holdout = pd.read_csv(os.path.join(str(tmpdir.join('rep_id.csv'))),header=None,index_col=None)
 
     # Test load list
-    dat = Brain_Data(data=flist,Y=y)
-
-    # Test load file
-    assert Brain_Data(flist[0])
+    dat = Brain_Data(data=str(tmpdir.join('data.nii.gz')), Y=y)
 
     # Test to_nifti
     d = dat.to_nifti()
@@ -323,32 +320,32 @@ def test_groupby(tmpdir):
 
     s1 = create_sphere([12, 10, -8], radius=r)
     s2 = create_sphere([22, -2, -22], radius=r)
-    mask = Brain_Data([s1,s2])
+    mask = Brain_Data([s1, s2])
 
-    y=pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))),header=None,index_col=None).T
-    data = Brain_Data(glob.glob(str(tmpdir.join('centered*.nii.gz'))),Y=y)
-    data.X = pd.DataFrame({'Intercept':np.ones(len(data.Y)),'X1':np.array(data.Y).flatten()},index=None)
+    y = pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))), header=None, index_col=None)
+    data = Brain_Data(glob.glob(str(tmpdir.join('data.nii.gz'))), Y=y)
+    data.X = pd.DataFrame({'Intercept':np.ones(len(data.Y)), 'X1':np.array(data.Y).flatten()},index=None)
 
-    dat = Groupby(data,mask)
+    dat = Groupby(data, mask)
 
     # Test length
-    assert len(dat)==len(mask)
+    assert len(dat) == len(mask)
 
     # Test Index
-    assert isinstance(dat[1],Brain_Data)
+    assert isinstance(dat[1], Brain_Data)
 
     # Test apply
     mn = dat.apply('mean')
-    assert len(dat)==len(mn)
+    assert len(dat) == len(mn)
     # assert mn[0].mean() > mn[1].mean() #JC edit: it seems this check relies on chance from simulated data
-    assert mn[1].shape()==np.sum(mask[1].data==1)
+    assert mn[1].shape() == np.sum(mask[1].data == 1)
     reg = dat.apply('regress')
-    assert len(dat)==len(mn)
+    assert len(dat) == len(mn)
     # r = dict([(x,reg[x]['beta'][1]) for x in reg.iterkeys()])
 
     # Test combine
     combine_mn = dat.combine(mn)
-    assert len(combine_mn.shape())==1
+    assert len(combine_mn.shape()) == 1
 
 def test_designmat(tmpdir):
 
@@ -369,24 +366,24 @@ def test_designmat(tmpdir):
     sampling_rate=2.0,hasIntercept=True)
 
     #appending
-    assert mat1.append(mat1,axis=1).shape == (mat1.shape[0],mat1.shape[1]+mat2.shape[1])
-    assert mat1.append(mat2,axis=0).shape == (mat1.shape[0]+mat2.shape[0],mat1.shape[1]+1)
+    assert mat1.append(mat1, axis=1).shape == (mat1.shape[0], mat1.shape[1] + mat2.shape[1])
+    assert mat1.append(mat2, axis=0).shape == (mat1.shape[0] + mat2.shape[0], mat1.shape[1]+1)
 
     #convolution doesn't affect intercept
-    assert all(mat1.convolve().iloc[:,-1] == mat1.iloc[:,-1])
+    assert all(mat1.convolve().iloc[:, -1] == mat1.iloc[:, -1])
     #but it still works
-    assert (mat1.convolve().iloc[:,:3].values != mat1.iloc[:,:3].values).any()
+    assert (mat1.convolve().iloc[:, :3].values != mat1.iloc[:, :3].values).any()
 
     #Test vifs
-    expectedVifs =  np.array([ 1.03984251,  1.02889877,  1.02261945])
+    expectedVifs = np.array([ 1.03984251,  1.02889877,  1.02261945])
     assert np.allclose(expectedVifs,mat1.vif())
 
     #poly
     mat1.addpoly(order=4).shape[1] == mat1.shape[1]+4
-    mat1.addpoly(order=4,include_lower=False).shape[1] == mat1.shape[1]+1
+    mat1.addpoly(order=4, include_lower=False).shape[1] == mat1.shape[1]+1
 
     #zscore
-    z = mat1.zscore(colNames=['X','Z'])
+    z = mat1.zscore(colNames=['X', 'Z'])
     assert (z['Y'] == mat1['Y']).all()
     assert z.shape == mat1.shape
 
