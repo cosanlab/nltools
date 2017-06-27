@@ -1,3 +1,4 @@
+[![PyPI version](https://badge.fury.io/py/nltools.svg)](https://badge.fury.io/py/nltools)
 [![Build Status](https://api.travis-ci.org/ljchang/nltools.png)](https://travis-ci.org/ljchang/nltools/)
 [![Coverage Status](https://coveralls.io/repos/github/ljchang/nltools/badge.svg?branch=master)](https://coveralls.io/github/ljchang/nltools?branch=master)
 [![Documentation Status](https://readthedocs.org/projects/neurolearn/badge/?version=latest)](http://neurolearn.readthedocs.io/en/latest/?badge=latest)
