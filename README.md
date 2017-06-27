@@ -28,7 +28,6 @@ Python toolbox for analyzing neuroimaging data.  Compatible with both Python 2.7
 
 ### Dependencies
 nltools requires several dependencies.  All are available in pypi.  Can use `pip install 'package'`
- - importlib
  - nibabel>=2.0.1
  - scikit-learn>=0.17
  - nilearn>=0.2
