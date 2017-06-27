@@ -3,7 +3,7 @@ import pandas as pd
 from nltools.stats import one_sample_permutation,two_sample_permutation,correlation_permutation, downsample, upsample
 
 def test_permutation():
-	dat = np.random.multivariate_normal([2,6],[[.5,2],[.5,3]],100)
+	dat = np.random.multivariate_normal([2,6],[[.5,2],[.5,3]],1000)
 	x = dat[:,0]
 	y = dat[:,1]
 	stats = two_sample_permutation(x,y)
