@@ -49,7 +49,7 @@ class Roc(object):
         if not any(binary_outcome):
             raise ValueError("Data Problem: binary_outcome may not be boolean")
 
-        thr_type = ['optimal_overall', 'optimal_balanced','minimum_sdt_bias']
+        thr_type = ['optimal_overall', 'optimal_balanced', 'minimum_sdt_bias']
         if threshold_type not in thr_type:
             raise ValueError("threshold_type must be ['optimal_overall', "
                             "'optimal_balanced','minimum_sdt_bias']")
@@ -58,8 +58,7 @@ class Roc(object):
         self.binary_outcome = deepcopy(binary_outcome)
         self.threshold_type = deepcopy(threshold_type)
         self.forced_choice = deepcopy(forced_choice)
-
-        if isinstance(self.binary_outcome,pd.DataFrame):
+        if isinstance(self.binary_outcome, pd.DataFrame):
             self.binary_outcome = np.array(self.binary_outcome).flatten()
         else:
             self.binary_outcome = deepcopy(binary_outcome)
@@ -111,15 +110,15 @@ class Roc(object):
             assert len(set(sub_idx).union(set(np.array(self.forced_choice)[self.binary_outcome]))) == len(sub_idx), "Issue with forced_choice subject labels."
             assert len(set(sub_idx).union(set(np.array(self.forced_choice)[~self.binary_outcome]))) == len(sub_idx), "Issue with forced_choice subject labels."
             for sub in sub_idx:
-                sub_mn = (self.input_values[(self.forced_choice==sub) & (self.binary_outcome==True)]+self.input_values[(self.forced_choice==sub) & (self.binary_outcome==False)])[0]/2
-                self.input_values[(self.forced_choice==sub) & (self.binary_outcome==True)] = self.input_values[(self.forced_choice==sub) & (self.binary_outcome==True)][0] - sub_mn
-                self.input_values[(self.forced_choice==sub) & (self.binary_outcome==False)] = self.input_values[(self.forced_choice==sub) & (self.binary_outcome==False)][0] - sub_mn
+                sub_mn = (self.input_values[(self.forced_choice == sub) & (self.binary_outcome == True)]+self.input_values[(self.forced_choice == sub) & (self.binary_outcome == False)])[0]/2
+                self.input_values[(self.forced_choice == sub) & (self.binary_outcome == True)] = self.input_values[(self.forced_choice == sub) & (self.binary_outcome == True)][0] - sub_mn
+                self.input_values[(self.forced_choice == sub) & (self.binary_outcome == False)] = self.input_values[(self.forced_choice == sub) & (self.binary_outcome == False)][0] - sub_mn
             self.class_thr = 0;
 
         # Calculate true positive and false positive rate
         self.tpr = np.zeros(self.criterion_values.shape)
         self.fpr = np.zeros(self.criterion_values.shape)
-        for i,x in enumerate(self.criterion_values):
+        for i, x in enumerate(self.criterion_values):
             wh = self.input_values >= x
             self.tpr[i] = np.sum(wh[self.binary_outcome])/np.sum(self.binary_outcome)
             self.fpr[i] = np.sum(wh[~self.binary_outcome])/np.sum(~self.binary_outcome)
@@ -131,16 +130,16 @@ class Roc(object):
         if self.forced_choice is None:
             self.threshold_type = threshold_type
             if threshold_type == 'optimal_balanced':
-                mn = (tpr+fpr)/2
+                mn = (tpr + fpr)/2
                 self.class_thr = self.criterion_values[np.argmax(mn)]
             elif threshold_type == 'optimal_overall':
                 n_corr_t = self.tpr*self.n_true
-                n_corr_f = (1-self.fpr)*self.n_false
-                sm = (n_corr_t+n_corr_f)
+                n_corr_f = (1 - self.fpr)*self.n_false
+                sm = (n_corr_t + n_corr_f)
                 self.class_thr = self.criterion_values[np.argmax(sm)]
             elif threshold_type == 'minimum_sdt_bias':
                 # Calculate  MacMillan and Creelman 2005 Response Bias (c_bias)
-                c_bias = ( norm.ppf(np.maximum(.0001, np.minimum(0.9999, self.tpr))) + norm.ppf(np.maximum(.0001, np.minimum(0.9999, self.fpr))) ) / float(2)
+                c_bias = (norm.ppf(np.maximum(.0001, np.minimum(0.9999, self.tpr))) + norm.ppf(np.maximum(.0001, np.minimum(0.9999, self.fpr)))) / float(2)
                 self.class_thr = self.criterion_values[np.argmin(abs(c_bias))]
 
         # Calculate output
@@ -161,7 +160,7 @@ class Roc(object):
 
         # Calculate Accuracy
         if balanced_acc:
-            self.accuracy = np.mean([self.sensitivity,self.specificity]) #See Brodersen, Ong, Stephan, Buhmann (2010)
+            self.accuracy = np.mean([self.sensitivity, self.specificity]) #See Brodersen, Ong, Stephan, Buhmann (2010)
         else:
             self.accuracy = 1 - np.mean(self.misclass)
 
@@ -171,7 +170,7 @@ class Roc(object):
         self.accuracy_se = np.sqrt(np.mean(~self.misclass) * (np.mean(~self.misclass)) / self.n)
 
 
-    def plot(self, plot_method = 'gaussian'):
+    def plot(self, plot_method = 'gaussian', balanced_acc=False, **kwargs):
         """ Create ROC Plot
 
         Create a specific kind of ROC curve plot, based on input values
@@ -188,38 +187,39 @@ class Roc(object):
 
         """
 
-        self.calculate() # Calculate ROC parameters
+        self.calculate(balanced_acc=balanced_acc) # Calculate ROC parameters
+
 
         if plot_method == 'gaussian':
             if self.forced_choice is not None:
                 sub_idx = np.unique(self.forced_choice)
                 diff_scores = []
                 for sub in sub_idx:
-                    diff_scores.append(self.input_values[(self.forced_choice == sub) & (self.binary_outcome==True)][0] - self.input_values[(self.forced_choice==sub) & (self.binary_outcome==False)][0])
+                    diff_scores.append(self.input_values[(self.forced_choice == sub) & (self.binary_outcome == True)][0] - self.input_values[(self.forced_choice == sub) & (self.binary_outcome == False)][0])
                 diff_scores = np.array(diff_scores)
                 mn_diff = np.mean(diff_scores)
                 d = mn_diff / np.std(diff_scores)
                 pooled_sd = np.std(diff_scores) / np.sqrt(2);
                 d_a_model = mn_diff / pooled_sd
 
-                x = np.arange(-3,3,.1)
-                tpr_smooth = 1 - norm.cdf(x, d, 1)
-                fpr_smooth = 1 - norm.cdf(x, -d, 1)
+                x = np.arange(-3, 3, .1)
+                self.tpr_smooth = 1 - norm.cdf(x, d, 1)
+                self.fpr_smooth = 1 - norm.cdf(x, -d, 1)
             else:
                 mn_true = np.mean(self.input_values[self.binary_outcome])
                 mn_false = np.mean(self.input_values[~self.binary_outcome])
                 var_true = np.var(self.input_values[self.binary_outcome])
                 var_false = np.var(self.input_values[~self.binary_outcome])
-                pooled_sd = np.sqrt((var_true*(self.n_true-1))/(self.n_true + self.n_false - 2))
-                d = (mn_true-mn_false)/pooled_sd
+                pooled_sd = np.sqrt((var_true*(self.n_true - 1))/(self.n_true + self.n_false - 2))
+                d = (mn_true - mn_false)/pooled_sd
                 z_true = mn_true/pooled_sd
                 z_false = mn_false/pooled_sd
 
-                x = np.arange(z_false-3,z_true+3,.1)
-                tpr_smooth = 1-(norm.cdf(x, z_true,1))
-                fpr_smooth = 1-(norm.cdf(x, z_false,1))
+                x = np.arange(z_false-3, z_true+3, .1)
+                self.tpr_smooth = 1 - (norm.cdf(x, z_true, 1))
+                self.fpr_smooth = 1 - (norm.cdf(x, z_false, 1))
 
-            fig = roc_plot(fpr_smooth,tpr_smooth)
+            fig = roc_plot(self.fpr_smooth, self.tpr_smooth)
 
         elif plot_method == 'observed':
             fig = roc_plot(self.fpr, self.tpr)
