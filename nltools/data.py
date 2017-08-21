@@ -43,7 +43,7 @@ from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
 from nilearn.image import resample_img
 from nilearn.masking import intersect_masks
-from nilearn.regions import connected_regions
+from nilearn.regions import connected_regions, connected_label_regions
 from nilearn.plotting.img_plotting import plot_epi, plot_roi, plot_stat_map
 from nilearn.signal import clean
 from copy import deepcopy
@@ -544,7 +544,7 @@ class Brain_Data(object):
 
         if not isinstance(image, Brain_Data):
             if isinstance(image, nib.Nifti1Image):
-                image = Brain_Data(image)
+                image = Brain_Data(image, mask=self.mask)
             else:
                 raise ValueError("Image is not a Brain_Data or nibabel "
                                  "instance")
@@ -1312,7 +1312,7 @@ class Brain_Data(object):
         return b
 
     def regions(self, min_region_size=1350, extract_type='local_regions',
-                smoothing_fwhm=6):
+                smoothing_fwhm=6, is_mask=False):
         ''' Extract brain connected regions into separate regions.
 
         Args:
@@ -1332,15 +1332,20 @@ class Brain_Data(object):
             smoothing_fwhm (scalar): Smooth an image to extract more sparser
                                 regions. Only works for extract_type
                                 'local_regions'.
+            is_mask (bool): Whether the Brain_Data instance should be treated as a boolean mask and if so, calls connected_label_regions instead.
 
         Returns:
             Brain_Data: Brain_Data instance with extracted ROIs as data.
         '''
 
-        regions, _ = connected_regions(self.to_nifti(),
+        if is_mask:
+            regions, _ = connected_label_regions(self.to_nifti())
+        else:
+            regions, _ = connected_regions(self.to_nifti(),
                                        min_region_size, extract_type,
                                        smoothing_fwhm)
-        return Brain_Data(regions)
+
+        return Brain_Data(regions, mask=self.mask)
 
 
 class Adjacency(object):
