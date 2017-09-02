@@ -23,6 +23,7 @@ import os
 import pickle # import cPickle
 import nibabel as nib
 from nltools.utils import get_resource_path, set_algorithm, get_anatomical, make_cosine_basis, glover_hrf
+from nltools.prefs import MNI_template, resolve_mni_path
 from nltools.cross_validation import set_cv
 from nltools.plotting import (dist_from_hyperplane_plot,
                               scatterplot,
@@ -75,7 +76,6 @@ try:
 except ImportError:
     pass
 
-
 class Brain_Data(object):
 
     """
@@ -106,8 +106,7 @@ class Brain_Data(object):
                                      "valid file name")
             self.mask = mask
         else:
-            self.mask = nib.load(os.path.join(get_resource_path(),
-                                'MNI152_T1_2mm_brain_mask.nii.gz'))
+            self.mask = resolve_mni_path(MNI_template)['mask']
         self.nifti_masker = NiftiMasker(mask_img=self.mask)
 
         if data is not None:
@@ -181,7 +180,7 @@ class Brain_Data(object):
             self.shape(),
             len(self.Y),
             self.X.shape,
-            os.path.basename(self.mask.get_filename()),
+            os.path.basename(self.mask),
             self.file_name
             )
 
@@ -312,7 +311,7 @@ class Brain_Data(object):
         if anatomical is not None:
             if not isinstance(anatomical, nib.Nifti1Image):
                 if isinstance(anatomical, six.string_types):
-                    anatomical = nib.load(anatomical)
+                    anatomical = nib.load(resolve_mni_path(MNI_template)['plot'])
                 else:
                     raise ValueError("anatomical is not a nibabel instance")
         else:
@@ -2131,10 +2130,7 @@ class Design_Matrix(DataFrame):
         return out
 
     def vif(self):
-        """Compute variance inflation factor amongst columns of design matrix,
-            ignoring the intercept. Much faster that statsmodels and more
-            reliable too. Uses the same method as Matlab and R (diagonal
-            elements of the inverted correlation matrix).
+        """Compute variance inflation factor amongst columns of design matrix, ignoring the intercept. Much faster that statsmodels and more reliable too. Uses the same method as Matlab and R (diagonal elements of the inverted correlation matrix).
 
         Returns:
             vifs (list): list with length == number of columns - intercept
@@ -2216,9 +2212,7 @@ class Design_Matrix(DataFrame):
         return out
 
     def downsample(self, target,**kwargs):
-        """Downsample columns of design matrix. Relies on
-            nltools.stats.downsample, but ensures that returned object is a
-            design matrix.
+        """Downsample columns of design matrix.
 
         Args:
             target(float): downsampling target, typically in samples not
@@ -2235,9 +2229,7 @@ class Design_Matrix(DataFrame):
         return newMat
 
     def upsample(self, target,**kwargs):
-        """Upsample columns of design matrix. Relies on
-            nltools.stats.upsample, but ensures that returned object is a
-            design matrix.
+        """Upsample columns of design matrix.
 
         Args:
             target(float): downsampling target, typically in samples not
@@ -2254,9 +2246,7 @@ class Design_Matrix(DataFrame):
         return newMat
 
     def zscore(self, colNames=[]):
-        """Z-score specific columns of design matrix. Relies on
-            nltools.stats.downsample, but ensures that returned object is a
-            design matrix.
+        """Z-score specific columns of design matrix.
 
         Args:
             colNames (list): columns to z-score; defaults to all columns
@@ -2319,7 +2309,7 @@ class Design_Matrix(DataFrame):
         return out
 
     def add_dct_basis(self,duration=180):
-        """Adds cosine basis functions to Design_Matrix columns, based on spm-style discrete cosine transform for use in high-pass filtering.
+        """Adds cosine basis functions to Design_Matrix columns, based on spm-style discrete cosine transform for use in high/low-pass filtering.
 
         Args:
             duration (int): length of filter in seconds
@@ -2335,7 +2325,6 @@ class Design_Matrix(DataFrame):
         out = self.append(basis_frame,axis=1)
 
         return out
-
 
 def all_same(items):
     return np.all(x == items[0] for x in items)
