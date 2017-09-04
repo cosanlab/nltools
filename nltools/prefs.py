@@ -22,7 +22,7 @@ MNI_template = dict(
 )
 
 def resolve_mni_path(MNI_template):
-    """ Helper function to resolve MNI path based on dictionary setting."""
+    """ Helper function to resolve MNI path based on MNI_template prefs setting."""
 
     res = MNI_template['resolution']
     if isinstance(res,six.string_types):
