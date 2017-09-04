@@ -21,7 +21,8 @@ __all__ = ['pearson',
             'fisher_r_to_z',
             'one_sample_permutation',
             'two_sample_permutation',
-            'correlation_permutation']
+            'correlation_permutation',
+            'make_cosine_basis']
 
 import numpy as np
 import pandas as pd
@@ -412,3 +413,40 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman'):
     else:
         stats['p'] = np.mean(all_p <= stats['correlation'])
     return stats
+
+def make_cosine_basis(nsamples,sampling_rate,filter_length,drop=0):
+    """ Create a series of cosines basic functions for discrete cosine transform. Based off of implementation in spm_filter and spm_dctmtx because scipy dct can only apply transforms but not return the basis functions. Like SPM, does not add constant (i.e. intercept), but does retain first basis (i.e. sigmoidal/linear drift)
+
+    Args:
+        nsamples (int): number of observations (e.g. TRs)
+        sampling_freq (float): sampling rate in seconds (e.g. TR length)
+        filter_length (int): length of filter in seconds
+        drop (int): how many early/slow bases to drop if any; default is to drop constant (i.e. intercept) like SPM. Unlike SPM, retains first basis (i.e. linear/sigmoidal).
+
+    Returns:
+        out (ndarray): nsamples x number of basis sets numpy array
+
+    """
+
+    #Figure out number of basis functions to create
+    order = int(np.fix(2 * (nsamples * sampling_rate)/filter_length + 1))
+
+    n = np.arange(nsamples)
+
+    #Initialize basis function matrix
+    C = np.zeros((len(n),order))
+
+    #Add constant
+    C[:,0] = np.ones((1,len(n)))/np.sqrt(nsamples)
+
+    #Insert higher order cosine basis functions
+    for i in xrange(1,order):
+        C[:,i] = np.sqrt(2./nsamples) * np.cos(np.pi*(2*n+1) * i/(2*nsamples))
+
+    #Drop desired bases
+    drop +=1
+    C = C[:,drop:]
+    if C.size == 0:
+        raise ValueError('Basis function creation failed! nsamples is too small for requested filter_length.')
+    else:
+        return C
