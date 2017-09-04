@@ -22,7 +22,7 @@ __license__ = "MIT"
 import os
 import pickle # import cPickle
 import nibabel as nib
-from nltools.utils import get_resource_path, set_algorithm, get_anatomical, make_cosine_basis, glover_hrf
+from nltools.utils import get_resource_path, set_algorithm, glover_hrf
 from nltools.prefs import MNI_template, resolve_mni_path
 from nltools.cross_validation import set_cv
 from nltools.plotting import (dist_from_hyperplane_plot,
@@ -39,7 +39,7 @@ from nltools.stats import (pearson,
                            one_sample_permutation,
                            two_sample_permutation)
 from nltools.mask import expand_mask, collapse_mask
-from nltools.stats import downsample, zscore, upsample
+from nltools.stats import downsample, zscore, upsample, make_cosine_basis
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
 from nilearn.image import resample_img
@@ -311,11 +311,11 @@ class Brain_Data(object):
         if anatomical is not None:
             if not isinstance(anatomical, nib.Nifti1Image):
                 if isinstance(anatomical, six.string_types):
-                    anatomical = nib.load(resolve_mni_path(MNI_template)['plot'])
+                    anatomical = nib.load(anatomical)
                 else:
                     raise ValueError("anatomical is not a nibabel instance")
         else:
-            anatomical = get_anatomical()
+            anatomical = resolve_mni_path(MNI_template)['plot']
 
         if self.data.ndim == 1:
             plot_stat_map(self.to_nifti(), anatomical,
@@ -1210,11 +1210,11 @@ class Brain_Data(object):
         out.data = fisher_r_to_z(out.data)
         return out
 
-    def filter(self,sampling_rate=None, high_pass=None,low_pass=None,TR=None,**kwargs):
+    def filter(self,sampling_rate=None, high_pass=None,low_pass=None,**kwargs):
         ''' Apply 5th order butterworth filter to data. Wraps nilearn functionality. Does not default to detrending and standardizing like nilearn implementation, but this can be overridden using kwargs.
 
         Args:
-            sampling_rate: sampling frequence (e.g. TR) in seconds
+            sampling_rate: sampling rate in seconds (i.e. TR)
             high_pass: high pass cutoff frequency
             low_pass: low pass cutoff frequency
             kwargs: other keyword arguments to nilearn.signal.clean
@@ -1224,16 +1224,14 @@ class Brain_Data(object):
         '''
 
         if sampling_rate is None:
-            raise ValueError("Need to provide sampling rate!")
+            raise ValueError("Need to provide sampling rate (TR)!")
         if high_pass is None and low_pass is None:
             raise ValueError("high_pass and/or low_pass cutoff must be provided!")
-        if TR is None:
-            raise ValueError("Need to provide TR!")
 
         standardize = kwargs.get('standardize',False)
         detrend = kwargs.get('detrend',False)
         out = self.copy()
-        out.data = clean(out.data,t_r=TR,detrend=detrend,standardize=standardize,high_pass=high_pass,low_pass=low_pass,**kwargs)
+        out.data = clean(out.data,t_r=sampling_rate,detrend=detrend,standardize=standardize,high_pass=high_pass,low_pass=low_pass,**kwargs)
         return out
 
 
@@ -2266,7 +2264,7 @@ class Design_Matrix(DataFrame):
         return newMat
 
     def addpoly(self, order=0, include_lower=True):
-        """Add nth order polynomial terms as columns to design matrix.
+        """Add nth order polynomial terms as columns to design matrix, for high-pass filtering. 
 
         Args:
             order (int): what order terms to add; 0 = constant/intercept
@@ -2306,10 +2304,11 @@ class Design_Matrix(DataFrame):
         out = self.append(toAdd, axis=1)
         if 'intercept' in polyDict.keys() or self.hasIntercept:
             out.hasIntercept = True
+        if
         return out
 
     def add_dct_basis(self,duration=180):
-        """Adds cosine basis functions to Design_Matrix columns, based on spm-style discrete cosine transform for use in high/low-pass filtering.
+        """Adds cosine basis functions to Design_Matrix columns, based on spm-style discrete cosine transform for use in high-pass filtering.
 
         Args:
             duration (int): length of filter in seconds
