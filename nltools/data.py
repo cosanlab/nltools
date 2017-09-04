@@ -106,7 +106,7 @@ class Brain_Data(object):
                                      "valid file name")
             self.mask = mask
         else:
-            self.mask = resolve_mni_path(MNI_template)['mask']
+            self.mask = nib.load(resolve_mni_path(MNI_template)['mask'])
         self.nifti_masker = NiftiMasker(mask_img=self.mask)
 
         if data is not None:
@@ -315,7 +315,7 @@ class Brain_Data(object):
                 else:
                     raise ValueError("anatomical is not a nibabel instance")
         else:
-            anatomical = resolve_mni_path(MNI_template)['plot']
+            anatomical = nib.load(resolve_mni_path(MNI_template)['plot'])
 
         if self.data.ndim == 1:
             plot_stat_map(self.to_nifti(), anatomical,
@@ -2264,7 +2264,7 @@ class Design_Matrix(DataFrame):
         return newMat
 
     def addpoly(self, order=0, include_lower=True):
-        """Add nth order polynomial terms as columns to design matrix, for high-pass filtering. 
+        """Add nth order polynomial terms as columns to design matrix, for high-pass filtering.
 
         Args:
             order (int): what order terms to add; 0 = constant/intercept
@@ -2304,14 +2304,14 @@ class Design_Matrix(DataFrame):
         out = self.append(toAdd, axis=1)
         if 'intercept' in polyDict.keys() or self.hasIntercept:
             out.hasIntercept = True
-        if
         return out
 
-    def add_dct_basis(self,duration=180):
+    def add_dct_basis(self,duration=180,drop=0):
         """Adds cosine basis functions to Design_Matrix columns, based on spm-style discrete cosine transform for use in high-pass filtering.
 
         Args:
             duration (int): length of filter in seconds
+            drop (int): index of number of early bases to drop; defaults to dropping constant only
 
         """
         assert self.sampling_rate is not None, "Design_Matrix has no sampling_rate set!"
@@ -2322,6 +2322,9 @@ class Design_Matrix(DataFrame):
         basis_frame.columns = ['cosine_'+str(i+1) for i in range(basis_frame.shape[1])]
 
         out = self.append(basis_frame,axis=1)
+
+        if 'poly_1' in out.columns and drop == 0:
+            warnings.warn("A basis function approximating linear drift has been added, but a linear polynomial already exists in the design matrix. This will cause multi-collinearity problems! Set drop=1, to prevent this behavior.")
 
         return out
 
