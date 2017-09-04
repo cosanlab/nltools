@@ -421,7 +421,7 @@ def make_cosine_basis(nsamples,sampling_rate,filter_length,drop=0):
         nsamples (int): number of observations (e.g. TRs)
         sampling_freq (float): sampling rate in seconds (e.g. TR length)
         filter_length (int): length of filter in seconds
-        drop (int): how many early/slow bases to drop if any; default is to drop constant (i.e. intercept) like SPM. Unlike SPM, retains first basis (i.e. linear/sigmoidal).
+        drop (int): index of which early/slow bases to drop if any; default is to drop constant (i.e. intercept) like SPM. Unlike SPM, retains first basis (i.e. linear/sigmoidal). Will cumulatively drop bases upto and inclusive of index provided (e.g. 2, drops bases 0,1,2)
 
     Returns:
         out (ndarray): nsamples x number of basis sets numpy array
