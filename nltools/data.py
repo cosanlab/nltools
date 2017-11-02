@@ -1347,6 +1347,17 @@ class Brain_Data(object):
 
         return Brain_Data(regions, mask=self.mask)
 
+    def transform_pairwise(self):
+        ''' Extract brain connected regions into separate regions.
+
+        Args:
+
+        Returns:
+            Brain_Data: Brain_Data instance tranformed into pairwise comparisons
+        '''
+        out = self.copy()
+        out.data, out.Y = transform_pairwise(self.data,self.Y)
+        return out
 
 class Adjacency(object):
 
