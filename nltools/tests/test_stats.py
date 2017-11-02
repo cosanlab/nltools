@@ -41,6 +41,7 @@ def test_upsample():
 
 def test_winsorize():
 	outlier_test = pd.DataFrame([92, 19, 101, 58, 1053, 91, 26, 78, 10, 13, -40, 101, 86, 85, 15, 89, 89, 28, -5, 41])
+	
 	out = winsorize(outlier_test,cutoff={'quantile':[0.05,.95]},replace_with_cutoff=False).values.squeeze()
 	correct_result = np.array([ 92,  19, 101,  58, 101,  91,  26,  78,  10,  13,  -5, 101,  86,
         85,  15,  89,  89,  28,  -5,  41])
@@ -61,6 +62,7 @@ def test_winsorize():
 
 def test_trim():
 	outlier_test = pd.DataFrame([92, 19, 101, 58, 1053, 91, 26, 78, 10, 13, -40, 101, 86, 85, 15, 89, 89, 28, -5, 41])
+	
 	out = trim(outlier_test,cutoff={'quantile':[0.05,.95]}).values.squeeze()
 	correct_result = np.array([  92.,   19.,  101.,   58.,   np.nan,   91.,   26.,   78.,   10.,
          13.,   np.nan,  101.,   86.,   85.,   15.,   89.,   89.,   28.,
@@ -68,7 +70,7 @@ def test_trim():
 	assert(np.nanmean(out) == np.nanmean(correct_result))
 
 	out = trim(outlier_test,cutoff={'std':[3,3]}).values.squeeze()
-	corr_result = np.array([  92.,   19.,  101.,   58.,   np.nan,   91.,   26.,   78.,   10.,
+	correct_result = np.array([  92.,   19.,  101.,   58.,   np.nan,   91.,   26.,   78.,   10.,
 	         13.,  -40.,  101.,   86.,   85.,   15.,   89.,   89.,   28.,
 	         -5.,   41.])
 	assert(np.nanmean(out) == np.nanmean(correct_result))
