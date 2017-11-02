@@ -22,7 +22,11 @@ __license__ = "MIT"
 import os
 import pickle # import cPickle
 import nibabel as nib
-from nltools.utils import get_resource_path, set_algorithm, get_anatomical, make_cosine_basis, glover_hrf
+from nltools.utils import (get_resource_path,
+                            set_algorithm,
+                            get_anatomical,
+                            make_cosine_basis,
+                            glover_hrf)
 from nltools.cross_validation import set_cv
 from nltools.plotting import (dist_from_hyperplane_plot,
                               scatterplot,
@@ -36,9 +40,12 @@ from nltools.stats import (pearson,
                            fisher_r_to_z,
                            correlation_permutation,
                            one_sample_permutation,
-                           two_sample_permutation)
+                           two_sample_permutation,
+                           downsample,
+                           upsample,
+                           zscore,
+                           transform_pairwise)
 from nltools.mask import expand_mask, collapse_mask
-from nltools.stats import downsample, zscore, upsample
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
 from nilearn.image import resample_img
