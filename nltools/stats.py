@@ -15,6 +15,7 @@ __all__ = ['pearson',
             'threshold',
             'multi_threshold',
             'winsorize',
+            'trim',
             'calc_bpm',
             'downsample',
             'upsample',
@@ -185,34 +186,83 @@ def multi_threshold(t_map, p_map,thresh):
     return Brain_Data(nib.Nifti1Image(pos_out, affine))
 
 def winsorize(data, cutoff=None):
-    ''' Winsorize a Pandas Series
+    ''' Winsorize a Pandas DataFrame or Series with the largest/lowest value not considered outlier
 
         Args:
-            data: a pandas.Series
+            data: a pandas.DataFrame or pandas.Series
             cutoff: a dictionary with keys {'std':[low,high]} or
                     {'quantile':[low,high]}
-
         Returns:
-            pandas.Series
+            winsorized pandas.DataFrame or pandas.Series
     '''
+    df = data.copy() # to avoid overwriting original dataframe
+    def winsorize_sub(data,cutoff=None):
+        if not isinstance(data,pd.Series):
+            raise ValueError('Make sure that you are applying winsorize to a '
+                            'pandas series.')
 
-    if not isinstance(data,pd.Series):
-        raise ValueError('Make sure that you are applying winsorize to a '
-                        'pandas series.')
+        if isinstance(cutoff,dict):
+            if 'quantile' in cutoff:
+                q = data.quantile(cutoff['quantile'])
+            elif 'std' in cutoff:
+                std = [data.mean()-data.std()*cutoff['std'][0], data.mean()+data.std()*cutoff['std'][1]]
+                q = pd.Series(index=cutoff['std'], data=std)
+        else:
+            raise ValueError('cutoff must be a dictionary with quantile '
+                            'or std keys.')
+        if isinstance(q, pd.Series) and len(q) == 2:
+            data[data < q.iloc[0]] = q.iloc[0]
+            data[data > q.iloc[1]] = q.iloc[1]
+        return data
+    
+    if isinstance(df,pd.DataFrame):
+        for col in df.columns:
+            df.loc[:,col] = winsorize_sub(df.loc[:,col],cutoff=cutoff)
+        return df
+    elif isinstance(df,pd.Series):
+        return winsorize_sub(df,cutoff=cutoff)
+    else: 
+        raise ValueError('Data must be a pandas DataFrame or Series')
+        
+        
+def trim(data, cutoff=None):
+    ''' Trim a Pandas DataFrame or Series by replacing outlier values with NaNs
 
-    if isinstance(cutoff,dict):
-        if 'quantile' in cutoff:
-            q = data.quantile(cutoff['quantile'])
-        elif 'std' in cutoff:
-            std = [data.mean()-data.std()*cutoff['std'][0], data.mean()+data.std()*cutoff['std'][1]]
-            q = pd.Series(index=cutoff['std'], data=std)
-    else:
-        raise ValueError('cutoff must be a dictionary with quantile '
-                        'or std keys.')
-    if isinstance(q, pd.Series) and len(q) == 2:
-        data[data < q.iloc[0]] = q.iloc[0]
-        data[data > q.iloc[1]] = q.iloc[1]
-    return data
+        Args:
+            data: a pandas.DataFrame or pandas.Series
+            cutoff: a dictionary with keys {'std':[low,high]} or
+                    {'quantile':[low,high]}
+        Returns:
+            trimmed pandas.DataFrame or pandas.Series
+    '''
+    df = data.copy() # to avoid overwriting original dataframe
+    def trim_sub(data,cutoff=None):
+        if not isinstance(data,pd.Series):
+            raise ValueError('Make sure that you are applying trim to a '
+                            'pandas series.')
+
+        if isinstance(cutoff,dict):
+            if 'quantile' in cutoff:
+                q = data.quantile(cutoff['quantile'])
+            elif 'std' in cutoff:
+                std = [data.mean()-data.std()*cutoff['std'][0], data.mean()+data.std()*cutoff['std'][1]]
+                q = pd.Series(index=cutoff['std'], data=std)
+        else:
+            raise ValueError('cutoff must be a dictionary with quantile '
+                            'or std keys.')
+        if isinstance(q, pd.Series) and len(q) == 2:
+            data[data < q.iloc[0]] = np.nan
+            data[data > q.iloc[1]] = np.nan
+        return data
+    
+    if isinstance(df,pd.DataFrame):
+        for col in df.columns:
+            df.loc[:,col] = trim_sub(df.loc[:,col],cutoff=cutoff)
+        return df
+    elif isinstance(df,pd.Series):
+        return trim_sub(df,cutoff=cutoff)
+    else: 
+        raise ValueError('Data must be a pandas DataFrame or Series')
 
 def calc_bpm(beat_interval, sampling_freq):
     ''' Calculate instantaneous BPM from beat to beat interval
