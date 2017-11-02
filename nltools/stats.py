@@ -185,13 +185,15 @@ def multi_threshold(t_map, p_map,thresh):
     pos_out = pos_out + neg_out*-1
     return Brain_Data(nib.Nifti1Image(pos_out, affine))
 
-def winsorize(data, cutoff=None):
+def winsorize(data, cutoff=None,replace_with_cutoff=True):
     ''' Winsorize a Pandas DataFrame or Series with the largest/lowest value not considered outlier
 
         Args:
             data: a pandas.DataFrame or pandas.Series
             cutoff: a dictionary with keys {'std':[low,high]} or
                     {'quantile':[low,high]}
+            replace_with_cutoff (default: False): If True, replace outliers with cutoff.
+                    If False, replaces outliers with closest existing values.
         Returns:
             winsorized pandas.DataFrame or pandas.Series
     '''
@@ -207,6 +209,9 @@ def winsorize(data, cutoff=None):
             elif 'std' in cutoff:
                 std = [data.mean()-data.std()*cutoff['std'][0], data.mean()+data.std()*cutoff['std'][1]]
                 q = pd.Series(index=cutoff['std'], data=std)
+            if not replace_with_cutoff:
+                q.iloc[0] = data[data > q.iloc[0]].min()
+                q.iloc[1] = data[data < q.iloc[1]].max()
         else:
             raise ValueError('cutoff must be a dictionary with quantile '
                             'or std keys.')
@@ -223,7 +228,6 @@ def winsorize(data, cutoff=None):
         return winsorize_sub(df,cutoff=cutoff)
     else: 
         raise ValueError('Data must be a pandas DataFrame or Series')
-        
         
 def trim(data, cutoff=None):
     ''' Trim a Pandas DataFrame or Series by replacing outlier values with NaNs
