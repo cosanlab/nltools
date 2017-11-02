@@ -28,7 +28,7 @@ import numpy as np
 from nltools.stats import two_sample_permutation
 from nilearn.plotting import plot_glass_brain, plot_stat_map
 
-def plotTBrain(objIn,how='full',thr='unc',alpha=None,nperm=None,**kwargs):
+def plotTBrain(objIn,how='full',thr='unc',alpha=None,nperm=None, cut_coords = [],**kwargs):
     """
     Takes a brain data object and computes a 1 sample t-test across it's first axis. If a list is provided will compute difference between brain data objects in list (i.e. paired samples t-test).
     Args:
@@ -37,12 +37,16 @@ def plotTBrain(objIn,how='full',thr='unc',alpha=None,nperm=None,**kwargs):
         thr: (str) what method to use for multiple comparisons correction unc, fdr, or tfce
         alpha: (float) p-value threshold
         nperm: (int) number of permutations for tcfe; default 1000 
+        cut_coords: (list) x,y,z coords to plot brain slice
         kwargs: optionals args to nilearn plot functions (e.g. vmax)
     
     """
     assert thr in ['unc','fdr','tfce'], "Acceptable threshold methods are 'unc','fdr','tfce'"
     views = ['x','y','z']
-    coords = [range(-40,50,10),[-88,-72,-58,-38,-26,8,20,34,46],[-34,-22,-10,0,16,34,46,56,66]]
+    if len(cut_coords) == 0:
+        cut_coords = [range(-40,50,10),[-88,-72,-58,-38,-26,8,20,34,46],[-34,-22,-10,0,16,34,46,56,66]]
+    else: 
+        assert(len(cut_coords)==3), 'cut_coords must be a list of coordinates like [[xs],[ys],[zs]]'
     cmap = 'RdBu_r'
     
     if type(objIn) == list:
@@ -81,12 +85,12 @@ def plotTBrain(objIn,how='full',thr='unc',alpha=None,nperm=None,**kwargs):
 
     if how == 'full':
         plot_glass_brain(obj.to_nifti(),display_mode='lzry',colorbar=True,cmap=cmap,plot_abs=False,**kwargs)
-        for v,c in zip(views,coords):
+        for v,c in zip(views,cut_coords):
             plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap,**kwargs)
     elif how == 'glass':
          plot_glass_brain(obj.to_nifti(),display_mode='lzry',colorbar=True,cmap=cmap,plot_abs=False,**kwargs)
     elif how == 'mni':
-        for v,c in zip(views,coords):
+        for v,c in zip(views,cut_coords):
             plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap,**kwargs)
     del obj
     del out
