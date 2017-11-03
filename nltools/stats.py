@@ -25,7 +25,7 @@ __all__ = ['pearson',
 
 import numpy as np
 import pandas as pd
-from scipy.stats import ss, pearsonr, spearmanr, kendalltau
+from scipy.stats import pearsonr, spearmanr, kendalltau
 from copy import deepcopy
 import nibabel as nib
 from scipy.interpolate import interp1d
@@ -39,7 +39,8 @@ def pearson(x, y):
     data = np.vstack((x, y))
     ms = data.mean(axis=1)[(slice(None, None, None), None)]
     datam = data - ms
-    datass = np.sqrt(ss(datam, axis=1))
+    datass = np.sqrt(np.sum(datam*datam, axis=1))
+    # datass = np.sqrt(ss(datam, axis=1))
     temp = np.dot(datam[1:], datam[0].T)
     rs = temp / (datass[1:] * datass[0])
     return rs
