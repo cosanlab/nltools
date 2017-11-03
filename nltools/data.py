@@ -1363,7 +1363,9 @@ class Brain_Data(object):
             Brain_Data: Brain_Data instance tranformed into pairwise comparisons
         '''
         out = self.copy()
-        out.data, out.Y = transform_pairwise(self.data,self.Y)
+        out.data, new_Y = transform_pairwise(self.data,self.Y)
+        out.Y = pd.DataFrame(new_Y)
+        out.Y.replace(-1,0,inplace=True)
         return out
 
 class Adjacency(object):
