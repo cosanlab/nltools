@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from nltools.stats import one_sample_permutation,two_sample_permutation,correlation_permutation, downsample, upsample, winsorize,trim
+from nltools.stats import one_sample_permutation,two_sample_permutation,correlation_permutation, downsample, upsample, winsorize
 
 def test_permutation():
 	dat = np.random.multivariate_normal([2,6],[[.5,2],[.5,3]],1000)
@@ -40,37 +40,25 @@ def test_upsample():
 	assert(dat.shape[0]*fs-fs == us.shape[0])
 
 def test_winsorize():
-	outlier_test = pd.DataFrame([92, 19, 101, 58, 1053, 91, 26, 78, 10, 13, -40, 101, 86, 85, 15, 89, 89, 28, -5, 41])
-	
-	out = winsorize(outlier_test,cutoff={'quantile':[0.05,.95]},replace_with_cutoff=False).values.squeeze()
-	correct_result = np.array([ 92,  19, 101,  58, 101,  91,  26,  78,  10,  13,  -5, 101,  86,
-        85,  15,  89,  89,  28,  -5,  41])
+	outlier_test = pd.DataFrame([92, 19, 101, 58, 1053, 91, 26, 78, 10, 13,
+								-40, 101, 86, 85, 15, 89, 89, 28, -5, 41])
+
+	out = winsorize(outlier_test,cutoff={'quantile':[0.05, .95]},
+					replace_with_cutoff=False).values.squeeze()
+	correct_result = np.array([92, 19, 101, 58, 101, 91, 26, 78, 10,
+								13, -5, 101, 86, 85, 15, 89, 89, 28,
+								-5, 41])
 	assert(np.sum(out == correct_result) == 20)
 
-	out = winsorize(outlier_test,cutoff={'std':[2,2]},replace_with_cutoff=False).values.squeeze()
-	correct_result = np.array([ 92,  19, 101,  58, 101,  91,  26,  78,  10,  13, -40, 101,  86,
-	        85,  15,  89,  89,  28,  -5,  41])
+	out = winsorize(outlier_test,cutoff={'std':[2, 2]},
+					replace_with_cutoff=False).values.squeeze()
+	correct_result = np.array([92, 19, 101, 58, 101, 91, 26, 78, 10, 13,
+								-40, 101, 86, 85, 15, 89, 89, 28, -5, 41])
 	assert(np.sum(out==correct_result)==20)
 
-	out = winsorize(outlier_test,cutoff={'std':[2,2]},replace_with_cutoff=True).values.squeeze()
-	correct_result = np.array([  92.        ,   19.        ,  101.        ,   58.        ,
-	        556.97961997,   91.        ,   26.        ,   78.        ,
-	         10.        ,   13.        ,  -40.        ,  101.        ,
-	         86.        ,   85.        ,   15.        ,   89.        ,
-	         89.        ,   28.        ,   -5.        ,   41.        ])
-	assert(np.round(np.mean(out))==np.round(np.mean(correct_result)))
-
-def test_trim():
-	outlier_test = pd.DataFrame([92, 19, 101, 58, 1053, 91, 26, 78, 10, 13, -40, 101, 86, 85, 15, 89, 89, 28, -5, 41])
-	
-	out = trim(outlier_test,cutoff={'quantile':[0.05,.95]}).values.squeeze()
-	correct_result = np.array([  92.,   19.,  101.,   58.,   np.nan,   91.,   26.,   78.,   10.,
-         13.,   np.nan,  101.,   86.,   85.,   15.,   89.,   89.,   28.,
-         -5.,   41.])
-	assert(np.nanmean(out) == np.nanmean(correct_result))
-
-	out = trim(outlier_test,cutoff={'std':[3,3]}).values.squeeze()
-	correct_result = np.array([  92.,   19.,  101.,   58.,   np.nan,   91.,   26.,   78.,   10.,
-	         13.,  -40.,  101.,   86.,   85.,   15.,   89.,   89.,   28.,
-	         -5.,   41.])
-	assert(np.nanmean(out) == np.nanmean(correct_result))
+	out = winsorize(outlier_test,cutoff={'std':[2, 2]},
+					replace_with_cutoff=True).values.squeeze()
+	correct_result = np.array([92., 19., 101., 58., 556.97961997, 91., 26.,
+								78., 10., 13., -40., 101., 86., 85., 15., 89.,
+								89., 28., -5., 41.])
+	assert(np.round(np.mean(out)) == np.round(np.mean(correct_result)))

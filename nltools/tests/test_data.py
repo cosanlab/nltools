@@ -130,10 +130,9 @@ def test_brain_data(tmpdir):
 
     # Test apply_mask - might move part of this to test mask suite
     s1 = create_sphere([12, 10, -8], radius=10)
-    assert isinstance(s1, nb.Nifti1Image)
-    s2 = Brain_Data(s1)
+    assert isinstance(s1,Brain_Data)
     masked_dat = dat.apply_mask(s1)
-    assert masked_dat.shape()[1] == np.sum(s2.data != 0)
+    assert masked_dat.shape()[1] == np.sum(s1.data != 0)
 
     # Test extract_roi
     mask = create_sphere([12, 10, -8], radius=10)

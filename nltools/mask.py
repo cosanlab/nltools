@@ -81,7 +81,6 @@ def create_sphere(coordinates, radius=5, mask=None):
         out = Brain_Data(sphere(radius, coordinates, mask), mask=mask)
     return out
 
-
 def expand_mask(mask):
     """ expand a mask with multiple integers into separate binary masks
 
