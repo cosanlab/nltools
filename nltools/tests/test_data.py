@@ -25,8 +25,10 @@ def test_brain_data(tmpdir):
 
     shape_3d = (91, 109, 91)
     shape_2d = (6, 238955)
-    y = pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))),header=None, index_col=None)
-    holdout = pd.read_csv(os.path.join(str(tmpdir.join('rep_id.csv'))),header=None,index_col=None)
+    y = pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))),
+                    header=None, index_col=None)
+    holdout = pd.read_csv(os.path.join(str(tmpdir.join('rep_id.csv'))),
+                    header=None,index_col=None)
 
     # Test load list
     dat = Brain_Data(data=str(tmpdir.join('data.nii.gz')), Y=y)
@@ -59,6 +61,14 @@ def test_brain_data(tmpdir):
     new = dat * dat
     assert new.shape() == shape_2d
 
+    # Test Indexing
+    index = [0, 3, 1]
+    assert len(dat[index]) == len(index)
+    index = range(4)
+    assert len(dat[index]) == len(index)
+    index = dat.Y == 1
+    assert len(dat[index]) == index.values.sum()
+
     # Test Iterator
     x = [x for x in dat]
     assert len(x) == len(dat)
@@ -73,9 +83,10 @@ def test_brain_data(tmpdir):
     # assert out['t'].shape()[0]==shape_2d[1]
 
     # Test Regress
-    dat.X = pd.DataFrame({'Intercept':np.ones(len(dat.Y)), 'X1':np.array(dat.Y).flatten()},index=None)
+    dat.X = pd.DataFrame({'Intercept':np.ones(len(dat.Y)),
+                        'X1':np.array(dat.Y).flatten()}, index=None)
     out = dat.regress()
-    assert out['beta'].shape() == (2,shape_2d[1])
+    assert out['beta'].shape() == (2, shape_2d[1])
 
     # Test indexing
     assert out['t'][1].shape()[0] == shape_2d[1]
@@ -83,41 +94,51 @@ def test_brain_data(tmpdir):
     # Test threshold
     i=1
     tt = threshold(out['t'][i], out['p'][i], .05)
-    assert isinstance(tt,Brain_Data)
+    assert isinstance(tt, Brain_Data)
 
     # Test write
     dat.write(os.path.join(str(tmpdir.join('test_write.nii'))))
     assert Brain_Data(os.path.join(str(tmpdir.join('test_write.nii'))))
 
     # Test append
-    assert dat.append(dat).shape()[0]==shape_2d[0]*2
+    assert dat.append(dat).shape()[0] == shape_2d[0]*2
 
     # Test distance
     distance = dat.distance(method='euclidean')
-    assert isinstance(distance,Adjacency)
-    assert distance.square_shape()[0]==shape_2d[0]
+    assert isinstance(distance, Adjacency)
+    assert distance.square_shape()[0] == shape_2d[0]
 
     # Test predict
-    stats = dat.predict(algorithm='svm', cv_dict={'type': 'kfolds','n_folds': 2}, plot=False,**{'kernel':"linear"})
+    stats = dat.predict(algorithm='svm',
+                        cv_dict={'type': 'kfolds', 'n_folds': 2},
+                        plot=False, **{'kernel':"linear"})
 
     # Support Vector Regression, with 5 fold cross-validation with Platt Scaling
     # This will output probabilities of each class
-    stats = dat.predict(algorithm='svm', cv_dict=None, plot=False,**{'kernel':'linear', 'probability':True})
-    assert isinstance(stats['weight_map'],Brain_Data)
+    stats = dat.predict(algorithm='svm',
+                        cv_dict=None, plot=False,
+                        **{'kernel':'linear', 'probability':True})
+    assert isinstance(stats['weight_map'], Brain_Data)
 
     # Logistic classificiation, with 2 fold cross-validation.
-    stats = dat.predict(algorithm='logistic', cv_dict={'type': 'kfolds', 'n_folds': 2}, plot=False)
-    assert isinstance(stats['weight_map'],Brain_Data)
+    stats = dat.predict(algorithm='logistic',
+                        cv_dict={'type': 'kfolds', 'n_folds': 2},
+                        plot=False)
+    assert isinstance(stats['weight_map'], Brain_Data)
 
     # Ridge classificiation,
-    stats = dat.predict(algorithm='ridgeClassifier', cv_dict=None,plot=False)
-    assert isinstance(stats['weight_map'],Brain_Data)
+    stats = dat.predict(algorithm='ridgeClassifier', cv_dict=None, plot=False)
+    assert isinstance(stats['weight_map'], Brain_Data)
 
     # Ridge
-    stats = dat.predict(algorithm='ridge', cv_dict={'type': 'kfolds', 'n_folds': 2,'subject_id':holdout}, plot=False,**{'alpha':.1})
+    stats = dat.predict(algorithm='ridge',
+                        cv_dict={'type': 'kfolds', 'n_folds': 2,
+                        'subject_id':holdout}, plot=False, **{'alpha':.1})
 
     # Lasso
-    stats = dat.predict(algorithm='lasso', cv_dict={'type': 'kfolds', 'n_folds': 2,'stratified':dat.Y}, plot=False,**{'alpha':.1})
+    stats = dat.predict(algorithm='lasso',
+                        cv_dict={'type': 'kfolds', 'n_folds': 2,
+                        'stratified':dat.Y}, plot=False, **{'alpha':.1})
 
     # PCR
     stats = dat.predict(algorithm='pcr', cv_dict=None, plot=False)
@@ -131,9 +152,8 @@ def test_brain_data(tmpdir):
     # Test apply_mask - might move part of this to test mask suite
     s1 = create_sphere([12, 10, -8], radius=10)
     assert isinstance(s1, nb.Nifti1Image)
-    s2 = Brain_Data(s1)
     masked_dat = dat.apply_mask(s1)
-    assert masked_dat.shape()[1] == np.sum(s2.data != 0)
+    assert masked_dat.shape()[1] == np.sum(s1.get_data() != 0)
 
     # Test extract_roi
     mask = create_sphere([12, 10, -8], radius=10)
@@ -192,7 +212,7 @@ def test_brain_data(tmpdir):
     m1 = Brain_Data(s1)
     m2 = r.threshold(1, binarize=True)
     # assert len(r)==2
-    assert len(np.unique(r.to_nifti().get_data())) == 2 # JC edit: I think this is what you were trying to do
+    assert len(np.unique(r.to_nifti().get_data())) == 2
     diff = m2-m1
     assert np.sum(diff.data) == 0
 
@@ -242,8 +262,10 @@ def test_adjacency(tmpdir):
     assert(dat_directed+5).data[0] == dat_directed.data[0]+5
     assert(dat_directed-.5).data[0] == dat_directed.data[0]-.5
     assert(dat_directed*5).data[0] == dat_directed.data[0]*5
-    assert np.all(np.isclose((dat_directed+dat_directed).data, (dat_directed*2).data))
-    assert np.all(np.isclose((dat_directed*2-dat_directed).data, dat_directed.data))
+    assert np.all(np.isclose((dat_directed+dat_directed).data,
+                (dat_directed*2).data))
+    assert np.all(np.isclose((dat_directed*2-dat_directed).data,
+                dat_directed.data))
 
     # Test copy
     assert np.all(dat_multiple.data == dat_multiple.copy().data)
@@ -254,27 +276,36 @@ def test_adjacency(tmpdir):
     assert dat_directed.squareform().shape == sim_directed.shape
 
     # Test write
-    dat_multiple.write(os.path.join(str(tmpdir.join('Test.csv'))), method='long')
-    dat_multiple2 = Adjacency(os.path.join(str(tmpdir.join('Test.csv'))), matrix_type='distance_flat')
-    dat_directed.write(os.path.join(str(tmpdir.join('Test.csv'))), method='long')
-    dat_directed2 = Adjacency(os.path.join(str(tmpdir.join('Test.csv'))), matrix_type='directed_flat')
+    dat_multiple.write(os.path.join(str(tmpdir.join('Test.csv'))),
+                        method='long')
+    dat_multiple2 = Adjacency(os.path.join(str(tmpdir.join('Test.csv'))),
+                        matrix_type='distance_flat')
+    dat_directed.write(os.path.join(str(tmpdir.join('Test.csv'))),
+                        method='long')
+    dat_directed2 = Adjacency(os.path.join(str(tmpdir.join('Test.csv'))),
+                        matrix_type='directed_flat')
     assert np.all(np.isclose(dat_multiple.data, dat_multiple2.data))
     assert np.all(np.isclose(dat_directed.data, dat_directed2.data))
 
     # Test mean
     assert isinstance(dat_multiple.mean(axis=0), Adjacency)
     assert len(dat_multiple.mean(axis=0)) == 1
-    assert len(dat_multiple.mean(axis=1)) == len(np.mean(dat_multiple.data, axis=1))
+    assert len(dat_multiple.mean(axis=1)) == len(np.mean(dat_multiple.data,
+                axis=1))
 
     # Test std
     assert isinstance(dat_multiple.std(axis=0), Adjacency)
     assert len(dat_multiple.std(axis=0)) == 1
-    assert len(dat_multiple.std(axis=1)) == len(np.std(dat_multiple.data, axis=1))
+    assert len(dat_multiple.std(axis=1)) == len(np.std(dat_multiple.data,
+                axis=1))
 
     # Test similarity
-    assert len(dat_multiple.similarity(dat_single.squareform())) == len(dat_multiple)
-    assert len(dat_multiple.similarity(dat_single.squareform(), metric='pearson')) == len(dat_multiple)
-    assert len(dat_multiple.similarity(dat_single.squareform(), metric='kendall')) == len(dat_multiple)
+    assert len(dat_multiple.similarity(
+                dat_single.squareform())) == len(dat_multiple)
+    assert len(dat_multiple.similarity(dat_single.squareform(),
+                metric='pearson')) == len(dat_multiple)
+    assert len(dat_multiple.similarity(dat_single.squareform(),
+                metric='kendall')) == len(dat_multiple)
 
     # Test distance
     assert isinstance(dat_multiple.distance(), Adjacency)
@@ -322,9 +353,11 @@ def test_groupby(tmpdir):
     s2 = create_sphere([22, -2, -22], radius=r)
     mask = Brain_Data([s1, s2])
 
-    y = pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))), header=None, index_col=None)
+    y = pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))),
+                    header=None, index_col=None)
     data = Brain_Data(glob.glob(str(tmpdir.join('data.nii.gz'))), Y=y)
-    data.X = pd.DataFrame({'Intercept':np.ones(len(data.Y)), 'X1':np.array(data.Y).flatten()},index=None)
+    data.X = pd.DataFrame({'Intercept':np.ones(len(data.Y)),
+                        'X1':np.array(data.Y).flatten()}, index=None)
 
     dat = Groupby(data, mask)
 
@@ -350,24 +383,26 @@ def test_groupby(tmpdir):
 def test_designmat(tmpdir):
 
     mat1 = Design_Matrix({
-    'X':[1,4,2,7,5,9,2,1,3,2],
-    'Y':[3,0,0,6,9,9,10,10,1,10],
-    'Z':[2,2,2,2,7,0,1,3,3,2],
-    'intercept':[1,1,1,1,1,1,1,1,1,1]
+    'X':[1, 4, 2, 7, 5, 9, 2, 1, 3, 2],
+    'Y':[3, 0, 0, 6, 9, 9, 10, 10, 1, 10],
+    'Z':[2, 2, 2, 2, 7, 0, 1, 3, 3, 2],
+    'intercept':[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
     },
     sampling_rate=2.0,hasIntercept=True)
 
     mat2 = Design_Matrix({
-    'X':[9,9,2,7,5,0,1,1,1,2],
-    'Y':[3,3,3,6,9,0,1,10,1,10],
-    'Z':[2,6,3,2,7,0,1,7,8,8],
-    'intercept':[1,1,1,1,1,1,1,1,1,1]
+    'X':[9, 9, 2, 7, 5, 0, 1, 1, 1, 2],
+    'Y':[3, 3, 3, 6, 9, 0, 1, 10, 1, 10],
+    'Z':[2, 6, 3, 2, 7, 0, 1, 7, 8, 8],
+    'intercept':[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
     },
-    sampling_rate=2.0,hasIntercept=True)
+    sampling_rate=2.0, hasIntercept=True)
 
     #appending
-    assert mat1.append(mat1, axis=1).shape == (mat1.shape[0], mat1.shape[1] + mat2.shape[1])
-    assert mat1.append(mat2, axis=0).shape == (mat1.shape[0] + mat2.shape[0], mat1.shape[1]+1)
+    assert mat1.append(mat1, axis=1).shape == (mat1.shape[0],
+                        mat1.shape[1] + mat2.shape[1])
+    assert mat1.append(mat2, axis=0).shape == (mat1.shape[0] + mat2.shape[0],
+                        mat1.shape[1]+1)
 
     #convolution doesn't affect intercept
     assert all(mat1.convolve().iloc[:, -1] == mat1.iloc[:, -1])
@@ -375,7 +410,7 @@ def test_designmat(tmpdir):
     assert (mat1.convolve().iloc[:, :3].values != mat1.iloc[:, :3].values).any()
 
     #Test vifs
-    expectedVifs = np.array([ 1.03984251,  1.02889877,  1.02261945])
+    expectedVifs = np.array([ 1.03984251, 1.02889877, 1.02261945])
     assert np.allclose(expectedVifs,mat1.vif())
 
     #poly
