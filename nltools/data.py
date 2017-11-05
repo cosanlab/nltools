@@ -194,6 +194,7 @@ class Brain_Data(object):
 
     def __getitem__(self, index):
         new = deepcopy(self)
+        index = np.array(index).flatten()
         if isinstance(index, int):
             new.data = np.array(self.data[index, :]).flatten()
         else:
