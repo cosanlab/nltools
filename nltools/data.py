@@ -25,7 +25,6 @@ import nibabel as nib
 from nltools.utils import (get_resource_path,
                             set_algorithm,
                             get_anatomical,
-                            make_cosine_basis,
                             glover_hrf)
 from nltools.prefs import MNI_template, resolve_mni_path
 from nltools.cross_validation import set_cv
@@ -45,6 +44,7 @@ from nltools.stats import (pearson,
                            downsample,
                            upsample,
                            zscore,
+                           make_cosine_basis,
                            transform_pairwise)
 from nltools.mask import expand_mask, collapse_mask
 from nltools.analysis import Roc
