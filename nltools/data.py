@@ -180,7 +180,7 @@ class Brain_Data(object):
             self.shape(),
             len(self.Y),
             self.X.shape,
-            os.path.basename(self.mask),
+            os.path.basename(self.mask.get_filename()),
             self.file_name
             )
 

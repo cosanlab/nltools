@@ -197,6 +197,7 @@ def test_brain_data_3mm(tmpdir):
     assert len(np.unique(r.to_nifti().get_data())) == 2 # JC edit: I think this is what you were trying to do
     diff = m2-m1
     assert np.sum(diff.data) == 0
+
 def test_brain_data_2mm(tmpdir):
     MNI_template["resolution"] = '2mm'
     sim = Simulator()
