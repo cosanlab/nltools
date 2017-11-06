@@ -67,7 +67,7 @@ def test_brain_data_3mm(tmpdir):
     index = range(4)
     assert len(dat[index]) == len(index)
     index = dat.Y == 1
-    assert len(dat[index]) == index.values.sum()
+    assert len(dat[index.values.flatten()]) == index.values.sum()
 
     # Test Iterator
     x = [x for x in dat]
