@@ -15,6 +15,7 @@ __all__ = ['pearson',
             'threshold',
             'multi_threshold',
             'winsorize',
+            'trim',
             'calc_bpm',
             'downsample',
             'upsample',
@@ -26,11 +27,12 @@ __all__ = ['pearson',
 
 import numpy as np
 import pandas as pd
-from scipy.stats import ss, pearsonr, spearmanr, kendalltau
+from scipy.stats import pearsonr, spearmanr, kendalltau
 from copy import deepcopy
 import nibabel as nib
 from scipy.interpolate import interp1d
 import warnings
+import itertools
 
 def pearson(x, y):
     """ Correlates row vector x with each row vector in 2D array y.
@@ -39,7 +41,8 @@ def pearson(x, y):
     data = np.vstack((x, y))
     ms = data.mean(axis=1)[(slice(None, None, None), None)]
     datam = data - ms
-    datass = np.sqrt(ss(datam, axis=1))
+    datass = np.sqrt(np.sum(datam*datam, axis=1))
+    # datass = np.sqrt(ss(datam, axis=1))
     temp = np.dot(datam[1:], datam[0].T)
     rs = temp / (datass[1:] * datass[0])
     return rs
@@ -185,35 +188,88 @@ def multi_threshold(t_map, p_map,thresh):
     pos_out = pos_out + neg_out*-1
     return Brain_Data(nib.Nifti1Image(pos_out, affine))
 
-def winsorize(data, cutoff=None):
-    ''' Winsorize a Pandas Series
+def winsorize(data, cutoff=None,replace_with_cutoff=True):
+    ''' Winsorize a Pandas DataFrame or Series with the largest/lowest value not considered outlier
 
         Args:
-            data: a pandas.Series
+            data: a pandas.DataFrame or pandas.Series
             cutoff: a dictionary with keys {'std':[low,high]} or
                     {'quantile':[low,high]}
-
+            replace_with_cutoff (default: False): If True, replace outliers with cutoff.
+                    If False, replaces outliers with closest existing values.
         Returns:
-            pandas.Series
+            winsorized pandas.DataFrame or pandas.Series
     '''
+    df = data.copy() # to avoid overwriting original dataframe
+    def winsorize_sub(data,cutoff=None):
+        if not isinstance(data,pd.Series):
+            raise ValueError('Make sure that you are applying winsorize to a '
+                            'pandas series.')
 
-    if not isinstance(data,pd.Series):
-        raise ValueError('Make sure that you are applying winsorize to a '
-                        'pandas series.')
+        if isinstance(cutoff,dict):
+            if 'quantile' in cutoff:
+                q = data.quantile(cutoff['quantile'])
+            elif 'std' in cutoff:
+                std = [data.mean()-data.std()*cutoff['std'][0], data.mean()+data.std()*cutoff['std'][1]]
+                q = pd.Series(index=cutoff['std'], data=std)
+            if not replace_with_cutoff:
+                q.iloc[0] = data[data > q.iloc[0]].min()
+                q.iloc[1] = data[data < q.iloc[1]].max()
+        else:
+            raise ValueError('cutoff must be a dictionary with quantile '
+                            'or std keys.')
+        if isinstance(q, pd.Series) and len(q) == 2:
+            data[data < q.iloc[0]] = q.iloc[0]
+            data[data > q.iloc[1]] = q.iloc[1]
+        return data
 
-    if isinstance(cutoff,dict):
-        if 'quantile' in cutoff:
-            q = data.quantile(cutoff['quantile'])
-        elif 'std' in cutoff:
-            std = [data.mean()-data.std()*cutoff['std'][0], data.mean()+data.std()*cutoff['std'][1]]
-            q = pd.Series(index=cutoff['std'], data=std)
+    if isinstance(df,pd.DataFrame):
+        for col in df.columns:
+            df.loc[:,col] = winsorize_sub(df.loc[:,col],cutoff=cutoff)
+        return df
+    elif isinstance(df,pd.Series):
+        return winsorize_sub(df,cutoff=cutoff)
     else:
-        raise ValueError('cutoff must be a dictionary with quantile '
-                        'or std keys.')
-    if isinstance(q, pd.Series) and len(q) == 2:
-        data[data < q.iloc[0]] = q.iloc[0]
-        data[data > q.iloc[1]] = q.iloc[1]
-    return data
+        raise ValueError('Data must be a pandas DataFrame or Series')
+
+def trim(data, cutoff=None):
+    ''' Trim a Pandas DataFrame or Series by replacing outlier values with NaNs
+
+        Args:
+            data: a pandas.DataFrame or pandas.Series
+            cutoff: a dictionary with keys {'std':[low,high]} or
+                    {'quantile':[low,high]}
+        Returns:
+            trimmed pandas.DataFrame or pandas.Series
+    '''
+    df = data.copy() # to avoid overwriting original dataframe
+    def trim_sub(data,cutoff=None):
+        if not isinstance(data,pd.Series):
+            raise ValueError('Make sure that you are applying trim to a '
+                            'pandas series.')
+
+        if isinstance(cutoff,dict):
+            if 'quantile' in cutoff:
+                q = data.quantile(cutoff['quantile'])
+            elif 'std' in cutoff:
+                std = [data.mean()-data.std()*cutoff['std'][0], data.mean()+data.std()*cutoff['std'][1]]
+                q = pd.Series(index=cutoff['std'], data=std)
+        else:
+            raise ValueError('cutoff must be a dictionary with quantile '
+                            'or std keys.')
+        if isinstance(q, pd.Series) and len(q) == 2:
+            data[data < q.iloc[0]] = np.nan
+            data[data > q.iloc[1]] = np.nan
+        return data
+
+    if isinstance(df,pd.DataFrame):
+        for col in df.columns:
+            df.loc[:,col] = trim_sub(df.loc[:,col],cutoff=cutoff)
+        return df
+    elif isinstance(df,pd.Series):
+        return trim_sub(df,cutoff=cutoff)
+    else:
+        raise ValueError('Data must be a pandas DataFrame or Series')
 
 def calc_bpm(beat_interval, sampling_freq):
     ''' Calculate instantaneous BPM from beat to beat interval
@@ -450,3 +506,50 @@ def make_cosine_basis(nsamples,sampling_rate,filter_length,drop=0):
         raise ValueError('Basis function creation failed! nsamples is too small for requested filter_length.')
     else:
         return C
+
+def transform_pairwise(X, y):
+    '''Transforms data into pairs with balanced labels for ranking
+    Transforms a n-class ranking problem into a two-class classification
+    problem. Subclasses implementing particular strategies for choosing
+    pairs should override this method.
+    In this method, all pairs are choosen, except for those that have the
+    same target value. The output is an array of balanced classes, i.e.
+    there are the same number of -1 as +1
+
+    Reference: "Large Margin Rank Boundaries for Ordinal Regression",
+    R. Herbrich, T. Graepel, K. Obermayer.
+    Authors: Fabian Pedregosa <fabian@fseoane.net>
+             Alexandre Gramfort <alexandre.gramfort@inria.fr>
+    Args:
+        X : array, shape (n_samples, n_features)
+            The data
+        y : array, shape (n_samples,) or (n_samples, 2)
+            Target labels. If it's a 2D array, the second column represents
+            the grouping of samples, i.e., samples with different groups will
+            not be considered.
+
+    Returns:
+        X_trans : array, shape (k, n_feaures)
+            Data as pairs
+        y_trans : array, shape (k,)
+            Output class labels, where classes have values {-1, +1}
+
+    '''
+
+    X_new = []
+    y_new = []
+    y = np.asarray(y).flatten()
+    if y.ndim == 1:
+        y = np.c_[y, np.ones(y.shape[0])]
+    comb = itertools.combinations(range(X.shape[0]), 2)
+    for k, (i, j) in enumerate(comb):
+        if y[i, 0] == y[j, 0] or y[i, 1] != y[j, 1]:
+            # skip if same target or different group
+            continue
+        X_new.append(X[i] - X[j])
+        y_new.append(np.sign(y[i, 0] - y[j, 0]))
+        # output balanced classes
+        if y_new[-1] != (-1) ** k:
+            y_new[-1] = - y_new[-1]
+            X_new[-1] = - X_new[-1]
+    return np.asarray(X_new), np.asarray(y_new).ravel()
