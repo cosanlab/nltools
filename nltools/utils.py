@@ -31,7 +31,7 @@ def get_resource_path():
 
 def get_anatomical():
     """ Get nltools default anatomical image.
-        DEPRECATED.
+        DEPRECATED. See MNI_template and resolve_mni_path from nltools.prefs
     """
     return nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm.nii.gz'))
 
