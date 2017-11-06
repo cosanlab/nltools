@@ -19,8 +19,6 @@ import pandas as pd
 import numpy as np
 import warnings
 from nilearn.masking import intersect_masks
-# from neurosynth.masks import Masker
-
 
 def create_sphere(coordinates, radius=5, mask=None):
     """ Generate a set of spheres in the brain mask space
@@ -35,8 +33,8 @@ def create_sphere(coordinates, radius=5, mask=None):
     from nltools.data import Brain_Data
 
     if mask is not None:
-        if not isinstance(mask,nib.Nifti1Image):
-            if type(mask) is str:
+        if not isinstance(mask, nib.Nifti1Image):
+            if isinstance(mask, six.string_types):
                 if os.path.isfile(mask):
                     data = nib.load(mask)
             else:
@@ -57,48 +55,38 @@ def create_sphere(coordinates, radius=5, mask=None):
 
         """
         dims = mask.shape
-        m = [dims[0]/2, dims[1]/2, dims[2]/2] # JC edit: default value for centers
-        x, y, z = np.ogrid[-m[0]:dims[0]-m[0], -m[1]:dims[1]-m[1], -m[2]:dims[2]-m[2]] #JC edit: creates sphere
-        # x, y, z = np.ogrid[-p[0]:dims[0]-p[0], -p[1]:dims[1]-p[1], -p[2]:dims[2]-p[2]]
+        m = [dims[0]/2, dims[1]/2, dims[2]/2]
+        x, y, z = np.ogrid[-m[0]:dims[0]-m[0],
+                            -m[1]:dims[1]-m[1],
+                            -m[2]:dims[2]-m[2]]
         mask_r = x*x + y*y + z*z <= r*r
 
         activation = np.zeros(dims)
         activation[mask_r] = 1
-        # JC edit shift mask to proper location
-        translation_affine= np.array([[1, 0, 0, p[0]-m[0]],
+        translation_affine = np.array([[1, 0, 0, p[0]-m[0]],
                                 [0, 1, 0, p[1]-m[1]],
                                 [0, 0, 1, p[2]-m[2]],
                                  [0, 0, 0, 1]])
 
-        # activation = np.multiply(activation, mask.get_data())
-        # activation = nib.Nifti1Image(activation, affine=np.eye(4))
-        activation = nib.Nifti1Image(activation, affine=translation_affine)
-        #return the 3D numpy matrix of zeros containing the sphere as a region of ones
-        # return activation.get_data(), translation_affine
-        return activation
+        return nib.Nifti1Image(activation, affine=translation_affine)
 
-    # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
-    # return sphere(radius,coordinates,mask)
-    if type(radius) is int:
-        radius = [radius]
-    if coordinates is None:
-        coordinates = [[dims[0]/2, dims[1]/2, dims[2]/2] * len(radius)] #default value for centers
-    elif type(coordinates) is list and type(coordinates[0]) is int and len(radius) is 1:
-        coordinates = [coordinates]
-    if (type(radius)) is list and (type(coordinates) is list) and (len(radius) == len(coordinates)):
-        A = np.zeros_like(mask.get_data())
-        A = Brain_Data(nib.Nifti1Image(A, affine=mask.affine), mask=mask)
-        for i in range(len(radius)):
-            A = A + Brain_Data(sphere(radius[i], coordinates[i], mask),
-                                mask=mask)
-        A = A.to_nifti()
-        A.get_data()[A.get_data()>0.5]=1
-        A.get_data()[A.get_data()<0.5]=0
-        return A
+    if any(isinstance(i, list) for i in coordinates):
+        if isinstance(radius, list):
+            if len(radius) != len(coordinates):
+                raise ValueError('Make sure length of radius list matches'
+                                'length of coordinate list.')
+        elif isinstance(radius, int):
+            radius = [radius]*len(coordinates)
+        out = Brain_Data(nib.Nifti1Image(np.zeros_like(mask.get_data()),
+                        affine=mask.affine), mask=mask)
+        for r, c in zip(radius, coordinates):
+            out = out + Brain_Data(sphere(r, c, mask), mask=mask)
     else:
-        raise ValueError("Data type for sphere or radius(ii) or center(s) "
-                        "not recognized.")
-
+        out = Brain_Data(sphere(radius, coordinates, mask), mask=mask)
+    out = out.to_nifti()
+    out.get_data()[out.get_data() > 0.5]=1
+    out.get_data()[out.get_data() < 0.5]=0
+    return out
 
 def expand_mask(mask):
     """ expand a mask with multiple integers into separate binary masks
@@ -160,7 +148,8 @@ def collapse_mask(mask, auto_label=True):
 
             merge = []
             if auto_label:
-                # Combine all masks into sequential order ignoring any areas of overlap
+                # Combine all masks into sequential order
+                # ignoring any areas of overlap
                 for i in range(len(m_list)):
                     merge.append(np.multiply(
                                 Brain_Data(m_list[i]).data,

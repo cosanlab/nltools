@@ -18,7 +18,7 @@ setup(
     author='Luke Chang',
     author_email='luke.j.chang@dartmouth.edu',
     url='http://neurolearn.readthedocs.org/en/latest/',
-    install_requires=['numpy>=1.9', 'scipy', 'nilearn', 'nibabel>=2.0.1',
+    install_requires=['numpy>=1.9', 'scipy', 'nilearn>=0.3.0', 'nibabel>=2.0.1',
                     'pandas>=0.16', 'six', 'seaborn', 'matplotlib',
                     'scikit-learn>=0.18.1','pynv'],
     extras_require={
