@@ -80,7 +80,9 @@ class Roc(object):
             forced_choice: index indicating position for each unique subject
                             (default=None)
             balanced_acc: balanced accuracy for single-interval classification
-                            (bool)
+                            (bool). THIS IS NOT COMPLETELY IMPLEMENTED BECAUSE
+                            IT AFFECTS ACCURACY ESTIMATES, BUT NOT P-VALUES OR
+                            THRESHOLD AT WHICH TO EVALUATE SENS/SPEC
             **kwargs: Additional keyword arguments to pass to the prediction
                             algorithm
 
@@ -199,8 +201,15 @@ class Roc(object):
                 diff_scores = np.array(diff_scores)
                 mn_diff = np.mean(diff_scores)
                 d = mn_diff / np.std(diff_scores)
-                pooled_sd = np.std(diff_scores) / np.sqrt(2);
+                pooled_sd = np.std(diff_scores) / np.sqrt(2)
                 d_a_model = mn_diff / pooled_sd
+
+                expected_acc = 1 - norm.cdf(0, d, 1)
+                self.sensitivity = expected_acc
+                self.specificity = expected_acc
+                self.ppv = self.sensitivity / (self.sensitivity +
+                                                1 - self.specificity)
+                self.auc = norm.cdf(d_a_model / np.sqrt(2))
 
                 x = np.arange(-3, 3, .1)
                 self.tpr_smooth = 1 - norm.cdf(x, d, 1)
@@ -219,6 +228,7 @@ class Roc(object):
                 self.tpr_smooth = 1 - (norm.cdf(x, z_true, 1))
                 self.fpr_smooth = 1 - (norm.cdf(x, z_false, 1))
 
+            self.aucn = auc(self.fpr_smooth, self.tpr_smooth)
             fig = roc_plot(self.fpr_smooth, self.tpr_smooth)
 
         elif plot_method == 'observed':
