@@ -130,7 +130,7 @@ class Roc(object):
         if self.forced_choice is None:
             self.threshold_type = threshold_type
             if threshold_type == 'optimal_balanced':
-                mn = (tpr + fpr)/2
+                mn = (self.tpr+self.fpr)/2
                 self.class_thr = self.criterion_values[np.argmax(mn)]
             elif threshold_type == 'optimal_overall':
                 n_corr_t = self.tpr*self.n_true
