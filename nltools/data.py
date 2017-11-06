@@ -22,7 +22,11 @@ __license__ = "MIT"
 import os
 import pickle # import cPickle
 import nibabel as nib
-from nltools.utils import get_resource_path, set_algorithm, glover_hrf
+from nltools.utils import (get_resource_path,
+                            set_algorithm,
+                            get_anatomical,
+                            make_cosine_basis,
+                            glover_hrf)
 from nltools.prefs import MNI_template, resolve_mni_path
 from nltools.cross_validation import set_cv
 from nltools.plotting import (dist_from_hyperplane_plot,
@@ -37,9 +41,12 @@ from nltools.stats import (pearson,
                            fisher_r_to_z,
                            correlation_permutation,
                            one_sample_permutation,
-                           two_sample_permutation)
+                           two_sample_permutation,
+                           downsample,
+                           upsample,
+                           zscore,
+                           transform_pairwise)
 from nltools.mask import expand_mask, collapse_mask
-from nltools.stats import downsample, zscore, upsample, make_cosine_basis
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
 from nilearn.image import resample_img
@@ -189,6 +196,7 @@ class Brain_Data(object):
         if isinstance(index, int):
             new.data = np.array(self.data[index, :]).flatten()
         else:
+            index = np.array(index).flatten()
             new.data = np.array(self.data[index, :])
         if not self.Y.empty:
             new.Y = self.Y.iloc[index]
@@ -1344,6 +1352,19 @@ class Brain_Data(object):
 
         return Brain_Data(regions, mask=self.mask)
 
+    def transform_pairwise(self):
+        ''' Extract brain connected regions into separate regions.
+
+        Args:
+
+        Returns:
+            Brain_Data: Brain_Data instance tranformed into pairwise comparisons
+        '''
+        out = self.copy()
+        out.data, new_Y = transform_pairwise(self.data,self.Y)
+        out.Y = pd.DataFrame(new_Y)
+        out.Y.replace(-1,0,inplace=True)
+        return out
 
 class Adjacency(object):
 
