@@ -197,12 +197,17 @@ class Brain_Data(object):
         if isinstance(index, int):
             new.data = np.array(self.data[index, :]).flatten()
         else:
-            index = np.array(index).flatten()
-            new.data = np.array(self.data[index, :])
+            if isinstance(index, slice):
+                new.data = self.data[index, :]
+            else:
+                index = np.array(index).flatten()
+                new.data = np.array(self.data[index, :])
         if not self.Y.empty:
             new.Y = self.Y.iloc[index]
+            new.Y.reset_index(inplace=True, drop=True)
         if not self.X.empty:
             new.X = self.X.iloc[index]
+            new.X.reset_index(inplace=True, drop=True)
         return new
 
     def __setitem__(self, index, value):
