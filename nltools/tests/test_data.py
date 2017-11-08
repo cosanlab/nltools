@@ -68,6 +68,7 @@ def test_brain_data(tmpdir):
     assert len(dat[index]) == len(index)
     index = dat.Y == 1
     assert len(dat[index]) == index.values.sum()
+    assert len(dat[:3]) == 3
 
     # Test Iterator
     x = [x for x in dat]
