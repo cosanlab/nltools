@@ -26,7 +26,8 @@ from nltools.utils import (get_resource_path,
                             set_algorithm,
                             get_anatomical,
                             make_cosine_basis,
-                            glover_hrf)
+                            glover_hrf,
+                            attempt_to_import)
 from nltools.cross_validation import set_cv
 from nltools.plotting import (dist_from_hyperplane_plot,
                               scatterplot,
@@ -71,18 +72,11 @@ from pynv import Client
 import matplotlib.pyplot as plt
 
 # Optional dependencies
-try:
-    from mne.stats import (spatio_temporal_cluster_1samp_test,
-                           ttest_1samp_no_p)
-except ImportError:
-    pass
-
-try:
-    import networkx as nx
-except ImportError:
-    pass
-
-
+nx = attempt_to_import('networkx', 'nx')
+mne_stats = attempt_to_import('mne.stats',name='mne_stats', fromlist=
+                                    ['spatio_temporal_cluster_1samp_test',
+                                     'ttest_1samp_no_p'])
+                                     
 class Brain_Data(object):
 
     """
@@ -436,9 +430,9 @@ class Brain_Data(object):
                 if 'stat_fun' in threshold_dict:
                     stat_fun = threshold_dict['stat_fun']
                 else:
-                    stat_fun = ttest_1samp_no_p
+                    stat_fun = mne_stats.ttest_1samp_no_p
 
-                t.data, clusters, p_values, _ = spatio_temporal_cluster_1samp_test(
+                t.data, clusters, p_values, _ = mne_stats.spatio_temporal_cluster_1samp_test(
                     data_convert_shape, tail=0, threshold=perm_threshold, stat_fun=stat_fun,
                     connectivity=connectivity, n_permutations=n_permutations, n_jobs=n_jobs)
 
