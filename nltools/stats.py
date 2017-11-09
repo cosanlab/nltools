@@ -32,6 +32,7 @@ import nibabel as nib
 from scipy.interpolate import interp1d
 import warnings
 import itertools
+from joblib import Parallel, delayed
 
 def pearson(x, y):
     """ Correlates row vector x with each row vector in 2D array y.
@@ -221,16 +222,16 @@ def winsorize(data, cutoff=None,replace_with_cutoff=True):
             data[data < q.iloc[0]] = q.iloc[0]
             data[data > q.iloc[1]] = q.iloc[1]
         return data
-    
+
     if isinstance(df,pd.DataFrame):
         for col in df.columns:
             df.loc[:,col] = winsorize_sub(df.loc[:,col],cutoff=cutoff)
         return df
     elif isinstance(df,pd.Series):
         return winsorize_sub(df,cutoff=cutoff)
-    else: 
+    else:
         raise ValueError('Data must be a pandas DataFrame or Series')
-        
+
 def trim(data, cutoff=None):
     ''' Trim a Pandas DataFrame or Series by replacing outlier values with NaNs
 
@@ -260,14 +261,14 @@ def trim(data, cutoff=None):
             data[data < q.iloc[0]] = np.nan
             data[data > q.iloc[1]] = np.nan
         return data
-    
+
     if isinstance(df,pd.DataFrame):
         for col in df.columns:
             df.loc[:,col] = trim_sub(df.loc[:,col],cutoff=cutoff)
         return df
     elif isinstance(df,pd.Series):
         return trim_sub(df,cutoff=cutoff)
-    else: 
+    else:
         raise ValueError('Data must be a pandas DataFrame or Series')
 
 def calc_bpm(beat_interval, sampling_freq):
@@ -377,12 +378,23 @@ def fisher_r_to_z(r):
 
     return .5*np.log((1+r)/(1-r))
 
-def one_sample_permutation(data, n_permute = 5000):
+def _permute_sign(dat):
+    return np.mean(dat*np.random.choice([1, -1], len(dat)))
+
+def _permute_group(data):
+    perm_label = np.random.permutation(data['Group'])
+    return (np.mean(data.loc[perm_label==1, 'Values']) -
+            np.mean(data.loc[perm_label==0, 'Values']))
+
+def one_sample_permutation(data, n_permute=5000, n_jobs=-1):
     ''' One sample permutation test using randomization.
 
         Args:
             data: Pandas DataFrame or Series or numpy array
             n_permute: (int) number of permutations
+            n_jobs: (int) The number of CPUs to use to do the computation.
+                    -1 means all CPUs.
+
         Returns:
             stats: (dict) dictionary of permutation results ['mean','p']
 
@@ -391,22 +403,24 @@ def one_sample_permutation(data, n_permute = 5000):
     data = np.array(data)
     stats = dict()
     stats['mean'] = np.mean(data)
-    all_p = []
-    for p in range(n_permute):
-        all_p.append(np.mean(data*np.random.choice([1,-1], len(data))))
+
+    all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_sign)(data)
+                     for i in range(n_permute))
     if stats['mean'] >= 0:
         stats['p'] = np.mean(all_p >= stats['mean'])
     else:
         stats['p'] = np.mean(all_p <= stats['mean'])
     return stats
 
-def two_sample_permutation(data1, data2, n_permute=5000):
+def two_sample_permutation(data1, data2, n_permute=5000, n_jobs=-1):
     ''' Independent sample permutation test.
 
         Args:
             data1: Pandas DataFrame or Series or numpy array
             data2: Pandas DataFrame or Series or numpy array
             n_permute: (int) number of permutations
+            n_jobs: (int) The number of CPUs to use to do the computation.
+                    -1 means all CPUs.
         Returns:
             stats: (dict) dictionary of permutation results ['mean','p']
 
@@ -415,26 +429,30 @@ def two_sample_permutation(data1, data2, n_permute=5000):
     stats = dict()
     stats['mean'] = np.mean(data1)-np.mean(data2)
     data = pd.DataFrame(data={'Values':data1,'Group':np.ones(len(data1))})
-    data = data.append(pd.DataFrame(data={'Values':data2,'Group':np.zeros(len(data2))}))
-    all_p = []
-    for p in range(n_permute):
-        perm_label = np.random.permutation(data['Group'])
-        all_p.append(np.mean(data.loc[perm_label==1,'Values'])-np.mean(data.loc[perm_label==0,'Values']))
+    data = data.append(pd.DataFrame(data={
+                                        'Values':data2,
+                                        'Group':np.zeros(len(data2))}))
+    all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_group)(data)
+                     for i in range(n_permute))
+
     if stats['mean']>=0:
         stats['p'] = np.mean(all_p>=stats['mean'])
     else:
         stats['p'] = np.mean(all_p<=stats['mean'])
     return stats
 
-def correlation_permutation(data1, data2, n_permute=5000, metric='spearman'):
+def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
+                            n_jobs=-1):
     ''' Permute correlation.
 
         Args:
             data1: Pandas DataFrame or Series or numpy array
             data2: Pandas DataFrame or Series or numpy array
-                    n_permute: (int) number of permutations
+            n_permute: (int) number of permutations
             metric: (str) type of association metric ['spearman','pearson',
                     'kendall']
+            n_jobs: (int) The number of CPUs to use to do the computation.
+                    -1 means all CPUs.
 
         Returns:
             stats: (dict) dictionary of permutation results ['correlation','p']
@@ -454,16 +472,21 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman'):
     else:
         raise ValueError('metric must be "spearman" or "pearson" or "kendall"')
 
-    all_p = []
-    for p in range(n_permute):
-        if metric is 'spearman':
-            stats['correlation'] = spearmanr(data1, data2)[0]
-            all_p.append(spearmanr(np.random.permutation(data1), data2)[0])
-        elif metric is 'pearson':
-            all_p.append(pearsonr(np.random.permutation(data1), data2)[0])
-        elif metric is 'kendall':
-            all_p.append(kendalltau(np.random.permutation(data1), data2)[0])
-    if stats['correlation']>=0:
+    if metric is 'spearman':
+        all_p = Parallel(n_jobs=n_jobs)(delayed(spearmanr)(
+                        np.random.permutation(data1), data2)
+                        for i in range(n_permute))
+    elif metric is 'pearson':
+        all_p = Parallel(n_jobs=n_jobs)(delayed(pearsonr)(
+                        np.random.permutation(data1), data2)
+                        for i in range(n_permute))
+    elif metric is 'kendall':
+        all_p = Parallel(n_jobs=n_jobs)(delayed(kendalltau)(
+                        np.random.permutation(data1), data2)
+                        for i in range(n_permute))
+    all_p = [x[0] for x in all_p]
+
+    if stats['correlation'] >= 0:
         stats['p'] = np.mean(all_p >= stats['correlation'])
     else:
         stats['p'] = np.mean(all_p <= stats['correlation'])
