@@ -24,6 +24,8 @@ import os
 from sklearn.pipeline import Pipeline
 from scipy.stats import gamma
 import numpy as np
+import collections
+from types import GeneratorType
 
 def get_resource_path():
     """ Get path to nltools resource directory. """
@@ -275,3 +277,20 @@ def make_cosine_basis(nsamples,sampling_freq,filter_length):
         raise ValueError('Basis function creation failed! nsamples is too small for requested filter_length.')
     else:
         return C
+
+def isiterable(obj):
+    ''' Returns True if the object is one of allowable iterable types. '''
+    return isinstance(obj, (list, tuple, GeneratorType))
+
+module_names = {}
+Dependency = collections.namedtuple('Dependency', 'package value')
+
+def attempt_to_import(dependency, name=None, fromlist=None):
+    if name is None:
+        name = dependency
+    try:
+        mod = __import__(dependency, fromlist=fromlist)
+    except ImportError:
+        mod = None
+    module_names[name] = Dependency(dependency, mod)
+    return mod
