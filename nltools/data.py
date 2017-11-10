@@ -76,7 +76,7 @@ nx = attempt_to_import('networkx', 'nx')
 mne_stats = attempt_to_import('mne.stats',name='mne_stats', fromlist=
                                     ['spatio_temporal_cluster_1samp_test',
                                      'ttest_1samp_no_p'])
-                                     
+
 class Brain_Data(object):
 
     """
@@ -123,14 +123,17 @@ class Brain_Data(object):
                     data = nib.load(data)
                 self.data = self.nifti_masker.fit_transform(data)
             elif isinstance(data, list):
-                self.data = []
-                for i in data:
-                    if isinstance(i, six.string_types):
-                        self.data.append(self.nifti_masker.fit_transform(
-                                         nib.load(i)))
-                    elif isinstance(i, nib.Nifti1Image):
-                        self.data.append(self.nifti_masker.fit_transform(i))
-                self.data = np.array(self.data)
+                if isinstance(data[0], Brain_Data):
+                    self = concatenate(data)
+                else:
+                    self.data = []
+                    for i in data:
+                        if isinstance(i, six.string_types):
+                            self.data.append(self.nifti_masker.fit_transform(
+                                             nib.load(i)))
+                        elif isinstance(i, nib.Nifti1Image):
+                            self.data.append(self.nifti_masker.fit_transform(i))
+                    self.data = np.array(self.data)
             elif isinstance(data, nib.Nifti1Image):
                 self.data = np.array(self.nifti_masker.fit_transform(data))
             else:
@@ -482,21 +485,19 @@ class Brain_Data(object):
             out = deepcopy(data)
         else:
             out = deepcopy(self)
+            error_string = ("Data is a different number of voxels "
+                             "then the weight_map.")
             if len(self.shape()) == 1 & len(data.shape()) == 1:
                 if self.shape()[0] != data.shape()[0]:
-                    raise ValueError("Data is a different number of voxels "
-                                     "then the weight_map.")
+                    raise ValueError(error_string)
             elif len(self.shape()) == 1 & len(data.shape()) > 1:
                 if self.shape()[0] != data.shape()[1]:
-                    raise ValueError("Data is a different number of voxels "
-                                     "then the weight_map.")
+                    raise ValueError(error_string)
             elif len(self.shape()) > 1 & len(data.shape()) == 1:
                 if self.shape()[1] != data.shape()[0]:
-                    raise ValueError("Data is a different number of voxels "
-                                     "then the weight_map.")
+                    raise ValueError(error_string)
             elif self.shape()[1] != data.shape()[1]:
-                raise ValueError("Data is a different number of voxels then "
-                                 "the weight_map.")
+                raise ValueError(error_string)
 
             out.data = np.vstack([self.data, data.data])
             if out.Y.size:
@@ -557,9 +558,11 @@ class Brain_Data(object):
                                  "instance")
         dim = image.shape()
 
-        # Check to make sure masks are the same for each dataset and if not create a union mask
+        # Check to make sure masks are the same for each dataset and if not
+        # create a union mask
         # This might be handy code for a new Brain_Data method
-        if np.sum(self.nifti_masker.mask_img.get_data() == 1) != np.sum(image.nifti_masker.mask_img.get_data()==1):
+        if np.sum(self.nifti_masker.mask_img.get_data() == 1)
+                != np.sum(image.nifti_masker.mask_img.get_data()==1):
             new_mask = intersect_masks([self.nifti_masker.mask_img,
                                         image.nifti_masker.mask_img],
                                         threshold=1, connected=False)
@@ -813,6 +816,36 @@ class Brain_Data(object):
 
         return output
 
+    def _summarize_bootstrap(sample, save_weights=False):
+        """ Calculate summary of bootstrap samples
+
+        Args:
+            sample: Brain_Data instance of samples
+            save_weights: (bool) save bootstrap weights
+
+        Returns:
+            output: dictionary of Brain_Data summary images
+
+        """
+
+        output = {}
+
+        # Calculate SE of bootstraps
+        wstd = sample.std()
+        wmean = sample.mean()
+        wz = deepcopy(wmean)
+        wz.data = wmean.data / wstd.data
+        wp = deepcopy(wmean)
+        wp.data = 2*(1-norm.cdf(np.abs(wz.data)))
+
+        # Create outputs
+        output['Z'] = wz
+        output['p'] = wp
+        output['mean'] = wmean
+        if save_weights:
+            output['samples'] = sample
+        return output
+
     def bootstrap(self, analysis_type=None, n_samples=10, save_weights=False,
                   **kwargs):
         """ Bootstrap various Brain_Data analaysis methods (e.g., mean, std,
@@ -836,36 +869,6 @@ class Brain_Data(object):
 
         # Regress method is pretty convoluted and slow, this should be
         # optimized better.
-
-        def summarize_bootstrap(sample):
-            """ Calculate summary of bootstrap samples
-
-            Args:
-                sample: Brain_Data instance of samples
-
-            Returns:
-                output: dictionary of Brain_Data summary images
-
-            """
-
-            output = {}
-
-            # Calculate SE of bootstraps
-            wstd = sample.std()
-            wmean = sample.mean()
-            wz = deepcopy(wmean)
-            wz.data = wmean.data / wstd.data
-            wp = deepcopy(wmean)
-            wp.data = 2*(1-norm.cdf(np.abs(wz.data)))
-
-            # Create outputs
-            output['Z'] = wz
-            output['p'] = wp
-            output['mean'] = wmean
-            if save_weights:
-                output['samples'] = sample
-
-            return output
 
         analysis_list = ['mean', 'std', 'regress', 'predict']
 
@@ -918,7 +921,8 @@ class Brain_Data(object):
         if analysis_type is 'regress':
             reg_out = {}
             for i, b in enumerate(iter(beta.keys())):
-                reg_out[b] = summarize_bootstrap(beta[b])
+                reg_out[b] = summarize_bootstrap(beta[b],
+                                                save_weights=save_weights)
             output = {}
             for b in reg_out.iteritems():
                 for o in b[1].iteritems():
@@ -927,7 +931,7 @@ class Brain_Data(object):
                     else:
                         output[o[0]] = o[1]
         else:
-            output = summarize_bootstrap(sample)
+            output = summarize_bootstrap(sample, save_weights=save_weights)
         return output
 
     def apply_mask(self, mask):
@@ -2356,6 +2360,22 @@ class Design_Matrix(DataFrame):
 
         return out
 
+def concatenate(data):
+    '''Concatenate a list of Brain_Data() or Adjacency() objects'''
+
+    if not isinstance(data, list):
+        raise ValueError('Make sure you are passing a list of objects.')
+
+    if all([type(x) for x in data]):
+        if not isinstance(data[0], (Brain_Data, Adjacency)):
+            raise ValueError('Make sure you are passing a list of Brain_Data or Adjacency objects.')
+
+        out = data[0].__class__()
+        for i in data:
+            out = out.append(i)
+    else:
+        raise ValueError('Make sure all objects in the list are the same type.')
+    return out
 
 def all_same(items):
     return np.all(x == items[0] for x in items)
