@@ -33,6 +33,11 @@ def test_brain_data(tmpdir):
     # Test load list
     dat = Brain_Data(data=str(tmpdir.join('data.nii.gz')), Y=y)
 
+    # Test concatenate
+    out = Brain_Data([x for x in dat])
+    assert isinstance(out, Brain_Data)
+    assert len(out)==len(dat)
+
     # Test to_nifti
     d = dat.to_nifti()
     assert d.shape[0:3] == shape_3d
