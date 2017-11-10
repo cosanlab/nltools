@@ -4,7 +4,11 @@ import nibabel as nb
 import pandas as pd
 import glob
 from nltools.simulator import Simulator
-from nltools.data import Brain_Data, Adjacency, Groupby, Design_Matrix
+from nltools.data import (Brain_Data,
+                        Adjacency,
+                        Groupby,
+                        Design_Matrix,
+                        bootstrap)
 from nltools.stats import threshold
 from nltools.mask import create_sphere
 from sklearn.metrics import pairwise_distances
@@ -222,12 +226,18 @@ def test_brain_data(tmpdir):
     diff = m2-m1
     assert np.sum(diff.data) == 0
 
-    # # Test Plot
-    # dat.plot()
-
     # Test Bootstrap
-
-    # Test multivariate_similarity
+    n_samples = 3
+    b = bootstrap(dat.mean, n_samples=n_samples)
+    assert isinstance(b['Z'], Brain_Data)
+    b = bootstrap(dat.std, n_samples=n_samples)
+    assert isinstance(b['Z'], Brain_Data)
+    b = bootstrap(dat.predict, n_samples=n_samples)
+    assert isinstance(b['Z'], Brain_Data)
+    b = bootstrap(dat.predict, n_samples=n_samples, cv_dict={'type':'kfolds','n_folds':3})
+    assert isinstance(b['Z'], Brain_Data)
+    b = bootstrap(dat.predict, n_samples=n_samples, save_weights=True)
+    assert len(b['samples'])==n_samples
 
 def test_adjacency(tmpdir):
     n = 10

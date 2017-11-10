@@ -70,6 +70,7 @@ import tempfile
 import seaborn as sns
 from pynv import Client
 import matplotlib.pyplot as plt
+from joblib import Parallel, delayed
 
 # Optional dependencies
 nx = attempt_to_import('networkx', 'nx')
@@ -124,7 +125,10 @@ class Brain_Data(object):
                 self.data = self.nifti_masker.fit_transform(data)
             elif isinstance(data, list):
                 if isinstance(data[0], Brain_Data):
-                    self = concatenate(data)
+                    tmp = concatenate(data)
+                    for item in ['data', 'Y', 'X', 'mask', 'nifti_masker',
+                                'file_name']:
+                        setattr(self, item, getattr(tmp,item))
                 else:
                     self.data = []
                     for i in data:
@@ -271,6 +275,8 @@ class Brain_Data(object):
         out = deepcopy(self)
         if len(self.shape()) > 1:
             out.data = np.mean(self.data, axis=0)
+            out.X = pd.DataFrame()
+            out.Y = pd.DataFrame()
         else:
             out = np.mean(self.data)
         return out
@@ -281,6 +287,8 @@ class Brain_Data(object):
         out = deepcopy(self)
         if len(self.shape()) > 1:
             out.data = np.std(self.data, axis=0)
+            out.X = pd.DataFrame()
+            out.Y = pd.DataFrame()
         else:
             out = np.std(self.data)
         return out
@@ -291,6 +299,8 @@ class Brain_Data(object):
         out = deepcopy(self)
         if len(self.shape()) > 1:
             out.data = np.sum(out.data, axis=0)
+            out.X = pd.DataFrame()
+            out.Y = pd.DataFrame()
         else:
             out = np.sum(self.data)
         return out
@@ -561,8 +571,7 @@ class Brain_Data(object):
         # Check to make sure masks are the same for each dataset and if not
         # create a union mask
         # This might be handy code for a new Brain_Data method
-        if np.sum(self.nifti_masker.mask_img.get_data() == 1)
-                != np.sum(image.nifti_masker.mask_img.get_data()==1):
+        if np.sum(self.nifti_masker.mask_img.get_data() == 1) != np.sum(image.nifti_masker.mask_img.get_data()==1):
             new_mask = intersect_masks([self.nifti_masker.mask_img,
                                         image.nifti_masker.mask_img],
                                         threshold=1, connected=False)
@@ -2343,7 +2352,9 @@ class Design_Matrix(DataFrame):
         return out
 
     def add_dct_basis(self,duration=180):
-        """Adds cosine basis functions to Design_Matrix columns, based on spm-style discrete cosine transform for use in high-pass filtering.
+        """Adds cosine basis functions to Design_Matrix columns,
+        based on spm-style discrete cosine transform for use in
+        high-pass filtering.
 
         Args:
             duration (int): length of filter in seconds
@@ -2352,7 +2363,9 @@ class Design_Matrix(DataFrame):
         assert self.sampling_rate is not None, "Design_Matrix has no sampling_rate set!"
         basis_mat = make_cosine_basis(self.shape[0],self.sampling_rate,duration)
 
-        basis_frame = Design_Matrix(basis_mat,sampling_rate=self.sampling_rate,hasIntercept=False,convolved=False)
+        basis_frame = Design_Matrix(basis_mat,
+                                    sampling_rate=self.sampling_rate,
+                                    hasIntercept=False, convolved=False)
 
         basis_frame.columns = ['cosine_'+str(i+1) for i in range(basis_frame.shape[1])]
 
@@ -2379,6 +2392,75 @@ def concatenate(data):
 
 def all_same(items):
     return np.all(x == items[0] for x in items)
+
+def bootstrap(object_instance, n_samples=5000, save_weights=False,
+                n_jobs=-1, *args, **kwargs):
+    '''Decorator used to apply bootstrapping to a Brain_Data
+        or Adjacency method.
+
+        Example Useage:
+        b = bootstrap(dat.mean, n_samples=5000)
+        b = bootstrap(dat.predict, n_samples=5000, algorithm='ridge')
+        b = bootstrap(dat.predict, n_samples=5000, save_weights=True)
+
+    Args:
+        n_samples: (int) number of samples to bootstrap with replacement
+        save_weights: (bool) Save each bootstrap iteration
+                        (useful for aggregating many bootstraps on a cluster)
+        n_jobs: (int) The number of CPUs to use to do the computation.
+                    -1 means all CPUs.Returns:
+    output: summarized studentized bootstrap output
+
+    '''
+
+    dat = object_instance.__self__
+    func = object_instance.__func__
+    bootstrapped = Parallel(n_jobs=n_jobs)(
+                    delayed(_bootstrap_apply_func)(dat, func, *args, **kwargs)
+                    for i in range(n_samples))
+
+    if isinstance(dat, Brain_Data):
+        if func.__name__ is 'predict':
+            bootstrapped = [x['weight_map'] for x in bootstrapped]
+        bootstrapped = Brain_Data(bootstrapped)
+    elif isinstance(dat, Adjacency):
+        bootstrapped = Adjacency(bootstrapped)
+
+    return _summarize_bootstrap(bootstrapped, save_weights=save_weights)
+
+def _bootstrap_apply_func(dat, func, *args, **kwargs):
+    '''Sample with replacement and apply func'''
+    data_row_id = range(dat.shape()[0])
+    new_dat = dat[np.random.choice(data_row_id,
+                                   size=len(data_row_id),
+                                   replace=True)]
+    new_dat.__setattr__('func', func)
+    return new_dat.func(new_dat, *args, **kwargs)
+
+def _summarize_bootstrap(data, save_weights=False):
+    """ Calculate summary of bootstrap samples
+
+    Args:
+        sample: Brain_Data instance of samples
+        save_weights: (bool) save bootstrap weights
+
+    Returns:
+        output: dictionary of Brain_Data summary images
+
+    """
+
+    # Calculate SE of bootstraps
+    wstd = data.std()
+    wmean = data.mean()
+    wz = deepcopy(wmean)
+    a = wmean.data / wstd.data
+    wp = deepcopy(wmean)
+    wp.data = 2*(1-norm.cdf(np.abs(wz.data)))
+    # Create outputs
+    output = {'Z':wz, 'p': wp, 'mean':wmean}
+    if save_weights:
+        output['samples'] = data
+    return output
 
 def _vif(X, y):
     """
