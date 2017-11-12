@@ -4,7 +4,10 @@ import nibabel as nb
 import pandas as pd
 import glob
 from nltools.simulator import Simulator
-from nltools.data import Brain_Data, Adjacency, Groupby, Design_Matrix
+from nltools.data import (Brain_Data,
+                        Adjacency,
+                        Groupby,
+                        Design_Matrix)
 from nltools.stats import threshold
 from nltools.mask import create_sphere
 from sklearn.metrics import pairwise_distances
@@ -32,6 +35,11 @@ def test_brain_data(tmpdir):
 
     # Test load list
     dat = Brain_Data(data=str(tmpdir.join('data.nii.gz')), Y=y)
+
+    # Test concatenate
+    out = Brain_Data([x for x in dat])
+    assert isinstance(out, Brain_Data)
+    assert len(out)==len(dat)
 
     # Test to_nifti
     d = dat.to_nifti()
@@ -217,12 +225,21 @@ def test_brain_data(tmpdir):
     diff = m2-m1
     assert np.sum(diff.data) == 0
 
-    # # Test Plot
-    # dat.plot()
-
     # Test Bootstrap
-
-    # Test multivariate_similarity
+    masked = dat.apply_mask(create_sphere(radius=10, coordinates=[0, 0, 0]))
+    n_samples = 3
+    b = masked.bootstrap('mean', n_samples=n_samples)
+    assert isinstance(b['Z'], Brain_Data)
+    b = masked.bootstrap('std', n_samples=n_samples)
+    assert isinstance(b['Z'], Brain_Data)
+    b = masked.bootstrap('predict', n_samples=n_samples, plot=False)
+    assert isinstance(b['Z'], Brain_Data)
+    b = masked.bootstrap('predict', n_samples=n_samples,
+                    plot=False, cv_dict={'type':'kfolds','n_folds':3})
+    assert isinstance(b['Z'], Brain_Data)
+    b = masked.bootstrap('predict', n_samples=n_samples,
+                    save_weights=True, plot=False)
+    assert len(b['samples'])==n_samples
 
 def test_adjacency(tmpdir):
     n = 10
@@ -334,6 +351,12 @@ def test_adjacency(tmpdir):
     assert a.shape() == dat_single.shape()
     a = a.append(a)
     assert a.shape() == (2, 6)
+
+    n_samples = 3
+    b = dat_multiple.bootstrap('mean', n_samples=n_samples)
+    assert isinstance(b['Z'], Adjacency)
+    b = dat_multiple.bootstrap('std', n_samples=n_samples)
+    assert isinstance(b['Z'], Adjacency)
 
     # # Test stats_label_distance - FAILED - Need to sort this out
     # labels = np.array(['group1','group1','group2','group2'])
