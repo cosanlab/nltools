@@ -234,10 +234,10 @@ def test_brain_data(tmpdir):
     assert isinstance(b['Z'], Brain_Data)
     b = masked.bootstrap('predict', n_samples=n_samples, plot=False)
     assert isinstance(b['Z'], Brain_Data)
-    b = dat.bootstrap('predict', n_samples=n_samples,
+    b = masked.bootstrap('predict', n_samples=n_samples,
                     plot=False, cv_dict={'type':'kfolds','n_folds':3})
     assert isinstance(b['Z'], Brain_Data)
-    b = dat.bootstrap('predict', n_samples=n_samples,
+    b = masked.bootstrap('predict', n_samples=n_samples,
                     save_weights=True, plot=False)
     assert len(b['samples'])==n_samples
 
