@@ -226,16 +226,19 @@ def test_brain_data(tmpdir):
     assert np.sum(diff.data) == 0
 
     # Test Bootstrap
+    masked = dat.apply_mask(create_sphere(radius=10, coordinates=[0, 0, 0]))
     n_samples = 3
-    b = dat.bootstrap('mean', n_samples=n_samples)
+    b = masked.bootstrap('mean', n_samples=n_samples)
     assert isinstance(b['Z'], Brain_Data)
-    b = dat.bootstrap('std', n_samples=n_samples)
+    b = masked.bootstrap('std', n_samples=n_samples)
     assert isinstance(b['Z'], Brain_Data)
-    b = dat.bootstrap('predict', n_samples=n_samples)
+    b = masked.bootstrap('predict', n_samples=n_samples, plot=False)
     assert isinstance(b['Z'], Brain_Data)
-    b = dat.bootstrap('predict', n_samples=n_samples, cv_dict={'type':'kfolds','n_folds':3})
+    b = dat.bootstrap('predict', n_samples=n_samples,
+                    plot=False, cv_dict={'type':'kfolds','n_folds':3})
     assert isinstance(b['Z'], Brain_Data)
-    b = dat.bootstrap('predict', n_samples=n_samples, save_weights=True)
+    b = dat.bootstrap('predict', n_samples=n_samples,
+                    save_weights=True, plot=False)
     assert len(b['samples'])==n_samples
 
     # masked = dat.apply_mask(create_sphere(radius=10, coordinates=[0, 0, 0]))
