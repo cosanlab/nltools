@@ -241,19 +241,6 @@ def test_brain_data(tmpdir):
                     save_weights=True, plot=False)
     assert len(b['samples'])==n_samples
 
-    # masked = dat.apply_mask(create_sphere(radius=10, coordinates=[0, 0, 0]))
-    # n_samples = 3
-    # b = bootstrap(masked, 'mean', n_samples=n_samples)
-    # assert isinstance(b['Z'], Brain_Data)
-    # b = bootstrap(masked, 'std', n_samples=n_samples)
-    # assert isinstance(b['Z'], Brain_Data)
-    # b = bootstrap(masked, 'predict', n_samples=n_samples)
-    # assert isinstance(b['Z'], Brain_Data)
-    # b = bootstrap(masked, 'predict', n_samples=n_samples, cv_dict={'type':'kfolds','n_folds':3})
-    # assert isinstance(b['Z'], Brain_Data)
-    # b = bootstrap(masked, 'predict', n_samples=n_samples, save_weights=True)
-    # assert len(b['samples'])==n_samples
-
 def test_adjacency(tmpdir):
     n = 10
     sim = np.random.multivariate_normal([0,0,0,0],[[1, 0.8, 0.1, 0.4],
@@ -364,6 +351,12 @@ def test_adjacency(tmpdir):
     assert a.shape() == dat_single.shape()
     a = a.append(a)
     assert a.shape() == (2, 6)
+
+    n_samples = 3
+    b = dat_multiple.bootstrap('mean', n_samples=n_samples)
+    assert isinstance(b['Z'], Adjacency)
+    b = dat_multiple.bootstrap('std', n_samples=n_samples)
+    assert isinstance(b['Z'], Adjacency)
 
     # # Test stats_label_distance - FAILED - Need to sort this out
     # labels = np.array(['group1','group1','group2','group2'])
