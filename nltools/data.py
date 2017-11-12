@@ -826,36 +826,6 @@ class Brain_Data(object):
 
         return output
 
-    def _summarize_bootstrap(sample, save_weights=False):
-        """ Calculate summary of bootstrap samples
-
-        Args:
-            sample: Brain_Data instance of samples
-            save_weights: (bool) save bootstrap weights
-
-        Returns:
-            output: dictionary of Brain_Data summary images
-
-        """
-
-        output = {}
-
-        # Calculate SE of bootstraps
-        wstd = sample.std()
-        wmean = sample.mean()
-        wz = deepcopy(wmean)
-        wz.data = wmean.data / wstd.data
-        wp = deepcopy(wmean)
-        wp.data = 2*(1-norm.cdf(np.abs(wz.data)))
-
-        # Create outputs
-        output['Z'] = wz
-        output['p'] = wp
-        output['mean'] = wmean
-        if save_weights:
-            output['samples'] = sample
-        return output
-
     def apply_mask(self, mask):
         """ Mask Brain_Data instance
 
@@ -1304,8 +1274,7 @@ class Brain_Data(object):
 
     def bootstrap(self, function, n_samples=5000, save_weights=False,
                     n_jobs=-1, *args, **kwargs):
-        '''Decorator used to apply bootstrapping to a Brain_Data
-            or Adjacency method.
+        '''Bootstrap a Brain_Data method.
 
             Example Useage:
             b = dat.bootstrap('mean', n_samples=5000)
@@ -1362,21 +1331,26 @@ class Adjacency(object):
             self.is_single_matrix = np.nan
             self.issymmetric = np.nan
         elif isinstance(data, list):
-            d_all = []; symmetric_all = []; matrix_type_all = []
-            for d in data:
-                data_tmp, issymmetric_tmp, matrix_type_tmp, _ = self._import_single_data(d,matrix_type=matrix_type)
-                d_all.append(data_tmp)
-                symmetric_all.append(issymmetric_tmp)
-                matrix_type_all.append(matrix_type_tmp)
-            if not all_same(symmetric_all):
-                raise ValueError('Not all matrices are of the same symmetric '
-                                'type.')
-            if not all_same(matrix_type_all):
-                raise ValueError('Not all matrices are of the same matrix '
-                                'type.')
-            self.data = np.array(d_all)
-            self.issymmetric = symmetric_all[0]
-            self.matrix_type = matrix_type_all[0]
+            if isinstance(data[0], Adjacency):
+                tmp = concatenate(data)
+                for item in ['data', 'matrix_type', 'Y','issymmetric']:
+                    setattr(self, item, getattr(tmp,item))
+            else:
+                d_all = []; symmetric_all = []; matrix_type_all = []
+                for d in data:
+                    data_tmp, issymmetric_tmp, matrix_type_tmp, _ = self._import_single_data(d,matrix_type=matrix_type)
+                    d_all.append(data_tmp)
+                    symmetric_all.append(issymmetric_tmp)
+                    matrix_type_all.append(matrix_type_tmp)
+                if not all_same(symmetric_all):
+                    raise ValueError('Not all matrices are of the same symmetric '
+                                    'type.')
+                if not all_same(matrix_type_all):
+                    raise ValueError('Not all matrices are of the same matrix '
+                                    'type.')
+                self.data = np.array(d_all)
+                self.issymmetric = symmetric_all[0]
+                self.matrix_type = matrix_type_all[0]
             self.is_single_matrix = False
         else:
             self.data, self.issymmetric, self.matrix_type, self.is_single_matrix = self._import_single_data(data, matrix_type=matrix_type)
@@ -1813,7 +1787,7 @@ class Adjacency(object):
         f.set_title('Average Group Distance')
         return f
 
-    def stats_label_distance(self, labels, n_permute=5000):
+    def stats_label_distance(self, labels, n_permute=5000, n_jobs=-1):
         ''' Calculate permutation tests on within and between label distance.
 
             Args:
@@ -1852,19 +1826,48 @@ class Adjacency(object):
             # Within group test
             tmp1 = out.loc[(out['Group'] == i) & (out['Type'] == 'Within'), 'Distance']
             tmp2 = out.loc[(out['Group'] == i) & (out['Type'] == 'Between'), 'Distance']
-            stats[str(i)] = two_sample_permutation(tmp1, tmp2, n_permute=n_permute)
+            stats[str(i)] = two_sample_permutation(tmp1, tmp2,
+                                        n_permute=n_permute, n_jobs=n_jobs)
         return stats
 
-    def plot_silhouette(self,labels,ax=None,permutation_test=True,n_permute=5000,**kwargs):
-
+    def plot_silhouette(self, labels, ax=None, permutation_test=True,
+                        n_permute=5000, **kwargs):
+        '''Create a silhouette plot'''
         distance = pd.DataFrame(self.squareform())
 
         if len(labels) != distance.shape[0]:
             raise ValueError('Labels must be same length as distance matrix')
 
-        (f,outAll) = plot_silhouette(distance,labels,ax=None,permutation_test=True,n_permute=5000,**kwargs)
-
+        (f,outAll) = plot_silhouette(distance, labels, ax=None,
+                                    permutation_test=True,
+                                    n_permute=5000, **kwargs)
         return (f,outAll)
+
+    def bootstrap(self, function, n_samples=5000, save_weights=False,
+                    n_jobs=-1, *args, **kwargs):
+        '''Bootstrap an Adjacency method.
+
+            Example Useage:
+            b = dat.bootstrap('mean', n_samples=5000)
+            b = dat.bootstrap('predict', n_samples=5000, algorithm='ridge')
+            b = dat.bootstrap('predict', n_samples=5000, save_weights=True)
+
+        Args:
+            function: (str) method to apply to data for each bootstrap
+            n_samples: (int) number of samples to bootstrap with replacement
+            save_weights: (bool) Save each bootstrap iteration
+                        (useful for aggregating many bootstraps on a cluster)
+            n_jobs: (int) The number of CPUs to use to do the computation.
+                        -1 means all CPUs.Returns:
+        output: summarized studentized bootstrap output
+
+        '''
+
+        bootstrapped = Parallel(n_jobs=n_jobs)(
+                        delayed(_bootstrap_apply_func)(self,
+                        function, *args, **kwargs) for i in range(n_samples))
+        bootstrapped = Adjacency(bootstrapped)
+        return summarize_bootstrap(bootstrapped, save_weights=save_weights)
 
 
 class Groupby(object):
