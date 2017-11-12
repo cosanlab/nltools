@@ -7,8 +7,7 @@ from nltools.simulator import Simulator
 from nltools.data import (Brain_Data,
                         Adjacency,
                         Groupby,
-                        Design_Matrix,
-                        bootstrap)
+                        Design_Matrix)
 from nltools.stats import threshold
 from nltools.mask import create_sphere
 from sklearn.metrics import pairwise_distances
@@ -228,16 +227,29 @@ def test_brain_data(tmpdir):
 
     # Test Bootstrap
     n_samples = 3
-    b = bootstrap(dat.mean, n_samples=n_samples)
+    b = dat.bootstrap('mean', n_samples=n_samples)
     assert isinstance(b['Z'], Brain_Data)
-    b = bootstrap(dat.std, n_samples=n_samples)
+    b = dat.bootstrap('std', n_samples=n_samples)
     assert isinstance(b['Z'], Brain_Data)
-    b = bootstrap(dat.predict, n_samples=n_samples)
+    b = dat.bootstrap('predict', n_samples=n_samples)
     assert isinstance(b['Z'], Brain_Data)
-    b = bootstrap(dat.predict, n_samples=n_samples, cv_dict={'type':'kfolds','n_folds':3})
+    b = dat.bootstrap('predict', n_samples=n_samples, cv_dict={'type':'kfolds','n_folds':3})
     assert isinstance(b['Z'], Brain_Data)
-    b = bootstrap(dat.predict, n_samples=n_samples, save_weights=True)
+    b = dat.bootstrap('predict', n_samples=n_samples, save_weights=True)
     assert len(b['samples'])==n_samples
+
+    # masked = dat.apply_mask(create_sphere(radius=10, coordinates=[0, 0, 0]))
+    # n_samples = 3
+    # b = bootstrap(masked, 'mean', n_samples=n_samples)
+    # assert isinstance(b['Z'], Brain_Data)
+    # b = bootstrap(masked, 'std', n_samples=n_samples)
+    # assert isinstance(b['Z'], Brain_Data)
+    # b = bootstrap(masked, 'predict', n_samples=n_samples)
+    # assert isinstance(b['Z'], Brain_Data)
+    # b = bootstrap(masked, 'predict', n_samples=n_samples, cv_dict={'type':'kfolds','n_folds':3})
+    # assert isinstance(b['Z'], Brain_Data)
+    # b = bootstrap(masked, 'predict', n_samples=n_samples, save_weights=True)
+    # assert len(b['samples'])==n_samples
 
 def test_adjacency(tmpdir):
     n = 10
