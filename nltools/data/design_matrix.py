@@ -421,9 +421,6 @@ class Design_Matrix(DataFrame):
 
         return out
 
-def all_same(items):
-    return np.all(x == items[0] for x in items)
-
 def _vif(X, y):
     """
         DEPRECATED
