@@ -1144,8 +1144,12 @@ class Brain_Data(object):
         out.data = fisher_r_to_z(out.data)
         return out
 
-    def filter(self,sampling_rate=None, high_pass=None,low_pass=None,TR=None,**kwargs):
-        ''' Apply 5th order butterworth filter to data. Wraps nilearn functionality. Does not default to detrending and standardizing like nilearn implementation, but this can be overridden using kwargs.
+    def filter(self, sampling_rate=None, high_pass=None, low_pass=None,
+                TR=None, **kwargs):
+        ''' Apply 5th order butterworth filter to data. Wraps nilearn
+            functionality. Does not default to detrending and standardizing
+            like nilearn implementation, but this can be overridden
+            using kwargs.
 
         Args:
             sampling_rate: sampling frequence (e.g. TR) in seconds
@@ -1160,16 +1164,18 @@ class Brain_Data(object):
         if sampling_rate is None:
             raise ValueError("Need to provide sampling rate!")
         if high_pass is None and low_pass is None:
-            raise ValueError("high_pass and/or low_pass cutoff must be provided!")
+            raise ValueError("high_pass and/or low_pass cutoff must be"
+                            "provided!")
         if TR is None:
             raise ValueError("Need to provide TR!")
 
         standardize = kwargs.get('standardize',False)
         detrend = kwargs.get('detrend',False)
         out = self.copy()
-        out.data = clean(out.data,t_r=TR,detrend=detrend,standardize=standardize,high_pass=high_pass,low_pass=low_pass,**kwargs)
+        out.data = clean(out.data, t_r=TR, detrend=detrend,
+                        standardize=standardize, high_pass=high_pass,
+                        low_pass=low_pass, **kwargs)
         return out
-
 
     def dtype(self):
         ''' Get data type of Brain_Data.data.'''
@@ -1265,7 +1271,9 @@ class Brain_Data(object):
             smoothing_fwhm (scalar): Smooth an image to extract more sparser
                                 regions. Only works for extract_type
                                 'local_regions'.
-            is_mask (bool): Whether the Brain_Data instance should be treated as a boolean mask and if so, calls connected_label_regions instead.
+            is_mask (bool): Whether the Brain_Data instance should be treated
+                            as a boolean mask and if so, calls
+                            connected_label_regions instead.
 
         Returns:
             Brain_Data: Brain_Data instance with extracted ROIs as data.
@@ -1308,7 +1316,7 @@ class Brain_Data(object):
             function: (str) method to apply to data for each bootstrap
             n_samples: (int) number of samples to bootstrap with replacement
             save_weights: (bool) Save each bootstrap iteration
-                            (useful for aggregating many bootstraps on a cluster)
+                        (useful for aggregating many bootstraps on a cluster)
             n_jobs: (int) The number of CPUs to use to do the computation.
                         -1 means all CPUs.Returns:
         output: summarized studentized bootstrap output
@@ -1316,7 +1324,8 @@ class Brain_Data(object):
         '''
 
         bootstrapped = Parallel(n_jobs=n_jobs)(
-                        delayed(_bootstrap_apply_func)(self, function, *args, **kwargs) for i in range(n_samples))
+                        delayed(_bootstrap_apply_func)(self,
+                        function, *args, **kwargs) for i in range(n_samples))
 
         if function is 'predict':
             bootstrapped = [x['weight_map'] for x in bootstrapped]
