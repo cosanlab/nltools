@@ -45,7 +45,8 @@ from nltools.stats import (pearson,
                            downsample,
                            upsample,
                            zscore,
-                           transform_pairwise)
+                           transform_pairwise,
+                           summarize_bootstrap)
 from nltools.mask import expand_mask, collapse_mask
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
@@ -855,93 +856,93 @@ class Brain_Data(object):
             output['samples'] = sample
         return output
 
-    def bootstrap(self, analysis_type=None, n_samples=10, save_weights=False,
-                  **kwargs):
-        """ Bootstrap various Brain_Data analaysis methods (e.g., mean, std,
-            regress, predict).  Currently
-
-        Args:
-            analysis_type: Type of analysis to bootstrap (mean,std,regress,
-                        predict)
-            n_samples: Number of samples to boostrap
-            **kwargs: Additional keyword arguments to pass to the analysis
-                    method
-
-        Returns:
-            output: a dictionary of prediction parameters
-
-        """
-
-        # Notes:
-        # might want to add options for [studentized, percentile,
-        # bias corrected, bias corrected accelerated] methods
-
-        # Regress method is pretty convoluted and slow, this should be
-        # optimized better.
-
-        analysis_list = ['mean', 'std', 'regress', 'predict']
-
-        if analysis_type in analysis_list:
-            data_row_id = range(self.shape()[0])
-            sample = self.empty()
-            if analysis_type is 'regress': #initialize dictionary of empty betas
-                beta = {}
-                for i in range(self.X.shape[1]):
-                    beta['b' + str(i)] = self.empty()
-            for i in range(n_samples):
-                this_sample = np.random.choice(data_row_id,
-                                               size=len(data_row_id),
-                                               replace=True)
-                if analysis_type is 'mean':
-                    sample = sample.append(self[this_sample].mean())
-                elif analysis_type is 'std':
-                    sample = sample.append(self[this_sample].std())
-                elif analysis_type is 'regress':
-                    out = self[this_sample].regress()
-                    # Aggegate bootstraps for each beta separately
-                    for i, b in enumerate(iter(beta.keys())):
-                        beta[b] = beta[b].append(out['beta'][i])
-                elif analysis_type is 'predict':
-                    if 'algorithm' in kwargs:
-                        algorithm = kwargs['algorithm']
-                        del kwargs['algorithm']
-                    else:
-                        algorithm = 'ridge'
-                    if 'cv_dict' in kwargs:
-                        cv_dict = kwargs['cv_dict']
-                        del kwargs['cv_dict']
-                    else:
-                        cv_dict = None
-                    if 'plot' in ['kwargs']:
-                        plot = kwargs['plot']
-                        del kwargs['plot']
-                    else:
-                        plot = False
-                    out = self[this_sample].predict(algorithm=algorithm,
-                                                    cv_dict=cv_dict,
-                                                    plot=plot,
-                                                    **kwargs)
-                    sample = sample.append(out['weight_map'])
-        else:
-            raise ValueError("The analysis_type you specified (%s) is not yet "
-                             "implemented." % (analysis_type))
-
-        # Save outputs
-        if analysis_type is 'regress':
-            reg_out = {}
-            for i, b in enumerate(iter(beta.keys())):
-                reg_out[b] = summarize_bootstrap(beta[b],
-                                                save_weights=save_weights)
-            output = {}
-            for b in reg_out.iteritems():
-                for o in b[1].iteritems():
-                    if o[0] in output:
-                        output[o[0]] = output[o[0]].append(o[1])
-                    else:
-                        output[o[0]] = o[1]
-        else:
-            output = summarize_bootstrap(sample, save_weights=save_weights)
-        return output
+    # def bootstrap(self, analysis_type=None, n_samples=10, save_weights=False,
+    #               **kwargs):
+    #     """ Bootstrap various Brain_Data analaysis methods (e.g., mean, std,
+    #         regress, predict).  Currently
+    #
+    #     Args:
+    #         analysis_type: Type of analysis to bootstrap (mean,std,regress,
+    #                     predict)
+    #         n_samples: Number of samples to boostrap
+    #         **kwargs: Additional keyword arguments to pass to the analysis
+    #                 method
+    #
+    #     Returns:
+    #         output: a dictionary of prediction parameters
+    #
+    #     """
+    #
+    #     # Notes:
+    #     # might want to add options for [studentized, percentile,
+    #     # bias corrected, bias corrected accelerated] methods
+    #
+    #     # Regress method is pretty convoluted and slow, this should be
+    #     # optimized better.
+    #
+    #     analysis_list = ['mean', 'std', 'regress', 'predict']
+    #
+    #     if analysis_type in analysis_list:
+    #         data_row_id = range(self.shape()[0])
+    #         sample = self.empty()
+    #         if analysis_type is 'regress': #initialize dictionary of empty betas
+    #             beta = {}
+    #             for i in range(self.X.shape[1]):
+    #                 beta['b' + str(i)] = self.empty()
+    #         for i in range(n_samples):
+    #             this_sample = np.random.choice(data_row_id,
+    #                                            size=len(data_row_id),
+    #                                            replace=True)
+    #             if analysis_type is 'mean':
+    #                 sample = sample.append(self[this_sample].mean())
+    #             elif analysis_type is 'std':
+    #                 sample = sample.append(self[this_sample].std())
+    #             elif analysis_type is 'regress':
+    #                 out = self[this_sample].regress()
+    #                 # Aggegate bootstraps for each beta separately
+    #                 for i, b in enumerate(iter(beta.keys())):
+    #                     beta[b] = beta[b].append(out['beta'][i])
+    #             elif analysis_type is 'predict':
+    #                 if 'algorithm' in kwargs:
+    #                     algorithm = kwargs['algorithm']
+    #                     del kwargs['algorithm']
+    #                 else:
+    #                     algorithm = 'ridge'
+    #                 if 'cv_dict' in kwargs:
+    #                     cv_dict = kwargs['cv_dict']
+    #                     del kwargs['cv_dict']
+    #                 else:
+    #                     cv_dict = None
+    #                 if 'plot' in ['kwargs']:
+    #                     plot = kwargs['plot']
+    #                     del kwargs['plot']
+    #                 else:
+    #                     plot = False
+    #                 out = self[this_sample].predict(algorithm=algorithm,
+    #                                                 cv_dict=cv_dict,
+    #                                                 plot=plot,
+    #                                                 **kwargs)
+    #                 sample = sample.append(out['weight_map'])
+    #     else:
+    #         raise ValueError("The analysis_type you specified (%s) is not yet "
+    #                          "implemented." % (analysis_type))
+    #
+    #     # Save outputs
+    #     if analysis_type is 'regress':
+    #         reg_out = {}
+    #         for i, b in enumerate(iter(beta.keys())):
+    #             reg_out[b] = summarize_bootstrap(beta[b],
+    #                                             save_weights=save_weights)
+    #         output = {}
+    #         for b in reg_out.iteritems():
+    #             for o in b[1].iteritems():
+    #                 if o[0] in output:
+    #                     output[o[0]] = output[o[0]].append(o[1])
+    #                 else:
+    #                     output[o[0]] = o[1]
+    #     else:
+    #         output = summarize_bootstrap(sample, save_weights=save_weights)
+    #     return output
 
     def apply_mask(self, mask):
         """ Mask Brain_Data instance
@@ -1380,6 +1381,36 @@ class Brain_Data(object):
         out.Y = pd.DataFrame(new_Y)
         out.Y.replace(-1,0,inplace=True)
         return out
+
+    def bootstrap(self, function, n_samples=5000, save_weights=False,
+                    n_jobs=-1, *args, **kwargs):
+        '''Decorator used to apply bootstrapping to a Brain_Data
+            or Adjacency method.
+
+            Example Useage:
+            b = bootstrap(dat.mean, n_samples=5000)
+            b = bootstrap(dat.predict, n_samples=5000, algorithm='ridge')
+            b = bootstrap(dat.predict, n_samples=5000, save_weights=True)
+
+        Args:
+            function: (str) method to apply to data for each bootstrap
+            n_samples: (int) number of samples to bootstrap with replacement
+            save_weights: (bool) Save each bootstrap iteration
+                            (useful for aggregating many bootstraps on a cluster)
+            n_jobs: (int) The number of CPUs to use to do the computation.
+                        -1 means all CPUs.Returns:
+        output: summarized studentized bootstrap output
+
+        '''
+
+        # @wraps(function)
+        bootstrapped = Parallel(n_jobs=n_jobs)(
+                        delayed(_bootstrap_apply_func)(self, function, *args, **kwargs) for i in range(n_samples))
+
+        if function is 'predict':
+            bootstrapped = [x['weight_map'] for x in bootstrapped]
+        bootstrapped = Brain_Data(bootstrapped)
+        return summarize_bootstrap(bootstrapped, save_weights=save_weights)
 
 class Adjacency(object):
 
@@ -2393,75 +2424,6 @@ def concatenate(data):
 def all_same(items):
     return np.all(x == items[0] for x in items)
 
-def bootstrap(object_instance, n_samples=5000, save_weights=False,
-                n_jobs=-1, *args, **kwargs):
-    '''Decorator used to apply bootstrapping to a Brain_Data
-        or Adjacency method.
-
-        Example Useage:
-        b = bootstrap(dat.mean, n_samples=5000)
-        b = bootstrap(dat.predict, n_samples=5000, algorithm='ridge')
-        b = bootstrap(dat.predict, n_samples=5000, save_weights=True)
-
-    Args:
-        n_samples: (int) number of samples to bootstrap with replacement
-        save_weights: (bool) Save each bootstrap iteration
-                        (useful for aggregating many bootstraps on a cluster)
-        n_jobs: (int) The number of CPUs to use to do the computation.
-                    -1 means all CPUs.Returns:
-    output: summarized studentized bootstrap output
-
-    '''
-
-    dat = object_instance.__self__
-    func = object_instance.__func__
-    bootstrapped = Parallel(n_jobs=n_jobs)(
-                    delayed(_bootstrap_apply_func)(dat, func, *args, **kwargs)
-                    for i in range(n_samples))
-
-    if isinstance(dat, Brain_Data):
-        if func.__name__ is 'predict':
-            bootstrapped = [x['weight_map'] for x in bootstrapped]
-        bootstrapped = Brain_Data(bootstrapped)
-    elif isinstance(dat, Adjacency):
-        bootstrapped = Adjacency(bootstrapped)
-
-    return _summarize_bootstrap(bootstrapped, save_weights=save_weights)
-
-def _bootstrap_apply_func(dat, func, *args, **kwargs):
-    '''Sample with replacement and apply func'''
-    data_row_id = range(dat.shape()[0])
-    new_dat = dat[np.random.choice(data_row_id,
-                                   size=len(data_row_id),
-                                   replace=True)]
-    new_dat.__setattr__('func', func)
-    return new_dat.func(new_dat, *args, **kwargs)
-
-def _summarize_bootstrap(data, save_weights=False):
-    """ Calculate summary of bootstrap samples
-
-    Args:
-        sample: Brain_Data instance of samples
-        save_weights: (bool) save bootstrap weights
-
-    Returns:
-        output: dictionary of Brain_Data summary images
-
-    """
-
-    # Calculate SE of bootstraps
-    wstd = data.std()
-    wmean = data.mean()
-    wz = deepcopy(wmean)
-    a = wmean.data / wstd.data
-    wp = deepcopy(wmean)
-    wp.data = 2*(1-norm.cdf(np.abs(wz.data)))
-    # Create outputs
-    output = {'Z':wz, 'p': wp, 'mean':wmean}
-    if save_weights:
-        output['samples'] = data
-    return output
-
 def _vif(X, y):
     """
         DEPRECATED
@@ -2485,3 +2447,11 @@ def _vif(X, y):
     if r2 == 1:
         r2 = 0.9999  # to prevent divide by 0 errors
     return (1.0/(1.0-r2))[0]
+
+def _bootstrap_apply_func(data, function, *args, **kwargs):
+    '''Bootstrap helper function. Sample with replacement and apply function'''
+    data_row_id = range(data.shape()[0])
+    new_dat = data[np.random.choice(data_row_id,
+                                   size=len(data_row_id),
+                                   replace=True)]
+    return getattr(new_dat, function)( *args, **kwargs)
