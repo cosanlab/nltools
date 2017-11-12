@@ -20,7 +20,7 @@ setup(
     url='http://neurolearn.readthedocs.org/en/latest/',
     install_requires=['numpy>=1.9', 'scipy > ', 'nilearn>=0.3.0', 'nibabel>=2.0.1',
                     'pandas>=0.20', 'six', 'seaborn', 'matplotlib',
-                    'scikit-learn>=0.18.1','pynv'],
+                    'scikit-learn>=0.18.1','pynv','joblib'],
     extras_require={
     'ibrainViewer':['ipywidgets>=5.2.2']
     },

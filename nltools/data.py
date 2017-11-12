@@ -26,7 +26,8 @@ from nltools.utils import (get_resource_path,
                             set_algorithm,
                             get_anatomical,
                             make_cosine_basis,
-                            glover_hrf)
+                            glover_hrf,
+                            attempt_to_import)
 from nltools.cross_validation import set_cv
 from nltools.plotting import (dist_from_hyperplane_plot,
                               scatterplot,
@@ -44,7 +45,8 @@ from nltools.stats import (pearson,
                            downsample,
                            upsample,
                            zscore,
-                           transform_pairwise)
+                           transform_pairwise,
+                           summarize_bootstrap)
 from nltools.mask import expand_mask, collapse_mask
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
@@ -69,19 +71,13 @@ import tempfile
 import seaborn as sns
 from pynv import Client
 import matplotlib.pyplot as plt
+from joblib import Parallel, delayed
 
 # Optional dependencies
-try:
-    from mne.stats import (spatio_temporal_cluster_1samp_test,
-                           ttest_1samp_no_p)
-except ImportError:
-    pass
-
-try:
-    import networkx as nx
-except ImportError:
-    pass
-
+nx = attempt_to_import('networkx', 'nx')
+mne_stats = attempt_to_import('mne.stats',name='mne_stats', fromlist=
+                                    ['spatio_temporal_cluster_1samp_test',
+                                     'ttest_1samp_no_p'])
 
 class Brain_Data(object):
 
@@ -129,14 +125,20 @@ class Brain_Data(object):
                     data = nib.load(data)
                 self.data = self.nifti_masker.fit_transform(data)
             elif isinstance(data, list):
-                self.data = []
-                for i in data:
-                    if isinstance(i, six.string_types):
-                        self.data.append(self.nifti_masker.fit_transform(
-                                         nib.load(i)))
-                    elif isinstance(i, nib.Nifti1Image):
-                        self.data.append(self.nifti_masker.fit_transform(i))
-                self.data = np.array(self.data)
+                if isinstance(data[0], Brain_Data):
+                    tmp = concatenate(data)
+                    for item in ['data', 'Y', 'X', 'mask', 'nifti_masker',
+                                'file_name']:
+                        setattr(self, item, getattr(tmp,item))
+                else:
+                    self.data = []
+                    for i in data:
+                        if isinstance(i, six.string_types):
+                            self.data.append(self.nifti_masker.fit_transform(
+                                             nib.load(i)))
+                        elif isinstance(i, nib.Nifti1Image):
+                            self.data.append(self.nifti_masker.fit_transform(i))
+                    self.data = np.array(self.data)
             elif isinstance(data, nib.Nifti1Image):
                 self.data = np.array(self.nifti_masker.fit_transform(data))
             else:
@@ -274,6 +276,8 @@ class Brain_Data(object):
         out = deepcopy(self)
         if len(self.shape()) > 1:
             out.data = np.mean(self.data, axis=0)
+            out.X = pd.DataFrame()
+            out.Y = pd.DataFrame()
         else:
             out = np.mean(self.data)
         return out
@@ -284,6 +288,8 @@ class Brain_Data(object):
         out = deepcopy(self)
         if len(self.shape()) > 1:
             out.data = np.std(self.data, axis=0)
+            out.X = pd.DataFrame()
+            out.Y = pd.DataFrame()
         else:
             out = np.std(self.data)
         return out
@@ -294,6 +300,8 @@ class Brain_Data(object):
         out = deepcopy(self)
         if len(self.shape()) > 1:
             out.data = np.sum(out.data, axis=0)
+            out.X = pd.DataFrame()
+            out.Y = pd.DataFrame()
         else:
             out = np.sum(self.data)
         return out
@@ -436,9 +444,9 @@ class Brain_Data(object):
                 if 'stat_fun' in threshold_dict:
                     stat_fun = threshold_dict['stat_fun']
                 else:
-                    stat_fun = ttest_1samp_no_p
+                    stat_fun = mne_stats.ttest_1samp_no_p
 
-                t.data, clusters, p_values, _ = spatio_temporal_cluster_1samp_test(
+                t.data, clusters, p_values, _ = mne_stats.spatio_temporal_cluster_1samp_test(
                     data_convert_shape, tail=0, threshold=perm_threshold, stat_fun=stat_fun,
                     connectivity=connectivity, n_permutations=n_permutations, n_jobs=n_jobs)
 
@@ -488,21 +496,19 @@ class Brain_Data(object):
             out = deepcopy(data)
         else:
             out = deepcopy(self)
+            error_string = ("Data is a different number of voxels "
+                             "then the weight_map.")
             if len(self.shape()) == 1 & len(data.shape()) == 1:
                 if self.shape()[0] != data.shape()[0]:
-                    raise ValueError("Data is a different number of voxels "
-                                     "then the weight_map.")
+                    raise ValueError(error_string)
             elif len(self.shape()) == 1 & len(data.shape()) > 1:
                 if self.shape()[0] != data.shape()[1]:
-                    raise ValueError("Data is a different number of voxels "
-                                     "then the weight_map.")
+                    raise ValueError(error_string)
             elif len(self.shape()) > 1 & len(data.shape()) == 1:
                 if self.shape()[1] != data.shape()[0]:
-                    raise ValueError("Data is a different number of voxels "
-                                     "then the weight_map.")
+                    raise ValueError(error_string)
             elif self.shape()[1] != data.shape()[1]:
-                raise ValueError("Data is a different number of voxels then "
-                                 "the weight_map.")
+                raise ValueError(error_string)
 
             out.data = np.vstack([self.data, data.data])
             if out.Y.size:
@@ -563,7 +569,8 @@ class Brain_Data(object):
                                  "instance")
         dim = image.shape()
 
-        # Check to make sure masks are the same for each dataset and if not create a union mask
+        # Check to make sure masks are the same for each dataset and if not
+        # create a union mask
         # This might be handy code for a new Brain_Data method
         if np.sum(self.nifti_masker.mask_img.get_data() == 1) != np.sum(image.nifti_masker.mask_img.get_data()==1):
             new_mask = intersect_masks([self.nifti_masker.mask_img,
@@ -817,123 +824,6 @@ class Brain_Data(object):
                     output['roc'].plot()
             output['weight_map'].plot()
 
-        return output
-
-    def bootstrap(self, analysis_type=None, n_samples=10, save_weights=False,
-                  **kwargs):
-        """ Bootstrap various Brain_Data analaysis methods (e.g., mean, std,
-            regress, predict).  Currently
-
-        Args:
-            analysis_type: Type of analysis to bootstrap (mean,std,regress,
-                        predict)
-            n_samples: Number of samples to boostrap
-            **kwargs: Additional keyword arguments to pass to the analysis
-                    method
-
-        Returns:
-            output: a dictionary of prediction parameters
-
-        """
-
-        # Notes:
-        # might want to add options for [studentized, percentile,
-        # bias corrected, bias corrected accelerated] methods
-
-        # Regress method is pretty convoluted and slow, this should be
-        # optimized better.
-
-        def summarize_bootstrap(sample):
-            """ Calculate summary of bootstrap samples
-
-            Args:
-                sample: Brain_Data instance of samples
-
-            Returns:
-                output: dictionary of Brain_Data summary images
-
-            """
-
-            output = {}
-
-            # Calculate SE of bootstraps
-            wstd = sample.std()
-            wmean = sample.mean()
-            wz = deepcopy(wmean)
-            wz.data = wmean.data / wstd.data
-            wp = deepcopy(wmean)
-            wp.data = 2*(1-norm.cdf(np.abs(wz.data)))
-
-            # Create outputs
-            output['Z'] = wz
-            output['p'] = wp
-            output['mean'] = wmean
-            if save_weights:
-                output['samples'] = sample
-
-            return output
-
-        analysis_list = ['mean', 'std', 'regress', 'predict']
-
-        if analysis_type in analysis_list:
-            data_row_id = range(self.shape()[0])
-            sample = self.empty()
-            if analysis_type is 'regress': #initialize dictionary of empty betas
-                beta = {}
-                for i in range(self.X.shape[1]):
-                    beta['b' + str(i)] = self.empty()
-            for i in range(n_samples):
-                this_sample = np.random.choice(data_row_id,
-                                               size=len(data_row_id),
-                                               replace=True)
-                if analysis_type is 'mean':
-                    sample = sample.append(self[this_sample].mean())
-                elif analysis_type is 'std':
-                    sample = sample.append(self[this_sample].std())
-                elif analysis_type is 'regress':
-                    out = self[this_sample].regress()
-                    # Aggegate bootstraps for each beta separately
-                    for i, b in enumerate(iter(beta.keys())):
-                        beta[b] = beta[b].append(out['beta'][i])
-                elif analysis_type is 'predict':
-                    if 'algorithm' in kwargs:
-                        algorithm = kwargs['algorithm']
-                        del kwargs['algorithm']
-                    else:
-                        algorithm = 'ridge'
-                    if 'cv_dict' in kwargs:
-                        cv_dict = kwargs['cv_dict']
-                        del kwargs['cv_dict']
-                    else:
-                        cv_dict = None
-                    if 'plot' in ['kwargs']:
-                        plot = kwargs['plot']
-                        del kwargs['plot']
-                    else:
-                        plot = False
-                    out = self[this_sample].predict(algorithm=algorithm,
-                                                    cv_dict=cv_dict,
-                                                    plot=plot,
-                                                    **kwargs)
-                    sample = sample.append(out['weight_map'])
-        else:
-            raise ValueError("The analysis_type you specified (%s) is not yet "
-                             "implemented." % (analysis_type))
-
-        # Save outputs
-        if analysis_type is 'regress':
-            reg_out = {}
-            for i, b in enumerate(iter(beta.keys())):
-                reg_out[b] = summarize_bootstrap(beta[b])
-            output = {}
-            for b in reg_out.iteritems():
-                for o in b[1].iteritems():
-                    if o[0] in output:
-                        output[o[0]] = output[o[0]].append(o[1])
-                    else:
-                        output[o[0]] = o[1]
-        else:
-            output = summarize_bootstrap(sample)
         return output
 
     def apply_mask(self, mask):
@@ -1224,8 +1114,12 @@ class Brain_Data(object):
         out.data = fisher_r_to_z(out.data)
         return out
 
-    def filter(self,sampling_rate=None, high_pass=None,low_pass=None,TR=None,**kwargs):
-        ''' Apply 5th order butterworth filter to data. Wraps nilearn functionality. Does not default to detrending and standardizing like nilearn implementation, but this can be overridden using kwargs.
+    def filter(self, sampling_rate=None, high_pass=None, low_pass=None,
+                TR=None, **kwargs):
+        ''' Apply 5th order butterworth filter to data. Wraps nilearn
+            functionality. Does not default to detrending and standardizing
+            like nilearn implementation, but this can be overridden
+            using kwargs.
 
         Args:
             sampling_rate: sampling frequence (e.g. TR) in seconds
@@ -1240,16 +1134,18 @@ class Brain_Data(object):
         if sampling_rate is None:
             raise ValueError("Need to provide sampling rate!")
         if high_pass is None and low_pass is None:
-            raise ValueError("high_pass and/or low_pass cutoff must be provided!")
+            raise ValueError("high_pass and/or low_pass cutoff must be"
+                            "provided!")
         if TR is None:
             raise ValueError("Need to provide TR!")
 
         standardize = kwargs.get('standardize',False)
         detrend = kwargs.get('detrend',False)
         out = self.copy()
-        out.data = clean(out.data,t_r=TR,detrend=detrend,standardize=standardize,high_pass=high_pass,low_pass=low_pass,**kwargs)
+        out.data = clean(out.data, t_r=TR, detrend=detrend,
+                        standardize=standardize, high_pass=high_pass,
+                        low_pass=low_pass, **kwargs)
         return out
-
 
     def dtype(self):
         ''' Get data type of Brain_Data.data.'''
@@ -1345,7 +1241,9 @@ class Brain_Data(object):
             smoothing_fwhm (scalar): Smooth an image to extract more sparser
                                 regions. Only works for extract_type
                                 'local_regions'.
-            is_mask (bool): Whether the Brain_Data instance should be treated as a boolean mask and if so, calls connected_label_regions instead.
+            is_mask (bool): Whether the Brain_Data instance should be treated
+                            as a boolean mask and if so, calls
+                            connected_label_regions instead.
 
         Returns:
             Brain_Data: Brain_Data instance with extracted ROIs as data.
@@ -1373,6 +1271,35 @@ class Brain_Data(object):
         out.Y = pd.DataFrame(new_Y)
         out.Y.replace(-1,0,inplace=True)
         return out
+
+    def bootstrap(self, function, n_samples=5000, save_weights=False,
+                    n_jobs=-1, *args, **kwargs):
+        '''Bootstrap a Brain_Data method.
+
+            Example Useage:
+            b = dat.bootstrap('mean', n_samples=5000)
+            b = dat.bootstrap('predict', n_samples=5000, algorithm='ridge')
+            b = dat.bootstrap('predict', n_samples=5000, save_weights=True)
+
+        Args:
+            function: (str) method to apply to data for each bootstrap
+            n_samples: (int) number of samples to bootstrap with replacement
+            save_weights: (bool) Save each bootstrap iteration
+                        (useful for aggregating many bootstraps on a cluster)
+            n_jobs: (int) The number of CPUs to use to do the computation.
+                        -1 means all CPUs.Returns:
+        output: summarized studentized bootstrap output
+
+        '''
+
+        bootstrapped = Parallel(n_jobs=n_jobs)(
+                        delayed(_bootstrap_apply_func)(self,
+                        function, *args, **kwargs) for i in range(n_samples))
+
+        if function is 'predict':
+            bootstrapped = [x['weight_map'] for x in bootstrapped]
+        bootstrapped = Brain_Data(bootstrapped)
+        return summarize_bootstrap(bootstrapped, save_weights=save_weights)
 
 class Adjacency(object):
 
@@ -1404,21 +1331,26 @@ class Adjacency(object):
             self.is_single_matrix = np.nan
             self.issymmetric = np.nan
         elif isinstance(data, list):
-            d_all = []; symmetric_all = []; matrix_type_all = []
-            for d in data:
-                data_tmp, issymmetric_tmp, matrix_type_tmp, _ = self._import_single_data(d,matrix_type=matrix_type)
-                d_all.append(data_tmp)
-                symmetric_all.append(issymmetric_tmp)
-                matrix_type_all.append(matrix_type_tmp)
-            if not all_same(symmetric_all):
-                raise ValueError('Not all matrices are of the same symmetric '
-                                'type.')
-            if not all_same(matrix_type_all):
-                raise ValueError('Not all matrices are of the same matrix '
-                                'type.')
-            self.data = np.array(d_all)
-            self.issymmetric = symmetric_all[0]
-            self.matrix_type = matrix_type_all[0]
+            if isinstance(data[0], Adjacency):
+                tmp = concatenate(data)
+                for item in ['data', 'matrix_type', 'Y','issymmetric']:
+                    setattr(self, item, getattr(tmp,item))
+            else:
+                d_all = []; symmetric_all = []; matrix_type_all = []
+                for d in data:
+                    data_tmp, issymmetric_tmp, matrix_type_tmp, _ = self._import_single_data(d,matrix_type=matrix_type)
+                    d_all.append(data_tmp)
+                    symmetric_all.append(issymmetric_tmp)
+                    matrix_type_all.append(matrix_type_tmp)
+                if not all_same(symmetric_all):
+                    raise ValueError('Not all matrices are of the same symmetric '
+                                    'type.')
+                if not all_same(matrix_type_all):
+                    raise ValueError('Not all matrices are of the same matrix '
+                                    'type.')
+                self.data = np.array(d_all)
+                self.issymmetric = symmetric_all[0]
+                self.matrix_type = matrix_type_all[0]
             self.is_single_matrix = False
         else:
             self.data, self.issymmetric, self.matrix_type, self.is_single_matrix = self._import_single_data(data, matrix_type=matrix_type)
@@ -1855,7 +1787,7 @@ class Adjacency(object):
         f.set_title('Average Group Distance')
         return f
 
-    def stats_label_distance(self, labels, n_permute=5000):
+    def stats_label_distance(self, labels, n_permute=5000, n_jobs=-1):
         ''' Calculate permutation tests on within and between label distance.
 
             Args:
@@ -1894,19 +1826,48 @@ class Adjacency(object):
             # Within group test
             tmp1 = out.loc[(out['Group'] == i) & (out['Type'] == 'Within'), 'Distance']
             tmp2 = out.loc[(out['Group'] == i) & (out['Type'] == 'Between'), 'Distance']
-            stats[str(i)] = two_sample_permutation(tmp1, tmp2, n_permute=n_permute)
+            stats[str(i)] = two_sample_permutation(tmp1, tmp2,
+                                        n_permute=n_permute, n_jobs=n_jobs)
         return stats
 
-    def plot_silhouette(self,labels,ax=None,permutation_test=True,n_permute=5000,**kwargs):
-
+    def plot_silhouette(self, labels, ax=None, permutation_test=True,
+                        n_permute=5000, **kwargs):
+        '''Create a silhouette plot'''
         distance = pd.DataFrame(self.squareform())
 
         if len(labels) != distance.shape[0]:
             raise ValueError('Labels must be same length as distance matrix')
 
-        (f,outAll) = plot_silhouette(distance,labels,ax=None,permutation_test=True,n_permute=5000,**kwargs)
-
+        (f,outAll) = plot_silhouette(distance, labels, ax=None,
+                                    permutation_test=True,
+                                    n_permute=5000, **kwargs)
         return (f,outAll)
+
+    def bootstrap(self, function, n_samples=5000, save_weights=False,
+                    n_jobs=-1, *args, **kwargs):
+        '''Bootstrap an Adjacency method.
+
+            Example Useage:
+            b = dat.bootstrap('mean', n_samples=5000)
+            b = dat.bootstrap('predict', n_samples=5000, algorithm='ridge')
+            b = dat.bootstrap('predict', n_samples=5000, save_weights=True)
+
+        Args:
+            function: (str) method to apply to data for each bootstrap
+            n_samples: (int) number of samples to bootstrap with replacement
+            save_weights: (bool) Save each bootstrap iteration
+                        (useful for aggregating many bootstraps on a cluster)
+            n_jobs: (int) The number of CPUs to use to do the computation.
+                        -1 means all CPUs.Returns:
+        output: summarized studentized bootstrap output
+
+        '''
+
+        bootstrapped = Parallel(n_jobs=n_jobs)(
+                        delayed(_bootstrap_apply_func)(self,
+                        function, *args, **kwargs) for i in range(n_samples))
+        bootstrapped = Adjacency(bootstrapped)
+        return summarize_bootstrap(bootstrapped, save_weights=save_weights)
 
 
 class Groupby(object):
@@ -2345,7 +2306,9 @@ class Design_Matrix(DataFrame):
         return out
 
     def add_dct_basis(self,duration=180):
-        """Adds cosine basis functions to Design_Matrix columns, based on spm-style discrete cosine transform for use in high-pass filtering.
+        """Adds cosine basis functions to Design_Matrix columns,
+        based on spm-style discrete cosine transform for use in
+        high-pass filtering.
 
         Args:
             duration (int): length of filter in seconds
@@ -2354,7 +2317,9 @@ class Design_Matrix(DataFrame):
         assert self.sampling_rate is not None, "Design_Matrix has no sampling_rate set!"
         basis_mat = make_cosine_basis(self.shape[0],self.sampling_rate,duration)
 
-        basis_frame = Design_Matrix(basis_mat,sampling_rate=self.sampling_rate,hasIntercept=False,convolved=False)
+        basis_frame = Design_Matrix(basis_mat,
+                                    sampling_rate=self.sampling_rate,
+                                    hasIntercept=False, convolved=False)
 
         basis_frame.columns = ['cosine_'+str(i+1) for i in range(basis_frame.shape[1])]
 
@@ -2362,6 +2327,22 @@ class Design_Matrix(DataFrame):
 
         return out
 
+def concatenate(data):
+    '''Concatenate a list of Brain_Data() or Adjacency() objects'''
+
+    if not isinstance(data, list):
+        raise ValueError('Make sure you are passing a list of objects.')
+
+    if all([type(x) for x in data]):
+        if not isinstance(data[0], (Brain_Data, Adjacency)):
+            raise ValueError('Make sure you are passing a list of Brain_Data or Adjacency objects.')
+
+        out = data[0].__class__()
+        for i in data:
+            out = out.append(i)
+    else:
+        raise ValueError('Make sure all objects in the list are the same type.')
+    return out
 
 def all_same(items):
     return np.all(x == items[0] for x in items)
@@ -2389,3 +2370,11 @@ def _vif(X, y):
     if r2 == 1:
         r2 = 0.9999  # to prevent divide by 0 errors
     return (1.0/(1.0-r2))[0]
+
+def _bootstrap_apply_func(data, function, *args, **kwargs):
+    '''Bootstrap helper function. Sample with replacement and apply function'''
+    data_row_id = range(data.shape()[0])
+    new_dat = data[np.random.choice(data_row_id,
+                                   size=len(data_row_id),
+                                   replace=True)]
+    return getattr(new_dat, function)( *args, **kwargs)
