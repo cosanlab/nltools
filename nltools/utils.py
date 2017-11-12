@@ -13,7 +13,12 @@ __all__ = ['get_resource_path',
             'spm_time_derivative',
             'glover_time_derivative',
             'spm_dispersion_derivative',
-            'make_cosine_basis']
+            'make_cosine_basis',
+            'attempt_to_import',
+            'all_same',
+            'concatenate',
+            '_bootstrap_apply_func',
+            ]
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
@@ -274,7 +279,8 @@ def make_cosine_basis(nsamples,sampling_freq,filter_length):
     #Drop constant
     C = C[:,1:]
     if C.size == 0:
-        raise ValueError('Basis function creation failed! nsamples is too small for requested filter_length.')
+        raise ValueError('Basis function creation failed!'
+                        ' nsamples is too small for requested filter_length.')
     else:
         return C
 
@@ -294,3 +300,33 @@ def attempt_to_import(dependency, name=None, fromlist=None):
         mod = None
     module_names[name] = Dependency(dependency, mod)
     return mod
+
+def all_same(items):
+    return np.all(x == items[0] for x in items)
+
+def concatenate(data):
+    '''Concatenate a list of Brain_Data() or Adjacency() objects'''
+
+    if not isinstance(data, list):
+        raise ValueError('Make sure you are passing a list of objects.')
+
+    if all([type(x) for x in data]):
+        # Temporarily Removing this for circular imports (LC)
+        # if not isinstance(data[0], (Brain_Data, Adjacency)):
+        #     raise ValueError('Make sure you are passing a list of Brain_Data'
+        #                     ' or Adjacency objects.')
+
+        out = data[0].__class__()
+        for i in data:
+            out = out.append(i)
+    else:
+        raise ValueError('Make sure all objects in the list are the same type.')
+    return out
+
+def _bootstrap_apply_func(data, function, *args, **kwargs):
+    '''Bootstrap helper function. Sample with replacement and apply function'''
+    data_row_id = range(data.shape()[0])
+    new_dat = data[np.random.choice(data_row_id,
+                                   size=len(data_row_id),
+                                   replace=True)]
+    return getattr(new_dat, function)( *args, **kwargs)
