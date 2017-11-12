@@ -22,11 +22,12 @@ __all__ = ['pearson',
             'fisher_r_to_z',
             'one_sample_permutation',
             'two_sample_permutation',
-            'correlation_permutation']
+            'correlation_permutation',
+            'summarize_bootstrap']
 
 import numpy as np
 import pandas as pd
-from scipy.stats import pearsonr, spearmanr, kendalltau
+from scipy.stats import pearsonr, spearmanr, kendalltau, norm
 from copy import deepcopy
 import nibabel as nib
 from scipy.interpolate import interp1d
@@ -538,3 +539,28 @@ def transform_pairwise(X, y):
             y_new[-1] = - y_new[-1]
             X_new[-1] = - X_new[-1]
     return np.asarray(X_new), np.asarray(y_new).ravel()
+
+def summarize_bootstrap(data, save_weights=False):
+    """ Calculate summary of bootstrap samples
+
+    Args:
+        sample: Brain_Data instance of samples
+        save_weights: (bool) save bootstrap weights
+
+    Returns:
+        output: dictionary of Brain_Data summary images
+
+    """
+
+    # Calculate SE of bootstraps
+    wstd = data.std()
+    wmean = data.mean()
+    wz = deepcopy(wmean)
+    a = wmean.data / wstd.data
+    wp = deepcopy(wmean)
+    wp.data = 2*(1-norm.cdf(np.abs(wz.data)))
+    # Create outputs
+    output = {'Z':wz, 'p': wp, 'mean':wmean}
+    if save_weights:
+        output['samples'] = data
+    return output
