@@ -383,6 +383,92 @@ class Brain_Data(object):
         return {'beta': b_out, 't': t_out, 'p': p_out, 'df': df_out,
                 'sigma': sigma_out, 'residual': res_out}
 
+
+        def regress_arma(self,method='css-mle',n_jobs=-1,backend='threading',max_nbytes=1e8,verbose=True):
+
+            """
+            Fit an ARMA(1,1) model instead of standard OLS to all voxels. This method is very similar to
+            AFNI's 3dREMLfit, but does not employ spatial smoothing of voxel auto-correlation estimates.
+
+            Coefficient results are typically identitical though vary a little because MLE vs closed-form
+            OLS can differ based on rounding and optimizer search settings. T-stats, std-errors, and p-vals
+            can differ greatly depending on how much auto-correlation is explaining the response in a voxel
+            relative to other regressors specified in design matrix.
+
+            Current implementation is VERY COMPUTATIONALLY INTENSIVE as it relies on statsmodels
+            implementation which is slow. That's because this implementation is an optimization
+            problem AT EVERY VOXEL, similar to AFNI/FSL, but unlike SPM, which assumes same
+            AR param (~0.2) at each voxel.
+
+            Parallelization is employed by default to speed up computation time, and input arguments
+            control how parallelization is handled by default.
+
+            Args:
+                method (str): which loglikelihood to maximize: 'css' conditional sum of squares (fastest
+                              but potentially least accurate), 'mle' exact maximum likelihood, (potentially
+                              most accurate but probably overkill); 'css-mle' (default), like mle but with
+                              starting values given by css solution first
+                n_jobs (int): how many cores or threads to use; default is all cores or 10 threads
+                backend (str): 'threading' (default) or 'multiprocessing'. Threading shares memory but utilizes a
+                                single-core whereas multiprocessing can greatly increase memory usage but utilize
+                                multiple cores. Multiprocessing is automatically configured to memory-map
+                                (i.e. write to disk) in memory arrays greaters than 100mb to prevent hanging
+                                and crashing.
+                max_nbytes (int): in-memory variable size limit before using memory-mapping, i.e. writing to disk
+                                  ignored if backend is 'threading'
+                verbose (bool): print voxel-wise progress statement
+
+            Returns:
+                out: same output as Brain_Data.regress()
+
+
+            """
+
+            from statsmodels.tsa.arima_model import ARMA
+            from joblib import Parallel, delayed
+
+            def _arma_func(self,voxid,method=method):
+
+                """
+                Fit an ARMA(1,1) model at a specific voxel.
+                """
+
+                model = ARMA(endog=self.data[:,voxid],exog=self.X.values,order=(1,1))
+                res = model.fit(trend='nc',method=method,transparams=False,
+                                maxiter=50,disp=-1,start_ar_lags=2)
+
+                return (res.params[:-2], res.tvalues[:-2],res.pvalues[:-2],res.df_resid, res.resid)
+
+            # Parallelize
+            if backend == 'threading' and n_jobs == -1:
+                n_jobs = 10
+            par_for = Parallel(n_jobs=n_jobs,verbose=5,backend=backend,max_nbytes=max_nbytes)
+            out_arma = par_for(delayed(_arma_func)(self=self,voxid=i) for i in range(self.shape()[1]))
+
+            # Return results in Brain_Data format consistent with .regress()
+            b_dat = np.column_stack([elem[0] for elem in out_arma])
+            t_dat = np.column_stack([elem[1] for elem in out_arma])
+            p_dat = np.column_stack([elem[2] for elem in out_arma])
+            df_dat = np.array([elem[3] for elem in out_arma])
+            res_dat = np.column_stack([elem[4] for elem in out_arma])
+
+            sigma = np.std(res_dat,axis=0,ddof=self.X.shape[1])
+            sigma_out = deepcopy(self)
+            sigma_out.data = sigma
+            b_out = deepcopy(self)
+            b_out.data = b_dat
+            t_out = deepcopy(self)
+            t_out.data = t_dat
+            p_out = deepcopy(self)
+            p_out.data = p_dat
+            df_out = deepcopy(self)
+            df_out.data = df_dat
+            res_out = deepcopy(self)
+            res_out.data = res_dat
+
+            return {'beta': b_out, 't': t_out, 'p': p_out, 'df': df_out,
+                        'sigma': sigma_out, 'residual': res_out}
+
     def ttest(self, threshold_dict=None):
         """ Calculate one sample t-test across each voxel (two-sided)
 
