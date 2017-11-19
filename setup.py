@@ -3,14 +3,12 @@ from setuptools import setup, find_packages
 
 __version__ = '0.3.1'
 
-# try:
-#     from setuptools.core import setup
-# except ImportError:
-#     from distutils.core import setup
-
 extra_setuptools_args = dict(
     tests_require=['pytest']
 )
+
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
 
 setup(
     name='nltools',
@@ -18,9 +16,7 @@ setup(
     author='Luke Chang',
     author_email='luke.j.chang@dartmouth.edu',
     url='http://neurolearn.readthedocs.org/en/latest/',
-    install_requires=['numpy>=1.9', 'scipy > ', 'nilearn>=0.3.0', 'nibabel>=2.0.1',
-                    'pandas>=0.20', 'six', 'seaborn', 'matplotlib',
-                    'scikit-learn>=0.18.1','pynv'],
+    install_requires=requirements,
     extras_require={
     'ibrainViewer':['ipywidgets>=5.2.2']
     },
