@@ -23,7 +23,10 @@ __all__ = ['pearson',
             'one_sample_permutation',
             'two_sample_permutation',
             'correlation_permutation',
-            'make_cosine_basis']
+            'make_cosine_basis',
+            '_hc0',
+            '_hc3',
+            '_hac']
 
 import numpy as np
 import pandas as pd
@@ -553,3 +556,73 @@ def transform_pairwise(X, y):
             y_new[-1] = - y_new[-1]
             X_new[-1] = - X_new[-1]
     return np.asarray(X_new), np.asarray(y_new).ravel()
+
+def _hc0(vals,X,bread):
+    """
+    Huber (1980) sandwich estimator to return robust standard error estimates.
+    Refs: https://www.wikiwand.com/en/Heteroscedasticity-consistent_standard_errors
+    https://github.com/statsmodels/statsmodels/blob/master/statsmodels/regression/linear_model.py
+    https://cran.r-project.org/web/packages/sandwich/vignettes/sandwich.pdf
+
+    Args:
+        vals (np.ndarray): 1d array of residuals
+        X (np.ndarray): design matrix used in OLS, e.g. Brain_Data().X
+        bread (np.ndarray): result of (X.T * X)^-1
+    Returns:
+        stderr (np.ndarray): 1d array of standard errors with length == X.shape[1]
+    """
+
+    V = np.diag(vals**2)
+    meat = np.dot(np.dot(X.T,V),X)
+    vcv = np.dot(np.dot(bread,meat),bread)
+    return np.sqrt(np.diag(vcv))
+
+def _hc3(vals,X,bread):
+    """
+    MacKinnon and White (1985) HC3 sandwich estimator. Provides more robustness in smaller samples than HC0 Long & Ervin (2000)
+    Refs: https://cran.r-project.org/web/packages/sandwich/vignettes/sandwich.pdf
+
+    Args:
+        vals (np.ndarray): 1d array of residuals
+        X (np.ndarray): design matrix used in OLS, e.g. Brain_Data().X
+        bread (np.ndarray): result of (X.T * X)^-1
+    Returns:
+        stderr (np.ndarray): 1d array of standard errors with length == X.shape[1]
+    """
+
+    V = np.diag(vals**2)/(1-np.diag(np.dot(X,np.dot(bread,X.T))))**2
+    meat = np.dot(np.dot(X.T,V),X)
+    vcv = np.dot(np.dot(bread,meat),bread)
+    return np.sqrt(np.diag(vcv))
+
+def _hac(vals,X,bread,nlags=1):
+    """
+    Newey-West (1987) estimator for robustness to heteroscedasticity as well as serial auto-correlation at given lags.
+    Refs: https://www.stata.com/manuals13/tsnewey.pdf
+
+    Args:
+        vals (np.ndarray): 1d array of residuals
+        X (np.ndarray): design matrix used in OLS, e.g. Brain_Data().X
+        bread (np.ndarray): result of (X.T * X)^-1
+        lag (int): what lag to estimate; default is 1
+    Returns:
+        stderr (np.ndarray): 1d array of standard errors with length == X.shape[1]
+    """
+
+    weights = 1 - np.arange(nlags+1.)/(nlags+1.)
+
+    #First compute lag 0
+    V = np.diag(vals**2)
+    meat = weights[0] * np.dot(np.dot(X.T,V),X)
+
+    #Now loop over additional lags
+    for l in range(1, nlags+1):
+
+        V = np.diag(vals[l:] * vals[:-l])
+        meat_1 = np.dot(np.dot(X[l:].T,V),X[:-l])
+        meat_2 = np.dot(np.dot(X[:-l].T,V),X[l:])
+
+        meat += weights[l] * (meat_1 + meat_2)
+
+    vcv = np.dot(np.dot(bread,meat),bread)
+    return np.sqrt(np.diag(vcv))
