@@ -45,7 +45,10 @@ from nltools.stats import (pearson,
                            upsample,
                            zscore,
                            make_cosine_basis,
-                           transform_pairwise)
+                           transform_pairwise,
+                           _hc0,
+                           _hc3,
+                           _hac)
 from nltools.mask import expand_mask, collapse_mask
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
@@ -340,8 +343,17 @@ class Brain_Data(object):
                                    draw_cross=False,
                                    **kwargs)
 
-    def regress(self):
-        """ run vectorized OLS regression across voxels.
+    def regress(self,robust=False,nlags=1):
+        """ Run vectorized OLS regression across voxels with optional robust estimation of standard errors (i.e. sandwich estimators). Robust estimators do not change values of beta coefficients.
+
+        3 robust estimators are implemented:
+        'HC0': original Huber (1980) sandwich estimator
+        'HC3': more robust MacKinnon & White (1985) estimator, better for smaller samples
+        'HAC': HC0 + robustness to serial auto-correlation Newey & West (1987)
+
+        Args:
+            robust (str): Estimate heteroscedasticity-consistent standard errors; 'HC0', 'HC3','HAC'; default is False
+            nlags (int): lag to use for HAC estimator, ignored otherwise; default is 1
 
         Returns:
             out: dictionary of regression statistics in Brain_Data instances
@@ -361,9 +373,28 @@ class Brain_Data(object):
 
         b = np.dot(np.linalg.pinv(self.X), self.data)
         res = self.data - np.dot(self.X, b)
-        sigma = np.std(res, axis=0, ddof=self.X.shape[1])
-        stderr = np.dot(np.matrix(np.diagonal(np.linalg.inv(np.dot(self.X.T,
-                        self.X)))**.5).T, np.matrix(sigma))
+
+        if robust:
+            # Robust estimators are in essence just variations on the theme of sandwich estimators, scaling or modifying the residuals calculation by some iterative factor
+            bread = np.linalg.pinv(np.dot(self.X.T,self.X))
+            if robust == 'HC0':
+                axis_func = [_hc0,0,res,self.X,bread]
+            elif robust == 'HC3':
+                axis_func = [_hc3,0,res,self.X,bread]
+            elif robust == 'HAC':
+                axis_func = [_hac,0,res,self.X,bread,nlags]
+            else:
+                raise ValueError("Robust standard error must be one of HC0, HC3, or HAC!")
+
+            stderr = np.apply_along_axis(*axis_func)
+
+        else:
+            sigma = np.std(res, axis=0, ddof=self.X.shape[1])
+            stderr = np.sqrt(np.diag(np.linalg.pinv(np.dot(self.X.T,self.X))))[:,np.newaxis] * sigma[np.newaxis,:]
+
+            # stderr = np.dot(np.matrix(np.diagonal(np.linalg.inv(np.dot(self.X.T,
+            #                 self.X)))**.5).T, np.matrix(sigma))
+
         b_out = deepcopy(self)
         b_out.data = b
         t_out = deepcopy(self)
