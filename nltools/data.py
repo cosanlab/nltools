@@ -1410,13 +1410,13 @@ class Brain_Data(object):
         values = dat.apply(func)
         return dat.combine(values)
 
-    def threshold(self, thresh=0, binarize=False):
-        '''Threshold Brain_Data instance
+    def threshold(self, thresh=0, binarize=False, upper_only=False):
+        '''Threshold Brain_Data instance. If data contain both positive and negative values, defaults to two-sided thresholding automatically. This can be changed with the upper_only flag.
 
         Args:
-            thresh: cutoff to threshold image (float).  if 'threshold'=50%,
-                    will calculate percentile.
+            thresh (float or str): cutoff to threshold image. Can provide numerical value as float, or string e.g. '50%' for percentile thresholding.
             binarize (bool): if 'binarize'=True then binarize output
+            upper_only (bool): threshold using upper bounded only ignoring sign of data values
 
         Returns:
             Brain_Data: thresholded Brain_Data instance
@@ -1426,11 +1426,24 @@ class Brain_Data(object):
         b = self.copy()
         if isinstance(thresh, six.string_types):
             if thresh[-1] is '%':
-                thresh = np.percentile(b.data, float(thresh[:-1]))
-        if binarize:
-            b.data = b.data > thresh
+                thresh_upper = np.percentile(b.data, float(thresh[:-1]))
+                thresh_lower = np.percentile(b.data, 100.-float(thresh[:-1]))
+            else:
+                thresh_upper = thresh
+                thresh_lower = -1. * thresh
+
+        # Two-sided thresholding
+        if (b.data < 0).any() and (b.data > 0).any() and not upper_only:
+            if binarize:
+                b.data = b.data > thresh_upper or b.data < thresh_lower
+            else:
+                b.data[(b.data < thresh_upper) & (b.data > thresh_lower)] = 0
         else:
-            b.data[b.data < thresh] = 0
+        # One-sided thresholding
+            if binarize:
+                b.data = b.data > thresh_upper
+            else:
+                b.data[b.data < thresh_upper] = 0
         return b
 
     def regions(self, min_region_size=1350, extract_type='local_regions',
