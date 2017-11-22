@@ -76,7 +76,7 @@ def test_brain_data_3mm(tmpdir):
     assert len(dat[index]) == len(index)
     index = dat.Y == 1
 
-    #assert len(dat[index.values.flatten()]) == index.values.sum()
+    assert len(dat[index.values.flatten()]) == index.values.sum()
 
     assert len(dat[index]) == index.values.sum()
     assert len(dat[:3]) == 3
@@ -98,6 +98,13 @@ def test_brain_data_3mm(tmpdir):
     dat.X = pd.DataFrame({'Intercept':np.ones(len(dat.Y)),
                         'X1':np.array(dat.Y).flatten()}, index=None)
     out = dat.regress()
+
+    assert type(out['beta'].data) == np.ndarray
+    assert type(out['t'].data) == np.ndarray
+    assert type(out['p'].data) == np.ndarray
+    assert type(out['residual'].data) == np.ndarray
+    assert type(out['df'].data) == np.ndarray
+
     assert out['beta'].shape() == (2, shape_2d[1])
 
     # Test indexing
@@ -250,6 +257,11 @@ def test_brain_data_2mm(tmpdir):
     # Test load list
     dat = Brain_Data(data=str(tmpdir.join('data.nii.gz')), Y=y)
 
+    # Test concatenate
+    out = Brain_Data([x for x in dat])
+    assert isinstance(out, Brain_Data)
+    assert len(out)==len(dat)
+
     # Test to_nifti
     d = dat.to_nifti()
     assert d.shape[0:3] == shape_3d
@@ -278,6 +290,18 @@ def test_brain_data_2mm(tmpdir):
     new = dat * dat
     assert new.shape() == shape_2d
 
+    # Test Indexing
+    index = [0, 3, 1]
+    assert len(dat[index]) == len(index)
+    index = range(4)
+    assert len(dat[index]) == len(index)
+    index = dat.Y == 1
+
+    assert len(dat[index.values.flatten()]) == index.values.sum()
+
+    assert len(dat[index]) == index.values.sum()
+    assert len(dat[:3]) == 3
+
     # Test Iterator
     x = [x for x in dat]
     assert len(x) == len(dat)
@@ -294,6 +318,13 @@ def test_brain_data_2mm(tmpdir):
     # Test Regress
     dat.X = pd.DataFrame({'Intercept':np.ones(len(dat.Y)), 'X1':np.array(dat.Y).flatten()},index=None)
     out = dat.regress()
+
+    assert type(out['beta'].data) == np.ndarray
+    assert type(out['t'].data) == np.ndarray
+    assert type(out['p'].data) == np.ndarray
+    assert type(out['residual'].data) == np.ndarray
+    assert type(out['df'].data) == np.ndarray
+
     assert out['beta'].shape() == (2,shape_2d[1])
 
     # Test indexing

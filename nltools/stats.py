@@ -24,9 +24,9 @@ __all__ = ['pearson',
             'two_sample_permutation',
             'correlation_permutation',
             'make_cosine_basis',
-            '_hc0',
-            '_hc3',
-            '_hac',
+            '_robust_estimator_hc0',
+            '_robust_estimator_hc3',
+            '_robust_estimator_hac',
             'summarize_bootstrap']
 
 import numpy as np
@@ -326,9 +326,9 @@ def downsample(data,sampling_freq=None, target=None, target_type='samples',
     if data.shape[0] > len(idx):
         idx = np.concatenate([idx, np.repeat(idx[-1]+1,data.shape[0]-len(idx))])
     if method=='mean':
-        return data.groupby(idx).mean()
+        return data.groupby(idx).mean().reset_index(drop=True)
     elif method=='median':
-        return data.groupby(idx).median()
+        return data.groupby(idx).median().reset_index(drop=True)
 
 def upsample(data,sampling_freq=None, target=None, target_type='samples',method='linear'):
     ''' Upsample pandas to a new target frequency or number of samples using interpolation.
@@ -581,7 +581,7 @@ def transform_pairwise(X, y):
             X_new[-1] = - X_new[-1]
     return np.asarray(X_new), np.asarray(y_new).ravel()
 
-def _hc0(vals,X,bread):
+def _robust_estimator_hc0(vals,X,bread):
     """
     Huber (1980) sandwich estimator to return robust standard error estimates.
     Refs: https://www.wikiwand.com/en/Heteroscedasticity-consistent_standard_errors
@@ -601,7 +601,7 @@ def _hc0(vals,X,bread):
     vcv = np.dot(np.dot(bread,meat),bread)
     return np.sqrt(np.diag(vcv))
 
-def _hc3(vals,X,bread):
+def _robust_estimator_hc3(vals,X,bread):
     """
     MacKinnon and White (1985) HC3 sandwich estimator. Provides more robustness in smaller samples than HC0 Long & Ervin (2000)
     Refs: https://cran.r-project.org/web/packages/sandwich/vignettes/sandwich.pdf
@@ -619,7 +619,7 @@ def _hc3(vals,X,bread):
     vcv = np.dot(np.dot(bread,meat),bread)
     return np.sqrt(np.diag(vcv))
 
-def _hac(vals,X,bread,nlags=1):
+def _robust_estimator_hac(vals,X,bread,nlags=1):
     """
     Newey-West (1987) estimator for robustness to heteroscedasticity as well as serial auto-correlation at given lags.
     Refs: https://www.stata.com/manuals13/tsnewey.pdf
