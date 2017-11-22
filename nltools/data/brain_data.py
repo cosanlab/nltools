@@ -68,27 +68,8 @@ from nltools.stats import (pearson,
                            transform_pairwise,
                            _hc0,
                            _hc3,
-                           _hac)
-
-from nltools.mask import expand_mask, collapse_mask
-from nltools.analysis import Roc
-from nilearn.input_data import NiftiMasker
-from nilearn.image import resample_img
-from nilearn.masking import intersect_masks
-from nilearn.regions import connected_regions, connected_label_regions
-from nilearn.plotting.img_plotting import plot_epi, plot_roi, plot_stat_map
-from nilearn.signal import clean
-from copy import deepcopy
-import pandas as pd
-from pandas import DataFrame, Series
-import numpy as np
-from scipy.stats import ttest_1samp, t, norm
-from scipy.signal import detrend
-from scipy.spatial.distance import squareform
-import six
-from sklearn.metrics.pairwise import (pairwise_distances,
-                                      transform_pairwise,
-                                      summarize_bootstrap)
+                           _hac,
+                           summarize_bootstrap)
 from nltools.pbs_job import PBS_Job
 from .adjacency import Adjacency
 from nltools.prefs import MNI_Template, resolve_mni_path

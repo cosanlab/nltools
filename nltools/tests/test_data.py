@@ -28,8 +28,8 @@ def test_brain_data_3mm(tmpdir):
     output_dir = str(tmpdir)
     dat = sim.create_data(y, sigma, reps=n_reps, output_dir=output_dir)
 
-    shape_3d = (61, 73, 61)
-    shape_2d = (6, 70256)
+    shape_3d = (60, 72, 60)
+    shape_2d = (6, 71020)
     y = pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))),header=None, index_col=None)
     holdout = pd.read_csv(os.path.join(str(tmpdir.join('rep_id.csv'))),header=None,index_col=None)
 
@@ -75,12 +75,11 @@ def test_brain_data_3mm(tmpdir):
     index = range(4)
     assert len(dat[index]) == len(index)
     index = dat.Y == 1
-<<<<<<< HEAD
-    assert len(dat[index.values.flatten()]) == index.values.sum()
-=======
+
+    #assert len(dat[index.values.flatten()]) == index.values.sum()
+
     assert len(dat[index]) == index.values.sum()
     assert len(dat[:3]) == 3
->>>>>>> upstream/master
 
     # Test Iterator
     x = [x for x in dat]
@@ -214,11 +213,15 @@ def test_brain_data_3mm(tmpdir):
     mask = Brain_Data(s1)*5
     mask = mask + Brain_Data(s2)
 
-    m1 = mask.threshold(thresh=.5)
-    m2 = mask.threshold(thresh=3)
-    m3 = mask.threshold(thresh='98%')
+    m1 = mask.threshold(upper=.5)
+    m2 = mask.threshold(upper=3)
+    m3 = mask.threshold(upper='98%')
+    m4 = Brain_Data(s1)*5 + Brain_Data(s2)*-.5
+    m4 = mask.threshold(upper=.5,lower=-.3)
     assert np.sum(m1.data > 0) > np.sum(m2.data > 0)
     assert np.sum(m1.data > 0) == np.sum(m3.data > 0)
+    assert np.sum(m4.data[(m4.data > -.3) & (m4.data <.5)]) == 0
+    assert np.sum(m4.data[(m4.data < -.3) | (m4.data >.5)]) > 0
 
     # Test Regions
     r = mask.regions(min_region_size=10)
@@ -229,7 +232,6 @@ def test_brain_data_3mm(tmpdir):
     diff = m2-m1
     assert np.sum(diff.data) == 0
 
-<<<<<<< HEAD
 def test_brain_data_2mm(tmpdir):
     MNI_Template["resolution"] = '2mm'
     sim = Simulator()
@@ -241,7 +243,7 @@ def test_brain_data_2mm(tmpdir):
     dat = sim.create_data(y, sigma, reps=n_reps, output_dir=output_dir)
 
     shape_3d = (91, 109, 91)
-    shape_2d = (6, 228453)
+    shape_2d = (6, 238955)
     y = pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))),header=None, index_col=None)
     holdout = pd.read_csv(os.path.join(str(tmpdir.join('rep_id.csv'))),header=None,index_col=None)
 
@@ -398,11 +400,15 @@ def test_brain_data_2mm(tmpdir):
     mask = Brain_Data(s1)*5
     mask = mask + Brain_Data(s2)
 
-    m1 = mask.threshold(thresh=.5)
-    m2 = mask.threshold(thresh=3)
-    m3 = mask.threshold(thresh='98%')
+    m1 = mask.threshold(upper=.5)
+    m2 = mask.threshold(upper=3)
+    m3 = mask.threshold(upper='98%')
+    m4 = Brain_Data(s1)*5 + Brain_Data(s2)*-.5
+    m4 = mask.threshold(upper=.5,lower=-.3)
     assert np.sum(m1.data > 0) > np.sum(m2.data > 0)
     assert np.sum(m1.data > 0) == np.sum(m3.data > 0)
+    assert np.sum(m4.data[(m4.data > -.3) & (m4.data <.5)]) == 0
+    assert np.sum(m4.data[(m4.data < -.3) | (m4.data >.5)]) > 0
 
     # Test Regions
     r = mask.regions(min_region_size=10)
@@ -415,8 +421,6 @@ def test_brain_data_2mm(tmpdir):
     # # Test Plot
     # dat.plot()
 
-=======
->>>>>>> upstream/master
     # Test Bootstrap
     masked = dat.apply_mask(create_sphere(radius=10, coordinates=[0, 0, 0]))
     n_samples = 3
