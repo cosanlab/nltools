@@ -66,9 +66,9 @@ from nltools.stats import (pearson,
                            zscore,
                            make_cosine_basis,
                            transform_pairwise,
-                           _hc0,
-                           _hc3,
-                           _hac,
+                           _robust_estimator_hc0,
+                           _robust_estimator_hc3,
+                           _robust_estimator_hac,
                            summarize_bootstrap)
 from nltools.pbs_job import PBS_Job
 from .adjacency import Adjacency
@@ -367,9 +367,9 @@ class Brain_Data(object):
         """ Run vectorized OLS regression across voxels with optional robust estimation of standard errors (i.e. sandwich estimators). Robust estimators do not change values of beta coefficients.
 
         3 robust estimators are implemented:
-        'HC0': original Huber (1980) sandwich estimator
-        'HC3': more robust MacKinnon & White (1985) estimator, better for smaller samples
-        'HAC': HC0 + robustness to serial auto-correlation Newey & West (1987)
+        'hc0': original Huber (1980) sandwich estimator
+        'hc3': more robust MacKinnon & White (1985) estimator, better for smaller samples
+        'hac': hc0 + robustness to serial auto-correlation Newey & West (1987)
 
         Args:
             robust (str): Estimate heteroscedasticity-consistent standard errors; 'HC0', 'HC3','HAC'; default is False
@@ -397,14 +397,14 @@ class Brain_Data(object):
         if robust:
             # Robust estimators are in essence just variations on the theme of sandwich estimators, scaling or modifying the residuals calculation by some iterative factor
             bread = np.linalg.pinv(np.dot(self.X.T,self.X))
-            if robust == 'HC0':
-                axis_func = [_hc0,0,res,self.X,bread]
-            elif robust == 'HC3':
-                axis_func = [_hc3,0,res,self.X,bread]
-            elif robust == 'HAC':
-                axis_func = [_hac,0,res,self.X,bread,nlags]
+            if robust == 'hc0':
+                axis_func = [_robust_estimator_hc0,0,res,self.X,bread]
+            elif robust == 'hc3':
+                axis_func = [_robust_estimator_hc3,0,res,self.X,bread]
+            elif robust == 'hac':
+                axis_func = [_robust_estimator_hac,0,res,self.X,bread,nlags]
             else:
-                raise ValueError("Robust standard error must be one of HC0, HC3, or HAC!")
+                raise ValueError("Robust standard error must be one of hc0, hc3, or hac!")
 
             stderr = np.apply_along_axis(*axis_func)
 
