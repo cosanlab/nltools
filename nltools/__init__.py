@@ -15,7 +15,11 @@ __all__ = ['data',
 
 from .analysis import Roc
 from .cross_validation import set_cv
-from .data import Brain_Data, Adjacency, Groupby, Design_Matrix, Design_Matrix_Series
+from .data import (Brain_Data,
+                    Adjacency,
+                    Groupby,
+                    Design_Matrix,
+                    Design_Matrix_Series)
 from .pbs_job import PBS_Job
 from .simulator import Simulator
 from .prefs import MNI_Template, resolve_mni_path
