@@ -22,11 +22,12 @@ __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
 import pandas as pd
-import seaborn as sns    
+import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
-from nltools.stats import two_sample_permutation
+from nltools.stats import two_sample_permutation, one_sample_permutation
 from nilearn.plotting import plot_glass_brain, plot_stat_map
+from nltools.prefs import MNI_Template, resolve_mni_path
 
 def plotTBrain(objIn,how='full',thr='unc',alpha=None,nperm=None, cut_coords = [],**kwargs):
     """
@@ -36,25 +37,25 @@ def plotTBrain(objIn,how='full',thr='unc',alpha=None,nperm=None, cut_coords = []
         how: (list) whether to plot a glass brain 'glass', 3 view-multi-slice mni 'mni', or both 'full'
         thr: (str) what method to use for multiple comparisons correction unc, fdr, or tfce
         alpha: (float) p-value threshold
-        nperm: (int) number of permutations for tcfe; default 1000 
+        nperm: (int) number of permutations for tcfe; default 1000
         cut_coords: (list) x,y,z coords to plot brain slice
         kwargs: optionals args to nilearn plot functions (e.g. vmax)
-    
+
     """
     assert thr in ['unc','fdr','tfce'], "Acceptable threshold methods are 'unc','fdr','tfce'"
     views = ['x','y','z']
     if len(cut_coords) == 0:
         cut_coords = [range(-40,50,10),[-88,-72,-58,-38,-26,8,20,34,46],[-34,-22,-10,0,16,34,46,56,66]]
-    else: 
+    else:
         assert(len(cut_coords)==3), 'cut_coords must be a list of coordinates like [[xs],[ys],[zs]]'
     cmap = 'RdBu_r'
-    
+
     if type(objIn) == list:
         if len(objIn) == 2:
             obj = objIn[0]-objIn[1]
         else:
             raise ValueError('Contrasts should contain only 2 list items!')
-    
+
     thrDict = {}
     if thr == 'tfce':
         thrDict['permutation'] = thr
@@ -76,8 +77,8 @@ def plotTBrain(objIn,how='full',thr='unc',alpha=None,nperm=None, cut_coords = []
         else:
             thrDict = None
             print("1-sample test unthresholded")
-        
-    out = objIn.ttest(threshold_dict = thrDict) 
+
+    out = objIn.ttest(threshold_dict = thrDict)
     if thrDict is not None:
         obj = out['thr_t']
     else:
@@ -86,25 +87,27 @@ def plotTBrain(objIn,how='full',thr='unc',alpha=None,nperm=None, cut_coords = []
     if how == 'full':
         plot_glass_brain(obj.to_nifti(),display_mode='lzry',colorbar=True,cmap=cmap,plot_abs=False,**kwargs)
         for v,c in zip(views,cut_coords):
-            plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap,**kwargs)
+            plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap,bg_img = resolve_mni_path(MNI_Template)['brain'],
+            **kwargs)
     elif how == 'glass':
          plot_glass_brain(obj.to_nifti(),display_mode='lzry',colorbar=True,cmap=cmap,plot_abs=False,**kwargs)
     elif how == 'mni':
         for v,c in zip(views,cut_coords):
-            plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap,**kwargs)
+            plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap,bg_img =resolve_mni_path(MNI_Template)['brain'],
+            **kwargs)
     del obj
     del out
     return
 
-def plotBrain(objIn,how='full',thr=None):
+def plotBrain(objIn,how='full',thr=None,**kwargs):
     """
     More complete brain plotting of a Brain_Data instance
     Args:
         obj: (Brain_Data) object to plot
         how: (str) whether to plot a glass brain 'glass', 3 view-multi-slice mni 'mni', or both 'full'
         thr: (str/float) thresholding of image. Can be string for percentage, or float for data units (see Brain_Data.threshold()
-        kwargs: optional arguments to threshold (e.g binarize)
-    
+        kwargs: optionals args to nilearn plot functions (e.g. vmax)
+
     """
     if thr:
         obj = objIn.threshold(thr)
@@ -114,7 +117,7 @@ def plotBrain(objIn,how='full',thr=None):
     views = ['x','y','z']
     coords = [range(-50,51,8),range(-80,50,10),range(-40,71,9)] #[-88,-72,-58,-38,-26,8,20,34,46]
     cmap = 'RdBu_r'
-    
+
     if thr is None:
         print("Plotting unthresholded image")
     elif type(thr) == str:
@@ -123,14 +126,16 @@ def plotBrain(objIn,how='full',thr=None):
         print("Plotting voxels with stat value >= %s" % thr)
 
     if how == 'full':
-        plot_glass_brain(obj.to_nifti(),display_mode='lzry',colorbar=True,cmap=cmap,plot_abs=False)
+        plot_glass_brain(obj.to_nifti(),display_mode='lzry',colorbar=True,cmap=cmap,plot_abs=False,**kwargs)
         for v,c in zip(views,coords):
-            plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap)
+            plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap,bg_img =resolve_mni_path(MNI_Template)['brain'],
+            **kwargs)
     elif how == 'glass':
-         plot_glass_brain(obj.to_nifti(),display_mode='lzry',colorbar=True,cmap=cmap,plot_abs=False)
+         plot_glass_brain(obj.to_nifti(),display_mode='lzry',colorbar=True,cmap=cmap,plot_abs=False,**kwargs)
     elif how == 'mni':
         for v,c in zip(views,coords):
-            plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap)
+            plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap,bg_img =resolve_mni_path(MNI_Template)['brain'],
+            **kwargs)
     del obj #save memory
     return
 
@@ -142,7 +147,7 @@ def iBrainViewer(objIn,statmin=-7,statmax=7,statstep=0.1,initThresh=2,figsize=(1
         statmin: (float) minimum threshold for statistic value
         statmax: (float) maximum threshold for statistic value
         statstep (float) step size for thresholding
-        initThresh: (float) what stat value to initialize the plot with 
+        initThresh: (float) what stat value to initialize the plot with
     """
     from ipywidgets import interact, fixed, widgets
 
@@ -161,6 +166,7 @@ def _viewer(objIn,x,y,z,stat,figsize):
     _,ax= plt.subplots(1,figsize=figsize)
     plot_stat_map(objIn.to_nifti(),
         display_mode='ortho',
+        bg_img =resolve_mni_path(MNI_Template)['brain'],
         cut_coords=(x,y,z),
         threshold=stat,
         draw_cross=False,
@@ -254,7 +260,7 @@ def roc_plot(fpr, tpr):
     Returns:
         fig: Will return a matplotlib ROC plot
 
-    """     
+    """
 
     fig = plt.figure()
     plt.plot(fpr,tpr,color='red',linewidth=3)
@@ -266,12 +272,12 @@ def roc_plot(fpr, tpr):
 
 def plot_stacked_adjacency(adjacency1,adjacency2, normalize=True, **kwargs):
     ''' Create stacked adjacency to illustrate similarity.
-    
+
     Args:
         matrix1:  Adjacency instance 1
         matrix2:  Adjacency instance 2
         normalize: (boolean) Normalize matrices.
-        
+
     Returns:
         matplotlib figure
     '''
@@ -279,7 +285,7 @@ def plot_stacked_adjacency(adjacency1,adjacency2, normalize=True, **kwargs):
 
     if not isinstance(adjacency1,Adjacency) or not isinstance(adjacency2,Adjacency):
         raise ValueError('This function requires Adjacency() instances as input.')
-    
+
     upper = np.triu(adjacency2.squareform(),k=1)
     lower = np.tril(adjacency1.squareform(),k=-1)
     if normalize:
@@ -293,7 +299,7 @@ def plot_stacked_adjacency(adjacency1,adjacency2, normalize=True, **kwargs):
 def plot_mean_label_distance(distance, labels, ax=None, permutation_test=False,
                             n_permute=5000, fontsize=18, **kwargs):
     ''' Create a violin plot indicating within and between label distance.
-    
+
     Args:
         distance:  pandas dataframe of distance
         labels: labels indicating columns and rows to group
@@ -304,7 +310,7 @@ def plot_mean_label_distance(distance, labels, ax=None, permutation_test=False,
     Returns:
         f: heatmap
         stats: (optional if permutation_test=True) permutation results
-        
+
     '''
 
     if not isinstance(distance, pd.DataFrame):
@@ -346,8 +352,8 @@ def plot_mean_label_distance(distance, labels, ax=None, permutation_test=False,
 def plot_between_label_distance(distance, labels, ax=None, permutation_test=True,
                                 n_permute=5000, fontsize=18, **kwargs):
     ''' Create a heatmap indicating average between label distance
-    
-    
+
+
         Args:
             distance: (pandas dataframe) brain_distance matrix
             labels: (pandas dataframe) group labels
@@ -379,13 +385,13 @@ def plot_between_label_distance(distance, labels, ax=None, permutation_test=True
                                columns=out['Group'].unique(),index=out['Group'].unique())
     for i in out['Group'].unique():
         for j in out['Comparison'].unique():
-            within_dist_out.loc[i,j] = out.loc[(out['Group']==i) & (out['Comparison']==j)]['Distance'].mean()  
-    
+            within_dist_out.loc[i,j] = out.loc[(out['Group']==i) & (out['Comparison']==j)]['Distance'].mean()
+
     if ax is None:
         f,ax = plt.subplots(1)
     else:
         f = plt.figure()
-    
+
     if permutation_test:
         mn_dist_out = pd.DataFrame(np.zeros((len(out['Group'].unique()),len(out['Group'].unique()))),
                                columns=out['Group'].unique(),index=out['Group'].unique())
@@ -408,7 +414,7 @@ def plot_between_label_distance(distance, labels, ax=None, permutation_test=True
 def plot_silhouette(distance,labels,ax=None,permutation_test=True,n_permute=5000,**kwargs):
 
     ''' Create a silhouette plot indicating between relative to within label distance
-    
+
         Args:
             distance: (pandas dataframe) brain_distance matrix
             labels: (pandas dataframe) group labels
@@ -473,7 +479,7 @@ def plot_silhouette(distance,labels,ax=None,permutation_test=True,n_permute=5000
         with sns.axes_style("white"):
             plt.fill_between(np.arange(x_lower,x_upper),0,ith_cluster_silhouette_values,
                         facecolor=color,edgecolor=color)
-        
+
         labelX = np.hstack((labelX,np.mean([x_lower,x_upper])))
         x_lower = x_upper + 3
 
@@ -482,7 +488,7 @@ def plot_silhouette(distance,labels,ax=None,permutation_test=True,n_permute=5000
     ax.set_xticklabels(labelSet)
     ax.set_title('Silhouettes',fontsize=18)
     ax.set_xlim([5,10+len(labels)+n_clusters*3])
-    
+
     #Permutation test on mean silhouette score per label
     if permutation_test:
         outAll = pd.DataFrame(columns=['label','mean','p'])
