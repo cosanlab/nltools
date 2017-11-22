@@ -18,5 +18,5 @@ from .cross_validation import set_cv
 from .data import Brain_Data, Adjacency, Groupby, Design_Matrix, Design_Matrix_Series
 from .pbs_job import PBS_Job
 from .simulator import Simulator
-from .prefs import MNI_template, resolve_mni_path
+from .prefs import MNI_Template, resolve_mni_path
 from .version import __version__
