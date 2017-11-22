@@ -11,12 +11,12 @@ from sklearn.metrics import pairwise_distances
 import matplotlib
 import networkx as nx
 import six
-from nltools.prefs import MNI_template
+from nltools.prefs import MNI_Template
 
 matplotlib.use('TkAgg')
 
 def test_brain_data_3mm(tmpdir):
-    MNI_template["resolution"] = '3mm'
+    MNI_Template["resolution"] = '3mm'
     sim = Simulator()
     r = 10
     sigma = 1
@@ -217,7 +217,7 @@ def test_brain_data_3mm(tmpdir):
     assert np.sum(diff.data) == 0
 
 def test_brain_data_2mm(tmpdir):
-    MNI_template["resolution"] = '2mm'
+    MNI_Template["resolution"] = '2mm'
     sim = Simulator()
     r = 10
     sigma = 1
