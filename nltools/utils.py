@@ -13,7 +13,6 @@ __all__ = ['get_resource_path',
             'spm_time_derivative',
             'glover_time_derivative',
             'spm_dispersion_derivative',
-            'make_cosine_basis',
             'attempt_to_import',
             'all_same',
             'concatenate',
@@ -37,7 +36,9 @@ def get_resource_path():
     return join(dirname(__file__), 'resources') + pathsep
 
 def get_anatomical():
-    """ Get nltools default anatomical image. """
+    """ Get nltools default anatomical image.
+        DEPRECATED. See MNI_Template and resolve_mni_path from nltools.prefs
+    """
     return nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm.nii.gz'))
 
 def set_algorithm(algorithm, **kwargs):
@@ -247,42 +248,6 @@ def spm_dispersion_derivative(tr, oversampling=16, time_length=32., onset=0.):
                                            onset, dispersion=1. + dd) -
                       spm_hrf(tr, oversampling, time_length, onset))
     return dhrf
-
-def make_cosine_basis(nsamples,sampling_freq,filter_length):
-    """ Create a series of cosines basic functions for discrete cosine transform. Based off of implementation in spm_dctmtx because scipy dct can only apply transforms but not return the basis functions.
-
-    Args:
-        nsamples (int): number of observations (e.g. TRs)
-        sampling_freq (float): sampling frequency in seconds (e.g. TR length)
-        filter_length (int): length of filter in seconds
-
-    Returns:
-        out (ndarray): nsamples x number of basis sets numpy array
-
-    """
-
-    #Figure out number of basis functions to create
-    order = int(np.fix(2 * (nsamples * sampling_freq)/filter_length + 1))
-
-    n = np.arange(nsamples)
-
-    #Initialize basis function matrix
-    C = np.zeros((len(n),order))
-
-    #Add constant
-    C[:,0] = np.ones((1,len(n)))/np.sqrt(nsamples)
-
-    #Insert higher order cosine basis functions
-    for i in xrange(1,order):
-        C[:,i] = np.sqrt(2./nsamples) * np.cos(np.pi*(2*n+1) * i/(2*nsamples))
-
-    #Drop constant
-    C = C[:,1:]
-    if C.size == 0:
-        raise ValueError('Basis function creation failed!'
-                        ' nsamples is too small for requested filter_length.')
-    else:
-        return C
 
 def isiterable(obj):
     ''' Returns True if the object is one of allowable iterable types. '''

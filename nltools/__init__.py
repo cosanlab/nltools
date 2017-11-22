@@ -9,7 +9,8 @@ __all__ = ['data',
             'utils',
             'file_reader',
 			'pbs_job',
-			'masks',
+			'mask',
+            'prefs',
 			'__version__']
 
 from .analysis import Roc
@@ -21,4 +22,5 @@ from .data import (Brain_Data,
                     Design_Matrix_Series)
 from .pbs_job import PBS_Job
 from .simulator import Simulator
+from .prefs import MNI_Template, resolve_mni_path
 from .version import __version__

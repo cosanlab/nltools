@@ -1,10 +1,10 @@
 from __future__ import division
 
 '''
-NeuroLearn Data Classes
-=======================
+NeuroLearn Brain Data
+=====================
 
-Classes to represent various types of data
+Classes to represent brain image data.
 
 '''
 
@@ -43,7 +43,6 @@ from nilearn.plotting.img_plotting import plot_epi, plot_roi, plot_stat_map
 from nltools.utils import (get_resource_path,
                             set_algorithm,
                             get_anatomical,
-                            make_cosine_basis,
                             glover_hrf,
                             attempt_to_import,
                             concatenate,
@@ -65,15 +64,30 @@ from nltools.stats import (pearson,
                            downsample,
                            upsample,
                            zscore,
+                           make_cosine_basis,
                            transform_pairwise,
+                           _robust_estimator_hc0,
+                           _robust_estimator_hc3,
+                           _robust_estimator_hac,
                            summarize_bootstrap)
 from nltools.pbs_job import PBS_Job
 from .adjacency import Adjacency
+from nltools.prefs import MNI_Template, resolve_mni_path
 
 # Optional dependencies
 mne_stats = attempt_to_import('mne.stats',name='mne_stats', fromlist=
                                     ['spatio_temporal_cluster_1samp_test',
                                      'ttest_1samp_no_p'])
+try:
+    from mne.stats import (spatio_temporal_cluster_1samp_test,
+                           ttest_1samp_no_p)
+except ImportError:
+    pass
+
+try:
+    import networkx as nx
+except ImportError:
+    pass
 
 class Brain_Data(object):
 
@@ -105,8 +119,7 @@ class Brain_Data(object):
                                      "valid file name")
             self.mask = mask
         else:
-            self.mask = nib.load(os.path.join(get_resource_path(),
-                                'MNI152_T1_2mm_brain_mask.nii.gz'))
+            self.mask = nib.load(resolve_mni_path(MNI_Template)['mask'])
         self.nifti_masker = NiftiMasker(mask_img=self.mask)
 
         if data is not None:
@@ -333,7 +346,7 @@ class Brain_Data(object):
                 else:
                     raise ValueError("anatomical is not a nibabel instance")
         else:
-            anatomical = get_anatomical()
+            anatomical = nib.load(resolve_mni_path(MNI_Template)['plot'])
 
         if self.data.ndim == 1:
             plot_stat_map(self.to_nifti(), anatomical,
@@ -350,8 +363,17 @@ class Brain_Data(object):
                                    draw_cross=False,
                                    **kwargs)
 
-    def regress(self):
-        """ run vectorized OLS regression across voxels.
+    def regress(self,robust=False,nlags=1):
+        """ Run vectorized OLS regression across voxels with optional robust estimation of standard errors (i.e. sandwich estimators). Robust estimators do not change values of beta coefficients.
+
+        3 robust estimators are implemented:
+        'hc0': original Huber (1980) sandwich estimator
+        'hc3': more robust MacKinnon & White (1985) estimator, better for smaller samples
+        'hac': hc0 + robustness to serial auto-correlation Newey & West (1987)
+
+        Args:
+            robust (str): Estimate heteroscedasticity-consistent standard errors; 'HC0', 'HC3','HAC'; default is False
+            nlags (int): lag to use for HAC estimator, ignored otherwise; default is 1
 
         Returns:
             out: dictionary of regression statistics in Brain_Data instances
@@ -371,9 +393,28 @@ class Brain_Data(object):
 
         b = np.dot(np.linalg.pinv(self.X), self.data)
         res = self.data - np.dot(self.X, b)
-        sigma = np.std(res, axis=0, ddof=self.X.shape[1])
-        stderr = np.dot(np.matrix(np.diagonal(np.linalg.inv(np.dot(self.X.T,
-                        self.X)))**.5).T, np.matrix(sigma))
+
+        if robust:
+            # Robust estimators are in essence just variations on the theme of sandwich estimators, scaling or modifying the residuals calculation by some iterative factor
+            bread = np.linalg.pinv(np.dot(self.X.T,self.X))
+            if robust == 'hc0':
+                axis_func = [_robust_estimator_hc0,0,res,self.X,bread]
+            elif robust == 'hc3':
+                axis_func = [_robust_estimator_hc3,0,res,self.X,bread]
+            elif robust == 'hac':
+                axis_func = [_robust_estimator_hac,0,res,self.X,bread,nlags]
+            else:
+                raise ValueError("Robust standard error must be one of hc0, hc3, or hac!")
+
+            stderr = np.apply_along_axis(*axis_func)
+
+        else:
+            sigma = np.std(res, axis=0, ddof=self.X.shape[1])
+            stderr = np.sqrt(np.diag(np.linalg.pinv(np.dot(self.X.T,self.X))))[:,np.newaxis] * sigma[np.newaxis,:]
+
+            # stderr = np.dot(np.matrix(np.diagonal(np.linalg.inv(np.dot(self.X.T,
+            #                 self.X)))**.5).T, np.matrix(sigma))
+
         b_out = deepcopy(self)
         b_out.data = b
         t_out = deepcopy(self)
@@ -392,6 +433,92 @@ class Brain_Data(object):
 
         return {'beta': b_out, 't': t_out, 'p': p_out, 'df': df_out,
                 'sigma': sigma_out, 'residual': res_out}
+
+
+        def regress_arma(self,method='css-mle',n_jobs=-1,backend='threading',max_nbytes=1e8,verbose=True):
+
+            """
+            Fit an ARMA(1,1) model instead of standard OLS to all voxels. This method is very similar to
+            AFNI's 3dREMLfit, but does not employ spatial smoothing of voxel auto-correlation estimates.
+
+            Coefficient results are typically identitical though vary a little because MLE vs closed-form
+            OLS can differ based on rounding and optimizer search settings. T-stats, std-errors, and p-vals
+            can differ greatly depending on how much auto-correlation is explaining the response in a voxel
+            relative to other regressors specified in design matrix.
+
+            Current implementation is VERY COMPUTATIONALLY INTENSIVE as it relies on statsmodels
+            implementation which is slow. That's because this implementation is an optimization
+            problem AT EVERY VOXEL, similar to AFNI/FSL, but unlike SPM, which assumes same
+            AR param (~0.2) at each voxel.
+
+            Parallelization is employed by default to speed up computation time, and input arguments
+            control how parallelization is handled by default.
+
+            Args:
+                method (str): which loglikelihood to maximize: 'css' conditional sum of squares (fastest
+                              but potentially least accurate), 'mle' exact maximum likelihood, (potentially
+                              most accurate but probably overkill); 'css-mle' (default), like mle but with
+                              starting values given by css solution first
+                n_jobs (int): how many cores or threads to use; default is all cores or 10 threads
+                backend (str): 'threading' (default) or 'multiprocessing'. Threading shares memory but utilizes a
+                                single-core whereas multiprocessing can greatly increase memory usage but utilize
+                                multiple cores. Multiprocessing is automatically configured to memory-map
+                                (i.e. write to disk) in memory arrays greaters than 100mb to prevent hanging
+                                and crashing.
+                max_nbytes (int): in-memory variable size limit before using memory-mapping, i.e. writing to disk
+                                  ignored if backend is 'threading'
+                verbose (bool): print voxel-wise progress statement
+
+            Returns:
+                out: same output as Brain_Data.regress()
+
+
+            """
+
+            from statsmodels.tsa.arima_model import ARMA
+            from joblib import Parallel, delayed
+
+            def _arma_func(self,voxid,method=method):
+
+                """
+                Fit an ARMA(1,1) model at a specific voxel.
+                """
+
+                model = ARMA(endog=self.data[:,voxid],exog=self.X.values,order=(1,1))
+                res = model.fit(trend='nc',method=method,transparams=False,
+                                maxiter=50,disp=-1,start_ar_lags=2)
+
+                return (res.params[:-2], res.tvalues[:-2],res.pvalues[:-2],res.df_resid, res.resid)
+
+            # Parallelize
+            if backend == 'threading' and n_jobs == -1:
+                n_jobs = 10
+            par_for = Parallel(n_jobs=n_jobs,verbose=5,backend=backend,max_nbytes=max_nbytes)
+            out_arma = par_for(delayed(_arma_func)(self=self,voxid=i) for i in range(self.shape()[1]))
+
+            # Return results in Brain_Data format consistent with .regress()
+            b_dat = np.column_stack([elem[0] for elem in out_arma])
+            t_dat = np.column_stack([elem[1] for elem in out_arma])
+            p_dat = np.column_stack([elem[2] for elem in out_arma])
+            df_dat = np.array([elem[3] for elem in out_arma])
+            res_dat = np.column_stack([elem[4] for elem in out_arma])
+
+            sigma = np.std(res_dat,axis=0,ddof=self.X.shape[1])
+            sigma_out = deepcopy(self)
+            sigma_out.data = sigma
+            b_out = deepcopy(self)
+            b_out.data = b_dat
+            t_out = deepcopy(self)
+            t_out.data = t_dat
+            p_out = deepcopy(self)
+            p_out.data = p_dat
+            df_out = deepcopy(self)
+            df_out.data = df_dat
+            res_out = deepcopy(self)
+            res_out.data = res_dat
+
+            return {'beta': b_out, 't': t_out, 'p': p_out, 'df': df_out,
+                        'sigma': sigma_out, 'residual': res_out}
 
     def ttest(self, threshold_dict=None):
         """ Calculate one sample t-test across each voxel (two-sided)
@@ -1110,15 +1237,11 @@ class Brain_Data(object):
         out.data = fisher_r_to_z(out.data)
         return out
 
-    def filter(self, sampling_rate=None, high_pass=None, low_pass=None,
-                TR=None, **kwargs):
-        ''' Apply 5th order butterworth filter to data. Wraps nilearn
-            functionality. Does not default to detrending and standardizing
-            like nilearn implementation, but this can be overridden
-            using kwargs.
+    def filter(self,sampling_rate=None, high_pass=None,low_pass=None,**kwargs):
+        ''' Apply 5th order butterworth filter to data. Wraps nilearn functionality. Does not default to detrending and standardizing like nilearn implementation, but this can be overridden using kwargs.
 
         Args:
-            sampling_rate: sampling frequence (e.g. TR) in seconds
+            sampling_rate: sampling rate in seconds (i.e. TR)
             high_pass: high pass cutoff frequency
             low_pass: low pass cutoff frequency
             kwargs: other keyword arguments to nilearn.signal.clean
@@ -1128,19 +1251,17 @@ class Brain_Data(object):
         '''
 
         if sampling_rate is None:
-            raise ValueError("Need to provide sampling rate!")
+            raise ValueError("Need to provide sampling rate (TR)!")
         if high_pass is None and low_pass is None:
             raise ValueError("high_pass and/or low_pass cutoff must be"
                             "provided!")
-        if TR is None:
+        if sampling_rate is None:
             raise ValueError("Need to provide TR!")
 
         standardize = kwargs.get('standardize',False)
         detrend = kwargs.get('detrend',False)
         out = self.copy()
-        out.data = clean(out.data, t_r=TR, detrend=detrend,
-                        standardize=standardize, high_pass=high_pass,
-                        low_pass=low_pass, **kwargs)
+        out.data = clean(out.data,t_r=sampling_rate,detrend=detrend,standardize=standardize,high_pass=high_pass,low_pass=low_pass,**kwargs)
         return out
 
     def dtype(self):
@@ -1193,13 +1314,13 @@ class Brain_Data(object):
         values = dat.apply(func)
         return dat.combine(values)
 
-    def threshold(self, thresh=0, binarize=False):
-        '''Threshold Brain_Data instance
+    def threshold(self, upper=None, lower=None, binarize=False):
+        '''Threshold Brain_Data instance. Provide upper and lower values or percentages to perform two-sided thresholding. Binarize will return a mask image respecting thresholds if provided, otherwise respecting every non-zero value.
 
         Args:
-            thresh: cutoff to threshold image (float).  if 'threshold'=50%,
-                    will calculate percentile.
-            binarize (bool): if 'binarize'=True then binarize output
+            upper (float or str): upper cutoff for thresholding. If string will interpret as percentile; can be None for one-sided thresholding.
+            lower (float or str): lower cutoff for thresholding. If string will interpret as percentile; can be None for one-sided thresholding.
+            binarize (bool): return binarized image respecting thresholds if provided, otherwise binarize on every non-zero value; default False
 
         Returns:
             Brain_Data: thresholded Brain_Data instance
@@ -1207,13 +1328,21 @@ class Brain_Data(object):
         '''
 
         b = self.copy()
-        if isinstance(thresh, six.string_types):
-            if thresh[-1] is '%':
-                thresh = np.percentile(b.data, float(thresh[:-1]))
+        if isinstance(upper, six.string_types):
+            if upper[-1] is '%':
+                upper = np.percentile(b.data, float(upper[:-1]))
+        if isinstance(upper, six.string_types):
+            if lower[-1] is '%':
+                lower = np.percentile(b.data, float(lower[:-1]))
+
+        if upper and lower:
+            b.data[(b.data < upper) & (b.data > lower)] = 0
+        elif upper and not lower:
+            b.data[b.data < upper] = 0
+        elif lower and not upper:
+            b.data[b.data > lower] = 0
         if binarize:
-            b.data = b.data > thresh
-        else:
-            b.data[b.data < thresh] = 0
+            b.data[b.data != 0] = 1
         return b
 
     def regions(self, min_region_size=1350, extract_type='local_regions',

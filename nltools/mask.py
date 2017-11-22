@@ -13,10 +13,12 @@ __license__ = "MIT"
 import os
 import nibabel as nib
 from nltools.utils import get_resource_path
+from nltools.prefs import MNI_Template, resolve_mni_path
 from nilearn.input_data import NiftiMasker
 from copy import deepcopy
 import pandas as pd
 import numpy as np
+import six
 import warnings
 from nilearn.masking import intersect_masks
 
@@ -41,8 +43,7 @@ def create_sphere(coordinates, radius=5, mask=None):
                 raise ValueError("mask is not a nibabel instance or a valid "
                                 "file name")
     else:
-        mask = nib.load(os.path.join(get_resource_path(),
-                                    'MNI152_T1_2mm_brain_mask.nii.gz'))
+        mask = nib.load(resolve_mni_path(MNI_Template)['mask'])
     dims = mask.get_data().shape
 
     def sphere(r, p, mask):
