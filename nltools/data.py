@@ -26,7 +26,7 @@ from nltools.utils import (get_resource_path,
                             set_algorithm,
                             get_anatomical,
                             glover_hrf)
-from nltools.prefs import MNI_template, resolve_mni_path
+from nltools.prefs import MNI_Template, resolve_mni_path
 from nltools.cross_validation import set_cv
 from nltools.plotting import (dist_from_hyperplane_plot,
                               scatterplot,
@@ -116,7 +116,7 @@ class Brain_Data(object):
                                      "valid file name")
             self.mask = mask
         else:
-            self.mask = nib.load(resolve_mni_path(MNI_template)['mask'])
+            self.mask = nib.load(resolve_mni_path(MNI_Template)['mask'])
         self.nifti_masker = NiftiMasker(mask_img=self.mask)
 
         if data is not None:
@@ -326,7 +326,7 @@ class Brain_Data(object):
                 else:
                     raise ValueError("anatomical is not a nibabel instance")
         else:
-            anatomical = nib.load(resolve_mni_path(MNI_template)['plot'])
+            anatomical = nib.load(resolve_mni_path(MNI_Template)['plot'])
 
         if self.data.ndim == 1:
             plot_stat_map(self.to_nifti(), anatomical,

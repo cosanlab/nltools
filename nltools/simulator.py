@@ -42,7 +42,7 @@ from nilearn.input_data import NiftiMasker
 from scipy.stats import multivariate_normal
 from nltools.data import Brain_Data
 from nltools.utils import get_resource_path
-from nltools.prefs import MNI_template, resolve_mni_path
+from nltools.prefs import MNI_Template, resolve_mni_path
 import glob
 import csv
 
@@ -57,7 +57,7 @@ class Simulator:
         if type(brain_mask) is str:
             brain_mask = nib.load(brain_mask)
         elif brain_mask is None:
-            brain_mask = nib.load(resolve_mni_path(MNI_template)['mask'])
+            brain_mask = nib.load(resolve_mni_path(MNI_Template)['mask'])
         elif type(brain_mask) is not nib.nifti1.Nifti1Image:
             print(brain_mask)
             print(type(brain_mask))
