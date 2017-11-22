@@ -23,6 +23,10 @@ __all__ = ['pearson',
             'one_sample_permutation',
             'two_sample_permutation',
             'correlation_permutation',
+            'make_cosine_basis',
+            '_robust_estimator_hc0',
+            '_robust_estimator_hc3',
+            '_robust_estimator_hac',
             'summarize_bootstrap']
 
 import numpy as np
@@ -322,9 +326,9 @@ def downsample(data,sampling_freq=None, target=None, target_type='samples',
     if data.shape[0] > len(idx):
         idx = np.concatenate([idx, np.repeat(idx[-1]+1,data.shape[0]-len(idx))])
     if method=='mean':
-        return data.groupby(idx).mean()
+        return data.groupby(idx).mean().reset_index(drop=True)
     elif method=='median':
-        return data.groupby(idx).median()
+        return data.groupby(idx).median().reset_index(drop=True)
 
 def upsample(data,sampling_freq=None, target=None, target_type='samples',method='linear'):
     ''' Upsample pandas to a new target frequency or number of samples using interpolation.
@@ -493,6 +497,43 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
         stats['p'] = np.mean(all_p <= stats['correlation'])
     return stats
 
+def make_cosine_basis(nsamples,sampling_rate,filter_length,drop=0):
+    """ Create a series of cosines basic functions for discrete cosine transform. Based off of implementation in spm_filter and spm_dctmtx because scipy dct can only apply transforms but not return the basis functions. Like SPM, does not add constant (i.e. intercept), but does retain first basis (i.e. sigmoidal/linear drift)
+
+    Args:
+        nsamples (int): number of observations (e.g. TRs)
+        sampling_freq (float): sampling rate in seconds (e.g. TR length)
+        filter_length (int): length of filter in seconds
+        drop (int): index of which early/slow bases to drop if any; default is to drop constant (i.e. intercept) like SPM. Unlike SPM, retains first basis (i.e. linear/sigmoidal). Will cumulatively drop bases upto and inclusive of index provided (e.g. 2, drops bases 0,1,2)
+
+    Returns:
+        out (ndarray): nsamples x number of basis sets numpy array
+
+    """
+
+    #Figure out number of basis functions to create
+    order = int(np.fix(2 * (nsamples * sampling_rate)/filter_length + 1))
+
+    n = np.arange(nsamples)
+
+    #Initialize basis function matrix
+    C = np.zeros((len(n),order))
+
+    #Add constant
+    C[:,0] = np.ones((1,len(n)))/np.sqrt(nsamples)
+
+    #Insert higher order cosine basis functions
+    for i in xrange(1,order):
+        C[:,i] = np.sqrt(2./nsamples) * np.cos(np.pi*(2*n+1) * i/(2*nsamples))
+
+    #Drop desired bases
+    drop +=1
+    C = C[:,drop:]
+    if C.size == 0:
+        raise ValueError('Basis function creation failed! nsamples is too small for requested filter_length.')
+    else:
+        return C
+
 def transform_pairwise(X, y):
     '''Transforms data into pairs with balanced labels for ranking
     Transforms a n-class ranking problem into a two-class classification
@@ -540,6 +581,76 @@ def transform_pairwise(X, y):
             X_new[-1] = - X_new[-1]
     return np.asarray(X_new), np.asarray(y_new).ravel()
 
+def _robust_estimator_hc0(vals,X,bread):
+    """
+    Huber (1980) sandwich estimator to return robust standard error estimates.
+    Refs: https://www.wikiwand.com/en/Heteroscedasticity-consistent_standard_errors
+    https://github.com/statsmodels/statsmodels/blob/master/statsmodels/regression/linear_model.py
+    https://cran.r-project.org/web/packages/sandwich/vignettes/sandwich.pdf
+
+    Args:
+        vals (np.ndarray): 1d array of residuals
+        X (np.ndarray): design matrix used in OLS, e.g. Brain_Data().X
+        bread (np.ndarray): result of (X.T * X)^-1
+    Returns:
+        stderr (np.ndarray): 1d array of standard errors with length == X.shape[1]
+    """
+
+    V = np.diag(vals**2)
+    meat = np.dot(np.dot(X.T,V),X)
+    vcv = np.dot(np.dot(bread,meat),bread)
+    return np.sqrt(np.diag(vcv))
+
+def _robust_estimator_hc3(vals,X,bread):
+    """
+    MacKinnon and White (1985) HC3 sandwich estimator. Provides more robustness in smaller samples than HC0 Long & Ervin (2000)
+    Refs: https://cran.r-project.org/web/packages/sandwich/vignettes/sandwich.pdf
+
+    Args:
+        vals (np.ndarray): 1d array of residuals
+        X (np.ndarray): design matrix used in OLS, e.g. Brain_Data().X
+        bread (np.ndarray): result of (X.T * X)^-1
+    Returns:
+        stderr (np.ndarray): 1d array of standard errors with length == X.shape[1]
+    """
+
+    V = np.diag(vals**2)/(1-np.diag(np.dot(X,np.dot(bread,X.T))))**2
+    meat = np.dot(np.dot(X.T,V),X)
+    vcv = np.dot(np.dot(bread,meat),bread)
+    return np.sqrt(np.diag(vcv))
+
+def _robust_estimator_hac(vals,X,bread,nlags=1):
+    """
+    Newey-West (1987) estimator for robustness to heteroscedasticity as well as serial auto-correlation at given lags.
+    Refs: https://www.stata.com/manuals13/tsnewey.pdf
+
+    Args:
+        vals (np.ndarray): 1d array of residuals
+        X (np.ndarray): design matrix used in OLS, e.g. Brain_Data().X
+        bread (np.ndarray): result of (X.T * X)^-1
+        lag (int): what lag to estimate; default is 1
+    Returns:
+        stderr (np.ndarray): 1d array of standard errors with length == X.shape[1]
+    """
+
+    weights = 1 - np.arange(nlags+1.)/(nlags+1.)
+
+    #First compute lag 0
+    V = np.diag(vals**2)
+    meat = weights[0] * np.dot(np.dot(X.T,V),X)
+
+    #Now loop over additional lags
+    for l in range(1, nlags+1):
+
+        V = np.diag(vals[l:] * vals[:-l])
+        meat_1 = np.dot(np.dot(X[l:].T,V),X[:-l])
+        meat_2 = np.dot(np.dot(X[:-l].T,V),X[l:])
+
+        meat += weights[l] * (meat_1 + meat_2)
+
+    vcv = np.dot(np.dot(bread,meat),bread)
+    return np.sqrt(np.diag(vcv))
+
 def summarize_bootstrap(data, save_weights=False):
     """ Calculate summary of bootstrap samples
 
@@ -556,7 +667,7 @@ def summarize_bootstrap(data, save_weights=False):
     wstd = data.std()
     wmean = data.mean()
     wz = deepcopy(wmean)
-    a = wmean.data / wstd.data
+    wz.data = wmean.data / wstd.data
     wp = deepcopy(wmean)
     wp.data = 2*(1-norm.cdf(np.abs(wz.data)))
     # Create outputs
