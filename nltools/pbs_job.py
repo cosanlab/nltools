@@ -58,7 +58,7 @@ class PBS_Job:
             raise ValueError("parallel_out should be a string")
         os.system('mkdir ' + os.path.join(self.parallel_out,'core_out') )
         self.core_out = os.path.join(self.parallel_out,'core_out')
-        
+
         #set up process_mask
         if type(process_mask) is str:
             process_mask = nib.load(process_mask)
@@ -69,7 +69,7 @@ class PBS_Job:
             print(type(process_mask))
             raise ValueError("process_mask is not a nibabel instance")
         self.process_mask = process_mask
-        
+
         #set up other parameters
         self.radius = radius
         self.kwargs = kwargs
@@ -94,7 +94,7 @@ parallel_job = cPickle.load( open(pdir) ) \n\
 core_i = int(sys.argv[1]) \n\
 ncores = int(sys.argv[2]) \n\
 parallel_job.run_core(core_i, ncores) ")
-      
+
     def make_pbs_email_alert(self, email):
         ''' Simply sends an email alert when it's run'''
         title  = "email_alert.pbs"
@@ -163,7 +163,7 @@ exit 0" )
                 cv_dict=self.kwargs['cv_dict'], \
                 plot=False, \
                 **self.kwargs['predict_kwargs'])
-            
+
             #save r correlation values
             with open(os.path.join(self.core_out, "r_all" + str(core_i) + ".txt"), "a") as f:
                 r = output['r_xval']
@@ -194,7 +194,7 @@ exit 0" )
                     ratef = os.path.join(self.parallel_out,"rate.txt")
                     with open(ratef, 'w') as f:
                         f.write("") #clear the file
-            
+
         # read the count of the number of cores that have finished
         with open(os.path.join(self.core_out,"progress.txt"), 'r') as f:
             cores_finished = int(f.readline())
@@ -262,7 +262,7 @@ exit 0" )
                 f.write(str(tdif/jobs) + "\n" + str(time.time()) + "\nCore " + str(core) + \
                     " is slowest: " + str(tdif/jobs) + " seconds/job\n" + "This run will finish in " \
                     + est + "\n")
-        
+
     # helper function which finds the indices of each searchlight and returns a lil file
     def make_searchlight_masks(self):
         ''' Compute world coordinates of all in-mask voxels.
@@ -302,10 +302,10 @@ exit 0" )
         print("Each searchlight has on the order of " + str( sum(sum(A[0].toarray())) ) + " voxels")
         self.A = A.tolil()
         self.process_mask_1D = process_mask_1D
-            
+
     def clean_up(self, email_flag = True):
         '''Once all the cores have finished running, the last core will call this function.
-            It deletes temporary text files and merges the output files from all the cores into 
+            It deletes temporary text files and merges the output files from all the cores into
             one single file. Finally, it parses this file and transforms it into a 3D nifti file
             which can be opened with MRIcroGL or any other .nii viewing software'''
         #clear data in reassembled and weights files, if any
@@ -365,7 +365,7 @@ exit 0" )
         os.system("rm " + os.path.join(self.parallel_out, "core_startup.py*"))
 
     def reconstruct(self, rf):
-        '''This is a helper for the clean_up function. It reads a single file with all the 
+        '''This is a helper for the clean_up function. It reads a single file with all the
                 correlation coefficients, ocnverts them to a numpy array and then to a 3D .nii file'''
             #open the reassembled correlation data and build a python list of float type numbers
         with open(rf, 'r') as r_combo:

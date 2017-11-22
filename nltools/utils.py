@@ -13,6 +13,10 @@ __all__ = ['get_resource_path',
             'spm_time_derivative',
             'glover_time_derivative',
             'spm_dispersion_derivative',
+            'attempt_to_import',
+            'all_same',
+            'concatenate',
+            '_bootstrap_apply_func',
             ]
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
@@ -24,6 +28,8 @@ import os
 from sklearn.pipeline import Pipeline
 from scipy.stats import gamma
 import numpy as np
+import collections
+from types import GeneratorType
 
 def get_resource_path():
     """ Get path to nltools resource directory. """
@@ -242,3 +248,50 @@ def spm_dispersion_derivative(tr, oversampling=16, time_length=32., onset=0.):
                                            onset, dispersion=1. + dd) -
                       spm_hrf(tr, oversampling, time_length, onset))
     return dhrf
+
+def isiterable(obj):
+    ''' Returns True if the object is one of allowable iterable types. '''
+    return isinstance(obj, (list, tuple, GeneratorType))
+
+module_names = {}
+Dependency = collections.namedtuple('Dependency', 'package value')
+
+def attempt_to_import(dependency, name=None, fromlist=None):
+    if name is None:
+        name = dependency
+    try:
+        mod = __import__(dependency, fromlist=fromlist)
+    except ImportError:
+        mod = None
+    module_names[name] = Dependency(dependency, mod)
+    return mod
+
+def all_same(items):
+    return np.all(x == items[0] for x in items)
+
+def concatenate(data):
+    '''Concatenate a list of Brain_Data() or Adjacency() objects'''
+
+    if not isinstance(data, list):
+        raise ValueError('Make sure you are passing a list of objects.')
+
+    if all([type(x) for x in data]):
+        # Temporarily Removing this for circular imports (LC)
+        # if not isinstance(data[0], (Brain_Data, Adjacency)):
+        #     raise ValueError('Make sure you are passing a list of Brain_Data'
+        #                     ' or Adjacency objects.')
+
+        out = data[0].__class__()
+        for i in data:
+            out = out.append(i)
+    else:
+        raise ValueError('Make sure all objects in the list are the same type.')
+    return out
+
+def _bootstrap_apply_func(data, function, *args, **kwargs):
+    '''Bootstrap helper function. Sample with replacement and apply function'''
+    data_row_id = range(data.shape()[0])
+    new_dat = data[np.random.choice(data_row_id,
+                                   size=len(data_row_id),
+                                   replace=True)]
+    return getattr(new_dat, function)( *args, **kwargs)
