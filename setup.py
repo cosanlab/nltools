@@ -1,7 +1,7 @@
 # from nltools.version import __version__
 from setuptools import setup, find_packages
 
-__version__ = '0.3.1'
+__version__ = '0.3.2'
 
 extra_setuptools_args = dict(
     tests_require=['pytest']
