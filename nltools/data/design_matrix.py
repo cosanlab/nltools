@@ -1,32 +1,24 @@
 from __future__ import division
 
 '''
-NeuroLearn Data Classes
-=======================
+NeuroLearn Design Matrix
+========================
 
-Classes to represent various types of data
+Class for working with design matrices.
 
 '''
 
-# Notes:
-# Need to figure out how to speed up loading and resampling of data
-
-__all__ = ['Brain_Data',
-            'Adjacency',
-            'Groupby',
-            'Design_Matrix',
-            'Design_Matrix_Series']
-__author__ = ["Luke Chang"]
+__author__ = ["Eshin Jolly"]
 __license__ = "MIT"
 
 from pandas import DataFrame, Series
 import pandas as pd
 import numpy as np
 import seaborn as sns
+import matplotlib.pyplot as plt
 import warnings
 import six
-from nltools.utils import (make_cosine_basis,
-                            glover_hrf)
+from nltools.utils import glover_hrf
 from nltools.stats import (pearson,
                            fdr,
                            threshold,
@@ -37,7 +29,9 @@ from nltools.stats import (pearson,
                            downsample,
                            upsample,
                            zscore,
+                           make_cosine_basis
                            )
+
 class Design_Matrix_Series(Series):
 
     """
@@ -420,27 +414,3 @@ class Design_Matrix(DataFrame):
         out = self.append(basis_frame,axis=1)
 
         return out
-
-def _vif(X, y):
-    """
-        DEPRECATED
-        Helper function to compute variance inflation factor. Unclear whether
-        there are errors with this method relative to stats.models. Seems like
-        stats.models is sometimes inconsistent with R. R always uses the
-        diagonals of the inverted covariance matrix which is what's implemented
-        instead of this.
-
-        Args:
-            X: (Dataframe) explanatory variables
-            y: (Dataframe/Series) outcome variable
-
-    """
-
-    b,resid, _, _ = np.linalg.lstsq(X, y)
-    SStot = y.var(ddof=0)*len(y)
-    if SStot == 0:
-        SStot = .0001  # to prevent divide by 0 errors
-    r2 = 1.0 - (resid/SStot)
-    if r2 == 1:
-        r2 = 0.9999  # to prevent divide by 0 errors
-    return (1.0/(1.0-r2))[0]

@@ -14,10 +14,12 @@ from sklearn.metrics import pairwise_distances
 import matplotlib
 import networkx as nx
 import six
+from nltools.prefs import MNI_Template
 
 matplotlib.use('TkAgg')
 
-def test_brain_data(tmpdir):
+def test_brain_data_3mm(tmpdir):
+    MNI_Template["resolution"] = '3mm'
     sim = Simulator()
     r = 10
     sigma = 1
@@ -26,12 +28,10 @@ def test_brain_data(tmpdir):
     output_dir = str(tmpdir)
     dat = sim.create_data(y, sigma, reps=n_reps, output_dir=output_dir)
 
-    shape_3d = (91, 109, 91)
-    shape_2d = (6, 238955)
-    y = pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))),
-                    header=None, index_col=None)
-    holdout = pd.read_csv(os.path.join(str(tmpdir.join('rep_id.csv'))),
-                    header=None,index_col=None)
+    shape_3d = (60, 72, 60)
+    shape_2d = (6, 71020)
+    y = pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))),header=None, index_col=None)
+    holdout = pd.read_csv(os.path.join(str(tmpdir.join('rep_id.csv'))),header=None,index_col=None)
 
     # Test load list
     dat = Brain_Data(data=str(tmpdir.join('data.nii.gz')), Y=y)
@@ -75,6 +75,9 @@ def test_brain_data(tmpdir):
     index = range(4)
     assert len(dat[index]) == len(index)
     index = dat.Y == 1
+
+    assert len(dat[index.values.flatten()]) == index.values.sum()
+
     assert len(dat[index]) == index.values.sum()
     assert len(dat[:3]) == 3
 
@@ -95,6 +98,13 @@ def test_brain_data(tmpdir):
     dat.X = pd.DataFrame({'Intercept':np.ones(len(dat.Y)),
                         'X1':np.array(dat.Y).flatten()}, index=None)
     out = dat.regress()
+
+    assert type(out['beta'].data) == np.ndarray
+    assert type(out['t'].data) == np.ndarray
+    assert type(out['p'].data) == np.ndarray
+    assert type(out['residual'].data) == np.ndarray
+    assert type(out['df'].data) == np.ndarray
+
     assert out['beta'].shape() == (2, shape_2d[1])
 
     # Test indexing
@@ -210,11 +220,15 @@ def test_brain_data(tmpdir):
     mask = Brain_Data(s1)*5
     mask = mask + Brain_Data(s2)
 
-    m1 = mask.threshold(thresh=.5)
-    m2 = mask.threshold(thresh=3)
-    m3 = mask.threshold(thresh='98%')
+    m1 = mask.threshold(upper=.5)
+    m2 = mask.threshold(upper=3)
+    m3 = mask.threshold(upper='98%')
+    m4 = Brain_Data(s1)*5 + Brain_Data(s2)*-.5
+    m4 = mask.threshold(upper=.5,lower=-.3)
     assert np.sum(m1.data > 0) > np.sum(m2.data > 0)
     assert np.sum(m1.data > 0) == np.sum(m3.data > 0)
+    assert np.sum(m4.data[(m4.data > -.3) & (m4.data <.5)]) == 0
+    assert np.sum(m4.data[(m4.data < -.3) | (m4.data >.5)]) > 0
 
     # Test Regions
     r = mask.regions(min_region_size=10)
@@ -224,6 +238,219 @@ def test_brain_data(tmpdir):
     assert len(np.unique(r.to_nifti().get_data())) == 2
     diff = m2-m1
     assert np.sum(diff.data) == 0
+
+def test_brain_data_2mm(tmpdir):
+    MNI_Template["resolution"] = '2mm'
+    sim = Simulator()
+    r = 10
+    sigma = 1
+    y = [0, 1]
+    n_reps = 3
+    output_dir = str(tmpdir)
+    dat = sim.create_data(y, sigma, reps=n_reps, output_dir=output_dir)
+
+    shape_3d = (91, 109, 91)
+    shape_2d = (6, 238955)
+    y = pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))),header=None, index_col=None)
+    holdout = pd.read_csv(os.path.join(str(tmpdir.join('rep_id.csv'))),header=None,index_col=None)
+
+    # Test load list
+    dat = Brain_Data(data=str(tmpdir.join('data.nii.gz')), Y=y)
+
+    # Test concatenate
+    out = Brain_Data([x for x in dat])
+    assert isinstance(out, Brain_Data)
+    assert len(out)==len(dat)
+
+    # Test to_nifti
+    d = dat.to_nifti()
+    assert d.shape[0:3] == shape_3d
+
+    # Test load nibabel
+    assert Brain_Data(d)
+
+    # Test shape
+    assert dat.shape() == shape_2d
+
+    # Test Mean
+    assert dat.mean().shape()[0] == shape_2d[1]
+
+    # Test Std
+    assert dat.std().shape()[0] == shape_2d[1]
+
+    # Test add
+    new = dat + dat
+    assert new.shape() == shape_2d
+
+    # Test subtract
+    new = dat - dat
+    assert new.shape() == shape_2d
+
+    # Test multiply
+    new = dat * dat
+    assert new.shape() == shape_2d
+
+    # Test Indexing
+    index = [0, 3, 1]
+    assert len(dat[index]) == len(index)
+    index = range(4)
+    assert len(dat[index]) == len(index)
+    index = dat.Y == 1
+
+    assert len(dat[index.values.flatten()]) == index.values.sum()
+
+    assert len(dat[index]) == index.values.sum()
+    assert len(dat[:3]) == 3
+
+    # Test Iterator
+    x = [x for x in dat]
+    assert len(x) == len(dat)
+    assert len(x[0].data.shape) == 1
+
+    # # Test T-test
+    out = dat.ttest()
+    assert out['t'].shape()[0] == shape_2d[1]
+
+    # # # Test T-test - permutation method
+    # out = dat.ttest(threshold_dict={'permutation':'tfce','n_permutations':50,'n_jobs':1})
+    # assert out['t'].shape()[0]==shape_2d[1]
+
+    # Test Regress
+    dat.X = pd.DataFrame({'Intercept':np.ones(len(dat.Y)), 'X1':np.array(dat.Y).flatten()},index=None)
+    out = dat.regress()
+
+    assert type(out['beta'].data) == np.ndarray
+    assert type(out['t'].data) == np.ndarray
+    assert type(out['p'].data) == np.ndarray
+    assert type(out['residual'].data) == np.ndarray
+    assert type(out['df'].data) == np.ndarray
+
+    assert out['beta'].shape() == (2,shape_2d[1])
+
+    # Test indexing
+    assert out['t'][1].shape()[0] == shape_2d[1]
+
+    # Test threshold
+    i=1
+    tt = threshold(out['t'][i], out['p'][i], .05)
+    assert isinstance(tt,Brain_Data)
+
+    # Test write
+    dat.write(os.path.join(str(tmpdir.join('test_write.nii'))))
+    assert Brain_Data(os.path.join(str(tmpdir.join('test_write.nii'))))
+
+    # Test append
+    assert dat.append(dat).shape()[0]==shape_2d[0]*2
+
+    # Test distance
+    distance = dat.distance(method='euclidean')
+    assert isinstance(distance,Adjacency)
+    assert distance.square_shape()[0]==shape_2d[0]
+
+    # Test predict
+    stats = dat.predict(algorithm='svm', cv_dict={'type': 'kfolds','n_folds': 2}, plot=False,**{'kernel':"linear"})
+
+    # Support Vector Regression, with 5 fold cross-validation with Platt Scaling
+    # This will output probabilities of each class
+    stats = dat.predict(algorithm='svm', cv_dict=None, plot=False,**{'kernel':'linear', 'probability':True})
+    assert isinstance(stats['weight_map'],Brain_Data)
+
+    # Logistic classificiation, with 2 fold cross-validation.
+    stats = dat.predict(algorithm='logistic', cv_dict={'type': 'kfolds', 'n_folds': 2}, plot=False)
+    assert isinstance(stats['weight_map'],Brain_Data)
+
+    # Ridge classificiation,
+    stats = dat.predict(algorithm='ridgeClassifier', cv_dict=None,plot=False)
+    assert isinstance(stats['weight_map'],Brain_Data)
+
+    # Ridge
+    stats = dat.predict(algorithm='ridge', cv_dict={'type': 'kfolds', 'n_folds': 2,'subject_id':holdout}, plot=False,**{'alpha':.1})
+
+    # Lasso
+    stats = dat.predict(algorithm='lasso', cv_dict={'type': 'kfolds', 'n_folds': 2,'stratified':dat.Y}, plot=False,**{'alpha':.1})
+
+    # PCR
+    stats = dat.predict(algorithm='pcr', cv_dict=None, plot=False)
+
+    # Test Similarity
+    r = dat.similarity(stats['weight_map'])
+    assert len(r) == shape_2d[0]
+    r2 = dat.similarity(stats['weight_map'].to_nifti())
+    assert len(r2) == shape_2d[0]
+
+    # Test apply_mask - might move part of this to test mask suite
+    s1 = create_sphere([12, 10, -8], radius=10)
+    assert isinstance(s1, nb.Nifti1Image)
+    s2 = Brain_Data(s1)
+    masked_dat = dat.apply_mask(s1)
+    assert masked_dat.shape()[1] == np.sum(s2.data != 0)
+
+    # Test extract_roi
+    mask = create_sphere([12, 10, -8], radius=10)
+    assert len(dat.extract_roi(mask)) == shape_2d[0]
+
+    # Test r_to_z
+    z = dat.r_to_z()
+    assert z.shape() == dat.shape()
+
+    # Test copy
+    d_copy = dat.copy()
+    assert d_copy.shape() == dat.shape()
+
+    # Test detrend
+    detrend = dat.detrend()
+    assert detrend.shape() == dat.shape()
+
+    # Test standardize
+    s = dat.standardize()
+    assert s.shape() == dat.shape()
+    assert np.isclose(np.sum(s.mean().data), 0, atol=.1)
+    s = dat.standardize(method='zscore')
+    assert s.shape() == dat.shape()
+    assert np.isclose(np.sum(s.mean().data), 0, atol=.1)
+
+    # Test Sum
+    s = dat.sum()
+    assert s.shape() == dat[1].shape()
+
+    # Test Groupby
+    s1 = create_sphere([12, 10, -8], radius=10)
+    s2 = create_sphere([22, -2, -22], radius=10)
+    mask = Brain_Data([s1, s2])
+    d = dat.groupby(mask)
+    assert isinstance(d, Groupby)
+
+    # Test Aggregate
+    mn = dat.aggregate(mask, 'mean')
+    assert isinstance(mn, Brain_Data)
+    assert len(mn.shape()) == 1
+
+    # Test Threshold
+    s1 = create_sphere([12, 10, -8], radius=10)
+    s2 = create_sphere([22, -2, -22], radius=10)
+    mask = Brain_Data(s1)*5
+    mask = mask + Brain_Data(s2)
+
+    m1 = mask.threshold(upper=.5)
+    m2 = mask.threshold(upper=3)
+    m3 = mask.threshold(upper='98%')
+    m4 = Brain_Data(s1)*5 + Brain_Data(s2)*-.5
+    m4 = mask.threshold(upper=.5,lower=-.3)
+    assert np.sum(m1.data > 0) > np.sum(m2.data > 0)
+    assert np.sum(m1.data > 0) == np.sum(m3.data > 0)
+    assert np.sum(m4.data[(m4.data > -.3) & (m4.data <.5)]) == 0
+    assert np.sum(m4.data[(m4.data < -.3) | (m4.data >.5)]) > 0
+
+    # Test Regions
+    r = mask.regions(min_region_size=10)
+    m1 = Brain_Data(s1)
+    m2 = r.threshold(1, binarize=True)
+    # assert len(r)==2
+    assert len(np.unique(r.to_nifti().get_data())) == 2 # JC edit: I think this is what you were trying to do
+    diff = m2-m1
+    assert np.sum(diff.data) == 0
+    # # Test Plot
+    # dat.plot()
 
     # Test Bootstrap
     masked = dat.apply_mask(create_sphere(radius=10, coordinates=[0, 0, 0]))
