@@ -18,8 +18,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import warnings
 import six
-from nltools.utils import (make_cosine_basis,
-                            glover_hrf)
+from nltools.utils import glover_hrf
 from nltools.stats import (pearson,
                            fdr,
                            threshold,
@@ -30,6 +29,7 @@ from nltools.stats import (pearson,
                            downsample,
                            upsample,
                            zscore,
+                           make_cosine_basis
                            )
 
 class Design_Matrix_Series(Series):
