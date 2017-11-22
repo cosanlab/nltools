@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from nltools.stats import two_sample_permutation, one_sample_permutation
 from nilearn.plotting import plot_glass_brain, plot_stat_map
-from nltools.prefs import MNI_template, resolve_mni_path
+from nltools.prefs import MNI_Template, resolve_mni_path
 
 def plotTBrain(objIn,how='full',thr='unc',alpha=None,nperm=None, cut_coords = [],**kwargs):
     """
@@ -87,13 +87,13 @@ def plotTBrain(objIn,how='full',thr='unc',alpha=None,nperm=None, cut_coords = []
     if how == 'full':
         plot_glass_brain(obj.to_nifti(),display_mode='lzry',colorbar=True,cmap=cmap,plot_abs=False,**kwargs)
         for v,c in zip(views,cut_coords):
-            plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap,bg_img = resolve_mni_path(MNI_template)['brain'],
+            plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap,bg_img = resolve_mni_path(MNI_Template)['brain'],
             **kwargs)
     elif how == 'glass':
          plot_glass_brain(obj.to_nifti(),display_mode='lzry',colorbar=True,cmap=cmap,plot_abs=False,**kwargs)
     elif how == 'mni':
         for v,c in zip(views,cut_coords):
-            plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap,bg_img =resolve_mni_path(MNI_template)['brain'],
+            plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap,bg_img =resolve_mni_path(MNI_Template)['brain'],
             **kwargs)
     del obj
     del out
@@ -128,13 +128,13 @@ def plotBrain(objIn,how='full',thr=None,**kwargs):
     if how == 'full':
         plot_glass_brain(obj.to_nifti(),display_mode='lzry',colorbar=True,cmap=cmap,plot_abs=False,**kwargs)
         for v,c in zip(views,coords):
-            plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap,bg_img =resolve_mni_path(MNI_template)['brain'],
+            plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap,bg_img =resolve_mni_path(MNI_Template)['brain'],
             **kwargs)
     elif how == 'glass':
          plot_glass_brain(obj.to_nifti(),display_mode='lzry',colorbar=True,cmap=cmap,plot_abs=False,**kwargs)
     elif how == 'mni':
         for v,c in zip(views,coords):
-            plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap,bg_img =resolve_mni_path(MNI_template)['brain'],
+            plot_stat_map(obj.to_nifti(), cut_coords = c, display_mode = v,cmap=cmap,bg_img =resolve_mni_path(MNI_Template)['brain'],
             **kwargs)
     del obj #save memory
     return
@@ -166,7 +166,7 @@ def _viewer(objIn,x,y,z,stat,figsize):
     _,ax= plt.subplots(1,figsize=figsize)
     plot_stat_map(objIn.to_nifti(),
         display_mode='ortho',
-        bg_img =resolve_mni_path(MNI_template)['brain'],
+        bg_img =resolve_mni_path(MNI_Template)['brain'],
         cut_coords=(x,y,z),
         threshold=stat,
         draw_cross=False,
