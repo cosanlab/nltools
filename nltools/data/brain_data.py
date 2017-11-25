@@ -46,7 +46,8 @@ from nltools.utils import (get_resource_path,
                             glover_hrf,
                             attempt_to_import,
                             concatenate,
-                            _bootstrap_apply_func)
+                            _bootstrap_apply_func,
+                            set_decomposition_algorithm)
 from nltools.cross_validation import set_cv
 from nltools.plotting import (dist_from_hyperplane_plot,
                               scatterplot,
@@ -1425,6 +1426,30 @@ class Brain_Data(object):
             bootstrapped = [x['weight_map'] for x in bootstrapped]
         bootstrapped = Brain_Data(bootstrapped)
         return summarize_bootstrap(bootstrapped, save_weights=save_weights)
+
+    def decompose(self, algorithm='pca', n_components=None, *args, **kwargs):
+        ''' Decompose Brain_Data object
+
+        Args:
+            algorithm: (str) Algorithm to perform decomposition
+                        types=['pca','ica','nnmf','fa']
+            n_components: (int) number of components. If None then retain
+                        as many as possible.
+        Returns:
+            output: a dictionary of decomposition parameters
+        '''
+
+        out = {}
+        out['decomposition_object'] = set_decomposition_algorithm(
+                                                    algorithm=algorithm,
+                                                    n_components=n_components,
+                                                    *args, **kwargs)
+        out['decomposition_object'].fit(self.data.T)
+        out['components'] = self.empty()
+        out['components'].data = out['decomposition_object'].transform(
+                                                                self.data.T).T
+        out['weights'] = out['decomposition_object'].components_
+        return out
 
 class Groupby(object):
     def __init__(self, data, mask):
