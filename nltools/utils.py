@@ -42,7 +42,7 @@ def get_anatomical():
     """
     return nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm.nii.gz'))
 
-def set_algorithm(algorithm, *args, *kwargs):
+def set_algorithm(algorithm, *args, **kwargs):
     """ Setup the algorithm to use in subsequent prediction analyses.
 
     Args:
