@@ -239,6 +239,42 @@ def test_brain_data_3mm(tmpdir):
     diff = m2-m1
     assert np.sum(diff.data) == 0
 
+    # Test Bootstrap
+    masked = dat.apply_mask(create_sphere(radius=10, coordinates=[0, 0, 0]))
+    n_samples = 3
+    b = masked.bootstrap('mean', n_samples=n_samples)
+    assert isinstance(b['Z'], Brain_Data)
+    b = masked.bootstrap('std', n_samples=n_samples)
+    assert isinstance(b['Z'], Brain_Data)
+    b = masked.bootstrap('predict', n_samples=n_samples, plot=False)
+    assert isinstance(b['Z'], Brain_Data)
+    b = masked.bootstrap('predict', n_samples=n_samples,
+                    plot=False, cv_dict={'type':'kfolds','n_folds':3})
+    assert isinstance(b['Z'], Brain_Data)
+    b = masked.bootstrap('predict', n_samples=n_samples,
+                    save_weights=True, plot=False)
+    assert len(b['samples'])==n_samples
+    
+    # Test decompose
+    n_components = 3
+    stats = dat.decompose(algorithm='pca', n_components=n_components)
+    assert n_components == len(stats['components'])
+    assert stats['weights'].shape == (n_components,len(dat))
+
+    stats = dat.decompose(algorithm='ica', n_components=n_components)
+    assert n_components == len(stats['components'])
+    assert stats['weights'].shape == (n_components,len(dat))
+
+    dat.data = dat.data + 2
+    dat.data[dat.data<0] = 0
+    stats = dat.decompose(algorithm='nnmf', n_components=n_components)
+    assert n_components == len(stats['components'])
+    assert stats['weights'].shape == (n_components,len(dat))
+
+    stats = dat.decompose(algorithm='fa', n_components=n_components)
+    assert n_components == len(stats['components'])
+    assert stats['weights'].shape == (n_components,len(dat))
+
 def test_brain_data_2mm(tmpdir):
     MNI_Template["resolution"] = '2mm'
     sim = Simulator()
@@ -467,6 +503,26 @@ def test_brain_data_2mm(tmpdir):
     b = masked.bootstrap('predict', n_samples=n_samples,
                     save_weights=True, plot=False)
     assert len(b['samples'])==n_samples
+
+    # Test decompose
+    n_components = 3
+    stats = dat.decompose(algorithm='pca', n_components=n_components)
+    assert n_components == len(stats['components'])
+    assert stats['weights'].shape == (n_components,len(dat))
+
+    stats = dat.decompose(algorithm='ica', n_components=n_components)
+    assert n_components == len(stats['components'])
+    assert stats['weights'].shape == (n_components,len(dat))
+
+    dat.data = dat.data + 2
+    dat.data[dat.data<0] = 0
+    stats = dat.decompose(algorithm='nnmf', n_components=n_components)
+    assert n_components == len(stats['components'])
+    assert stats['weights'].shape == (n_components,len(dat))
+
+    stats = dat.decompose(algorithm='fa', n_components=n_components)
+    assert n_components == len(stats['components'])
+    assert stats['weights'].shape == (n_components,len(dat))
 
 def test_adjacency(tmpdir):
     n = 10
