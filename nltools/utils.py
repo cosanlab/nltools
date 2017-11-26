@@ -17,6 +17,7 @@ __all__ = ['get_resource_path',
             'all_same',
             'concatenate',
             '_bootstrap_apply_func',
+            'set_decomposition_algorithm'
             ]
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
@@ -41,7 +42,7 @@ def get_anatomical():
     """
     return nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm.nii.gz'))
 
-def set_algorithm(algorithm, **kwargs):
+def set_algorithm(algorithm, *args, **kwargs):
     """ Setup the algorithm to use in subsequent prediction analyses.
 
     Args:
@@ -90,11 +91,11 @@ def set_algorithm(algorithm, **kwargs):
     if algorithm in algs_classify.keys():
         predictor_settings['prediction_type'] = 'classification'
         alg = load_class(algs_classify[algorithm])
-        predictor_settings['predictor'] = alg(**kwargs)
+        predictor_settings['predictor'] = alg(*args, **kwargs)
     elif algorithm in algs_predict:
         predictor_settings['prediction_type'] = 'prediction'
         alg = load_class(algs_predict[algorithm])
-        predictor_settings['predictor'] = alg(**kwargs)
+        predictor_settings['predictor'] = alg(*args, **kwargs)
     elif algorithm == 'lassopcr':
         predictor_settings['prediction_type'] = 'prediction'
         from sklearn.linear_model import Lasso
@@ -121,6 +122,44 @@ def set_algorithm(algorithm, **kwargs):
 
     return predictor_settings
 
+def set_decomposition_algorithm(algorithm, n_components=None, *args, **kwargs):
+    """ Setup the algorithm to use in subsequent decomposition analyses.
+
+    Args:
+        algorithm: The decomposition algorithm to use. Either a string or an
+                    (uninitialized) scikit-learn decomposition object.
+                    If string must be one of 'pca','nnmf', ica','fa'
+        kwargs: Additional keyword arguments to pass onto the scikit-learn
+                clustering object.
+
+    Returns:
+        predictor_settings: dictionary of settings for prediction
+
+    """
+
+    # NOTE: function currently located here instead of analysis.py to avoid circular imports
+
+    def load_class(import_string):
+        class_data = import_string.split(".")
+        module_path = '.'.join(class_data[:-1])
+        class_str = class_data[-1]
+        module = importlib.import_module(module_path)
+        return getattr(module, class_str)
+
+    algs = {
+        'pca': 'sklearn.decomposition.PCA',
+        'ica': 'sklearn.decomposition.FastICA',
+        'nnmf': 'sklearn.decomposition.NMF',
+        'fa': 'sklearn.decomposition.FactorAnalysis'
+        }
+
+    if algorithm in algs.keys():
+        alg = load_class(algs[algorithm])
+        alg = alg(n_components, *args, **kwargs)
+    else:
+        raise ValueError("""Invalid prediction/classification algorithm name.
+            Valid options are 'pca','ica', 'nnmf', 'fa'""")
+    return alg
 
 # The following are nipy source code implementations of the hemodynamic response function HRF
 # See the included nipy license file for use permission.
