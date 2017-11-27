@@ -2,13 +2,15 @@
 ###################
 *.pyc
 docs/_*/*
+docs/auto_examples
+docs/modules
 *.log
 nltools.egg-info
 build/
 dist/
 .cache/
 htmlcov
- 
+
 # Logs and databases #
 ######################
 *.log
@@ -19,7 +21,7 @@ htmlcov
 ###########################
 scripts/nilearn_cache/
 .ipynb_checkpoints
- 
+
 # OS generated files #
 ######################
 .DS_Store
