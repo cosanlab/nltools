@@ -1,4 +1,4 @@
-""" 
+"""
 Basic Data Operations
 =====================
 
@@ -14,9 +14,9 @@ dataframe, which means that it should feel intuitive to manipulate the data.
 #########################################################################
 # Download pain dataset from neurovault
 # ---------------------------------------------------
-# 
+#
 # Here we fetch the pain dataset used in `Chang et al., 2015 <http://journals.plos.org/plosbiology/article?id=10.1371/journal.pbio.1002180>`_
-# from `neurovault <http://neurovault.org/collections/504/>`_. In this dataset 
+# from `neurovault <http://neurovault.org/collections/504/>`_. In this dataset
 # there are 28 subjects with 3 separate beta images reflecting varying intensities
 # of thermal pain (i.e., high, medium, low).  The data will be downloaded to ~/nilearn_data,
 # and automatically loaded as a Brain_Data() instance.  The image metadata will be stored in data.X.
@@ -24,6 +24,21 @@ dataframe, which means that it should feel intuitive to manipulate the data.
 from nltools.datasets import fetch_pain
 
 data = fetch_pain()
+
+#########################################################################
+# Load files
+# ---------------------------------------------------
+#
+# Nifti images can be easily loaded simply by passing a string to a nifti file.
+# Many images can be loaded together by passing a list of nifti files.
+# For example, on linux or OSX systmes, the downloads from fetch_pain() will be
+# stored in ~/nilearn_data.  We will load subject 1's data.
+
+# NOTES: Need to figure out how to get path to data working on rtd server
+# from nltools.data import Brain_Data
+# import glob
+#
+# sub1 = Brain_Data(glob.glob('~/nilearn_data/chang2015_pain/Pain_Subject_1*.nii.gz'))
 
 #########################################################################
 # Basic Brain_Data() Operations
@@ -72,12 +87,12 @@ new = data[1]+data[2]
 data2 = (data+10)*2
 
 #########################################################################
-# Brain_Data instances can be copied 
+# Brain_Data instances can be copied
 
 new = data.copy()
 
 #########################################################################
-# Brain_Data instances can be easily converted to nibabel instances, which 
+# Brain_Data instances can be easily converted to nibabel instances, which
 # store the data in a 3D/4D matrix.  This is useful for interfacing with other
 # python toolboxes such as `nilearn <http://nilearn.github.io/>`_
 
@@ -104,7 +119,7 @@ data.write('Tmp_Data.nii.gz')
 # Basic Brain_Data() Plotting
 # ---------------------------------------------------------
 #
-# There are multiple ways to plot data.  First, Brain_Data() instances can be 
+# There are multiple ways to plot data.  First, Brain_Data() instances can be
 # converted to a nibabel instance and plotted using any plot method such as
 # nilearn.
 
@@ -118,4 +133,3 @@ plot_glass_brain(data.mean().to_nifti())
 # which allows you to specify the maximum number of images to display.
 
 data.mean().plot()
-

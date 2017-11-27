@@ -810,8 +810,7 @@ class Brain_Data(object):
         Args:
             algorithm: Algorithm to use for prediction.  Must be one of 'svm',
                     'svr', 'linear', 'logistic', 'lasso', 'ridge',
-                    'ridgeClassifier','randomforest', or
-                    'randomforestClassifier'
+                    'ridgeClassifier','pcr', or 'lassopcr'
             cv_dict: Type of cross_validation to use. A dictionary of
                     {'type': 'kfolds', 'n_folds': n},
                     {'type': 'kfolds', 'n_folds': n, 'stratified': Y},
