@@ -254,7 +254,7 @@ def test_brain_data_3mm(tmpdir):
     b = masked.bootstrap('predict', n_samples=n_samples,
                     save_weights=True, plot=False)
     assert len(b['samples'])==n_samples
-    
+
     # Test decompose
     n_components = 3
     stats = dat.decompose(algorithm='pca', n_components=n_components)
@@ -506,21 +506,47 @@ def test_brain_data_2mm(tmpdir):
 
     # Test decompose
     n_components = 3
-    stats = dat.decompose(algorithm='pca', n_components=n_components)
+    stats = dat.decompose(algorithm='pca', axis='voxels',
+                          n_components=n_components)
     assert n_components == len(stats['components'])
     assert stats['weights'].shape == (n_components,len(dat))
 
-    stats = dat.decompose(algorithm='ica', n_components=n_components)
+    stats = dat.decompose(algorithm='ica', axis='voxels',
+                          n_components=n_components)
     assert n_components == len(stats['components'])
     assert stats['weights'].shape == (n_components,len(dat))
 
     dat.data = dat.data + 2
     dat.data[dat.data<0] = 0
-    stats = dat.decompose(algorithm='nnmf', n_components=n_components)
+    stats = dat.decompose(algorithm='nnmf', axis='voxels',
+                          n_components=n_components)
     assert n_components == len(stats['components'])
     assert stats['weights'].shape == (n_components,len(dat))
 
-    stats = dat.decompose(algorithm='fa', n_components=n_components)
+    stats = dat.decompose(algorithm='fa', axis='voxels',
+                          n_components=n_components)
+    assert n_components == len(stats['components'])
+    assert stats['weights'].shape == (n_components,len(dat))
+
+    stats = dat.decompose(algorithm='pca', axis='images',
+                          n_components=n_components)
+    assert n_components == len(stats['components'])
+    assert stats['weights'].shape == (n_components,len(dat))
+
+    stats = dat.decompose(algorithm='ica', axis='images',
+                          n_components=n_components)
+    assert n_components == len(stats['components'])
+    assert stats['weights'].shape == (n_components,len(dat))
+
+    dat.data = dat.data + 2
+    dat.data[dat.data<0] = 0
+    stats = dat.decompose(algorithm='nnmf', axis='images',
+                          n_components=n_components)
+    assert n_components == len(stats['components'])
+    assert stats['weights'].shape == (n_components,len(dat))
+
+    stats = dat.decompose(algorithm='fa', axis='images',
+                          n_components=n_components)
     assert n_components == len(stats['components'])
     assert stats['weights'].shape == (n_components,len(dat))
 
