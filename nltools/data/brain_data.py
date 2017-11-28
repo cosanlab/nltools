@@ -1426,12 +1426,14 @@ class Brain_Data(object):
         bootstrapped = Brain_Data(bootstrapped)
         return summarize_bootstrap(bootstrapped, save_weights=save_weights)
 
-    def decompose(self, algorithm='pca', n_components=None, *args, **kwargs):
+    def decompose(self, algorithm='pca', axis='voxels', n_components=None,
+                  *args, **kwargs):
         ''' Decompose Brain_Data object
 
         Args:
             algorithm: (str) Algorithm to perform decomposition
                         types=['pca','ica','nnmf','fa']
+            axis: dimension to decompose ['voxels','images']
             n_components: (int) number of components. If None then retain
                         as many as possible.
         Returns:
@@ -1443,11 +1445,17 @@ class Brain_Data(object):
                                                     algorithm=algorithm,
                                                     n_components=n_components,
                                                     *args, **kwargs)
-        out['decomposition_object'].fit(self.data.T)
-        out['components'] = self.empty()
-        out['components'].data = out['decomposition_object'].transform(
+        if axis is 'images':
+            out['decomposition_object'].fit(self.data.T)
+            out['components'] = self.empty()
+            out['components'].data = out['decomposition_object'].transform(
                                                                 self.data.T).T
-        out['weights'] = out['decomposition_object'].components_
+            out['weights'] = out['decomposition_object'].components_.T
+        if axis is 'voxels':
+            out['decomposition_object'].fit(self.data)
+            out['weights'] = out['decomposition_object'].transform(self.data)
+            out['components'] = self.empty()
+            out['components'].data = out['decomposition_object'].components_
         return out
 
 class Groupby(object):
