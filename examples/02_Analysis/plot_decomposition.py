@@ -41,11 +41,15 @@ for s in data.X['SubjectID'].unique():
 #
 # We can now decompose the data into a subset of factors. For this example,
 # we will use factor analysis, but we can easily switch out the algorithm with
-# either 'pca', 'ica', or 'nnmf'.
+# either 'pca', 'ica', or 'nnmf'. Decomposition can be performed over voxels
+# or alternatively over images.  Here we perform decomposition over images,
+# which means that voxels are the observations and images are the features. Set
+# axis='voxels' to decompose voxels treating images as observations.
 
 n_components = 5
 
-output = data_center.decompose(algorithm='fa', n_components=n_components)
+output = data_center.decompose(algorithm='fa', axis='images',
+                                n_components=n_components)
 
 
 #########################################################################
