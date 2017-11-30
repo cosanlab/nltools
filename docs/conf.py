@@ -24,7 +24,10 @@ import sphinx_gallery
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('../'))
 
-version = '0.2.5'
+version = {}
+with open("../nltools/version.py") as f:
+    exec(f.read(), version)
+version = version['__version__']
 
 # ReadTheDocks doesn't support necessary C dependencies (e.g., Atlas), so we
 # mock them out per https://docs.readthedocs.org/en/latest/faq.html#i-get-import-errors-on-libraries-that-depend-on-c-modules.
@@ -34,74 +37,6 @@ class Mock(MagicMock):
     @classmethod
     def __getattr__(cls, name):
             return Mock()
-
-# # To keep compatibility with RTD and for sphinx to build properly this list needs to be updated if new modules are utilized anywhere in the project code
-# MOCK_MODULES = [
-# 'cPickle',
-# 'distutils',
-# 'distutils.version',
-# 'distutils.version.LooseVersion',
-# 'IPython',
-# 'IPython.display',
-# 'IPython.display.Image',
-# 'importlib',
-# 'matplotlib', 
-# 'matplotlib.pyplot',
-# 'mne',
-# 'mne.stats',
-# 'mne.stats.spatio_temporal_cluster_1samp_test', 
-# 'mne.stats.ttest_1samp_no_p',
-# 'nibabel', 
-# 'nilearn',
-# 'nilearn.plotting', 
-# 'nilearn.plotting.img_plotting',
-# 'nilearn.plotting.img_plotting.plot_epi',
-# 'nilearn.plotting.img_plotting.plot_roi',
-# 'nilearn.plotting.img_plotting.plot_stat_map',
-# 'nilearn.image',
-# 'nilearn.image.resample_img',
-# 'nilearn.masking',
-# 'nilearn.masking.intersec_masks',
-# 'nilearn.input_data',
-# 'nilearn.input_data.NiftiMasker',
-# 'numpy',
-# 'pandas', 
-# 'pyneurovault_upload',
-# 'pyneurovault_upload.Client',
-# 'scipy',
-# 'scipy.signal',
-# 'scipy.signal.detrend',
-# 'scipy.stats',
-# 'scipy.stats.ttest_1samp',
-# 'scipy.stats.t',
-# 'scipy.stats.norm',
-# 'scipy.stats.binom_test',
-# 'seaborn',
-# 'sklearn',
-# 'sklearn.base',
-# 'sklearn.base.BaseEstimator',
-# 'sklearn.externals',
-# 'sklearn.externals.joblib',
-# 'sklearn.externals.joblib.Parallel',
-# 'sklearn.externals.joblib.delayed',
-# 'sklearn.externals.joblib.cpu_count',
-# 'sklearn.metrics',
-# 'sklearn.metrics.auc',
-# 'sklearn.metrics.pairwise',
-# 'sklearn.metrics.pairwise.pairwise_distances', 
-# 'sklearn.neighbors',
-# 'sklearn.pipeline',
-# 'sklearn.pipeline.Pipeline',
-# 'sklearn.svm',
-# 'sklearn.svm.SVR',
-# 'sklearn.cross_validation',
-# 'sklearn.cross_validation._BaseKFold',
-# 'sklearn.cross_validation.check_random_state',
-# 'sklearn.cross_validation.cross_val_score',
-# 'sklearn.cross_validation.KFold'
-# ]
-
-# sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 # -- General configuration ------------------------------------------------
 
@@ -130,7 +65,8 @@ sphinx_gallery_conf = {
     'gallery_dirs'  : 'auto_examples'}
 
 sphinx_gallery_conf = {
-    'download_section_examples'  : True}
+    'download_section_examples'  : True,
+    'backreferences_dir': 'backreferences'}
 
 
 # Generate the plots for the gallery
@@ -218,9 +154,9 @@ todo_include_todos = False
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 
 if not on_rtd:  # only import and set the theme if we're building docs locally
-  import sphinx_rtd_theme                                                      
-  html_theme = 'sphinx_rtd_theme'                                              
-  html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]    
+  import sphinx_rtd_theme
+  html_theme = 'sphinx_rtd_theme'
+  html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -316,7 +252,7 @@ htmlhelp_basename = 'nltoolsdoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
-latex_elements = {
+# latex_elements = {
 # The paper size ('letterpaper' or 'a4paper').
 #'papersize': 'letterpaper',
 
@@ -328,15 +264,15 @@ latex_elements = {
 
 # Latex figure (float) alignment
 #'figure_align': 'htbp',
-}
+# }
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
-latex_documents = [
-  (master_doc, 'nltools.tex', u'nltools Documentation',
-   u'Luke Chang', 'manual'),
-]
+# latex_documents = [
+#   (master_doc, 'nltools.tex', u'nltools Documentation',
+#    u'Luke Chang', 'manual'),
+# ]
 
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
