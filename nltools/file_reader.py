@@ -38,7 +38,7 @@ def onsets_to_dm(F, TR, runLength, header='infer', sort=False,
 
     """
     if isinstance(F,six.string_types):
-        df = pd.read_csv(F,header=header,**kwargs)
+        df = pd.read_csv(F, header=header,**kwargs)
     elif isinstance(F,pd.core.frame.DataFrame):
         df = F.copy()
     else:
@@ -69,7 +69,7 @@ def onsets_to_dm(F, TR, runLength, header='infer', sort=False,
             X.ix[row['Onset']-1:row['Onset']+dur-1, row['Stim']] = 1
         elif df.shape[1] == 2:
             X.ix[row['Onset'], row['Stim']] = 1
-    X.TR = TR
+    X.sampling_rate = TR
     if sort:
         X = X.reindex_axis(sorted(X.columns), axis=1)
 
