@@ -24,7 +24,7 @@ data = fetch_pain()
 
 #########################################################################
 # Center within subject
-# ---------
+# ---------------------
 #
 # Next we will center the data.  However, because we are combining three pain
 # image intensities, we will perform centering separately for each participant.
@@ -71,7 +71,7 @@ import seaborn as sns
 import matplotlib.pylab as plt
 
 with sns.plotting_context(context='paper', font_scale=2):
-    sns.heatmap(output['weights'].T)
+    sns.heatmap(output['weights'])
     plt.ylabel('Images')
     plt.xlabel('Components')
 
@@ -86,7 +86,7 @@ output['components'].plot(limit=n_components)
 
 import pandas as pd
 
-wt =  pd.DataFrame(output['weights'].T)
+wt =  pd.DataFrame(output['weights'])
 wt['PainIntensity'] = data_center.X['PainLevel'].replace({1:'Low',
 														  2:'Medium',
 														  3:'High'}
@@ -100,8 +100,8 @@ wt_long = pd.melt(wt,
 
 with sns.plotting_context(context='paper', font_scale=2):
     sns.factorplot(data=wt_long,
-    			   y='Weight',
-    			   x='PainIntensity',
-    			   hue='Component',
-    			   order=['Low','Medium','High'],
-    			   aspect=1.5)
+                    y='Weight',
+                    x='PainIntensity',
+                    hue='Component',
+                    order=['Low','Medium','High'],
+                    aspect=1.5)
