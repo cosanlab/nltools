@@ -21,7 +21,10 @@ from sklearn.metrics import auc
 from copy import deepcopy
 
 
-class Roc(object):
+def my_func():
+    pass
+
+class Esh(object):
 
     """ Roc Class
 
