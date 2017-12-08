@@ -103,12 +103,19 @@ class Brain_Data(object):
         X: Pandas DataFrame Design Matrix for running univariate models
         mask: binary nifiti file to mask brain data
         output_file: Name to write out to nifti file
+        grand_grand_mean: an int or None. SPM and AFNI scale all voxels to have grand-grand-mean = 100,
+        such that intensity values at each voxel can be interpreted as something akin to
+        proportion/percent signal change relative to the global mean of the entire brain.
+        FSL sets grand-grand-mean = 10,000, to be able to represent data with lower-precision
+        values (ints) while not encountering data-precision loss.
+
+
         **kwargs: Additional keyword arguments to pass to the prediction
                 algorithm
 
     """
 
-    def __init__(self, data=None, Y=None, X=None, mask=None, output_file=None,
+    def __init__(self, data=None, Y=None, X=None, mask=None, output_file=None,grand_grand_mean=None,
                  **kwargs):
         if mask is not None:
             if not isinstance(mask, nib.Nifti1Image):
@@ -159,6 +166,9 @@ class Brain_Data(object):
                 self.data = self.data.squeeze()
         else:
             self.data = np.array([])
+
+        if grand_grand_mean is not None:
+            self.data = self.data / self.data.mean() * grand_grand_mean
 
         if Y is not None:
             if isinstance(Y, six.string_types):
