@@ -43,7 +43,6 @@ from nilearn.plotting.img_plotting import plot_epi, plot_roi, plot_stat_map
 from nltools.utils import (get_resource_path,
                             set_algorithm,
                             get_anatomical,
-                            glover_hrf,
                             attempt_to_import,
                             concatenate,
                             _bootstrap_apply_func,
