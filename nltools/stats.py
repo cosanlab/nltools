@@ -28,7 +28,8 @@ __all__ = ['pearson',
             '_robust_estimator_hc3',
             '_robust_estimator_hac',
             'summarize_bootstrap',
-            'procrustes']
+            'procrustes',
+            'align']
 
 import numpy as np
 import pandas as pd
@@ -694,6 +695,8 @@ def align(data, method='deterministic_srm', axis=0, *args, **kwargs):
             response matrix
 
     '''
+    
+    from nltools.data import Brain_Data
 
     assert isinstance(data, list), 'Make sure you are inputting data is a list.'
     assert all([type(x) for x in data]), 'Make sure all objects in the list are the same type.'
@@ -825,7 +828,7 @@ def procrustes(data1, data2):
         raise ValueError("Input matrices must be >0 rows and >0 cols")
     if mtx1.shape[1] != mtx2.shape[1]:
         # Pad with zeros
-        if mtx1.shape[1] > ss.shape[1]:
+        if mtx1.shape[1] > mtx2.shape[1]:
             mtx2 = np.append(mtx2, np.zeros((mtx1.shape[0], mtx1.shape[1] - mtx2.shape[1])), axis=1)
         else:
             mtx1 = np.append(mtx1, np.zeros((mtx1.shape[0], mtx2.shape[1] - mtx1.shape[1])), axis=1)
