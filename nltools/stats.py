@@ -27,7 +27,8 @@ __all__ = ['pearson',
             '_robust_estimator_hc0',
             '_robust_estimator_hc3',
             '_robust_estimator_hac',
-            'summarize_bootstrap']
+            'summarize_bootstrap',
+            'procrustes']
 
 import numpy as np
 import pandas as pd
@@ -38,6 +39,8 @@ from scipy.interpolate import interp1d
 import warnings
 import itertools
 from joblib import Parallel, delayed
+from ..external.srm import SRM, DetSRM
+from scipy.linalg import orthogonal_procrustes
 
 def pearson(x, y):
     """ Correlates row vector x with each row vector in 2D array y.
@@ -675,3 +678,177 @@ def summarize_bootstrap(data, save_weights=False):
     if save_weights:
         output['samples'] = data
     return output
+
+def align(data, method='deterministic_srm', axis=0, *args, **kwargs):
+    ''' Align subject data into a common response model
+
+    Args:
+        data: (list) A list of Brain_Data objects
+        method: (str) alignment method to use ['probabilistic_srm',
+            'deterministic_srm','hyperalignment']
+        axis: (int) axis to align on
+
+    Returns:
+        out: (dict) a dictionary containing a list of transformed subject
+            matrices, a list of transformation matrices, and the common
+            response matrix
+
+    '''
+
+    assert isinstance(data, list), 'Make sure you are inputting data is a list.'
+    assert all([type(x) for x in data]), 'Make sure all objects in the list are the same type.'
+    assert method in ['probabilistic_srm','deterministic_srm','hyperalignment'], "Method must be ['probabilistic_srm','deterministic_srm','hyperalignment']"
+    if isinstance(data[0], Brain_Data):
+        data_type = 'Brain_Data'
+        data_out = [x.copy() for x in data]
+        data = [x.data.T for x in data]
+    else:
+        data_type = 'numpy'
+
+    out = dict()
+    if method in ['deterministic_srm','probabilistic_srm']:
+        if method=='deterministic_srm':
+            srm = DetSRM(features = int(np.unique([x.shape[0] for x in data])), *args, **kwargs)
+        elif method=='probabilistic_srm':
+            srm = SRM(features = int(np.unique([x.shape[0] for x in data])), *args, **kwargs)
+        srm.fit(data)
+        out['transformed_data'] = [x.T for x in srm.transform(data)]
+        out['common_model'] = srm.s_
+        out['transformation_matrices'] = srm.w_
+
+    elif method=='hyperalignment':
+        ##STEP 0: STANDARDIZE SIZE AND SHAPE##
+        sizes_0 = [x.shape[0] for x in data]
+        sizes_1 = [x.shape[1] for x in data]
+
+        #find the smallest number of rows
+        R = min(sizes_0)
+        C = max(sizes_1)
+
+        m = [np.empty((R,C), dtype=np.ndarray)] * len(data)
+
+        for idx,x in enumerate(data):
+            y = x[0:R,:]
+            missing = C - y.shape[1]
+            add = np.zeros((y.shape[0], missing))
+            y = np.append(y, add, axis=1)
+            m[idx]=y
+
+        ##STEP 1: TEMPLATE##
+        for x in range(0, len(m)):
+            if x==0:
+                template = np.copy(m[x])
+            else:
+                next = procrustes(m[x], template / (x + 1))
+                template += next
+        template /= len(m)
+
+        ##STEP 2: NEW COMMON TEMPLATE##
+        #align each subj to the template from STEP 1
+        template2 = np.zeros(template.shape)
+        for x in range(0, len(m)):
+            next = procrustes(m[x], template)
+            template2 += next
+        template2 /= len(m)
+
+        #STEP 3 (below): ALIGN TO NEW TEMPLATE
+        aligned = [np.zeros(template2.shape)] * len(m)
+        for x in range(0, len(m)):
+            next = procrustes(m[x], template2)
+            aligned[x] = next
+        out['transformed_data'] = aligned
+        out['common_model'] = template2
+#         out['transformation_matrices'] = srm.w_
+
+    if data_type == 'Brain_Data':
+        for i,x in enumerate(out['transformed_data']):
+            data_out[i].data = x
+        out['transformed_data'] = data_out
+        common = data_out[0].copy()
+        common.data = out['common_model'].T
+        out['common_model'] = common
+    return out
+
+def procrustes(data1, data2):
+    '''Procrustes analysis, a similarity test for two data sets.
+
+    Each input matrix is a set of points or vectors (the rows of the matrix).
+    The dimension of the space is the number of columns of each matrix. Given
+    two identically sized matrices, procrustes standardizes both such that:
+    - :math:`tr(AA^{T}) = 1`.
+    - Both sets of points are centered around the origin.
+    Procrustes ([1]_, [2]_) then applies the optimal transform to the second
+    matrix (including scaling/dilation, rotations, and reflections) to minimize
+    :math:`M^{2}=\sum(data1-data2)^{2}`, or the sum of the squares of the
+    pointwise differences between the two input datasets.
+    This function was not designed to handle datasets with different numbers of
+    datapoints (rows).  If two data sets have different dimensionality
+    (different number of columns), this function will add columns of zeros to
+    the smaller of the two.
+
+    Args:
+        data1 : array_like
+            Matrix, n rows represent points in k (columns) space `data1` is the
+            reference data, after it is standardised, the data from `data2`
+            will be transformed to fit the pattern in `data1` (must have >1
+            unique points).
+        data2 : array_like
+            n rows of data in k space to be fit to `data1`.  Must be the  same
+            shape ``(numrows, numcols)`` as data1 (must have >1 unique points).
+
+    Returns:
+        mtx1 : array_like
+            A standardized version of `data1`.
+        mtx2 : array_like
+            The orientation of `data2` that best fits `data1`. Centered, but not
+            necessarily :math:`tr(AA^{T}) = 1`.
+        disparity : float
+            :math:`M^{2}` as defined above.
+        R : (N, N) ndarray
+            The matrix solution of the orthogonal Procrustes problem.
+            Minimizes the Frobenius norm of dot(data1, R) - data2, subject to
+            dot(R.T, R) == I.
+        scale : float
+            Sum of the singular values of ``dot(data1.T, data2)``.
+
+
+    '''
+
+    mtx1 = np.array(data1, dtype=np.double, copy=True)
+    mtx2 = np.array(data2, dtype=np.double, copy=True)
+
+    if mtx1.ndim != 2 or mtx2.ndim != 2:
+        raise ValueError("Input matrices must be two-dimensional")
+    if mtx1.shape[0] != mtx2.shape[0]:
+        raise ValueError("Input matrices must have same number of rows.")
+    if mtx1.size == 0:
+        raise ValueError("Input matrices must be >0 rows and >0 cols")
+    if mtx1.shape[1] != mtx2.shape[1]:
+        # Pad with zeros
+        if mtx1.shape[1] > ss.shape[1]:
+            mtx2 = np.append(mtx2, np.zeros((mtx1.shape[0], mtx1.shape[1] - mtx2.shape[1])), axis=1)
+        else:
+            mtx1 = np.append(mtx1, np.zeros((mtx1.shape[0], mtx2.shape[1] - mtx1.shape[1])), axis=1)
+
+    # translate all the data to the origin
+    mtx1 -= np.mean(mtx1, 0)
+    mtx2 -= np.mean(mtx2, 0)
+
+    norm1 = np.linalg.norm(mtx1)
+    norm2 = np.linalg.norm(mtx2)
+
+    if norm1 == 0 or norm2 == 0:
+        raise ValueError("Input matrices must contain >1 unique points")
+
+    # change scaling of data (in rows) such that trace(mtx*mtx') = 1
+    mtx1 /= norm1
+    mtx2 /= norm2
+
+    # transform mtx2 to minimize disparity
+    R, s = orthogonal_procrustes(mtx1, mtx2)
+    mtx2 = np.dot(mtx2, R.T) * s
+
+    # measure the dissimilarity between the two datasets
+    disparity = np.sum(np.square(mtx1 - mtx2))
+
+    return mtx1, mtx2, disparity, R, s

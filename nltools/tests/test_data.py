@@ -301,6 +301,78 @@ def test_brain_data_3mm(tmpdir):
     assert n_components == len(stats['components'])
     assert stats['weights'].shape == (len(dat), n_components)
 
+    # Test alignment
+    sim = Simulator()
+    r = 10
+    sigma = 1
+    y = [0, 1]
+    n_reps = 6
+    dat = sim.create_data(y, sigma, reps=n_reps, output_dir=str(tmpdir))
+
+    # Test hyperalignment with procrustes
+    s1 = create_sphere([0, 0, 0], radius=3)
+    s2 = create_sphere([0, 2, 0], radius=3)
+    d1 = dat.apply_mask(s1)
+    d2 = dat.apply_mask(s2)
+    out = align(d1, d2, method='procrustes', axis=0)
+    assert d1.shape() == out['transformed'].shape()
+    assert d1.shape() == out['common_model'].shape()
+    assert d1.shape()[0] == out['transformation_matrix'].shape[0]
+    assert out['disparity']<1
+    centered = d1.data.T-np.mean(d1.data.T,0)
+    transformed = (np.dot(centered/np.linalg.norm(centered), out['transformation_matrix'])*out['scale']).T
+    np.testing.assert_almost_equal(0,np.sum(out['transformed'].data-transformed))
+
+    # Test temporal alignment with procrustes
+    s1 = create_sphere([0, 0, 0], radius=10)
+    s2 = create_sphere([0, 2, 0], radius=10)
+    d1 = dat.apply_mask(s1)
+    d2 = dat.apply_mask(s2)
+    out = align(d1, d2, method='procrustes', axis=1)
+    assert d1.shape() == out['transformed'].shape()
+    assert d1.shape() == out['common_model'].shape()
+    assert d1.shape()[1] == out['transformation_matrix'].shape[0]
+    assert out['disparity']<1
+    centered = d1.data-np.mean(d1.data,0)
+    transformed = (np.dot(centered/np.linalg.norm(centered), out['transformation_matrix'].T)*out['scale'])
+    np.testing.assert_almost_equal(0,np.sum(out['transformed'].data-transformed))
+
+    # Test deterministic shared response model
+    s1 = create_sphere([0, 0, 0], radius=3)
+    s2 = create_sphere([0, 2, 0], radius=3)
+    d1 = dat.apply_mask(s1)
+    d2 = dat.apply_mask(s2)
+    out = align(d1, d2, method='deterministic_srm', axis=0)
+    assert d1.shape() == out['transformed'].shape()
+    assert d1.shape() == out['common_model'].shape()
+    assert d1.shape()[0] == out['transformation_matrix'].shape[0]
+    transformed = np.dot(d1.data.T,out['transformation_matrix'])
+    np.testing.assert_almost_equal(0,np.sum(out['transformed'].data.T-transformed))
+
+    # Test probablistic shared response model
+    s1 = create_sphere([0, 0, 0], radius=3)
+    s2 = create_sphere([0, 2, 0], radius=3)
+    d1 = dat.apply_mask(s1)
+    d2 = dat.apply_mask(s2)
+    out = align(d1, d2, method='deterministic_srm', axis=0)
+    assert d1.shape() == out['transformed'].shape()
+    assert d1.shape() == out['common_model'].shape()
+    assert d1.shape()[0] == out['transformation_matrix'].shape[0]
+    transformed = np.dot(d1.data.T,out['transformation_matrix'])
+    np.testing.assert_almost_equal(0,np.sum(out['transformed'].data.T-transformed))
+
+    # Test probablistic shared response model aligning on time
+    s1 = create_sphere([0, 0, 0], radius=2)
+    s2 = create_sphere([0, 2, 0], radius=2)
+    d1 = dat.apply_mask(s1)
+    d2 = dat.apply_mask(s2)
+    out = align(d1, d2, method='deterministic_srm', axis=1)
+    assert d1.shape() == out['transformed'].shape()
+    assert d1.shape() == out['common_model'].shape()
+    assert d1.shape()[1] == out['transformation_matrix'].shape[0]
+    transformed = np.dot(d1.data,out['transformation_matrix'].T)
+    np.testing.assert_almost_equal(0,np.sum(out['transformed'].data-transformed))
+
 def test_brain_data_2mm(tmpdir):
     MNI_Template["resolution"] = '2mm'
     sim = Simulator()

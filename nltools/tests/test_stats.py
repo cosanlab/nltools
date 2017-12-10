@@ -70,3 +70,21 @@ def test_winsorize():
 								78., 10., 13., -40., 101., 86., 85., 15., 89.,
 								89., 28., -5., 41.])
 	assert(np.round(np.mean(out)) == np.round(np.mean(correct_result)))
+
+def test_align():
+	out = align(data, method='deterministic_srm')
+	print(out.keys())
+	assert len(data) == len(out['transformed_data'])
+	assert len(data) == len(out['transformation_matrices'])
+	assert data[0].shape == out['common_model'].shape
+
+	out = align(data, method='probabilistic_srm')
+	print(out.keys())
+	assert len(data) == len(out['transformed_data'])
+	assert len(data) == len(out['transformation_matrices'])
+	assert data[0].shape == out['common_model'].shape
+
+	out = align(data, method='hyperalignment')
+	print(out.keys())
+	assert len(data) == len(out['transformed_data'])
+	assert data[0].shape == out['common_model'].shape

@@ -70,23 +70,20 @@ from nltools.stats import (pearson,
                            _robust_estimator_hc0,
                            _robust_estimator_hc3,
                            _robust_estimator_hac,
-                           summarize_bootstrap)
+                           summarize_bootstrap,
+                           procrustes)
 from nltools.pbs_job import PBS_Job
 from .adjacency import Adjacency
 from nltools.prefs import MNI_Template, resolve_mni_path
 
 # Optional dependencies
+nx = attempt_to_import('networkx', 'nx')
 mne_stats = attempt_to_import('mne.stats',name='mne_stats', fromlist=
                                     ['spatio_temporal_cluster_1samp_test',
                                      'ttest_1samp_no_p'])
 try:
     from mne.stats import (spatio_temporal_cluster_1samp_test,
                            ttest_1samp_no_p)
-except ImportError:
-    pass
-
-try:
-    import networkx as nx
 except ImportError:
     pass
 
@@ -1457,6 +1454,80 @@ class Brain_Data(object):
             out['components'] = self.empty()
             out['components'].data = out['decomposition_object'].components_
         return out
+
+    def align(self, target, method='procrustes', axis=0, *args, **kwargs):
+        ''' Align Brain_Data instance to target object
+
+        Can be used to hyperalign source data to target data
+        (see nltools.stats.align for aligning many data objects together).
+        Common Model is shared response model or centered target data.
+        Transformed data can be back projected to original data using Tranformation
+        matrix.
+
+        Examples:
+            For procrustes transform:
+                out = self.align(target, method='procrustes')
+                centered = self.data.T-np.mean(self.data.T, 0)
+                transformed = (np.dot(centered/np.linalg.norm(centered), out['transformation_matrix'].T)*out['scale']).T
+
+            For shared response model:
+                out = self.align(target, method='probablistic_srm')
+                transformed = np.dot(self.data.T, out['transformation_matrix'])
+
+                If aligning on time then:
+                    transformed = np.dot(self.data, out['transformation_matrix'].T)
+
+        Args:
+            target: (Brain_Data) object to align to.
+            method: (str) alignment method to use
+                ['probabilistic_srm','deterministic_srm','procrustes']
+            axis: (int) axis to align on
+
+        Returns:
+            out: (dict) a dictionary containing transformed object, transformation
+                matrix, and the shared response matrix
+
+        '''
+
+        source = self.copy()
+        common = target.copy()
+
+        assert isinstance(target, Brain_Data), "Target must be Brain_Data instance."
+        assert method in ['probabilistic_srm', 'deterministic_srm','procrustes'], "Method must be ['probabilistic_srm','deterministic_srm','procrustes']"
+
+        data1 = source.data
+        data2 = target.data
+
+        if axis==1:
+            data1 = data1.T
+            data2 = data2.T
+
+        out = dict()
+        if method in ['deterministic_srm','probabilistic_srm']:
+            if method=='deterministic_srm':
+                srm = DetSRM(features = data1.shape[0], *args, **kwargs)
+            elif method=='probabilistic_srm':
+                srm = SRM(features = data1.shape[0], *args, **kwargs)
+            srm.fit([data1, data2])
+            source.data = srm.transform([data1, data2])[0]
+            common.data = srm.s_
+            out['transformed'] = source
+            out['common_model'] = common
+            out['transformation_matrix'] = srm.w_[0]
+        elif method=='procrustes':
+            mtx1, mtx2, out['disparity'], t, out['scale'] = procrustes_transform(data2.T, data1.T)
+            source.data = mtx2.T
+            common.data = mtx1.T
+            out['transformed'] = source
+            out['common_model'] = common
+            out['transformation_matrix'] = t.T
+        if axis==1:
+            if method in ['deterministic_srm','probabilistic_srm']:
+                out['transformed'].data = out['transformed'].data.T
+            out['common_model'].data = out['common_model'].data.T
+            out['transformation_matrix'] = out['transformation_matrix'].T
+        return out
+
 
 class Groupby(object):
     def __init__(self, data, mask):
