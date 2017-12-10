@@ -18,7 +18,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import warnings
 import six
-from .external import glover_hrf
+from ..external.hrf import glover_hrf
 from nltools.stats import (pearson,
                            fdr,
                            threshold,
