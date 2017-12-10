@@ -74,6 +74,7 @@ from nltools.stats import (pearson,
 from nltools.pbs_job import PBS_Job
 from .adjacency import Adjacency
 from nltools.prefs import MNI_Template, resolve_mni_path
+from nltools.external.srm import DetSRM, SRM
 
 # Optional dependencies
 nx = attempt_to_import('networkx', 'nx')
@@ -1503,10 +1504,10 @@ class Brain_Data(object):
 
         out = dict()
         if method in ['deterministic_srm','probabilistic_srm']:
-            if method=='deterministic_srm':
-                srm = DetSRM(features = data1.shape[0], *args, **kwargs)
+            if method == 'deterministic_srm':
+                srm = DetSRM(features=data1.shape[0], *args, **kwargs)
             elif method=='probabilistic_srm':
-                srm = SRM(features = data1.shape[0], *args, **kwargs)
+                srm = SRM(features=data1.shape[0], *args, **kwargs)
             srm.fit([data1, data2])
             source.data = srm.transform([data1, data2])[0]
             common.data = srm.s_
@@ -1514,7 +1515,7 @@ class Brain_Data(object):
             out['common_model'] = common
             out['transformation_matrix'] = srm.w_[0]
         elif method=='procrustes':
-            mtx1, mtx2, out['disparity'], t, out['scale'] = procrustes_transform(data2.T, data1.T)
+            mtx1, mtx2, out['disparity'], t, out['scale'] = procrustes(data2.T, data1.T)
             source.data = mtx2.T
             common.data = mtx1.T
             out['transformed'] = source
