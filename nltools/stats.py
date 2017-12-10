@@ -39,7 +39,7 @@ from scipy.interpolate import interp1d
 import warnings
 import itertools
 from joblib import Parallel, delayed
-from ..external.srm import SRM, DetSRM
+from .external.srm import SRM, DetSRM
 from scipy.linalg import orthogonal_procrustes
 
 def pearson(x, y):
