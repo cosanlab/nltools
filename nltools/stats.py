@@ -680,46 +680,80 @@ def summarize_bootstrap(data, save_weights=False):
         output['samples'] = data
     return output
 
-def align(data, method='deterministic_srm', axis=0, *args, **kwargs):
-    ''' Align subject data into a common response model
+def align(data, method='deterministic_srm', n_features=None, axis=0, *args, **kwargs):
+    ''' Align subject data into a common response model.
 
-    Args:
-        data: (list) A list of Brain_Data objects
-        method: (str) alignment method to use ['probabilistic_srm',
-            'deterministic_srm','hyperalignment']
-        axis: (int) axis to align on
+        Can be used to hyperalign source data to target data using
+        Hyperalignemnt from Dartmouth (i.e., procrustes transformation; see
+        nltools.stats.procrustes) or Shared Response Model from Princeton (see
+        nltools.external.srm). (see nltools.data.Brain_Data.align for aligning a single
+        Brain object to another). Common Model is shared response model or centered
+        target data.Transformed data can be back projected to original data
+        using Tranformation matrix.
 
-    Returns:
-        out: (dict) a dictionary containing a list of transformed subject
-            matrices, a list of transformation matrices, and the common
-            response matrix
+        Examples:
+            For procrustes transform:
+                out = align(data, method='procrustes')
+                centered = data[0].data.T-np.mean(data[0].data.T,0)
+                transformed = (np.dot(centered/np.linalg.norm(centered),
+                              out['transformation_matrix'][0])*out['scale'][0])
+
+            For shared response model:
+                out = align(data, method='probabilistic_srm', n_features=None)
+                transformed = np.dot(data[0].data,out['transformation_matrix'][0])
+
+        Args:
+            data: (list) A list of Brain_Data objects
+            method: (str) alignment method to use
+                ['probabilistic_srm','deterministic_srm','procrustes']
+            n_features: (int) number of features to align to common space.
+                If None then will select number of voxels
+            axis: (int) axis to align on
+
+        Returns:
+            out: (dict) a dictionary containing a list of transformed subject
+                matrices, a list of transformation matrices, and the shared
+                response matrix
 
     '''
 
     from nltools.data import Brain_Data
 
+    if axis!=0:
+        raise NotImplementedError('Still need to implement transposing matrix')
+
     assert isinstance(data, list), 'Make sure you are inputting data is a list.'
     assert all([type(x) for x in data]), 'Make sure all objects in the list are the same type.'
-    assert method in ['probabilistic_srm','deterministic_srm','hyperalignment'], "Method must be ['probabilistic_srm','deterministic_srm','hyperalignment']"
+    assert method in ['probabilistic_srm','deterministic_srm','procrustes'], "Method must be ['probabilistic_srm','deterministic_srm','procrustes']"
+
     if isinstance(data[0], Brain_Data):
         data_type = 'Brain_Data'
         data_out = [x.copy() for x in data]
         data = [x.data.T for x in data]
-    else:
+    elif isinstance(data[0],np.ndarray):
         data_type = 'numpy'
+    else:
+        raise ValueError('Type %s is not implemented yet.' % type(data[0]))
 
     out = dict()
     if method in ['deterministic_srm','probabilistic_srm']:
+        if n_features is None:
+            n_features = int(data[0].shape[0])
         if method=='deterministic_srm':
-            srm = DetSRM(features = int(np.unique([x.shape[0] for x in data])), *args, **kwargs)
+            srm = DetSRM(features = n_features, *args, **kwargs)
         elif method=='probabilistic_srm':
-            srm = SRM(features = int(np.unique([x.shape[0] for x in data])), *args, **kwargs)
+            srm = SRM(features = n_features, *args, **kwargs)
         srm.fit(data)
-        out['transformed_data'] = [x.T for x in srm.transform(data)]
+        out['transformed'] = [x.T for x in srm.transform(data)]
         out['common_model'] = srm.s_
-        out['transformation_matrices'] = srm.w_
+        out['transformation_matrix'] = srm.w_
 
-    elif method=='hyperalignment':
+    elif method=='procrustes':
+        if n_features != None:
+            raise NotImplementedError('Currently must use all voxels.'
+                                        'Eventually will add a PCA reduction,'
+                                        'must do this manually for now.')
+
         ##STEP 0: STANDARDIZE SIZE AND SHAPE##
         sizes_0 = [x.shape[0] for x in data]
         sizes_1 = [x.shape[1] for x in data]
@@ -730,6 +764,7 @@ def align(data, method='deterministic_srm', axis=0, *args, **kwargs):
 
         m = [np.empty((R,C), dtype=np.ndarray)] * len(data)
 
+        #Pad rows with different sizes with zeros
         for idx,x in enumerate(data):
             y = x[0:R,:]
             missing = C - y.shape[1]
@@ -737,36 +772,43 @@ def align(data, method='deterministic_srm', axis=0, *args, **kwargs):
             y = np.append(y, add, axis=1)
             m[idx]=y
 
-        ##STEP 1: TEMPLATE##
-        for x in range(0, len(m)):
+        ##STEP 1: CREATE INITIAL AVERAGE TEMPLATE##
+        for x in range(len(m)):
             if x==0:
+                # use first data as template
                 template = np.copy(m[x])
             else:
-                next = procrustes(m[x], template / (x + 1))
+                _, next, _, _, _ = procrustes(template/x, m[x])
                 template += next
         template /= len(m)
 
-        ##STEP 2: NEW COMMON TEMPLATE##
+        ##STEP 2: CREATE NEW COMMON TEMPLATE##
         #align each subj to the template from STEP 1
-        template2 = np.zeros(template.shape)
-        for x in range(0, len(m)):
-            next = procrustes(m[x], template)
-            template2 += next
-        template2 /= len(m)
+        #and create a new common template based on avg
+        common = np.zeros(template.shape)
+        for x in range(len(m)):
+            _, next, _, _, _ = procrustes(template, m[x])
+            common += next
+        common /= len(m)
 
         #STEP 3 (below): ALIGN TO NEW TEMPLATE
-        aligned = [np.zeros(template2.shape)] * len(m)
-        for x in range(0, len(m)):
-            next = procrustes(m[x], template2)
-            aligned[x] = next
-        out['transformed_data'] = aligned
-        out['common_model'] = template2
-#         out['transformation_matrices'] = srm.w_
+        aligned = []; transformation_matrix = []; disparity = []; scale = []
+        for x in range(len(m)):
+            _, transformed, d, t, s = procrustes(common, m[x])
+            aligned.append(transformed)
+            transformation_matrix.append(t)
+            disparity.append(d)
+            scale.append(s)
+        out['transformed'] = aligned
+        out['common_model'] = common
+        out['transformation_matrix'] = transformation_matrix
+        out['disparity'] = disparity
+        out['scale'] = scale
 
     if data_type == 'Brain_Data':
-        for i,x in enumerate(out['transformed_data']):
+        for i,x in enumerate(out['transformed']):
             data_out[i].data = x
-        out['transformed_data'] = data_out
+        out['transformed'] = data_out
         common = data_out[0].copy()
         common.data = out['common_model'].T
         out['common_model'] = common
