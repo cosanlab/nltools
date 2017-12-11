@@ -5,7 +5,8 @@ from nltools.stats import (one_sample_permutation,
 							correlation_permutation,
 							downsample,
 							upsample,
-							winsorize)
+							winsorize,
+							align)
 
 def test_permutation():
 	dat = np.random.multivariate_normal([2, 6], [[.5, 2], [.5, 3]], 1000)
