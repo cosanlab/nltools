@@ -18,8 +18,8 @@ from nltools.prefs import MNI_Template
 
 matplotlib.use('TkAgg')
 
-def test_brain_data_3mm(tmpdir):
-    MNI_Template["resolution"] = '3mm'
+def test_brain_data_2mm(tmpdir):
+    MNI_Template["resolution"] = '2mm'
     sim = Simulator()
     r = 10
     sigma = 1
@@ -28,8 +28,13 @@ def test_brain_data_3mm(tmpdir):
     output_dir = str(tmpdir)
     dat = sim.create_data(y, sigma, reps=n_reps, output_dir=output_dir)
 
-    shape_3d = (60, 72, 60)
-    shape_2d = (6, 71020)
+    if MNI_Template["resolution"] == '2mm':
+        shape_3d = (91, 109, 91)
+        shape_2d = (6, 238955)
+    elif MNI_Template["resolution"] == '3mm':
+        shape_3d = (60, 72, 60)
+        shape_2d = (6, 71020)
+
     y = pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))),header=None, index_col=None)
     holdout = pd.read_csv(os.path.join(str(tmpdir.join('rep_id.csv'))),header=None,index_col=None)
 
