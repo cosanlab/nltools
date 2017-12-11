@@ -437,7 +437,7 @@ def two_sample_permutation(data1, data2, n_permute=5000, n_jobs=-1):
 
     stats = dict()
     stats['mean'] = np.mean(data1)-np.mean(data2)
-    data = pd.DataFrame(data={'Values':data1,'Group':np.ones(len(data1))})
+    data = pd.DataFrame(data={'Values':data1, 'Group':np.ones(len(data1))})
     data = data.append(pd.DataFrame(data={
                                         'Values':data2,
                                         'Group':np.zeros(len(data2))}))
@@ -445,9 +445,9 @@ def two_sample_permutation(data1, data2, n_permute=5000, n_jobs=-1):
                      for i in range(n_permute))
 
     if stats['mean']>=0:
-        stats['p'] = np.mean(all_p>=stats['mean'])
+        stats['p'] = np.mean(all_p >= stats['mean'])
     else:
-        stats['p'] = np.mean(all_p<=stats['mean'])
+        stats['p'] = np.mean(all_p <= stats['mean'])
     return stats
 
 def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
@@ -472,11 +472,11 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
     data1 = np.array(data1)
     data2 = np.array(data2)
 
-    if metric is 'spearman':
+    if metric == 'spearman':
         stats['correlation'] = spearmanr(data1, data2)[0]
-    elif metric is 'pearson':
+    elif metric == 'pearson':
         stats['correlation'] = pearsonr(data1, data2)[0]
-    elif metric is 'kendall':
+    elif metric == 'kendall':
         stats['correlation'] = kendalltau(data1, data2)[0]
     else:
         raise ValueError('metric must be "spearman" or "pearson" or "kendall"')
@@ -501,14 +501,21 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
         stats['p'] = np.mean(all_p <= stats['correlation'])
     return stats
 
-def make_cosine_basis(nsamples,sampling_rate,filter_length,drop=0):
-    """ Create a series of cosines basic functions for discrete cosine transform. Based off of implementation in spm_filter and spm_dctmtx because scipy dct can only apply transforms but not return the basis functions. Like SPM, does not add constant (i.e. intercept), but does retain first basis (i.e. sigmoidal/linear drift)
+def make_cosine_basis(nsamples, sampling_rate, filter_length, drop=0):
+    """ Create a series of cosines basic functions for discrete cosine
+        transform. Based off of implementation in spm_filter and spm_dctmtx
+        because scipy dct can only apply transforms but not return the basis
+        functions. Like SPM, does not add constant (i.e. intercept), but does
+        retain first basis (i.e. sigmoidal/linear drift)
 
     Args:
         nsamples (int): number of observations (e.g. TRs)
         sampling_freq (float): sampling rate in seconds (e.g. TR length)
         filter_length (int): length of filter in seconds
-        drop (int): index of which early/slow bases to drop if any; default is to drop constant (i.e. intercept) like SPM. Unlike SPM, retains first basis (i.e. linear/sigmoidal). Will cumulatively drop bases upto and inclusive of index provided (e.g. 2, drops bases 0,1,2)
+        drop (int): index of which early/slow bases to drop if any; default is
+            to drop constant (i.e. intercept) like SPM. Unlike SPM, retains
+            first basis (i.e. linear/sigmoidal). Will cumulatively drop bases
+            up to and inclusive of index provided (e.g. 2, drops bases 0,1,2)
 
     Returns:
         out (ndarray): nsamples x number of basis sets numpy array
@@ -531,10 +538,11 @@ def make_cosine_basis(nsamples,sampling_rate,filter_length,drop=0):
         C[:,i] = np.sqrt(2./nsamples) * np.cos(np.pi*(2*n+1) * i/(2*nsamples))
 
     #Drop desired bases
-    drop +=1
-    C = C[:,drop:]
+    drop += 1
+    C = C[:, drop:]
     if C.size == 0:
-        raise ValueError('Basis function creation failed! nsamples is too small for requested filter_length.')
+        raise ValueError('Basis function creation failed! nsamples is too small'
+                         'for requested filter_length.')
     else:
         return C
 
@@ -618,14 +626,15 @@ def _robust_estimator_hc3(vals,X,bread):
         stderr (np.ndarray): 1d array of standard errors with length == X.shape[1]
     """
 
-    V = np.diag(vals**2)/(1-np.diag(np.dot(X,np.dot(bread,X.T))))**2
-    meat = np.dot(np.dot(X.T,V),X)
-    vcv = np.dot(np.dot(bread,meat),bread)
+    V = np.diag(vals**2)/(1-np.diag(np.dot(X, np.dot(bread, X.T))))**2
+    meat = np.dot(np.dot(X.T, V), X)
+    vcv = np.dot(np.dot(bread, meat), bread)
     return np.sqrt(np.diag(vcv))
 
 def _robust_estimator_hac(vals,X,bread,nlags=1):
     """
-    Newey-West (1987) estimator for robustness to heteroscedasticity as well as serial auto-correlation at given lags.
+    Newey-West (1987) estimator for robustness to heteroscedasticity as well as
+    serial auto-correlation at given lags.
     Refs: https://www.stata.com/manuals13/tsnewey.pdf
 
     Args:
@@ -641,18 +650,18 @@ def _robust_estimator_hac(vals,X,bread,nlags=1):
 
     #First compute lag 0
     V = np.diag(vals**2)
-    meat = weights[0] * np.dot(np.dot(X.T,V),X)
+    meat = weights[0] * np.dot(np.dot(X.T, V), X)
 
     #Now loop over additional lags
     for l in range(1, nlags+1):
 
         V = np.diag(vals[l:] * vals[:-l])
-        meat_1 = np.dot(np.dot(X[l:].T,V),X[:-l])
-        meat_2 = np.dot(np.dot(X[:-l].T,V),X[l:])
+        meat_1 = np.dot(np.dot(X[l:].T, V), X[:-l])
+        meat_2 = np.dot(np.dot(X[:-l].T, V), X[l:])
 
         meat += weights[l] * (meat_1 + meat_2)
 
-    vcv = np.dot(np.dot(bread,meat),bread)
+    vcv = np.dot(np.dot(bread, meat), bread)
     return np.sqrt(np.diag(vcv))
 
 def summarize_bootstrap(data, save_weights=False):
@@ -680,16 +689,17 @@ def summarize_bootstrap(data, save_weights=False):
         output['samples'] = data
     return output
 
-def align(data, method='deterministic_srm', n_features=None, axis=0, *args, **kwargs):
+def align(data, method='deterministic_srm', n_features=None, axis=0,
+            *args, **kwargs):
     ''' Align subject data into a common response model.
 
         Can be used to hyperalign source data to target data using
         Hyperalignemnt from Dartmouth (i.e., procrustes transformation; see
         nltools.stats.procrustes) or Shared Response Model from Princeton (see
-        nltools.external.srm). (see nltools.data.Brain_Data.align for aligning a single
-        Brain object to another). Common Model is shared response model or centered
-        target data.Transformed data can be back projected to original data
-        using Tranformation matrix.
+        nltools.external.srm). (see nltools.data.Brain_Data.align for aligning
+        a single Brain object to another). Common Model is shared response
+        model or centered target data.Transformed data can be back projected to
+        original data using Tranformation matrix.
 
         Examples:
             For procrustes transform:
@@ -719,9 +729,6 @@ def align(data, method='deterministic_srm', n_features=None, axis=0, *args, **kw
 
     from nltools.data import Brain_Data
 
-    if axis!=0:
-        raise NotImplementedError('Still need to implement transposing matrix')
-
     assert isinstance(data, list), 'Make sure you are inputting data is a list.'
     assert all([type(x) for x in data]), 'Make sure all objects in the list are the same type.'
     assert method in ['probabilistic_srm','deterministic_srm','procrustes'], "Method must be ['probabilistic_srm','deterministic_srm','procrustes']"
@@ -730,29 +737,35 @@ def align(data, method='deterministic_srm', n_features=None, axis=0, *args, **kw
         data_type = 'Brain_Data'
         data_out = [x.copy() for x in data]
         data = [x.data.T for x in data]
-    elif isinstance(data[0],np.ndarray):
+    elif isinstance(data[0], np.ndarray):
         data_type = 'numpy'
     else:
         raise ValueError('Type %s is not implemented yet.' % type(data[0]))
 
+    # Align over time or voxels
+    if axis == 1:
+        data = [x.T for x in data]
+    elif axis != 0:
+        raise ValueError('axis must be 0 or 1.')
+
     out = dict()
-    if method in ['deterministic_srm','probabilistic_srm']:
+    if method in ['deterministic_srm', 'probabilistic_srm']:
         if n_features is None:
             n_features = int(data[0].shape[0])
-        if method=='deterministic_srm':
-            srm = DetSRM(features = n_features, *args, **kwargs)
-        elif method=='probabilistic_srm':
-            srm = SRM(features = n_features, *args, **kwargs)
+        if method == 'deterministic_srm':
+            srm = DetSRM(features=n_features, *args, **kwargs)
+        elif method == 'probabilistic_srm':
+            srm = SRM(features=n_features, *args, **kwargs)
         srm.fit(data)
-        out['transformed'] = [x.T for x in srm.transform(data)]
+        out['transformed'] = [x for x in srm.transform(data)]
         out['common_model'] = srm.s_
         out['transformation_matrix'] = srm.w_
 
-    elif method=='procrustes':
+    elif method == 'procrustes':
         if n_features != None:
             raise NotImplementedError('Currently must use all voxels.'
-                                        'Eventually will add a PCA reduction,'
-                                        'must do this manually for now.')
+                                      'Eventually will add a PCA reduction,'
+                                      'must do this manually for now.')
 
         ##STEP 0: STANDARDIZE SIZE AND SHAPE##
         sizes_0 = [x.shape[0] for x in data]
@@ -762,52 +775,56 @@ def align(data, method='deterministic_srm', n_features=None, axis=0, *args, **kw
         R = min(sizes_0)
         C = max(sizes_1)
 
-        m = [np.empty((R,C), dtype=np.ndarray)] * len(data)
+        m = [np.empty((R, C), dtype=np.ndarray)] * len(data)
 
         #Pad rows with different sizes with zeros
-        for idx,x in enumerate(data):
-            y = x[0:R,:]
+        for idx, x in enumerate(data):
+            y = x[0:R, :]
             missing = C - y.shape[1]
             add = np.zeros((y.shape[0], missing))
             y = np.append(y, add, axis=1)
-            m[idx]=y
+            m[idx] = y
 
         ##STEP 1: CREATE INITIAL AVERAGE TEMPLATE##
-        for x in range(len(m)):
-            if x==0:
+        for i, x in enumerate(m):
+            if i == 0:
                 # use first data as template
-                template = np.copy(m[x])
+                template = np.copy(x.T)
             else:
-                _, next, _, _, _ = procrustes(template/x, m[x])
-                template += next
+                _, trans, _, _, _ = procrustes(template/i, x.T)
+                template += trans
         template /= len(m)
 
         ##STEP 2: CREATE NEW COMMON TEMPLATE##
         #align each subj to the template from STEP 1
         #and create a new common template based on avg
         common = np.zeros(template.shape)
-        for x in range(len(m)):
-            _, next, _, _, _ = procrustes(template, m[x])
-            common += next
+        for i, x in enumerate(m):
+            _, trans, _, _, _ = procrustes(template, x.T)
+            common += trans
         common /= len(m)
 
         #STEP 3 (below): ALIGN TO NEW TEMPLATE
         aligned = []; transformation_matrix = []; disparity = []; scale = []
-        for x in range(len(m)):
-            _, transformed, d, t, s = procrustes(common, m[x])
-            aligned.append(transformed)
+        for i, x in enumerate(m):
+            _, transformed, d, t, s = procrustes(common, x.T)
+            aligned.append(transformed.T)
             transformation_matrix.append(t)
             disparity.append(d)
             scale.append(s)
         out['transformed'] = aligned
-        out['common_model'] = common
+        out['common_model'] = common.T
         out['transformation_matrix'] = transformation_matrix
         out['disparity'] = disparity
         out['scale'] = scale
 
+    if axis == 1:
+        out['transformed'] = [x.T for x in out['transformed']]
+        out['common_model'] = out['common_model'].T
+
     if data_type == 'Brain_Data':
-        for i,x in enumerate(out['transformed']):
-            data_out[i].data = x
+        for i, x in enumerate(out['transformed']):
+            data_out[i].data = x.T
         out['transformed'] = data_out
         common = data_out[0].copy()
         common.data = out['common_model'].T
@@ -864,7 +881,7 @@ def procrustes(data1, data2):
 
     if mtx1.ndim != 2 or mtx2.ndim != 2:
         raise ValueError("Input matrices must be two-dimensional")
-    print(mtx1.shape,mtx2.shape)
+    print(mtx1.shape, mtx2.shape)
     if mtx1.shape[0] != mtx2.shape[0]:
         raise ValueError("Input matrices must have same number of rows.")
     if mtx1.size == 0:
