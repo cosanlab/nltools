@@ -7,6 +7,8 @@ from nltools.stats import (one_sample_permutation,
 							upsample,
 							winsorize,
 							align)
+from nltools.simulator import Simulator
+from nltools.mask import create_sphere
 
 def test_permutation():
 	dat = np.random.multivariate_normal([2, 6], [[.5, 2], [.5, 3]], 1000)
@@ -73,19 +75,59 @@ def test_winsorize():
 	assert(np.round(np.mean(out)) == np.round(np.mean(correct_result)))
 
 def test_align():
+	# Test hyperalignment
+	sim = Simulator()
+	y = [0, 1]
+	n_reps = 10
+	s1 = create_sphere([0, 0, 0], radius=3)
+	d1 = sim.create_data(y, 1, reps=n_reps, output_dir=None).apply_mask(s1)
+	d2 = sim.create_data(y, 2, reps=n_reps, output_dir=None).apply_mask(s1)
+	d3 = sim.create_data(y, 3, reps=n_reps, output_dir=None).apply_mask(s1)
+
+	data = [d1.data.T,d2.data.T,d3.data.T]
 	out = align(data, method='deterministic_srm')
-	print(out.keys())
-	assert len(data) == len(out['transformed_data'])
-	assert len(data) == len(out['transformation_matrices'])
+	assert len(data) == len(out['transformed'])
+	assert len(data) == len(out['transformation_matrix'])
 	assert data[0].shape == out['common_model'].shape
+	transformed = np.dot(d1.data,out['transformation_matrix'][0])
+	np.testing.assert_almost_equal(0,np.sum(out['transformed'][0].data-transformed))
 
 	out = align(data, method='probabilistic_srm')
-	print(out.keys())
-	assert len(data) == len(out['transformed_data'])
-	assert len(data) == len(out['transformation_matrices'])
+	assert len(data) == len(out['transformed'])
+	assert len(data) == len(out['transformation_matrix'])
 	assert data[0].shape == out['common_model'].shape
+	transformed = np.dot(d1.data,out['transformation_matrix'][0])
+	np.testing.assert_almost_equal(0,np.sum(out['transformed'][0].data-transformed))
 
-	out = align(data, method='hyperalignment')
-	print(out.keys())
-	assert len(data) == len(out['transformed_data'])
+	out = align(data, method='procrustes')
+	assert len(data) == len(out['transformed'])
 	assert data[0].shape == out['common_model'].shape
+	assert len(data) == len(out['transformation_matrix'])
+	assert len(data) == len(out['disparity'])
+	centered = data[0]-np.mean(data[0],0)
+	transformed = (np.dot(centered/np.linalg.norm(centered), out['transformation_matrix'][0])*out['scale'][0])
+	np.testing.assert_almost_equal(0,np.sum(out['transformed'][0].data-transformed))
+
+	data = [d1,d2,d3]
+	out = align(data, method='deterministic_srm')
+	assert len(data) == len(out['transformed'])
+	assert len(data) == len(out['transformation_matrix'])
+	assert data[0].shape() == out['common_model'].shape()
+	transformed = np.dot(d1.data,out['transformation_matrix'][0])
+	np.testing.assert_almost_equal(0,np.sum(out['transformed'][0].data-transformed))
+
+	out = align(data, method='probabilistic_srm')
+	assert len(data) == len(out['transformed'])
+	assert len(data) == len(out['transformation_matrix'])
+	assert data[0].shape() == out['common_model'].shape()
+	transformed = np.dot(d1.data,out['transformation_matrix'][0])
+	np.testing.assert_almost_equal(0,np.sum(out['transformed'][0].data-transformed))
+
+	out = align(data, method='procrustes')
+	assert len(data) == len(out['transformed'])
+	assert data[0].shape() == out['common_model'].shape()
+	assert len(data) == len(out['transformation_matrix'])
+	assert len(data) == len(out['disparity'])
+	centered = data[0].data.T-np.mean(data[0].data.T,0)
+	transformed = (np.dot(centered/np.linalg.norm(centered), out['transformation_matrix'][0])*out['scale'][0])
+	np.testing.assert_almost_equal(0,np.sum(out['transformed'][0].data-transformed))
