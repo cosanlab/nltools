@@ -1522,10 +1522,10 @@ class Brain_Data(object):
             out['common_model'] = common
             out['transformation_matrix'] = t.T
         if axis==1:
-            if method in ['deterministic_srm','probabilistic_srm']:
-                out['transformed'].data = out['transformed'].data.T
+            out['transformed'].data = out['transformed'].data.T
             out['common_model'].data = out['common_model'].data.T
-            out['transformation_matrix'] = out['transformation_matrix'].T
+            if method in ['deterministic_srm','probabilistic_srm']:
+                out['transformation_matrix'] = out['transformation_matrix'].T
         return out
 
 
