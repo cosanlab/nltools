@@ -695,7 +695,7 @@ def align(data, method='deterministic_srm', axis=0, *args, **kwargs):
             response matrix
 
     '''
-    
+
     from nltools.data import Brain_Data
 
     assert isinstance(data, list), 'Make sure you are inputting data is a list.'
@@ -822,6 +822,7 @@ def procrustes(data1, data2):
 
     if mtx1.ndim != 2 or mtx2.ndim != 2:
         raise ValueError("Input matrices must be two-dimensional")
+    print(mtx1.shape,mtx2.shape)
     if mtx1.shape[0] != mtx2.shape[0]:
         raise ValueError("Input matrices must have same number of rows.")
     if mtx1.size == 0:
