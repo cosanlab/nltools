@@ -1455,14 +1455,17 @@ class Brain_Data(object):
             out['components'].data = out['decomposition_object'].components_
         return out
 
-    def align(self, target, method='procrustes', axis=0, *args, **kwargs):
+    def align(self, target, method='procrustes', n_features=None, axis=0,
+                *args, **kwargs):
         ''' Align Brain_Data instance to target object
 
-        Can be used to hyperalign source data to target data
-        (see nltools.stats.align for aligning many data objects together).
-        Common Model is shared response model or centered target data.
-        Transformed data can be back projected to original data using Tranformation
-        matrix.
+        Can be used to hyperalign source data to target data using
+        Hyperalignemnt from Dartmouth (i.e., procrustes transformation; see
+        nltools.stats.procrustes) or Shared Response Model from Princeton (see
+        nltools.external.srm). (see nltools.stats.align for aligning many data
+        objects together). Common Model is shared response model or centered
+        target data.Transformed data can be back projected to original data
+        using Tranformation matrix.
 
         Examples:
             For procrustes transform:
@@ -1481,11 +1484,13 @@ class Brain_Data(object):
             target: (Brain_Data) object to align to.
             method: (str) alignment method to use
                 ['probabilistic_srm','deterministic_srm','procrustes']
+            n_features: (int) number of features to align to common space.
+                If None then will select number of voxels
             axis: (int) axis to align on
 
         Returns:
-            out: (dict) a dictionary containing transformed object, transformation
-                matrix, and the shared response matrix
+            out: (dict) a dictionary containing transformed object,
+                transformation matrix, and the shared response matrix
 
         '''
 
@@ -1504,10 +1509,12 @@ class Brain_Data(object):
 
         out = dict()
         if method in ['deterministic_srm','probabilistic_srm']:
+            if n_features is None:
+                n_features = data1.shape[0]
             if method == 'deterministic_srm':
-                srm = DetSRM(features=data1.shape[0], *args, **kwargs)
+                srm = DetSRM(features=n_features, *args, **kwargs)
             elif method=='probabilistic_srm':
-                srm = SRM(features=data1.shape[0], *args, **kwargs)
+                srm = SRM(features=n_features, *args, **kwargs)
             srm.fit([data1, data2])
             source.data = srm.transform([data1, data2])[0]
             common.data = srm.s_
@@ -1515,7 +1522,14 @@ class Brain_Data(object):
             out['common_model'] = common
             out['transformation_matrix'] = srm.w_[0]
         elif method=='procrustes':
-            mtx1, mtx2, out['disparity'], t, out['scale'] = procrustes(data2.T, data1.T)
+            if n_features != None:
+                raise NotImplementedError('Currently must use all voxels.'
+                                            'Eventually will add a PCA'
+                                            'reduction, must do this manually'
+                                            'for now.')
+
+            mtx1, mtx2, out['disparity'], t, out['scale'] = procrustes(data2.T,
+                                                                        data1.T)
             source.data = mtx2.T
             common.data = mtx1.T
             out['transformed'] = source
