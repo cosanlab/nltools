@@ -44,6 +44,7 @@ import numpy as np
 from nltools.mask import create_sphere
 from nltools.data import Brain_Data
 import matplotlib.pyplot as plt
+from nilearn.plotting import plot_glass_brain
 
 n_observations = 500
 p = .3
