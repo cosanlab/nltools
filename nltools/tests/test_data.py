@@ -8,7 +8,7 @@ from nltools.data import (Brain_Data,
                         Adjacency,
                         Groupby,
                         Design_Matrix)
-from nltools.stats import threshold
+from nltools.stats import threshold, align
 from nltools.mask import create_sphere
 from sklearn.metrics import pairwise_distances
 import matplotlib
@@ -306,77 +306,92 @@ def test_brain_data_2mm(tmpdir):
     assert n_components == len(stats['components'])
     assert stats['weights'].shape == (len(dat), n_components)
 
-    # Test alignment
+    # Test Hyperalignment Method
     sim = Simulator()
-    r = 10
-    sigma = 1
     y = [0, 1]
-    n_reps = 6
-    dat = sim.create_data(y, sigma, reps=n_reps, output_dir=str(tmpdir))
-
-    # Test hyperalignment with procrustes
+    n_reps = 10
     s1 = create_sphere([0, 0, 0], radius=3)
-    s2 = create_sphere([0, 2, 0], radius=3)
-    d1 = dat.apply_mask(s1)
-    d2 = dat.apply_mask(s2)
-    out = d1.align(d2, method='procrustes', axis=0)
-    assert d1.shape() == out['transformed'].shape()
-    assert d1.shape() == out['common_model'].shape()
-    assert d1.shape()[0] == out['transformation_matrix'].shape[0]
-    assert out['disparity']<1
-    centered = d1.data.T-np.mean(d1.data.T,0)
-    transformed = (np.dot(centered/np.linalg.norm(centered), out['transformation_matrix'])*out['scale']).T
-    np.testing.assert_almost_equal(0,np.sum(out['transformed'].data-transformed))
+    d1 = sim.create_data(y, 1, reps=n_reps, output_dir=None).apply_mask(s1)
+    d2 = sim.create_data(y, 2, reps=n_reps, output_dir=None).apply_mask(s1)
+    d3 = sim.create_data(y, 3, reps=n_reps, output_dir=None).apply_mask(s1)
 
-    # Test temporal alignment with procrustes
-    s1 = create_sphere([0, 0, 0], radius=10)
-    s2 = create_sphere([0, 2, 0], radius=10)
-    d1 = dat.apply_mask(s1)
-    d2 = dat.apply_mask(s2)
-    out = d1.align(d2, method='procrustes', axis=1)
-    assert d1.shape() == out['transformed'].shape()
-    assert d1.shape() == out['common_model'].shape()
-    assert d1.shape()[1] == out['transformation_matrix'].shape[0]
-    assert out['disparity']<1
-    centered = d1.data-np.mean(d1.data,0)
-    transformed = (np.dot(centered/np.linalg.norm(centered), out['transformation_matrix'].T)*out['scale'])
-    np.testing.assert_almost_equal(0,np.sum(out['transformed'].data-transformed))
+    # Test procrustes using align
+    data = [d1, d2, d3]
+    out = align(data, method='procrustes')
+    assert len(data) == len(out['transformed'])
+    assert len(data) == len(out['transformation_matrix'])
+    assert data[0].shape() == out['common_model'].shape()
+    transformed = np.dot(d1.data, out['transformation_matrix'][0])
+    centered = d1.data - np.mean(d1.data, 0)
+    transformed = (np.dot(centered/np.linalg.norm(centered), out['transformation_matrix'][0])*out['scale'][0])
+    np.testing.assert_almost_equal(0, np.sum(out['transformed'][0].data - transformed))
 
-    # Test deterministic shared response model
-    s1 = create_sphere([0, 0, 0], radius=3)
-    s2 = create_sphere([0, 2, 0], radius=3)
-    d1 = dat.apply_mask(s1)
-    d2 = dat.apply_mask(s2)
-    out = d1.align(d2, method='deterministic_srm', axis=0)
-    assert d1.shape() == out['transformed'].shape()
-    assert d1.shape() == out['common_model'].shape()
-    assert d1.shape()[0] == out['transformation_matrix'].shape[0]
-    transformed = np.dot(d1.data.T,out['transformation_matrix'])
-    np.testing.assert_almost_equal(0,np.sum(out['transformed'].data.T-transformed))
+    # Test deterministic brain_data
+    bout = d1.align(out['common_model'], method='deterministic_srm')
+    assert d1.shape() == bout['transformed'].shape()
+    assert d1.shape() == bout['common_model'].shape()
+    assert d1.shape()[1] == bout['transformation_matrix'].shape[0]
+    btransformed = np.dot(d1.data, bout['transformation_matrix'])
+    np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data - btransformed))
 
-    # Test probablistic shared response model
-    s1 = create_sphere([0, 0, 0], radius=3)
-    s2 = create_sphere([0, 2, 0], radius=3)
-    d1 = dat.apply_mask(s1)
-    d2 = dat.apply_mask(s2)
-    out = d1.align(d2, method='deterministic_srm', axis=0)
-    assert d1.shape() == out['transformed'].shape()
-    assert d1.shape() == out['common_model'].shape()
-    assert d1.shape()[0] == out['transformation_matrix'].shape[0]
-    transformed = np.dot(d1.data.T,out['transformation_matrix'])
-    np.testing.assert_almost_equal(0,np.sum(out['transformed'].data.T-transformed))
+    # Test deterministic brain_data
+    bout = d1.align(out['common_model'], method='probabilistic_srm')
+    assert d1.shape() == bout['transformed'].shape()
+    assert d1.shape() == bout['common_model'].shape()
+    assert d1.shape()[1] == bout['transformation_matrix'].shape[0]
+    btransformed = np.dot(d1.data, bout['transformation_matrix'])
+    np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data-btransformed))
 
-    # Test probablistic shared response model aligning on time
-    s1 = create_sphere([0, 0, 0], radius=2)
-    s2 = create_sphere([0, 2, 0], radius=2)
-    d1 = dat.apply_mask(s1)
-    d2 = dat.apply_mask(s2)
-    out = d1.align(d2, method='deterministic_srm', axis=1)
-    assert d1.shape() == out['transformed'].shape()
-    assert d1.shape() == out['common_model'].shape()
-    assert d1.shape()[1] == out['transformation_matrix'].shape[0]
-    transformed = np.dot(d1.data,out['transformation_matrix'].T)
-    np.testing.assert_almost_equal(0,np.sum(out['transformed'].data-transformed))
+    # Test procrustes brain_data
+    bout = d1.align(out['common_model'], method='procrustes')
+    assert d1.shape() == bout['transformed'].shape()
+    assert d1.shape() == bout['common_model'].shape()
+    assert d1.shape()[1] == bout['transformation_matrix'].shape[0]
+    centered = d1.data - np.mean(d1.data, 0)
+    btransformed = (np.dot(centered/np.linalg.norm(centered), bout['transformation_matrix'])*bout['scale'])
+    np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data-btransformed))
+    np.testing.assert_almost_equal(0, np.sum(out['transformed'][0].data - bout['transformed'].data))
+
+    # Test hyperalignment on Brain_Data over time (axis=1)
+    sim = Simulator()
+    y = [0, 1]
+    n_reps = 10
+    s1 = create_sphere([0, 0, 0], radius=5)
+    d1 = sim.create_data(y, 1, reps=n_reps, output_dir=None).apply_mask(s1)
+    d2 = sim.create_data(y, 2, reps=n_reps, output_dir=None).apply_mask(s1)
+    d3 = sim.create_data(y, 3, reps=n_reps, output_dir=None).apply_mask(s1)
+    data = [d1, d2, d3]
+
+    out = align(data, method='procrustes', axis=1)
+    assert len(data) == len(out['transformed'])
+    assert len(data) == len(out['transformation_matrix'])
+    assert data[0].shape() == out['common_model'].shape()
+    centered = data[0].data.T-np.mean(data[0].data.T, 0)
+    transformed = (np.dot(centered/np.linalg.norm(centered), out['transformation_matrix'][0])*out['scale'][0])
+    np.testing.assert_almost_equal(0,np.sum(out['transformed'][0].data-transformed.T))
+
+    bout = d1.align(out['common_model'], method='deterministic_srm', axis=1)
+    assert d1.shape() == bout['transformed'].shape()
+    assert d1.shape() == bout['common_model'].shape()
+    assert d1.shape()[0] == bout['transformation_matrix'].shape[0]
+    btransformed = np.dot(d1.data.T, bout['transformation_matrix'])
+    np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data-btransformed.T))
+
+    bout = d1.align(out['common_model'], method='probabilistic_srm', axis=1)
+    assert d1.shape() == bout['transformed'].shape()
+    assert d1.shape() == bout['common_model'].shape()
+    assert d1.shape()[0] == bout['transformation_matrix'].shape[0]
+    btransformed = np.dot(d1.data.T, bout['transformation_matrix'])
+    np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data-btransformed.T))
+
+    bout = d1.align(out['common_model'], method='procrustes', axis=1)
+    assert d1.shape() == bout['transformed'].shape()
+    assert d1.shape() == bout['common_model'].shape()
+    assert d1.shape()[0] == bout['transformation_matrix'].shape[0]
+    centered = d1.data.T-np.mean(d1.data.T, 0)
+    btransformed = (np.dot(centered/np.linalg.norm(centered), bout['transformation_matrix'])*bout['scale'])
+    np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data-btransformed.T))
+    np.testing.assert_almost_equal(0, np.sum(out['transformed'][0].data-bout['transformed'].data))
 
 
 def test_adjacency(tmpdir):
