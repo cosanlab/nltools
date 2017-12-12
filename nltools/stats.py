@@ -732,6 +732,8 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
     assert all([type(x) for x in data]), 'Make sure all objects in the list are the same type.'
     assert method in ['probabilistic_srm','deterministic_srm','procrustes'], "Method must be ['probabilistic_srm','deterministic_srm','procrustes']"
 
+    data = deepcopy(data)
+
     if isinstance(data[0], Brain_Data):
         data_type = 'Brain_Data'
         data_out = [x.copy() for x in data]
