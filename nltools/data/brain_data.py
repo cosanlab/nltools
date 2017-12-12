@@ -1456,7 +1456,7 @@ class Brain_Data(object):
         return out
 
     def align(self, target, method='procrustes', n_features=None, axis=0,
-                *args, **kwargs):
+              *args, **kwargs):
         ''' Align Brain_Data instance to target object
 
         Can be used to hyperalign source data to target data using
@@ -1468,17 +1468,14 @@ class Brain_Data(object):
         using Tranformation matrix.
 
         Examples:
-            For procrustes transform:
-                out = self.align(target, method='procrustes')
-                centered = self.data.T-np.mean(self.data.T, 0)
-                transformed = (np.dot(centered/np.linalg.norm(centered), out['transformation_matrix'].T)*out['scale']).T
+            Hyperalign using procrustes transform:
+                out = data.align(target, method='procrustes')
 
-            For shared response model:
-                out = self.align(target, method='probablistic_srm')
-                transformed = np.dot(self.data.T, out['transformation_matrix'])
+            Align using shared response model:
+                out = data.align(target, method='probabilistic_srm', n_features=None)
 
-                If aligning on time then:
-                    transformed = np.dot(self.data, out['transformation_matrix'].T)
+            Project aligned data into original data:
+                original_data = np.dot(out['transformed'].data,out['transformation_matrix'].T)
 
         Args:
             target: (Brain_Data) object to align to.
@@ -1500,28 +1497,28 @@ class Brain_Data(object):
         assert isinstance(target, Brain_Data), "Target must be Brain_Data instance."
         assert method in ['probabilistic_srm', 'deterministic_srm','procrustes'], "Method must be ['probabilistic_srm','deterministic_srm','procrustes']"
 
-        data1 = source.data
-        data2 = target.data
+        data1 = source.data.T
+        data2 = target.data.T
 
-        if axis==1:
+        if axis == 1:
             data1 = data1.T
             data2 = data2.T
 
         out = dict()
-        if method in ['deterministic_srm','probabilistic_srm']:
+        if method in ['deterministic_srm', 'probabilistic_srm']:
             if n_features is None:
                 n_features = data1.shape[0]
             if method == 'deterministic_srm':
                 srm = DetSRM(features=n_features, *args, **kwargs)
-            elif method=='probabilistic_srm':
+            elif method == 'probabilistic_srm':
                 srm = SRM(features=n_features, *args, **kwargs)
             srm.fit([data1, data2])
-            source.data = srm.transform([data1, data2])[0]
-            common.data = srm.s_
+            source.data = srm.transform([data1, data2])[0].T
+            common.data = srm.s_.T
             out['transformed'] = source
             out['common_model'] = common
             out['transformation_matrix'] = srm.w_[0]
-        elif method=='procrustes':
+        elif method == 'procrustes':
             if n_features != None:
                 raise NotImplementedError('Currently must use all voxels.'
                                             'Eventually will add a PCA'
@@ -1529,17 +1526,15 @@ class Brain_Data(object):
                                             'for now.')
 
             mtx1, mtx2, out['disparity'], t, out['scale'] = procrustes(data2.T,
-                                                                        data1.T)
-            source.data = mtx2.T
-            common.data = mtx1.T
+                                                                       data1.T)
+            source.data = mtx2
+            common.data = mtx1
             out['transformed'] = source
             out['common_model'] = common
-            out['transformation_matrix'] = t.T
-        if axis==1:
+            out['transformation_matrix'] = t
+        if axis == 1:
             out['transformed'].data = out['transformed'].data.T
             out['common_model'].data = out['common_model'].data.T
-            if method in ['deterministic_srm','probabilistic_srm']:
-                out['transformation_matrix'] = out['transformation_matrix'].T
         return out
 
 

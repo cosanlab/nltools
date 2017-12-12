@@ -702,15 +702,14 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
         original data using Tranformation matrix.
 
         Examples:
-            For procrustes transform:
+            Hyperalign using procrustes transform:
                 out = align(data, method='procrustes')
-                centered = data[0].data.T-np.mean(data[0].data.T,0)
-                transformed = (np.dot(centered/np.linalg.norm(centered),
-                              out['transformation_matrix'][0])*out['scale'][0])
 
-            For shared response model:
+            Align using shared response model:
                 out = align(data, method='probabilistic_srm', n_features=None)
-                transformed = np.dot(data[0].data,out['transformation_matrix'][0])
+
+            Project aligned data into original data:
+                original_data = [np.dot(t.data,tm.T) for t,tm in zip(out['transformed'], out['transformation_matrix'])]
 
         Args:
             data: (list) A list of Brain_Data objects
@@ -778,12 +777,12 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
         m = [np.empty((R, C), dtype=np.ndarray)] * len(data)
 
         #Pad rows with different sizes with zeros
-        for idx, x in enumerate(data):
+        for i, x in enumerate(data):
             y = x[0:R, :]
             missing = C - y.shape[1]
             add = np.zeros((y.shape[0], missing))
             y = np.append(y, add, axis=1)
-            m[idx] = y
+            m[i] = y
 
         ##STEP 1: CREATE INITIAL AVERAGE TEMPLATE##
         for i, x in enumerate(m):
@@ -881,7 +880,6 @@ def procrustes(data1, data2):
 
     if mtx1.ndim != 2 or mtx2.ndim != 2:
         raise ValueError("Input matrices must be two-dimensional")
-    print(mtx1.shape, mtx2.shape)
     if mtx1.shape[0] != mtx2.shape[0]:
         raise ValueError("Input matrices must have same number of rows.")
     if mtx1.size == 0:
