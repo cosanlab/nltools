@@ -30,7 +30,7 @@ import warnings
 import tempfile
 from copy import deepcopy
 import six
-from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.metrics.pairwise import pairwise_distances, cosine_similarity
 from sklearn.utils import check_random_state
 from pynv import Client
 from joblib import Parallel, delayed
@@ -1412,11 +1412,12 @@ class Brain_Data(object):
         '''
 
         random_state = check_random_state(random_state)
-        seed = random_state.randint(MAX_INT)
+        seeds = random_state.randint(MAX_INT, size=n_samples)
+
 
         bootstrapped = Parallel(n_jobs=n_jobs)(
                         delayed(_bootstrap_apply_func)(self,
-                        function, random_state=seed[i], *args, **kwargs)
+                        function, random_state=seeds[i], *args, **kwargs)
                         for i in range(n_samples))
 
         if function is 'predict':
