@@ -349,7 +349,7 @@ def test_brain_data_2mm(tmpdir):
     assert d1.shape()[1] == bout['transformation_matrix'].shape[0]
     centered = d1.data - np.mean(d1.data, 0)
     btransformed = (np.dot(centered/np.linalg.norm(centered), bout['transformation_matrix'])*bout['scale'])
-    np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data-btransformed))
+    np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data-btransformed), decimal=5)
     np.testing.assert_almost_equal(0, np.sum(out['transformed'][0].data - bout['transformed'].data))
 
     # Test hyperalignment on Brain_Data over time (axis=1)
@@ -390,7 +390,7 @@ def test_brain_data_2mm(tmpdir):
     assert d1.shape()[0] == bout['transformation_matrix'].shape[0]
     centered = d1.data.T-np.mean(d1.data.T, 0)
     btransformed = (np.dot(centered/np.linalg.norm(centered), bout['transformation_matrix'])*bout['scale'])
-    np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data-btransformed.T))
+    np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data-btransformed.T), decimal=5)
     np.testing.assert_almost_equal(0, np.sum(out['transformed'][0].data-bout['transformed'].data))
 
 
