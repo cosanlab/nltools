@@ -44,6 +44,8 @@ from .external.srm import SRM, DetSRM
 from scipy.linalg import orthogonal_procrustes
 from sklearn.utils import check_random_state
 
+MAX_INT = np.iinfo(np.int32).max
+
 def pearson(x, y):
     """ Correlates row vector x with each row vector in 2D array y.
     From neurosynth.stats.py - author: Tal Yarkoni
@@ -390,7 +392,7 @@ def fisher_r_to_z(r):
 
 def _permute_sign(data, random_state=None):
     random_state = check_random_state(random_state)
-    return np.mean(dat*random_state.choice([1, -1], len(dat)))
+    return np.mean(data*random_state.choice([1, -1], len(data)))
 
 def _permute_group(data, random_state=None):
     random_state = check_random_state(random_state)
@@ -413,21 +415,22 @@ def one_sample_permutation(data, n_permute=5000, n_jobs=-1, random_state=None):
     '''
 
     random_state = check_random_state(random_state)
-    seed = random_state.randint(MAX_INT)
+    seeds = random_state.randint(MAX_INT, size=n_permute)
 
     data = np.array(data)
     stats = dict()
     stats['mean'] = np.mean(data)
 
     all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_sign)(data,
-                     random_state=seed[i]) for i in range(n_permute))
+                     random_state=seeds[i]) for i in range(n_permute))
     if stats['mean'] >= 0:
         stats['p'] = np.mean(all_p >= stats['mean'])
     else:
         stats['p'] = np.mean(all_p <= stats['mean'])
     return stats
 
-def two_sample_permutation(data1, data2, n_permute=5000, n_jobs=-1):
+def two_sample_permutation(data1, data2, n_permute=5000,
+                           n_jobs=-1, random_state=None):
     ''' Independent sample permutation test.
 
         Args:
@@ -442,7 +445,8 @@ def two_sample_permutation(data1, data2, n_permute=5000, n_jobs=-1):
     '''
 
     random_state = check_random_state(random_state)
-    seed = random_state.randint(MAX_INT)
+    seeds = random_state.randint(MAX_INT, size=n_permute)
+
     stats = dict()
     stats['mean'] = np.mean(data1)-np.mean(data2)
     data = pd.DataFrame(data={'Values':data1, 'Group':np.ones(len(data1))})
@@ -450,7 +454,7 @@ def two_sample_permutation(data1, data2, n_permute=5000, n_jobs=-1):
                                         'Values':data2,
                                         'Group':np.zeros(len(data2))}))
     all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_group)(data,
-                     random_state=seed[i]) for i in range(n_permute))
+                     random_state=seeds[i]) for i in range(n_permute))
 
     if stats['mean']>=0:
         stats['p'] = np.mean(all_p >= stats['mean'])
@@ -459,7 +463,7 @@ def two_sample_permutation(data1, data2, n_permute=5000, n_jobs=-1):
     return stats
 
 def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
-                            n_jobs=-1):
+                            n_jobs=-1, random_state=None):
     ''' Permute correlation.
 
         Args:
@@ -476,6 +480,8 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
 
     '''
 
+    random_state = check_random_state(random_state)
+
     stats = dict()
     data1 = np.array(data1)
     data2 = np.array(data2)
@@ -491,15 +497,15 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
 
     if metric is 'spearman':
         all_p = Parallel(n_jobs=n_jobs)(delayed(spearmanr)(
-                        np.random.permutation(data1), data2)
+                        random_state.permutation(data1), data2)
                         for i in range(n_permute))
     elif metric is 'pearson':
         all_p = Parallel(n_jobs=n_jobs)(delayed(pearsonr)(
-                        np.random.permutation(data1), data2)
+                        random_state.permutation(data1), data2)
                         for i in range(n_permute))
     elif metric is 'kendall':
         all_p = Parallel(n_jobs=n_jobs)(delayed(kendalltau)(
-                        np.random.permutation(data1), data2)
+                        random_state.permutation(data1), data2)
                         for i in range(n_permute))
     all_p = [x[0] for x in all_p]
 
