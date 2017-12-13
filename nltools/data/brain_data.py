@@ -30,7 +30,8 @@ import warnings
 import tempfile
 from copy import deepcopy
 import six
-from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.metrics.pairwise import pairwise_distances, cosine_similarity
+from sklearn.utils import check_random_state
 from pynv import Client
 from joblib import Parallel, delayed
 from nltools.mask import expand_mask, collapse_mask
@@ -43,7 +44,6 @@ from nilearn.plotting.img_plotting import plot_epi, plot_roi, plot_stat_map
 from nltools.utils import (get_resource_path,
                             set_algorithm,
                             get_anatomical,
-                            glover_hrf,
                             attempt_to_import,
                             concatenate,
                             _bootstrap_apply_func,
@@ -70,25 +70,19 @@ from nltools.stats import (pearson,
                            _robust_estimator_hc0,
                            _robust_estimator_hc3,
                            _robust_estimator_hac,
-                           summarize_bootstrap)
+                           summarize_bootstrap,
+                           procrustes)
 from nltools.pbs_job import PBS_Job
 from .adjacency import Adjacency
 from nltools.prefs import MNI_Template, resolve_mni_path
+from nltools.external.srm import DetSRM, SRM
 
 # Optional dependencies
+nx = attempt_to_import('networkx', 'nx')
 mne_stats = attempt_to_import('mne.stats',name='mne_stats', fromlist=
                                     ['spatio_temporal_cluster_1samp_test',
                                      'ttest_1samp_no_p'])
-try:
-    from mne.stats import (spatio_temporal_cluster_1samp_test,
-                           ttest_1samp_no_p)
-except ImportError:
-    pass
-
-try:
-    import networkx as nx
-except ImportError:
-    pass
+MAX_INT = np.iinfo(np.int32).max
 
 class Brain_Data(object):
 
@@ -1331,7 +1325,7 @@ class Brain_Data(object):
         if isinstance(upper, six.string_types):
             if upper[-1] is '%':
                 upper = np.percentile(b.data, float(upper[:-1]))
-        if isinstance(upper, six.string_types):
+        if isinstance(lower, six.string_types):
             if lower[-1] is '%':
                 lower = np.percentile(b.data, float(lower[:-1]))
 
@@ -1398,7 +1392,7 @@ class Brain_Data(object):
         return out
 
     def bootstrap(self, function, n_samples=5000, save_weights=False,
-                    n_jobs=-1, *args, **kwargs):
+                    n_jobs=-1, random_state=None, *args, **kwargs):
         '''Bootstrap a Brain_Data method.
 
             Example Useage:
@@ -1417,9 +1411,14 @@ class Brain_Data(object):
 
         '''
 
+        random_state = check_random_state(random_state)
+        seeds = random_state.randint(MAX_INT, size=n_samples)
+
+
         bootstrapped = Parallel(n_jobs=n_jobs)(
                         delayed(_bootstrap_apply_func)(self,
-                        function, *args, **kwargs) for i in range(n_samples))
+                        function, random_state=seeds[i], *args, **kwargs)
+                        for i in range(n_samples))
 
         if function is 'predict':
             bootstrapped = [x['weight_map'] for x in bootstrapped]
@@ -1457,6 +1456,89 @@ class Brain_Data(object):
             out['components'] = self.empty()
             out['components'].data = out['decomposition_object'].components_
         return out
+
+    def align(self, target, method='procrustes', n_features=None, axis=0,
+              *args, **kwargs):
+        ''' Align Brain_Data instance to target object
+
+        Can be used to hyperalign source data to target data using
+        Hyperalignemnt from Dartmouth (i.e., procrustes transformation; see
+        nltools.stats.procrustes) or Shared Response Model from Princeton (see
+        nltools.external.srm). (see nltools.stats.align for aligning many data
+        objects together). Common Model is shared response model or centered
+        target data.Transformed data can be back projected to original data
+        using Tranformation matrix.
+
+        Examples:
+            Hyperalign using procrustes transform:
+                out = data.align(target, method='procrustes')
+
+            Align using shared response model:
+                out = data.align(target, method='probabilistic_srm', n_features=None)
+
+            Project aligned data into original data:
+                original_data = np.dot(out['transformed'].data,out['transformation_matrix'].T)
+
+        Args:
+            target: (Brain_Data) object to align to.
+            method: (str) alignment method to use
+                ['probabilistic_srm','deterministic_srm','procrustes']
+            n_features: (int) number of features to align to common space.
+                If None then will select number of voxels
+            axis: (int) axis to align on
+
+        Returns:
+            out: (dict) a dictionary containing transformed object,
+                transformation matrix, and the shared response matrix
+
+        '''
+
+        source = self.copy()
+        common = target.copy()
+
+        assert isinstance(target, Brain_Data), "Target must be Brain_Data instance."
+        assert method in ['probabilistic_srm', 'deterministic_srm','procrustes'], "Method must be ['probabilistic_srm','deterministic_srm','procrustes']"
+
+        data1 = source.data.T
+        data2 = target.data.T
+
+        if axis == 1:
+            data1 = data1.T
+            data2 = data2.T
+
+        out = dict()
+        if method in ['deterministic_srm', 'probabilistic_srm']:
+            if n_features is None:
+                n_features = data1.shape[0]
+            if method == 'deterministic_srm':
+                srm = DetSRM(features=n_features, *args, **kwargs)
+            elif method == 'probabilistic_srm':
+                srm = SRM(features=n_features, *args, **kwargs)
+            srm.fit([data1, data2])
+            source.data = srm.transform([data1, data2])[0].T
+            common.data = srm.s_.T
+            out['transformed'] = source
+            out['common_model'] = common
+            out['transformation_matrix'] = srm.w_[0]
+        elif method == 'procrustes':
+            if n_features != None:
+                raise NotImplementedError('Currently must use all voxels.'
+                                            'Eventually will add a PCA'
+                                            'reduction, must do this manually'
+                                            'for now.')
+
+            mtx1, mtx2, out['disparity'], t, out['scale'] = procrustes(data2.T,
+                                                                       data1.T)
+            source.data = mtx2
+            common.data = mtx1
+            out['transformed'] = source
+            out['common_model'] = common
+            out['transformation_matrix'] = t
+        if axis == 1:
+            out['transformed'].data = out['transformed'].data.T
+            out['common_model'].data = out['common_model'].data.T
+        return out
+
 
 class Groupby(object):
     def __init__(self, data, mask):

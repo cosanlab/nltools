@@ -202,6 +202,26 @@ Neuroimaging Analysis Examples
    :hidden:
 
    /auto_examples/02_Analysis/plot_multivariate_prediction
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="When performing any type of group analysis, we assume that each voxel is reflecting the same co...">
+
+.. only:: html
+
+    .. figure:: /auto_examples/02_Analysis/images/thumb/sphx_glr_plot_hyperalignment_thumb.png
+
+        :ref:`sphx_glr_auto_examples_02_Analysis_plot_hyperalignment.py`
+
+.. raw:: html
+
+    </div>
+
+
+.. toctree::
+   :hidden:
+
+   /auto_examples/02_Analysis/plot_hyperalignment
 .. raw:: html
 
     <div style='clear:both'></div>
