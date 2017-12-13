@@ -17,8 +17,8 @@ import warnings
 def onsets_to_dm(F, TR, runLength, header='infer', sort=False,
                 addIntercept=False, **kwargs):
     """Function to read in a 2 or 3 column onsets file, specified in seconds,
-        organized as: 'Stimulus,Onset','Onset,Stimulus','Stimulus,Onset,
-        Duration', or 'Onset,Duration,Stimulus'.
+        organized as: 'Stim,Onset','Onset,Stim','Stim,Onset,
+        Duration', or 'Onset,Duration,Stim'.
 
         Args:
             df (str or dataframe): path to file or pandas dataframe
