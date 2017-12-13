@@ -324,7 +324,7 @@ def test_brain_data_2mm(tmpdir):
     transformed = np.dot(d1.data, out['transformation_matrix'][0])
     centered = d1.data - np.mean(d1.data, 0)
     transformed = (np.dot(centered/np.linalg.norm(centered), out['transformation_matrix'][0])*out['scale'][0])
-    np.testing.assert_almost_equal(0, np.sum(out['transformed'][0].data - transformed))
+    np.testing.assert_almost_equal(0, np.sum(out['transformed'][0].data - transformed), decimal=5)
 
     # Test deterministic brain_data
     bout = d1.align(out['common_model'], method='deterministic_srm')
@@ -368,7 +368,7 @@ def test_brain_data_2mm(tmpdir):
     assert data[0].shape() == out['common_model'].shape()
     centered = data[0].data.T-np.mean(data[0].data.T, 0)
     transformed = (np.dot(centered/np.linalg.norm(centered), out['transformation_matrix'][0])*out['scale'][0])
-    np.testing.assert_almost_equal(0,np.sum(out['transformed'][0].data-transformed.T))
+    np.testing.assert_almost_equal(0,np.sum(out['transformed'][0].data-transformed.T), decimal=5)
 
     bout = d1.align(out['common_model'], method='deterministic_srm', axis=1)
     assert d1.shape() == bout['transformed'].shape()
