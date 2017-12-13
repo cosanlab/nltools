@@ -576,7 +576,7 @@ class Adjacency(object):
         return (f,outAll)
 
     def bootstrap(self, function, n_samples=5000, save_weights=False,
-                    n_jobs=-1, *args, **kwargs):
+                    n_jobs=-1, random_state=None, *args, **kwargs):
         '''Bootstrap an Adjacency method.
 
             Example Useage:
@@ -595,8 +595,11 @@ class Adjacency(object):
 
         '''
 
+        random_state = check_random_state(random_state)
+        seed = random_state.randint(MAX_INT)
         bootstrapped = Parallel(n_jobs=n_jobs)(
                         delayed(_bootstrap_apply_func)(self,
-                        function, *args, **kwargs) for i in range(n_samples))
+                        function, random_state=seed[i], *args, **kwargs)
+                        for i in range(n_samples))
         bootstrapped = Adjacency(bootstrapped)
         return summarize_bootstrap(bootstrapped, save_weights=save_weights)
