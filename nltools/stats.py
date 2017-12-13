@@ -42,6 +42,7 @@ import itertools
 from joblib import Parallel, delayed
 from .external.srm import SRM, DetSRM
 from scipy.linalg import orthogonal_procrustes
+from sklearn.utils import check_random_state
 
 def pearson(x, y):
     """ Correlates row vector x with each row vector in 2D array y.
@@ -387,15 +388,17 @@ def fisher_r_to_z(r):
 
     return .5*np.log((1+r)/(1-r))
 
-def _permute_sign(dat):
-    return np.mean(dat*np.random.choice([1, -1], len(dat)))
+def _permute_sign(data, random_state=None):
+    random_state = check_random_state(random_state)
+    return np.mean(dat*random_state.choice([1, -1], len(dat)))
 
-def _permute_group(data):
-    perm_label = np.random.permutation(data['Group'])
+def _permute_group(data, random_state=None):
+    random_state = check_random_state(random_state)
+    perm_label = random_state.permutation(data['Group'])
     return (np.mean(data.loc[perm_label==1, 'Values']) -
             np.mean(data.loc[perm_label==0, 'Values']))
 
-def one_sample_permutation(data, n_permute=5000, n_jobs=-1):
+def one_sample_permutation(data, n_permute=5000, n_jobs=-1, random_state=None):
     ''' One sample permutation test using randomization.
 
         Args:
@@ -409,12 +412,15 @@ def one_sample_permutation(data, n_permute=5000, n_jobs=-1):
 
     '''
 
+    random_state = check_random_state(random_state)
+    seed = random_state.randint(MAX_INT)
+
     data = np.array(data)
     stats = dict()
     stats['mean'] = np.mean(data)
 
-    all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_sign)(data)
-                     for i in range(n_permute))
+    all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_sign)(data,
+                     random_state=seed[i]) for i in range(n_permute))
     if stats['mean'] >= 0:
         stats['p'] = np.mean(all_p >= stats['mean'])
     else:
@@ -435,14 +441,16 @@ def two_sample_permutation(data1, data2, n_permute=5000, n_jobs=-1):
 
     '''
 
+    random_state = check_random_state(random_state)
+    seed = random_state.randint(MAX_INT)
     stats = dict()
     stats['mean'] = np.mean(data1)-np.mean(data2)
     data = pd.DataFrame(data={'Values':data1, 'Group':np.ones(len(data1))})
     data = data.append(pd.DataFrame(data={
                                         'Values':data2,
                                         'Group':np.zeros(len(data2))}))
-    all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_group)(data)
-                     for i in range(n_permute))
+    all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_group)(data,
+                     random_state=seed[i]) for i in range(n_permute))
 
     if stats['mean']>=0:
         stats['p'] = np.mean(all_p >= stats['mean'])
