@@ -1328,7 +1328,7 @@ class Brain_Data(object):
         if isinstance(upper, six.string_types):
             if upper[-1] is '%':
                 upper = np.percentile(b.data, float(upper[:-1]))
-        if isinstance(upper, six.string_types):
+        if isinstance(lower, six.string_types):
             if lower[-1] is '%':
                 lower = np.percentile(b.data, float(lower[:-1]))
 
