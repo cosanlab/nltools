@@ -22,6 +22,7 @@ import nibabel as nib
 import importlib
 import os
 from sklearn.pipeline import Pipeline
+from sklearn.utils import check_random_state
 from scipy.stats import gamma
 import numpy as np
 import collections
@@ -195,10 +196,11 @@ def concatenate(data):
         raise ValueError('Make sure all objects in the list are the same type.')
     return out
 
-def _bootstrap_apply_func(data, function, *args, **kwargs):
+def _bootstrap_apply_func(data, function, random_state=None, *args, **kwargs):
     '''Bootstrap helper function. Sample with replacement and apply function'''
+    random_state = check_random_state(random_state)
     data_row_id = range(data.shape()[0])
-    new_dat = data[np.random.choice(data_row_id,
+    new_dat = data[random_state.choice(data_row_id,
                                    size=len(data_row_id),
                                    replace=True)]
     return getattr(new_dat, function)( *args, **kwargs)

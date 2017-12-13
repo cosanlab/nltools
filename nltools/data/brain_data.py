@@ -31,6 +31,7 @@ import tempfile
 from copy import deepcopy
 import six
 from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.utils import check_random_state
 from pynv import Client
 from joblib import Parallel, delayed
 from nltools.mask import expand_mask, collapse_mask
@@ -81,11 +82,7 @@ nx = attempt_to_import('networkx', 'nx')
 mne_stats = attempt_to_import('mne.stats',name='mne_stats', fromlist=
                                     ['spatio_temporal_cluster_1samp_test',
                                      'ttest_1samp_no_p'])
-try:
-    from mne.stats import (spatio_temporal_cluster_1samp_test,
-                           ttest_1samp_no_p)
-except ImportError:
-    pass
+MAX_INT = np.iinfo(np.int32).max
 
 class Brain_Data(object):
 
@@ -1395,7 +1392,7 @@ class Brain_Data(object):
         return out
 
     def bootstrap(self, function, n_samples=5000, save_weights=False,
-                    n_jobs=-1, *args, **kwargs):
+                    n_jobs=-1, random_state=None, *args, **kwargs):
         '''Bootstrap a Brain_Data method.
 
             Example Useage:
@@ -1414,9 +1411,13 @@ class Brain_Data(object):
 
         '''
 
+        random_state = check_random_state(random_state)
+        seed = random_state.randint(MAX_INT)
+
         bootstrapped = Parallel(n_jobs=n_jobs)(
                         delayed(_bootstrap_apply_func)(self,
-                        function, *args, **kwargs) for i in range(n_samples))
+                        function, random_state=seed[i], *args, **kwargs)
+                        for i in range(n_samples))
 
         if function is 'predict':
             bootstrapped = [x['weight_map'] for x in bootstrapped]
