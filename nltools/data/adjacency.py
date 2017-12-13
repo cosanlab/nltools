@@ -27,9 +27,12 @@ from nltools.utils import (all_same,
                            concatenate,
                            _bootstrap_apply_func)
 from joblib import Parallel, delayed
+from sklearn.utils import check_random_state
 
 # Optional dependencies
 nx = attempt_to_import('networkx', 'nx')
+
+MAX_INT = np.iinfo(np.int32).max
 
 class Adjacency(object):
 
@@ -596,10 +599,10 @@ class Adjacency(object):
         '''
 
         random_state = check_random_state(random_state)
-        seed = random_state.randint(MAX_INT)
+        seeds = random_state.randint(MAX_INT, size=n_samples)
         bootstrapped = Parallel(n_jobs=n_jobs)(
                         delayed(_bootstrap_apply_func)(self,
-                        function, random_state=seed[i], *args, **kwargs)
+                        function, random_state=seeds[i], *args, **kwargs)
                         for i in range(n_samples))
         bootstrapped = Adjacency(bootstrapped)
         return summarize_bootstrap(bootstrapped, save_weights=save_weights)

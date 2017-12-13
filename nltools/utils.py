@@ -27,6 +27,7 @@ from scipy.stats import gamma
 import numpy as np
 import collections
 from types import GeneratorType
+from sklearn.utils import check_random_state
 
 def get_resource_path():
     """ Get path to nltools resource directory. """
