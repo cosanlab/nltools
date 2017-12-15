@@ -172,6 +172,16 @@ def test_brain_data_2mm(tmpdir):
     assert len(r) == shape_2d[0]
     r2 = dat.similarity(stats['weight_map'].to_nifti())
     assert len(r2) == shape_2d[0]
+    r = dat.similarity(stats['weight_map'], method='dot_product')
+    assert len(r) == shape_2d[0]
+    r = dat.similarity(stats['weight_map'], method='cosine')
+    assert len(r) == shape_2d[0]
+    r = dat.similarity(dat, method='correlation')
+    assert r.shape == (dat.shape()[0],dat.shape()[0])
+    r = dat.similarity(dat, method='dot_product')
+    assert r.shape == (dat.shape()[0],dat.shape()[0])
+    r = dat.similarity(dat, method='cosine')
+    assert r.shape == (dat.shape()[0],dat.shape()[0])
 
     # Test apply_mask - might move part of this to test mask suite
     s1 = create_sphere([12, 10, -8], radius=10)
