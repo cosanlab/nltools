@@ -16,7 +16,7 @@ __license__ = "MIT"
 
 import pickle # import cPickle
 from nilearn.signal import clean
-from scipy.stats import ttest_1samp, t, norm
+from scipy.stats import ttest_1samp, t, norm, spearmanr
 from scipy.signal import detrend
 from scipy.spatial.distance import squareform
 import os
@@ -673,19 +673,19 @@ class Brain_Data(object):
 
             Args:
                 image: Brain_Data or Nibabel instance of weight map
-
+                method: (str) Type of similarity
+                        ['correlation','dot_product','cosine']
             Returns:
                 pexp: Outputs a vector of pattern expression values
 
         """
 
         if not isinstance(image, Brain_Data):
-            if isinstance(image, nib.Nifti1Image):
-                image = Brain_Data(image, mask=self.mask)
-            else:
-                raise ValueError("Image is not a Brain_Data or nibabel "
-                                 "instance")
-        dim = image.shape()
+                if isinstance(image, nib.Nifti1Image):
+                    image = Brain_Data(image, mask=self.mask)
+                else:
+                    raise ValueError("Image is not a Brain_Data or nibabel "
+                                     "instance")
 
         # Check to make sure masks are the same for each dataset and if not
         # create a union mask
@@ -700,6 +700,21 @@ class Brain_Data(object):
         else:
             data2 = self.data
             image2 = image.data
+
+        def vector2array(data):
+            if len(data.shape) == 1:
+                return data.reshape(-1,1).T
+            else:
+                return data
+
+        def flatten_array(data):
+            if np.any(np.array(data.shape)==1):
+                data = data.flatten()
+                if len(data)==1 & data.shape[0]==1:
+                    data = data[0]
+                return data
+            else:
+                return data
 
         # Calculate pattern expression
         if method is 'dot_product':
@@ -724,9 +739,19 @@ class Brain_Data(object):
                     pexp = pearson(image2, data2)
             else:
                 pexp = pearson(image2, data2)
+        elif method is 'cosine':
+            image2 = vector2array(image2)
+            data2 = vector2array(data2)
+            if image2.shape[1] > 1:
+                pexp = []
+                for i in range(image2.shape[0]):
+                    pexp.append(cosine_similarity(image2[i, :].reshape(-1,1).T, data2).flatten())
+                pexp = np.array(pexp)
+            else:
+                pexp = cosine_similarity(image2, data2).flatten()
         else:
-            raise ValueError("Method must be one of: correlation, dot_product")
-        return pexp
+            raise ValueError('Method must be one of: correlation, dot_product, cosine')
+        return flatten_array(pexp)
 
     def distance(self, method='euclidean', **kwargs):
         """ Calculate distance between images within a Brain_Data() instance.
