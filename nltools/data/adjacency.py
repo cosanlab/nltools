@@ -108,7 +108,7 @@ class Adjacency(object):
         if labels is not None:
             assert isinstance(labels, (list, np.ndarray)), "Make sure labels is a list or numpy array."
             if self.is_single_matrix:
-                assert len(labels) == dat_single.square_shape()[0], 'Make sure the length of labels matches the shape of data.'
+                assert len(labels) == self.square_shape()[0], 'Make sure the length of labels matches the shape of data.'
                 self.labels = deepcopy(labels)
             else:
                 if len(labels) != len(self):
@@ -123,7 +123,7 @@ class Adjacency(object):
                     assert np.all(np.array([len(x) for x in labels])==self.square_shape()[0]), "All lists of labels must be same length as shape of data."
                     self.labels = deepcopy(labels)
         else:
-            self.labels = False
+            self.labels = None
 
     def __repr__(self):
         return ("%s.%s(shape=%s, square_shape=%s, Y=%s, is_symmetric=%s,"
@@ -306,7 +306,8 @@ class Adjacency(object):
                 return sns.heatmap(self.squareform(), square=True, **kwargs)
             else:
                 return sns.heatmap(self.squareform(), square=True,
-                                   xticklabels=labels, yticklabels=labels,
+                                   xticklabels=self.labels,
+                                   yticklabels=self.labels,
                                    **kwargs)
         else:
             f, a = plt.subplots(limit)
@@ -666,3 +667,56 @@ class Adjacency(object):
                         for i in range(n_samples))
         bootstrapped = Adjacency(bootstrapped)
         return summarize_bootstrap(bootstrapped, save_weights=save_weights)
+
+    def plot_mds(self, n_components=2, metric=True, labels_color=None, 
+                 cmap=plt.cm.hot_r, n_jobs=-1, view=(30, 20), *args, **kwargs):
+        ''' Plot Multidimensional Scaling
+
+            Args:
+                n_components: (int) Number of dimensions to project (can be 2 or 3)
+                metric: (bool) Perform metric or non-metric dimensional scaling; default
+                labels_color: (str) list of colors for labels, if len(1) then make all same color
+                n_jobs: (int) Number of parallel jobs
+                view: (tuple) view for 3-Dimensional plot; default (30,20)
+
+            Returns:
+                fig: returns matplotlib figure
+        '''
+
+        assert self.matrix_type == 'distance', "MDS only works on distance matrices."
+        assert ~self.is_single_matrix, "MDS only works on single matrices."
+        assert n_components == 2 or n_components==3, 'Cannot plot {0}-d image'.format(n_components)
+        if labels_color is not None:
+            assert self.labels is not None, "Make sure that Adjacency object has labels specified."
+            assert len(self.labels) == len(labels_color), "Length of labels_color must match self.labels."
+
+        # Run MDS
+        mds = MDS(n_components=n_components, metric=metric, n_jobs=n_jobs,
+                           dissimilarity="precomputed", *args, **kwargs)
+        proj = mds.fit_transform(self.squareform())
+
+        # Create Plot
+        fig = plt.figure(figsize=(12, 8))
+        if n_components == 3:
+            ax = fig.add_subplot(111, projection='3d')
+            ax.scatter(proj[:, 0], proj[:, 1], proj[:, 2], s=100, c='k')
+            ax.view_init(*view)
+        elif n_components == 2:
+            ax = fig.add_subplot(111)
+            ax.scatter(proj[:, 0], proj[:, 1], s=100, c='k')
+
+        if labels_color is None:
+            labels_color = ['black'] * len(self.labels)
+        if n_components == 3:
+            for ((x, y, z), label, color) in zip(proj, self.labels, labels_color):
+                 ax.text(x, y, z, label, color='white', #color,
+                         bbox=dict(facecolor=color, alpha=1, boxstyle="round,pad=0.3"))
+        else:
+            for ((x, y), label, color) in zip(proj, self.labels, labels_color):
+                ax.text(x, y, label, color='white', #color,
+                        bbox=dict(facecolor=color, alpha=1, boxstyle="round,pad=0.3"))
+
+        ax.xaxis.set_visible(False)
+        ax.yaxis.set_visible(False)
+
+        return fig
