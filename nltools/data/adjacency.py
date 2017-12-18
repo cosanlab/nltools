@@ -469,6 +469,46 @@ class Adjacency(object):
         return Adjacency(pairwise_distances(self.data, metric=method, **kwargs),
                          matrix_type='distance')
 
+    def threshold(self, upper=None, lower=None, binarize=False):
+        '''Threshold Adjacency instance. Provide upper and lower values or
+           percentages to perform two-sided thresholding. Binarize will return
+           a mask image respecting thresholds if provided, otherwise respecting
+           every non-zero value.
+
+        Args:
+            upper: (float or str) Upper cutoff for thresholding. If string
+                    will interpret as percentile; can be None for one-sided
+                    thresholding.
+            lower: (float or str) Lower cutoff for thresholding. If string
+                    will interpret as percentile; can be None for one-sided
+                    thresholding.
+            binarize (bool): return binarized image respecting thresholds if
+                    provided, otherwise binarize on every non-zero value;
+                    default False
+
+        Returns:
+            Brain_Data: thresholded Brain_Data instance
+
+        '''
+
+        b = self.copy()
+        if isinstance(upper, six.string_types):
+            if upper[-1] is '%':
+                upper = np.percentile(b.data, float(upper[:-1]))
+        if isinstance(lower, six.string_types):
+            if lower[-1] is '%':
+                lower = np.percentile(b.data, float(lower[:-1]))
+
+        if upper and lower:
+            b.data[(b.data < upper) & (b.data > lower)] = 0
+        elif upper and not lower:
+            b.data[b.data < upper] = 0
+        elif lower and not upper:
+            b.data[b.data > lower] = 0
+        if binarize:
+            b.data[b.data != 0] = 1
+        return b
+
     def threshold(self, thresh=0, binarize=False):
         '''Threshold Adjacency instance
 
