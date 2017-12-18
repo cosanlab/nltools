@@ -1334,17 +1334,21 @@ class Brain_Data(object):
         return dat.combine(values)
 
     def threshold(self, upper=None, lower=None, binarize=False):
-        '''Threshold Brain_Data instance. Provide upper and lower values or percentages to perform two-sided thresholding. Binarize will return a mask image respecting thresholds if provided, otherwise respecting every non-zero value.
+        '''Threshold Brain_Data instance. Provide upper and lower values or
+           percentages to perform two-sided thresholding. Binarize will return
+           a mask image respecting thresholds if provided, otherwise respecting
+           every non-zero value.
 
         Args:
-            upper (float or str): upper cutoff for thresholding. If string will interpret as percentile; can be None for one-sided thresholding.
-            lower (float or str): lower cutoff for thresholding. If string will interpret as percentile; can be None for one-sided thresholding.
-            binarize (bool): return binarized image respecting thresholds if provided, otherwise binarize on every non-zero value; default False
-
-        Returns:
-            Brain_Data: thresholded Brain_Data instance
-
-        '''
+            upper: (float or str) Upper cutoff for thresholding. If string
+                    will interpret as percentile; can be None for one-sided
+                    thresholding.
+            lower: (float or str) Lower cutoff for thresholding. If string
+                    will interpret as percentile; can be None for one-sided
+                    thresholding.
+            binarize (bool): return binarized image respecting thresholds if
+                    provided, otherwise binarize on every non-zero value;
+                    default False
 
         b = self.copy()
         if isinstance(upper, six.string_types):
