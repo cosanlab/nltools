@@ -1350,6 +1350,11 @@ class Brain_Data(object):
                     provided, otherwise binarize on every non-zero value;
                     default False
 
+        Returns:
+            Thresholded Brain_Data object.
+
+        '''
+
         b = self.copy()
         if isinstance(upper, six.string_types):
             if upper[-1] is '%':
