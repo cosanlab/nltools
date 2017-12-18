@@ -51,7 +51,8 @@ class Adjacency(object):
 
     '''
 
-    def __init__(self, data=None, Y=None, matrix_type=None, **kwargs):
+    def __init__(self, data=None, Y=None, matrix_type=None, labels=None,
+                 **kwargs):
         if matrix_type is not None:
             if matrix_type.lower() not in ['distance','similarity','directed',
                                             'distance_flat','similarity_flat',
@@ -103,6 +104,26 @@ class Adjacency(object):
                 raise ValueError("Make sure Y is a pandas data frame.")
         else:
             self.Y = pd.DataFrame()
+
+        if labels is not None:
+            assert isinstance(labels, (list, np.ndarray)), "Make sure labels is a list or numpy array."
+            if self.is_single_matrix:
+                assert len(labels) == dat_single.square_shape()[0], 'Make sure the length of labels matches the shape of data.'
+                self.labels = deepcopy(labels)
+            else:
+                if len(labels) != len(self):
+                    if len(labels) != self.square_shape()[0]:
+                        raise ValueError('Make sure length of labels either '
+                                         'matches the number of Adjacency '
+                                         'matrices or the size of a single '
+                                         'matrix.')
+                    else:
+                        self.labels = list(labels) * len(self)
+                else:
+                    assert np.all(np.array([len(x) for x in labels])==self.square_shape()[0]), "All lists of labels must be same length as shape of data."
+                    self.labels = deepcopy(labels)
+        else:
+            self.labels = False
 
     def __repr__(self):
         return ("%s.%s(shape=%s, square_shape=%s, Y=%s, is_symmetric=%s,"
@@ -281,12 +302,24 @@ class Adjacency(object):
     def plot(self, limit=3, **kwargs):
         ''' Create Heatmap of Adjacency Matrix'''
         if self.is_single_matrix:
-            return sns.heatmap(self.squareform(), square=True, **kwargs)
+            if self.labels is None:
+                return sns.heatmap(self.squareform(), square=True, **kwargs)
+            else:
+                return sns.heatmap(self.squareform(), square=True,
+                                   xticklabels=labels, yticklabels=labels,
+                                   **kwargs)
         else:
             f, a = plt.subplots(limit)
-            for i in range(limit):
-                sns.heatmap(self[i].squareform(), square=True, ax=a[i],
-                            **kwargs)
+            if self.labels is None:
+                for i in range(limit):
+                    sns.heatmap(self[i].squareform(), square=True, ax=a[i],
+                                **kwargs)
+            else:
+                for i in range(limit):
+                    sns.heatmap(self[i].squareform(), square=True,
+                                xticklabels=self.labels[i],
+                                yticklabels=self.labels[i],
+                                ax=a[i], **kwargs)
             return f
 
     def mean(self, axis=0):
