@@ -509,28 +509,6 @@ class Adjacency(object):
             b.data[b.data != 0] = 1
         return b
 
-    def threshold(self, thresh=0, binarize=False):
-        '''Threshold Adjacency instance
-
-        Args:
-            thresh: cutoff to threshold image (float).  if 'threshold'=50%,
-                    will calculate percentile.
-            binarize (bool): if 'binarize'=True then binarize output
-        Returns:
-            Brain_Data: thresholded Brain_Data instance
-
-        '''
-
-        b = self.copy()
-        if isinstance(thresh, six.string_types):
-            if thresh[-1] is '%':
-                thresh = np.percentile(b.data, float(thresh[:-1]))
-        if binarize:
-            b.data = b.data > thresh
-        else:
-            b.data[b.data < thresh] = 0
-        return b
-
     def to_graph(self):
         ''' Convert Adjacency into networkx graph.  only works on
             single_matrix for now.'''
@@ -557,7 +535,7 @@ class Adjacency(object):
         pval = Adjacency(np.array(p))
         return (mn, pval)
 
-    def plot_label_distance(self, labels, ax=None):
+    def plot_label_distance(self, labels=None, ax=None):
         ''' Create a violin plot indicating within and between label distance
 
             Args:
@@ -574,8 +552,11 @@ class Adjacency(object):
 
         distance = pd.DataFrame(self.squareform())
 
-        if len(labels) != distance.shape[0]:
-            raise ValueError('Labels must be same length as distance matrix')
+        if labels is not None:
+            labels = deepcopy(self.labels)
+        else:
+            if len(labels) != distance.shape[0]:
+                raise ValueError('Labels must be same length as distance matrix')
 
         within = []; between = []
         out = pd.DataFrame(columns=['Distance', 'Group', 'Type'], index=None)
@@ -595,7 +576,7 @@ class Adjacency(object):
         f.set_title('Average Group Distance')
         return f
 
-    def stats_label_distance(self, labels, n_permute=5000, n_jobs=-1):
+    def stats_label_distance(self, labels=None, n_permute=5000, n_jobs=-1):
         ''' Calculate permutation tests on within and between label distance.
 
             Args:
@@ -614,8 +595,11 @@ class Adjacency(object):
 
         distance = pd.DataFrame(self.squareform())
 
-        if len(labels) != distance.shape[0]:
-            raise ValueError('Labels must be same length as distance matrix')
+        if labels is not None:
+            labels = deepcopy(self.labels)
+        else:
+            if len(labels) != distance.shape[0]:
+                raise ValueError('Labels must be same length as distance matrix')
 
         within = []; between = []
         out = pd.DataFrame(columns=['Distance', 'Group', 'Type'], index=None)
@@ -638,13 +622,16 @@ class Adjacency(object):
                                         n_permute=n_permute, n_jobs=n_jobs)
         return stats
 
-    def plot_silhouette(self, labels, ax=None, permutation_test=True,
+    def plot_silhouette(self, labels=None, ax=None, permutation_test=True,
                         n_permute=5000, **kwargs):
         '''Create a silhouette plot'''
         distance = pd.DataFrame(self.squareform())
 
-        if len(labels) != distance.shape[0]:
-            raise ValueError('Labels must be same length as distance matrix')
+        if labels is not None:
+            labels = deepcopy(self.labels)
+        else:
+            if len(labels) != distance.shape[0]:
+                raise ValueError('Labels must be same length as distance matrix')
 
         (f,outAll) = plot_silhouette(distance, labels, ax=None,
                                     permutation_test=True,
