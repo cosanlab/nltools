@@ -26,7 +26,9 @@ __all__ = ['pearson',
             'make_cosine_basis',
             '_robust_estimator',
             'summarize_bootstrap',
-            'regress']
+            'regress',
+            'procrustes',
+            'align']
 
 import numpy as np
 import pandas as pd
@@ -38,7 +40,12 @@ import warnings
 import itertools
 from joblib import Parallel, delayed
 import six
-from nltools.utils import attempt_to_import
+from .utils import attempt_to_import
+from .external.srm import SRM, DetSRM
+from scipy.linalg import orthogonal_procrustes
+from sklearn.utils import check_random_state
+
+MAX_INT = np.iinfo(np.int32).max
 
 # Optional dependencies
 ARMA = attempt_to_import('statsmodels.tsa.arima_model',name='ARMA',
@@ -387,15 +394,17 @@ def fisher_r_to_z(r):
 
     return .5*np.log((1+r)/(1-r))
 
-def _permute_sign(dat):
-    return np.mean(dat*np.random.choice([1, -1], len(dat)))
+def _permute_sign(data, random_state=None):
+    random_state = check_random_state(random_state)
+    return np.mean(data*random_state.choice([1, -1], len(data)))
 
-def _permute_group(data):
-    perm_label = np.random.permutation(data['Group'])
+def _permute_group(data, random_state=None):
+    random_state = check_random_state(random_state)
+    perm_label = random_state.permutation(data['Group'])
     return (np.mean(data.loc[perm_label==1, 'Values']) -
             np.mean(data.loc[perm_label==0, 'Values']))
 
-def one_sample_permutation(data, n_permute=5000, n_jobs=-1):
+def one_sample_permutation(data, n_permute=5000, n_jobs=-1, random_state=None):
     ''' One sample permutation test using randomization.
 
         Args:
@@ -409,19 +418,23 @@ def one_sample_permutation(data, n_permute=5000, n_jobs=-1):
 
     '''
 
+    random_state = check_random_state(random_state)
+    seeds = random_state.randint(MAX_INT, size=n_permute)
+
     data = np.array(data)
     stats = dict()
     stats['mean'] = np.mean(data)
 
-    all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_sign)(data)
-                     for i in range(n_permute))
+    all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_sign)(data,
+                     random_state=seeds[i]) for i in range(n_permute))
     if stats['mean'] >= 0:
         stats['p'] = np.mean(all_p >= stats['mean'])
     else:
         stats['p'] = np.mean(all_p <= stats['mean'])
     return stats
 
-def two_sample_permutation(data1, data2, n_permute=5000, n_jobs=-1):
+def two_sample_permutation(data1, data2, n_permute=5000,
+                           n_jobs=-1, random_state=None):
     ''' Independent sample permutation test.
 
         Args:
@@ -435,23 +448,26 @@ def two_sample_permutation(data1, data2, n_permute=5000, n_jobs=-1):
 
     '''
 
+    random_state = check_random_state(random_state)
+    seeds = random_state.randint(MAX_INT, size=n_permute)
+
     stats = dict()
     stats['mean'] = np.mean(data1)-np.mean(data2)
-    data = pd.DataFrame(data={'Values':data1,'Group':np.ones(len(data1))})
+    data = pd.DataFrame(data={'Values':data1, 'Group':np.ones(len(data1))})
     data = data.append(pd.DataFrame(data={
                                         'Values':data2,
                                         'Group':np.zeros(len(data2))}))
-    all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_group)(data)
-                     for i in range(n_permute))
+    all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_group)(data,
+                     random_state=seeds[i]) for i in range(n_permute))
 
     if stats['mean']>=0:
-        stats['p'] = np.mean(all_p>=stats['mean'])
+        stats['p'] = np.mean(all_p >= stats['mean'])
     else:
-        stats['p'] = np.mean(all_p<=stats['mean'])
+        stats['p'] = np.mean(all_p <= stats['mean'])
     return stats
 
 def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
-                            n_jobs=-1):
+                            n_jobs=-1, random_state=None):
     ''' Permute correlation.
 
         Args:
@@ -468,30 +484,32 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
 
     '''
 
+    random_state = check_random_state(random_state)
+
     stats = dict()
     data1 = np.array(data1)
     data2 = np.array(data2)
 
-    if metric is 'spearman':
+    if metric == 'spearman':
         stats['correlation'] = spearmanr(data1, data2)[0]
-    elif metric is 'pearson':
+    elif metric == 'pearson':
         stats['correlation'] = pearsonr(data1, data2)[0]
-    elif metric is 'kendall':
+    elif metric == 'kendall':
         stats['correlation'] = kendalltau(data1, data2)[0]
     else:
         raise ValueError('metric must be "spearman" or "pearson" or "kendall"')
 
     if metric is 'spearman':
         all_p = Parallel(n_jobs=n_jobs)(delayed(spearmanr)(
-                        np.random.permutation(data1), data2)
+                        random_state.permutation(data1), data2)
                         for i in range(n_permute))
     elif metric is 'pearson':
         all_p = Parallel(n_jobs=n_jobs)(delayed(pearsonr)(
-                        np.random.permutation(data1), data2)
+                        random_state.permutation(data1), data2)
                         for i in range(n_permute))
     elif metric is 'kendall':
         all_p = Parallel(n_jobs=n_jobs)(delayed(kendalltau)(
-                        np.random.permutation(data1), data2)
+                        random_state.permutation(data1), data2)
                         for i in range(n_permute))
     all_p = [x[0] for x in all_p]
 
@@ -501,14 +519,21 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
         stats['p'] = np.mean(all_p <= stats['correlation'])
     return stats
 
-def make_cosine_basis(nsamples,sampling_rate,filter_length,drop=0):
-    """ Create a series of cosines basic functions for discrete cosine transform. Based off of implementation in spm_filter and spm_dctmtx because scipy dct can only apply transforms but not return the basis functions. Like SPM, does not add constant (i.e. intercept), but does retain first basis (i.e. sigmoidal/linear drift)
+def make_cosine_basis(nsamples, sampling_rate, filter_length, drop=0):
+    """ Create a series of cosines basic functions for discrete cosine
+        transform. Based off of implementation in spm_filter and spm_dctmtx
+        because scipy dct can only apply transforms but not return the basis
+        functions. Like SPM, does not add constant (i.e. intercept), but does
+        retain first basis (i.e. sigmoidal/linear drift)
 
     Args:
         nsamples (int): number of observations (e.g. TRs)
         sampling_freq (float): sampling rate in seconds (e.g. TR length)
         filter_length (int): length of filter in seconds
-        drop (int): index of which early/slow bases to drop if any; default is to drop constant (i.e. intercept) like SPM. Unlike SPM, retains first basis (i.e. linear/sigmoidal). Will cumulatively drop bases upto and inclusive of index provided (e.g. 2, drops bases 0,1,2)
+        drop (int): index of which early/slow bases to drop if any; default is
+            to drop constant (i.e. intercept) like SPM. Unlike SPM, retains
+            first basis (i.e. linear/sigmoidal). Will cumulatively drop bases
+            up to and inclusive of index provided (e.g. 2, drops bases 0,1,2)
 
     Returns:
         out (ndarray): nsamples x number of basis sets numpy array
@@ -527,14 +552,15 @@ def make_cosine_basis(nsamples,sampling_rate,filter_length,drop=0):
     C[:,0] = np.ones((1,len(n)))/np.sqrt(nsamples)
 
     #Insert higher order cosine basis functions
-    for i in xrange(1,order):
+    for i in range(1,order):
         C[:,i] = np.sqrt(2./nsamples) * np.cos(np.pi*(2*n+1) * i/(2*nsamples))
 
     #Drop desired bases
-    drop +=1
-    C = C[:,drop:]
+    drop += 1
+    C = C[:, drop:]
     if C.size == 0:
-        raise ValueError('Basis function creation failed! nsamples is too small for requested filter_length.')
+        raise ValueError('Basis function creation failed! nsamples is too small'
+                         'for requested filter_length.')
     else:
         return C
 
@@ -644,7 +670,6 @@ def _robust_estimator(vals,X,robust_estimator='hc0',nlags=1):
     return np.sqrt(np.diag(vcv))
 
 
-
 def summarize_bootstrap(data, save_weights=False):
     """ Calculate summary of bootstrap samples
 
@@ -678,7 +703,7 @@ def regress(X,Y,mode='ols',**kwargs):
     This function can compute regression in 3 ways:
     1) Standard OLS
     2) OLS with robust sandwich estimators for standard errors. 3 robust types of estimators exist:
-        1) 'hc1' - classic huber-white estimator robust to heteroscedasticity (default)
+        1) 'hc0' - classic huber-white estimator robust to heteroscedasticity (default)
         2) 'hc3' - a variant on huber-white estimator slightly more conservative when sample sizes are small
         3) 'hac' - an estimator robust to both heteroscedasticity and auto-correlation; auto-correlation lag can be controlled with the 'nlags' keyword argument; default is 1
     3) ARMA (auto-regressive moving-average) model. This model is fit through statsmodels.tsa.arima_model.ARMA, so more information about options can be found there. Any settings can be passed in as kwargs. By default fits a (1,1) model with starting lags of 2. This mode is **computationally intensive** and can take quite a while if Y has many columns.  If Y is a 2d array joblib.Parallel is used for faster fitting by parallelizing fits across columns of Y. Parallelization can be controlled by passing in kwargs. Defaults to multi-threading using 10 separate threads, as threads don't require large arrays to be duplicated in memory. Defaults are also set to enable memory-mapping for very large arrays if backend='multiprocessing' to prevent crashes and hangs. Various levels of progress can be monitored using the 'disp' (statsmodels) and 'verbose' (joblib) keyword arguments with integer values > 0.
@@ -797,3 +822,231 @@ def regress(X,Y,mode='ols',**kwargs):
             b,t,p,df,res = _arma_func()
 
         return b, t, p, df, res
+
+
+def align(data, method='deterministic_srm', n_features=None, axis=0,
+            *args, **kwargs):
+    ''' Align subject data into a common response model.
+
+        Can be used to hyperalign source data to target data using
+        Hyperalignemnt from Dartmouth (i.e., procrustes transformation; see
+        nltools.stats.procrustes) or Shared Response Model from Princeton (see
+        nltools.external.srm). (see nltools.data.Brain_Data.align for aligning
+        a single Brain object to another). Common Model is shared response
+        model or centered target data.Transformed data can be back projected to
+        original data using Tranformation matrix.
+
+        Examples:
+            Hyperalign using procrustes transform:
+                out = align(data, method='procrustes')
+
+            Align using shared response model:
+                out = align(data, method='probabilistic_srm', n_features=None)
+
+            Project aligned data into original data:
+                original_data = [np.dot(t.data,tm.T) for t,tm in zip(out['transformed'], out['transformation_matrix'])]
+
+        Args:
+            data: (list) A list of Brain_Data objects
+            method: (str) alignment method to use
+                ['probabilistic_srm','deterministic_srm','procrustes']
+            n_features: (int) number of features to align to common space.
+                If None then will select number of voxels
+            axis: (int) axis to align on
+
+        Returns:
+            out: (dict) a dictionary containing a list of transformed subject
+                matrices, a list of transformation matrices, and the shared
+                response matrix
+
+    '''
+
+    from nltools.data import Brain_Data
+
+    assert isinstance(data, list), 'Make sure you are inputting data is a list.'
+    assert all([type(x) for x in data]), 'Make sure all objects in the list are the same type.'
+    assert method in ['probabilistic_srm','deterministic_srm','procrustes'], "Method must be ['probabilistic_srm','deterministic_srm','procrustes']"
+
+    data = deepcopy(data)
+
+    if isinstance(data[0], Brain_Data):
+        data_type = 'Brain_Data'
+        data_out = [x.copy() for x in data]
+        data = [x.data.T for x in data]
+    elif isinstance(data[0], np.ndarray):
+        data_type = 'numpy'
+    else:
+        raise ValueError('Type %s is not implemented yet.' % type(data[0]))
+
+    # Align over time or voxels
+    if axis == 1:
+        data = [x.T for x in data]
+    elif axis != 0:
+        raise ValueError('axis must be 0 or 1.')
+
+    out = dict()
+    if method in ['deterministic_srm', 'probabilistic_srm']:
+        if n_features is None:
+            n_features = int(data[0].shape[0])
+        if method == 'deterministic_srm':
+            srm = DetSRM(features=n_features, *args, **kwargs)
+        elif method == 'probabilistic_srm':
+            srm = SRM(features=n_features, *args, **kwargs)
+        srm.fit(data)
+        out['transformed'] = [x for x in srm.transform(data)]
+        out['common_model'] = srm.s_
+        out['transformation_matrix'] = srm.w_
+
+    elif method == 'procrustes':
+        if n_features != None:
+            raise NotImplementedError('Currently must use all voxels.'
+                                      'Eventually will add a PCA reduction,'
+                                      'must do this manually for now.')
+
+        ##STEP 0: STANDARDIZE SIZE AND SHAPE##
+        sizes_0 = [x.shape[0] for x in data]
+        sizes_1 = [x.shape[1] for x in data]
+
+        #find the smallest number of rows
+        R = min(sizes_0)
+        C = max(sizes_1)
+
+        m = [np.empty((R, C), dtype=np.ndarray)] * len(data)
+
+        #Pad rows with different sizes with zeros
+        for i, x in enumerate(data):
+            y = x[0:R, :]
+            missing = C - y.shape[1]
+            add = np.zeros((y.shape[0], missing))
+            y = np.append(y, add, axis=1)
+            m[i] = y
+
+        ##STEP 1: CREATE INITIAL AVERAGE TEMPLATE##
+        for i, x in enumerate(m):
+            if i == 0:
+                # use first data as template
+                template = np.copy(x.T)
+            else:
+                _, trans, _, _, _ = procrustes(template/i, x.T)
+                template += trans
+        template /= len(m)
+
+        ##STEP 2: CREATE NEW COMMON TEMPLATE##
+        #align each subj to the template from STEP 1
+        #and create a new common template based on avg
+        common = np.zeros(template.shape)
+        for i, x in enumerate(m):
+            _, trans, _, _, _ = procrustes(template, x.T)
+            common += trans
+        common /= len(m)
+
+        #STEP 3 (below): ALIGN TO NEW TEMPLATE
+        aligned = []; transformation_matrix = []; disparity = []; scale = []
+        for i, x in enumerate(m):
+            _, transformed, d, t, s = procrustes(common, x.T)
+            aligned.append(transformed.T)
+            transformation_matrix.append(t)
+            disparity.append(d)
+            scale.append(s)
+        out['transformed'] = aligned
+        out['common_model'] = common.T
+        out['transformation_matrix'] = transformation_matrix
+        out['disparity'] = disparity
+        out['scale'] = scale
+
+    if axis == 1:
+        out['transformed'] = [x.T for x in out['transformed']]
+        out['common_model'] = out['common_model'].T
+
+    if data_type == 'Brain_Data':
+        for i, x in enumerate(out['transformed']):
+            data_out[i].data = x.T
+        out['transformed'] = data_out
+        common = data_out[0].copy()
+        common.data = out['common_model'].T
+        out['common_model'] = common
+    return out
+
+def procrustes(data1, data2):
+    '''Procrustes analysis, a similarity test for two data sets.
+
+    Each input matrix is a set of points or vectors (the rows of the matrix).
+    The dimension of the space is the number of columns of each matrix. Given
+    two identically sized matrices, procrustes standardizes both such that:
+    - :math:`tr(AA^{T}) = 1`.
+    - Both sets of points are centered around the origin.
+    Procrustes ([1]_, [2]_) then applies the optimal transform to the second
+    matrix (including scaling/dilation, rotations, and reflections) to minimize
+    :math:`M^{2}=\sum(data1-data2)^{2}`, or the sum of the squares of the
+    pointwise differences between the two input datasets.
+    This function was not designed to handle datasets with different numbers of
+    datapoints (rows).  If two data sets have different dimensionality
+    (different number of columns), this function will add columns of zeros to
+    the smaller of the two.
+
+    Args:
+        data1 : array_like
+            Matrix, n rows represent points in k (columns) space `data1` is the
+            reference data, after it is standardised, the data from `data2`
+            will be transformed to fit the pattern in `data1` (must have >1
+            unique points).
+        data2 : array_like
+            n rows of data in k space to be fit to `data1`.  Must be the  same
+            shape ``(numrows, numcols)`` as data1 (must have >1 unique points).
+
+    Returns:
+        mtx1 : array_like
+            A standardized version of `data1`.
+        mtx2 : array_like
+            The orientation of `data2` that best fits `data1`. Centered, but not
+            necessarily :math:`tr(AA^{T}) = 1`.
+        disparity : float
+            :math:`M^{2}` as defined above.
+        R : (N, N) ndarray
+            The matrix solution of the orthogonal Procrustes problem.
+            Minimizes the Frobenius norm of dot(data1, R) - data2, subject to
+            dot(R.T, R) == I.
+        scale : float
+            Sum of the singular values of ``dot(data1.T, data2)``.
+
+
+    '''
+
+    mtx1 = np.array(data1, dtype=np.double, copy=True)
+    mtx2 = np.array(data2, dtype=np.double, copy=True)
+
+    if mtx1.ndim != 2 or mtx2.ndim != 2:
+        raise ValueError("Input matrices must be two-dimensional")
+    if mtx1.shape[0] != mtx2.shape[0]:
+        raise ValueError("Input matrices must have same number of rows.")
+    if mtx1.size == 0:
+        raise ValueError("Input matrices must be >0 rows and >0 cols")
+    if mtx1.shape[1] != mtx2.shape[1]:
+        # Pad with zeros
+        if mtx1.shape[1] > mtx2.shape[1]:
+            mtx2 = np.append(mtx2, np.zeros((mtx1.shape[0], mtx1.shape[1] - mtx2.shape[1])), axis=1)
+        else:
+            mtx1 = np.append(mtx1, np.zeros((mtx1.shape[0], mtx2.shape[1] - mtx1.shape[1])), axis=1)
+
+    # translate all the data to the origin
+    mtx1 -= np.mean(mtx1, 0)
+    mtx2 -= np.mean(mtx2, 0)
+
+    norm1 = np.linalg.norm(mtx1)
+    norm2 = np.linalg.norm(mtx2)
+
+    if norm1 == 0 or norm2 == 0:
+        raise ValueError("Input matrices must contain >1 unique points")
+
+    # change scaling of data (in rows) such that trace(mtx*mtx') = 1
+    mtx1 /= norm1
+    mtx2 /= norm2
+
+    # transform mtx2 to minimize disparity
+    R, s = orthogonal_procrustes(mtx1, mtx2)
+    mtx2 = np.dot(mtx2, R.T) * s
+
+    # measure the dissimilarity between the two datasets
+    disparity = np.sum(np.square(mtx1 - mtx2))
+
+    return mtx1, mtx2, disparity, R, s
