@@ -32,7 +32,8 @@ setup(
                      'analysis engine powering www.neuro-learn.org.',
     keywords = ['neuroimaging', 'preprocessing', 'analysis','machine-learning'],
     classifiers = [
-        "Programming Language :: Python",
+        "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3.6",
         "Operating System :: OS Independent",
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: MIT License"

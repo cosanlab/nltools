@@ -11,6 +11,7 @@ __all__ = ['data',
 			'pbs_job',
 			'mask',
             'prefs',
+            'external',
 			'__version__']
 
 from .analysis import Roc
@@ -24,3 +25,5 @@ from .pbs_job import PBS_Job
 from .simulator import Simulator
 from .prefs import MNI_Template, resolve_mni_path
 from .version import __version__
+from .mask import expand_mask, collapse_mask, create_sphere
+from .external import SRM, DetSRM
