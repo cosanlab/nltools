@@ -16,7 +16,8 @@ __license__ = "MIT"
 
 import pickle # import cPickle
 from nilearn.signal import clean
-from scipy.stats import ttest_1samp, t, norm, spearmanr
+from scipy.stats import ttest_1samp, norm, spearmanr
+from scipy.stats import t as t_dist
 from scipy.signal import detrend
 from scipy.spatial.distance import squareform
 import os
@@ -360,11 +361,11 @@ class Brain_Data(object):
         """ Run a mass-univariate regression across voxels. Three types of regressions can be run:
         1) Standard OLS (default)
         2) Robust OLS (heteroscedasticty and/or auto-correlation robust errors), i.e. OLS with "sandwich estimators"
-        3) ARMA (auto-regressive and moving-average lags = 1 by default)
+        3) ARMA (auto-regressive and moving-average lags = 1 by default; experimental)
 
         For more information see the help for nltools.stats.regress
 
-        ARMA notes: This mode is similar to AFNI's 3dREMLFit but without spatial smoothing of voxel auto-correlation estimates. It can be **very computationally intensive** so parallelization is used by default to try to speed things up. Speed is limited because a unique ARMA model is fit to *each voxel* (like AFNI/FSL), but unlike SPM, which assumes the same AR parameters (~0.2) at each voxel. While coefficient results are typically very similar to OLS, std-errors and so t-stats, dfs and and p-vals can differ greatly depending on how much auto-correlation is explaining the response in a voxel
+        ARMA notes: This experimental mode is similar to AFNI's 3dREMLFit but without spatial smoothing of voxel auto-correlation estimates. It can be **very computationally intensive** so parallelization is used by default to try to speed things up. Speed is limited because a unique ARMA model is fit to *each voxel* (like AFNI/FSL), but unlike SPM, which assumes the same AR parameters (~0.2) at each voxel. While coefficient results are typically very similar to OLS, std-errors and so t-stats, dfs and and p-vals can differ greatly depending on how much auto-correlation is explaining the response in a voxel
         relative to other regressors in the design matrix.
 
         Args:
@@ -706,7 +707,7 @@ class Brain_Data(object):
                             image2)))**.5).T, np.matrix(sigma))
             t_out = b / stderr
             df = image2.shape[0]-image2.shape[1]
-            p = 2*(1-t.cdf(np.abs(t_out), df))
+            p = 2*(1-t_dist.cdf(np.abs(t_out), df))
         else:
             raise NotImplementedError
 
