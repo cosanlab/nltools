@@ -16,7 +16,7 @@ __license__ = "MIT"
 
 import pickle # import cPickle
 from nilearn.signal import clean
-from scipy.stats import ttest_1samp, t, norm
+from scipy.stats import ttest_1samp, t, norm, spearmanr
 from scipy.signal import detrend
 from scipy.spatial.distance import squareform
 import os
@@ -30,7 +30,8 @@ import warnings
 import tempfile
 from copy import deepcopy
 import six
-from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.metrics.pairwise import pairwise_distances, cosine_similarity
+from sklearn.utils import check_random_state
 from pynv import Client
 from joblib import Parallel, delayed
 from nltools.mask import expand_mask, collapse_mask
@@ -43,7 +44,6 @@ from nilearn.plotting.img_plotting import plot_epi, plot_roi, plot_stat_map
 from nltools.utils import (get_resource_path,
                             set_algorithm,
                             get_anatomical,
-                            glover_hrf,
                             attempt_to_import,
                             concatenate,
                             _bootstrap_apply_func,
@@ -68,25 +68,19 @@ from nltools.stats import (pearson,
                            make_cosine_basis,
                            transform_pairwise,
                            summarize_bootstrap,
-                           regress)
+                           regress,
+                           procrustes)
 from nltools.pbs_job import PBS_Job
 from .adjacency import Adjacency
 from nltools.prefs import MNI_Template, resolve_mni_path
+from nltools.external.srm import DetSRM, SRM
 
 # Optional dependencies
+nx = attempt_to_import('networkx', 'nx')
 mne_stats = attempt_to_import('mne.stats',name='mne_stats', fromlist=
                                     ['spatio_temporal_cluster_1samp_test',
                                      'ttest_1samp_no_p'])
-try:
-    from mne.stats import (spatio_temporal_cluster_1samp_test,
-                           ttest_1samp_no_p)
-except ImportError:
-    pass
-
-try:
-    import networkx as nx
-except ImportError:
-    pass
+MAX_INT = np.iinfo(np.int32).max
 
 class Brain_Data(object):
 
@@ -570,19 +564,19 @@ class Brain_Data(object):
 
             Args:
                 image: Brain_Data or Nibabel instance of weight map
-
+                method: (str) Type of similarity
+                        ['correlation','dot_product','cosine']
             Returns:
                 pexp: Outputs a vector of pattern expression values
 
         """
 
         if not isinstance(image, Brain_Data):
-            if isinstance(image, nib.Nifti1Image):
-                image = Brain_Data(image, mask=self.mask)
-            else:
-                raise ValueError("Image is not a Brain_Data or nibabel "
-                                 "instance")
-        dim = image.shape()
+                if isinstance(image, nib.Nifti1Image):
+                    image = Brain_Data(image, mask=self.mask)
+                else:
+                    raise ValueError("Image is not a Brain_Data or nibabel "
+                                     "instance")
 
         # Check to make sure masks are the same for each dataset and if not
         # create a union mask
@@ -597,6 +591,21 @@ class Brain_Data(object):
         else:
             data2 = self.data
             image2 = image.data
+
+        def vector2array(data):
+            if len(data.shape) == 1:
+                return data.reshape(-1,1).T
+            else:
+                return data
+
+        def flatten_array(data):
+            if np.any(np.array(data.shape)==1):
+                data = data.flatten()
+                if len(data)==1 & data.shape[0]==1:
+                    data = data[0]
+                return data
+            else:
+                return data
 
         # Calculate pattern expression
         if method is 'dot_product':
@@ -621,9 +630,19 @@ class Brain_Data(object):
                     pexp = pearson(image2, data2)
             else:
                 pexp = pearson(image2, data2)
+        elif method is 'cosine':
+            image2 = vector2array(image2)
+            data2 = vector2array(data2)
+            if image2.shape[1] > 1:
+                pexp = []
+                for i in range(image2.shape[0]):
+                    pexp.append(cosine_similarity(image2[i, :].reshape(-1,1).T, data2).flatten())
+                pexp = np.array(pexp)
+            else:
+                pexp = cosine_similarity(image2, data2).flatten()
         else:
-            raise ValueError("Method must be one of: correlation, dot_product")
-        return pexp
+            raise ValueError('Method must be one of: correlation, dot_product, cosine')
+        return flatten_array(pexp)
 
     def distance(self, method='euclidean', **kwargs):
         """ Calculate distance between images within a Brain_Data() instance.
@@ -1222,7 +1241,7 @@ class Brain_Data(object):
         if isinstance(upper, six.string_types):
             if upper[-1] is '%':
                 upper = np.percentile(b.data, float(upper[:-1]))
-        if isinstance(upper, six.string_types):
+        if isinstance(lower, six.string_types):
             if lower[-1] is '%':
                 lower = np.percentile(b.data, float(lower[:-1]))
 
@@ -1289,7 +1308,7 @@ class Brain_Data(object):
         return out
 
     def bootstrap(self, function, n_samples=5000, save_weights=False,
-                    n_jobs=-1, *args, **kwargs):
+                    n_jobs=-1, random_state=None, *args, **kwargs):
         '''Bootstrap a Brain_Data method.
 
             Example Useage:
@@ -1308,9 +1327,14 @@ class Brain_Data(object):
 
         '''
 
+        random_state = check_random_state(random_state)
+        seeds = random_state.randint(MAX_INT, size=n_samples)
+
+
         bootstrapped = Parallel(n_jobs=n_jobs)(
                         delayed(_bootstrap_apply_func)(self,
-                        function, *args, **kwargs) for i in range(n_samples))
+                        function, random_state=seeds[i], *args, **kwargs)
+                        for i in range(n_samples))
 
         if function is 'predict':
             bootstrapped = [x['weight_map'] for x in bootstrapped]
@@ -1348,6 +1372,89 @@ class Brain_Data(object):
             out['components'] = self.empty()
             out['components'].data = out['decomposition_object'].components_
         return out
+
+    def align(self, target, method='procrustes', n_features=None, axis=0,
+              *args, **kwargs):
+        ''' Align Brain_Data instance to target object
+
+        Can be used to hyperalign source data to target data using
+        Hyperalignemnt from Dartmouth (i.e., procrustes transformation; see
+        nltools.stats.procrustes) or Shared Response Model from Princeton (see
+        nltools.external.srm). (see nltools.stats.align for aligning many data
+        objects together). Common Model is shared response model or centered
+        target data.Transformed data can be back projected to original data
+        using Tranformation matrix.
+
+        Examples:
+            Hyperalign using procrustes transform:
+                out = data.align(target, method='procrustes')
+
+            Align using shared response model:
+                out = data.align(target, method='probabilistic_srm', n_features=None)
+
+            Project aligned data into original data:
+                original_data = np.dot(out['transformed'].data,out['transformation_matrix'].T)
+
+        Args:
+            target: (Brain_Data) object to align to.
+            method: (str) alignment method to use
+                ['probabilistic_srm','deterministic_srm','procrustes']
+            n_features: (int) number of features to align to common space.
+                If None then will select number of voxels
+            axis: (int) axis to align on
+
+        Returns:
+            out: (dict) a dictionary containing transformed object,
+                transformation matrix, and the shared response matrix
+
+        '''
+
+        source = self.copy()
+        common = target.copy()
+
+        assert isinstance(target, Brain_Data), "Target must be Brain_Data instance."
+        assert method in ['probabilistic_srm', 'deterministic_srm','procrustes'], "Method must be ['probabilistic_srm','deterministic_srm','procrustes']"
+
+        data1 = source.data.T
+        data2 = target.data.T
+
+        if axis == 1:
+            data1 = data1.T
+            data2 = data2.T
+
+        out = dict()
+        if method in ['deterministic_srm', 'probabilistic_srm']:
+            if n_features is None:
+                n_features = data1.shape[0]
+            if method == 'deterministic_srm':
+                srm = DetSRM(features=n_features, *args, **kwargs)
+            elif method == 'probabilistic_srm':
+                srm = SRM(features=n_features, *args, **kwargs)
+            srm.fit([data1, data2])
+            source.data = srm.transform([data1, data2])[0].T
+            common.data = srm.s_.T
+            out['transformed'] = source
+            out['common_model'] = common
+            out['transformation_matrix'] = srm.w_[0]
+        elif method == 'procrustes':
+            if n_features != None:
+                raise NotImplementedError('Currently must use all voxels.'
+                                            'Eventually will add a PCA'
+                                            'reduction, must do this manually'
+                                            'for now.')
+
+            mtx1, mtx2, out['disparity'], t, out['scale'] = procrustes(data2.T,
+                                                                       data1.T)
+            source.data = mtx2
+            common.data = mtx1
+            out['transformed'] = source
+            out['common_model'] = common
+            out['transformation_matrix'] = t
+        if axis == 1:
+            out['transformed'].data = out['transformed'].data.T
+            out['common_model'].data = out['common_model'].data.T
+        return out
+
 
 class Groupby(object):
     def __init__(self, data, mask):
