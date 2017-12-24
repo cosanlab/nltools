@@ -33,6 +33,7 @@ __all__ = ['pearson',
 import numpy as np
 import pandas as pd
 from scipy.stats import pearsonr, spearmanr, kendalltau, norm
+from scipy.stats import t as t_dist
 from copy import deepcopy
 import nibabel as nib
 from scipy.interpolate import interp1d
@@ -706,7 +707,7 @@ def regress(X,Y,mode='ols',**kwargs):
         1) 'hc0' - classic huber-white estimator robust to heteroscedasticity (default)
         2) 'hc3' - a variant on huber-white estimator slightly more conservative when sample sizes are small
         3) 'hac' - an estimator robust to both heteroscedasticity and auto-correlation; auto-correlation lag can be controlled with the 'nlags' keyword argument; default is 1
-    3) ARMA (auto-regressive moving-average) model. This model is fit through statsmodels.tsa.arima_model.ARMA, so more information about options can be found there. Any settings can be passed in as kwargs. By default fits a (1,1) model with starting lags of 2. This mode is **computationally intensive** and can take quite a while if Y has many columns.  If Y is a 2d array joblib.Parallel is used for faster fitting by parallelizing fits across columns of Y. Parallelization can be controlled by passing in kwargs. Defaults to multi-threading using 10 separate threads, as threads don't require large arrays to be duplicated in memory. Defaults are also set to enable memory-mapping for very large arrays if backend='multiprocessing' to prevent crashes and hangs. Various levels of progress can be monitored using the 'disp' (statsmodels) and 'verbose' (joblib) keyword arguments with integer values > 0.
+    3) ARMA (auto-regressive moving-average) model (experimental). This model is fit through statsmodels.tsa.arima_model.ARMA, so more information about options can be found there. Any settings can be passed in as kwargs. By default fits a (1,1) model with starting lags of 2. This mode is **computationally intensive** and can take quite a while if Y has many columns.  If Y is a 2d array joblib.Parallel is used for faster fitting by parallelizing fits across columns of Y. Parallelization can be controlled by passing in kwargs. Defaults to multi-threading using 10 separate threads, as threads don't require large arrays to be duplicated in memory. Defaults are also set to enable memory-mapping for very large arrays if backend='multiprocessing' to prevent crashes and hangs. Various levels of progress can be monitored using the 'disp' (statsmodels) and 'verbose' (joblib) keyword arguments with integer values > 0.
 
     Args:
         X (ndarray): design matrix; assumes intercept is included
@@ -772,7 +773,7 @@ def regress(X,Y,mode='ols',**kwargs):
 
         t = b / stderr
         df = np.array([X.shape[0]-X.shape[1]] * t.shape[1])
-        p = 2*(1-t.cdf(np.abs(t),df))
+        p = 2*(1-t_dist.cdf(np.abs(t),df))
 
     # ARMA regression
     elif mode == 'arma':
@@ -821,7 +822,7 @@ def regress(X,Y,mode='ols',**kwargs):
         else:
             b,t,p,df,res = _arma_func()
 
-        return b, t, p, df, res
+    return b, t, p, df, res
 
 
 def align(data, method='deterministic_srm', n_features=None, axis=0,
