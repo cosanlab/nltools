@@ -13,6 +13,8 @@ import numpy as np
 import six
 from copy import deepcopy
 from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.manifold import MDS
+from sklearn.utils import check_random_state
 from scipy.spatial.distance import squareform
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -27,7 +29,6 @@ from nltools.utils import (all_same,
                            concatenate,
                            _bootstrap_apply_func)
 from joblib import Parallel, delayed
-from sklearn.utils import check_random_state
 
 # Optional dependencies
 nx = attempt_to_import('networkx', 'nx')
@@ -516,9 +517,13 @@ class Adjacency(object):
 
         if self.is_single_matrix:
             if self.matrix_type == 'directed':
-                return nx.DiGraph(self.squareform())
+                G = nx.DiGraph(self.squareform())
             else:
-                return nx.Graph(self.squareform())
+                G = nx.Graph(self.squareform())
+            if self.labels is not None:
+                labels = {x:y for x,y in zip(G.nodes,self.labels)}
+                nx.relabel_nodes(G, labels, copy=False)
+            return G
         else:
             raise NotImplementedError('This function currently only works on '
                                       'single matrices.')
@@ -668,7 +673,7 @@ class Adjacency(object):
         bootstrapped = Adjacency(bootstrapped)
         return summarize_bootstrap(bootstrapped, save_weights=save_weights)
 
-    def plot_mds(self, n_components=2, metric=True, labels_color=None, 
+    def plot_mds(self, n_components=2, metric=True, labels_color=None,
                  cmap=plt.cm.hot_r, n_jobs=-1, view=(30, 20), *args, **kwargs):
         ''' Plot Multidimensional Scaling
 
