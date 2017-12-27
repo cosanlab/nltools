@@ -43,4 +43,5 @@ htmlcov/
 
 # TOX
 #####
+.tox
 .tox/*
