@@ -344,19 +344,24 @@ class Brain_Data(object):
             anatomical = nib.load(resolve_mni_path(MNI_Template)['plot'])
 
         if self.data.ndim == 1:
+            f, a = plt.subplots(nrows=1, figsize=(15, 2))
             plot_stat_map(self.to_nifti(), anatomical,
                           cut_coords=range(-40, 50, 10), display_mode='z',
-                          black_bg=True, colorbar=True, draw_cross=False,**kwargs)
+                          black_bg=True, colorbar=True, draw_cross=False,
+                          axes=a, **kwargs)
         else:
-            for i in range(self.data.shape[0]):
-                if i < limit:
-                     plot_stat_map(self[i].to_nifti(), anatomical,
-                                   cut_coords=range(-40, 50, 10),
-                                   display_mode='z',
-                                   black_bg=True,
-                                   colorbar=True,
-                                   draw_cross=False,
-                                   **kwargs)
+            n_subs = np.minimum(self.data.shape[0], limit)
+            f, a = plt.subplots(nrows=n_subs, figsize=(15, len(self)*2))
+            for i in range(n_subs):
+                plot_stat_map(self[i].to_nifti(), anatomical,
+                              cut_coords=range(-40, 50, 10),
+                              display_mode='z',
+                              black_bg=True,
+                              colorbar=True,
+                              draw_cross=False,
+                              axes = a[i],
+                              **kwargs)
+        return f
 
     def regress(self,robust=False,nlags=1):
         """ Run vectorized OLS regression across voxels with optional robust estimation of standard errors (i.e. sandwich estimators). Robust estimators do not change values of beta coefficients.
