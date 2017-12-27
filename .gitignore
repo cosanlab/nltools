@@ -5,7 +5,7 @@ docs/_*/*
 docs/auto_examples
 docs/modules
 *.log
-nltools.egg-info
+*.egg*
 build/
 dist/
 .cache/
@@ -33,10 +33,15 @@ thumbs.db
 Thumbs.db
 
 # Tests & Coverage
-######################
+##################
 .coverage
 htmlcov/
 
 # PyCharm
-######################
+#########
 .idea
+
+# TOX
+#####
+.tox
+.tox/*
