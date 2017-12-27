@@ -88,7 +88,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'nltools'
-copyright = u'2015, Luke Chang'
+copyright = u'2018, Luke Chang'
 author = u'Luke Chang'
 
 # The version info for the project you're documenting, acts as replacement for

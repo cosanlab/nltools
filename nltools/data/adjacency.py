@@ -13,6 +13,8 @@ import numpy as np
 import six
 from copy import deepcopy
 from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.manifold import MDS
+from sklearn.utils import check_random_state
 from scipy.spatial.distance import squareform
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -27,7 +29,6 @@ from nltools.utils import (all_same,
                            concatenate,
                            _bootstrap_apply_func)
 from joblib import Parallel, delayed
-from sklearn.utils import check_random_state
 
 # Optional dependencies
 nx = attempt_to_import('networkx', 'nx')
@@ -51,7 +52,8 @@ class Adjacency(object):
 
     '''
 
-    def __init__(self, data=None, Y=None, matrix_type=None, **kwargs):
+    def __init__(self, data=None, Y=None, matrix_type=None, labels=None,
+                 **kwargs):
         if matrix_type is not None:
             if matrix_type.lower() not in ['distance','similarity','directed',
                                             'distance_flat','similarity_flat',
@@ -103,6 +105,26 @@ class Adjacency(object):
                 raise ValueError("Make sure Y is a pandas data frame.")
         else:
             self.Y = pd.DataFrame()
+
+        if labels is not None:
+            assert isinstance(labels, (list, np.ndarray)), "Make sure labels is a list or numpy array."
+            if self.is_single_matrix:
+                assert len(labels) == self.square_shape()[0], 'Make sure the length of labels matches the shape of data.'
+                self.labels = deepcopy(labels)
+            else:
+                if len(labels) != len(self):
+                    if len(labels) != self.square_shape()[0]:
+                        raise ValueError('Make sure length of labels either '
+                                         'matches the number of Adjacency '
+                                         'matrices or the size of a single '
+                                         'matrix.')
+                    else:
+                        self.labels = list(labels) * len(self)
+                else:
+                    assert np.all(np.array([len(x) for x in labels])==self.square_shape()[0]), "All lists of labels must be same length as shape of data."
+                    self.labels = deepcopy(labels)
+        else:
+            self.labels = None
 
     def __repr__(self):
         return ("%s.%s(shape=%s, square_shape=%s, Y=%s, is_symmetric=%s,"
@@ -278,16 +300,33 @@ class Adjacency(object):
                 return [x.data.reshape(int(np.sqrt(x.data.shape[0])),
                             int(np.sqrt(x.data.shape[0]))) for x in self]
 
-    def plot(self, limit=3, **kwargs):
+    def plot(self, limit=3, *args, **kwargs):
         ''' Create Heatmap of Adjacency Matrix'''
+
         if self.is_single_matrix:
-            return sns.heatmap(self.squareform(), square=True, **kwargs)
+            f, a = plt.subplots(nrows=1, figsize=(7, 5))
+            if self.labels is None:
+                sns.heatmap(self.squareform(), square=True, ax=a,
+                                   *args, **kwargs)
+            else:
+                sns.heatmap(self.squareform(), square=True, ax=a,
+                                   xticklabels=self.labels,
+                                   yticklabels=self.labels,
+                                   *args, **kwargs)
         else:
-            f, a = plt.subplots(limit)
-            for i in range(limit):
-                sns.heatmap(self[i].squareform(), square=True, ax=a[i],
-                            **kwargs)
-            return f
+            n_subs = np.minimum(len(self), limit)
+            f, a = plt.subplots(nrows=n_subs, figsize=(7, len(self)*5))
+            if self.labels is None:
+                for i in range(n_subs):
+                    sns.heatmap(self[i].squareform(), square=True, ax=a[i],
+                                *args, **kwargs)
+            else:
+                for i in range(n_subs):
+                    sns.heatmap(self[i].squareform(), square=True,
+                                xticklabels=self.labels[i],
+                                yticklabels=self.labels[i],
+                                ax=a[i], *args, **kwargs)
+        return f
 
     def mean(self, axis=0):
         ''' Calculate mean of Adjacency
@@ -436,26 +475,44 @@ class Adjacency(object):
         return Adjacency(pairwise_distances(self.data, metric=method, **kwargs),
                          matrix_type='distance')
 
-    def threshold(self, thresh=0, binarize=False):
-        '''Threshold Adjacency instance
+    def threshold(self, upper=None, lower=None, binarize=False):
+        '''Threshold Adjacency instance. Provide upper and lower values or
+           percentages to perform two-sided thresholding. Binarize will return
+           a mask image respecting thresholds if provided, otherwise respecting
+           every non-zero value.
 
         Args:
-            thresh: cutoff to threshold image (float).  if 'threshold'=50%,
-                    will calculate percentile.
-            binarize (bool): if 'binarize'=True then binarize output
+            upper: (float or str) Upper cutoff for thresholding. If string
+                    will interpret as percentile; can be None for one-sided
+                    thresholding.
+            lower: (float or str) Lower cutoff for thresholding. If string
+                    will interpret as percentile; can be None for one-sided
+                    thresholding.
+            binarize (bool): return binarized image respecting thresholds if
+                    provided, otherwise binarize on every non-zero value;
+                    default False
+
         Returns:
             Brain_Data: thresholded Brain_Data instance
 
         '''
 
         b = self.copy()
-        if isinstance(thresh, six.string_types):
-            if thresh[-1] is '%':
-                thresh = np.percentile(b.data, float(thresh[:-1]))
+        if isinstance(upper, six.string_types):
+            if upper[-1] is '%':
+                upper = np.percentile(b.data, float(upper[:-1]))
+        if isinstance(lower, six.string_types):
+            if lower[-1] is '%':
+                lower = np.percentile(b.data, float(lower[:-1]))
+
+        if upper and lower:
+            b.data[(b.data < upper) & (b.data > lower)] = 0
+        elif upper and not lower:
+            b.data[b.data < upper] = 0
+        elif lower and not upper:
+            b.data[b.data > lower] = 0
         if binarize:
-            b.data = b.data > thresh
-        else:
-            b.data[b.data < thresh] = 0
+            b.data[b.data != 0] = 1
         return b
 
     def to_graph(self):
@@ -464,9 +521,13 @@ class Adjacency(object):
 
         if self.is_single_matrix:
             if self.matrix_type == 'directed':
-                return nx.DiGraph(self.squareform())
+                G = nx.DiGraph(self.squareform())
             else:
-                return nx.Graph(self.squareform())
+                G = nx.Graph(self.squareform())
+            if self.labels is not None:
+                labels = {x:y for x,y in zip(G.nodes,self.labels)}
+                nx.relabel_nodes(G, labels, copy=False)
+            return G
         else:
             raise NotImplementedError('This function currently only works on '
                                       'single matrices.')
@@ -484,7 +545,7 @@ class Adjacency(object):
         pval = Adjacency(np.array(p))
         return (mn, pval)
 
-    def plot_label_distance(self, labels, ax=None):
+    def plot_label_distance(self, labels=None, ax=None):
         ''' Create a violin plot indicating within and between label distance
 
             Args:
@@ -501,8 +562,11 @@ class Adjacency(object):
 
         distance = pd.DataFrame(self.squareform())
 
-        if len(labels) != distance.shape[0]:
-            raise ValueError('Labels must be same length as distance matrix')
+        if labels is None:
+            labels = np.array(deepcopy(self.labels))
+        else:
+            if len(labels) != distance.shape[0]:
+                raise ValueError('Labels must be same length as distance matrix')
 
         within = []; between = []
         out = pd.DataFrame(columns=['Distance', 'Group', 'Type'], index=None)
@@ -522,7 +586,7 @@ class Adjacency(object):
         f.set_title('Average Group Distance')
         return f
 
-    def stats_label_distance(self, labels, n_permute=5000, n_jobs=-1):
+    def stats_label_distance(self, labels=None, n_permute=5000, n_jobs=-1):
         ''' Calculate permutation tests on within and between label distance.
 
             Args:
@@ -541,8 +605,11 @@ class Adjacency(object):
 
         distance = pd.DataFrame(self.squareform())
 
-        if len(labels) != distance.shape[0]:
-            raise ValueError('Labels must be same length as distance matrix')
+        if labels is not None:
+            labels = deepcopy(self.labels)
+        else:
+            if len(labels) != distance.shape[0]:
+                raise ValueError('Labels must be same length as distance matrix')
 
         within = []; between = []
         out = pd.DataFrame(columns=['Distance', 'Group', 'Type'], index=None)
@@ -565,17 +632,20 @@ class Adjacency(object):
                                         n_permute=n_permute, n_jobs=n_jobs)
         return stats
 
-    def plot_silhouette(self, labels, ax=None, permutation_test=True,
+    def plot_silhouette(self, labels=None, ax=None, permutation_test=True,
                         n_permute=5000, **kwargs):
         '''Create a silhouette plot'''
         distance = pd.DataFrame(self.squareform())
 
-        if len(labels) != distance.shape[0]:
-            raise ValueError('Labels must be same length as distance matrix')
+        if labels is None:
+            labels = np.array(deepcopy(self.labels))
+        else:
+            if len(labels) != distance.shape[0]:
+                raise ValueError('Labels must be same length as distance matrix')
 
-        (f,outAll) = plot_silhouette(distance, labels, ax=None,
-                                    permutation_test=True,
-                                    n_permute=5000, **kwargs)
+        (f, outAll) = plot_silhouette(distance, labels, ax=None,
+                                      permutation_test=True,
+                                      n_permute=5000, **kwargs)
         return (f,outAll)
 
     def bootstrap(self, function, n_samples=5000, save_weights=False,
@@ -606,3 +676,56 @@ class Adjacency(object):
                         for i in range(n_samples))
         bootstrapped = Adjacency(bootstrapped)
         return summarize_bootstrap(bootstrapped, save_weights=save_weights)
+
+    def plot_mds(self, n_components=2, metric=True, labels_color=None,
+                 cmap=plt.cm.hot_r, n_jobs=-1, view=(30, 20), *args, **kwargs):
+        ''' Plot Multidimensional Scaling
+
+            Args:
+                n_components: (int) Number of dimensions to project (can be 2 or 3)
+                metric: (bool) Perform metric or non-metric dimensional scaling; default
+                labels_color: (str) list of colors for labels, if len(1) then make all same color
+                n_jobs: (int) Number of parallel jobs
+                view: (tuple) view for 3-Dimensional plot; default (30,20)
+
+            Returns:
+                fig: returns matplotlib figure
+        '''
+
+        assert self.matrix_type == 'distance', "MDS only works on distance matrices."
+        assert ~self.is_single_matrix, "MDS only works on single matrices."
+        assert n_components == 2 or n_components==3, 'Cannot plot {0}-d image'.format(n_components)
+        if labels_color is not None:
+            assert self.labels is not None, "Make sure that Adjacency object has labels specified."
+            assert len(self.labels) == len(labels_color), "Length of labels_color must match self.labels."
+
+        # Run MDS
+        mds = MDS(n_components=n_components, metric=metric, n_jobs=n_jobs,
+                           dissimilarity="precomputed", *args, **kwargs)
+        proj = mds.fit_transform(self.squareform())
+
+        # Create Plot
+        fig = plt.figure(figsize=(12, 8))
+        if n_components == 3:
+            ax = fig.add_subplot(111, projection='3d')
+            ax.scatter(proj[:, 0], proj[:, 1], proj[:, 2], s=100, c='k')
+            ax.view_init(*view)
+        elif n_components == 2:
+            ax = fig.add_subplot(111)
+            ax.scatter(proj[:, 0], proj[:, 1], s=100, c='k')
+
+        if labels_color is None:
+            labels_color = ['black'] * len(self.labels)
+        if n_components == 3:
+            for ((x, y, z), label, color) in zip(proj, self.labels, labels_color):
+                 ax.text(x, y, z, label, color='white', #color,
+                         bbox=dict(facecolor=color, alpha=1, boxstyle="round,pad=0.3"))
+        else:
+            for ((x, y), label, color) in zip(proj, self.labels, labels_color):
+                ax.text(x, y, label, color='white', #color,
+                        bbox=dict(facecolor=color, alpha=1, boxstyle="round,pad=0.3"))
+
+        ax.xaxis.set_visible(False)
+        ax.yaxis.set_visible(False)
+
+        return fig
