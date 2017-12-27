@@ -300,29 +300,33 @@ class Adjacency(object):
                 return [x.data.reshape(int(np.sqrt(x.data.shape[0])),
                             int(np.sqrt(x.data.shape[0]))) for x in self]
 
-    def plot(self, limit=3, **kwargs):
+    def plot(self, limit=3, *args, **kwargs):
         ''' Create Heatmap of Adjacency Matrix'''
+
         if self.is_single_matrix:
+            f, a = plt.subplots(nrows=1, figsize=(7, 5))
             if self.labels is None:
-                return sns.heatmap(self.squareform(), square=True, **kwargs)
+                sns.heatmap(self.squareform(), square=True, ax=a,
+                                   *args, **kwargs)
             else:
-                return sns.heatmap(self.squareform(), square=True,
+                sns.heatmap(self.squareform(), square=True, ax=a,
                                    xticklabels=self.labels,
                                    yticklabels=self.labels,
-                                   **kwargs)
+                                   *args, **kwargs)
         else:
-            f, a = plt.subplots(limit)
+            n_subs = np.minimum(len(self), limit)
+            f, a = plt.subplots(nrows=n_subs, figsize=(7, len(self)*5))
             if self.labels is None:
-                for i in range(limit):
+                for i in range(n_subs):
                     sns.heatmap(self[i].squareform(), square=True, ax=a[i],
-                                **kwargs)
+                                *args, **kwargs)
             else:
-                for i in range(limit):
+                for i in range(n_subs):
                     sns.heatmap(self[i].squareform(), square=True,
                                 xticklabels=self.labels[i],
                                 yticklabels=self.labels[i],
-                                ax=a[i], **kwargs)
-            return f
+                                ax=a[i], *args, **kwargs)
+        return f
 
     def mean(self, axis=0):
         ''' Calculate mean of Adjacency
@@ -558,8 +562,8 @@ class Adjacency(object):
 
         distance = pd.DataFrame(self.squareform())
 
-        if labels is not None:
-            labels = deepcopy(self.labels)
+        if labels is None:
+            labels = np.array(deepcopy(self.labels))
         else:
             if len(labels) != distance.shape[0]:
                 raise ValueError('Labels must be same length as distance matrix')
@@ -633,15 +637,15 @@ class Adjacency(object):
         '''Create a silhouette plot'''
         distance = pd.DataFrame(self.squareform())
 
-        if labels is not None:
-            labels = deepcopy(self.labels)
+        if labels is None:
+            labels = np.array(deepcopy(self.labels))
         else:
             if len(labels) != distance.shape[0]:
                 raise ValueError('Labels must be same length as distance matrix')
 
-        (f,outAll) = plot_silhouette(distance, labels, ax=None,
-                                    permutation_test=True,
-                                    n_permute=5000, **kwargs)
+        (f, outAll) = plot_silhouette(distance, labels, ax=None,
+                                      permutation_test=True,
+                                      n_permute=5000, **kwargs)
         return (f,outAll)
 
     def bootstrap(self, function, n_samples=5000, save_weights=False,
