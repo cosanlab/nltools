@@ -707,6 +707,7 @@ class Adjacency(object):
 
         # Create Plot
         if ax == None: # Create axis
+            returnFig = True
             fig = plt.figure(figsize=figsize)
             if n_components == 3:
                 ax = fig.add_subplot(111, projection='3d')
@@ -735,5 +736,5 @@ class Adjacency(object):
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
 
-        if ax == None:
+        if returnFig:
           return fig
