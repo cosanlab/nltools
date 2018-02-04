@@ -678,7 +678,8 @@ class Adjacency(object):
         return summarize_bootstrap(bootstrapped, save_weights=save_weights)
 
     def plot_mds(self, n_components=2, metric=True, labels_color=None,
-                 cmap=plt.cm.hot_r, n_jobs=-1, view=(30, 20), *args, **kwargs):
+                 cmap=plt.cm.hot_r, n_jobs=-1, view=(30, 20),
+                 figsize = [12,8], ax = None, *args, **kwargs):
         ''' Plot Multidimensional Scaling
 
             Args:
@@ -705,15 +706,22 @@ class Adjacency(object):
         proj = mds.fit_transform(self.squareform())
 
         # Create Plot
-        fig = plt.figure(figsize=(12, 8))
-        if n_components == 3:
-            ax = fig.add_subplot(111, projection='3d')
-            ax.scatter(proj[:, 0], proj[:, 1], proj[:, 2], s=100, c='k')
-            ax.view_init(*view)
-        elif n_components == 2:
-            ax = fig.add_subplot(111)
-            ax.scatter(proj[:, 0], proj[:, 1], s=100, c='k')
+        if ax == None: # Create axis
+            returnFig = True
+            fig = plt.figure(figsize=figsize)
+            if n_components == 3:
+                ax = fig.add_subplot(111, projection='3d')
+                ax.view_init(*view)
+            elif n_components == 2:
+                ax = fig.add_subplot(111)
 
+        # Plot dots
+        if n_components == 3:
+            ax.scatter(proj[:, 0], proj[:, 1], proj[:, 2], s=1, c='k')
+        elif n_components == 2:
+            ax.scatter(proj[:, 0], proj[:, 1], s=1, c='k')
+
+        # Plot labels
         if labels_color is None:
             labels_color = ['black'] * len(self.labels)
         if n_components == 3:
@@ -728,4 +736,5 @@ class Adjacency(object):
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
 
-        return fig
+        if returnFig:
+          return fig
