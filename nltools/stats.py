@@ -588,15 +588,18 @@ def transform_pairwise(X, y):
 
     Returns:
         X_trans : array, shape (k, n_feaures)
-            Data as pairs
+            Data as pairs, where k = n_samples * (n_samples-1)) / 2 if grouping
+            values were not passed. If grouping variables exist, then returns
+            values computed for each group.
         y_trans : array, shape (k,)
             Output class labels, where classes have values {-1, +1}
-
+            If y was shape (n_samples, 2), then returns (k, 2) with groups on
+            the second dimension.
     '''
 
     X_new = []
     y_new = []
-    y = np.asarray(y).flatten()
+    y_ndim = y.ndim
     if y.ndim == 1:
         y = np.c_[y, np.ones(y.shape[0])]
     comb = itertools.combinations(range(X.shape[0]), 2)
@@ -610,7 +613,10 @@ def transform_pairwise(X, y):
         if y_new[-1] != (-1) ** k:
             y_new[-1] = - y_new[-1]
             X_new[-1] = - X_new[-1]
-    return np.asarray(X_new), np.asarray(y_new).ravel()
+    if y_ndim == 1:
+        return np.asarray(X_new), np.asarray(y_new).ravel()
+    elif y_ndim == 2:
+        return np.asarray(X_new), np.vstack((np.asarray(y_new),np.asarray(y_group))).T
 
 def _robust_estimator(vals,X,robust_estimator='hc0',nlags=1):
     """
