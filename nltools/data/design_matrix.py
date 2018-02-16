@@ -19,14 +19,7 @@ import matplotlib.pyplot as plt
 import warnings
 import six
 from ..external.hrf import glover_hrf
-from nltools.stats import (pearson,
-                           fdr,
-                           threshold,
-                           fisher_r_to_z,
-                           correlation_permutation,
-                           one_sample_permutation,
-                           two_sample_permutation,
-                           downsample,
+from nltools.stats import (downsample,
                            upsample,
                            zscore,
                            make_cosine_basis
@@ -60,23 +53,23 @@ class Design_Matrix(DataFrame):
         new design matrix instance.
 
     Args:
+        sampling_rate (float): sampling rate of each row in seconds (e.g. TR in neuroimaging)
         convolved (list, optional): on what columns convolution has been performed; defaults to None
-        hasIntercept (bool, optional): whether the design matrix has an
-                            intercept column; defaults to False
-        sampling_rate (float, optional): sampling rate of each row in seconds (e.g. TR in neuroimaging); defaults to None
+        polys (list, optional): list of polynomial terms in design matrix, e.g. intercept, polynomial trends, basis functions, etc; default None
+
 
     """
 
-    _metadata = ['sampling_rate', 'convolved', 'hasIntercept']
+    _metadata = ['sampling_rate', 'convolved', 'polys']
 
     def __init__(self, *args, **kwargs):
 
-        sampling_rate = kwargs.pop('sampling_rate', None)
-        convolved = kwargs.pop('convolved', None)
-        hasIntercept = kwargs.pop('hasIntercept', False)
+        sampling_rate = kwargs.pop('sampling_rate',None)
+        convolved = kwargs.pop('convolved', [])
+        polys = kwargs.pop('polys', [])
         self.sampling_rate = sampling_rate
         self.convolved = convolved
-        self.hasIntercept = hasIntercept
+        self.polys = polys
 
         super(Design_Matrix, self).__init__(*args, **kwargs)
 
@@ -88,43 +81,82 @@ class Design_Matrix(DataFrame):
     def _constructor_sliced(self):
         return Design_Matrix_Series
 
+    def _inherit_attributes(self,
+                            dm_out,
+                            atts=[
+                            'sampling_rate',
+                            'convolved',
+                            'polys']):
+
+        """
+        This is helper function that simply ensures that attributes are copied over from an the current Design_Matrix to a new Design_Matrix.
+
+        Args:
+            dm_out (Design_Matrix): the new design matrix to copy attributes to
+            atts (list; optional): the list of attributes to copy
+
+        Returns:
+            dm_out (Design_matrix): new design matrix
+
+        """
+
+        for item in atts:
+            setattr(dm_out, item, getattr(self,item))
+        return dm_out
 
     def info(self):
         """Print class meta data.
 
         """
-        return '%s.%s(sampling_rate=%s, shape=%s, convolved=%s, hasIntercept=%s)' % (
+        return '%s.%s(sampling_rate=%s, shape=%s, convolved=%s, constant_terms=%s)' % (
             self.__class__.__module__,
             self.__class__.__name__,
             self.sampling_rate,
             self.shape,
             self.convolved,
-            self.hasIntercept
+            self.polys
             )
 
-    def append(self, df, axis, **kwargs):
+    def append(self, dm, axis=0, keep_separate = True, addpoly = None, unique_cols = [], include_lower = True,fill_na=0):
         """Method for concatenating another design matrix row or column-wise.
             Can "uniquify" certain columns when appending row-wise, and by
-            default will attempt to do that with the intercept.
+            default will attempt to do that with all polynomial terms (e.g. intercept, polynomial trends).
 
         Args:
-            axis (int): 0 for row-wise (vert-cat), 1 for column-wise (horz-cat)
-            separate (bool,optional): whether try and uniquify columns;
+            dm (Design_Matrix or list): design_matrix or list of design_matrices to append
+            axis (int): 0 for row-wise (vert-cat), 1 for column-wise (horz-cat); default 0
+            keep_separate (bool,optional): whether try and uniquify columns;
                                         defaults to True; only applies
                                         when axis==0
-            addIntercept (bool,optional): whether to add intercepts to matrices
-                                        before appending; defaults to False;
+            addpoly (int,optional): what order polynomial terms to add during append, only applied when axis = 0; defaults None;
                                         only applies when axis==0
-            uniqueCols (list,optional): what additional columns to try to keep
-                                        separated by uniquifying; defaults to
-                                        intercept only; only applies when
-                                        axis==0
+            unique_cols (list,optional): what additional columns to try to keep
+                                        separated by uniquifying, only applies when
+                                        axis = 0; defaults to None
+            include_lower (bool,optional): whether to also add lower order polynomial terms; only applies when addpoly is not None
+            fill_na (str/int/float): if provided will fill NaNs with this value during row-wise appending (when axis = 0) if separate columns are desired; default 0
 
         """
+        if isinstance(dm, list):
+            # Check that the first object in a list is a design matrix
+            if not isinstance(dm[0],self.__class__):
+                raise TypeError("Can only append other Design_Matrix objects!")
+            # Check all remaining objects are also design matrices
+            if not all([isinstance(elem,dm[0].__class__) for elem in dm]):
+                raise TypeError("Each object in list must be a Design_Matrix!")
+        elif not isinstance(dm, self.__class__):
+            raise TypeError("Can only append other Design_Matrix objects")
+
         if axis == 1:
-            return self.horzcat(df)
+            if isinstance(dm,self.__class__):
+                if not set(self.columns).isdisjoint(dm.columns):
+                    warnings.warn("Duplicate column names detected. Will be repeated.")
+            else:
+                if any([not set(self.columns).isdisjoint(elem.columns) for elem in dm]):
+                    warnings.warn("Duplicate column names detected. Will be repeated.")
+            return self.horzcat(dm)
         elif axis == 0:
-            return self.vertcat(df, **kwargs)
+            return self.vertcat(dm, keep_separate=keep_separate,addpoly=addpoly,unique_cols=unique_cols,include_lower=include_lower,fill_na=fill_na)
         else:
             raise ValueError("Axis must be 0 (row) or 1 (column)")
 
@@ -134,74 +166,82 @@ class Design_Matrix(DataFrame):
             (horz cat). Always returns a new design_matrix.
 
         """
-        if self.shape[0] != df.shape[0]:
-            raise ValueError("Can't append differently sized design matrices! "
-                             "Mat 1 has %s rows and Mat 2 has %s rows."
-                            % (self.shape[0]), df.shape[0])
-        out = pd.concat([self, df], axis=1)
-        out.sampling_rate = self.sampling_rate
-        out.convolved = self.convolved
-        out.hasIntercept = self.hasIntercept
+
+        if not isinstance(df, list):
+            to_append = [df]
+        else:
+            to_append = df # No need to copy here cause we're not altering df
+        if all([elem.shape[0] == self.shape[0] for elem in to_append]):
+            out = pd.concat([self] + to_append, axis=1)
+        else:
+            raise ValueError("All Design Matrices must have the same number of rows!")
+        out = self._inherit_attributes(out)
         return out
 
-
-    def vertcat(self, df, separate=True, addIntercept=False, uniqueCols=[]):
+    def vertcat(self, df, keep_separate, addpoly, unique_cols, include_lower,fill_na):
         """Used by .append(). Append another design matrix row-wise (vert cat).
             Always returns a new design matrix.
 
         """
 
-        outdf = df.copy()
-        assert self.hasIntercept == outdf.hasIntercept, ("Intercepts are "
-                "ambigious. Both design matrices should match in whether "
-                "they do or don't have intercepts.")
+        if unique_cols and not keep_separate:
+            raise ValueError("Unique columns provided by keep_separate set to False. Set keep_separate to True to separate unique_cols")
 
-        if addIntercept:
-            self['intercept'] = 1
-            self.hasIntercept = True
-            outdf['intercept'] = 1
-            outdf.hasIntercept = True
-        if separate:
-            if self.hasIntercept:
-                uniqueCols += ['intercept']
-            idx_1 = []
-            idx_2 = []
-            for col in uniqueCols:
-                # To match substrings within column names, we loop over each
-                # element and search for the uniqueCol as a substring within it;
-                # first we do to check if the uniqueCol actually occurs in both
-                # design matrices, if so then we change it's name before
-                # concatenating
-                joint = set(self.columns) & set(outdf.columns)
-                shared = [elem for elem in joint if col in elem]
-                if shared:
-                    idx_1 += [i for i, elem in enumerate(self.columns) if col in elem]
-                    idx_2 += [i for i, elem in enumerate(outdf.columns) if col in elem]
-            aRename = {self.columns[elem]: '0_'+self.columns[elem] for i, elem in enumerate(idx_1)}
-            bRename = {outdf.columns[elem]: '1_'+outdf.columns[elem] for i, elem in enumerate(idx_2)}
-            if aRename:
-                out = self.rename(columns=aRename)
-                outdf = outdf.rename(columns=bRename)
-                colOrder = []
-                #retain original column order as closely as possible
-                for colA,colB in zip(out.columns, outdf.columns):
-                    colOrder.append(colA)
-                    if colA != colB:
-                        colOrder.append(colB)
-                out = super(Design_Matrix, out).append(outdf, ignore_index=True)
-                # out = out.append(outdf,separate=False,axis=0,ignore_index=True).fillna(0)
-                out = out[colOrder]
-            else:
-                raise ValueError("Separate concatentation impossible. None of "
-                                "the requested unique columns were found in "
-                                "both design_matrices.")
+        # Convert everything to a list to make things easier
+        if not isinstance(df, list):
+            to_append = [df]
         else:
-            out = super(Design_Matrix, self).append(outdf, ignore_index=True)
-            # out = self.append(df,separate=False,axis=0,ignore_index=True).fillna(0)
+            to_append = df[:] # need to make a copy because we're altering df
 
-        out.convolved = self.convolved
-        out.sampling_rate = self.sampling_rate
-        out.hasIntercept = self.hasIntercept
+        if keep_separate:
+            if not all([set(self.polys) == set(elem.polys) for elem in to_append]):
+                raise ValueError("Design matrices do not match on their polynomial terms (i.e. intercepts, polynomial trends, basis functions). This makes appending with separation ambigious and is not currently supported. Either make sure all constant terms are the same or make sure no Design Matrix has any constant terms and add them during appending with the 'addpoly' and 'unique_cols' arguments")
+
+            orig = self.copy() # Make a copy of the original cause we might alter it
+
+            if addpoly:
+                orig = orig.addpoly(addpoly,include_lower)
+                for i,d in enumerate(to_append):
+                    d = d.addpoly(addpoly,include_lower)
+                    to_append[i] = d
+
+            unique_cols += orig.polys
+            all_dms = [orig] + to_append
+            all_polys = []
+            for i,dm in enumerate(all_dms):
+                # Figure out what columns we need to relabel
+                cols_to_relabel = [col for col in dm.columns if col in unique_cols]
+                if cols_to_relabel:
+                    # Create a dictionary with the new names, e.g. {'intercept': '0_intercept'}
+                    cols_dict = {}
+                    # Rename the columns and update the dm
+                    for c in cols_to_relabel:
+                        cols_dict[c] = str(i) + '_' + c
+                    dm = dm.rename(columns=cols_dict)
+                    all_dms[i] = dm
+                    # Save the new column names to setting the attribute later
+                    for v in list(cols_dict.values()):
+                        all_polys.append(v)
+
+            out = pd.concat(all_dms,axis=0,ignore_index=True)
+            if fill_na:
+                out = out.fill_na(fill_na)
+
+            # colOrder = []
+            # #retain original column order as closely as possible
+            # for colA,colB in zip(out.columns, outdf.columns):
+            #     colOrder.append(colA)
+            #     if colA != colB:
+            #         colOrder.append(colB)
+            # out = out[colOrder]
+            out.sampling_rate = self.sampling_rate
+            out.convolved = self.convolved
+            out.polys = all_polys
+        else:
+            out = pd.concat([self] + to_append,axis=0,ignore_index=True)
+            out = self._inherit_attributes(out)
+            if addpoly:
+                out = out.addpoly(addpoly,include_lower)
 
         return out
 
@@ -216,14 +256,11 @@ class Design_Matrix(DataFrame):
 
         """
         assert self.shape[1] > 1, "Can't compute vif with only 1 column!"
-        if self.hasIntercept:
+        if self.has_intercept:
             idx = [i for i, elem in enumerate(self.columns) if 'intercept' not in elem]
             out = self[self.columns[np.r_[idx]]]
         else:
             out = self[self.columns]
-
-        if any(out.corr() < 0):
-            warnings.warn("Correlation matrix has negative values!")
 
         return np.diag(np.linalg.inv(out.corr()), 0)
 
@@ -252,7 +289,7 @@ class Design_Matrix(DataFrame):
         """Perform convolution using an arbitrary function.
 
         Args:
-            conv_func (ndarray or string): either a 1d numpy array containing output of a function that you want to convolve; a samples by kernel 2d array of several kernels to convolve; or th string 'hrf' which defaults to a glover HRF function at the Design_matrix's sampling_freq
+            conv_func (ndarray or string): either a 1d numpy array containing output of a function that you want to convolve; a samples by kernel 2d array of several kernels to convolve; or th string 'hrf' which defaults to a glover HRF function at the Design_matrix's sampling_rate
             colNames (list): what columns to perform convolution on; defaults
                             to all skipping intercept, and columns containing 'poly' or 'cosine'
 
@@ -285,9 +322,8 @@ class Design_Matrix(DataFrame):
             c.columns = [str(col)+'_c0' for col in c.columns]
             out = pd.concat([c,self[nonConvolved]], axis=1)
 
+        out = self._inherit_attributes(out)
         out.convolved = colNames
-        out.sampling_rate = self.sampling_rate
-        out.hasIntercept = self.hasIntercept
         return out
 
     def downsample(self, target,**kwargs):
@@ -304,9 +340,8 @@ class Design_Matrix(DataFrame):
         df = downsample(self, sampling_freq=self.sampling_rate, target=target, **kwargs)
 
         # convert df to a design matrix
-        newMat = Design_Matrix(df, sampling_rate=target,
-                               convolved=self.convolved,
-                               hasIntercept=self.hasIntercept)
+        newMat = self._inherit_attributes(df)
+        newMat.sampling_rate = target
         return newMat
 
     def upsample(self, target,**kwargs):
@@ -323,30 +358,27 @@ class Design_Matrix(DataFrame):
         df = upsample(self, sampling_freq=self.sampling_rate, target=target, **kwargs)
 
         # convert df to a design matrix
-        newMat = Design_Matrix(df, sampling_rate=target,
-                               convolved=self.convolved,
-                               hasIntercept=self.hasIntercept)
+        newMat = self._inherit_attributes(df)
+        newMat.sampling_rate = target
         return newMat
 
-    def zscore(self, colNames=[]):
+    def zscore(self, columns=[]):
         """Z-score specific columns of design matrix. Relies on
             nltools.stats.downsample, but ensures that returned object is a
             design matrix.
 
         Args:
-            colNames (list): columns to z-score; defaults to all columns
+            columns (list): columns to z-score; defaults to all columns
 
         """
         colOrder = self.columns
-        if not list(colNames):
-            colNames = self.columns
-        nonZ = [col for col in self.columns if col not in colNames]
-        df = zscore(self[colNames])
+        if not list(columns):
+            columns = self.columns
+        nonZ = [col for col in self.columns if col not in columns]
+        df = zscore(self[columns])
         df = pd.concat([df, self[nonZ]], axis=1)
         df = df[colOrder]
-        newMat = Design_Matrix(df, sampling_rate=self.sampling_rate,
-                               convolved=self.convolved,
-                               hasIntercept=self.hasIntercept)
+        newMat = self._inherit_attributes(df)
 
         return newMat
 
@@ -360,37 +392,41 @@ class Design_Matrix(DataFrame):
 
         """
 
-        #This method is kind of ugly
+        if order < 0:
+            raise ValueError("Order must be 0 or greater")
+
         polyDict = {}
+
+        if order == 0 and 'intercept' in self.polys:
+            raise ValueError("Design Matrix already has intercept")
+        elif 'poly_'+str(order) in self.polys:
+            raise ValueError("Design Matrix already has {}th order polynomial".format(order))
+
         if include_lower:
-            if order > 0:
-                for i in range(0, order+1):
-                    if i == 0:
-                        if self.hasIntercept:
-                            warnings.warn("Design Matrix already has "
-                                          "intercept...skipping")
-                        else:
-                            polyDict['intercept'] = np.repeat(1, self.shape[0])
+            for i in range(0, order+1):
+                if i == 0:
+                    if 'intercept' in self.polys:                            warnings.warn("Design Matrix already has "
+                                      "intercept...skipping")
+                    else:
+                        polyDict['intercept'] = np.repeat(1, self.shape[0])
+                else:
+                    if 'poly_'+str(i) in self.polys:
+                        warnings.warn("Design Matrix already has {}th order polynomial...skipping".format(i))
                     else:
                         polyDict['poly_' + str(i)] = (range(self.shape[0]) - np.mean(range(self.shape[0]))) ** i
-            else:
-                if self.hasIntercept:
-                    raise ValueError("Design Matrix already has intercept!")
-                else:
-                    polyDict['intercept'] = np.repeat(1, self.shape[0])
         else:
             if order == 0:
-                if self.hasIntercept:
-                    raise ValueError("Design Matrix already has intercept!")
-                else:
-                    polyDict['intercept'] = np.repeat(1, self.shape[0])
+                polyDict['intercept'] = np.repeat(1, self.shape[0])
             else:
                 polyDict['poly_'+str(order)] = (range(self.shape[0]) - np.mean(range(self.shape[0])))**order
 
-        toAdd = Design_Matrix(polyDict)
+        toAdd = Design_Matrix(polyDict,sampling_rate=self.sampling_rate)
         out = self.append(toAdd, axis=1)
-        if 'intercept' in polyDict.keys() or self.hasIntercept:
-            out.hasIntercept = True
+        if out.polys:
+            new_polys = out.polys + list(polyDict.keys())
+            out.polys = new_polys
+        else:
+            out.polys = list(polyDict.keys())
         return out
 
     def add_dct_basis(self,duration=180):
@@ -406,11 +442,14 @@ class Design_Matrix(DataFrame):
         basis_mat = make_cosine_basis(self.shape[0],self.sampling_rate,duration)
 
         basis_frame = Design_Matrix(basis_mat,
-                                    sampling_rate=self.sampling_rate,
-                                    hasIntercept=False, convolved=False)
+                                    sampling_rate=self.sampling_rate)
 
         basis_frame.columns = ['cosine_'+str(i+1) for i in range(basis_frame.shape[1])]
 
         out = self.append(basis_frame,axis=1)
-
+        if out.polys:
+            new_polys = out.polys + list(basis_frame.columns)
+            out.polys = new_polys
+        else:
+            out.polys = list(basis_frame.columns)
         return out
