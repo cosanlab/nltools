@@ -24,28 +24,33 @@ __all__ = ['pearson',
             'two_sample_permutation',
             'correlation_permutation',
             'make_cosine_basis',
-            '_robust_estimator_hc0',
-            '_robust_estimator_hc3',
-            '_robust_estimator_hac',
+            '_robust_estimator',
             'summarize_bootstrap',
+            'regress',
             'procrustes',
             'align']
 
 import numpy as np
 import pandas as pd
 from scipy.stats import pearsonr, spearmanr, kendalltau, norm
+from scipy.stats import t as t_dist
 from copy import deepcopy
 import nibabel as nib
 from scipy.interpolate import interp1d
 import warnings
 import itertools
 from joblib import Parallel, delayed
+import six
+from .utils import attempt_to_import
 from .external.srm import SRM, DetSRM
 from scipy.linalg import orthogonal_procrustes
 from sklearn.utils import check_random_state
 
 MAX_INT = np.iinfo(np.int32).max
 
+# Optional dependencies
+ARMA = attempt_to_import('statsmodels.tsa.arima_model',name='ARMA',
+                              fromlist=['ARMA'])
 def pearson(x, y):
     """ Correlates row vector x with each row vector in 2D array y.
     From neurosynth.stats.py - author: Tal Yarkoni
@@ -548,7 +553,7 @@ def make_cosine_basis(nsamples, sampling_rate, filter_length, drop=0):
     C[:,0] = np.ones((1,len(n)))/np.sqrt(nsamples)
 
     #Insert higher order cosine basis functions
-    for i in xrange(1,order):
+    for i in range(1,order):
         C[:,i] = np.sqrt(2./nsamples) * np.cos(np.pi*(2*n+1) * i/(2*nsamples))
 
     #Drop desired bases
@@ -607,76 +612,64 @@ def transform_pairwise(X, y):
             X_new[-1] = - X_new[-1]
     return np.asarray(X_new), np.asarray(y_new).ravel()
 
-def _robust_estimator_hc0(vals,X,bread):
+def _robust_estimator(vals,X,robust_estimator='hc0',nlags=1):
     """
-    Huber (1980) sandwich estimator to return robust standard error estimates.
+    Computes robust sandwich estimators for standard errors used in OLS computation. Types include:
+    'hc0': Huber (1980) sandwich estimator to return robust standard error estimates.
+    'hc3': MacKinnon and White (1985) HC3 sandwich estimator. Provides more robustness in smaller samples than HC0 Long & Ervin (2000)
+    'hac': Newey-West (1987) estimator for robustness to heteroscedasticity as well as serial auto-correlation at given lags.
+
     Refs: https://www.wikiwand.com/en/Heteroscedasticity-consistent_standard_errors
     https://github.com/statsmodels/statsmodels/blob/master/statsmodels/regression/linear_model.py
     https://cran.r-project.org/web/packages/sandwich/vignettes/sandwich.pdf
+    https://www.stata.com/manuals13/tsnewey.pdf
 
     Args:
         vals (np.ndarray): 1d array of residuals
         X (np.ndarray): design matrix used in OLS, e.g. Brain_Data().X
-        bread (np.ndarray): result of (X.T * X)^-1
+        robust_estimator (str): estimator type, 'hc0' (default), 'hc3', or 'hac'
+        nlags (int): number of lags, only used with 'hac' estimator, default is 1
+
     Returns:
         stderr (np.ndarray): 1d array of standard errors with length == X.shape[1]
     """
 
-    V = np.diag(vals**2)
-    meat = np.dot(np.dot(X.T,V),X)
+    assert robust_estimator in ['hc0','hc3','hac'], "robust_estimator must be one of hc0, hc3 or hac"
+
+    # Make a sandwich!
+    # First we need bread
+    bread = np.linalg.pinv(np.dot(X.T,X))
+
+    # Then we need meat
+    if robust_estimator == 'hc0':
+        V = np.diag(vals**2)
+        meat = np.dot(np.dot(X.T,V),X)
+
+    elif robust_estimator == 'hc3':
+        V = np.diag(vals**2)/(1-np.diag(np.dot(X,np.dot(bread,X.T))))**2
+        meat = np.dot(np.dot(X.T,V),X)
+
+    elif robust_estimator == 'hac':
+        weights = 1 - np.arange(nlags+1.)/(nlags+1.)
+
+        #First compute lag 0
+        V = np.diag(vals**2)
+        meat = weights[0] * np.dot(np.dot(X.T,V),X)
+
+        #Now loop over additional lags
+        for l in range(1, nlags+1):
+
+            V = np.diag(vals[l:] * vals[:-l])
+            meat_1 = np.dot(np.dot(X[l:].T,V),X[:-l])
+            meat_2 = np.dot(np.dot(X[:-l].T,V),X[l:])
+
+            meat += weights[l] * (meat_1 + meat_2)
+
+    # Then we make a sandwich
     vcv = np.dot(np.dot(bread,meat),bread)
+
     return np.sqrt(np.diag(vcv))
 
-def _robust_estimator_hc3(vals,X,bread):
-    """
-    MacKinnon and White (1985) HC3 sandwich estimator. Provides more robustness in smaller samples than HC0 Long & Ervin (2000)
-    Refs: https://cran.r-project.org/web/packages/sandwich/vignettes/sandwich.pdf
-
-    Args:
-        vals (np.ndarray): 1d array of residuals
-        X (np.ndarray): design matrix used in OLS, e.g. Brain_Data().X
-        bread (np.ndarray): result of (X.T * X)^-1
-    Returns:
-        stderr (np.ndarray): 1d array of standard errors with length == X.shape[1]
-    """
-
-    V = np.diag(vals**2)/(1-np.diag(np.dot(X, np.dot(bread, X.T))))**2
-    meat = np.dot(np.dot(X.T, V), X)
-    vcv = np.dot(np.dot(bread, meat), bread)
-    return np.sqrt(np.diag(vcv))
-
-def _robust_estimator_hac(vals,X,bread,nlags=1):
-    """
-    Newey-West (1987) estimator for robustness to heteroscedasticity as well as
-    serial auto-correlation at given lags.
-    Refs: https://www.stata.com/manuals13/tsnewey.pdf
-
-    Args:
-        vals (np.ndarray): 1d array of residuals
-        X (np.ndarray): design matrix used in OLS, e.g. Brain_Data().X
-        bread (np.ndarray): result of (X.T * X)^-1
-        lag (int): what lag to estimate; default is 1
-    Returns:
-        stderr (np.ndarray): 1d array of standard errors with length == X.shape[1]
-    """
-
-    weights = 1 - np.arange(nlags+1.)/(nlags+1.)
-
-    #First compute lag 0
-    V = np.diag(vals**2)
-    meat = weights[0] * np.dot(np.dot(X.T, V), X)
-
-    #Now loop over additional lags
-    for l in range(1, nlags+1):
-
-        V = np.diag(vals[l:] * vals[:-l])
-        meat_1 = np.dot(np.dot(X[l:].T, V), X[:-l])
-        meat_2 = np.dot(np.dot(X[:-l].T, V), X[l:])
-
-        meat += weights[l] * (meat_1 + meat_2)
-
-    vcv = np.dot(np.dot(bread, meat), bread)
-    return np.sqrt(np.diag(vcv))
 
 def summarize_bootstrap(data, save_weights=False):
     """ Calculate summary of bootstrap samples
@@ -702,6 +695,135 @@ def summarize_bootstrap(data, save_weights=False):
     if save_weights:
         output['samples'] = data
     return output
+
+def regress(X,Y,mode='ols',**kwargs):
+    """ This is a flexible function to run several types of regression models provided X and Y numpy arrays. Y can be a 1d numpy array or 2d numpy array. In the latter case, results will be output with shape 1 x Y.shape[1], in other words fitting a separate regression model to each column of Y.
+
+    Does NOT add an intercept automatically to the X matrix before fitting like some other software packages. This is left up to the user.
+
+    This function can compute regression in 3 ways:
+    1) Standard OLS
+    2) OLS with robust sandwich estimators for standard errors. 3 robust types of estimators exist:
+        1) 'hc0' - classic huber-white estimator robust to heteroscedasticity (default)
+        2) 'hc3' - a variant on huber-white estimator slightly more conservative when sample sizes are small
+        3) 'hac' - an estimator robust to both heteroscedasticity and auto-correlation; auto-correlation lag can be controlled with the 'nlags' keyword argument; default is 1
+    3) ARMA (auto-regressive moving-average) model (experimental). This model is fit through statsmodels.tsa.arima_model.ARMA, so more information about options can be found there. Any settings can be passed in as kwargs. By default fits a (1,1) model with starting lags of 2. This mode is **computationally intensive** and can take quite a while if Y has many columns.  If Y is a 2d array joblib.Parallel is used for faster fitting by parallelizing fits across columns of Y. Parallelization can be controlled by passing in kwargs. Defaults to multi-threading using 10 separate threads, as threads don't require large arrays to be duplicated in memory. Defaults are also set to enable memory-mapping for very large arrays if backend='multiprocessing' to prevent crashes and hangs. Various levels of progress can be monitored using the 'disp' (statsmodels) and 'verbose' (joblib) keyword arguments with integer values > 0.
+
+    Args:
+        X (ndarray): design matrix; assumes intercept is included
+        Y (ndarray): dependent variable array; if 2d, a model is fit to each column of Y separately
+        mode (str): kind of model to fit; must be one of 'ols' (default), 'robust', or 'arma'
+        robust_estimator (str,optional): kind of robust estimator to use if mode = 'robust'; default 'hc0'
+        nlags (int,optional): auto-correlation lag correction if mode = 'robust' and robust_estimator = 'hac'; default 1
+        order (tuple,optional): auto-regressive and moving-average orders for mode = 'arma'; default (1,1)
+        kwargs (dict): additional keyword arguments to statsmodels.tsa.arima_model.ARMA and joblib.Parallel
+
+    Returns:
+        b: coefficients
+        t: t-statistics (coef/sterr)
+        p : p-values
+        df: degrees of freedom
+        res: residuals
+
+    Examples:
+        Standard OLS
+
+        >>> results = regress(X,Y,mode='ols')
+
+        Robust OLS with heteroscedasticity (hc0) robust standard errors
+
+        >>> results = regress(X,Y,mode='robust')
+
+        Robust OLS with heteroscedasticty and auto-correlation (with lag 2) robust standard errors
+
+        >>> results = regress(X,Y,mode='robust',robust_estimator='hac',nlags=2)
+
+        Auto-regressive mode with auto-regressive and moving-average lags = 1
+
+        >>> results = regress(X,Y,mode='arma',order=(1,1))
+
+        Auto-regressive model with auto-regressive lag = 2, moving-average lag = 3, and multi-processing instead of multi-threading using 8 cores (this can use a lot of memory if input arrays are very large!).
+
+        >>> results = regress(X,Y,mode='arma',order=(2,3),backend='multiprocessing',n_jobs=8)
+
+    """
+
+    if not isinstance(mode,six.string_types):
+        raise ValueError('mode must be a string')
+
+    assert mode in ['ols','robust','arma'], "Mode must be one of 'ols','robust' or 'arma'"
+
+    # Compute standard errors based on regression mode
+    if mode == 'ols' or mode == 'robust':
+
+        b = np.dot(np.linalg.pinv(X),Y)
+        res = Y - np.dot(X,b)
+
+        # Vanilla OLS
+        if mode == 'ols':
+            sigma = np.std(res,axis=0,ddof=X.shape[1])
+            stderr = np.sqrt(np.diag(np.linalg.pinv(np.dot(X.T,X))))[:,np.newaxis] * sigma[np.newaxis,:]
+
+        # OLS with robust sandwich estimator based standard-errors
+        elif mode == 'robust':
+            robust_estimator = kwargs.pop('robust_estimator','hc0')
+            nlags = kwargs.pop('nlags',1)
+            axis_func = [_robust_estimator,0,res,X,robust_estimator,nlags]
+            stderr = np.apply_along_axis(*axis_func)
+
+        t = b / stderr
+        df = np.array([X.shape[0]-X.shape[1]] * t.shape[1])
+        p = 2*(1-t_dist.cdf(np.abs(t),df))
+
+    # ARMA regression
+    elif mode == 'arma':
+        n_jobs = kwargs.pop('n_jobs',-1)
+        backend = kwargs.pop('backend','threading')
+        max_nbytes = kwargs.pop('max_nbytes',1e8)
+        verbose = kwargs.pop('verbose',0)
+
+        # Use function scope to get X and Y
+        def _arma_func(idx=None,**kwargs):
+
+            """
+            Fit an ARMA(p,q) model. If Y is a matrix and not a vector, expects an idx argument that refers to columns of Y.
+            """
+            method = kwargs.pop('method','css-mle')
+            order = kwargs.pop('order',(1,1))
+
+            maxiter = kwargs.pop('maxiter',50)
+            disp = kwargs.pop('disp',-1)
+            start_ar_lags = kwargs.pop('start_ar_lags',order[0]+1)
+            transparams = kwargs.pop('transparams',False)
+            trend = kwargs.pop('trend','nc')
+
+            if len(Y.shape) == 2:
+                model = ARMA(endog=Y[:,idx],exog=X,order=order)
+            else:
+                model = ARMA(endog=Y,exog=X,order=order)
+            res = model.fit(trend=trend,method=method,transparams=transparams,
+                            maxiter=maxiter,disp=disp,start_ar_lags=start_ar_lags)
+
+            return (res.params[:-2], res.tvalues[:-2],res.pvalues[:-2],res.df_resid, res.resid)
+
+        # Parallelize if Y vector contains more than 1 column
+        if len(Y.shape) == 2:
+            if backend == 'threading' and n_jobs == -1:
+                n_jobs = 10
+            par_for = Parallel(n_jobs=n_jobs,verbose=verbose,backend=backend,max_nbytes=max_nbytes)
+            out_arma = par_for(delayed(_arma_func)(idx=i,**kwargs) for i in range(Y.shape[-1]))
+
+            b = np.column_stack([elem[0] for elem in out_arma])
+            t = np.column_stack([elem[1] for elem in out_arma])
+            p = np.column_stack([elem[2] for elem in out_arma])
+            df = np.array([elem[3] for elem in out_arma])
+            res = np.column_stack([elem[4] for elem in out_arma])
+
+        else:
+            b,t,p,df,res = _arma_func()
+
+    return b, t, p, df, res
+
 
 def align(data, method='deterministic_srm', n_features=None, axis=0,
             *args, **kwargs):
