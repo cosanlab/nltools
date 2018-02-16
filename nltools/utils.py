@@ -184,7 +184,7 @@ def concatenate(data):
     if not isinstance(data, list):
         raise ValueError('Make sure you are passing a list of objects.')
 
-    if all([type(x) for x in data]):
+    if all([isinstance(x, data[0].__class__) for x in data]):
         # Temporarily Removing this for circular imports (LC)
         # if not isinstance(data[0], (Brain_Data, Adjacency)):
         #     raise ValueError('Make sure you are passing a list of Brain_Data'
