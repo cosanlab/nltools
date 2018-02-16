@@ -39,10 +39,15 @@ def test_brain_data_2mm(tmpdir):
     y = pd.read_csv(os.path.join(str(tmpdir.join('y.csv'))),header=None, index_col=None)
     holdout = pd.read_csv(os.path.join(str(tmpdir.join('rep_id.csv'))),header=None,index_col=None)
 
+    # Test load list of 4D images
+    file_list = [str(tmpdir.join('data.nii.gz')), str(tmpdir.join('data.nii.gz'))]
+    dat = Brain_Data(file_list)
+    dat = Brain_Data([nb.load(x) for x in file_list])
+
     # Test load list
     dat = Brain_Data(data=str(tmpdir.join('data.nii.gz')), Y=y)
 
-    # Test concatenate
+        # Test concatenate
     out = Brain_Data([x for x in dat])
     assert isinstance(out, Brain_Data)
     assert len(out)==len(dat)
