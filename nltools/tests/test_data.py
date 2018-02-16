@@ -48,7 +48,7 @@ def test_brain_data(tmpdir):
         file_list = [str(tmpdir.join('data.nii.gz')), str(tmpdir.join('data.nii.gz'))]
         dat = Brain_Data(file_list)
         dat = Brain_Data([nb.load(x) for x in file_list])
-    
+
         # Test load list
         dat = Brain_Data(data=str(tmpdir.join('data.nii.gz')), Y=y)
 
@@ -610,7 +610,7 @@ def test_designmat(tmpdir):
     'Z':[2, 2, 2, 2, 7, 0, 1, 3, 3, 2],
     'intercept':[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
     },
-    sampling_rate=2.0,hasIntercept=True)
+    sampling_rate=2.0,polys=['intercept'])
 
     mat2 = Design_Matrix({
     'X':[9, 9, 2, 7, 5, 0, 1, 1, 1, 2],
@@ -618,7 +618,7 @@ def test_designmat(tmpdir):
     'Z':[2, 6, 3, 2, 7, 0, 1, 7, 8, 8],
     'intercept':[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
     },
-    sampling_rate=2.0, hasIntercept=True)
+    sampling_rate=2.0, polys=['intercept'])
 
     #appending
     assert mat1.append(mat1, axis=1).shape == (mat1.shape[0],
@@ -640,7 +640,7 @@ def test_designmat(tmpdir):
     mat1.addpoly(order=4, include_lower=False).shape[1] == mat1.shape[1]+1
 
     #zscore
-    z = mat1.zscore(colNames=['X', 'Z'])
+    z = mat1.zscore(columns=['X', 'Z'])
     assert (z['Y'] == mat1['Y']).all()
     assert z.shape == mat1.shape
 
