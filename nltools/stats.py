@@ -597,8 +597,7 @@ def transform_pairwise(X, y):
             the second dimension.
     '''
 
-    X_new = []
-    y_new = []
+    X_new, y_new, y_group = [], [], []
     y_ndim = y.ndim
     if y.ndim == 1:
         y = np.c_[y, np.ones(y.shape[0])]
@@ -609,6 +608,7 @@ def transform_pairwise(X, y):
             continue
         X_new.append(X[i] - X[j])
         y_new.append(np.sign(y[i, 0] - y[j, 0]))
+        y_group.append(y[i,1])
         # output balanced classes
         if y_new[-1] != (-1) ** k:
             y_new[-1] = - y_new[-1]
