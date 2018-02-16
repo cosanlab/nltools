@@ -134,14 +134,17 @@ class Brain_Data(object):
                                 'file_name']:
                         setattr(self, item, getattr(tmp,item))
                 else:
-                    self.data = []
-                    for i in data:
-                        if isinstance(i, six.string_types):
-                            self.data.append(self.nifti_masker.fit_transform(
-                                             nib.load(i)))
-                        elif isinstance(i, nib.Nifti1Image):
-                            self.data.append(self.nifti_masker.fit_transform(i))
-                    self.data = np.array(self.data)
+                    if all([isinstance(x,data[0].__class__) for x in data]):
+                        self.data = []
+                        for i in data:
+                            if isinstance(i, six.string_types):
+                                self.data.append(self.nifti_masker.fit_transform(
+                                                 nib.load(i)))
+                            elif isinstance(i, nib.Nifti1Image):
+                                self.data.append(self.nifti_masker.fit_transform(i))
+                        self.data = np.concatenate(self.data)
+                    else:
+                        raise ValueError('Make sure all objects in the list are the same type.')
             elif isinstance(data, nib.Nifti1Image):
                 self.data = np.array(self.nifti_masker.fit_transform(data))
             else:
