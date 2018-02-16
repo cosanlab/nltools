@@ -10,6 +10,7 @@ build/
 dist/
 .cache/
 htmlcov
+.pytest_cache/*
 
 # Logs and databases #
 ######################
