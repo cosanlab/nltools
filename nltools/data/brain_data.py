@@ -343,19 +343,24 @@ class Brain_Data(object):
             anatomical = nib.load(resolve_mni_path(MNI_Template)['plot'])
 
         if self.data.ndim == 1:
+            f, a = plt.subplots(nrows=1, figsize=(15, 2))
             plot_stat_map(self.to_nifti(), anatomical,
                           cut_coords=range(-40, 50, 10), display_mode='z',
-                          black_bg=True, colorbar=True, draw_cross=False,**kwargs)
+                          black_bg=True, colorbar=True, draw_cross=False,
+                          axes=a, **kwargs)
         else:
-            for i in range(self.data.shape[0]):
-                if i < limit:
-                     plot_stat_map(self[i].to_nifti(), anatomical,
-                                   cut_coords=range(-40, 50, 10),
-                                   display_mode='z',
-                                   black_bg=True,
-                                   colorbar=True,
-                                   draw_cross=False,
-                                   **kwargs)
+            n_subs = np.minimum(self.data.shape[0], limit)
+            f, a = plt.subplots(nrows=n_subs, figsize=(15, len(self)*2))
+            for i in range(n_subs):
+                plot_stat_map(self[i].to_nifti(), anatomical,
+                              cut_coords=range(-40, 50, 10),
+                              display_mode='z',
+                              black_bg=True,
+                              colorbar=True,
+                              draw_cross=False,
+                              axes = a[i],
+                              **kwargs)
+        return f
 
     def regress(self,mode='ols',**kwargs):
         """ Run a mass-univariate regression across voxels. Three types of regressions can be run:
@@ -505,9 +510,8 @@ class Brain_Data(object):
         if self.isempty():
             out = deepcopy(data)
         else:
-            out = deepcopy(self)
-            error_string = ("Data is a different number of voxels "
-                             "then the weight_map.")
+            error_string = ("Data to append has different number of voxels "
+                             "then Brain_Data instance.")
             if len(self.shape()) == 1 & len(data.shape()) == 1:
                 if self.shape()[0] != data.shape()[0]:
                     raise ValueError(error_string)
@@ -519,7 +523,7 @@ class Brain_Data(object):
                     raise ValueError(error_string)
             elif self.shape()[1] != data.shape()[1]:
                 raise ValueError(error_string)
-
+            out = deepcopy(self)
             out.data = np.vstack([self.data, data.data])
             if out.Y.size:
                 out.Y = self.Y.append(data.Y)
@@ -1226,15 +1230,24 @@ class Brain_Data(object):
         return dat.combine(values)
 
     def threshold(self, upper=None, lower=None, binarize=False):
-        '''Threshold Brain_Data instance. Provide upper and lower values or percentages to perform two-sided thresholding. Binarize will return a mask image respecting thresholds if provided, otherwise respecting every non-zero value.
+        '''Threshold Brain_Data instance. Provide upper and lower values or
+           percentages to perform two-sided thresholding. Binarize will return
+           a mask image respecting thresholds if provided, otherwise respecting
+           every non-zero value.
 
         Args:
-            upper (float or str): upper cutoff for thresholding. If string will interpret as percentile; can be None for one-sided thresholding.
-            lower (float or str): lower cutoff for thresholding. If string will interpret as percentile; can be None for one-sided thresholding.
-            binarize (bool): return binarized image respecting thresholds if provided, otherwise binarize on every non-zero value; default False
+            upper: (float or str) Upper cutoff for thresholding. If string
+                    will interpret as percentile; can be None for one-sided
+                    thresholding.
+            lower: (float or str) Lower cutoff for thresholding. If string
+                    will interpret as percentile; can be None for one-sided
+                    thresholding.
+            binarize (bool): return binarized image respecting thresholds if
+                    provided, otherwise binarize on every non-zero value;
+                    default False
 
         Returns:
-            Brain_Data: thresholded Brain_Data instance
+            Thresholded Brain_Data object.
 
         '''
 

@@ -12,6 +12,7 @@ from nltools.stats import threshold, align
 from nltools.mask import create_sphere
 from sklearn.metrics import pairwise_distances
 import matplotlib
+import matplotlib.pyplot as plt
 import networkx as nx
 import six
 from nltools.prefs import MNI_Template
@@ -20,7 +21,8 @@ matplotlib.use('TkAgg')
 
 def test_brain_data(tmpdir):
 
-    for resolution in ['2mm','3mm']:
+    # Add 3mm to list to test that resolution as well
+    for resolution in ['2mm']:
 
         MNI_Template["resolution"] = resolution
 
@@ -433,9 +435,11 @@ def test_adjacency(tmpdir):
               [0.8, 1, 0.2, 0.1],
               [0.7, 0.6, 1, 0.5],
               [0.85, 0.4, 0.3, 1]])
-    dat_single = Adjacency(dat_all[0])
-    dat_multiple = Adjacency(dat_all)
-    dat_directed = Adjacency(sim_directed, matrix_type='directed')
+    labels = ['v_%s' % (x+1) for x in range(sim.shape[1])]
+    dat_single = Adjacency(dat_all[0], labels=labels)
+    dat_multiple = Adjacency(dat_all, labels=labels)
+    dat_directed = Adjacency(sim_directed, matrix_type='directed',
+                             labels=labels)
 
     # Test automatic distance/similarity detection
     assert dat_single.matrix_type is 'distance'
@@ -514,9 +518,10 @@ def test_adjacency(tmpdir):
     assert p.shape()[0] == dat_multiple.shape()[1]
 
     # Test Threshold
-    assert np.sum(dat_directed.threshold(thresh=.8).data == 0) == 10
-    assert dat_directed.threshold(thresh=.8, binarize=True).data[0]
-    assert np.sum(dat_directed.threshold('70%', binarize=True).data) == 5
+    assert np.sum(dat_directed.threshold(upper=.8).data == 0) == 10
+    assert dat_directed.threshold(upper=.8, binarize=True).data[0]
+    assert np.sum(dat_directed.threshold(upper='70%', binarize=True).data) == 5
+    assert np.sum(dat_directed.threshold(lower=.4, binarize=True).data) == 6
 
     # Test to_graph()
     assert isinstance(dat_directed.to_graph(), nx.DiGraph)
@@ -534,6 +539,17 @@ def test_adjacency(tmpdir):
     assert isinstance(b['Z'], Adjacency)
     b = dat_multiple.bootstrap('std', n_samples=n_samples)
     assert isinstance(b['Z'], Adjacency)
+
+    # Test plot
+    f = dat_single.plot()
+    assert isinstance(f, plt.Figure)
+    f = dat_multiple.plot()
+    assert isinstance(f, plt.Figure)
+
+    # Test plot_mds
+    f = dat_single.plot_mds()
+    assert isinstance(f, plt.Figure)
+
 
     # # Test stats_label_distance - FAILED - Need to sort this out
     # labels = np.array(['group1','group1','group2','group2'])
