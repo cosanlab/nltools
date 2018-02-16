@@ -256,9 +256,8 @@ class Design_Matrix(DataFrame):
 
         """
         assert self.shape[1] > 1, "Can't compute vif with only 1 column!"
-        if self.has_intercept:
-            idx = [i for i, elem in enumerate(self.columns) if 'intercept' not in elem]
-            out = self[self.columns[np.r_[idx]]]
+        if self.polys:
+            out = self.drop(self.polys,axis=1)
         else:
             out = self[self.columns]
 
@@ -285,20 +284,20 @@ class Design_Matrix(DataFrame):
         ax.axvline(x=self.shape[1], color='k', linewidth=4)
         plt.yticks(rotation=0)
 
-    def convolve(self, conv_func='hrf', colNames=None):
+    def convolve(self, conv_func='hrf', columns=None):
         """Perform convolution using an arbitrary function.
 
         Args:
             conv_func (ndarray or string): either a 1d numpy array containing output of a function that you want to convolve; a samples by kernel 2d array of several kernels to convolve; or th string 'hrf' which defaults to a glover HRF function at the Design_matrix's sampling_rate
-            colNames (list): what columns to perform convolution on; defaults
+            columns (list): what columns to perform convolution on; defaults
                             to all skipping intercept, and columns containing 'poly' or 'cosine'
 
         """
         assert self.sampling_rate is not None, "Design_matrix has no sampling_rate set!"
 
-        if colNames is None:
-            colNames = [col for col in self.columns if 'intercept' not in col and 'poly' not in col and 'cosine' not in col]
-        nonConvolved = [col for col in self.columns if col not in colNames]
+        if columns is None:
+            columns = [col for col in self.columns if 'intercept' not in col and 'poly' not in col and 'cosine' not in col]
+        nonConvolved = [col for col in self.columns if col not in columns]
 
         if isinstance(conv_func,six.string_types):
             assert conv_func == 'hrf',"Did you mean 'hrf'? 'hrf' can generate a kernel for you, otherwise custom kernels should be passed in as 1d or 2d arrays."
@@ -313,17 +312,17 @@ class Design_Matrix(DataFrame):
             assert conv_func.shape[0] > conv_func.shape[1], '2d conv_func must be formatted as, samples X kernels!'
             conv_mats = []
             for i in range(conv_func.shape[1]):
-                c = self[colNames].apply(lambda x: np.convolve(x, conv_func[:,i])[:self.shape[0]])
+                c = self[columns].apply(lambda x: np.convolve(x, conv_func[:,i])[:self.shape[0]])
                 c.columns = [str(col)+'_c'+str(i) for col in c.columns]
                 conv_mats.append(c)
                 out = pd.concat(conv_mats+ [self[nonConvolved]], axis=1)
         else:
-            c = self[colNames].apply(lambda x: np.convolve(x, conv_func)[:self.shape[0]])
+            c = self[columns].apply(lambda x: np.convolve(x, conv_func)[:self.shape[0]])
             c.columns = [str(col)+'_c0' for col in c.columns]
             out = pd.concat([c,self[nonConvolved]], axis=1)
 
         out = self._inherit_attributes(out)
-        out.convolved = colNames
+        out.convolved = columns
         return out
 
     def downsample(self, target,**kwargs):
