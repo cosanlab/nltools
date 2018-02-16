@@ -134,7 +134,7 @@ class Brain_Data(object):
                                 'file_name']:
                         setattr(self, item, getattr(tmp,item))
                 else:
-                    if all([type(x) for x in data]):
+                    if all([isinstance(x,data[0].__class__) for x in data]):
                         self.data = []
                         for i in data:
                             if isinstance(i, six.string_types):
