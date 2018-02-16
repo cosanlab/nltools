@@ -203,20 +203,21 @@ def test_transform_pairwise():
 	n_features = 50
 	n_samples = 100
 	# Test without groups
-	new_n_samples = n_samples * (n_samples-1) / 2
+	new_n_samples = int(n_samples * (n_samples-1) / 2)
 	X = np.random.rand(n_samples,n_features)
 	y = np.random.rand(n_samples,)
 	x_new, y_new = transform_pairwise(X,y)
 	assert x_new.shape == (new_n_samples,n_features)
-	assert y_new.shape == (new_n_samples,2)
+	assert y_new.shape == (new_n_samples,)
 	assert y_new.ndim == 1
 	# Test with groups
 	n_subs = 4
-	new_n_samples = n_subs * ((n_samples/n_subs)*(n_samples/n_subs-1))/2
+	new_n_samples = int(n_subs * ((n_samples/n_subs)*(n_samples/n_subs-1))/2)
 	groups = np.repeat(np.arange(1,1+n_subs),n_samples/n_subs)
 	y = np.vstack((y,groups)).T
 	x_new, y_new = transform_pairwise(X,y)
 	assert x_new.shape == (new_n_samples,n_features)
 	assert y_new.shape == (new_n_samples,2)
 	assert y_new.ndim == 2
-	assert y_new[:,1] == np.repeat(np.arange(1,1+n_subs),n_samples/n_subs)
+	a = y_new[:,1] ==np.repeat(np.arange(1,1+n_subs),((n_samples/n_subs)*(n_samples/n_subs-1))/2)
+	assert a.all()
