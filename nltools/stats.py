@@ -368,7 +368,7 @@ def upsample(data,sampling_freq=None, target=None, target_type='samples',method=
     elif target_type is 'seconds':
         n_samples = target*sampling_freq
     elif target_type is 'hz':
-        n_samples = sampling_freq/target
+        n_samples = float(sampling_freq)/float(target)
     else:
         raise ValueError('Make sure target_type is "samples", "seconds", or "hz".')
 

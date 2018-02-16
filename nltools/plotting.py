@@ -10,7 +10,6 @@ __all__ = ['dist_from_hyperplane_plot',
             'scatterplot',
             'probability_plot',
             'roc_plot',
-            'decode_radar_plot',
             'plot_stacked_adjacency',
             'plot_mean_label_distance',
             'plot_between_label_distance',
@@ -369,9 +368,11 @@ def plot_between_label_distance(distance, labels, ax=None, permutation_test=True
             p_dist_out: (optional if permutation_test=True) p-value for difference in distance between conditions
     '''
 
+    labels = np.unique(np.array(labels))
+
     out = pd.DataFrame(columns=['Distance','Group','Comparison'],index=None)
-    for i in labels.unique():
-        for j in labels.unique():
+    for i in labels:
+        for j in labels:
             tmp_b = pd.DataFrame(columns=out.columns,index=None)
             if distance.loc[labels==i,labels==j].shape[0]==distance.loc[labels==i,labels==j].shape[1]:
                 tmp_b['Distance'] = distance.loc[labels==i,labels==i].values[np.triu_indices(sum(labels==i),k=1)]
@@ -411,7 +412,8 @@ def plot_between_label_distance(distance, labels, ax=None, permutation_test=True
         f = sns.heatmap(within_dist_out,ax=ax,square=True,**kwargs)
         return (f, out, within_dist_out)
 
-def plot_silhouette(distance,labels,ax=None,permutation_test=True,n_permute=5000,**kwargs):
+def plot_silhouette(distance, labels, ax=None, permutation_test=True,
+                    n_permute=5000, **kwargs):
 
     ''' Create a silhouette plot indicating between relative to within label distance
 
@@ -433,7 +435,7 @@ def plot_silhouette(distance,labels,ax=None,permutation_test=True,n_permute=5000
     '''
 
     #Define label set
-    labelSet = labels.unique()
+    labelSet = np.unique(np.array(labels))
     n_clusters = len(labelSet)
 
     #Set defaults for plot design
