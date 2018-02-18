@@ -217,37 +217,7 @@ def winsorize(data, cutoff=None,replace_with_cutoff=True):
         Returns:
             winsorized pandas.DataFrame or pandas.Series
     '''
-    df = data.copy() # to avoid overwriting original dataframe
-    def winsorize_sub(data,cutoff=None):
-        if not isinstance(data,pd.Series):
-            raise ValueError('Make sure that you are applying winsorize to a '
-                            'pandas series.')
-
-        if isinstance(cutoff,dict):
-            if 'quantile' in cutoff:
-                q = data.quantile(cutoff['quantile'])
-            elif 'std' in cutoff:
-                std = [data.mean()-data.std()*cutoff['std'][0], data.mean()+data.std()*cutoff['std'][1]]
-                q = pd.Series(index=cutoff['std'], data=std)
-            if not replace_with_cutoff:
-                q.iloc[0] = data[data > q.iloc[0]].min()
-                q.iloc[1] = data[data < q.iloc[1]].max()
-        else:
-            raise ValueError('cutoff must be a dictionary with quantile '
-                            'or std keys.')
-        if isinstance(q, pd.Series) and len(q) == 2:
-            data[data < q.iloc[0]] = q.iloc[0]
-            data[data > q.iloc[1]] = q.iloc[1]
-        return data
-
-    if isinstance(df,pd.DataFrame):
-        for col in df.columns:
-            df.loc[:,col] = winsorize_sub(df.loc[:,col],cutoff=cutoff)
-        return df
-    elif isinstance(df,pd.Series):
-        return winsorize_sub(df,cutoff=cutoff)
-    else:
-        raise ValueError('Data must be a pandas DataFrame or Series')
+    return _transform_outliers(data, cutoff,replace_with_cutoff=replace_with_cutoff,method='winsorize')
 
 def trim(data, cutoff=None):
     ''' Trim a Pandas DataFrame or Series by replacing outlier values with NaNs
@@ -259,32 +229,55 @@ def trim(data, cutoff=None):
         Returns:
             trimmed pandas.DataFrame or pandas.Series
     '''
-    df = data.copy() # to avoid overwriting original dataframe
-    def trim_sub(data,cutoff=None):
-        if not isinstance(data,pd.Series):
-            raise ValueError('Make sure that you are applying trim to a '
-                            'pandas series.')
+    return _transform_outliers(data, cutoff, replace_with_cutoff=None, method='trim')
 
+def _transform_outliers(data, cutoff, replace_with_cutoff, method):
+    ''' This function is not exposed to user but is called by either trim or winsorize.
+
+        Args:
+            data: a pandas.DataFrame or pandas.Series
+            cutoff: a dictionary with keys {'std':[low,high]} or
+                    {'quantile':[low,high]}
+            replace_with_cutoff (default: False): If True, replace outliers with cutoff.
+                    If False, replaces outliers with closest existing values.
+            method: 'winsorize' or 'trim'
+        Returns:
+            transformed pandas.DataFrame or pandas.Series
+    '''
+    df = data.copy() # To not overwrite data make a copy
+    def _transform_outliers_sub(data, cutoff, replace_with_cutoff, method='trim'):
+        if not isinstance(data,pd.Series):
+            raise ValueError('Make sure that you are applying winsorize to a pandas dataframe or series.')
         if isinstance(cutoff,dict):
+            # calculate cutoff values
             if 'quantile' in cutoff:
                 q = data.quantile(cutoff['quantile'])
             elif 'std' in cutoff:
                 std = [data.mean()-data.std()*cutoff['std'][0], data.mean()+data.std()*cutoff['std'][1]]
                 q = pd.Series(index=cutoff['std'], data=std)
+            # if replace_with_cutoff is false, replace with true existing values closest to cutoff
+            if method=='winsorize':
+                if not replace_with_cutoff:
+                    q.iloc[0] = data[data > q.iloc[0]].min()
+                    q.iloc[1] = data[data < q.iloc[1]].max()
         else:
-            raise ValueError('cutoff must be a dictionary with quantile '
-                            'or std keys.')
-        if isinstance(q, pd.Series) and len(q) == 2:
-            data[data < q.iloc[0]] = np.nan
-            data[data > q.iloc[1]] = np.nan
+            raise ValueError('cutoff must be a dictionary with quantile or std keys.')
+        if method == 'winsorize':
+            if isinstance(q, pd.Series) and len(q) == 2:
+                data[data < q.iloc[0]] = q.iloc[0]
+                data[data > q.iloc[1]] = q.iloc[1]
+        elif method== 'trim':
+                data[data < q.iloc[0]] = np.nan
+                data[data > q.iloc[1]] = np.nan
         return data
 
+    # transform each column if a dataframe, if series just transform data
     if isinstance(df,pd.DataFrame):
         for col in df.columns:
-            df.loc[:,col] = trim_sub(df.loc[:,col],cutoff=cutoff)
+            df.loc[:,col] = _transform_outliers_sub(df.loc[:,col],cutoff=cutoff,replace_with_cutoff=replace_with_cutoff, method=method)
         return df
     elif isinstance(df,pd.Series):
-        return trim_sub(df,cutoff=cutoff)
+        return _transform_outliers_sub(df,cutoff=cutoff,replace_with_cutoff=replace_with_cutoff, method=method)
     else:
         raise ValueError('Data must be a pandas DataFrame or Series')
 
