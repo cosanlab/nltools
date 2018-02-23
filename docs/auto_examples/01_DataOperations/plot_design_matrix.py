@@ -1,6 +1,6 @@
 """
-Design Matrix Creation
-======================
+Design Matrix Eshin
+===================
 
 This tutorial illustrates how to use the Design_Matrix class to flexibly create design matrices that can then be used with the Brain_Data class to perform univariate regression. Design Matrices can be thought of as "enhanced" pandas dataframes; they can do everything a pandas dataframe is capable of, with some added features.
 

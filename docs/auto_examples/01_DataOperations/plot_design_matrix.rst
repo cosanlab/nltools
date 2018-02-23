@@ -3,8 +3,8 @@
 .. _sphx_glr_auto_examples_01_DataOperations_plot_design_matrix.py:
 
 
-Design Matrix Creation
-======================
+Design Matrix Eshin
+===================
 
 This tutorial illustrates how to use the Design_Matrix class to flexibly create design matrices that can then be used with the Brain_Data class to perform univariate regression. Design Matrices can be thought of as "enhanced" pandas dataframes; they can do everything a pandas dataframe is capable of, with some added features.
 
@@ -55,7 +55,7 @@ The class stores basic meta data including convolution functions (default is glo
 
  Out::
 
-    nltools.data.design_matrix.Design_Matrix(sampling_rate=2.0, shape=(160, 14), convolved=None, hasIntercept=True)
+    nltools.data.design_matrix.Design_Matrix(sampling_rate=2.0, shape=(160, 14), convolved=[], constant_terms=[])
 
 
 We can easily visualize the design matrix too
@@ -118,7 +118,7 @@ We can also easily perform convolution and the class is smart enough to ignore a
 
  Out::
 
-    nltools.data.design_matrix.Design_Matrix(sampling_rate=2.0, shape=(160, 14), convolved=['BillyRiggins', 'BuddyGarrity', 'CoachTaylor', 'GrandmaSaracen', 'JasonStreet', 'JulieTaylor', 'LandryClarke', 'LylaGarrity', 'MattSaracen', 'SmashWilliams', 'TamiTaylor', 'TimRiggins', 'TyraCollette'], hasIntercept=True)
+    nltools.data.design_matrix.Design_Matrix(sampling_rate=2.0, shape=(160, 14), convolved=['BillyRiggins', 'BuddyGarrity', 'CoachTaylor', 'GrandmaSaracen', 'JasonStreet', 'JulieTaylor', 'LandryClarke', 'LylaGarrity', 'MattSaracen', 'SmashWilliams', 'TamiTaylor', 'TimRiggins', 'TyraCollette'], constant_terms=[])
 
 
 Load and Z-score a Covariates File
@@ -143,8 +143,14 @@ To be explicit with the meta-data we're going to change some default attributes 
 
 
 
-.. image:: /auto_examples/01_DataOperations/images/sphx_glr_plot_design_matrix_004.png
-    :align: center
+.. code-block:: pytb
+
+    Traceback (most recent call last):
+      File "/Users/Esh/Documents/Python/Cosan/nltools/examples/01_DataOperations/plot_design_matrix.py", line 63, in <module>
+        cov = Design_Matrix(cov, hasIntercept=False)
+      File "/Users/Esh/Documents/Python/Cosan/nltools/nltools/data/design_matrix.py", line 74, in __init__
+        super(Design_Matrix, self).__init__(*args, **kwargs)
+    TypeError: __init__() got an unexpected keyword argument 'hasIntercept'
 
 
 
@@ -161,14 +167,6 @@ Here we fill NaN values with 0 and zscore all columns except the last. Because t
     cov.heatmap()
 
 
-
-
-.. image:: /auto_examples/01_DataOperations/images/sphx_glr_plot_design_matrix_005.png
-    :align: center
-
-
-
-
 Concatenate Multiple Design Matrices
 ------------------------------------
 
@@ -183,14 +181,6 @@ A really nice feature of this class is simplified, but intelligent matrix concat
     full.heatmap()
 
 
-
-
-.. image:: /auto_examples/01_DataOperations/images/sphx_glr_plot_design_matrix_006.png
-    :align: center
-
-
-
-
 But we can also intelligently vertically concatenate design matrices to handle say, different experimental runs, or subjects. The method enables the user to indicate which columns to keep separated during concatenation or which to treat as extensions along the first dimension. By default the class will keep constant terms separated.
 
 
@@ -200,14 +190,6 @@ But we can also intelligently vertically concatenate design matrices to handle s
 
     dm2 = dm.append(dm, axis=0, separate=True)
     dm2.heatmap()
-
-
-
-
-.. image:: /auto_examples/01_DataOperations/images/sphx_glr_plot_design_matrix_007.png
-    :align: center
-
-
 
 
 But specific columns can also be treated as separate (e.g. separate run spikes, polynomial terms, conditions of interest, etc)
@@ -222,15 +204,7 @@ Notice that the class also preserves (as best as possible) column ordering.
     dm2 = dm.append(dm, axis=0, separate=True, uniqueCols=['BillyRiggins'])
     dm2.heatmap()
 
-
-
-.. image:: /auto_examples/01_DataOperations/images/sphx_glr_plot_design_matrix_008.png
-    :align: center
-
-
-
-
-**Total running time of the script:** ( 0 minutes  1.743 seconds)
+**Total running time of the script:** ( 0 minutes  0.445 seconds)
 
 
 

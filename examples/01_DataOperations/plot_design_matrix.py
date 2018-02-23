@@ -7,6 +7,52 @@ This tutorial illustrates how to use the Design_Matrix class to flexibly create 
 """
 
 #########################################################################
+# Design Matrix Basics
+# --------------------
+#
+# Lets just create a basic toy design matrix by hand corresponding to an experiment with 12 TRs, collected at a temporal resolution of 1.5s. For this example we'll have 4 unique "stimulus conditions" that each occur for 2 TRs (3s) with 1 TR (1.5s) of rest between events.
+
+from nltools.data import Design_Matrix
+import numpy as np
+
+dm = Design_Matrix(np.array([
+                            [1,0,0,0],
+                            [1,0,0,0],
+                            [0,0,0,0],
+                            [0,1,0,0],
+                            [0,1,0,0],
+                            [0,0,0,0],
+                            [0,0,1,0],
+                            [0,0,1,0],
+                            [0,0,0,0],
+                            [0,0,0,1],
+                            [0,0,0,1]
+                            ]),
+                            sampling_rate = 1.5,
+                            columns=['stim_A','stim_B','stim_C','stim_D']
+                            )
+dm
+#########################################################################
+# Notice how this look exactly like a pandas dataframe. That's because design matrices are *subclasses* of dataframes with some extra attributes and methods. For example instead of the data, lets see some meta-data information:
+
+print(dm.info())
+
+#########################################################################
+# We can see that no columns have been convolved as of yet and this design matrix has no polynomial terms (e.g. such as an intercept or linear trend). We can also easily visualize the design matrix using an SPM/AFNI/FSL style heatmap
+
+dm.heatmap()
+
+#########################################################################
+# A common operation might include adding an intercept and linear trend as nuisance regressors. This is easy to do
+
+# with include_lower = True, 1 here means: 0-intercept 1-linear-trend
+dm_with_nuissance = dm.addpoly(1,include_lower=True)
+dm_with_nuissance.info()
+
+#########################################################################
+# We can see that 2 new columns were added to the design matrix and the meta-data hsa changed to reflect that. Other operations exist including downsampling, upsampling, z-scoring, and adding discrete-cosine basis-functions (typically for low frequency filtering)
+
+#########################################################################
 # Load and Manipulate an Onsets File
 # -----------------------------------
 #
@@ -20,9 +66,9 @@ from nltools.data import Design_Matrix
 import os
 
 
-onsetsFile = os.path.join(get_resource_path(),'onsets_example.txt')
-dm = onsets_to_dm(onsetsFile, TR=2.0, runLength=160, sort=True,
-                    addIntercept=True)
+# onsetsFile = os.path.join(get_resource_path(),'onsets_example.txt')
+# dm = onsets_to_dm(onsetsFile, TR=2.0, runLength=160, sort=True,
+#                     addIntercept=True)
 
 #########################################################################
 # The class stores basic meta data including convolution functions (default is glover HRF) and whether convolution has been performed, or whether the model contains a constant term.

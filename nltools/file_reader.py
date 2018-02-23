@@ -15,67 +15,84 @@ from nltools.data import Design_Matrix
 import warnings
 
 
-def onsets_to_dm(F, TR, runLength, header='infer', sort=False,
-                addIntercept=False, **kwargs):
-    """Function to read in a 2 or 3 column onsets file, specified in seconds,
-        organized as: 'Stim,Onset','Onset,Stim','Stim,Onset,
-        Duration', or 'Onset,Duration,Stim'.
+def onsets_to_dm(F, TR, runLength, header='infer', sort=False, keep_separate=True,
+                addpoly=None, unique_cols=[], fill_na=None, **kwargs):
 
-        Args:
-            df (str or dataframe): path to file or pandas dataframe
-            TR (float): length of TR in seconds the run was collected at
-            runLength (int): number of TRs in the run these onsets came from
-            sort (bool, optional): whether to sort the columns of the resulting
-                                    design matrix alphabetically; defaults to
-                                    False
-            addIntercept (bool, optional: whether to add an intercept to the
-                                    resulting dataframe; defaults to False
-            header (str,optional): None if missing header, otherwise pandas
-                                    header keyword; defaults to 'infer'
-            kwargs: additional inputs to pandas.read_csv
+    """
+    This function can assist in reading in one or several in a 2-3 column onsets files, specified in seconds and converting it to a Design Matrix organized as TRs X Stimulus Classes. Onsets files **must** be organized with columns in one of the following 4 formats:
+
+    1) 'Stim, Onset'
+    2) 'Onset, Stim'
+    3) 'Stim, Onset, Duration'
+    4) 'Onset, Duration, Stim'
+
+    No other file organizations are currently supported
+
+    Args:
+        F (filepath/DataFrame/list): path to file, pandas dataframe, or list of files or pandas dataframes
+        df (str or dataframe): path to file or pandas dataframe
+        TR (float): length of TR in seconds the run was collected at
+        runLength (int): number of TRs in the run these onsets came from
+        sort (bool, optional): whether to sort the columns of the resulting
+                                design matrix alphabetically; defaults to
+                                False
+        addpoly (int, optional: what order polynomial terms to add as new columns (e.g. 0 for intercept, 1 for linear trend and intercept, etc); defaults to None
+        header (str,optional): None if missing header, otherwise pandas
+                                header keyword; defaults to 'infer'
+        keep_separate (bool): whether to seperate polynomial columns if reading a list of files and using the addpoly option
+        unique_cols (list): additional columns to keep seperate across files (e.g. spikes)
+        fill_nam (str/int/float): what value fill NaNs in with if reading in a list of files
+        kwargs: additional inputs to pandas.read_csv
 
         Returns:
             Design_Matrix class
 
     """
-    if isinstance(F,six.string_types):
-        df = pd.read_csv(F, header=header,**kwargs)
-    elif isinstance(F,pd.core.frame.DataFrame):
-        df = F.copy()
-    else:
-        raise TypeError("Input needs to be file path or pandas dataframe!")
-    if df.shape[1] == 2:
-        warnings.warn("Only 2 columns in file, assuming all stimuli are the same duration")
-    elif df.shape[1] == 1 or df.shape[1] > 3:
-        raise ValueError("Can only handle files with 2 or 3 columns!")
+    if not isinstance(F, list):
+        F = [F]
 
-    #Try to infer the header
-    if header is None:
-        possibleHeaders = ['Stim','Duration','Onset']
-        if isinstance(df.iloc[0,0],six.string_types):
-            df.columns = possibleHeaders[:df.shape[1]]
-        elif isinstance(df.iloc[0,df.shape[1]-1],six.string_types):
-            df.columns = possibleHeaders[1:] + [possibleHeaders[0]]
+    out = []
+    for f in F:
+        if isinstance(f,six.string_types):
+            df = pd.read_csv(f, header=header,**kwargs)
+        elif isinstance(f,pd.core.frame.DataFrame):
+            df = f.copy()
         else:
-            raise ValueError("Can't figure out data organization. Make sure file has no more than 3 columns specified as 'Stim,Onset,Duration' or 'Onset,Duration,Stim'")
-    df['Onset'] = df['Onset'].apply(lambda x: int(np.floor(x/TR)))
+            raise TypeError("Input needs to be file path or pandas dataframe!")
+        if df.shape[1] == 2:
+            warnings.warn("Only 2 columns in file, assuming all stimuli are the same duration")
+        elif df.shape[1] == 1 or df.shape[1] > 3:
+            raise ValueError("Can only handle files with 2 or 3 columns!")
 
-    #Build dummy codes
-    X = Design_Matrix(columns=df['Stim'].unique(),
-                    data=np.zeros([runLength,
-                    len(df['Stim'].unique())]))
-    for i, row in df.iterrows():
-        if df.shape[1] == 3:
-            dur = np.ceil(row['Duration']/TR)
-            X.ix[row['Onset']-1:row['Onset']+dur-1, row['Stim']] = 1
-        elif df.shape[1] == 2:
-            X.ix[row['Onset'], row['Stim']] = 1
-    X.sampling_rate = TR
-    if sort:
-        X = X.reindex_axis(sorted(X.columns), axis=1)
+        #Try to infer the header
+        if header is None:
+            possibleHeaders = ['Stim','Onset','Duration']
+            if isinstance(df.iloc[0,0],six.string_types):
+                df.columns = possibleHeaders[:df.shape[1]]
+            elif isinstance(df.iloc[0,df.shape[1]-1],six.string_types):
+                df.columns = possibleHeaders[1:] + [possibleHeaders[0]]
+            else:
+                raise ValueError("Can't figure out onset file organization. Make sure file has no more than 3 columns specified as 'Stim,Onset,Duration' or 'Onset,Duration,Stim'")
+        df['Onset'] = df['Onset'].apply(lambda x: int(np.floor(x/TR)))
 
-    if addIntercept:
-        X['intercept'] = 1
-        X.hasIntercept = True
+        #Build dummy codes
+        X = Design_Matrix(columns=df['Stim'].unique(),
+                        data=np.zeros([runLength,
+                        len(df['Stim'].unique())]),
+                        sampling_rate=TR)
+        for i, row in df.iterrows():
+            if df.shape[1] == 3:
+                dur = np.ceil(row['Duration']/TR)
+                X.ix[row['Onset']-1:row['Onset']+dur-1, row['Stim']] = 1
+            elif df.shape[1] == 2:
+                X.ix[row['Onset'], row['Stim']] = 1
+        if sort:
+            X = X.reindex_axis(sorted(X.columns), axis=1)
 
-    return X
+        out.append(X)
+    if len(out) > 1:
+        out_dm = out[0].append(out[1:],keep_separate = keep_separate, addpoly=addpoly, unique_cols=unique_cols,fill_na=fill_na)
+    else:
+        out_dm = out[0].addpoly(addpoly)
+
+    return out_dm
