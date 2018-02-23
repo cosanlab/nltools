@@ -235,13 +235,13 @@ Neuroimaging Analysis Examples
 
   .. container:: sphx-glr-download
 
-    :download:`Download all examples in Python source code: auto_examples_python.zip <//Users/lukechang/Github/nltools/docs/auto_examples/auto_examples_python.zip>`
+    :download:`Download all examples in Python source code: auto_examples_python.zip <//Users/Esh/Documents/Python/Cosan/nltools/docs/auto_examples/auto_examples_python.zip>`
 
 
 
   .. container:: sphx-glr-download
 
-    :download:`Download all examples in Jupyter notebooks: auto_examples_jupyter.zip <//Users/lukechang/Github/nltools/docs/auto_examples/auto_examples_jupyter.zip>`
+    :download:`Download all examples in Jupyter notebooks: auto_examples_jupyter.zip <//Users/Esh/Documents/Python/Cosan/nltools/docs/auto_examples/auto_examples_jupyter.zip>`
 
 
 .. only:: html

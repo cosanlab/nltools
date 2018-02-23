@@ -16,7 +16,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-import warnings
+from scipy.stats import pearsonr
 import six
 from ..external.hrf import glover_hrf
 from nltools.stats import (downsample,
@@ -108,7 +108,7 @@ class Design_Matrix(DataFrame):
         """Print class meta data.
 
         """
-        return '%s.%s(sampling_rate=%s, shape=%s, convolved=%s, constant_terms=%s)' % (
+        return '%s.%s(sampling_rate=%s, shape=%s, convolved=%s, polynomials=%s)' % (
             self.__class__.__module__,
             self.__class__.__name__,
             self.sampling_rate,
@@ -117,7 +117,7 @@ class Design_Matrix(DataFrame):
             self.polys
             )
 
-    def append(self, dm, axis=0, keep_separate = True, addpoly = None, unique_cols = [], include_lower = True,fill_na=0):
+    def append(self, dm, axis=0, keep_separate = True, add_poly = None, unique_cols = [], include_lower = True,fill_na=0):
         """Method for concatenating another design matrix row or column-wise.
             Can "uniquify" certain columns when appending row-wise, and by
             default will attempt to do that with all polynomial terms (e.g. intercept, polynomial trends).
@@ -128,12 +128,12 @@ class Design_Matrix(DataFrame):
             keep_separate (bool,optional): whether try and uniquify columns;
                                         defaults to True; only applies
                                         when axis==0
-            addpoly (int,optional): what order polynomial terms to add during append, only applied when axis = 0; defaults None;
+            add_poly (int,optional): what order polynomial terms to add during append, only applied when axis = 0; defaults None;
                                         only applies when axis==0
             unique_cols (list,optional): what additional columns to try to keep
                                         separated by uniquifying, only applies when
                                         axis = 0; defaults to None
-            include_lower (bool,optional): whether to also add lower order polynomial terms; only applies when addpoly is not None
+            include_lower (bool,optional): whether to also add lower order polynomial terms; only applies when add_poly is not None
             fill_na (str/int/float): if provided will fill NaNs with this value during row-wise appending (when axis = 0) if separate columns are desired; default 0
 
         """
@@ -150,13 +150,13 @@ class Design_Matrix(DataFrame):
         if axis == 1:
             if isinstance(dm,self.__class__):
                 if not set(self.columns).isdisjoint(dm.columns):
-                    warnings.warn("Duplicate column names detected. Will be repeated.")
+                    print("Duplicate column names detected. Will be repeated.")
             else:
                 if any([not set(self.columns).isdisjoint(elem.columns) for elem in dm]):
-                    warnings.warn("Duplicate column names detected. Will be repeated.")
+                    print("Duplicate column names detected. Will be repeated.")
             return self.horzcat(dm)
         elif axis == 0:
-            return self.vertcat(dm, keep_separate=keep_separate,addpoly=addpoly,unique_cols=unique_cols,include_lower=include_lower,fill_na=fill_na)
+            return self.vertcat(dm, keep_separate=keep_separate,add_poly=add_poly,unique_cols=unique_cols,include_lower=include_lower,fill_na=fill_na)
         else:
             raise ValueError("Axis must be 0 (row) or 1 (column)")
 
@@ -176,9 +176,10 @@ class Design_Matrix(DataFrame):
         else:
             raise ValueError("All Design Matrices must have the same number of rows!")
         out = self._inherit_attributes(out)
+        out.polys = self.polys + df.polys
         return out
 
-    def vertcat(self, df, keep_separate, addpoly, unique_cols, include_lower,fill_na):
+    def vertcat(self, df, keep_separate, add_poly, unique_cols, include_lower,fill_na):
         """Used by .append(). Append another design matrix row-wise (vert cat).
             Always returns a new design matrix.
 
@@ -195,14 +196,14 @@ class Design_Matrix(DataFrame):
 
         if keep_separate:
             if not all([set(self.polys) == set(elem.polys) for elem in to_append]):
-                raise ValueError("Design matrices do not match on their polynomial terms (i.e. intercepts, polynomial trends, basis functions). This makes appending with separation ambigious and is not currently supported. Either make sure all constant terms are the same or make sure no Design Matrix has any constant terms and add them during appending with the 'addpoly' and 'unique_cols' arguments")
+                raise ValueError("Design matrices do not match on their polynomial terms (i.e. intercepts, polynomial trends, basis functions). This makes appending with separation ambigious and is not currently supported. Either make sure all constant terms are the same or make sure no Design Matrix has any constant terms and add them during appending with the 'add_poly' and 'unique_cols' arguments")
 
             orig = self.copy() # Make a copy of the original cause we might alter it
 
-            if addpoly:
-                orig = orig.addpoly(addpoly,include_lower)
+            if add_poly:
+                orig = orig.add_poly(add_poly,include_lower)
                 for i,d in enumerate(to_append):
-                    d = d.addpoly(addpoly,include_lower)
+                    d = d.add_poly(add_poly,include_lower)
                     to_append[i] = d
 
             unique_cols += orig.polys
@@ -224,7 +225,7 @@ class Design_Matrix(DataFrame):
                         all_polys.append(v)
 
             out = pd.concat(all_dms,axis=0,ignore_index=True)
-            if fill_na:
+            if fill_na is not None:
                 out = out.fill_na(fill_na)
 
             # colOrder = []
@@ -240,8 +241,8 @@ class Design_Matrix(DataFrame):
         else:
             out = pd.concat([self] + to_append,axis=0,ignore_index=True)
             out = self._inherit_attributes(out)
-            if addpoly:
-                out = out.addpoly(addpoly,include_lower)
+            if add_poly:
+                out = out.add_poly(add_poly,include_lower)
 
         return out
 
@@ -261,7 +262,11 @@ class Design_Matrix(DataFrame):
         else:
             out = self[self.columns]
 
-        return np.diag(np.linalg.inv(out.corr()), 0)
+        try:
+            return np.diag(np.linalg.inv(out.corr()), 0)
+        except np.linalg.LinAlgError:
+            print("ERROR: Cannot compute vifs! Design Matrix is singular because it has some perfectly correlated or duplicated columns. Using .clean() method may help.")
+
 
     def heatmap(self, figsize=(8, 6), **kwargs):
         """Visualize Design Matrix spm style. Use .plot() for typical pandas
@@ -381,7 +386,7 @@ class Design_Matrix(DataFrame):
 
         return newMat
 
-    def addpoly(self, order=0, include_lower=True):
+    def add_poly(self, order=0, include_lower=True):
         """Add nth order polynomial terms as columns to design matrix.
 
         Args:
@@ -390,27 +395,27 @@ class Design_Matrix(DataFrame):
             include_lower: (bool) whether to add lower order terms if order > 0
 
         """
-
         if order < 0:
             raise ValueError("Order must be 0 or greater")
 
         polyDict = {}
 
         if order == 0 and 'intercept' in self.polys:
-            raise ValueError("Design Matrix already has intercept")
+            print("Design Matrix already has intercept...skipping")
+            return self
         elif 'poly_'+str(order) in self.polys:
-            raise ValueError("Design Matrix already has {}th order polynomial".format(order))
+            print("Design Matrix already has {}th order polynomial...skipping".format(order))
+            return self
 
         if include_lower:
             for i in range(0, order+1):
                 if i == 0:
-                    if 'intercept' in self.polys:                            warnings.warn("Design Matrix already has "
-                                      "intercept...skipping")
+                    if 'intercept' in self.polys:                            print("Design Matrix already has intercept...skipping")
                     else:
                         polyDict['intercept'] = np.repeat(1, self.shape[0])
                 else:
                     if 'poly_'+str(i) in self.polys:
-                        warnings.warn("Design Matrix already has {}th order polynomial...skipping".format(i))
+                        print("Design Matrix already has {}th order polynomial...skipping".format(i))
                     else:
                         polyDict['poly_' + str(i)] = (range(self.shape[0]) - np.mean(range(self.shape[0]))) ** i
         else:
@@ -445,10 +450,71 @@ class Design_Matrix(DataFrame):
 
         basis_frame.columns = ['cosine_'+str(i+1) for i in range(basis_frame.shape[1])]
 
-        out = self.append(basis_frame,axis=1)
-        if out.polys:
+        if self.polys:
+            # Only add those we don't already have
+            basis_to_add = [b for b in basis_frame.columns if b not in self.polys]
+        else:
+            basis_to_add = list(basis_frame.columns)
+        if not basis_to_add:
+            print("All basis functions already exist...skipping")
+            return self
+        else:
+            if len(basis_to_add) != len(basis_frame.columns):
+                print("Some basis functions already exist...skipping")
+            basis_frame = basis_frame[basis_to_add]
+            out = self.append(basis_frame,axis=1)
             new_polys = out.polys + list(basis_frame.columns)
             out.polys = new_polys
+            return out
+
+    def replace_data(self,data,column_names=None):
+        """Convenient method to replace all data in Design_Matrix with new data while keeping attributes and polynomial columns untouched.
+
+        Args:
+            columns_names (list): list of columns names for new data
+
+        """
+
+        if isinstance(data, np.ndarray) or isinstance(data, pd.DataFrame) or isinstance(data, dict):
+            if data.shape[0] == self.shape[0]:
+                out = Design_Matrix(data,columns=column_names)
+                polys = self[self.polys]
+                out = pd.concat([out,polys],axis=1)
+                out = self._inherit_attributes(out)
+                return out
+            else:
+                raise ValueError("New data cannot change the number of rows")
         else:
-            out.polys = list(basis_frame.columns)
+            raise TypeError("New data must be numpy array, pandas DataFrame or python dictionary type")
+
+    def clean(self,fill_na=0,exclude_polys=False,verbose=False):
+        """
+        Method to fill NaNs in Design Matrix and remove duplicate columns based on data values, NOT names. Columns are dropped if they cause the Design Matrix to become singular i.e. are perfectly correlated. In this case, only the first instance of that column will be retained and all others will be dropped.
+
+        Args:
+            fill_na (str/int/float): value to fill NaNs with set to None to retain NaNs; default 0
+            exclude_polys (bool): whether to skip checking of polynomial terms (i.e. intercept, trends, basis functions); default False
+            verbose (bool): print what column names were dropped
+
+        """
+
+        if fill_na is not None:
+            out = self.fillna(fill_na)
+
+        if exclude_polys:
+            data_cols = [c for c in self.columns if c not in self.polys]
+            out = out[data_cols]
+
+        keep = []; remove = []
+        for i, c in out.iteritems():
+           for j, c2 in out.iteritems():
+               if i != j:
+                   r = pearsonr(c,c2)[0]
+                   if (r > 0.99) and (j not in keep) and (j not in remove):
+                       keep.append(i)
+                       remove.append(j)
+        out = out.drop(remove, axis=1)
+        if verbose:
+            print("Dropping columns: ", remove)
+
         return out
