@@ -308,7 +308,7 @@ def downsample(data,sampling_freq=None, target=None, target_type='samples',
 
         Args:
             data: Pandas DataFrame or Series
-                    sampling_freq:  Sampling frequency of data
+            sampling_freq:  Sampling frequency of data
             target: downsampling target
                     target_type: type of target can be [samples,seconds,hz]
             method: (str) type of downsample method ['mean','median'],
@@ -350,10 +350,7 @@ def upsample(data,sampling_freq=None, target=None, target_type='samples',method=
             sampling_freq:  Sampling frequency of data
             target: downsampling target
             target_type: type of target can be [samples,seconds,hz]
-            method: (str) ('linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic'
-                    where 'zero', 'slinear', 'quadratic' and 'cubic' refer to a spline
-                    interpolation of zeroth, first, second or third order)
-                    default: linear
+            method (str):'linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic' where 'zero', 'slinear', 'quadratic' and 'cubic' refer to a spline interpolation of zeroth, first, second or third order  default: linear
         Returns:
             upsampled pandas object
 

@@ -104,7 +104,7 @@ class Design_Matrix(DataFrame):
             setattr(dm_out, item, getattr(self,item))
         return dm_out
 
-    def info(self):
+    def details(self):
         """Print class meta data.
 
         """
@@ -117,10 +117,10 @@ class Design_Matrix(DataFrame):
             self.polys
             )
 
-    def append(self, dm, axis=0, keep_separate = True, add_poly = None, unique_cols = [], include_lower = True,fill_na=0):
+    def append(self, dm, axis=0, keep_separate = True, add_poly = None, add_dct_basis = None, unique_cols = [], include_lower = True,fill_na=0):
         """Method for concatenating another design matrix row or column-wise.
             Can "uniquify" certain columns when appending row-wise, and by
-            default will attempt to do that with all polynomial terms (e.g. intercept, polynomial trends).
+            default will attempt to do that with all polynomial terms (e.g. intercept, polynomial trends). Can also add new polynomial terms during vertical concatentation (when axis == 0). This will by default create new polynomial terms separately for each design matrix
 
         Args:
             dm (Design_Matrix or list): design_matrix or list of design_matrices to append
@@ -128,7 +128,8 @@ class Design_Matrix(DataFrame):
             keep_separate (bool,optional): whether try and uniquify columns;
                                         defaults to True; only applies
                                         when axis==0
-            add_poly (int,optional): what order polynomial terms to add during append, only applied when axis = 0; defaults None;
+            add_poly (int,optional): what order polynomial terms to add during append, only applied when axis = 0; default None
+            add_dct_basis (int,optional): add discrete cosine bassi function during append, only applied when axis = 0; default None
                                         only applies when axis==0
             unique_cols (list,optional): what additional columns to try to keep
                                         separated by uniquifying, only applies when
@@ -137,62 +138,58 @@ class Design_Matrix(DataFrame):
             fill_na (str/int/float): if provided will fill NaNs with this value during row-wise appending (when axis = 0) if separate columns are desired; default 0
 
         """
-        if isinstance(dm, list):
-            # Check that the first object in a list is a design matrix
-            if not isinstance(dm[0],self.__class__):
-                raise TypeError("Can only append other Design_Matrix objects!")
-            # Check all remaining objects are also design matrices
-            if not all([isinstance(elem,dm[0].__class__) for elem in dm]):
-                raise TypeError("Each object in list must be a Design_Matrix!")
-        elif not isinstance(dm, self.__class__):
-            raise TypeError("Can only append other Design_Matrix objects")
+        if not isinstance(dm, list):
+            to_append = [dm]
+        else:
+            to_append = dm[:]
+
+        # Check all items to be appended are Design Matrices and have the same sampling rate
+        if not all([isinstance(elem,self.__class__) for elem in to_append]):
+            raise TypeError("Each object in list must be a Design_Matrix!")
+        if not all([elem.sampling_rate == self.sampling_rate for elem in to_append]):
+            raise ValueError("All Design Matrices must have the same sampling rate!")
 
         if axis == 1:
-            if isinstance(dm,self.__class__):
-                if not set(self.columns).isdisjoint(dm.columns):
-                    print("Duplicate column names detected. Will be repeated.")
-            else:
-                if any([not set(self.columns).isdisjoint(elem.columns) for elem in dm]):
-                    print("Duplicate column names detected. Will be repeated.")
-            return self.horzcat(dm)
+            if any([not set(self.columns).isdisjoint(elem.columns) for elem in to_append]):
+                print("Duplicate column names detected. Will be repeated.")
+            if add_poly or unique_cols:
+                print("add_poly and unique_cols only apply when axis=0...ignoring")
+            return self._horzcat(to_append)
+
         elif axis == 0:
-            return self.vertcat(dm, keep_separate=keep_separate,add_poly=add_poly,unique_cols=unique_cols,include_lower=include_lower,fill_na=fill_na)
+            return self._vertcat(to_append, keep_separate=keep_separate,add_poly=add_poly,add_dct_basis=add_dct_basis,unique_cols=unique_cols,include_lower=include_lower,fill_na=fill_na)
+
         else:
             raise ValueError("Axis must be 0 (row) or 1 (column)")
 
 
-    def horzcat(self, df):
+    def _horzcat(self, to_append):
         """Used by .append(). Append another design matrix, column-wise
             (horz cat). Always returns a new design_matrix.
 
         """
 
-        if not isinstance(df, list):
-            to_append = [df]
-        else:
-            to_append = df # No need to copy here cause we're not altering df
         if all([elem.shape[0] == self.shape[0] for elem in to_append]):
             out = pd.concat([self] + to_append, axis=1)
+            out = self._inherit_attributes(out)
+            out.polys = self.polys[:]
+            for elem in to_append:
+                out.polys += elem.polys
         else:
             raise ValueError("All Design Matrices must have the same number of rows!")
-        out = self._inherit_attributes(out)
-        out.polys = self.polys + df.polys
         return out
 
-    def vertcat(self, df, keep_separate, add_poly, unique_cols, include_lower,fill_na):
+    def _vertcat(self, df, keep_separate, add_poly, add_dct_basis, unique_cols, include_lower,fill_na):
         """Used by .append(). Append another design matrix row-wise (vert cat).
             Always returns a new design matrix.
 
         """
 
-        if unique_cols and not keep_separate:
-            raise ValueError("Unique columns provided by keep_separate set to False. Set keep_separate to True to separate unique_cols")
+        if unique_cols:
+            if not keep_separate:
+                raise ValueError("unique_cols provided but keep_separate set to False. Set keep_separate to True to separate unique_cols")
 
-        # Convert everything to a list to make things easier
-        if not isinstance(df, list):
-            to_append = [df]
-        else:
-            to_append = df[:] # need to make a copy because we're altering df
+        to_append = df[:] # need to make a copy because we're altering df
 
         if keep_separate:
             if not all([set(self.polys) == set(elem.polys) for elem in to_append]):
@@ -206,12 +203,18 @@ class Design_Matrix(DataFrame):
                     d = d.add_poly(add_poly,include_lower)
                     to_append[i] = d
 
-            unique_cols += orig.polys
+            if add_dct_basis:
+                orig = orig.add_dct_basis(add_dct_basis)
+                for i,d in enumerate(to_append):
+                    d = d.add_dct_basis(add_dct_basis)
+                    to_append[i] = d
+
+            all_cols = unique_cols + orig.polys
             all_dms = [orig] + to_append
             all_polys = []
             for i,dm in enumerate(all_dms):
                 # Figure out what columns we need to relabel
-                cols_to_relabel = [col for col in dm.columns if col in unique_cols]
+                cols_to_relabel = [col for col in dm.columns if col in all_cols]
                 if cols_to_relabel:
                     # Create a dictionary with the new names, e.g. {'intercept': '0_intercept'}
                     cols_dict = {}
@@ -226,7 +229,7 @@ class Design_Matrix(DataFrame):
 
             out = pd.concat(all_dms,axis=0,ignore_index=True)
             if fill_na is not None:
-                out = out.fill_na(fill_na)
+                out = out.fillna(fill_na)
 
             # colOrder = []
             # #retain original column order as closely as possible
@@ -341,7 +344,10 @@ class Design_Matrix(DataFrame):
             kwargs: additional inputs to nltools.stats.downsample
 
         """
-        df = downsample(self, sampling_freq=self.sampling_rate, target=target, **kwargs)
+        if target < self.sampling_rate:
+            raise ValueError("Target must be longer than current sampling rate")
+
+        df = Design_Matrix(downsample(self, sampling_freq=1./self.sampling_rate, target=target,target_type='seconds', **kwargs))
 
         # convert df to a design matrix
         newMat = self._inherit_attributes(df)
@@ -359,7 +365,10 @@ class Design_Matrix(DataFrame):
             kwargs: additional inputs to nltools.stats.downsample
 
         """
-        df = upsample(self, sampling_freq=self.sampling_rate, target=target, **kwargs)
+        if target > self.sampling_rate:
+            raise ValueError("Target must be shorter than current sampling rate")
+
+        df = Design_Matrix(upsample(self, sampling_freq=1./self.sampling_rate, target=target, target_type='seconds',**kwargs))
 
         # convert df to a design matrix
         newMat = self._inherit_attributes(df)
@@ -487,14 +496,14 @@ class Design_Matrix(DataFrame):
         else:
             raise TypeError("New data must be numpy array, pandas DataFrame or python dictionary type")
 
-    def clean(self,fill_na=0,exclude_polys=False,verbose=False):
+    def clean(self,fill_na=0,exclude_polys=False,verbose=True):
         """
         Method to fill NaNs in Design Matrix and remove duplicate columns based on data values, NOT names. Columns are dropped if they cause the Design Matrix to become singular i.e. are perfectly correlated. In this case, only the first instance of that column will be retained and all others will be dropped.
 
         Args:
             fill_na (str/int/float): value to fill NaNs with set to None to retain NaNs; default 0
             exclude_polys (bool): whether to skip checking of polynomial terms (i.e. intercept, trends, basis functions); default False
-            verbose (bool): print what column names were dropped
+            verbose (bool): print what column names were dropped; default True
 
         """
 
