@@ -620,11 +620,21 @@ def test_designmat(tmpdir):
     },
     sampling_rate=2.0, polys=['intercept'])
 
-    #appending
-    assert mat1.append(mat1, axis=1).shape == (mat1.shape[0],
-                        mat1.shape[1] + mat2.shape[1])
-    assert mat1.append(mat2, axis=0).shape == (mat1.shape[0] + mat2.shape[0],
-                        mat1.shape[1]+1)
+    # Appending
+    # Basic horz cat
+    new_mat = mat1.append(mat1,axis=1)
+    assert new_mat.shape == (mat1.shape[0], mat1.shape[1] + mat2.shape[1])
+    assert all(new_mat.columns == mat1.columns + mat1.columns)
+    # Basic vert cat
+    new_mat = mat1.append(mat1,axis=0)
+    assert all(new_mat.shape == (mat1.shape[0]*2, mat1.shape[1]+1))
+    # Advanced vert cat
+    new_mat = mat1.append(mat1,axis=0,keep_separate=False)
+    assert all(new_mat.shape == (mat1.shape[0]*2,mat1.shape[1]))
+    # More advanced vert cat
+    new_mat = mat1.append(mat1,axis=0,add_poly=2)
+    assert all(new_mat.shape == (mat1.shape[0]*2, 9))
+
 
     #convolution doesn't affect intercept
     assert all(mat1.convolve().iloc[:, -1] == mat1.iloc[:, -1])
@@ -644,6 +654,43 @@ def test_designmat(tmpdir):
     assert (z['Y'] == mat1['Y']).all()
     assert z.shape == mat1.shape
 
-    #DCT basis_mat
+    # clean
+    mat = Design_Matrix({
+    'X':[1, 4, 2, 7, 5, 9, 2, 1, 3, 2],
+    'A':[1, 4, 2, 7, 5, 9, 2, 1, 3, 2],
+    'Y':[3, 0, 0, 6, 9, 9, 10, 10, 1, 10],
+    'Z':[2, 2, 2, 2, 7, 0, 1, 3, 3, 2],
+    'C':[1, 4, 2, 7, 5, 9, 2, 1, 3, 2],
+    'intercept':[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    },
+    sampling_rate=2.0,polys=['intercept'])
+    mat = mat[['X','A','Y','Z','C','intercept']]
+    assert all(mat.clean().columns == ['X','Y','Z','intercept'])
 
-    #downsample...might need to edit function
+    # replace data
+    mat = Design_Matrix({
+    'X':[1, 4, 2, 7, 5, 9, 2, 1, 3, 2],
+    'A':[1, 4, 2, 7, 5, 9, 2, 1, 3, 2],
+    'Y':[3, 0, 0, 6, 9, 9, 10, 10, 1, 10],
+    'Z':[2, 2, 2, 2, 7, 0, 1, 3, 3, 2],
+    'C':[1, 4, 2, 7, 5, 9, 2, 1, 3, 2]
+    },
+    sampling_rate=2.0)
+
+    mat = mat.replace_data(np.ones((mat.shape[0],mat.shape[1]-1)),column_names=['a','b','c','d'])
+
+    assert(np.allclose(mat.values,1))
+    assert(all(mat.columns == ['a','b','c','d']))
+
+    #DCT basis_mat
+    mat = Design_Matrix(np.random.randint(2,size=(500,3)),sampling_rate=2.0)
+    mat = mat.add_dct_basis()
+    assert len(mat.polys) == 11
+    assert mat.shape[1] == 14
+
+    #Up and down sampling
+    mat = Design_Matrix(np.random.randint(2,size=(500,4)),sampling_rate=2.0,columns=['a','b','c','d'])
+    target = 1
+    assert mat.upsample(target).shape[0] == mat.shape[0] - target
+    target = 4
+    assert mat.downsample(target).shape[0] == mat.shape[0]/2
