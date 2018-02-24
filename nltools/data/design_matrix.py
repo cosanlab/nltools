@@ -426,7 +426,10 @@ class Design_Matrix(DataFrame):
                     if 'poly_'+str(i) in self.polys:
                         print("Design Matrix already has {}th order polynomial...skipping".format(i))
                     else:
-                        polyDict['poly_' + str(i)] = (range(self.shape[0]) - np.mean(range(self.shape[0]))) ** i
+                        # Unit scale polynomial terms so they don't blow up
+                        vals = np.arange(self.shape[0])
+                        vals = (vals - np.mean(vals)) / np.std(vals)
+                        polyDict['poly_' + str(i)] = vals ** i
         else:
             if order == 0:
                 polyDict['intercept'] = np.repeat(1, self.shape[0])
@@ -507,6 +510,8 @@ class Design_Matrix(DataFrame):
 
         """
 
+        # Temporarily turn off warnings for correlations 
+        old_settings = np.seterr(all='ignore')
         if fill_na is not None:
             out = self.fillna(fill_na)
 
@@ -525,5 +530,5 @@ class Design_Matrix(DataFrame):
         out = out.drop(remove, axis=1)
         if verbose:
             print("Dropping columns: ", remove)
-
+        np.seterr(**old_settings)
         return out
