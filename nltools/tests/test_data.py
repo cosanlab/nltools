@@ -624,17 +624,17 @@ def test_designmat(tmpdir):
     # Basic horz cat
     new_mat = mat1.append(mat1,axis=1)
     assert new_mat.shape == (mat1.shape[0], mat1.shape[1] + mat2.shape[1])
-    assert all(new_mat.columns == mat1.columns + mat1.columns)
+    both_cols = list(mat1.columns) + list(mat1.columns)
+    assert all(new_mat.columns == both_cols)
     # Basic vert cat
     new_mat = mat1.append(mat1,axis=0)
-    assert all(new_mat.shape == (mat1.shape[0]*2, mat1.shape[1]+1))
+    assert new_mat.shape == (mat1.shape[0]*2, mat1.shape[1]+1)
     # Advanced vert cat
     new_mat = mat1.append(mat1,axis=0,keep_separate=False)
-    assert all(new_mat.shape == (mat1.shape[0]*2,mat1.shape[1]))
+    assert new_mat.shape == (mat1.shape[0]*2,mat1.shape[1])
     # More advanced vert cat
     new_mat = mat1.append(mat1,axis=0,add_poly=2)
-    assert all(new_mat.shape == (mat1.shape[0]*2, 9))
-
+    assert new_mat.shape == (mat1.shape[0]*2, 9)
 
     #convolution doesn't affect intercept
     assert all(mat1.convolve().iloc[:, -1] == mat1.iloc[:, -1])
@@ -646,8 +646,8 @@ def test_designmat(tmpdir):
     assert np.allclose(expectedVifs,mat1.vif())
 
     #poly
-    mat1.addpoly(order=4).shape[1] == mat1.shape[1]+4
-    mat1.addpoly(order=4, include_lower=False).shape[1] == mat1.shape[1]+1
+    mat1.add_poly(order=4).shape[1] == mat1.shape[1]+4
+    mat1.add_poly(order=4, include_lower=False).shape[1] == mat1.shape[1]+1
 
     #zscore
     z = mat1.zscore(columns=['X', 'Z'])
@@ -691,6 +691,6 @@ def test_designmat(tmpdir):
     #Up and down sampling
     mat = Design_Matrix(np.random.randint(2,size=(500,4)),sampling_rate=2.0,columns=['a','b','c','d'])
     target = 1
-    assert mat.upsample(target).shape[0] == mat.shape[0] - target
+    assert mat.upsample(target).shape[0] == mat.shape[0]*2 - target*2
     target = 4
     assert mat.downsample(target).shape[0] == mat.shape[0]/2
