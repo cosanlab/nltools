@@ -36,7 +36,7 @@ dm = Design_Matrix(np.array([
 #########################################################################
 # Notice how this look exactly like a pandas dataframe. That's because design matrices are *subclasses* of dataframes with some extra attributes and methods.
 
-print(dm.head())
+print(dm)
 
 #########################################################################
 # Let's take a look at some of that meta-data. We can see that no columns have been convolved as of yet and this design matrix has no polynomial terms (e.g. such as an intercept or linear trend).
@@ -134,7 +134,7 @@ dm2 = dm.append(dm, axis=0, unique_cols=['BillyRiggins'])
 dm2.heatmap(vmin=-1,vmax=1)
 
 #########################################################################
-# Design Matrix can also create polynomial terms and intelligently keep them separate during concatenation. For example lets concatenation 4 design matrices and create separate 2nd order polynomials for all of them
+# Design Matrix can also create polynomial terms and intelligently keep them separate during concatenation. For example lets concatenate 4 design matrices and create separate 2nd order polynomials for all of them
 
 # Notice that append can take a list of Design Matrices in addition to just a single one
 dm_all = dm.append([dm,dm,dm], axis=0, add_poly=2)
@@ -147,5 +147,5 @@ dm_all.heatmap(vmin=-1,vmax=1)
 # Design Matrix also provides a few tools for cleaning up perfectly correlated columns (resulting in failure if trying to perform regression), replacing data, and computing collinearity.
 
 # We have a good design here so no problems
-dm_all.clean()
+dm_all.clean(verbose=False)
 dm_all.vif()
