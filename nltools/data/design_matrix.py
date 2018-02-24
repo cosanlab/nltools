@@ -212,6 +212,7 @@ class Design_Matrix(DataFrame):
             all_cols = unique_cols + orig.polys
             all_dms = [orig] + to_append
             all_polys = []
+            is_data = []
             for i,dm in enumerate(all_dms):
                 # Figure out what columns we need to relabel
                 cols_to_relabel = [col for col in dm.columns if col in all_cols]
@@ -221,26 +222,20 @@ class Design_Matrix(DataFrame):
                     # Rename the columns and update the dm
                     for c in cols_to_relabel:
                         cols_dict[c] = str(i) + '_' + c
+                        if c not in unique_cols:
+                            all_polys.append(cols_dict[c])
                     dm = dm.rename(columns=cols_dict)
                     all_dms[i] = dm
-                    # Save the new column names to setting the attribute later
-                    for v in list(cols_dict.values()):
-                        all_polys.append(v)
 
             out = pd.concat(all_dms,axis=0,ignore_index=True)
             if fill_na is not None:
                 out = out.fillna(fill_na)
 
-            # colOrder = []
-            # #retain original column order as closely as possible
-            # for colA,colB in zip(out.columns, outdf.columns):
-            #     colOrder.append(colA)
-            #     if colA != colB:
-            #         colOrder.append(colB)
-            # out = out[colOrder]
             out.sampling_rate = self.sampling_rate
             out.convolved = self.convolved
             out.polys = all_polys
+            data_cols = [elem for elem in out.columns if elem not in out.polys]
+            out = out[data_cols + out.polys]
         else:
             out = pd.concat([self] + to_append,axis=0,ignore_index=True)
             out = self._inherit_attributes(out)
@@ -510,7 +505,7 @@ class Design_Matrix(DataFrame):
 
         """
 
-        # Temporarily turn off warnings for correlations 
+        # Temporarily turn off warnings for correlations
         old_settings = np.seterr(all='ignore')
         if fill_na is not None:
             out = self.fillna(fill_na)
@@ -527,7 +522,10 @@ class Design_Matrix(DataFrame):
                    if (r > 0.99) and (j not in keep) and (j not in remove):
                        keep.append(i)
                        remove.append(j)
-        out = out.drop(remove, axis=1)
+        if remove:
+            out = out.drop(remove, axis=1)
+        else:
+            print("Dropping columns not needed...skipping")
         if verbose:
             print("Dropping columns: ", remove)
         np.seterr(**old_settings)

@@ -16,7 +16,7 @@ import warnings
 
 
 def onsets_to_dm(F, TR, runLength, header='infer', sort=False, keep_separate=True,
-                addpoly=None, unique_cols=[], fill_na=None, **kwargs):
+                add_poly=None, unique_cols=[], fill_na=None, **kwargs):
 
     """
     This function can assist in reading in one or several in a 2-3 column onsets files, specified in seconds and converting it to a Design Matrix organized as TRs X Stimulus Classes. Onsets files **must** be organized with columns in one of the following 4 formats:
@@ -76,10 +76,7 @@ def onsets_to_dm(F, TR, runLength, header='infer', sort=False, keep_separate=Tru
         df['Onset'] = df['Onset'].apply(lambda x: int(np.floor(x/TR)))
 
         #Build dummy codes
-        X = Design_Matrix(columns=df['Stim'].unique(),
-                        data=np.zeros([runLength,
-                        len(df['Stim'].unique())]),
-                        sampling_rate=TR)
+        X = Design_Matrix(np.zeros([runLength,len(df['Stim'].unique())]),columns=df['Stim'].unique(),sampling_rate=TR)
         for i, row in df.iterrows():
             if df.shape[1] == 3:
                 dur = np.ceil(row['Duration']/TR)
@@ -87,12 +84,12 @@ def onsets_to_dm(F, TR, runLength, header='infer', sort=False, keep_separate=Tru
             elif df.shape[1] == 2:
                 X.ix[row['Onset'], row['Stim']] = 1
         if sort:
-            X = X.reindex_axis(sorted(X.columns), axis=1)
+            X = X.reindex(sorted(X.columns), axis=1)
 
         out.append(X)
     if len(out) > 1:
-        out_dm = out[0].append(out[1:],keep_separate = keep_separate, addpoly=addpoly, unique_cols=unique_cols,fill_na=fill_na)
+        out_dm = out[0].append(out[1:],keep_separate = keep_separate, add_poly=add_poly, unique_cols=unique_cols,fill_na=fill_na)
     else:
-        out_dm = out[0].addpoly(addpoly)
+        out_dm = out[0].add_poly(add_poly)
 
     return out_dm
