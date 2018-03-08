@@ -395,12 +395,32 @@ def _permute_group(data, random_state=None):
     return (np.mean(data.loc[perm_label==1, 'Values']) -
             np.mean(data.loc[perm_label==0, 'Values']))
 
-def one_sample_permutation(data, n_permute=5000, n_jobs=-1, random_state=None):
+
+def _calc_pvalue(all_p, stat, tail):
+    """Calculates p value based on distribution of correlations
+    This function is called by the permutation functions
+        all_p: list of correlation values from permutation
+        stat: actual value being tested, i.e., stats['correlation'] or stats['mean']
+        tail: (int) either 2 or 1 for two-tailed p-value or one-tailed
+    """
+    if tail==2:
+        p= np.mean( np.abs(all_p) >= np.abs(stat))
+    elif tail==1:
+        if stat >= 0:
+            p = np.mean(all_p >= stat)
+        else:
+            p = np.mean(all_p <= stat)
+    else:
+        raise ValueError('tail must be either 1 or 2')
+    return p
+
+def one_sample_permutation(data, n_permute=5000, tail=2, n_jobs=-1, random_state=None):
     ''' One sample permutation test using randomization.
 
         Args:
             data: Pandas DataFrame or Series or numpy array
             n_permute: (int) number of permutations
+            tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
             n_jobs: (int) The number of CPUs to use to do the computation.
                     -1 means all CPUs.
 
@@ -418,20 +438,18 @@ def one_sample_permutation(data, n_permute=5000, n_jobs=-1, random_state=None):
 
     all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_sign)(data,
                      random_state=seeds[i]) for i in range(n_permute))
-    if stats['mean'] >= 0:
-        stats['p'] = np.mean(all_p >= stats['mean'])
-    else:
-        stats['p'] = np.mean(all_p <= stats['mean'])
+    stats['p'] = _calc_pvalue(all_p,stats['mean'],tail)
     return stats
 
 def two_sample_permutation(data1, data2, n_permute=5000,
-                           n_jobs=-1, random_state=None):
+                           tail=2, n_jobs=-1, random_state=None):
     ''' Independent sample permutation test.
 
         Args:
             data1: Pandas DataFrame or Series or numpy array
             data2: Pandas DataFrame or Series or numpy array
             n_permute: (int) number of permutations
+            tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
             n_jobs: (int) The number of CPUs to use to do the computation.
                     -1 means all CPUs.
         Returns:
@@ -451,14 +469,11 @@ def two_sample_permutation(data1, data2, n_permute=5000,
     all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_group)(data,
                      random_state=seeds[i]) for i in range(n_permute))
 
-    if stats['mean']>=0:
-        stats['p'] = np.mean(all_p >= stats['mean'])
-    else:
-        stats['p'] = np.mean(all_p <= stats['mean'])
+    stats['p'] = _calc_pvalue(all_p,stats['mean'],tail)
     return stats
 
 def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
-                            n_jobs=-1, random_state=None):
+                            tail=2, n_jobs=-1, random_state=None):
     ''' Permute correlation.
 
         Args:
@@ -467,6 +482,7 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
             n_permute: (int) number of permutations
             metric: (str) type of association metric ['spearman','pearson',
                     'kendall']
+            tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
             n_jobs: (int) The number of CPUs to use to do the computation.
                     -1 means all CPUs.
 
@@ -504,10 +520,7 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
                         for i in range(n_permute))
     all_p = [x[0] for x in all_p]
 
-    if stats['correlation'] >= 0:
-        stats['p'] = np.mean(all_p >= stats['correlation'])
-    else:
-        stats['p'] = np.mean(all_p <= stats['correlation'])
+    stats['p'] = _calc_pvalue(all_p,stats['correlation'],tail)
     return stats
 
 def make_cosine_basis(nsamples, sampling_rate, filter_length, drop=0):
