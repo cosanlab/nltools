@@ -28,8 +28,14 @@ def test_permutation():
 	assert (stats['correlation'] > .4) & (stats['correlation']<.85) & (stats['p'] < .001)
 	with pytest.raises(ValueError):
 		correlation_permutation(x, y, metric='kendall',tail=3)
+	with pytest.raises(ValueError):
+		correlation_permutation(x, y, metric='doesntwork',tail=3)
 	s = np.random.normal(0,1,10000)
-	assert(_calc_pvalue(all_p = s, stat= 1.96, tail = 2) == _calc_pvalue(all_p = s, stat= -1.96, tail = 1)+_calc_pvalue(all_p = s, stat= 1.96, tail = 1))
+	two_sided = _calc_pvalue(all_p = s, stat= 1.96, tail = 2)
+	upper_p = _calc_pvalue(all_p = s, stat= 1.96, tail = 1)
+	lower_p = _calc_pvalue(all_p = s, stat= -1.96, tail = 1)
+	sum_p = upper_p + lower_p
+	np.testing.assert_almost_equal(two_sided, sum_p)
 
 def test_downsample():
 	dat = pd.DataFrame()
@@ -37,6 +43,12 @@ def test_downsample():
 	dat['y'] = np.repeat(range(1,11),10)
 	assert((dat.groupby('y').mean().values.ravel() == downsample(data=dat['x'],sampling_freq=10,target=1,target_type='hz',method='mean').values).all)
 	assert((dat.groupby('y').median().values.ravel() == downsample(data=dat['x'],sampling_freq=10,target=1,target_type='hz',method='median').values).all)
+	with pytest.raises(ValueError):
+		downsample(data=list(dat['x']),sampling_freq=10,target=1,target_type='hz',method='median')
+	with pytest.raises(ValueError):
+		downsample(data=dat['x'],sampling_freq=10,target=1,target_type='hz',method='doesnotwork')
+	with pytest.raises(ValueError):
+		downsample(data=dat['x'],sampling_freq=10,target=1,target_type='doesnotwork',method='median')
 
 def test_upsample():
 	dat = pd.DataFrame()
@@ -48,6 +60,10 @@ def test_upsample():
 	fs = 3
 	us = upsample(dat,sampling_freq=1,target=fs,target_type='hz')
 	assert(dat.shape[0]*fs-fs == us.shape[0])
+	with pytest.raises(ValueError):
+		upsample(dat,sampling_freq=1,target=fs,target_type='hz',method='doesnotwork')
+	with pytest.raises(ValueError):
+		upsample(dat,sampling_freq=1,target=fs,target_type='doesnotwork',method='linear')
 
 def test_winsorize():
 	outlier_test = pd.DataFrame([92, 19, 101, 58, 1053, 91, 26, 78, 10, 13,
