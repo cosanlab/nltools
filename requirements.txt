@@ -4,7 +4,7 @@
 	pandas>=0.20
 	numpy>=1.9
 	seaborn>=0.7.0
-	matplotlib>=2.1
+	matplotlib>=2.2.0
 	scipy
 	six
 	pynv
