@@ -25,7 +25,6 @@ install:
   - pip install -r requirements.txt
   - pip install -r optional-dependencies.txt
   - python setup.py install
-  - pip install git+https://github.com/nilearn/nilearn --upgrade
 
 script: coverage run --source nltools -m py.test
 
