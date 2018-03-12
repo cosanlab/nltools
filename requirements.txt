@@ -1,6 +1,6 @@
 	nibabel>=2.0.1
 	scikit-learn>=0.19.1
-	nilearn>=0.4
+	nilearn>=0.4.1
 	pandas>=0.20
 	numpy>=1.9
 	seaborn>=0.7.0
