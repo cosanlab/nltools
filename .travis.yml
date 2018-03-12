@@ -24,6 +24,7 @@ install:
   - pip install python-coveralls
   - pip install -r requirements.txt
   - pip install -r optional-dependencies.txt
+  - pip install git+https://github.com/nilearn/nilearn
   - python setup.py install
   - pip install git+https://github.com/nilearn/nilearn
 
