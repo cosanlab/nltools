@@ -17,9 +17,10 @@ dependencies:
     - sphinx >= 1.5
     - sphinx-gallery
     - sphinxcontrib-napoleon
+    - sphinx_bootstrap_theme
     - requests
     - importlib
     - nibabel>=2.0.1
     - nilearn>=0.4
-    - six
+    - nltools
     - pynv
