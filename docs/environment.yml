@@ -1,4 +1,4 @@
-name: nltools-tutorial
+name: nltools
 
 python:
    version: 3.6
