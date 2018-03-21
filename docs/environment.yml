@@ -1,28 +1,12 @@
-build:
-  image: latest
-
-python:
-   version: 3.6
+name:
+  - nltools
 
 channels:
   - conda-forge
 
 dependencies:
-  - matplotlib
-  - scikit-learn>=0.19.1
-  - numpy>=1.9
-  - pandas>=0.20
-  - seaborn>=0.7.0
-  - scipy
-
   - pip:
     - sphinx >= 1.5
     - sphinx-gallery
     - sphinxcontrib-napoleon
     - sphinx_bootstrap_theme
-    - requests
-    - importlib
-    - nibabel>=2.0.1
-    - nilearn>=0.4
-    - six
-    - pynv
