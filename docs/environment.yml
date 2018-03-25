@@ -1,25 +1,14 @@
-name: nltools-tutorial
-
 channels:
   - conda-forge
 
-dependencies:
-  - python=2.7
-  - matplotlib
-  - scikit-learn>=0.17
-  - numpy>=1.9
-  - pandas>=0.19
-  - seaborn>=0.7.0
-  - scipy
+name:
+  - nltools
 
+dependencies:
+  - python=3.5
+  - pip
   - pip:
-    - nilearn>=0.2
     - sphinx >= 1.5
     - sphinx-gallery
     - sphinxcontrib-napoleon
-    - requests
-    - importlib
-    - nibabel>=2.0.1
-    - nilearn>=0.2
-    - six
-    - pynv
+    - sphinx_bootstrap_theme

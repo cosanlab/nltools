@@ -182,7 +182,7 @@ plt.tight_layout()
 
 #########################################################################
 # Align subjects in lower dimensional common space
-# ---------------------------------
+# ------------------------------------------------
 #
 # The shared response model allows for the possibility of aligning in a lower
 # dimensional functional space. Here we provide an example of aligning to a 10
