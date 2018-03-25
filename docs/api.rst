@@ -1,11 +1,13 @@
+:orphan:
+
+.. _api_ref:
+
 API Reference
 *************
 
-This reference provides detailed documentation for all modules, classes, and 
-methods in the current release of Neurolearn. 
+This reference provides detailed documentation for all modules, classes, and
+methods in the current release of Neurolearn.
 
-.. toctree::
-  :maxdepth: 4
 
 :mod:`nltools.data`: Data Types
 ===============================
@@ -49,7 +51,6 @@ methods in the current release of Neurolearn.
 .. autoclass:: nltools.cross_validation.KFoldStratified
     :members:
 
-
 :mod:`nltools.mask`: Mask Tools
 ===============================
 
@@ -73,7 +74,7 @@ methods in the current release of Neurolearn.
 
 .. automodule:: nltools.plotting
     :members:
-    
+
 :mod:`nltools.simulator`: Simulator Tools
 =========================================
 
