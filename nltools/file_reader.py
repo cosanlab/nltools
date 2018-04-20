@@ -15,7 +15,7 @@ from nltools.data import Design_Matrix
 import warnings
 
 
-def onsets_to_dm(F, TR, runLength, header='infer', sort=False, keep_separate=True,
+def onsets_to_dm(F, TR, run_length, header='infer', sort=False, keep_separate=True,
                 add_poly=None, unique_cols=[], fill_na=None, **kwargs):
 
     """
@@ -30,9 +30,8 @@ def onsets_to_dm(F, TR, runLength, header='infer', sort=False, keep_separate=Tru
 
     Args:
         F (filepath/DataFrame/list): path to file, pandas dataframe, or list of files or pandas dataframes
-        df (str or dataframe): path to file or pandas dataframe
         TR (float): length of TR in seconds the run was collected at
-        runLength (int): number of TRs in the run these onsets came from
+        run_length (int): number of TRs in the run these onsets came from
         sort (bool, optional): whether to sort the columns of the resulting
                                 design matrix alphabetically; defaults to
                                 False
