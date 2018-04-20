@@ -89,7 +89,7 @@ class Design_Matrix(DataFrame):
                             'polys']):
 
         """
-        This is helper function that simply ensures that attributes are copied over from an the current Design_Matrix to a new Design_Matrix.
+        This is helper function that simply ensures that attributes are copied over from  the current Design_Matrix to a new Design_Matrix.
 
         Args:
             dm_out (Design_Matrix): the new design matrix to copy attributes to
@@ -118,9 +118,7 @@ class Design_Matrix(DataFrame):
             )
 
     def append(self, dm, axis=0, keep_separate = True, add_poly = None, add_dct_basis = None, unique_cols = [], include_lower = True,fill_na=0):
-        """Method for concatenating another design matrix row or column-wise.
-            Can "uniquify" certain columns when appending row-wise, and by
-            default will attempt to do that with all polynomial terms (e.g. intercept, polynomial trends). Can also add new polynomial terms during vertical concatentation (when axis == 0). This will by default create new polynomial terms separately for each design matrix
+        """Method for concatenating another design matrix row or column-wise. When concatenating row-wise, has the ability to keep certain columns separated if they exist in multiple design matrices (e.g. keeping separate intercepts for multiple runs). This is on by default and will automatically separate out polynomial columns (i.e. anything added with the `add_poly` or `add_dct_basis` methods). Additional columns can be separate by run using the `unique_cols` parameter. Can also add new polynomial terms during vertical concatentation (when axis == 0). This will by default create new polynomial terms separately for each design matrix
 
         Args:
             dm (Design_Matrix or list): design_matrix or list of design_matrices to append
@@ -185,15 +183,16 @@ class Design_Matrix(DataFrame):
 
         """
 
-        if unique_cols:
+        if len(unique_cols):
             if not keep_separate:
                 raise ValueError("unique_cols provided but keep_separate set to False. Set keep_separate to True to separate unique_cols")
 
         to_append = df[:] # need to make a copy because we're altering df
 
         if keep_separate:
-            if not all([set(self.polys) == set(elem.polys) for elem in to_append]):
-                raise ValueError("Design matrices do not match on their polynomial terms (i.e. intercepts, polynomial trends, basis functions). This makes appending with separation ambigious and is not currently supported. Either make sure all constant terms are the same or make sure no Design Matrix has any constant terms and add them during appending with the 'add_poly' and 'unique_cols' arguments")
+            if not self.empty:
+                if not all([set(self.polys) == set(elem.polys) for elem in to_append]):
+                    raise ValueError("Design matrices do not match on their polynomial terms (i.e. intercepts, polynomial trends, basis functions). This makes appending with separation ambigious and is not currently supported. Either make sure all constant terms are the same or make sure no Design Matrix has any constant terms and add them during appending with the 'add_poly' and 'unique_cols' arguments")
 
             orig = self.copy() # Make a copy of the original cause we might alter it
 
@@ -226,6 +225,9 @@ class Design_Matrix(DataFrame):
                             all_polys.append(cols_dict[c])
                     dm = dm.rename(columns=cols_dict)
                     all_dms[i] = dm
+                elif len(dm.polys):
+                    for p in dm.polys:
+                        all_polys.append(p)
 
             out = pd.concat(all_dms,axis=0,ignore_index=True)
             if fill_na is not None:
