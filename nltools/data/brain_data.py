@@ -327,6 +327,19 @@ class Brain_Data(object):
 
         self.to_nifti().to_filename(file_name)
 
+    def scale(self, scale_val=100.):
+        """ Scale all values such that theya re on the range 0 - scale_val, via grand-mean scaling. This is NOT global-scaling/intensity normalization. This is useful for ensuring that data is on a common scale (e.g. good for multiple runs, participants, etc) and if the default value of 100 is used, can be interpreted as something akin to (but not exactly) "percent signal change." This is consistent with default behavior in AFNI and SPM. Change this value to 10000 to make consistent with FSL.
+
+        Args:
+            scale_val (int/float): what value to send the grand-mean to; default 100
+
+        """
+
+        out = deepcopy(self)
+        out.data = out.data / out.data.mean() * scale_val
+
+        return out
+
     def plot(self, limit=5, anatomical=None, **kwargs):
         """ Create a quick plot of self.data.  Will plot each image separately
 
