@@ -412,24 +412,23 @@ class Brain_Data(object):
         b,t,p,df,res = regress(self.X,self.data,mode=mode,**kwargs)
         sigma = np.std(res,axis=0,ddof=self.X.shape[1])
 
-        b_out = deepcopy(self)
-        b_out.data = b
-        b_out.X, b_out.Y = None, None
-        t_out = deepcopy(self)
+        # Prevent copy of all data in self multiple times; instead start with an empty instance and copy only needed attributes from self, and use this as a template for other outputs
+        b_out = self.__class__()
+        b_out.mask = deepcopy(self.mask)
+        b_out.nifti_masker = deepcopy(self.nifti_masker)
+
+        # Use this as template for other outputs before setting data
+        t_out = b_out.copy()
         t_out.data = t
-        t_out.X, t_out.Y = None, None
-        p_out = deepcopy(self)
+        p_out = b_out.copy()
         p_out.data = p
-        p_out.X, p_out.Y = None, None
-        df_out = deepcopy(self)
+        df_out = b_out.copy()
         df_out.data = df
-        df_out.X, df_out.Y = None, None
-        sigma_out = deepcopy(self)
+        sigma_out = b_out.copy()
         sigma_out.data = sigma
-        sigma_out.X, sigma_out.Y = None, None
-        res_out = deepcopy(self)
+        res_out = b_out.copy()
         res_out.data = res
-        res_out.X, res_out.Y = None, None
+        b_out.data = b
 
         return {'beta': b_out, 't': t_out, 'p': p_out, 'df': df_out,
                 'sigma': sigma_out, 'residual': res_out}
@@ -548,9 +547,9 @@ class Brain_Data(object):
                 raise ValueError(error_string)
             out = deepcopy(self)
             out.data = np.vstack([self.data, data.data])
-            if out.Y:
+            if out.Y.size:
                 out.Y = self.Y.append(data.Y)
-            if self.X:
+            if self.X.size:
                 if isinstance(self.X, pd.DataFrame):
                     out.X = self.X.append(data.X,**kwargs)
                 else:
