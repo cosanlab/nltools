@@ -75,7 +75,7 @@ def onsets_to_dm(F, TR, run_length, header='infer', sort=False, keep_separate=Tr
         df['Onset'] = df['Onset'].apply(lambda x: int(np.floor(x/TR)))
 
         #Build dummy codes
-        X = Design_Matrix(np.zeros([runLength,len(df['Stim'].unique())]),columns=df['Stim'].unique(),sampling_rate=TR)
+        X = Design_Matrix(np.zeros([run_length,len(df['Stim'].unique())]),columns=df['Stim'].unique(),sampling_rate=TR)
         for i, row in df.iterrows():
             if df.shape[1] == 3:
                 dur = np.ceil(row['Duration']/TR)
