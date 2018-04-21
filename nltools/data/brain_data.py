@@ -401,16 +401,22 @@ class Brain_Data(object):
 
         b_out = deepcopy(self)
         b_out.data = b
+        b_out.X, b_out.Y = None, None
         t_out = deepcopy(self)
         t_out.data = t
+        t_out.X, t_out.Y = None, None
         p_out = deepcopy(self)
         p_out.data = p
+        p_out.X, p_out.Y = None, None
         df_out = deepcopy(self)
         df_out.data = df
+        df_out.X, df_out.Y = None, None
         sigma_out = deepcopy(self)
         sigma_out.data = sigma
+        sigma_out.X, sigma_out.Y = None, None
         res_out = deepcopy(self)
         res_out.data = res
+        res_out.X, res_out.Y = None, None
 
         return {'beta': b_out, 't': t_out, 'p': p_out, 'df': df_out,
                 'sigma': sigma_out, 'residual': res_out}
@@ -497,11 +503,12 @@ class Brain_Data(object):
 
         return out
 
-    def append(self, data):
+    def append(self, data, **kwargs):
         """ Append data to Brain_Data instance
 
         Args:
             data: Brain_Data instance to append
+            kwargs: optional inputs to Design_Matrix append
 
         Returns:
             out: new appended Brain_Data instance
@@ -528,11 +535,11 @@ class Brain_Data(object):
                 raise ValueError(error_string)
             out = deepcopy(self)
             out.data = np.vstack([self.data, data.data])
-            if out.Y.size:
+            if out.Y:
                 out.Y = self.Y.append(data.Y)
-            if self.X.size:
+            if self.X:
                 if isinstance(self.X, pd.DataFrame):
-                    out.X = self.X.append(data.X)
+                    out.X = self.X.append(data.X,**kwargs)
                 else:
                     out.X = np.vstack([self.X, data.X])
         return out
