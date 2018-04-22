@@ -89,6 +89,9 @@ def onsets_to_dm(F, TR, run_length, header='infer', sort=False, keep_separate=Tr
     if len(out) > 1:
         out_dm = out[0].append(out[1:],keep_separate = keep_separate, add_poly=add_poly, unique_cols=unique_cols,fill_na=fill_na)
     else:
-        out_dm = out[0].add_poly(add_poly)
+        if add_poly is not None:
+            out_dm = out[0].add_poly(add_poly)
+        else:
+            out_dm = out[0]
 
     return out_dm

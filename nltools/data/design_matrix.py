@@ -196,7 +196,7 @@ class Design_Matrix(DataFrame):
 
             orig = self.copy() # Make a copy of the original cause we might alter it
 
-            if add_poly:
+            if add_poly is not None:
                 orig = orig.add_poly(add_poly,include_lower)
                 for i,d in enumerate(to_append):
                     d = d.add_poly(add_poly,include_lower)
