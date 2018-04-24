@@ -53,21 +53,21 @@ class Design_Matrix(DataFrame):
         new design matrix instance.
 
     Args:
-        sampling_rate (float): sampling rate of each row in seconds (e.g. TR in neuroimaging)
+        sampling_freq (float): sampling rate of each row in hertz; To covert seconds to hertz (e.g. in the case of TRs for neuroimaging) using hertz = 1 / TR
         convolved (list, optional): on what columns convolution has been performed; defaults to None
         polys (list, optional): list of polynomial terms in design matrix, e.g. intercept, polynomial trends, basis functions, etc; default None
 
 
     """
 
-    _metadata = ['sampling_rate', 'convolved', 'polys']
+    _metadata = ['sampling_freq', 'convolved', 'polys']
 
     def __init__(self, *args, **kwargs):
 
-        sampling_rate = kwargs.pop('sampling_rate',None)
+        sampling_freq = kwargs.pop('sampling_freq',None)
         convolved = kwargs.pop('convolved', [])
         polys = kwargs.pop('polys', [])
-        self.sampling_rate = sampling_rate
+        self.sampling_freq = sampling_freq
         self.convolved = convolved
         self.polys = polys
 
@@ -84,7 +84,7 @@ class Design_Matrix(DataFrame):
     def _inherit_attributes(self,
                             dm_out,
                             atts=[
-                            'sampling_rate',
+                            'sampling_freq',
                             'convolved',
                             'polys']):
 
@@ -108,10 +108,10 @@ class Design_Matrix(DataFrame):
         """Print class meta data.
 
         """
-        return '%s.%s(sampling_rate=%s, shape=%s, convolved=%s, polynomials=%s)' % (
+        return '%s.%s(sampling_freq=%s (hz), shape=%s, convolved=%s, polynomials=%s)' % (
             self.__class__.__module__,
             self.__class__.__name__,
-            self.sampling_rate,
+            self.sampling_freq,
             self.shape,
             self.convolved,
             self.polys
@@ -144,7 +144,7 @@ class Design_Matrix(DataFrame):
         # Check all items to be appended are Design Matrices and have the same sampling rate
         if not all([isinstance(elem,self.__class__) for elem in to_append]):
             raise TypeError("Each object in list must be a Design_Matrix!")
-        if not all([elem.sampling_rate == self.sampling_rate for elem in to_append]):
+        if not all([elem.sampling_freq == self.sampling_freq for elem in to_append]):
             raise ValueError("All Design Matrices must have the same sampling rate!")
 
         if axis == 1:
@@ -233,7 +233,7 @@ class Design_Matrix(DataFrame):
             if fill_na is not None:
                 out = out.fillna(fill_na)
 
-            out.sampling_rate = self.sampling_rate
+            out.sampling_freq = self.sampling_freq
             out.convolved = self.convolved
             out.polys = all_polys
             data_cols = [elem for elem in out.columns if elem not in out.polys]
@@ -293,12 +293,12 @@ class Design_Matrix(DataFrame):
         """Perform convolution using an arbitrary function.
 
         Args:
-            conv_func (ndarray or string): either a 1d numpy array containing output of a function that you want to convolve; a samples by kernel 2d array of several kernels to convolve; or th string 'hrf' which defaults to a glover HRF function at the Design_matrix's sampling_rate
+            conv_func (ndarray or string): either a 1d numpy array containing output of a function that you want to convolve; a samples by kernel 2d array of several kernels to convolve; or th string 'hrf' which defaults to a glover HRF function at the Design_matrix's sampling_freq
             columns (list): what columns to perform convolution on; defaults
                             to all skipping intercept, and columns containing 'poly' or 'cosine'
 
         """
-        assert self.sampling_rate is not None, "Design_matrix has no sampling_rate set!"
+        assert self.sampling_freq is not None, "Design_matrix has no sampling_freq set!"
 
         if columns is None:
             columns = [col for col in self.columns if 'intercept' not in col and 'poly' not in col and 'cosine' not in col]
@@ -307,8 +307,8 @@ class Design_Matrix(DataFrame):
         if isinstance(conv_func,six.string_types):
             assert conv_func == 'hrf',"Did you mean 'hrf'? 'hrf' can generate a kernel for you, otherwise custom kernels should be passed in as 1d or 2d arrays."
 
-            assert self.sampling_rate is not None, "Design_matrix sampling rate not set. Can't figure out how to generate HRF!"
-            conv_func = glover_hrf(self.sampling_rate, oversampling=1)
+            assert self.sampling_freq is not None, "Design_matrix sampling rate not set. Can't figure out how to generate HRF!"
+            conv_func = glover_hrf(1. / self.sampling_freq, oversampling=1)
 
         else:
             assert type(conv_func) == np.ndarray, 'Must provide a function for convolution!'
@@ -336,19 +336,18 @@ class Design_Matrix(DataFrame):
             design matrix.
 
         Args:
-            target(float): downsampling target, typically in samples not
-                            seconds
+            target(float): desired frequency in hz
             kwargs: additional inputs to nltools.stats.downsample
 
         """
-        if target < self.sampling_rate:
+        if target < self.sampling_freq:
             raise ValueError("Target must be longer than current sampling rate")
 
-        df = Design_Matrix(downsample(self, sampling_freq=1./self.sampling_rate, target=target,target_type='seconds', **kwargs))
+        df = Design_Matrix(downsample(self, sampling_freq= self.sampling_freq, target=target,target_type='hz', **kwargs))
 
         # convert df to a design matrix
         newMat = self._inherit_attributes(df)
-        newMat.sampling_rate = target
+        newMat.sampling_freq = target
         return newMat
 
     def upsample(self, target,**kwargs):
@@ -357,19 +356,18 @@ class Design_Matrix(DataFrame):
             design matrix.
 
         Args:
-            target(float): downsampling target, typically in samples not
-                            seconds
+            target(float): desired frequence in hz
             kwargs: additional inputs to nltools.stats.downsample
 
         """
-        if target > self.sampling_rate:
+        if target > self.sampling_freq:
             raise ValueError("Target must be shorter than current sampling rate")
 
-        df = Design_Matrix(upsample(self, sampling_freq=1./self.sampling_rate, target=target, target_type='seconds',**kwargs))
+        df = Design_Matrix(upsample(self, sampling_freq= self.sampling_freq, target=target, target_type='hz',**kwargs))
 
         # convert df to a design matrix
         newMat = self._inherit_attributes(df)
-        newMat.sampling_rate = target
+        newMat.sampling_freq = target
         return newMat
 
     def zscore(self, columns=[]):
@@ -433,7 +431,7 @@ class Design_Matrix(DataFrame):
             else:
                 polyDict['poly_'+str(order)] = (range(self.shape[0]) - np.mean(range(self.shape[0])))**order
 
-        toAdd = Design_Matrix(polyDict,sampling_rate=self.sampling_rate)
+        toAdd = Design_Matrix(polyDict,sampling_freq=self.sampling_freq)
         out = self.append(toAdd, axis=1)
         if out.polys:
             new_polys = out.polys + list(polyDict.keys())
@@ -451,11 +449,11 @@ class Design_Matrix(DataFrame):
             duration (int): length of filter in seconds
 
         """
-        assert self.sampling_rate is not None, "Design_Matrix has no sampling_rate set!"
-        basis_mat = make_cosine_basis(self.shape[0],self.sampling_rate,duration)
+        assert self.sampling_freq is not None, "Design_Matrix has no sampling_freq set!"
+        basis_mat = make_cosine_basis(self.shape[0],self.sampling_freq,duration)
 
         basis_frame = Design_Matrix(basis_mat,
-                                    sampling_rate=self.sampling_rate)
+                                    sampling_freq=self.sampling_freq)
 
         basis_frame.columns = ['cosine_'+str(i+1) for i in range(basis_frame.shape[1])]
 
