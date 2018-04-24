@@ -15,11 +15,11 @@ from nltools.data import Design_Matrix
 import warnings
 
 
-def onsets_to_dm(F, TR, run_length, header='infer', sort=False, keep_separate=True,
+def onsets_to_dm(F, sampling_freq, run_length, header='infer', sort=False, keep_separate=True,
                 add_poly=None, unique_cols=[], fill_na=None, **kwargs):
 
     """
-    This function can assist in reading in one or several in a 2-3 column onsets files, specified in seconds and converting it to a Design Matrix organized as TRs X Stimulus Classes. Onsets files **must** be organized with columns in one of the following 4 formats:
+    This function can assist in reading in one or several in a 2-3 column onsets files, specified in seconds and converting it to a Design Matrix organized as samples X Stimulus Classes. Onsets files **must** be organized with columns in one of the following 4 formats:
 
     1) 'Stim, Onset'
     2) 'Onset, Stim'
@@ -30,8 +30,7 @@ def onsets_to_dm(F, TR, run_length, header='infer', sort=False, keep_separate=Tr
 
     Args:
         F (filepath/DataFrame/list): path to file, pandas dataframe, or list of files or pandas dataframes
-        TR (float): length of TR in seconds the run was collected at
-        run_length (int): number of TRs in the run these onsets came from
+        sampling_freq (float): sampling frequency in hertz; for TRs use (1 / TR)         run_length (int): number of TRs in the run these onsets came from
         sort (bool, optional): whether to sort the columns of the resulting
                                 design matrix alphabetically; defaults to
                                 False
@@ -51,6 +50,7 @@ def onsets_to_dm(F, TR, run_length, header='infer', sort=False, keep_separate=Tr
         F = [F]
 
     out = []
+    TR = 1. / sampling_freq
     for f in F:
         if isinstance(f,six.string_types):
             df = pd.read_csv(f, header=header,**kwargs)
