@@ -1174,11 +1174,11 @@ class Brain_Data(object):
         out.data = fisher_r_to_z(out.data)
         return out
 
-    def filter(self,sampling_rate=None, high_pass=None,low_pass=None,**kwargs):
+    def filter(self,sampling_freq=None, high_pass=None,low_pass=None,**kwargs):
         ''' Apply 5th order butterworth filter to data. Wraps nilearn functionality. Does not default to detrending and standardizing like nilearn implementation, but this can be overridden using kwargs.
 
         Args:
-            sampling_rate: sampling rate in seconds (i.e. TR)
+            sampling_freq: sampling freq in hertz (i.e. 1 / TR)
             high_pass: high pass cutoff frequency
             low_pass: low pass cutoff frequency
             kwargs: other keyword arguments to nilearn.signal.clean
@@ -1187,18 +1187,18 @@ class Brain_Data(object):
             Brain_Data: Filtered Brain_Data instance
         '''
 
-        if sampling_rate is None:
+        if sampling_freq is None:
             raise ValueError("Need to provide sampling rate (TR)!")
         if high_pass is None and low_pass is None:
             raise ValueError("high_pass and/or low_pass cutoff must be"
                             "provided!")
-        if sampling_rate is None:
+        if sampling_freq is None:
             raise ValueError("Need to provide TR!")
 
         standardize = kwargs.get('standardize',False)
         detrend = kwargs.get('detrend',False)
         out = self.copy()
-        out.data = clean(out.data,t_r=sampling_rate,detrend=detrend,standardize=standardize,high_pass=high_pass,low_pass=low_pass,**kwargs)
+        out.data = clean(out.data,t_r= 1. / sampling_freq,detrend=detrend,standardize=standardize,high_pass=high_pass,low_pass=low_pass,**kwargs)
         return out
 
     def dtype(self):
