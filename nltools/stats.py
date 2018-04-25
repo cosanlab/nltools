@@ -563,8 +563,7 @@ def make_cosine_basis(nsamples, sampling_rate, filter_length, drop=0):
     drop += 1
     C = C[:, drop:]
     if C.size == 0:
-        raise ValueError('Basis function creation failed! nsamples is too small'
-                         'for requested filter_length.')
+        raise ValueError('Basis function creation failed! nsamples is too small for requested filter_length.')
     else:
         return C
 
