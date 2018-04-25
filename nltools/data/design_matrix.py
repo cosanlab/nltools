@@ -24,6 +24,7 @@ from nltools.stats import (downsample,
                            zscore,
                            make_cosine_basis
                            )
+from nltools.utils import AmbiguityError
 
 class Design_Matrix_Series(Series):
 
@@ -117,7 +118,7 @@ class Design_Matrix(DataFrame):
             self.polys
             )
 
-    def append(self, dm, axis=0, keep_separate = True, add_poly = None, add_dct_basis = None, unique_cols = [], include_lower = True,fill_na=0):
+    def append(self, dm, axis=0, keep_separate = True, unique_cols = [], fill_na=0, verbose=False):
         """Method for concatenating another design matrix row or column-wise. When concatenating row-wise, has the ability to keep certain columns separated if they exist in multiple design matrices (e.g. keeping separate intercepts for multiple runs). This is on by default and will automatically separate out polynomial columns (i.e. anything added with the `add_poly` or `add_dct_basis` methods). Additional columns can be separate by run using the `unique_cols` parameter. Can also add new polynomial terms during vertical concatentation (when axis == 0). This will by default create new polynomial terms separately for each design matrix
 
         Args:
@@ -126,14 +127,11 @@ class Design_Matrix(DataFrame):
             keep_separate (bool,optional): whether try and uniquify columns;
                                         defaults to True; only applies
                                         when axis==0
-            add_poly (int,optional): what order polynomial terms to add during append, only applied when axis = 0; default None
-            add_dct_basis (int,optional): add discrete cosine bassi function during append, only applied when axis = 0; default None
-                                        only applies when axis==0
             unique_cols (list,optional): what additional columns to try to keep
                                         separated by uniquifying, only applies when
                                         axis = 0; defaults to None
-            include_lower (bool,optional): whether to also add lower order polynomial terms; only applies when add_poly is not None
             fill_na (str/int/float): if provided will fill NaNs with this value during row-wise appending (when axis = 0) if separate columns are desired; default 0
+            verbose (bool): print messages during append about how polynomials are going to be separated
 
         """
         if not isinstance(dm, list):
@@ -143,25 +141,23 @@ class Design_Matrix(DataFrame):
 
         # Check all items to be appended are Design Matrices and have the same sampling rate
         if not all([isinstance(elem,self.__class__) for elem in to_append]):
-            raise TypeError("Each object in list must be a Design_Matrix!")
+            raise TypeError("Each object to be appended must be a Design_Matrix!")
         if not all([elem.sampling_freq == self.sampling_freq for elem in to_append]):
             raise ValueError("All Design Matrices must have the same sampling rate!")
 
         if axis == 1:
             if any([not set(self.columns).isdisjoint(elem.columns) for elem in to_append]):
                 print("Duplicate column names detected. Will be repeated.")
-            if add_poly or unique_cols:
-                print("add_poly and unique_cols only apply when axis=0...ignoring")
-            return self._horzcat(to_append)
+            return self._horzcat(to_append,fill_na=fill_na)
 
         elif axis == 0:
-            return self._vertcat(to_append, keep_separate=keep_separate,add_poly=add_poly,add_dct_basis=add_dct_basis,unique_cols=unique_cols,include_lower=include_lower,fill_na=fill_na)
+            return self._vertcat(to_append, keep_separate=keep_separate,unique_cols=unique_cols,fill_na=fill_na,verbose=verbose)
 
         else:
             raise ValueError("Axis must be 0 (row) or 1 (column)")
 
 
-    def _horzcat(self, to_append):
+    def _horzcat(self, to_append,fill_na):
         """Used by .append(). Append another design matrix, column-wise
             (horz cat). Always returns a new design_matrix.
 
@@ -173,11 +169,13 @@ class Design_Matrix(DataFrame):
             out.polys = self.polys[:]
             for elem in to_append:
                 out.polys += elem.polys
+            if fill_na is not None:
+                out = out.fillna(fill_na)
         else:
             raise ValueError("All Design Matrices must have the same number of rows!")
         return out
 
-    def _vertcat(self, df, keep_separate, add_poly, add_dct_basis, unique_cols, include_lower,fill_na):
+    def _vertcat(self, df, keep_separate, unique_cols, fill_na, verbose):
         """Used by .append(). Append another design matrix row-wise (vert cat).
             Always returns a new design matrix.
 
@@ -187,68 +185,99 @@ class Design_Matrix(DataFrame):
             if not keep_separate:
                 raise ValueError("unique_cols provided but keep_separate set to False. Set keep_separate to True to separate unique_cols")
 
-        to_append = df[:] # need to make a copy because we're altering df
+        to_append = df[:] # make a copy of the dms to append
+        orig = self.copy() # Make a copy of the original cause we might alter it
+
+        # Start out assuming we can append normally without separation
+        all_dms = [orig] + to_append
+        all_polys = []
 
         if keep_separate:
-            if not self.empty:
-                if not all([set(self.polys) == set(elem.polys) for elem in to_append]):
-                    raise ValueError("Design matrices do not match on their polynomial terms (i.e. intercepts, polynomial trends, basis functions). This makes appending with separation ambigious and is not currently supported. Either make sure all constant terms are the same or make sure no Design Matrix has any constant terms and add them during appending with the 'add_poly' and 'unique_cols' arguments")
+            if not len(self.polys):
+                # Self no polys; append has polys
+                if any([len(elem.polys) for elem in to_append]):
+                    if verbose:
+                        print("Keep separate requested but original Design Matrix has no polynomial terms but matrices to be appended do. Inherting appended Design Matrices' polynomials...")
+                    for dm in to_append:
+                        for p in dm.polys:
+                            all_polys.append(p)
+                else:
+                # Self no polys; append no polys
+                    if verbose:
+                        print("Keep separate requested but neither original Design Matrix nor matrices to be appended have any polynomial terms Ignoring...")
+            else:
+                # Self has polys; append has polys
+                if any([len(elem.polys) for elem in to_append]):
+                    if verbose:
+                        print("Keep separate requested and both original Design Matrix and matrices to be appended have polynomial terms. Separating...")
+                    # Get the unique polynomials that currently exist
+                    # [name, count/None, isRoot]
+                    current_polys = []
+                    for p in self.polys:
+                        if p.count('_') == 2:
+                            isRoot = False
+                            pSplit = p.split('_')
+                            pName = '_'.join(pSplit[1:])
+                            pCount = int(pSplit[0])
+                        else:
+                            isRoot = True
+                            pName = p
+                            pCount = 0
+                        current_polys.append([pName,pCount,isRoot])
 
-            orig = self.copy() # Make a copy of the original cause we might alter it
+                    # Mixed type numpy array to make things a little easier
+                    current_polys = pd.DataFrame(current_polys).values
 
-            if add_poly is not None:
-                orig = orig.add_poly(add_poly,include_lower)
-                for i,d in enumerate(to_append):
-                    d = d.add_poly(add_poly,include_lower)
-                    to_append[i] = d
+                    # If current polynomials dont begin with a prepended numerical identifier, created one, e.g. 0_poly_1
+                    if any(current_polys[:,2]):
+                        renamed_polys = {}
+                        for i in range(current_polys.shape[0]):
+                            renamed_polys[current_polys[i,0]] = str(current_polys[i,1]) + '_' + current_polys[i,0]
+                        orig = orig.rename(columns = renamed_polys)
+                        all_polys += list(renamed_polys.values())
+                    else:
+                        all_polys += self.polys
 
-            if add_dct_basis:
-                orig = orig.add_dct_basis(add_dct_basis)
-                for i,d in enumerate(to_append):
-                    d = d.add_dct_basis(add_dct_basis)
-                    to_append[i] = d
+                    current_poly_max = current_polys[:,1].max()
+                    for i,dm in enumerate(to_append):
+                        to_rename = {}
+                        for p in dm.polys:
+                            if p.count('_') == 2:
+                                pSplit = p.split('_')
+                                pName = '_'.join(pSplit[1:])
+                                pCount = int(pSplit[0]) + current_poly_max + 1
+                            else:
+                                pName = p
+                                pCount = 0 + current_poly_max + 1
+                            to_rename[p] = str(pCount) + '_' + pName
+                        to_append[i] = dm.rename(columns = to_rename)
+                        current_poly_max += 1
+                        all_polys += list(to_rename.values())
 
-            all_cols = unique_cols + orig.polys
-            all_dms = [orig] + to_append
-            all_polys = []
-            is_data = []
-            for i,dm in enumerate(all_dms):
-                # Figure out what columns we need to relabel
-                cols_to_relabel = [col for col in dm.columns if col in all_cols]
-                if cols_to_relabel:
-                    # Create a dictionary with the new names, e.g. {'intercept': '0_intercept'}
-                    cols_dict = {}
-                    # Rename the columns and update the dm
-                    for c in cols_to_relabel:
-                        cols_dict[c] = str(i) + '_' + c
-                        if c not in unique_cols:
-                            all_polys.append(cols_dict[c])
-                    dm = dm.rename(columns=cols_dict)
-                    all_dms[i] = dm
-                elif len(dm.polys):
-                    for p in dm.polys:
-                        all_polys.append(p)
+                    # Recombine with the updated/renamed dms to be appended
+                    all_dms = [orig] + to_append
 
-            out = pd.concat(all_dms,axis=0,ignore_index=True)
-            if fill_na is not None:
-                out = out.fillna(fill_na)
+                else:
+                # Self has polys; append no polys
+                    if verbose:
+                        print("Keep separate requested but only original Design Matrix has polynomial terms. Retaining original Design Matrix's polynomials only...")
+                    all_polys += self.polys
+        out = pd.concat(all_dms,axis=0,ignore_index=True)
 
-            out.sampling_freq = self.sampling_freq
-            out.convolved = self.convolved
-            out.polys = all_polys
-            data_cols = [elem for elem in out.columns if elem not in out.polys]
-            out = out[data_cols + out.polys]
-        else:
-            out = pd.concat([self] + to_append,axis=0,ignore_index=True)
-            out = self._inherit_attributes(out)
-            if add_poly:
-                out = out.add_poly(add_poly,include_lower)
+        if fill_na is not None:
+            out = out.fillna(fill_na)
+
+        out.sampling_freq = self.sampling_freq
+        out.convolved = self.convolved
+        out.polys = all_polys
+        data_cols = [elem for elem in out.columns if elem not in out.polys]
+        out = out[data_cols + out.polys]
 
         return out
 
     def vif(self):
         """Compute variance inflation factor amongst columns of design matrix,
-            ignoring the intercept. Much faster that statsmodels and more
+            ignoring polynomial terms. Much faster that statsmodels and more
             reliable too. Uses the same method as Matlab and R (diagonal
             elements of the inverted correlation matrix).
 
@@ -266,7 +295,6 @@ class Design_Matrix(DataFrame):
             return np.diag(np.linalg.inv(out.corr()), 0)
         except np.linalg.LinAlgError:
             print("ERROR: Cannot compute vifs! Design Matrix is singular because it has some perfectly correlated or duplicated columns. Using .clean() method may help.")
-
 
     def heatmap(self, figsize=(8, 6), **kwargs):
         """Visualize Design Matrix spm style. Use .plot() for typical pandas
@@ -301,13 +329,11 @@ class Design_Matrix(DataFrame):
         assert self.sampling_freq is not None, "Design_matrix has no sampling_freq set!"
 
         if columns is None:
-            columns = [col for col in self.columns if 'intercept' not in col and 'poly' not in col and 'cosine' not in col]
+            columns = [col for col in self.columns if 'poly' not in col and 'cosine' not in col]
         nonConvolved = [col for col in self.columns if col not in columns]
 
         if isinstance(conv_func,six.string_types):
             assert conv_func == 'hrf',"Did you mean 'hrf'? 'hrf' can generate a kernel for you, otherwise custom kernels should be passed in as 1d or 2d arrays."
-
-            assert self.sampling_freq is not None, "Design_matrix sampling rate not set. Can't figure out how to generate HRF!"
             conv_func = glover_hrf(1. / self.sampling_freq, oversampling=1)
 
         else:
@@ -402,24 +428,23 @@ class Design_Matrix(DataFrame):
         if order < 0:
             raise ValueError("Order must be 0 or greater")
 
+        if self.polys:
+            if any([elem.count('_') == 2 for elem in self.polys]):
+                raise AmbiguityError("It appears that this Design Matrix contains polynomial terms that were kept seperate from a previous append operation. This makes it ambiguous for adding polynomials terms. Try calling .add_poly() on each separate Design Matrix before appending them instead.")
+
         polyDict = {}
 
-        if order == 0 and 'intercept' in self.polys:
-            print("Design Matrix already has intercept...skipping")
-            return self
-        elif 'poly_'+str(order) in self.polys:
+        if 'poly_'+str(order) in self.polys:
             print("Design Matrix already has {}th order polynomial...skipping".format(order))
             return self
 
         if include_lower:
             for i in range(0, order+1):
-                if i == 0:
-                    if 'intercept' in self.polys:                            print("Design Matrix already has intercept...skipping")
-                    else:
-                        polyDict['intercept'] = np.repeat(1, self.shape[0])
+                if 'poly_'+str(i) in self.polys:
+                    print("Design Matrix already has {}th order polynomial...skipping".format(i))
                 else:
-                    if 'poly_'+str(i) in self.polys:
-                        print("Design Matrix already has {}th order polynomial...skipping".format(i))
+                    if i == 0:
+                        polyDict['poly_0'] = np.repeat(1, self.shape[0])
                     else:
                         # Unit scale polynomial terms so they don't blow up
                         vals = np.arange(self.shape[0])
@@ -427,7 +452,7 @@ class Design_Matrix(DataFrame):
                         polyDict['poly_' + str(i)] = vals ** i
         else:
             if order == 0:
-                polyDict['intercept'] = np.repeat(1, self.shape[0])
+                polyDict['poly_0'] = np.repeat(1, self.shape[0])
             else:
                 polyDict['poly_'+str(order)] = (range(self.shape[0]) - np.mean(range(self.shape[0])))**order
 
@@ -450,6 +475,11 @@ class Design_Matrix(DataFrame):
 
         """
         assert self.sampling_freq is not None, "Design_Matrix has no sampling_freq set!"
+
+        if self.polys:
+            if any([elem.count('_') == 2 and 'cosine' in elem for elem in self.polys]):
+                raise AmbiguityError("It appears that this Design Matrix contains cosine bases that were kept seperate from a previous append operation. This makes it ambiguous for adding polynomials terms. Try calling .add_dct_basis() on each separate Design Matrix before appending them instead.")
+
         basis_mat = make_cosine_basis(self.shape[0],self.sampling_freq,duration)
 
         basis_frame = Design_Matrix(basis_mat,
