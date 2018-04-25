@@ -205,3 +205,6 @@ def _bootstrap_apply_func(data, function, random_state=None, *args, **kwargs):
                                    size=len(data_row_id),
                                    replace=True)]
     return getattr(new_dat, function)( *args, **kwargs)
+
+class AmbiguityError(Exception):
+    pass
