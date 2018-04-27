@@ -17,6 +17,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy.stats import pearsonr
+from scipy.special import legendre
 import six
 from ..external.hrf import glover_hrf
 from nltools.stats import (downsample,
@@ -185,9 +186,29 @@ class Design_Matrix(DataFrame):
             if not keep_separate:
                 raise ValueError("unique_cols provided but keep_separate set to False. Set keep_separate to True to separate unique_cols")
 
+            # Make sure unique_cols are in original Design Matrix
+            # cols_to_separate = []
+            # to_rename = {}
+            # for u in unique_cols:
+            #     if u.endswith('*'):
+            #         searchstr = u.split('*')[0]
+            #     elif u.startswith('*'):
+            #         searchstr = u.split('*')[1]
+            #     else:
+            #         searchstr = u
+            #     if not any([searchstr in elem for elem in self.columns]):
+            #         raise ValueError("{} not part of any column name in original Design Matrix".format(searchstr))
+            #     else:
+            #         for c in self.columns:
+            #             if searchstr in c:
+            #                 to_rename[c] = '0_' + c
+            #
+            #     cols_to_separate.append(searchstr)
+
         to_append = df[:] # make a copy of the dms to append
         orig = self.copy() # Make a copy of the original cause we might alter it
-
+        # if len(unique_cols):
+        #     orig = orig.rename(columns=to_rename)
         # Start out assuming we can append normally without separation
         all_dms = [orig] + to_append
         all_polys = []
@@ -302,8 +323,9 @@ class Design_Matrix(DataFrame):
             heatmap.
 
         """
+        cmap = kwargs.pop('cmap','gray')
         fig, ax = plt.subplots(1, figsize=figsize)
-        ax = sns.heatmap(self, cmap='gray', cbar=False, ax=ax, **kwargs)
+        ax = sns.heatmap(self, cmap=cmap, cbar=False, ax=ax, **kwargs)
         for _, spine in ax.spines.items():
             spine.set_visible(True)
         for i, label in enumerate(ax.get_yticklabels()):
@@ -417,7 +439,7 @@ class Design_Matrix(DataFrame):
         return newMat
 
     def add_poly(self, order=0, include_lower=True):
-        """Add nth order polynomial terms as columns to design matrix.
+        """Add nth order Legendre polynomial terms as columns to design matrix. Good for adding constant/intercept to model (order = 0) and accounting for slow-frequency nuisance artifacts e.g. linear, quadratic, etc drifts. Care is recommended when using this with `.add_dct_basis()` as some columns will be highly correlated.
 
         Args:
             order (int): what order terms to add; 0 = constant/intercept
@@ -433,6 +455,8 @@ class Design_Matrix(DataFrame):
                 raise AmbiguityError("It appears that this Design Matrix contains polynomial terms that were kept seperate from a previous append operation. This makes it ambiguous for adding polynomials terms. Try calling .add_poly() on each separate Design Matrix before appending them instead.")
 
         polyDict = {}
+        # Normal/canonical legendre polynomials on the range -1,1 but with size defined by number of observations; keeps all polynomials on similar scales (i.e. big polys don't blow up) and betas are better behaved
+        norm_order = np.linspace(-1,1,self.shape[0])
 
         if 'poly_'+str(order) in self.polys:
             print("Design Matrix already has {}th order polynomial...skipping".format(order))
@@ -443,18 +467,9 @@ class Design_Matrix(DataFrame):
                 if 'poly_'+str(i) in self.polys:
                     print("Design Matrix already has {}th order polynomial...skipping".format(i))
                 else:
-                    if i == 0:
-                        polyDict['poly_0'] = np.repeat(1, self.shape[0])
-                    else:
-                        # Unit scale polynomial terms so they don't blow up
-                        vals = np.arange(self.shape[0])
-                        vals = (vals - np.mean(vals)) / np.std(vals)
-                        polyDict['poly_' + str(i)] = vals ** i
+                    polyDict['poly_' + str(i)] = legendre(i)(norm_order)
         else:
-            if order == 0:
-                polyDict['poly_0'] = np.repeat(1, self.shape[0])
-            else:
-                polyDict['poly_'+str(order)] = (range(self.shape[0]) - np.mean(range(self.shape[0])))**order
+            polyDict['poly_' + str(i)] = legendre(i)(norm_order)
 
         toAdd = Design_Matrix(polyDict,sampling_freq=self.sampling_freq)
         out = self.append(toAdd, axis=1)
@@ -465,13 +480,14 @@ class Design_Matrix(DataFrame):
             out.polys = list(polyDict.keys())
         return out
 
-    def add_dct_basis(self,duration=180):
-        """Adds cosine basis functions to Design_Matrix columns,
+    def add_dct_basis(self,duration=180,drop=0):
+        """Adds unit scaled cosine basis functions to Design_Matrix columns,
         based on spm-style discrete cosine transform for use in
-        high-pass filtering.
+        high-pass filtering. Does not add intercept/constant. Care is recommended if using this along with `.add_poly()`, as some columns will be highly-correlated.
 
         Args:
             duration (int): length of filter in seconds
+            drop (int): index of which early/slow bases to drop if any; will always drop constant (i.e. intercept) like SPM. Unlike SPM, retains first basis (i.e. linear/sigmoidal). Will cumulatively drop bases up to and inclusive of index provided (e.g. 2, drops bases 1 and 2); default None
 
         """
         assert self.sampling_freq is not None, "Design_Matrix has no sampling_freq set!"
@@ -480,11 +496,12 @@ class Design_Matrix(DataFrame):
             if any([elem.count('_') == 2 and 'cosine' in elem for elem in self.polys]):
                 raise AmbiguityError("It appears that this Design Matrix contains cosine bases that were kept seperate from a previous append operation. This makes it ambiguous for adding polynomials terms. Try calling .add_dct_basis() on each separate Design Matrix before appending them instead.")
 
-        basis_mat = make_cosine_basis(self.shape[0],self.sampling_freq,duration)
+        basis_mat = make_cosine_basis(self.shape[0],self.sampling_freq,duration,drop=drop)
 
         basis_frame = Design_Matrix(basis_mat,
                                     sampling_freq=self.sampling_freq)
 
+        basis_frame *= 1. / basis_frame.iat[0,0]
         basis_frame.columns = ['cosine_'+str(i+1) for i in range(basis_frame.shape[1])]
 
         if self.polys:
