@@ -523,8 +523,8 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
     stats['p'] = _calc_pvalue(all_p,stats['correlation'],tail)
     return stats
 
-def make_cosine_basis(nsamples, sampling_rate, filter_length, drop=0):
-    """ Create a series of cosines basic functions for discrete cosine
+def make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale=True, drop=0):
+    """ Create a series of cosine basis functions for a discrete cosine
         transform. Based off of implementation in spm_filter and spm_dctmtx
         because scipy dct can only apply transforms but not return the basis
         functions. Like SPM, does not add constant (i.e. intercept), but does
@@ -532,12 +532,13 @@ def make_cosine_basis(nsamples, sampling_rate, filter_length, drop=0):
 
     Args:
         nsamples (int): number of observations (e.g. TRs)
-        sampling_freq (float): sampling rate in seconds (e.g. TR length)
+        sampling_freq (float): sampling frequency in hertz (i.e. 1 / TR)
         filter_length (int): length of filter in seconds
+        unit_scale (true): assure that the basis functions are on the normalized range [-1, 1]; default True
         drop (int): index of which early/slow bases to drop if any; default is
             to drop constant (i.e. intercept) like SPM. Unlike SPM, retains
             first basis (i.e. linear/sigmoidal). Will cumulatively drop bases
-            up to and inclusive of index provided (e.g. 2, drops bases 0,1,2)
+            up to and inclusive of index provided (e.g. 2, drops bases 1 and 2)
 
     Returns:
         out (ndarray): nsamples x number of basis sets numpy array
@@ -545,7 +546,7 @@ def make_cosine_basis(nsamples, sampling_rate, filter_length, drop=0):
     """
 
     #Figure out number of basis functions to create
-    order = int(np.fix(2 * (nsamples * sampling_rate)/filter_length + 1))
+    order = int(np.fix(2 * (nsamples * sampling_freq)/filter_length + 1))
 
     n = np.arange(nsamples)
 
@@ -559,8 +560,12 @@ def make_cosine_basis(nsamples, sampling_rate, filter_length, drop=0):
     for i in range(1,order):
         C[:,i] = np.sqrt(2./nsamples) * np.cos(np.pi*(2*n+1) * i/(2*nsamples))
 
-    #Drop desired bases
-    drop += 1
+    # Drop intercept ala SPM
+    C = C[:,1:]
+
+    if unit_scale:
+        C *= 1. / C[0,0]
+
     C = C[:, drop:]
     if C.size == 0:
         raise ValueError('Basis function creation failed! nsamples is too small for requested filter_length.')
