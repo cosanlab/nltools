@@ -105,6 +105,14 @@ class Design_Matrix(DataFrame):
             setattr(dm_out, item, getattr(self,item))
         return dm_out
 
+    def _sort_cols(self):
+        """
+        This is a helper function that tries to ensure that columns of a Design Matrix are sorted according to: a) those not separated during append operations, b) those separated during append operations, c) polynomials. Called primarily during vertical concatentation and cleaning.
+        """
+        data_cols = [elem for elem in self.columns if not elem.split('_')[0].isdigit() and elem not in self.polys]
+        separated_cols = [elem for elem in self.columns if elem.split('_')[0].isdigit() and elem not in self.polys]
+        return self[data_cols + separated_cols + self.polys]
+
     def details(self):
         """Print class meta data.
 
@@ -144,7 +152,7 @@ class Design_Matrix(DataFrame):
         if not all([isinstance(elem,self.__class__) for elem in to_append]):
             raise TypeError("Each object to be appended must be a Design_Matrix!")
         if not all([elem.sampling_freq == self.sampling_freq for elem in to_append]):
-            raise ValueError("All Design Matrices must have the same sampling rate!")
+            raise ValueError("All Design Matrices must have the same sampling frequency!")
 
         if axis == 1:
             if any([not set(self.columns).isdisjoint(elem.columns) for elem in to_append]):
@@ -190,6 +198,7 @@ class Design_Matrix(DataFrame):
         modify_to_append = []
         all_polys = []
         cols_to_separate = []
+        all_separated = []
 
         if len(unique_cols):
             if not keep_separate:
@@ -216,7 +225,10 @@ class Design_Matrix(DataFrame):
                                     count = c.split('_')[0]
                                     unique_count.append(int(count))
                                 else:
-                                    to_rename[c] = '0_' + c
+                                    new_name = '0_' + c
+                                    all_separated.append(new_name)
+                                    to_rename[c] = new_name
+                                    all_separated.append(new_name)
                     cols_to_separate.append(searchstr)
 
                 if to_rename:
@@ -256,10 +268,12 @@ class Design_Matrix(DataFrame):
                                             count = int(c.split('_')[0])
                                             name = '_'.join(c.split('_')[1:])
                                             count += max_unique_count + 1
-                                            to_rename[c] = str(count) + '_' + name
+                                            new_name = str(count) + '_' + name
+                                            to_rename[c] = new_name
                                         else:
-                                            to_rename[c] = str(max_unique_count + 1) + '_' + c
-
+                                            new_name = str(max_unique_count + 1) + '_' + c
+                                            to_rename[c] = new_name
+                                        all_separated.append(new_name)
                             modify_to_append.append(dm.rename(columns=to_rename))
                             max_unique_count += 1
                         else:
@@ -282,9 +296,12 @@ class Design_Matrix(DataFrame):
                                             count = int(c.split('_')[0])
                                             name = '_'.join(c.split('_')[1:])
                                             count += max_unique_count + 1
-                                            to_rename[c] = str(count) + '_' + name
+                                            new_name = str(count) + '_' + name
+                                            to_rename[c] = new_name
                                         else:
-                                            to_rename[c] = str(max_unique_count + 1) + '_' + c
+                                            new_name = str(max_unique_count + 1) + '_' + c
+                                            to_rename[c] = new_name
+                                        all_separated.append(new_name)
                             modify_to_append.append(dm.rename(columns=to_rename))
                             max_unique_count += 1
                         else:
@@ -339,7 +356,6 @@ class Design_Matrix(DataFrame):
                         current_poly_max += 1
                         all_polys += list(to_rename.values())
 
-
                         # Handle renaming additional unique cols to keep separate
                         if cols_to_separate:
                             if verbose:
@@ -353,9 +369,12 @@ class Design_Matrix(DataFrame):
                                             count = int(c.split('_')[0])
                                             name = '_'.join(c.split('_')[1:])
                                             count += max_unique_count + 1
-                                            to_rename[c] = str(count) + '_' + name
+                                            new_name = str(count) + '_' + name
+                                            to_rename[c] = new_name
                                         else:
-                                            to_rename[c] = str(max_unique_count + 1) + '_' + c
+                                            new_name = str(max_unique_count + 1) + '_' + c
+                                            to_rename[c] = new_name
+                                        all_separated.append(new_name)
 
                             # Combine renamed polynomials and renamed uniqu_cols
                             modify_to_append.append(temp_dm.rename(columns=to_rename))
@@ -382,10 +401,12 @@ class Design_Matrix(DataFrame):
                                             count = int(c.split('_')[0])
                                             name = '_'.join(c.split('_')[1:])
                                             count += max_unique_count + 1
-                                            to_rename[c] = str(count) + '_' + name
+                                            new_name = str(count) + '_' + name
+                                            to_rename[c] = new_name
                                         else:
-                                            to_rename[c] = str(max_unique_count + 1) + '_' + c
-
+                                            new_name = str(max_unique_count + 1) + '_' + c
+                                            to_rename[c] = new_name
+                                        all_separated.append(new_name)
                         modify_to_append.append(dm.rename(to_rename))
                         max_unique_count += 1
                     else:
@@ -403,10 +424,8 @@ class Design_Matrix(DataFrame):
         out.convolved = self.convolved
         out.multi = True
         out.polys = all_polys
-        data_cols = [elem for elem in out.columns if elem not in out.polys]
-        out = out[data_cols + out.polys]
 
-        return out
+        return out._sort_cols()
 
     def vif(self,exclude_polys=True):
         """Compute variance inflation factor amongst columns of design matrix,
@@ -472,7 +491,7 @@ class Design_Matrix(DataFrame):
             assert len(conv_func.shape) <= 2, "2d conv_func must be formatted as samplex X kernals!"
         elif isinstance(conv_func, six.string_types):
             assert conv_func == 'hrf',"Did you mean 'hrf'? 'hrf' can generate a kernel for you, otherwise custom kernels should be passed in as 1d or 2d arrays."
-            conv_func = glover_hrf(1. / self.sampling_freq, oversampling=1)
+            conv_func = glover_hrf(1. / self.sampling_freq, oversampling=1.)
 
         else:
             raise TypeError("conv_func must be a 1d or 2d numpy array organized as samples x kernels, or the string 'hrf' for the canonical glover hrf")
@@ -611,7 +630,7 @@ class Design_Matrix(DataFrame):
             if any([elem.count('_') == 2 and 'cosine' in elem for elem in self.polys]):
                 raise AmbiguityError("It appears that this Design Matrix contains cosine bases that were kept seperate from a previous append operation. This makes it ambiguous for adding polynomials terms. Try calling .add_dct_basis() on each separate Design Matrix before appending them instead.")
 
-        basis_mat = make_cosine_basis(self.shape[0],self.sampling_freq,duration,drop=drop)
+        basis_mat = make_cosine_basis(self.shape[0],1./self.sampling_freq,duration,drop=drop)
 
         basis_frame = Design_Matrix(basis_mat,
                                     sampling_freq=self.sampling_freq,columns = [str(elem) for elem in range(basis_mat.shape[1])])
@@ -688,6 +707,8 @@ class Design_Matrix(DataFrame):
                        remove.append(j)
         if remove:
             out = out.drop(remove, axis=1)
+            out.polys = [elem for elem in out.polys if elem not in remove]
+            out = out._sort_cols()
         else:
             print("Dropping columns not needed...skipping")
         np.seterr(**old_settings)
