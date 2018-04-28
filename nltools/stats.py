@@ -563,14 +563,15 @@ def make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale=True, d
     # Drop intercept ala SPM
     C = C[:,1:]
 
+    if C.size == 0:
+        raise ValueError('Basis function creation failed! nsamples is too small for requested filter_length.')
+
     if unit_scale:
         C *= 1. / C[0,0]
 
     C = C[:, drop:]
-    if C.size == 0:
-        raise ValueError('Basis function creation failed! nsamples is too small for requested filter_length.')
-    else:
-        return C
+
+    return C
 
 def transform_pairwise(X, y):
     '''Transforms data into pairs with balanced labels for ranking
