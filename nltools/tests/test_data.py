@@ -10,6 +10,7 @@ from nltools.data import (Brain_Data,
                         Design_Matrix)
 from nltools.stats import threshold, align
 from nltools.mask import create_sphere
+from nltools.external.hrf import glover_hrf
 from sklearn.metrics import pairwise_distances
 import matplotlib
 import matplotlib.pyplot as plt
@@ -604,93 +605,85 @@ def test_groupby(tmpdir):
 
 def test_designmat(tmpdir):
 
-    mat1 = Design_Matrix({
-    'X':[1, 4, 2, 7, 5, 9, 2, 1, 3, 2],
-    'Y':[3, 0, 0, 6, 9, 9, 10, 10, 1, 10],
-    'Z':[2, 2, 2, 2, 7, 0, 1, 3, 3, 2],
-    'intercept':[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-    },
-    sampling_rate=2.0,polys=['intercept'])
+    # Design matrices are specified in terms of sampling frequency
+    TR = 2.0
+    sampling_freq = 1. / TR
 
-    mat2 = Design_Matrix({
-    'X':[9, 9, 2, 7, 5, 0, 1, 1, 1, 2],
-    'Y':[3, 3, 3, 6, 9, 0, 1, 10, 1, 10],
-    'Z':[2, 6, 3, 2, 7, 0, 1, 7, 8, 8],
-    'intercept':[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-    },
-    sampling_rate=2.0, polys=['intercept'])
+    mat = Design_Matrix(np.random.randint(2,size=(500,4)),columns=['face_A','face_B','house_A','house_B'],sampling_freq=sampling_freq)
 
-    # Appending
-    # Basic horz cat
-    new_mat = mat1.append(mat1,axis=1)
-    assert new_mat.shape == (mat1.shape[0], mat1.shape[1] + mat2.shape[1])
-    both_cols = list(mat1.columns) + list(mat1.columns)
-    assert all(new_mat.columns == both_cols)
-    # Basic vert cat
-    new_mat = mat1.append(mat1,axis=0)
-    assert new_mat.shape == (mat1.shape[0]*2, mat1.shape[1]+1)
-    # Advanced vert cat
-    new_mat = mat1.append(mat1,axis=0,keep_separate=False)
-    assert new_mat.shape == (mat1.shape[0]*2,mat1.shape[1])
-    # More advanced vert cat
-    new_mat = mat1.append(mat1,axis=0,add_poly=2)
-    assert new_mat.shape == (mat1.shape[0]*2, 9)
+    # Basic ops
+    matp = mat.add_poly(2)
+    assert matp.shape[1] == 7
+    assert mat.add_poly(2,include_lower=False).shape[1] == 5
 
-    #convolution doesn't affect intercept
-    assert all(mat1.convolve().iloc[:, -1] == mat1.iloc[:, -1])
-    #but it still works
-    assert (mat1.convolve().iloc[:, :3].values != mat1.iloc[:, :3].values).any()
+    matpd = matp.add_dct_basis()
+    assert matpd.shape[1] == 9
 
-    #Test vifs
-    expectedVifs = np.array([ 1.03984251, 1.02889877, 1.02261945])
-    assert np.allclose(expectedVifs,mat1.vif())
+    assert all(matpd.vif() < 2.0)
+    assert not all(matpd.vif(exclude_polys=False) < 2.0)
 
-    #poly
-    mat1.add_poly(order=4).shape[1] == mat1.shape[1]+4
-    mat1.add_poly(order=4, include_lower=False).shape[1] == mat1.shape[1]+1
+    matc = matpd.clean()
+    assert matc.shape[1] == 7
 
-    #zscore
-    z = mat1.zscore(columns=['X', 'Z'])
-    assert (z['Y'] == mat1['Y']).all()
-    assert z.shape == mat1.shape
+    # Standard convolve
+    assert matpd.convolve().shape == matpd.shape
+    # Multi-kernal convolve
+    hrf = glover_hrf(TR,oversampling=1.)
+    assert matpd.convolve(conv_func=np.column_stack([hrf,hrf])).shape[1] == matpd.shape[1] + 4
 
-    # clean
-    mat = Design_Matrix({
-    'X':[1, 4, 2, 7, 5, 9, 2, 1, 3, 2],
-    'A':[1, 4, 2, 7, 5, 9, 2, 1, 3, 2],
-    'Y':[3, 0, 0, 6, 9, 9, 10, 10, 1, 10],
-    'Z':[2, 2, 2, 2, 7, 0, 1, 3, 3, 2],
-    'C':[1, 4, 2, 7, 5, 9, 2, 1, 3, 2],
-    'intercept':[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-    },
-    sampling_rate=2.0,polys=['intercept'])
-    mat = mat[['X','A','Y','Z','C','intercept']]
-    assert all(mat.clean().columns == ['X','Y','Z','intercept'])
+    matz = mat.zscore(columns = ['face_A','face_B'])
+    assert (matz[['house_A','house_B']] == mat[['house_A','house_B']]).all().all()
 
     # replace data
-    mat = Design_Matrix({
-    'X':[1, 4, 2, 7, 5, 9, 2, 1, 3, 2],
-    'A':[1, 4, 2, 7, 5, 9, 2, 1, 3, 2],
-    'Y':[3, 0, 0, 6, 9, 9, 10, 10, 1, 10],
-    'Z':[2, 2, 2, 2, 7, 0, 1, 3, 3, 2],
-    'C':[1, 4, 2, 7, 5, 9, 2, 1, 3, 2]
-    },
-    sampling_rate=2.0)
-
-    mat = mat.replace_data(np.ones((mat.shape[0],mat.shape[1]-1)),column_names=['a','b','c','d'])
-
-    assert(np.allclose(mat.values,1))
-    assert(all(mat.columns == ['a','b','c','d']))
-
-    #DCT basis_mat
-    mat = Design_Matrix(np.random.randint(2,size=(500,3)),sampling_rate=2.0)
-    mat = mat.add_dct_basis()
-    assert len(mat.polys) == 11
-    assert mat.shape[1] == 14
+    assert matpd.replace_data(np.zeros((500,4))).shape == matpd.shape
 
     #Up and down sampling
-    mat = Design_Matrix(np.random.randint(2,size=(500,4)),sampling_rate=2.0,columns=['a','b','c','d'])
-    target = 1
-    assert mat.upsample(target).shape[0] == mat.shape[0]*2 - target*2
-    target = 4
-    assert mat.downsample(target).shape[0] == mat.shape[0]/2
+    newTR = 1.
+    target = 1./newTR
+    assert matpd.upsample(target).shape[0] == matpd.shape[0]*2 - target*2
+    newTR = 4.
+    target = 1./newTR
+    assert mat.downsample(target).shape[0] == matpd.shape[0]/2
+
+    # Appending
+    mats = matpd.append(matpd)
+    assert mats.shape[0] == mat.shape[0] * 2
+    # Keep polys separate by default
+    assert (mats.shape[1] - 4) == (matpd.shape[1] - 4) * 2
+    # Otherwise stack them
+    assert matpd.append(matpd,keep_separate=False).shape[1] == matpd.shape[1]
+    # Keep a single stimulus column separate
+    assert matpd.append(matpd,unique_cols=['face_A']).shape[1] == 15
+    # Keep a common stimulus class separate
+    assert matpd.append(matpd,unique_cols=['face*']).shape[1] == 16
+    # Keep a common stimulus class and a different single stim separate
+    assert matpd.append(matpd,unique_cols=['face*','house_A']).shape[1] == 17
+    # Keep multiple stimulus class separate
+    assert matpd.append(matpd,unique_cols=['face*','house*']).shape[1] == 18
+
+    # Growing a multi-run design matrix; keeping things separate
+    num_runs = 4
+    all_runs = Design_Matrix(sampling_freq=.5)
+    run_list = []
+    for i in range(num_runs):
+        run = Design_Matrix(np.array([
+                                [1,0,0,0],
+                                [1,0,0,0],
+                                [0,0,0,0],
+                                [0,1,0,0],
+                                [0,1,0,0],
+                                [0,0,0,0],
+                                [0,0,1,0],
+                                [0,0,1,0],
+                                [0,0,0,0],
+                                [0,0,0,1],
+                                [0,0,0,1]
+                                ]),
+                                sampling_freq = .5,
+                                columns=['stim_A','stim_B','cond_C','cond_D']
+                                )
+        run = run.add_poly(2)
+        run_list.append(run)
+        all_runs = all_runs.append(run,unique_cols=['stim*','cond*'])
+
+    assert all_runs.shape == (44, 28)
