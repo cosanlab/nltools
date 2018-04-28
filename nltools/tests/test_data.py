@@ -617,13 +617,13 @@ def test_designmat(tmpdir):
     assert mat.add_poly(2,include_lower=False).shape[1] == 5
 
     matpd = matp.add_dct_basis()
-    assert matpd.shape[1] == 9
+    assert matpd.shape[1] == 18
 
     assert all(matpd.vif() < 2.0)
     assert not all(matpd.vif(exclude_polys=False) < 2.0)
 
     matc = matpd.clean()
-    assert matc.shape[1] == 7
+    assert matc.shape[1] == 16
 
     # Standard convolve
     assert matpd.convolve().shape == matpd.shape
@@ -653,18 +653,17 @@ def test_designmat(tmpdir):
     # Otherwise stack them
     assert matpd.append(matpd,keep_separate=False).shape[1] == matpd.shape[1]
     # Keep a single stimulus column separate
-    assert matpd.append(matpd,unique_cols=['face_A']).shape[1] == 15
+    assert matpd.append(matpd,unique_cols=['face_A']).shape[1] == 33
     # Keep a common stimulus class separate
-    assert matpd.append(matpd,unique_cols=['face*']).shape[1] == 16
+    assert matpd.append(matpd,unique_cols=['face*']).shape[1] == 34
     # Keep a common stimulus class and a different single stim separate
-    assert matpd.append(matpd,unique_cols=['face*','house_A']).shape[1] == 17
+    assert matpd.append(matpd,unique_cols=['face*','house_A']).shape[1] == 35
     # Keep multiple stimulus class separate
-    assert matpd.append(matpd,unique_cols=['face*','house*']).shape[1] == 18
+    assert matpd.append(matpd,unique_cols=['face*','house*']).shape[1] == 36
 
     # Growing a multi-run design matrix; keeping things separate
     num_runs = 4
     all_runs = Design_Matrix(sampling_freq=.5)
-    run_list = []
     for i in range(num_runs):
         run = Design_Matrix(np.array([
                                 [1,0,0,0],
@@ -683,7 +682,6 @@ def test_designmat(tmpdir):
                                 columns=['stim_A','stim_B','cond_C','cond_D']
                                 )
         run = run.add_poly(2)
-        run_list.append(run)
         all_runs = all_runs.append(run,unique_cols=['stim*','cond*'])
 
     assert all_runs.shape == (44, 28)
