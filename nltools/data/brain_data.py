@@ -327,6 +327,19 @@ class Brain_Data(object):
 
         self.to_nifti().to_filename(file_name)
 
+    def scale(self, scale_val=100.):
+        """ Scale all values such that theya re on the range 0 - scale_val, via grand-mean scaling. This is NOT global-scaling/intensity normalization. This is useful for ensuring that data is on a common scale (e.g. good for multiple runs, participants, etc) and if the default value of 100 is used, can be interpreted as something akin to (but not exactly) "percent signal change." This is consistent with default behavior in AFNI and SPM. Change this value to 10000 to make consistent with FSL.
+
+        Args:
+            scale_val (int/float): what value to send the grand-mean to; default 100
+
+        """
+
+        out = deepcopy(self)
+        out.data = out.data / out.data.mean() * scale_val
+
+        return out
+
     def plot(self, limit=5, anatomical=None, **kwargs):
         """ Create a quick plot of self.data.  Will plot each image separately
 
@@ -399,18 +412,23 @@ class Brain_Data(object):
         b,t,p,df,res = regress(self.X,self.data,mode=mode,**kwargs)
         sigma = np.std(res,axis=0,ddof=self.X.shape[1])
 
-        b_out = deepcopy(self)
-        b_out.data = b
-        t_out = deepcopy(self)
+        # Prevent copy of all data in self multiple times; instead start with an empty instance and copy only needed attributes from self, and use this as a template for other outputs
+        b_out = self.__class__()
+        b_out.mask = deepcopy(self.mask)
+        b_out.nifti_masker = deepcopy(self.nifti_masker)
+
+        # Use this as template for other outputs before setting data
+        t_out = b_out.copy()
         t_out.data = t
-        p_out = deepcopy(self)
+        p_out = b_out.copy()
         p_out.data = p
-        df_out = deepcopy(self)
+        df_out = b_out.copy()
         df_out.data = df
-        sigma_out = deepcopy(self)
+        sigma_out = b_out.copy()
         sigma_out.data = sigma
-        res_out = deepcopy(self)
+        res_out = b_out.copy()
         res_out.data = res
+        b_out.data = b
 
         return {'beta': b_out, 't': t_out, 'p': p_out, 'df': df_out,
                 'sigma': sigma_out, 'residual': res_out}
@@ -497,11 +515,12 @@ class Brain_Data(object):
 
         return out
 
-    def append(self, data):
+    def append(self, data, **kwargs):
         """ Append data to Brain_Data instance
 
         Args:
             data: Brain_Data instance to append
+            kwargs: optional inputs to Design_Matrix append
 
         Returns:
             out: new appended Brain_Data instance
@@ -532,7 +551,7 @@ class Brain_Data(object):
                 out.Y = self.Y.append(data.Y)
             if self.X.size:
                 if isinstance(self.X, pd.DataFrame):
-                    out.X = self.X.append(data.X)
+                    out.X = self.X.append(data.X,**kwargs)
                 else:
                     out.X = np.vstack([self.X, data.X])
         return out
@@ -1155,11 +1174,11 @@ class Brain_Data(object):
         out.data = fisher_r_to_z(out.data)
         return out
 
-    def filter(self,sampling_rate=None, high_pass=None,low_pass=None,**kwargs):
+    def filter(self,sampling_freq=None, high_pass=None,low_pass=None,**kwargs):
         ''' Apply 5th order butterworth filter to data. Wraps nilearn functionality. Does not default to detrending and standardizing like nilearn implementation, but this can be overridden using kwargs.
 
         Args:
-            sampling_rate: sampling rate in seconds (i.e. TR)
+            sampling_freq: sampling freq in hertz (i.e. 1 / TR)
             high_pass: high pass cutoff frequency
             low_pass: low pass cutoff frequency
             kwargs: other keyword arguments to nilearn.signal.clean
@@ -1168,18 +1187,18 @@ class Brain_Data(object):
             Brain_Data: Filtered Brain_Data instance
         '''
 
-        if sampling_rate is None:
+        if sampling_freq is None:
             raise ValueError("Need to provide sampling rate (TR)!")
         if high_pass is None and low_pass is None:
             raise ValueError("high_pass and/or low_pass cutoff must be"
                             "provided!")
-        if sampling_rate is None:
+        if sampling_freq is None:
             raise ValueError("Need to provide TR!")
 
         standardize = kwargs.get('standardize',False)
         detrend = kwargs.get('detrend',False)
         out = self.copy()
-        out.data = clean(out.data,t_r=sampling_rate,detrend=detrend,standardize=standardize,high_pass=high_pass,low_pass=low_pass,**kwargs)
+        out.data = clean(out.data,t_r= 1. / sampling_freq,detrend=detrend,standardize=standardize,high_pass=high_pass,low_pass=low_pass,**kwargs)
         return out
 
     def dtype(self):
