@@ -11,7 +11,7 @@ dist/
 .cache/
 htmlcov
 .pytest_cache/*
-
+dev/ 
 # Logs and databases #
 ######################
 *.log

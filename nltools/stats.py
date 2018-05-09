@@ -49,8 +49,8 @@ from sklearn.utils import check_random_state
 MAX_INT = np.iinfo(np.int32).max
 
 # Optional dependencies
-ARMA = attempt_to_import('statsmodels.tsa.arima_model',name='ARMA',
-                              fromlist=['ARMA'])
+sm = attempt_to_import('statsmodels.tsa.arima_model',name='sm')
+
 def pearson(x, y):
     """ Correlates row vector x with each row vector in 2D array y.
     From neurosynth.stats.py - author: Tal Yarkoni
@@ -301,7 +301,7 @@ def downsample(data,sampling_freq=None, target=None, target_type='samples',
 
         Args:
             data: Pandas DataFrame or Series
-            sampling_freq:  Sampling frequency of data
+            sampling_freq:  Sampling frequency of data in hertz
             target: downsampling target
                     target_type: type of target can be [samples,seconds,hz]
             method: (str) type of downsample method ['mean','median'],
@@ -340,7 +340,7 @@ def upsample(data,sampling_freq=None, target=None, target_type='samples',method=
 
         Args:
             data: Pandas Series or DataFrame (Note: will drop non-numeric columns from DataFrame)
-            sampling_freq:  Sampling frequency of data
+            sampling_freq:  Sampling frequency of data in hertz
             target: downsampling target
             target_type: type of target can be [samples,seconds,hz]
             method (str):'linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic' where 'zero', 'slinear', 'quadratic' and 'cubic' refer to a spline interpolation of zeroth, first, second or third order  default: linear
@@ -523,8 +523,8 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
     stats['p'] = _calc_pvalue(all_p,stats['correlation'],tail)
     return stats
 
-def make_cosine_basis(nsamples, sampling_rate, filter_length, drop=0):
-    """ Create a series of cosines basic functions for discrete cosine
+def make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale=True, drop=0):
+    """ Create a series of cosine basis functions for a discrete cosine
         transform. Based off of implementation in spm_filter and spm_dctmtx
         because scipy dct can only apply transforms but not return the basis
         functions. Like SPM, does not add constant (i.e. intercept), but does
@@ -532,12 +532,13 @@ def make_cosine_basis(nsamples, sampling_rate, filter_length, drop=0):
 
     Args:
         nsamples (int): number of observations (e.g. TRs)
-        sampling_freq (float): sampling rate in seconds (e.g. TR length)
+        sampling_freq (float): sampling frequency in hertz (i.e. 1 / TR)
         filter_length (int): length of filter in seconds
+        unit_scale (true): assure that the basis functions are on the normalized range [-1, 1]; default True
         drop (int): index of which early/slow bases to drop if any; default is
             to drop constant (i.e. intercept) like SPM. Unlike SPM, retains
             first basis (i.e. linear/sigmoidal). Will cumulatively drop bases
-            up to and inclusive of index provided (e.g. 2, drops bases 0,1,2)
+            up to and inclusive of index provided (e.g. 2, drops bases 1 and 2)
 
     Returns:
         out (ndarray): nsamples x number of basis sets numpy array
@@ -545,7 +546,7 @@ def make_cosine_basis(nsamples, sampling_rate, filter_length, drop=0):
     """
 
     #Figure out number of basis functions to create
-    order = int(np.fix(2 * (nsamples * sampling_rate)/filter_length + 1))
+    order = int(np.fix(2 * (nsamples * sampling_freq)/filter_length + 1))
 
     n = np.arange(nsamples)
 
@@ -559,14 +560,18 @@ def make_cosine_basis(nsamples, sampling_rate, filter_length, drop=0):
     for i in range(1,order):
         C[:,i] = np.sqrt(2./nsamples) * np.cos(np.pi*(2*n+1) * i/(2*nsamples))
 
-    #Drop desired bases
-    drop += 1
-    C = C[:, drop:]
+    # Drop intercept ala SPM
+    C = C[:,1:]
+
     if C.size == 0:
-        raise ValueError('Basis function creation failed! nsamples is too small'
-                         'for requested filter_length.')
-    else:
-        return C
+        raise ValueError('Basis function creation failed! nsamples is too small for requested filter_length.')
+
+    if unit_scale:
+        C *= 1. / C[0,0]
+
+    C = C[:, drop:]
+
+    return C
 
 def transform_pairwise(X, y):
     '''Transforms data into pairs with balanced labels for ranking
@@ -705,6 +710,33 @@ def summarize_bootstrap(data, save_weights=False):
         output['samples'] = data
     return output
 
+def _arma_func(X,Y,idx=None,**kwargs):
+
+    """
+    Fit an ARMA(p,q) model. If Y is a matrix and not a vector, expects an idx argument that refers to columns of Y. Used by regress().
+    """
+    method = kwargs.pop('method','css-mle')
+    order = kwargs.pop('order',(1,1))
+
+    maxiter = kwargs.pop('maxiter',50)
+    disp = kwargs.pop('disp',-1)
+    start_ar_lags = kwargs.pop('start_ar_lags',order[0]+1)
+    transparams = kwargs.pop('transparams',False)
+    trend = kwargs.pop('trend','nc')
+
+    if len(Y.shape) == 2:
+        model = sm.tsa.arima_model.ARMA(endog=Y[:,idx],exog=X.values,order=order)
+    else:
+        model = sm.tsa.arima_model.ARMA(endog=Y,exog=X.values,order=order)
+    try:
+        res = model.fit(trend=trend,method=method,transparams=transparams,
+                maxiter=maxiter,disp=disp,start_ar_lags=start_ar_lags,**kwargs)
+    except:
+        res = model.fit(trend=trend,method=method,transparams=transparams,
+                maxiter=maxiter,disp=disp,start_ar_lags=start_ar_lags,start_params=np.repeat(1.,X.shape[1]+2))
+
+    return (res.params[:-2], res.tvalues[:-2],res.pvalues[:-2],res.df_resid, res.resid)
+
 def regress(X,Y,mode='ols',**kwargs):
     """ This is a flexible function to run several types of regression models provided X and Y numpy arrays. Y can be a 1d numpy array or 2d numpy array. In the latter case, results will be output with shape 1 x Y.shape[1], in other words fitting a separate regression model to each column of Y.
 
@@ -791,36 +823,12 @@ def regress(X,Y,mode='ols',**kwargs):
         max_nbytes = kwargs.pop('max_nbytes',1e8)
         verbose = kwargs.pop('verbose',0)
 
-        # Use function scope to get X and Y
-        def _arma_func(idx=None,**kwargs):
-
-            """
-            Fit an ARMA(p,q) model. If Y is a matrix and not a vector, expects an idx argument that refers to columns of Y.
-            """
-            method = kwargs.pop('method','css-mle')
-            order = kwargs.pop('order',(1,1))
-
-            maxiter = kwargs.pop('maxiter',50)
-            disp = kwargs.pop('disp',-1)
-            start_ar_lags = kwargs.pop('start_ar_lags',order[0]+1)
-            transparams = kwargs.pop('transparams',False)
-            trend = kwargs.pop('trend','nc')
-
-            if len(Y.shape) == 2:
-                model = ARMA(endog=Y[:,idx],exog=X,order=order)
-            else:
-                model = ARMA(endog=Y,exog=X,order=order)
-            res = model.fit(trend=trend,method=method,transparams=transparams,
-                            maxiter=maxiter,disp=disp,start_ar_lags=start_ar_lags)
-
-            return (res.params[:-2], res.tvalues[:-2],res.pvalues[:-2],res.df_resid, res.resid)
-
         # Parallelize if Y vector contains more than 1 column
         if len(Y.shape) == 2:
             if backend == 'threading' and n_jobs == -1:
                 n_jobs = 10
             par_for = Parallel(n_jobs=n_jobs,verbose=verbose,backend=backend,max_nbytes=max_nbytes)
-            out_arma = par_for(delayed(_arma_func)(idx=i,**kwargs) for i in range(Y.shape[-1]))
+            out_arma = par_for(delayed(_arma_func)(X,Y,idx=i,**kwargs) for i in range(Y.shape[-1]))
 
             b = np.column_stack([elem[0] for elem in out_arma])
             t = np.column_stack([elem[1] for elem in out_arma])
@@ -829,7 +837,7 @@ def regress(X,Y,mode='ols',**kwargs):
             res = np.column_stack([elem[4] for elem in out_arma])
 
         else:
-            b,t,p,df,res = _arma_func()
+            b,t,p,df,res = _arma_func(X,Y,**kwargs)
 
     return b, t, p, df, res
 
