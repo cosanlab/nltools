@@ -15,11 +15,11 @@ from nltools.data import Design_Matrix
 import warnings
 
 
-def onsets_to_dm(F, TR, runLength, header='infer', sort=False, keep_separate=True,
+def onsets_to_dm(F, sampling_freq, run_length, header='infer', sort=False, keep_separate=True,
                 add_poly=None, unique_cols=[], fill_na=None, **kwargs):
 
     """
-    This function can assist in reading in one or several in a 2-3 column onsets files, specified in seconds and converting it to a Design Matrix organized as TRs X Stimulus Classes. Onsets files **must** be organized with columns in one of the following 4 formats:
+    This function can assist in reading in one or several in a 2-3 column onsets files, specified in seconds and converting it to a Design Matrix organized as samples X Stimulus Classes. Onsets files **must** be organized with columns in one of the following 4 formats:
 
     1) 'Stim, Onset'
     2) 'Onset, Stim'
@@ -30,9 +30,7 @@ def onsets_to_dm(F, TR, runLength, header='infer', sort=False, keep_separate=Tru
 
     Args:
         F (filepath/DataFrame/list): path to file, pandas dataframe, or list of files or pandas dataframes
-        df (str or dataframe): path to file or pandas dataframe
-        TR (float): length of TR in seconds the run was collected at
-        runLength (int): number of TRs in the run these onsets came from
+        sampling_freq (float): sampling frequency in hertz; for TRs use (1 / TR)         run_length (int): number of TRs in the run these onsets came from
         sort (bool, optional): whether to sort the columns of the resulting
                                 design matrix alphabetically; defaults to
                                 False
@@ -52,6 +50,7 @@ def onsets_to_dm(F, TR, runLength, header='infer', sort=False, keep_separate=Tru
         F = [F]
 
     out = []
+    TR = 1. / sampling_freq
     for f in F:
         if isinstance(f,six.string_types):
             df = pd.read_csv(f, header=header,**kwargs)
@@ -76,7 +75,7 @@ def onsets_to_dm(F, TR, runLength, header='infer', sort=False, keep_separate=Tru
         df['Onset'] = df['Onset'].apply(lambda x: int(np.floor(x/TR)))
 
         #Build dummy codes
-        X = Design_Matrix(np.zeros([runLength,len(df['Stim'].unique())]),columns=df['Stim'].unique(),sampling_rate=TR)
+        X = Design_Matrix(np.zeros([run_length,len(df['Stim'].unique())]),columns=df['Stim'].unique(),sampling_freq=sampling_freq)
         for i, row in df.iterrows():
             if df.shape[1] == 3:
                 dur = np.ceil(row['Duration']/TR)
@@ -90,6 +89,9 @@ def onsets_to_dm(F, TR, runLength, header='infer', sort=False, keep_separate=Tru
     if len(out) > 1:
         out_dm = out[0].append(out[1:],keep_separate = keep_separate, add_poly=add_poly, unique_cols=unique_cols,fill_na=fill_na)
     else:
-        out_dm = out[0].add_poly(add_poly)
+        if add_poly is not None:
+            out_dm = out[0].add_poly(add_poly)
+        else:
+            out_dm = out[0]
 
     return out_dm
