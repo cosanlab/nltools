@@ -79,17 +79,17 @@ mask_c.plot()
 import numpy as np
 
 high = data[np.where(data.X['PainLevel']==3)[0]]
-high.mean().threshold(threshold='95%').plot()
+high.mean().threshold(lower='2.5%', upper='97.5%').plot()
 
 #########################################################################
 # We might be interested in creating a binary mask from this threshold.
 
-mask = high.mean().threshold(threshold='95%',binarize=True)
-mask.plot()
+mask_b = high.mean().threshold(lower='2.5%', upper='97.5%',binarize=True)
+mask_b.plot()
 
 #########################################################################
 # We might also want to create separate images from each contiguous ROI.
 
-region = high.mean().threshold(threshold='95%').regions()
+region = high.mean().threshold(lower='2.5%', upper='97.5%').regions()
 region.plot()
 
