@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import six
 from nltools.prefs import MNI_Template
+from scipy.stats import pearsonr
 
 matplotlib.use('TkAgg')
 
@@ -556,6 +557,9 @@ def test_adjacency(tmpdir):
     f = dat_single.plot_mds()
     assert isinstance(f, plt.Figure)
 
+    # Test Conversion
+    np.testing.assert_approx_equal(-1,pearsonr(dat_single.data,dat_single.distance_to_similarity().data)[0],significant=1)
+    np.testing.assert_approx_equal(-1,pearsonr(dat_single.distance_to_similarity().data,dat_single.distance_to_similarity().similarity_to_distance().data)[0],significant=1)
 
     # # Test stats_label_distance - FAILED - Need to sort this out
     # labels = np.array(['group1','group1','group2','group2'])
