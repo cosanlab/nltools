@@ -518,11 +518,16 @@ def test_adjacency(tmpdir):
     assert dat_multiple.distance().square_shape()[0] == len(dat_multiple)
 
     # Test ttest
-    mn, p = dat_multiple.ttest()
-    assert len(mn) == 1
-    assert len(p) == 1
-    assert mn.shape()[0] == dat_multiple.shape()[1]
-    assert p.shape()[0] == dat_multiple.shape()[1]
+    out = dat_multiple.ttest()
+    assert len(out['t']) == 1
+    assert len(out['p']) == 1
+    assert out['t'].shape()[0] == dat_multiple.shape()[1]
+    assert out['p'].shape()[0] == dat_multiple.shape()[1]
+    out = dat_multiple.ttest(permutation=True)
+    assert len(out['t']) == 1
+    assert len(out['p']) == 1
+    assert out['t'].shape()[0] == dat_multiple.shape()[1]
+    assert out['p'].shape()[0] == dat_multiple.shape()[1]
 
     # Test Threshold
     assert np.sum(dat_directed.threshold(upper=.8).data == 0) == 10

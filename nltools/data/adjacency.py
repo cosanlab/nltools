@@ -16,6 +16,7 @@ from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.manifold import MDS
 from sklearn.utils import check_random_state
 from scipy.spatial.distance import squareform
+from scipy.stats import ttest_1samp
 import seaborn as sns
 import matplotlib.pyplot as plt
 from nltools.stats import (correlation_permutation,
@@ -493,7 +494,7 @@ class Adjacency(object):
                     default False
 
         Returns:
-            Brain_Data: thresholded Brain_Data instance
+            Adjacency: thresholded Adjacency instance
 
         '''
 
@@ -532,18 +533,34 @@ class Adjacency(object):
             raise NotImplementedError('This function currently only works on '
                                       'single matrices.')
 
-    def ttest(self, **kwargs):
-        ''' Calculate ttest across samples. '''
+    def ttest(self, permutation=False, **kwargs):
+        ''' Calculate ttest across samples.
+
+        Args:
+            permutation: (bool) Run ttest as permutation. Note this can be very slow.
+
+        Returns:
+            out: (dict) contains Adjacency instances of t values (or mean if
+                 running permutation) and Adjacency instance of p values.
+
+        '''
         if self.is_single_matrix:
             raise ValueError('t-test cannot be run on single matrices.')
-        m = []; p = []
-        for i in range(self.data.shape[1]):
-            stats = one_sample_permutation(self.data[:, i], **kwargs)
-            m.append(stats['mean'])
-            p.append(stats['p'])
-        mn = Adjacency(np.array(m))
-        pval = Adjacency(np.array(p))
-        return (mn, pval)
+
+        if permutation:
+            t = []; p = []
+            for i in range(self.data.shape[1]):
+                stats = one_sample_permutation(self.data[:, i], **kwargs)
+                t.append(stats['mean'])
+                p.append(stats['p'])
+            t = Adjacency(np.array(t))
+            p = Adjacency(np.array(p))
+        else:
+            t = self.mean().copy()
+            p = deepcopy(t)
+            t.data, p.data = ttest_1samp(self.data, 0, 0)
+
+        return {'t': t, 'p':p}
 
     def plot_label_distance(self, labels=None, ax=None):
         ''' Create a violin plot indicating within and between label distance
