@@ -738,3 +738,27 @@ class Adjacency(object):
 
         if returnFig:
           return fig
+
+    def distance_to_similarity(self, beta=1):
+        '''Convert distance matrix to similarity matrix
+
+        Args:
+            beta: parameter to scale exponential function (default: 1)
+
+        Returns:
+            Adjacency object
+
+        '''
+        if self.matrix_type == 'distance':
+            return Adjacency(np.exp(-beta*self.squareform()/self.squareform().std()),
+                             labels=self.labels, matrix_type='similarity')
+        else:
+            raise ValueError('Matrix is not a distance matrix.')
+
+    def similarity_to_distance(self):
+        '''Convert similarity matrix to distance matrix'''
+        if self.matrix_type == 'similarity':
+            return Adjacency(1-self.squareform(),
+                             labels=self.labels, matrix_type='distance')
+        else:
+            raise ValueError('Matrix is not a similarity matrix.')
