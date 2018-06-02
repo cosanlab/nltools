@@ -779,3 +779,23 @@ class Adjacency(object):
                              labels=self.labels, matrix_type='distance')
         else:
             raise ValueError('Matrix is not a similarity matrix.')
+
+    def within_cluster_mean(self, clusters = None):
+        ''' This function calculates mean within cluster labels
+
+        Args: 
+            clusters: list of cluster labels
+        Returns:
+            dict: within cluster means
+        '''
+        distance=pd.DataFrame(self.squareform())
+
+        if len(clusters) != distance.shape[0]:
+            raise ValueError('Cluster labels must be same length as distance matrix')
+
+        within = []
+        out = pd.DataFrame(columns=['Mean','Label'],index=None)
+        out = {}
+        for i in list(set(clusters)):
+            out[i] = np.mean(distance.loc[clusters==i,clusters==i].values[np.triu_indices(sum(clusters==i),k=1)])
+        return out
