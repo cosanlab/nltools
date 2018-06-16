@@ -580,8 +580,7 @@ def test_adjacency(tmpdir):
     Y = Adjacency(m1*1+m2*2+m3*3,matrix_type='similarity')
     X = Adjacency([m1,m2,m3],matrix_type='similarity')
 
-    self = Y.copy()
-    stats = regress(self, X)
+    stats = Y.regress(X)
     assert np.allclose(np.sum(stats['beta']-np.array([1,2,3])),0)
 
     # Test Design_Matrix Regression
@@ -589,8 +588,7 @@ def test_adjacency(tmpdir):
     d = Adjacency([block_diag(np.ones((4,4))+np.random.randn(4,4)*.1,np.zeros((8,8))) for x in range(n)],
                   matrix_type='similarity')
     X = Design_Matrix(np.ones(n))
-    self = d.copy()
-    stats = regress(self, X)
+    stats = d.regress(X)
     out = stats['beta'].within_cluster_mean(clusters=['Group1']*4 + ['Group2']*8)
     assert np.allclose(np.array([x for x in out.values()]),np.array([0,1]), rtol=1e-01)# np.allclose(np.sum(stats['beta']-np.array([1,2,3])),0)
 
