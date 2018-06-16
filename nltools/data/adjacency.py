@@ -783,12 +783,14 @@ class Adjacency(object):
     def within_cluster_mean(self, clusters = None):
         ''' This function calculates mean within cluster labels
 
-        Args: 
+        Args:
             clusters: list of cluster labels
         Returns:
             dict: within cluster means
         '''
+
         distance=pd.DataFrame(self.squareform())
+        clusters = np.array(clusters)
 
         if len(clusters) != distance.shape[0]:
             raise ValueError('Cluster labels must be same length as distance matrix')
@@ -799,3 +801,36 @@ class Adjacency(object):
         for i in list(set(clusters)):
             out[i] = np.mean(distance.loc[clusters==i,clusters==i].values[np.triu_indices(sum(clusters==i),k=1)])
         return out
+
+    def regress(self, X, mode='ols', **kwargs):
+        ''' Run a regression on an adjacency instance.
+            You can decompose an adjacency instance with another adjacency instance.
+            You can also decompose each pixel by passing a design_matrix instance.
+
+            Args:
+                X: Design matrix can be an Adjacency or Design_Matrix instance
+                method: type of regression (default: ols)
+
+            Returns:
+
+        '''
+
+        stats = {}
+        if isinstance(X, Adjacency):
+            if X.square_shape()[0] != self.square_shape()[0]:
+                raise ValueError('Adjacency instances must be the same size.')
+            b,t,p,df,res = regression(X.data.T, self.data, mode=mode, **kwargs)
+            stats['beta'],stats['t'],stats['p'],stats['df'],stats['residual'] = (b,t,p,df,res)
+        elif isinstance(X, Design_Matrix):
+            if X.shape[0] != len(self):
+                raise ValueError('Design matrix must have same number of observations as Adjacency')
+            b,t,p,df,res = regression(X, self.data, mode=mode, **kwargs)
+            mode = 'ols'
+            stats['beta'], stats['t'], stats['p'] = [x for x in self[:3]]
+            stats['beta'].data, stats['t'].data, stats['p'].data = b.squeeze(), t.squeeze(), p.squeeze()
+            stats['residual'] = self.copy()
+            stats['residual'].data = res
+        else:
+            raise ValueError('X must be a Design_Matrix or Adjacency Instance.')
+
+        return stats
