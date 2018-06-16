@@ -819,12 +819,12 @@ class Adjacency(object):
         if isinstance(X, Adjacency):
             if X.square_shape()[0] != self.square_shape()[0]:
                 raise ValueError('Adjacency instances must be the same size.')
-            b,t,p,df,res = regression(X.data.T, self.data, mode=mode, **kwargs)
+            b,t,p,df,res = regress(X.data.T, self.data, mode=mode, **kwargs)
             stats['beta'],stats['t'],stats['p'],stats['df'],stats['residual'] = (b,t,p,df,res)
         elif isinstance(X, Design_Matrix):
             if X.shape[0] != len(self):
                 raise ValueError('Design matrix must have same number of observations as Adjacency')
-            b,t,p,df,res = regression(X, self.data, mode=mode, **kwargs)
+            b,t,p,df,res = regress(X, self.data, mode=mode, **kwargs)
             mode = 'ols'
             stats['beta'], stats['t'], stats['p'] = [x for x in self[:3]]
             stats['beta'].data, stats['t'].data, stats['p'].data = b.squeeze(), t.squeeze(), p.squeeze()
