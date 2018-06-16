@@ -573,6 +573,27 @@ def test_adjacency(tmpdir):
     out = test_dat.within_cluster_mean(clusters=test_labels)
     assert np.sum(np.array([1,2,3])-np.array([out[x] for x in out]))==0
 
+    # Test Adjacency Regression
+    m1 = block_diag(np.ones((4,4)),np.zeros((4,4)),np.zeros((4,4)))
+    m2 = block_diag(np.zeros((4,4)),np.ones((4,4)),np.zeros((4,4)))
+    m3 = block_diag(np.zeros((4,4)),np.zeros((4,4)),np.ones((4,4)))
+    Y = Adjacency(m1*1+m2*2+m3*3,matrix_type='similarity')
+    X = Adjacency([m1,m2,m3],matrix_type='similarity')
+
+    self = Y.copy()
+    stats = regress(self, X)
+    assert np.allclose(np.sum(stats['beta']-np.array([1,2,3])),0)
+
+    # Test Design_Matrix Regression
+    n = 10
+    d = Adjacency([block_diag(np.ones((4,4))+np.random.randn(4,4)*.1,np.zeros((8,8))) for x in range(n)],
+                  matrix_type='similarity')
+    X = Design_Matrix(np.ones(n))
+    self = d.copy()
+    stats = regress(self, X)
+    out = stats['beta'].within_cluster_mean(clusters=['Group1']*4 + ['Group2']*8)
+    assert np.allclose(np.array([x for x in out.values()]),np.array([0,1]), rtol=1e-01)# np.allclose(np.sum(stats['beta']-np.array([1,2,3])),0)
+
     # # Test stats_label_distance - FAILED - Need to sort this out
     # labels = np.array(['group1','group1','group2','group2'])
     # stats = dat_multiple[0].stats_label_distance(labels)
