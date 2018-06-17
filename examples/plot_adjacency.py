@@ -27,10 +27,6 @@ m2 = block_diag(np.zeros((4,4)),np.ones((4,4)),np.zeros((4,4)))
 m3 = block_diag(np.zeros((4,4)),np.zeros((4,4)),np.ones((4,4)))*3
 noisy = (m1*1+m2*2+m3*3) + np.random.randn(12,12)*.1
 dat = Adjacency(noisy, matrix_type='similarity',labels=['C1']*4 + ['C2']*4 + ['C3']*4)
-#########################################################################
-# Notice how this look exactly like a pandas dataframe. That's because design matrices are *subclasses* of dataframes with some extra attributes and methods.
-
-print(dm)
 
 #########################################################################
 # Basic information about the object can be viewed by simply calling it.
@@ -85,7 +81,6 @@ plt.title('Pixels where the model significantly fits the data above chance.',fon
 # -------------------
 #
 # We can calculate similarity between two Adjacency matrices using `.similiarity()`.
-
 
 stats = dat.similarity(m1)
 print(stats)
