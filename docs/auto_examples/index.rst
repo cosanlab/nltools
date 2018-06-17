@@ -77,6 +77,26 @@ Neuroimaging Data Operations Examples
 
 .. raw:: html
 
+    <div class="sphx-glr-thumbcontainer" tooltip="Nltools has an additional data structure class for working with two-dimensional square matrices...">
+
+.. only:: html
+
+    .. figure:: /auto_examples/01_DataOperations/images/thumb/sphx_glr_plot_adjacency_thumb.png
+
+        :ref:`sphx_glr_auto_examples_01_DataOperations_plot_adjacency.py`
+
+.. raw:: html
+
+    </div>
+
+
+.. toctree::
+   :hidden:
+
+   /auto_examples/01_DataOperations/plot_adjacency
+
+.. raw:: html
+
     <div class="sphx-glr-thumbcontainer" tooltip="This tutorial illustrates how to use the Design_Matrix class to flexibly create design matrices...">
 
 .. only:: html
@@ -231,17 +251,18 @@ Neuroimaging Analysis Examples
 .. only :: html
 
  .. container:: sphx-glr-footer
+    :class: sphx-glr-footer-gallery
 
 
   .. container:: sphx-glr-download
 
-    :download:`Download all examples in Python source code: auto_examples_python.zip <//Users/Esh/Documents/Python/Cosan/nltools/docs/auto_examples/auto_examples_python.zip>`
+    :download:`Download all examples in Python source code: auto_examples_python.zip <//Users/lukechang/Github/nltools/docs/auto_examples/auto_examples_python.zip>`
 
 
 
   .. container:: sphx-glr-download
 
-    :download:`Download all examples in Jupyter notebooks: auto_examples_jupyter.zip <//Users/Esh/Documents/Python/Cosan/nltools/docs/auto_examples/auto_examples_jupyter.zip>`
+    :download:`Download all examples in Jupyter notebooks: auto_examples_jupyter.zip <//Users/lukechang/Github/nltools/docs/auto_examples/auto_examples_jupyter.zip>`
 
 
 .. only:: html
