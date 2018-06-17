@@ -16,7 +16,7 @@ class.
 #  Load Data
 # ----------
 #
-# Lets just create a basic toy design matrix by hand corresponding to a single participant's data from an experiment with 12 TRs, collected at a temporal resolution of 1.5s. For this example we'll have 4 unique "stimulus conditions" that each occur for 2 TRs (3s) with 1 TR (1.5s) of rest between events.
+# Similar to the Brain_Data class, Adjacency instances can be initialized by passing in a numpy array or pandas data frame, or a path to a csv file or list of files.  Here we will generate some fake data to demonstrate how to use this class.  In addition to data, you must indicate the type of matrix.  Currently, you can specify `['similarity','distance','directed']`.  Similarity matrices are symmetrical with typically ones along diagonal, Distance matrices are symmetrical with zeros along diagonal, and Directed graph matrices are not symmetrical.  Symmetrical matrices only store the upper triangle. The Adjacency class can also accommodate labels, but does not require them.
 
 from nltools.data import Adjacency
 from scipy.linalg import block_diag
@@ -46,7 +46,7 @@ f = dat.plot()
 #########################################################################
 # The mean within a a grouping label can be calculated using the `.within_cluster_mean()` method.  You must specify a group variable to group the  data.  Here we use the labels.
 
-dat.within_cluster_mean(clusters=dat.labels)
+print(dat.within_cluster_mean(clusters=dat.labels))
 
 #########################################################################
 # Regression
@@ -62,6 +62,7 @@ print(stats['beta'])
 # In addition to decomposing a single adjacency matrix, we can also estimate a model that predicts the variance over each voxel.  This is equivalent to a univariate regression in imaging analyses. Remember that just like in imaging these tests are non-independent and may require correcting for multiple comparisons.  Here we create some data that varies over matrices and identify pixels that follow a particular on-off-on pattern.  We plot the t-values that exceed 2.
 
 from nltools.data import Design_Matrix
+import matplotlib.pyplot as plt
 
 data = Adjacency([m1 + np.random.randn(12,12)*.5 for x in range(5)] +
                  [np.zeros((12,12)) + np.random.randn(12,12)*.5 for x in range(5)] +
@@ -69,12 +70,11 @@ data = Adjacency([m1 + np.random.randn(12,12)*.5 for x in range(5)] +
 
 X = Design_Matrix([1]*5 + [0]*5 + [1]*5)
 f = X.plot()
-f.set_title('Model',fontsize=16)
+f.set_title('Model',fontsize=18)
 
 stats = data.regress(X)
 t = stats['t'].plot(vmin=2)
-plt.title('Pixels where the model significantly fits the data above chance.',fontsize=16)
-
+plt.title('Significant Pixels',fontsize=18)
 
 #########################################################################
 # Similarity/Distance
@@ -86,7 +86,7 @@ stats = dat.similarity(m1)
 print(stats)
 
 #########################################################################
-# We can also calculate the distance between multiple matrices contained within a single Adjacency object. Any distance metric is available from the [sci-kit learn](http://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise.pairwise_distances.html) by specifying the `method` flag. This outputs an Adjacency matrix.  In the example below we see that several matrices are more similar to each other (i.e., when the signal is on).  Remember that the nodes here now represent each matrix from the original distance matrix.
+# We can also calculate the distance between multiple matrices contained within a single Adjacency object. Any distance metric is available from the `sci-kit learn <http://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise.pairwise_distances.html>`_ by specifying the `method` flag. This outputs an Adjacency matrix.  In the example below we see that several matrices are more similar to each other (i.e., when the signal is on).  Remember that the nodes here now represent each matrix from the original distance matrix.
 
 dist = data.distance(method='correlation')
 f = dist.plot()
