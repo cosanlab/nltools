@@ -795,7 +795,9 @@ def regress(X, Y, mode='ols', **kwargs):
     assert mode in ['ols', 'robust', 'arma'], "Mode must be one of 'ols','robust' or 'arma'"
 
     # Make sure Y is a 1-D array
-    Y = np.array(Y).squeeze()
+    if len(Y.shape) == 1:
+        Y = Y[:,np.newaxis]
+    #     Y = np.array(Y).squeeze()
 
     # Compute standard errors based on regression mode
     if mode == 'ols' or mode == 'robust':
@@ -806,7 +808,7 @@ def regress(X, Y, mode='ols', **kwargs):
         # Vanilla OLS
         if mode == 'ols':
             sigma = np.std(res, axis=0, ddof=X.shape[1])
-            stderr = np.sqrt(np.diag(np.linalg.pinv(np.dot(X.T, X)))) * sigma
+            stderr = np.sqrt(np.diag(np.linalg.pinv(np.dot(X.T,X))))[:,np.newaxis] * sigma[np.newaxis,:]
 
         # OLS with robust sandwich estimator based standard-errors
         elif mode == 'robust':
@@ -816,8 +818,8 @@ def regress(X, Y, mode='ols', **kwargs):
             stderr = np.apply_along_axis(*axis_func)
 
         t = b / stderr
-        df = np.array([X.shape[0]-X.shape[1]] * len(t))
-        p = 2*(1-t_dist.cdf(np.abs(t), df))
+        df = np.array([X.shape[0]-X.shape[1]] * t.shape[1])
+        p = 2*(1-t_dist.cdf(np.abs(t),df))
 
     # ARMA regression
     elif mode == 'arma':
@@ -842,7 +844,7 @@ def regress(X, Y, mode='ols', **kwargs):
         else:
             b,t,p,df,res = _arma_func(X, Y, **kwargs)
 
-    return b, t, p, df, res
+    return b.squeeze(), t.squeeze(), p.squeeze(), df.squeeze(), res.squeeze()
 
 
 def align(data, method='deterministic_srm', n_features=None, axis=0,
