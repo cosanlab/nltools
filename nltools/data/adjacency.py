@@ -16,18 +16,21 @@ from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.manifold import MDS
 from sklearn.utils import check_random_state
 from scipy.spatial.distance import squareform
+from scipy.stats import ttest_1samp
 import seaborn as sns
 import matplotlib.pyplot as plt
 from nltools.stats import (correlation_permutation,
                            one_sample_permutation,
                            two_sample_permutation,
                            summarize_bootstrap)
+from nltools.stats import regress as regression
 from nltools.plotting import (plot_stacked_adjacency,
                               plot_silhouette)
 from nltools.utils import (all_same,
                            attempt_to_import,
                            concatenate,
                            _bootstrap_apply_func)
+from .design_matrix import Design_Matrix
 from joblib import Parallel, delayed
 
 # Optional dependencies
@@ -493,7 +496,7 @@ class Adjacency(object):
                     default False
 
         Returns:
-            Brain_Data: thresholded Brain_Data instance
+            Adjacency: thresholded Adjacency instance
 
         '''
 
@@ -532,18 +535,34 @@ class Adjacency(object):
             raise NotImplementedError('This function currently only works on '
                                       'single matrices.')
 
-    def ttest(self, **kwargs):
-        ''' Calculate ttest across samples. '''
+    def ttest(self, permutation=False, **kwargs):
+        ''' Calculate ttest across samples.
+
+        Args:
+            permutation: (bool) Run ttest as permutation. Note this can be very slow.
+
+        Returns:
+            out: (dict) contains Adjacency instances of t values (or mean if
+                 running permutation) and Adjacency instance of p values.
+
+        '''
         if self.is_single_matrix:
             raise ValueError('t-test cannot be run on single matrices.')
-        m = []; p = []
-        for i in range(self.data.shape[1]):
-            stats = one_sample_permutation(self.data[:, i], **kwargs)
-            m.append(stats['mean'])
-            p.append(stats['p'])
-        mn = Adjacency(np.array(m))
-        pval = Adjacency(np.array(p))
-        return (mn, pval)
+
+        if permutation:
+            t = []; p = []
+            for i in range(self.data.shape[1]):
+                stats = one_sample_permutation(self.data[:, i], **kwargs)
+                t.append(stats['mean'])
+                p.append(stats['p'])
+            t = Adjacency(np.array(t))
+            p = Adjacency(np.array(p))
+        else:
+            t = self.mean().copy()
+            p = deepcopy(t)
+            t.data, p.data = ttest_1samp(self.data, 0, 0)
+
+        return {'t': t, 'p':p}
 
     def plot_label_distance(self, labels=None, ax=None):
         ''' Create a violin plot indicating within and between label distance
@@ -738,3 +757,82 @@ class Adjacency(object):
 
         if returnFig:
           return fig
+
+    def distance_to_similarity(self, beta=1):
+        '''Convert distance matrix to similarity matrix
+
+        Args:
+            beta: parameter to scale exponential function (default: 1)
+
+        Returns:
+            Adjacency object
+
+        '''
+        if self.matrix_type == 'distance':
+            return Adjacency(np.exp(-beta*self.squareform()/self.squareform().std()),
+                             labels=self.labels, matrix_type='similarity')
+        else:
+            raise ValueError('Matrix is not a distance matrix.')
+
+    def similarity_to_distance(self):
+        '''Convert similarity matrix to distance matrix'''
+        if self.matrix_type == 'similarity':
+            return Adjacency(1-self.squareform(),
+                             labels=self.labels, matrix_type='distance')
+        else:
+            raise ValueError('Matrix is not a similarity matrix.')
+
+    def within_cluster_mean(self, clusters = None):
+        ''' This function calculates mean within cluster labels
+
+        Args:
+            clusters: list of cluster labels
+        Returns:
+            dict: within cluster means
+        '''
+
+        distance=pd.DataFrame(self.squareform())
+        clusters = np.array(clusters)
+
+        if len(clusters) != distance.shape[0]:
+            raise ValueError('Cluster labels must be same length as distance matrix')
+
+        within = []
+        out = pd.DataFrame(columns=['Mean','Label'],index=None)
+        out = {}
+        for i in list(set(clusters)):
+            out[i] = np.mean(distance.loc[clusters==i,clusters==i].values[np.triu_indices(sum(clusters==i),k=1)])
+        return out
+
+    def regress(self, X, mode='ols', **kwargs):
+        ''' Run a regression on an adjacency instance.
+            You can decompose an adjacency instance with another adjacency instance.
+            You can also decompose each pixel by passing a design_matrix instance.
+
+            Args:
+                X: Design matrix can be an Adjacency or Design_Matrix instance
+                method: type of regression (default: ols)
+
+            Returns:
+
+        '''
+
+        stats = {}
+        if isinstance(X, Adjacency):
+            if X.square_shape()[0] != self.square_shape()[0]:
+                raise ValueError('Adjacency instances must be the same size.')
+            b,t,p,df,res = regression(X.data.T, self.data, mode=mode, **kwargs)
+            stats['beta'],stats['t'],stats['p'],stats['residual'] = (b,t,p,res)
+        elif isinstance(X, Design_Matrix):
+            if X.shape[0] != len(self):
+                raise ValueError('Design matrix must have same number of observations as Adjacency')
+            b,t,p,df,res = regression(X, self.data, mode=mode, **kwargs)
+            mode = 'ols'
+            stats['beta'], stats['t'], stats['p'] = [x for x in self[:3]]
+            stats['beta'].data, stats['t'].data, stats['p'].data = b.squeeze(), t.squeeze(), p.squeeze()
+            stats['residual'] = self.copy()
+            stats['residual'].data = res
+        else:
+            raise ValueError('X must be a Design_Matrix or Adjacency Instance.')
+
+        return stats

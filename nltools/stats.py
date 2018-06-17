@@ -737,7 +737,7 @@ def _arma_func(X,Y,idx=None,**kwargs):
 
     return (res.params[:-2], res.tvalues[:-2],res.pvalues[:-2],res.df_resid, res.resid)
 
-def regress(X,Y,mode='ols',**kwargs):
+def regress(X, Y, mode='ols', **kwargs):
     """ This is a flexible function to run several types of regression models provided X and Y numpy arrays. Y can be a 1d numpy array or 2d numpy array. In the latter case, results will be output with shape 1 x Y.shape[1], in other words fitting a separate regression model to each column of Y.
 
     Does NOT add an intercept automatically to the X matrix before fitting like some other software packages. This is left up to the user.
@@ -789,27 +789,32 @@ def regress(X,Y,mode='ols',**kwargs):
 
     """
 
-    if not isinstance(mode,six.string_types):
+    if not isinstance(mode, six.string_types):
         raise ValueError('mode must be a string')
 
-    assert mode in ['ols','robust','arma'], "Mode must be one of 'ols','robust' or 'arma'"
+    assert mode in ['ols', 'robust', 'arma'], "Mode must be one of 'ols','robust' or 'arma'"
+
+    # Make sure Y is a 1-D array
+    if len(Y.shape) == 1:
+        Y = Y[:,np.newaxis]
+    #     Y = np.array(Y).squeeze()
 
     # Compute standard errors based on regression mode
     if mode == 'ols' or mode == 'robust':
 
-        b = np.dot(np.linalg.pinv(X),Y)
-        res = Y - np.dot(X,b)
+        b = np.dot(np.linalg.pinv(X), Y)
+        res = Y - np.dot(X, b)
 
         # Vanilla OLS
         if mode == 'ols':
-            sigma = np.std(res,axis=0,ddof=X.shape[1])
+            sigma = np.std(res, axis=0, ddof=X.shape[1])
             stderr = np.sqrt(np.diag(np.linalg.pinv(np.dot(X.T,X))))[:,np.newaxis] * sigma[np.newaxis,:]
 
         # OLS with robust sandwich estimator based standard-errors
         elif mode == 'robust':
-            robust_estimator = kwargs.pop('robust_estimator','hc0')
-            nlags = kwargs.pop('nlags',1)
-            axis_func = [_robust_estimator,0,res,X,robust_estimator,nlags]
+            robust_estimator = kwargs.pop('robust_estimator', 'hc0')
+            nlags = kwargs.pop('nlags', 1)
+            axis_func = [_robust_estimator, 0, res,X, robust_estimator, nlags]
             stderr = np.apply_along_axis(*axis_func)
 
         t = b / stderr
@@ -818,17 +823,17 @@ def regress(X,Y,mode='ols',**kwargs):
 
     # ARMA regression
     elif mode == 'arma':
-        n_jobs = kwargs.pop('n_jobs',-1)
-        backend = kwargs.pop('backend','threading')
-        max_nbytes = kwargs.pop('max_nbytes',1e8)
-        verbose = kwargs.pop('verbose',0)
+        n_jobs = kwargs.pop('n_jobs', -1)
+        backend = kwargs.pop('backend', 'threading')
+        max_nbytes = kwargs.pop('max_nbytes', 1e8)
+        verbose = kwargs.pop('verbose', 0)
 
         # Parallelize if Y vector contains more than 1 column
         if len(Y.shape) == 2:
             if backend == 'threading' and n_jobs == -1:
                 n_jobs = 10
-            par_for = Parallel(n_jobs=n_jobs,verbose=verbose,backend=backend,max_nbytes=max_nbytes)
-            out_arma = par_for(delayed(_arma_func)(X,Y,idx=i,**kwargs) for i in range(Y.shape[-1]))
+            par_for = Parallel(n_jobs=n_jobs, verbose=verbose, backend=backend, max_nbytes=max_nbytes)
+            out_arma = par_for(delayed(_arma_func)(X, Y, idx=i, **kwargs) for i in range(Y.shape[-1]))
 
             b = np.column_stack([elem[0] for elem in out_arma])
             t = np.column_stack([elem[1] for elem in out_arma])
@@ -837,9 +842,9 @@ def regress(X,Y,mode='ols',**kwargs):
             res = np.column_stack([elem[4] for elem in out_arma])
 
         else:
-            b,t,p,df,res = _arma_func(X,Y,**kwargs)
+            b,t,p,df,res = _arma_func(X, Y, **kwargs)
 
-    return b, t, p, df, res
+    return b.squeeze(), t.squeeze(), p.squeeze(), df.squeeze(), res.squeeze()
 
 
 def align(data, method='deterministic_srm', n_features=None, axis=0,
