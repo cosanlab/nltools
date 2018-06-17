@@ -69,8 +69,8 @@ from nltools.stats import (pearson,
                            make_cosine_basis,
                            transform_pairwise,
                            summarize_bootstrap,
-                           regress,
                            procrustes)
+from nltools.stats import regress as regression
 from nltools.pbs_job import PBS_Job
 from .adjacency import Adjacency
 from nltools.prefs import MNI_Template, resolve_mni_path
@@ -378,7 +378,7 @@ class Brain_Data(object):
                               **kwargs)
         return f
 
-    def regress(self,mode='ols',**kwargs):
+    def regress(self, mode='ols', **kwargs):
         """ Run a mass-univariate regression across voxels. Three types of regressions can be run:
         1) Standard OLS (default)
         2) Robust OLS (heteroscedasticty and/or auto-correlation robust errors), i.e. OLS with "sandwich estimators"
@@ -409,7 +409,7 @@ class Brain_Data(object):
             raise ValueError("self.X does not match the correct size of "
                              "self.data")
 
-        b,t,p,df,res = regress(self.X,self.data,mode=mode,**kwargs)
+        b,t,p,df,res = regression(self.X,self.data,mode=mode,**kwargs)
         sigma = np.std(res,axis=0,ddof=self.X.shape[1])
 
         # Prevent copy of all data in self multiple times; instead start with an empty instance and copy only needed attributes from self, and use this as a template for other outputs
@@ -419,18 +419,12 @@ class Brain_Data(object):
 
         # Use this as template for other outputs before setting data
         t_out = b_out.copy()
-        t_out.data = t
         p_out = b_out.copy()
-        p_out.data = p
-        df_out = b_out.copy()
-        df_out.data = df
         sigma_out = b_out.copy()
-        sigma_out.data = sigma
         res_out = b_out.copy()
-        res_out.data = res
-        b_out.data = b
+        b_out.data,t_out.data,p_out.data,sigma_out.data,res_out.data = (b,t,p,sigma_out,res)
 
-        return {'beta': b_out, 't': t_out, 'p': p_out, 'df': df_out,
+        return {'beta': b_out, 't': t_out, 'p': p_out,
                 'sigma': sigma_out, 'residual': res_out}
 
     def ttest(self, threshold_dict=None):
