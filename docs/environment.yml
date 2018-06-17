@@ -12,3 +12,4 @@ dependencies:
     - sphinx-gallery
     - sphinxcontrib-napoleon
     - sphinx_bootstrap_theme
+    - networkx
