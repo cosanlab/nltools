@@ -581,7 +581,7 @@ def test_adjacency(tmpdir):
     X = Adjacency([m1,m2,m3],matrix_type='similarity')
 
     stats = Y.regress(X)
-    assert np.allclose(np.sum(stats['beta']-np.array([1,2,3])),0)
+    assert np.allclose(stats['beta'],np.array([1,2,3]))
 
     # Test Design_Matrix Regression
     n = 10
@@ -590,7 +590,7 @@ def test_adjacency(tmpdir):
     X = Design_Matrix(np.ones(n))
     stats = d.regress(X)
     out = stats['beta'].within_cluster_mean(clusters=['Group1']*4 + ['Group2']*8)
-    assert np.allclose(np.array([x for x in out.values()]),np.array([0,1]), rtol=1e-01)# np.allclose(np.sum(stats['beta']-np.array([1,2,3])),0)
+    assert np.allclose(np.array([out['Group1'],out['Group2']]),np.array([1,0]), rtol=1e-01)# np.allclose(np.sum(stats['beta']-np.array([1,2,3])),0)
 
     # # Test stats_label_distance - FAILED - Need to sort this out
     # labels = np.array(['group1','group1','group2','group2'])

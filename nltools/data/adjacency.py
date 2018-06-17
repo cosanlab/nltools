@@ -30,6 +30,7 @@ from nltools.utils import (all_same,
                            attempt_to_import,
                            concatenate,
                            _bootstrap_apply_func)
+from .design_matrix import Design_Matrix
 from joblib import Parallel, delayed
 
 # Optional dependencies
