@@ -124,7 +124,6 @@ def test_brain_data(tmpdir):
         assert type(out['t'].data) == np.ndarray
         assert type(out['p'].data) == np.ndarray
         assert type(out['residual'].data) == np.ndarray
-        assert type(out['df'].data) == np.ndarray
         assert out['beta'].shape() == (2, shape_2d[1])
         assert out['t'][1].shape()[0] == shape_2d[1]
 
@@ -135,7 +134,6 @@ def test_brain_data(tmpdir):
         assert type(out['t'].data) == np.ndarray
         assert type(out['p'].data) == np.ndarray
         assert type(out['residual'].data) == np.ndarray
-        assert type(out['df'].data) == np.ndarray
         assert out['beta'].shape() == (2, shape_2d[1])
         assert out['t'][1].shape()[0] == shape_2d[1]
 
