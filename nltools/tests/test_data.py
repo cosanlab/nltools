@@ -17,6 +17,8 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import six
 from nltools.prefs import MNI_Template
+from scipy.stats import pearsonr
+from scipy.linalg import block_diag
 
 matplotlib.use('TkAgg')
 
@@ -122,7 +124,6 @@ def test_brain_data(tmpdir):
         assert type(out['t'].data) == np.ndarray
         assert type(out['p'].data) == np.ndarray
         assert type(out['residual'].data) == np.ndarray
-        assert type(out['df'].data) == np.ndarray
         assert out['beta'].shape() == (2, shape_2d[1])
         assert out['t'][1].shape()[0] == shape_2d[1]
 
@@ -133,7 +134,6 @@ def test_brain_data(tmpdir):
         assert type(out['t'].data) == np.ndarray
         assert type(out['p'].data) == np.ndarray
         assert type(out['residual'].data) == np.ndarray
-        assert type(out['df'].data) == np.ndarray
         assert out['beta'].shape() == (2, shape_2d[1])
         assert out['t'][1].shape()[0] == shape_2d[1]
 
@@ -517,11 +517,16 @@ def test_adjacency(tmpdir):
     assert dat_multiple.distance().square_shape()[0] == len(dat_multiple)
 
     # Test ttest
-    mn, p = dat_multiple.ttest()
-    assert len(mn) == 1
-    assert len(p) == 1
-    assert mn.shape()[0] == dat_multiple.shape()[1]
-    assert p.shape()[0] == dat_multiple.shape()[1]
+    out = dat_multiple.ttest()
+    assert len(out['t']) == 1
+    assert len(out['p']) == 1
+    assert out['t'].shape()[0] == dat_multiple.shape()[1]
+    assert out['p'].shape()[0] == dat_multiple.shape()[1]
+    out = dat_multiple.ttest(permutation=True)
+    assert len(out['t']) == 1
+    assert len(out['p']) == 1
+    assert out['t'].shape()[0] == dat_multiple.shape()[1]
+    assert out['p'].shape()[0] == dat_multiple.shape()[1]
 
     # Test Threshold
     assert np.sum(dat_directed.threshold(upper=.8).data == 0) == 10
@@ -556,6 +561,34 @@ def test_adjacency(tmpdir):
     f = dat_single.plot_mds()
     assert isinstance(f, plt.Figure)
 
+    # Test Conversion
+    np.testing.assert_approx_equal(-1,pearsonr(dat_single.data,dat_single.distance_to_similarity().data)[0],significant=1)
+    np.testing.assert_approx_equal(-1,pearsonr(dat_single.distance_to_similarity().data,dat_single.distance_to_similarity().similarity_to_distance().data)[0],significant=1)
+
+    # Test within_cluster_mean
+    test_dat = Adjacency(block_diag(np.ones((4,4)),np.ones((4,4))*2,np.ones((4,4))*3),matrix_type='similarity')
+    test_labels = np.concatenate([np.ones(4)*x for x in range(1,4)])
+    out = test_dat.within_cluster_mean(clusters=test_labels)
+    assert np.sum(np.array([1,2,3])-np.array([out[x] for x in out]))==0
+
+    # Test Adjacency Regression
+    m1 = block_diag(np.ones((4,4)),np.zeros((4,4)),np.zeros((4,4)))
+    m2 = block_diag(np.zeros((4,4)),np.ones((4,4)),np.zeros((4,4)))
+    m3 = block_diag(np.zeros((4,4)),np.zeros((4,4)),np.ones((4,4)))
+    Y = Adjacency(m1*1+m2*2+m3*3,matrix_type='similarity')
+    X = Adjacency([m1,m2,m3],matrix_type='similarity')
+
+    stats = Y.regress(X)
+    assert np.allclose(stats['beta'],np.array([1,2,3]))
+
+    # Test Design_Matrix Regression
+    n = 10
+    d = Adjacency([block_diag(np.ones((4,4))+np.random.randn(4,4)*.1,np.zeros((8,8))) for x in range(n)],
+                  matrix_type='similarity')
+    X = Design_Matrix(np.ones(n))
+    stats = d.regress(X)
+    out = stats['beta'].within_cluster_mean(clusters=['Group1']*4 + ['Group2']*8)
+    assert np.allclose(np.array([out['Group1'],out['Group2']]),np.array([1,0]), rtol=1e-01)# np.allclose(np.sum(stats['beta']-np.array([1,2,3])),0)
 
     # # Test stats_label_distance - FAILED - Need to sort this out
     # labels = np.array(['group1','group1','group2','group2'])
