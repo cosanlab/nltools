@@ -166,3 +166,28 @@ def collapse_mask(mask, auto_label=True):
             return out
     else:
         warnings.warn("Doesn't need to be collapased")
+
+def roi_to_brain(data, mask_x):
+    '''
+    Args:
+        data: Pandas series or dataframe of ROI by observation
+        mask_x: an expanded binary mask
+    Returns:
+        Brain_Data instance
+    '''
+    def series_to_brain(data, mask_x):
+        '''Converts a pandas series of ROIs to a Brain_Data instance. Index must correspond to ROI index'''
+
+        if not isinstance(data,pd.Series):
+            raise ValueError('Data must be a pandas series')
+        if len(mask_x) != len(data):
+            raise ValueError('Data must have the same number of rows as mask has ROIs.')
+        return Brain_Data([mask_x[x]*data[x] for x in data.keys()]).sum()
+
+    if len(mask_x) != data.shape[0]:
+        raise ValueError('Data must have the same number of rows as mask has ROIs.')
+
+    if isinstance(data,pd.Series):
+        return series_to_brain(data, mask_x)
+    elif isinstance(data,pd.DataFrame):
+        return Brain_Data([series_to_brain(data[x],mask_x) for x in data.keys()])
