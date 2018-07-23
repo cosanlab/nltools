@@ -3,6 +3,7 @@ import pandas as pd
 from nltools.stats import (one_sample_permutation,
 							two_sample_permutation,
 							correlation_permutation,
+							matrix_permutation,
 							downsample,
 							upsample,
 							winsorize,
@@ -36,6 +37,12 @@ def test_permutation():
 	lower_p = _calc_pvalue(all_p = s, stat= -1.96, tail = 1)
 	sum_p = upper_p + lower_p
 	np.testing.assert_almost_equal(two_sided, sum_p)
+	# Test matrix_permutation
+	dat = np.random.multivariate_normal([2, 6], [[.5, 2], [.5, 3]], 190)
+	x = dat[:, 0]
+	y = dat[:, 1]
+	stats = matrix_permutation(x,y,n_permute=1000)
+	assert (stats['correlation'] > .4) & (stats['correlation']<.85) & (stats['p'] <.001)
 
 def test_downsample():
 	dat = pd.DataFrame()
