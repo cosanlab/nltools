@@ -22,7 +22,8 @@ import matplotlib.pyplot as plt
 from nltools.stats import (correlation_permutation,
                            one_sample_permutation,
                            two_sample_permutation,
-                           summarize_bootstrap)
+                           summarize_bootstrap,
+                           matrix_permutation)
 from nltools.stats import regress as regression
 from nltools.plotting import (plot_stacked_adjacency,
                               plot_silhouette)
@@ -446,23 +447,34 @@ class Adjacency(object):
                                           'out multiple matrices.  As separate '
                                           'files?')
 
-    def similarity(self, data, plot=False, **kwargs):
+    def similarity(self, data, plot=False, perm_type='2d', n_permute=5000, metric='spearman', **kwargs):
         ''' Calculate similarity between two Adjacency matrices.
-        Default is to use spearman correlation and permutation test.'''
+        Default is to use spearman correlation and permutation test.
+        Args:
+            data: Adjacency data, or 1-d array same size as self.data
+            perm_type: '1d','2d', or None
+            metric: 'spearman','pearson','kendall'
+        '''
         if not isinstance(data, Adjacency):
             data2 = Adjacency(data)
         else:
             data2 = data.copy()
+        if perm_type is None:
+            n_permute=0
+        elif perm_type == '1d':
+            similarity_func = correlation_permutation
+        elif perm_type == '2d':
+            similarity_func = matrix_permutation
         if self.is_single_matrix:
             if plot:
                 plot_stacked_adjacency(self, data)
-            return correlation_permutation(self.data, data2.data, **kwargs)
+                return similarity_func(self.data, data2.data, metric=metric, n_permute=n_permute, **kwargs)
         else:
             if plot:
                 _, a = plt.subplots(len(self))
                 for i in a:
                     plot_stacked_adjacency(self, data, ax=i)
-            return [correlation_permutation(x.data, data2.data, **kwargs) for x in self]
+            return [similarity_func(x.data, data2.data, metric=metric, n_permute=n_permute, **kwargs) for x in self]
 
     def distance(self, method='correlation', **kwargs):
         ''' Calculate distance between images within an Adjacency() instance.
