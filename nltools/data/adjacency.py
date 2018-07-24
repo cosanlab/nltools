@@ -461,6 +461,7 @@ class Adjacency(object):
             data2 = data.copy()
         if perm_type is None:
             n_permute=0
+            similarity_func = correlation_permutation
         elif perm_type == '1d':
             similarity_func = correlation_permutation
         elif perm_type == '2d':
@@ -468,7 +469,7 @@ class Adjacency(object):
         if self.is_single_matrix:
             if plot:
                 plot_stacked_adjacency(self, data)
-                return similarity_func(self.data, data2.data, metric=metric, n_permute=n_permute, **kwargs)
+            return similarity_func(self.data, data2.data, metric=metric, n_permute=n_permute, **kwargs)
         else:
             if plot:
                 _, a = plt.subplots(len(self))
