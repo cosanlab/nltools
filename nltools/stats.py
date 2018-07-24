@@ -501,25 +501,19 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
 
     if metric == 'spearman':
         stats['correlation'] = spearmanr(data1, data2)[0]
+        func = spearmanr
     elif metric == 'pearson':
         stats['correlation'] = pearsonr(data1, data2)[0]
+        func = pearsonr
     elif metric == 'kendall':
         stats['correlation'] = kendalltau(data1, data2)[0]
+        func = kendalltau
     else:
         raise ValueError('metric must be "spearman" or "pearson" or "kendall"')
 
-    if metric is 'spearman':
-        all_p = Parallel(n_jobs=n_jobs)(delayed(spearmanr)(
-                        random_state.permutation(data1), data2)
-                        for i in range(n_permute))
-    elif metric is 'pearson':
-        all_p = Parallel(n_jobs=n_jobs)(delayed(pearsonr)(
-                        random_state.permutation(data1), data2)
-                        for i in range(n_permute))
-    elif metric is 'kendall':
-        all_p = Parallel(n_jobs=n_jobs)(delayed(kendalltau)(
-                        random_state.permutation(data1), data2)
-                        for i in range(n_permute))
+    all_p = Parallel(n_jobs=n_jobs)(delayed(func)(
+                    random_state.permutation(data1), data2)
+                    for i in range(n_permute))
     all_p = [x[0] for x in all_p]
 
     stats['p'] = _calc_pvalue(all_p,stats['correlation'],tail)
