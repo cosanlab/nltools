@@ -601,7 +601,7 @@ def test_adjacency(tmpdir):
     y = Adjacency(dat[:, 1])
     stats = x.similarity(y,perm_type='2d',n_permute=1000)
     assert (stats['correlation'] > .4) & (stats['correlation']<.85) & (stats['p'] <.001)
-    stats = x.similarity(y,perm_type=none)
+    stats = x.similarity(y,perm_type=None)
 
 def test_groupby(tmpdir):
     # Simulate Brain Data
