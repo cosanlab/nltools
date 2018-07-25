@@ -522,7 +522,7 @@ def test_adjacency(tmpdir):
     assert len(out['p']) == 1
     assert out['t'].shape()[0] == dat_multiple.shape()[1]
     assert out['p'].shape()[0] == dat_multiple.shape()[1]
-    out = dat_multiple.ttest(permutation=True)
+    out = dat_multiple.ttest(permutation=True,n_permute=1000)
     assert len(out['t']) == 1
     assert len(out['p']) == 1
     assert out['t'].shape()[0] == dat_multiple.shape()[1]
@@ -602,7 +602,7 @@ def test_adjacency(tmpdir):
     stats = x.similarity(y,perm_type='2d',n_permute=1000)
     assert (stats['correlation'] > .4) & (stats['correlation']<.85) & (stats['p'] <.001)
     stats = x.similarity(y,perm_type=None)
-    assert (stats['correlation'] > .4) & (stats['correlation']<.85) 
+    assert (stats['correlation'] > .4) & (stats['correlation']<.85)
 
 def test_groupby(tmpdir):
     # Simulate Brain Data

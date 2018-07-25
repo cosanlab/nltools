@@ -17,9 +17,9 @@ def test_permutation():
 	dat = np.random.multivariate_normal([2, 6], [[.5, 2], [.5, 3]], 1000)
 	x = dat[:, 0]
 	y = dat[:, 1]
-	stats = two_sample_permutation(x, y,tail=1)
+	stats = two_sample_permutation(x, y,tail=1,n_permute=1000)
 	assert (stats['mean'] < -2) & (stats['mean'] > -6) & (stats['p'] < .001)
-	stats = one_sample_permutation(x-y,tail=1)
+	stats = one_sample_permutation(x-y,tail=1,n_permute=1000)
 	assert (stats['mean'] < -2) & (stats['mean'] > -6) & (stats['p'] < .001)
 	stats = correlation_permutation(x, y, metric='pearson',tail=1)
 	assert (stats['correlation'] > .4) & (stats['correlation']<.85) & (stats['p'] < .001)
