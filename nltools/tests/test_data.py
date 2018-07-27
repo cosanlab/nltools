@@ -506,11 +506,11 @@ def test_adjacency(tmpdir):
 
     # Test similarity
     assert len(dat_multiple.similarity(
-                dat_single.squareform())) == len(dat_multiple)
-    assert len(dat_multiple.similarity(dat_single.squareform(),
-                metric='pearson')) == len(dat_multiple)
-    assert len(dat_multiple.similarity(dat_single.squareform(),
-                metric='kendall')) == len(dat_multiple)
+                dat_single.squareform(),perm_type='1d' )) == len(dat_multiple)
+    assert len(dat_multiple.similarity(dat_single.squareform(),perm_type='1d',
+                metric='pearson',n_permute=1000)) == len(dat_multiple)
+    assert len(dat_multiple.similarity(dat_single.squareform(),perm_type='1d',
+                metric='kendall',n_permute=1000)) == len(dat_multiple)
 
     # Test distance
     assert isinstance(dat_multiple.distance(), Adjacency)
@@ -522,7 +522,7 @@ def test_adjacency(tmpdir):
     assert len(out['p']) == 1
     assert out['t'].shape()[0] == dat_multiple.shape()[1]
     assert out['p'].shape()[0] == dat_multiple.shape()[1]
-    out = dat_multiple.ttest(permutation=True)
+    out = dat_multiple.ttest(permutation=True,n_permute=1000)
     assert len(out['t']) == 1
     assert len(out['p']) == 1
     assert out['t'].shape()[0] == dat_multiple.shape()[1]
@@ -594,6 +594,15 @@ def test_adjacency(tmpdir):
     # labels = np.array(['group1','group1','group2','group2'])
     # stats = dat_multiple[0].stats_label_distance(labels)
     # assert np.isclose(stats['group1']['mean'],-1*stats['group2']['mean'])
+
+    # Test matrix_permutation
+    dat = np.random.multivariate_normal([2, 6], [[.5, 2], [.5, 3]], 190)
+    x = Adjacency(dat[:, 0])
+    y = Adjacency(dat[:, 1])
+    stats = x.similarity(y,perm_type='2d',n_permute=1000)
+    assert (stats['correlation'] > .4) & (stats['correlation']<.85) & (stats['p'] <.001)
+    stats = x.similarity(y,perm_type=None)
+    assert (stats['correlation'] > .4) & (stats['correlation']<.85)
 
 def test_groupby(tmpdir):
     # Simulate Brain Data

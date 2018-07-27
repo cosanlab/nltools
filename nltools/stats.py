@@ -28,12 +28,14 @@ __all__ = ['pearson',
             'summarize_bootstrap',
             'regress',
             'procrustes',
-            'align']
+            'align',
+            '2d_permutation']
 
 import numpy as np
 import pandas as pd
 from scipy.stats import pearsonr, spearmanr, kendalltau, norm
 from scipy.stats import t as t_dist
+from scipy.spatial.distance import squareform
 from copy import deepcopy
 import nibabel as nib
 from scipy.interpolate import interp1d
@@ -499,27 +501,88 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
 
     if metric == 'spearman':
         stats['correlation'] = spearmanr(data1, data2)[0]
+        func = spearmanr
     elif metric == 'pearson':
         stats['correlation'] = pearsonr(data1, data2)[0]
+        func = pearsonr
     elif metric == 'kendall':
         stats['correlation'] = kendalltau(data1, data2)[0]
+        func = kendalltau
     else:
         raise ValueError('metric must be "spearman" or "pearson" or "kendall"')
 
-    if metric is 'spearman':
-        all_p = Parallel(n_jobs=n_jobs)(delayed(spearmanr)(
-                        random_state.permutation(data1), data2)
-                        for i in range(n_permute))
-    elif metric is 'pearson':
-        all_p = Parallel(n_jobs=n_jobs)(delayed(pearsonr)(
-                        random_state.permutation(data1), data2)
-                        for i in range(n_permute))
-    elif metric is 'kendall':
-        all_p = Parallel(n_jobs=n_jobs)(delayed(kendalltau)(
-                        random_state.permutation(data1), data2)
-                        for i in range(n_permute))
+    all_p = Parallel(n_jobs=n_jobs)(delayed(func)(
+                    random_state.permutation(data1), data2)
+                    for i in range(n_permute))
     all_p = [x[0] for x in all_p]
 
+    stats['p'] = _calc_pvalue(all_p,stats['correlation'],tail)
+    return stats
+
+def _permute_func(func, data1, data2,random_state, replacement):
+    """ Helper function for matrix_permutation.
+        Can take a functon, that would be repeated for calculation.
+        Args:
+            func: similarity/distance function from scipy.stats (e.g., spearman, pearson etc)
+            data1: squareform matrix, np array
+            data2: flattened np array (same size upper triangle of data1)
+            random_state: random_state instance for permutation
+            replacement: bool, whether to replace with replacement.
+        Returns:
+            r: r value of function
+    """
+    data_row_id = range(data1.shape[0])
+    permuted_ix = random_state.choice(data_row_id,
+                       size=len(data_row_id),
+                       replace=replacement)
+    new_fmri_dist = data1.iloc[permuted_ix,permuted_ix].as_matrix()
+    new_fmri_dist = new_fmri_dist[np.triu_indices(new_fmri_dist.shape[0], k=1)]
+    return func(new_fmri_dist, data2)[0]
+
+def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
+                            tail=2, replacement=False, random_state=None):
+    """ Permute 2-dimensional matrix correlation.
+        Permutes subject-wise permuted correlations WITHOUT replacement by default
+        Input data is represeted as 2d via scipy.distance.squareform before permuting,
+        meaning the diagonals will be represented as 0s if permuting with replacement.
+
+        Chen, G. et al. (2016). Untangling the relatedness among correlations,
+        part I: nonparametric approaches to inter-subject correlation analysis
+        at the group level. Neuroimage, 142, 248-259.
+
+        Args:
+            data1: Pandas DataFrame or Series or numpy array
+            data2: Pandas DataFrame or Series or numpy array
+            n_permute: (int) number of permutations
+            metric: (str) type of association metric ['spearman','pearson',
+                    'kendall']
+            tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
+            n_jobs: (int) The number of CPUs to use to do the computation.
+                    -1 means all CPUs.
+
+        Returns:
+            stats: (dict) dictionary of permutation results ['correlation','p']
+    """
+    random_state = check_random_state(random_state)
+    stats = dict()
+    data1 = np.array(data1)
+    sq_data1 = pd.DataFrame(squareform(data1))
+    data2 = np.array(data2)
+
+    if metric == 'spearman':
+        stats['correlation'] = spearmanr(data1, data2)[0]
+        func = spearmanr
+    elif metric == 'pearson':
+        stats['correlation'] = pearsonr(data1, data2)[0]
+        func = pearsonr
+    elif metric == 'kendall':
+        stats['correlation'] = kendalltau(data1, data2)[0]
+        func = kendalltau
+    else:
+        raise ValueError('metric must be "spearman" or "pearson" or "kendall"')
+
+    all_p = Parallel(backend='threading')(delayed(_permute_func)(func,
+                    sq_data1, data2, random_state, replacement) for i in range(n_permute))
     stats['p'] = _calc_pvalue(all_p,stats['correlation'],tail)
     return stats
 
