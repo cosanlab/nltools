@@ -10,7 +10,7 @@ from nltools.data import (Brain_Data,
 from nltools.mask import create_sphere
 
 @pytest.fixture(scope="module", params=["2mm"])
-def sim_brain_data(request):
+def sim_brain_data():
     # MNI_Template["resolution"] = request.params
     sim = Simulator()
     r = 10
