@@ -14,9 +14,8 @@ Classes to represent brain image data.
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
-import pickle # import cPickle
 from nilearn.signal import clean
-from scipy.stats import ttest_1samp, spearmanr
+from scipy.stats import ttest_1samp
 from scipy.stats import t as t_dist
 from scipy.signal import detrend
 import os
@@ -33,7 +32,7 @@ from sklearn.metrics.pairwise import pairwise_distances, cosine_similarity
 from sklearn.utils import check_random_state
 from pynv import Client
 from joblib import Parallel, delayed
-from nltools.mask import expand_mask, collapse_mask
+from nltools.mask import expand_mask
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
 from nilearn.image import resample_img
@@ -47,8 +46,7 @@ from nltools.utils import (get_resource_path,
                             _bootstrap_apply_func,
                             set_decomposition_algorithm)
 from nltools.cross_validation import set_cv
-from nltools.plotting import (dist_from_hyperplane_plot,
-                              scatterplot,
+from nltools.plotting import (scatterplot,
                               probability_plot,
                               roc_plot,
                               plot_stacked_adjacency,
@@ -68,7 +66,6 @@ from nltools.stats import (pearson,
                            summarize_bootstrap,
                            procrustes)
 from nltools.stats import regress as regression
-from nltools.pbs_job import PBS_Job
 from .adjacency import Adjacency
 from nltools.prefs import MNI_Template, resolve_mni_path
 from nltools.external.srm import DetSRM, SRM
@@ -406,8 +403,7 @@ class Brain_Data(object):
             raise ValueError("self.X does not match the correct size of "
                              "self.data")
 
-        b,t,p,df,res = regression(self.X,self.data,mode=mode,**kwargs)
-        sigma = np.std(res,axis=0,ddof=self.X.shape[1])
+        b,t,p,_,res = regression(self.X,self.data,mode=mode,**kwargs)
 
         # Prevent copy of all data in self multiple times; instead start with an empty instance and copy only needed attributes from self, and use this as a template for other outputs
         b_out = self.__class__()
@@ -1401,8 +1397,10 @@ class Brain_Data(object):
         source = self.copy()
         common = target.copy()
 
-        assert isinstance(target, Brain_Data), "Target must be Brain_Data instance."
-        assert method in ['probabilistic_srm', 'deterministic_srm','procrustes'], "Method must be ['probabilistic_srm','deterministic_srm','procrustes']"
+        if not isinstance(target, Brain_Data):
+            raise ValueError("Target must be Brain_Data instance.")
+        if method not in ['probabilistic_srm', 'deterministic_srm','procrustes']:
+            raise ValueError("Method must be ['probabilistic_srm','deterministic_srm','procrustes']")
 
         data1 = source.data.T
         data2 = target.data.T

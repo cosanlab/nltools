@@ -41,12 +41,14 @@ def plotTBrain(objIn,how='full',thr='unc',alpha=None,nperm=None, cut_coords = []
         kwargs: optionals args to nilearn plot functions (e.g. vmax)
 
     """
-    assert thr in ['unc','fdr','tfce'], "Acceptable threshold methods are 'unc','fdr','tfce'"
+    if thr not in ['unc','fdr','tfce']:
+        raise ValueError("Acceptable threshold methods are 'unc','fdr','tfce'")
     views = ['x','y','z']
     if len(cut_coords) == 0:
         cut_coords = [range(-40,50,10),[-88,-72,-58,-38,-26,8,20,34,46],[-34,-22,-10,0,16,34,46,56,66]]
     else:
-        assert(len(cut_coords)==3), 'cut_coords must be a list of coordinates like [[xs],[ys],[zs]]'
+        if len(cut_coords) != 3):
+            raise ValueError('cut_coords must be a list of coordinates like [[xs],[ys],[zs]]')
     cmap = 'RdBu_r'
 
     if isinstance(objIn, list):
@@ -321,7 +323,7 @@ def plot_mean_label_distance(distance, labels, ax=None, permutation_test=False,
     if len(labels) != distance.shape[0]:
         raise ValueError('Labels must be same length as distance matrix')
 
-    within = []; between = []
+    between = []
     out = pd.DataFrame(columns=['Distance','Group','Type'],index=None)
     for i in labels.unique():
         tmp_w = pd.DataFrame(columns=out.columns,index=None)
