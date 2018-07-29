@@ -28,8 +28,7 @@ __all__ = ['pearson',
             'summarize_bootstrap',
             'regress',
             'procrustes',
-            'align',
-            '2d_permutation']
+            'align']
 
 import numpy as np
 import pandas as pd
