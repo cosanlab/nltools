@@ -111,9 +111,11 @@ class Adjacency(object):
             self.Y = pd.DataFrame()
 
         if labels is not None:
-            assert isinstance(labels, (list, np.ndarray)), "Make sure labels is a list or numpy array."
+            if not isinstance(labels, (list, np.ndarray)):
+                raise ValueError( "Make sure labels is a list or numpy array.")
             if self.is_single_matrix:
-                assert len(labels) == self.square_shape()[0], 'Make sure the length of labels matches the shape of data.'
+                if len(labels) != self.square_shape()[0]:
+                    raise ValueError('Make sure the length of labels matches the shape of data.')
                 self.labels = deepcopy(labels)
             else:
                 if len(labels) != len(self):
@@ -125,7 +127,8 @@ class Adjacency(object):
                     else:
                         self.labels = list(labels) * len(self)
                 else:
-                    assert np.all(np.array([len(x) for x in labels])==self.square_shape()[0]), "All lists of labels must be same length as shape of data."
+                    if np.all(np.array([len(x) for x in labels]) !=self.square_shape()[0]):
+                        raise ValueError("All lists of labels must be same length as shape of data.")
                     self.labels = deepcopy(labels)
         else:
             self.labels = None
@@ -600,7 +603,7 @@ class Adjacency(object):
             if len(labels) != distance.shape[0]:
                 raise ValueError('Labels must be same length as distance matrix')
 
-        within = []; between = []
+        between = []
         out = pd.DataFrame(columns=['Distance', 'Group', 'Type'], index=None)
         for i in np.unique(labels):
             tmp_w = pd.DataFrame(columns=out.columns, index=None)
@@ -725,12 +728,17 @@ class Adjacency(object):
                 fig: returns matplotlib figure
         '''
 
-        assert self.matrix_type == 'distance', "MDS only works on distance matrices."
-        assert ~self.is_single_matrix, "MDS only works on single matrices."
-        assert n_components == 2 or n_components==3, 'Cannot plot {0}-d image'.format(n_components)
+        if self.matrix_type != 'distance':
+            raise ValueError("MDS only works on distance matrices.")
+        if not self.is_single_matrix:
+            raise ValueError("MDS only works on single matrices.")
+        if n_components != 2 or n_components!=3:
+            raise ValueError('Cannot plot {0}-d image'.format(n_components))
         if labels_color is not None:
-            assert self.labels is not None, "Make sure that Adjacency object has labels specified."
-            assert len(self.labels) == len(labels_color), "Length of labels_color must match self.labels."
+            if self.labels is None:
+                raise ValueError("Make sure that Adjacency object has labels specified.")
+            if len(self.labels) != len(labels_color):
+                raise ValueError("Length of labels_color must match self.labels.")
 
         # Run MDS
         mds = MDS(n_components=n_components, metric=metric, n_jobs=n_jobs,
@@ -810,7 +818,6 @@ class Adjacency(object):
         if len(clusters) != distance.shape[0]:
             raise ValueError('Cluster labels must be same length as distance matrix')
 
-        within = []
         out = pd.DataFrame(columns=['Mean','Label'],index=None)
         out = {}
         for i in list(set(clusters)):
@@ -834,7 +841,7 @@ class Adjacency(object):
         if isinstance(X, Adjacency):
             if X.square_shape()[0] != self.square_shape()[0]:
                 raise ValueError('Adjacency instances must be the same size.')
-            b,t,p,df,res = regression(X.data.T, self.data, mode=mode, **kwargs)
+            b,t,p,_,res = regression(X.data.T, self.data, mode=mode, **kwargs)
             stats['beta'],stats['t'],stats['p'],stats['residual'] = (b,t,p,res)
         elif isinstance(X, Design_Matrix):
             if X.shape[0] != len(self):

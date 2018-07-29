@@ -14,7 +14,6 @@ __license__ = "MIT"
 import pandas as pd
 import numpy as np
 from nltools.plotting import roc_plot
-from nltools.utils import get_resource_path
 from scipy.stats import norm, binom_test
 from sklearn.metrics import auc
 from copy import deepcopy
@@ -106,10 +105,12 @@ class Roc(object):
 
         if self.forced_choice is not None:
             sub_idx = np.unique(self.forced_choice)
-            assert len(sub_idx) == len(self.binary_outcome)/2, ("Make sure "
-                        "that subject ids are correct for 'forced_choice'.")
-            assert len(set(sub_idx).union(set(np.array(self.forced_choice)[self.binary_outcome]))) == len(sub_idx), "Issue with forced_choice subject labels."
-            assert len(set(sub_idx).union(set(np.array(self.forced_choice)[~self.binary_outcome]))) == len(sub_idx), "Issue with forced_choice subject labels."
+            if len(sub_idx) != len(self.binary_outcome)/2:
+                raise ValueError("Make sure that subject ids are correct for 'forced_choice'.")
+            if len(set(sub_idx).union(set(np.array(self.forced_choice)[self.binary_outcome]))) != len(sub_idx):
+                raise ValueError("Issue with forced_choice subject labels.")
+            if len(set(sub_idx).union(set(np.array(self.forced_choice)[~self.binary_outcome]))) != len(sub_idx):
+                raise ValueError("Issue with forced_choice subject labels.")
             for sub in sub_idx:
                 sub_mn = (self.input_values[(self.forced_choice == sub) & (self.binary_outcome == True)]+self.input_values[(self.forced_choice == sub) & (self.binary_outcome == False)])[0]/2
                 self.input_values[(self.forced_choice == sub) & (self.binary_outcome == True)] = self.input_values[(self.forced_choice == sub) & (self.binary_outcome == True)][0] - sub_mn
