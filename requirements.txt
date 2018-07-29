@@ -8,4 +8,4 @@
 	scipy
 	six
 	pynv
-	joblib
+	joblib == 0.11

@@ -28,8 +28,7 @@ __all__ = ['pearson',
             'summarize_bootstrap',
             'regress',
             'procrustes',
-            'align',
-            '2d_permutation']
+            'align']
 
 import numpy as np
 import pandas as pd
@@ -711,7 +710,8 @@ def _robust_estimator(vals,X,robust_estimator='hc0',nlags=1):
         stderr (np.ndarray): 1d array of standard errors with length == X.shape[1]
     """
 
-    assert robust_estimator in ['hc0','hc3','hac'], "robust_estimator must be one of hc0, hc3 or hac"
+    if robust_estimator not in ['hc0','hc3','hac']:
+        raise ValueError("robust_estimator must be one of hc0, hc3 or hac")
 
     # Make a sandwich!
     # First we need bread
@@ -855,7 +855,8 @@ def regress(X, Y, mode='ols', **kwargs):
     if not isinstance(mode, six.string_types):
         raise ValueError('mode must be a string')
 
-    assert mode in ['ols', 'robust', 'arma'], "Mode must be one of 'ols','robust' or 'arma'"
+    if mode not in ['ols', 'robust', 'arma']:
+        raise ValueError("Mode must be one of 'ols','robust' or 'arma'")
 
     # Make sure Y is a 1-D array
     if len(Y.shape) == 1:
@@ -949,9 +950,12 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
 
     from nltools.data import Brain_Data
 
-    assert isinstance(data, list), 'Make sure you are inputting data is a list.'
-    assert all([type(x) for x in data]), 'Make sure all objects in the list are the same type.'
-    assert method in ['probabilistic_srm','deterministic_srm','procrustes'], "Method must be ['probabilistic_srm','deterministic_srm','procrustes']"
+    if not isinstance(data, list):
+        raise ValueErrror('Make sure you are inputting data is a list.')
+    if not all([type(x) for x in data]):
+        raise ValueError('Make sure all objects in the list are the same type.')
+    if method not in ['probabilistic_srm','deterministic_srm','procrustes']:
+        raise ValueError("Method must be ['probabilistic_srm','deterministic_srm','procrustes']")
 
     data = deepcopy(data)
 

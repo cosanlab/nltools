@@ -41,15 +41,17 @@ def plotTBrain(objIn,how='full',thr='unc',alpha=None,nperm=None, cut_coords = []
         kwargs: optionals args to nilearn plot functions (e.g. vmax)
 
     """
-    assert thr in ['unc','fdr','tfce'], "Acceptable threshold methods are 'unc','fdr','tfce'"
+    if thr not in ['unc','fdr','tfce']:
+        raise ValueError("Acceptable threshold methods are 'unc','fdr','tfce'")
     views = ['x','y','z']
     if len(cut_coords) == 0:
         cut_coords = [range(-40,50,10),[-88,-72,-58,-38,-26,8,20,34,46],[-34,-22,-10,0,16,34,46,56,66]]
     else:
-        assert(len(cut_coords)==3), 'cut_coords must be a list of coordinates like [[xs],[ys],[zs]]'
+        if len(cut_coords) != 3:
+            raise ValueError('cut_coords must be a list of coordinates like [[xs],[ys],[zs]]')
     cmap = 'RdBu_r'
 
-    if type(objIn) == list:
+    if isinstance(objIn, list):
         if len(objIn) == 2:
             obj = objIn[0]-objIn[1]
         else:
@@ -119,9 +121,9 @@ def plotBrain(objIn,how='full',thr=None,**kwargs):
 
     if thr is None:
         print("Plotting unthresholded image")
-    elif type(thr) == str:
+    elif isinstance(thr, str):
         print("Plotting top %s of voxels" % thr)
-    elif type(thr) == float or type(thr) == int:
+    elif isinstance(thr, (float, int)):
         print("Plotting voxels with stat value >= %s" % thr)
 
     if how == 'full':
@@ -321,7 +323,7 @@ def plot_mean_label_distance(distance, labels, ax=None, permutation_test=False,
     if len(labels) != distance.shape[0]:
         raise ValueError('Labels must be same length as distance matrix')
 
-    within = []; between = []
+    between = []
     out = pd.DataFrame(columns=['Distance','Group','Type'],index=None)
     for i in labels.unique():
         tmp_w = pd.DataFrame(columns=out.columns,index=None)
