@@ -43,7 +43,7 @@ def test_stratified_kfold_ratios():
     cv = KFoldStratified(n_splits=n_folds)
     for train, test in KFoldStratified(n_folds).split(np.zeros(len(y)), y):
         assert (y.iloc[train].mean()[0]>=47) & (y.iloc[train].mean()[0]<=53)
-            
+
 def test_kfoldstratified():
     y = pd.DataFrame(np.random.randn(50))*20+50
     n_folds = 5

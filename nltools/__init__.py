@@ -8,7 +8,6 @@ __all__ = ['data',
 			'stats',
             'utils',
             'file_reader',
-			'pbs_job',
 			'mask',
             'prefs',
             'external',
@@ -21,7 +20,6 @@ from .data import (Brain_Data,
                     Groupby,
                     Design_Matrix,
                     Design_Matrix_Series)
-from .pbs_job import PBS_Job
 from .simulator import Simulator
 from .prefs import MNI_Template, resolve_mni_path
 from .version import __version__
