@@ -438,7 +438,8 @@ class Design_Matrix(DataFrame):
             exclude_polys (bool): whether to skip checking of polynomial terms (i.e. intercept, trends, basis functions); default True
 
         """
-        assert self.shape[1] > 1, "Can't compute vif with only 1 column!"
+        if self.shape[1] <= 1:
+            raise ValueError("Can't compute vif with only 1 column!")
         if self.polys and exclude_polys:
             out = self.drop(self.polys,axis=1)
         else:
@@ -481,16 +482,19 @@ class Design_Matrix(DataFrame):
                             to all non-polynomial columns
 
         """
-        assert self.sampling_freq is not None, "Design_matrix has no sampling_freq set!"
+        if self.sampling_freq is None:
+            raise ValueError("Design_matrix has no sampling_freq set!")
 
         if columns is None:
             columns = [col for col in self.columns if col not in self.polys]
         nonConvolved = [col for col in self.columns if col not in columns]
 
         if isinstance(conv_func, np.ndarray):
-            assert len(conv_func.shape) <= 2, "2d conv_func must be formatted as samplex X kernals!"
+            if len(conv_func.shape) > 2:
+                raise ValueError("2d conv_func must be formatted as samplex X kernals!")
         elif isinstance(conv_func, six.string_types):
-            assert conv_func == 'hrf',"Did you mean 'hrf'? 'hrf' can generate a kernel for you, otherwise custom kernels should be passed in as 1d or 2d arrays."
+            if conv_func != 'hrf':
+                raise ValueError("Did you mean 'hrf'? 'hrf' can generate a kernel for you, otherwise custom kernels should be passed in as 1d or 2d arrays.")
             conv_func = glover_hrf(1. / self.sampling_freq, oversampling=1.)
 
         else:
@@ -624,7 +628,8 @@ class Design_Matrix(DataFrame):
             drop (int): index of which early/slow bases to drop if any; will always drop constant (i.e. intercept) like SPM. Unlike SPM, retains first basis (i.e. linear/sigmoidal). Will cumulatively drop bases up to and inclusive of index provided (e.g. 2, drops bases 1 and 2); default None
 
         """
-        assert self.sampling_freq is not None, "Design_Matrix has no sampling_freq set!"
+        if self.sampling_freq is None:
+            raise ValueError("Design_Matrix has no sampling_freq set!")
 
         if self.polys:
             if any([elem.count('_') == 2 and 'cosine' in elem for elem in self.polys]):

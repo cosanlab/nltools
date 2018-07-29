@@ -19,8 +19,6 @@ __license__ = "MIT"
 
 import os
 import pandas as pd
-import shutil
-import tempfile
 from nltools.data import Brain_Data
 from nilearn.datasets.utils import _get_dataset_dir, _fetch_file
 from pynv import Client

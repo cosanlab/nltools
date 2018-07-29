@@ -13,23 +13,14 @@ __license__ = "MIT"
 
 import os
 import six
-import time
-import sys
-from distutils.version import LooseVersion
-import random
 import numpy as np
 import matplotlib.pyplot as plt
 from nilearn import datasets
-from nilearn import plotting
 import pandas as pd
-import sklearn
-from sklearn.externals.joblib import Parallel, delayed, cpu_count
-from sklearn import svm
-from sklearn import neighbors
+from sklearn.externals.joblib import delayed, cpu_count
 from nilearn.input_data import NiftiMasker
 from scipy.stats import multivariate_normal
 from nltools.data import Brain_Data
-from nltools.utils import get_resource_path
 from nltools.prefs import MNI_Template, resolve_mni_path
 import csv
 
@@ -103,8 +94,6 @@ class Simulator:
             mu: average value of the gaussian signal (usually set to 0)
             sigma: standard deviation
         """
-        vmask = self.nifti_masker.fit_transform(self.brain_mask)
-
         vlength = int(np.sum(self.brain_mask.get_data()))
         if sigma is not 0:
             n = np.random.normal(mu, sigma, vlength)
@@ -174,9 +163,6 @@ class Simulator:
         for i in range(reps - 1):
             y = y + levels
             rep_id.extend([i+2] * nlevels)
-
-        #initialize useful values
-        dims = self.brain_mask.get_data().shape
 
         # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
         A = self.n_spheres(radius, center)
