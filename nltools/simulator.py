@@ -37,7 +37,7 @@ class Simulator:
             brain_mask = nib.load(brain_mask)
         elif brain_mask is None:
             brain_mask = nib.load(resolve_mni_path(MNI_Template)['mask'])
-        elif ~isinstance(brain_mask,nib.nifti1.Nifti1Image):
+        elif ~isinstance(brain_mask, nib.nifti1.Nifti1Image):
             raise ValueError("brain_mask is not a string or a nibabel instance")
         self.brain_mask = brain_mask
         self.nifti_masker = NiftiMasker(mask_img=self.brain_mask)
@@ -95,6 +95,7 @@ class Simulator:
             mu: average value of the gaussian signal (usually set to 0)
             sigma: standard deviation
         """
+        vmask = self.nifti_masker.fit_transform(self.brain_mask)
         vlength = int(np.sum(self.brain_mask.get_data()))
         if sigma is not 0:
             n = np.random.normal(mu, sigma, vlength)
@@ -192,6 +193,7 @@ class Simulator:
 
         dat = self.data
         dat.Y = self.y
+
         # Write Data to files if requested
         if output_dir is not None and isinstance(output_dir, six.string_types):
             NF_list.write(os.path.join(output_dir,'data.nii.gz'))
