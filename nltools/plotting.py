@@ -47,7 +47,7 @@ def plotTBrain(objIn,how='full',thr='unc',alpha=None,nperm=None, cut_coords = []
     if len(cut_coords) == 0:
         cut_coords = [range(-40,50,10),[-88,-72,-58,-38,-26,8,20,34,46],[-34,-22,-10,0,16,34,46,56,66]]
     else:
-        if len(cut_coords) != 3):
+        if len(cut_coords) != 3:
             raise ValueError('cut_coords must be a list of coordinates like [[xs],[ys],[zs]]')
     cmap = 'RdBu_r'
 
