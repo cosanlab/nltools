@@ -1,6 +1,7 @@
 [![PyPI version](https://badge.fury.io/py/nltools.svg)](https://badge.fury.io/py/nltools)
 [![Build Status](https://api.travis-ci.org/ljchang/nltools.png)](https://travis-ci.org/ljchang/nltools/)
 [![Coverage Status](https://coveralls.io/repos/github/ljchang/nltools/badge.svg?branch=master)](https://coveralls.io/github/ljchang/nltools?branch=master)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/625677967a0749299f38c2bf8ee269c3)](https://www.codacy.com/app/ljchang/nltools?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=ljchang/nltools&amp;utm_campaign=Badge_Grade)
 [![Documentation Status](https://readthedocs.org/projects/neurolearn/badge/?version=latest)](http://neurolearn.readthedocs.io/en/latest/?badge=latest)
 
 # NLTools
@@ -8,13 +9,13 @@ Python toolbox for analyzing neuroimaging data.  Compatible with both Python 2.7
 
 ### Installation
 1. Method 1
-  
+
    ```
    pip install nltools
    ```
 
 2. Method 2 (Recommended)
-  
+
    ```
    pip install git+https://github.com/ljchang/neurolearn
    ```
@@ -43,13 +44,13 @@ nltools requires several dependencies.  All are available in pypi.  Can use `pip
  - six
  - pynv
  - joblib
- 
+
 ### Optional Dependencies
  - mne
  - requests
  - networkx
  - ipywidgets >=5.2.2
- 
+
 ### Documentation
 Current Documentation can be found at [readthedocs](http://neurolearn.readthedocs.org/en/latest).  
 
