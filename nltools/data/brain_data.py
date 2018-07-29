@@ -35,6 +35,7 @@ from joblib import Parallel, delayed
 from nltools.mask import expand_mask
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
+from nilearn.plotting import plot_stat_map
 from nilearn.image import resample_img
 from nilearn.masking import intersect_masks
 from nilearn.regions import connected_regions, connected_label_regions
