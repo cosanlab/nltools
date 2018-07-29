@@ -47,7 +47,6 @@ from nltools.utils import (get_resource_path,
                             set_decomposition_algorithm)
 from nltools.cross_validation import set_cv
 from nltools.plotting import (scatterplot,
-                              probability_plot,
                               roc_plot,
                               plot_stacked_adjacency,
                               plot_silhouette)

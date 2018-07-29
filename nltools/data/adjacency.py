@@ -603,7 +603,6 @@ class Adjacency(object):
             if len(labels) != distance.shape[0]:
                 raise ValueError('Labels must be same length as distance matrix')
 
-        between = []
         out = pd.DataFrame(columns=['Distance', 'Group', 'Type'], index=None)
         for i in np.unique(labels):
             tmp_w = pd.DataFrame(columns=out.columns, index=None)
@@ -646,7 +645,6 @@ class Adjacency(object):
             if len(labels) != distance.shape[0]:
                 raise ValueError('Labels must be same length as distance matrix')
 
-        within = []; between = []
         out = pd.DataFrame(columns=['Distance', 'Group', 'Type'], index=None)
         for i in np.unique(labels):
             tmp_w = pd.DataFrame(columns=out.columns, index=None)
