@@ -14,6 +14,7 @@ __license__ = "MIT"
 import os
 import six
 import numpy as np
+import nibabel as nib
 import matplotlib.pyplot as plt
 from nilearn import datasets
 import pandas as pd

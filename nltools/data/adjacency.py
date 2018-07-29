@@ -730,7 +730,7 @@ class Adjacency(object):
             raise ValueError("MDS only works on distance matrices.")
         if not self.is_single_matrix:
             raise ValueError("MDS only works on single matrices.")
-        if n_components != 2 or n_components!=3:
+        if n_components not in [2,3]:
             raise ValueError('Cannot plot {0}-d image'.format(n_components))
         if labels_color is not None:
             if self.labels is None:
