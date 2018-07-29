@@ -49,7 +49,7 @@ def plotTBrain(objIn,how='full',thr='unc',alpha=None,nperm=None, cut_coords = []
         assert(len(cut_coords)==3), 'cut_coords must be a list of coordinates like [[xs],[ys],[zs]]'
     cmap = 'RdBu_r'
 
-    if type(objIn) == list:
+    if isinstance(objIn, list):
         if len(objIn) == 2:
             obj = objIn[0]-objIn[1]
         else:
@@ -119,9 +119,9 @@ def plotBrain(objIn,how='full',thr=None,**kwargs):
 
     if thr is None:
         print("Plotting unthresholded image")
-    elif type(thr) == str:
+    elif isinstance(thr, str):
         print("Plotting top %s of voxels" % thr)
-    elif type(thr) == float or type(thr) == int:
+    elif isinstance(thr, (float, int)):
         print("Plotting voxels with stat value >= %s" % thr)
 
     if how == 'full':

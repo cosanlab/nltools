@@ -12,7 +12,6 @@ __license__ = "MIT"
 
 import os
 import nibabel as nib
-from nltools.utils import get_resource_path
 from nltools.prefs import MNI_Template, resolve_mni_path
 from nilearn.input_data import NiftiMasker
 from copy import deepcopy

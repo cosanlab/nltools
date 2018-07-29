@@ -14,7 +14,6 @@ __license__ = "MIT"
 import pandas as pd
 import numpy as np
 from nltools.plotting import roc_plot
-from nltools.stats import pearson
 from nltools.utils import get_resource_path
 from scipy.stats import norm, binom_test
 from sklearn.metrics import auc
