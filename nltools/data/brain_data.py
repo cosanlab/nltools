@@ -16,14 +16,12 @@ __license__ = "MIT"
 
 import pickle # import cPickle
 from nilearn.signal import clean
-from scipy.stats import ttest_1samp, norm, spearmanr
+from scipy.stats import ttest_1samp, spearmanr
 from scipy.stats import t as t_dist
 from scipy.signal import detrend
-from scipy.spatial.distance import squareform
 import os
 import shutil
 import nibabel as nib
-import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -41,7 +39,6 @@ from nilearn.input_data import NiftiMasker
 from nilearn.image import resample_img
 from nilearn.masking import intersect_masks
 from nilearn.regions import connected_regions, connected_label_regions
-from nilearn.plotting.img_plotting import plot_epi, plot_roi, plot_stat_map
 from nltools.utils import (get_resource_path,
                             set_algorithm,
                             get_anatomical,
@@ -907,44 +904,6 @@ class Brain_Data(object):
         if (len(masked.shape()) > 1) & (masked.shape()[0] == 1):
             masked.data = masked.data.flatten()
         return masked
-
-    def searchlight(self, ncores, process_mask=None, parallel_out=None,
-                    radius=3, walltime='24:00:00', email=None,
-                    algorithm='svr', cv_dict=None, kwargs={}):
-
-        if len(kwargs) is 0:
-            kwargs['kernel']= 'linear'
-
-        # new parallel job
-        pbs_kwargs = {'algorithm': algorithm,
-                  'cv_dict': cv_dict,
-                  'predict_kwargs': kwargs}
-        #cv_dict={'type': 'kfolds','n_folds': 5,'stratified':dat.Y}
-
-        parallel_job = PBS_Job(self, parallel_out=parallel_out,
-                                process_mask=process_mask, radius=radius,
-                                kwargs=pbs_kwargs)
-
-        # make and store data we will need to access on the worker core level
-        parallel_job.make_searchlight_masks()
-        pickle.dump(parallel_job, open(
-                        os.path.join(parallel_out, "pbs_searchlight.pkl"), "w"))
-        # cPickle.dump(parallel_job, open(
-        #                 os.path.join(parallel_out, "pbs_searchlight.pkl"), "w"))
-
-        #make core startup script (python)
-        parallel_job.make_startup_script("core_startup.py")
-
-        # make email notification script (pbs)
-        if type(email) is str:
-            parallel_job.make_pbs_email_alert(email)
-
-        # make pbs job submission scripts (pbs)
-        for core_i in range(ncores):
-            script_name = "core_pbs_script_" + str(core_i) + ".pbs"
-            parallel_job.make_pbs_scripts(script_name, core_i, ncores, walltime)  # create a script
-            print("python " + os.path.join(parallel_out, script_name))
-            os.system("qsub " + os.path.join(parallel_out, script_name))  # run it on a core
 
     def extract_roi(self, mask, method='mean'):
         """ Extract activity from mask
