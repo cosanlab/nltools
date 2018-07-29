@@ -27,8 +27,10 @@ def resolve_mni_path(MNI_Template):
 
     res = MNI_Template['resolution']
     m = MNI_Template['mask_type']
-    assert isinstance(res,six.string_types), "resolution must be provided as a string!"
-    assert isinstance(m,six.string_types), "mask_type must be provided as a string!"
+    if not isinstance(res, six.string_types):
+        raise ValueError("resolution must be provided as a string!")
+    if not isinstance(m, six.string_types):
+        raise ValueError("mask_type must be provided as a string!")
 
     if res == '3mm':
         if m == 'with_ventricles':

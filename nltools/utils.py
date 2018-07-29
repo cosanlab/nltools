@@ -23,7 +23,6 @@ import importlib
 import os
 from sklearn.pipeline import Pipeline
 from sklearn.utils import check_random_state
-from scipy.stats import gamma
 import numpy as np
 import collections
 from types import GeneratorType
