@@ -13,37 +13,16 @@ __license__ = "MIT"
 
 import os
 import six
-import time
-import sys
-import warnings
-from distutils.version import LooseVersion
-import random
-
-import pickle
 import numpy as np
+import nibabel as nib
 import matplotlib.pyplot as plt
 from nilearn import datasets
-from nilearn import plotting
 import pandas as pd
-import nibabel as nib
-
-import sklearn
-from sklearn import neighbors
-from sklearn.externals.joblib import Parallel, delayed, cpu_count
-from sklearn import svm
-# from sklearn.cross_validation import cross_val_score
-from sklearn.base import BaseEstimator
-from sklearn import neighbors
-from sklearn.svm import SVR
-
-from nilearn import masking
+from sklearn.externals.joblib import delayed, cpu_count
 from nilearn.input_data import NiftiMasker
-
 from scipy.stats import multivariate_normal
 from nltools.data import Brain_Data
-from nltools.utils import get_resource_path
 from nltools.prefs import MNI_Template, resolve_mni_path
-import glob
 import csv
 
 class Simulator:
@@ -54,17 +33,14 @@ class Simulator:
         else:
             self.output_dir = output_dir
 
-        if type(brain_mask) is str:
+        if isinstance(brain_mask, str):
             brain_mask = nib.load(brain_mask)
         elif brain_mask is None:
             brain_mask = nib.load(resolve_mni_path(MNI_Template)['mask'])
-        elif type(brain_mask) is not nib.nifti1.Nifti1Image:
-            print(brain_mask)
-            print(type(brain_mask))
+        elif ~isinstance(brain_mask, nib.nifti1.Nifti1Image):
             raise ValueError("brain_mask is not a string or a nibabel instance")
         self.brain_mask = brain_mask
         self.nifti_masker = NiftiMasker(mask_img=self.brain_mask)
-
 
     def gaussian(self, mu, sigma, i_tot):
         """ create a 3D gaussian signal normalized to a given intensity
@@ -120,7 +96,6 @@ class Simulator:
             sigma: standard deviation
         """
         vmask = self.nifti_masker.fit_transform(self.brain_mask)
-
         vlength = int(np.sum(self.brain_mask.get_data()))
         if sigma is not 0:
             n = np.random.normal(mu, sigma, vlength)
@@ -191,9 +166,6 @@ class Simulator:
             y = y + levels
             rep_id.extend([i+2] * nlevels)
 
-        #initialize useful values
-        dims = self.brain_mask.get_data().shape
-
         # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
         A = self.n_spheres(radius, center)
 
@@ -221,6 +193,7 @@ class Simulator:
 
         dat = self.data
         dat.Y = self.y
+
         # Write Data to files if requested
         if output_dir is not None and isinstance(output_dir, six.string_types):
             NF_list.write(os.path.join(output_dir,'data.nii.gz'))
