@@ -1,2 +1,2 @@
 include requirements.txt
-include feat/resources
+recursive-include nltools/resources *
