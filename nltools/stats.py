@@ -23,6 +23,8 @@ __all__ = ['pearson',
             'one_sample_permutation',
             'two_sample_permutation',
             'correlation_permutation',
+            'matrix_permutation',
+            'jackknife_permutation',
             'make_cosine_basis',
             '_robust_estimator',
             'summarize_bootstrap',
@@ -583,6 +585,72 @@ def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
     all_p = Parallel(backend='threading')(delayed(_permute_func)(func,
                     sq_data1, data2, random_state, replacement) for i in range(n_permute))
     stats['p'] = _calc_pvalue(all_p,stats['correlation'],tail)
+    return stats
+
+def jackknife_permutation(data1, data2, metric='spearman',
+                          p_value='permutation', n_jobs=-1, n_permute=5000,
+                          tail=2):
+    ''' This function uses a randomization test on a jackknife of absolute
+        distance/similarity of each subject
+
+        Args:
+            data1: Adjacency instance/square numpy array/Pandas Data frame
+            data2: Adjacency instance/square numpy array/Pandas Data frame
+            metric: (str) type of association metric ['spearman','pearson',
+                    'kendall']
+            tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
+            p_value: ['ttest', 'permutation']
+            n_permute: (int) number of permutations
+            n_jobs: (int) The number of CPUs to use to do the computation.
+                    -1 means all CPUs.
+
+        Returns:
+            stats: (dict) dictionary of permutation results ['correlation','p']
+
+    '''
+
+    from nltools.data import Adjacency
+
+    if isinstance(data1, Adjacency):
+        data1 = data1.squareform()
+    elif isinstance(data1, pd.DataFrame):
+        data1 = data1.values
+    if isinstance(data2, Adjacency):
+        data2 = data2.squareform()
+    elif isinstance(data2, pd.DataFrame):
+        data2 = data2.values
+
+    if data1.shape[0]!=data1.shape[1]:
+        raise ValueError('Make sure data1 is square.')
+    if data2.shape[0]!=data2.shape[1]:
+        raise ValueError('Make sure data2 is square.')
+
+    if metric == 'spearman':
+        func = spearmanr
+    elif metric == 'pearson':
+        func = pearsonr
+    elif metric == 'kendall':
+        func = kendalltau
+    else:
+        raise ValueError('metric must be "spearman" or "pearson" or "kendall"')
+
+    stats = {}
+    stats['all_r'] = []
+    for s in range(data1.shape[0]):
+        stats['all_r'].append(func(np.delete(data1[s,],s),
+                             np.delete(data2[s,], s))[0])
+    stats['correlation'] = np.mean(stats['all_r'])
+
+    if p_value == 'permutation':
+        all_p = Parallel(n_jobs=n_jobs)(delayed(np.mean)(
+                        stats['all_r']*np.random.choice([1,-1],len(stats['all_r'])))
+                        for i in range(n_permute))
+
+        stats['p'] = _calc_pvalue(all_p, stats['correlation'], tail)
+    elif p_value == 'ttest':
+        stats['p'] = ttest_1samp(stats['all_r'], 0)[1]
+    else:
+        raise NotImplementedError("Only ['ttest', 'permutation'] are currently implemented.")
     return stats
 
 def make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale=True, drop=0):
