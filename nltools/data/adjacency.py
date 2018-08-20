@@ -23,7 +23,8 @@ from nltools.stats import (correlation_permutation,
                            one_sample_permutation,
                            two_sample_permutation,
                            summarize_bootstrap,
-                           matrix_permutation)
+                           matrix_permutation,
+                           jackknife_permutation)
 from nltools.stats import regress as regression
 from nltools.plotting import (plot_stacked_adjacency,
                               plot_silhouette)
@@ -455,7 +456,7 @@ class Adjacency(object):
         Default is to use spearman correlation and permutation test.
         Args:
             data: Adjacency data, or 1-d array same size as self.data
-            perm_type: '1d','2d', or None
+            perm_type: '1d','2d', 'jackknife', or None
             metric: 'spearman','pearson','kendall'
         '''
         if not isinstance(data, Adjacency):
@@ -469,6 +470,11 @@ class Adjacency(object):
             similarity_func = correlation_permutation
         elif perm_type == '2d':
             similarity_func = matrix_permutation
+        elif perm_type == 'jackknife':
+            similarity_func = jackknife_permutation
+        else:
+            raise ValueError("perm_type must be ['1d','2d', 'jackknife', or None']")
+
         if self.is_single_matrix:
             if plot:
                 plot_stacked_adjacency(self, data)
