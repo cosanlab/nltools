@@ -12,6 +12,8 @@ from nltools.stats import (one_sample_permutation,
 							transform_pairwise, _calc_pvalue)
 from nltools.simulator import Simulator
 from nltools.mask import create_sphere
+from sklearn.metrics import pairwise_distances
+
 # import pytest
 
 def test_permutation():
