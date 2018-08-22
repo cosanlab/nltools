@@ -388,6 +388,28 @@ def fisher_r_to_z(r):
 
     return .5*np.log((1+r)/(1-r))
 
+def correlation(data1, data2, metric='pearson'):
+    ''' This function calculates the correlation between data1 and data2
+
+        Args:
+            data1: np.array
+            data2: np.array
+            metric: type of correlation ["spearman" or "pearson" or "kendall"]
+        Returns:
+            r: correlations
+            p: p-value
+
+    '''
+    if metric == 'spearman':
+        func = spearmanr
+    elif metric == 'pearson':
+        func = pearsonr
+    elif metric == 'kendall':
+        func = kendalltau
+    else:
+        raise ValueError('metric must be "spearman" or "pearson" or "kendall"')
+    return func(data1, data2)
+
 def _permute_sign(data, random_state=None):
     random_state = check_random_state(random_state)
     return np.mean(data*random_state.choice([1, -1], len(data)))
@@ -500,17 +522,7 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
     data1 = np.array(data1)
     data2 = np.array(data2)
 
-    if metric == 'spearman':
-        stats['correlation'] = spearmanr(data1, data2)[0]
-        func = spearmanr
-    elif metric == 'pearson':
-        stats['correlation'] = pearsonr(data1, data2)[0]
-        func = pearsonr
-    elif metric == 'kendall':
-        stats['correlation'] = kendalltau(data1, data2)[0]
-        func = kendalltau
-    else:
-        raise ValueError('metric must be "spearman" or "pearson" or "kendall"')
+    stats['correlation'] = correlation(data1, data2, metric=metric)[0]
 
     all_p = Parallel(n_jobs=n_jobs)(delayed(func)(
                     random_state.permutation(data1), data2)
@@ -570,17 +582,7 @@ def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
     sq_data1 = pd.DataFrame(squareform(data1))
     data2 = np.array(data2)
 
-    if metric == 'spearman':
-        stats['correlation'] = spearmanr(data1, data2)[0]
-        func = spearmanr
-    elif metric == 'pearson':
-        stats['correlation'] = pearsonr(data1, data2)[0]
-        func = pearsonr
-    elif metric == 'kendall':
-        stats['correlation'] = kendalltau(data1, data2)[0]
-        func = kendalltau
-    else:
-        raise ValueError('metric must be "spearman" or "pearson" or "kendall"')
+    stats['correlation'] = correlation(data1, data2, metric=metric)[0]
 
     all_p = Parallel(backend='threading')(delayed(_permute_func)(func,
                     sq_data1, data2, random_state, replacement) for i in range(n_permute))
@@ -589,7 +591,7 @@ def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
 
 def jackknife_permutation(data1, data2, metric='spearman',
                           p_value='permutation', n_jobs=-1, n_permute=5000,
-                          tail=2):
+                          tail=2, random_state=None):
     ''' This function uses a randomization test on a jackknife of absolute
         distance/similarity of each subject
 
@@ -609,6 +611,8 @@ def jackknife_permutation(data1, data2, metric='spearman',
 
     '''
 
+    random_state = check_random_state(random_state)
+
     from nltools.data import Adjacency
 
     if isinstance(data1, Adjacency):
@@ -625,28 +629,20 @@ def jackknife_permutation(data1, data2, metric='spearman',
     if data2.shape[0]!=data2.shape[1]:
         raise ValueError('Make sure data2 is square.')
 
-    if metric == 'spearman':
-        func = spearmanr
-    elif metric == 'pearson':
-        func = pearsonr
-    elif metric == 'kendall':
-        func = kendalltau
-    else:
-        raise ValueError('metric must be "spearman" or "pearson" or "kendall"')
-
     stats = {}
     stats['all_r'] = []
     for s in range(data1.shape[0]):
-        stats['all_r'].append(func(np.delete(data1[s,],s),
-                             np.delete(data2[s,], s))[0])
+        stats['all_r'].append(correlation(np.delete(data1[s,],s),
+                                          np.delete(data2[s,], s),
+                                          metric=metric)[0])
     stats['correlation'] = np.mean(stats['all_r'])
 
     if p_value == 'permutation':
-        all_p = Parallel(n_jobs=n_jobs)(delayed(np.mean)(
-                        stats['all_r']*np.random.choice([1,-1],len(stats['all_r'])))
-                        for i in range(n_permute))
-
-        stats['p'] = _calc_pvalue(all_p, stats['correlation'], tail)
+        stats_permute = one_sample_permutation(stats['all_r'],
+                                               n_permute=n_permute, tail=tail,
+                                               n_jobs=n_jobs,
+                                               random_state=random_state)
+        stats['p'] = stats_permute['p']
     elif p_value == 'ttest':
         stats['p'] = ttest_1samp(stats['all_r'], 0)[1]
     else:
