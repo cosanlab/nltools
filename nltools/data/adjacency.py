@@ -451,7 +451,8 @@ class Adjacency(object):
                                           'out multiple matrices.  As separate '
                                           'files?')
 
-    def similarity(self, data, plot=False, perm_type='2d', n_permute=5000, metric='spearman', **kwargs):
+    def similarity(self, data, plot=False, perm_type='2d', n_permute=5000,
+                   metric='spearman', **kwargs):
         ''' Calculate similarity between two Adjacency matrices.
         Default is to use spearman correlation and permutation test.
         Args:
@@ -466,25 +467,35 @@ class Adjacency(object):
         if perm_type is None:
             n_permute=0
             similarity_func = correlation_permutation
+            data1 = self.data
+            data2 = data.data
         elif perm_type == '1d':
             similarity_func = correlation_permutation
+            data1 = self.data
+            data2 = data.data
         elif perm_type == '2d':
             similarity_func = matrix_permutation
+            data1 = self.squareform()
+            data2 = data.squareform()
         elif perm_type == 'jackknife':
             similarity_func = jackknife_permutation
+            data1 = self.squareform()
+            data2 = data.squareform()
         else:
             raise ValueError("perm_type must be ['1d','2d', 'jackknife', or None']")
 
         if self.is_single_matrix:
             if plot:
                 plot_stacked_adjacency(self, data)
-            return similarity_func(self.data, data2.data, metric=metric, n_permute=n_permute, **kwargs)
+            return similarity_func(data1, data1, metric=metric,
+                                   n_permute=n_permute, **kwargs)
         else:
             if plot:
                 _, a = plt.subplots(len(self))
                 for i in a:
                     plot_stacked_adjacency(self, data, ax=i)
-            return [similarity_func(x.data, data2.data, metric=metric, n_permute=n_permute, **kwargs) for x in self]
+            return [similarity_func(data1, data2, metric=metric,
+                    n_permute=n_permute, **kwargs) for x in self]
 
     def distance(self, method='correlation', **kwargs):
         ''' Calculate distance between images within an Adjacency() instance.

@@ -532,7 +532,7 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
     stats['p'] = _calc_pvalue(all_p,stats['correlation'],tail)
     return stats
 
-def _permute_func(func, data1, data2,random_state, replacement):
+def _permute_func(data1, data2, metric='pearsonr', random_state=None):
     """ Helper function for matrix_permutation.
         Can take a functon, that would be repeated for calculation.
         Args:
@@ -540,36 +540,48 @@ def _permute_func(func, data1, data2,random_state, replacement):
             data1: squareform matrix, np array
             data2: flattened np array (same size upper triangle of data1)
             random_state: random_state instance for permutation
-            replacement: bool, whether to replace with replacement.
         Returns:
             r: r value of function
     """
+    random_state = check_random_state(random_state)
+
     data_row_id = range(data1.shape[0])
     permuted_ix = random_state.choice(data_row_id,
-                       size=len(data_row_id),
-                       replace=replacement)
-    new_fmri_dist = data1.iloc[permuted_ix,permuted_ix].as_matrix()
+                       size=len(data_row_id))
+    new_fmri_dist = data1.iloc[permuted_ix, permuted_ix].values()
     new_fmri_dist = new_fmri_dist[np.triu_indices(new_fmri_dist.shape[0], k=1)]
-    return func(new_fmri_dist, data2)[0]
+    return correlation(new_fmri_dist, data2, metric=metric)[0]
+
+def _check_square_matrix(data):
+    '''Helper function to make sure matrix is square and numpy array'''
+
+    from nltools.data import Adjacency
+
+    if isinstance(data, Adjacency):
+        data = data.squareform()
+    elif isinstance(data, pd.DataFrame):
+        data = data.values
+
+    if data.shape[0] != data.shape[1]:
+        raise ValueError('Make sure data is square.')
+    return np.array(data)
 
 def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
-                            tail=2, replacement=False, random_state=None):
+                            tail=2, random_state=None):
     """ Permute 2-dimensional matrix correlation.
-        Permutes subject-wise permuted correlations WITHOUT replacement by default
-        Input data is represeted as 2d via scipy.distance.squareform before permuting,
-        meaning the diagonals will be represented as 0s if permuting with replacement.
 
         Chen, G. et al. (2016). Untangling the relatedness among correlations,
         part I: nonparametric approaches to inter-subject correlation analysis
         at the group level. Neuroimage, 142, 248-259.
 
         Args:
-            data1: Pandas DataFrame or Series or numpy array
-            data2: Pandas DataFrame or Series or numpy array
+            data1: square matrix (Pandas DataFrame or numpy array)
+            data2: square matrix (Pandas DataFrame or numpy array)
             n_permute: (int) number of permutations
             metric: (str) type of association metric ['spearman','pearson',
                     'kendall']
-            tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
+            tail: (int) either 1 for one-tail or 2 for two-tailed test
+                  (default: 2)
             n_jobs: (int) The number of CPUs to use to do the computation.
                     -1 means all CPUs.
 
@@ -577,16 +589,19 @@ def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
             stats: (dict) dictionary of permutation results ['correlation','p']
     """
     random_state = check_random_state(random_state)
+    sq_data1 = _check_square_matrix(data1)
+    sq_data2 = _check_square_matrix(data2)
+    data1 = sq_data1[np.triu_indices(sq_data1.shape[0], k=1)]
+    data2 = sq_data2[np.triu_indices(sq_data2.shape[0], k=1)]
+
     stats = dict()
-    data1 = np.array(data1)
-    sq_data1 = pd.DataFrame(squareform(data1))
-    data2 = np.array(data2)
 
     stats['correlation'] = correlation(data1, data2, metric=metric)[0]
 
-    all_p = Parallel(backend='threading')(delayed(_permute_func)(func,
-                    sq_data1, data2, random_state, replacement) for i in range(n_permute))
-    stats['p'] = _calc_pvalue(all_p,stats['correlation'],tail)
+    all_p = Parallel(backend='threading')(delayed(_permute_func)(
+                    pd.DataFrame(sq_data1), data2, metric=metric, random_state)
+                    for i in range(n_permute))
+    stats['p'] = _calc_pvalue(all_p, stats['correlation'], tail)
     return stats
 
 def jackknife_permutation(data1, data2, metric='spearman',
@@ -613,21 +628,8 @@ def jackknife_permutation(data1, data2, metric='spearman',
 
     random_state = check_random_state(random_state)
 
-    from nltools.data import Adjacency
-
-    if isinstance(data1, Adjacency):
-        data1 = data1.squareform()
-    elif isinstance(data1, pd.DataFrame):
-        data1 = data1.values
-    if isinstance(data2, Adjacency):
-        data2 = data2.squareform()
-    elif isinstance(data2, pd.DataFrame):
-        data2 = data2.values
-
-    if data1.shape[0]!=data1.shape[1]:
-        raise ValueError('Make sure data1 is square.')
-    if data2.shape[0]!=data2.shape[1]:
-        raise ValueError('Make sure data2 is square.')
+    data1 = _check_square_matrix(data1)
+    data2 = _check_square_matrix(data2)
 
     stats = {}
     stats['all_r'] = []
