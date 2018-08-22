@@ -415,7 +415,7 @@ class Design_Matrix(DataFrame):
         # Combine original dm with the updated/renamed dms to be appended
         all_dms = [orig] + modify_to_append
 
-        out = pd.concat(all_dms,axis=0,ignore_index=True)
+        out = pd.concat(all_dms, axis=0, ignore_index=True, sort=True)
 
         if fill_na is not None:
             out = out.fillna(fill_na)
