@@ -205,5 +205,30 @@ def _bootstrap_apply_func(data, function, random_state=None, *args, **kwargs):
                                    replace=True)]
     return getattr(new_dat, function)( *args, **kwargs)
 
+def check_square_numpy_matrix(data):
+    '''Helper function to make sure matrix is square and numpy array'''
+
+    from nltools.data import Adjacency
+
+    if isinstance(data, Adjacency):
+        data = data.squareform()
+    elif isinstance(data, pd.DataFrame):
+        data = data.values
+    else:
+        data = np.array(data)
+
+    if data.shape[0] != data.shape[1]:
+        raise ValueError('Make sure data is square.')
+    return data
+
+def check_brain_data(data):
+    '''Check if data is a Brain_Data Instance.'''
+    if not isinstance(data, Brain_Data):
+        if isinstance(data, nib.Nifti1Image):
+            data = Brain_Data(data)
+        else:
+            raise ValueError("Make sure data is a Brain_Data instance.")
+    return data
+
 class AmbiguityError(Exception):
     pass
