@@ -45,7 +45,8 @@ from nltools.utils import (get_resource_path,
                             attempt_to_import,
                             concatenate,
                             _bootstrap_apply_func,
-                            set_decomposition_algorithm)
+                            set_decomposition_algorithm,
+                            check_brain_data)
 from nltools.cross_validation import set_cv
 from nltools.plotting import (scatterplot,
                               roc_plot,
@@ -513,8 +514,7 @@ class Brain_Data(object):
             out: new appended Brain_Data instance
         """
 
-        if not isinstance(data, Brain_Data):
-            raise ValueError('Make sure data is a Brain_Data instance')
+        data = check_brain_data(data)
 
         if self.isempty():
             out = deepcopy(data)
@@ -585,12 +585,7 @@ class Brain_Data(object):
 
         """
 
-        if not isinstance(image, Brain_Data):
-                if isinstance(image, nib.Nifti1Image):
-                    image = Brain_Data(image, mask=self.mask)
-                else:
-                    raise ValueError("Image is not a Brain_Data or nibabel "
-                                     "instance")
+        image = check_brain_data(image)
 
         # Check to make sure masks are the same for each dataset and if not
         # create a union mask
@@ -692,8 +687,7 @@ class Brain_Data(object):
             raise ValueError("This method can only decompose a single brain "
                              "image.")
 
-        if not isinstance(images, Brain_Data):
-            raise ValueError("Images are not a Brain_Data instance")
+        data = check_brain_data(iamges)
 
         # Check to make sure masks are the same for each dataset and if not create a union mask
         # This might be handy code for a new Brain_Data method
@@ -912,14 +906,7 @@ class Brain_Data(object):
             out: mean within each ROI across images
 
         """
-
-        if not isinstance(mask, Brain_Data):
-            if isinstance(mask, nib.Nifti1Image):
-                mask = Brain_Data(mask)
-            else:
-                raise ValueError('Make sure mask is a Brain_Data or nibabel '
-                                 'instance')
-
+        mask = check_brain_data(mask)
         ma = mask.copy()
 
         if len(np.unique(ma.data)) == 2:
@@ -1034,7 +1021,6 @@ class Brain_Data(object):
 
     def copy(self):
         """ Create a copy of a Brain_Data instance.  """
-
         return deepcopy(self)
 
     def upload_neurovault(self, access_token=None, collection_name=None,
@@ -1397,8 +1383,8 @@ class Brain_Data(object):
         source = self.copy()
         common = target.copy()
 
-        if not isinstance(target, Brain_Data):
-            raise ValueError("Target must be Brain_Data instance.")
+        target = check_brain_data(target)
+
         if method not in ['probabilistic_srm', 'deterministic_srm','procrustes']:
             raise ValueError("Method must be ['probabilistic_srm','deterministic_srm','procrustes']")
 
@@ -1446,13 +1432,8 @@ class Brain_Data(object):
 class Groupby(object):
     def __init__(self, data, mask):
 
-        if not isinstance(data, Brain_Data):
-            raise ValueError('Groupby requires a Brain_Data instance.')
-        if not isinstance(mask, Brain_Data):
-            if isinstance(mask, nib.Nifti1Image):
-                mask = Brain_Data(mask)
-            else:
-                raise ValueError('mask must be a Brain_Data instance.')
+        data = check_brain_data(data)
+        mask = check_brain_data(mask)
 
         mask.data = np.round(mask.data).astype(int)
         if len(mask.shape()) <= 1:
