@@ -4,6 +4,7 @@ from nltools.stats import (one_sample_permutation,
 							two_sample_permutation,
 							correlation_permutation,
 							matrix_permutation,
+							jackknife_permutation,
 							downsample,
 							upsample,
 							winsorize,
@@ -11,6 +12,9 @@ from nltools.stats import (one_sample_permutation,
 							transform_pairwise, _calc_pvalue)
 from nltools.simulator import Simulator
 from nltools.mask import create_sphere
+from sklearn.metrics import pairwise_distances
+from scipy.spatial.distance import squareform
+
 # import pytest
 
 def test_permutation():
@@ -37,12 +41,29 @@ def test_permutation():
 	lower_p = _calc_pvalue(all_p = s, stat= -1.96, tail = 1)
 	sum_p = upper_p + lower_p
 	np.testing.assert_almost_equal(two_sided, sum_p)
+
 	# Test matrix_permutation
 	dat = np.random.multivariate_normal([2, 6], [[.5, 2], [.5, 3]], 190)
-	x = dat[:, 0]
-	y = dat[:, 1]
-	stats = matrix_permutation(x,y,n_permute=1000)
+	x = squareform(dat[:, 0])
+	y = squareform(dat[:, 1])
+	stats = matrix_permutation(x, y, n_permute=1000)
 	assert (stats['correlation'] > .4) & (stats['correlation']<.85) & (stats['p'] <.001)
+
+	# Test jackknife_permutation
+	dat = np.random.multivariate_normal([5, 10, 15, 25, 35, 45],
+	                                    [[1, .2, .5, .7, .8, .9],
+	                                     [.2, 1, .4, .1, .1, .1],
+	                                     [.5, .4, 1, .1, .1, .1],
+	                                     [.7, .1, .1, 1, .3, .6],
+	                                     [.8, .1, .1, .3, 1, .5],
+	                                     [.9, .1, .1, .6, .5, 1]], 200)
+	dat = dat + np.random.randn(dat.shape[0],dat.shape[1])*.5
+	data1 = pairwise_distances(dat[0:100,:].T,metric='correlation')
+	data2 = pairwise_distances(dat[100:,:].T,metric='correlation')
+
+	stats = jackknife_permutation(data1,data2)
+	print(stats)
+	assert (stats['correlation'] >= .4) & (stats['correlation']<=.99) & (stats['p'] <=.05)
 
 def test_downsample():
 	dat = pd.DataFrame()
