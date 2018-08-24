@@ -77,12 +77,30 @@ def test_std(sim_adjacency_multiple):
                 axis=1))
 
 def test_similarity(sim_adjacency_multiple):
+    n_permute=1000
     assert len(sim_adjacency_multiple.similarity(
-                sim_adjacency_multiple[0].squareform(),perm_type='1d' )) == len(sim_adjacency_multiple)
+                sim_adjacency_multiple[0].squareform(), perm_type='1d',
+                n_permute=n_permute )) == len(sim_adjacency_multiple)
     assert len(sim_adjacency_multiple.similarity(sim_adjacency_multiple[0].squareform(),perm_type='1d',
-                metric='pearson',n_permute=1000)) == len(sim_adjacency_multiple)
+                metric='pearson',n_permute=n_permute)) == len(sim_adjacency_multiple)
     assert len(sim_adjacency_multiple.similarity(sim_adjacency_multiple[0].squareform(),perm_type='1d',
-                metric='kendall',n_permute=1000)) == len(sim_adjacency_multiple)
+                metric='kendall',n_permute=n_permute)) == len(sim_adjacency_multiple)
+
+    data2 = sim_adjacency_multiple[0].copy()
+    data2.data = data2.data + np.random.randn(len(data2.data))*.1
+    assert sim_adjacency_multiple[0].similarity(data2.squareform(), perm_type=None, n_permute=n_permute)['correlation'] > .5
+    assert sim_adjacency_multiple[0].similarity(data2.squareform(), perm_type='1d', n_permute=n_permute)['correlation'] > .5
+    assert sim_adjacency_multiple[0].similarity(data2.squareform(), perm_type='2d', n_permute=n_permute)['correlation'] > .5
+    assert sim_adjacency_multiple[0].similarity(data2.squareform(), perm_type='jackknife', n_permute=n_permute)['correlation'] > .5
+
+def test_similarity_matrix_permutation():
+    dat = np.random.multivariate_normal([2, 6], [[.5, 2], [.5, 3]], 190)
+    x = Adjacency(dat[:, 0])
+    y = Adjacency(dat[:, 1])
+    stats = x.similarity(y,perm_type='2d',n_permute=1000)
+    assert (stats['correlation'] > .4) & (stats['correlation']<.85) & (stats['p'] <.001)
+    stats = x.similarity(y,perm_type=None)
+    assert (stats['correlation'] > .4) & (stats['correlation']<.85)
 
 def test_distance(sim_adjacency_multiple):
     assert isinstance(sim_adjacency_multiple.distance(), Adjacency)
@@ -170,12 +188,3 @@ def test_regression():
     # labels = np.array(['group1','group1','group2','group2'])
     # stats = dat_multiple[0].stats_label_distance(labels)
     # assert np.isclose(stats['group1']['mean'],-1*stats['group2']['mean'])
-
-def test_matrix_permutation():
-    dat = np.random.multivariate_normal([2, 6], [[.5, 2], [.5, 3]], 190)
-    x = Adjacency(dat[:, 0])
-    y = Adjacency(dat[:, 1])
-    stats = x.similarity(y,perm_type='2d',n_permute=1000)
-    assert (stats['correlation'] > .4) & (stats['correlation']<.85) & (stats['p'] <.001)
-    stats = x.similarity(y,perm_type=None)
-    assert (stats['correlation'] > .4) & (stats['correlation']<.85)
