@@ -481,16 +481,12 @@ class Adjacency(object):
         def _convert_data_similarity(data, perm_type=None):
             '''Helper function to convert data correctly'''
             if perm_type is None:
-                similarity_func = correlation_permutation
                 data = data.data
             elif perm_type == '1d':
-                similarity_func = correlation_permutation
                 data = data.data
             elif perm_type == '2d':
-                similarity_func = matrix_permutation
                 data = data.squareform()
             elif perm_type == 'jackknife':
-                similarity_func = jackknife_permutation
                 data = data.squareform()
             else:
                 raise ValueError("perm_type must be ['1d','2d', 'jackknife', or None']")
