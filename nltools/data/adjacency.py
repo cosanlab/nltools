@@ -23,7 +23,8 @@ from nltools.stats import (correlation_permutation,
                            one_sample_permutation,
                            two_sample_permutation,
                            summarize_bootstrap,
-                           matrix_permutation)
+                           matrix_permutation,
+                           jackknife_permutation)
 from nltools.stats import regress as regression
 from nltools.plotting import (plot_stacked_adjacency,
                               plot_silhouette)
@@ -450,18 +451,21 @@ class Adjacency(object):
                                           'out multiple matrices.  As separate '
                                           'files?')
 
-    def similarity(self, data, plot=False, perm_type='2d', n_permute=5000, metric='spearman', **kwargs):
+    def similarity(self, data, plot=False, perm_type='2d', n_permute=5000,
+                   metric='spearman', **kwargs):
         ''' Calculate similarity between two Adjacency matrices.
         Default is to use spearman correlation and permutation test.
         Args:
             data: Adjacency data, or 1-d array same size as self.data
-            perm_type: '1d','2d', or None
+            perm_type: '1d','2d', 'jackknife', or None
             metric: 'spearman','pearson','kendall'
         '''
+        data1 = self.copy()
         if not isinstance(data, Adjacency):
             data2 = Adjacency(data)
         else:
             data2 = data.copy()
+
         if perm_type is None:
             n_permute=0
             similarity_func = correlation_permutation
@@ -469,16 +473,44 @@ class Adjacency(object):
             similarity_func = correlation_permutation
         elif perm_type == '2d':
             similarity_func = matrix_permutation
+        elif perm_type == 'jackknife':
+            similarity_func = jackknife_permutation
+        else:
+            raise ValueError("perm_type must be ['1d','2d', 'jackknife', or None']")
+
+        def _convert_data_similarity(data, perm_type=None):
+            '''Helper function to convert data correctly'''
+            if perm_type is None:
+                data = data.data
+            elif perm_type == '1d':
+                data = data.data
+            elif perm_type == '2d':
+                data = data.squareform()
+            elif perm_type == 'jackknife':
+                data = data.squareform()
+            else:
+                raise ValueError("perm_type must be ['1d','2d', 'jackknife', or None']")
+            return data
+
         if self.is_single_matrix:
             if plot:
                 plot_stacked_adjacency(self, data)
-            return similarity_func(self.data, data2.data, metric=metric, n_permute=n_permute, **kwargs)
+            return similarity_func(_convert_data_similarity(data1,
+                                                            perm_type=perm_type),
+                                   _convert_data_similarity(data2,
+                                                            perm_type=perm_type),
+                                   metric=metric, n_permute=n_permute, **kwargs)
         else:
             if plot:
                 _, a = plt.subplots(len(self))
                 for i in a:
                     plot_stacked_adjacency(self, data, ax=i)
-            return [similarity_func(x.data, data2.data, metric=metric, n_permute=n_permute, **kwargs) for x in self]
+            return [similarity_func(_convert_data_similarity(x,
+                                                             perm_type=perm_type),
+                                    _convert_data_similarity(data2,
+                                                             perm_type=perm_type),
+                                    metric=metric, n_permute=n_permute,
+                                    **kwargs) for x in self]
 
     def distance(self, method='correlation', **kwargs):
         ''' Calculate distance between images within an Adjacency() instance.
