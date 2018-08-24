@@ -224,6 +224,8 @@ def check_square_numpy_matrix(data):
 
 def check_brain_data(data):
     '''Check if data is a Brain_Data Instance.'''
+    from nltools.data import Brain_Data
+
     if not isinstance(data, Brain_Data):
         if isinstance(data, nib.Nifti1Image):
             data = Brain_Data(data)
