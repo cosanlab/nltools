@@ -687,7 +687,7 @@ class Brain_Data(object):
             raise ValueError("This method can only decompose a single brain "
                              "image.")
 
-        data = check_brain_data(images)
+        images = check_brain_data(images)
 
         # Check to make sure masks are the same for each dataset and if not create a union mask
         # This might be handy code for a new Brain_Data method
