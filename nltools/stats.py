@@ -44,7 +44,7 @@ import warnings
 import itertools
 from joblib import Parallel, delayed
 import six
-from .utils import attempt_to_import
+from .utils import attempt_to_import, check_square_numpy_matrix
 from .external.srm import SRM, DetSRM
 from scipy.linalg import orthogonal_procrustes
 from sklearn.utils import check_random_state
@@ -420,6 +420,25 @@ def _permute_group(data, random_state=None):
     return (np.mean(data.loc[perm_label==1, 'Values']) -
             np.mean(data.loc[perm_label==0, 'Values']))
 
+def _permute_func(data1, data2, metric='pearsonr', random_state=None):
+    """ Helper function for matrix_permutation.
+        Can take a functon, that would be repeated for calculation.
+        Args:
+            func: similarity/distance function from scipy.stats (e.g., spearman, pearson etc)
+            data1: squareform matrix, np array
+            data2: flattened np array (same size upper triangle of data1)
+            random_state: random_state instance for permutation
+        Returns:
+            r: r value of function
+    """
+    random_state = check_random_state(random_state)
+
+    data_row_id = range(data1.shape[0])
+    permuted_ix = random_state.choice(data_row_id,
+                       size=len(data_row_id))
+    new_fmri_dist = data1.iloc[permuted_ix, permuted_ix].values
+    new_fmri_dist = new_fmri_dist[np.triu_indices(new_fmri_dist.shape[0], k=1)]
+    return correlation(new_fmri_dist, data2, metric=metric)[0]
 
 def _calc_pvalue(all_p, stat, tail):
     """Calculates p value based on distribution of correlations
@@ -524,47 +543,13 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
 
     stats['correlation'] = correlation(data1, data2, metric=metric)[0]
 
-    all_p = Parallel(n_jobs=n_jobs)(delayed(func)(
-                    random_state.permutation(data1), data2)
+    all_p = Parallel(n_jobs=n_jobs)(delayed(correlation)(
+                    random_state.permutation(data1), data2, metric=metric)
                     for i in range(n_permute))
     all_p = [x[0] for x in all_p]
 
     stats['p'] = _calc_pvalue(all_p,stats['correlation'],tail)
     return stats
-
-def _permute_func(data1, data2, metric='pearsonr', random_state=None):
-    """ Helper function for matrix_permutation.
-        Can take a functon, that would be repeated for calculation.
-        Args:
-            func: similarity/distance function from scipy.stats (e.g., spearman, pearson etc)
-            data1: squareform matrix, np array
-            data2: flattened np array (same size upper triangle of data1)
-            random_state: random_state instance for permutation
-        Returns:
-            r: r value of function
-    """
-    random_state = check_random_state(random_state)
-
-    data_row_id = range(data1.shape[0])
-    permuted_ix = random_state.choice(data_row_id,
-                       size=len(data_row_id))
-    new_fmri_dist = data1.iloc[permuted_ix, permuted_ix].values()
-    new_fmri_dist = new_fmri_dist[np.triu_indices(new_fmri_dist.shape[0], k=1)]
-    return correlation(new_fmri_dist, data2, metric=metric)[0]
-
-def _check_square_matrix(data):
-    '''Helper function to make sure matrix is square and numpy array'''
-
-    from nltools.data import Adjacency
-
-    if isinstance(data, Adjacency):
-        data = data.squareform()
-    elif isinstance(data, pd.DataFrame):
-        data = data.values
-
-    if data.shape[0] != data.shape[1]:
-        raise ValueError('Make sure data is square.')
-    return np.array(data)
 
 def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
                             tail=2, random_state=None):
@@ -589,8 +574,8 @@ def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
             stats: (dict) dictionary of permutation results ['correlation','p']
     """
     random_state = check_random_state(random_state)
-    sq_data1 = _check_square_matrix(data1)
-    sq_data2 = _check_square_matrix(data2)
+    sq_data1 = check_square_numpy_matrix(data1)
+    sq_data2 = check_square_numpy_matrix(data2)
     data1 = sq_data1[np.triu_indices(sq_data1.shape[0], k=1)]
     data2 = sq_data2[np.triu_indices(sq_data2.shape[0], k=1)]
 
@@ -599,7 +584,7 @@ def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
     stats['correlation'] = correlation(data1, data2, metric=metric)[0]
 
     all_p = Parallel(backend='threading')(delayed(_permute_func)(
-                    pd.DataFrame(sq_data1), data2, metric=metric, random_state)
+                    pd.DataFrame(sq_data1), data2, metric=metric)
                     for i in range(n_permute))
     stats['p'] = _calc_pvalue(all_p, stats['correlation'], tail)
     return stats
@@ -628,8 +613,8 @@ def jackknife_permutation(data1, data2, metric='spearman',
 
     random_state = check_random_state(random_state)
 
-    data1 = _check_square_matrix(data1)
-    data2 = _check_square_matrix(data2)
+    data1 = check_square_numpy_matrix(data1)
+    data2 = check_square_numpy_matrix(data2)
 
     stats = {}
     stats['all_r'] = []
