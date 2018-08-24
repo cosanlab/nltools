@@ -13,6 +13,7 @@ from nltools.stats import (one_sample_permutation,
 from nltools.simulator import Simulator
 from nltools.mask import create_sphere
 from sklearn.metrics import pairwise_distances
+from scipy.spatial.distance import squareform
 
 # import pytest
 
@@ -43,9 +44,9 @@ def test_permutation():
 
 	# Test matrix_permutation
 	dat = np.random.multivariate_normal([2, 6], [[.5, 2], [.5, 3]], 190)
-	x = dat[:, 0]
-	y = dat[:, 1]
-	stats = matrix_permutation(x,y,n_permute=1000)
+	x = squareform(dat[:, 0])
+	y = squareform(dat[:, 1])
+	stats = matrix_permutation(x, y, n_permute=1000)
 	assert (stats['correlation'] > .4) & (stats['correlation']<.85) & (stats['p'] <.001)
 
 	# Test jackknife_permutation

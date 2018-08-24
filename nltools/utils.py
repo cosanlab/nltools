@@ -24,6 +24,7 @@ import os
 from sklearn.pipeline import Pipeline
 from sklearn.utils import check_random_state
 import numpy as np
+import pandas as pd
 import collections
 from types import GeneratorType
 from sklearn.utils import check_random_state
