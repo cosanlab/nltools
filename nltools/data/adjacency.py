@@ -22,7 +22,9 @@ import matplotlib.pyplot as plt
 from nltools.stats import (correlation_permutation,
                            one_sample_permutation,
                            two_sample_permutation,
-                           summarize_bootstrap)
+                           summarize_bootstrap,
+                           matrix_permutation,
+                           jackknife_permutation)
 from nltools.stats import regress as regression
 from nltools.plotting import (plot_stacked_adjacency,
                               plot_silhouette)
@@ -110,9 +112,11 @@ class Adjacency(object):
             self.Y = pd.DataFrame()
 
         if labels is not None:
-            assert isinstance(labels, (list, np.ndarray)), "Make sure labels is a list or numpy array."
+            if not isinstance(labels, (list, np.ndarray)):
+                raise ValueError( "Make sure labels is a list or numpy array.")
             if self.is_single_matrix:
-                assert len(labels) == self.square_shape()[0], 'Make sure the length of labels matches the shape of data.'
+                if len(labels) != self.square_shape()[0]:
+                    raise ValueError('Make sure the length of labels matches the shape of data.')
                 self.labels = deepcopy(labels)
             else:
                 if len(labels) != len(self):
@@ -124,7 +128,8 @@ class Adjacency(object):
                     else:
                         self.labels = list(labels) * len(self)
                 else:
-                    assert np.all(np.array([len(x) for x in labels])==self.square_shape()[0]), "All lists of labels must be same length as shape of data."
+                    if np.all(np.array([len(x) for x in labels]) !=self.square_shape()[0]):
+                        raise ValueError("All lists of labels must be same length as shape of data.")
                     self.labels = deepcopy(labels)
         else:
             self.labels = None
@@ -446,23 +451,66 @@ class Adjacency(object):
                                           'out multiple matrices.  As separate '
                                           'files?')
 
-    def similarity(self, data, plot=False, **kwargs):
+    def similarity(self, data, plot=False, perm_type='2d', n_permute=5000,
+                   metric='spearman', **kwargs):
         ''' Calculate similarity between two Adjacency matrices.
-        Default is to use spearman correlation and permutation test.'''
+        Default is to use spearman correlation and permutation test.
+        Args:
+            data: Adjacency data, or 1-d array same size as self.data
+            perm_type: '1d','2d', 'jackknife', or None
+            metric: 'spearman','pearson','kendall'
+        '''
+        data1 = self.copy()
         if not isinstance(data, Adjacency):
             data2 = Adjacency(data)
         else:
             data2 = data.copy()
+
+        if perm_type is None:
+            n_permute=0
+            similarity_func = correlation_permutation
+        elif perm_type == '1d':
+            similarity_func = correlation_permutation
+        elif perm_type == '2d':
+            similarity_func = matrix_permutation
+        elif perm_type == 'jackknife':
+            similarity_func = jackknife_permutation
+        else:
+            raise ValueError("perm_type must be ['1d','2d', 'jackknife', or None']")
+
+        def _convert_data_similarity(data, perm_type=None):
+            '''Helper function to convert data correctly'''
+            if perm_type is None:
+                data = data.data
+            elif perm_type == '1d':
+                data = data.data
+            elif perm_type == '2d':
+                data = data.squareform()
+            elif perm_type == 'jackknife':
+                data = data.squareform()
+            else:
+                raise ValueError("perm_type must be ['1d','2d', 'jackknife', or None']")
+            return data
+
         if self.is_single_matrix:
             if plot:
                 plot_stacked_adjacency(self, data)
-            return correlation_permutation(self.data, data2.data, **kwargs)
+            return similarity_func(_convert_data_similarity(data1,
+                                                            perm_type=perm_type),
+                                   _convert_data_similarity(data2,
+                                                            perm_type=perm_type),
+                                   metric=metric, n_permute=n_permute, **kwargs)
         else:
             if plot:
                 _, a = plt.subplots(len(self))
                 for i in a:
                     plot_stacked_adjacency(self, data, ax=i)
-            return [correlation_permutation(x.data, data2.data, **kwargs) for x in self]
+            return [similarity_func(_convert_data_similarity(x,
+                                                             perm_type=perm_type),
+                                    _convert_data_similarity(data2,
+                                                             perm_type=perm_type),
+                                    metric=metric, n_permute=n_permute,
+                                    **kwargs) for x in self]
 
     def distance(self, method='correlation', **kwargs):
         ''' Calculate distance between images within an Adjacency() instance.
@@ -587,7 +635,6 @@ class Adjacency(object):
             if len(labels) != distance.shape[0]:
                 raise ValueError('Labels must be same length as distance matrix')
 
-        within = []; between = []
         out = pd.DataFrame(columns=['Distance', 'Group', 'Type'], index=None)
         for i in np.unique(labels):
             tmp_w = pd.DataFrame(columns=out.columns, index=None)
@@ -630,7 +677,6 @@ class Adjacency(object):
             if len(labels) != distance.shape[0]:
                 raise ValueError('Labels must be same length as distance matrix')
 
-        within = []; between = []
         out = pd.DataFrame(columns=['Distance', 'Group', 'Type'], index=None)
         for i in np.unique(labels):
             tmp_w = pd.DataFrame(columns=out.columns, index=None)
@@ -712,12 +758,17 @@ class Adjacency(object):
                 fig: returns matplotlib figure
         '''
 
-        assert self.matrix_type == 'distance', "MDS only works on distance matrices."
-        assert ~self.is_single_matrix, "MDS only works on single matrices."
-        assert n_components == 2 or n_components==3, 'Cannot plot {0}-d image'.format(n_components)
+        if self.matrix_type != 'distance':
+            raise ValueError("MDS only works on distance matrices.")
+        if not self.is_single_matrix:
+            raise ValueError("MDS only works on single matrices.")
+        if n_components not in [2,3]:
+            raise ValueError('Cannot plot {0}-d image'.format(n_components))
         if labels_color is not None:
-            assert self.labels is not None, "Make sure that Adjacency object has labels specified."
-            assert len(self.labels) == len(labels_color), "Length of labels_color must match self.labels."
+            if self.labels is None:
+                raise ValueError("Make sure that Adjacency object has labels specified.")
+            if len(self.labels) != len(labels_color):
+                raise ValueError("Length of labels_color must match self.labels.")
 
         # Run MDS
         mds = MDS(n_components=n_components, metric=metric, n_jobs=n_jobs,
@@ -797,7 +848,6 @@ class Adjacency(object):
         if len(clusters) != distance.shape[0]:
             raise ValueError('Cluster labels must be same length as distance matrix')
 
-        within = []
         out = pd.DataFrame(columns=['Mean','Label'],index=None)
         out = {}
         for i in list(set(clusters)):
@@ -821,7 +871,7 @@ class Adjacency(object):
         if isinstance(X, Adjacency):
             if X.square_shape()[0] != self.square_shape()[0]:
                 raise ValueError('Adjacency instances must be the same size.')
-            b,t,p,df,res = regression(X.data.T, self.data, mode=mode, **kwargs)
+            b,t,p,_,res = regression(X.data.T, self.data, mode=mode, **kwargs)
             stats['beta'],stats['t'],stats['p'],stats['residual'] = (b,t,p,res)
         elif isinstance(X, Design_Matrix):
             if X.shape[0] != len(self):

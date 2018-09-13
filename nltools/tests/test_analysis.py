@@ -1,6 +1,5 @@
 from __future__ import division
 import os
-import numpy as np
 import nibabel as nb
 import pandas as pd
 from nltools.simulator import Simulator

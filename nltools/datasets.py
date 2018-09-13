@@ -18,12 +18,7 @@ __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
 import os
-import nibabel as nib
 import pandas as pd
-import numpy as np
-import warnings
-import shutil
-import tempfile
 from nltools.data import Brain_Data
 from nilearn.datasets.utils import _get_dataset_dir, _fetch_file
 from pynv import Client
