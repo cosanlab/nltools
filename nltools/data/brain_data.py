@@ -14,16 +14,13 @@ Classes to represent brain image data.
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
-import pickle # import cPickle
 from nilearn.signal import clean
-from scipy.stats import ttest_1samp, norm, spearmanr
+from scipy.stats import ttest_1samp
 from scipy.stats import t as t_dist
 from scipy.signal import detrend
-from scipy.spatial.distance import squareform
 import os
 import shutil
 import nibabel as nib
-import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -35,24 +32,23 @@ from sklearn.metrics.pairwise import pairwise_distances, cosine_similarity
 from sklearn.utils import check_random_state
 from pynv import Client
 from joblib import Parallel, delayed
-from nltools.mask import expand_mask, collapse_mask
+from nltools.mask import expand_mask
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
+from nilearn.plotting import plot_stat_map
 from nilearn.image import resample_img
 from nilearn.masking import intersect_masks
 from nilearn.regions import connected_regions, connected_label_regions
-from nilearn.plotting.img_plotting import plot_epi, plot_roi, plot_stat_map
 from nltools.utils import (get_resource_path,
                             set_algorithm,
                             get_anatomical,
                             attempt_to_import,
                             concatenate,
                             _bootstrap_apply_func,
-                            set_decomposition_algorithm)
+                            set_decomposition_algorithm,
+                            check_brain_data)
 from nltools.cross_validation import set_cv
-from nltools.plotting import (dist_from_hyperplane_plot,
-                              scatterplot,
-                              probability_plot,
+from nltools.plotting import (scatterplot,
                               roc_plot,
                               plot_stacked_adjacency,
                               plot_silhouette)
@@ -71,7 +67,6 @@ from nltools.stats import (pearson,
                            summarize_bootstrap,
                            procrustes)
 from nltools.stats import regress as regression
-from nltools.pbs_job import PBS_Job
 from .adjacency import Adjacency
 from nltools.prefs import MNI_Template, resolve_mni_path
 from nltools.external.srm import DetSRM, SRM
@@ -409,8 +404,7 @@ class Brain_Data(object):
             raise ValueError("self.X does not match the correct size of "
                              "self.data")
 
-        b,t,p,df,res = regression(self.X,self.data,mode=mode,**kwargs)
-        sigma = np.std(res,axis=0,ddof=self.X.shape[1])
+        b,t,p,_,res = regression(self.X,self.data,mode=mode,**kwargs)
 
         # Prevent copy of all data in self multiple times; instead start with an empty instance and copy only needed attributes from self, and use this as a template for other outputs
         b_out = self.__class__()
@@ -520,8 +514,7 @@ class Brain_Data(object):
             out: new appended Brain_Data instance
         """
 
-        if not isinstance(data, Brain_Data):
-            raise ValueError('Make sure data is a Brain_Data instance')
+        data = check_brain_data(data)
 
         if self.isempty():
             out = deepcopy(data)
@@ -592,12 +585,7 @@ class Brain_Data(object):
 
         """
 
-        if not isinstance(image, Brain_Data):
-                if isinstance(image, nib.Nifti1Image):
-                    image = Brain_Data(image, mask=self.mask)
-                else:
-                    raise ValueError("Image is not a Brain_Data or nibabel "
-                                     "instance")
+        image = check_brain_data(image)
 
         # Check to make sure masks are the same for each dataset and if not
         # create a union mask
@@ -699,8 +687,7 @@ class Brain_Data(object):
             raise ValueError("This method can only decompose a single brain "
                              "image.")
 
-        if not isinstance(images, Brain_Data):
-            raise ValueError("Images are not a Brain_Data instance")
+        images = check_brain_data(images)
 
         # Check to make sure masks are the same for each dataset and if not create a union mask
         # This might be handy code for a new Brain_Data method
@@ -908,44 +895,6 @@ class Brain_Data(object):
             masked.data = masked.data.flatten()
         return masked
 
-    def searchlight(self, ncores, process_mask=None, parallel_out=None,
-                    radius=3, walltime='24:00:00', email=None,
-                    algorithm='svr', cv_dict=None, kwargs={}):
-
-        if len(kwargs) is 0:
-            kwargs['kernel']= 'linear'
-
-        # new parallel job
-        pbs_kwargs = {'algorithm': algorithm,
-                  'cv_dict': cv_dict,
-                  'predict_kwargs': kwargs}
-        #cv_dict={'type': 'kfolds','n_folds': 5,'stratified':dat.Y}
-
-        parallel_job = PBS_Job(self, parallel_out=parallel_out,
-                                process_mask=process_mask, radius=radius,
-                                kwargs=pbs_kwargs)
-
-        # make and store data we will need to access on the worker core level
-        parallel_job.make_searchlight_masks()
-        pickle.dump(parallel_job, open(
-                        os.path.join(parallel_out, "pbs_searchlight.pkl"), "w"))
-        # cPickle.dump(parallel_job, open(
-        #                 os.path.join(parallel_out, "pbs_searchlight.pkl"), "w"))
-
-        #make core startup script (python)
-        parallel_job.make_startup_script("core_startup.py")
-
-        # make email notification script (pbs)
-        if type(email) is str:
-            parallel_job.make_pbs_email_alert(email)
-
-        # make pbs job submission scripts (pbs)
-        for core_i in range(ncores):
-            script_name = "core_pbs_script_" + str(core_i) + ".pbs"
-            parallel_job.make_pbs_scripts(script_name, core_i, ncores, walltime)  # create a script
-            print("python " + os.path.join(parallel_out, script_name))
-            os.system("qsub " + os.path.join(parallel_out, script_name))  # run it on a core
-
     def extract_roi(self, mask, method='mean'):
         """ Extract activity from mask
 
@@ -957,14 +906,7 @@ class Brain_Data(object):
             out: mean within each ROI across images
 
         """
-
-        if not isinstance(mask, Brain_Data):
-            if isinstance(mask, nib.Nifti1Image):
-                mask = Brain_Data(mask)
-            else:
-                raise ValueError('Make sure mask is a Brain_Data or nibabel '
-                                 'instance')
-
+        mask = check_brain_data(mask)
         ma = mask.copy()
 
         if len(np.unique(ma.data)) == 2:
@@ -1079,7 +1021,6 @@ class Brain_Data(object):
 
     def copy(self):
         """ Create a copy of a Brain_Data instance.  """
-
         return deepcopy(self)
 
     def upload_neurovault(self, access_token=None, collection_name=None,
@@ -1442,8 +1383,10 @@ class Brain_Data(object):
         source = self.copy()
         common = target.copy()
 
-        assert isinstance(target, Brain_Data), "Target must be Brain_Data instance."
-        assert method in ['probabilistic_srm', 'deterministic_srm','procrustes'], "Method must be ['probabilistic_srm','deterministic_srm','procrustes']"
+        target = check_brain_data(target)
+
+        if method not in ['probabilistic_srm', 'deterministic_srm','procrustes']:
+            raise ValueError("Method must be ['probabilistic_srm','deterministic_srm','procrustes']")
 
         data1 = source.data.T
         data2 = target.data.T
@@ -1489,13 +1432,8 @@ class Brain_Data(object):
 class Groupby(object):
     def __init__(self, data, mask):
 
-        if not isinstance(data, Brain_Data):
-            raise ValueError('Groupby requires a Brain_Data instance.')
-        if not isinstance(mask, Brain_Data):
-            if isinstance(mask, nib.Nifti1Image):
-                mask = Brain_Data(mask)
-            else:
-                raise ValueError('mask must be a Brain_Data instance.')
+        data = check_brain_data(data)
+        mask = check_brain_data(mask)
 
         mask.data = np.round(mask.data).astype(int)
         if len(mask.shape()) <= 1:

@@ -17,7 +17,6 @@ __license__ = "MIT"
 from sklearn.model_selection._split import _BaseKFold
 from sklearn.utils.validation import check_array
 import numpy as np
-import random
 import pandas as pd
 
 class KFoldStratified(_BaseKFold):
@@ -97,7 +96,7 @@ def set_cv(Y=None, cv_dict=None):
 
      """
 
-    if type(cv_dict) is dict:
+    if isinstance(cv_dict, dict):
         if cv_dict['type'] == 'kfolds':
             if 'subject_id' in cv_dict: # Hold out subjects within each fold
                 from sklearn.model_selection import GroupKFold
