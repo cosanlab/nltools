@@ -23,6 +23,8 @@ __all__ = ['pearson',
             'one_sample_permutation',
             'two_sample_permutation',
             'correlation_permutation',
+            'matrix_permutation',
+            'jackknife_permutation',
             'make_cosine_basis',
             '_robust_estimator',
             'summarize_bootstrap',
@@ -34,6 +36,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import pearsonr, spearmanr, kendalltau, norm
 from scipy.stats import t as t_dist
+from scipy.spatial.distance import squareform
 from copy import deepcopy
 import nibabel as nib
 from scipy.interpolate import interp1d
@@ -41,7 +44,7 @@ import warnings
 import itertools
 from joblib import Parallel, delayed
 import six
-from .utils import attempt_to_import
+from .utils import attempt_to_import, check_square_numpy_matrix
 from .external.srm import SRM, DetSRM
 from scipy.linalg import orthogonal_procrustes
 from sklearn.utils import check_random_state
@@ -385,6 +388,28 @@ def fisher_r_to_z(r):
 
     return .5*np.log((1+r)/(1-r))
 
+def correlation(data1, data2, metric='pearson'):
+    ''' This function calculates the correlation between data1 and data2
+
+        Args:
+            data1: np.array
+            data2: np.array
+            metric: type of correlation ["spearman" or "pearson" or "kendall"]
+        Returns:
+            r: correlations
+            p: p-value
+
+    '''
+    if metric == 'spearman':
+        func = spearmanr
+    elif metric == 'pearson':
+        func = pearsonr
+    elif metric == 'kendall':
+        func = kendalltau
+    else:
+        raise ValueError('metric must be "spearman" or "pearson" or "kendall"')
+    return func(data1, data2)
+
 def _permute_sign(data, random_state=None):
     random_state = check_random_state(random_state)
     return np.mean(data*random_state.choice([1, -1], len(data)))
@@ -395,6 +420,25 @@ def _permute_group(data, random_state=None):
     return (np.mean(data.loc[perm_label==1, 'Values']) -
             np.mean(data.loc[perm_label==0, 'Values']))
 
+def _permute_func(data1, data2, metric='pearsonr', random_state=None):
+    """ Helper function for matrix_permutation.
+        Can take a functon, that would be repeated for calculation.
+        Args:
+            func: similarity/distance function from scipy.stats (e.g., spearman, pearson etc)
+            data1: squareform matrix, np array
+            data2: flattened np array (same size upper triangle of data1)
+            random_state: random_state instance for permutation
+        Returns:
+            r: r value of function
+    """
+    random_state = check_random_state(random_state)
+
+    data_row_id = range(data1.shape[0])
+    permuted_ix = random_state.choice(data_row_id,
+                       size=len(data_row_id))
+    new_fmri_dist = data1.iloc[permuted_ix, permuted_ix].values
+    new_fmri_dist = new_fmri_dist[np.triu_indices(new_fmri_dist.shape[0], k=1)]
+    return correlation(new_fmri_dist, data2, metric=metric)[0]
 
 def _calc_pvalue(all_p, stat, tail):
     """Calculates p value based on distribution of correlations
@@ -497,30 +541,99 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
     data1 = np.array(data1)
     data2 = np.array(data2)
 
-    if metric == 'spearman':
-        stats['correlation'] = spearmanr(data1, data2)[0]
-    elif metric == 'pearson':
-        stats['correlation'] = pearsonr(data1, data2)[0]
-    elif metric == 'kendall':
-        stats['correlation'] = kendalltau(data1, data2)[0]
-    else:
-        raise ValueError('metric must be "spearman" or "pearson" or "kendall"')
+    stats['correlation'] = correlation(data1, data2, metric=metric)[0]
 
-    if metric is 'spearman':
-        all_p = Parallel(n_jobs=n_jobs)(delayed(spearmanr)(
-                        random_state.permutation(data1), data2)
-                        for i in range(n_permute))
-    elif metric is 'pearson':
-        all_p = Parallel(n_jobs=n_jobs)(delayed(pearsonr)(
-                        random_state.permutation(data1), data2)
-                        for i in range(n_permute))
-    elif metric is 'kendall':
-        all_p = Parallel(n_jobs=n_jobs)(delayed(kendalltau)(
-                        random_state.permutation(data1), data2)
-                        for i in range(n_permute))
+    all_p = Parallel(n_jobs=n_jobs)(delayed(correlation)(
+                    random_state.permutation(data1), data2, metric=metric)
+                    for i in range(n_permute))
     all_p = [x[0] for x in all_p]
 
     stats['p'] = _calc_pvalue(all_p,stats['correlation'],tail)
+    return stats
+
+def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
+                            tail=2, random_state=None):
+    """ Permute 2-dimensional matrix correlation.
+
+        Chen, G. et al. (2016). Untangling the relatedness among correlations,
+        part I: nonparametric approaches to inter-subject correlation analysis
+        at the group level. Neuroimage, 142, 248-259.
+
+        Args:
+            data1: square matrix (Pandas DataFrame or numpy array)
+            data2: square matrix (Pandas DataFrame or numpy array)
+            n_permute: (int) number of permutations
+            metric: (str) type of association metric ['spearman','pearson',
+                    'kendall']
+            tail: (int) either 1 for one-tail or 2 for two-tailed test
+                  (default: 2)
+            n_jobs: (int) The number of CPUs to use to do the computation.
+                    -1 means all CPUs.
+
+        Returns:
+            stats: (dict) dictionary of permutation results ['correlation','p']
+    """
+    random_state = check_random_state(random_state)
+    sq_data1 = check_square_numpy_matrix(data1)
+    sq_data2 = check_square_numpy_matrix(data2)
+    data1 = sq_data1[np.triu_indices(sq_data1.shape[0], k=1)]
+    data2 = sq_data2[np.triu_indices(sq_data2.shape[0], k=1)]
+
+    stats = dict()
+
+    stats['correlation'] = correlation(data1, data2, metric=metric)[0]
+
+    all_p = Parallel(backend='threading')(delayed(_permute_func)(
+                    pd.DataFrame(sq_data1), data2, metric=metric)
+                    for i in range(n_permute))
+    stats['p'] = _calc_pvalue(all_p, stats['correlation'], tail)
+    return stats
+
+def jackknife_permutation(data1, data2, metric='spearman',
+                          p_value='permutation', n_jobs=-1, n_permute=5000,
+                          tail=2, random_state=None):
+    ''' This function uses a randomization test on a jackknife of absolute
+        distance/similarity of each subject
+
+        Args:
+            data1: Adjacency instance/square numpy array/Pandas Data frame
+            data2: Adjacency instance/square numpy array/Pandas Data frame
+            metric: (str) type of association metric ['spearman','pearson',
+                    'kendall']
+            tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
+            p_value: ['ttest', 'permutation']
+            n_permute: (int) number of permutations
+            n_jobs: (int) The number of CPUs to use to do the computation.
+                    -1 means all CPUs.
+
+        Returns:
+            stats: (dict) dictionary of permutation results ['correlation','p']
+
+    '''
+
+    random_state = check_random_state(random_state)
+
+    data1 = check_square_numpy_matrix(data1)
+    data2 = check_square_numpy_matrix(data2)
+
+    stats = {}
+    stats['all_r'] = []
+    for s in range(data1.shape[0]):
+        stats['all_r'].append(correlation(np.delete(data1[s,],s),
+                                          np.delete(data2[s,], s),
+                                          metric=metric)[0])
+    stats['correlation'] = np.mean(stats['all_r'])
+
+    if p_value == 'permutation':
+        stats_permute = one_sample_permutation(stats['all_r'],
+                                               n_permute=n_permute, tail=tail,
+                                               n_jobs=n_jobs,
+                                               random_state=random_state)
+        stats['p'] = stats_permute['p']
+    elif p_value == 'ttest':
+        stats['p'] = ttest_1samp(stats['all_r'], 0)[1]
+    else:
+        raise NotImplementedError("Only ['ttest', 'permutation'] are currently implemented.")
     return stats
 
 def make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale=True, drop=0):
@@ -648,7 +761,8 @@ def _robust_estimator(vals,X,robust_estimator='hc0',nlags=1):
         stderr (np.ndarray): 1d array of standard errors with length == X.shape[1]
     """
 
-    assert robust_estimator in ['hc0','hc3','hac'], "robust_estimator must be one of hc0, hc3 or hac"
+    if robust_estimator not in ['hc0','hc3','hac']:
+        raise ValueError("robust_estimator must be one of hc0, hc3 or hac")
 
     # Make a sandwich!
     # First we need bread
@@ -792,7 +906,8 @@ def regress(X, Y, mode='ols', **kwargs):
     if not isinstance(mode, six.string_types):
         raise ValueError('mode must be a string')
 
-    assert mode in ['ols', 'robust', 'arma'], "Mode must be one of 'ols','robust' or 'arma'"
+    if mode not in ['ols', 'robust', 'arma']:
+        raise ValueError("Mode must be one of 'ols','robust' or 'arma'")
 
     # Make sure Y is a 1-D array
     if len(Y.shape) == 1:
@@ -886,9 +1001,12 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
 
     from nltools.data import Brain_Data
 
-    assert isinstance(data, list), 'Make sure you are inputting data is a list.'
-    assert all([type(x) for x in data]), 'Make sure all objects in the list are the same type.'
-    assert method in ['probabilistic_srm','deterministic_srm','procrustes'], "Method must be ['probabilistic_srm','deterministic_srm','procrustes']"
+    if not isinstance(data, list):
+        raise ValueErrror('Make sure you are inputting data is a list.')
+    if not all([type(x) for x in data]):
+        raise ValueError('Make sure all objects in the list are the same type.')
+    if method not in ['probabilistic_srm','deterministic_srm','procrustes']:
+        raise ValueError("Method must be ['probabilistic_srm','deterministic_srm','procrustes']")
 
     data = deepcopy(data)
 

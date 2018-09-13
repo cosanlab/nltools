@@ -25,6 +25,8 @@ install:
   - pip install -r requirements.txt
   - pip install -r optional-dependencies.txt
   - python setup.py install
+  - cp nltools/tests/matplotlibrc .
+
 
 script: coverage run --source nltools -m py.test
 
