@@ -1241,15 +1241,15 @@ def u_center(mat):
     # The diagonal is zero
     out[np.eye(dim, dtype=bool)] = 0
 
-def distance_correlation(x,y,bias_corrected=True,return_covs=False):
+def distance_correlation(x,y,bias_corrected=True,return_all_stats=False):
     '''Compute the distance correlation betwen 2 arrays. 
-        Distance correlation involves computing the normalized covariance of two centered euclidean distance matrices. Each distance matrix is the euclidean distance between rows (if x or y are 2d) or scalars (if x or y are 1d). Each matrix is centered using u-centering, a bias-corrected form of double-centering. This permits inference of the normalized covariance between each distance matrix using a t-test.  (Szekely & Rizzo, 2013).    
+        Distance correlation involves computing the normalized covariance of two centered euclidean distance matrices. Each distance matrix is the euclidean distance between rows (if x or y are 2d) or scalars (if x or y are 1d). Each matrix is centered using u-centering, a bias-corrected form of double-centering. This permits inference of the normalized covariance between each distance matrix using a one-tailed directional t-test. (Szekely & Rizzo, 2013). While distance correlation is normally bounded between 0 and 1, u-centering can produce negative estimates, which are never significant. Therefore these estimates are windsorized to 0, ala Geerligs, Cam-CAN, Henson, 2016.   
         
     Args:
         x (ndarray): 1d or 2d numpy array of observations by features
         y (ndarry): 1d or 2d numpy array of observations by features
         bias_corrected (bool): if false use double-centering but no inference test is performed, if true use u-centering and perform inference; default True
-        return_covs (bool): if true return distance covariance and variances of each array as well; default False
+        return_all_stats (bool): if true return distance covariance and variances of each array as well; default False
     
     Returns:
         results (dict): dictionary of results (correlation, t, p, and df.) Optionally, covariance, x variance, and y variance
@@ -1291,7 +1291,6 @@ def distance_correlation(x,y,bias_corrected=True,return_covs=False):
         yy = np.multiply(y_dist_cent,y_dist_cent).mean()
     
     # 3 compute covariances and variances  
-    cov = np.sqrt(xy)
     var_x = np.sqrt(xx)
     var_y = np.sqrt(yy)
 
@@ -1301,27 +1300,32 @@ def distance_correlation(x,y,bias_corrected=True,return_covs=False):
         r2 = xy / denom
     else:
         r2 = 0
-    cor = np.sqrt(np.abs(r2)) # because u-centering can produce negative dcors
-    
+    # Windsorize negative values as a result of u-centering
+    if r2 > 0:
+        cor = np.sqrt(r2)
+    else:
+        cor = 0
+        
     out = {}
-    out['d_correlation'] = cor
+    out['d_correlation_adjusted'] = cor
 
-    if return_covs:
-        out['d_covariance'] = cov
+    if return_all_stats:
+        out['d_covariance_squared'] = xy
+        out['d_correlation_adjusted'] = r2
         out['x_var'] = var_x
         out['y_var'] = var_y
 
     if bias_corrected:
         dof = (adjusted_n / 2) - 1
         t = np.sqrt(dof) * (r2 / np.sqrt(1 - r2**2))
-        p = 2*(1-t_dist.cdf(np.abs(t), dof))
+        p = 1-t_dist.cdf(t, dof)
         out['t'] = t
         out['p'] = p
         out['df'] = dof
 
     return out
 
-def procrustes_similarity(mat1,mat2,n_permute=5000,tail=2,n_jobs=-1,random_state=None):
+def procrustes_similarity(mat1,mat2,n_permute=5000,tail=1,n_jobs=-1,random_state=None):
     """ Use procrustes super-position to perform a similarity test between 2 matrices. Matrices need to match in size on their first dimension only, as the smaller matrix on the second dimension will be padded with zeros. After aligning two matrices using the procrustes transformation, use the computed disparity between them (sum of squared error of elements) as a similarity metric. Shuffle the rows of one of the matrices and recompute the disparity to perform inference (Peres-Neto & Jackson, 2001). Note: by default this function reverses disparity to treat it like a *similarity* measure like correlation, rather than a distance measure like correlation distance, i.e. smaller values mean less similar, larger values mean more similar.
     
     Args:
