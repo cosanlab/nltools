@@ -420,13 +420,13 @@ def _permute_group(data, random_state=None):
     return (np.mean(data.loc[perm_label==1, 'Values']) -
             np.mean(data.loc[perm_label==0, 'Values']))
 
-def _permute_func(data1, data2, metric='pearsonr', random_state=None):
+def _permute_func(data1, data2, metric, random_state=None):
     """ Helper function for matrix_permutation.
         Can take a functon, that would be repeated for calculation.
         Args:
-            func: similarity/distance function from scipy.stats (e.g., spearman, pearson etc)
             data1: squareform matrix, np array
             data2: flattened np array (same size upper triangle of data1)
+            metric: similarity/distance function from scipy.stats (e.g., spearman, pearson, kendall etc)
             random_state: random_state instance for permutation
         Returns:
             r: r value of function
