@@ -109,28 +109,28 @@ def fdr(p, q=.05):
     return fdr_p
 
 def holm_bonf(p, alpha=.05):
-    """ Compute corrected p-values based on the Holm-Bonferroni method, i.e. step-down procedure applying iteratively less correction to highest p-values. Modified from stats.models approach.
+    """ Compute corrected p-values based on the Holm-Bonferroni method, i.e. step-down procedure applying iteratively less correction to highest p-values. A bit more conservative than fdr, but much more powerful thanvanilla bonferroni.
 
     Args:
         p: vector of p-values (numpy array)
         alpha: alpha level
 
     Returns:
-        p_corrected: numpy array of corrected p-values
+        bonf_p: p-value threshold based on bonferroni step-down procedure
 
     """
 
     if not isinstance(p, np.ndarray):
         raise ValueError('Make sure vector of p-values is a numpy array')
 
-    idx = p.argsort()
-    s = p[idx]
-    s *= np.arange(len(s),0,-1)
-    s = np.maximum.accumulate(s)
-    p_corrected = np.empty_like(p)
-    p_corrected[idx] = s
+    s = np.sort(p)
+    nvox = p.shape[0]
+    null = .05 / (nvox - np.arange(1, nvox + 1) + 1)
+    below = np.where(s <= null)[0]
+    bonf_p = s[max(below)] if any(below) else -1
+    return bonf_p
 
-    return p_corrected
+    return bonf_p
 
 def threshold(stat, p, thr=.05):
     """ Threshold test image by p-value from p image
@@ -1207,8 +1207,7 @@ def double_center(mat):
     if len(mat.shape) != 2:
         raise ValueError('Array should be 2d')
 
-    # keepdims ensures that row/column means are not incorrectly broadcast during
-    subtraction
+    # keepdims ensures that row/column means are not incorrectly broadcast during    subtraction
     row_mean = mat.mean(axis=0,keepdims=True)
     col_mean = mat.mean(axis=1,keepdims=True)
     grand_mean = mat.mean()
