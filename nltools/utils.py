@@ -23,6 +23,7 @@ import importlib
 import os
 from sklearn.pipeline import Pipeline
 from sklearn.utils import check_random_state
+from scipy.spatial.distance import squareform
 import numpy as np
 import pandas as pd
 import collections
@@ -218,8 +219,11 @@ def check_square_numpy_matrix(data):
     else:
         data = np.array(data)
 
-    if data.shape[0] != data.shape[1]:
-        raise ValueError('Make sure data is square.')
+    if len(data.shape) != 2:
+        try:
+            data = squareform(data)
+        except ValueError as e:
+            raise ValueError("Array does not contain the correct number of elements to be square")
     return data
 
 def check_brain_data(data):
