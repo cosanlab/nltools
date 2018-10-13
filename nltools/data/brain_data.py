@@ -30,6 +30,7 @@ from copy import deepcopy
 import six
 from sklearn.metrics.pairwise import pairwise_distances, cosine_similarity
 from sklearn.utils import check_random_state
+from sklearn.preprocessing import scale
 from pynv import Client
 from joblib import Parallel, delayed
 from nltools.mask import expand_mask
@@ -1155,10 +1156,11 @@ class Brain_Data(object):
         out.data = out.data.astype(dtype)
         return out
 
-    def standardize(self, method='center'):
+    def standardize(self, axis=0, method='center'):
         ''' Standardize Brain_Data() instance.
 
         Args:
+            axis: 0 for observations 1 for features
             method: ['center','zscore']
 
         Returns:
@@ -1166,14 +1168,16 @@ class Brain_Data(object):
 
         '''
 
+        if axis == 1 and len(self.shape()) == 1:
+            raise IndexError("Brain_Data is only 3d but standardization was requested over observations")
         out = self.copy()
-        if method is 'center':
-            out.data = out.data - np.repeat(np.array([np.mean(out.data, axis=0)]).T, len(out), axis=1).T
-        elif method is 'zscore':
-            out.data = out.data - np.repeat(np.array([np.mean(out.data, axis=0)]).T, len(out), axis=1).T
-            out.data = out.data/np.repeat(np.array([np.std(out.data, axis=0)]).T, len(out), axis=1).T
+        if method == 'zscore':
+            with_std = True
+        elif method == 'center':
+            with_std = False
         else:
             raise ValueError('method must be ["center","zscore"')
+        out.data = scale(out.data, axis=axis, with_std=with_std)
         return out
 
     def groupby(self, mask):
