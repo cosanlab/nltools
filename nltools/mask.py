@@ -86,11 +86,12 @@ def create_sphere(coordinates, radius=5, mask=None):
     out.get_data()[out.get_data() < 0.5]=0
     return out
 
-def expand_mask(mask):
+def expand_mask(mask,custom_mask=None):
     """ expand a mask with multiple integers into separate binary masks
 
     Args:
         mask: nibabel or Brain_Data instance
+        custom_mask: nibabel instance or string to file path; optional
 
     Returns:
         out: Brain_Data instance of multiple binary masks
@@ -99,7 +100,7 @@ def expand_mask(mask):
 
     from nltools.data import Brain_Data
     if isinstance(mask, nib.Nifti1Image):
-        mask = Brain_Data(mask)
+        mask = Brain_Data(mask,mask=custom_mask)
     if not isinstance(mask, Brain_Data):
         raise ValueError('Make sure mask is a nibabel or Brain_Data instance.')
     mask.data = np.round(mask.data).astype(int)
@@ -110,12 +111,13 @@ def expand_mask(mask):
     out.data = np.array(tmp)
     return out
 
-def collapse_mask(mask, auto_label=True):
+def collapse_mask(mask, auto_label=True, custom_mask=None):
     """ collapse separate masks into one mask with multiple integers
         overlapping areas are ignored
 
     Args:
         mask: nibabel or Brain_Data instance
+        custom_mask: nibabel instance or string to file path; optional
 
     Returns:
         out: Brain_Data instance of a mask with different integers indicating
@@ -126,7 +128,7 @@ def collapse_mask(mask, auto_label=True):
     from nltools.data import Brain_Data
     if not isinstance(mask, Brain_Data):
         if isinstance(mask, nib.Nifti1Image):
-            mask = Brain_Data(mask)
+            mask = Brain_Data(mask,mask=custom_mask)
         else:
             raise ValueError('Make sure mask is a nibabel or Brain_Data '
                             'instance.')
@@ -142,7 +144,7 @@ def collapse_mask(mask, auto_label=True):
             intersect = intersect_masks(m_list, threshold=1, connected=False)
             intersect = Brain_Data(nib.Nifti1Image(
                             np.abs(intersect.get_data()-1),
-                            intersect.get_affine()))
+                            intersect.get_affine()),mask=custom_mask)
 
             merge = []
             if auto_label:
@@ -150,14 +152,14 @@ def collapse_mask(mask, auto_label=True):
                 # ignoring any areas of overlap
                 for i in range(len(m_list)):
                     merge.append(np.multiply(
-                                Brain_Data(m_list[i]).data,
+                                Brain_Data(m_list[i],mask=custom_mask).data,
                                 intersect.data)*(i+1))
                 out.data = np.sum(np.array(merge).T, 1).astype(int)
             else:
                 # Collapse masks using value as label
                 for i in range(len(m_list)):
                     merge.append(np.multiply(
-                                    Brain_Data(m_list[i]).data,
+                                    Brain_Data(m_list[i],mask=custom_mask).data,
                                     intersect.data))
                 out.data = np.sum(np.array(merge).T, 1)
             return out
