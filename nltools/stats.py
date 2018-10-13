@@ -105,7 +105,7 @@ def fdr(p, q=.05):
     nvox = p.shape[0]
     null = np.array(range(1, nvox + 1), dtype='float') * q / nvox
     below = np.where(s <= null)[0]
-    fdr_p = s[max(below)] if any(below) else -1
+    fdr_p = s[max(below)] if len(below) else -1
     return fdr_p
 
 def holm_bonf(p, alpha=.05):
@@ -127,9 +127,7 @@ def holm_bonf(p, alpha=.05):
     nvox = p.shape[0]
     null = .05 / (nvox - np.arange(1, nvox + 1) + 1)
     below = np.where(s <= null)[0]
-    bonf_p = s[max(below)] if any(below) else -1
-    return bonf_p
-
+    bonf_p = s[max(below)] if len(below) else -1
     return bonf_p
 
 def threshold(stat, p, thr=.05):
