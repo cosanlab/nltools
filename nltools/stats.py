@@ -47,7 +47,7 @@ import six
 from .utils import attempt_to_import, check_square_numpy_matrix
 from .external.srm import SRM, DetSRM
 from scipy.linalg import orthogonal_procrustes
-from scipy.spatial import procrustes
+from scipy.spatial import procrustes as procrust
 from sklearn.utils import check_random_state
 
 MAX_INT = np.iinfo(np.int32).max
@@ -1152,7 +1152,6 @@ def procrustes(data1, data2):
 
     '''
 
-    raise NotImplementedError("procrustes distance test is still under development")
     mtx1 = np.array(data1, dtype=np.double, copy=True)
     mtx2 = np.array(data2, dtype=np.double, copy=True)
 
@@ -1323,8 +1322,8 @@ def distance_correlation(x,y,bias_corrected=True,return_all_stats=False):
 
     return out
 
-def procrustes_similarity(mat1,mat2,n_permute=5000,tail=1,n_jobs=-1,random_state=None):
-    """ Use procrustes super-position to perform a similarity test between 2 matrices. Matrices need to match in size on their first dimension only, as the smaller matrix on the second dimension will be padded with zeros. After aligning two matrices using the procrustes transformation, use the computed disparity between them (sum of squared error of elements) as a similarity metric. Shuffle the rows of one of the matrices and recompute the disparity to perform inference (Peres-Neto & Jackson, 2001). Note: by default this function reverses disparity to treat it like a *similarity* measure like correlation, rather than a distance measure like correlation distance, i.e. smaller values mean less similar, larger values mean more similar.
+def procrustes_distance(mat1,mat2,n_permute=5000,tail=1,n_jobs=-1,random_state=None):
+    """ Use procrustes super-position to perform a similarity test between 2 matrices. Matrices need to match in size on their first dimension only, as the smaller matrix on the second dimension will be padded with zeros. After aligning two matrices using the procrustes transformation, use the computed disparity between them (sum of squared error of elements) as a similarity metric. Shuffle the rows of one of the matrices and recompute the disparity to perform inference (Peres-Neto & Jackson, 2001).
 
     Args:
         mat1 (ndarray): 2d numpy array; must have same number of rows as mat2
@@ -1339,6 +1338,7 @@ def procrustes_similarity(mat1,mat2,n_permute=5000,tail=1,n_jobs=-1,random_state
 
     """
 
+    raise NotImplementedError("procrustes distance is not currently implemented")
     if mat1.shape[0] != mat2.shape[0]:
         raise ValueError('Both arrays must match on their first dimension')
 
@@ -1354,8 +1354,7 @@ def procrustes_similarity(mat1,mat2,n_permute=5000,tail=1,n_jobs=-1,random_state
     elif mat2.shape[1] > mat1.shape[1]:
         mat1 = np.pad(mat1,((0,0),(0, mat2.shape[1] - mat1.shape[1])),'constant')
 
-    _,_,sse = procrustes(mat1,mat2)
-    sse = 1 - sse # flip to similarity measure
+    _,_,sse = procrust(mat1,mat2)
 
     stats = dict()
     stats['similarity'] = sse
