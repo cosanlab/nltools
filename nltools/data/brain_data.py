@@ -40,30 +40,18 @@ from nilearn.plotting import plot_stat_map
 from nilearn.image import resample_img
 from nilearn.masking import intersect_masks
 from nilearn.regions import connected_regions, connected_label_regions
-from nltools.utils import (get_resource_path,
-                            set_algorithm,
-                            get_anatomical,
-                            attempt_to_import,
-                            concatenate,
-                            _bootstrap_apply_func,
-                            set_decomposition_algorithm,
-                            check_brain_data)
+from nltools.utils import (set_algorithm,
+                           attempt_to_import,
+                           concatenate,
+                           _bootstrap_apply_func,
+                           set_decomposition_algorithm,
+                           check_brain_data)
 from nltools.cross_validation import set_cv
-from nltools.plotting import (scatterplot,
-                              roc_plot,
-                              plot_stacked_adjacency,
-                              plot_silhouette)
+from nltools.plotting import scatterplot
 from nltools.stats import (pearson,
                            fdr,
                            threshold,
                            fisher_r_to_z,
-                           correlation_permutation,
-                           one_sample_permutation,
-                           two_sample_permutation,
-                           downsample,
-                           upsample,
-                           zscore,
-                           make_cosine_basis,
                            transform_pairwise,
                            summarize_bootstrap,
                            procrustes)
@@ -75,10 +63,9 @@ from nltools.plotting import plot_interactive_brain, plot_brain
 
 # Optional dependencies
 nx = attempt_to_import('networkx', 'nx')
-mne_stats = attempt_to_import('mne.stats',name='mne_stats', fromlist=
-                                    ['spatio_temporal_cluster_1samp_test',
-                                     'ttest_1samp_no_p'])
+mne_stats = attempt_to_import('mne.stats', name='mne_stats',  fromlist=['spatio_temporal_cluster_1samp_test', 'ttest_1samp_no_p'])
 MAX_INT = np.iinfo(np.int32).max
+
 
 class Brain_Data(object):
 
@@ -118,7 +105,7 @@ class Brain_Data(object):
                 if 'http://' in data:
                     from nltools.datasets import download_nifti
                     tmp_dir = os.path.join(tempfile.gettempdir(),
-                                            str(os.times()[-1]))
+                                           str(os.times()[-1]))
                     os.makedirs(tmp_dir)
                     data = nib.load(download_nifti(data, data_dir=tmp_dir))
                 else:
@@ -128,10 +115,10 @@ class Brain_Data(object):
                 if isinstance(data[0], Brain_Data):
                     tmp = concatenate(data)
                     for item in ['data', 'Y', 'X', 'mask', 'nifti_masker',
-                                'file_name']:
-                        setattr(self, item, getattr(tmp,item))
+                                 'file_name']:
+                        setattr(self, item, getattr(tmp, item))
                 else:
-                    if all([isinstance(x,data[0].__class__) for x in data]):
+                    if all([isinstance(x, data[0].__class__) for x in data]):
                         self.data = []
                         for i in data:
                             if isinstance(i, six.string_types):
@@ -377,10 +364,10 @@ class Brain_Data(object):
                                   black_bg=True,
                                   colorbar=True,
                                   draw_cross=False,
-                                  axes = a[i],
+                                  axes=a[i],
                                   **kwargs)
             return f
-        elif view in ['glass', 'mni','full']:
+        elif view in ['glass', 'mni', 'full']:
             if self.data.ndim == 1:
                 return plot_brain(self, how=view, thr_upper=threshold_upper, thr_lower=threshold_lower, **kwargs)
             else:
@@ -434,7 +421,7 @@ class Brain_Data(object):
             raise ValueError("self.X does not match the correct size of "
                              "self.data")
 
-        b,t,p,_,res = regression(self.X,self.data,mode=mode,**kwargs)
+        b, t, p, _, res = regression(self.X, self.data, mode=mode, **kwargs)
 
         # Prevent copy of all data in self multiple times; instead start with an empty instance and copy only needed attributes from self, and use this as a template for other outputs
         b_out = self.__class__()
@@ -446,7 +433,7 @@ class Brain_Data(object):
         p_out = b_out.copy()
         sigma_out = b_out.copy()
         res_out = b_out.copy()
-        b_out.data,t_out.data,p_out.data,sigma_out.data,res_out.data = (b,t,p,sigma_out,res)
+        b_out.data, t_out.data, p_out.data, sigma_out.data, res_out.data = (b, t, p, sigma_out, res)
 
         return {'beta': b_out, 't': t_out, 'p': p_out,
                 'sigma': sigma_out, 'residual': res_out}
@@ -550,7 +537,7 @@ class Brain_Data(object):
             out = deepcopy(data)
         else:
             error_string = ("Data to append has different number of voxels "
-                             "then Brain_Data instance.")
+                            "then Brain_Data instance.")
             if len(self.shape()) == 1 & len(data.shape()) == 1:
                 if self.shape()[0] != data.shape()[0]:
                     raise ValueError(error_string)
@@ -568,7 +555,7 @@ class Brain_Data(object):
                 out.Y = self.Y.append(data.Y)
             if self.X.size:
                 if isinstance(self.X, pd.DataFrame):
-                    out.X = self.X.append(data.X,**kwargs)
+                    out.X = self.X.append(data.X, **kwargs)
                 else:
                     out.X = np.vstack([self.X, data.X])
         return out
@@ -620,10 +607,10 @@ class Brain_Data(object):
         # Check to make sure masks are the same for each dataset and if not
         # create a union mask
         # This might be handy code for a new Brain_Data method
-        if np.sum(self.nifti_masker.mask_img.get_data() == 1) != np.sum(image.nifti_masker.mask_img.get_data()==1):
+        if np.sum(self.nifti_masker.mask_img.get_data() == 1) != np.sum(image.nifti_masker.mask_img.get_data() == 1):
             new_mask = intersect_masks([self.nifti_masker.mask_img,
                                         image.nifti_masker.mask_img],
-                                        threshold=1, connected=False)
+                                       threshold=1, connected=False)
             new_nifti_masker = NiftiMasker(mask_img=new_mask)
             data2 = new_nifti_masker.fit_transform(self.to_nifti())
             image2 = new_nifti_masker.fit_transform(image.to_nifti())
@@ -633,14 +620,14 @@ class Brain_Data(object):
 
         def vector2array(data):
             if len(data.shape) == 1:
-                return data.reshape(-1,1).T
+                return data.reshape(-1, 1).T
             else:
                 return data
 
         def flatten_array(data):
-            if np.any(np.array(data.shape)==1):
+            if np.any(np.array(data.shape) == 1):
                 data = data.flatten()
-                if len(data)==1 & data.shape[0]==1:
+                if len(data) == 1 & data.shape[0] == 1:
                     data = data[0]
                 return data
             else:
@@ -675,7 +662,7 @@ class Brain_Data(object):
             if image2.shape[1] > 1:
                 pexp = []
                 for i in range(image2.shape[0]):
-                    pexp.append(cosine_similarity(image2[i, :].reshape(-1,1).T, data2).flatten())
+                    pexp.append(cosine_similarity(image2[i, :].reshape(-1, 1).T, data2).flatten())
                 pexp = np.array(pexp)
             else:
                 pexp = cosine_similarity(image2, data2).flatten()
@@ -721,10 +708,10 @@ class Brain_Data(object):
 
         # Check to make sure masks are the same for each dataset and if not create a union mask
         # This might be handy code for a new Brain_Data method
-        if np.sum(self.nifti_masker.mask_img.get_data() == 1) != np.sum(images.nifti_masker.mask_img.get_data()==1):
+        if np.sum(self.nifti_masker.mask_img.get_data() == 1) != np.sum(images.nifti_masker.mask_img.get_data() == 1):
             new_mask = intersect_masks([self.nifti_masker.mask_img,
                                         images.nifti_masker.mask_img],
-                                        threshold=1, connected=False)
+                                       threshold=1, connected=False)
             new_nifti_masker = NiftiMasker(mask_img=new_mask)
             data2 = new_nifti_masker.fit_transform(self.to_nifti())
             image2 = new_nifti_masker.fit_transform(images.to_nifti())
@@ -741,7 +728,7 @@ class Brain_Data(object):
             res = data2 - np.dot(image2, b)
             sigma = np.std(res, axis=0)
             stderr = np.dot(np.matrix(np.diagonal(np.linalg.inv(np.dot(image2.T,
-                            image2)))**.5).T, np.matrix(sigma))
+                                                                       image2)))**.5).T, np.matrix(sigma))
             t_out = b / stderr
             df = image2.shape[0]-image2.shape[1]
             p = 2*(1-t_dist.cdf(np.abs(t_out), df))
@@ -752,7 +739,6 @@ class Brain_Data(object):
                 'residual': res}
 
     def predict(self, algorithm=None, cv_dict=None, plot=True, **kwargs):
-
         """ Run prediction
 
         Args:
@@ -792,7 +778,7 @@ class Brain_Data(object):
         output['yfit_all'] = predictor.predict(self.data)
         if predictor_settings['prediction_type'] == 'classification':
             if predictor_settings['algorithm'] not in ['svm', 'ridgeClassifier',
-                                  'ridgeClassifierCV']:
+                                                       'ridgeClassifierCV']:
                 output['prob_all'] = predictor.predict_proba(self.data)[:, 1]
             else:
                 output['dist_from_hyperplane_all'] = predictor.decision_function(self.data)
@@ -851,7 +837,7 @@ class Brain_Data(object):
                     output['intercept_xval'].append(predictor_settings['_lasso'].intercept_)
                 else:
                     output['intercept_xval'].append(predictor_cv.intercept_)
-                output['cv_idx'].append((train,test))
+                output['cv_idx'].append((train, test))
 
                 # Weight map
                 if predictor_settings['algorithm'] == 'lassopcr':
@@ -876,7 +862,7 @@ class Brain_Data(object):
             print('overall Correlation: %.2f' % output['r_all'])
             if cv_dict is not None:
                 output['rmse_xval'] = np.sqrt(np.mean((output['yfit_xval']-output['Y'])**2))
-                output['r_xval'] = np.corrcoef(output['Y'],output['yfit_xval'])[0, 1]
+                output['r_xval'] = np.corrcoef(output['Y'], output['yfit_xval'])[0, 1]
                 print('overall CV Root Mean Squared Error: %.2f' % output['rmse_xval'])
                 print('overall CV Correlation: %.2f' % output['r_xval'])
 
@@ -906,7 +892,7 @@ class Brain_Data(object):
         """
 
         if isinstance(mask, Brain_Data):
-            mask = mask.to_nifti() # convert to nibabel
+            mask = mask.to_nifti()  # convert to nibabel
         if not isinstance(mask, nib.Nifti1Image):
             if isinstance(mask, six.string_types):
                 if os.path.isfile(mask):
@@ -949,7 +935,7 @@ class Brain_Data(object):
             out = []
             for i in range(all_mask.shape()[0]):
                 if method is 'mean':
-                    out.append(np.mean(self.data[:, np.where(all_mask[i].data)].squeeze(),axis=1))
+                    out.append(np.mean(self.data[:, np.where(all_mask[i].data)].squeeze(), axis=1))
             out = np.array(out)
         return out
 
@@ -996,7 +982,7 @@ class Brain_Data(object):
 
         # Sum Square Error
         predicted_Y = np.dot(np.dot(np.dot(X, np.linalg.pinv(np.dot(X.T, X))),
-                             X.T), Y.flatten('F'))
+                                    X.T), Y.flatten('F'))
         residuals = Y.flatten('F') - predicted_Y
         SSE = (residuals ** 2).sum()
 
@@ -1139,7 +1125,7 @@ class Brain_Data(object):
         out.data = fisher_r_to_z(out.data)
         return out
 
-    def filter(self,sampling_freq=None, high_pass=None,low_pass=None,**kwargs):
+    def filter(self, sampling_freq=None, high_pass=None, low_pass=None, **kwargs):
         ''' Apply 5th order butterworth filter to data. Wraps nilearn functionality. Does not default to detrending and standardizing like nilearn implementation, but this can be overridden using kwargs.
 
         Args:
@@ -1156,14 +1142,14 @@ class Brain_Data(object):
             raise ValueError("Need to provide sampling rate (TR)!")
         if high_pass is None and low_pass is None:
             raise ValueError("high_pass and/or low_pass cutoff must be"
-                            "provided!")
+                             "provided!")
         if sampling_freq is None:
             raise ValueError("Need to provide TR!")
 
-        standardize = kwargs.get('standardize',False)
-        detrend = kwargs.get('detrend',False)
+        standardize = kwargs.get('standardize', False)
+        detrend = kwargs.get('detrend', False)
         out = self.copy()
-        out.data = clean(out.data,t_r= 1. / sampling_freq,detrend=detrend,standardize=standardize,high_pass=high_pass,low_pass=low_pass,**kwargs)
+        out.data = clean(out.data, t_r=1. / sampling_freq, detrend=detrend, standardize=standardize, high_pass=high_pass, low_pass=low_pass, **kwargs)
         return out
 
     def dtype(self):
@@ -1292,8 +1278,8 @@ class Brain_Data(object):
             regions, _ = connected_label_regions(self.to_nifti())
         else:
             regions, _ = connected_regions(self.to_nifti(),
-                                       min_region_size, extract_type,
-                                       smoothing_fwhm)
+                                           min_region_size, extract_type,
+                                           smoothing_fwhm)
 
         return Brain_Data(regions, mask=self.mask)
 
@@ -1306,13 +1292,13 @@ class Brain_Data(object):
             Brain_Data: Brain_Data instance tranformed into pairwise comparisons
         '''
         out = self.copy()
-        out.data, new_Y = transform_pairwise(self.data,self.Y)
+        out.data, new_Y = transform_pairwise(self.data, self.Y)
         out.Y = pd.DataFrame(new_Y)
-        out.Y.replace(-1,0,inplace=True)
+        out.Y.replace(-1, 0, inplace=True)
         return out
 
     def bootstrap(self, function, n_samples=5000, save_weights=False,
-                    n_jobs=-1, random_state=None, *args, **kwargs):
+                  n_jobs=-1, random_state=None, *args, **kwargs):
         '''Bootstrap a Brain_Data method.
 
             Example Useage:
@@ -1334,10 +1320,9 @@ class Brain_Data(object):
         random_state = check_random_state(random_state)
         seeds = random_state.randint(MAX_INT, size=n_samples)
 
-
         bootstrapped = Parallel(n_jobs=n_jobs)(
                         delayed(_bootstrap_apply_func)(self,
-                        function, random_state=seeds[i], *args, **kwargs)
+                                                       function, random_state=seeds[i], *args, **kwargs)
                         for i in range(n_samples))
 
         if function is 'predict':
@@ -1418,7 +1403,7 @@ class Brain_Data(object):
 
         target = check_brain_data(target)
 
-        if method not in ['probabilistic_srm', 'deterministic_srm','procrustes']:
+        if method not in ['probabilistic_srm', 'deterministic_srm', 'procrustes']:
             raise ValueError("Method must be ['probabilistic_srm','deterministic_srm','procrustes']")
 
         data1 = source.data.T
@@ -1445,9 +1430,9 @@ class Brain_Data(object):
         elif method == 'procrustes':
             if n_features != None:
                 raise NotImplementedError('Currently must use all voxels.'
-                                            'Eventually will add a PCA'
-                                            'reduction, must do this manually'
-                                            'for now.')
+                                          'Eventually will add a PCA'
+                                          'reduction, must do this manually'
+                                          'for now.')
 
             mtx1, mtx2, out['disparity'], t, out['scale'] = procrustes(data2.T,
                                                                        data1.T)

@@ -9,28 +9,28 @@ Tools to help with statistical analyses.
 '''
 
 __all__ = ['pearson',
-            'zscore',
-            'fdr',
-            'holm_bonf',
-            'threshold',
-            'multi_threshold',
-            'winsorize',
-            'trim',
-            'calc_bpm',
-            'downsample',
-            'upsample',
-            'fisher_r_to_z',
-            'one_sample_permutation',
-            'two_sample_permutation',
-            'correlation_permutation',
-            'matrix_permutation',
-            'jackknife_permutation',
-            'make_cosine_basis',
-            '_robust_estimator',
-            'summarize_bootstrap',
-            'regress',
-            'procrustes',
-            'align']
+           'zscore',
+           'fdr',
+           'holm_bonf',
+           'threshold',
+           'multi_threshold',
+           'winsorize',
+           'trim',
+           'calc_bpm',
+           'downsample',
+           'upsample',
+           'fisher_r_to_z',
+           'one_sample_permutation',
+           'two_sample_permutation',
+           'correlation_permutation',
+           'matrix_permutation',
+           'jackknife_permutation',
+           'make_cosine_basis',
+           '_robust_estimator',
+           'summarize_bootstrap',
+           'regress',
+           'procrustes',
+           'align']
 
 import numpy as np
 import pandas as pd
@@ -53,7 +53,8 @@ from sklearn.utils import check_random_state
 MAX_INT = np.iinfo(np.int32).max
 
 # Optional dependencies
-sm = attempt_to_import('statsmodels.tsa.arima_model',name='sm')
+sm = attempt_to_import('statsmodels.tsa.arima_model', name='sm')
+
 
 def pearson(x, y):
     """ Correlates row vector x with each row vector in 2D array y.
@@ -67,6 +68,7 @@ def pearson(x, y):
     temp = np.dot(datam[1:], datam[0].T)
     rs = temp / (datass[1:] * datass[0])
     return rs
+
 
 def zscore(df):
     """ zscore every column in a pandas dataframe or series.
@@ -84,6 +86,7 @@ def zscore(df):
         return (df-np.mean(df))/np.std(df)
     else:
         raise ValueError("Data is not a Pandas DataFrame or Series instance")
+
 
 def fdr(p, q=.05):
     """ Determine FDR threshold given a p value array and desired false
@@ -108,6 +111,7 @@ def fdr(p, q=.05):
     fdr_p = s[max(below)] if len(below) else -1
     return fdr_p
 
+
 def holm_bonf(p, alpha=.05):
     """ Compute corrected p-values based on the Holm-Bonferroni method, i.e. step-down procedure applying iteratively less correction to highest p-values. A bit more conservative than fdr, but much more powerful thanvanilla bonferroni.
 
@@ -129,6 +133,7 @@ def holm_bonf(p, alpha=.05):
     below = np.where(s <= null)[0]
     bonf_p = s[max(below)] if len(below) else -1
     return bonf_p
+
 
 def threshold(stat, p, thr=.05):
     """ Threshold test image by p-value from p image
@@ -168,7 +173,8 @@ def threshold(stat, p, thr=.05):
 
     return out
 
-def multi_threshold(t_map, p_map,thresh):
+
+def multi_threshold(t_map, p_map, thresh):
     """ Threshold test image by multiple p-value from p image
 
     Args:
@@ -207,7 +213,8 @@ def multi_threshold(t_map, p_map,thresh):
     pos_out = pos_out + neg_out*-1
     return Brain_Data(nib.Nifti1Image(pos_out, affine))
 
-def winsorize(data, cutoff=None,replace_with_cutoff=True):
+
+def winsorize(data, cutoff=None, replace_with_cutoff=True):
     ''' Winsorize a Pandas DataFrame or Series with the largest/lowest value not considered outlier
 
         Args:
@@ -219,7 +226,8 @@ def winsorize(data, cutoff=None,replace_with_cutoff=True):
         Returns:
             winsorized pandas.DataFrame or pandas.Series
     '''
-    return _transform_outliers(data, cutoff,replace_with_cutoff=replace_with_cutoff,method='winsorize')
+    return _transform_outliers(data, cutoff, replace_with_cutoff=replace_with_cutoff, method='winsorize')
+
 
 def trim(data, cutoff=None):
     ''' Trim a Pandas DataFrame or Series by replacing outlier values with NaNs
@@ -232,6 +240,7 @@ def trim(data, cutoff=None):
             trimmed pandas.DataFrame or pandas.Series
     '''
     return _transform_outliers(data, cutoff, replace_with_cutoff=None, method='trim')
+
 
 def _transform_outliers(data, cutoff, replace_with_cutoff, method):
     ''' This function is not exposed to user but is called by either trim or winsorize.
@@ -246,11 +255,12 @@ def _transform_outliers(data, cutoff, replace_with_cutoff, method):
         Returns:
             transformed pandas.DataFrame or pandas.Series
     '''
-    df = data.copy() # To not overwrite data make a copy
+    df = data.copy()  # To not overwrite data make a copy
+
     def _transform_outliers_sub(data, cutoff, replace_with_cutoff, method='trim'):
-        if not isinstance(data,pd.Series):
+        if not isinstance(data, pd.Series):
             raise ValueError('Make sure that you are applying winsorize to a pandas dataframe or series.')
-        if isinstance(cutoff,dict):
+        if isinstance(cutoff, dict):
             # calculate cutoff values
             if 'quantile' in cutoff:
                 q = data.quantile(cutoff['quantile'])
@@ -258,7 +268,7 @@ def _transform_outliers(data, cutoff, replace_with_cutoff, method):
                 std = [data.mean()-data.std()*cutoff['std'][0], data.mean()+data.std()*cutoff['std'][1]]
                 q = pd.Series(index=cutoff['std'], data=std)
             # if replace_with_cutoff is false, replace with true existing values closest to cutoff
-            if method=='winsorize':
+            if method == 'winsorize':
                 if not replace_with_cutoff:
                     q.iloc[0] = data[data > q.iloc[0]].min()
                     q.iloc[1] = data[data < q.iloc[1]].max()
@@ -268,20 +278,21 @@ def _transform_outliers(data, cutoff, replace_with_cutoff, method):
             if isinstance(q, pd.Series) and len(q) == 2:
                 data[data < q.iloc[0]] = q.iloc[0]
                 data[data > q.iloc[1]] = q.iloc[1]
-        elif method== 'trim':
+        elif method == 'trim':
                 data[data < q.iloc[0]] = np.nan
                 data[data > q.iloc[1]] = np.nan
         return data
 
     # transform each column if a dataframe, if series just transform data
-    if isinstance(df,pd.DataFrame):
+    if isinstance(df, pd.DataFrame):
         for col in df.columns:
-            df.loc[:,col] = _transform_outliers_sub(df.loc[:,col],cutoff=cutoff,replace_with_cutoff=replace_with_cutoff, method=method)
+            df.loc[:, col] = _transform_outliers_sub(df.loc[:, col], cutoff=cutoff, replace_with_cutoff=replace_with_cutoff, method=method)
         return df
-    elif isinstance(df,pd.Series):
-        return _transform_outliers_sub(df,cutoff=cutoff,replace_with_cutoff=replace_with_cutoff, method=method)
+    elif isinstance(df, pd.Series):
+        return _transform_outliers_sub(df, cutoff=cutoff, replace_with_cutoff=replace_with_cutoff, method=method)
     else:
         raise ValueError('Data must be a pandas DataFrame or Series')
+
 
 def calc_bpm(beat_interval, sampling_freq):
     ''' Calculate instantaneous BPM from beat to beat interval
@@ -296,8 +307,9 @@ def calc_bpm(beat_interval, sampling_freq):
     '''
     return 60*sampling_freq*(1/(beat_interval))
 
-def downsample(data,sampling_freq=None, target=None, target_type='samples',
-            method='mean'):
+
+def downsample(data, sampling_freq=None, target=None, target_type='samples',
+               method='mean'):
     ''' Downsample pandas to a new target frequency or number of samples
         using averaging.
 
@@ -313,9 +325,9 @@ def downsample(data,sampling_freq=None, target=None, target_type='samples',
 
     '''
 
-    if not isinstance(data,(pd.DataFrame,pd.Series)):
+    if not isinstance(data, (pd.DataFrame, pd.Series)):
         raise ValueError('Data must by a pandas DataFrame or Series instance.')
-    if not (method=='median') | (method=='mean'):
+    if not (method == 'median') | (method == 'mean'):
         raise ValueError("Metric must be either 'mean' or 'median' ")
 
     if target_type is 'samples':
@@ -326,18 +338,19 @@ def downsample(data,sampling_freq=None, target=None, target_type='samples',
         n_samples = sampling_freq/target
     else:
         raise ValueError('Make sure target_type is "samples", "seconds", '
-                        ' or "hz".')
+                         ' or "hz".')
 
-    idx = np.sort(np.repeat(np.arange(1,data.shape[0]/n_samples,1),n_samples))
+    idx = np.sort(np.repeat(np.arange(1, data.shape[0]/n_samples, 1), n_samples))
     # if data.shape[0] % n_samples:
     if data.shape[0] > len(idx):
-        idx = np.concatenate([idx, np.repeat(idx[-1]+1,data.shape[0]-len(idx))])
-    if method=='mean':
+        idx = np.concatenate([idx, np.repeat(idx[-1]+1, data.shape[0]-len(idx))])
+    if method == 'mean':
         return data.groupby(idx).mean().reset_index(drop=True)
-    elif method=='median':
+    elif method == 'median':
         return data.groupby(idx).median().reset_index(drop=True)
 
-def upsample(data,sampling_freq=None, target=None, target_type='samples',method='linear'):
+
+def upsample(data, sampling_freq=None, target=None, target_type='samples', method='linear'):
     ''' Upsample pandas to a new target frequency or number of samples using interpolation.
 
         Args:
@@ -352,7 +365,7 @@ def upsample(data,sampling_freq=None, target=None, target_type='samples',method=
     '''
 
     methods = ['linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic']
-    if not method in methods:
+    if method not in methods:
         raise ValueError("Method must be 'linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic'")
 
     if target_type is 'samples':
@@ -364,28 +377,30 @@ def upsample(data,sampling_freq=None, target=None, target_type='samples',method=
     else:
         raise ValueError('Make sure target_type is "samples", "seconds", or "hz".')
 
-    orig_spacing = np.arange(0,data.shape[0],1)
-    new_spacing = np.arange(0,data.shape[0]-1,n_samples)
+    orig_spacing = np.arange(0, data.shape[0], 1)
+    new_spacing = np.arange(0, data.shape[0]-1, n_samples)
 
-    if isinstance(data,pd.Series):
-        interpolate = interp1d(orig_spacing,data,kind=method)
+    if isinstance(data, pd.Series):
+        interpolate = interp1d(orig_spacing, data, kind=method)
         return interpolate(new_spacing)
-    elif isinstance(data,pd.DataFrame):
+    elif isinstance(data, pd.DataFrame):
         numeric_data = data._get_numeric_data()
         if data.shape[1] != numeric_data.shape[1]:
             warnings.warn('Dropping %s non-numeric columns' % (data.shape[1] - numeric_data.shape[1]), UserWarning)
         out = pd.DataFrame(columns=numeric_data.columns, index=None)
-        for i,x in numeric_data.iteritems():
+        for i, x in numeric_data.iteritems():
             interpolate = interp1d(orig_spacing, x, kind=method)
             out.loc[:, i] = interpolate(new_spacing)
         return out
     else:
         raise ValueError('Data must by a pandas DataFrame or Series instance.')
 
+
 def fisher_r_to_z(r):
     ''' Use Fisher transformation to convert correlation to z score '''
 
     return .5*np.log((1+r)/(1-r))
+
 
 def correlation(data1, data2, metric='pearson'):
     ''' This function calculates the correlation between data1 and data2
@@ -409,15 +424,17 @@ def correlation(data1, data2, metric='pearson'):
         raise ValueError('metric must be "spearman" or "pearson" or "kendall"')
     return func(data1, data2)
 
+
 def _permute_sign(data, random_state=None):
     random_state = check_random_state(random_state)
     return np.mean(data*random_state.choice([1, -1], len(data)))
 
+
 def _permute_group(data, random_state=None):
     random_state = check_random_state(random_state)
     perm_label = random_state.permutation(data['Group'])
-    return (np.mean(data.loc[perm_label==1, 'Values']) -
-            np.mean(data.loc[perm_label==0, 'Values']))
+    return (np.mean(data.loc[perm_label == 1, 'Values']) - np.mean(data.loc[perm_label == 0, 'Values']))
+
 
 def _permute_func(data1, data2, metric='pearsonr', random_state=None):
     """ Helper function for matrix_permutation.
@@ -434,10 +451,11 @@ def _permute_func(data1, data2, metric='pearsonr', random_state=None):
 
     data_row_id = range(data1.shape[0])
     permuted_ix = random_state.choice(data_row_id,
-                       size=len(data_row_id))
+                                      size=len(data_row_id))
     new_fmri_dist = data1.iloc[permuted_ix, permuted_ix].values
     new_fmri_dist = new_fmri_dist[np.triu_indices(new_fmri_dist.shape[0], k=1)]
     return correlation(new_fmri_dist, data2, metric=metric)[0]
+
 
 def _calc_pvalue(all_p, stat, tail):
     """Calculates p value based on distribution of correlations
@@ -446,9 +464,9 @@ def _calc_pvalue(all_p, stat, tail):
         stat: actual value being tested, i.e., stats['correlation'] or stats['mean']
         tail: (int) either 2 or 1 for two-tailed p-value or one-tailed
     """
-    if tail==2:
-        p= np.mean( np.abs(all_p) >= np.abs(stat))
-    elif tail==1:
+    if tail == 2:
+        p = np.mean(np.abs(all_p) >= np.abs(stat))
+    elif tail == 1:
         if stat >= 0:
             p = np.mean(all_p >= stat)
         else:
@@ -456,6 +474,7 @@ def _calc_pvalue(all_p, stat, tail):
     else:
         raise ValueError('tail must be either 1 or 2')
     return p
+
 
 def one_sample_permutation(data, n_permute=5000, tail=2, n_jobs=-1, random_state=None):
     ''' One sample permutation test using randomization.
@@ -480,9 +499,10 @@ def one_sample_permutation(data, n_permute=5000, tail=2, n_jobs=-1, random_state
     stats['mean'] = np.mean(data)
 
     all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_sign)(data,
-                     random_state=seeds[i]) for i in range(n_permute))
-    stats['p'] = _calc_pvalue(all_p,stats['mean'],tail)
+                                                           random_state=seeds[i]) for i in range(n_permute))
+    stats['p'] = _calc_pvalue(all_p, stats['mean'], tail)
     return stats
+
 
 def two_sample_permutation(data1, data2, n_permute=5000,
                            tail=2, n_jobs=-1, random_state=None):
@@ -505,15 +525,16 @@ def two_sample_permutation(data1, data2, n_permute=5000,
 
     stats = dict()
     stats['mean'] = np.mean(data1)-np.mean(data2)
-    data = pd.DataFrame(data={'Values':data1, 'Group':np.ones(len(data1))})
+    data = pd.DataFrame(data={'Values': data1, 'Group': np.ones(len(data1))})
     data = data.append(pd.DataFrame(data={
-                                        'Values':data2,
-                                        'Group':np.zeros(len(data2))}))
+                                        'Values': data2,
+                                        'Group': np.zeros(len(data2))}))
     all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_group)(data,
-                     random_state=seeds[i]) for i in range(n_permute))
+                                                            random_state=seeds[i]) for i in range(n_permute))
 
-    stats['p'] = _calc_pvalue(all_p,stats['mean'],tail)
+    stats['p'] = _calc_pvalue(all_p, stats['mean'], tail)
     return stats
+
 
 def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
                             tail=2, n_jobs=-1, random_state=None):
@@ -547,11 +568,12 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
                     for i in range(n_permute))
     all_p = [x[0] for x in all_p]
 
-    stats['p'] = _calc_pvalue(all_p,stats['correlation'],tail)
+    stats['p'] = _calc_pvalue(all_p, stats['correlation'], tail)
     return stats
 
+
 def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
-                            tail=2, random_state=None):
+                       tail=2, random_state=None):
     """ Permute 2-dimensional matrix correlation (mantel test).
 
         Chen, G. et al. (2016). Untangling the relatedness among correlations,
@@ -588,6 +610,7 @@ def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
     stats['p'] = _calc_pvalue(all_p, stats['correlation'], tail)
     return stats
 
+
 def jackknife_permutation(data1, data2, metric='spearman',
                           p_value='permutation', n_jobs=-1, n_permute=5000,
                           tail=2, random_state=None):
@@ -618,8 +641,8 @@ def jackknife_permutation(data1, data2, metric='spearman',
     stats = {}
     stats['all_r'] = []
     for s in range(data1.shape[0]):
-        stats['all_r'].append(correlation(np.delete(data1[s,],s),
-                                          np.delete(data2[s,], s),
+        stats['all_r'].append(correlation(np.delete(data1[s, ], s),
+                                          np.delete(data2[s, ], s),
                                           metric=metric)[0])
     stats['correlation'] = np.mean(stats['all_r'])
 
@@ -634,6 +657,7 @@ def jackknife_permutation(data1, data2, metric='spearman',
     else:
         raise NotImplementedError("Only ['ttest', 'permutation'] are currently implemented.")
     return stats
+
 
 def make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale=True, drop=0):
     """ Create a series of cosine basis functions for a discrete cosine
@@ -657,33 +681,34 @@ def make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale=True, d
 
     """
 
-    #Figure out number of basis functions to create
+    # Figure out number of basis functions to create
     order = int(np.fix(2 * (nsamples * sampling_freq)/filter_length + 1))
 
     n = np.arange(nsamples)
 
-    #Initialize basis function matrix
-    C = np.zeros((len(n),order))
+    # Initialize basis function matrix
+    C = np.zeros((len(n), order))
 
-    #Add constant
-    C[:,0] = np.ones((1,len(n)))/np.sqrt(nsamples)
+    # Add constant
+    C[:, 0] = np.ones((1, len(n)))/np.sqrt(nsamples)
 
-    #Insert higher order cosine basis functions
-    for i in range(1,order):
-        C[:,i] = np.sqrt(2./nsamples) * np.cos(np.pi*(2*n+1) * i/(2*nsamples))
+    # Insert higher order cosine basis functions
+    for i in range(1, order):
+        C[:, i] = np.sqrt(2./nsamples) * np.cos(np.pi*(2*n+1) * i/(2*nsamples))
 
     # Drop intercept ala SPM
-    C = C[:,1:]
+    C = C[:, 1:]
 
     if C.size == 0:
         raise ValueError('Basis function creation failed! nsamples is too small for requested filter_length.')
 
     if unit_scale:
-        C *= 1. / C[0,0]
+        C *= 1. / C[0, 0]
 
     C = C[:, drop:]
 
     return C
+
 
 def transform_pairwise(X, y):
     '''Transforms data into pairs with balanced labels for ranking
@@ -728,7 +753,7 @@ def transform_pairwise(X, y):
             continue
         X_new.append(X[i] - X[j])
         y_new.append(np.sign(y[i, 0] - y[j, 0]))
-        y_group.append(y[i,1])
+        y_group.append(y[i, 1])
         # output balanced classes
         if y_new[-1] != (-1) ** k:
             y_new[-1] = - y_new[-1]
@@ -736,9 +761,10 @@ def transform_pairwise(X, y):
     if y_ndim == 1:
         return np.asarray(X_new), np.asarray(y_new).ravel()
     elif y_ndim == 2:
-        return np.asarray(X_new), np.vstack((np.asarray(y_new),np.asarray(y_group))).T
+        return np.asarray(X_new), np.vstack((np.asarray(y_new), np.asarray(y_group))).T
 
-def _robust_estimator(vals,X,robust_estimator='hc0',nlags=1):
+
+def _robust_estimator(vals, X, robust_estimator='hc0', nlags=1):
     """
     Computes robust sandwich estimators for standard errors used in OLS computation. Types include:
     'hc0': Huber (1980) sandwich estimator to return robust standard error estimates.
@@ -760,40 +786,40 @@ def _robust_estimator(vals,X,robust_estimator='hc0',nlags=1):
         stderr (np.ndarray): 1d array of standard errors with length == X.shape[1]
     """
 
-    if robust_estimator not in ['hc0','hc3','hac']:
+    if robust_estimator not in ['hc0', 'hc3', 'hac']:
         raise ValueError("robust_estimator must be one of hc0, hc3 or hac")
 
     # Make a sandwich!
     # First we need bread
-    bread = np.linalg.pinv(np.dot(X.T,X))
+    bread = np.linalg.pinv(np.dot(X.T, X))
 
     # Then we need meat
     if robust_estimator == 'hc0':
         V = np.diag(vals**2)
-        meat = np.dot(np.dot(X.T,V),X)
+        meat = np.dot(np.dot(X.T, V), X)
 
     elif robust_estimator == 'hc3':
-        V = np.diag(vals**2)/(1-np.diag(np.dot(X,np.dot(bread,X.T))))**2
-        meat = np.dot(np.dot(X.T,V),X)
+        V = np.diag(vals**2)/(1-np.diag(np.dot(X, np.dot(bread, X.T))))**2
+        meat = np.dot(np.dot(X.T, V), X)
 
     elif robust_estimator == 'hac':
         weights = 1 - np.arange(nlags+1.)/(nlags+1.)
 
-        #First compute lag 0
+        # First compute lag 0
         V = np.diag(vals**2)
-        meat = weights[0] * np.dot(np.dot(X.T,V),X)
+        meat = weights[0] * np.dot(np.dot(X.T, V), X)
 
-        #Now loop over additional lags
+        # Now loop over additional lags
         for l in range(1, nlags+1):
 
             V = np.diag(vals[l:] * vals[:-l])
-            meat_1 = np.dot(np.dot(X[l:].T,V),X[:-l])
-            meat_2 = np.dot(np.dot(X[:-l].T,V),X[l:])
+            meat_1 = np.dot(np.dot(X[l:].T, V), X[:-l])
+            meat_2 = np.dot(np.dot(X[:-l].T, V), X[l:])
 
             meat += weights[l] * (meat_1 + meat_2)
 
     # Then we make a sandwich
-    vcv = np.dot(np.dot(bread,meat),bread)
+    vcv = np.dot(np.dot(bread, meat), bread)
 
     return np.sqrt(np.diag(vcv))
 
@@ -818,37 +844,38 @@ def summarize_bootstrap(data, save_weights=False):
     wp = deepcopy(wmean)
     wp.data = 2*(1-norm.cdf(np.abs(wz.data)))
     # Create outputs
-    output = {'Z':wz, 'p': wp, 'mean':wmean}
+    output = {'Z': wz, 'p': wp, 'mean': wmean}
     if save_weights:
         output['samples'] = data
     return output
 
-def _arma_func(X,Y,idx=None,**kwargs):
 
+def _arma_func(X, Y, idx=None, **kwargs):
     """
     Fit an ARMA(p,q) model. If Y is a matrix and not a vector, expects an idx argument that refers to columns of Y. Used by regress().
     """
-    method = kwargs.pop('method','css-mle')
-    order = kwargs.pop('order',(1,1))
+    method = kwargs.pop('method', 'css-mle')
+    order = kwargs.pop('order', (1, 1))
 
-    maxiter = kwargs.pop('maxiter',50)
-    disp = kwargs.pop('disp',-1)
-    start_ar_lags = kwargs.pop('start_ar_lags',order[0]+1)
-    transparams = kwargs.pop('transparams',False)
-    trend = kwargs.pop('trend','nc')
+    maxiter = kwargs.pop('maxiter', 50)
+    disp = kwargs.pop('disp', -1)
+    start_ar_lags = kwargs.pop('start_ar_lags', order[0]+1)
+    transparams = kwargs.pop('transparams', False)
+    trend = kwargs.pop('trend', 'nc')
 
     if len(Y.shape) == 2:
-        model = sm.tsa.arima_model.ARMA(endog=Y[:,idx],exog=X.values,order=order)
+        model = sm.tsa.arima_model.ARMA(endog=Y[:, idx], exog=X.values, order=order)
     else:
-        model = sm.tsa.arima_model.ARMA(endog=Y,exog=X.values,order=order)
+        model = sm.tsa.arima_model.ARMA(endog=Y, exog=X.values, order=order)
     try:
-        res = model.fit(trend=trend,method=method,transparams=transparams,
-                maxiter=maxiter,disp=disp,start_ar_lags=start_ar_lags,**kwargs)
+        res = model.fit(trend=trend, method=method, transparams=transparams,
+                        maxiter=maxiter, disp=disp, start_ar_lags=start_ar_lags, **kwargs)
     except:
-        res = model.fit(trend=trend,method=method,transparams=transparams,
-                maxiter=maxiter,disp=disp,start_ar_lags=start_ar_lags,start_params=np.repeat(1.,X.shape[1]+2))
+        res = model.fit(trend=trend, method=method, transparams=transparams,
+                        maxiter=maxiter, disp=disp, start_ar_lags=start_ar_lags, start_params=np.repeat(1., X.shape[1]+2))
 
-    return (res.params[:-2], res.tvalues[:-2],res.pvalues[:-2],res.df_resid, res.resid)
+    return (res.params[:-2], res.tvalues[:-2], res.pvalues[:-2], res.df_resid, res.resid)
+
 
 def regress(X, Y, mode='ols', **kwargs):
     """ This is a flexible function to run several types of regression models provided X and Y numpy arrays. Y can be a 1d numpy array or 2d numpy array. In the latter case, results will be output with shape 1 x Y.shape[1], in other words fitting a separate regression model to each column of Y.
@@ -910,7 +937,7 @@ def regress(X, Y, mode='ols', **kwargs):
 
     # Make sure Y is a 1-D array
     if len(Y.shape) == 1:
-        Y = Y[:,np.newaxis]
+        Y = Y[:, np.newaxis]
     #     Y = np.array(Y).squeeze()
 
     # Compute standard errors based on regression mode
@@ -922,18 +949,18 @@ def regress(X, Y, mode='ols', **kwargs):
         # Vanilla OLS
         if mode == 'ols':
             sigma = np.std(res, axis=0, ddof=X.shape[1])
-            stderr = np.sqrt(np.diag(np.linalg.pinv(np.dot(X.T,X))))[:,np.newaxis] * sigma[np.newaxis,:]
+            stderr = np.sqrt(np.diag(np.linalg.pinv(np.dot(X.T, X))))[:, np.newaxis] * sigma[np.newaxis, :]
 
         # OLS with robust sandwich estimator based standard-errors
         elif mode == 'robust':
             robust_estimator = kwargs.pop('robust_estimator', 'hc0')
             nlags = kwargs.pop('nlags', 1)
-            axis_func = [_robust_estimator, 0, res,X, robust_estimator, nlags]
+            axis_func = [_robust_estimator, 0, res, X, robust_estimator, nlags]
             stderr = np.apply_along_axis(*axis_func)
 
         t = b / stderr
         df = np.array([X.shape[0]-X.shape[1]] * t.shape[1])
-        p = 2*(1-t_dist.cdf(np.abs(t),df))
+        p = 2*(1-t_dist.cdf(np.abs(t), df))
 
     # ARMA regression
     elif mode == 'arma':
@@ -956,13 +983,13 @@ def regress(X, Y, mode='ols', **kwargs):
             res = np.column_stack([elem[4] for elem in out_arma])
 
         else:
-            b,t,p,df,res = _arma_func(X, Y, **kwargs)
+            b, t, p, df, res = _arma_func(X, Y, **kwargs)
 
     return b.squeeze(), t.squeeze(), p.squeeze(), df.squeeze(), res.squeeze()
 
 
 def align(data, method='deterministic_srm', n_features=None, axis=0,
-            *args, **kwargs):
+          *args, **kwargs):
     ''' Align subject data into a common response model.
 
         Can be used to hyperalign source data to target data using
@@ -1004,7 +1031,7 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
         raise ValueError('Make sure you are inputting data is a list.')
     if not all([type(x) for x in data]):
         raise ValueError('Make sure all objects in the list are the same type.')
-    if method not in ['probabilistic_srm','deterministic_srm','procrustes']:
+    if method not in ['probabilistic_srm', 'deterministic_srm', 'procrustes']:
         raise ValueError("Method must be ['probabilistic_srm','deterministic_srm','procrustes']")
 
     data = deepcopy(data)
@@ -1038,22 +1065,22 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
         out['transformation_matrix'] = srm.w_
 
     elif method == 'procrustes':
-        if n_features != None:
+        if n_features is not None:
             raise NotImplementedError('Currently must use all voxels.'
                                       'Eventually will add a PCA reduction,'
                                       'must do this manually for now.')
 
-        ##STEP 0: STANDARDIZE SIZE AND SHAPE##
+        ## STEP 0: STANDARDIZE SIZE AND SHAPE##
         sizes_0 = [x.shape[0] for x in data]
         sizes_1 = [x.shape[1] for x in data]
 
-        #find the smallest number of rows
+        # find the smallest number of rows
         R = min(sizes_0)
         C = max(sizes_1)
 
         m = [np.empty((R, C), dtype=np.ndarray)] * len(data)
 
-        #Pad rows with different sizes with zeros
+        # Pad rows with different sizes with zeros
         for i, x in enumerate(data):
             y = x[0:R, :]
             missing = C - y.shape[1]
@@ -1061,7 +1088,7 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
             y = np.append(y, add, axis=1)
             m[i] = y
 
-        ##STEP 1: CREATE INITIAL AVERAGE TEMPLATE##
+        ## STEP 1: CREATE INITIAL AVERAGE TEMPLATE##
         for i, x in enumerate(m):
             if i == 0:
                 # use first data as template
@@ -1071,17 +1098,20 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
                 template += trans
         template /= len(m)
 
-        ##STEP 2: CREATE NEW COMMON TEMPLATE##
-        #align each subj to the template from STEP 1
-        #and create a new common template based on avg
+        ## STEP 2: CREATE NEW COMMON TEMPLATE##
+        # align each subj to the template from STEP 1
+        # and create a new common template based on avg
         common = np.zeros(template.shape)
         for i, x in enumerate(m):
             _, trans, _, _, _ = procrustes(template, x.T)
             common += trans
         common /= len(m)
 
-        #STEP 3 (below): ALIGN TO NEW TEMPLATE
-        aligned = []; transformation_matrix = []; disparity = []; scale = []
+        ## STEP 3 (below): ALIGN TO NEW TEMPLATE
+        aligned = []
+        transformation_matrix = []
+        disparity = []
+        scale = []
         for i, x in enumerate(m):
             _, transformed, d, t, s = procrustes(common, x.T)
             aligned.append(transformed.T)
@@ -1106,6 +1136,7 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
         common.data = out['common_model'].T
         out['common_model'] = common
     return out
+
 
 def procrustes(data1, data2):
     '''Procrustes analysis, a similarity test for two data sets.
@@ -1149,7 +1180,6 @@ def procrustes(data1, data2):
         scale : float
             Sum of the singular values of ``dot(data1.T, data2)``.
 
-
     '''
 
     mtx1 = np.array(data1, dtype=np.double, copy=True)
@@ -1191,6 +1221,7 @@ def procrustes(data1, data2):
 
     return mtx1, mtx2, disparity, R, s
 
+
 def double_center(mat):
     '''Double center a 2d array.
 
@@ -1206,10 +1237,11 @@ def double_center(mat):
         raise ValueError('Array should be 2d')
 
     # keepdims ensures that row/column means are not incorrectly broadcast during    subtraction
-    row_mean = mat.mean(axis=0,keepdims=True)
-    col_mean = mat.mean(axis=1,keepdims=True)
+    row_mean = mat.mean(axis=0, keepdims=True)
+    col_mean = mat.mean(axis=1, keepdims=True)
     grand_mean = mat.mean()
     return mat - row_mean - col_mean + grand_mean
+
 
 def u_center(mat):
     '''U-center a 2d array. U-centering is a bias-corrected form of double-centering
@@ -1226,7 +1258,7 @@ def u_center(mat):
 
     dim = mat.shape[0]
     u_mu = mat.sum() / ((dim - 1) * (dim - 2))
-    sum_cols = mat.sum(axis=0,keepdims=True)
+    sum_cols = mat.sum(axis=0, keepdims=True)
     sum_rows = mat.sum(axis=1, keepdims=True)
     u_mu_cols = np.ones((dim, 1)).dot(sum_cols / (dim - 2))
     u_mu_rows = (sum_rows / (dim - 2)).dot(np.ones((1, dim)))
@@ -1237,8 +1269,10 @@ def u_center(mat):
     out += u_mu
     # The diagonal is zero
     out[np.eye(dim, dtype=bool)] = 0
+    return out
 
-def distance_correlation(x,y,bias_corrected=True,return_all_stats=False):
+
+def distance_correlation(x, y, bias_corrected=True, return_all_stats=False):
     '''Compute the distance correlation betwen 2 arrays.
         Distance correlation involves computing the normalized covariance of two centered euclidean distance matrices. Each distance matrix is the euclidean distance between rows (if x or y are 2d) or scalars (if x or y are 1d). Each matrix is centered using u-centering, a bias-corrected form of double-centering. This permits inference of the normalized covariance between each distance matrix using a one-tailed directional t-test. (Szekely & Rizzo, 2013). While distance correlation is normally bounded between 0 and 1, u-centering can produce negative estimates, which are never significant. Therefore these estimates are windsorized to 0, ala Geerligs, Cam-CAN, Henson, 2016.
 
@@ -1257,11 +1291,11 @@ def distance_correlation(x,y,bias_corrected=True,return_all_stats=False):
 
     # 1 compute euclidean distances between pairs of value in each array
     if len(x.shape) == 1:
-        _x = x[:,np.newaxis]
+        _x = x[:, np.newaxis]
     else:
         _x = x
     if len(y.shape) == 1:
-        _y = y[:,np.newaxis]
+        _y = y[:, np.newaxis]
     else:
         _y = y
 
@@ -1275,17 +1309,17 @@ def distance_correlation(x,y,bias_corrected=True,return_all_stats=False):
         y_dist_cent = u_center(y_dist)
         # Compute covariances using N*(N-3) in denominator
         adjusted_n = _x.shape[0] * (_x.shape[0]-3)
-        xy = np.multiply(x_dist_cent,y_dist_cent).sum() / adjusted_n
-        xx = np.multiply(x_dist_cent,x_dist_cent).sum() / adjusted_n
-        yy = np.multiply(y_dist_cent,y_dist_cent).sum() / adjusted_n
+        xy = np.multiply(x_dist_cent, y_dist_cent).sum() / adjusted_n
+        xx = np.multiply(x_dist_cent, x_dist_cent).sum() / adjusted_n
+        yy = np.multiply(y_dist_cent, y_dist_cent).sum() / adjusted_n
     else:
         # double-centering
         x_dist_cent = double_center(x_dist)
         y_dist_cent = double_center(y_dist)
         # Compute covariances using N^2 in denominator
-        xy = np.multiply(x_dist_cent,y_dist_cent).mean()
-        xx = np.multiply(x_dist_cent,x_dist_cent).mean()
-        yy = np.multiply(y_dist_cent,y_dist_cent).mean()
+        xy = np.multiply(x_dist_cent, y_dist_cent).mean()
+        xx = np.multiply(x_dist_cent, x_dist_cent).mean()
+        yy = np.multiply(y_dist_cent, y_dist_cent).mean()
 
     # 3 compute covariances and variances
     var_x = np.sqrt(xx)
@@ -1322,7 +1356,8 @@ def distance_correlation(x,y,bias_corrected=True,return_all_stats=False):
 
     return out
 
-def procrustes_distance(mat1,mat2,n_permute=5000,tail=1,n_jobs=-1,random_state=None):
+
+def procrustes_distance(mat1, mat2, n_permute=5000, tail=1, n_jobs=-1, random_state=None):
     """ Use procrustes super-position to perform a similarity test between 2 matrices. Matrices need to match in size on their first dimension only, as the smaller matrix on the second dimension will be padded with zeros. After aligning two matrices using the procrustes transformation, use the computed disparity between them (sum of squared error of elements) as a similarity metric. Shuffle the rows of one of the matrices and recompute the disparity to perform inference (Peres-Neto & Jackson, 2001).
 
     Args:
@@ -1346,22 +1381,22 @@ def procrustes_distance(mat1,mat2,n_permute=5000,tail=1,n_jobs=-1,random_state=N
 
     # Make sure both matrices are 2d and the same dimension via padding
     if len(mat1.shape) < 2:
-        mat1 = mat1[:,np.newaxis]
+        mat1 = mat1[:, np.newaxis]
     if len(mat2.shape) < 2:
-        mat2 = mat2[:,np.newaxis]
+        mat2 = mat2[:, np.newaxis]
     if mat1.shape[1] > mat2.shape[1]:
-        mat2 = np.pad(mat2,((0,0),(0, mat1.shape[1] - mat2.shape[1])),'constant')
+        mat2 = np.pad(mat2, ((0, 0), (0, mat1.shape[1] - mat2.shape[1])), 'constant')
     elif mat2.shape[1] > mat1.shape[1]:
-        mat1 = np.pad(mat1,((0,0),(0, mat2.shape[1] - mat1.shape[1])),'constant')
+        mat1 = np.pad(mat1, ((0, 0), (0, mat2.shape[1] - mat1.shape[1])), 'constant')
 
-    _,_,sse = procrust(mat1,mat2)
+    _, _, sse = procrust(mat1, mat2)
 
     stats = dict()
     stats['similarity'] = sse
 
-    all_p = Parallel(n_jobs=n_jobs)(delayed(procrustes)(random_state.permutation(mat1),mat2) for i in range(n_permute))
+    all_p = Parallel(n_jobs=n_jobs)(delayed(procrustes)(random_state.permutation(mat1), mat2) for i in range(n_permute))
     all_p = [1 - x[2] for x in all_p]
 
-    stats['p'] = _calc_pvalue(all_p,sse,tail)
+    stats['p'] = _calc_pvalue(all_p, sse, tail)
 
     return stats

@@ -84,6 +84,7 @@ def _init_w_transforms(data, features):
 
     return w, voxels
 
+
 class SRM(BaseEstimator, TransformerMixin):
     """Probabilistic Shared Response Model (SRM)
     Given multi-subject data, factorize it as a shared response S among all
