@@ -39,10 +39,10 @@ class Roc(object):
     """
 
     def __init__(self, input_values=None, binary_outcome=None,
-        threshold_type='optimal_overall', forced_choice=None, **kwargs):
+                 threshold_type='optimal_overall', forced_choice=None, **kwargs):
         if len(input_values) != len(binary_outcome):
             raise ValueError("Data Problem: input_value and binary_outcome"
-                            "are different lengths.")
+                             "are different lengths.")
 
         if not any(binary_outcome):
             raise ValueError("Data Problem: binary_outcome may not be boolean")
@@ -50,7 +50,7 @@ class Roc(object):
         thr_type = ['optimal_overall', 'optimal_balanced', 'minimum_sdt_bias']
         if threshold_type not in thr_type:
             raise ValueError("threshold_type must be ['optimal_overall', "
-                            "'optimal_balanced','minimum_sdt_bias']")
+                             "'optimal_balanced','minimum_sdt_bias']")
 
         self.input_values = deepcopy(input_values)
         self.binary_outcome = deepcopy(binary_outcome)
@@ -62,9 +62,8 @@ class Roc(object):
             self.binary_outcome = deepcopy(binary_outcome)
 
     def calculate(self, input_values=None, binary_outcome=None,
-                criterion_values=None, threshold_type='optimal_overall',
-                forced_choice=None, balanced_acc=False):
-
+                  criterion_values=None, threshold_type='optimal_overall',
+                  forced_choice=None, balanced_acc=False):
         """ Calculate Receiver Operating Characteristic plot (ROC) for
         single-interval classification.
 
@@ -97,8 +96,8 @@ class Roc(object):
             self.criterion_values = deepcopy(criterion_values)
         else:
             self.criterion_values = np.linspace(min(self.input_values),
-                                    max(self.input_values),
-                                    num=50*len(self.binary_outcome))
+                                                max(self.input_values),
+                                                num=50*len(self.binary_outcome))
 
         if forced_choice is not None:
             self.forced_choice = deepcopy(forced_choice)
@@ -112,10 +111,10 @@ class Roc(object):
             if len(set(sub_idx).union(set(np.array(self.forced_choice)[~self.binary_outcome]))) != len(sub_idx):
                 raise ValueError("Issue with forced_choice subject labels.")
             for sub in sub_idx:
-                sub_mn = (self.input_values[(self.forced_choice == sub) & (self.binary_outcome == True)]+self.input_values[(self.forced_choice == sub) & (self.binary_outcome == False)])[0]/2
-                self.input_values[(self.forced_choice == sub) & (self.binary_outcome == True)] = self.input_values[(self.forced_choice == sub) & (self.binary_outcome == True)][0] - sub_mn
-                self.input_values[(self.forced_choice == sub) & (self.binary_outcome == False)] = self.input_values[(self.forced_choice == sub) & (self.binary_outcome == False)][0] - sub_mn
-            self.class_thr = 0;
+                sub_mn = (self.input_values[(self.forced_choice == sub) & (self.binary_outcome is True)]+self.input_values[(self.forced_choice == sub) & (self.binary_outcome is False)])[0]/2
+                self.input_values[(self.forced_choice == sub) & (self.binary_outcome is True)] = self.input_values[(self.forced_choice == sub) & (self.binary_outcome is True)][0] - sub_mn
+                self.input_values[(self.forced_choice == sub) & (self.binary_outcome is False)] = self.input_values[(self.forced_choice == sub) & (self.binary_outcome is False)][0] - sub_mn
+            self.class_thr = 0
 
         # Calculate true positive and false positive rate
         self.tpr = np.zeros(self.criterion_values.shape)
@@ -162,7 +161,7 @@ class Roc(object):
 
         # Calculate Accuracy
         if balanced_acc:
-            self.accuracy = np.mean([self.sensitivity, self.specificity]) #See Brodersen, Ong, Stephan, Buhmann (2010)
+            self.accuracy = np.mean([self.sensitivity, self.specificity])  # See Brodersen, Ong, Stephan, Buhmann (2010)
         else:
             self.accuracy = 1 - np.mean(self.misclass)
 
@@ -171,8 +170,7 @@ class Roc(object):
         self.accuracy_p = binom_test(int(np.sum(~self.misclass)), self.n, p=.5)
         self.accuracy_se = np.sqrt(np.mean(~self.misclass) * (np.mean(~self.misclass)) / self.n)
 
-
-    def plot(self, plot_method = 'gaussian', balanced_acc=False, **kwargs):
+    def plot(self, plot_method='gaussian', balanced_acc=False, **kwargs):
         """ Create ROC Plot
 
         Create a specific kind of ROC curve plot, based on input values
@@ -189,15 +187,14 @@ class Roc(object):
 
         """
 
-        self.calculate(balanced_acc=balanced_acc) # Calculate ROC parameters
-
+        self.calculate(balanced_acc=balanced_acc)  # Calculate ROC parameters
 
         if plot_method == 'gaussian':
             if self.forced_choice is not None:
                 sub_idx = np.unique(self.forced_choice)
                 diff_scores = []
                 for sub in sub_idx:
-                    diff_scores.append(self.input_values[(self.forced_choice == sub) & (self.binary_outcome == True)][0] - self.input_values[(self.forced_choice == sub) & (self.binary_outcome == False)][0])
+                    diff_scores.append(self.input_values[(self.forced_choice == sub) & (self.binary_outcome is True)][0] - self.input_values[(self.forced_choice == sub) & (self.binary_outcome is False)][0])
                 diff_scores = np.array(diff_scores)
                 mn_diff = np.mean(diff_scores)
                 d = mn_diff / np.std(diff_scores)
@@ -207,8 +204,7 @@ class Roc(object):
                 expected_acc = 1 - norm.cdf(0, d, 1)
                 self.sensitivity = expected_acc
                 self.specificity = expected_acc
-                self.ppv = self.sensitivity / (self.sensitivity +
-                                                1 - self.specificity)
+                self.ppv = self.sensitivity / (self.sensitivity + 1 - self.specificity)
                 self.auc = norm.cdf(d_a_model / np.sqrt(2))
 
                 x = np.arange(-3, 3, .1)

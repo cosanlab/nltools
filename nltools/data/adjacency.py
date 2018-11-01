@@ -40,6 +40,7 @@ nx = attempt_to_import('networkx', 'nx')
 
 MAX_INT = np.iinfo(np.int32).max
 
+
 class Adjacency(object):
 
     '''
@@ -60,12 +61,12 @@ class Adjacency(object):
     def __init__(self, data=None, Y=None, matrix_type=None, labels=None,
                  **kwargs):
         if matrix_type is not None:
-            if matrix_type.lower() not in ['distance','similarity','directed',
-                                            'distance_flat','similarity_flat',
-                                            'directed_flat']:
+            if matrix_type.lower() not in ['distance', 'similarity', 'directed',
+                                           'distance_flat', 'similarity_flat',
+                                           'directed_flat']:
                 raise ValueError("matrix_type must be [None,'distance', "
-                                "'similarity','directed','distance_flat', "
-                                "'similarity_flat','directed_flat']")
+                                 "'similarity','directed','distance_flat', "
+                                 "'similarity_flat','directed_flat']")
 
         if data is None:
             self.data = np.array([])
@@ -75,10 +76,12 @@ class Adjacency(object):
         elif isinstance(data, list):
             if isinstance(data[0], Adjacency):
                 tmp = concatenate(data)
-                for item in ['data', 'matrix_type', 'Y','issymmetric']:
-                    setattr(self, item, getattr(tmp,item))
+                for item in ['data', 'matrix_type', 'Y', 'issymmetric']:
+                    setattr(self, item, getattr(tmp, item))
             else:
-                d_all = []; symmetric_all = []; matrix_type_all = []
+                d_all = []
+                symmetric_all = []
+                matrix_type_all = []
                 for d in data:
                     data_tmp, issymmetric_tmp, matrix_type_tmp, _ = self._import_single_data(d, matrix_type=matrix_type)
                     d_all.append(data_tmp)
@@ -86,10 +89,10 @@ class Adjacency(object):
                     matrix_type_all.append(matrix_type_tmp)
                 if not all_same(symmetric_all):
                     raise ValueError('Not all matrices are of the same '
-                                    'symmetric type.')
+                                     'symmetric type.')
                 if not all_same(matrix_type_all):
                     raise ValueError('Not all matrices are of the same matrix '
-                                    'type.')
+                                     'type.')
                 self.data = np.array(d_all)
                 self.issymmetric = symmetric_all[0]
                 self.matrix_type = matrix_type_all[0]
@@ -113,7 +116,7 @@ class Adjacency(object):
 
         if labels is not None:
             if not isinstance(labels, (list, np.ndarray)):
-                raise ValueError( "Make sure labels is a list or numpy array.")
+                raise ValueError("Make sure labels is a list or numpy array.")
             if self.is_single_matrix:
                 if len(labels) != self.square_shape()[0]:
                     raise ValueError('Make sure the length of labels matches the shape of data.')
@@ -128,7 +131,7 @@ class Adjacency(object):
                     else:
                         self.labels = list(labels) * len(self)
                 else:
-                    if np.all(np.array([len(x) for x in labels]) !=self.square_shape()[0]):
+                    if np.all(np.array([len(x) for x in labels]) != self.square_shape()[0]):
                         raise ValueError("All lists of labels must be same length as shape of data.")
                     self.labels = deepcopy(labels)
         else:
@@ -145,7 +148,7 @@ class Adjacency(object):
                     self.issymmetric,
                     self.matrix_type)
 
-    def __getitem__(self,index):
+    def __getitem__(self, index):
         new = self.copy()
         if isinstance(index, int):
             new.data = np.array(self.data[index, :]).flatten()
@@ -306,7 +309,7 @@ class Adjacency(object):
                                          int(np.sqrt(self.data.shape[0])))
             else:
                 return [x.data.reshape(int(np.sqrt(x.data.shape[0])),
-                            int(np.sqrt(x.data.shape[0]))) for x in self]
+                                       int(np.sqrt(x.data.shape[0]))) for x in self]
 
     def plot(self, limit=3, *args, **kwargs):
         ''' Create Heatmap of Adjacency Matrix'''
@@ -315,12 +318,12 @@ class Adjacency(object):
             f, a = plt.subplots(nrows=1, figsize=(7, 5))
             if self.labels is None:
                 sns.heatmap(self.squareform(), square=True, ax=a,
-                                   *args, **kwargs)
+                            *args, **kwargs)
             else:
                 sns.heatmap(self.squareform(), square=True, ax=a,
-                                   xticklabels=self.labels,
-                                   yticklabels=self.labels,
-                                   *args, **kwargs)
+                            xticklabels=self.labels,
+                            yticklabels=self.labels,
+                            *args, **kwargs)
         else:
             n_subs = np.minimum(len(self), limit)
             f, a = plt.subplots(nrows=n_subs, figsize=(7, len(self)*5))
@@ -439,13 +442,12 @@ class Adjacency(object):
             raise ValueError('Make sure method is ["long","square"].')
         if self.is_single_matrix:
             if method is 'long':
-                out = pd.DataFrame(self.data).to_csv(file_name, index=None)
+                pd.DataFrame(self.data).to_csv(file_name, index=None)
             elif method is 'square':
-                out = pd.DataFrame(self.squareform()).to_csv(file_name,
-                                                             index=None)
+                pd.DataFrame(self.squareform()).to_csv(file_name, index=None)
         else:
             if method is 'long':
-                out = pd.DataFrame(self.data).to_csv(file_name, index=None)
+                pd.DataFrame(self.data).to_csv(file_name, index=None)
             elif method is 'square':
                 raise NotImplementedError('Need to decide how we should write '
                                           'out multiple matrices.  As separate '
@@ -467,7 +469,7 @@ class Adjacency(object):
             data2 = data.copy()
 
         if perm_type is None:
-            n_permute=0
+            n_permute = 0
             similarity_func = correlation_permutation
         elif perm_type == '1d':
             similarity_func = correlation_permutation
@@ -576,7 +578,7 @@ class Adjacency(object):
             else:
                 G = nx.Graph(self.squareform())
             if self.labels is not None:
-                labels = {x:y for x,y in zip(G.nodes,self.labels)}
+                labels = {x: y for x, y in zip(G.nodes, self.labels)}
                 nx.relabel_nodes(G, labels, copy=False)
             return G
         else:
@@ -598,7 +600,8 @@ class Adjacency(object):
             raise ValueError('t-test cannot be run on single matrices.')
 
         if permutation:
-            t = []; p = []
+            t = []
+            p = []
             for i in range(self.data.shape[1]):
                 stats = one_sample_permutation(self.data[:, i], **kwargs)
                 t.append(stats['mean'])
@@ -610,7 +613,7 @@ class Adjacency(object):
             p = deepcopy(t)
             t.data, p.data = ttest_1samp(self.data, 0, 0)
 
-        return {'t': t, 'p':p}
+        return {'t': t, 'p': p}
 
     def plot_label_distance(self, labels=None, ax=None):
         ''' Create a violin plot indicating within and between label distance
@@ -647,7 +650,7 @@ class Adjacency(object):
             tmp_b['Group'] = i
             out = out.append(tmp_w).append(tmp_b)
         f = sns.violinplot(x="Group", y="Distance", hue="Type", data=out, split=True, inner='quartile',
-              palette={"Within": "lightskyblue", "Between": "red"}, ax=ax)
+                           palette={"Within": "lightskyblue", "Between": "red"}, ax=ax)
         f.set_ylabel('Average Distance')
         f.set_title('Average Group Distance')
         return f
@@ -694,7 +697,7 @@ class Adjacency(object):
             tmp1 = out.loc[(out['Group'] == i) & (out['Type'] == 'Within'), 'Distance']
             tmp2 = out.loc[(out['Group'] == i) & (out['Type'] == 'Between'), 'Distance']
             stats[str(i)] = two_sample_permutation(tmp1, tmp2,
-                                        n_permute=n_permute, n_jobs=n_jobs)
+                                                   n_permute=n_permute, n_jobs=n_jobs)
         return stats
 
     def plot_silhouette(self, labels=None, ax=None, permutation_test=True,
@@ -711,10 +714,10 @@ class Adjacency(object):
         (f, outAll) = plot_silhouette(distance, labels, ax=None,
                                       permutation_test=True,
                                       n_permute=5000, **kwargs)
-        return (f,outAll)
+        return (f, outAll)
 
     def bootstrap(self, function, n_samples=5000, save_weights=False,
-                    n_jobs=-1, random_state=None, *args, **kwargs):
+                  n_jobs=-1, random_state=None, *args, **kwargs):
         '''Bootstrap an Adjacency method.
 
             Example Useage:
@@ -737,14 +740,14 @@ class Adjacency(object):
         seeds = random_state.randint(MAX_INT, size=n_samples)
         bootstrapped = Parallel(n_jobs=n_jobs)(
                         delayed(_bootstrap_apply_func)(self,
-                        function, random_state=seeds[i], *args, **kwargs)
+                                                       function, random_state=seeds[i], *args, **kwargs)
                         for i in range(n_samples))
         bootstrapped = Adjacency(bootstrapped)
         return summarize_bootstrap(bootstrapped, save_weights=save_weights)
 
     def plot_mds(self, n_components=2, metric=True, labels_color=None,
                  cmap=plt.cm.hot_r, n_jobs=-1, view=(30, 20),
-                 figsize = [12,8], ax = None, *args, **kwargs):
+                 figsize=[12, 8], ax=None, *args, **kwargs):
         ''' Plot Multidimensional Scaling
 
             Args:
@@ -762,7 +765,7 @@ class Adjacency(object):
             raise ValueError("MDS only works on distance matrices.")
         if not self.is_single_matrix:
             raise ValueError("MDS only works on single matrices.")
-        if n_components not in [2,3]:
+        if n_components not in [2, 3]:
             raise ValueError('Cannot plot {0}-d image'.format(n_components))
         if labels_color is not None:
             if self.labels is None:
@@ -772,11 +775,11 @@ class Adjacency(object):
 
         # Run MDS
         mds = MDS(n_components=n_components, metric=metric, n_jobs=n_jobs,
-                           dissimilarity="precomputed", *args, **kwargs)
+                  dissimilarity="precomputed", *args, **kwargs)
         proj = mds.fit_transform(self.squareform())
 
         # Create Plot
-        if ax == None: # Create axis
+        if ax is None:  # Create axis
             returnFig = True
             fig = plt.figure(figsize=figsize)
             if n_components == 3:
@@ -796,18 +799,17 @@ class Adjacency(object):
             labels_color = ['black'] * len(self.labels)
         if n_components == 3:
             for ((x, y, z), label, color) in zip(proj, self.labels, labels_color):
-                 ax.text(x, y, z, label, color='white', #color,
-                         bbox=dict(facecolor=color, alpha=1, boxstyle="round,pad=0.3"))
+                ax.text(x, y, z, label, color='white', bbox=dict(facecolor=color, alpha=1, boxstyle="round,pad=0.3"))
         else:
             for ((x, y), label, color) in zip(proj, self.labels, labels_color):
-                ax.text(x, y, label, color='white', #color,
+                ax.text(x, y, label, color='white',  # color,
                         bbox=dict(facecolor=color, alpha=1, boxstyle="round,pad=0.3"))
 
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
 
         if returnFig:
-          return fig
+            return fig
 
     def distance_to_similarity(self, beta=1):
         '''Convert distance matrix to similarity matrix
@@ -833,7 +835,7 @@ class Adjacency(object):
         else:
             raise ValueError('Matrix is not a similarity matrix.')
 
-    def within_cluster_mean(self, clusters = None):
+    def within_cluster_mean(self, clusters=None):
         ''' This function calculates mean within cluster labels
 
         Args:
@@ -842,16 +844,16 @@ class Adjacency(object):
             dict: within cluster means
         '''
 
-        distance=pd.DataFrame(self.squareform())
+        distance = pd.DataFrame(self.squareform())
         clusters = np.array(clusters)
 
         if len(clusters) != distance.shape[0]:
             raise ValueError('Cluster labels must be same length as distance matrix')
 
-        out = pd.DataFrame(columns=['Mean','Label'],index=None)
+        out = pd.DataFrame(columns=['Mean', 'Label'], index=None)
         out = {}
         for i in list(set(clusters)):
-            out[i] = np.mean(distance.loc[clusters==i,clusters==i].values[np.triu_indices(sum(clusters==i),k=1)])
+            out[i] = np.mean(distance.loc[clusters == i, clusters == i].values[np.triu_indices(sum(clusters == i), k=1)])
         return out
 
     def regress(self, X, mode='ols', **kwargs):
@@ -871,12 +873,12 @@ class Adjacency(object):
         if isinstance(X, Adjacency):
             if X.square_shape()[0] != self.square_shape()[0]:
                 raise ValueError('Adjacency instances must be the same size.')
-            b,t,p,_,res = regression(X.data.T, self.data, mode=mode, **kwargs)
-            stats['beta'],stats['t'],stats['p'],stats['residual'] = (b,t,p,res)
+            b, t, p, _, res = regression(X.data.T, self.data, mode=mode, **kwargs)
+            stats['beta'], stats['t'], stats['p'], stats['residual'] = (b, t, p, res)
         elif isinstance(X, Design_Matrix):
             if X.shape[0] != len(self):
                 raise ValueError('Design matrix must have same number of observations as Adjacency')
-            b,t,p,df,res = regression(X, self.data, mode=mode, **kwargs)
+            b, t, p, df, res = regression(X, self.data, mode=mode, **kwargs)
             mode = 'ols'
             stats['beta'], stats['t'], stats['p'] = [x for x in self[:3]]
             stats['beta'].data, stats['t'].data, stats['p'].data = b.squeeze(), t.squeeze(), p.squeeze()
