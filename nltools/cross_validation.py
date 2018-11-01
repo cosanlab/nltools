@@ -10,7 +10,7 @@ types of cross-validation
 '''
 
 __all__ = ['KFoldStratified',
-            'set_cv']
+           'set_cv']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
@@ -18,6 +18,7 @@ from sklearn.model_selection._split import _BaseKFold
 from sklearn.utils.validation import check_array
 import numpy as np
 import pandas as pd
+
 
 class KFoldStratified(_BaseKFold):
     """K-Folds cross validation iterator which stratifies continuous data
@@ -48,7 +49,7 @@ class KFoldStratified(_BaseKFold):
         y_sort = y.sort_values(0)
         test_folds = np.nan*np.ones(len(y_sort))
         for k in range(self.n_splits):
-            test_idx = y_sort.index[np.arange(k,len(y_sort),self.n_splits)]
+            test_idx = y_sort.index[np.arange(k, len(y_sort), self.n_splits)]
             test_folds[y_sort.iloc[test_idx].index] = k
         return test_folds
 
@@ -80,6 +81,7 @@ class KFoldStratified(_BaseKFold):
         y = check_array(y, ensure_2d=False, dtype=None)
         return super(KFoldStratified, self).split(X, y, groups)
 
+
 def set_cv(Y=None, cv_dict=None):
     """ Helper function to create a sci-kit learn compatible cv object using
     common parameters for prediction analyses.
@@ -98,19 +100,19 @@ def set_cv(Y=None, cv_dict=None):
 
     if isinstance(cv_dict, dict):
         if cv_dict['type'] == 'kfolds':
-            if 'subject_id' in cv_dict: # Hold out subjects within each fold
+            if 'subject_id' in cv_dict:  # Hold out subjects within each fold
                 from sklearn.model_selection import GroupKFold
                 gkf = GroupKFold(n_splits=cv_dict['n_folds'])
                 cv = gkf.split(X=np.zeros(len(Y)), y=Y, groups=cv_dict['subject_id'])
-            elif 'stratified' in cv_dict: # Stratified K-Folds Continuous
-                from  nltools.cross_validation import KFoldStratified
+            elif 'stratified' in cv_dict:  # Stratified K-Folds Continuous
+                from nltools.cross_validation import KFoldStratified
                 kfs = KFoldStratified(n_splits=cv_dict['n_folds'])
                 cv = kfs.split(X=np.zeros(len(Y)), y=Y)
-            else: # Normal K-Folds
+            else:  # Normal K-Folds
                 from sklearn.model_selection import KFold
                 kf = KFold(n_splits=cv_dict['n_folds'])
                 cv = kf.split(X=np.zeros(len(Y)), y=Y)
-        elif cv_dict['type'] == 'loso': # Leave One Subject Out
+        elif cv_dict['type'] == 'loso':  # Leave One Subject Out
             from sklearn.model_selection import LeaveOneGroupOut
             loso = LeaveOneGroupOut()
             cv = loso.split(X=np.zeros(len(Y)), y=Y, groups=cv_dict['subject_id'])
