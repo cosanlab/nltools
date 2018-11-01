@@ -34,7 +34,7 @@ __all__ = ['pearson',
 
 import numpy as np
 import pandas as pd
-from scipy.stats import pearsonr, spearmanr, kendalltau, norm
+from scipy.stats import pearsonr, spearmanr, kendalltau, norm, ttest_1samp
 from scipy.stats import t as t_dist
 from scipy.spatial.distance import squareform, pdist
 from copy import deepcopy
@@ -552,7 +552,7 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
 
 def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
                             tail=2, random_state=None):
-    """ Permute 2-dimensional matrix correlation.
+    """ Permute 2-dimensional matrix correlation (mantel test).
 
         Chen, G. et al. (2016). Untangling the relatedness among correlations,
         part I: nonparametric approaches to inter-subject correlation analysis
@@ -1001,7 +1001,7 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
     from nltools.data import Brain_Data
 
     if not isinstance(data, list):
-        raise ValueErrror('Make sure you are inputting data is a list.')
+        raise ValueError('Make sure you are inputting data is a list.')
     if not all([type(x) for x in data]):
         raise ValueError('Make sure all objects in the list are the same type.')
     if method not in ['probabilistic_srm','deterministic_srm','procrustes']:
@@ -1152,6 +1152,7 @@ def procrustes(data1, data2):
 
     '''
 
+    raise NotImplementedError("procrustes distance test is still under development")
     mtx1 = np.array(data1, dtype=np.double, copy=True)
     mtx2 = np.array(data2, dtype=np.double, copy=True)
 
