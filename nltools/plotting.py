@@ -156,7 +156,7 @@ def plot_t_brain(objIn, how='full', thr='unc', alpha=None, nperm=None, cut_coord
             plot_stat_map(obj.to_nifti(), cut_coords=c, display_mode=v, cmap=cmap, bg_img=resolve_mni_path(MNI_Template)['brain'],
                           **kwargs)
     elif how == 'glass':
-         plot_glass_brain(obj.to_nifti(), display_mode='lzry', colorbar=True, cmap=cmap, plot_abs=False, **kwargs)
+        plot_glass_brain(obj.to_nifti(), display_mode='lzry', colorbar=True, cmap=cmap, plot_abs=False, **kwargs)
     elif how == 'mni':
         for v, c in zip(views, cut_coords):
             plot_stat_map(obj.to_nifti(), cut_coords=c, display_mode=v, cmap=cmap, bg_img=resolve_mni_path(MNI_Template)['brain'],
@@ -204,7 +204,7 @@ def plot_brain(objIn, how='full', thr_upper=None, thr_lower=None, **kwargs):
             plot_stat_map(obj.to_nifti(), cut_coords=c, display_mode=v, cmap=cmap, bg_img=resolve_mni_path(MNI_Template)['brain'],
                           **kwargs)
     elif how == 'glass':
-         plot_glass_brain(obj.to_nifti(), display_mode='lzry', colorbar=True, cmap=cmap, plot_abs=False, **kwargs)
+        plot_glass_brain(obj.to_nifti(), display_mode='lzry', colorbar=True, cmap=cmap, plot_abs=False, **kwargs)
     elif how == 'mni':
         for v, c in zip(views, coords):
             plot_stat_map(obj.to_nifti(), cut_coords=c, display_mode=v, cmap=cmap, bg_img=resolve_mni_path(MNI_Template)['brain'],
@@ -403,7 +403,6 @@ def plot_mean_label_distance(distance, labels, ax=None, permutation_test=False,
     if len(labels) != distance.shape[0]:
         raise ValueError('Labels must be same length as distance matrix')
 
-    between = []
     out = pd.DataFrame(columns=['Distance', 'Group', 'Type'], index=None)
     for i in labels.unique():
         tmp_w = pd.DataFrame(columns=out.columns, index=None)
@@ -517,17 +516,17 @@ def plot_silhouette(distance, labels, ax=None, permutation_test=True,
             # p_dist_out: (optional if permutation_test=True) p-value for difference in distance between conditions
     '''
 
-    #Define label set
+    # Define label set
     labelSet = np.unique(np.array(labels))
     n_clusters = len(labelSet)
 
-    #Set defaults for plot design
+    # Set defaults for plot design
     if 'colors' not in kwargs.keys():
         colors = sns.color_palette("hls", n_clusters)
     if 'figsize' not in kwargs.keys():
         figsize = (6, 4)
 
-    #Compute silhouette scores
+    # Compute silhouette scores
     out = pd.DataFrame(columns=('Label', 'MeanWit', 'MeanBet', 'Sil'))
     for index in range(len(labels)):
         label = labels.iloc[index]
@@ -545,7 +544,7 @@ def plot_silhouette(distance, labels, ax=None, permutation_test=True,
         out = out.append(out_tmp)
     sample_silhouette_values = out['Sil']
 
-    #Plot
+    # Plot
     with sns.axes_style("white"):
         if ax is None:
             f, ax = plt.subplots(1, figsize=figsize)
@@ -568,13 +567,13 @@ def plot_silhouette(distance, labels, ax=None, permutation_test=True,
         labelX = np.hstack((labelX, np.mean([x_lower, x_upper])))
         x_lower = x_upper + 3
 
-    #Format plot
+    # Format plot
     ax.set_xticks(labelX)
     ax.set_xticklabels(labelSet)
     ax.set_title('Silhouettes', fontsize=18)
     ax.set_xlim([5, 10+len(labels)+n_clusters*3])
 
-    #Permutation test on mean silhouette score per label
+    # Permutation test on mean silhouette score per label
     if permutation_test:
         outAll = pd.DataFrame(columns=['label', 'mean', 'p'])
         for labelInd in range(n_clusters):

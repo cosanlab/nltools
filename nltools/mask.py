@@ -18,7 +18,7 @@ import numpy as np
 import six
 import warnings
 from nilearn.masking import intersect_masks
-from scipy.stats import ttest_1samp
+
 
 def create_sphere(coordinates, radius=5, mask=None):
     """ Generate a set of spheres in the brain mask space
@@ -36,13 +36,12 @@ def create_sphere(coordinates, radius=5, mask=None):
         if not isinstance(mask, nib.Nifti1Image):
             if isinstance(mask, six.string_types):
                 if os.path.isfile(mask):
-                    data = nib.load(mask)
+                    mask = nib.load(mask)
             else:
                 raise ValueError("mask is not a nibabel instance or a valid "
-                                "file name")
+                                 "file name")
     else:
         mask = nib.load(resolve_mni_path(MNI_Template)['mask'])
-    dims = mask.get_data().shape
 
     def sphere(r, p, mask):
         """ create a sphere of given radius at some point p in the brain mask
@@ -56,16 +55,16 @@ def create_sphere(coordinates, radius=5, mask=None):
         dims = mask.shape
         m = [dims[0]/2, dims[1]/2, dims[2]/2]
         x, y, z = np.ogrid[-m[0]:dims[0]-m[0],
-                            -m[1]:dims[1]-m[1],
-                            -m[2]:dims[2]-m[2]]
+                           -m[1]:dims[1]-m[1],
+                           -m[2]:dims[2]-m[2]]
         mask_r = x*x + y*y + z*z <= r*r
 
         activation = np.zeros(dims)
         activation[mask_r] = 1
         translation_affine = np.array([[1, 0, 0, p[0]-m[0]],
-                                [0, 1, 0, p[1]-m[1]],
-                                [0, 0, 1, p[2]-m[2]],
-                                 [0, 0, 0, 1]])
+                                       [0, 1, 0, p[1]-m[1]],
+                                       [0, 0, 1, p[2]-m[2]],
+                                       [0, 0, 0, 1]])
 
         return nib.Nifti1Image(activation, affine=translation_affine)
 
@@ -73,21 +72,22 @@ def create_sphere(coordinates, radius=5, mask=None):
         if isinstance(radius, list):
             if len(radius) != len(coordinates):
                 raise ValueError('Make sure length of radius list matches'
-                                'length of coordinate list.')
+                                 'length of coordinate list.')
         elif isinstance(radius, int):
             radius = [radius]*len(coordinates)
         out = Brain_Data(nib.Nifti1Image(np.zeros_like(mask.get_data()),
-                        affine=mask.affine), mask=mask)
+                                         affine=mask.affine), mask=mask)
         for r, c in zip(radius, coordinates):
             out = out + Brain_Data(sphere(r, c, mask), mask=mask)
     else:
         out = Brain_Data(sphere(radius, coordinates, mask), mask=mask)
     out = out.to_nifti()
-    out.get_data()[out.get_data() > 0.5]=1
-    out.get_data()[out.get_data() < 0.5]=0
+    out.get_data()[out.get_data() > 0.5] = 1
+    out.get_data()[out.get_data() < 0.5] = 0
     return out
 
-def expand_mask(mask,custom_mask=None):
+
+def expand_mask(mask, custom_mask=None):
     """ expand a mask with multiple integers into separate binary masks
 
     Args:
@@ -101,7 +101,7 @@ def expand_mask(mask,custom_mask=None):
 
     from nltools.data import Brain_Data
     if isinstance(mask, nib.Nifti1Image):
-        mask = Brain_Data(mask,mask=custom_mask)
+        mask = Brain_Data(mask, mask=custom_mask)
     if not isinstance(mask, Brain_Data):
         raise ValueError('Make sure mask is a nibabel or Brain_Data instance.')
     mask.data = np.round(mask.data).astype(int)
@@ -111,6 +111,7 @@ def expand_mask(mask,custom_mask=None):
     out = mask.empty()
     out.data = np.array(tmp)
     return out
+
 
 def collapse_mask(mask, auto_label=True, custom_mask=None):
     """ collapse separate masks into one mask with multiple integers
@@ -129,10 +130,10 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
     from nltools.data import Brain_Data
     if not isinstance(mask, Brain_Data):
         if isinstance(mask, nib.Nifti1Image):
-            mask = Brain_Data(mask,mask=custom_mask)
+            mask = Brain_Data(mask, mask=custom_mask)
         else:
             raise ValueError('Make sure mask is a nibabel or Brain_Data '
-                            'instance.')
+                             'instance.')
 
     if len(mask.shape()) > 1:
         if len(mask) > 1:
@@ -145,7 +146,7 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
             intersect = intersect_masks(m_list, threshold=1, connected=False)
             intersect = Brain_Data(nib.Nifti1Image(
                             np.abs(intersect.get_data()-1),
-                            intersect.get_affine()),mask=custom_mask)
+                            intersect.get_affine()), mask=custom_mask)
 
             merge = []
             if auto_label:
@@ -153,19 +154,20 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
                 # ignoring any areas of overlap
                 for i in range(len(m_list)):
                     merge.append(np.multiply(
-                                Brain_Data(m_list[i],mask=custom_mask).data,
+                                Brain_Data(m_list[i], mask=custom_mask).data,
                                 intersect.data)*(i+1))
                 out.data = np.sum(np.array(merge).T, 1).astype(int)
             else:
                 # Collapse masks using value as label
                 for i in range(len(m_list)):
                     merge.append(np.multiply(
-                                    Brain_Data(m_list[i],mask=custom_mask).data,
+                                    Brain_Data(m_list[i], mask=custom_mask).data,
                                     intersect.data))
                 out.data = np.sum(np.array(merge).T, 1)
             return out
     else:
         warnings.warn("Doesn't need to be collapased")
+
 
 def roi_to_brain(data, mask_x):
     '''
@@ -176,13 +178,11 @@ def roi_to_brain(data, mask_x):
         Brain_Data instance
     '''
     from nltools.data import Brain_Data
-    
+
     def series_to_brain(data, mask_x):
         '''Converts a pandas series of ROIs to a Brain_Data instance. Index must correspond to ROI index'''
 
-
-
-        if not isinstance(data,pd.Series):
+        if not isinstance(data, pd.Series):
             raise ValueError('Data must be a pandas series')
         if len(mask_x) != len(data):
             raise ValueError('Data must have the same number of rows as mask has ROIs.')
@@ -191,7 +191,7 @@ def roi_to_brain(data, mask_x):
     if len(mask_x) != data.shape[0]:
         raise ValueError('Data must have the same number of rows as mask has ROIs.')
 
-    if isinstance(data,pd.Series):
+    if isinstance(data, pd.Series):
         return series_to_brain(data, mask_x)
-    elif isinstance(data,pd.DataFrame):
-        return Brain_Data([series_to_brain(data[x],mask_x) for x in data.keys()])
+    elif isinstance(data, pd.DataFrame):
+        return Brain_Data([series_to_brain(data[x], mask_x) for x in data.keys()])
