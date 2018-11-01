@@ -18,6 +18,7 @@ import numpy as np
 import six
 import warnings
 from nilearn.masking import intersect_masks
+from scipy.stats import ttest_1samp
 
 def create_sphere(coordinates, radius=5, mask=None):
     """ Generate a set of spheres in the brain mask space
@@ -174,8 +175,12 @@ def roi_to_brain(data, mask_x):
     Returns:
         Brain_Data instance
     '''
+    from nltools.data import Brain_Data
+    
     def series_to_brain(data, mask_x):
         '''Converts a pandas series of ROIs to a Brain_Data instance. Index must correspond to ROI index'''
+
+
 
         if not isinstance(data,pd.Series):
             raise ValueError('Data must be a pandas series')

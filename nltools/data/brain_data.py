@@ -71,6 +71,7 @@ from nltools.stats import regress as regression
 from .adjacency import Adjacency
 from nltools.prefs import MNI_Template, resolve_mni_path
 from nltools.external.srm import DetSRM, SRM
+from nltools.plotting import plot_interactive_brain, plot_brain
 
 # Optional dependencies
 nx = attempt_to_import('networkx', 'nx')
@@ -336,43 +337,71 @@ class Brain_Data(object):
 
         return out
 
-    def plot(self, limit=5, anatomical=None, **kwargs):
+    def plot(self, limit=5, anatomical=None, view='axial', threshold_upper=None, threshold_lower=None, **kwargs):
         """ Create a quick plot of self.data.  Will plot each image separately
 
         Args:
             limit: max number of images to return
             anatomical: nifti image or file name to overlay
+            view (str): 'axial' for limit number of axial slices; 'glass' for ortho-view glass brain; 'mni' for multi-slice view mni brain; 'full' for both glass and mni views
+            threshold_upper (str/float): threshold if view is 'glass', 'mni', or 'full'
+            threshold_lower (str/float): threshold if view is 'glass', 'mni', or 'full'
 
         """
 
-        if anatomical is not None:
-            if not isinstance(anatomical, nib.Nifti1Image):
-                if isinstance(anatomical, six.string_types):
-                    anatomical = nib.load(anatomical)
-                else:
-                    raise ValueError("anatomical is not a nibabel instance")
-        else:
-            anatomical = nib.load(resolve_mni_path(MNI_Template)['plot'])
+        if view == 'axial':
+            if threshold is not None:
+                print("threshold is ignored for simple axial plots")
+            if anatomical is not None:
+                if not isinstance(anatomical, nib.Nifti1Image):
+                    if isinstance(anatomical, six.string_types):
+                        anatomical = nib.load(anatomical)
+                    else:
+                        raise ValueError("anatomical is not a nibabel instance")
+            else:
+                anatomical = nib.load(resolve_mni_path(MNI_Template)['plot'])
 
-        if self.data.ndim == 1:
-            f, a = plt.subplots(nrows=1, figsize=(15, 2))
-            plot_stat_map(self.to_nifti(), anatomical,
-                          cut_coords=range(-40, 50, 10), display_mode='z',
-                          black_bg=True, colorbar=True, draw_cross=False,
-                          axes=a, **kwargs)
+            if self.data.ndim == 1:
+                f, a = plt.subplots(nrows=1, figsize=(15, 2))
+                plot_stat_map(self.to_nifti(), anatomical,
+                              cut_coords=range(-40, 50, 10), display_mode='z',
+                              black_bg=True, colorbar=True, draw_cross=False,
+                              axes=a, **kwargs)
+            else:
+                n_subs = np.minimum(self.data.shape[0], limit)
+                f, a = plt.subplots(nrows=n_subs, figsize=(15, len(self)*2))
+                for i in range(n_subs):
+                    plot_stat_map(self[i].to_nifti(), anatomical,
+                                  cut_coords=range(-40, 50, 10),
+                                  display_mode='z',
+                                  black_bg=True,
+                                  colorbar=True,
+                                  draw_cross=False,
+                                  axes = a[i],
+                                  **kwargs)
+            return f
+        elif view in ['glass', 'mni','full']:
+            if self.data.ndim == 1:
+                return plot_brain(self, how=view, thr_upper=threshold_upper, thr_lower=threshold_lower, **kwargs)
+            else:
+                raise ValueError("Plotting in 'glass', 'mni', or 'full' views only works with a 3D image")
         else:
-            n_subs = np.minimum(self.data.shape[0], limit)
-            f, a = plt.subplots(nrows=n_subs, figsize=(15, len(self)*2))
-            for i in range(n_subs):
-                plot_stat_map(self[i].to_nifti(), anatomical,
-                              cut_coords=range(-40, 50, 10),
-                              display_mode='z',
-                              black_bg=True,
-                              colorbar=True,
-                              draw_cross=False,
-                              axes = a[i],
-                              **kwargs)
-        return f
+            raise ValueError("view must be one of: 'axial', 'glass', 'mni', 'full'.")
+
+    def iplot(self, threshold=0, surface=False):
+        """ Create an interactive brain viewer for the current brain data instance.
+
+        Args:
+            threshold (float/str): two-sided threshold to initialize the visualization, maybe be a percentile string; default 0
+            surface (bool): whether to create a surface-based plot; default False
+            percentile_threshold (bool): whether to interpret threshold values as percentiles
+
+        Returns:
+            interactive brain viewer widget
+
+        """
+
+        return plot_interactive_brain(self, threshold=threshold, surface=surface)
 
     def regress(self, mode='ols', **kwargs):
         """ Run a mass-univariate regression across voxels. Three types of regressions can be run:
