@@ -1,17 +1,12 @@
 from __future__ import division
-import os
-import nibabel as nb
-import pandas as pd
 from nltools.simulator import Simulator
 from nltools.analysis import Roc
-from nltools.data import Brain_Data
 import matplotlib
 matplotlib.use('TkAgg')
 
+
 def test_roc(tmpdir):
     sim = Simulator()
-
-    r = 10
     sigma = .1
     y = [0, 1]
     n_reps = 10
@@ -24,7 +19,7 @@ def test_roc(tmpdir):
     # cv = {'type': 'kfolds', 'n_folds': 5, 'subject_id': sim.rep_id}
     extra = {'kernel': 'linear'}
 
-    output = dat.predict(algorithm='svm', plot=False, **extra)
+    output = dat.predict(algorithm=algorithm, plot=False, **extra)
 
     # Single-Interval
     roc = Roc(input_values=output['yfit_all'], binary_outcome=output['Y'] == 1)

@@ -1,8 +1,5 @@
-import os
-import numpy as np
-import nibabel as nb
-import glob
 from nltools.simulator import Simulator
+
 
 def test_simulator(tmpdir):
     sim = Simulator()

@@ -6,14 +6,14 @@ handy utilities.
 
 '''
 __all__ = ['get_resource_path',
-            'get_anatomical',
-            'set_algorithm',
-            'attempt_to_import',
-            'all_same',
-            'concatenate',
-            '_bootstrap_apply_func',
-            'set_decomposition_algorithm'
-            ]
+           'get_anatomical',
+           'set_algorithm',
+           'attempt_to_import',
+           'all_same',
+           'concatenate',
+           '_bootstrap_apply_func',
+           'set_decomposition_algorithm'
+           ]
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
@@ -28,17 +28,19 @@ import numpy as np
 import pandas as pd
 import collections
 from types import GeneratorType
-from sklearn.utils import check_random_state
+
 
 def get_resource_path():
     """ Get path to nltools resource directory. """
     return join(dirname(__file__), 'resources') + pathsep
 
+
 def get_anatomical():
     """ Get nltools default anatomical image.
         DEPRECATED. See MNI_Template and resolve_mni_path from nltools.prefs
     """
-    return nib.load(os.path.join(get_resource_path(),'MNI152_T1_2mm.nii.gz'))
+    return nib.load(os.path.join(get_resource_path(), 'MNI152_T1_2mm.nii.gz'))
+
 
 def set_algorithm(algorithm, *args, **kwargs):
     """ Setup the algorithm to use in subsequent prediction analyses.
@@ -102,7 +104,7 @@ def set_algorithm(algorithm, *args, **kwargs):
         predictor_settings['_pca'] = PCA()
         predictor_settings['predictor'] = Pipeline(
                             steps=[('pca', predictor_settings['_pca']),
-                            ('lasso', predictor_settings['_lasso'])])
+                                   ('lasso', predictor_settings['_lasso'])])
     elif algorithm == 'pcr':
         predictor_settings['prediction_type'] = 'prediction'
         from sklearn.linear_model import LinearRegression
@@ -111,7 +113,7 @@ def set_algorithm(algorithm, *args, **kwargs):
         predictor_settings['_pca'] = PCA()
         predictor_settings['predictor'] = Pipeline(
                             steps=[('pca', predictor_settings['_pca']),
-                            ('regress', predictor_settings['_regress'])])
+                                   ('regress', predictor_settings['_regress'])])
     else:
         raise ValueError("""Invalid prediction/classification algorithm name.
             Valid options are 'svm','svr', 'linear', 'logistic', 'lasso',
@@ -119,6 +121,7 @@ def set_algorithm(algorithm, *args, **kwargs):
             'randomforest', or 'randomforestClassifier'.""")
 
     return predictor_settings
+
 
 def set_decomposition_algorithm(algorithm, n_components=None, *args, **kwargs):
     """ Setup the algorithm to use in subsequent decomposition analyses.
@@ -159,12 +162,15 @@ def set_decomposition_algorithm(algorithm, n_components=None, *args, **kwargs):
             Valid options are 'pca','ica', 'nnmf', 'fa'""")
     return alg
 
+
 def isiterable(obj):
     ''' Returns True if the object is one of allowable iterable types. '''
     return isinstance(obj, (list, tuple, GeneratorType))
 
+
 module_names = {}
 Dependency = collections.namedtuple('Dependency', 'package value')
+
 
 def attempt_to_import(dependency, name=None, fromlist=None):
     if name is None:
@@ -176,8 +182,10 @@ def attempt_to_import(dependency, name=None, fromlist=None):
     module_names[name] = Dependency(dependency, mod)
     return mod
 
+
 def all_same(items):
     return np.all(x == items[0] for x in items)
+
 
 def concatenate(data):
     '''Concatenate a list of Brain_Data() or Adjacency() objects'''
@@ -198,14 +206,16 @@ def concatenate(data):
         raise ValueError('Make sure all objects in the list are the same type.')
     return out
 
+
 def _bootstrap_apply_func(data, function, random_state=None, *args, **kwargs):
     '''Bootstrap helper function. Sample with replacement and apply function'''
     random_state = check_random_state(random_state)
     data_row_id = range(data.shape()[0])
     new_dat = data[random_state.choice(data_row_id,
-                                   size=len(data_row_id),
-                                   replace=True)]
-    return getattr(new_dat, function)( *args, **kwargs)
+                                       size=len(data_row_id),
+                                       replace=True)]
+    return getattr(new_dat, function)(*args, **kwargs)
+
 
 def check_square_numpy_matrix(data):
     '''Helper function to make sure matrix is square and numpy array'''
@@ -222,9 +232,10 @@ def check_square_numpy_matrix(data):
     if len(data.shape) != 2:
         try:
             data = squareform(data)
-        except ValueError as e:
+        except ValueError:
             raise ValueError("Array does not contain the correct number of elements to be square")
     return data
+
 
 def check_brain_data(data):
     '''Check if data is a Brain_Data Instance.'''
@@ -236,6 +247,7 @@ def check_brain_data(data):
         else:
             raise ValueError("Make sure data is a Brain_Data instance.")
     return data
+
 
 class AmbiguityError(Exception):
     pass
