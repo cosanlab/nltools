@@ -1357,7 +1357,7 @@ def distance_correlation(x, y, bias_corrected=True, return_all_stats=False):
     return out
 
 
-def procrustes_distance(mat1, mat2, n_permute=5000, tail=1, n_jobs=-1, random_state=None):
+def procrustes_distance(mat1, mat2, n_permute=5000, tail=2, n_jobs=-1, random_state=None):
     """ Use procrustes super-position to perform a similarity test between 2 matrices. Matrices need to match in size on their first dimension only, as the smaller matrix on the second dimension will be padded with zeros. After aligning two matrices using the procrustes transformation, use the computed disparity between them (sum of squared error of elements) as a similarity metric. Shuffle the rows of one of the matrices and recompute the disparity to perform inference (Peres-Neto & Jackson, 2001).
 
     Args:
@@ -1373,7 +1373,7 @@ def procrustes_distance(mat1, mat2, n_permute=5000, tail=1, n_jobs=-1, random_st
 
     """
 
-    raise NotImplementedError("procrustes distance is not currently implemented")
+    #raise NotImplementedError("procrustes distance is not currently implemented")
     if mat1.shape[0] != mat2.shape[0]:
         raise ValueError('Both arrays must match on their first dimension')
 
@@ -1394,7 +1394,7 @@ def procrustes_distance(mat1, mat2, n_permute=5000, tail=1, n_jobs=-1, random_st
     stats = dict()
     stats['similarity'] = sse
 
-    all_p = Parallel(n_jobs=n_jobs)(delayed(procrustes)(random_state.permutation(mat1), mat2) for i in range(n_permute))
+    all_p = Parallel(n_jobs=n_jobs)(delayed(procrust)(random_state.permutation(mat1), mat2) for i in range(n_permute))
     all_p = [1 - x[2] for x in all_p]
 
     stats['p'] = _calc_pvalue(all_p, sse, tail)
