@@ -60,6 +60,8 @@ from .adjacency import Adjacency
 from nltools.prefs import MNI_Template, resolve_mni_path
 from nltools.external.srm import DetSRM, SRM
 from nltools.plotting import plot_interactive_brain, plot_brain
+from nilearn.decoding import SearchLight
+
 
 # Optional dependencies
 nx = attempt_to_import('networkx', 'nx')
@@ -882,6 +884,79 @@ class Brain_Data(object):
             output['weight_map'].plot()
 
         return output
+
+    def predict_multi(self, algorithm=None, cv_dict=None, method='searchlight', rois=None, process_mask=None, radius=2.0, scoring=None, n_jobs=1, verbose=0, **kwargs):
+        """ Perform multi-region prediction. This can be a searchlight analysis or multi-roi analysis if provided a Brain_Data instance with labeled non-overlapping rois.
+
+        Args:
+            algorithm (string): algorithm to use for prediction Must be one of 'svm',
+                    'svr', 'linear', 'logistic', 'lasso', 'ridge',
+                    'ridgeClassifier','pcr', or 'lassopcr'
+            cv_dict: Type of cross_validation to use. Default is 3-fold. A dictionary of
+                    {'type': 'kfolds', 'n_folds': n},
+                    {'type': 'kfolds', 'n_folds': n, 'stratified': Y},
+                    {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
+                    {'type': 'loso', 'subject_id': holdout}
+                    where 'n' = number of folds, and 'holdout' = vector of
+                    subject ids that corresponds to self.Y
+            method (string): one of 'searchlight' or 'roi'
+            rois (nib.Nifti1Image/nltools.Brain_Data): nifti file path or Brain_data instance containing non-overlapping regions-of-interest labeled by integers
+            process_mask (nib.Nifti1Image/nltools.Brain_Data): mask to constrain where to perform analyses; only applied if method = 'searchlight'
+            radius (float): radius of searchlight in mm; default 2mm
+            scoring (function): callable scoring function; see sklearn documentation; defaults to estimator's default scoring function
+            n_jobs (int): The number of CPUs to use to do permutation; default 1 because this can be very memory intensive
+            verbose (int): whether parallelization progress should be printed; default 0
+
+        Returns:
+            output: image of results
+
+        """
+
+        if method not in ['searchlight', 'roi']:
+            raise ValueError("method must be one of 'searchlight' or 'roi'")
+        if method == 'roi' and rois is None:
+            raise ValueError("With method = 'roi' a file path, or nibabel/nltools instance with roi labels must be provided")
+
+        # Set algorithm
+        if algorithm is not None:
+            predictor_settings = set_algorithm(algorithm, **kwargs)
+        else:
+            # Use SVR as a default
+            predictor_settings = set_algorithm('svr', **{'kernel': "linear"})
+        estimator = predictor_settings['predictor']
+
+        if cv_dict is not None:
+            cv = set_cv(Y=self.Y, cv_dict=cv_dict, return_generator=False)
+            if cv_dict['type'] == 'loso':
+                groups = cv_dict['subject_id']
+            else:
+                groups = None
+        else:
+            cv = None
+            groups = None
+
+        if method == 'rois':
+            raise NotImplementedError("ROIs are not yet implemented")
+        else:
+            # Searchlight
+            if isinstance(process_mask, nib.Nifti1Image):
+                process_mask_img = process_mask
+            elif isinstance(process_mask, Brain_Data):
+                process_mask_img = process_mask.to_nifti()
+            elif isinstance(process_mask, six.string_types):
+                if os.path.isfile(process_mask):
+                    process_mask_img = nib.load(process_mask)
+                else:
+                    raise ValueError("process mask file path specified but can't be found")
+            else:
+                raise TypeError("process_mask is not a valid nibabel instance, Brain_Data instance or file path")
+
+            sl = SearchLight(mask_img=self.mask, process_mask_img=process_mask_img, estimator=estimator, n_jobs=n_jobs, scoring=scoring, cv=cv, verbose=verbose, radius=radius)
+            in_image = self.to_nifti()
+            sl.fit(in_image, self.Y, groups=groups)
+            image = nib.Nifti1Image(sl.scores_, affine=self.nifti_masker.affine_)
+            image = Brain_Data(image, mask=self.mask)
+        return image
 
     def apply_mask(self, mask):
         """ Mask Brain_Data instance
