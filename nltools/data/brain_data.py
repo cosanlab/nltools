@@ -773,19 +773,19 @@ class Brain_Data(object):
         # Initialize output dictionary
         output = {}
         output['Y'] = np.array(self.Y).flatten()
+        predictor = predictor_settings['predictor']
 
         # Overall Fit for weight map
-        predictor = predictor_settings['predictor']
         predictor.fit(self.data, output['Y'])
         output['yfit_all'] = predictor.predict(self.data)
         if predictor_settings['prediction_type'] == 'classification':
             if predictor_settings['algorithm'] not in ['svm', 'ridgeClassifier',
                                                        'ridgeClassifierCV']:
-                output['prob_all'] = predictor.predict_proba(self.data)[:, 1]
+                output['prob_all'] = predictor.predict_proba(self.data)
             else:
                 output['dist_from_hyperplane_all'] = predictor.decision_function(self.data)
                 if predictor_settings['algorithm'] == 'svm' and predictor.probability:
-                    output['prob_all'] = predictor.predict_proba(self.data)[:, 1]
+                    output['prob_all'] = predictor.predict_proba(self.data)
 
         # Intercept
         if predictor_settings['algorithm'] == 'pcr':
@@ -805,33 +805,57 @@ class Brain_Data(object):
             output['weight_map'].data = predictor.coef_.squeeze()
 
         # Cross-Validation Fit
+        from sklearn.base import clone
         if cv_dict is not None:
             cv = set_cv(Y=self.Y, cv_dict=cv_dict)
 
             predictor_cv = predictor_settings['predictor']
             output['yfit_xval'] = output['yfit_all'].copy()
             output['intercept_xval'] = []
-            output['weight_map_xval'] = output['weight_map'].copy()
+            if len(np.unique(self.Y)) == 2:
+                output['weight_map_xval'] = output['weight_map'].copy()
+            else:
+                output['weight_map_xval'] = []
             output['cv_idx'] = []
             wt_map_xval = []
+
+            # Initialize zero'd arrays that will be filled during cross-validation and fitting
+            # These will need change shape if doing multi-class or probablistic predictions
+            if (predictor_settings['algorithm'] == 'logistic') or (predictor_settings['algorithm'] == 'svm' and predictor.probability):
+                # If logistic or svm prob, probs == number of classes
+                probs_init = np.zeros((len(self.Y), len(np.unique(self.Y))))
+            # however if num classes == 2 decision function == 1, but if num class > 2, decision function == num classes (sklearn weirdness)
+            if len(np.unique(self.Y)) == 2:
+                dec_init = np.zeros(len(self.Y))
+            else:
+                dec_init = np.zeros((len(self.Y), len(np.unique(self.Y))))
+            # else:
+            #
+            #     if len(np.unique(self.Y)) == 2:
+            #         dec_init = np.zeros(len(self.Y))
+            #     else:
+            #         dec_init = np.zeros((len(self.Y), len(np.unique(self.Y))))
+
             if predictor_settings['prediction_type'] == 'classification':
                 if predictor_settings['algorithm'] not in ['svm', 'ridgeClassifier', 'ridgeClassifierCV']:
-                    output['prob_xval'] = np.zeros(len(self.Y))
+                    output['prob_xval'] = probs_init
                 else:
-                    output['dist_from_hyperplane_xval'] = np.zeros(len(self.Y))
+                    output['dist_from_hyperplane_xval'] = dec_init
                     if predictor_settings['algorithm'] == 'svm' and predictor_cv.probability:
-                        output['prob_xval'] = np.zeros(len(self.Y))
+                        output['prob_xval'] = probs_init
 
             for train, test in cv:
+                # Ensure estimators are always indepedent across folds
+                predictor_cv = clone(predictor_settings['predictor'])
                 predictor_cv.fit(self.data[train], self.Y.loc[train])
                 output['yfit_xval'][test] = predictor_cv.predict(self.data[test]).ravel()
                 if predictor_settings['prediction_type'] == 'classification':
                     if predictor_settings['algorithm'] not in ['svm', 'ridgeClassifier', 'ridgeClassifierCV']:
-                        output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])[:, 1]
+                        output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])
                     else:
                         output['dist_from_hyperplane_xval'][test] = predictor_cv.decision_function(self.data[test])
                         if predictor_settings['algorithm'] == 'svm' and predictor_cv.probability:
-                            output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])[:, 1]
+                            output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])
                 # Intercept
                 if predictor_settings['algorithm'] == 'pcr':
                     output['intercept_xval'].append(predictor_settings['_regress'].intercept_)
@@ -848,7 +872,12 @@ class Brain_Data(object):
                     wt_map_xval.append(np.dot(predictor_settings['_pca'].components_.T, predictor_settings['_regress'].coef_))
                 else:
                     wt_map_xval.append(predictor_cv.coef_.squeeze())
-                output['weight_map_xval'].data = np.array(wt_map_xval)
+                if len(np.unique(self.Y)) == 2:
+                    output['weight_map_xval'].data = np.array(wt_map_xval)
+                else:
+                    tmp = output['weight_map'].empty()
+                    tmp.data = predictor_cv.coef_.squeeze()
+                    output['weight_map_xval'].append(tmp)
 
         # Print Results
         if predictor_settings['prediction_type'] == 'classification':
@@ -939,7 +968,9 @@ class Brain_Data(object):
             raise NotImplementedError("ROIs are not yet implemented")
         else:
             # Searchlight
-            if isinstance(process_mask, nib.Nifti1Image):
+            if process_mask is None:
+                process_mask_img = None
+            elif isinstance(process_mask, nib.Nifti1Image):
                 process_mask_img = process_mask
             elif isinstance(process_mask, Brain_Data):
                 process_mask_img = process_mask.to_nifti()
