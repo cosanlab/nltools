@@ -8,6 +8,8 @@ from nltools.data import (Brain_Data,
                           Groupby)
 from nltools.stats import threshold, align
 from nltools.mask import create_sphere
+from nltools.utils import get_resource_path
+from nltools.mask import expand_mask
 # from nltools.prefs import MNI_Template
 
 
@@ -263,6 +265,48 @@ def test_predict(sim_brain_data):
 
     # PCR
     stats = sim_brain_data.predict(algorithm='pcr', cv_dict=None, plot=False)
+
+
+def test_predict_multi():
+    # Simulate data 100 images worth
+    sim = Simulator()
+    sigma = 1
+    y = [0, 1]
+    n_reps = 50
+    output_dir = '.'
+    dat = sim.create_data(y, sigma, reps=n_reps, output_dir=output_dir)
+    y = pd.read_csv('y.csv', header=None, index_col=None)
+    dat = Brain_Data('data.nii.gz', Y=y)
+
+    # Predict within given ROIs
+    # Generate some "rois" (in reality non-contiguous, but also not overlapping)
+    roi_1 = dat[0].copy()
+    roi_1.data = np.zeros_like(roi_1.data, dtype=bool)
+    roi_2 = roi_1.copy()
+    roi_3 = roi_1.copy()
+    idx = np.random.choice(range(roi_1.shape()[-1]), size=9999, replace=False)
+    roi_1.data[idx[:3333]] = 1
+    roi_2.data[idx[3333:6666]] = 1
+    roi_3.data[idx[6666:]] = 1
+    rois = roi_1.append(roi_2).append(roi_3)
+
+    # Load in all 50 rois so we can "insert" signal into the first one
+    # rois = expand_mask(Brain_Data(os.path.join(get_resource_path(), 'k50.nii.gz')))
+    # roi = rois[0]
+
+    from sklearn.datasets import make_classification
+    X, Y = make_classification(n_samples=100, n_features=rois[0].data.sum(), n_informative=500,  n_redundant=5, n_classes=2)
+    dat.data[:, rois[0].data.astype(bool)] = X
+    dat.Y = pd.Series(Y)
+
+    out = dat.predict_multi(algorithm='svm', cv_dict={'type': 'kfolds', 'n_folds': 3},  method='rois', n_jobs=-1, rois=rois[:3], kernel='linear')
+    assert len(out) == 3
+    assert np.sum([elem['weight_map'].data.shape for elem in out]) == rois.data.sum()
+
+    # Searchlight
+    roi_mask = rois[:2].sum()
+    out = dat.predict_multi(algorithm='svm', cv_dict={'type': 'kfolds', 'n_folds': 3}, method='searchlight', radius=4, verbose=50, n_jobs=-1, process_mask=roi_mask)
+    assert len(np.nonzero(out.data)[0]) == len(np.nonzero(roi_mask.data)[0])
 
 
 def test_similarity(sim_brain_data):
