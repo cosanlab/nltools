@@ -379,20 +379,28 @@ class Brain_Data(object):
         else:
             raise ValueError("view must be one of: 'axial', 'glass', 'mni', 'full'.")
 
-    def iplot(self, threshold=0, surface=False):
+    def iplot(self, threshold=0, surface=False, anatomical=None, **kwargs):
         """ Create an interactive brain viewer for the current brain data instance.
 
         Args:
             threshold (float/str): two-sided threshold to initialize the visualization, maybe be a percentile string; default 0
             surface (bool): whether to create a surface-based plot; default False
-            percentile_threshold (bool): whether to interpret threshold values as percentiles
+            anatomical: nifti image or filename to overlay
+            kwargs: optional arguments to nilearn.view_img or nilearn.view_img_on_surf
 
         Returns:
             interactive brain viewer widget
 
         """
-
-        return plot_interactive_brain(self, threshold=threshold, surface=surface)
+        if anatomical is not None:
+            if not isinstance(anatomical, nib.Nifti1Image):
+                if isinstance(anatomical, six.string_types):
+                    anatomical = nib.load(anatomical)
+                else:
+                    raise ValueError("anatomical is not a nibabel instance")
+        else:
+            anatomical = nib.load(resolve_mni_path(MNI_Template)['brain'])
+        return plot_interactive_brain(self, threshold=threshold, surface=surface, anatomical=anatomical, **kwargs)
 
     def regress(self, mode='ols', **kwargs):
         """ Run a mass-univariate regression across voxels. Three types of regressions can be run:
