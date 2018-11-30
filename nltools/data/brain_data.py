@@ -198,10 +198,12 @@ class Brain_Data(object):
                 new.data = np.array(self.data[index, :])
         if not self.Y.empty:
             new.Y = self.Y.iloc[index]
-            new.Y.reset_index(inplace=True, drop=True)
+            if isinstance(new.Y, pd.Series):
+                new.Y.reset_index(inplace=True, drop=True)
         if not self.X.empty:
             new.X = self.X.iloc[index]
-            new.X.reset_index(inplace=True, drop=True)
+            if len(new.X) > 1:
+                new.X.reset_index(inplace=True, drop=True)
         return new
 
     def __setitem__(self, index, value):
@@ -929,7 +931,7 @@ class Brain_Data(object):
                     where 'n' = number of folds, and 'holdout' = vector of
                     subject ids that corresponds to self.Y
             method (string): one of 'searchlight' or 'roi'
-            rois (nib.Nifti1Image/nltools.Brain_Data): nifti file path or Brain_data instance containing non-overlapping regions-of-interest labeled by integers
+            rois (string/nltools.Brain_Data): nifti file path or Brain_data instance containing non-overlapping regions-of-interest labeled by integers
             process_mask (nib.Nifti1Image/nltools.Brain_Data): mask to constrain where to perform analyses; only applied if method = 'searchlight'
             radius (float): radius of searchlight in mm; default 2mm
             scoring (function): callable scoring function; see sklearn documentation; defaults to estimator's default scoring function
@@ -941,7 +943,7 @@ class Brain_Data(object):
 
         """
 
-        if method not in ['searchlight', 'roi']:
+        if method not in ['searchlight', 'rois']:
             raise ValueError("method must be one of 'searchlight' or 'roi'")
         if method == 'roi' and rois is None:
             raise ValueError("With method = 'roi' a file path, or nibabel/nltools instance with roi labels must be provided")
@@ -965,8 +967,23 @@ class Brain_Data(object):
             groups = None
 
         if method == 'rois':
-            raise NotImplementedError("ROIs are not yet implemented")
-        else:
+            if isinstance(rois, six.string_types):
+                if os.path.isfile(rois):
+                    rois_img = Brain_Data(rois, mask=self.mask)
+            elif isinstance(rois, Brain_Data):
+                rois_img = rois.copy()
+            else:
+                raise TypeError("rois must be a file path or a Brain_Data instance")
+            if len(rois_img.shape()) == 1:
+                rois_img = expand_mask(rois_img, custom_mask=self.mask)
+            if len(rois_img.shape()) != 2:
+                raise ValueError("rois cannot be coerced into a mask. Make sure nifti file or Brain_Data is 3d with non-overlapping integer labels or 4d with non-overlapping boolean masks")
+
+            def _roi_func(brain, roi, algorithm, cv_dict, **kwargs):
+                return brain.apply_mask(roi).predict(algorithm=algorithm, cv_dict=cv_dict, plot=False, **kwargs)
+
+            out = Parallel(n_jobs=n_jobs, verbose=verbose)(delayed(_roi_func)(self, r, algorithm, cv_dict, **kwargs) for r in rois_img)
+        elif method == 'searchlight':
             # Searchlight
             if process_mask is None:
                 process_mask_img = None
@@ -985,9 +1002,9 @@ class Brain_Data(object):
             sl = SearchLight(mask_img=self.mask, process_mask_img=process_mask_img, estimator=estimator, n_jobs=n_jobs, scoring=scoring, cv=cv, verbose=verbose, radius=radius)
             in_image = self.to_nifti()
             sl.fit(in_image, self.Y, groups=groups)
-            image = nib.Nifti1Image(sl.scores_, affine=self.nifti_masker.affine_)
-            image = Brain_Data(image, mask=self.mask)
-        return image
+            out = nib.Nifti1Image(sl.scores_, affine=self.nifti_masker.affine_)
+            out = Brain_Data(out, mask=self.mask)
+        return out
 
     def apply_mask(self, mask):
         """ Mask Brain_Data instance
