@@ -26,13 +26,13 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 from nltools.stats import two_sample_permutation, one_sample_permutation
-from nilearn.plotting import plot_glass_brain, plot_stat_map, view_stat_map, view_img_on_surf
+from nilearn.plotting import plot_glass_brain, plot_stat_map, view_img, view_img_on_surf
 from nltools.prefs import MNI_Template, resolve_mni_path
 from ipywidgets import interact, fixed, widgets
 import warnings
 
 
-def plot_interactive_brain(brain, threshold=0, surface=False, percentile_threshold=False):
+def plot_interactive_brain(brain, threshold=1e-6, surface=False, percentile_threshold=False, anatomical=None, **kwargs):
     """
     This function leverages nilearn's new javascript based brain viewer functions to create interactive plotting functionality.
 
@@ -41,6 +41,7 @@ def plot_interactive_brain(brain, threshold=0, surface=False, percentile_thresho
         threshold (float/str): threshold to initialize the visualization, maybe be a percentile string; default 0
         surface (bool): whether to create a surface-based plot; default False
         percentile_threshold (bool): whether to interpret threshold values as percentiles
+        kwargs: optional arguments to nilearn.view_img or nilearn.view_img_on_surf
 
     Returns:
         interactive brain viewer widget
@@ -74,10 +75,10 @@ def plot_interactive_brain(brain, threshold=0, surface=False, percentile_thresho
                                 )
     else:
         idx = widgets.HTML(value="Image is 3D", description="Volume", placeholder="")
-    interact(_viewer, brain=fixed(brain), thresh=thresh_box, idx=idx, percentile_threshold=percentile_threshold, surface=surface)
+    interact(_viewer, brain=fixed(brain), thresh=thresh_box, idx=idx, percentile_threshold=percentile_threshold, surface=surface, anatomical=fixed(anatomical), **kwargs)
 
 
-def _viewer(brain, thresh, idx, percentile_threshold, surface):
+def _viewer(brain, thresh, idx, percentile_threshold, surface, anatomical, **kwargs):
     if thresh == 0:
         thresh = None
     else:
@@ -87,10 +88,16 @@ def _viewer(brain, thresh, idx, percentile_threshold, surface):
         b = brain[idx].to_nifti()
     else:
         b = brain.to_nifti()
-    if surface:
-        return view_img_on_surf(b, threshold=thresh)
+    if anatomical:
+        bg_img = anatomical
     else:
-        return view_stat_map(b, threshold=thresh)
+        bg_img = 'MNI152'
+    cut_coords = kwargs.get('cut_coords', [0, 0, 0])
+
+    if surface:
+        return view_img_on_surf(b, threshold=thresh, **kwargs)
+    else:
+        return view_img(b, bg_img=bg_img, threshold=thresh, cut_coords=cut_coords, **kwargs)
 
 
 def plot_t_brain(objIn, how='full', thr='unc', alpha=None, nperm=None, cut_coords=[], **kwargs):
