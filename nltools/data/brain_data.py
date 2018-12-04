@@ -859,7 +859,7 @@ class Brain_Data(object):
             for train, test in cv:
                 # Ensure estimators are always indepedent across folds
                 predictor_cv = clone(predictor_settings['predictor'])
-                predictor_cv.fit(self.data[train], self.Y.loc[train])
+                predictor_cv.fit(self.data[train], self.Y.iloc[train])
                 output['yfit_xval'][test] = predictor_cv.predict(self.data[test]).ravel()
                 if predictor_settings['prediction_type'] == 'classification':
                     if predictor_settings['algorithm'] not in ['svm', 'ridgeClassifier', 'ridgeClassifierCV']:
@@ -1462,7 +1462,7 @@ class Brain_Data(object):
 
         if function is 'predict':
             bootstrapped = [x['weight_map'] for x in bootstrapped]
-        bootstrapped = Brain_Data(bootstrapped)
+        bootstrapped = Brain_Data(bootstrapped, mask=self.mask)
         return summarize_bootstrap(bootstrapped, save_weights=save_weights)
 
     def decompose(self, algorithm='pca', axis='voxels', n_components=None,
