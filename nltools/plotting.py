@@ -219,48 +219,6 @@ def plot_brain(objIn, how='full', thr_upper=None, thr_lower=None, **kwargs):
     del obj  # save memory
     return
 
-
-def iBrainViewer(objIn, statmin=-7, statmax=7, statstep=0.1, initThresh=2, figsize=(10, 5)):
-    """
-    Simple interactive brain plotting using ipython widgets.
-    Args:
-        objIn: 3d nifti image to plot
-        statmin: (float) minimum threshold for statistic value
-        statmax: (float) maximum threshold for statistic value
-        statstep (float) step size for thresholding
-        initThresh: (float) what stat value to initialize the plot with
-    """
-
-    warnings.warn("iBrainViewer is deprecated and will likely be removed in a future release. Use plot_interactive_brain instead", DeprecationWarning)
-
-    from ipywidgets import interact, fixed, widgets
-
-    interact(_iviewer, objIn=fixed(objIn),
-             x=widgets.IntSlider(min=-70, max=70, step=1, value=0, continuous_update=False),
-             y=widgets.IntSlider(min=-90, max=65, step=1, value=0, continuous_update=False),
-             z=widgets.IntSlider(min=-40, max=70, step=1, value=0, continuous_update=False),
-             stat=widgets.FloatSlider(min=statmin, max=statmax, step=statstep, value=initThresh, orientation='horizontal', continuous_update=False, description='T-threshold'),
-             figsize=fixed(figsize))
-    return
-
-
-def _iviewer(objIn, x, y, z, stat, figsize):
-    """
-    Generator function for ibrainViewer
-    """
-    _, ax = plt.subplots(1, figsize=figsize)
-    plot_stat_map(objIn.to_nifti(),
-                  display_mode='ortho',
-                  bg_img=resolve_mni_path(MNI_Template)['brain'],
-                  cut_coords=(x, y, z),
-                  threshold=stat,
-                  draw_cross=False,
-                  black_bg=True,
-                  dim=.25,
-                  axes=ax)
-    return
-
-
 def dist_from_hyperplane_plot(stats_output):
     """ Plot SVM Classification Distance from Hyperplane
 
