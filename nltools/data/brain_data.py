@@ -822,10 +822,12 @@ class Brain_Data(object):
             predictor_cv = predictor_settings['predictor']
             output['yfit_xval'] = output['yfit_all'].copy()
             output['intercept_xval'] = []
-            if len(np.unique(self.Y)) == 2:
-                output['weight_map_xval'] = output['weight_map'].copy()
-            else:
+            # Multi-class classification, init weightmaps as list
+            if ((predictor_settings['prediction_type'] == 'classification') and (len(np.unique(self.Y)) > 2)):
                 output['weight_map_xval'] = []
+            else:
+                # Otherwise we'll have a single weightmap
+                output['weight_map_xval'] = output['weight_map'].copy()
             output['cv_idx'] = []
             wt_map_xval = []
 
@@ -876,18 +878,20 @@ class Brain_Data(object):
                 output['cv_idx'].append((train, test))
 
                 # Weight map
-                if predictor_settings['algorithm'] == 'lassopcr':
-                    wt_map_xval.append(np.dot(predictor_settings['_pca'].components_.T, predictor_settings['_lasso'].coef_))
-                elif predictor_settings['algorithm'] == 'pcr':
-                    wt_map_xval.append(np.dot(predictor_settings['_pca'].components_.T, predictor_settings['_regress'].coef_))
-                else:
-                    wt_map_xval.append(predictor_cv.coef_.squeeze())
-                if len(np.unique(self.Y)) == 2:
-                    output['weight_map_xval'].data = np.array(wt_map_xval)
-                else:
+                # Multi-class classification, weightmaps as list
+                if ((predictor_settings['prediction_type'] == 'classification') and (len(np.unique(self.Y)) > 2)):
                     tmp = output['weight_map'].empty()
                     tmp.data = predictor_cv.coef_.squeeze()
                     output['weight_map_xval'].append(tmp)
+                # Regression or binary classification
+                else:
+                    if predictor_settings['algorithm'] == 'lassopcr':
+                        wt_map_xval.append(np.dot(predictor_settings['_pca'].components_.T, predictor_settings['_lasso'].coef_))
+                    elif predictor_settings['algorithm'] == 'pcr':
+                        wt_map_xval.append(np.dot(predictor_settings['_pca'].components_.T, predictor_settings['_regress'].coef_))
+                    else:
+                        wt_map_xval.append(predictor_cv.coef_.squeeze())
+                    output['weight_map_xval'].data = np.array(wt_map_xval)
 
         # Print Results
         if predictor_settings['prediction_type'] == 'classification':
