@@ -45,7 +45,8 @@ from nltools.utils import (set_algorithm,
                            concatenate,
                            _bootstrap_apply_func,
                            set_decomposition_algorithm,
-                           check_brain_data)
+                           check_brain_data,
+                           _roi_func)
 from nltools.cross_validation import set_cv
 from nltools.plotting import scatterplot
 from nltools.stats import (pearson,
@@ -991,10 +992,8 @@ class Brain_Data(object):
             if len(rois_img.shape()) != 2:
                 raise ValueError("rois cannot be coerced into a mask. Make sure nifti file or Brain_Data is 3d with non-overlapping integer labels or 4d with non-overlapping boolean masks")
 
-            def _roi_func(brain, roi, algorithm, cv_dict, **kwargs):
-                return brain.apply_mask(roi).predict(algorithm=algorithm, cv_dict=cv_dict, plot=False, **kwargs)
-
             out = Parallel(n_jobs=n_jobs, verbose=verbose)(delayed(_roi_func)(self, r, algorithm, cv_dict, **kwargs) for r in rois_img)
+
         elif method == 'searchlight':
             # Searchlight
             if process_mask is None:
