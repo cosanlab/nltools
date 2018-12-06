@@ -28,8 +28,11 @@ import numpy as np
 from nltools.stats import two_sample_permutation, one_sample_permutation
 from nilearn.plotting import plot_glass_brain, plot_stat_map, view_img, view_img_on_surf
 from nltools.prefs import MNI_Template, resolve_mni_path
-from ipywidgets import interact, fixed, widgets
+from nltools.utils import attempt_to_import
 import warnings
+
+# Optional dependencies
+ipywidgets = attempt_to_import('ipywidgets',name='ipywidgets',fromlist=['interact','fixed','widgets'])
 
 
 def plot_interactive_brain(brain, threshold=1e-6, surface=False, percentile_threshold=False, anatomical=None, **kwargs):
@@ -47,6 +50,9 @@ def plot_interactive_brain(brain, threshold=1e-6, surface=False, percentile_thre
         interactive brain viewer widget
     """
 
+    if ipywidgets is None:
+        raise ImportError("ipywidgets>=5.2.2 is required for interactive plotting. Please install this package manually or install nltools with optional arguments: pip install 'nltools[interactive_plots]'")
+
     if isinstance(threshold, str):
         if threshold[-1] != '%':
             raise ValueError("Starting threshold provided as string must end in '%'")
@@ -61,10 +67,10 @@ def plot_interactive_brain(brain, threshold=1e-6, surface=False, percentile_thre
     else:
         raise ValueError("Brain_Data object is not 1d or 2d")
 
-    thresh_box = widgets.FloatText(value=threshold, description='Threshold')
+    thresh_box = ipywidgets.widgets.FloatText(value=threshold, description='Threshold')
 
     if time_slider:
-        idx = widgets.IntSlider(min=0,
+        idx = ipywidgets.widgets.IntSlider(min=0,
                                 max=max_idx,
                                 step=1,
                                 value=0,
@@ -74,8 +80,8 @@ def plot_interactive_brain(brain, threshold=1e-6, surface=False, percentile_thre
                                 readout_format='d'
                                 )
     else:
-        idx = widgets.HTML(value="Image is 3D", description="Volume", placeholder="")
-    interact(_viewer, brain=fixed(brain), thresh=thresh_box, idx=idx, percentile_threshold=percentile_threshold, surface=surface, anatomical=fixed(anatomical), **kwargs)
+        idx = ipywidgets.widgets.HTML(value="Image is 3D", description="Volume", placeholder="")
+    ipywidgets.interact(_viewer, brain=ipywidgets.fixed(brain), thresh=thresh_box, idx=idx, percentile_threshold=percentile_threshold, surface=surface, anatomical=ipywidgets.fixed(anatomical), **kwargs)
 
 
 def _viewer(brain, thresh, idx, percentile_threshold, surface, anatomical, **kwargs):
