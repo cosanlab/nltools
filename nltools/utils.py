@@ -249,5 +249,10 @@ def check_brain_data(data):
     return data
 
 
+def _roi_func(brain, roi, algorithm, cv_dict, **kwargs):
+    '''Brain_Data.predict_multi() helper function'''
+    return brain.apply_mask(roi).predict(algorithm=algorithm, cv_dict=cv_dict, plot=False, **kwargs)
+
+
 class AmbiguityError(Exception):
     pass
