@@ -45,7 +45,8 @@ from nltools.utils import (set_algorithm,
                            concatenate,
                            _bootstrap_apply_func,
                            set_decomposition_algorithm,
-                           check_brain_data)
+                           check_brain_data,
+                           _roi_func)
 from nltools.cross_validation import set_cv
 from nltools.plotting import scatterplot
 from nltools.stats import (pearson,
@@ -60,6 +61,8 @@ from .adjacency import Adjacency
 from nltools.prefs import MNI_Template, resolve_mni_path
 from nltools.external.srm import DetSRM, SRM
 from nltools.plotting import plot_interactive_brain, plot_brain
+from nilearn.decoding import SearchLight
+
 
 # Optional dependencies
 nx = attempt_to_import('networkx', 'nx')
@@ -196,10 +199,12 @@ class Brain_Data(object):
                 new.data = np.array(self.data[index, :])
         if not self.Y.empty:
             new.Y = self.Y.iloc[index]
-            new.Y.reset_index(inplace=True, drop=True)
+            if isinstance(new.Y, pd.Series):
+                new.Y.reset_index(inplace=True, drop=True)
         if not self.X.empty:
             new.X = self.X.iloc[index]
-            new.X.reset_index(inplace=True, drop=True)
+            if len(new.X) > 1:
+                new.X.reset_index(inplace=True, drop=True)
         return new
 
     def __setitem__(self, index, value):
@@ -375,20 +380,28 @@ class Brain_Data(object):
         else:
             raise ValueError("view must be one of: 'axial', 'glass', 'mni', 'full'.")
 
-    def iplot(self, threshold=0, surface=False):
+    def iplot(self, threshold=0, surface=False, anatomical=None, **kwargs):
         """ Create an interactive brain viewer for the current brain data instance.
 
         Args:
             threshold (float/str): two-sided threshold to initialize the visualization, maybe be a percentile string; default 0
             surface (bool): whether to create a surface-based plot; default False
-            percentile_threshold (bool): whether to interpret threshold values as percentiles
+            anatomical: nifti image or filename to overlay
+            kwargs: optional arguments to nilearn.view_img or nilearn.view_img_on_surf
 
         Returns:
             interactive brain viewer widget
 
         """
-
-        return plot_interactive_brain(self, threshold=threshold, surface=surface)
+        if anatomical is not None:
+            if not isinstance(anatomical, nib.Nifti1Image):
+                if isinstance(anatomical, six.string_types):
+                    anatomical = nib.load(anatomical)
+                else:
+                    raise ValueError("anatomical is not a nibabel instance")
+        else:
+            anatomical = nib.load(resolve_mni_path(MNI_Template)['brain'])
+        return plot_interactive_brain(self, threshold=threshold, surface=surface, anatomical=anatomical, **kwargs)
 
     def regress(self, mode='ols', **kwargs):
         """ Run a mass-univariate regression across voxels. Three types of regressions can be run:
@@ -771,19 +784,19 @@ class Brain_Data(object):
         # Initialize output dictionary
         output = {}
         output['Y'] = np.array(self.Y).flatten()
+        predictor = predictor_settings['predictor']
 
         # Overall Fit for weight map
-        predictor = predictor_settings['predictor']
         predictor.fit(self.data, output['Y'])
         output['yfit_all'] = predictor.predict(self.data)
         if predictor_settings['prediction_type'] == 'classification':
             if predictor_settings['algorithm'] not in ['svm', 'ridgeClassifier',
                                                        'ridgeClassifierCV']:
-                output['prob_all'] = predictor.predict_proba(self.data)[:, 1]
+                output['prob_all'] = predictor.predict_proba(self.data)
             else:
                 output['dist_from_hyperplane_all'] = predictor.decision_function(self.data)
                 if predictor_settings['algorithm'] == 'svm' and predictor.probability:
-                    output['prob_all'] = predictor.predict_proba(self.data)[:, 1]
+                    output['prob_all'] = predictor.predict_proba(self.data)
 
         # Intercept
         if predictor_settings['algorithm'] == 'pcr':
@@ -803,33 +816,59 @@ class Brain_Data(object):
             output['weight_map'].data = predictor.coef_.squeeze()
 
         # Cross-Validation Fit
+        from sklearn.base import clone
         if cv_dict is not None:
             cv = set_cv(Y=self.Y, cv_dict=cv_dict)
 
             predictor_cv = predictor_settings['predictor']
             output['yfit_xval'] = output['yfit_all'].copy()
             output['intercept_xval'] = []
-            output['weight_map_xval'] = output['weight_map'].copy()
+            # Multi-class classification, init weightmaps as list
+            if ((predictor_settings['prediction_type'] == 'classification') and (len(np.unique(self.Y)) > 2)):
+                output['weight_map_xval'] = []
+            else:
+                # Otherwise we'll have a single weightmap
+                output['weight_map_xval'] = output['weight_map'].copy()
             output['cv_idx'] = []
             wt_map_xval = []
+
+            # Initialize zero'd arrays that will be filled during cross-validation and fitting
+            # These will need change shape if doing multi-class or probablistic predictions
+            if (predictor_settings['algorithm'] == 'logistic') or (predictor_settings['algorithm'] == 'svm' and predictor.probability):
+                # If logistic or svm prob, probs == number of classes
+                probs_init = np.zeros((len(self.Y), len(np.unique(self.Y))))
+            # however if num classes == 2 decision function == 1, but if num class > 2, decision function == num classes (sklearn weirdness)
+            if len(np.unique(self.Y)) == 2:
+                dec_init = np.zeros(len(self.Y))
+            else:
+                dec_init = np.zeros((len(self.Y), len(np.unique(self.Y))))
+            # else:
+            #
+            #     if len(np.unique(self.Y)) == 2:
+            #         dec_init = np.zeros(len(self.Y))
+            #     else:
+            #         dec_init = np.zeros((len(self.Y), len(np.unique(self.Y))))
+
             if predictor_settings['prediction_type'] == 'classification':
                 if predictor_settings['algorithm'] not in ['svm', 'ridgeClassifier', 'ridgeClassifierCV']:
-                    output['prob_xval'] = np.zeros(len(self.Y))
+                    output['prob_xval'] = probs_init
                 else:
-                    output['dist_from_hyperplane_xval'] = np.zeros(len(self.Y))
+                    output['dist_from_hyperplane_xval'] = dec_init
                     if predictor_settings['algorithm'] == 'svm' and predictor_cv.probability:
-                        output['prob_xval'] = np.zeros(len(self.Y))
+                        output['prob_xval'] = probs_init
 
             for train, test in cv:
-                predictor_cv.fit(self.data[train], self.Y.loc[train])
+                # Ensure estimators are always indepedent across folds
+                predictor_cv = clone(predictor_settings['predictor'])
+                predictor_cv.fit(self.data[train], self.Y.iloc[train])
                 output['yfit_xval'][test] = predictor_cv.predict(self.data[test]).ravel()
                 if predictor_settings['prediction_type'] == 'classification':
                     if predictor_settings['algorithm'] not in ['svm', 'ridgeClassifier', 'ridgeClassifierCV']:
-                        output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])[:, 1]
+                        output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])
                     else:
                         output['dist_from_hyperplane_xval'][test] = predictor_cv.decision_function(self.data[test])
                         if predictor_settings['algorithm'] == 'svm' and predictor_cv.probability:
-                            output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])[:, 1]
+                            output['prob_xval'][test] = predictor_cv.predict_proba(self.data[test])
                 # Intercept
                 if predictor_settings['algorithm'] == 'pcr':
                     output['intercept_xval'].append(predictor_settings['_regress'].intercept_)
@@ -840,13 +879,20 @@ class Brain_Data(object):
                 output['cv_idx'].append((train, test))
 
                 # Weight map
-                if predictor_settings['algorithm'] == 'lassopcr':
-                    wt_map_xval.append(np.dot(predictor_settings['_pca'].components_.T, predictor_settings['_lasso'].coef_))
-                elif predictor_settings['algorithm'] == 'pcr':
-                    wt_map_xval.append(np.dot(predictor_settings['_pca'].components_.T, predictor_settings['_regress'].coef_))
+                # Multi-class classification, weightmaps as list
+                if ((predictor_settings['prediction_type'] == 'classification') and (len(np.unique(self.Y)) > 2)):
+                    tmp = output['weight_map'].empty()
+                    tmp.data = predictor_cv.coef_.squeeze()
+                    output['weight_map_xval'].append(tmp)
+                # Regression or binary classification
                 else:
-                    wt_map_xval.append(predictor_cv.coef_.squeeze())
-                output['weight_map_xval'].data = np.array(wt_map_xval)
+                    if predictor_settings['algorithm'] == 'lassopcr':
+                        wt_map_xval.append(np.dot(predictor_settings['_pca'].components_.T, predictor_settings['_lasso'].coef_))
+                    elif predictor_settings['algorithm'] == 'pcr':
+                        wt_map_xval.append(np.dot(predictor_settings['_pca'].components_.T, predictor_settings['_regress'].coef_))
+                    else:
+                        wt_map_xval.append(predictor_cv.coef_.squeeze())
+                    output['weight_map_xval'].data = np.array(wt_map_xval)
 
         # Print Results
         if predictor_settings['prediction_type'] == 'classification':
@@ -882,6 +928,94 @@ class Brain_Data(object):
             output['weight_map'].plot()
 
         return output
+
+    def predict_multi(self, algorithm=None, cv_dict=None, method='searchlight', rois=None, process_mask=None, radius=2.0, scoring=None, n_jobs=1, verbose=0, **kwargs):
+        """ Perform multi-region prediction. This can be a searchlight analysis or multi-roi analysis if provided a Brain_Data instance with labeled non-overlapping rois.
+
+        Args:
+            algorithm (string): algorithm to use for prediction Must be one of 'svm',
+                    'svr', 'linear', 'logistic', 'lasso', 'ridge',
+                    'ridgeClassifier','pcr', or 'lassopcr'
+            cv_dict: Type of cross_validation to use. Default is 3-fold. A dictionary of
+                    {'type': 'kfolds', 'n_folds': n},
+                    {'type': 'kfolds', 'n_folds': n, 'stratified': Y},
+                    {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
+                    {'type': 'loso', 'subject_id': holdout}
+                    where 'n' = number of folds, and 'holdout' = vector of
+                    subject ids that corresponds to self.Y
+            method (string): one of 'searchlight' or 'roi'
+            rois (string/nltools.Brain_Data): nifti file path or Brain_data instance containing non-overlapping regions-of-interest labeled by integers
+            process_mask (nib.Nifti1Image/nltools.Brain_Data): mask to constrain where to perform analyses; only applied if method = 'searchlight'
+            radius (float): radius of searchlight in mm; default 2mm
+            scoring (function): callable scoring function; see sklearn documentation; defaults to estimator's default scoring function
+            n_jobs (int): The number of CPUs to use to do permutation; default 1 because this can be very memory intensive
+            verbose (int): whether parallelization progress should be printed; default 0
+
+        Returns:
+            output: image of results
+
+        """
+
+        if method not in ['searchlight', 'rois']:
+            raise ValueError("method must be one of 'searchlight' or 'roi'")
+        if method == 'roi' and rois is None:
+            raise ValueError("With method = 'roi' a file path, or nibabel/nltools instance with roi labels must be provided")
+
+        # Set algorithm
+        if algorithm is not None:
+            predictor_settings = set_algorithm(algorithm, **kwargs)
+        else:
+            # Use SVR as a default
+            predictor_settings = set_algorithm('svr', **{'kernel': "linear"})
+        estimator = predictor_settings['predictor']
+
+        if cv_dict is not None:
+            cv = set_cv(Y=self.Y, cv_dict=cv_dict, return_generator=False)
+            if cv_dict['type'] == 'loso':
+                groups = cv_dict['subject_id']
+            else:
+                groups = None
+        else:
+            cv = None
+            groups = None
+
+        if method == 'rois':
+            if isinstance(rois, six.string_types):
+                if os.path.isfile(rois):
+                    rois_img = Brain_Data(rois, mask=self.mask)
+            elif isinstance(rois, Brain_Data):
+                rois_img = rois.copy()
+            else:
+                raise TypeError("rois must be a file path or a Brain_Data instance")
+            if len(rois_img.shape()) == 1:
+                rois_img = expand_mask(rois_img, custom_mask=self.mask)
+            if len(rois_img.shape()) != 2:
+                raise ValueError("rois cannot be coerced into a mask. Make sure nifti file or Brain_Data is 3d with non-overlapping integer labels or 4d with non-overlapping boolean masks")
+
+            out = Parallel(n_jobs=n_jobs, verbose=verbose)(delayed(_roi_func)(self, r, algorithm, cv_dict, **kwargs) for r in rois_img)
+
+        elif method == 'searchlight':
+            # Searchlight
+            if process_mask is None:
+                process_mask_img = None
+            elif isinstance(process_mask, nib.Nifti1Image):
+                process_mask_img = process_mask
+            elif isinstance(process_mask, Brain_Data):
+                process_mask_img = process_mask.to_nifti()
+            elif isinstance(process_mask, six.string_types):
+                if os.path.isfile(process_mask):
+                    process_mask_img = nib.load(process_mask)
+                else:
+                    raise ValueError("process mask file path specified but can't be found")
+            else:
+                raise TypeError("process_mask is not a valid nibabel instance, Brain_Data instance or file path")
+
+            sl = SearchLight(mask_img=self.mask, process_mask_img=process_mask_img, estimator=estimator, n_jobs=n_jobs, scoring=scoring, cv=cv, verbose=verbose, radius=radius)
+            in_image = self.to_nifti()
+            sl.fit(in_image, self.Y, groups=groups)
+            out = nib.Nifti1Image(sl.scores_, affine=self.nifti_masker.affine_)
+            out = Brain_Data(out, mask=self.mask)
+        return out
 
     def apply_mask(self, mask):
         """ Mask Brain_Data instance
@@ -1327,7 +1461,7 @@ class Brain_Data(object):
 
         if function is 'predict':
             bootstrapped = [x['weight_map'] for x in bootstrapped]
-        bootstrapped = Brain_Data(bootstrapped)
+        bootstrapped = Brain_Data(bootstrapped, mask=self.mask)
         return summarize_bootstrap(bootstrapped, save_weights=save_weights)
 
     def decompose(self, algorithm='pca', axis='voxels', n_components=None,
