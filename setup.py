@@ -19,7 +19,7 @@ setup(
     url = 'http://neurolearn.readthedocs.org/en/latest/',
     install_requires = requirements,
     extras_require = {
-    'ibrainViewer':['ipywidgets>=5.2.2']
+    'interactive_plots':['ipywidgets>=5.2.2']
     },
     packages = find_packages(exclude=['nltools/tests']),
     package_data = {'nltools': ['resources/*']},
