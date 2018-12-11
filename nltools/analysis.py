@@ -95,8 +95,8 @@ class Roc(object):
         if criterion_values is not None:
             self.criterion_values = deepcopy(criterion_values)
         else:
-            self.criterion_values = np.linspace(min(self.input_values),
-                                                max(self.input_values),
+            self.criterion_values = np.linspace(np.min(self.input_values.squeeze()),
+                                                np.max(self.input_values.squeeze()),
                                                 num=50*len(self.binary_outcome))
 
         if forced_choice is not None:
