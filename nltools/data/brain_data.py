@@ -918,13 +918,16 @@ class Brain_Data(object):
                 if predictor_settings['prediction_type'] == 'prediction':
                     scatterplot(pd.DataFrame({'Y': output['Y'], 'yfit_xval': output['yfit_xval']}))
                 elif predictor_settings['prediction_type'] == 'classification':
-                    if predictor_settings['algorithm'] not in ['svm', 'ridgeClassifier', 'ridgeClassifierCV']:
-                        output['roc'] = Roc(input_values=output['prob_xval'], binary_outcome=output['Y'].astype('bool'))
+                    if len(np.unique(self.Y)) > 2:
+                        print('Skipping ROC plot because num_classes > 2')
                     else:
-                        output['roc'] = Roc(input_values=output['dist_from_hyperplane_xval'], binary_outcome=output['Y'].astype('bool'))
-                        if predictor_settings['algorithm'] == 'svm' and predictor_cv.probability:
+                        if predictor_settings['algorithm'] not in ['svm', 'ridgeClassifier', 'ridgeClassifierCV']:
                             output['roc'] = Roc(input_values=output['prob_xval'], binary_outcome=output['Y'].astype('bool'))
-                    output['roc'].plot()
+                        else:
+                            output['roc'] = Roc(input_values=output['dist_from_hyperplane_xval'], binary_outcome=output['Y'].astype('bool'))
+                            if predictor_settings['algorithm'] == 'svm' and predictor_cv.probability:
+                                output['roc'] = Roc(input_values=output['prob_xval'][:, 1], binary_outcome=output['Y'].astype('bool'))
+                        output['roc'].plot()
             output['weight_map'].plot()
 
         return output
