@@ -16,8 +16,7 @@ __all__ = ['dist_from_hyperplane_plot',
            'plot_silhouette',
            'plot_t_brain',
            'plot_brain',
-           'plot_interactive_brain',
-           'iBrainViewer']
+           'plot_interactive_brain']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
