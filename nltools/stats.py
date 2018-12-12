@@ -964,6 +964,8 @@ def regress(X, Y, mode='ols', **kwargs):
 
     # ARMA regression
     elif mode == 'arma':
+        if sm is None:
+            raise ImportError("statsmodels>=0.9.0 is required for ARMA regression. Please install this package manually or install nltools with optional arguments: pip install 'nltools[arma]'")
         n_jobs = kwargs.pop('n_jobs', -1)
         backend = kwargs.pop('backend', 'threading')
         max_nbytes = kwargs.pop('max_nbytes', 1e8)
