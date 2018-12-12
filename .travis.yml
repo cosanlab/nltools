@@ -1,34 +1,35 @@
 language: python
-
 sudo: false
-
 python:
-  - "2.7"
-  - "3.6"
-
+- '2.7'
+- '3.6'
 before_script:
-  - "export DISPLAY=:99.0"
-  - "sh -e /etc/init.d/xvfb start"
-  - sleep 3
-
+- export DISPLAY=:99.0
+- sh -e /etc/init.d/xvfb start
+- sleep 3
 install:
-  - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
-  - bash miniconda.sh -b -p $HOME/miniconda
-  - export PATH="$HOME/miniconda/bin:$PATH"
-  - hash -r
-  - conda config --set always_yes yes --set changeps1 no
-  - conda update -q conda
-  - conda info -a
-  - conda create -q -n testenv python=$TRAVIS_PYTHON_VERSION pip pytest numpy pandas scipy matplotlib scikit-learn
-  - source activate testenv
-  - pip install python-coveralls
-  - pip install -r requirements.txt
-  - pip install -r optional-dependencies.txt
-  - python setup.py install
-  - cp nltools/tests/matplotlibrc .
-
-
+- wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+- bash miniconda.sh -b -p $HOME/miniconda
+- export PATH="$HOME/miniconda/bin:$PATH"
+- hash -r
+- conda config --set always_yes yes --set changeps1 no
+- conda update -q conda
+- conda info -a
+- conda create -q -n testenv python=$TRAVIS_PYTHON_VERSION pip pytest numpy pandas
+  scipy matplotlib scikit-learn
+- source activate testenv
+- pip install python-coveralls
+- pip install -r requirements.txt
+- pip install -r optional-dependencies.txt
+- python setup.py install
+- cp nltools/tests/matplotlibrc .
 script: coverage run --source nltools -m py.test
-
 after_success:
-  - coveralls
+- coveralls
+deploy:
+  provider: pypi
+  user: ejolly
+  password:
+    secure: U2mSyTWMn9cU2p0UyZMovLKWmGzm/MafykzmHvQwrvUIdzAbOpFXWo/wgNYeisCCYm9yHWvlwVoTLufsCyCk0d1oLYnL3FTY2oXlPe4N8OzqlVw/aiXCZ/eaizb1aVHbDUUrEYdOON8Nvh/n9TSHvLLV2owTtrAIo8XkyJMFzaPNFJSIUt0mAPmnDelqnlYNqM92dhhc430J7/4rCPXe5WZm2THq4qF5OYn81TreZFSBnBTKjkWLKsuEnMuzEBA3RZKxzxmZki4dbjPmsg5c6CHJcWh2+8SAqecLxSo/LBv1OmAp3JWOHV4qMhR43Gj2hnmk7gAlNl9rJgM1c4IFAnWmsPzI9bKwoj264S22ruBvFHoOktYs7CREuOx62xCnnIO7UYfIYEMzNe1yP1IMJko/Iz80u5CB0LH6bZK+vIYVcR2XmrhACfQgHvBi7ASFgCkUnTaRJLixYWoN4qZvJozPQseZ/Rq2/EW/1+qq/eWHmVuWfiKiWEYb+Z1/RVaA6oS8o6eIZ30y/DVG0mDButDCfz0c9ZCeT1rFDy0ae0lNwosLqN+0rXm+2rJIWCrzCqRnzvI7tKEjHzUKwvDa5CR1coNZBC3zqfiIuzzN95vhQSuexCLpquz9gLmM3hkaf4kSOuCKBGTSoWajoSTlORP+RlmgUFl/tQQGVAVu6lU=
+  on:
+    tags: true
