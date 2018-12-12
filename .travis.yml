@@ -26,10 +26,3 @@ install:
 script: coverage run --source nltools -m py.test
 after_success:
 - coveralls
-deploy:
-  provider: pypi
-  user: ejolly
-  password:
-    secure: U2mSyTWMn9cU2p0UyZMovLKWmGzm/MafykzmHvQwrvUIdzAbOpFXWo/wgNYeisCCYm9yHWvlwVoTLufsCyCk0d1oLYnL3FTY2oXlPe4N8OzqlVw/aiXCZ/eaizb1aVHbDUUrEYdOON8Nvh/n9TSHvLLV2owTtrAIo8XkyJMFzaPNFJSIUt0mAPmnDelqnlYNqM92dhhc430J7/4rCPXe5WZm2THq4qF5OYn81TreZFSBnBTKjkWLKsuEnMuzEBA3RZKxzxmZki4dbjPmsg5c6CHJcWh2+8SAqecLxSo/LBv1OmAp3JWOHV4qMhR43Gj2hnmk7gAlNl9rJgM1c4IFAnWmsPzI9bKwoj264S22ruBvFHoOktYs7CREuOx62xCnnIO7UYfIYEMzNe1yP1IMJko/Iz80u5CB0LH6bZK+vIYVcR2XmrhACfQgHvBi7ASFgCkUnTaRJLixYWoN4qZvJozPQseZ/Rq2/EW/1+qq/eWHmVuWfiKiWEYb+Z1/RVaA6oS8o6eIZ30y/DVG0mDButDCfz0c9ZCeT1rFDy0ae0lNwosLqN+0rXm+2rJIWCrzCqRnzvI7tKEjHzUKwvDa5CR1coNZBC3zqfiIuzzN95vhQSuexCLpquz9gLmM3hkaf4kSOuCKBGTSoWajoSTlORP+RlmgUFl/tQQGVAVu6lU=
-  on:
-    tags: true
