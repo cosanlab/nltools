@@ -1,8 +1,8 @@
 NLTools
 =======
 
-.. image:: https://api.travis-ci.org/ljchang/nltools.png
-    :target: https://travis-ci.org/ljchang/nltools/
+.. image:: https://api.travis-ci.org/cosanlab/nltools.png
+    :target: https://travis-ci.org/cosanlab/nltools/
 
 .. image:: https://coveralls.io/repos/github/ljchang/nltools/badge.svg?branch=master
     :target: https://coveralls.io/github/ljchang/nltools?branch=master
