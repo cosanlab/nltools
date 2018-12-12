@@ -86,8 +86,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'nltools'
-copyright = u'2018, Luke Chang'
-author = u'Luke Chang'
+copyright = u'2018, Cosan Lab'
+author = u'Cosan Lab'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -152,7 +152,7 @@ html_theme = 'bootstrap'
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-extlinks = {'github': 'https://github.com/ljchang/nltools'}
+extlinks = {'github': 'https://github.com/cosanlab/nltools'}
 
 # Add any paths that contain custom themes here, relative to this directory.
 html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
