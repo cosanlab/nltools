@@ -5,7 +5,7 @@ name:
   - nltools
 
 dependencies:
-  - python=3.5
+  - python=3.6
   - pip
   - pip:
     - sphinx >= 1.5

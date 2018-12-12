@@ -111,9 +111,9 @@ class Roc(object):
             if len(set(sub_idx).union(set(np.array(self.forced_choice)[~self.binary_outcome]))) != len(sub_idx):
                 raise ValueError("Issue with forced_choice subject labels.")
             for sub in sub_idx:
-                sub_mn = (self.input_values[(self.forced_choice == sub) & (self.binary_outcome is True)]+self.input_values[(self.forced_choice == sub) & (self.binary_outcome is False)])[0]/2
-                self.input_values[(self.forced_choice == sub) & (self.binary_outcome is True)] = self.input_values[(self.forced_choice == sub) & (self.binary_outcome is True)][0] - sub_mn
-                self.input_values[(self.forced_choice == sub) & (self.binary_outcome is False)] = self.input_values[(self.forced_choice == sub) & (self.binary_outcome is False)][0] - sub_mn
+                sub_mn = (self.input_values[(self.forced_choice == sub) & (self.binary_outcome)]+self.input_values[(self.forced_choice == sub) & (~self.binary_outcome)])[0]/2
+                self.input_values[(self.forced_choice == sub) & (self.binary_outcome)] = self.input_values[(self.forced_choice == sub) & (self.binary_outcome)][0] - sub_mn
+                self.input_values[(self.forced_choice == sub) & (~self.binary_outcome)] = self.input_values[(self.forced_choice == sub) & (~self.binary_outcome)][0] - sub_mn
             self.class_thr = 0
 
         # Calculate true positive and false positive rate
@@ -194,7 +194,7 @@ class Roc(object):
                 sub_idx = np.unique(self.forced_choice)
                 diff_scores = []
                 for sub in sub_idx:
-                    diff_scores.append(self.input_values[(self.forced_choice == sub) & (self.binary_outcome is True)][0] - self.input_values[(self.forced_choice == sub) & (self.binary_outcome is False)][0])
+                    diff_scores.append(self.input_values[(self.forced_choice == sub) & (self.binary_outcome)][0] - self.input_values[(self.forced_choice == sub) & (~self.binary_outcome)][0])
                 diff_scores = np.array(diff_scores)
                 mn_diff = np.mean(diff_scores)
                 d = mn_diff / np.std(diff_scores)
