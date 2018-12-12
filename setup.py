@@ -14,7 +14,7 @@ extra_setuptools_args = dict(
 setup(
     name = 'nltools',
     version = version['__version__'],
-    author = 'Luke Chang',
+    author = 'Cosan Lab',
     author_email = 'luke.j.chang@dartmouth.edu',
     url = 'http://neurolearn.readthedocs.org/en/latest/',
     install_requires = requirements,
