@@ -922,7 +922,7 @@ class Brain_Data(object):
                         print('Skipping ROC plot because num_classes > 2')
                     else:
                         if predictor_settings['algorithm'] not in ['svm', 'ridgeClassifier', 'ridgeClassifierCV']:
-                            output['roc'] = Roc(input_values=output['prob_xval'], binary_outcome=output['Y'].astype('bool'))
+                            output['roc'] = Roc(input_values=output['prob_xval'][:,1], binary_outcome=output['Y'].astype('bool'))
                         else:
                             output['roc'] = Roc(input_values=output['dist_from_hyperplane_xval'], binary_outcome=output['Y'].astype('bool'))
                             if predictor_settings['algorithm'] == 'svm' and predictor_cv.probability:

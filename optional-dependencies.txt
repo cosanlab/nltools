@@ -2,3 +2,4 @@ mne
 requests
 networkx
 ipywidgets>=5.2.2
+statsmodels>=0.9.0
