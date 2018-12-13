@@ -1,8 +1,10 @@
 [![Package versioning](https://img.shields.io/pypi/v/nltools.svg)](https://pypi.org/project/nltools/)
 [![Build Status](https://api.travis-ci.org/cosanlab/nltools.png)](https://travis-ci.org/cosanlab/nltools/)
-[![Coverage Status](https://coveralls.io/repos/github/ljchang/nltools/badge.svg?branch=master)](https://coveralls.io/github/ljchang/nltools?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/cosanlab/nltools/badge.svg?branch=master)](https://coveralls.io/github/cosanlab/nltools?branch=master)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/625677967a0749299f38c2bf8ee269c3)](https://www.codacy.com/app/ljchang/nltools?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=ljchang/nltools&amp;utm_campaign=Badge_Grade)
 [![Documentation Status](https://readthedocs.org/projects/neurolearn/badge/?version=latest)](http://neurolearn.readthedocs.io/en/latest/?badge=latest)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2229813.svg)](https://doi.org/10.5281/zenodo.2229813)
+
 
 # NLTools
 Python toolbox for analyzing neuroimaging data.  Compatible with both Python 2.7 and Python 3.6.  It is particularly useful for conducting multivariate analyses.  It is originally based on Tor Wager's object oriented matlab [canlab core tools](http://wagerlab.colorado.edu/tools) and relies heavily on [nilearn](http://nilearn.github.io) and [scikit learn](http://scikit-learn.org/stable/index.html)
