@@ -49,6 +49,7 @@ from .external.srm import SRM, DetSRM
 from scipy.linalg import orthogonal_procrustes
 from scipy.spatial import procrustes as procrust
 from sklearn.utils import check_random_state
+from sklearn.metrics import pairwise_distances
 
 MAX_INT = np.iinfo(np.int32).max
 
@@ -1022,12 +1023,12 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
 
         Returns:
             out: (dict) a dictionary containing a list of transformed subject
-                matrices, a list of transformation matrices, and the shared
-                response matrix
+                matrices, a list of transformation matrices, the shared
+                response matrix, and the intersubject correlation of the shared resposnes
 
     '''
 
-    from nltools.data import Brain_Data
+    from nltools.data import Brain_Data, Adjacency
 
     if not isinstance(data, list):
         raise ValueError('Make sure you are inputting data is a list.')
@@ -1071,7 +1072,6 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
             raise NotImplementedError('Currently must use all voxels.'
                                       'Eventually will add a PCA reduction,'
                                       'must do this manually for now.')
-
         ## STEP 0: STANDARDIZE SIZE AND SHAPE##
         sizes_0 = [x.shape[0] for x in data]
         sizes_1 = [x.shape[1] for x in data]
@@ -1137,6 +1137,16 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
         common = data_out[0].copy()
         common.data = out['common_model'].T
         out['common_model'] = common
+
+    # Calculate Intersubject correlation on aligned components
+    if n_features is None:
+        n_features = out['common_model'].shape[0]
+
+    a = Adjacency()
+    for f in range(n_features):
+        a = a.append(Adjacency(1-pairwise_distances(np.array([x[f,:] for x in out['transformed']]), metric='correlation'), metric='similarity'))
+    out['isc'] = dict(zip(np.arange(n_features), a.mean(axis=1)))
+
     return out
 
 
