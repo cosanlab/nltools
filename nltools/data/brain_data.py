@@ -37,7 +37,7 @@ from nltools.mask import expand_mask
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
 from nilearn.plotting import plot_stat_map
-from nilearn.image import resample_img
+from nilearn.image import resample_img, smooth_img
 from nilearn.masking import intersect_masks
 from nilearn.regions import connected_regions, connected_label_regions
 from nltools.utils import (set_algorithm,
@@ -1651,3 +1651,13 @@ class Groupby(object):
                 raise ValueError('No method for aggregation implented for %s '
                                  'yet.' % type(value_dict[i]))
         return out.sum()
+
+    def smooth(self, fwhm):
+        '''Apply spatial smoothing using nilearn smooth_img()
+
+            Args:
+                fwhm: (float) full width half maximum of gaussian spatial filter
+            Returns:
+                Brain_Data instance
+        '''
+        return Brain_Data(smooth_img(self.to_nifti(), fwhm))
