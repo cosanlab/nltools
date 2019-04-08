@@ -13,7 +13,8 @@ __all__ = ['download_nifti',
            'get_collection_image_metadata',
            'download_collection',
            'fetch_emotion_ratings',
-           'fetch_pain']
+           'fetch_pain',
+           'fetch_localizer']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
