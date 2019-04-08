@@ -20,8 +20,11 @@ __license__ = "MIT"
 
 import os
 import pandas as pd
+import numpy as np
 from nltools.data import Brain_Data
-from nilearn.datasets.utils import _get_dataset_dir, _fetch_file
+from nilearn.datasets.utils import (_get_dataset_dir, _fetch_file, _get_dataset_descr)
+from nilearn._utils.compat import _urllib
+from sklearn.datasets.base import Bunch
 from pynv import Client
 
 # Optional dependencies
@@ -161,24 +164,6 @@ def fetch_emotion_ratings(data_dir=None, resume=True, verbose=1):
                                           data_dir=data_dir, resume=resume,
                                           verbose=verbose)
     return Brain_Data(data=files, X=metadata)
-
-    # -*- coding: utf-8 -*-
-
-'''
-dartbrains datasets
-===================
-
-functions to help download datasets
-
-'''
-
-import os
-import numpy as np
-import pandas as pd
-from sklearn.datasets.base import Bunch
-from nilearn.datasets.utils import (_get_dataset_dir, _fetch_files, _get_dataset_descr)
-from nilearn._utils.compat import _urllib
-
 
 def fetch_localizer(subject_ids=None, get_anats=False, data_type='raw',
                     data_dir=None, url=None, resume=True, verbose=1):
