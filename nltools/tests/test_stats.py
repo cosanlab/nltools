@@ -9,7 +9,9 @@ from nltools.stats import (one_sample_permutation,
                            upsample,
                            winsorize,
                            align,
-                           transform_pairwise, _calc_pvalue)
+                           transform_pairwise,
+                           _calc_pvalue,
+                           find_spikes)
 from nltools.simulator import Simulator
 from nltools.mask import create_sphere
 from sklearn.metrics import pairwise_distances
@@ -282,3 +284,18 @@ def test_transform_pairwise():
     assert y_new.ndim == 2
     a = y_new[:, 1] == np.repeat(np.arange(1, 1+n_subs), ((n_samples/n_subs)*(n_samples/n_subs-1))/2)
     assert a.all()
+
+def test_find_spikes():
+    sim = Simulator()
+    y = [0, 1]
+    n_reps = 50
+    s1 = create_sphere([0, 0, 0], radius=3)
+    d1 = sim.create_data(y, 1, reps=n_reps, output_dir=None).apply_mask(s1)
+
+    spikes = find_spikes(d1)
+    assert isinstance(spikes, pd.DataFrame)
+    assert spikes.shape[0] == len(d1)
+
+    spikes = find_spikes(d1.to_nifti())
+    assert isinstance(spikes, pd.DataFrame)
+    assert spikes.shape[0] == len(d1)
