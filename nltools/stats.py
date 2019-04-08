@@ -1130,14 +1130,6 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
         out['transformed'] = [x.T for x in out['transformed']]
         out['common_model'] = out['common_model'].T
 
-    if data_type == 'Brain_Data':
-        for i, x in enumerate(out['transformed']):
-            data_out[i].data = x.T
-        out['transformed'] = data_out
-        common = data_out[0].copy()
-        common.data = out['common_model'].T
-        out['common_model'] = common
-
     # Calculate Intersubject correlation on aligned components
     if n_features is None:
         n_features = out['common_model'].shape[0]
@@ -1147,6 +1139,14 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
         a = a.append(Adjacency(1-pairwise_distances(np.array([x[f,:] for x in out['transformed']]), metric='correlation'), metric='similarity'))
     out['isc'] = dict(zip(np.arange(n_features), a.mean(axis=1)))
 
+    if data_type == 'Brain_Data':
+        for i, x in enumerate(out['transformed']):
+            data_out[i].data = x.T
+        out['transformed'] = data_out
+        common = data_out[0].copy()
+        common.data = out['common_model'].T
+        out['common_model'] = common
+        
     return out
 
 

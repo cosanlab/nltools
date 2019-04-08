@@ -1582,7 +1582,16 @@ class Brain_Data(object):
             out['transformed'].data = out['transformed'].data.T
             out['common_model'].data = out['common_model'].data.T
         return out
+        
+    def smooth(self, fwhm):
+        '''Apply spatial smoothing using nilearn smooth_img()
 
+            Args:
+                fwhm: (float) full width half maximum of gaussian spatial filter
+            Returns:
+                Brain_Data instance
+        '''
+        return Brain_Data(smooth_img(self.to_nifti(), fwhm))
 
 class Groupby(object):
     def __init__(self, data, mask):
@@ -1651,13 +1660,3 @@ class Groupby(object):
                 raise ValueError('No method for aggregation implented for %s '
                                  'yet.' % type(value_dict[i]))
         return out.sum()
-
-    def smooth(self, fwhm):
-        '''Apply spatial smoothing using nilearn smooth_img()
-
-            Args:
-                fwhm: (float) full width half maximum of gaussian spatial filter
-            Returns:
-                Brain_Data instance
-        '''
-        return Brain_Data(smooth_img(self.to_nifti(), fwhm))
