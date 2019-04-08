@@ -169,7 +169,7 @@ def test_align():
     assert data[0].shape() == out['common_model'].shape()
     transformed = np.dot(d1.data, out['transformation_matrix'][0])
     np.testing.assert_almost_equal(0, np.sum(out['transformed'][0].data-transformed))
-    assert len(out['isc']) == out['transformed'][0].shape[0]
+    assert len(out['isc']) == out['transformed'][0].shape()[1]
 
     out = align(data, method='probabilistic_srm')
     assert len(data) == len(out['transformed'])
@@ -177,7 +177,7 @@ def test_align():
     assert data[0].shape() == out['common_model'].shape()
     transformed = np.dot(d1.data, out['transformation_matrix'][0])
     np.testing.assert_almost_equal(0, np.sum(out['transformed'][0].data-transformed))
-    assert len(out['isc']) == out['transformed'][0].shape[0]
+    assert len(out['isc']) == out['transformed'][0].shape()[1]
 
     out2 = align(data, method='procrustes')
     assert len(data) == len(out2['transformed'])
@@ -189,7 +189,7 @@ def test_align():
     np.testing.assert_almost_equal(0, np.sum(out2['transformed'][0].data-transformed))
     assert out['transformed'][0].shape() == out2['transformed'][0].shape()
     assert out['transformation_matrix'][0].shape == out2['transformation_matrix'][0].shape
-    assert len(out['isc']) == out['transformed'][0].shape[0]
+    assert len(out['isc']) == out['transformed'][0].shape()[1]
 
     # Test hyperalignment on matrix over time (axis=1)
     sim = Simulator()
@@ -200,13 +200,14 @@ def test_align():
     d2 = sim.create_data(y, 2, reps=n_reps, output_dir=None).apply_mask(s1)
     d3 = sim.create_data(y, 3, reps=n_reps, output_dir=None).apply_mask(s1)
     data = [d1.data.T, d2.data.T, d3.data.T]
+
     out = align(data, method='deterministic_srm', axis=1)
     assert len(data) == len(out['transformed'])
     assert len(data) == len(out['transformation_matrix'])
     assert data[0].shape == out['common_model'].shape
     transformed = np.dot(data[0], out['transformation_matrix'][0])
     np.testing.assert_almost_equal(0, np.sum(out['transformed'][0]-transformed))
-    assert len(out['isc']) == out['transformed'][0].shape[0]
+    assert len(out['isc']) == out['transformed'][0].shape[1]
 
     out = align(data, method='probabilistic_srm', axis=1)
     assert len(data) == len(out['transformed'])
@@ -214,7 +215,7 @@ def test_align():
     assert data[0].shape == out['common_model'].shape
     transformed = np.dot(data[0], out['transformation_matrix'][0])
     np.testing.assert_almost_equal(0, np.sum(out['transformed'][0]-transformed))
-    assert len(out['isc']) == out['transformed'][0].shape[0]
+    assert len(out['isc']) == out['transformed'][0].shape[1]
 
     out2 = align(data, method='procrustes', axis=1)
     assert len(data) == len(out2['transformed'])
@@ -226,7 +227,7 @@ def test_align():
     np.testing.assert_almost_equal(0, np.sum(out2['transformed'][0]-transformed))
     assert out['transformed'][0].shape == out2['transformed'][0].shape
     assert out['transformation_matrix'][0].shape == out2['transformation_matrix'][0].shape
-    assert len(out['isc']) == out['transformed'][0].shape[0]
+    assert len(out['isc']) == out['transformed'][0].shape[1]
 
     # Test hyperalignment on Brain_Data over time (axis=1)
     data = [d1, d2, d3]
@@ -236,7 +237,7 @@ def test_align():
     assert data[0].shape() == out['common_model'].shape()
     transformed = np.dot(d1.data.T, out['transformation_matrix'][0])
     np.testing.assert_almost_equal(0, np.sum(out['transformed'][0].data-transformed.T))
-    assert len(out['isc']) == out['transformed'][0].shape[0]
+    assert len(out['isc']) == out['transformed'][0].shape()[0]
 
     out = align(data, method='probabilistic_srm', axis=1)
     assert len(data) == len(out['transformed'])
@@ -244,7 +245,7 @@ def test_align():
     assert data[0].shape() == out['common_model'].shape()
     transformed = np.dot(d1.data.T, out['transformation_matrix'][0])
     np.testing.assert_almost_equal(0, np.sum(out['transformed'][0].data-transformed.T))
-    assert len(out['isc']) == out['transformed'][0].shape[0]
+    assert len(out['isc']) == out['transformed'][0].shape()[0]
 
     out2 = align(data, method='procrustes', axis=1)
     assert len(data) == len(out2['transformed'])
@@ -256,7 +257,7 @@ def test_align():
     np.testing.assert_almost_equal(0, np.sum(out2['transformed'][0].data-transformed.T))
     assert out['transformed'][0].shape() == out2['transformed'][0].shape()
     assert out['transformation_matrix'][0].shape == out2['transformation_matrix'][0].shape
-    assert len(out['isc']) == out['transformed'][0].shape[0]
+    assert len(out['isc']) == out['transformed'][0].shape()[0]
 
 
 def test_transform_pairwise():
