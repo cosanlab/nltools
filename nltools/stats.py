@@ -30,7 +30,8 @@ __all__ = ['pearson',
            'summarize_bootstrap',
            'regress',
            'procrustes',
-           'align']
+           'align',
+           'find_spikes']
 
 import numpy as np
 import pandas as pd
@@ -49,6 +50,7 @@ from .external.srm import SRM, DetSRM
 from scipy.linalg import orthogonal_procrustes
 from scipy.spatial import procrustes as procrust
 from sklearn.utils import check_random_state
+from sklearn.metrics import pairwise_distances
 
 MAX_INT = np.iinfo(np.int32).max
 
@@ -1022,12 +1024,12 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
 
         Returns:
             out: (dict) a dictionary containing a list of transformed subject
-                matrices, a list of transformation matrices, and the shared
-                response matrix
+                matrices, a list of transformation matrices, the shared
+                response matrix, and the intersubject correlation of the shared resposnes
 
     '''
 
-    from nltools.data import Brain_Data
+    from nltools.data import Brain_Data, Adjacency
 
     if not isinstance(data, list):
         raise ValueError('Make sure you are inputting data is a list.')
@@ -1071,7 +1073,6 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
             raise NotImplementedError('Currently must use all voxels.'
                                       'Eventually will add a PCA reduction,'
                                       'must do this manually for now.')
-
         ## STEP 0: STANDARDIZE SIZE AND SHAPE##
         sizes_0 = [x.shape[0] for x in data]
         sizes_1 = [x.shape[1] for x in data]
@@ -1130,6 +1131,15 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
         out['transformed'] = [x.T for x in out['transformed']]
         out['common_model'] = out['common_model'].T
 
+    # Calculate Intersubject correlation on aligned components
+    if n_features is None:
+        n_features = out['common_model'].shape[0]
+
+    a = Adjacency()
+    for f in range(n_features):
+        a = a.append(Adjacency(1-pairwise_distances(np.array([x[f,:] for x in out['transformed']]), metric='correlation'), metric='similarity'))
+    out['isc'] = dict(zip(np.arange(n_features), a.mean(axis=1)))
+
     if data_type == 'Brain_Data':
         for i, x in enumerate(out['transformed']):
             data_out[i].data = x.T
@@ -1137,6 +1147,7 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
         common = data_out[0].copy()
         common.data = out['common_model'].T
         out['common_model'] = common
+
     return out
 
 
@@ -1402,3 +1413,57 @@ def procrustes_distance(mat1, mat2, n_permute=5000, tail=2, n_jobs=-1, random_st
     stats['p'] = _calc_pvalue(all_p, sse, tail)
 
     return stats
+
+def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
+    '''Function to identify spikes from fMRI Time Series Data
+
+        Args:
+            data: Brain_Data or nibabel instance
+            global_spike_cutoff: (int,None) cutoff to identify spikes in global signal
+                                 in standard deviations, None indicates do not calculate.
+            diff_spike_cutoff: (int,None) cutoff to identify spikes in average frame difference
+                                 in standard deviations, None indicates do not calculate.
+        Returns:
+            pandas dataframe with spikes as indicator variables
+    '''
+
+    from nltools.data import Brain_Data
+
+    if (global_spike_cutoff is None) & (diff_spike_cutoff is None):
+        raise ValueError('Did not input any cutoffs to identify spikes in this data.')
+
+    if isinstance(data, Brain_Data):
+        data = deepcopy(data.data)
+        global_mn = np.mean(data.data, axis=1)
+        frame_diff = np.mean(np.abs(np.diff(data.data, axis=0)), axis=1)
+    elif isinstance(data, nib.Nifti1Image):
+        data = deepcopy(data.get_data())
+        if len(data.shape) > 3:
+            data = np.squeeze(data)
+        elif len(data.shape) < 3:
+            raise ValueError('nibabel instance does not appear to be 4D data.')
+        global_mn = np.mean(data, axis=(0,1,2))
+        frame_diff = np.mean(np.abs(np.diff(data, axis=3)), axis=(0,1,2))
+    else:
+        raise ValueError('Currently this function can only accomodate Brain_Data and nibabel instances')
+
+    if global_spike_cutoff is not None:
+        global_outliers = np.append(np.where(global_mn > np.mean(global_mn) + np.std(global_mn) * global_spike_cutoff),
+                                    np.where(global_mn < np.mean(global_mn) - np.std(global_mn) * global_spike_cutoff))
+
+    if diff_spike_cutoff is not None:
+        frame_outliers = np.append(np.where(frame_diff > np.mean(frame_diff) + np.std(frame_diff) * diff_spike_cutoff),
+                                   np.where(frame_diff < np.mean(frame_diff) - np.std(frame_diff) * diff_spike_cutoff))
+   # build spike regressors
+    outlier = pd.DataFrame([x+1 for x in range(len(global_mn))],columns=['TR'])
+    if (global_spike_cutoff is not None):
+        for i, loc in enumerate(global_outliers):
+            outlier['global_spike' + str(i + 1)] = 0
+            outlier['global_spike' + str(i + 1)].iloc[int(loc)] = 1
+
+    # build FD regressors
+    if (diff_spike_cutoff is not None):
+        for i, loc in enumerate(frame_outliers):
+            outlier['diff_spike' + str(i + 1)] = 0
+            outlier['diff_spike' + str(i + 1)].iloc[int(loc)] = 1
+    return outlier
