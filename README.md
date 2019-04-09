@@ -7,7 +7,7 @@
 
 
 # NLTools
-Python toolbox for analyzing neuroimaging data.  Compatible with both Python 2.7 and Python 3.6.  It is particularly useful for conducting multivariate analyses.  It is originally based on Tor Wager's object oriented matlab [canlab core tools](http://wagerlab.colorado.edu/tools) and relies heavily on [nilearn](http://nilearn.github.io) and [scikit learn](http://scikit-learn.org/stable/index.html)
+Python toolbox for analyzing neuroimaging data. It is particularly useful for conducting multivariate analyses.  It is originally based on Tor Wager's object oriented matlab [canlab core tools](http://wagerlab.colorado.edu/tools) and relies heavily on [nilearn](http://nilearn.github.io) and [scikit learn](http://scikit-learn.org/stable/index.html). Nltools is compatible with Python 3.6+. Python 2.7 was only supported through 0.3.11. We will no longer be supporting Python2 starting with version 0.3.12. 
 
 ### Installation
 1. Method 1
