@@ -174,6 +174,10 @@ def test_standardize(sim_brain_data):
     assert s.shape() == sim_brain_data.shape()
     assert np.isclose(np.sum(s.mean().data), 0, atol=.1)
 
+def test_smooth(sim_brain_data):
+    smoothed = sim_brain_data.smooth(5.0)
+    assert isinstance(smoothed, Brain_Data)
+    assert smoothed.shape() == sim_brain_data.shape()
 
 def test_groupby_aggregate(sim_brain_data):
     s1 = create_sphere([12, 10, -8], radius=10)

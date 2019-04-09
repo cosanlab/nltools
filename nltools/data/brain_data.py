@@ -37,7 +37,7 @@ from nltools.mask import expand_mask
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
 from nilearn.plotting import plot_stat_map
-from nilearn.image import resample_img
+from nilearn.image import resample_img, smooth_img
 from nilearn.masking import intersect_masks
 from nilearn.regions import connected_regions, connected_label_regions
 from nltools.utils import (set_algorithm,
@@ -55,7 +55,8 @@ from nltools.stats import (pearson,
                            fisher_r_to_z,
                            transform_pairwise,
                            summarize_bootstrap,
-                           procrustes)
+                           procrustes,
+                           find_spikes)
 from nltools.stats import regress as regression
 from .adjacency import Adjacency
 from nltools.prefs import MNI_Template, resolve_mni_path
@@ -1582,6 +1583,31 @@ class Brain_Data(object):
             out['transformed'].data = out['transformed'].data.T
             out['common_model'].data = out['common_model'].data.T
         return out
+
+    def smooth(self, fwhm):
+        '''Apply spatial smoothing using nilearn smooth_img()
+
+            Args:
+                fwhm: (float) full width half maximum of gaussian spatial filter
+            Returns:
+                Brain_Data instance
+        '''
+        return Brain_Data(smooth_img(self.to_nifti(), fwhm))
+
+    def find_spikes(self, global_spike_cutoff=3, diff_spike_cutoff=3):
+        '''Function to identify spikes from Time Series Data
+
+            Args:
+                global_spike_cutoff: (int,None) cutoff to identify spikes in global signal
+                                     in standard deviations, None indicates do not calculate.
+                diff_spike_cutoff: (int,None) cutoff to identify spikes in average frame difference
+                                     in standard deviations, None indicates do not calculate.
+            Returns:
+                pandas dataframe with spikes as indicator variables
+        '''
+        return find_spikes(self,
+                            global_spike_cutoff=global_spike_cutoff,
+                            diff_spike_cutoff=diff_spike_cutoff)
 
 
 class Groupby(object):
