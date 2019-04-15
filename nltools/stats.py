@@ -26,12 +26,17 @@ __all__ = ['pearson',
            'matrix_permutation',
            'jackknife_permutation',
            'make_cosine_basis',
-           '_robust_estimator',
            'summarize_bootstrap',
            'regress',
            'procrustes',
+           'procrustes_distance',
            'align',
-           'find_spikes']
+           'find_spikes',
+           'correlation',
+           'distance_correlation',
+           'transform_pairwise',
+           'double_center',
+           'u_center',]
 
 import numpy as np
 import pandas as pd
@@ -76,10 +81,10 @@ def zscore(df):
     """ zscore every column in a pandas dataframe or series.
 
         Args:
-            df: Pandas DataFrame instance
+            df: (pd.DataFrame) Pandas DataFrame instance
 
         Returns:
-            z_data: z-scored pandas DataFrame or series instance
+            z_data: (pd.DataFrame) z-scored pandas DataFrame or series instance
     """
 
     if isinstance(df, pd.DataFrame):
@@ -95,11 +100,12 @@ def fdr(p, q=.05):
     discovery rate q. Written by Tal Yarkoni
 
     Args:
-        p: vector of p-values (numpy array) (only considers non-zero p-values)
-        q: false discovery rate level
+        p: (np.array) vector of p-values (only considers non-zero p-values)
+        q: (float) false discovery rate level
 
     Returns:
-        fdr_p: p-value threshold based on independence or positive dependence
+        fdr_p: (float) p-value threshold based on independence or positive
+                dependence
 
     """
 
@@ -118,11 +124,12 @@ def holm_bonf(p, alpha=.05):
     """ Compute corrected p-values based on the Holm-Bonferroni method, i.e. step-down procedure applying iteratively less correction to highest p-values. A bit more conservative than fdr, but much more powerful thanvanilla bonferroni.
 
     Args:
-        p: vector of p-values (numpy array)
-        alpha: alpha level
+        p: (np.array) vector of p-values
+        alpha: (float) alpha level
 
     Returns:
-        bonf_p: p-value threshold based on bonferroni step-down procedure
+        bonf_p: (float) p-value threshold based on bonferroni
+                step-down procedure
 
     """
 
@@ -141,10 +148,10 @@ def threshold(stat, p, thr=.05):
     """ Threshold test image by p-value from p image
 
     Args:
-        stat: Brain_Data instance of arbitrary statistic metric (e.g., beta,
-            t, etc)
-        p: Brain_data instance of p-values
-            threshold: p-value to threshold stat image
+        stat: (Brain_Data) Brain_Data instance of arbitrary statistic metric
+              (e.g., beta, t, etc)
+        p: (Brain_Data) Brain_data instance of p-values
+        threshold: (float) p-value to threshold stat image
 
     Returns:
         out: Thresholded Brain_Data instance
@@ -180,10 +187,10 @@ def multi_threshold(t_map, p_map, thresh):
     """ Threshold test image by multiple p-value from p image
 
     Args:
-        stat: Brain_Data instance of arbitrary statistic metric
+        stat: (Brain_Data) Brain_Data instance of arbitrary statistic metric
             (e.g., beta, t, etc)
-        p: Brain_data instance of p-values
-            threshold: list of p-values to threshold stat image
+        p: (Brain_Data) Brain_data instance of p-values
+        threshold: (list) list of p-values to threshold stat image
 
     Returns:
         out: Thresholded Brain_Data instance
@@ -220,13 +227,14 @@ def winsorize(data, cutoff=None, replace_with_cutoff=True):
     ''' Winsorize a Pandas DataFrame or Series with the largest/lowest value not considered outlier
 
         Args:
-            data: a pandas.DataFrame or pandas.Series
-            cutoff: a dictionary with keys {'std':[low,high]} or
+            data: (pd.DataFrame, pd.Series) data to winsorize
+            cutoff: (dict) a dictionary with keys {'std':[low,high]} or
                     {'quantile':[low,high]}
-            replace_with_cutoff (default: False): If True, replace outliers with cutoff.
-                    If False, replaces outliers with closest existing values.
+            replace_with_cutoff: (bool) If True, replace outliers with cutoff.
+                                 If False, replaces outliers with closest
+                                 existing values; (default: False)
         Returns:
-            winsorized pandas.DataFrame or pandas.Series
+            out: (pd.DataFrame, pd.Series) winsorized data
     '''
     return _transform_outliers(data, cutoff, replace_with_cutoff=replace_with_cutoff, method='winsorize')
 
@@ -235,27 +243,30 @@ def trim(data, cutoff=None):
     ''' Trim a Pandas DataFrame or Series by replacing outlier values with NaNs
 
         Args:
-            data: a pandas.DataFrame or pandas.Series
-            cutoff: a dictionary with keys {'std':[low,high]} or
+            data: (pd.DataFrame, pd.Series) data to trim
+            cutoff: (dict) a dictionary with keys {'std':[low,high]} or
                     {'quantile':[low,high]}
         Returns:
-            trimmed pandas.DataFrame or pandas.Series
+            out: (pd.DataFrame, pd.Series) trimmed data
     '''
     return _transform_outliers(data, cutoff, replace_with_cutoff=None, method='trim')
 
 
 def _transform_outliers(data, cutoff, replace_with_cutoff, method):
-    ''' This function is not exposed to user but is called by either trim or winsorize.
+    ''' This function is not exposed to user but is called by either trim
+        or winsorize.
 
         Args:
-            data: a pandas.DataFrame or pandas.Series
-            cutoff: a dictionary with keys {'std':[low,high]} or
+            data: (pd.DataFrame, pd.Series) data to transform
+            cutoff: (dict) a dictionary with keys {'std':[low,high]} or
                     {'quantile':[low,high]}
-            replace_with_cutoff (default: False): If True, replace outliers with cutoff.
-                    If False, replaces outliers with closest existing values.
+            replace_with_cutoff: (bool) If True, replace outliers with cutoff.
+                                        If False, replaces outliers with closest
+                                        existing values. (default: False)
             method: 'winsorize' or 'trim'
+
         Returns:
-            transformed pandas.DataFrame or pandas.Series
+            out: (pd.DataFrame, pd.Series) transformed data
     '''
     df = data.copy()  # To not overwrite data make a copy
 
@@ -300,12 +311,12 @@ def calc_bpm(beat_interval, sampling_freq):
     ''' Calculate instantaneous BPM from beat to beat interval
 
         Args:
-            beat_interval: number of samples in between each beat
+            beat_interval: (int) number of samples in between each beat
                             (typically R-R Interval)
-            sampling_freq: sampling frequency in Hz
+            sampling_freq: (float) sampling frequency in Hz
 
         Returns:
-            bpm:  beats per minute for time interval
+            bpm:  (float) beats per minute for time interval
     '''
     return 60*sampling_freq*(1/(beat_interval))
 
@@ -316,14 +327,15 @@ def downsample(data, sampling_freq=None, target=None, target_type='samples',
         using averaging.
 
         Args:
-            data: Pandas DataFrame or Series
-            sampling_freq:  Sampling frequency of data in hertz
-            target: downsampling target
-                    target_type: type of target can be [samples,seconds,hz]
+            data: (pd.DataFrame, pd.Series) data to downsample
+            sampling_freq:  (float) Sampling frequency of data in hertz
+            target: (float) downsampling target
+            target_type: type of target can be [samples,seconds,hz]
             method: (str) type of downsample method ['mean','median'],
                     default: mean
+
         Returns:
-            downsampled pandas object
+            out: (pd.DataFrame, pd.Series) downsmapled data
 
     '''
 
@@ -356,11 +368,15 @@ def upsample(data, sampling_freq=None, target=None, target_type='samples', metho
     ''' Upsample pandas to a new target frequency or number of samples using interpolation.
 
         Args:
-            data: Pandas Series or DataFrame (Note: will drop non-numeric columns from DataFrame)
+            data: (pd.DataFrame, pd.Series) data to upsample
+                  (Note: will drop non-numeric columns from DataFrame)
             sampling_freq:  Sampling frequency of data in hertz
-            target: downsampling target
-            target_type: type of target can be [samples,seconds,hz]
-            method (str):'linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic' where 'zero', 'slinear', 'quadratic' and 'cubic' refer to a spline interpolation of zeroth, first, second or third order  default: linear
+            target: (float) upsampling target
+            target_type: (str) type of target can be [samples,seconds,hz]
+            method: (str) ['linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic']
+                          where 'zero', 'slinear', 'quadratic' and 'cubic'
+                          refer to a spline interpolation of zeroth, first,
+                          second or third order  (default: linear)
         Returns:
             upsampled pandas object
 
@@ -408,12 +424,12 @@ def correlation(data1, data2, metric='pearson'):
     ''' This function calculates the correlation between data1 and data2
 
         Args:
-            data1: np.array
-            data2: np.array
-            metric: type of correlation ["spearman" or "pearson" or "kendall"]
+            data1: (np.array) x
+            data2: (np.array) y
+            metric: (str) type of correlation ["spearman" or "pearson" or "kendall"]
         Returns:
-            r: correlations
-            p: p-value
+            r: (np.array) correlations
+            p: (float) p-value
 
     '''
     if metric == 'spearman':
@@ -442,7 +458,7 @@ def _permute_func(data1, data2, metric, random_state=None):
     """ Helper function for matrix_permutation.
         Can take a functon, that would be repeated for calculation.
         Args:
-            data1: squareform matrix, np array
+            data1: (np.array) squareform matrix
             data2: flattened np array (same size upper triangle of data1)
             metric: similarity/distance function from scipy.stats (e.g., spearman, pearson, kendall etc)
             random_state: random_state instance for permutation
@@ -482,7 +498,7 @@ def one_sample_permutation(data, n_permute=5000, tail=2, n_jobs=-1, random_state
     ''' One sample permutation test using randomization.
 
         Args:
-            data: Pandas DataFrame or Series or numpy array
+            data: (pd.DataFrame, pd.Series, np.array) data to permute
             n_permute: (int) number of permutations
             tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
             n_jobs: (int) The number of CPUs to use to do the computation.
@@ -511,8 +527,8 @@ def two_sample_permutation(data1, data2, n_permute=5000,
     ''' Independent sample permutation test.
 
         Args:
-            data1: Pandas DataFrame or Series or numpy array
-            data2: Pandas DataFrame or Series or numpy array
+            data1: (pd.DataFrame, pd.Series, np.array) dataset 1 to permute
+            data2: (pd.DataFrame, pd.Series, np.array) dataset 2 to permute
             n_permute: (int) number of permutations
             tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
             n_jobs: (int) The number of CPUs to use to do the computation.
@@ -543,8 +559,8 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
     ''' Permute correlation.
 
         Args:
-            data1: Pandas DataFrame or Series or numpy array
-            data2: Pandas DataFrame or Series or numpy array
+        data1: (pd.DataFrame, pd.Series, np.array) dataset 1 to permute
+        data2: (pd.DataFrame, pd.Series, np.array) dataset 2 to permute
             n_permute: (int) number of permutations
             metric: (str) type of association metric ['spearman','pearson',
                     'kendall']
@@ -583,8 +599,8 @@ def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
         at the group level. Neuroimage, 142, 248-259.
 
         Args:
-            data1: square matrix (Pandas DataFrame or numpy array)
-            data2: square matrix (Pandas DataFrame or numpy array)
+            data1: (pd.DataFrame, np.array) square matrix
+            data2: (pd.DataFrame, np.array) square matrix
             n_permute: (int) number of permutations
             metric: (str) type of association metric ['spearman','pearson',
                     'kendall']
@@ -620,8 +636,8 @@ def jackknife_permutation(data1, data2, metric='spearman',
         distance/similarity of each subject
 
         Args:
-            data1: Adjacency instance/square numpy array/Pandas Data frame
-            data2: Adjacency instance/square numpy array/Pandas Data frame
+            data1: (Adjacency, pd.DataFrame, np.array) square matrix
+            data2: (Adjacency, pd.DataFrame, np.array) square matrix
             metric: (str) type of association metric ['spearman','pearson',
                     'kendall']
             tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
@@ -726,19 +742,19 @@ def transform_pairwise(X, y):
     Authors: Fabian Pedregosa <fabian@fseoane.net>
              Alexandre Gramfort <alexandre.gramfort@inria.fr>
     Args:
-        X : array, shape (n_samples, n_features)
+        X: (np.array), shape (n_samples, n_features)
             The data
-        y : array, shape (n_samples,) or (n_samples, 2)
+        y: (np.array), shape (n_samples,) or (n_samples, 2)
             Target labels. If it's a 2D array, the second column represents
             the grouping of samples, i.e., samples with different groups will
             not be considered.
 
     Returns:
-        X_trans : array, shape (k, n_feaures)
+        X_trans: (np.array), shape (k, n_feaures)
             Data as pairs, where k = n_samples * (n_samples-1)) / 2 if grouping
             values were not passed. If grouping variables exist, then returns
             values computed for each group.
-        y_trans : array, shape (k,)
+        y_trans: (np.array), shape (k,)
             Output class labels, where classes have values {-1, +1}
             If y was shape (n_samples, 2), then returns (k, 2) with groups on
             the second dimension.
@@ -830,11 +846,11 @@ def summarize_bootstrap(data, save_weights=False):
     """ Calculate summary of bootstrap samples
 
     Args:
-        sample: Brain_Data instance of samples
+        sample: (Brain_Data) Brain_Data instance of samples
         save_weights: (bool) save bootstrap weights
 
     Returns:
-        output: dictionary of Brain_Data summary images
+        output: (dict) dictionary of Brain_Data summary images
 
     """
 

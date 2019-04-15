@@ -174,11 +174,12 @@ html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
 html_theme_options = {
     'bootswatch_theme': "sandstone",
     'navbar_sidebarrel': True,
-    'navbar_pagenav': False,
+    'navbar_pagenav': True,
     'bootstrap_version': "3",
     'globaltoc_includehidden': "true",
     'source_link_position': "footer",
     'globaltoc_depth': 1,
+    'navbar_pagenav_name': "TOC",
     'navbar_links': [("Installation", "install"),
                      ("API", "api"),
                      ("Tutorials", "auto_examples/index"),
