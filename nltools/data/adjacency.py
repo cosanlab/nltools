@@ -343,7 +343,7 @@ class Adjacency(object):
         ''' Calculate mean of Adjacency
 
         Args:
-            axis:  calculate mean over features (0) or data (1).
+            axis:  (int) calculate mean over features (0) or data (1).
                     For data it will be on upper triangle.
 
         Returns:
@@ -365,7 +365,7 @@ class Adjacency(object):
         ''' Calculate standard deviation of Adjacency
 
         Args:
-            axis:  calculate std over features (0) or data (1).
+            axis:  (int) calculate std over features (0) or data (1).
                     For data it will be on upper triangle.
 
         Returns:
@@ -405,10 +405,10 @@ class Adjacency(object):
         ''' Append data to Adjacency instance
 
         Args:
-            data:  Adjacency instance to append
+            data:  (Adjacency) Adjacency instance to append
 
         Returns:
-            out: new appended Adjacency instance
+            out: (Adjacency) new appended Adjacency instance
 
         '''
 
@@ -459,8 +459,8 @@ class Adjacency(object):
         Default is to use spearman correlation and permutation test.
         Args:
             data: Adjacency data, or 1-d array same size as self.data
-            perm_type: '1d','2d', 'jackknife', or None
-            metric: 'spearman','pearson','kendall'
+            perm_type: (str) '1d','2d', 'jackknife', or None
+            metric: (str) 'spearman','pearson','kendall'
         '''
         data1 = self.copy()
         if not isinstance(data, Adjacency):
@@ -518,11 +518,11 @@ class Adjacency(object):
         ''' Calculate distance between images within an Adjacency() instance.
 
         Args:
-            method: type of distance metric (can use any scikit learn or
+            method: (str) type of distance metric (can use any scikit learn or
                     sciypy metric)
 
         Returns:
-            dist: Outputs a 2D distance matrix.
+            dist: (Adjacency) Outputs a 2D distance matrix.
 
         '''
         return Adjacency(pairwise_distances(self.data, metric=method, **kwargs),
@@ -622,7 +622,7 @@ class Adjacency(object):
                 labels (np.array):  numpy array of labels to plot
 
             Returns:
-                violin plot handles
+                f: violin plot handles
 
         '''
 
@@ -815,10 +815,10 @@ class Adjacency(object):
         '''Convert distance matrix to similarity matrix
 
         Args:
-            beta: parameter to scale exponential function (default: 1)
+            beta: (float) parameter to scale exponential function (default: 1)
 
         Returns:
-            Adjacency object
+            out: (Adjacency) Adjacency object
 
         '''
         if self.matrix_type == 'distance':
@@ -839,9 +839,9 @@ class Adjacency(object):
         ''' This function calculates mean within cluster labels
 
         Args:
-            clusters: list of cluster labels
+            clusters: (list) list of cluster labels
         Returns:
-            dict: within cluster means
+            dict: (dict) within cluster means
         '''
 
         distance = pd.DataFrame(self.squareform())
@@ -866,7 +866,7 @@ class Adjacency(object):
                 method: type of regression (default: ols)
 
             Returns:
-
+                stats: (dict) dictionary of stats outputs.
         '''
 
         stats = {}

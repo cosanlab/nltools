@@ -311,17 +311,25 @@ class Brain_Data(object):
         """ Write out Brain_Data object to Nifti File.
 
         Args:
-            file_name: name of nifti file
+            file_name: (str) name of nifti file including path
 
         """
 
         self.to_nifti().to_filename(file_name)
 
     def scale(self, scale_val=100.):
-        """ Scale all values such that theya re on the range 0 - scale_val, via grand-mean scaling. This is NOT global-scaling/intensity normalization. This is useful for ensuring that data is on a common scale (e.g. good for multiple runs, participants, etc) and if the default value of 100 is used, can be interpreted as something akin to (but not exactly) "percent signal change." This is consistent with default behavior in AFNI and SPM. Change this value to 10000 to make consistent with FSL.
+        """ Scale all values such that they are on the range [0, scale_val],
+            via grand-mean scaling. This is NOT global-scaling/intensity
+            normalization. This is useful for ensuring that data is on a
+            common scale (e.g. good for multiple runs, participants, etc)
+            and if the default value of 100 is used, can be interpreted as
+            something akin to (but not exactly) "percent signal change."
+            This is consistent with default behavior in AFNI and SPM.
+            Change this value to 10000 to make consistent with FSL.
 
         Args:
-            scale_val (int/float): what value to send the grand-mean to; default 100
+            scale_val: (int/float) what value to send the grand-mean to;
+                        default 100
 
         """
 
@@ -334,11 +342,16 @@ class Brain_Data(object):
         """ Create a quick plot of self.data.  Will plot each image separately
 
         Args:
-            limit: max number of images to return
-            anatomical: nifti image or file name to overlay
-            view (str): 'axial' for limit number of axial slices; 'glass' for ortho-view glass brain; 'mni' for multi-slice view mni brain; 'full' for both glass and mni views
-            threshold_upper (str/float): threshold if view is 'glass', 'mni', or 'full'
-            threshold_lower (str/float): threshold if view is 'glass', 'mni', or 'full'
+            limit: (int) max number of images to return
+            anatomical: (nifti, str) nifti image or file name to overlay
+            view: (str) 'axial' for limit number of axial slices;
+                        'glass' for ortho-view glass brain; 'mni' for
+                        multi-slice view mni brain; 'full' for both glass and
+                        mni views
+            threshold_upper: (str/float) threshold if view is 'glass',
+                             'mni', or 'full'
+            threshold_lower: (str/float)threshold if view is 'glass',
+                             'mni', or 'full'
 
         """
 
@@ -385,10 +398,12 @@ class Brain_Data(object):
         """ Create an interactive brain viewer for the current brain data instance.
 
         Args:
-            threshold (float/str): two-sided threshold to initialize the visualization, maybe be a percentile string; default 0
-            surface (bool): whether to create a surface-based plot; default False
+            threshold: (float/str) two-sided threshold to initialize the
+                        visualization, maybe be a percentile string; default 0
+            surface: (bool) whether to create a surface-based plot; default False
             anatomical: nifti image or filename to overlay
-            kwargs: optional arguments to nilearn.view_img or nilearn.view_img_on_surf
+            kwargs: optional arguments to nilearn.view_img or
+                    nilearn.view_img_on_surf
 
         Returns:
             interactive brain viewer widget
@@ -456,13 +471,13 @@ class Brain_Data(object):
         """ Calculate one sample t-test across each voxel (two-sided)
 
         Args:
-            threshold_dict: a dictionary of threshold parameters {'unc':.001}
-                            or {'fdr':.05} or {'permutation':tcfe,
+            threshold_dict: (dict) a dictionary of threshold parameters
+                            {'unc':.001} or {'fdr':.05} or {'permutation':tcfe,
                             n_permutation:5000}
 
         Returns:
-            out: dictionary of regression statistics in Brain_Data instances
-                {'t','p'}
+            out: (dict) dictionary of regression statistics in Brain_Data
+                 instances {'t','p'}
 
         """
 
@@ -538,11 +553,11 @@ class Brain_Data(object):
         """ Append data to Brain_Data instance
 
         Args:
-            data: Brain_Data instance to append
+            data: (Brain_Data) Brain_Data instance to append
             kwargs: optional inputs to Design_Matrix append
 
         Returns:
-            out: new appended Brain_Data instance
+            out: (Brain_Data) new appended Brain_Data instance
         """
 
         data = check_brain_data(data)
@@ -608,11 +623,11 @@ class Brain_Data(object):
             Brain_Data or Nibabel image
 
             Args:
-                image: Brain_Data or Nibabel instance of weight map
+                image: (Brain_Data, nifti)  image to evaluate similarity
                 method: (str) Type of similarity
                         ['correlation','dot_product','cosine']
             Returns:
-                pexp: Outputs a vector of pattern expression values
+                pexp: (list) Outputs a vector of pattern expression values
 
         """
 
@@ -688,11 +703,11 @@ class Brain_Data(object):
         """ Calculate distance between images within a Brain_Data() instance.
 
             Args:
-                method: type of distance metric (can use any scikit learn or
+                method: (str) type of distance metric (can use any scikit learn or
                         sciypy metric)
 
             Returns:
-                dist: Outputs a 2D distance matrix.
+                dist: (Adjacency) Outputs a 2D distance matrix.
 
         """
 
@@ -1025,7 +1040,10 @@ class Brain_Data(object):
         """ Mask Brain_Data instance
 
         Args:
-            mask: mask (Brain_Data or nifti object)
+            mask: (Brain_Data or nifti object) mask to apply to Brain_Data object
+
+        Returns:
+            masked: (Brain_Data) masked Brain_Data object
 
         """
 
@@ -1053,8 +1071,10 @@ class Brain_Data(object):
         """ Extract activity from mask
 
         Args:
-            mask: nibabel mask can be binary or numbered for different rois
+            mask: (nifiti) nibabel mask can be binary or numbered for
+                  different rois
             method: type of extraction method (default=mean)
+                    NOTE: Only mean currently works!
 
         Returns:
             out: mean within each ROI across images
@@ -1063,17 +1083,18 @@ class Brain_Data(object):
         mask = check_brain_data(mask)
         ma = mask.copy()
 
+        if method is not 'mean':
+            raise ValueError('Only mean is currently implemented.')
+
         if len(np.unique(ma.data)) == 2:
-            if method is 'mean':
-                out = np.mean(self.data[:, np.where(ma.data)].squeeze(), axis=1)
+            out = np.mean(self.data[:, np.where(ma.data)].squeeze(), axis=1)
         elif len(np.unique(ma.data)) > 2:
             # make sure each ROI id is an integer
             ma.data = np.round(ma.data).astype(int)
             all_mask = expand_mask(ma)
             out = []
             for i in range(all_mask.shape()[0]):
-                if method is 'mean':
-                    out.append(np.mean(self.data[:, np.where(all_mask[i].data)].squeeze(), axis=1))
+                out.append(np.mean(self.data[:, np.where(all_mask[i].data)].squeeze(), axis=1))
             out = np.array(out)
         return out
 
@@ -1097,7 +1118,7 @@ class Brain_Data(object):
                     column fixed effect)
 
         Returns:
-            ICC: intraclass correlation coefficient
+            ICC: (np.array) intraclass correlation coefficient
 
         '''
 
@@ -1158,10 +1179,10 @@ class Brain_Data(object):
         """ Remove linear trend from each voxel
 
         Args:
-            type: {'linear','constant'} optional
+            type: ('linear','constant', optional) type of detrending
 
         Returns:
-            out: detrended Brain_Data instance
+            out: (Brain_Data) detrended Brain_Data instance
 
         """
 
@@ -1184,15 +1205,15 @@ class Brain_Data(object):
             metadata. Index will be used as image name.
 
         Args:
-            access_token: (Required) Neurovault api access token
-            collection_name: (Optional) name of new collection to create
-            collection_id: (Optional) neurovault collection_id if adding images
+            access_token: (str, Required) Neurovault api access token
+            collection_name: (str, Optional) name of new collection to create
+            collection_id: (int, Optional) neurovault collection_id if adding images
                             to existing collection
-            img_type: (Required) Neurovault map_type
-            img_modality: (Required) Neurovault image modality
+            img_type: (str, Required) Neurovault map_type
+            img_modality: (str, Required) Neurovault image modality
 
         Returns:
-            collection: neurovault collection information
+            collection: (pd.DataFrame) neurovault collection information
 
         """
 
