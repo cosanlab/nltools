@@ -22,7 +22,9 @@ import os
 import pandas as pd
 import numpy as np
 from nltools.data import Brain_Data
-from nilearn.datasets.utils import (_get_dataset_dir, _fetch_file, _get_dataset_descr)
+from nilearn.datasets.utils import (_get_dataset_dir,
+                                    _fetch_file,
+                                    _get_dataset_descr)
 from nilearn._utils.compat import _urllib
 from sklearn.datasets.base import Bunch
 from pynv import Client
@@ -116,18 +118,13 @@ def fetch_pain(data_dir=None, resume=True, verbose=1):
     '''Download and loads pain dataset from neurovault
 
     Args:
-    data_dir: string, optional
-    Path of the data directory. Used to force data storage in a
-    specified location. Default: None
-    n_subjects: int, optional
-    Number of subjects, from 1 to 6.
-    NOTE: n_subjects is deprecated from 0.2.6 and will be removed in 0.3
-    Use `subjects` instead.
-    subjects : list or int, optional
-    Either a list of subjects or the number of subjects to load, from
-    1 to 6. By default, 2nd subject will be loaded. Empty list returns
-    no subject data
+        data_dir: (string, optional) Path of the data directory.
+                   Used to force data storage in a specified location.
+                   Default: None
+
     Returns:
+        out: (Brain_Data) Brain_Data object with downloaded data. X=metadata
+
     '''
 
     collection = 504
@@ -144,16 +141,13 @@ def fetch_emotion_ratings(data_dir=None, resume=True, verbose=1):
     '''Download and loads emotion rating dataset from neurovault
 
     Args:
-    data_dir: (string, optional). Path of the data directory. Used to
-    force data storage in a specified location. Default: None
-    n_subjects: (int, optional) Number of subjects, from 1 to 6.
-    NOTE: n_subjects is deprecated from 0.2.6 and will be
-    removed in 0.3 Use `subjects` instead.
-    subjects : (list or int, optional) Either a list of subjects or the
-    number of subjects to load, from 1 to 6. By default,
-    2nd subject will be loaded. Empty list returns no subject
-    data
+        data_dir: (string, optional). Path of the data directory.
+                   Used to force data storage in a specified location.
+                   Default: None
+
     Returns:
+        out: (Brain_Data) Brain_Data object with downloaded data. X=metadata
+
     '''
 
     collection = 1964
@@ -167,7 +161,7 @@ def fetch_emotion_ratings(data_dir=None, resume=True, verbose=1):
 
 def fetch_localizer(subject_ids=None, get_anats=False, data_type='raw',
                     data_dir=None, url=None, resume=True, verbose=1):
-    """Download and load Brainomics Localizer dataset (94 subjects).
+    """ Download and load Brainomics Localizer dataset (94 subjects).
     "The Functional Localizer is a simple and fast acquisition
     procedure based on a 5-minute functional magnetic resonance
     imaging (fMRI) sequence that can be run as easily and as
@@ -188,33 +182,28 @@ def fetch_localizer(subject_ids=None, get_anats=False, data_type='raw',
     is generated on the remote server).  For example, download
     n_subjects=np.array(1,10), then n_subjects=np.array(10,20), etc.
 
-    Parameters
-    ----------
-    subject_ids: list
-        List of Subject IDs (e.g., ['S01','S02']. If None is given,
-        all 94 subjects are used.
-    get_anats: boolean
-        Whether individual structural images should be fetched or not.\
-    data_type: string
-        type of data to download. Valid values are ['raw','preprocessed']
-    data_dir: string, optional
-        Path of the data directory. Used to force data storage in a specified
-        location.
-    url: string, optional
-        Override download URL. Used for test only (or if you setup a mirror of
-        the data).
-    resume: bool
-        Whether to resume download of a partly-downloaded file.
-    verbose: int
-        Verbosity level (0 means no message).
-    Returns
-    -------
-    data: Bunch
-        Dictionary-like object, the interest attributes are :
-        - 'functional': string list
-            Paths to nifti contrast maps
-        - 'structural' string
-            Path to nifti files corresponding to the subjects structural images
+    Args:
+        subject_ids: (list) List of Subject IDs (e.g., ['S01','S02'].
+                     If None is given, all 94 subjects are used.
+        get_anats: (boolean) Whether individual structural images should be
+                    fetched or not.
+        data_type: (string) type of data to download.
+                    Valid values are ['raw','preprocessed']
+        data_dir: (string, optional) Path of the data directory.
+                    Used to force data storage in a specified location.
+        url: (string, optional) Override download URL.
+             Used for test only (or if you setup a mirror of the data).
+        resume: (bool) Whether to resume download of a partly-downloaded file.
+        verbose: (int) Verbosity level (0 means no message).
+
+    Returns:
+        data: (Bunch)
+            Dictionary-like object, the interest attributes are :
+            - 'functional': string list
+                Paths to nifti contrast maps
+            - 'structural' string
+                Path to nifti files corresponding to the subjects structural images
+
     References
     ----------
     Pinel, Philippe, et al.
@@ -295,4 +284,7 @@ def fetch_localizer(subject_ids=None, get_anats=False, data_type='raw',
     if not get_anats:
         anat_files = None
 
-    return Bunch(functional=bold_files, structural=anat_files, ext_vars=metadata, description=fdescr)
+    return Bunch(functional=bold_files,
+                 structural=anat_files,
+                 ext_vars=metadata,
+                 description=fdescr)

@@ -6,7 +6,10 @@ Classes to represent masks
 
 '''
 
-__all__ = ['create_sphere', 'expand_mask', 'collapse_mask']
+__all__ = ['create_sphere',
+           'expand_mask',
+           'collapse_mask',
+           'roi_to_brain']
 __author__ = ["Luke Chang", "Sam Greydanus"]
 __license__ = "MIT"
 
@@ -170,12 +173,18 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
 
 
 def roi_to_brain(data, mask_x):
-    '''
+    ''' This function will create convert an expanded binary mask of ROIs
+    (see expand_mask) based on a vector of of values. The dataframe of values
+    must correspond to ROI numbers.
+
+    This is useful for populating a parcellation scheme by a vector of Values
+    
     Args:
         data: Pandas series or dataframe of ROI by observation
         mask_x: an expanded binary mask
     Returns:
-        Brain_Data instance
+        out: (Brain_Data) Brain_Data instance where each ROI is now populated
+             with a value
     '''
     from nltools.data import Brain_Data
 
