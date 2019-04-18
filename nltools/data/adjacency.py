@@ -294,7 +294,7 @@ class Adjacency(object):
 
     def isempty(self):
         '''Check if Adjacency object is empty'''
-        return bool(self.matrix_type is 'empty')
+        return bool(self.matrix_type == 'empty')
 
     def squareform(self):
         '''Convert adjacency back to squareform'''
@@ -389,7 +389,7 @@ class Adjacency(object):
 
     def square_shape(self):
         ''' Calculate shape of squareform data. '''
-        if self.matrix_type is 'empty':
+        if self.matrix_type == 'empty':
             return np.array([])
         else:
             if self.is_single_matrix:
@@ -441,14 +441,14 @@ class Adjacency(object):
         if method not in ['long', 'square']:
             raise ValueError('Make sure method is ["long","square"].')
         if self.is_single_matrix:
-            if method is 'long':
+            if method == 'long':
                 pd.DataFrame(self.data).to_csv(file_name, index=None)
-            elif method is 'square':
+            elif method == 'square':
                 pd.DataFrame(self.squareform()).to_csv(file_name, index=None)
         else:
-            if method is 'long':
+            if method == 'long':
                 pd.DataFrame(self.data).to_csv(file_name, index=None)
-            elif method is 'square':
+            elif method == 'square':
                 raise NotImplementedError('Need to decide how we should write '
                                           'out multiple matrices.  As separate '
                                           'files?')
@@ -552,10 +552,10 @@ class Adjacency(object):
 
         b = self.copy()
         if isinstance(upper, six.string_types):
-            if upper[-1] is '%':
+            if upper[-1] == '%':
                 upper = np.percentile(b.data, float(upper[:-1]))
         if isinstance(lower, six.string_types):
-            if lower[-1] is '%':
+            if lower[-1] == '%':
                 lower = np.percentile(b.data, float(lower[:-1]))
 
         if upper and lower:

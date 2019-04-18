@@ -96,7 +96,7 @@ class Simulator:
 
         self.nifti_masker.fit(self.brain_mask)
         vlength = int(np.sum(self.brain_mask.get_data()))
-        if sigma is not 0:
+        if sigma != 0:
             n = np.random.normal(mu, sigma, vlength)
         else:
             n = [mu]*vlength
@@ -133,7 +133,7 @@ class Simulator:
             radius = [radius]
         if center is None:
             center = [[dims[0]/2, dims[1]/2, dims[2]/2] * len(radius)]  # default value for centers
-        elif type(center) is list and type(center[0]) is int and len(radius) is 1:
+        elif isinstance(center, list) and isinstance(center[0], int) and len(radius) == 1:
             centers = [center]
         if (type(radius)) is list and (type(center) is list) and (len(radius) == len(center)):
             A = np.zeros_like(self.brain_mask.get_data())

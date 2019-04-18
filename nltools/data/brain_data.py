@@ -506,7 +506,7 @@ class Brain_Data(object):
                 else:
                     n_jobs = 1
 
-                if threshold_dict['permutation'] is 'tfce':
+                if threshold_dict['permutation'] == 'tfce':
                     perm_threshold = dict(start=0, step=0.2)
                 else:
                     perm_threshold = None
@@ -663,7 +663,7 @@ class Brain_Data(object):
                 return data
 
         # Calculate pattern expression
-        if method is 'dot_product':
+        if method == 'dot_product':
             if len(image2.shape) > 1:
                 if image2.shape[0] > 1:
                     pexp = []
@@ -674,7 +674,7 @@ class Brain_Data(object):
                     pexp = np.dot(data2, image2)
             else:
                 pexp = np.dot(data2, image2)
-        elif method is 'correlation':
+        elif method == 'correlation':
             if len(image2.shape) > 1:
                 if image2.shape[0] > 1:
                     pexp = []
@@ -685,7 +685,7 @@ class Brain_Data(object):
                     pexp = pearson(image2, data2)
             else:
                 pexp = pearson(image2, data2)
-        elif method is 'cosine':
+        elif method == 'cosine':
             image2 = vector2array(image2)
             data2 = vector2array(data2)
             if image2.shape[1] > 1:
@@ -752,7 +752,7 @@ class Brain_Data(object):
         image2 = np.vstack((np.ones(image2.shape[1]), image2)).T
 
         # Calculate pattern expression
-        if method is 'ols':
+        if method == 'ols':
             b = np.dot(np.linalg.pinv(image2), data2)
             res = data2 - np.dot(image2, b)
             sigma = np.std(res, axis=0)
@@ -1083,7 +1083,7 @@ class Brain_Data(object):
         mask = check_brain_data(mask)
         ma = mask.copy()
 
-        if method is not 'mean':
+        if method != 'mean':
             raise ValueError('Only mean is currently implemented.')
 
         if len(np.unique(ma.data)) == 2:
@@ -1388,10 +1388,10 @@ class Brain_Data(object):
 
         b = self.copy()
         if isinstance(upper, six.string_types):
-            if upper[-1] is '%':
+            if upper[-1] == '%':
                 upper = np.percentile(b.data, float(upper[:-1]))
         if isinstance(lower, six.string_types):
-            if lower[-1] is '%':
+            if lower[-1] == '%':
                 lower = np.percentile(b.data, float(lower[:-1]))
 
         if upper and lower:
@@ -1484,7 +1484,7 @@ class Brain_Data(object):
                                                        function, random_state=seeds[i], *args, **kwargs)
                         for i in range(n_samples))
 
-        if function is 'predict':
+        if function == 'predict':
             bootstrapped = [x['weight_map'] for x in bootstrapped]
         bootstrapped = Brain_Data(bootstrapped, mask=self.mask)
         return summarize_bootstrap(bootstrapped, save_weights=save_weights)
@@ -1508,13 +1508,13 @@ class Brain_Data(object):
                                                     algorithm=algorithm,
                                                     n_components=n_components,
                                                     *args, **kwargs)
-        if axis is 'images':
+        if axis == 'images':
             out['decomposition_object'].fit(self.data.T)
             out['components'] = self.empty()
             out['components'].data = out['decomposition_object'].transform(
                                                                 self.data.T).T
             out['weights'] = out['decomposition_object'].components_.T
-        if axis is 'voxels':
+        if axis == 'voxels':
             out['decomposition_object'].fit(self.data)
             out['weights'] = out['decomposition_object'].transform(self.data)
             out['components'] = self.empty()
