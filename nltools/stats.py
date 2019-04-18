@@ -292,8 +292,8 @@ def _transform_outliers(data, cutoff, replace_with_cutoff, method):
                 data[data < q.iloc[0]] = q.iloc[0]
                 data[data > q.iloc[1]] = q.iloc[1]
         elif method == 'trim':
-                data[data < q.iloc[0]] = np.nan
-                data[data > q.iloc[1]] = np.nan
+            data[data < q.iloc[0]] = np.nan
+            data[data > q.iloc[1]] = np.nan
         return data
 
     # transform each column if a dataframe, if series just transform data
@@ -344,11 +344,11 @@ def downsample(data, sampling_freq=None, target=None, target_type='samples',
     if not (method == 'median') | (method == 'mean'):
         raise ValueError("Metric must be either 'mean' or 'median' ")
 
-    if target_type is 'samples':
+    if target_type == 'samples':
         n_samples = target
-    elif target_type is 'seconds':
+    elif target_type == 'seconds':
         n_samples = target*sampling_freq
-    elif target_type is 'hz':
+    elif target_type == 'hz':
         n_samples = sampling_freq/target
     else:
         raise ValueError('Make sure target_type is "samples", "seconds", '
@@ -386,11 +386,11 @@ def upsample(data, sampling_freq=None, target=None, target_type='samples', metho
     if method not in methods:
         raise ValueError("Method must be 'linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic'")
 
-    if target_type is 'samples':
+    if target_type == 'samples':
         n_samples = target
-    elif target_type is 'seconds':
+    elif target_type == 'seconds':
         n_samples = target*sampling_freq
-    elif target_type is 'hz':
+    elif target_type == 'hz':
         n_samples = float(sampling_freq)/float(target)
     else:
         raise ValueError('Make sure target_type is "samples", "seconds", or "hz".')

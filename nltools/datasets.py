@@ -250,7 +250,7 @@ def fetch_localizer(subject_ids=None, get_anats=False, data_type='raw',
         file_tarball_url = "%sbrainomics_data.zip?rql=%s&vid=data-zip" % (root_url, _urllib.parse.quote(base_query % {"types": "\"%s\"" % dat_type,  "label": dat_label}, safe=',()'))
         name_aux = str.replace(str.join('_', [dat_type, dat_label]), ' ', '_')
         file_path = os.path.join("brainomics_data", subject_id, "%s.nii.gz" % name_aux)
-        bold_files.append(_fetch_files(data_dir, [(file_path, file_tarball_url, opts)], verbose=verbose))
+        bold_files.append(_fetch_file(data_dir, [(file_path, file_tarball_url, opts)], verbose=verbose))
 
         if get_anats:
             file_tarball_url = "%sbrainomics_data_anats.zip?rql=%s&vid=data-zip" % (root_url, _urllib.parse.quote(base_query % {"types": "\"%s\"" % anat_type, "label": anat_label}, safe=',()'))
@@ -259,7 +259,7 @@ def fetch_localizer(subject_ids=None, get_anats=False, data_type='raw',
             elif data_type == 'preprocessed':
                 anat_name_aux = "normalized_T1_anat_defaced.nii.gz"
             file_path = os.path.join("brainomics_data", subject_id, anat_name_aux)
-            anat_files.append(_fetch_files(data_dir, [(file_path, file_tarball_url, opts)], verbose=verbose))
+            anat_files.append(_fetch_file(data_dir, [(file_path, file_tarball_url, opts)], verbose=verbose))
 
     # Fetch subject characteristics (separated in two files)
     if url is None:
@@ -275,7 +275,7 @@ def fetch_localizer(subject_ids=None, get_anats=False, data_type='raw',
         url_csv2 = "%s/cubicwebexport2.csv" % url
 
     filenames = [("cubicwebexport.csv", url_csv, {}),("cubicwebexport2.csv", url_csv2, {})]
-    csv_files = _fetch_files(data_dir, filenames, verbose=verbose)
+    csv_files = _fetch_file(data_dir, filenames, verbose=verbose)
     metadata = pd.merge(pd.read_csv(csv_files[0], sep=';'), pd.read_csv(csv_files[1], sep=';'), on='"subject_id"')
     metadata.to_csv(os.path.join(data_dir,'metadata.csv'))
     for x in ['cubicwebexport.csv','cubicwebexport2.csv']:
