@@ -2,14 +2,14 @@ channels:
   - conda-forge
 
 name:
-  - nltools
+  - nltools >= 0.3.12
 
 dependencies:
-  - python=3.6
+  - python >= 3.6
   - pip
   - pip:
-    - sphinx >= 1.5
-    - sphinx-gallery
+    - sphinx >= 2.0
+    - sphinx-gallery >= 0.3.1
     - sphinxcontrib-napoleon
-    - sphinx_bootstrap_theme
-    - networkx
+    - sphinx_bootstrap_theme >= 0.7.1
+    - networkx >= 2.3
