@@ -3,3 +3,6 @@ channels:
 
 name:
   - nltools >= 0.3.12
+
+dependencies:
+  - python >= 3.6
