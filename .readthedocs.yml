@@ -9,7 +9,6 @@ python:
     - requirements: requirement.txt
     - requirements: docs/sphinx_requirement.txt
     - method: pip
-system_packages: true
-
+    
 conda:
   file: docs/environment.yml
