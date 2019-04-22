@@ -68,17 +68,24 @@ def test_sum(sim_brain_data):
 def test_add(sim_brain_data):
     new = sim_brain_data + sim_brain_data
     assert new.shape() == shape_2d
-
+    value = 10
+    assert(value + sim_brain_data[0]).mean() == (sim_brain_data[0] + value).mean()
 
 def test_subtract(sim_brain_data):
     new = sim_brain_data - sim_brain_data
     assert new.shape() == shape_2d
-
+    value = 10
+    assert (-value-(-1)*sim_brain_data[0]).mean() == (sim_brain_data[0]-value).mean()
 
 def test_multiply(sim_brain_data):
     new = sim_brain_data * sim_brain_data
     assert new.shape() == shape_2d
-
+    value = 10
+    assert(value * sim_brain_data[0]).mean() == (sim_brain_data[0] * value).mean()
+    c1 = [.5, .5, -.5, -.5]
+    new = sim_brain_data[0:4]*c1
+    new2 = sim_brain_data[0]*.5 + sim_brain_data[1]*.5 - sim_brain_data[2]*.5 - sim_brain_data[3]*.5
+    np.testing.assert_almost_equal(0, (new-new2).sum(), decimal=5)
 
 def test_indexing(sim_brain_data):
     index = [0, 3, 1]
