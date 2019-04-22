@@ -1,5 +1,15 @@
-conda:
-    file: docs/environment.yml
+version: 2
+
+sphinx:
+  configuration: docs/conf.py
 
 python:
-    pip_install: true
+  version: 3.6
+  install:
+    - requirements: requirement.txt
+    - requirements: docs/sphinx_requirement.txt
+    - method: pip
+system_packages: true
+
+conda:
+  file: docs/environment.yml
