@@ -235,26 +235,66 @@ class Brain_Data(object):
             new.data = new.data + y.data
         return new
 
+    def __radd__(self, y):
+        new = deepcopy(self)
+        if isinstance(y, (int, float)):
+            new.data = y + new.data
+        elif isinstance(y, Brain_Data):
+            if self.shape() != y.shape():
+                raise ValueError("Both Brain_Data() instances need to be the "
+                                 "same shape.")
+            new.data = y.data + new.data
+        return new
+
     def __sub__(self, y):
         new = deepcopy(self)
         if isinstance(y, (int, float)):
             new.data = new.data - y
-        if isinstance(y, Brain_Data):
+        elif isinstance(y, Brain_Data):
             if self.shape() != y.shape():
                 raise ValueError('Both Brain_Data() instances need to be the '
                                  'same shape.')
             new.data = new.data - y.data
         return new
 
+    def __rsub__(self, y):
+        new = deepcopy(self)
+        if isinstance(y, (int, float)):
+            new.data = y - new.data
+        elif isinstance(y, Brain_Data):
+            if self.shape() != y.shape():
+                raise ValueError('Both Brain_Data() instances need to be the '
+                                 'same shape.')
+            new.data = y.data - new.data
+        return new
+
     def __mul__(self, y):
         new = deepcopy(self)
         if isinstance(y, (int, float)):
             new.data = new.data * y
-        if isinstance(y, Brain_Data):
+        elif isinstance(y, Brain_Data):
             if self.shape() != y.shape():
                 raise ValueError("Both Brain_Data() instances need to be the "
                                  "same shape.")
             new.data = np.multiply(new.data, y.data)
+        elif isinstance(y, (list, np.ndarray, np.array)):
+            if len(y) != len(self):
+                raise ValueError('Vector multiplication requires that the '
+                                 'length of the vector match the number of '
+                                 'images in Brain_Data instance.')
+            else:
+                new.data = np.dot(new.data.T, y).T
+        return new
+
+    def __rmul__(self, y):
+        new = deepcopy(self)
+        if isinstance(y, (int, float)):
+            new.data = y * new.data
+        elif isinstance(y, Brain_Data):
+            if self.shape() != y.shape():
+                raise ValueError("Both Brain_Data() instances need to be the "
+                                 "same shape.")
+            new.data = np.multiply(y.data, new.data)
         return new
 
     def __iter__(self):
