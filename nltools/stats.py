@@ -54,6 +54,7 @@ from .utils import attempt_to_import, check_square_numpy_matrix
 from .external.srm import SRM, DetSRM
 from scipy.linalg import orthogonal_procrustes
 from scipy.spatial import procrustes as procrust
+from scipy.ndimage import label, generate_binary_structure
 from sklearn.utils import check_random_state
 from sklearn.metrics import pairwise_distances
 
@@ -1483,3 +1484,60 @@ def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
             outlier['diff_spike' + str(i + 1)] = 0
             outlier['diff_spike' + str(i + 1)].iloc[int(loc)] = 1
     return outlier
+
+def clusterize_image(image, threshold=None, connectivity=3):
+    '''This function will cluster an image based on amount of connectivity
+
+    Args:
+        image (np.array): a numpy array of imaging data
+        threshold (float): threshold to remove values prior to clusterizing
+        connectivity (int): amount of connectivity in the matrix
+            (see scipy.ndimage.morphology.generate_binary_structure for more info)
+
+    Returns:
+        labels (np.array): numpy array with values replaced with labels based
+                            on connected voxels
+    '''
+    if threshold is None:
+        threshold = 0
+    image[np.where(image <= threshold)] = 0
+    s = generate_binary_structure(3, connectivity)
+    labels, n_features = label(image, s)
+    return labels
+
+def tfce(data, connectivity=3, h=2, e=0.5, dh=0.1, cluster_extent=3):
+    '''This function performs threshold free cluster enhancement as
+    described in Smith & Nichols (2009)
+
+    Args:
+        h: (float) height exponent (default=2.0)
+        h: (float) extent exponent (default=0.5)
+        connectivity: (int) connectivity.  6 = surface, 18 = edge, 26 = corner. (default=26)
+        dh: (float) step size to discretize cluster formation. (default=0.1)
+        cluster_extent: only include clusters of size greater than cluster_extent
+
+    Returns:
+        dat: (nibabel) TFCE transformed nifti image
+    '''
+    if not isinstance(data, nib.Nifti1Image):
+        raise ValueError('Data must be a nibabel instance')
+
+    labels = clusterize_image(data.get_data(), threshold=4, connectivity=connectivity)
+    label_id, label_count = np.unique(labels, return_counts=True)
+    label_id, label_count = (label_id[1:], label_count[1:]) # Drop label=0 as it is everything that doesn't exceed threshold.
+
+    # Drop any clusters that are below cluster_extent
+    label_id = label_id[label_count > cluster_extent]
+    label_count = label_count[label_count > cluster_extent]
+
+    # Calculate cluster extent
+    cluster_size = np.zeros(labels.shape)
+    for i,x in zip(label_id, label_count):
+        cluster_size[labels==i] = x
+
+    # Calculate TFCE
+    tfce_values = np.zeros(cluster_size.shape)
+    for thresh in thresholds:
+        tfce_values += cluster_size**e*np.power(thresh, h)
+    tfce_values = tfce_values*dh
+    return nib.Nifti1Image(tfce_values, data.affine)
