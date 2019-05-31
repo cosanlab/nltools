@@ -561,12 +561,12 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
         Args:
         data1: (pd.DataFrame, pd.Series, np.array) dataset 1 to permute
         data2: (pd.DataFrame, pd.Series, np.array) dataset 2 to permute
-            n_permute: (int) number of permutations
-            metric: (str) type of association metric ['spearman','pearson',
-                    'kendall']
-            tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
-            n_jobs: (int) The number of CPUs to use to do the computation.
-                    -1 means all CPUs.
+        n_permute: (int) number of permutations
+        metric: (str) type of association metric ['spearman','pearson',
+                'kendall']
+        tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
+        n_jobs: (int) The number of CPUs to use to do the computation.
+                -1 means all CPUs.
 
         Returns:
             stats: (dict) dictionary of permutation results ['correlation','p']
@@ -591,7 +591,7 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
 
 
 def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
-                       tail=2, random_state=None):
+                       tail=2, n_jobs=-1, random_state=None):
     """ Permute 2-dimensional matrix correlation (mantel test).
 
         Chen, G. et al. (2016). Untangling the relatedness among correlations,
@@ -622,7 +622,7 @@ def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
 
     stats['correlation'] = correlation(data1, data2, metric=metric)[0]
 
-    all_p = Parallel(backend='threading')(delayed(_permute_func)(
+    all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_func)(
                     pd.DataFrame(sq_data1), data2, metric=metric)
                     for i in range(n_permute))
     stats['p'] = _calc_pvalue(all_p, stats['correlation'], tail)
@@ -895,7 +895,7 @@ def _arma_func(X, Y, idx=None, **kwargs):
     return (res.params[:-2], res.tvalues[:-2], res.pvalues[:-2], res.df_resid, res.resid)
 
 
-def regress(X, Y, mode='ols', **kwargs):
+def regress(X, Y, mode='ols', stats='full', **kwargs):
     """ This is a flexible function to run several types of regression models provided X and Y numpy arrays. Y can be a 1d numpy array or 2d numpy array. In the latter case, results will be output with shape 1 x Y.shape[1], in other words fitting a separate regression model to each column of Y.
 
     Does NOT add an intercept automatically to the X matrix before fitting like some other software packages. This is left up to the user.
@@ -950,18 +950,26 @@ def regress(X, Y, mode='ols', **kwargs):
     if not isinstance(mode, six.string_types):
         raise ValueError('mode must be a string')
 
+    if not isinstance(stats, six.string_types):
+        raise ValueError('stats must be a string')
+
     if mode not in ['ols', 'robust', 'arma']:
         raise ValueError("Mode must be one of 'ols','robust' or 'arma'")
+    
+    if stats not in ['full', 'betas', 'tstats']:
+        raise ValueError("stats must be one of 'full', 'betas', 'tstats'")
 
-    # Make sure Y is a 1-D array
+    # Make sure Y is a 2-D array
     if len(Y.shape) == 1:
         Y = Y[:, np.newaxis]
-    #     Y = np.array(Y).squeeze()
 
     # Compute standard errors based on regression mode
     if mode == 'ols' or mode == 'robust':
 
         b = np.dot(np.linalg.pinv(X), Y)
+        # Return betas and stop other computations if that's all that's requested
+        if stats == 'betas':
+            return b.squeeze()
         res = Y - np.dot(X, b)
 
         # Vanilla OLS
@@ -977,6 +985,9 @@ def regress(X, Y, mode='ols', **kwargs):
             stderr = np.apply_along_axis(*axis_func)
 
         t = b / stderr
+        # Return betas and ts and stop other computations if that's all that's requested
+        if stats == 'tstats':
+            return b.squeeze(), t.squeeze()
         df = np.array([X.shape[0]-X.shape[1]] * t.shape[1])
         p = 2*(1-t_dist.cdf(np.abs(t), df))
 
@@ -1006,6 +1017,40 @@ def regress(X, Y, mode='ols', **kwargs):
             b, t, p, df, res = _arma_func(X, Y, **kwargs)
 
     return b.squeeze(), t.squeeze(), p.squeeze(), df.squeeze(), res.squeeze()
+
+
+def regress_permutation(X, Y, n_permute=5000, random_state=None, **kwargs):
+    """
+    Permuted regression. Permute the design matrix each time by shuffling rows before running the estimation.
+
+    Args:
+        X (ndarray): design matrix; assumes intercept is included
+        Y (ndarray): dependent variable array; if 2d, a model is fit to each column of Y separately
+        n_permute: (int) number of permutations
+        tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
+        n_jobs: (int) The number of CPUs to use to do the computation. -1 means all CPUs.
+        kwargs: optional argument to regress()
+
+    """
+
+    random_state = check_random_state(random_state)
+    b, t = regress(X, Y, stats='tstats', **kwargs)   
+    p = np.zeros_like(t)
+
+    if (X.shape[1] == 1) and (all(X[:] == 1.)):
+        func = lambda x: (x.squeeze() * random_state.choice([1, -1], x.shape[0]))[:, np.newaxis]
+    else:
+        func = random_state.permutation
+    
+    # We could optionally Save (X.T * X)^-1 * X.T so we dont have to invert each permutation, but this would require not relying on regress() and because the second-level design mat is probably on the small side we might not actually save that much time
+    # inv = np.linalg.pinv(X)
+
+    for i in range(n_permute):
+        _, _t = regress(func(X.values), Y, stats='tstats', **kwargs)
+        p += np.abs(_t) >= np.abs(t)
+    p /= n_permute
+
+    return b, t, p
 
 
 def align(data, method='deterministic_srm', n_features=None, axis=0,
