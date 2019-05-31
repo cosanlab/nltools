@@ -56,7 +56,8 @@ from nltools.stats import (pearson,
                            transform_pairwise,
                            summarize_bootstrap,
                            procrustes,
-                           find_spikes)
+                           find_spikes,
+                           regress_permutation)
 from nltools.stats import regress as regression
 from .adjacency import Adjacency
 from nltools.prefs import MNI_Template, resolve_mni_path
@@ -506,6 +507,36 @@ class Brain_Data(object):
 
         return {'beta': b_out, 't': t_out, 'p': p_out,
                 'sigma': sigma_out, 'residual': res_out}
+
+    def randomise(self, n_permute=5000, **kwargs):
+        """
+        Run mass-univariate regression at each voxel with inference performed via permutation testing ala randomise in FSL. Operates just like .regress(), but intended to be used for second-level analyses. 
+        
+        """
+        
+        if not isinstance(self.X, pd.DataFrame):
+            raise ValueError('Make sure self.X is a pandas DataFrame.')
+
+        if self.X.empty:
+            raise ValueError('Make sure self.X is not empty.')
+
+        if self.data.shape[0] != self.X.shape[0]:
+            raise ValueError("self.X does not match the correct size of "
+                             "self.data")
+
+        b, t, p = regress_permutation(self.X, self.data, n_permute=n_permute, **kwargs)
+
+        # Prevent copy of all data in self multiple times; instead start with an empty instance and copy only needed attributes from self, and use this as a template for other outputs
+        b_out = self.__class__()
+        b_out.mask = deepcopy(self.mask)
+        b_out.nifti_masker = deepcopy(self.nifti_masker)
+
+        # Use this as template for other outputs before setting data
+        t_out = b_out.copy()
+        p_out = b_out.copy()
+        b_out.data, t_out.data, p_out.data = (b, t, p)
+
+        return {'beta': b_out, 't': t_out, 'p': p_out}
 
     def ttest(self, threshold_dict=None):
         """ Calculate one sample t-test across each voxel (two-sided)
