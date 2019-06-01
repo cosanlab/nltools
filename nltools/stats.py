@@ -1019,7 +1019,7 @@ def regress(X, Y, mode='ols', stats='full', **kwargs):
     return b.squeeze(), t.squeeze(), p.squeeze(), df.squeeze(), res.squeeze()
 
 
-def regress_permutation(X, Y, n_permute=5000, random_state=None, **kwargs):
+def regress_permutation(X, Y, n_permute=5000, tail=2, random_state=None, **kwargs):
     """
     Permuted regression. Permute the design matrix each time by shuffling rows before running the estimation.
 
@@ -1036,6 +1036,11 @@ def regress_permutation(X, Y, n_permute=5000, random_state=None, **kwargs):
     random_state = check_random_state(random_state)
     b, t = regress(X, Y, stats='tstats', **kwargs)   
     p = np.zeros_like(t)
+    if tail == 1:
+        pos_mask = np.where(t >= 0)
+        neg_mask = np.where(t <= 0)
+    elif tail != 2:
+        raise ValueError("tail must be 1 or 2")
 
     if (X.shape[1] == 1) and (all(X[:] == 1.)):
         func = lambda x: (x.squeeze() * random_state.choice([1, -1], x.shape[0]))[:, np.newaxis]
@@ -1047,7 +1052,13 @@ def regress_permutation(X, Y, n_permute=5000, random_state=None, **kwargs):
 
     for i in range(n_permute):
         _, _t = regress(func(X.values), Y, stats='tstats', **kwargs)
-        p += np.abs(_t) >= np.abs(t)
+        if tail == 2:
+            p += np.abs(_t) >= np.abs(t)
+        elif tail == 1:
+            pos_p = _t >= t
+            neg_p = _t <= t
+            p[pos_mask] += pos_p[pos_mask]
+            p[neg_mask] += neg_p[neg_mask]
     p /= n_permute
 
     return b, t, p
