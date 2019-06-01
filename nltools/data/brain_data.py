@@ -508,10 +508,16 @@ class Brain_Data(object):
         return {'beta': b_out, 't': t_out, 'p': p_out,
                 'sigma': sigma_out, 'residual': res_out}
 
-    def randomise(self, n_permute=5000, **kwargs):
+    def randomise(self, n_permute=5000, threshold_dict=None, **kwargs):
         """
         Run mass-univariate regression at each voxel with inference performed via permutation testing ala randomise in FSL. Operates just like .regress(), but intended to be used for second-level analyses. 
-        
+
+        Args:
+            n_permute (int): number of permutations
+            threshold_dict: (dict) a dictionary of threshold parameters
+                            {'unc':.001} or {'fdr':.05} 
+        Returns:
+            out: dictionary of maps for betas, tstats, and pvalues        
         """
         
         if not isinstance(self.X, pd.DataFrame):
@@ -536,7 +542,24 @@ class Brain_Data(object):
         p_out = b_out.copy()
         b_out.data, t_out.data, p_out.data = (b, t, p)
 
-        return {'beta': b_out, 't': t_out, 'p': p_out}
+        if threshold_dict is not None:
+            if isinstance(threshold_dict, dict):
+                if 'unc' in threshold_dict:
+                    thr = threshold_dict['unc']
+                elif 'fdr' in threshold_dict:
+                    thr = fdr(p_out.data, q=threshold_dict['fdr'])
+                elif 'permutation' in threshold_dict:
+                    thr = .05
+                thr_t_out = threshold(t_out, p_out, thr)
+                out = {'beta': b_out, 't': t_out, 'p': p_out, 'thr_t': thr_t_out}
+            else:
+                raise ValueError("threshold_dict is not a dictionary. "
+                                 "Make sure it is in the form of {'unc': .001} "
+                                 "or {'fdr': .05}")
+        else:
+            out = {'beta': b_out, 't': t_out, 'p': p_out}
+
+        return out 
 
     def ttest(self, threshold_dict=None):
         """ Calculate one sample t-test across each voxel (two-sided)
