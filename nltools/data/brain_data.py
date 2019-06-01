@@ -46,7 +46,8 @@ from nltools.utils import (set_algorithm,
                            _bootstrap_apply_func,
                            set_decomposition_algorithm,
                            check_brain_data,
-                           _roi_func)
+                           _roi_func,
+                           get_mni_from_img_resolution)
 from nltools.cross_validation import set_cv
 from nltools.plotting import scatterplot
 from nltools.stats import (pearson,
@@ -406,7 +407,8 @@ class Brain_Data(object):
                     else:
                         raise ValueError("anatomical is not a nibabel instance")
             else:
-                anatomical = nib.load(resolve_mni_path(MNI_Template)['plot'])
+                # anatomical = nib.load(resolve_mni_path(MNI_Template)['plot'])
+                anatomical = get_mni_from_img_resolution(self, img_type='plot')
 
             if self.data.ndim == 1:
                 f, a = plt.subplots(nrows=1, figsize=(15, 2))
@@ -416,7 +418,7 @@ class Brain_Data(object):
                               axes=a, **kwargs)
             else:
                 n_subs = np.minimum(self.data.shape[0], limit)
-                f, a = plt.subplots(nrows=n_subs, figsize=(15, len(self)*2))
+                f, a = plt.subplots(nrows=n_subs, figsize=(15, len(self) * 2))
                 for i in range(n_subs):
                     plot_stat_map(self[i].to_nifti(), anatomical,
                                   cut_coords=range(-40, 50, 10),
@@ -457,7 +459,8 @@ class Brain_Data(object):
                 else:
                     raise ValueError("anatomical is not a nibabel instance")
         else:
-            anatomical = nib.load(resolve_mni_path(MNI_Template)['brain'])
+            # anatomical = nib.load(resolve_mni_path(MNI_Template)['brain'])
+            anatomical = get_mni_from_img_resolution(self, img_type='brain')
         return plot_interactive_brain(self, threshold=threshold, surface=surface, anatomical=anatomical, **kwargs)
 
     def regress(self, mode='ols', **kwargs):

@@ -85,7 +85,7 @@ def plot_interactive_brain(brain, threshold=1e-6, surface=False, percentile_thre
 
 def _viewer(brain, thresh, idx, percentile_threshold, surface, anatomical, **kwargs):
     if thresh == 0:
-        thresh = None
+        thresh = 1e-6
     else:
         if percentile_threshold:
             thresh = str(thresh) + '%'
