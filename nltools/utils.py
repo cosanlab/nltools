@@ -256,3 +256,37 @@ def _roi_func(brain, roi, algorithm, cv_dict, **kwargs):
 
 class AmbiguityError(Exception):
     pass
+
+def generate_jitter(n_trials, mean_time=5, min_time=2, max_time=12, atol=.2):
+    '''Generate jitter from exponential distribution with constraints
+
+    Draws from exponential distribution until the distribution satisfies the constraints:
+    np.abs(np.mean(min_time > data < max_time) - mean_time) <= atol
+
+    Args:
+        n_trials: (int) number of trials to generate jitter
+        mean_time: (float) desired mean of distribution
+        min_time: (float) desired min of distribution
+        max_time: (float) desired max of distribution
+        atol: (float) precision of deviation from mean
+
+    Returns:
+        data: (np.array) jitter for each trial
+
+    '''
+
+    def generate_data(n_trials, scale=5, min_time=2, max_time=12):
+        data = []
+        i=0
+        while i < n_trials:
+            datam = np.random.exponential(scale=5)
+            if (datam > min_time) & (datam < max_time):
+                data.append(datam)
+                i+=1
+        return data
+
+    mean_diff = False
+    while ~mean_diff:
+        data = generate_data(n_trials, min_time=min_time, max_time=max_time)
+        mean_diff = np.isclose(np.mean(data), mean_time, rtol=0, atol=atol)
+    return data
