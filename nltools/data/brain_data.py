@@ -636,12 +636,12 @@ class Brain_Data(object):
                     thr = fdr(p.data, q=threshold_dict['fdr'])
                 elif 'permutation' in threshold_dict:
                     thr = .05
-                    if return_mask:
-                        thr_t, thr_mask = threshold(t, p, thr, True)
-                        out = {'t': t, 'p': p, 'thr_t': thr_t, 'thr_mask': thr_mask}
-                    else:
-                        thr_t = threshold(t, p, thr)
-                        out = {'t': t, 'p': p, 'thr_t': thr_t}
+                if return_mask:
+                    thr_t, thr_mask = threshold(t, p, thr, True)
+                    out = {'t': t, 'p': p, 'thr_t': thr_t, 'thr_mask': thr_mask}
+                else:
+                    thr_t = threshold(t, p, thr)
+                    out = {'t': t, 'p': p, 'thr_t': thr_t}
             else:
                 raise ValueError("threshold_dict is not a dictionary. "
                                  "Make sure it is in the form of {'unc': .001} "
