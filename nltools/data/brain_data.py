@@ -511,7 +511,7 @@ class Brain_Data(object):
         return {'beta': b_out, 't': t_out, 'p': p_out,
                 'sigma': sigma_out, 'residual': res_out}
 
-    def randomise(self, n_permute=5000, threshold_dict=None, **kwargs):
+    def randomise(self, n_permute=5000, threshold_dict=None, return_mask=False, **kwargs):
         """
         Run mass-univariate regression at each voxel with inference performed via permutation testing ala randomise in FSL. Operates just like .regress(), but intended to be used for second-level analyses. 
 
@@ -519,6 +519,7 @@ class Brain_Data(object):
             n_permute (int): number of permutations
             threshold_dict: (dict) a dictionary of threshold parameters
                             {'unc':.001} or {'fdr':.05} 
+            return_mask: (bool) optionally return the thresholding mask
         Returns:
             out: dictionary of maps for betas, tstats, and pvalues        
         """
@@ -553,8 +554,12 @@ class Brain_Data(object):
                     thr = fdr(p_out.data, q=threshold_dict['fdr'])
                 elif 'permutation' in threshold_dict:
                     thr = .05
-                thr_t_out = threshold(t_out, p_out, thr)
-                out = {'beta': b_out, 't': t_out, 'p': p_out, 'thr_t': thr_t_out}
+                if return_mask:
+                    thr_t_out, thr_mask = threshold(t, p, thr, True)
+                    out = {'beta': b_out, 't': t, 'p': p_out, 'thr_t': thr_t_out, 'thr_mask': thr_mask}
+                else:
+                    thr_t_out = threshold(t_out, p_out, thr)
+                    out = {'beta': b_out, 't': t_out, 'p': p_out, 'thr_t': thr_t_out}
             else:
                 raise ValueError("threshold_dict is not a dictionary. "
                                  "Make sure it is in the form of {'unc': .001} "
@@ -636,12 +641,12 @@ class Brain_Data(object):
                     thr = fdr(p.data, q=threshold_dict['fdr'])
                 elif 'permutation' in threshold_dict:
                     thr = .05
-                if return_mask:
-                    thr_t, thr_mask = threshold(t, p, thr, True)
-                    out = {'t': t, 'p': p, 'thr_t': thr_t, 'thr_mask': thr_mask}
-                else:
-                    thr_t = threshold(t, p, thr)
-                    out = {'t': t, 'p': p, 'thr_t': thr_t}
+                    if return_mask:
+                        thr_t, thr_mask = threshold(t, p, thr, True)
+                        out = {'t': t, 'p': p, 'thr_t': thr_t, 'thr_mask': thr_mask}
+                    else:
+                        thr_t = threshold(t, p, thr)
+                        out = {'t': t, 'p': p, 'thr_t': thr_t}
             else:
                 raise ValueError("threshold_dict is not a dictionary. "
                                  "Make sure it is in the form of {'unc': .001} "
