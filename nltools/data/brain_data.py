@@ -564,13 +564,14 @@ class Brain_Data(object):
 
         return out 
 
-    def ttest(self, threshold_dict=None):
+    def ttest(self, threshold_dict=None, return_mask=False):
         """ Calculate one sample t-test across each voxel (two-sided)
 
         Args:
             threshold_dict: (dict) a dictionary of threshold parameters
                             {'unc':.001} or {'fdr':.05} or {'permutation':tcfe,
                             n_permutation:5000}
+            return_mask: (bool) if thresholding is requested, optionall return the mask of voxels that exceed threshold, e.g. for use with another map
 
         Returns:
             out: (dict) dictionary of regression statistics in Brain_Data
@@ -635,8 +636,12 @@ class Brain_Data(object):
                     thr = fdr(p.data, q=threshold_dict['fdr'])
                 elif 'permutation' in threshold_dict:
                     thr = .05
-                thr_t = threshold(t, p, thr)
-                out = {'t': t, 'p': p, 'thr_t': thr_t}
+                    if return_mask:
+                        thr_t, thr_mask = threshold(t, p, thr, True)
+                        out = {'t': t, 'p': p, 'thr_t': thr_t, 'thr_mask': thr_mask}
+                    else:
+                        thr_t = threshold(t, p, thr)
+                        out = {'t': t, 'p': p, 'thr_t': thr_t}
             else:
                 raise ValueError("threshold_dict is not a dictionary. "
                                  "Make sure it is in the form of {'unc': .001} "

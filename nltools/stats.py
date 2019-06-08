@@ -144,7 +144,7 @@ def holm_bonf(p, alpha=.05):
     return bonf_p
 
 
-def threshold(stat, p, thr=.05):
+def threshold(stat, p, thr=.05, return_mask=False):
     """ Threshold test image by p-value from p image
 
     Args:
@@ -152,6 +152,7 @@ def threshold(stat, p, thr=.05):
               (e.g., beta, t, etc)
         p: (Brain_Data) Brain_data instance of p-values
         threshold: (float) p-value to threshold stat image
+        return_mask: (bool) optionall return the thresholding mask; default False
 
     Returns:
         out: Thresholded Brain_Data instance
@@ -180,7 +181,10 @@ def threshold(stat, p, thr=.05):
     else:
         out.data = np.zeros(len(mask.data), dtype=int)
 
-    return out
+    if return_mask:
+        return out, mask
+    else:
+        return out
 
 
 def multi_threshold(t_map, p_map, thresh):
