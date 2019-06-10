@@ -6,7 +6,7 @@ Tools to simulate multivariate data.
 
 '''
 
-__all__ = ['Simulator']
+__all__ = ['Simulator', 'SimulateGrid']
 __author__ = ["Sam Greydanus", "Luke Chang"]
 __license__ = "MIT"
 
@@ -16,6 +16,7 @@ import six
 import numpy as np
 import nibabel as nib
 import pandas as pd
+import matplotlib.pyplot as plt
 from nilearn.input_data import NiftiMasker
 from scipy.stats import multivariate_normal, binom, ttest_1samp
 from nltools.data import Brain_Data
