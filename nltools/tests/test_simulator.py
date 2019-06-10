@@ -19,7 +19,7 @@ def test_simulategrid_fpr(tmpdir):
     n_simulations = 100
     thresh = .05
     bonferroni_threshold = thresh/(grid_width**2)
-    simulation = SimulateGrid(grid_width=grid_width, n_subjects=20, )
+    simulation = SimulateGrid(grid_width=grid_width, n_subjects=n_subjects )
     simulation.plot_grid_simulation(threshold=bonferroni_threshold, threshold_type='p', n_simulations=n_simulations)
 
     assert simulation.isfit
@@ -36,8 +36,11 @@ def test_simulategrid_fdr(tmpdir):
     n_simulations = 100
     thresh = .05
     signal_amplitude = 1
-    simulation = SimulateGrid(signal_amplitude=signal_amplitude, signal_width=10, grid_width=grid_width, n_subjects=20)
+    signal_width = 10
+    simulation = SimulateGrid(signal_amplitude=signal_amplitude, signal_width=signal_width, grid_width=grid_width, n_subjects=n_subjects)
     simulation.plot_grid_simulation(threshold=thresh, threshold_type='q', n_simulations=n_simulations, correction='fdr')
 
     assert len(simulation.multiple_fdr) == n_simulations
     assert np.mean(simulation.multiple_fdr) < thresh
+    assert simulation.signal_width == signal_width
+    assert simulation.correction == 'fdr'
