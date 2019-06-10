@@ -1452,7 +1452,7 @@ def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
     if isinstance(data, Brain_Data):
         data = deepcopy(data.data)
         global_mn = np.mean(data.data, axis=1)
-        frame_diff = np.mean(np.abs(np.diff(data.data, axis=0)), axis=1)
+        frame_diff = np.mean(np.diff(np.abs(data.data, axis=0)), axis=1)
     elif isinstance(data, nib.Nifti1Image):
         data = deepcopy(data.get_data())
         if len(data.shape) > 3:
@@ -1460,7 +1460,7 @@ def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
         elif len(data.shape) < 3:
             raise ValueError('nibabel instance does not appear to be 4D data.')
         global_mn = np.mean(data, axis=(0,1,2))
-        frame_diff = np.mean(np.abs(np.diff(data, axis=3)), axis=(0,1,2))
+        frame_diff = np.mean(np.diff(np.abs(data, axis=3)), axis=(0,1,2))
     else:
         raise ValueError('Currently this function can only accomodate Brain_Data and nibabel instances')
 
