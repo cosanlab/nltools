@@ -29,7 +29,7 @@ import pandas as pd
 import collections
 from types import GeneratorType
 
-
+   
 def get_resource_path():
     """ Get path to nltools resource directory. """
     return join(dirname(__file__), 'resources') + pathsep
@@ -40,6 +40,33 @@ def get_anatomical():
         DEPRECATED. See MNI_Template and resolve_mni_path from nltools.prefs
     """
     return nib.load(os.path.join(get_resource_path(), 'MNI152_T1_2mm.nii.gz'))
+
+
+def get_mni_from_img_resolution(brain, img_type='plot'):
+    """
+    Get the path to the resolution MNI anatomical image that matches the resolution of a Brain_Data instance. Used by Brain_Data.plot() and .iplot() to set backgrounds appropriately.
+    
+    Args:
+        brain: Brain_Data instance
+    
+    Returns:
+        file_path: path to MNI image
+    """
+    
+    if img_type not in ['plot', 'brain']:
+        raise ValueError("img_type must be 'plot' or 'brain' ")
+    
+    res_array = np.diag(brain.nifti_masker.affine_)[:3]
+    voxel_dims = np.unique(res_array)
+    if len(voxel_dims) != 1:
+        raise ValueError("Voxels are not isometric and cannot be visualized in standard space")
+    else:
+        dim = str(int(voxel_dims[0])) + 'mm'
+        if img_type == 'brain':
+            mni = f'MNI152_T1_{dim}_brain.nii.gz'
+        else:
+            mni = f'MNI152_T1_{dim}.nii.gz'
+        return os.path.join(get_resource_path(), mni)
 
 
 def set_algorithm(algorithm, *args, **kwargs):

@@ -46,7 +46,8 @@ from nltools.utils import (set_algorithm,
                            _bootstrap_apply_func,
                            set_decomposition_algorithm,
                            check_brain_data,
-                           _roi_func)
+                           _roi_func,
+                           get_mni_from_img_resolution)
 from nltools.cross_validation import set_cv
 from nltools.plotting import scatterplot
 from nltools.stats import (pearson,
@@ -56,7 +57,8 @@ from nltools.stats import (pearson,
                            transform_pairwise,
                            summarize_bootstrap,
                            procrustes,
-                           find_spikes)
+                           find_spikes,
+                           regress_permutation)
 from nltools.stats import regress as regression
 from .adjacency import Adjacency
 from nltools.prefs import MNI_Template, resolve_mni_path
@@ -405,7 +407,8 @@ class Brain_Data(object):
                     else:
                         raise ValueError("anatomical is not a nibabel instance")
             else:
-                anatomical = nib.load(resolve_mni_path(MNI_Template)['plot'])
+                # anatomical = nib.load(resolve_mni_path(MNI_Template)['plot'])
+                anatomical = get_mni_from_img_resolution(self, img_type='plot')
 
             if self.data.ndim == 1:
                 f, a = plt.subplots(nrows=1, figsize=(15, 2))
@@ -415,7 +418,7 @@ class Brain_Data(object):
                               axes=a, **kwargs)
             else:
                 n_subs = np.minimum(self.data.shape[0], limit)
-                f, a = plt.subplots(nrows=n_subs, figsize=(15, len(self)*2))
+                f, a = plt.subplots(nrows=n_subs, figsize=(15, len(self) * 2))
                 for i in range(n_subs):
                     plot_stat_map(self[i].to_nifti(), anatomical,
                                   cut_coords=range(-40, 50, 10),
@@ -456,7 +459,8 @@ class Brain_Data(object):
                 else:
                     raise ValueError("anatomical is not a nibabel instance")
         else:
-            anatomical = nib.load(resolve_mni_path(MNI_Template)['brain'])
+            # anatomical = nib.load(resolve_mni_path(MNI_Template)['brain'])
+            anatomical = get_mni_from_img_resolution(self, img_type='brain')
         return plot_interactive_brain(self, threshold=threshold, surface=surface, anatomical=anatomical, **kwargs)
 
     def regress(self, mode='ols', **kwargs):
@@ -507,13 +511,72 @@ class Brain_Data(object):
         return {'beta': b_out, 't': t_out, 'p': p_out,
                 'sigma': sigma_out, 'residual': res_out}
 
-    def ttest(self, threshold_dict=None):
+    def randomise(self, n_permute=5000, threshold_dict=None, return_mask=False, **kwargs):
+        """
+        Run mass-univariate regression at each voxel with inference performed via permutation testing ala randomise in FSL. Operates just like .regress(), but intended to be used for second-level analyses. 
+
+        Args:
+            n_permute (int): number of permutations
+            threshold_dict: (dict) a dictionary of threshold parameters
+                            {'unc':.001} or {'fdr':.05} 
+            return_mask: (bool) optionally return the thresholding mask
+        Returns:
+            out: dictionary of maps for betas, tstats, and pvalues        
+        """
+        
+        if not isinstance(self.X, pd.DataFrame):
+            raise ValueError('Make sure self.X is a pandas DataFrame.')
+
+        if self.X.empty:
+            raise ValueError('Make sure self.X is not empty.')
+
+        if self.data.shape[0] != self.X.shape[0]:
+            raise ValueError("self.X does not match the correct size of "
+                             "self.data")
+
+        b, t, p = regress_permutation(self.X, self.data, n_permute=n_permute, **kwargs)
+
+        # Prevent copy of all data in self multiple times; instead start with an empty instance and copy only needed attributes from self, and use this as a template for other outputs
+        b_out = self.__class__()
+        b_out.mask = deepcopy(self.mask)
+        b_out.nifti_masker = deepcopy(self.nifti_masker)
+
+        # Use this as template for other outputs before setting data
+        t_out = b_out.copy()
+        p_out = b_out.copy()
+        b_out.data, t_out.data, p_out.data = (b, t, p)
+
+        if threshold_dict is not None:
+            if isinstance(threshold_dict, dict):
+                if 'unc' in threshold_dict:
+                    thr = threshold_dict['unc']
+                elif 'fdr' in threshold_dict:
+                    thr = fdr(p_out.data, q=threshold_dict['fdr'])
+                elif 'permutation' in threshold_dict:
+                    thr = .05
+                if return_mask:
+                    thr_t_out, thr_mask = threshold(t, p, thr, True)
+                    out = {'beta': b_out, 't': t, 'p': p_out, 'thr_t': thr_t_out, 'thr_mask': thr_mask}
+                else:
+                    thr_t_out = threshold(t_out, p_out, thr)
+                    out = {'beta': b_out, 't': t_out, 'p': p_out, 'thr_t': thr_t_out}
+            else:
+                raise ValueError("threshold_dict is not a dictionary. "
+                                 "Make sure it is in the form of {'unc': .001} "
+                                 "or {'fdr': .05}")
+        else:
+            out = {'beta': b_out, 't': t_out, 'p': p_out}
+
+        return out 
+
+    def ttest(self, threshold_dict=None, return_mask=False):
         """ Calculate one sample t-test across each voxel (two-sided)
 
         Args:
             threshold_dict: (dict) a dictionary of threshold parameters
                             {'unc':.001} or {'fdr':.05} or {'permutation':tcfe,
                             n_permutation:5000}
+            return_mask: (bool) if thresholding is requested, optionall return the mask of voxels that exceed threshold, e.g. for use with another map
 
         Returns:
             out: (dict) dictionary of regression statistics in Brain_Data
@@ -578,8 +641,12 @@ class Brain_Data(object):
                     thr = fdr(p.data, q=threshold_dict['fdr'])
                 elif 'permutation' in threshold_dict:
                     thr = .05
-                thr_t = threshold(t, p, thr)
-                out = {'t': t, 'p': p, 'thr_t': thr_t}
+                if return_mask:
+                    thr_t, thr_mask = threshold(t, p, thr, True)
+                    out = {'t': t, 'p': p, 'thr_t': thr_t, 'thr_mask': thr_mask}
+                else:
+                    thr_t = threshold(t, p, thr)
+                    out = {'t': t, 'p': p, 'thr_t': thr_t}
             else:
                 raise ValueError("threshold_dict is not a dictionary. "
                                  "Make sure it is in the form of {'unc': .001} "
@@ -1404,7 +1471,7 @@ class Brain_Data(object):
         values = dat.apply(func)
         return dat.combine(values)
 
-    def threshold(self, upper=None, lower=None, binarize=False):
+    def threshold(self, upper=None, lower=None, binarize=False, coerce_nan=True):
         '''Threshold Brain_Data instance. Provide upper and lower values or
            percentages to perform two-sided thresholding. Binarize will return
            a mask image respecting thresholds if provided, otherwise respecting
@@ -1420,6 +1487,7 @@ class Brain_Data(object):
             binarize (bool): return binarized image respecting thresholds if
                     provided, otherwise binarize on every non-zero value;
                     default False
+            coerce_nan (bool): coerce nan values to 0s; default True 
 
         Returns:
             Thresholded Brain_Data object.
@@ -1427,6 +1495,8 @@ class Brain_Data(object):
         '''
 
         b = self.copy()
+        if coerce_nan:
+            b.data = np.nan_to_num(b.data)
         if isinstance(upper, six.string_types):
             if upper[-1] == '%':
                 upper = np.percentile(b.data, float(upper[:-1]))
