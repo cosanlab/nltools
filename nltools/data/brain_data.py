@@ -1471,7 +1471,7 @@ class Brain_Data(object):
         values = dat.apply(func)
         return dat.combine(values)
 
-    def threshold(self, upper=None, lower=None, binarize=False):
+    def threshold(self, upper=None, lower=None, binarize=False, coerce_nan=True):
         '''Threshold Brain_Data instance. Provide upper and lower values or
            percentages to perform two-sided thresholding. Binarize will return
            a mask image respecting thresholds if provided, otherwise respecting
@@ -1487,6 +1487,7 @@ class Brain_Data(object):
             binarize (bool): return binarized image respecting thresholds if
                     provided, otherwise binarize on every non-zero value;
                     default False
+            coerce_nan (bool): coerce nan values to 0s; default True 
 
         Returns:
             Thresholded Brain_Data object.
@@ -1494,6 +1495,8 @@ class Brain_Data(object):
         '''
 
         b = self.copy()
+        if coerce_nan:
+            b.data = np.nan_to_num(b.data)
         if isinstance(upper, six.string_types):
             if upper[-1] == '%':
                 upper = np.percentile(b.data, float(upper[:-1]))
