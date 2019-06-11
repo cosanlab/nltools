@@ -353,13 +353,13 @@ class Adjacency(object):
         '''
 
         if self.is_single_matrix:
-            return np.mean(self.data)
+            return np.nanmean(self.data)
         else:
             if axis == 0:
-                return Adjacency(data=np.mean(self.data, axis=axis),
+                return Adjacency(data=np.nanmean(self.data, axis=axis),
                                  matrix_type=self.matrix_type + '_flat')
             elif axis == 1:
-                return np.mean(self.data, axis=axis)
+                return np.nanmean(self.data, axis=axis)
 
     def std(self, axis=0):
         ''' Calculate standard deviation of Adjacency
@@ -375,13 +375,13 @@ class Adjacency(object):
         '''
 
         if self.is_single_matrix:
-            return np.std(self.data)
+            return np.nanstd(self.data)
         else:
             if axis == 0:
-                return Adjacency(data=np.std(self.data, axis=axis),
+                return Adjacency(data=np.nanstd(self.data, axis=axis),
                                  matrix_type=self.matrix_type + '_flat')
             elif axis == 1:
-                return np.std(self.data, axis=axis)
+                return np.nanstd(self.data, axis=axis)
 
     def shape(self):
         ''' Calculate shape of data. '''
