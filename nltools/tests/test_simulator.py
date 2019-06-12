@@ -1,5 +1,5 @@
 from nltools.simulator import Simulator, SimulateGrid
-
+import numpy as np
 
 def test_simulator(tmpdir):
     sim = Simulator()
