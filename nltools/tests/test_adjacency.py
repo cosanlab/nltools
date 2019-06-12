@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import pandas as pd
 from nltools.data import Adjacency, Design_Matrix
 import matplotlib.pyplot as plt
 import networkx as nx
