@@ -197,6 +197,25 @@ def test_regression():
     out = stats['beta'].within_cluster_mean(clusters=['Group1']*4 + ['Group2']*8)
     assert np.allclose(np.array([out['Group1'], out['Group2']]), np.array([1, 0]), rtol=1e-01)  # np.allclose(np.sum(stats['beta']-np.array([1,2,3])),0)
 
+
+
+def test_social_relations_model():
+    data = Adjacency(np.array([[np.nan, 8, 5, 10],
+                    [7, np.nan, 7, 6],
+                    [8, 7, np.nan, 5],
+                    [4, 5, 0, np.nan]]), matrix_type='directed')
+    data2 = data.append(data)
+    results1 = data.social_relations_model()
+    assert isinstance(data.social_relations_model(), pd.Series)
+    assert isinstance(data2.social_relations_model(), pd.DataFrame)
+    assert len(results1['actor_effect']) == data.square_shape()[0]
+    assert results1['relationship_effect'].shape == data.square_shape()
+    np.testing.assert_approx_equal(results1['actor_variance'], 3.33, significant=2)
+    np.testing.assert_approx_equal(results1['partner_variance'], 0.66, significant=2)
+    np.testing.assert_approx_equal(results1['relationship_variance'], 3.33, significant=2)
+    np.testing.assert_approx_equal(results1['actor_partner_correlation'], 0.22, significant=2)
+    np.testing.assert_approx_equal(results1['dyadic_reciprocity_correlation'], 0.2, significant=2)
+
     # # Test stats_label_distance - FAILED - Need to sort this out
     # labels = np.array(['group1','group1','group2','group2'])
     # stats = dat_multiple[0].stats_label_distance(labels)
