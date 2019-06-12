@@ -947,7 +947,7 @@ class Adjacency(object):
                 raise ValueError("df can only be ['standard', 'relationship']")
             return np.sum((x1 - x2)**2)/(2*df)
 
-        def estimate_person_effect(x1_mean, x2_mean, grand_mean):
+        def estimate_person_effect(n, x1_mean, x2_mean, grand_mean):
             '''Calculate effect for actor, partner, and relationship'''
             return ((n-1)**2/(n*(n-2)))*x1_mean + ((n-1)/(n*(n-2)))*x2_mean - ((n-1)/(n-2))*grand_mean
 
@@ -971,8 +971,8 @@ class Adjacency(object):
             actor_mean = np.nanmean(dat, axis=1)
             partner_mean = np.nanmean(dat, axis=0)
 
-            a = estimate_person_effect(actor_mean, partner_mean, grand_mean) # Actor effects
-            b = estimate_person_effect(partner_mean,  actor_mean, grand_mean) # Partner effects
+            a = estimate_person_effect(n, actor_mean, partner_mean, grand_mean) # Actor effects
+            b = estimate_person_effect(n, partner_mean,  actor_mean, grand_mean) # Partner effects
 
             # Relationship effects
             g = np.ones(dat.shape)*np.nan
