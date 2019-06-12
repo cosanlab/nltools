@@ -930,9 +930,9 @@ class Adjacency(object):
             else:
                 raise ValueError("df can only be ['standard', 'relationship']")
             if x2 is not None:
-                return 2*np.sum((((x1 + x2)/2) - np.mean((x1 + x2)/2))**2)/df
+                return 2*np.nansum((((x1 + x2)/2) - np.nanmean((x1 + x2)/2))**2)/df
             else:
-                return np.sum((x1 - np.mean(x1))**2)/df
+                return np.nansum((x1 - np.nanmean(x1))**2)/df
 
         def mean_square_within(x1, x2, df='standard'):
             '''Calculate within dyad variance'''
@@ -945,7 +945,7 @@ class Adjacency(object):
                 df = (n-1)*(n-2)/2
             else:
                 raise ValueError("df can only be ['standard', 'relationship']")
-            return np.sum((x1 - x2)**2)/(2*df)
+            return np.nansum((x1 - x2)**2)/(2*df)
 
         def estimate_person_effect(n, x1_mean, x2_mean, grand_mean):
             '''Calculate effect for actor, partner, and relationship'''
