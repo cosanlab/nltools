@@ -960,7 +960,7 @@ def regress(X, Y, mode='ols', stats='full', **kwargs):
 
     if mode not in ['ols', 'robust', 'arma']:
         raise ValueError("Mode must be one of 'ols','robust' or 'arma'")
-    
+
     if stats not in ['full', 'betas', 'tstats']:
         raise ValueError("stats must be one of 'full', 'betas', 'tstats'")
 
@@ -1039,7 +1039,7 @@ def regress_permutation(X, Y, n_permute=5000, tail=2, random_state=None, **kwarg
     """
 
     random_state = check_random_state(random_state)
-    b, t = regress(X, Y, stats='tstats', **kwargs)   
+    b, t = regress(X, Y, stats='tstats', **kwargs)
     p = np.zeros_like(t)
     if tail == 1:
         pos_mask = np.where(t >= 0)
@@ -1051,7 +1051,7 @@ def regress_permutation(X, Y, n_permute=5000, tail=2, random_state=None, **kwarg
         func = lambda x: (x.squeeze() * random_state.choice([1, -1], x.shape[0]))[:, np.newaxis]
     else:
         func = random_state.permutation
-    
+
     # We could optionally Save (X.T * X)^-1 * X.T so we dont have to invert each permutation, but this would require not relying on regress() and because the second-level design mat is probably on the small side we might not actually save that much time
     # inv = np.linalg.pinv(X)
 
@@ -1511,7 +1511,7 @@ def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
     if isinstance(data, Brain_Data):
         data = deepcopy(data.data)
         global_mn = np.mean(data.data, axis=1)
-        frame_diff = np.mean(np.diff(np.abs(data.data, axis=0)), axis=1)
+        frame_diff = np.mean(np.abs(np.diff(data.data, axis=0)), axis=1)
     elif isinstance(data, nib.Nifti1Image):
         data = deepcopy(data.get_data())
         if len(data.shape) > 3:
@@ -1519,7 +1519,7 @@ def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
         elif len(data.shape) < 3:
             raise ValueError('nibabel instance does not appear to be 4D data.')
         global_mn = np.mean(data, axis=(0,1,2))
-        frame_diff = np.mean(np.diff(np.abs(data, axis=3)), axis=(0,1,2))
+        frame_diff = np.mean(np.abs(np.diff(data, axis=3)), axis=(0,1,2))
     else:
         raise ValueError('Currently this function can only accomodate Brain_Data and nibabel instances')
 
@@ -1566,7 +1566,9 @@ def clusterize_image(image, threshold=None, connectivity=3):
 
 def tfce(data, connectivity=3, h=2, e=0.5, dh=0.1, cluster_extent=3):
     '''This function performs threshold free cluster enhancement as
-    described in Smith & Nichols (2009)
+    described in Smith & Nichols (2009).
+
+    Warning: This function is still WIP, don't use yet.
 
     Args:
         h: (float) height exponent (default=2.0)
