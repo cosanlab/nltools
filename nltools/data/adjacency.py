@@ -889,97 +889,130 @@ class Adjacency(object):
 
         return stats
 
-    def social_relations_model(self):
-        '''Estimate the social relations model from a matrix
+def social_relations_model(self):
+    '''Estimate the social relations model from a matrix for a round-robin design
 
-        Based on implementation presented in Chapter 8 of Kenny, Kashy, & Cook (2006)
+    X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \episolon_{ijl}
 
-        Args:
-            self: (adjacency) can be a single matrix or many matrices for each group
-        Returns:
-            estimated effects: (pd.Series/pd.DataFrame) All of the effects estimated using SRM
-        '''
+    where X_{ij} is the score for person i rating person j, m is the group mean,
+    \alpha_i  is person i's actor effect, \beta_j is person j's partner effect, g_{ij}
+    is the relationship  effect and \episolon_{ijl} is the error in measure l  for actor i and partner j.
 
-        def mean_square_between(x1, x2=None, df='standard'):
-            if df == 'standard':
-                n = len(x1)
-                df = n - 1
-            elif df == 'relationship':
-                n = len(squareform(x1))
-                df = ((n-1)*(n-2)/2) - 1
-            else:
-                raise ValueError("df can only be ['standard', 'relationship']")
-            if x2 is not None:
-                return 2*np.sum((((x1 + x2)/2) - np.mean((x1 + x2)/2))**2)/df
-            else:
-                return np.sum((x1 - np.mean(x1))**2)/df
+    This model is primarily concerned with partioning the variance of the various effects.
 
-        def mean_square_within(x1, x2, df='standard'):
-            if df == 'standard':
-                n = len(x1)
-                df = n
-            elif df == 'relationship':
-                n = len(squareform(x1))
-                df = (n-1)*(n-2)/2
-            else:
-                raise ValueError("df can only be ['standard', 'relationship']")
-            return np.sum((x1 - x2)**2)/(2*df)
+    Code is based on implementation presented in Chapter 8 of Kenny, Kashy, & Cook (2006).
+    Tests replicate examples  presented in the book. Note, that this method assumes that
+    actor scores are rows (lower triangle), while partner scores are columnns (upper triangle).
+    The minimal sample size to estimate these effects is 4.
 
-        def estimate_srm(data):
-            '''Estimate Social Relations Model from a Single Matrix'''
+    Model Assumptions:
+     - Social interactions are exclusively dyadic
+     - People are randomly sampled from population
+     - No order effects
+     - The effects combine additively and relationships are linear
 
-            if not data.is_single_matrix:
-                raise ValueError("This function only operates on single matrix Adjacency instances.")
+    Args:
+        self: (adjacency) can be a single matrix or many matrices for each group
 
-            n = data.square_shape()[0]
-            grand_mean = data.mean()
-            dat = data.squareform().copy()
-            np.fill_diagonal(dat, np.nan)
-            actor_mean = np.nanmean(dat, axis=1)
-            partner_mean = np.nanmean(dat, axis=0)
+    Returns:
+        estimated effects: (pd.Series/pd.DataFrame) All of the effects estimated using SRM
+    '''
 
-            # Actor effects
-            a = ((n-1)**2/(n*(n-2)))*actor_mean + ((n-1)/(n*(n-2)))*partner_mean - ((n-1)/(n-2))*grand_mean
+    def mean_square_between(x1, x2=None, df='standard'):
+        '''Calculate between dyad variance'''
 
-            # Partner effects
-            b = ((n-1)**2/(n*(n-2)))*partner_mean + ((n-1)/(n*(n-2)))*actor_mean - ((n-1)/(n-2))*grand_mean
-
-            # Relationship effects
-            g = np.ones(dat.shape)*np.nan
-            for i in range(n):
-                for j in range(n):
-                    if i != j:
-                        g[i,j] = dat[i, j] - a[i] - b[j] - grand_mean
-
-            # Estimate Variance
-            x1 = g[np.tril_indices(n, k=-1)]
-            x2 = g[np.triu_indices(n, k=1)]
-            ms_b = mean_square_between(x1, x2, df='relationship')
-            ms_w = mean_square_within(x1, x2, df='relationship')
-            actor_variance = mean_square_between(a) - (ms_b/(2*(n-2))) - (ms_w/(2*n))
-            partner_variance = mean_square_between(b) - (ms_b/(2*(n-2))) - (ms_w/(2*n))
-            relationship_variance = (ms_b + ms_w)/2
-            dyadic_relationship_covariance = (ms_b - ms_w)/2
-            dyadic_reciprocity_correlation = (ms_b - ms_w)/(ms_b + ms_w)
-            generalized_reciprocity_covariance = (np.sum(a*b)/(n-1)) - (ms_b/(2*(n-2))) + (ms_w/(2*n))
-            actor_partner_correlation = generalized_reciprocity_covariance/(np.sqrt(actor_variance*partner_variance))
-            actor_reliability = actor_variance/(actor_variance + (relationship_variance/(n-1)) - (dyadic_relationship_covariance/((n-1)**2)))
-            partner_reliability = partner_variance/(partner_variance + (relationship_variance/(n-1)) - (dyadic_relationship_covariance/((n-1)**2)))
-            adjusted_dyadic_reciprocity_correlation = actor_partner_correlation*np.sqrt(actor_reliability*partner_reliability)
-
-            return pd.Series({"actor_effect":a,
-                                 "partner_effect":b,
-                                 "relationship_effect":g,
-                                 'actor_variance':actor_variance,
-                                 'partner_variance':partner_variance,
-                                 'relationship_variance':relationship_variance,
-                                 'actor_partner_correlation':actor_partner_correlation,
-                                 'dyadic_reciprocity_correlation':dyadic_reciprocity_correlation,
-                                 'adjusted_dyadic_reciprocity_correlation':adjusted_dyadic_reciprocity_correlation,
-                                 'actor_reliability':actor_reliability,
-                                 'partner_reliability':partner_reliability})
-
-        if self.is_single_matrix:
-            return estimate_srm(self)
+        if df == 'standard':
+            n = len(x1)
+            df = n - 1
+        elif df == 'relationship':
+            n = len(squareform(x1))
+            df = ((n-1)*(n-2)/2) - 1
         else:
-            return pd.DataFrame([estimate_srm(x) for x in self])
+            raise ValueError("df can only be ['standard', 'relationship']")
+        if x2 is not None:
+            return 2*np.sum((((x1 + x2)/2) - np.mean((x1 + x2)/2))**2)/df
+        else:
+            return np.sum((x1 - np.mean(x1))**2)/df
+
+    def mean_square_within(x1, x2, df='standard'):
+        '''Calculate within dyad variance'''
+
+        if df == 'standard':
+            n = len(x1)
+            df = n
+        elif df == 'relationship':
+            n = len(squareform(x1))
+            df = (n-1)*(n-2)/2
+        else:
+            raise ValueError("df can only be ['standard', 'relationship']")
+        return np.sum((x1 - x2)**2)/(2*df)
+
+    def estimate_person_effect(x1_mean, x2_mean, grand_mean):
+        '''Calculate effect for actor, partner, and relationship'''
+        return ((n-1)**2/(n*(n-2)))*x1_mean + ((n-1)/(n*(n-2)))*x2_mean - ((n-1)/(n-2))*grand_mean
+
+    def estimate_person_variance(x, ms_b, ms_w):
+        '''Calculate variance of a specific dyad member (e.g., actor, partner)'''
+        n = len(x)
+        return mean_square_between(x) - (ms_b/(2*(n-2))) - (ms_w/(2*n))
+
+    def estimate_srm(data):
+        '''Estimate Social Relations Model from a Single Matrix'''
+
+        if not data.is_single_matrix:
+            raise ValueError("This function only operates on single matrix Adjacency instances.")
+
+        n = data.square_shape()[0]
+        if n < 4:
+            raise ValueError('The Social Relations Model cannote be estimated when sample size is less than 4.')
+        grand_mean = data.mean()
+        dat = data.squareform().copy()
+        np.fill_diagonal(dat, np.nan)
+        actor_mean = np.nanmean(dat, axis=1)
+        partner_mean = np.nanmean(dat, axis=0)
+
+        a = estimate_person_effect(actor_mean, partner_mean, grand_mean) # Actor effects
+        b = estimate_person_effect(partner_mean,  actor_mean, grand_mean) # Partner effects
+
+        # Relationship effects
+        g = np.ones(dat.shape)*np.nan
+        for i in range(n):
+            for j in range(n):
+                if i != j:
+                    g[i,j] = dat[i, j] - a[i] - b[j] - grand_mean
+
+        # Estimate Variance
+        x1 = g[np.tril_indices(n, k=-1)]
+        x2 = g[np.triu_indices(n, k=1)]
+        ms_b = mean_square_between(x1, x2, df='relationship')
+        ms_w = mean_square_within(x1, x2, df='relationship')
+        actor_variance = estimate_person_variance(a, ms_b, ms_w)
+        partner_variance = estimate_person_variance(b, ms_b, ms_w)
+        relationship_variance = (ms_b + ms_w)/2
+        dyadic_relationship_covariance = (ms_b - ms_w)/2
+        dyadic_reciprocity_correlation = (ms_b - ms_w)/(ms_b + ms_w)
+        generalized_reciprocity_covariance = (np.sum(a*b)/(n-1)) - (ms_b/(2*(n-2))) + (ms_w/(2*n))
+        actor_partner_correlation = generalized_reciprocity_covariance/(np.sqrt(actor_variance*partner_variance))
+        actor_reliability = actor_variance/(actor_variance + (relationship_variance/(n-1)) - (dyadic_relationship_covariance/((n-1)**2)))
+        partner_reliability = partner_variance/(partner_variance + (relationship_variance/(n-1)) - (dyadic_relationship_covariance/((n-1)**2)))
+        adjusted_dyadic_reciprocity_correlation = actor_partner_correlation*np.sqrt(actor_reliability*partner_reliability)
+        total_variance = actor_variance + partner_variance + relationship_variance
+
+        return pd.Series({'grand_mean':grand_mean,
+                          'actor_effect':a,
+                          'partner_effect':b,
+                          'relationship_effect':g,
+                          'actor_variance':actor_variance,
+                          'partner_variance':partner_variance,
+                          'relationship_variance':relationship_variance,
+                          'actor_partner_correlation':actor_partner_correlation,
+                          'dyadic_reciprocity_correlation':dyadic_reciprocity_correlation,
+                          'adjusted_dyadic_reciprocity_correlation':adjusted_dyadic_reciprocity_correlation,
+                          'actor_reliability':actor_reliability,
+                          'partner_reliability':partner_reliability,
+                          'total_variance':total_variance})
+
+    if self.is_single_matrix:
+        return estimate_srm(self)
+    else:
+        return pd.DataFrame([estimate_srm(x) for x in self])
