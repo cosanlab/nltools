@@ -890,7 +890,7 @@ class Adjacency(object):
 
         return stats
 
-    def social_relations_model(self, nan_replace=True):
+    def social_relations_model(self, summarize_results=True, nan_replace=True):
         '''Estimate the social relations model from a matrix for a round-robin design
 
         X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \episolon_{ijl}
@@ -917,6 +917,7 @@ class Adjacency(object):
 
         Args:
             self: (adjacency) can be a single matrix or many matrices for each group
+            summarize_results: (bool) will provide a formatted summary of model results
             nan_replace: (bool) will replace nan values with row and column means
 
         Returns:
@@ -1027,10 +1028,9 @@ class Adjacency(object):
                 standardized = (results[var_name]/results['total_variance']).mean()
                 se = results[var_name].std()/np.sqrt(len(results[var_name]))
                 t = estimate/se
-            #     p = 1 - stats.t.cdf(t,df=len(results[var_name]) - 1)
                 if tailed == 1:
                     p = 1 - stats.t.cdf(t, len(results[var_name]) - 1)
-                elif tailed ==2:
+                elif tailed == 2:
                     p = 2*(1 - stats.t.cdf(t, len(results[var_name]) - 1))
                 else:
                     raise ValueError("tailed can only be [1,2]")
@@ -1040,17 +1040,36 @@ class Adjacency(object):
                 estimate, standardized, se, t, p = estimate_srm_stats(results, var_name, tailed)
                 print(f"{var_name:<40} {estimate:^10.2f}{standardized:^10.2f} {se:^10.2f} {t:^10.2f} {p:^10.4f}")
 
+            def print_single_group_srm_stats(results, var_name):
+                estimate = results[var_name].mean()
+                standardized = (results[var_name]/results['total_variance']).mean()
+                print(f"{var_name:<40} {estimate:^10.2f}{standardized:^10.2f} {np.nan:^10.2f} {np.nan:^10.2f} {np.nan:^10.4f}")
+
+            if isinstance(results, pd.Series):
+                n_groups = 1
+                group_size = results['actor_effect'].shape[0]
+            elif isinstance(results, pd.DataFrame):
+                n_groups = len(results)
+                group_size = np.mean([x.shape for x in results['actor_effect']])
+
             print("Social Relations Model: Results")
             print("\n")
-            print(f"Number of Groups: {len(results):<20}")
-            print(f"Average Group Size: {np.mean([x.shape for x in results['actor_effect']]):<20}")
+            print(f"Number of Groups: {n_groups:<20}")
+            print(f"Average Group Size: {group_size:<20}")
             print("\n")
             print(f"{'':<40} {'Estimate':<10} {'Standardized':<10} {'se':<10} {'t':<10} {'p':<10}")
-            print_srm_stats(results, 'actor_variance')
-            print_srm_stats(results, 'partner_variance')
-            print_srm_stats(results, 'relationship_variance')
-            print_srm_stats(results, 'actor_partner_correlation')
-            print_srm_stats(results, 'dyadic_reciprocity_correlation', tailed=2)
+            if isinstance(results, pd.Series):
+                print_single_group_srm_stats(results, 'actor_variance')
+                print_single_group_srm_stats(results, 'partner_variance')
+                print_single_group_srm_stats(results, 'relationship_variance')
+                print_single_group_srm_stats(results, 'actor_partner_correlation')
+                print_single_group_srm_stats(results, 'dyadic_reciprocity_correlation')
+            elif isinstance(results, pd.Dataframe):
+                print_srm_stats(results, 'actor_variance')
+                print_srm_stats(results, 'partner_variance')
+                print_srm_stats(results, 'relationship_variance')
+                print_srm_stats(results, 'actor_partner_correlation', tailed=2)
+                print_srm_stats(results, 'dyadic_reciprocity_correlation', tailed=2)
             print("\n")
             print(f"{'Actor Reliability':<20} {results['actor_reliability'].mean():^20.2f}")
             print(f"{'Partner Reliability':<20} {results['partner_reliability'].mean():^20.2f}")
@@ -1088,5 +1107,8 @@ class Adjacency(object):
             results = estimate_srm(data)
         else:
             results = pd.DataFrame([estimate_srm(x) for x in data])
-        summarize_srm_results(results)
+
+        if summarize_results:
+            summarize_srm_results(results)
+
         return results
