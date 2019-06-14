@@ -997,8 +997,8 @@ class Adjacency(object):
             relationship_variance = (ms_b + ms_w)/2
             dyadic_reciprocity_covariance = (ms_b - ms_w)/2
             dyadic_reciprocity_correlation = (ms_b - ms_w)/(ms_b + ms_w)
-            generalized_reciprocity_covariance = (np.sum(a*b)/(n-1)) - (ms_b/(2*(n-2))) + (ms_w/(2*n))
-            actor_partner_correlation = generalized_reciprocity_covariance/(np.sqrt(actor_variance*partner_variance))
+            actor_partner_covariance = (np.sum(a*b)/(n-1)) - (ms_b/(2*(n-2))) + (ms_w/(2*n))
+            actor_partner_correlation = actor_partner_covariance/(np.sqrt(actor_variance*partner_variance))
             actor_reliability = actor_variance/(actor_variance + (relationship_variance/(n-1)) - (dyadic_reciprocity_covariance/((n-1)**2)))
             partner_reliability = partner_variance/(partner_variance + (relationship_variance/(n-1)) - (dyadic_reciprocity_covariance/((n-1)**2)))
             adjusted_dyadic_reciprocity_correlation = actor_partner_correlation*np.sqrt(actor_reliability*partner_reliability)
@@ -1011,9 +1011,9 @@ class Adjacency(object):
                               'actor_variance':actor_variance,
                               'partner_variance':partner_variance,
                               'relationship_variance':relationship_variance,
-                              'dyadic_reciprocity_covariance':dyadic_reciprocity_covariance,
-                              'generalized_reciprocity_covariance':generalized_reciprocity_covariance,
+                              'actor_partner_covariance':actor_partner_covariance,
                               'actor_partner_correlation':actor_partner_correlation,
+                              'dyadic_reciprocity_covariance':dyadic_reciprocity_covariance,
                               'dyadic_reciprocity_correlation':dyadic_reciprocity_correlation,
                               'adjusted_dyadic_reciprocity_correlation':adjusted_dyadic_reciprocity_correlation,
                               'actor_reliability':actor_reliability,
@@ -1045,6 +1045,16 @@ class Adjacency(object):
                 standardized = (results[var_name]/results['total_variance']).mean()
                 print(f"{var_name:<40} {estimate:^10.2f}{standardized:^10.2f} {np.nan:^10.2f} {np.nan:^10.2f} {np.nan:^10.4f}")
 
+            def print_srm_covariances(results, var_name):
+                estimate, _, se, t, p = estimate_srm_stats(results, f"{var_name}_covariance", tailed=2)
+                standardized = results[f"{var_name}_correlation"].mean()
+                print(f"{var_name:<40} {estimate:^10.2f}{standardized:^10.2f} {se:^10.2f} {t:^10.2f} {p:^10.4f}")
+
+            def print_single_srm_covariances(results, var_name):
+                estimate = results[f"{var_name}_covariance"].mean()
+                standardized = results[f"{var_name}_correlation"].mean()
+                print(f"{var_name:<40} {estimate:^10.2f}{standardized:^10.2f} {np.nan:^10.2f} {np.nan:^10.2f} {np.nan:^10.4f}")
+
             if isinstance(results, pd.Series):
                 n_groups = 1
                 group_size = results['actor_effect'].shape[0]
@@ -1062,14 +1072,14 @@ class Adjacency(object):
                 print_single_group_srm_stats(results, 'actor_variance')
                 print_single_group_srm_stats(results, 'partner_variance')
                 print_single_group_srm_stats(results, 'relationship_variance')
-                print_single_group_srm_stats(results, 'actor_partner_correlation')
-                print_single_group_srm_stats(results, 'dyadic_reciprocity_correlation')
-            elif isinstance(results, pd.Dataframe):
+                print_single_srm_covariances(results, 'actor_partner')
+                print_single_srm_covariances(results, 'dyadic_reciprocity')
+            elif isinstance(results, pd.DataFrame):
                 print_srm_stats(results, 'actor_variance')
                 print_srm_stats(results, 'partner_variance')
                 print_srm_stats(results, 'relationship_variance')
-                print_srm_stats(results, 'actor_partner_correlation', tailed=2)
-                print_srm_stats(results, 'dyadic_reciprocity_correlation', tailed=2)
+                print_srm_covariances(results, 'actor_partner')
+                print_srm_covariances(results, 'dyadic_reciprocity')
             print("\n")
             print(f"{'Actor Reliability':<20} {results['actor_reliability'].mean():^20.2f}")
             print(f"{'Partner Reliability':<20} {results['partner_reliability'].mean():^20.2f}")
