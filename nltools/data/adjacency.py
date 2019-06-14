@@ -17,6 +17,7 @@ from sklearn.manifold import MDS
 from sklearn.utils import check_random_state
 from scipy.spatial.distance import squareform
 from scipy.stats import ttest_1samp
+import scipy.stats as stats
 import seaborn as sns
 import matplotlib.pyplot as plt
 from nltools.stats import (correlation_permutation,
@@ -889,7 +890,7 @@ class Adjacency(object):
 
         return stats
 
-    def social_relations_model(self):
+    def social_relations_model(self, nan_replace=True):
         '''Estimate the social relations model from a matrix for a round-robin design
 
         X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \episolon_{ijl}
@@ -911,8 +912,12 @@ class Adjacency(object):
          - No order effects
          - The effects combine additively and relationships are linear
 
+        In the future we might update the formulas and standard errors based on
+        Bond and Lashley, 1996
+
         Args:
             self: (adjacency) can be a single matrix or many matrices for each group
+            nan_replace: (bool) will replace nan values with row and column means
 
         Returns:
             estimated effects: (pd.Series/pd.DataFrame) All of the effects estimated using SRM
@@ -989,12 +994,12 @@ class Adjacency(object):
             actor_variance = estimate_person_variance(a, ms_b, ms_w)
             partner_variance = estimate_person_variance(b, ms_b, ms_w)
             relationship_variance = (ms_b + ms_w)/2
-            dyadic_relationship_covariance = (ms_b - ms_w)/2
+            dyadic_reciprocity_covariance = (ms_b - ms_w)/2
             dyadic_reciprocity_correlation = (ms_b - ms_w)/(ms_b + ms_w)
             generalized_reciprocity_covariance = (np.sum(a*b)/(n-1)) - (ms_b/(2*(n-2))) + (ms_w/(2*n))
             actor_partner_correlation = generalized_reciprocity_covariance/(np.sqrt(actor_variance*partner_variance))
-            actor_reliability = actor_variance/(actor_variance + (relationship_variance/(n-1)) - (dyadic_relationship_covariance/((n-1)**2)))
-            partner_reliability = partner_variance/(partner_variance + (relationship_variance/(n-1)) - (dyadic_relationship_covariance/((n-1)**2)))
+            actor_reliability = actor_variance/(actor_variance + (relationship_variance/(n-1)) - (dyadic_reciprocity_covariance/((n-1)**2)))
+            partner_reliability = partner_variance/(partner_variance + (relationship_variance/(n-1)) - (dyadic_reciprocity_covariance/((n-1)**2)))
             adjusted_dyadic_reciprocity_correlation = actor_partner_correlation*np.sqrt(actor_reliability*partner_reliability)
             total_variance = actor_variance + partner_variance + relationship_variance
 
@@ -1005,6 +1010,8 @@ class Adjacency(object):
                               'actor_variance':actor_variance,
                               'partner_variance':partner_variance,
                               'relationship_variance':relationship_variance,
+                              'dyadic_reciprocity_covariance':dyadic_reciprocity_covariance,
+                              'generalized_reciprocity_covariance':generalized_reciprocity_covariance,
                               'actor_partner_correlation':actor_partner_correlation,
                               'dyadic_reciprocity_correlation':dyadic_reciprocity_correlation,
                               'adjusted_dyadic_reciprocity_correlation':adjusted_dyadic_reciprocity_correlation,
@@ -1012,7 +1019,74 @@ class Adjacency(object):
                               'partner_reliability':partner_reliability,
                               'total_variance':total_variance})
 
-        if self.is_single_matrix:
-            return estimate_srm(self)
+        def summarize_srm_results(results):
+            '''Summarize results of SRM'''
+
+            def estimate_srm_stats(results, var_name, tailed=1):
+                estimate = results[var_name].mean()
+                standardized = (results[var_name]/results['total_variance']).mean()
+                se = results[var_name].std()/np.sqrt(len(results[var_name]))
+                t = estimate/se
+            #     p = 1 - stats.t.cdf(t,df=len(results[var_name]) - 1)
+                if tailed == 1:
+                    p = 1 - stats.t.cdf(t, len(results[var_name]) - 1)
+                elif tailed ==2:
+                    p = 2*(1 - stats.t.cdf(t, len(results[var_name]) - 1))
+                else:
+                    raise ValueError("tailed can only be [1,2]")
+                return (estimate, standardized, se, t, p)
+
+            def print_srm_stats(results, var_name, tailed=1):
+                estimate, standardized, se, t, p = estimate_srm_stats(results, var_name, tailed)
+                print(f"{var_name:<40} {estimate:^10.2f}{standardized:^10.2f} {se:^10.2f} {t:^10.2f} {p:^10.4f}")
+
+            print("Social Relations Model: Results")
+            print("\n")
+            print(f"Number of Groups: {len(results):<20}")
+            print(f"Average Group Size: {np.mean([x.shape for x in results['actor_effect']]):<20}")
+            print("\n")
+            print(f"{'':<40} {'Estimate':<10} {'Standardized':<10} {'se':<10} {'t':<10} {'p':<10}")
+            print_srm_stats(results, 'actor_variance')
+            print_srm_stats(results, 'partner_variance')
+            print_srm_stats(results, 'relationship_variance')
+            print_srm_stats(results, 'actor_partner_correlation')
+            print_srm_stats(results, 'dyadic_reciprocity_correlation', tailed=2)
+            print("\n")
+            print(f"{'Actor Reliability':<20} {results['actor_reliability'].mean():^20.2f}")
+            print(f"{'Partner Reliability':<20} {results['partner_reliability'].mean():^20.2f}")
+            print("\n")
+
+        def replace_missing(data):
+            '''Replace missing data with row/column means and return new data and missing coordinates'''
+
+            def fix_missing(data):
+                X = data.squareform().copy()
+                x,y = np.where(np.isnan(X))
+                for i,j in zip(x,y):
+                    if i != j:
+                        X[i,j] = (np.nanmean(X[i,:]) + np.nanmean(X[:,j]))/2
+                X = Adjacency(X, matrix_type=data.matrix_type)
+                return (X, (x,y))
+
+            if data.is_single_matrix:
+                X, coord = fix_missing(data)
+            else:
+                X = []; coord = [];
+                for d in data:
+                    m, c = fix_missing(d)
+                    X.append(m)
+                    coord.append(c)
+                X = Adjacency(X)
+            return (X, coord)
+
+        if nan_replace:
+            data, coord = replace_missing(self)
         else:
-            return pd.DataFrame([estimate_srm(x) for x in self])
+            data = self.copy()
+
+        if self.is_single_matrix:
+            results = estimate_srm(data)
+        else:
+            results = pd.DataFrame([estimate_srm(x) for x in data])
+        summarize_srm_results(results)
+        return results
