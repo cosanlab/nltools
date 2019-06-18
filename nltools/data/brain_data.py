@@ -52,6 +52,7 @@ from nltools.cross_validation import set_cv
 from nltools.plotting import scatterplot
 from nltools.stats import (pearson,
                            fdr,
+                           holm_bonf,
                            threshold,
                            fisher_r_to_z,
                            transform_pairwise,
@@ -552,6 +553,8 @@ class Brain_Data(object):
                     thr = threshold_dict['unc']
                 elif 'fdr' in threshold_dict:
                     thr = fdr(p_out.data, q=threshold_dict['fdr'])
+                elif 'holm-bof' in threshold_dict:
+                    thr = holm_bonf(p.data, alpha=threshold_dict['holm-bonf'])
                 elif 'permutation' in threshold_dict:
                     thr = .05
                 if return_mask:
@@ -639,6 +642,8 @@ class Brain_Data(object):
                     thr = threshold_dict['unc']
                 elif 'fdr' in threshold_dict:
                     thr = fdr(p.data, q=threshold_dict['fdr'])
+                elif 'holm-bonf' in threshold_dict:
+                    thr = holm_bonf(p.data, alpha=threshold_dict['holm-bonf'])
                 elif 'permutation' in threshold_dict:
                     thr = .05
                 if return_mask:
