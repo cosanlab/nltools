@@ -66,11 +66,12 @@ from nltools.prefs import MNI_Template, resolve_mni_path
 from nltools.external.srm import DetSRM, SRM
 from nltools.plotting import plot_interactive_brain, plot_brain
 from nilearn.decoding import SearchLight
+import deepdish as dd
 
 
 # Optional dependencies
 nx = attempt_to_import('networkx', 'nx')
-mne_stats = attempt_to_import('mne.stats', name='mne_stats',  fromlist=['spatio_temporal_cluster_1samp_test', 'ttest_1samp_no_p'])
+mne_stats = attempt_to_import('mne.stats', name='mne_stats', fromlist=['spatio_temporal_cluster_1samp_test', 'ttest_1samp_no_p'])
 MAX_INT = np.iinfo(np.int32).max
 
 
@@ -115,6 +116,17 @@ class Brain_Data(object):
                                            str(os.times()[-1]))
                     os.makedirs(tmp_dir)
                     data = nib.load(download_nifti(data, data_dir=tmp_dir))
+                elif ('.h5' in data) or ('.hdf5' in data):
+                    f = dd.io.load(data)
+                    self.data = f['data']
+                    self.X = pd.DataFrame(f['X'], columns=f['X_columns'], index=f['X_index'])
+                    self.Y = pd.DataFrame(f['Y'], columns=f['Y_columns'], index=f['Y_index'])
+                    self.mask = nib.Nifti1Image(f['mask_data'], affine=f['mask_affine'], file_map={'image': nib.FileHolder(filename=f['mask_file_name'])})
+                    nifti_masker = NiftiMasker(self.mask)
+                    self.nifti_masker = nifti_masker.fit(self.mask)
+                    self.file_name = f['file_name']
+                    return
+
                 else:
                     data = nib.load(data)
                 self.data = self.nifti_masker.fit_transform(data)
@@ -350,15 +362,31 @@ class Brain_Data(object):
 
         return self.nifti_masker.inverse_transform(self.data)
 
-    def write(self, file_name=None):
-        """ Write out Brain_Data object to Nifti File.
+    def write(self, file_name=None, compression='blosc'):
+        """ Write out Brain_Data object to Nifti or HDF5 File.
 
         Args:
             file_name: (str) name of nifti file including path
+            compression: (str) what type of compression to use if storing as hdf5 file; default 'blosc'. See deepdish docs for other types
 
         """
 
-        self.to_nifti().to_filename(file_name)
+        if ('.h5' in file_name) or ('.hdf5' in file_name):
+            dd.io.save(file_name, {
+                'data': self.data,
+                'X': self.X.values,
+                'X_columns': self.X.columns.values.astype("S"),
+                'X_index': self.X.index.values,
+                'Y': self.Y.values,
+                'Y_columns': self.Y.columns.values.astype("S"),
+                'Y_index': self.Y.index.values,
+                'mask_affine': self.mask.affine,
+                'mask_data': self.mask.get_data(),
+                'mask_file_name': self.mask.get_filename(),
+                'file_name': self.file_name
+            })
+        else:
+            self.to_nifti().to_filename(file_name)
 
     def scale(self, scale_val=100.):
         """ Scale all values such that they are on the range [0, scale_val],
