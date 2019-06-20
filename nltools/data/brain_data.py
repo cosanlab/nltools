@@ -47,7 +47,8 @@ from nltools.utils import (set_algorithm,
                            set_decomposition_algorithm,
                            check_brain_data,
                            _roi_func,
-                           get_mni_from_img_resolution)
+                           get_mni_from_img_resolution,
+                           _df_meta_to_arr)
 from nltools.cross_validation import set_cv
 from nltools.plotting import scatterplot
 from nltools.stats import (pearson,
@@ -201,7 +202,7 @@ class Brain_Data(object):
             self.X.shape,
             os.path.basename(self.mask.get_filename()),
             self.file_name
-            )
+        )
 
     def __getitem__(self, index):
         new = deepcopy(self)
@@ -362,29 +363,31 @@ class Brain_Data(object):
 
         return self.nifti_masker.inverse_transform(self.data)
 
-    def write(self, file_name=None, compression='blosc'):
+    def write(self, file_name=None, **kwargs):
         """ Write out Brain_Data object to Nifti or HDF5 File.
 
         Args:
             file_name: (str) name of nifti file including path
-            compression: (str) what type of compression to use if storing as hdf5 file; default 'blosc'. See deepdish docs for other types
+            kwargs: optional arguments to deepdish.io.save
 
         """
 
         if ('.h5' in file_name) or ('.hdf5' in file_name):
+            x_columns, x_index = _df_meta_to_arr(self.X)
+            y_columns, y_index = _df_meta_to_arr(self.Y)
             dd.io.save(file_name, {
                 'data': self.data,
                 'X': self.X.values,
-                'X_columns': self.X.columns.values.astype("S"),
-                'X_index': self.X.index.values,
+                'X_columns': x_columns,
+                'X_index': x_index,
                 'Y': self.Y.values,
-                'Y_columns': self.Y.columns.values.astype("S"),
-                'Y_index': self.Y.index.values,
+                'Y_columns': y_columns,
+                'Y_index': y_index,
                 'mask_affine': self.mask.affine,
                 'mask_data': self.mask.get_data(),
                 'mask_file_name': self.mask.get_filename(),
                 'file_name': self.file_name
-            }, compression=compression)
+            }, compression=kwargs.get('compression', 'blosc'))
         else:
             self.to_nifti().to_filename(file_name)
 

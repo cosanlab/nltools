@@ -1431,7 +1431,6 @@ def distance_correlation(x, y, bias_corrected=True, ttest=False):
         out['dcorr'] = np.sqrt(dcor)
     if bias_corrected:
         out['dcorr_squared'] = dcor
-    
     if ttest:
         dof = (adjusted_n / 2) - 1
         t = np.sqrt(dof) * (dcor / np.sqrt(1 - dcor**2))
@@ -1541,6 +1540,7 @@ def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
             outlier['diff_spike' + str(i + 1)].iloc[int(loc)] = 1
     return outlier
 
+
 def clusterize_image(image, threshold=None, connectivity=3):
     '''This function will cluster an image based on amount of connectivity
 
@@ -1560,6 +1560,7 @@ def clusterize_image(image, threshold=None, connectivity=3):
     s = generate_binary_structure(3, connectivity)
     labels, n_features = label(image, s)
     return labels
+
 
 def tfce(data, connectivity=3, h=2, e=0.5, dh=0.1, cluster_extent=3):
     '''This function performs threshold free cluster enhancement as
@@ -1590,12 +1591,12 @@ def tfce(data, connectivity=3, h=2, e=0.5, dh=0.1, cluster_extent=3):
 
     # Calculate cluster extent
     cluster_size = np.zeros(labels.shape)
-    for i,x in zip(label_id, label_count):
-        cluster_size[labels==i] = x
+    for i, x in zip(label_id, label_count):
+        cluster_size[labels == i] = x
 
     # Calculate TFCE
     tfce_values = np.zeros(cluster_size.shape)
     for thresh in thresholds:
-        tfce_values += cluster_size**e*np.power(thresh, h)
-    tfce_values = tfce_values*dh
+        tfce_values += cluster_size**e * np.power(thresh, h)
+    tfce_values = tfce_values * dh
     return nib.Nifti1Image(tfce_values, data.affine)
