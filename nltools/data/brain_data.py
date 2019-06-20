@@ -513,17 +513,19 @@ class Brain_Data(object):
 
     def randomise(self, n_permute=5000, threshold_dict=None, return_mask=False, **kwargs):
         """
-        Run mass-univariate regression at each voxel with inference performed via permutation testing ala randomise in FSL. Operates just like .regress(), but intended to be used for second-level analyses. 
+        Run mass-univariate regression at each voxel with inference performed
+        via permutation testing ala randomise in FSL. Operates just like
+        .regress(), but intended to be used for second-level analyses.
 
         Args:
             n_permute (int): number of permutations
             threshold_dict: (dict) a dictionary of threshold parameters
-                            {'unc':.001} or {'fdr':.05} 
+                            {'unc':.001} or {'fdr':.05}
             return_mask: (bool) optionally return the thresholding mask
         Returns:
-            out: dictionary of maps for betas, tstats, and pvalues        
+            out: dictionary of maps for betas, tstats, and pvalues
         """
-        
+
         if not isinstance(self.X, pd.DataFrame):
             raise ValueError('Make sure self.X is a pandas DataFrame.')
 
@@ -567,7 +569,7 @@ class Brain_Data(object):
         else:
             out = {'beta': b_out, 't': t_out, 'p': p_out}
 
-        return out 
+        return out
 
     def ttest(self, threshold_dict=None, return_mask=False):
         """ Calculate one sample t-test across each voxel (two-sided)
@@ -1156,6 +1158,7 @@ class Brain_Data(object):
 
         if isinstance(mask, Brain_Data):
             mask = mask.to_nifti()  # convert to nibabel
+
         if not isinstance(mask, nib.Nifti1Image):
             if isinstance(mask, six.string_types):
                 if os.path.isfile(mask):
@@ -1392,7 +1395,9 @@ class Brain_Data(object):
         return out
 
     def filter(self, sampling_freq=None, high_pass=None, low_pass=None, **kwargs):
-        ''' Apply 5th order butterworth filter to data. Wraps nilearn functionality. Does not default to detrending and standardizing like nilearn implementation, but this can be overridden using kwargs.
+        ''' Apply 5th order butterworth filter to data. Wraps nilearn
+        functionality. Does not default to detrending and standardizing like
+        nilearn implementation, but this can be overridden using kwargs.
 
         Args:
             sampling_freq: sampling freq in hertz (i.e. 1 / TR)
@@ -1415,7 +1420,9 @@ class Brain_Data(object):
         standardize = kwargs.get('standardize', False)
         detrend = kwargs.get('detrend', False)
         out = self.copy()
-        out.data = clean(out.data, t_r=1. / sampling_freq, detrend=detrend, standardize=standardize, high_pass=high_pass, low_pass=low_pass, **kwargs)
+        out.data = clean(out.data, t_r=1. / sampling_freq, detrend=detrend,
+                         standardize=standardize, high_pass=high_pass,
+                         low_pass=low_pass, **kwargs)
         return out
 
     def dtype(self):
@@ -1487,7 +1494,7 @@ class Brain_Data(object):
             binarize (bool): return binarized image respecting thresholds if
                     provided, otherwise binarize on every non-zero value;
                     default False
-            coerce_nan (bool): coerce nan values to 0s; default True 
+            coerce_nan (bool): coerce nan values to 0s; default True
 
         Returns:
             Thresholded Brain_Data object.
@@ -1495,11 +1502,14 @@ class Brain_Data(object):
         '''
 
         b = self.copy()
+
         if coerce_nan:
             b.data = np.nan_to_num(b.data)
+
         if isinstance(upper, six.string_types):
             if upper[-1] == '%':
                 upper = np.percentile(b.data, float(upper[:-1]))
+
         if isinstance(lower, six.string_types):
             if lower[-1] == '%':
                 lower = np.percentile(b.data, float(lower[:-1]))
@@ -1510,6 +1520,7 @@ class Brain_Data(object):
             b.data[b.data < upper] = 0
         elif lower and not upper:
             b.data[b.data > lower] = 0
+
         if binarize:
             b.data[b.data != 0] = 1
         return b
@@ -1723,7 +1734,9 @@ class Brain_Data(object):
             Returns:
                 Brain_Data instance
         '''
-        return Brain_Data(smooth_img(self.to_nifti(), fwhm))
+        out = self.copy()
+        out.data = out.nifti_masker.fit_transform(smooth_img(self.to_nifti(), fwhm))
+        return out
 
     def find_spikes(self, global_spike_cutoff=3, diff_spike_cutoff=3):
         '''Function to identify spikes from Time Series Data
