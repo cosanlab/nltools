@@ -384,7 +384,7 @@ class Brain_Data(object):
                 'mask_data': self.mask.get_data(),
                 'mask_file_name': self.mask.get_filename(),
                 'file_name': self.file_name
-            })
+            }, compression=compression)
         else:
             self.to_nifti().to_filename(file_name)
 
