@@ -1421,7 +1421,6 @@ def distance_correlation(x, y, bias_corrected=True, ttest=False):
     # 3 Normalize to get correlation
     denom = np.sqrt(xx * yy)
     dcor = xy / denom
-   
     out = {}
 
     if dcor < 0:
