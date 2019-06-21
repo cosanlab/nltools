@@ -949,7 +949,7 @@ class Brain_Data(object):
         predictor = predictor_settings['predictor']
 
         # Overall Fit for weight map
-        predictor.fit(self.data, output['Y'])
+        predictor.fit(self.data, np.ravel(output['Y']))
         output['yfit_all'] = predictor.predict(self.data)
         if predictor_settings['prediction_type'] == 'classification':
             if predictor_settings['algorithm'] not in ['svm', 'ridgeClassifier',
@@ -1022,7 +1022,7 @@ class Brain_Data(object):
             for train, test in cv:
                 # Ensure estimators are always indepedent across folds
                 predictor_cv = clone(predictor_settings['predictor'])
-                predictor_cv.fit(self.data[train], self.Y.iloc[train])
+                predictor_cv.fit(self.data[train], np.ravel(self.Y.iloc[train]))
                 output['yfit_xval'][test] = predictor_cv.predict(self.data[test]).ravel()
                 if predictor_settings['prediction_type'] == 'classification':
                     if predictor_settings['algorithm'] not in ['svm', 'ridgeClassifier', 'ridgeClassifierCV']:
