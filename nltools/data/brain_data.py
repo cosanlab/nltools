@@ -15,7 +15,7 @@ __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
 from nilearn.signal import clean
-from scipy.stats import ttest_1samp
+from scipy.stats import ttest_1samp, pearsonr
 from scipy.stats import t as t_dist
 from scipy.signal import detrend
 import os
@@ -1065,12 +1065,12 @@ class Brain_Data(object):
                 print('overall CV accuracy: %.2f' % output['mcr_xval'])
         elif predictor_settings['prediction_type'] == 'prediction':
             output['rmse_all'] = np.sqrt(np.mean((output['yfit_all']-output['Y'])**2))
-            output['r_all'] = np.corrcoef(output['Y'], output['yfit_all'])[0, 1]
+            output['r_all'] = pearsonr(output['Y'], output['yfit_all'])[0]
             print('overall Root Mean Squared Error: %.2f' % output['rmse_all'])
             print('overall Correlation: %.2f' % output['r_all'])
             if cv_dict is not None:
                 output['rmse_xval'] = np.sqrt(np.mean((output['yfit_xval']-output['Y'])**2))
-                output['r_xval'] = np.corrcoef(output['Y'], output['yfit_xval'])[0, 1]
+                output['r_xval'] = pearsonr(output['Y'], output['yfit_xval'])[0]
                 print('overall CV Root Mean Squared Error: %.2f' % output['rmse_xval'])
                 print('overall CV Correlation: %.2f' % output['r_xval'])
 
