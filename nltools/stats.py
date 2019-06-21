@@ -1361,15 +1361,20 @@ def u_center(mat):
     return out
 
 
-def distance_correlation(x, y, bias_corrected=True, return_all_stats=False):
-    '''Compute the distance correlation betwen 2 arrays.
-        Distance correlation involves computing the normalized covariance of two centered euclidean distance matrices. Each distance matrix is the euclidean distance between rows (if x or y are 2d) or scalars (if x or y are 1d). Each matrix is centered using u-centering, a bias-corrected form of double-centering. This permits inference of the normalized covariance between each distance matrix using a one-tailed directional t-test. (Szekely & Rizzo, 2013). While distance correlation is normally bounded between 0 and 1, u-centering can produce negative estimates, which are never significant. Therefore these estimates are windsorized to 0, ala Geerligs, Cam-CAN, Henson, 2016.
+def distance_correlation(x, y, bias_corrected=True, ttest=False):
+    '''
+    Compute the distance correlation betwen 2 arrays to test for multivariate dependence (linear or non-linear). Arrays must match on their first dimension. It's almost always preferable to compute the bias_corrected version which can also optionally perform a ttest. This ttest operates on a statistic thats ~dcorr^2 and will be also returned. 
+
+    Explanation:
+    Distance correlation involves computing the normalized covariance of two centered euclidean distance matrices. Each distance matrix is the euclidean distance between rows (if x or y are 2d) or scalars (if x or y are 1d). Each matrix is centered prior to computing the covariance either using double-centering or u-centering, which corrects for bias as the number of dimensions increases. U-centering is almost always preferred in all cases. It also permits inference of the normalized covariance between each distance matrix using a one-tailed directional t-test. (Szekely & Rizzo, 2013). While distance correlation is normally bounded between 0 and 1, u-centering can produce negative estimates, which are never significant.
+
+    Validated against the dcor and dcor.ttest functions in the 'energy' R package and the dcor.distance_correlation, dcor.udistance_correlation_sqr, and dcor.independence.distance_correlation_t_test functions in the dcor Python package.
 
     Args:
         x (ndarray): 1d or 2d numpy array of observations by features
         y (ndarry): 1d or 2d numpy array of observations by features
-        bias_corrected (bool): if false use double-centering but no inference test is performed, if true use u-centering and perform inference; default True
-        return_all_stats (bool): if true return distance covariance and variances of each array as well; default False
+        bias_corrected (bool): if false use double-centering which produces a biased-estimate that converges to 1 as the number of dimensions increase. Otherwise used u-centering to correct this bias. **Note** this must be True if ttest=True; default True
+        ttest (bool): perform a ttest using the bias_corrected distance correlation; default False
 
     Returns:
         results (dict): dictionary of results (correlation, t, p, and df.) Optionally, covariance, x variance, and y variance
@@ -1377,6 +1382,9 @@ def distance_correlation(x, y, bias_corrected=True, return_all_stats=False):
 
     if len(x.shape) > 2 or len(y.shape) > 2:
         raise ValueError("Both arrays must be 1d or 2d")
+
+    if (not bias_corrected) and ttest:
+        raise ValueError("bias_corrected must be true to perform ttest!")
 
     # 1 compute euclidean distances between pairs of value in each array
     if len(x.shape) == 1:
@@ -1397,7 +1405,7 @@ def distance_correlation(x, y, bias_corrected=True, return_all_stats=False):
         x_dist_cent = u_center(x_dist)
         y_dist_cent = u_center(y_dist)
         # Compute covariances using N*(N-3) in denominator
-        adjusted_n = _x.shape[0] * (_x.shape[0]-3)
+        adjusted_n = _x.shape[0] * (_x.shape[0] - 3)
         xy = np.multiply(x_dist_cent, y_dist_cent).sum() / adjusted_n
         xx = np.multiply(x_dist_cent, x_dist_cent).sum() / adjusted_n
         yy = np.multiply(y_dist_cent, y_dist_cent).sum() / adjusted_n
@@ -1410,35 +1418,22 @@ def distance_correlation(x, y, bias_corrected=True, return_all_stats=False):
         xx = np.multiply(x_dist_cent, x_dist_cent).mean()
         yy = np.multiply(y_dist_cent, y_dist_cent).mean()
 
-    # 3 compute covariances and variances
-    var_x = np.sqrt(xx)
-    var_y = np.sqrt(yy)
-
-    # 4 Normalize to get correlation
+    # 3 Normalize to get correlation
     denom = np.sqrt(xx * yy)
-    if denom > 0:
-        r2 = xy / denom
-    else:
-        r2 = 0
-    # Windsorize negative values as a result of u-centering
-    if r2 > 0:
-        cor = np.sqrt(r2)
-    else:
-        cor = 0
-
+    dcor = xy / denom
     out = {}
-    out['d_correlation_adjusted'] = cor
 
-    if return_all_stats:
-        out['d_covariance_squared'] = xy
-        out['d_correlation_adjusted'] = r2
-        out['x_var'] = var_x
-        out['y_var'] = var_y
-
+    if dcor < 0:
+        # This will only apply in the bias_corrected case as values can be < 0
+        out['dcorr'] = 0
+    else:
+        out['dcorr'] = np.sqrt(dcor)
     if bias_corrected:
+        out['dcorr_squared'] = dcor
+    if ttest:
         dof = (adjusted_n / 2) - 1
-        t = np.sqrt(dof) * (r2 / np.sqrt(1 - r2**2))
-        p = 1-t_dist.cdf(t, dof)
+        t = np.sqrt(dof) * (dcor / np.sqrt(1 - dcor**2))
+        p = 1 - t_dist.cdf(t, dof)
         out['t'] = t
         out['p'] = p
         out['df'] = dof
@@ -1544,6 +1539,7 @@ def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
             outlier['diff_spike' + str(i + 1)].iloc[int(loc)] = 1
     return outlier
 
+
 def clusterize_image(image, threshold=None, connectivity=3):
     '''This function will cluster an image based on amount of connectivity
 
@@ -1563,6 +1559,7 @@ def clusterize_image(image, threshold=None, connectivity=3):
     s = generate_binary_structure(3, connectivity)
     labels, n_features = label(image, s)
     return labels
+
 
 def tfce(data, connectivity=3, h=2, e=0.5, dh=0.1, cluster_extent=3):
     '''This function performs threshold free cluster enhancement as
@@ -1593,12 +1590,12 @@ def tfce(data, connectivity=3, h=2, e=0.5, dh=0.1, cluster_extent=3):
 
     # Calculate cluster extent
     cluster_size = np.zeros(labels.shape)
-    for i,x in zip(label_id, label_count):
-        cluster_size[labels==i] = x
+    for i, x in zip(label_id, label_count):
+        cluster_size[labels == i] = x
 
     # Calculate TFCE
     tfce_values = np.zeros(cluster_size.shape)
     for thresh in thresholds:
-        tfce_values += cluster_size**e*np.power(thresh, h)
-    tfce_values = tfce_values*dh
+        tfce_values += cluster_size**e * np.power(thresh, h)
+    tfce_values = tfce_values * dh
     return nib.Nifti1Image(tfce_values, data.affine)

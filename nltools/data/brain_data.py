@@ -47,11 +47,13 @@ from nltools.utils import (set_algorithm,
                            set_decomposition_algorithm,
                            check_brain_data,
                            _roi_func,
-                           get_mni_from_img_resolution)
+                           get_mni_from_img_resolution,
+                           _df_meta_to_arr)
 from nltools.cross_validation import set_cv
 from nltools.plotting import scatterplot
 from nltools.stats import (pearson,
                            fdr,
+                           holm_bonf,
                            threshold,
                            fisher_r_to_z,
                            transform_pairwise,
@@ -65,11 +67,12 @@ from nltools.prefs import MNI_Template, resolve_mni_path
 from nltools.external.srm import DetSRM, SRM
 from nltools.plotting import plot_interactive_brain, plot_brain
 from nilearn.decoding import SearchLight
+import deepdish as dd
 
 
 # Optional dependencies
 nx = attempt_to_import('networkx', 'nx')
-mne_stats = attempt_to_import('mne.stats', name='mne_stats',  fromlist=['spatio_temporal_cluster_1samp_test', 'ttest_1samp_no_p'])
+mne_stats = attempt_to_import('mne.stats', name='mne_stats', fromlist=['spatio_temporal_cluster_1samp_test', 'ttest_1samp_no_p'])
 MAX_INT = np.iinfo(np.int32).max
 
 
@@ -114,6 +117,17 @@ class Brain_Data(object):
                                            str(os.times()[-1]))
                     os.makedirs(tmp_dir)
                     data = nib.load(download_nifti(data, data_dir=tmp_dir))
+                elif ('.h5' in data) or ('.hdf5' in data):
+                    f = dd.io.load(data)
+                    self.data = f['data']
+                    self.X = pd.DataFrame(f['X'], columns=f['X_columns'], index=f['X_index'])
+                    self.Y = pd.DataFrame(f['Y'], columns=f['Y_columns'], index=f['Y_index'])
+                    self.mask = nib.Nifti1Image(f['mask_data'], affine=f['mask_affine'], file_map={'image': nib.FileHolder(filename=f['mask_file_name'])})
+                    nifti_masker = NiftiMasker(self.mask)
+                    self.nifti_masker = nifti_masker.fit(self.mask)
+                    self.file_name = f['file_name']
+                    return
+
                 else:
                     data = nib.load(data)
                 self.data = self.nifti_masker.fit_transform(data)
@@ -188,7 +202,7 @@ class Brain_Data(object):
             self.X.shape,
             os.path.basename(self.mask.get_filename()),
             self.file_name
-            )
+        )
 
     def __getitem__(self, index):
         new = deepcopy(self)
@@ -349,15 +363,33 @@ class Brain_Data(object):
 
         return self.nifti_masker.inverse_transform(self.data)
 
-    def write(self, file_name=None):
-        """ Write out Brain_Data object to Nifti File.
+    def write(self, file_name=None, **kwargs):
+        """ Write out Brain_Data object to Nifti or HDF5 File.
 
         Args:
             file_name: (str) name of nifti file including path
+            kwargs: optional arguments to deepdish.io.save
 
         """
 
-        self.to_nifti().to_filename(file_name)
+        if ('.h5' in file_name) or ('.hdf5' in file_name):
+            x_columns, x_index = _df_meta_to_arr(self.X)
+            y_columns, y_index = _df_meta_to_arr(self.Y)
+            dd.io.save(file_name, {
+                'data': self.data,
+                'X': self.X.values,
+                'X_columns': x_columns,
+                'X_index': x_index,
+                'Y': self.Y.values,
+                'Y_columns': y_columns,
+                'Y_index': y_index,
+                'mask_affine': self.mask.affine,
+                'mask_data': self.mask.get_data(),
+                'mask_file_name': self.mask.get_filename(),
+                'file_name': self.file_name
+            }, compression=kwargs.get('compression', 'blosc'))
+        else:
+            self.to_nifti().to_filename(file_name)
 
     def scale(self, scale_val=100.):
         """ Scale all values such that they are on the range [0, scale_val],
@@ -554,6 +586,8 @@ class Brain_Data(object):
                     thr = threshold_dict['unc']
                 elif 'fdr' in threshold_dict:
                     thr = fdr(p_out.data, q=threshold_dict['fdr'])
+                elif 'holm-bof' in threshold_dict:
+                    thr = holm_bonf(p.data, alpha=threshold_dict['holm-bonf'])
                 elif 'permutation' in threshold_dict:
                     thr = .05
                 if return_mask:
@@ -641,6 +675,8 @@ class Brain_Data(object):
                     thr = threshold_dict['unc']
                 elif 'fdr' in threshold_dict:
                     thr = fdr(p.data, q=threshold_dict['fdr'])
+                elif 'holm-bonf' in threshold_dict:
+                    thr = holm_bonf(p.data, alpha=threshold_dict['holm-bonf'])
                 elif 'permutation' in threshold_dict:
                     thr = .05
                 if return_mask:
