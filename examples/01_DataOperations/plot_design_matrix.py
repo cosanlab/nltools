@@ -1,10 +1,18 @@
 """
 Design Matrix
-==============
+=============
 
-This tutorial illustrates how to use the Design_Matrix class to flexibly create design matrices that can then be used with the Brain_Data class to perform univariate regression.
+This tutorial illustrates how to use the Design_Matrix class to flexibly create
+design matrices that can then be used with the Brain_Data class to perform
+univariate regression.
 
-Design Matrices can be thought of as "enhanced" pandas dataframes; they can do everything a pandas dataframe is capable of, with some added features. Design Matrices follow a data organization format common in many machine learning applications such as the sci-kit learn API: 2d tables organized as observations by features. In the context of neuro-imaging this often translates to TRs by conditions of interest + nuisance covariates (1st level analysis), or participants by conditions/groups (2nd level analysis).
+Design Matrices can be thought of as "enhanced" pandas dataframes; they can do
+everything a pandas dataframe is capable of, with some added features. Design
+Matrices follow a data organization format common in many machine learning
+applications such as the sci-kit learn API: 2d tables organized as observations
+by features. In the context of neuro-imaging this often translates to TRs by
+conditions of interest + nuisance covariates (1st level analysis), or
+participants by conditions/groups (2nd level analysis).
 
 """
 
@@ -161,7 +169,7 @@ runs_1_and_2 = dm_with_nuissance.append(dm_with_nuissance,unique_cols=['house*']
 runs_1_and_2.heatmap()
 
 #########################################################################
-# Now notice how all stimuli that begin with 'house' have been made into separate columns for each run. In general `unique_cols` can take a list of columns to keep separated or simple wild cards that either begin with a term e.g. "house*" or end with one "*house".
+# Now notice how all stimuli that begin with 'house' have been made into separate columns for each run. In general `unique_cols` can take a list of columns to keep separated or simple wild cards that either begin with a term e.g. `"house*"` or end with one `"*house"`.
 
 #########################################################################
 # Putting it all together
