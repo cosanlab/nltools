@@ -1058,7 +1058,7 @@ class Brain_Data(object):
 
         # Print Results
         if predictor_settings['prediction_type'] == 'classification':
-            output['mcr_all'] = balanced_accuracy_score(np.array(self.Y).flatten()), output['yfit_all'])
+            output['mcr_all'] = balanced_accuracy_score(self.Y.values, output['yfit_all'])
             print('overall accuracy: %.2f' % output['mcr_all'])
             if cv_dict is not None:
                 output['mcr_xval'] = np.mean(output['yfit_xval'] == np.array(self.Y).flatten())
