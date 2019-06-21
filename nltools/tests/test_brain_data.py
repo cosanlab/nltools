@@ -47,6 +47,24 @@ def test_load(tmpdir):
     dat.write(os.path.join(str(tmpdir.join('test_write.nii'))))
     assert Brain_Data(os.path.join(str(tmpdir.join('test_write.nii'))))
 
+    # Test i/o for hdf5
+    dat.write(os.path.join(str(tmpdir.join('test_write.h5'))))
+    b = Brain_Data(os.path.join(tmpdir.join('test_write.h5')))
+    for k in ['X', 'Y', 'mask', 'nifti_masker', 'file_name', 'data']:
+        if k == 'data':
+            assert np.allclose(b.__dict__[k], dat.__dict__[k])
+        elif k in ['X', 'Y']:
+            assert all(b.__dict__[k].eq(dat.__dict__[k]).values)
+        elif k == 'mask':
+            assert np.allclose(b.__dict__[k].affine, dat.__dict__[k].affine)
+            assert np.allclose(b.__dict__[k].get_data(), dat.__dict__[k].get_data())
+            assert b.__dict__[k].get_filename() == dat.__dict__[k].get_filename()
+        elif k == 'nifti_masker':
+            assert np.allclose(b.__dict__[k].affine_, dat.__dict__[k].affine_)
+            assert np.allclose(b.__dict__[k].mask_img.get_data(), dat.__dict__[k].mask_img.get_data())
+        else:
+            assert b.__dict__[k] == dat.__dict__[k]
+    
 
 def test_shape(sim_brain_data):
     assert sim_brain_data.shape() == shape_2d
