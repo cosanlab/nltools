@@ -564,14 +564,14 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
     ''' Permute correlation.
 
         Args:
-        data1: (pd.DataFrame, pd.Series, np.array) dataset 1 to permute
-        data2: (pd.DataFrame, pd.Series, np.array) dataset 2 to permute
-        n_permute: (int) number of permutations
-        metric: (str) type of association metric ['spearman','pearson',
-                'kendall']
-        tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
-        n_jobs: (int) The number of CPUs to use to do the computation.
-                -1 means all CPUs.
+            data1: (pd.DataFrame, pd.Series, np.array) dataset 1 to permute
+            data2: (pd.DataFrame, pd.Series, np.array) dataset 2 to permute
+            n_permute: (int) number of permutations
+            metric: (str) type of association metric ['spearman','pearson',
+                    'kendall']
+            tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
+            n_jobs: (int) The number of CPUs to use to do the computation.
+                    -1 means all CPUs.
 
         Returns:
             stats: (dict) dictionary of permutation results ['correlation','p']
@@ -807,6 +807,7 @@ def _robust_estimator(vals, X, robust_estimator='hc0', nlags=1):
 
     Returns:
         stderr (np.ndarray): 1d array of standard errors with length == X.shape[1]
+
     """
 
     if robust_estimator not in ['hc0', 'hc3', 'hac']:
@@ -913,22 +914,6 @@ def regress(X, Y, mode='ols', stats='full', **kwargs):
         3) 'hac' - an estimator robust to both heteroscedasticity and auto-correlation; auto-correlation lag can be controlled with the 'nlags' keyword argument; default is 1
     3) ARMA (auto-regressive moving-average) model (experimental). This model is fit through statsmodels.tsa.arima_model.ARMA, so more information about options can be found there. Any settings can be passed in as kwargs. By default fits a (1,1) model with starting lags of 2. This mode is **computationally intensive** and can take quite a while if Y has many columns.  If Y is a 2d array joblib.Parallel is used for faster fitting by parallelizing fits across columns of Y. Parallelization can be controlled by passing in kwargs. Defaults to multi-threading using 10 separate threads, as threads don't require large arrays to be duplicated in memory. Defaults are also set to enable memory-mapping for very large arrays if backend='multiprocessing' to prevent crashes and hangs. Various levels of progress can be monitored using the 'disp' (statsmodels) and 'verbose' (joblib) keyword arguments with integer values > 0.
 
-    Args:
-        X (ndarray): design matrix; assumes intercept is included
-        Y (ndarray): dependent variable array; if 2d, a model is fit to each column of Y separately
-        mode (str): kind of model to fit; must be one of 'ols' (default), 'robust', or 'arma'
-        robust_estimator (str,optional): kind of robust estimator to use if mode = 'robust'; default 'hc0'
-        nlags (int,optional): auto-correlation lag correction if mode = 'robust' and robust_estimator = 'hac'; default 1
-        order (tuple,optional): auto-regressive and moving-average orders for mode = 'arma'; default (1,1)
-        kwargs (dict): additional keyword arguments to statsmodels.tsa.arima_model.ARMA and joblib.Parallel
-
-    Returns:
-        b: coefficients
-        t: t-statistics (coef/sterr)
-        p : p-values
-        df: degrees of freedom
-        res: residuals
-
     Examples:
         Standard OLS
 
@@ -949,6 +934,22 @@ def regress(X, Y, mode='ols', stats='full', **kwargs):
         Auto-regressive model with auto-regressive lag = 2, moving-average lag = 3, and multi-processing instead of multi-threading using 8 cores (this can use a lot of memory if input arrays are very large!).
 
         >>> results = regress(X,Y,mode='arma',order=(2,3),backend='multiprocessing',n_jobs=8)
+
+    Args:
+        X (ndarray): design matrix; assumes intercept is included
+        Y (ndarray): dependent variable array; if 2d, a model is fit to each column of Y separately
+        mode (str): kind of model to fit; must be one of 'ols' (default), 'robust', or 'arma'
+        robust_estimator (str,optional): kind of robust estimator to use if mode = 'robust'; default 'hc0'
+        nlags (int,optional): auto-correlation lag correction if mode = 'robust' and robust_estimator = 'hac'; default 1
+        order (tuple,optional): auto-regressive and moving-average orders for mode = 'arma'; default (1,1)
+        kwargs (dict): additional keyword arguments to statsmodels.tsa.arima_model.ARMA and joblib.Parallel
+
+    Returns:
+        b: coefficients
+        t: t-statistics (coef/sterr)
+        p : p-values
+        df: degrees of freedom
+        res: residuals
 
     """
 
@@ -1363,7 +1364,7 @@ def u_center(mat):
 
 def distance_correlation(x, y, bias_corrected=True, ttest=False):
     '''
-    Compute the distance correlation betwen 2 arrays to test for multivariate dependence (linear or non-linear). Arrays must match on their first dimension. It's almost always preferable to compute the bias_corrected version which can also optionally perform a ttest. This ttest operates on a statistic thats ~dcorr^2 and will be also returned. 
+    Compute the distance correlation betwen 2 arrays to test for multivariate dependence (linear or non-linear). Arrays must match on their first dimension. It's almost always preferable to compute the bias_corrected version which can also optionally perform a ttest. This ttest operates on a statistic thats ~dcorr^2 and will be also returned.
 
     Explanation:
     Distance correlation involves computing the normalized covariance of two centered euclidean distance matrices. Each distance matrix is the euclidean distance between rows (if x or y are 2d) or scalars (if x or y are 1d). Each matrix is centered prior to computing the covariance either using double-centering or u-centering, which corrects for bias as the number of dimensions increases. U-centering is almost always preferred in all cases. It also permits inference of the normalized covariance between each distance matrix using a one-tailed directional t-test. (Szekely & Rizzo, 2013). While distance correlation is normally bounded between 0 and 1, u-centering can produce negative estimates, which are never significant.
@@ -1538,5 +1539,3 @@ def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
             outlier['diff_spike' + str(i + 1)] = 0
             outlier['diff_spike' + str(i + 1)].iloc[int(loc)] = 1
     return outlier
-
-
