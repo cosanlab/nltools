@@ -28,6 +28,7 @@ import warnings
 import tempfile
 from copy import deepcopy
 import six
+from sklearn.metrics import balanced_accuracy_score
 from sklearn.metrics.pairwise import pairwise_distances, cosine_similarity
 from sklearn.utils import check_random_state
 from sklearn.preprocessing import scale
@@ -948,7 +949,7 @@ class Brain_Data(object):
         predictor = predictor_settings['predictor']
 
         # Overall Fit for weight map
-        predictor.fit(self.data, output['Y'])
+        predictor.fit(self.data, np.ravel(output['Y']))
         output['yfit_all'] = predictor.predict(self.data)
         if predictor_settings['prediction_type'] == 'classification':
             if predictor_settings['algorithm'] not in ['svm', 'ridgeClassifier',
@@ -1021,7 +1022,7 @@ class Brain_Data(object):
             for train, test in cv:
                 # Ensure estimators are always indepedent across folds
                 predictor_cv = clone(predictor_settings['predictor'])
-                predictor_cv.fit(self.data[train], self.Y.iloc[train])
+                predictor_cv.fit(self.data[train], np.ravel(self.Y.iloc[train]))
                 output['yfit_xval'][test] = predictor_cv.predict(self.data[test]).ravel()
                 if predictor_settings['prediction_type'] == 'classification':
                     if predictor_settings['algorithm'] not in ['svm', 'ridgeClassifier', 'ridgeClassifierCV']:
@@ -1057,7 +1058,7 @@ class Brain_Data(object):
 
         # Print Results
         if predictor_settings['prediction_type'] == 'classification':
-            output['mcr_all'] = np.mean(output['yfit_all'] == np.array(self.Y).flatten())
+            output['mcr_all'] = balanced_accuracy_score(self.Y.values, output['yfit_all'])
             print('overall accuracy: %.2f' % output['mcr_all'])
             if cv_dict is not None:
                 output['mcr_xval'] = np.mean(output['yfit_xval'] == np.array(self.Y).flatten())
