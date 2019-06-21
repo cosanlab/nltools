@@ -120,8 +120,8 @@ class Brain_Data(object):
                 elif ('.h5' in data) or ('.hdf5' in data):
                     f = dd.io.load(data)
                     self.data = f['data']
-                    self.X = pd.DataFrame(f['X'], columns=f['X_columns'], index=f['X_index'])
-                    self.Y = pd.DataFrame(f['Y'], columns=f['Y_columns'], index=f['Y_index'])
+                    self.X = pd.DataFrame(f['X'], columns=[e.decode('utf-8') if isinstance(e, bytes) else e for e in f['X_columns']], index=[e.decode('utf-8') if isinstance(e, bytes) else e for e in f['X_index']])
+                    self.Y = pd.DataFrame(f['Y'], columns=[e.decode('utf-8') if isinstance(e, bytes) else e for e in f['Y_columns']], index=[e.decode('utf-8') if isinstance(e, bytes) else e for e in f['Y_index']])
                     self.mask = nib.Nifti1Image(f['mask_data'], affine=f['mask_affine'], file_map={'image': nib.FileHolder(filename=f['mask_file_name'])})
                     nifti_masker = NiftiMasker(self.mask)
                     self.nifti_masker = nifti_masker.fit(self.mask)
