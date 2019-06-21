@@ -28,6 +28,7 @@ import warnings
 import tempfile
 from copy import deepcopy
 import six
+from sklearn.metrics import balanced_accuracy_score
 from sklearn.metrics.pairwise import pairwise_distances, cosine_similarity
 from sklearn.utils import check_random_state
 from sklearn.preprocessing import scale
@@ -1057,7 +1058,7 @@ class Brain_Data(object):
 
         # Print Results
         if predictor_settings['prediction_type'] == 'classification':
-            output['mcr_all'] = np.mean(output['yfit_all'] == np.array(self.Y).flatten())
+            output['mcr_all'] = balanced_accuracy_score(np.array(self.Y).flatten()), output['yfit_all'])
             print('overall accuracy: %.2f' % output['mcr_all'])
             if cv_dict is not None:
                 output['mcr_xval'] = np.mean(output['yfit_xval'] == np.array(self.Y).flatten())
