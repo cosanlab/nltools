@@ -164,6 +164,29 @@ def test_regress(sim_brain_data):
     assert isinstance(tt, Brain_Data)
 
 
+def test_randomise(sim_brain_data):
+    sim_brain_data.X = pd.DataFrame({'Intercept': np.ones(len(sim_brain_data.Y))})
+
+    out = sim_brain_data.randomise(n_permute=10)
+    assert type(out['beta'].data) == np.ndarray
+    assert type(out['t'].data) == np.ndarray
+    assert type(out['p'].data) == np.ndarray
+    assert out['beta'].shape() == (shape_2d[1],)
+    assert out['t'].shape() == (shape_2d[1],)
+
+    sim_brain_data.X = pd.DataFrame({
+        'Intercept': np.ones(len(sim_brain_data.Y)),
+        'X1': np.random.randn(len(sim_brain_data.Y))
+    })
+
+    out = sim_brain_data.randomise(n_permute=10)
+    assert type(out['beta'].data) == np.ndarray
+    assert type(out['t'].data) == np.ndarray
+    assert type(out['p'].data) == np.ndarray
+    assert out['beta'].shape() == (2, shape_2d[1],)
+    assert out['t'].shape() == (2, shape_2d[1],)
+
+
 def test_apply_mask(sim_brain_data):
     s1 = create_sphere([12, 10, -8], radius=10)
     assert isinstance(s1, nb.Nifti1Image)
