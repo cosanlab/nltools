@@ -80,7 +80,7 @@ def get_mni_from_img_resolution(brain, img_type='plot'):
         raise ValueError("img_type must be 'plot' or 'brain' ")
     
     res_array = np.abs(np.diag(brain.nifti_masker.affine_)[:3])
-    voxel_dims = np.unique(res_array)
+    voxel_dims = np.unique(abs(res_array))
     if len(voxel_dims) != 1:
         raise ValueError("Voxels are not isometric and cannot be visualized in standard space")
     else:
