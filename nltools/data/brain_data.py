@@ -427,6 +427,7 @@ class Brain_Data(object):
                              'mni', or 'full'
             threshold_lower: (str/float)threshold if view is 'glass',
                              'mni', or 'full'
+            save: (str/bool): optional string file name or path for saving; only applies if view is 'mni', 'glass', or 'full'. Filenames will appended with the orientation they belong to
 
         """
 
