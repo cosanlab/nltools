@@ -298,7 +298,8 @@ def plot_brain(objIn, how="full", thr_upper=None, thr_lower=None, save=False, **
             plot_abs=False,
             **kwargs
         )
-        plt.savefig(glass_save, bbox_inches="tight")
+        if save:
+            plt.savefig(glass_save, bbox_inches="tight")
         for v, c, savefile in zip(views, coords, saves):
             plot_stat_map(
                 obj.to_nifti(),
@@ -308,7 +309,8 @@ def plot_brain(objIn, how="full", thr_upper=None, thr_lower=None, save=False, **
                 bg_img=resolve_mni_path(MNI_Template)["brain"],
                 **kwargs
             )
-            plt.savefig(savefile, bbox_inches="tight")
+            if save:
+                plt.savefig(savefile, bbox_inches="tight")
     elif how == "glass":
         plot_glass_brain(
             obj.to_nifti(),
@@ -318,7 +320,8 @@ def plot_brain(objIn, how="full", thr_upper=None, thr_lower=None, save=False, **
             plot_abs=False,
             **kwargs
         )
-        plt.savefig(glass_save, bbox_inches="tight")
+        if save:
+            plt.savefig(glass_save, bbox_inches="tight")
     elif how == "mni":
         for v, c in zip(views, coords, saves):
             plot_stat_map(
@@ -329,7 +332,8 @@ def plot_brain(objIn, how="full", thr_upper=None, thr_lower=None, save=False, **
                 bg_img=resolve_mni_path(MNI_Template)["brain"],
                 **kwargs
             )
-            plt.savefig(savefile, bbox_inches="tight")
+            if save:
+                plt.savefig(savefile, bbox_inches="tight")
     del obj  # save memory
     return
 
