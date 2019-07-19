@@ -11,6 +11,7 @@ import os
 import pandas as pd
 import numpy as np
 import six
+import deepdish as dd
 from copy import deepcopy
 from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.manifold import MDS
@@ -32,7 +33,8 @@ from nltools.plotting import (plot_stacked_adjacency,
 from nltools.utils import (all_same,
                            attempt_to_import,
                            concatenate,
-                           _bootstrap_apply_func)
+                           _bootstrap_apply_func,
+                           _df_meta_to_arr)
 from .design_matrix import Design_Matrix
 from joblib import Parallel, delayed
 
@@ -98,6 +100,15 @@ class Adjacency(object):
                 self.issymmetric = symmetric_all[0]
                 self.matrix_type = matrix_type_all[0]
             self.is_single_matrix = False
+        elif isinstance(data, six.string_types) and (('.h5' in data) or ('.hdf5' in data)):
+            f = dd.io.load(data)
+            self.data = f['data']
+            self.Y = pd.DataFrame(f['Y'], columns=[e.decode('utf-8') if isinstance(e, bytes) else e for e in f['Y_columns']], index=[e.decode('utf-8') if isinstance(e, bytes) else e for e in f['Y_index']])
+            self.matrix_type = f['matrix_type']
+            self.is_single_matrix = f['is_single_matrix']
+            self.issymmetric = f['issymmetric']
+            self.labels = [e.decode('utf-8') if isinstance(e, bytes) else e for e in f['labels']]
+            return
         else:
             self.data, self.issymmetric, self.matrix_type, self.is_single_matrix = self._import_single_data(data, matrix_type=matrix_type)
 
@@ -431,28 +442,43 @@ class Adjacency(object):
 
         return out
 
-    def write(self, file_name, method='long'):
+    def write(self, file_name, method='long', **kwargs):
         ''' Write out Adjacency object to csv file.
 
             Args:
                 file_name (str):  name of file name to write
                 method (str):     method to write out data ['long','square']
+                kwargs: optional arguments to deepdish.io.save
 
         '''
         if method not in ['long', 'square']:
             raise ValueError('Make sure method is ["long","square"].')
-        if self.is_single_matrix:
-            if method == 'long':
-                pd.DataFrame(self.data).to_csv(file_name, index=None)
-            elif method == 'square':
-                pd.DataFrame(self.squareform()).to_csv(file_name, index=None)
+
+        if ('.h5' in file_name) or ('.hdf5' in file_name):
+            if method == 'square':
+                raise NotImplementedError('Saving as hdf5 does not support method="square"')            
+            y_columns, y_index = _df_meta_to_arr(self.Y)
+            dd.io.save(file_name, {
+                'data': self.data,
+                'Y': self.Y.values,
+                'Y_columns': y_columns,
+                'Y_index': y_index,
+                'matrix_type': self.matrix_type,
+                'labels': np.array(self.labels, dtype='S'),
+                'is_single_matrix': self.is_single_matrix,
+                'issymmetric': self.issymmetric
+            }, compression=kwargs.get('compression', 'blosc'))
         else:
-            if method == 'long':
-                pd.DataFrame(self.data).to_csv(file_name, index=None)
-            elif method == 'square':
-                raise NotImplementedError('Need to decide how we should write '
-                                          'out multiple matrices.  As separate '
-                                          'files?')
+            if self.is_single_matrix:
+                if method == 'long':
+                    pd.DataFrame(self.data).to_csv(file_name, index=None)
+                elif method == 'square':
+                    pd.DataFrame(self.squareform()).to_csv(file_name, index=None)
+            else:
+                if method == 'long':
+                    pd.DataFrame(self.data).to_csv(file_name, index=None)
+                elif method == 'square':
+                    raise NotImplementedError('Need to decide how we should write out multiple matrices. As separate files?')
 
     def similarity(self, data, plot=False, perm_type='2d', n_permute=5000,
                    metric='spearman', **kwargs):

@@ -294,7 +294,7 @@ class Brain_Data(object):
                 raise ValueError("Both Brain_Data() instances need to be the "
                                  "same shape.")
             new.data = np.multiply(new.data, y.data)
-        elif isinstance(y, (list, np.ndarray, np.array)):
+        elif isinstance(y, (list, np.ndarray)):
             if len(y) != len(self):
                 raise ValueError('Vector multiplication requires that the '
                                  'length of the vector match the number of '
@@ -427,6 +427,7 @@ class Brain_Data(object):
                              'mni', or 'full'
             threshold_lower: (str/float)threshold if view is 'glass',
                              'mni', or 'full'
+            save: (str/bool): optional string file name or path for saving; only applies if view is 'mni', 'glass', or 'full'. Filenames will appended with the orientation they belong to
 
         """
 
