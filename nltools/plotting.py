@@ -323,7 +323,7 @@ def plot_brain(objIn, how="full", thr_upper=None, thr_lower=None, save=False, **
         if save:
             plt.savefig(glass_save, bbox_inches="tight")
     elif how == "mni":
-        for v, c in zip(views, coords, saves):
+        for v, c, savefile in zip(views, coords, saves):
             plot_stat_map(
                 obj.to_nifti(),
                 cut_coords=c,
