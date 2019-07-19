@@ -56,6 +56,17 @@ def test_write_multiple(sim_adjacency_multiple, tmpdir):
                               matrix_type='distance_flat')
     assert np.all(np.isclose(sim_adjacency_multiple.data, dat_multiple2.data))
 
+    # Test i/o for hdf5
+    sim_adjacency_multiple.write(os.path.join(str(tmpdir.join('test_write.h5'))))
+    b = Adjacency(os.path.join(tmpdir.join('test_write.h5')))
+    for k in ['Y', 'matrix_type', 'is_single_matrix', 'issymmetric', 'data']:
+        if k == 'data':
+            assert np.allclose(b.__dict__[k], sim_adjacency_multiple.__dict__[k])
+        elif k == 'Y':
+            assert all(b.__dict__[k].eq(sim_adjacency_multiple.__dict__[k]).values)
+        else:
+            assert b.__dict__[k] == sim_adjacency_multiple.__dict__[k]
+
 
 def test_write_directed(sim_adjacency_directed, tmpdir):
     sim_adjacency_directed.write(os.path.join(str(tmpdir.join('Test.csv'))),
