@@ -107,6 +107,7 @@ class Adjacency(object):
             self.matrix_type = f['matrix_type']
             self.is_single_matrix = f['is_single_matrix']
             self.issymmetric = f['issymmetric']
+            self.labels = [e.decode('utf-8') if isinstance(e, bytes) else e for e in f['labels']]
             return
         else:
             self.data, self.issymmetric, self.matrix_type, self.is_single_matrix = self._import_single_data(data, matrix_type=matrix_type)
