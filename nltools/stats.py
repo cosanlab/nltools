@@ -618,6 +618,7 @@ def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
             stats: (dict) dictionary of permutation results ['correlation','p']
     """
     random_state = check_random_state(random_state)
+    seeds = random_state.randint(MAX_INT, size=n_permute)
     sq_data1 = check_square_numpy_matrix(data1)
     sq_data2 = check_square_numpy_matrix(data2)
     data1 = sq_data1[np.triu_indices(sq_data1.shape[0], k=1)]
@@ -628,7 +629,7 @@ def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
     stats['correlation'] = correlation(data1, data2, metric=metric)[0]
 
     all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_func)(
-                    pd.DataFrame(sq_data1), data2, metric=metric)
+                    pd.DataFrame(sq_data1), data2, metric=metric, random_state=seeds[i])
                     for i in range(n_permute))
     stats['p'] = _calc_pvalue(all_p, stats['correlation'], tail)
     return stats
