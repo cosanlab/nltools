@@ -294,7 +294,7 @@ class Brain_Data(object):
                 raise ValueError("Both Brain_Data() instances need to be the "
                                  "same shape.")
             new.data = np.multiply(new.data, y.data)
-        elif isinstance(y, (list, np.ndarray, np.array)):
+        elif isinstance(y, (list, np.ndarray)):
             if len(y) != len(self):
                 raise ValueError('Vector multiplication requires that the '
                                  'length of the vector match the number of '
