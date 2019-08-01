@@ -43,7 +43,7 @@ def test_permutation():
     upper_p = _calc_pvalue(all_p=s, stat=1.96, tail=1)
     lower_p = _calc_pvalue(all_p=s, stat=-1.96, tail=1)
     sum_p = upper_p + lower_p
-    np.testing.assert_almost_equal(two_sided, sum_p)
+    np.testing.assert_almost_equal(two_sided, sum_p, decimal=3)
 
     # Test matrix_permutation
     dat = np.random.multivariate_normal([2, 6], [[.5, 2], [.5, 3]], 190)
