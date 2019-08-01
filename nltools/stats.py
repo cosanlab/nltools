@@ -474,7 +474,7 @@ def _permute_func(data1, data2, metric, random_state=None):
 
     data_row_id = range(data1.shape[0])
     permuted_ix = random_state.choice(data_row_id,
-                                      size=len(data_row_id))
+                                      size=len(data_row_id), replace=False)
     new_fmri_dist = data1.iloc[permuted_ix, permuted_ix].values
     new_fmri_dist = new_fmri_dist[np.triu_indices(new_fmri_dist.shape[0], k=1)]
     return correlation(new_fmri_dist, data2, metric=metric)[0]
@@ -487,15 +487,18 @@ def _calc_pvalue(all_p, stat, tail):
         stat: actual value being tested, i.e., stats['correlation'] or stats['mean']
         tail: (int) either 2 or 1 for two-tailed p-value or one-tailed
     """
+    
+    denom = float(len(all_p)) + 1
     if tail == 2:
-        p = np.mean(np.abs(all_p) >= np.abs(stat))
+        numer = np.sum(np.abs(all_p) >= np.abs(stat)) + 1
     elif tail == 1:
         if stat >= 0:
-            p = np.mean(all_p >= stat)
+            numer = np.sum(all_p >= stat) + 1
         else:
-            p = np.mean(all_p <= stat)
+            numer = np.sum(all_p <= stat) + 1
     else:
         raise ValueError('tail must be either 1 or 2')
+    p = numer / denom
     return p
 
 
