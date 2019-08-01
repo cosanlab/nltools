@@ -474,7 +474,7 @@ def _permute_func(data1, data2, metric, random_state=None):
 
     data_row_id = range(data1.shape[0])
     permuted_ix = random_state.choice(data_row_id,
-                                      size=len(data_row_id))
+                                      size=len(data_row_id), replace=False)
     new_fmri_dist = data1.iloc[permuted_ix, permuted_ix].values
     new_fmri_dist = new_fmri_dist[np.triu_indices(new_fmri_dist.shape[0], k=1)]
     return correlation(new_fmri_dist, data2, metric=metric)[0]
