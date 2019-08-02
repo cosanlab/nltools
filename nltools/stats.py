@@ -1029,7 +1029,7 @@ def regress(X, Y, mode='ols', stats='full', **kwargs):
     return b.squeeze(), t.squeeze(), p.squeeze(), df.squeeze(), res.squeeze()
 
 
-def regress_permutation(X, Y, n_permute=5000, tail=2, random_state=None, **kwargs):
+def regress_permutation(X, Y, n_permute=5000, tail=2, random_state=None, verbose=False, **kwargs):
     """
     Permuted regression. Permute the design matrix each time by shuffling rows before running the estimation.
 
@@ -1052,9 +1052,13 @@ def regress_permutation(X, Y, n_permute=5000, tail=2, random_state=None, **kwarg
     elif tail != 2:
         raise ValueError("tail must be 1 or 2")
 
-    if (X.shape[1] == 1) and (all(X[:] == 1.)):
+    if (X.shape[1] == 1) and (all(X[:].values == 1.)):
+        if verbose:
+            print("Running 1-sample sign flip test")
         func = lambda x: (x.squeeze() * random_state.choice([1, -1], x.shape[0]))[:, np.newaxis]
     else:
+        if verbose:
+            print("Running permuted OLS")
         func = random_state.permutation
 
     # We could optionally Save (X.T * X)^-1 * X.T so we dont have to invert each permutation, but this would require not relying on regress() and because the second-level design mat is probably on the small side we might not actually save that much time
