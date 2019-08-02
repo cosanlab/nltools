@@ -593,8 +593,8 @@ class Brain_Data(object):
                 elif 'permutation' in threshold_dict:
                     thr = .05
                 if return_mask:
-                    thr_t_out, thr_mask = threshold(t, p, thr, True)
-                    out = {'beta': b_out, 't': t, 'p': p_out, 'thr_t': thr_t_out, 'thr_mask': thr_mask}
+                    thr_t_out, thr_mask = threshold(t_out, p_out, thr, True)
+                    out = {'beta': b_out, 't': t_out, 'p': p_out, 'thr_t': thr_t_out, 'thr_mask': thr_mask}
                 else:
                     thr_t_out = threshold(t_out, p_out, thr)
                     out = {'beta': b_out, 't': t_out, 'p': p_out, 'thr_t': thr_t_out}
