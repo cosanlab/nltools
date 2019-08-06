@@ -167,10 +167,7 @@ class Adjacency(object):
             new.is_single_matrix = True
         else:
             new.data = np.array(self.data[index, :]).squeeze()
-            if len(new.data.shape) == 1:
-                new.is_single_matrix = True
-            else:
-                new.is_single_matrix = False
+            new.is_single_matrix = self._test_is_single_matrix(new.data)
         if not self.Y.empty:
             new.Y = self.Y.iloc[index]
         return new
@@ -218,6 +215,14 @@ class Adjacency(object):
             new.data = np.multiply(new.data, y.data)
         return new
 
+    @staticmethod
+    def _test_is_single_matrix(data):
+        """Static method because it belongs to the class, ie is only invoked via self.test_single_matrix or Adjacency.test_single_matrix and requires no self argument."""
+        if len(data.shape) == 1:
+            return True
+        else:
+            return False
+    
     def _import_single_data(self, data, matrix_type=None):
         ''' Helper function to import single data matrix.'''
 
@@ -228,28 +233,24 @@ class Adjacency(object):
                 raise ValueError('Make sure you have specified a valid file '
                                  'path.')
 
-        def test_is_single_matrix(data):
-            if len(data.shape) == 1:
-                return True
-            else:
-                return False
+        
 
         if matrix_type is not None:
             if matrix_type.lower() == 'distance_flat':
                 matrix_type = 'distance'
                 data = np.array(data)
                 issymmetric = True
-                is_single_matrix = test_is_single_matrix(data)
+                is_single_matrix = self._test_is_single_matrix(data)
             elif matrix_type.lower() == 'similarity_flat':
                 matrix_type = 'similarity'
                 data = np.array(data)
                 issymmetric = True
-                is_single_matrix = test_is_single_matrix(data)
+                is_single_matrix = self._test_is_single_matrix(data)
             elif matrix_type.lower() == 'directed_flat':
                 matrix_type = 'directed'
                 data = np.array(data).flatten()
                 issymmetric = False
-                is_single_matrix = test_is_single_matrix(data)
+                is_single_matrix = self._test_is_single_matrix(data)
             elif matrix_type.lower() in ['distance', 'similarity', 'directed']:
                 if data.shape[0] != data.shape[1]:
                     raise ValueError('Data matrix must be square')
