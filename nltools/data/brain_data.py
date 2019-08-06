@@ -208,13 +208,13 @@ class Brain_Data(object):
     def __getitem__(self, index):
         new = deepcopy(self)
         if isinstance(index, int):
-            new.data = np.array(self.data[index, :]).flatten()
+            new.data = np.array(self.data[index, :]).squeeze()
         else:
             if isinstance(index, slice):
                 new.data = self.data[index, :]
             else:
                 index = np.array(index).flatten()
-                new.data = np.array(self.data[index, :])
+                new.data = np.array(self.data[index, :]).squeeze()
         if not self.Y.empty:
             new.Y = self.Y.iloc[index]
             if isinstance(new.Y, pd.Series):
