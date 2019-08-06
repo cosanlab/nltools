@@ -163,10 +163,14 @@ class Adjacency(object):
     def __getitem__(self, index):
         new = self.copy()
         if isinstance(index, int):
-            new.data = np.array(self.data[index, :]).flatten()
+            new.data = np.array(self.data[index, :]).squeeze()
             new.is_single_matrix = True
         else:
-            new.data = np.array(self.data[index, :])
+            new.data = np.array(self.data[index, :]).squeeze()
+            if len(new.data.shape) == 1:
+                new.is_single_matrix = True
+            else:
+                new.is_single_matrix = False
         if not self.Y.empty:
             new.Y = self.Y.iloc[index]
         return new
