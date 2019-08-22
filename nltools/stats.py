@@ -502,7 +502,7 @@ def _calc_pvalue(all_p, stat, tail):
     return p
 
 
-def one_sample_permutation(data, n_permute=5000, tail=2, n_jobs=-1, random_state=None):
+def one_sample_permutation(data, n_permute=5000, tail=2, n_jobs=-1, return_perms=False, random_state=None):
     ''' One sample permutation test using randomization.
 
         Args:
@@ -511,6 +511,7 @@ def one_sample_permutation(data, n_permute=5000, tail=2, n_jobs=-1, random_state
             tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
             n_jobs: (int) The number of CPUs to use to do the computation.
                     -1 means all CPUs.
+            return_parms: (bool) Return the permutation distribution along with the p-value; default False
 
         Returns:
             stats: (dict) dictionary of permutation results ['mean','p']
@@ -527,11 +528,13 @@ def one_sample_permutation(data, n_permute=5000, tail=2, n_jobs=-1, random_state
     all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_sign)(data,
                                                            random_state=seeds[i]) for i in range(n_permute))
     stats['p'] = _calc_pvalue(all_p, stats['mean'], tail)
+    if return_perms:
+        stats['perm_dist'] = all_p
     return stats
 
 
 def two_sample_permutation(data1, data2, n_permute=5000,
-                           tail=2, n_jobs=-1, random_state=None):
+                           tail=2, n_jobs=-1, return_perms=False, random_state=None):
     ''' Independent sample permutation test.
 
         Args:
@@ -541,6 +544,7 @@ def two_sample_permutation(data1, data2, n_permute=5000,
             tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
             n_jobs: (int) The number of CPUs to use to do the computation.
                     -1 means all CPUs.
+            return_parms: (bool) Return the permutation distribution along with the p-value; default False
         Returns:
             stats: (dict) dictionary of permutation results ['mean','p']
 
@@ -559,11 +563,13 @@ def two_sample_permutation(data1, data2, n_permute=5000,
                                                             random_state=seeds[i]) for i in range(n_permute))
 
     stats['p'] = _calc_pvalue(all_p, stats['mean'], tail)
+    if return_perms:
+        stats['perm_dist'] = all_p
     return stats
 
 
 def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
-                            tail=2, n_jobs=-1, random_state=None):
+                            tail=2, n_jobs=-1, return_perms=False, random_state=None):
     ''' Permute correlation.
 
         Args:
@@ -575,6 +581,7 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
             tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
             n_jobs: (int) The number of CPUs to use to do the computation.
                     -1 means all CPUs.
+            return_parms: (bool) Return the permutation distribution along with the p-value; default False
 
         Returns:
             stats: (dict) dictionary of permutation results ['correlation','p']
@@ -595,11 +602,13 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
     all_p = [x[0] for x in all_p]
 
     stats['p'] = _calc_pvalue(all_p, stats['correlation'], tail)
+    if return_perms:
+        stats['perm_dist'] = all_p
     return stats
 
 
 def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
-                       tail=2, n_jobs=-1, random_state=None):
+                       tail=2, n_jobs=-1, return_perms=False, random_state=None):
     """ Permute 2-dimensional matrix correlation (mantel test).
 
         Chen, G. et al. (2016). Untangling the relatedness among correlations,
@@ -616,6 +625,7 @@ def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
                   (default: 2)
             n_jobs: (int) The number of CPUs to use to do the computation.
                     -1 means all CPUs.
+            return_parms: (bool) Return the permutation distribution along with the p-value; default False
 
         Returns:
             stats: (dict) dictionary of permutation results ['correlation','p']
@@ -635,6 +645,8 @@ def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
                     pd.DataFrame(sq_data1), data2, metric=metric, random_state=seeds[i])
                     for i in range(n_permute))
     stats['p'] = _calc_pvalue(all_p, stats['correlation'], tail)
+    if return_perms:
+        stats['perm_dist'] = all_p
     return stats
 
 
@@ -1029,7 +1041,7 @@ def regress(X, Y, mode='ols', stats='full', **kwargs):
     return b.squeeze(), t.squeeze(), p.squeeze(), df.squeeze(), res.squeeze()
 
 
-def regress_permutation(X, Y, n_permute=5000, tail=2, random_state=None, **kwargs):
+def regress_permutation(X, Y, n_permute=5000, tail=2, random_state=None, verbose=False, **kwargs):
     """
     Permuted regression. Permute the design matrix each time by shuffling rows before running the estimation.
 
@@ -1052,9 +1064,13 @@ def regress_permutation(X, Y, n_permute=5000, tail=2, random_state=None, **kwarg
     elif tail != 2:
         raise ValueError("tail must be 1 or 2")
 
-    if (X.shape[1] == 1) and (all(X[:] == 1.)):
+    if (X.shape[1] == 1) and (all(X[:].values == 1.)):
+        if verbose:
+            print("Running 1-sample sign flip test")
         func = lambda x: (x.squeeze() * random_state.choice([1, -1], x.shape[0]))[:, np.newaxis]
     else:
+        if verbose:
+            print("Running permuted OLS")
         func = random_state.permutation
 
     # We could optionally Save (X.T * X)^-1 * X.T so we dont have to invert each permutation, but this would require not relying on regress() and because the second-level design mat is probably on the small side we might not actually save that much time
