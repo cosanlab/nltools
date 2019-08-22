@@ -163,10 +163,11 @@ class Adjacency(object):
     def __getitem__(self, index):
         new = self.copy()
         if isinstance(index, int):
-            new.data = np.array(self.data[index, :]).flatten()
+            new.data = np.array(self.data[index, :]).squeeze()
             new.is_single_matrix = True
         else:
-            new.data = np.array(self.data[index, :])
+            new.data = np.array(self.data[index, :]).squeeze()
+            new.is_single_matrix = self._test_is_single_matrix(new.data)
         if not self.Y.empty:
             new.Y = self.Y.iloc[index]
         return new
@@ -214,6 +215,14 @@ class Adjacency(object):
             new.data = np.multiply(new.data, y.data)
         return new
 
+    @staticmethod
+    def _test_is_single_matrix(data):
+        """Static method because it belongs to the class, ie is only invoked via self.test_single_matrix or Adjacency.test_single_matrix and requires no self argument."""
+        if len(data.shape) == 1:
+            return True
+        else:
+            return False
+    
     def _import_single_data(self, data, matrix_type=None):
         ''' Helper function to import single data matrix.'''
 
@@ -224,28 +233,22 @@ class Adjacency(object):
                 raise ValueError('Make sure you have specified a valid file '
                                  'path.')
 
-        def test_is_single_matrix(data):
-            if len(data.shape) == 1:
-                return True
-            else:
-                return False
-
         if matrix_type is not None:
             if matrix_type.lower() == 'distance_flat':
                 matrix_type = 'distance'
                 data = np.array(data)
                 issymmetric = True
-                is_single_matrix = test_is_single_matrix(data)
+                is_single_matrix = self._test_is_single_matrix(data)
             elif matrix_type.lower() == 'similarity_flat':
                 matrix_type = 'similarity'
                 data = np.array(data)
                 issymmetric = True
-                is_single_matrix = test_is_single_matrix(data)
+                is_single_matrix = self._test_is_single_matrix(data)
             elif matrix_type.lower() == 'directed_flat':
                 matrix_type = 'directed'
                 data = np.array(data).flatten()
                 issymmetric = False
-                is_single_matrix = test_is_single_matrix(data)
+                is_single_matrix = self._test_is_single_matrix(data)
             elif matrix_type.lower() in ['distance', 'similarity', 'directed']:
                 if data.shape[0] != data.shape[1]:
                     raise ValueError('Data matrix must be square')
@@ -481,13 +484,14 @@ class Adjacency(object):
                     raise NotImplementedError('Need to decide how we should write out multiple matrices. As separate files?')
 
     def similarity(self, data, plot=False, perm_type='2d', n_permute=5000,
-                   metric='spearman', **kwargs):
+                   metric='spearman', ignore_diagonal=False, **kwargs):
         ''' Calculate similarity between two Adjacency matrices.
         Default is to use spearman correlation and permutation test.
         Args:
             data: Adjacency data, or 1-d array same size as self.data
             perm_type: (str) '1d','2d', 'jackknife', or None
             metric: (str) 'spearman','pearson','kendall'
+            ignore_diagonal: (bool) only applies to 'directed' Adjacency types using perm_type=None or perm_type='1d'
         '''
         data1 = self.copy()
         if not isinstance(data, Adjacency):
@@ -507,16 +511,19 @@ class Adjacency(object):
         else:
             raise ValueError("perm_type must be ['1d','2d', 'jackknife', or None']")
 
-        def _convert_data_similarity(data, perm_type=None):
+        def _convert_data_similarity(data, perm_type=None, ignore_diagonal=ignore_diagonal):
             '''Helper function to convert data correctly'''
-            if perm_type is None:
-                data = data.data
-            elif perm_type == '1d':
-                data = data.data
-            elif perm_type == '2d':
-                data = data.squareform()
-            elif perm_type == 'jackknife':
-                data = data.squareform()
+            if (perm_type is None) or (perm_type == '1d'):
+                if ignore_diagonal and (not data.issymmetric):
+                    d = data.squareform()
+                    data = d[~np.eye(d.shape[0]).astype(bool)]
+                else:
+                    data = data.data
+            elif (perm_type == '2d') or (perm_type == 'jackknife'):
+                if not data.issymmetric:
+                    raise TypeError(f"data must be symmetric to do {perm_type} permutation")
+                else:
+                    data = data.squareform()
             else:
                 raise ValueError("perm_type must be ['1d','2d', 'jackknife', or None']")
             return data

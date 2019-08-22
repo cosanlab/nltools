@@ -9,9 +9,9 @@ from scipy.linalg import block_diag
 
 
 def test_type_single(sim_adjacency_single):
-    assert sim_adjacency_single.matrix_type is 'distance'
+    assert sim_adjacency_single.matrix_type == 'distance'
     dat_single2 = Adjacency(1-sim_adjacency_single.squareform())
-    assert dat_single2.matrix_type is 'similarity'
+    assert dat_single2.matrix_type == 'similarity'
     assert sim_adjacency_single.issymmetric
 
 
@@ -114,6 +114,27 @@ def test_similarity_matrix_permutation():
     assert (stats['correlation'] > .4) & (stats['correlation'] < .85) & (stats['p'] < .001)
     stats = x.similarity(y, perm_type=None)
     assert (stats['correlation'] > .4) & (stats['correlation'] < .85)
+
+
+def test_directed_similarity():
+    dat = np.random.multivariate_normal([2, 6], [[.5, 2], [.5, 3]], 400)
+    x = Adjacency(dat[:, 0].reshape(20, 20), matrix_type='directed')
+    y = Adjacency(dat[:, 1].reshape(20, 20), matrix_type='directed')
+    # Ignore diagonal
+    stats = x.similarity(y, perm_type='1d', ignore_diagonal=True, n_permute=1000)
+    assert (stats['correlation'] > .4) & (stats['correlation'] < .85) & (stats['p'] < .001)
+    # Use diagonal
+    stats = x.similarity(y, perm_type=None, ignore_diagonal=False)
+    assert (stats['correlation'] > .4) & (stats['correlation'] < .85)
+    # Error out but make usre TypeError is the reason why
+    try:
+        x.similarity(y, perm_type='2d')
+    except TypeError as e:
+        pass 
+    try:
+        x.similarity(y, perm_type='jackknife')
+    except TypeError as e:
+        pass
 
 
 def test_distance(sim_adjacency_multiple):

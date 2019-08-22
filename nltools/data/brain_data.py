@@ -208,13 +208,13 @@ class Brain_Data(object):
     def __getitem__(self, index):
         new = deepcopy(self)
         if isinstance(index, int):
-            new.data = np.array(self.data[index, :]).flatten()
+            new.data = np.array(self.data[index, :]).squeeze()
         else:
             if isinstance(index, slice):
                 new.data = self.data[index, :]
             else:
                 index = np.array(index).flatten()
-                new.data = np.array(self.data[index, :])
+                new.data = np.array(self.data[index, :]).squeeze()
         if not self.Y.empty:
             new.Y = self.Y.iloc[index]
             if isinstance(new.Y, pd.Series):
@@ -593,8 +593,8 @@ class Brain_Data(object):
                 elif 'permutation' in threshold_dict:
                     thr = .05
                 if return_mask:
-                    thr_t_out, thr_mask = threshold(t, p, thr, True)
-                    out = {'beta': b_out, 't': t, 'p': p_out, 'thr_t': thr_t_out, 'thr_mask': thr_mask}
+                    thr_t_out, thr_mask = threshold(t_out, p_out, thr, True)
+                    out = {'beta': b_out, 't': t_out, 'p': p_out, 'thr_t': thr_t_out, 'thr_mask': thr_mask}
                 else:
                     thr_t_out = threshold(t_out, p_out, thr)
                     out = {'beta': b_out, 't': t_out, 'p': p_out, 'thr_t': thr_t_out}
