@@ -19,13 +19,13 @@ Python toolbox for analyzing neuroimaging data. It is particularly useful for co
 2. Method 2 (Recommended)
 
    ```
-   pip install git+https://github.com/ljchang/neurolearn
+   pip install git+https://github.com/cosanlab/nltools
    ```
 
 3. Method 3
 
    ```
-   git clone https://github.com/ljchang/neurolearn
+   git clone https://github.com/cosanlab/nltools
    python setup.py install
    ```
    or
