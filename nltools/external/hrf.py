@@ -1,4 +1,4 @@
-'''
+"""
 HRF Functions
 =============
 
@@ -34,21 +34,31 @@ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-'''
+"""
 
-__all__ = ['spm_hrf',
-           'glover_hrf',
-           'spm_time_derivative',
-           'glover_time_derivative',
-           'spm_dispersion_derivative']
+__all__ = [
+    "spm_hrf",
+    "glover_hrf",
+    "spm_time_derivative",
+    "glover_time_derivative",
+    "spm_dispersion_derivative",
+]
 
 from scipy.stats import gamma
 import numpy as np
 
 
-def _gamma_difference_hrf(tr, oversampling=16, time_length=32., onset=0.,
-                          delay=6, undershoot=16., dispersion=1.,
-                          u_dispersion=1., ratio=0.167):
+def _gamma_difference_hrf(
+    tr,
+    oversampling=16,
+    time_length=32.0,
+    onset=0.0,
+    delay=6,
+    undershoot=16.0,
+    dispersion=1.0,
+    u_dispersion=1.0,
+    ratio=0.167,
+):
     """ Compute an hrf as the difference of two gamma functions
     Parameters
     ----------
@@ -64,14 +74,14 @@ def _gamma_difference_hrf(tr, oversampling=16, time_length=32., onset=0.,
     dt = tr / oversampling
     time_stamps = np.linspace(0, time_length, float(time_length) / dt)
     time_stamps -= onset / dt
-    hrf = gamma.pdf(time_stamps, delay / dispersion, dt / dispersion) - \
-        ratio * gamma.pdf(
-        time_stamps, undershoot / u_dispersion, dt / u_dispersion)
+    hrf = gamma.pdf(
+        time_stamps, delay / dispersion, dt / dispersion
+    ) - ratio * gamma.pdf(time_stamps, undershoot / u_dispersion, dt / u_dispersion)
     hrf /= hrf.sum()
     return hrf
 
 
-def spm_hrf(tr, oversampling=16, time_length=32., onset=0.):
+def spm_hrf(tr, oversampling=16, time_length=32.0, onset=0.0):
     """ Implementation of the SPM hrf model.
 
     Args:
@@ -89,7 +99,7 @@ def spm_hrf(tr, oversampling=16, time_length=32., onset=0.):
     return _gamma_difference_hrf(tr, oversampling, time_length, onset)
 
 
-def glover_hrf(tr, oversampling=16, time_length=32., onset=0.):
+def glover_hrf(tr, oversampling=16, time_length=32.0, onset=0.0):
     """ Implementation of the Glover hrf model.
 
     Args:
@@ -104,12 +114,20 @@ def glover_hrf(tr, oversampling=16, time_length=32., onset=0.):
 
     """
 
-    return _gamma_difference_hrf(tr, oversampling, time_length, onset,
-                                 delay=6, undershoot=12., dispersion=.9,
-                                 u_dispersion=.9, ratio=.35)
+    return _gamma_difference_hrf(
+        tr,
+        oversampling,
+        time_length,
+        onset,
+        delay=6,
+        undershoot=12.0,
+        dispersion=0.9,
+        u_dispersion=0.9,
+        ratio=0.35,
+    )
 
 
-def spm_time_derivative(tr, oversampling=16, time_length=32., onset=0.):
+def spm_time_derivative(tr, oversampling=16, time_length=32.0, onset=0.0):
     """ Implementation of the SPM time derivative hrf (dhrf) model.
 
     Args:
@@ -124,12 +142,19 @@ def spm_time_derivative(tr, oversampling=16, time_length=32., onset=0.):
 
     """
 
-    do = .1
-    dhrf = 1. / do * (spm_hrf(tr, oversampling, time_length, onset + do) - spm_hrf(tr, oversampling, time_length, onset))
+    do = 0.1
+    dhrf = (
+        1.0
+        / do
+        * (
+            spm_hrf(tr, oversampling, time_length, onset + do)
+            - spm_hrf(tr, oversampling, time_length, onset)
+        )
+    )
     return dhrf
 
 
-def glover_time_derivative(tr, oversampling=16, time_length=32., onset=0.):
+def glover_time_derivative(tr, oversampling=16, time_length=32.0, onset=0.0):
     """Implementation of the flover time derivative hrf (dhrf) model.
 
     Args:
@@ -144,12 +169,19 @@ def glover_time_derivative(tr, oversampling=16, time_length=32., onset=0.):
 
     """
 
-    do = .1
-    dhrf = 1. / do * (glover_hrf(tr, oversampling, time_length, onset + do) - glover_hrf(tr, oversampling, time_length, onset))
+    do = 0.1
+    dhrf = (
+        1.0
+        / do
+        * (
+            glover_hrf(tr, oversampling, time_length, onset + do)
+            - glover_hrf(tr, oversampling, time_length, onset)
+        )
+    )
     return dhrf
 
 
-def spm_dispersion_derivative(tr, oversampling=16, time_length=32., onset=0.):
+def spm_dispersion_derivative(tr, oversampling=16, time_length=32.0, onset=0.0):
     """Implementation of the SPM dispersion derivative hrf model.
 
     Args:
@@ -164,7 +196,15 @@ def spm_dispersion_derivative(tr, oversampling=16, time_length=32., onset=0.):
 
     """
 
-    dd = .01
-    dhrf = 1. / dd * (_gamma_difference_hrf(tr, oversampling, time_length,
-                                            onset, dispersion=1. + dd) - spm_hrf(tr, oversampling, time_length, onset))
+    dd = 0.01
+    dhrf = (
+        1.0
+        / dd
+        * (
+            _gamma_difference_hrf(
+                tr, oversampling, time_length, onset, dispersion=1.0 + dd
+            )
+            - spm_hrf(tr, oversampling, time_length, onset)
+        )
+    )
     return dhrf

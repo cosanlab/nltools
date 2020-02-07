@@ -1,20 +1,22 @@
-'''
+"""
 NeuroLearn datasets
 ===================
 
 functions to help download datasets
 
-'''
+"""
 
-## Notes:
+# Notes:
 # Need to figure out how to speed up loading and resampling of data
 
-__all__ = ['download_nifti',
-           'get_collection_image_metadata',
-           'download_collection',
-           'fetch_emotion_ratings',
-           'fetch_pain',
-           'fetch_localizer']
+__all__ = [
+    "download_nifti",
+    "get_collection_image_metadata",
+    "download_collection",
+    "fetch_emotion_ratings",
+    "fetch_pain",
+    "fetch_localizer",
+]
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
@@ -22,10 +24,12 @@ import os
 import pandas as pd
 import numpy as np
 from nltools.data import Brain_Data
-from nilearn.datasets.utils import (_get_dataset_dir,
-                                    _fetch_file,
-                                    _fetch_files,
-                                    _get_dataset_descr)
+from nilearn.datasets.utils import (
+    _get_dataset_dir,
+    _fetch_file,
+    _fetch_files,
+    _get_dataset_descr,
+)
 from nilearn._utils.compat import _urllib
 from sklearn.datasets.base import Bunch
 from pynv import Client
@@ -38,23 +42,22 @@ except ImportError:
 
 
 def download_nifti(url, data_dir=None):
-    ''' Download a image to a nifti file.'''
-    local_filename = url.split('/')[-1]
+    """ Download a image to a nifti file."""
+    local_filename = url.split("/")[-1]
     if data_dir is not None:
         if not os.path.isdir(data_dir):
             os.makedirs(data_dir)
     local_filename = os.path.join(data_dir, local_filename)
     r = requests.get(url, stream=True)
-    with open(local_filename, 'wb') as f:
+    with open(local_filename, "wb") as f:
         for chunk in r.iter_content(chunk_size=1024):
             if chunk:  # filter out keep-alive new chunks
                 f.write(chunk)
     return local_filename
 
 
-def get_collection_image_metadata(collection=None, data_dir=None,
-                                  limit=10):
-    ''' Get image metadata associated with collection
+def get_collection_image_metadata(collection=None, data_dir=None, limit=10):
+    """ Get image metadata associated with collection
 
     Args:
     collection:  (int) collection id
@@ -65,27 +68,32 @@ def get_collection_image_metadata(collection=None, data_dir=None,
     metadata:	(pd.DataFrame) Dataframe with full image metadata from
     collection
 
-    '''
+    """
 
-    if os.path.isfile(os.path.join(data_dir, 'metadata.csv')):
-        dat = pd.read_csv(os.path.join(data_dir, 'metadata.csv'))
+    if os.path.isfile(os.path.join(data_dir, "metadata.csv")):
+        dat = pd.read_csv(os.path.join(data_dir, "metadata.csv"))
     else:
         offset = 0
         api = Client()
-        i = api.get_collection_images(collection_id=collection, limit=limit, offset=offset)
-        dat = pd.DataFrame(columns=i['results'][0].keys())
-        while int(offset) < int(i['count']):
-            for x in i['results']:
+        i = api.get_collection_images(
+            collection_id=collection, limit=limit, offset=offset
+        )
+        dat = pd.DataFrame(columns=i["results"][0].keys())
+        while int(offset) < int(i["count"]):
+            for x in i["results"]:
                 dat = dat.append(x, ignore_index=True)
             offset = offset + limit
-            i = api.get_collection_images(collection_id=collection, limit=limit, offset=offset)
-        dat.to_csv(os.path.join(data_dir, 'metadata.csv'), index=False)
+            i = api.get_collection_images(
+                collection_id=collection, limit=limit, offset=offset
+            )
+        dat.to_csv(os.path.join(data_dir, "metadata.csv"), index=False)
     return dat
 
 
-def download_collection(collection=None, data_dir=None, overwrite=False,
-                        resume=True, verbose=1):
-    ''' Download images and metadata from Neurovault collection
+def download_collection(
+    collection=None, data_dir=None, overwrite=False, resume=True, verbose=1
+):
+    """ Download images and metadata from Neurovault collection
 
     Args:
     collection:  (int) collection id
@@ -96,27 +104,28 @@ def download_collection(collection=None, data_dir=None, overwrite=False,
     collection
     files:		(list) list of files of downloaded collection
 
-    '''
+    """
 
     if data_dir is None:
-        data_dir = _get_dataset_dir(str(collection), data_dir=data_dir,
-                                    verbose=verbose)
+        data_dir = _get_dataset_dir(str(collection), data_dir=data_dir, verbose=verbose)
 
     # Get collection Metadata
-    metadata = get_collection_image_metadata(collection=collection,
-                                             data_dir=data_dir)
+    metadata = get_collection_image_metadata(collection=collection, data_dir=data_dir)
 
     # Get images
     files = []
-    for f in metadata['file']:
-        files.append(_fetch_file(f, data_dir, resume=resume, verbose=verbose,
-                                 overwrite=overwrite))
+    for f in metadata["file"]:
+        files.append(
+            _fetch_file(
+                f, data_dir, resume=resume, verbose=verbose, overwrite=overwrite
+            )
+        )
 
     return (metadata, files)
 
 
 def fetch_pain(data_dir=None, resume=True, verbose=1):
-    '''Download and loads pain dataset from neurovault
+    """Download and loads pain dataset from neurovault
 
     Args:
         data_dir: (string, optional) Path of the data directory.
@@ -126,20 +135,19 @@ def fetch_pain(data_dir=None, resume=True, verbose=1):
     Returns:
         out: (Brain_Data) Brain_Data object with downloaded data. X=metadata
 
-    '''
+    """
 
     collection = 504
-    dataset_name = 'chang2015_pain'
-    data_dir = _get_dataset_dir(dataset_name, data_dir=data_dir,
-                                verbose=verbose)
-    metadata, files = download_collection(collection=collection,
-                                          data_dir=data_dir, resume=resume,
-                                          verbose=verbose)
+    dataset_name = "chang2015_pain"
+    data_dir = _get_dataset_dir(dataset_name, data_dir=data_dir, verbose=verbose)
+    metadata, files = download_collection(
+        collection=collection, data_dir=data_dir, resume=resume, verbose=verbose
+    )
     return Brain_Data(data=files, X=metadata)
 
 
 def fetch_emotion_ratings(data_dir=None, resume=True, verbose=1):
-    '''Download and loads emotion rating dataset from neurovault
+    """Download and loads emotion rating dataset from neurovault
 
     Args:
         data_dir: (string, optional). Path of the data directory.
@@ -149,19 +157,26 @@ def fetch_emotion_ratings(data_dir=None, resume=True, verbose=1):
     Returns:
         out: (Brain_Data) Brain_Data object with downloaded data. X=metadata
 
-    '''
+    """
 
     collection = 1964
-    dataset_name = 'chang2015_emotion_ratings'
-    data_dir = _get_dataset_dir(dataset_name, data_dir=data_dir,
-                                verbose=verbose)
-    metadata, files = download_collection(collection=collection,
-                                          data_dir=data_dir, resume=resume,
-                                          verbose=verbose)
+    dataset_name = "chang2015_emotion_ratings"
+    data_dir = _get_dataset_dir(dataset_name, data_dir=data_dir, verbose=verbose)
+    metadata, files = download_collection(
+        collection=collection, data_dir=data_dir, resume=resume, verbose=verbose
+    )
     return Brain_Data(data=files, X=metadata)
 
-def fetch_localizer(subject_ids=None, get_anats=False, data_type='raw',
-                    data_dir=None, url=None, resume=True, verbose=1):
+
+def fetch_localizer(
+    subject_ids=None,
+    get_anats=False,
+    data_type="raw",
+    data_dir=None,
+    url=None,
+    resume=True,
+    verbose=1,
+):
     """ Download and load Brainomics Localizer dataset (94 subjects).
     "The Functional Localizer is a simple and fast acquisition
     procedure based on a 5-minute functional magnetic resonance
@@ -215,77 +230,119 @@ def fetch_localizer(subject_ids=None, get_anats=False, data_type='raw',
     """
 
     if subject_ids is None:
-        subject_ids = ['S%02d' % x for x in np.arange(1,95)]
+        subject_ids = ["S%02d" % x for x in np.arange(1, 95)]
     elif not isinstance(subject_ids, (list)):
-        raise ValueError("subject_ids must be a list of subject ids (e.g., ['S01','S02'])")
+        raise ValueError(
+            "subject_ids must be a list of subject ids (e.g., ['S01','S02'])"
+        )
 
-    if data_type == 'raw':
+    if data_type == "raw":
         dat_type = "raw fMRI"
         dat_label = "raw bold"
         anat_type = "raw T1"
         anat_label = "raw anatomy"
-    elif data_type == 'preprocessed':
+    elif data_type == "preprocessed":
         dat_type = "preprocessed fMRI"
         dat_label = "bold"
         anat_type = "normalized T1"
         anat_label = "anatomy"
     else:
-        raise ValueError("Only ['raw','preprocessed'] data_types are currently supported.")
+        raise ValueError(
+            "Only ['raw','preprocessed'] data_types are currently supported."
+        )
 
     root_url = "http://brainomics.cea.fr/localizer/"
-    dataset_name = 'brainomics_localizer'
-    data_dir = _get_dataset_dir(dataset_name, data_dir=data_dir,
-                                verbose=verbose)
+    dataset_name = "brainomics_localizer"
+    data_dir = _get_dataset_dir(dataset_name, data_dir=data_dir, verbose=verbose)
     fdescr = _get_dataset_descr(dataset_name)
-    opts = {'uncompress': True}
+    opts = {"uncompress": True}
 
-    bold_files = []; anat_files = [];
+    bold_files = []
+    anat_files = []
     for subject_id in subject_ids:
-        base_query = ("Any X,XT,XL,XI,XF,XD WHERE X is Scan, X type XT, "
-                  "X concerns S, "
-                  "X label XL, X identifier XI, "
-                  "X format XF, X description XD, "
-                  'S identifier = "%s", ' % (subject_id, ) +
-                  'X type IN(%(types)s), X label "%(label)s"')
+        base_query = (
+            "Any X,XT,XL,XI,XF,XD WHERE X is Scan, X type XT, "
+            "X concerns S, "
+            "X label XL, X identifier XI, "
+            "X format XF, X description XD, "
+            'S identifier = "%s", ' % (subject_id,)
+            + 'X type IN(%(types)s), X label "%(label)s"'
+        )
 
-        file_tarball_url = "%sbrainomics_data.zip?rql=%s&vid=data-zip" % (root_url, _urllib.parse.quote(base_query % {"types": "\"%s\"" % dat_type,  "label": dat_label}, safe=',()'))
-        name_aux = str.replace(str.join('_', [dat_type, dat_label]), ' ', '_')
+        file_tarball_url = "%sbrainomics_data.zip?rql=%s&vid=data-zip" % (
+            root_url,
+            _urllib.parse.quote(
+                base_query % {"types": '"%s"' % dat_type, "label": dat_label},
+                safe=",()",
+            ),
+        )
+        name_aux = str.replace(str.join("_", [dat_type, dat_label]), " ", "_")
         file_path = os.path.join("brainomics_data", subject_id, "%s.nii.gz" % name_aux)
-        bold_files.append(_fetch_files(data_dir, [(file_path, file_tarball_url, opts)], verbose=verbose))
+        bold_files.append(
+            _fetch_files(
+                data_dir, [(file_path, file_tarball_url, opts)], verbose=verbose
+            )
+        )
 
         if get_anats:
-            file_tarball_url = "%sbrainomics_data_anats.zip?rql=%s&vid=data-zip" % (root_url, _urllib.parse.quote(base_query % {"types": "\"%s\"" % anat_type, "label": anat_label}, safe=',()'))
-            if data_type == 'raw':
+            file_tarball_url = "%sbrainomics_data_anats.zip?rql=%s&vid=data-zip" % (
+                root_url,
+                _urllib.parse.quote(
+                    base_query % {"types": '"%s"' % anat_type, "label": anat_label},
+                    safe=",()",
+                ),
+            )
+            if data_type == "raw":
                 anat_name_aux = "raw_T1_raw_anat_defaced.nii.gz"
-            elif data_type == 'preprocessed':
+            elif data_type == "preprocessed":
                 anat_name_aux = "normalized_T1_anat_defaced.nii.gz"
             file_path = os.path.join("brainomics_data", subject_id, anat_name_aux)
-            anat_files.append(_fetch_files(data_dir, [(file_path, file_tarball_url, opts)], verbose=verbose))
+            anat_files.append(
+                _fetch_files(
+                    data_dir, [(file_path, file_tarball_url, opts)], verbose=verbose
+                )
+            )
 
     # Fetch subject characteristics (separated in two files)
     if url is None:
-        url_csv = ("%sdataset/cubicwebexport.csv?rql=%s&vid=csvexport"
-                   % (root_url, _urllib.parse.quote("Any X WHERE X is Subject")))
-        url_csv2 = ("%sdataset/cubicwebexport2.csv?rql=%s&vid=csvexport"
-                    % (root_url,
-                       _urllib.parse.quote("Any X,XI,XD WHERE X is QuestionnaireRun, "
-                                    "X identifier XI, X datetime "
-                                    "XD", safe=',')))
+        url_csv = "%sdataset/cubicwebexport.csv?rql=%s&vid=csvexport" % (
+            root_url,
+            _urllib.parse.quote("Any X WHERE X is Subject"),
+        )
+        url_csv2 = "%sdataset/cubicwebexport2.csv?rql=%s&vid=csvexport" % (
+            root_url,
+            _urllib.parse.quote(
+                "Any X,XI,XD WHERE X is QuestionnaireRun, "
+                "X identifier XI, X datetime "
+                "XD",
+                safe=",",
+            ),
+        )
     else:
         url_csv = "%s/cubicwebexport.csv" % url
         url_csv2 = "%s/cubicwebexport2.csv" % url
 
-    filenames = [("cubicwebexport.csv", url_csv, {}),("cubicwebexport2.csv", url_csv2, {})]
+    filenames = [
+        ("cubicwebexport.csv", url_csv, {}),
+        ("cubicwebexport2.csv", url_csv2, {}),
+    ]
     csv_files = _fetch_files(data_dir, filenames, verbose=verbose)
-    metadata = pd.merge(pd.read_csv(csv_files[0], sep=';'), pd.read_csv(csv_files[1], sep=';'), on='"subject_id"')
-    metadata.to_csv(os.path.join(data_dir,'metadata.csv'))
-    for x in ['cubicwebexport.csv','cubicwebexport2.csv']:
+    metadata = pd.merge(
+        pd.read_csv(csv_files[0], sep=";"),
+        pd.read_csv(csv_files[1], sep=";"),
+        on='"subject_id"',
+    )
+    metadata.to_csv(os.path.join(data_dir, "metadata.csv"))
+    for x in ["cubicwebexport.csv", "cubicwebexport2.csv"]:
         os.remove(os.path.join(data_dir, x))
 
     if not get_anats:
         anat_files = None
 
-    return Bunch(functional=bold_files,
-                 structural=anat_files,
-                 ext_vars=metadata,
-                 description=fdescr)
+    return Bunch(
+        functional=bold_files,
+        structural=anat_files,
+        ext_vars=metadata,
+        description=fdescr,
+    )
+

@@ -1,10 +1,10 @@
-'''
+"""
 NeuroLearn File Reading Tools
 =============================
 
-'''
+"""
 
-__all__ = ['onsets_to_dm']
+__all__ = ["onsets_to_dm"]
 __author__ = ["Eshin Jolly"]
 __license__ = "MIT"
 
@@ -15,7 +15,18 @@ from nltools.data import Design_Matrix
 import warnings
 
 
-def onsets_to_dm(F, sampling_freq, run_length, header='infer', sort=False, keep_separate=True, add_poly=None, unique_cols=[], fill_na=None, **kwargs):
+def onsets_to_dm(
+    F,
+    sampling_freq,
+    run_length,
+    header="infer",
+    sort=False,
+    keep_separate=True,
+    add_poly=None,
+    unique_cols=[],
+    fill_na=None,
+    **kwargs
+):
     """
     This function can assist in reading in one or several in a 2-3 column onsets files, specified in seconds and converting it to a Design Matrix organized as samples X Stimulus Classes. Onsets files **must** be organized with columns in one of the following 4 formats:
 
@@ -48,7 +59,7 @@ def onsets_to_dm(F, sampling_freq, run_length, header='infer', sort=False, keep_
         F = [F]
 
     out = []
-    TR = 1. / sampling_freq
+    TR = 1.0 / sampling_freq
     for f in F:
         if isinstance(f, six.string_types):
             df = pd.read_csv(f, header=header, **kwargs)
@@ -57,35 +68,49 @@ def onsets_to_dm(F, sampling_freq, run_length, header='infer', sort=False, keep_
         else:
             raise TypeError("Input needs to be file path or pandas dataframe!")
         if df.shape[1] == 2:
-            warnings.warn("Only 2 columns in file, assuming all stimuli are the same duration")
+            warnings.warn(
+                "Only 2 columns in file, assuming all stimuli are the same duration"
+            )
         elif df.shape[1] == 1 or df.shape[1] > 3:
             raise ValueError("Can only handle files with 2 or 3 columns!")
 
         # Try to infer the header
         if header is None:
-            possibleHeaders = ['Stim', 'Onset', 'Duration']
+            possibleHeaders = ["Stim", "Onset", "Duration"]
             if isinstance(df.iloc[0, 0], six.string_types):
-                df.columns = possibleHeaders[:df.shape[1]]
-            elif isinstance(df.iloc[0, df.shape[1]-1], six.string_types):
+                df.columns = possibleHeaders[: df.shape[1]]
+            elif isinstance(df.iloc[0, df.shape[1] - 1], six.string_types):
                 df.columns = possibleHeaders[1:] + [possibleHeaders[0]]
             else:
-                raise ValueError("Can't figure out onset file organization. Make sure file has no more than 3 columns specified as 'Stim,Onset,Duration' or 'Onset,Duration,Stim'")
-        df['Onset'] = df['Onset'].apply(lambda x: int(np.floor(x/TR)))
+                raise ValueError(
+                    "Can't figure out onset file organization. Make sure file has no more than 3 columns specified as 'Stim,Onset,Duration' or 'Onset,Duration,Stim'"
+                )
+        df["Onset"] = df["Onset"].apply(lambda x: int(np.floor(x / TR)))
 
         # Build dummy codes
-        X = Design_Matrix(np.zeros([run_length, len(df['Stim'].unique())]), columns=df['Stim'].unique(), sampling_freq=sampling_freq)
+        X = Design_Matrix(
+            np.zeros([run_length, len(df["Stim"].unique())]),
+            columns=df["Stim"].unique(),
+            sampling_freq=sampling_freq,
+        )
         for i, row in df.iterrows():
             if df.shape[1] == 3:
-                dur = np.ceil(row['Duration']/TR)
-                X.ix[row['Onset']-1:row['Onset']+dur-1, row['Stim']] = 1
+                dur = np.ceil(row["Duration"] / TR)
+                X.ix[row["Onset"] - 1 : row["Onset"] + dur - 1, row["Stim"]] = 1
             elif df.shape[1] == 2:
-                X.ix[row['Onset'], row['Stim']] = 1
+                X.ix[row["Onset"], row["Stim"]] = 1
         if sort:
             X = X.reindex(sorted(X.columns), axis=1)
 
         out.append(X)
     if len(out) > 1:
-        out_dm = out[0].append(out[1:], keep_separate=keep_separate, add_poly=add_poly, unique_cols=unique_cols, fill_na=fill_na)
+        out_dm = out[0].append(
+            out[1:],
+            keep_separate=keep_separate,
+            add_poly=add_poly,
+            unique_cols=unique_cols,
+            fill_na=fill_na,
+        )
     else:
         if add_poly is not None:
             out_dm = out[0].add_poly(add_poly)
