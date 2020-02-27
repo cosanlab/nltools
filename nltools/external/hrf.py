@@ -46,7 +46,7 @@ from scipy.stats import gamma
 import numpy as np
 
 
-def _gamma_difference_hrf(tr, oversampling=16, time_length=32., onset=0.,
+def _gamma_difference_hrf(tr, oversampling=16, time_length=32, onset=0.,
                           delay=6, undershoot=16., dispersion=1.,
                           u_dispersion=1., ratio=0.167):
     """ Compute an hrf as the difference of two gamma functions
@@ -54,7 +54,7 @@ def _gamma_difference_hrf(tr, oversampling=16, time_length=32., onset=0.,
     ----------
     tr: float, scan repeat time, in seconds
     oversampling: int, temporal oversampling factor, optional
-    time_length: float, hrf kernel length, in seconds
+    time_length: int, hrf kernel length, in seconds
     onset: float, onset of the hrf
     Returns
     -------
@@ -62,7 +62,7 @@ def _gamma_difference_hrf(tr, oversampling=16, time_length=32., onset=0.,
          hrf sampling on the oversampled time grid
     """
     dt = tr / oversampling
-    time_stamps = np.linspace(0, time_length, float(time_length) / dt)
+    time_stamps = np.linspace(0, time_length, int(time_length / dt))
     time_stamps -= onset / dt
     hrf = gamma.pdf(time_stamps, delay / dispersion, dt / dispersion) - \
         ratio * gamma.pdf(
@@ -89,13 +89,13 @@ def spm_hrf(tr, oversampling=16, time_length=32., onset=0.):
     return _gamma_difference_hrf(tr, oversampling, time_length, onset)
 
 
-def glover_hrf(tr, oversampling=16, time_length=32., onset=0.):
+def glover_hrf(tr, oversampling=16, time_length=32, onset=0.):
     """ Implementation of the Glover hrf model.
 
     Args:
         tr: float, scan repeat time, in seconds
         oversampling: int, temporal oversampling factor, optional
-        time_length: float, hrf kernel length, in seconds
+        time_length: int, hrf kernel length, in seconds
         onset: float, onset of the response
 
     Returns:
