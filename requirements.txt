@@ -1,5 +1,5 @@
 	nibabel>=2.0.1
-	scikit-learn>=0.19.1
+	scikit-learn>=0.21.0
 	nilearn>=0.5.0
 	pandas>=0.20
 	numpy>=1.9
