@@ -101,7 +101,7 @@ def fdr(p, q=.05):
     discovery rate q. Written by Tal Yarkoni
 
     Args:
-        p: (np.array) vector of p-values (only considers non-zero p-values)
+        p: (np.array) vector of p-values 
         q: (float) false discovery rate level
 
     Returns:
@@ -523,7 +523,7 @@ def one_sample_permutation(data, n_permute=5000, tail=2, n_jobs=-1, return_perms
 
     data = np.array(data)
     stats = dict()
-    stats['mean'] = np.mean(data)
+    stats['mean'] = np.nanmean(data)
 
     all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_sign)(data,
                                                            random_state=seeds[i]) for i in range(n_permute))
@@ -554,7 +554,7 @@ def two_sample_permutation(data1, data2, n_permute=5000,
     seeds = random_state.randint(MAX_INT, size=n_permute)
 
     stats = dict()
-    stats['mean'] = np.mean(data1)-np.mean(data2)
+    stats['mean'] = np.nanmean(data1)-np.nanmean(data2)
     data = pd.DataFrame(data={'Values': data1, 'Group': np.ones(len(data1))})
     data = data.append(pd.DataFrame(data={
                                         'Values': data2,
