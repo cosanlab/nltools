@@ -846,11 +846,11 @@ class Brain_Data(object):
             raise ValueError('Method must be one of: correlation, dot_product, cosine')
         return flatten_array(pexp)
 
-    def distance(self, method='euclidean', **kwargs):
+    def distance(self, metric='euclidean', **kwargs):
         """ Calculate distance between images within a Brain_Data() instance.
 
             Args:
-                method: (str) type of distance metric (can use any scikit learn or
+                metric: (str) type of distance metric (can use any scikit learn or
                         sciypy metric)
 
             Returns:
@@ -858,7 +858,7 @@ class Brain_Data(object):
 
         """
 
-        return Adjacency(pairwise_distances(self.data, metric=method, **kwargs),
+        return Adjacency(pairwise_distances(self.data, metric=metric, **kwargs),
                          matrix_type='Distance')
 
     def multivariate_similarity(self, images, method='ols'):
