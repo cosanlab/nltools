@@ -1006,7 +1006,10 @@ def regress(X, Y, mode='ols', stats='full', **kwargs):
             axis_func = [_robust_estimator, 0, res, X, robust_estimator, nlags]
             stderr = np.apply_along_axis(*axis_func)
 
-        t = b / stderr
+        # Then only compute t-stats at voxels where the standard error is at least .001
+        t = np.zeros_like(b)
+        t[stderr > 1.e-3] = b[stderr > 1.-3] / stderr[stderr > 1.e-3]  
+
         # Return betas and ts and stop other computations if that's all that's requested
         if stats == 'tstats':
             return b.squeeze(), t.squeeze()
