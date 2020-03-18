@@ -352,7 +352,7 @@ class Adjacency(object):
                                 xticklabels=self.labels[i],
                                 yticklabels=self.labels[i],
                                 ax=a[i], *args, **kwargs)
-        return f
+        return 
 
     def mean(self, axis=0):
         ''' Calculate mean of Adjacency
@@ -687,7 +687,7 @@ class Adjacency(object):
                            palette={"Within": "lightskyblue", "Between": "red"}, ax=ax)
         f.set_ylabel('Average Distance')
         f.set_title('Average Group Distance')
-        return f
+        return 
 
     def stats_label_distance(self, labels=None, n_permute=5000, n_jobs=-1):
         ''' Calculate permutation tests on within and between label distance.
@@ -745,10 +745,9 @@ class Adjacency(object):
             if len(labels) != distance.shape[0]:
                 raise ValueError('Labels must be same length as distance matrix')
 
-        (f, outAll) = plot_silhouette(distance, labels, ax=None,
+        return plot_silhouette(distance, labels, ax=None,
                                       permutation_test=True,
                                       n_permute=5000, **kwargs)
-        return (f, outAll)
 
     def bootstrap(self, function, n_samples=5000, save_weights=False,
                   n_jobs=-1, random_state=None, *args, **kwargs):
@@ -791,8 +790,6 @@ class Adjacency(object):
                 n_jobs: (int) Number of parallel jobs
                 view: (tuple) view for 3-Dimensional plot; default (30,20)
 
-            Returns:
-                fig: returns matplotlib figure
         '''
 
         if self.matrix_type != 'distance':
@@ -841,9 +838,6 @@ class Adjacency(object):
 
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
-
-        if returnFig:
-            return fig
 
     def distance_to_similarity(self, beta=1):
         '''Convert distance matrix to similarity matrix

@@ -462,7 +462,7 @@ class Brain_Data(object):
                                   draw_cross=False,
                                   axes=a[i],
                                   **kwargs)
-            return f
+            return 
         elif view in ['glass', 'mni', 'full']:
             if self.data.ndim == 1:
                 return plot_brain(self, how=view, thr_upper=threshold_upper, thr_lower=threshold_lower, **kwargs)
