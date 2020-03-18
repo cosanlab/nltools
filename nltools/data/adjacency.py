@@ -548,18 +548,18 @@ class Adjacency(object):
                                     metric=metric, n_permute=n_permute,
                                     **kwargs) for x in self]
 
-    def distance(self, method='correlation', **kwargs):
+    def distance(self, metric='correlation', **kwargs):
         ''' Calculate distance between images within an Adjacency() instance.
 
         Args:
-            method: (str) type of distance metric (can use any scikit learn or
+            metric: (str) type of distance metric (can use any scikit learn or
                     sciypy metric)
 
         Returns:
             dist: (Adjacency) Outputs a 2D distance matrix.
 
         '''
-        return Adjacency(pairwise_distances(self.data, metric=method, **kwargs),
+        return Adjacency(pairwise_distances(self.data, metric=metric, **kwargs),
                          matrix_type='distance')
 
     def threshold(self, upper=None, lower=None, binarize=False):
