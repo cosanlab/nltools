@@ -368,7 +368,7 @@ def dist_from_hyperplane_plot(stats_output):
     plt.xlabel("Subject", fontsize=16)
     plt.ylabel("Distance from Hyperplane", fontsize=16)
     plt.title("Classification", fontsize=18)
-    return fig
+    return 
 
 
 def scatterplot(stats_output):
@@ -389,7 +389,7 @@ def scatterplot(stats_output):
     plt.xlabel("Y", fontsize=16)
     plt.ylabel("Predicted Value", fontsize=16)
     plt.title("Prediction", fontsize=18)
-    return fig
+    return 
 
 
 def probability_plot(stats_output):
@@ -409,7 +409,7 @@ def probability_plot(stats_output):
     plt.xlabel("Y", fontsize=16)
     plt.ylabel("Predicted Probability", fontsize=16)
     plt.title("Prediction", fontsize=18)
-    return fig
+    return 
 
     # # and plot the result
     # plt.figure(1, figsize=(4, 3))
@@ -441,7 +441,7 @@ def roc_plot(fpr, tpr):
     plt.xlabel("(1 - Specificity)", fontsize=16)
     plt.ylabel("Sensitivity", fontsize=16)
     plt.title("ROC Plot", fontsize=18)
-    return fig
+    return 
 
 
 def plot_stacked_adjacency(adjacency1, adjacency2, normalize=True, **kwargs):
