@@ -778,7 +778,7 @@ class Adjacency(object):
         bootstrapped = Adjacency(bootstrapped)
         return summarize_bootstrap(bootstrapped, save_weights=save_weights)
 
-    def plot_mds(self, n_components=2, metric=True, labels_color=None,
+    def plot_mds(self, n_components=2, metric=True, labels=None, labels_color=None,
                  cmap=plt.cm.hot_r, n_jobs=-1, view=(30, 20),
                  figsize=[12, 8], ax=None, *args, **kwargs):
         ''' Plot Multidimensional Scaling
@@ -786,6 +786,7 @@ class Adjacency(object):
             Args:
                 n_components: (int) Number of dimensions to project (can be 2 or 3)
                 metric: (bool) Perform metric or non-metric dimensional scaling; default
+                labels: (list) Can override labels stored in Adjacency Class
                 labels_color: (str) list of colors for labels, if len(1) then make all same color
                 n_jobs: (int) Number of parallel jobs
                 view: (tuple) view for 3-Dimensional plot; default (30,20)
@@ -798,10 +799,15 @@ class Adjacency(object):
             raise ValueError("MDS only works on single matrices.")
         if n_components not in [2, 3]:
             raise ValueError('Cannot plot {0}-d image'.format(n_components))
+        if labels is not None:
+            if len(labels) != self.square_shape()[0]:
+                raise ValueError("Make sure labels matches the same shape as Adjaency data")
+        else:
+            labels = self.labels
         if labels_color is not None:
-            if self.labels is None:
+            if len(labels) == 0:
                 raise ValueError("Make sure that Adjacency object has labels specified.")
-            if len(self.labels) != len(labels_color):
+            if len(labels) != len(labels_color):
                 raise ValueError("Length of labels_color must match self.labels.")
 
         # Run MDS
@@ -827,12 +833,12 @@ class Adjacency(object):
 
         # Plot labels
         if labels_color is None:
-            labels_color = ['black'] * len(self.labels)
+            labels_color = ['black'] * len(labels)
         if n_components == 3:
-            for ((x, y, z), label, color) in zip(proj, self.labels, labels_color):
+            for ((x, y, z), label, color) in zip(proj, labels, labels_color):
                 ax.text(x, y, z, label, color='white', bbox=dict(facecolor=color, alpha=1, boxstyle="round,pad=0.3"))
         else:
-            for ((x, y), label, color) in zip(proj, self.labels, labels_color):
+            for ((x, y), label, color) in zip(proj, labels, labels_color):
                 ax.text(x, y, label, color='white',  # color,
                         bbox=dict(facecolor=color, alpha=1, boxstyle="round,pad=0.3"))
 
