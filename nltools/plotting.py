@@ -640,10 +640,10 @@ def plot_between_label_distance(
             ax=ax,
             cbar=False,
         )
-        return (f, out, within_dist_out, mn_dist_out, p_dist_out)
+        return (out, within_dist_out, mn_dist_out, p_dist_out)
     else:
         f = sns.heatmap(within_dist_out, ax=ax, square=True, **kwargs)
-        return (f, out, within_dist_out)
+        return (out, within_dist_out)
 
 
 def plot_silhouette(
@@ -749,7 +749,7 @@ def plot_silhouette(
             else:
                 temp["p"] = 999
             outAll = outAll.append(temp)
-        return (f, outAll)
+        return outAll
     else:
-        return f
+        return 
 
