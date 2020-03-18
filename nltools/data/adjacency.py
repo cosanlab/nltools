@@ -61,7 +61,7 @@ class Adjacency(object):
 
     '''
 
-    def __init__(self, data=None, Y=None, matrix_type=None, labels=None,
+    def __init__(self, data=None, Y=None, matrix_type=None, labels=[],
                  **kwargs):
         if matrix_type is not None:
             if matrix_type.lower() not in ['distance', 'similarity', 'directed',
@@ -745,7 +745,7 @@ class Adjacency(object):
             if len(labels) != distance.shape[0]:
                 raise ValueError('Labels must be same length as distance matrix')
 
-        return plot_silhouette(distance, labels, ax=None,
+        return plot_silhouette(distance, pd.Series(labels), ax=None,
                                       permutation_test=True,
                                       n_permute=5000, **kwargs)
 
