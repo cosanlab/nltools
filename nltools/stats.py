@@ -989,6 +989,7 @@ def regress(X, Y, mode='ols', stats='full', **kwargs):
     if mode == 'ols' or mode == 'robust':
 
         b = np.dot(np.linalg.pinv(X), Y)
+        
         # Return betas and stop other computations if that's all that's requested
         if stats == 'betas':
             return b.squeeze()
@@ -1006,9 +1007,9 @@ def regress(X, Y, mode='ols', stats='full', **kwargs):
             axis_func = [_robust_estimator, 0, res, X, robust_estimator, nlags]
             stderr = np.apply_along_axis(*axis_func)
 
-        # Then only compute t-stats at voxels where the standard error is at least .001
+        # Then only compute t-stats at voxels where the standard error is at least .000001
         t = np.zeros_like(b)
-        t[stderr > 1.e-3] = b[stderr > 1.-3] / stderr[stderr > 1.e-3]  
+        t[stderr > 1.e-6] = b[stderr > 1.e-6] / stderr[stderr > 1.e-6]  
 
         # Return betas and ts and stop other computations if that's all that's requested
         if stats == 'tstats':
