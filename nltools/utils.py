@@ -287,15 +287,21 @@ def check_square_numpy_matrix(data):
     return data
 
 
-def check_brain_data(data):
+def check_brain_data(data, mask=None):
     '''Check if data is a Brain_Data Instance.'''
     from nltools.data import Brain_Data
 
     if not isinstance(data, Brain_Data):
         if isinstance(data, nib.Nifti1Image):
-            data = Brain_Data(data)
+            if mask is None:
+                data = Brain_Data(data)
+            else:
+                data = Brain_Data(data, mask=mask)
         else:
             raise ValueError("Make sure data is a Brain_Data instance.")
+    else:
+        if mask is not None:
+            data = data.apply_mask(mask)
     return data
 
 
