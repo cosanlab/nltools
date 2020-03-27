@@ -207,7 +207,7 @@ class Brain_Data(object):
 
     def __getitem__(self, index):
         new = deepcopy(self)
-        if isinstance(index, int):
+        if isinstance(index, int, np.integer):
             new.data = np.array(self.data[index, :]).squeeze()
         else:
             if isinstance(index, slice):
@@ -243,51 +243,59 @@ class Brain_Data(object):
 
     def __add__(self, y):
         new = deepcopy(self)
-        if isinstance(y, (int, float)):
+        if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = new.data + y
         if isinstance(y, Brain_Data):
             if self.shape() != y.shape():
                 raise ValueError("Both Brain_Data() instances need to be the "
                                  "same shape.")
             new.data = new.data + y.data
+        else:
+            raise ValueError('Can only add int, float, or Brain_Data')
         return new
 
     def __radd__(self, y):
         new = deepcopy(self)
-        if isinstance(y, (int, float)):
+        if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = y + new.data
         elif isinstance(y, Brain_Data):
             if self.shape() != y.shape():
                 raise ValueError("Both Brain_Data() instances need to be the "
                                  "same shape.")
             new.data = y.data + new.data
+        else:
+            raise ValueError('Can only add int, float, or Brain_Data')
         return new
 
     def __sub__(self, y):
         new = deepcopy(self)
-        if isinstance(y, (int, float)):
+        if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = new.data - y
         elif isinstance(y, Brain_Data):
             if self.shape() != y.shape():
                 raise ValueError('Both Brain_Data() instances need to be the '
                                  'same shape.')
             new.data = new.data - y.data
+        else:
+            raise ValueError('Can only add int, float, or Brain_Data')
         return new
 
     def __rsub__(self, y):
         new = deepcopy(self)
-        if isinstance(y, (int, float)):
+        if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = y - new.data
         elif isinstance(y, Brain_Data):
             if self.shape() != y.shape():
                 raise ValueError('Both Brain_Data() instances need to be the '
                                  'same shape.')
             new.data = y.data - new.data
+        else:
+            raise ValueError('Can only add int, float, or Brain_Data')
         return new
 
     def __mul__(self, y):
         new = deepcopy(self)
-        if isinstance(y, (int, float)):
+        if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = new.data * y
         elif isinstance(y, Brain_Data):
             if self.shape() != y.shape():
@@ -301,17 +309,21 @@ class Brain_Data(object):
                                  'images in Brain_Data instance.')
             else:
                 new.data = np.dot(new.data.T, y).T
+        else:
+            raise ValueError('Can only multiply int, float, list, or Brain_Data')
         return new
 
     def __rmul__(self, y):
         new = deepcopy(self)
-        if isinstance(y, (int, float)):
+        if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = y * new.data
         elif isinstance(y, Brain_Data):
             if self.shape() != y.shape():
                 raise ValueError("Both Brain_Data() instances need to be the "
                                  "same shape.")
             new.data = np.multiply(y.data, new.data)
+        else:
+            raise ValueError('Can only multiply int, float, or Brain_Data')
         return new
 
     def __iter__(self):

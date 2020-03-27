@@ -162,7 +162,7 @@ class Adjacency(object):
 
     def __getitem__(self, index):
         new = self.copy()
-        if isinstance(index, int):
+        if isinstance(index, int, np.integer):
             new.data = np.array(self.data[index, :]).squeeze()
             new.is_single_matrix = True
         else:
@@ -184,35 +184,41 @@ class Adjacency(object):
 
     def __add__(self, y):
         new = deepcopy(self)
-        if isinstance(y, (int, float)):
+        if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = new.data + y
         if isinstance(y, Adjacency):
             if self.shape() != y.shape():
                 raise ValueError('Both Adjacency() instances need to be the '
                                  'same shape.')
             new.data = new.data + y.data
+        else:
+            raise ValueError('Can only add int, float, or Adjacency')
         return new
 
     def __sub__(self, y):
         new = deepcopy(self)
-        if isinstance(y, (int, float)):
+        if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = new.data - y
         if isinstance(y, Adjacency):
             if self.shape() != y.shape():
                 raise ValueError('Both Adjacency() instances need to be the '
                                  'same shape.')
             new.data = new.data - y.data
+        else:
+            raise ValueError('Can only subtract int, float, or Adjacency')
         return new
 
     def __mul__(self, y):
         new = deepcopy(self)
-        if isinstance(y, (int, float)):
+        if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = new.data * y
         if isinstance(y, Adjacency):
             if self.shape() != y.shape():
                 raise ValueError('Both Adjacency() instances need to be the '
                                  'same shape.')
             new.data = np.multiply(new.data, y.data)
+        else:
+            raise ValueError('Can only multiply int, float, or Adjacency')
         return new
 
     @staticmethod
