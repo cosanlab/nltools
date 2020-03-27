@@ -147,7 +147,7 @@ class Adjacency(object):
                         raise ValueError("All lists of labels must be same length as shape of data.")
                     self.labels = deepcopy(labels)
         else:
-            self.labels = None
+            self.labels = []
 
     def __repr__(self):
         return ("%s.%s(shape=%s, square_shape=%s, Y=%s, is_symmetric=%s,"
@@ -337,7 +337,7 @@ class Adjacency(object):
 
         if self.is_single_matrix:
             f, a = plt.subplots(nrows=1, figsize=(7, 5))
-            if self.labels is None:
+            if not self.labels:
                 sns.heatmap(self.squareform(), square=True, ax=a,
                             *args, **kwargs)
             else:
@@ -348,7 +348,7 @@ class Adjacency(object):
         else:
             n_subs = np.minimum(len(self), limit)
             f, a = plt.subplots(nrows=n_subs, figsize=(7, len(self)*5))
-            if self.labels is None:
+            if not self.labels:
                 for i in range(n_subs):
                     sns.heatmap(self[i].squareform(), square=True, ax=a[i],
                                 *args, **kwargs)
@@ -617,7 +617,7 @@ class Adjacency(object):
                 G = nx.DiGraph(self.squareform())
             else:
                 G = nx.Graph(self.squareform())
-            if self.labels is not None:
+            if self.labels:
                 labels = {x: y for x, y in zip(G.nodes, self.labels)}
                 nx.relabel_nodes(G, labels, copy=False)
             return G
