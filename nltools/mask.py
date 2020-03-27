@@ -180,7 +180,7 @@ def roi_to_brain(data, mask_x):
     This is useful for populating a parcellation scheme by a vector of Values
     
     Args:
-        data: Pandas series or dataframe of ROI by observation
+        data: Pandas series, dataframe, list, np.array of ROI by observation
         mask_x: an expanded binary mask
     Returns:
         out: (Brain_Data) Brain_Data instance where each ROI is now populated
