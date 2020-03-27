@@ -1205,26 +1205,17 @@ class Brain_Data(object):
             masked: (Brain_Data) masked Brain_Data object
 
         """
-
-        if isinstance(mask, Brain_Data):
-            mask = mask.to_nifti()  # convert to nibabel
-
-        if not isinstance(mask, nib.Nifti1Image):
-            if isinstance(mask, six.string_types):
-                if os.path.isfile(mask):
-                    mask = nib.load(mask)
-                if not ((self.mask.get_affine() == mask.get_affine()).all()) & (self.mask.shape[0:3] == mask.shape[0:3]):
-                    mask = resample_img(mask, target_affine=self.mask.get_affine(), target_shape=self.mask.shape)
-            else:
-                raise ValueError("Mask is not a nibabel instance, Brain_Data "
-                                 "instance, or a valid file name.")
-
+        mask = check_brain_data(mask)
         masked = deepcopy(self)
-        nifti_masker = NiftiMasker(mask_img=mask)
-        masked.data = nifti_masker.fit_transform(self.to_nifti())
-        masked.nifti_masker = nifti_masker
-        if (len(masked.shape()) > 1) & (masked.shape()[0] == 1):
-            masked.data = masked.data.flatten()
+
+        if masked.shape()[0] == mask.shape()[0]:
+            masked.data[~mask.data] = 0
+        else:
+            nifti_masker = NiftiMasker(mask_img=mask)
+            masked.data = nifti_masker.fit_transform(self.to_nifti())
+            masked.nifti_masker = nifti_masker
+            if (len(masked.shape()) > 1) & (masked.shape()[0] == 1):
+                masked.data = masked.data.flatten()
         return masked
 
     def extract_roi(self, mask, method='mean'):
