@@ -179,7 +179,8 @@ def set_decomposition_algorithm(algorithm, n_components=None, *args, **kwargs):
     Args:
         algorithm: The decomposition algorithm to use. Either a string or an
                     (uninitialized) scikit-learn decomposition object.
-                    If string must be one of 'pca','nnmf', ica','fa'
+                    If string must be one of 'pca','nnmf', ica','fa',
+                    'dictionary', 'kernelpca'.
         kwargs: Additional keyword arguments to pass onto the scikit-learn
                 clustering object.
 
@@ -201,7 +202,9 @@ def set_decomposition_algorithm(algorithm, n_components=None, *args, **kwargs):
         'pca': 'sklearn.decomposition.PCA',
         'ica': 'sklearn.decomposition.FastICA',
         'nnmf': 'sklearn.decomposition.NMF',
-        'fa': 'sklearn.decomposition.FactorAnalysis'
+        'fa': 'sklearn.decomposition.FactorAnalysis',
+        'dictionary': 'sklearn.decomposition.DictionaryLearning',
+        'kernelpca': 'sklearn.decomposition.KernelPCA'      
         }
 
     if algorithm in algs.keys():
