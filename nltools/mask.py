@@ -202,7 +202,7 @@ def roi_to_brain(data, mask_x):
             raise ValueError('Data must have the same number of rows as mask has ROIs.')
         else:
             data = pd.Series(data)
-    if isinstance(data, np.ndarray):
+    elif isinstance(data, np.ndarray):
         if len(data.shape) == 1:
             if len(data) != len(mask_x):
                 raise ValueError('Data must have the same number of rows as mask has ROIs.')
@@ -217,6 +217,8 @@ def roi_to_brain(data, mask_x):
                     raise ValueError('Data must have the same number of rows as rois in mask')
         else:
             NotImplemented
+    else:
+        NotImplemented
 
     if len(mask_x) != data.shape[0]:
         raise ValueError('Data must have the same number of rows as mask has ROIs.')
