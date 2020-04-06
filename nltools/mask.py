@@ -216,9 +216,11 @@ def roi_to_brain(data, mask_x):
                 else:
                     raise ValueError('Data must have the same number of rows as rois in mask')
         else:
-            NotImplemented
+            raise NotImplementedError
+
     else:
-        NotImplemented
+        raise NotImplementedError
+
 
     if len(mask_x) != data.shape[0]:
         raise ValueError('Data must have the same number of rows as mask has ROIs.')
