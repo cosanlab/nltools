@@ -1657,7 +1657,7 @@ class Brain_Data(object):
 
         Args:
             algorithm: (str) Algorithm to perform decomposition
-                        types=['pca','ica','nnmf','fa']
+                        types=['pca','ica','nnmf','fa','dictionary','kernelpca']
             axis: dimension to decompose ['voxels','images']
             n_components: (int) number of components. If None then retain
                         as many as possible.
