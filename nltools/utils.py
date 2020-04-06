@@ -296,10 +296,7 @@ def check_brain_data(data, mask=None):
 
     if not isinstance(data, Brain_Data):
         if isinstance(data, nib.Nifti1Image):
-            if mask is None:
-                data = Brain_Data(data)
-            else:
-                data = Brain_Data(data, mask=mask)
+            data = Brain_Data(data, mask=mask)
         else:
             raise ValueError("Make sure data is a Brain_Data instance.")
     else:
@@ -307,7 +304,22 @@ def check_brain_data(data, mask=None):
             data = data.apply_mask(mask)
     return data
 
-
+def check_brain_data_is_single(data):
+    '''Logical test if Brain_Data instance is a single image
+    
+    Args:
+        data: brain data
+    
+    Returns:
+        (bool)
+    
+    '''
+    data = check_brain_data(data)
+    if len(data.shape()) > 1:
+        return False
+    else:
+        return True
+        
 def _roi_func(brain, roi, algorithm, cv_dict, **kwargs):
     '''Brain_Data.predict_multi() helper function'''
     return brain.apply_mask(roi).predict(algorithm=algorithm, cv_dict=cv_dict, plot=False, **kwargs)
@@ -331,7 +343,7 @@ def generate_jitter(n_trials, mean_time=5, min_time=2, max_time=12, atol=.2):
 
     Returns:
         data: (np.array) jitter for each trial
-
+ 
     '''
 
     def generate_data(n_trials, scale=5, min_time=2, max_time=12):
