@@ -335,16 +335,54 @@ class Brain_Data(object):
 
         return self.data.shape
 
-    def mean(self):
-        """ Get mean of each voxel across images. """
+    def mean(self, axis=0):
+        ''' Get mean of each voxel or image
+            
+            Args:
+                axis: (int) across images=0 (default), within images=1
+            
+            Returns:
+                out: (float/np.array/Brain_Data)
+
+        '''
 
         out = deepcopy(self)
-        if len(self.shape()) > 1:
-            out.data = np.mean(self.data, axis=0)
-            out.X = pd.DataFrame()
-            out.Y = pd.DataFrame()
-        else:
+        if check_brain_data_is_single(self):
             out = np.mean(self.data)
+        else:
+            if axis == 0:
+                out.data = np.mean(self.data, axis=0)
+                out.X = pd.DataFrame()
+                out.Y = pd.DataFrame()
+            elif axis == 1:
+                out = np.mean(self.data, axis=1)
+            else:
+                raise ValueError('axis must be 0 or 1')
+        return out
+
+    def median(self, axis=0):
+        ''' Get median of each voxel or image
+            
+            Args:
+                axis: (int) across images=0 (default), within images=1
+            
+            Returns:
+                out: (float/np.array/Brain_Data)
+                
+        '''
+
+        out = deepcopy(self)
+        if check_brain_data_is_single(self):
+            out = np.median(self.data)
+        else:
+            if axis == 0:
+                out.data = np.median(self.data, axis=0)
+                out.X = pd.DataFrame()
+                out.Y = pd.DataFrame()
+            elif axis == 1:
+                out = np.median(self.data, axis=1)
+            else:
+                raise ValueError('axis must be 0 or 1')
         return out
 
     def std(self):
@@ -1205,7 +1243,7 @@ class Brain_Data(object):
             masked: (Brain_Data) masked Brain_Data object
 
         """
-        
+
         masked = deepcopy(self)
         mask = check_brain_data(mask)
         if not check_brain_data_is_single(mask):
@@ -1229,14 +1267,15 @@ class Brain_Data(object):
         if (len(masked.shape()) > 1) & (masked.shape()[0] == 1):
             masked.data = masked.data.flatten()
 
-    def extract_roi(self, mask, method='mean'):
+    def extract_roi(self, mask, metric='mean', n_components=None):
         """ Extract activity from mask
 
         Args:
-            mask: (nifiti) nibabel mask can be binary or numbered for
+            mask: (nifti) nibabel mask can be binary or numbered for
                   different rois
-            method: type of extraction method (default=mean)
+            metric: type of extraction method ['mean', 'median', 'pca'], (default=mean)
                     NOTE: Only mean currently works!
+            n_components: if metric='pca', number of components to return (takes any input into sklearn.Decomposition.PCA)
 
         Returns:
             out: mean within each ROI across images
@@ -1244,21 +1283,51 @@ class Brain_Data(object):
         """
         mask = check_brain_data(mask)
         ma = mask.copy()
-
-        if method != 'mean':
-            raise ValueError('Only mean is currently implemented.')
+            
+        if metric not in metrics:
+            raise NotImplementedError
 
         if len(np.unique(ma.data)) == 2:
-            out = np.mean(self.data[:, np.where(ma.data)].squeeze(), axis=1)
+            masked = self.apply_mask(ma)
+            if check_brain_data_is_single(masked):
+                if metric == 'mean':
+                    out = masked.mean()
+                elif metric == 'median':
+                    out = masked.median()
+                else:
+                    raise ValueError('Not possible to run PCA on a single image')
+            else:
+                if metric == 'mean':
+                    out = masked.mean(axis=1)
+                elif metric == 'median':
+                    out = masked.median(axis=1)
+                else:
+                    output = masked.decompose(algorithm='pca', n_components=n_components, axis='images')
+                    out = output['weights'].T
         elif len(np.unique(ma.data)) > 2:
             # make sure each ROI id is an integer
             ma.data = np.round(ma.data).astype(int)
             all_mask = expand_mask(ma)
-            out = []
-            for i in range(all_mask.shape()[0]):
-                out.append(np.mean(self.data[:, np.where(all_mask[i].data)].squeeze(), axis=1))
-            out = np.array(out)
-        return out
+            if check_brain_data_is_single(masked):
+                if metric == 'mean':
+                    out = [self.apply_mask(m).mean() for m in all_mask]
+                elif metric == 'median':
+                    out = [self.apply_mask(m).median() for m in all_mask]
+                else:
+                    raise ValueError('Not possible to run PCA on a single image')
+            else:
+                if metric == 'mean':
+                    out = [self.apply_mask(m).mean(axis=1) for m in all_mask]
+                elif metric == 'median':
+                    out = [self.apply_mask(m).median(axis=1) for m in all_mask]
+                else:
+                    out = []
+                    for m in all_mask:
+                        masked = self.apply_mask(m)
+                        output = masked.decompose(algorithm='pca', n_components=n_components, axis='images')
+                        out.append(output['weights'].T)
+        else:
+            raise ValueError('Mask must be binary or integers')
 
     def icc(self, icc_type='icc2'):
         ''' Calculate intraclass correlation coefficient for data within
