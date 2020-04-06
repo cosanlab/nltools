@@ -1205,18 +1205,29 @@ class Brain_Data(object):
             masked: (Brain_Data) masked Brain_Data object
 
         """
-        mask = check_brain_data(mask)
+        
         masked = deepcopy(self)
+        mask = check_brain_data(mask)
+        if not check_brain_data_is_single(mask):
+            raise ValueError('Mask must be a single image')
 
-        if masked.shape()[0] == mask.shape()[0]:
-            masked.data[~mask.data] = 0
+        if check_brain_data_is_single(self):
+            n_vox = len(self)
         else:
-            nifti_masker = NiftiMasker(mask_img=mask)
-            masked.data = nifti_masker.fit_transform(self.to_nifti())
+            n_vox = self.shape()[1]    
+
+        if n_vox == len(mask):
+            if check_brain_data_is_single(masked):
+                masked.data = masked.data[mask.data.astype(bool)]
+            else:
+                masked.data = masked.data[:, mask.data.astype(bool)]
             masked.nifti_masker = nifti_masker
-            if (len(masked.shape()) > 1) & (masked.shape()[0] == 1):
-                masked.data = masked.data.flatten()
-        return masked
+        else:
+            nifti_masker = NiftiMasker(mask_img=mask.to_nifti())
+            masked.data = nifti_masker.fit_transform(masked.to_nifti())
+            masked.nifti_masker = nifti_masker
+        if (len(masked.shape()) > 1) & (masked.shape()[0] == 1):
+            masked.data = masked.data.flatten()
 
     def extract_roi(self, mask, method='mean'):
         """ Extract activity from mask
