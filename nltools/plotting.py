@@ -33,7 +33,7 @@ from nltools.prefs import MNI_Template, resolve_mni_path
 from nltools.utils import attempt_to_import
 from ipywidgets import BoundedFloatText, BoundedIntText
 from ipywidgets import interact
-import sklearn 
+import sklearn
 import warnings
 import os
 
@@ -354,7 +354,7 @@ def dist_from_hyperplane_plot(stats_output):
     """
 
     if "dist_from_hyperplane_xval" in stats_output.columns:
-        fig = sns.factorplot(
+        sns.factorplot(
             "subject_id",
             "dist_from_hyperplane_xval",
             hue="Y",
@@ -362,7 +362,7 @@ def dist_from_hyperplane_plot(stats_output):
             kind="point",
         )
     else:
-        fig = sns.factorplot(
+        sns.factorplot(
             "subject_id",
             "dist_from_hyperplane_all",
             hue="Y",
@@ -387,9 +387,9 @@ def scatterplot(stats_output):
     """
 
     if "yfit_xval" in stats_output.columns:
-        fig = sns.lmplot("Y", "yfit_xval", data=stats_output)
+        sns.lmplot("Y", "yfit_xval", data=stats_output)
     else:
-        fig = sns.lmplot("Y", "yfit_all", data=stats_output)
+        sns.lmplot("Y", "yfit_all", data=stats_output)
     plt.xlabel("Y", fontsize=16)
     plt.ylabel("Predicted Value", fontsize=16)
     plt.title("Prediction", fontsize=18)
@@ -407,9 +407,9 @@ def probability_plot(stats_output):
 
     """
     if "Probability_xval" in stats_output.columns:
-        fig = sns.lmplot("Y", "Probability_xval", data=stats_output, logistic=True)
+        sns.lmplot("Y", "Probability_xval", data=stats_output, logistic=True)
     else:
-        fig = sns.lmplot("Y", "Probability_all", data=stats_output, logistic=True)
+        sns.lmplot("Y", "Probability_all", data=stats_output, logistic=True)
     plt.xlabel("Y", fontsize=16)
     plt.ylabel("Predicted Probability", fontsize=16)
     plt.title("Prediction", fontsize=18)
@@ -439,7 +439,7 @@ def roc_plot(fpr, tpr):
 
     """
 
-    fig = plt.figure()
+    plt.figure()
     plt.plot(fpr, tpr, color="red", linewidth=3)
     # fig = sns.tsplot(tpr,fpr,color='red',linewidth=3)
     plt.xlabel("(1 - Specificity)", fontsize=16)
@@ -608,9 +608,9 @@ def plot_between_label_distance(
             ]["Distance"].mean()
 
     if ax is None:
-        f, ax = plt.subplots(1)
+        _, ax = plt.subplots(1)
     else:
-        f = plt.figure()
+        plt.figure()
 
     if permutation_test:
         mn_dist_out = pd.DataFrame(
@@ -646,7 +646,7 @@ def plot_between_label_distance(
         )
         return (out, within_dist_out, mn_dist_out, p_dist_out)
     else:
-        f = sns.heatmap(within_dist_out, ax=ax, square=True, **kwargs)
+        sns.heatmap(within_dist_out, ax=ax, square=True, **kwargs)
         return (out, within_dist_out)
 
 
@@ -707,9 +707,9 @@ def plot_silhouette(
     # Plot
     with sns.axes_style("white"):
         if ax is None:
-            f, ax = plt.subplots(1, figsize=figsize)
+            _, ax = plt.subplots(1, figsize=figsize)
         else:
-            f = plt.plot(figsize=figsize)
+            plt.plot(figsize=figsize)
     x_lower = 10
     labelX = []
     for labelInd in range(n_clusters):
@@ -783,11 +783,11 @@ def component_viewer(output, tr=2.0):
                       threshold=BoundedFloatText(description='Threshold', value=2.0, min=0, max=4, step=.1))
 
         '''
-        fig, ax = plt.subplots(nrows=3, figsize=(12,8))
+        _, ax = plt.subplots(nrows=3, figsize=(12,8))
         thresholded = (output['components'][component] - output['components'][component].mean())*(1/output['components'][component].std())
         thresholded.data[np.abs(thresholded.data) <= threshold] = 0
-        plot_stat_map(thresholded.to_nifti(), cut_coords=range(-40, 70, 10), 
-                      display_mode='z', black_bg=True, colorbar=True, annotate=False, 
+        plot_stat_map(thresholded.to_nifti(), cut_coords=range(-40, 70, 10),
+                      display_mode='z', black_bg=True, colorbar=True, annotate=False,
                       draw_cross=False, axes=ax[0])
         if isinstance(output['decomposition_object'], (sklearn.decomposition.PCA)):
             var_exp = output['decomposition_object'].explained_variance_ratio_[component]

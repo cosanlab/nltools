@@ -61,8 +61,7 @@ class Adjacency(object):
 
     '''
 
-    def __init__(self, data=None, Y=None, matrix_type=None, labels=[],
-                 **kwargs):
+    def __init__(self, data=None, Y=None, matrix_type=None, labels=[], **kwargs):
         if matrix_type is not None:
             if matrix_type.lower() not in ['distance', 'similarity', 'directed',
                                            'distance_flat', 'similarity_flat',
@@ -126,7 +125,7 @@ class Adjacency(object):
         else:
             self.Y = pd.DataFrame()
 
-        if labels is not None:
+        if labels:
             if not isinstance(labels, (list, np.ndarray)):
                 raise ValueError("Make sure labels is a list or numpy array.")
             if self.is_single_matrix:
@@ -162,7 +161,7 @@ class Adjacency(object):
 
     def __getitem__(self, index):
         new = self.copy()
-        if isinstance(index, int, np.integer):
+        if isinstance(index, (int, np.integer)):
             new.data = np.array(self.data[index, :]).squeeze()
             new.is_single_matrix = True
         else:
@@ -186,7 +185,7 @@ class Adjacency(object):
         new = deepcopy(self)
         if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = new.data + y
-        if isinstance(y, Adjacency):
+        elif isinstance(y, Adjacency):
             if self.shape() != y.shape():
                 raise ValueError('Both Adjacency() instances need to be the '
                                  'same shape.')
@@ -199,7 +198,7 @@ class Adjacency(object):
         new = deepcopy(self)
         if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = new.data - y
-        if isinstance(y, Adjacency):
+        elif isinstance(y, Adjacency):
             if self.shape() != y.shape():
                 raise ValueError('Both Adjacency() instances need to be the '
                                  'same shape.')
@@ -212,7 +211,7 @@ class Adjacency(object):
         new = deepcopy(self)
         if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = new.data * y
-        if isinstance(y, Adjacency):
+        elif isinstance(y, Adjacency):
             if self.shape() != y.shape():
                 raise ValueError('Both Adjacency() instances need to be the '
                                  'same shape.')
@@ -336,7 +335,7 @@ class Adjacency(object):
         ''' Create Heatmap of Adjacency Matrix'''
 
         if self.is_single_matrix:
-            f, a = plt.subplots(nrows=1, figsize=(7, 5))
+            _, a = plt.subplots(nrows=1, figsize=(7, 5))
             if not self.labels:
                 sns.heatmap(self.squareform(), square=True, ax=a,
                             *args, **kwargs)
@@ -347,7 +346,7 @@ class Adjacency(object):
                             *args, **kwargs)
         else:
             n_subs = np.minimum(len(self), limit)
-            f, a = plt.subplots(nrows=n_subs, figsize=(7, len(self)*5))
+            _, a = plt.subplots(nrows=n_subs, figsize=(7, len(self)*5))
             if not self.labels:
                 for i in range(n_subs):
                     sns.heatmap(self[i].squareform(), square=True, ax=a[i],
@@ -693,7 +692,7 @@ class Adjacency(object):
                            palette={"Within": "lightskyblue", "Between": "red"}, ax=ax)
         f.set_ylabel('Average Distance')
         f.set_title('Average Group Distance')
-        return 
+        return
 
     def stats_label_distance(self, labels=None, n_permute=5000, n_jobs=-1):
         ''' Calculate permutation tests on within and between label distance.
@@ -784,8 +783,8 @@ class Adjacency(object):
         bootstrapped = Adjacency(bootstrapped)
         return summarize_bootstrap(bootstrapped, save_weights=save_weights)
 
-    def plot_mds(self, n_components=2, metric=True, labels=None, labels_color=None,
-                 cmap=plt.cm.hot_r, n_jobs=-1, view=(30, 20),
+    def plot_mds(self, n_components=2, metric=True, labels=None, labels_color=None, 
+                 cmap=plt.cm.hot_r, n_jobs=-1, view=(30, 20), 
                  figsize=[12, 8], ax=None, *args, **kwargs):
         ''' Plot Multidimensional Scaling
 
@@ -824,7 +823,7 @@ class Adjacency(object):
         # Create Plot
         if ax is None:  # Create axis
             returnFig = True
-            fig = plt.figure(figsize=figsize)
+            plt.figure(figsize=figsize)
             if n_components == 3:
                 ax = fig.add_subplot(111, projection='3d')
                 ax.view_init(*view)
@@ -924,14 +923,15 @@ class Adjacency(object):
             stats['beta'].data, stats['t'].data, stats['p'].data = b.squeeze(), t.squeeze(), p.squeeze()
             stats['residual'] = self.copy()
             stats['residual'].data = res
+            stats['df'] = df
         else:
             raise ValueError('X must be a Design_Matrix or Adjacency Instance.')
 
         return stats
 
     def social_relations_model(self, summarize_results=True, nan_replace=True):
-        '''Estimate the social relations model from a matrix for a round-robin design
-
+        '''Estimate the social relations model from a matrix for a round-robin design.
+        
         X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \episolon_{ijl}
 
         where X_{ij} is the score for person i rating person j, m is the group mean,
@@ -1139,7 +1139,7 @@ class Adjacency(object):
             if data.is_single_matrix:
                 X, coord = fix_missing(data)
             else:
-                X = []; coord = [];
+                X = []; coord = []
                 for d in data:
                     m, c = fix_missing(d)
                     X.append(m)

@@ -8,7 +8,7 @@ from nltools.data import (Brain_Data,
                           Adjacency,
                           Groupby)
 from nltools.stats import threshold, align
-from nltools.mask import create_sphere
+from nltools.mask import create_sphere, roi_to_brain
 from nltools.utils import get_resource_path
 from nltools.mask import expand_mask
 # from nltools.prefs import MNI_Template
@@ -139,7 +139,9 @@ def test_append(sim_brain_data):
 def test_ttest(sim_brain_data):
     out = sim_brain_data.ttest()
     assert out['t'].shape()[0] == shape_2d[1]
-    distance = sim_brain_data.distance(method='correlation')
+
+def test_distance(sim_brain_data):
+    distance = sim_brain_data.distance(metric='correlation')
     assert isinstance(distance, Adjacency)
     assert distance.square_shape()[0] == shape_2d[0]
 
@@ -203,14 +205,14 @@ def test_extract_roi(sim_brain_data):
     assert len(sim_brain_data.extract_roi(mask, metric='median')) == shape_2d[0]
     n_components = 2
     assert sim_brain_data.extract_roi(mask, metric='pca', n_components=n_components).shape == (n_components, shape_2d[0])
-    with pytest.raises(ValueError):
+    with pytest.raises(NotImplementedError):
         sim_brain_data.extract_roi(mask, metric='p')
 
     assert isinstance(sim_brain_data[0].extract_roi(mask, metric='mean'), (float, np.floating))
     assert isinstance(sim_brain_data[0].extract_roi(mask, metric='median'), (float, np.floating))
     with pytest.raises(ValueError):
         sim_brain_data[0].extract_roi(mask, metric='pca')
-    with pytest.raises(ValueError):
+    with pytest.raises(NotImplementedError):
         sim_brain_data[0].extract_roi(mask, metric='p')
 
     s1 = create_sphere([15, 10, -8], radius=10)
@@ -218,11 +220,11 @@ def test_extract_roi(sim_brain_data):
     s3 = create_sphere([0, -15, -8], radius=10)
     masks = Brain_Data([s1, s2, s3])
     mask = roi_to_brain([1,2,3], masks)
-    assert len(sim_brain_data[0].extract_roi(mask, metric='mean')) == len(mask)
-    assert len(sim_brain_data[0].extract_roi(mask, metric='median')) == len(mask)
-    assert sim_brain_data.extract_roi(mask, metric='mean').shape == (len(mask), shape_2d[0])
-    assert sim_brain_data.extract_roi(mask, metric='median').shape == (len(mask), shape_2d[0])
-    assert len(sim_brain_data.extract_roi(mask, metric='pca', n_components=n_components)) == len(mask)
+    assert len(sim_brain_data[0].extract_roi(mask, metric='mean')) == len(masks)
+    assert len(sim_brain_data[0].extract_roi(mask, metric='median')) == len(masks)
+    assert sim_brain_data.extract_roi(mask, metric='mean').shape == (len(masks), shape_2d[0])
+    assert sim_brain_data.extract_roi(mask, metric='median').shape == (len(masks), shape_2d[0])
+    assert len(sim_brain_data.extract_roi(mask, metric='pca', n_components=n_components)) == len(masks)
 
 def test_r_to_z(sim_brain_data):
     z = sim_brain_data.r_to_z()
@@ -258,7 +260,6 @@ def test_groupby_aggregate(sim_brain_data):
     mn = sim_brain_data.aggregate(mask, 'mean')
     assert isinstance(mn, Brain_Data)
     assert len(mn.shape()) == 1
-
 
 def test_threshold():
     s1 = create_sphere([12, 10, -8], radius=10)
