@@ -1009,7 +1009,7 @@ def regress(X, Y, mode='ols', stats='full', **kwargs):
 
         # Then only compute t-stats at voxels where the standard error is at least .000001
         t = np.zeros_like(b)
-        t[stderr > 1.e-6] = b[stderr > 1.e-6] / stderr[stderr > 1.e-6]  
+        t[stderr > 1.e-6] = b[stderr > 1.e-6] / stderr[stderr > 1.e-6]
 
         # Return betas and ts and stop other computations if that's all that's requested
         if stats == 'tstats':
@@ -1080,7 +1080,7 @@ def regress_permutation(X, Y, n_permute=5000, tail=2, random_state=None, verbose
     # We could optionally Save (X.T * X)^-1 * X.T so we dont have to invert each permutation, but this would require not relying on regress() and because the second-level design mat is probably on the small side we might not actually save that much time
     # inv = np.linalg.pinv(X)
 
-    for i in range(n_permute):
+    for _ in range(n_permute):
         _, _t = regress(func(X.values), Y, stats='tstats', **kwargs)
         if tail == 2:
             p += np.abs(_t) >= np.abs(t)
@@ -1255,7 +1255,7 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
 
 def procrustes(data1, data2):
     '''Procrustes analysis, a similarity test for two data sets.
-
+    
     Each input matrix is a set of points or vectors (the rows of the matrix).
     The dimension of the space is the number of columns of each matrix. Given
     two identically sized matrices, procrustes standardizes both such that:

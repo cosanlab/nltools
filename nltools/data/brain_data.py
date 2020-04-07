@@ -47,6 +47,7 @@ from nltools.utils import (set_algorithm,
                            _bootstrap_apply_func,
                            set_decomposition_algorithm,
                            check_brain_data,
+                           check_brain_data_is_single,
                            _roi_func,
                            get_mni_from_img_resolution,
                            _df_meta_to_arr)
@@ -207,7 +208,7 @@ class Brain_Data(object):
 
     def __getitem__(self, index):
         new = deepcopy(self)
-        if isinstance(index, int, np.integer):
+        if isinstance(index, (int, np.integer)):
             new.data = np.array(self.data[index, :]).squeeze()
         else:
             if isinstance(index, slice):
@@ -245,7 +246,7 @@ class Brain_Data(object):
         new = deepcopy(self)
         if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = new.data + y
-        if isinstance(y, Brain_Data):
+        elif isinstance(y, Brain_Data):
             if self.shape() != y.shape():
                 raise ValueError("Both Brain_Data() instances need to be the "
                                  "same shape.")
@@ -495,14 +496,14 @@ class Brain_Data(object):
                 anatomical = get_mni_from_img_resolution(self, img_type='plot')
 
             if self.data.ndim == 1:
-                f, a = plt.subplots(nrows=1, figsize=(15, 2))
+                _, a = plt.subplots(nrows=1, figsize=(15, 2))
                 plot_stat_map(self.to_nifti(), anatomical,
                               cut_coords=range(-40, 50, 10), display_mode='z',
                               black_bg=True, colorbar=True, draw_cross=False,
                               axes=a, **kwargs)
             else:
                 n_subs = np.minimum(self.data.shape[0], limit)
-                f, a = plt.subplots(nrows=n_subs, figsize=(15, len(self) * 2))
+                _, a = plt.subplots(nrows=n_subs, figsize=(15, len(self) * 2))
                 for i in range(n_subs):
                     plot_stat_map(self[i].to_nifti(), anatomical,
                                   cut_coords=range(-40, 50, 10),
@@ -512,7 +513,7 @@ class Brain_Data(object):
                                   draw_cross=False,
                                   axes=a[i],
                                   **kwargs)
-            return 
+            return
         elif view in ['glass', 'mni', 'full']:
             if self.data.ndim == 1:
                 return plot_brain(self, how=view, thr_upper=threshold_upper, thr_lower=threshold_lower, **kwargs)
@@ -1236,8 +1237,12 @@ class Brain_Data(object):
     def apply_mask(self, mask):
         """ Mask Brain_Data instance
 
+        Note target data will be resampled into the same space as the mask. If you would like the mask 
+        resampled into the Brain_Data space, then you need to resample the mask into target space before 
+        running this function.
+
         Args:
-            mask: (Brain_Data or nifti object) mask to apply to Brain_Data object
+            mask: (Brain_Data or nifti object) mask to apply to Brain_Data object. 
 
         Returns:
             masked: (Brain_Data) masked Brain_Data object
@@ -1252,7 +1257,9 @@ class Brain_Data(object):
         if check_brain_data_is_single(self):
             n_vox = len(self)
         else:
-            n_vox = self.shape()[1]    
+            n_vox = self.shape()[1]
+
+        nifti_masker = NiftiMasker(mask_img=mask.to_nifti())
 
         if n_vox == len(mask):
             if check_brain_data_is_single(masked):
@@ -1261,11 +1268,11 @@ class Brain_Data(object):
                 masked.data = masked.data[:, mask.data.astype(bool)]
             masked.nifti_masker = nifti_masker
         else:
-            nifti_masker = NiftiMasker(mask_img=mask.to_nifti())
             masked.data = nifti_masker.fit_transform(masked.to_nifti())
             masked.nifti_masker = nifti_masker
         if (len(masked.shape()) > 1) & (masked.shape()[0] == 1):
             masked.data = masked.data.flatten()
+        return masked
 
     def extract_roi(self, mask, metric='mean', n_components=None):
         """ Extract activity from mask
@@ -1281,6 +1288,9 @@ class Brain_Data(object):
             out: mean within each ROI across images
 
         """
+
+        metrics = ['mean','median','pca']
+
         mask = check_brain_data(mask)
         ma = mask.copy()
             
@@ -1308,18 +1318,18 @@ class Brain_Data(object):
             # make sure each ROI id is an integer
             ma.data = np.round(ma.data).astype(int)
             all_mask = expand_mask(ma)
-            if check_brain_data_is_single(masked):
+            if check_brain_data_is_single(self):
                 if metric == 'mean':
-                    out = [self.apply_mask(m).mean() for m in all_mask]
+                    out = np.array([self.apply_mask(m).mean() for m in all_mask])
                 elif metric == 'median':
-                    out = [self.apply_mask(m).median() for m in all_mask]
+                    out = np.array([self.apply_mask(m).median() for m in all_mask])
                 else:
                     raise ValueError('Not possible to run PCA on a single image')
             else:
                 if metric == 'mean':
-                    out = [self.apply_mask(m).mean(axis=1) for m in all_mask]
+                    out = np.array([self.apply_mask(m).mean(axis=1) for m in all_mask])
                 elif metric == 'median':
-                    out = [self.apply_mask(m).median(axis=1) for m in all_mask]
+                    out = np.array([self.apply_mask(m).median(axis=1) for m in all_mask])
                 else:
                     out = []
                     for m in all_mask:
@@ -1328,6 +1338,7 @@ class Brain_Data(object):
                         out.append(output['weights'].T)
         else:
             raise ValueError('Mask must be binary or integers')
+        return out
 
     def icc(self, icc_type='icc2'):
         ''' Calculate intraclass correlation coefficient for data within

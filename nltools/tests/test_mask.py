@@ -1,6 +1,8 @@
 from nltools.mask import create_sphere, roi_to_brain
+from nltools.data import Brain_Data
 import numpy as np
 import pandas as pd
+
 
 def test_create_sphere():
     # Test values update to reflect the fact that standard Brain_Data mask has few voxels because ventricles are 0'd out
@@ -12,8 +14,6 @@ def test_create_sphere():
     a = create_sphere(radius=10, coordinates=[[0, 0, 0], [15, 0, 25]])
     assert np.sum(a.get_data()) >= 1013  # 1051
 
-def test_append(sim_brain_data):
-    assert sim_brain_data.append(sim_brain_data).shape()[0] == shape_2d[0]*2
 
 def test_roi_to_brain():
     s1 = create_sphere([15, 10, -8], radius=10)

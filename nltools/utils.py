@@ -204,8 +204,7 @@ def set_decomposition_algorithm(algorithm, n_components=None, *args, **kwargs):
         'nnmf': 'sklearn.decomposition.NMF',
         'fa': 'sklearn.decomposition.FactorAnalysis',
         'dictionary': 'sklearn.decomposition.DictionaryLearning',
-        'kernelpca': 'sklearn.decomposition.KernelPCA'      
-        }
+        'kernelpca': 'sklearn.decomposition.KernelPCA'}
 
     if algorithm in algs.keys():
         alg = load_class(algs[algorithm])
@@ -319,7 +318,7 @@ def check_brain_data_is_single(data):
         return False
     else:
         return True
-        
+
 def _roi_func(brain, roi, algorithm, cv_dict, **kwargs):
     '''Brain_Data.predict_multi() helper function'''
     return brain.apply_mask(roi).predict(algorithm=algorithm, cv_dict=cv_dict, plot=False, **kwargs)
