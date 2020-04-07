@@ -178,9 +178,9 @@ def roi_to_brain(data, mask_x):
     must correspond to ROI numbers.
 
     This is useful for populating a parcellation scheme by a vector of Values
-    
+
     Args:
-        data: Pandas series or dataframe of ROI by observation
+        data: Pandas series, dataframe, list, np.array of ROI by observation
         mask_x: an expanded binary mask
     Returns:
         out: (Brain_Data) Brain_Data instance where each ROI is now populated
@@ -197,6 +197,32 @@ def roi_to_brain(data, mask_x):
             raise ValueError('Data must have the same number of rows as mask has ROIs.')
         return Brain_Data([mask_x[x]*data[x] for x in data.keys()]).sum()
 
+    if not isinstance(data, (pd.Series, pd.DataFrame)):
+        if isinstance(data, list):
+            if len(data) != len(mask_x):
+                raise ValueError('Data must have the same number of rows as mask has ROIs.')
+            else:
+                data = pd.Series(data)
+        elif isinstance(data, np.ndarray):
+            if len(data.shape) == 1:
+                if len(data) != len(mask_x):
+                    raise ValueError('Data must have the same number of rows as mask has ROIs.')
+                else:
+                    data = pd.Series(data)
+            elif len(data.shape) == 2:
+                data = pd.DataFrame(data)
+                if data.shape[0] != len(mask_x):
+                    if data.shape[1] == len(mask_x):
+                        data = data.T
+                    else:
+                        raise ValueError('Data must have the same number of rows as rois in mask')
+            else:
+                raise NotImplementedError
+
+        else:
+            raise NotImplementedError
+
+
     if len(mask_x) != data.shape[0]:
         raise ValueError('Data must have the same number of rows as mask has ROIs.')
 
@@ -204,3 +230,5 @@ def roi_to_brain(data, mask_x):
         return series_to_brain(data, mask_x)
     elif isinstance(data, pd.DataFrame):
         return Brain_Data([series_to_brain(data[x], mask_x) for x in data.keys()])
+    else:
+        raise ValueError("Data must be a pandas series or data frame.")
