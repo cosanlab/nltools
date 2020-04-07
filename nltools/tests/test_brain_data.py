@@ -1,4 +1,5 @@
 import os
+import pytest
 import numpy as np
 import nibabel as nb
 import pandas as pd
@@ -7,7 +8,7 @@ from nltools.data import (Brain_Data,
                           Adjacency,
                           Groupby)
 from nltools.stats import threshold, align
-from nltools.mask import create_sphere
+from nltools.mask import create_sphere, roi_to_brain
 from nltools.utils import get_resource_path
 from nltools.mask import expand_mask
 # from nltools.prefs import MNI_Template
@@ -69,19 +70,28 @@ def test_load(tmpdir):
 def test_shape(sim_brain_data):
     assert sim_brain_data.shape() == shape_2d
 
-
 def test_mean(sim_brain_data):
     assert sim_brain_data.mean().shape()[0] == shape_2d[1]
+    assert sim_brain_data.mean().shape()[0] == shape_2d[1]
+    assert len(sim_brain_data.mean(axis=1)) == shape_2d[0]
+    with pytest.raises(ValueError):
+        sim_brain_data.mean(axis='1')
+    assert isinstance(sim_brain_data[0].mean(), (float, np.floating))
 
+def test_median(sim_brain_data):
+    assert sim_brain_data.median().shape()[0] == shape_2d[1]
+    assert sim_brain_data.median().shape()[0] == shape_2d[1]
+    assert len(sim_brain_data.median(axis=1)) == shape_2d[0]
+    with pytest.raises(ValueError):
+        sim_brain_data.median(axis='1')
+    assert isinstance(sim_brain_data[0].median(), (float, np.floating))
 
 def test_std(sim_brain_data):
     assert sim_brain_data.std().shape()[0] == shape_2d[1]
 
-
 def test_sum(sim_brain_data):
     s = sim_brain_data.sum()
     assert s.shape() == sim_brain_data[1].shape()
-
 
 def test_add(sim_brain_data):
     new = sim_brain_data + sim_brain_data
@@ -118,24 +128,22 @@ def test_indexing(sim_brain_data):
     assert d.shape[0:3] == shape_3d
     assert Brain_Data(d)
 
-
 def test_concatenate(sim_brain_data):
     out = Brain_Data([x for x in sim_brain_data])
     assert isinstance(out, Brain_Data)
     assert len(out) == len(sim_brain_data)
 
-
 def test_append(sim_brain_data):
     assert sim_brain_data.append(sim_brain_data).shape()[0] == shape_2d[0]*2
-
 
 def test_ttest(sim_brain_data):
     out = sim_brain_data.ttest()
     assert out['t'].shape()[0] == shape_2d[1]
-    distance = sim_brain_data.distance(method='correlation')
+
+def test_distance(sim_brain_data):
+    distance = sim_brain_data.distance(metric='correlation')
     assert isinstance(distance, Adjacency)
     assert distance.square_shape()[0] == shape_2d[0]
-
 
 def test_regress(sim_brain_data):
     sim_brain_data.X = pd.DataFrame({'Intercept': np.ones(len(sim_brain_data.Y)),
@@ -162,7 +170,6 @@ def test_regress(sim_brain_data):
     i = 1
     tt = threshold(out['t'][i], out['p'][i], .05)
     assert isinstance(tt, Brain_Data)
-
 
 def test_randomise(sim_brain_data):
     sim_brain_data.X = pd.DataFrame({'Intercept': np.ones(len(sim_brain_data.Y))})
@@ -192,27 +199,48 @@ def test_apply_mask(sim_brain_data):
     assert isinstance(s1, nb.Nifti1Image)
     masked_dat = sim_brain_data.apply_mask(s1)
     assert masked_dat.shape()[1] == np.sum(s1.get_data() != 0)
+    masked_dat = sim_brain_data.apply_mask(s1, resample_mask_to_brain=True)
+    assert masked_dat.shape()[1] == np.sum(s1.get_data() != 0)
 
 
 def test_extract_roi(sim_brain_data):
     mask = create_sphere([12, 10, -8], radius=10)
-    assert len(sim_brain_data.extract_roi(mask)) == shape_2d[0]
+    assert len(sim_brain_data.extract_roi(mask, metric='mean')) == shape_2d[0]
+    assert len(sim_brain_data.extract_roi(mask, metric='median')) == shape_2d[0]
+    n_components = 2
+    assert sim_brain_data.extract_roi(mask, metric='pca', n_components=n_components).shape == (n_components, shape_2d[0])
+    with pytest.raises(NotImplementedError):
+        sim_brain_data.extract_roi(mask, metric='p')
 
+    assert isinstance(sim_brain_data[0].extract_roi(mask, metric='mean'), (float, np.floating))
+    assert isinstance(sim_brain_data[0].extract_roi(mask, metric='median'), (float, np.floating))
+    with pytest.raises(ValueError):
+        sim_brain_data[0].extract_roi(mask, metric='pca')
+    with pytest.raises(NotImplementedError):
+        sim_brain_data[0].extract_roi(mask, metric='p')
+
+    s1 = create_sphere([15, 10, -8], radius=10)
+    s2 = create_sphere([-15, 10, -8], radius=10)
+    s3 = create_sphere([0, -15, -8], radius=10)
+    masks = Brain_Data([s1, s2, s3])
+    mask = roi_to_brain([1,2,3], masks)
+    assert len(sim_brain_data[0].extract_roi(mask, metric='mean')) == len(masks)
+    assert len(sim_brain_data[0].extract_roi(mask, metric='median')) == len(masks)
+    assert sim_brain_data.extract_roi(mask, metric='mean').shape == (len(masks), shape_2d[0])
+    assert sim_brain_data.extract_roi(mask, metric='median').shape == (len(masks), shape_2d[0])
+    assert len(sim_brain_data.extract_roi(mask, metric='pca', n_components=n_components)) == len(masks)
 
 def test_r_to_z(sim_brain_data):
     z = sim_brain_data.r_to_z()
     assert z.shape() == sim_brain_data.shape()
 
-
 def test_copy(sim_brain_data):
     d_copy = sim_brain_data.copy()
     assert d_copy.shape() == sim_brain_data.shape()
 
-
 def test_detrend(sim_brain_data):
     detrend = sim_brain_data.detrend()
     assert detrend.shape() == sim_brain_data.shape()
-
 
 def test_standardize(sim_brain_data):
     s = sim_brain_data.standardize()
@@ -236,7 +264,6 @@ def test_groupby_aggregate(sim_brain_data):
     mn = sim_brain_data.aggregate(mask, 'mean')
     assert isinstance(mn, Brain_Data)
     assert len(mn.shape()) == 1
-
 
 def test_threshold():
     s1 = create_sphere([12, 10, -8], radius=10)
