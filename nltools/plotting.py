@@ -755,7 +755,7 @@ def plot_silhouette(
             outAll = outAll.append(temp)
         return outAll
     else:
-        return 
+        return
 
 def component_viewer(output, tr=2.0):
     ''' This a function to interactively view the results of a decomposition analysis
@@ -763,7 +763,6 @@ def component_viewer(output, tr=2.0):
     Args:
         output: (dict) output dictionary from running Brain_data.decompose()
         tr: (float) repetition time of data
-        
     '''
 
     def component_inspector(component, threshold):
