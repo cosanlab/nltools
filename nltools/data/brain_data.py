@@ -1234,15 +1234,15 @@ class Brain_Data(object):
             out = Brain_Data(out, mask=self.mask)
         return out
 
-    def apply_mask(self, mask):
+    def apply_mask(self, mask, resample_mask_to_brain=False):
         """ Mask Brain_Data instance
 
-        Note target data will be resampled into the same space as the mask. If you would like the mask 
-        resampled into the Brain_Data space, then you need to resample the mask into target space before 
-        running this function.
+        Note target data will be resampled into the same space as the mask. If you would like the mask
+        resampled into the Brain_Data space, then set resample_mask_to_brain=True. 
 
         Args:
-            mask: (Brain_Data or nifti object) mask to apply to Brain_Data object. 
+            mask: (Brain_Data or nifti object) mask to apply to Brain_Data object.
+            resample_mask_to_brain: (bool) Will resample mask to brain space before applying mask (default=False).
 
         Returns:
             masked: (Brain_Data) masked Brain_Data object
@@ -1259,7 +1259,9 @@ class Brain_Data(object):
         else:
             n_vox = self.shape()[1]
 
-        nifti_masker = NiftiMasker(mask_img=mask.to_nifti())
+        # if resample_mask_to_brain: 
+
+        nifti_masker = NiftiMasker(mask_img=mask.to_nifti()).fit()
 
         if n_vox == len(mask):
             if check_brain_data_is_single(masked):
@@ -1293,7 +1295,7 @@ class Brain_Data(object):
 
         mask = check_brain_data(mask)
         ma = mask.copy()
-            
+
         if metric not in metrics:
             raise NotImplementedError
 
