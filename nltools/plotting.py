@@ -445,7 +445,7 @@ def roc_plot(fpr, tpr):
     plt.xlabel("(1 - Specificity)", fontsize=16)
     plt.ylabel("Sensitivity", fontsize=16)
     plt.title("ROC Plot", fontsize=18)
-    return 
+    return
 
 
 def plot_stacked_adjacency(adjacency1, adjacency2, normalize=True, **kwargs):
@@ -759,7 +759,7 @@ def plot_silhouette(
 
 def component_viewer(output, tr=2.0):
     ''' This a function to interactively view the results of a decomposition analysis
-    
+
     Args:
         output: (dict) output dictionary from running Brain_data.decompose()
         tr: (float) repetition time of data

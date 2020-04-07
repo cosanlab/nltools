@@ -357,7 +357,7 @@ class Adjacency(object):
                                 xticklabels=self.labels[i],
                                 yticklabels=self.labels[i],
                                 ax=a[i], *args, **kwargs)
-        return 
+        return
 
     def mean(self, axis=0):
         ''' Calculate mean of Adjacency
@@ -783,8 +783,8 @@ class Adjacency(object):
         bootstrapped = Adjacency(bootstrapped)
         return summarize_bootstrap(bootstrapped, save_weights=save_weights)
 
-    def plot_mds(self, n_components=2, metric=True, labels=None, labels_color=None, 
-                 cmap=plt.cm.hot_r, n_jobs=-1, view=(30, 20), 
+    def plot_mds(self, n_components=2, metric=True, labels=None, labels_color=None,
+                 cmap=plt.cm.hot_r, n_jobs=-1, view=(30, 20),
                  figsize=[12, 8], ax=None, *args, **kwargs):
         ''' Plot Multidimensional Scaling
 
@@ -822,7 +822,6 @@ class Adjacency(object):
 
         # Create Plot
         if ax is None:  # Create axis
-            returnFig = True
             fig = plt.figure(figsize=figsize)
             if n_components == 3:
                 ax = fig.add_subplot(111, projection='3d')
