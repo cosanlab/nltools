@@ -178,7 +178,7 @@ def roi_to_brain(data, mask_x):
     must correspond to ROI numbers.
 
     This is useful for populating a parcellation scheme by a vector of Values
-    
+
     Args:
         data: Pandas series, dataframe, list, np.array of ROI by observation
         mask_x: an expanded binary mask

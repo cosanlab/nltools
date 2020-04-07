@@ -193,11 +193,15 @@ def test_randomise(sim_brain_data):
     assert out['beta'].shape() == (2, shape_2d[1],)
     assert out['t'].shape() == (2, shape_2d[1],)
 
+
 def test_apply_mask(sim_brain_data):
     s1 = create_sphere([12, 10, -8], radius=10)
     assert isinstance(s1, nb.Nifti1Image)
     masked_dat = sim_brain_data.apply_mask(s1)
     assert masked_dat.shape()[1] == np.sum(s1.get_data() != 0)
+    masked_dat = sim_brain_data.apply_mask(s1, resample_mask_to_brain=True)
+    assert masked_dat.shape()[1] == np.sum(s1.get_data() != 0)
+
 
 def test_extract_roi(sim_brain_data):
     mask = create_sphere([12, 10, -8], radius=10)

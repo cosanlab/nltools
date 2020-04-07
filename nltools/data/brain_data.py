@@ -38,7 +38,7 @@ from nltools.mask import expand_mask
 from nltools.analysis import Roc
 from nilearn.input_data import NiftiMasker
 from nilearn.plotting import plot_stat_map
-from nilearn.image import resample_img, smooth_img
+from nilearn.image import smooth_img, resample_to_img
 from nilearn.masking import intersect_masks
 from nilearn.regions import connected_regions, connected_label_regions
 from nltools.utils import (set_algorithm,
@@ -1238,7 +1238,7 @@ class Brain_Data(object):
         """ Mask Brain_Data instance
 
         Note target data will be resampled into the same space as the mask. If you would like the mask
-        resampled into the Brain_Data space, then set resample_mask_to_brain=True. 
+        resampled into the Brain_Data space, then set resample_mask_to_brain=True.
 
         Args:
             mask: (Brain_Data or nifti object) mask to apply to Brain_Data object.
@@ -1259,7 +1259,9 @@ class Brain_Data(object):
         else:
             n_vox = self.shape()[1]
 
-        # if resample_mask_to_brain: 
+        if resample_mask_to_brain: 
+            mask = resample_to_img(mask.to_nifti(), masked.to_nifti())
+            mask = check_brain_data(mask, masked.mask)
 
         nifti_masker = NiftiMasker(mask_img=mask.to_nifti()).fit()
 
