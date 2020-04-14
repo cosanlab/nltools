@@ -113,7 +113,7 @@ def test_multiply(sim_brain_data):
     c1 = [.5, .5, -.5, -.5]
     new = sim_brain_data[0:4]*c1
     new2 = sim_brain_data[0]*.5 + sim_brain_data[1]*.5 - sim_brain_data[2]*.5 - sim_brain_data[3]*.5
-    np.testing.assert_almost_equal(0, (new-new2).sum(), decimal=4)
+    np.testing.assert_almost_equal((new-new2).sum(), 0, decimal=4)
 
 def test_divide(sim_brain_data):
     new = sim_brain_data / sim_brain_data
