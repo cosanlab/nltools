@@ -34,7 +34,6 @@ def test_arithmetic(sim_adjacency_directed):
                              (sim_adjacency_directed*2).data))
     assert np.all(np.isclose((sim_adjacency_directed*2 - sim_adjacency_directed).data,
                              sim_adjacency_directed.data))
-    np.testing.assert_almost_equal(((2*sim_adjacency_directed/2) / sim_adjacency_directed).mean(), 1, decimal=4)
 
 def test_copy(sim_adjacency_multiple):
     assert np.all(sim_adjacency_multiple.data == sim_adjacency_multiple.copy().data)
