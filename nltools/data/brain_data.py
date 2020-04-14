@@ -399,16 +399,28 @@ class Brain_Data(object):
                 raise ValueError('axis must be 0 or 1')
         return out
 
-    def std(self):
-        """ Get standard deviation of each voxel across images. """
+    def std(self, axis=0):
+        ''' Get standard deviation of each voxel or image.
+            
+            Args:
+                axis: (int) across images=0 (default), within images=1
+            
+            Returns:
+                out: (float/np.array/Brain_Data)
+        '''
 
         out = deepcopy(self)
-        if len(self.shape()) > 1:
-            out.data = np.std(self.data, axis=0)
-            out.X = pd.DataFrame()
-            out.Y = pd.DataFrame()
-        else:
+        if check_brain_data_is_single(self):
             out = np.std(self.data)
+        else:
+            if axis == 0:
+                out.data = np.std(self.data, axis=0)
+                out.X = pd.DataFrame()
+                out.Y = pd.DataFrame()
+            elif axis == 1:
+                out = np.std(self.data, axis=1)
+            else:
+                raise ValueError('axis must be 0 or 1')
         return out
 
     def sum(self):
