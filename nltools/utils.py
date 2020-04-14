@@ -192,7 +192,8 @@ def set_decomposition_algorithm(algorithm, n_components=None, *args, **kwargs):
     Args:
         algorithm: The decomposition algorithm to use. Either a string or an
                     (uninitialized) scikit-learn decomposition object.
-                    If string must be one of 'pca','nnmf', ica','fa'
+                    If string must be one of 'pca','nnmf', ica','fa',
+                    'dictionary', 'kernelpca'.
         kwargs: Additional keyword arguments to pass onto the scikit-learn
                 clustering object.
 
@@ -211,11 +212,12 @@ def set_decomposition_algorithm(algorithm, n_components=None, *args, **kwargs):
         return getattr(module, class_str)
 
     algs = {
-        "pca": "sklearn.decomposition.PCA",
-        "ica": "sklearn.decomposition.FastICA",
-        "nnmf": "sklearn.decomposition.NMF",
-        "fa": "sklearn.decomposition.FactorAnalysis",
-    }
+        'pca': 'sklearn.decomposition.PCA',
+        'ica': 'sklearn.decomposition.FastICA',
+        'nnmf': 'sklearn.decomposition.NMF',
+        'fa': 'sklearn.decomposition.FactorAnalysis',
+        'dictionary': 'sklearn.decomposition.DictionaryLearning',
+        'kernelpca': 'sklearn.decomposition.KernelPCA'}
 
     if algorithm in algs.keys():
         alg = load_class(algs[algorithm])
@@ -304,17 +306,35 @@ def check_square_numpy_matrix(data):
     return data
 
 
-def check_brain_data(data):
-    """Check if data is a Brain_Data Instance."""
+def check_brain_data(data, mask=None):
+    '''Check if data is a Brain_Data Instance.'''
     from nltools.data import Brain_Data
 
     if not isinstance(data, Brain_Data):
         if isinstance(data, nib.Nifti1Image):
-            data = Brain_Data(data)
+            data = Brain_Data(data, mask=mask)
         else:
             raise ValueError("Make sure data is a Brain_Data instance.")
+    else:
+        if mask is not None:
+            data = data.apply_mask(mask)
     return data
 
+def check_brain_data_is_single(data):
+    '''Logical test if Brain_Data instance is a single image
+    
+    Args:
+        data: brain data
+    
+    Returns:
+        (bool)
+    
+    '''
+    data = check_brain_data(data)
+    if len(data.shape()) > 1:
+        return False
+    else:
+        return True
 
 def _roi_func(brain, roi, algorithm, cv_dict, **kwargs):
     """Brain_Data.predict_multi() helper function"""
@@ -342,8 +362,8 @@ def generate_jitter(n_trials, mean_time=5, min_time=2, max_time=12, atol=0.2):
 
     Returns:
         data: (np.array) jitter for each trial
-
-    """
+ 
+    '''
 
     def generate_data(n_trials, scale=5, min_time=2, max_time=12):
         data = []

@@ -14,45 +14,30 @@ def test_type_single(sim_adjacency_single):
     assert dat_single2.matrix_type == "similarity"
     assert sim_adjacency_single.issymmetric
 
-
 def test_type_directed(sim_adjacency_directed):
     assert not sim_adjacency_directed.issymmetric
-
 
 def test_length(sim_adjacency_multiple):
     assert len(sim_adjacency_multiple) == sim_adjacency_multiple.data.shape[0]
     assert len(sim_adjacency_multiple[0]) == 1
-
 
 def test_indexing(sim_adjacency_multiple):
     assert len(sim_adjacency_multiple[0]) == 1
     assert len(sim_adjacency_multiple[0:4]) == 4
     assert len(sim_adjacency_multiple[0, 2, 3]) == 3
 
-
 def test_arithmetic(sim_adjacency_directed):
-    assert (sim_adjacency_directed + 5).data[0] == sim_adjacency_directed.data[0] + 5
-    assert (sim_adjacency_directed - 0.5).data[0] == sim_adjacency_directed.data[
-        0
-    ] - 0.5
-    assert (sim_adjacency_directed * 5).data[0] == sim_adjacency_directed.data[0] * 5
-    assert np.all(
-        np.isclose(
-            (sim_adjacency_directed + sim_adjacency_directed).data,
-            (sim_adjacency_directed * 2).data,
-        )
-    )
-    assert np.all(
-        np.isclose(
-            (sim_adjacency_directed * 2 - sim_adjacency_directed).data,
-            sim_adjacency_directed.data,
-        )
-    )
-
+    assert(sim_adjacency_directed+5).data[0] == sim_adjacency_directed.data[0]+5
+    assert(sim_adjacency_directed-.5).data[0] == sim_adjacency_directed.data[0]-.5
+    assert(sim_adjacency_directed*5).data[0] == sim_adjacency_directed.data[0]*5
+    assert np.all(np.isclose((sim_adjacency_directed + sim_adjacency_directed).data,
+                             (sim_adjacency_directed*2).data))
+    assert np.all(np.isclose((sim_adjacency_directed*2 - sim_adjacency_directed).data,
+                             sim_adjacency_directed.data))
+    np.testing.assert_almost_equal(((2*sim_adjacency_directed/2) / sim_adjacency_directed).mean(), 1, decimal=4)
 
 def test_copy(sim_adjacency_multiple):
     assert np.all(sim_adjacency_multiple.data == sim_adjacency_multiple.copy().data)
-
 
 def test_squareform(sim_adjacency_multiple):
     assert len(sim_adjacency_multiple.squareform()) == len(sim_adjacency_multiple)
@@ -60,7 +45,6 @@ def test_squareform(sim_adjacency_multiple):
         sim_adjacency_multiple[0].squareform().shape
         == sim_adjacency_multiple[0].square_shape()
     )
-
 
 def test_write_multiple(sim_adjacency_multiple, tmpdir):
     sim_adjacency_multiple.write(
@@ -254,15 +238,12 @@ def test_bootstrap(sim_adjacency_multiple):
 
 
 def test_plot(sim_adjacency_multiple):
-    f = sim_adjacency_multiple[0].plot()
-    assert isinstance(f, plt.Figure)
-    f = sim_adjacency_multiple.plot()
-    assert isinstance(f, plt.Figure)
+    sim_adjacency_multiple[0].plot()
+    sim_adjacency_multiple.plot()
 
 
 def test_plot_mds(sim_adjacency_single):
-    f = sim_adjacency_single.plot_mds()
-    assert isinstance(f, plt.Figure)
+    sim_adjacency_single.plot_mds()
 
 
 def test_similarity_conversion(sim_adjacency_single):
@@ -320,7 +301,6 @@ def test_regression():
     assert np.allclose(
         np.array([out["Group1"], out["Group2"]]), np.array([1, 0]), rtol=1e-01
     )  # np.allclose(np.sum(stats['beta']-np.array([1,2,3])),0)
-
 
 def test_social_relations_model():
     data = Adjacency(

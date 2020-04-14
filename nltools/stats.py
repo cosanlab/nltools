@@ -103,7 +103,7 @@ def fdr(p, q=0.05):
     discovery rate q. Written by Tal Yarkoni
 
     Args:
-        p: (np.array) vector of p-values (only considers non-zero p-values)
+        p: (np.array) vector of p-values 
         q: (float) false discovery rate level
 
     Returns:
@@ -550,7 +550,7 @@ def one_sample_permutation(
 
     data = np.array(data)
     stats = dict()
-    stats["mean"] = np.mean(data)
+    stats['mean'] = np.nanmean(data)
 
     all_p = Parallel(n_jobs=n_jobs)(
         delayed(_permute_sign)(data, random_state=seeds[i]) for i in range(n_permute)
@@ -589,16 +589,15 @@ def two_sample_permutation(
     seeds = random_state.randint(MAX_INT, size=n_permute)
 
     stats = dict()
-    stats["mean"] = np.mean(data1) - np.mean(data2)
-    data = pd.DataFrame(data={"Values": data1, "Group": np.ones(len(data1))})
-    data = data.append(
-        pd.DataFrame(data={"Values": data2, "Group": np.zeros(len(data2))})
-    )
-    all_p = Parallel(n_jobs=n_jobs)(
-        delayed(_permute_group)(data, random_state=seeds[i]) for i in range(n_permute)
-    )
+    stats['mean'] = np.nanmean(data1)-np.nanmean(data2)
+    data = pd.DataFrame(data={'Values': data1, 'Group': np.ones(len(data1))})
+    data = data.append(pd.DataFrame(data={
+                                        'Values': data2,
+                                        'Group': np.zeros(len(data2))}))
+    all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_group)(data,
+                                                            random_state=seeds[i]) for i in range(n_permute))
 
-    stats["p"] = _calc_pvalue(all_p, stats["mean"], tail)
+    stats['p'] = _calc_pvalue(all_p, stats['mean'], tail)
     if return_perms:
         stats["perm_dist"] = all_p
     return stats
@@ -1083,6 +1082,7 @@ def regress(X, Y, mode="ols", stats="full", **kwargs):
     if mode == "ols" or mode == "robust":
 
         b = np.dot(np.linalg.pinv(X), Y)
+        
         # Return betas and stop other computations if that's all that's requested
         if stats == "betas":
             return b.squeeze()
@@ -1103,7 +1103,10 @@ def regress(X, Y, mode="ols", stats="full", **kwargs):
             axis_func = [_robust_estimator, 0, res, X, robust_estimator, nlags]
             stderr = np.apply_along_axis(*axis_func)
 
-        t = b / stderr
+        # Then only compute t-stats at voxels where the standard error is at least .000001
+        t = np.zeros_like(b)
+        t[stderr > 1.e-6] = b[stderr > 1.e-6] / stderr[stderr > 1.e-6]
+
         # Return betas and ts and stop other computations if that's all that's requested
         if stats == "tstats":
             return b.squeeze(), t.squeeze()
@@ -1183,8 +1186,8 @@ def regress_permutation(
     # We could optionally Save (X.T * X)^-1 * X.T so we dont have to invert each permutation, but this would require not relying on regress() and because the second-level design mat is probably on the small side we might not actually save that much time
     # inv = np.linalg.pinv(X)
 
-    for i in range(n_permute):
-        _, _t = regress(func(X.values), Y, stats="tstats", **kwargs)
+    for _ in range(n_permute):
+        _, _t = regress(func(X.values), Y, stats='tstats', **kwargs)
         if tail == 2:
             p += np.abs(_t) >= np.abs(t)
         elif tail == 1:
@@ -1369,8 +1372,8 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
 
 
 def procrustes(data1, data2):
-    """Procrustes analysis, a similarity test for two data sets.
-
+    '''Procrustes analysis, a similarity test for two data sets.
+    
     Each input matrix is a set of points or vectors (the rows of the matrix).
     The dimension of the space is the number of columns of each matrix. Given
     two identically sized matrices, procrustes standardizes both such that:

@@ -26,16 +26,18 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.fft import fft, fftfreq
 from nltools.stats import two_sample_permutation, one_sample_permutation
 from nilearn.plotting import plot_glass_brain, plot_stat_map, view_img, view_img_on_surf
 from nltools.prefs import MNI_Template, resolve_mni_path
 from nltools.utils import attempt_to_import
+import sklearn
 import warnings
 import os
 
 # Optional dependencies
 ipywidgets = attempt_to_import(
-    "ipywidgets", name="ipywidgets", fromlist=["interact", "fixed", "widgets"]
+    "ipywidgets", name="ipywidgets", fromlist=["interact", "fixed", "widgets", "BoundedFloatText", "BoundedIntText"]
 )
 
 
@@ -350,7 +352,7 @@ def dist_from_hyperplane_plot(stats_output):
     """
 
     if "dist_from_hyperplane_xval" in stats_output.columns:
-        fig = sns.factorplot(
+        sns.factorplot(
             "subject_id",
             "dist_from_hyperplane_xval",
             hue="Y",
@@ -358,7 +360,7 @@ def dist_from_hyperplane_plot(stats_output):
             kind="point",
         )
     else:
-        fig = sns.factorplot(
+        sns.factorplot(
             "subject_id",
             "dist_from_hyperplane_all",
             hue="Y",
@@ -368,7 +370,7 @@ def dist_from_hyperplane_plot(stats_output):
     plt.xlabel("Subject", fontsize=16)
     plt.ylabel("Distance from Hyperplane", fontsize=16)
     plt.title("Classification", fontsize=18)
-    return fig
+    return 
 
 
 def scatterplot(stats_output):
@@ -383,13 +385,13 @@ def scatterplot(stats_output):
     """
 
     if "yfit_xval" in stats_output.columns:
-        fig = sns.lmplot("Y", "yfit_xval", data=stats_output)
+        sns.lmplot("Y", "yfit_xval", data=stats_output)
     else:
-        fig = sns.lmplot("Y", "yfit_all", data=stats_output)
+        sns.lmplot("Y", "yfit_all", data=stats_output)
     plt.xlabel("Y", fontsize=16)
     plt.ylabel("Predicted Value", fontsize=16)
     plt.title("Prediction", fontsize=18)
-    return fig
+    return 
 
 
 def probability_plot(stats_output):
@@ -403,13 +405,13 @@ def probability_plot(stats_output):
 
     """
     if "Probability_xval" in stats_output.columns:
-        fig = sns.lmplot("Y", "Probability_xval", data=stats_output, logistic=True)
+        sns.lmplot("Y", "Probability_xval", data=stats_output, logistic=True)
     else:
-        fig = sns.lmplot("Y", "Probability_all", data=stats_output, logistic=True)
+        sns.lmplot("Y", "Probability_all", data=stats_output, logistic=True)
     plt.xlabel("Y", fontsize=16)
     plt.ylabel("Predicted Probability", fontsize=16)
     plt.title("Prediction", fontsize=18)
-    return fig
+    return 
 
     # # and plot the result
     # plt.figure(1, figsize=(4, 3))
@@ -435,13 +437,13 @@ def roc_plot(fpr, tpr):
 
     """
 
-    fig = plt.figure()
+    plt.figure()
     plt.plot(fpr, tpr, color="red", linewidth=3)
     # fig = sns.tsplot(tpr,fpr,color='red',linewidth=3)
     plt.xlabel("(1 - Specificity)", fontsize=16)
     plt.ylabel("Sensitivity", fontsize=16)
     plt.title("ROC Plot", fontsize=18)
-    return fig
+    return
 
 
 def plot_stacked_adjacency(adjacency1, adjacency2, normalize=True, **kwargs):
@@ -604,9 +606,9 @@ def plot_between_label_distance(
             ]["Distance"].mean()
 
     if ax is None:
-        f, ax = plt.subplots(1)
+        _, ax = plt.subplots(1)
     else:
-        f = plt.figure()
+        plt.figure()
 
     if permutation_test:
         mn_dist_out = pd.DataFrame(
@@ -640,10 +642,10 @@ def plot_between_label_distance(
             ax=ax,
             cbar=False,
         )
-        return (f, out, within_dist_out, mn_dist_out, p_dist_out)
+        return (out, within_dist_out, mn_dist_out, p_dist_out)
     else:
-        f = sns.heatmap(within_dist_out, ax=ax, square=True, **kwargs)
-        return (f, out, within_dist_out)
+        sns.heatmap(within_dist_out, ax=ax, square=True, **kwargs)
+        return (out, within_dist_out)
 
 
 def plot_silhouette(
@@ -703,9 +705,9 @@ def plot_silhouette(
     # Plot
     with sns.axes_style("white"):
         if ax is None:
-            f, ax = plt.subplots(1, figsize=figsize)
+            _, ax = plt.subplots(1, figsize=figsize)
         else:
-            f = plt.plot(figsize=figsize)
+            plt.plot(figsize=figsize)
     x_lower = 10
     labelX = []
     for labelInd in range(n_clusters):
@@ -749,7 +751,56 @@ def plot_silhouette(
             else:
                 temp["p"] = 999
             outAll = outAll.append(temp)
-        return (f, outAll)
+        return outAll
     else:
-        return f
+        return
+
+def component_viewer(output, tr=2.0):
+    ''' This a function to interactively view the results of a decomposition analysis
+
+    Args:
+        output: (dict) output dictionary from running Brain_data.decompose()
+        tr: (float) repetition time of data
+    '''
+
+    def component_inspector(component, threshold):
+        '''This a function to be used with ipywidgets to interactively view a decomposition analysis
+
+            Make sure you have tr and output assigned to variables.
+
+            Example:
+
+                from ipywidgets import BoundedFloatText, BoundedIntText
+                from ipywidgets import interact
+
+                tr = 2.4
+                output = data_filtered_smoothed.decompose(algorithm='ica', n_components=30, axis='images', whiten=True)
+
+                interact(component_inspector, component=BoundedIntText(description='Component', value=0, min=0, max=len(output['components'])-1),
+                      threshold=BoundedFloatText(description='Threshold', value=2.0, min=0, max=4, step=.1))
+
+        '''
+        _, ax = plt.subplots(nrows=3, figsize=(12,8))
+        thresholded = (output['components'][component] - output['components'][component].mean())*(1/output['components'][component].std())
+        thresholded.data[np.abs(thresholded.data) <= threshold] = 0
+        plot_stat_map(thresholded.to_nifti(), cut_coords=range(-40, 70, 10),
+                      display_mode='z', black_bg=True, colorbar=True, annotate=False,
+                      draw_cross=False, axes=ax[0])
+        if isinstance(output['decomposition_object'], (sklearn.decomposition.PCA)):
+            var_exp = output['decomposition_object'].explained_variance_ratio_[component]
+            ax[0].set_title(f"Component: {component}/{len(output['components'])}, Variance Explained: {var_exp:2.2}", fontsize=18)
+        else:
+            ax[0].set_title(f"Component: {component}/{len(output['components'])}", fontsize=18)
+
+        ax[1].plot(output['weights'][:, component], linewidth=2, color='red')
+        ax[1].set_ylabel('Intensity (AU)', fontsize=18)
+        ax[1].set_title(f'Timecourse (TR={tr})', fontsize=16)
+        y = fft(output['weights'][:, component])
+        f = fftfreq(len(y), d=tr)
+        ax[2].plot(f[f > 0], np.abs(y)[f > 0]**2)
+        ax[2].set_ylabel('Power', fontsize=18)
+        ax[2].set_xlabel('Frequency (Hz)', fontsize=16)
+
+    interact(component_inspector, component=BoundedIntText(description='Component', value=0, min=0, max=len(output['components'])-1),
+              threshold=BoundedFloatText(description='Threshold', value=2.0, min=0, max=4, step=.1))
 
