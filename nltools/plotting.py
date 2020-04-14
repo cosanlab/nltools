@@ -31,15 +31,13 @@ from nltools.stats import two_sample_permutation, one_sample_permutation
 from nilearn.plotting import plot_glass_brain, plot_stat_map, view_img, view_img_on_surf
 from nltools.prefs import MNI_Template, resolve_mni_path
 from nltools.utils import attempt_to_import
-from ipywidgets import BoundedFloatText, BoundedIntText
-from ipywidgets import interact
 import sklearn
 import warnings
 import os
 
 # Optional dependencies
 ipywidgets = attempt_to_import(
-    "ipywidgets", name="ipywidgets", fromlist=["interact", "fixed", "widgets"]
+    "ipywidgets", name="ipywidgets", fromlist=["interact", "fixed", "widgets", "BoundedFloatText", "BoundedIntText"]
 )
 
 
