@@ -348,7 +348,7 @@ class AmbiguityError(Exception):
 
 
 def generate_jitter(n_trials, mean_time=5, min_time=2, max_time=12, atol=0.2):
-    """Generate jitter from exponential distribution with constraints
+    '''Generate jitter from exponential distribution with constraints
 
     Draws from exponential distribution until the distribution satisfies the constraints:
     np.abs(np.mean(min_time > data < max_time) - mean_time) <= atol
