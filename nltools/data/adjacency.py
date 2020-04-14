@@ -1137,7 +1137,7 @@ class Adjacency(object):
 
         Returns:
             estimated effects: (pd.Series/pd.DataFrame) All of the effects estimated using SRM
-        """
+        '''
 
         def mean_square_between(x1, x2=None, df="standard"):
             """Calculate between dyad variance"""
@@ -1368,12 +1368,7 @@ class Adjacency(object):
             if data.is_single_matrix:
                 X, coord = fix_missing(data)
             else:
-<<<<<<< HEAD
-                X = []
-                coord = []
-=======
                 X = []; coord = []
->>>>>>> upstream/master
                 for d in data:
                     m, c = fix_missing(d)
                     X.append(m)
