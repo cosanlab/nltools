@@ -121,7 +121,7 @@ def test_divide(sim_brain_data):
     np.testing.assert_almost_equal(new.mean(axis=0).mean(), 1, decimal=6)
     value = 10
     new2 = sim_brain_data/value
-    np.testing.assert_almost_equal(((new2*value) - new2).mean().mean(), 0, decimal=3)
+    np.testing.assert_almost_equal(((new2*value) - new2).mean().mean(), 0, decimal=2)
     
 def test_indexing(sim_brain_data):
     index = [0, 3, 1]
