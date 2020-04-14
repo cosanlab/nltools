@@ -113,8 +113,16 @@ def test_multiply(sim_brain_data):
     c1 = [.5, .5, -.5, -.5]
     new = sim_brain_data[0:4]*c1
     new2 = sim_brain_data[0]*.5 + sim_brain_data[1]*.5 - sim_brain_data[2]*.5 - sim_brain_data[3]*.5
-    np.testing.assert_almost_equal(0, (new-new2).sum(), decimal=4)
+    np.testing.assert_almost_equal((new-new2).sum(), 0, decimal=4)
 
+def test_divide(sim_brain_data):
+    new = sim_brain_data / sim_brain_data
+    assert new.shape() == shape_2d
+    np.testing.assert_almost_equal(new.mean(axis=0).mean(), 1, decimal=6)
+    value = 10
+    new2 = sim_brain_data/value
+    np.testing.assert_almost_equal(((new2*value) - new2).mean().mean(), 0, decimal=3)
+    
 def test_indexing(sim_brain_data):
     index = [0, 3, 1]
     assert len(sim_brain_data[index]) == len(index)
