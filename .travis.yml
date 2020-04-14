@@ -22,7 +22,7 @@ install:
 - conda create -q -n testenv python=$TRAVIS_PYTHON_VERSION pip pytest numpy pandas
   scipy matplotlib scikit-learn
 - source activate testenv
-- pip install --upgrade python-coveralls pytest-cov
+- pip install --upgrade python-coveralls pytest-cov codecov
 - pip install -r requirements.txt --upgrade
 - pip install -r optional-dependencies.txt --upgrade
 - python setup.py install
@@ -33,3 +33,4 @@ script:
 
 after_success:
 - coveralls
+- codecov
