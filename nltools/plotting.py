@@ -32,12 +32,13 @@ from nilearn.plotting import plot_glass_brain, plot_stat_map, view_img, view_img
 from nltools.prefs import MNI_Template, resolve_mni_path
 from nltools.utils import attempt_to_import
 import sklearn
-import warnings
 import os
 
 # Optional dependencies
 ipywidgets = attempt_to_import(
-    "ipywidgets", name="ipywidgets", fromlist=["interact", "fixed", "widgets", "BoundedFloatText", "BoundedIntText"]
+    "ipywidgets",
+    name="ipywidgets",
+    fromlist=["interact", "fixed", "widgets", "BoundedFloatText", "BoundedIntText"],
 )
 
 
@@ -47,7 +48,7 @@ def plot_interactive_brain(
     surface=False,
     percentile_threshold=False,
     anatomical=None,
-    **kwargs
+    **kwargs,
 ):
     """
     This function leverages nilearn's new javascript based brain viewer functions to create interactive plotting functionality.
@@ -107,7 +108,7 @@ def plot_interactive_brain(
         percentile_threshold=percentile_threshold,
         surface=surface,
         anatomical=ipywidgets.fixed(anatomical),
-        **kwargs
+        **kwargs,
     )
 
 
@@ -207,7 +208,7 @@ def plot_t_brain(
             colorbar=True,
             cmap=cmap,
             plot_abs=False,
-            **kwargs
+            **kwargs,
         )
         for v, c in zip(views, cut_coords):
             plot_stat_map(
@@ -216,7 +217,7 @@ def plot_t_brain(
                 display_mode=v,
                 cmap=cmap,
                 bg_img=resolve_mni_path(MNI_Template)["brain"],
-                **kwargs
+                **kwargs,
             )
     elif how == "glass":
         plot_glass_brain(
@@ -225,7 +226,7 @@ def plot_t_brain(
             colorbar=True,
             cmap=cmap,
             plot_abs=False,
-            **kwargs
+            **kwargs,
         )
     elif how == "mni":
         for v, c in zip(views, cut_coords):
@@ -235,7 +236,7 @@ def plot_t_brain(
                 display_mode=v,
                 cmap=cmap,
                 bg_img=resolve_mni_path(MNI_Template)["brain"],
-                **kwargs
+                **kwargs,
             )
     del obj
     del out
@@ -298,7 +299,7 @@ def plot_brain(objIn, how="full", thr_upper=None, thr_lower=None, save=False, **
             colorbar=True,
             cmap=cmap,
             plot_abs=False,
-            **kwargs
+            **kwargs,
         )
         if save:
             plt.savefig(glass_save, bbox_inches="tight")
@@ -309,7 +310,7 @@ def plot_brain(objIn, how="full", thr_upper=None, thr_lower=None, save=False, **
                 display_mode=v,
                 cmap=cmap,
                 bg_img=resolve_mni_path(MNI_Template)["brain"],
-                **kwargs
+                **kwargs,
             )
             if save:
                 plt.savefig(savefile, bbox_inches="tight")
@@ -320,7 +321,7 @@ def plot_brain(objIn, how="full", thr_upper=None, thr_lower=None, save=False, **
             colorbar=True,
             cmap=cmap,
             plot_abs=False,
-            **kwargs
+            **kwargs,
         )
         if save:
             plt.savefig(glass_save, bbox_inches="tight")
@@ -332,7 +333,7 @@ def plot_brain(objIn, how="full", thr_upper=None, thr_lower=None, save=False, **
                 display_mode=v,
                 cmap=cmap,
                 bg_img=resolve_mni_path(MNI_Template)["brain"],
-                **kwargs
+                **kwargs,
             )
             if save:
                 plt.savefig(savefile, bbox_inches="tight")
@@ -370,7 +371,7 @@ def dist_from_hyperplane_plot(stats_output):
     plt.xlabel("Subject", fontsize=16)
     plt.ylabel("Distance from Hyperplane", fontsize=16)
     plt.title("Classification", fontsize=18)
-    return 
+    return
 
 
 def scatterplot(stats_output):
@@ -391,7 +392,7 @@ def scatterplot(stats_output):
     plt.xlabel("Y", fontsize=16)
     plt.ylabel("Predicted Value", fontsize=16)
     plt.title("Prediction", fontsize=18)
-    return 
+    return
 
 
 def probability_plot(stats_output):
@@ -411,7 +412,7 @@ def probability_plot(stats_output):
     plt.xlabel("Y", fontsize=16)
     plt.ylabel("Predicted Probability", fontsize=16)
     plt.title("Prediction", fontsize=18)
-    return 
+    return
 
     # # and plot the result
     # plt.figure(1, figsize=(4, 3))
@@ -482,7 +483,7 @@ def plot_mean_label_distance(
     permutation_test=False,
     n_permute=5000,
     fontsize=18,
-    **kwargs
+    **kwargs,
 ):
     """ Create a violin plot indicating within and between label distance.
 
@@ -530,7 +531,7 @@ def plot_mean_label_distance(
         inner="quartile",
         palette={"Within": "lightskyblue", "Between": "red"},
         ax=ax,
-        **kwargs
+        **kwargs,
     )
     f.set_ylabel("Average Distance", fontsize=fontsize)
     f.set_title("Average Group Distance", fontsize=fontsize)
@@ -553,7 +554,7 @@ def plot_between_label_distance(
     permutation_test=True,
     n_permute=5000,
     fontsize=18,
-    **kwargs
+    **kwargs,
 ):
     """ Create a heatmap indicating average between label distance
 
@@ -755,16 +756,17 @@ def plot_silhouette(
     else:
         return
 
+
 def component_viewer(output, tr=2.0):
-    ''' This a function to interactively view the results of a decomposition analysis
+    """ This a function to interactively view the results of a decomposition analysis
 
     Args:
         output: (dict) output dictionary from running Brain_data.decompose()
         tr: (float) repetition time of data
-    '''
+    """
 
     def component_inspector(component, threshold):
-        '''This a function to be used with ipywidgets to interactively view a decomposition analysis
+        """This a function to be used with ipywidgets to interactively view a decomposition analysis
 
             Make sure you have tr and output assigned to variables.
 
@@ -779,28 +781,51 @@ def component_viewer(output, tr=2.0):
                 interact(component_inspector, component=BoundedIntText(description='Component', value=0, min=0, max=len(output['components'])-1),
                       threshold=BoundedFloatText(description='Threshold', value=2.0, min=0, max=4, step=.1))
 
-        '''
-        _, ax = plt.subplots(nrows=3, figsize=(12,8))
-        thresholded = (output['components'][component] - output['components'][component].mean())*(1/output['components'][component].std())
+        """
+        _, ax = plt.subplots(nrows=3, figsize=(12, 8))
+        thresholded = (
+            output["components"][component] - output["components"][component].mean()
+        ) * (1 / output["components"][component].std())
         thresholded.data[np.abs(thresholded.data) <= threshold] = 0
-        plot_stat_map(thresholded.to_nifti(), cut_coords=range(-40, 70, 10),
-                      display_mode='z', black_bg=True, colorbar=True, annotate=False,
-                      draw_cross=False, axes=ax[0])
-        if isinstance(output['decomposition_object'], (sklearn.decomposition.PCA)):
-            var_exp = output['decomposition_object'].explained_variance_ratio_[component]
-            ax[0].set_title(f"Component: {component}/{len(output['components'])}, Variance Explained: {var_exp:2.2}", fontsize=18)
+        plot_stat_map(
+            thresholded.to_nifti(),
+            cut_coords=range(-40, 70, 10),
+            display_mode="z",
+            black_bg=True,
+            colorbar=True,
+            annotate=False,
+            draw_cross=False,
+            axes=ax[0],
+        )
+        if isinstance(output["decomposition_object"], (sklearn.decomposition.PCA)):
+            var_exp = output["decomposition_object"].explained_variance_ratio_[
+                component
+            ]
+            ax[0].set_title(
+                f"Component: {component}/{len(output['components'])}, Variance Explained: {var_exp:2.2}",
+                fontsize=18,
+            )
         else:
-            ax[0].set_title(f"Component: {component}/{len(output['components'])}", fontsize=18)
+            ax[0].set_title(
+                f"Component: {component}/{len(output['components'])}", fontsize=18
+            )
 
-        ax[1].plot(output['weights'][:, component], linewidth=2, color='red')
-        ax[1].set_ylabel('Intensity (AU)', fontsize=18)
-        ax[1].set_title(f'Timecourse (TR={tr})', fontsize=16)
-        y = fft(output['weights'][:, component])
+        ax[1].plot(output["weights"][:, component], linewidth=2, color="red")
+        ax[1].set_ylabel("Intensity (AU)", fontsize=18)
+        ax[1].set_title(f"Timecourse (TR={tr})", fontsize=16)
+        y = fft(output["weights"][:, component])
         f = fftfreq(len(y), d=tr)
-        ax[2].plot(f[f > 0], np.abs(y)[f > 0]**2)
-        ax[2].set_ylabel('Power', fontsize=18)
-        ax[2].set_xlabel('Frequency (Hz)', fontsize=16)
+        ax[2].plot(f[f > 0], np.abs(y)[f > 0] ** 2)
+        ax[2].set_ylabel("Power", fontsize=18)
+        ax[2].set_xlabel("Frequency (Hz)", fontsize=16)
 
-    interact(component_inspector, component=BoundedIntText(description='Component', value=0, min=0, max=len(output['components'])-1),
-              threshold=BoundedFloatText(description='Threshold', value=2.0, min=0, max=4, step=.1))
+    interact(
+        component_inspector,
+        component=BoundedIntText(
+            description="Component", value=0, min=0, max=len(output["components"]) - 1
+        ),
+        threshold=BoundedFloatText(
+            description="Threshold", value=2.0, min=0, max=4, step=0.1
+        ),
+    )
 

@@ -56,7 +56,6 @@ from .utils import attempt_to_import, check_square_numpy_matrix
 from .external.srm import SRM, DetSRM
 from scipy.linalg import orthogonal_procrustes
 from scipy.spatial import procrustes as procrust
-from scipy.ndimage import label, generate_binary_structure
 from sklearn.utils import check_random_state
 from sklearn.metrics import pairwise_distances
 
@@ -550,7 +549,7 @@ def one_sample_permutation(
 
     data = np.array(data)
     stats = dict()
-    stats['mean'] = np.nanmean(data)
+    stats["mean"] = np.nanmean(data)
 
     all_p = Parallel(n_jobs=n_jobs)(
         delayed(_permute_sign)(data, random_state=seeds[i]) for i in range(n_permute)
@@ -589,15 +588,16 @@ def two_sample_permutation(
     seeds = random_state.randint(MAX_INT, size=n_permute)
 
     stats = dict()
-    stats['mean'] = np.nanmean(data1)-np.nanmean(data2)
-    data = pd.DataFrame(data={'Values': data1, 'Group': np.ones(len(data1))})
-    data = data.append(pd.DataFrame(data={
-                                        'Values': data2,
-                                        'Group': np.zeros(len(data2))}))
-    all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_group)(data,
-                                                            random_state=seeds[i]) for i in range(n_permute))
+    stats["mean"] = np.nanmean(data1) - np.nanmean(data2)
+    data = pd.DataFrame(data={"Values": data1, "Group": np.ones(len(data1))})
+    data = data.append(
+        pd.DataFrame(data={"Values": data2, "Group": np.zeros(len(data2))})
+    )
+    all_p = Parallel(n_jobs=n_jobs)(
+        delayed(_permute_group)(data, random_state=seeds[i]) for i in range(n_permute)
+    )
 
-    stats['p'] = _calc_pvalue(all_p, stats['mean'], tail)
+    stats["p"] = _calc_pvalue(all_p, stats["mean"], tail)
     if return_perms:
         stats["perm_dist"] = all_p
     return stats
@@ -744,7 +744,7 @@ def jackknife_permutation(
     for s in range(data1.shape[0]):
         stats["all_r"].append(
             correlation(
-                np.delete(data1[s,], s), np.delete(data2[s,], s), metric=metric
+                np.delete(data1[s, ], s), np.delete(data2[s, ], s), metric=metric
             )[0]
         )
     stats["correlation"] = np.mean(stats["all_r"])
@@ -1082,7 +1082,7 @@ def regress(X, Y, mode="ols", stats="full", **kwargs):
     if mode == "ols" or mode == "robust":
 
         b = np.dot(np.linalg.pinv(X), Y)
-        
+
         # Return betas and stop other computations if that's all that's requested
         if stats == "betas":
             return b.squeeze()
@@ -1105,7 +1105,7 @@ def regress(X, Y, mode="ols", stats="full", **kwargs):
 
         # Then only compute t-stats at voxels where the standard error is at least .000001
         t = np.zeros_like(b)
-        t[stderr > 1.e-6] = b[stderr > 1.e-6] / stderr[stderr > 1.e-6]
+        t[stderr > 1.0e-6] = b[stderr > 1.0e-6] / stderr[stderr > 1.0e-6]
 
         # Return betas and ts and stop other computations if that's all that's requested
         if stats == "tstats":
@@ -1187,7 +1187,7 @@ def regress_permutation(
     # inv = np.linalg.pinv(X)
 
     for _ in range(n_permute):
-        _, _t = regress(func(X.values), Y, stats='tstats', **kwargs)
+        _, _t = regress(func(X.values), Y, stats="tstats", **kwargs)
         if tail == 2:
             p += np.abs(_t) >= np.abs(t)
         elif tail == 1:
@@ -1372,7 +1372,7 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
 
 
 def procrustes(data1, data2):
-    '''Procrustes analysis, a similarity test for two data sets.
+    """Procrustes analysis, a similarity test for two data sets.
     
     Each input matrix is a set of points or vectors (the rows of the matrix).
     The dimension of the space is the number of columns of each matrix. Given
@@ -1412,7 +1412,7 @@ def procrustes(data1, data2):
             dot(R.T, R) == I.
         scale : float
             Sum of the singular values of ``dot(data1.T, data2)``.
-    '''
+    """
 
     mtx1 = np.array(data1, dtype=np.double, copy=True)
     mtx2 = np.array(data2, dtype=np.double, copy=True)
