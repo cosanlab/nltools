@@ -194,19 +194,6 @@ class Adjacency(object):
             raise ValueError('Can only add int, float, or Adjacency')
         return new
 
-    def __radd__(self, y):
-        new = deepcopy(self)
-        if isinstance(y, (int, np.integer, float, np.floating)):
-            new.data = y + new.data
-        elif isinstance(y, Adjacency):
-            if self.shape() != y.shape():
-                raise ValueError('Both Adjacency() instances need to be the '
-                                 'same shape.')
-            new.data = y.data + new.data
-        else:
-            raise ValueError('Can only add int, float, or Adjacency')
-        return new
-
     def __sub__(self, y):
         new = deepcopy(self)
         if isinstance(y, (int, np.integer, float, np.floating)):
@@ -216,19 +203,6 @@ class Adjacency(object):
                 raise ValueError('Both Adjacency() instances need to be the '
                                  'same shape.')
             new.data = new.data - y.data
-        else:
-            raise ValueError('Can only subtract int, float, or Adjacency')
-        return new
-
-    def __rsub__(self, y):
-        new = deepcopy(self)
-        if isinstance(y, (int, np.integer, float, np.floating)):
-            new.data = y - new.data
-        elif isinstance(y, Adjacency):
-            if self.shape() != y.shape():
-                raise ValueError('Both Adjacency() instances need to be the '
-                                 'same shape.')
-            new.data =  y.data - new.data
         else:
             raise ValueError('Can only subtract int, float, or Adjacency')
         return new
@@ -244,32 +218,6 @@ class Adjacency(object):
             new.data = np.multiply(new.data, y.data)
         else:
             raise ValueError('Can only multiply int, float, or Adjacency')
-        return new
-
-    def __rmul__(self, y):
-        new = deepcopy(self)
-        if isinstance(y, (int, np.integer, float, np.floating)):
-            new.data = y * new.data
-        elif isinstance(y, Adjacency):
-            if self.shape() != y.shape():
-                raise ValueError('Both Adjacency() instances need to be the '
-                                 'same shape.')
-            new.data = np.multiply(y.data, new.data)
-        else:
-            raise ValueError('Can only multiply int, float, or Adjacency')
-        return new
-
-    def __truediv__(self, y):
-        new = deepcopy(self)
-        if isinstance(y, (int, np.integer, float, np.floating)):
-            new.data = new.data / y
-        elif isinstance(y, Adjacency):
-            if self.shape() != y.shape():
-                raise ValueError('Both Adjacency() instances need to be the '
-                                 'same shape.')
-            new.data = np.divide(new.data, y.data)
-        else:
-            raise ValueError('Can only divide int, float, or Adjacency')
         return new
 
     @staticmethod
