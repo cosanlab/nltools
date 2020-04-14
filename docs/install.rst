@@ -7,7 +7,7 @@ Installation
 
 	pip install nltools
 
-2. Method 2 - Install directly from github (Recommended)
+2. Method 2 - Install directly from github (Most up to date)
 
 .. code-block:: python
 
@@ -25,20 +25,23 @@ Dependencies
 
 nltools requires several dependencies.  All are available in pypi.  Can use *pip install 'package'*
 
- - importlib
- - nibabel>=2.0.1
- - scikit-learn>=0.17
- - nilearn>=0.2
- - pandas>=0.16
+ - nibabel>=3.0.1
+ - scikit-learn>=0.21.0
+ - nilearn>=0.6.0
+ - pandas>=0.20
  - numpy>=1.9
  - seaborn>=0.7.0
- - matplotlib
+ - matplotlib>=2.2.0
  - scipy
  - six
  - pynv
+ - joblib==0.11
+ - deepdish>=0.3.6
 
 Optional Dependencies
 ^^^^^^^^^^^^^^^^^^^^^
 
  - mne
  - requests
+ - ipywidgets
+ - networkx
