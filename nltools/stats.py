@@ -1412,7 +1412,7 @@ def procrustes(data1, data2):
             dot(R.T, R) == I.
         scale : float
             Sum of the singular values of ``dot(data1.T, data2)``.
-    """
+    '''
 
     mtx1 = np.array(data1, dtype=np.double, copy=True)
     mtx2 = np.array(data2, dtype=np.double, copy=True)
