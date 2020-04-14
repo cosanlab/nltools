@@ -400,7 +400,7 @@ class Brain_Data(object):
         return out
 
     def std(self, axis=0):
-        ''' Get standard deviation of each voxel or image. 
+        ''' Get standard deviation of each voxel or image.
             
             Args:
                 axis: (int) across images=0 (default), within images=1

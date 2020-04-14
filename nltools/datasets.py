@@ -13,21 +13,16 @@ __all__ = ['download_nifti',
            'get_collection_image_metadata',
            'download_collection',
            'fetch_emotion_ratings',
-           'fetch_pain',
-           'fetch_localizer']
+           'fetch_pain']
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
 import os
 import pandas as pd
-import numpy as np
 from nltools.data import Brain_Data
 from nilearn.datasets.utils import (_get_dataset_dir,
                                     _fetch_file,
-                                    _fetch_files,
-                                    _get_dataset_descr)
-from nilearn._utils.compat import _urllib
-from sklearn.datasets.base import Bunch
+                                    _fetch_files)
 from pynv import Client
 
 # Optional dependencies
