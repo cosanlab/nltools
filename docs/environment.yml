@@ -2,7 +2,7 @@ channels:
   - conda-forge
 
 name:
-  - nltools >= 0.3.12
+  - nltools >= 0.3.17
 
 dependencies:
   - python >= 3.6
