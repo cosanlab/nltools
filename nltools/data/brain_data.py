@@ -327,6 +327,19 @@ class Brain_Data(object):
             raise ValueError('Can only multiply int, float, or Brain_Data')
         return new
 
+    def __truediv__(self, y):
+        new = deepcopy(self)
+        if isinstance(y, (int, np.integer, float, np.floating)):
+            new.data = new.data / y
+        elif isinstance(y, Brain_Data):
+            if self.shape() != y.shape():
+                raise ValueError("Both Brain_Data() instances need to be the "
+                                 "same shape.")
+            new.data = np.divide(new.data, y.data)
+        else:
+            raise ValueError('Can only divide int, float, list, or Brain_Data')
+        return new
+
     def __iter__(self):
         for x in range(len(self)):
             yield self[x]
