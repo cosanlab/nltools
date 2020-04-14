@@ -24,7 +24,7 @@ data = fetch_pain()
 # instance using any method from sklearn or scipy.  This outputs an Adjacency() class
 # object.
 
-d = data.distance(method='correlation')
+d = data.distance(metric='correlation')
 d.plot()
 
 #########################################################################
@@ -40,9 +40,9 @@ import numpy as np
 import matplotlib.pylab as plt
 
 high = data[np.where(data.X['PainLevel']==3)[0]].mean()
-r = high.similarity(data, method='correlation')
+r = high.similarity(data, metric='correlation')
 
-f,a = plt.subplots(ncols=2,figsize=(10,4))
+f,a = plt.subplots(ncols=2, figsize=(10,4))
 a[0].hist(r)
 a[0].set_ylabel('Spatial Similarity')
 a[0].set_xlabel('Pain Intensity')
