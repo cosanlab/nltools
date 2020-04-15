@@ -127,7 +127,7 @@ class Design_Matrix(DataFrame):
             self.polys
             )
 
-    def append(self, dm, axis=0, keep_separate=True, unique_cols=[], fill_na=0, verbose=False):
+    def append(self, dm, axis=0, keep_separate=True, unique_cols=None, fill_na=0, verbose=False):
         """Method for concatenating another design matrix row or column-wise. When concatenating row-wise, has the ability to keep certain columns separated if they exist in multiple design matrices (e.g. keeping separate intercepts for multiple runs). This is on by default and will automatically separate out polynomial columns (i.e. anything added with the `add_poly` or `add_dct_basis` methods). Additional columns can be separate by run using the `unique_cols` parameter. Can also add new polynomial terms during vertical concatentation (when axis == 0). This will by default create new polynomial terms separately for each design matrix
 
         Args:
@@ -199,7 +199,7 @@ class Design_Matrix(DataFrame):
         cols_to_separate = []
         all_separated = []
 
-        if len(unique_cols):
+        if unique_cols is not None:
             if not keep_separate:
                 raise ValueError("unique_cols provided but keep_separate set to False. Set keep_separate to True to separate unique_cols")
 
@@ -410,7 +410,8 @@ class Design_Matrix(DataFrame):
                         max_unique_count += 1
                     else:
                         modify_to_append.append(dm)
-
+        else:
+            modify_to_append = to_append
         # Combine original dm with the updated/renamed dms to be appended
         all_dms = [orig] + modify_to_append
 
