@@ -25,7 +25,7 @@ def onsets_to_dm(
     add_poly=None,
     unique_cols=None,
     fill_na=None,
-    **kwargs
+    **kwargs,
 ):
     """
     This function can assist in reading in one or several in a 2-3 column onsets files, specified in seconds and converting it to a Design Matrix organized as samples X Stimulus Classes. sampling_freq should be specified in hertz; for TRs use hertz = 1/TR. Onsets files **must** be organized with columns in one of the following 4 formats:
@@ -55,13 +55,13 @@ def onsets_to_dm(
             Design_Matrix class
 
     """
-    
+
     if not isinstance(F, list):
         F = [F]
-    
+
     if not isinstance(sampling_freq, (float, np.floating)):
         raise TypeError("sampling_freq must be a float")
-    
+
     out = []
     TR = 1.0 / sampling_freq
     for f in F:
@@ -73,7 +73,7 @@ def onsets_to_dm(
             raise TypeError("Input needs to be file path or pandas dataframe!")
         # Keep an unaltered copy of the original dataframe for checking purposes below
         data = df.copy()
-        
+
         if df.shape[1] == 2:
             warnings.warn(
                 "Only 2 columns in file, assuming all stimuli are the same duration"
@@ -92,7 +92,7 @@ def onsets_to_dm(
                 raise ValueError(
                     "Can't figure out onset file organization. Make sure file has no more than 3 columns specified as 'Stim,Onset,Duration' or 'Onset,Duration,Stim'"
                 )
-        
+
         # Compute an offset in seconds if a Duration is provided
         if df.shape[1] == 3:
             df["Offset"] = df["Onset"] + df["Duration"]
@@ -103,8 +103,9 @@ def onsets_to_dm(
         # Offset includes the subsequent if Offset falls within window covered by that TR
         # but not if it falls exactly on the subsequent TR, e.g. if TR = 2, and offset = 10.16, then TR 5 will be included but if offset = 10.00, TR 5 will not be included, as it covers the window 10-12s
         if "Offset" in df.columns:
+
             def conditional_round(x, TR):
-                '''Conditional rounding to the next TR if offset falls within window, otherwise not'''
+                """Conditional rounding to the next TR if offset falls within window, otherwise not"""
                 dur_in_TRs = x / TR
                 dur_in_TRs_rounded_down = np.floor(dur_in_TRs)
                 # If in the future we wanted to enable the ability to include a TR based on a % of that TR we can change the next line to compare to some value, e.g. at least 0.5s into that TR: dur_in_TRs - dur_in_TRs_rounded_down > 0.5
@@ -112,6 +113,7 @@ def onsets_to_dm(
                     return dur_in_TRs_rounded_down
                 else:
                     return dur_in_TRs_rounded_down - 1
+
             # Apply function
             df["Offset"] = df["Offset"].apply(conditional_round, args=(TR,))
 
@@ -135,7 +137,9 @@ def onsets_to_dm(
                 if c * (d / TR) <= o <= c * ((d / TR) + 1):
                     pass
                 else:
-                    warnings.warn(f"Computed onsets for {data.Stim.unique()[i]} are inconsistent with expected values. Please manually verify the outputted Design_Matrix!")
+                    warnings.warn(
+                        f"Computed onsets for {data.Stim.unique()[i]} are inconsistent with expected values. Please manually verify the outputted Design_Matrix!"
+                    )
 
         if sort:
             X = X.reindex(sorted(X.columns), axis=1)
