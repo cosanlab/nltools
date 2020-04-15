@@ -96,7 +96,6 @@ def onsets_to_dm(
         # Compute an offset in seconds if a Duration is provided
         if df.shape[1] == 3:
             df["Offset"] = df["Onset"] + df["Duration"]
-        
         # Onset always starts at the closest TR rounded down, e.g.
         # with TR = 2, and onset = 10.1 or 11.7 will both have onset of TR 5 as it spans the window 10-12s
         df["Onset"] = df["Onset"].apply(lambda x: int(np.floor(x / TR)))
