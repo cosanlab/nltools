@@ -32,7 +32,6 @@ from nilearn.plotting import plot_glass_brain, plot_stat_map, view_img, view_img
 from nltools.prefs import MNI_Template, resolve_mni_path
 from nltools.utils import attempt_to_import
 import sklearn
-import warnings
 import os
 
 # Optional dependencies

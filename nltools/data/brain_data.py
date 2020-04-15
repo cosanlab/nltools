@@ -1869,7 +1869,7 @@ class Brain_Data(object):
             out['common_model'] = common
             out['transformation_matrix'] = srm.w_[0]
         elif method == 'procrustes':
-            if n_features != None:
+            if n_features is not None:
                 raise NotImplementedError('Currently must use all voxels.'
                                           'Eventually will add a PCA'
                                           'reduction, must do this manually'
