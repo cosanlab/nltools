@@ -465,6 +465,8 @@ class Design_Matrix(DataFrame):
                         max_unique_count += 1
                     else:
                         modify_to_append.append(dm)
+        else:
+            modify_to_append = to_append
 
         # Combine original dm with the updated/renamed dms to be appended
         all_dms = [orig] + modify_to_append
