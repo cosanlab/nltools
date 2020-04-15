@@ -104,7 +104,6 @@ def onsets_to_dm(
         # Offset includes the subsequent if Offset falls within window covered by that TR
         # but not if it falls exactly on the subsequent TR, e.g. if TR = 2, and offset = 10.16, then TR 5 will be included but if offset = 10.00, TR 5 will not be included, as it covers the window 10-12s
         if "Offset" in df.columns:
-            
             def conditional_round(x, TR):
                 '''Conditional rounding to the next TR if offset falls within window, otherwise not'''
                 dur_in_TRs = x / TR
