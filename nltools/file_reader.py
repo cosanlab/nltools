@@ -23,7 +23,7 @@ def onsets_to_dm(
     sort=False,
     keep_separate=True,
     add_poly=None,
-    unique_cols=[],
+    unique_cols=None,
     fill_na=None,
     **kwargs
 ):
