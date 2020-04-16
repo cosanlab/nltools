@@ -9,8 +9,6 @@ from nltools.data import (Brain_Data,
                           Groupby)
 from nltools.stats import threshold, align
 from nltools.mask import create_sphere, roi_to_brain
-from nltools.utils import get_resource_path
-from nltools.mask import expand_mask
 # from nltools.prefs import MNI_Template
 
 
