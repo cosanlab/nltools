@@ -57,8 +57,11 @@ def test_append(sim_design_matrix):
 
     assert (mats.shape[1] - 4) == (sim_design_matrix.shape[1] - 4) * 2
     # Otherwise stack them
-    assert sim_design_matrix.append(sim_design_matrix,
-                                    keep_separate=False).shape[1] == sim_design_matrix.shape[1]
+    mats = sim_design_matrix.append(sim_design_matrix,
+                                    keep_separate=False)
+    assert mats.shape[1] == sim_design_matrix.shape[1]
+    assert(mats.shape[0] == sim_design_matrix.shape[0] * 2)
+    
     # Keep a single stimulus column separate
     assert sim_design_matrix.append(sim_design_matrix,
                                     unique_cols=['face_A']).shape[1] == 5

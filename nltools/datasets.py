@@ -21,8 +21,7 @@ import os
 import pandas as pd
 from nltools.data import Brain_Data
 from nilearn.datasets.utils import (_get_dataset_dir,
-                                    _fetch_file,
-                                    _fetch_files)
+                                    _fetch_file)
 from pynv import Client
 
 # Optional dependencies

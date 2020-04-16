@@ -54,7 +54,6 @@ from .utils import attempt_to_import, check_square_numpy_matrix
 from .external.srm import SRM, DetSRM
 from scipy.linalg import orthogonal_procrustes
 from scipy.spatial import procrustes as procrust
-from scipy.ndimage import label, generate_binary_structure
 from sklearn.utils import check_random_state
 from sklearn.metrics import pairwise_distances
 

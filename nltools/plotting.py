@@ -31,8 +31,8 @@ from nltools.stats import two_sample_permutation, one_sample_permutation
 from nilearn.plotting import plot_glass_brain, plot_stat_map, view_img, view_img_on_surf
 from nltools.prefs import MNI_Template, resolve_mni_path
 from nltools.utils import attempt_to_import
-import sklearn
 import warnings
+import sklearn
 import os
 
 # Optional dependencies
@@ -72,6 +72,7 @@ def plot_interactive_brain(
         if threshold[-1] != "%":
             raise ValueError("Starting threshold provided as string must end in '%'")
         percentile_threshold = True
+        warnings.warn("Percentile thresholding ignores brain mask. Results are likely more liberal than you expect (e.g. with non-interactive plotting)!")
         threshold = int(threshold[:-1])
 
     if len(brain.shape()) == 2:
