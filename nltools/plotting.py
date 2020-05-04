@@ -764,6 +764,11 @@ def component_viewer(output, tr=2.0):
         tr: (float) repetition time of data
     '''
 
+    if ipywidgets is None:
+        raise ImportError(
+            "ipywidgets is required for interactive plotting. Please install this package manually or install nltools with optional arguments: pip install 'nltools[interactive_plots]'"
+        )
+
     def component_inspector(component, threshold):
         '''This a function to be used with ipywidgets to interactively view a decomposition analysis
 
@@ -802,6 +807,6 @@ def component_viewer(output, tr=2.0):
         ax[2].set_ylabel('Power', fontsize=18)
         ax[2].set_xlabel('Frequency (Hz)', fontsize=16)
 
-    interact(component_inspector, component=BoundedIntText(description='Component', value=0, min=0, max=len(output['components'])-1),
-              threshold=BoundedFloatText(description='Threshold', value=2.0, min=0, max=4, step=.1))
+    ipywidgets.interact(component_inspector, component=ipywidgets.BoundedIntText(description='Component', value=0, min=0, max=len(output['components'])-1),
+              threshold=ipywidgets.BoundedFloatText(description='Threshold', value=2.0, min=0, max=4, step=.1))
 
