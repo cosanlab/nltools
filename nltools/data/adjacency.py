@@ -383,21 +383,23 @@ class Adjacency(object):
                 return [x.data.reshape(int(np.sqrt(x.data.shape[0])),
                                        int(np.sqrt(x.data.shape[0]))) for x in self]
 
-    def plot(self, limit=3, *args, **kwargs):
+    def plot(self, limit=3, axes=None, *args, **kwargs):
         ''' Create Heatmap of Adjacency Matrix'''
 
         if self.is_single_matrix:
-            _, a = plt.subplots(nrows=1, figsize=(7, 5))
+            if axes is None:
+                _, axes = plt.subplots(nrows=1, figsize=(7, 5))
             if not self.labels:
                 sns.heatmap(self.squareform(), square=True, ax=a,
                             *args, **kwargs)
             else:
-                sns.heatmap(self.squareform(), square=True, ax=a,
+                sns.heatmap(self.squareform(), square=True, ax=axes,
                             xticklabels=self.labels,
                             yticklabels=self.labels,
                             *args, **kwargs)
         else:
-            n_subs = np.minimum(len(self), limit)
+            if axes is not None:
+                print("axes is ignored when plotting multiple images")            n_subs = np.minimum(len(self), limit)
             _, a = plt.subplots(nrows=n_subs, figsize=(7, len(self)*5))
             if not self.labels:
                 for i in range(n_subs):
