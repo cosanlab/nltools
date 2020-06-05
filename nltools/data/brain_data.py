@@ -52,7 +52,7 @@ from nltools.utils import (set_algorithm,
                            get_mni_from_img_resolution,
                            _df_meta_to_arr)
 from nltools.cross_validation import set_cv
-from nltools.plotting import scatterplot
+from nltools.plotting import scatterplot, plot_interactive_brain, plot_brain
 from nltools.stats import (pearson,
                            fdr,
                            holm_bonf,
@@ -67,7 +67,6 @@ from nltools.stats import regress as regression
 from .adjacency import Adjacency
 from nltools.prefs import MNI_Template, resolve_mni_path
 from nltools.external.srm import DetSRM, SRM
-from nltools.plotting import plot_interactive_brain, plot_brain
 from nilearn.decoding import SearchLight
 import deepdish as dd
 
@@ -489,7 +488,8 @@ class Brain_Data(object):
 
         return out
 
-    def plot(self, limit=5, anatomical=None, view='axial', threshold_upper=None, threshold_lower=None, **kwargs):
+    def plot(self, limit=5, anatomical=None, view='axial', colorbar=False, black_bg=True, draw_cross=False, 
+    threshold_upper=None, threshold_lower=None, axes=None, **kwargs):
         """ Create a quick plot of self.data.  Will plot each image separately
 
         Args:
@@ -503,12 +503,13 @@ class Brain_Data(object):
                              'mni', or 'full'
             threshold_lower: (str/float)threshold if view is 'glass',
                              'mni', or 'full'
-            save: (str/bool): optional string file name or path for saving; only applies if view is 'mni', 'glass', or 'full'. Filenames will appended with the orientation they belong to
+            save: (str/bool): optional string file name or path for saving; only applies if view is 'mni', 'glass', or 'full'. 
+                            Filenames will appended with the orientation they belong to
 
         """
 
         if view == 'axial':
-            if threshold is not None:
+            if threshold_upper is not None or threshold_lower is not None:
                 print("threshold is ignored for simple axial plots")
             if anatomical is not None:
                 if not isinstance(anatomical, nib.Nifti1Image):
@@ -521,21 +522,24 @@ class Brain_Data(object):
                 anatomical = get_mni_from_img_resolution(self, img_type='plot')
 
             if self.data.ndim == 1:
-                _, a = plt.subplots(nrows=1, figsize=(15, 2))
+                if axes is None:
+                    _, axes = plt.subplots(nrows=1, figsize=(15, 2))
                 plot_stat_map(self.to_nifti(), anatomical,
-                              cut_coords=range(-40, 50, 10), display_mode='z',
-                              black_bg=True, colorbar=True, draw_cross=False,
-                              axes=a, **kwargs)
+                              cut_coords=range(-40, 60, 10), display_mode='z',
+                              black_bg=black_bg, colorbar=colorbar, draw_cross=draw_cross,
+                              axes=axes, **kwargs)
             else:
+                if axes is not None:
+                    print("axes is ignored when plotting multiple images")
                 n_subs = np.minimum(self.data.shape[0], limit)
                 _, a = plt.subplots(nrows=n_subs, figsize=(15, len(self) * 2))
                 for i in range(n_subs):
                     plot_stat_map(self[i].to_nifti(), anatomical,
-                                  cut_coords=range(-40, 50, 10),
+                                  cut_coords=range(-40, 60, 10),
                                   display_mode='z',
-                                  black_bg=True,
-                                  colorbar=True,
-                                  draw_cross=False,
+                                  black_bg=black_bg,
+                                  colorbar=colorbar,
+                                  draw_cross=draw_cross,
                                   axes=a[i],
                                   **kwargs)
             return
