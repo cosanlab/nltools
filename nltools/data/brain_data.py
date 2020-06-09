@@ -139,7 +139,7 @@ class Brain_Data(object):
                                  'file_name']:
                         setattr(self, item, getattr(tmp, item))
                 else:
-                    if all([isinstance(x, data[0].__class__) for x in data]):
+                    if all(isinstance(x, data[0].__class__) for x in data):
                         self.data = []
                         for i in data:
                             if isinstance(i, six.string_types):
@@ -156,15 +156,14 @@ class Brain_Data(object):
                 raise ValueError("data is not a nibabel instance")
 
             # Collapse any extra dimension
-            if any([x == 1 for x in self.data.shape]):
+            if 1 in self.data.shape:
                 self.data = self.data.squeeze()
         else:
             self.data = np.array([])
 
         if Y is not None:
-            if isinstance(Y, six.string_types):
-                if os.path.isfile(Y):
-                    Y = pd.read_csv(Y, header=None, index_col=None)
+            if isinstance(Y, six.string_types) and os.path.isfile(Y):
+                Y = pd.read_csv(Y, header=None, index_col=None)
             if isinstance(Y, pd.DataFrame):
                 if self.data.shape[0] != len(Y):
                     raise ValueError("Y does not match the correct size "
@@ -176,9 +175,8 @@ class Brain_Data(object):
             self.Y = pd.DataFrame()
 
         if X is not None:
-            if isinstance(X, six.string_types):
-                if os.path.isfile(X):
-                    X = pd.read_csv(X, header=None, index_col=None)
+            if isinstance(X, six.string_types) and os.path.isfile(X):
+                X = pd.read_csv(X, header=None, index_col=None)
             if isinstance(X, pd.DataFrame):
                 if self.data.shape[0] != X.shape[0]:
                     raise ValueError("X does not match the correct size "
@@ -189,10 +187,7 @@ class Brain_Data(object):
         else:
             self.X = pd.DataFrame()
 
-        if output_file is not None:
-            self.file_name = output_file
-        else:
-            self.file_name = []
+        self.file_name = output_file if output_file is not None else []
 
     def __repr__(self):
         return '%s.%s(data=%s, Y=%s, X=%s, mask=%s, output_file=%s)' % (
@@ -340,8 +335,7 @@ class Brain_Data(object):
         return new
 
     def __iter__(self):
-        for x in range(len(self)):
-            yield self[x]
+        yield from self
 
     def shape(self):
         """ Get images by voxels shape. """
@@ -705,52 +699,44 @@ class Brain_Data(object):
         t = deepcopy(self)
         p = deepcopy(self)
 
-        if threshold_dict is not None:
-            if 'permutation' in threshold_dict:
-                # Convert data to correct shape (subjects, time, space)
-                data_convert_shape = deepcopy(self.data)
-                data_convert_shape = np.expand_dims(data_convert_shape, axis=1)
-                if 'n_permutations' in threshold_dict:
-                    n_permutations = threshold_dict['n_permutations']
-                else:
-                    n_permutations = 1000
-                    warnings.warn("n_permutations not set:  running with 1000 "
-                                  "permutations")
-
-                if 'connectivity' in threshold_dict:
-                    connectivity = threshold_dict['connectivity']
-                else:
-                    connectivity = None
-
-                if 'n_jobs' in threshold_dict:
-                    n_jobs = threshold_dict['n_jobs']
-                else:
-                    n_jobs = 1
-
-                if threshold_dict['permutation'] == 'tfce':
-                    perm_threshold = dict(start=0, step=0.2)
-                else:
-                    perm_threshold = None
-
-                if 'stat_fun' in threshold_dict:
-                    stat_fun = threshold_dict['stat_fun']
-                else:
-                    stat_fun = mne_stats.ttest_1samp_no_p
-
-                t.data, clusters, p_values, _ = mne_stats.spatio_temporal_cluster_1samp_test(
-                    data_convert_shape, tail=0, threshold=perm_threshold, stat_fun=stat_fun,
-                    connectivity=connectivity, n_permutations=n_permutations, n_jobs=n_jobs)
-
-                t.data = t.data.squeeze()
-
-                p = deepcopy(t)
-                for cl, pval in zip(clusters, p_values):
-                    p.data[cl[1][0]] = pval
+        if threshold_dict is not None and 'permutation' in threshold_dict:
+            # Convert data to correct shape (subjects, time, space)
+            data_convert_shape = deepcopy(self.data)
+            data_convert_shape = np.expand_dims(data_convert_shape, axis=1)
+            if 'n_permutations' in threshold_dict:
+                n_permutations = threshold_dict['n_permutations']
             else:
-                t.data, p.data = ttest_1samp(self.data, 0, 0)
+                n_permutations = 1000
+                warnings.warn("n_permutations not set:  running with 1000 "
+                              "permutations")
+
+            if 'connectivity' in threshold_dict:
+                connectivity = threshold_dict['connectivity']
+            else:
+                connectivity = None
+
+            n_jobs = threshold_dict['n_jobs'] if 'n_jobs' in threshold_dict else 1
+            if threshold_dict['permutation'] == 'tfce':
+                perm_threshold = dict(start=0, step=0.2)
+            else:
+                perm_threshold = None
+
+            if 'stat_fun' in threshold_dict:
+                stat_fun = threshold_dict['stat_fun']
+            else:
+                stat_fun = mne_stats.ttest_1samp_no_p
+
+            t.data, clusters, p_values, _ = mne_stats.spatio_temporal_cluster_1samp_test(
+                data_convert_shape, tail=0, threshold=perm_threshold, stat_fun=stat_fun,
+                connectivity=connectivity, n_permutations=n_permutations, n_jobs=n_jobs)
+
+            t.data = t.data.squeeze()
+
+            p = deepcopy(t)
+            for cl, pval in zip(clusters, p_values):
+                p.data[cl[1][0]] = pval
         else:
             t.data, p.data = ttest_1samp(self.data, 0, 0)
-
         if threshold_dict is not None:
             if isinstance(threshold_dict, dict):
                 if 'unc' in threshold_dict:
@@ -832,17 +818,9 @@ class Brain_Data(object):
         """ Check if Brain_Data.data is empty """
 
         if isinstance(self.data, np.ndarray):
-            if self.data.size:
-                boolean = False
-            else:
-                boolean = True
-
+            boolean = False if self.data.size else True
         if isinstance(self.data, list):
-            if not self.data:
-                boolean = True
-            else:
-                boolean = False
-
+            boolean = True if not self.data else False
         return boolean
 
     def similarity(self, image, method='correlation'):
@@ -885,9 +863,7 @@ class Brain_Data(object):
                 data = data.flatten()
                 if len(data) == 1 & data.shape[0] == 1:
                     data = data[0]
-                return data
-            else:
-                return data
+            return data
 
         # Calculate pattern expression
         if method == 'dot_product':
@@ -1025,8 +1001,7 @@ class Brain_Data(object):
             predictor_settings = set_algorithm('svr', **{'kernel': "linear"})
 
         # Initialize output dictionary
-        output = {}
-        output['Y'] = np.array(self.Y).flatten()
+        output = {'Y': np.array(self.Y).flatten()}
         predictor = predictor_settings['predictor']
 
         # Overall Fit for weight map
@@ -1217,10 +1192,7 @@ class Brain_Data(object):
 
         if cv_dict is not None:
             cv = set_cv(Y=self.Y, cv_dict=cv_dict, return_generator=False)
-            if cv_dict['type'] == 'loso':
-                groups = cv_dict['subject_id']
-            else:
-                groups = None
+            groups = cv_dict['subject_id'] if cv_dict['type'] == 'loso' else None
         else:
             cv = None
             groups = None
@@ -1283,11 +1255,7 @@ class Brain_Data(object):
         if not check_brain_data_is_single(mask):
             raise ValueError('Mask must be a single image')
 
-        if check_brain_data_is_single(self):
-            n_vox = len(self)
-        else:
-            n_vox = self.shape()[1]
-
+        n_vox = len(self) if check_brain_data_is_single(self) else self.shape()[1]
         if resample_mask_to_brain: 
             mask = resample_to_img(mask.to_nifti(), masked.to_nifti())
             mask = check_brain_data(mask, masked.mask)
@@ -1299,10 +1267,9 @@ class Brain_Data(object):
                 masked.data = masked.data[mask.data.astype(bool)]
             else:
                 masked.data = masked.data[:, mask.data.astype(bool)]
-            masked.nifti_masker = nifti_masker
         else:
             masked.data = nifti_masker.fit_transform(masked.to_nifti())
-            masked.nifti_masker = nifti_masker
+        masked.nifti_masker = nifti_masker
         if (len(masked.shape()) > 1) & (masked.shape()[0] == 1):
             masked.data = masked.data.flatten()
         return masked
@@ -1522,11 +1489,8 @@ class Brain_Data(object):
             '''
             if (len(dat.shape()) > 1) & (dat.shape()[0] > 1):
                 raise ValueError('"dat" must be a single image.')
-            if not dat.X.empty:
-                if isinstance(dat.X.name, six.string_types):
-                    img_name = dat.X.name
-                else:
-                    img_name = collection['name'] + '_' + str(index_id) + '.nii.gz'
+            if not dat.X.empty and isinstance(dat.X.name, six.string_types):
+                img_name = dat.X.name
             else:
                 img_name = collection['name'] + '_' + str(index_id) + '.nii.gz'
             f_path = os.path.join(tmp_dir, img_name)
@@ -1579,9 +1543,6 @@ class Brain_Data(object):
         if high_pass is None and low_pass is None:
             raise ValueError("high_pass and/or low_pass cutoff must be"
                              "provided!")
-        if sampling_freq is None:
-            raise ValueError("Need to provide TR!")
-
         standardize = kwargs.get('standardize', False)
         detrend = kwargs.get('detrend', False)
         out = self.copy()
@@ -1671,19 +1632,17 @@ class Brain_Data(object):
         if coerce_nan:
             b.data = np.nan_to_num(b.data)
 
-        if isinstance(upper, six.string_types):
-            if upper[-1] == '%':
-                upper = np.percentile(b.data, float(upper[:-1]))
+        if isinstance(upper, six.string_types) and upper[-1] == '%':
+            upper = np.percentile(b.data, float(upper[:-1]))
 
-        if isinstance(lower, six.string_types):
-            if lower[-1] == '%':
-                lower = np.percentile(b.data, float(lower[:-1]))
+        if isinstance(lower, six.string_types) and lower[-1] == '%':
+            lower = np.percentile(b.data, float(lower[:-1]))
 
         if upper and lower:
             b.data[(b.data < upper) & (b.data > lower)] = 0
-        elif upper and not lower:
+        elif upper:
             b.data[b.data < upper] = 0
-        elif lower and not upper:
+        elif lower:
             b.data[b.data > lower] = 0
 
         if binarize:
@@ -1789,18 +1748,19 @@ class Brain_Data(object):
             output: a dictionary of decomposition parameters
         '''
 
-        out = {}
-        out['decomposition_object'] = set_decomposition_algorithm(
-                                                    algorithm=algorithm,
-                                                    n_components=n_components,
-                                                    *args, **kwargs)
+        out = {
+            'decomposition_object': set_decomposition_algorithm(
+                *args, algorithm=algorithm, n_components=n_components, **kwargs
+            )
+        }
+
         if axis == 'images':
             out['decomposition_object'].fit(self.data.T)
             out['components'] = self.empty()
             out['components'].data = out['decomposition_object'].transform(
                                                                 self.data.T).T
             out['weights'] = out['decomposition_object'].components_.T
-        if axis == 'voxels':
+        elif axis == 'voxels':
             out['decomposition_object'].fit(self.data)
             out['weights'] = out['decomposition_object'].transform(self.data)
             out['components'] = self.empty()
@@ -1858,7 +1818,7 @@ class Brain_Data(object):
             data1 = data1.T
             data2 = data2.T
 
-        out = dict()
+        out = {}
         if method in ['deterministic_srm', 'probabilistic_srm']:
             if n_features is None:
                 n_features = data1.shape[0]

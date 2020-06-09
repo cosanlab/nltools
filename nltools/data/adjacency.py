@@ -62,13 +62,17 @@ class Adjacency(object):
     '''
 
     def __init__(self, data=None, Y=None, matrix_type=None, labels=[], **kwargs):
-        if matrix_type is not None:
-            if matrix_type.lower() not in ['distance', 'similarity', 'directed',
-                                           'distance_flat', 'similarity_flat',
-                                           'directed_flat']:
-                raise ValueError("matrix_type must be [None,'distance', "
-                                 "'similarity','directed','distance_flat', "
-                                 "'similarity_flat','directed_flat']")
+        if matrix_type is not None and matrix_type.lower() not in [
+            'distance',
+            'similarity',
+            'directed',
+            'distance_flat',
+            'similarity_flat',
+            'directed_flat',
+        ]:
+            raise ValueError("matrix_type must be [None,'distance', "
+                             "'similarity','directed','distance_flat', "
+                             "'similarity_flat','directed_flat']")
 
         if data is None:
             self.data = np.array([])
@@ -112,9 +116,8 @@ class Adjacency(object):
             self.data, self.issymmetric, self.matrix_type, self.is_single_matrix = self._import_single_data(data, matrix_type=matrix_type)
 
         if Y is not None:
-            if isinstance(Y, six.string_types):
-                if os.path.isfile(Y):
-                    Y = pd.read_csv(Y, header=None, index_col=None)
+            if isinstance(Y, six.string_types) and os.path.isfile(Y):
+                Y = pd.read_csv(Y, header=None, index_col=None)
             if isinstance(Y, pd.DataFrame):
                 if self.data.shape[0] != len(Y):
                     raise ValueError("Y does not match the correct size of "
@@ -178,8 +181,7 @@ class Adjacency(object):
             return self.data.shape[0]
 
     def __iter__(self):
-        for x in range(len(self)):
-            yield self[x]
+        yield from self
 
     def __add__(self, y):
         new = deepcopy(self)
@@ -275,10 +277,7 @@ class Adjacency(object):
     @staticmethod
     def _test_is_single_matrix(data):
         """Static method because it belongs to the class, ie is only invoked via self.test_single_matrix or Adjacency.test_single_matrix and requires no self argument."""
-        if len(data.shape) == 1:
-            return True
-        else:
-            return False
+        return len(data.shape) == 1
     
     def _import_single_data(self, data, matrix_type=None):
         ''' Helper function to import single data matrix.'''
@@ -389,28 +388,28 @@ class Adjacency(object):
         if self.is_single_matrix:
             if axes is None:
                 _, axes = plt.subplots(nrows=1, figsize=(7, 5))
-            if not self.labels:
-                sns.heatmap(self.squareform(), square=True, ax=a,
-                            *args, **kwargs)
-            else:
+            if self.labels:
                 sns.heatmap(self.squareform(), square=True, ax=axes,
                             xticklabels=self.labels,
                             yticklabels=self.labels,
                             *args, **kwargs)
+            else:
+                sns.heatmap(self.squareform(), square=True, ax=axes,
+                            *args, **kwargs)
         else:
             if axes is not None:
-                print("axes is ignored when plotting multiple images")            n_subs = np.minimum(len(self), limit)
+                print("axes is ignored when plotting multiple images")
+            n_subs = np.minimum(len(self), limit)
             _, a = plt.subplots(nrows=n_subs, figsize=(7, len(self)*5))
-            if not self.labels:
-                for i in range(n_subs):
-                    sns.heatmap(self[i].squareform(), square=True, ax=a[i],
-                                *args, **kwargs)
-            else:
-                for i in range(n_subs):
+            for i in range(n_subs):
+                if self.labels:
                     sns.heatmap(self[i].squareform(), square=True,
                                 xticklabels=self.labels[i],
                                 yticklabels=self.labels[i],
                                 ax=a[i], *args, **kwargs)
+                else:
+                    sns.heatmap(self[i].squareform(), square=True, ax=a[i],
+                                *args, **kwargs)
         return
 
     def mean(self, axis=0):
@@ -531,16 +530,17 @@ class Adjacency(object):
                 'issymmetric': self.issymmetric
             }, compression=kwargs.get('compression', 'blosc'))
         else:
-            if self.is_single_matrix:
-                if method == 'long':
-                    pd.DataFrame(self.data).to_csv(file_name, index=None)
-                elif method == 'square':
-                    pd.DataFrame(self.squareform()).to_csv(file_name, index=None)
-            else:
-                if method == 'long':
-                    pd.DataFrame(self.data).to_csv(file_name, index=None)
-                elif method == 'square':
-                    raise NotImplementedError('Need to decide how we should write out multiple matrices. As separate files?')
+            if (
+                self.is_single_matrix
+                and method == 'long'
+                or not self.is_single_matrix
+                and method == 'long'
+            ):
+                pd.DataFrame(self.data).to_csv(file_name, index=None)
+            elif self.is_single_matrix and method == 'square':
+                pd.DataFrame(self.squareform()).to_csv(file_name, index=None)
+            elif not self.is_single_matrix and method == 'square':
+                raise NotImplementedError('Need to decide how we should write out multiple matrices. As separate files?')
 
     def similarity(self, data, plot=False, perm_type='2d', n_permute=5000,
                    metric='spearman', ignore_diagonal=False, **kwargs):
@@ -578,7 +578,7 @@ class Adjacency(object):
                     data = d[~np.eye(d.shape[0]).astype(bool)]
                 else:
                     data = data.data
-            elif (perm_type == '2d') or (perm_type == 'jackknife'):
+            elif perm_type in ['2d', 'jackknife']:
                 if not data.issymmetric:
                     raise TypeError(f"data must be symmetric to do {perm_type} permutation")
                 else:
@@ -644,18 +644,16 @@ class Adjacency(object):
         '''
 
         b = self.copy()
-        if isinstance(upper, six.string_types):
-            if upper[-1] == '%':
-                upper = np.percentile(b.data, float(upper[:-1]))
-        if isinstance(lower, six.string_types):
-            if lower[-1] == '%':
-                lower = np.percentile(b.data, float(lower[:-1]))
+        if isinstance(upper, six.string_types) and upper[-1] == '%':
+            upper = np.percentile(b.data, float(upper[:-1]))
+        if isinstance(lower, six.string_types) and lower[-1] == '%':
+            lower = np.percentile(b.data, float(lower[:-1]))
 
         if upper and lower:
             b.data[(b.data < upper) & (b.data > lower)] = 0
-        elif upper and not lower:
+        elif upper:
             b.data[b.data < upper] = 0
-        elif lower and not upper:
+        elif lower:
             b.data[b.data > lower] = 0
         if binarize:
             b.data[b.data != 0] = 1
@@ -784,7 +782,7 @@ class Adjacency(object):
             tmp_b['Type'] = 'Between'
             tmp_b['Group'] = i
             out = out.append(tmp_w).append(tmp_b)
-        stats = dict()
+        stats = {}
         for i in np.unique(labels):
             # Within group test
             tmp1 = out.loc[(out['Group'] == i) & (out['Type'] == 'Within'), 'Distance']
