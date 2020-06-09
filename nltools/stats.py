@@ -73,8 +73,7 @@ def pearson(x, y):
     datass = np.sqrt(np.sum(datam*datam, axis=1))
     # datass = np.sqrt(ss(datam, axis=1))
     temp = np.dot(datam[1:], datam[0].T)
-    rs = temp / (datass[1:] * datass[0])
-    return rs
+    return temp / (datass[1:] * datass[0])
 
 
 def zscore(df):
@@ -116,8 +115,7 @@ def fdr(p, q=.05):
     nvox = p.shape[0]
     null = np.array(range(1, nvox + 1), dtype='float') * q / nvox
     below = np.where(s <= null)[0]
-    fdr_p = s[max(below)] if len(below) else -1
-    return fdr_p
+    return s[max(below)] if len(below) else -1
 
 
 def holm_bonf(p, alpha=.05):
@@ -140,8 +138,7 @@ def holm_bonf(p, alpha=.05):
     nvox = p.shape[0]
     null = .05 / (nvox - np.arange(1, nvox + 1) + 1)
     below = np.where(s <= null)[0]
-    bonf_p = s[max(below)] if len(below) else -1
-    return bonf_p
+    return s[max(below)] if len(below) else -1
 
 
 def threshold(stat, p, thr=.05, return_mask=False):
@@ -285,19 +282,18 @@ def _transform_outliers(data, cutoff, replace_with_cutoff, method):
                 std = [data.mean()-data.std()*cutoff['std'][0], data.mean()+data.std()*cutoff['std'][1]]
                 q = pd.Series(index=cutoff['std'], data=std)
             # if replace_with_cutoff is false, replace with true existing values closest to cutoff
-            if method == 'winsorize':
-                if not replace_with_cutoff:
-                    q.iloc[0] = data[data > q.iloc[0]].min()
-                    q.iloc[1] = data[data < q.iloc[1]].max()
+            if method == 'winsorize' and not replace_with_cutoff:
+                q.iloc[0] = data[data > q.iloc[0]].min()
+                q.iloc[1] = data[data < q.iloc[1]].max()
         else:
             raise ValueError('cutoff must be a dictionary with quantile or std keys.')
-        if method == 'winsorize':
+        if method == 'trim':
+            data[data < q.iloc[0]] = np.nan
+            data[data > q.iloc[1]] = np.nan
+        elif method == 'winsorize':
             if isinstance(q, pd.Series) and len(q) == 2:
                 data[data < q.iloc[0]] = q.iloc[0]
                 data[data > q.iloc[1]] = q.iloc[1]
-        elif method == 'trim':
-            data[data < q.iloc[0]] = np.nan
-            data[data > q.iloc[1]] = np.nan
         return data
 
     # transform each column if a dataframe, if series just transform data
@@ -478,7 +474,6 @@ def _permute_func(data1, data2, metric, random_state=None):
     new_fmri_dist = new_fmri_dist[np.triu_indices(new_fmri_dist.shape[0], k=1)]
     return correlation(new_fmri_dist, data2, metric=metric)[0]
 
-
 def _calc_pvalue(all_p, stat, tail):
     """Calculates p value based on distribution of correlations
     This function is called by the permutation functions
@@ -488,18 +483,13 @@ def _calc_pvalue(all_p, stat, tail):
     """
     
     denom = float(len(all_p)) + 1
-    if tail == 2:
+    if tail == 1:
+        numer = np.sum(all_p >= stat) + 1 if stat >= 0 else np.sum(all_p <= stat) + 1
+    elif tail == 2:
         numer = np.sum(np.abs(all_p) >= np.abs(stat)) + 1
-    elif tail == 1:
-        if stat >= 0:
-            numer = np.sum(all_p >= stat) + 1
-        else:
-            numer = np.sum(all_p <= stat) + 1
     else:
         raise ValueError('tail must be either 1 or 2')
-    p = numer / denom
-    return p
-
+    return numer / denom
 
 def one_sample_permutation(data, n_permute=5000, tail=2, n_jobs=-1, return_perms=False, random_state=None):
     ''' One sample permutation test using randomization.
@@ -521,9 +511,7 @@ def one_sample_permutation(data, n_permute=5000, tail=2, n_jobs=-1, return_perms
     seeds = random_state.randint(MAX_INT, size=n_permute)
 
     data = np.array(data)
-    stats = dict()
-    stats['mean'] = np.nanmean(data)
-
+    stats = {'mean': np.nanmean(data)}
     all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_sign)(data,
                                                            random_state=seeds[i]) for i in range(n_permute))
     stats['p'] = _calc_pvalue(all_p, stats['mean'], tail)
@@ -552,8 +540,7 @@ def two_sample_permutation(data1, data2, n_permute=5000,
     random_state = check_random_state(random_state)
     seeds = random_state.randint(MAX_INT, size=n_permute)
 
-    stats = dict()
-    stats['mean'] = np.nanmean(data1)-np.nanmean(data2)
+    stats = {'mean': np.nanmean(data1) - np.nanmean(data2)}
     data = pd.DataFrame(data={'Values': data1, 'Group': np.ones(len(data1))})
     data = data.append(pd.DataFrame(data={
                                         'Values': data2,
@@ -589,7 +576,7 @@ def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
 
     random_state = check_random_state(random_state)
 
-    stats = dict()
+    stats = {}
     data1 = np.array(data1)
     data2 = np.array(data2)
 
@@ -636,9 +623,7 @@ def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
     data1 = sq_data1[np.triu_indices(sq_data1.shape[0], k=1)]
     data2 = sq_data2[np.triu_indices(sq_data2.shape[0], k=1)]
 
-    stats = dict()
-
-    stats['correlation'] = correlation(data1, data2, metric=metric)[0]
+    stats = {'correlation': correlation(data1, data2, metric=metric)[0]}
 
     all_p = Parallel(n_jobs=n_jobs)(delayed(_permute_func)(
                     pd.DataFrame(sq_data1), data2, metric=metric, random_state=seeds[i])
@@ -676,8 +661,7 @@ def jackknife_permutation(data1, data2, metric='spearman',
     data1 = check_square_numpy_matrix(data1)
     data2 = check_square_numpy_matrix(data2)
 
-    stats = {}
-    stats['all_r'] = []
+    stats = {'all_r': []}
     for s in range(data1.shape[0]):
         stats['all_r'].append(correlation(np.delete(data1[s, ], s),
                                           np.delete(data2[s, ], s),
@@ -781,7 +765,6 @@ def transform_pairwise(X, y):
     '''
 
     X_new, y_new, y_group = [], [], []
-    y_ndim = y.ndim
     if y.ndim == 1:
         y = np.c_[y, np.ones(y.shape[0])]
     comb = itertools.combinations(range(X.shape[0]), 2)
@@ -796,9 +779,9 @@ def transform_pairwise(X, y):
         if y_new[-1] != (-1) ** k:
             y_new[-1] = - y_new[-1]
             X_new[-1] = - X_new[-1]
-    if y_ndim == 1:
+    if y.ndim == 1:
         return np.asarray(X_new), np.asarray(y_new).ravel()
-    elif y_ndim == 2:
+    elif y.ndim == 2:
         return np.asarray(X_new), np.vstack((np.asarray(y_new), np.asarray(y_group))).T
 
 
@@ -1134,7 +1117,7 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
 
     if not isinstance(data, list):
         raise ValueError('Make sure you are inputting data is a list.')
-    if not all([type(x) for x in data]):
+    if not all(type(x) for x in data):
         raise ValueError('Make sure all objects in the list are the same type.')
     if method not in ['probabilistic_srm', 'deterministic_srm', 'procrustes']:
         raise ValueError("Method must be ['probabilistic_srm','deterministic_srm','procrustes']")
@@ -1156,7 +1139,7 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
     elif axis != 0:
         raise ValueError('axis must be 0 or 1.')
 
-    out = dict()
+    out = {}
     if method in ['deterministic_srm', 'probabilistic_srm']:
         if n_features is None:
             n_features = int(data[0].shape[0])
@@ -1242,12 +1225,20 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
     out['isc'] = dict(zip(np.arange(n_features), a.mean(axis=1)))
 
     if data_type == 'Brain_Data':
-        for i, x in enumerate(out['transformed']):
-            data_out[i].data = x.T
-        out['transformed'] = data_out
-        common = data_out[0].copy()
-        common.data = out['common_model'].T
-        out['common_model'] = common
+        if method == 'procrustes':
+            for i, x in enumerate(out['transformed']):
+                data_out[i].data = x.T
+                out['transformed'] = data_out
+            common = data_out[0].copy()
+            common.data = out['common_model'].T
+            out['common_model'] = common
+        else:
+            out['transformed'] = [x.T for x in out['transformed']]
+
+        transformation_out = [x.copy() for x in data]
+        for i,x in enumerate(out['transformation_matrix']):
+            transformation_out[i].data = x.T
+        out['transformation_matrix'] = transformation_out
 
     return out
 
@@ -1499,9 +1490,7 @@ def procrustes_distance(mat1, mat2, n_permute=5000, tail=2, n_jobs=-1, random_st
 
     _, _, sse = procrust(mat1, mat2)
 
-    stats = dict()
-    stats['similarity'] = sse
-
+    stats = {'similarity': sse}
     all_p = Parallel(n_jobs=n_jobs)(delayed(procrust)(random_state.permutation(mat1), mat2) for i in range(n_permute))
     all_p = [1 - x[2] for x in all_p]
 
