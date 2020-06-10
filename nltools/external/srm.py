@@ -51,7 +51,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def _init_w_transforms(data, random_states, features):
+def _init_w_transforms(data, features, random_states):
     """Initialize the mappings (Wi) for the SRM with random orthogonal matrices.
 
     Parameters
