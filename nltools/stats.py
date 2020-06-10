@@ -1127,6 +1127,7 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
     if isinstance(data[0], Brain_Data):
         data_type = 'Brain_Data'
         data_out = [x.copy() for x in data]
+        transformation_out = [x.copy() for x in data]
         data = [x.data.T for x in data]
     elif isinstance(data[0], np.ndarray):
         data_type = 'numpy'
@@ -1235,7 +1236,6 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
         else:
             out['transformed'] = [x.T for x in out['transformed']]
 
-        transformation_out = [x.copy() for x in data]
         for i,x in enumerate(out['transformation_matrix']):
             transformation_out[i].data = x.T
         out['transformation_matrix'] = transformation_out

@@ -1574,7 +1574,7 @@ class Brain_Data(object):
         ''' Standardize Brain_Data() instance.
 
         Args:
-            axis: 0 for observations 1 for features
+            axis: 0 for observations 1 for voxels
             method: ['center','zscore']
 
         Returns:
@@ -1767,8 +1767,7 @@ class Brain_Data(object):
             out['components'].data = out['decomposition_object'].components_
         return out
 
-    def align(self, target, method='procrustes', n_features=None, axis=0,
-              *args, **kwargs):
+    def align(self, target, method='procrustes', axis=0, *args, **kwargs):
         ''' Align Brain_Data instance to target object
 
         Can be used to hyperalign source data to target data using
@@ -1793,8 +1792,6 @@ class Brain_Data(object):
             target: (Brain_Data) object to align to.
             method: (str) alignment method to use
                 ['probabilistic_srm','deterministic_srm','procrustes']
-            n_features: (int) number of features to align to common space.
-                If None then will select number of voxels
             axis: (int) axis to align on
 
         Returns:
@@ -1803,16 +1800,17 @@ class Brain_Data(object):
 
         '''
 
-        source = self.copy()
-        common = target.copy()
-
-        target = check_brain_data(target)
-
         if method not in ['probabilistic_srm', 'deterministic_srm', 'procrustes']:
             raise ValueError("Method must be ['probabilistic_srm','deterministic_srm','procrustes']")
+        
+        source = self.copy()
+        data1 = self.data.T.copy()
 
-        data1 = source.data.T
-        data2 = target.data.T
+        if method == 'procrustes':
+            target = check_brain_data(target)
+            data2 = target.data.T.copy()
+        else:
+            data2 = target.T.copy()
 
         if axis == 1:
             data1 = data1.T
@@ -1820,32 +1818,26 @@ class Brain_Data(object):
 
         out = {}
         if method in ['deterministic_srm', 'probabilistic_srm']:
-            if n_features is None:
-                n_features = data1.shape[0]
-            if method == 'deterministic_srm':
-                srm = DetSRM(features=n_features, *args, **kwargs)
-            elif method == 'probabilistic_srm':
-                srm = SRM(features=n_features, *args, **kwargs)
-            srm.fit([data1, data2])
-            source.data = srm.transform([data1, data2])[0].T
-            common.data = srm.s_.T
-            out['transformed'] = source
-            out['common_model'] = common
-            out['transformation_matrix'] = srm.w_[0]
-        elif method == 'procrustes':
-            if n_features is not None:
-                raise NotImplementedError('Currently must use all voxels.'
-                                          'Eventually will add a PCA'
-                                          'reduction, must do this manually'
-                                          'for now.')
+            if target.shape[1] != data1.shape[1]:
+                raise ValueError("The number of timepoints(TRs) does not match the model.")
 
-            mtx1, mtx2, out['disparity'], t, out['scale'] = procrustes(data2.T,
-                                                                       data1.T)
+            A = data1.dot(data2)
+
+            # # Solve the Procrustes problem
+            U, _, V = np.linalg.svd(A, full_matrices=False)
+
+            out['transformation_matrix'] = source
+            out['transformation_matrix'].data = U.dot(V).T
+
+            out['transformed'] = data1.T.dot(out['transformation_matrix'].data.T)
+            out['common_model'] = target
+        elif method == 'procrustes':
+            _, mtx2, out['disparity'], t, out['scale'] = procrustes(data2.T, data1.T)
             source.data = mtx2
-            common.data = mtx1
             out['transformed'] = source
-            out['common_model'] = common
-            out['transformation_matrix'] = t
+            out['common_model'] = target
+            out['transformation_matrix'] = source
+            out['transformation_matrix'].data = t
         if axis == 1:
             out['transformed'].data = out['transformed'].data.T
             out['common_model'].data = out['common_model'].data.T
