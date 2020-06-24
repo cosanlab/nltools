@@ -564,7 +564,7 @@ def correlation_permutation(data1, data2, method='random', n_permute=5000, metri
     ''' Compute correlation and calculate p-value using permutation methods.
 
         'random' method randomly shuffles one of the vectors. This method is recommended
-        for independent data. For timeseries data we recommend using 'circle_shift' or 
+        for independent data. For timeseries data we recommend using 'circle_shift' or
         'phase_randomize' methods.
 
         Args:
@@ -1590,23 +1590,23 @@ def phase_randomize(data, random_state=None):
     '''Perform phase randomization on time-series signal
         
         This procedure preserves the power spectrum/autocorrelation,
-        but destroys any nonlinear behavior. Based on the algorithm 
+        but destroys any nonlinear behavior. Based on the algorithm
         described in:
         
-        Theiler, J., Galdrikian, B., Longtin, A., Eubank, S., & Farmer, J. D. (1991). 
-        Testing for nonlinearity in time series: the method of surrogate data 
+        Theiler, J., Galdrikian, B., Longtin, A., Eubank, S., & Farmer, J. D. (1991).
+        Testing for nonlinearity in time series: the method of surrogate data
         (No. LA-UR-91-3343; CONF-9108181-1). Los Alamos National Lab., NM (United States).
 
-        Lancaster, G., Iatsenko, D., Pidde, A., Ticcinelli, V., & Stefanovska, A. (2018). 
+        Lancaster, G., Iatsenko, D., Pidde, A., Ticcinelli, V., & Stefanovska, A. (2018).
         Surrogate data for hypothesis testing of physical systems. Physics Reports, 748, 1-60.
             
         1. Calculate the Fourier transform ftx of the original signal xn.
-        2. Generate a vector of random phases in the range[0, 2π]) with 
+        2. Generate a vector of random phases in the range[0, 2π]) with
            length L/2,where L is the length of the time series.
-        3. As the Fourier transform is symmetrical, to create the new phase 
-           randomized vector ftr , multiply the first half of ftx (i.e.the half 
-           corresponding to the positive frequencies) by exp(iφr) to create the 
-           first half of ftr.The remainder of ftr is then the horizontally flipped 
+        3. As the Fourier transform is symmetrical, to create the new phase
+           randomized vector ftr , multiply the first half of ftx (i.e.the half
+           corresponding to the positive frequencies) by exp(iφr) to create the
+           first half of ftr.The remainder of ftr is then the horizontally flipped
            complex conjugate of the first half.
         4. Finally, the inverse Fourier transform of ftr gives the FT surrogate.
 
@@ -1669,9 +1669,9 @@ def _bootstrap_isc(similarity_matrix, metric='median', exclude_self_corr=True, r
 
         This function implements the subject-wise bootstrap method discussed in Chen et al., 2016.
 
-        Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B., 
-        & Cox, R. W. (2016). Untangling the relatedness among correlations, part I: 
-        nonparametric approaches to inter-subject correlation analysis at the group level. 
+        Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B.,
+        & Cox, R. W. (2016). Untangling the relatedness among correlations, part I:
+        nonparametric approaches to inter-subject correlation analysis at the group level.
         NeuroImage, 142, 248-259.
         
         Args:
@@ -1735,29 +1735,29 @@ def isc(data, n_bootstraps=5000, metric='median', method='bootstrap', ci_percent
             
         This function computes pairwise intersubject correlations (ISC) using the median as recommended by Chen
         et al., 2016). However, if the mean is preferred, we compute the mean correlation after performing
-        the fisher r-to-z transformation and then convert back to correlations to minimize artificially 
+        the fisher r-to-z transformation and then convert back to correlations to minimize artificially
         inflating the correlation values.
         
-        There are currently three different methods to compute p-values. These include the classic methods for 
-        computing permuted time-series by either circle-shifting the data or phase-randomizing the data 
+        There are currently three different methods to compute p-values. These include the classic methods for
+        computing permuted time-series by either circle-shifting the data or phase-randomizing the data
         (see Lancaster et al., 2018). These methods create random surrogate data while preserving the temporal
-        autocorrelation inherent to the signal. By default, we use the subject-wise bootstrap method from 
+        autocorrelation inherent to the signal. By default, we use the subject-wise bootstrap method from
         Chen et al., 2016. Instead of recomputing the pairwise ISC using circle_shift or phase_randomization methods,
         this approach uses the computationally more efficient method of bootstrapping the subjects
         and computing a new pairwise similarity matrix with randomly selected subjects with replacement.
-        If the same subject is selected multiple times, we set the perfect correlation to a nan with 
+        If the same subject is selected multiple times, we set the perfect correlation to a nan with
         (exclude_self_corr=True). We compute the p-values using the percentile method using the same
         method in Brainiak.
         
-        Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B., 
-        & Cox, R. W. (2016). Untangling the relatedness among correlations, part I: 
-        nonparametric approaches to inter-subject correlation analysis at the group level. 
+        Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B.,
+        & Cox, R. W. (2016). Untangling the relatedness among correlations, part I:
+        nonparametric approaches to inter-subject correlation analysis at the group level.
         NeuroImage, 142, 248-259.
         
-        Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap hypothesis testing. 
+        Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap hypothesis testing.
         Biometrics, 757-762.
         
-        Lancaster, G., Iatsenko, D., Pidde, A., Ticcinelli, V., & Stefanovska, A. (2018). 
+        Lancaster, G., Iatsenko, D., Pidde, A., Ticcinelli, V., & Stefanovska, A. (2018).
         Surrogate data for hypothesis testing of physical systems. Physics Reports, 748, 1-60.
 
         Args:
@@ -1791,18 +1791,18 @@ def isc(data, n_bootstraps=5000, metric='median', method='bootstrap', ci_percent
 
     if method == 'bootstrap':
         all_bootstraps = Parallel(n_jobs=n_jobs)(delayed(_bootstrap_isc)(
-                    similarity, metric=metric, exclude_self_corr=exclude_self_corr, 
+                    similarity, metric=metric, exclude_self_corr=exclude_self_corr,
                     random_state=random_state) for i in range(n_bootstraps))
         stats['p'] = _calc_pvalue(all_bootstraps - stats['isc'], stats['isc'], tail)
 
     elif method == 'circle_shift':
         all_bootstraps = Parallel(n_jobs=n_jobs)(delayed(_compute_isc)(
-                    circle_shift(data, random_state=random_state), metric=metric) 
+                    circle_shift(data, random_state=random_state), metric=metric)
                                                     for i in range(n_bootstraps))
         stats['p'] = _calc_pvalue(all_bootstraps, stats['isc'], tail)
     elif method == 'phase_randomize':
         all_bootstraps = Parallel(n_jobs=n_jobs)(delayed(_compute_isc)(
-                    phase_randomize(data, random_state=random_state), metric=metric) 
+                    phase_randomize(data, random_state=random_state), metric=metric)
                                                     for i in range(n_bootstraps))
         stats['p'] = _calc_pvalue(all_bootstraps, stats['isc'], tail)
     else:
