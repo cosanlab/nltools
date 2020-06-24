@@ -1720,6 +1720,8 @@ def _compute_isc(data, metric='median'):
             
     '''
 
+    from nltools.data import Adjacency
+
     similarity = Adjacency(1 - pairwise_distances(data.T, metric='correlation'), matrix_type='similarity')
     if metric =='mean':
         isc = np.tanh(similarity.r_to_z().mean())
@@ -1772,6 +1774,8 @@ def isc(data, n_bootstraps=5000, metric='median', method='bootstrap', ci_percent
 
     '''
     
+    from nltools.data import Adjacency
+
     random_state = check_random_state(random_state)
 
     if not isinstance(data, (pd.DataFrame, np.ndarray)):
@@ -1783,24 +1787,27 @@ def isc(data, n_bootstraps=5000, metric='median', method='bootstrap', ci_percent
 
     stats = {'isc': _compute_isc(data, metric=metric)}
     
+    similarity = Adjacency(1 - pairwise_distances(data.T, metric='correlation'), matrix_type='similarity')
+
     if method == 'bootstrap':
         all_bootstraps = Parallel(n_jobs=n_jobs)(delayed(_bootstrap_isc)(
                     similarity, metric=metric, exclude_self_corr=exclude_self_corr, 
                     random_state=random_state) for i in range(n_bootstraps))
+        stats['p'] = _calc_pvalue(all_bootstraps - stats['isc'], stats['isc'], tail)
 
     elif method == 'circle_shift':
         all_bootstraps = Parallel(n_jobs=n_jobs)(delayed(_compute_isc)(
                     circle_shift(data, random_state=random_state), metric=metric) 
                                                     for i in range(n_bootstraps))
+        stats['p'] = _calc_pvalue(all_bootstraps, stats['isc'], tail)
     elif method == 'phase_randomize':
         all_bootstraps = Parallel(n_jobs=n_jobs)(delayed(_compute_isc)(
                     phase_randomize(data, random_state=random_state), metric=metric) 
                                                     for i in range(n_bootstraps))
+        stats['p'] = _calc_pvalue(all_bootstraps, stats['isc'], tail)
     else:
         raise ValueError("method can only be ['bootstrap', 'circle_shift','phase_randomize']")
         
-    stats['p'] = _calc_pvalue(all_bootstraps - stats['isc'], stats['isc'], tail)
-
     stats['ci'] = (np.percentile(np.array(all_bootstraps), (100 - ci_percentile)/2, axis=0),
                     np.percentile(np.array(all_bootstraps), ci_percentile + (100 - ci_percentile)/2, axis=0))
 

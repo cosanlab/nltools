@@ -11,7 +11,8 @@ from nltools.stats import (one_sample_permutation,
                            align,
                            transform_pairwise,
                            _calc_pvalue,
-                           find_spikes)
+                           find_spikes,
+                           isc)
 from nltools.simulator import Simulator
 from nltools.mask import create_sphere
 from sklearn.metrics import pairwise_distances
@@ -30,14 +31,10 @@ def test_permutation():
     assert (stats['mean'] < -2) & (stats['mean'] > -6) & (stats['p'] < .001)
     stats = correlation_permutation(x, y, metric='pearson', tail=1)
     assert (stats['correlation'] > .4) & (stats['correlation'] < .85) & (stats['p'] < .001)
-    stats = correlation_permutation(x, y, metric='spearman', tail=1)
-    assert (stats['correlation'] > .4) & (stats['correlation'] < .85) & (stats['p'] < .001)
-    stats = correlation_permutation(x, y, metric='kendall', tail=2)
-    assert (stats['correlation'] > .4) & (stats['correlation'] < .85) & (stats['p'] < .001)
-    stats = correlation_permutation(x, y, metric='pearson', method='circle_shift', tail=1)
-    assert (stats['correlation'] > .4) & (stats['correlation'] < .85) & (stats['p'] < .001)
-    stats = correlation_permutation(x, y, metric='pearson', method='phase_randomize', tail=1)
-    assert (stats['correlation'] > .4) & (stats['correlation'] < .85) & (stats['p'] < .001)
+    for metric in ['spearman', 'kendall', 'pearson']:
+        stats = correlation_permutation(x, y, metric=metric, tail=1)
+        assert (stats['correlation'] > .4) & (stats['correlation'] < .85) & (stats['p'] < .01)
+
     # with pytest.raises(ValueError):
     # 	correlation_permutation(x, y, metric='kendall',tail=3)
     # with pytest.raises(ValueError):
