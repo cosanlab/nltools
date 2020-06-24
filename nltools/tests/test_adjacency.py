@@ -242,3 +242,11 @@ def test_social_relations_model():
     # labels = np.array(['group1','group1','group2','group2'])
     # stats = dat_multiple[0].stats_label_distance(labels)
     # assert np.isclose(stats['group1']['mean'],-1*stats['group2']['mean'])
+
+def test_isc(sim_adjacency_single):
+    n_boot = 100
+    for metric in ['median', 'mean']:
+        stats = sim_adjacency_single.isc(metric=metric, n_bootstraps=n_boot, return_bootstraps=True)
+        assert (stats['isc'] > -1) & (stats['isc'] < 1)
+        assert (stats['p'] > 0) & (stats['p'] < 1)
+        assert len(stats['null_distribution']) == n_boot

@@ -39,6 +39,7 @@ __all__ = ['pearson',
            'u_center',]
 
 import numpy as np
+from numpy.fft import fft, ifft
 import pandas as pd
 from scipy.stats import pearsonr, spearmanr, kendalltau, norm, ttest_1samp
 from scipy.stats import t as t_dist
@@ -491,6 +492,7 @@ def _calc_pvalue(all_p, stat, tail):
         raise ValueError('tail must be either 1 or 2')
     return numer / denom
 
+
 def one_sample_permutation(data, n_permute=5000, tail=2, n_jobs=-1, return_perms=False, random_state=None):
     ''' One sample permutation test using randomization.
 
@@ -501,6 +503,7 @@ def one_sample_permutation(data, n_permute=5000, tail=2, n_jobs=-1, return_perms
             n_jobs: (int) The number of CPUs to use to do the computation.
                     -1 means all CPUs.
             return_parms: (bool) Return the permutation distribution along with the p-value; default False
+            random_state: (int, None, or np.random.RandomState) Initial random seed (default: None)
 
         Returns:
             stats: (dict) dictionary of permutation results ['mean','p']
@@ -553,38 +556,134 @@ def two_sample_permutation(data1, data2, n_permute=5000,
         stats['perm_dist'] = all_p
     return stats
 
+def phase_randomize(data, random_state=None):
+    '''Perform phase randomization on time-series signal
+        
+        This procedure preserves the power spectrum/autocorrelation,
+        but destroys any nonlinear behavior. Based on the algorithm 
+        described in:
+        
+        Theiler, J., Galdrikian, B., Longtin, A., Eubank, S., & Farmer, J. D. (1991). 
+        Testing for nonlinearity in time series: the method of surrogate data 
+        (No. LA-UR-91-3343; CONF-9108181-1). Los Alamos National Lab., NM (United States).
 
-def correlation_permutation(data1, data2, n_permute=5000, metric='spearman',
-                            tail=2, n_jobs=-1, return_perms=False, random_state=None):
-    ''' Permute correlation.
+        Lancaster, G., Iatsenko, D., Pidde, A., Ticcinelli, V., & Stefanovska, A. (2018). 
+        Surrogate data for hypothesis testing of physical systems. Physics Reports, 748, 1-60.
+            
+        1. Calculate the Fourier transform ftx of the original signal xn.
+        2. Generate a vector of random phases in the range[0, 2π]) with 
+           length L/2,where L is the length of the time series.
+        3. As the Fourier transform is symmetrical, to create the new phase 
+           randomized vector ftr , multiply the first half of ftx (i.e.the half 
+           corresponding to the positive frequencies) by exp(iφr) to create the 
+           first half of ftr.The remainder of ftr is then the horizontally flipped 
+           complex conjugate of the first half.
+        4. Finally, the inverse Fourier transform of ftr gives the FT surrogate.
 
         Args:
+        
+            data: (np.array) data
+            random_state: (int, None, or np.random.RandomState) Initial random seed (default: None)
+                 
+        Returns:
+        
+            shifted_data: (np.array) phase randomized data
+    '''
+    random_state = check_random_state(random_state)
+
+    data = np.array(data)
+    fft_data = fft(data, axis=0)
+
+    if data.shape[0] % 2 == 0:
+        pos_freq = np.arange(1, data.shape[0] // 2)
+        neg_freq = np.arange(data.shape[0] - 1, data.shape[0] // 2, -1)
+    else:
+        pos_freq = np.arange(1, (data.shape[0] - 1) // 2 + 1)
+        neg_freq = np.arange(data.shape[0] - 1, (data.shape[0] - 1) // 2, -1)
+
+    phase_shifts = random_state.uniform(0, 2*np.pi, size=(len(pos_freq)))
+    fft_data[pos_freq] *= np.exp(1j * phase_shifts)
+    fft_data[neg_freq] *= np.exp(-1j * phase_shifts)
+    return np.real(ifft(fft_data, axis=0))
+
+def circle_shift(data, random_state=None):
+    '''Circle shift data for each feature
+        
+    Args:
+    
+        data: time series (1D or 2D). If 2D, then must be observations by features
+        random_state: (int, None, or np.random.RandomState) Initial random seed (default: None)
+            
+    Returns:
+    
+        shifted data
+    
+    '''
+    random_state = check_random_state(random_state)
+    data = np.array(data)
+    if len(data.shape) == 1:
+        shift = random_state.choice(np.arange(len(data)))
+        shifted = np.concatenate((data[-shift:], data[:-shift]))
+    else:
+        shift = random_state.choice(np.arange(data.shape[0]), size=data.shape[1])
+        shifted = np.array([np.concatenate([data[-int(s):, int(d)], data[:-int(s), int(d)]]) for d,s in zip(range(data.shape[1]), shift)]).T
+    return shifted
+        
+    
+def correlation_permutation(data1, data2, method='random', n_permute=5000, metric='spearman',
+                            tail=2, n_jobs=-1, return_perms=False, random_state=None):
+    ''' Compute correlation and calculate p-value using permutation methods.
+
+        'random' method randomly shuffles one of the vectors. This method is recommended
+        for independent data. For timeseries data we recommend using 'circle_shift' or 
+        'phase_randomize' methods.
+
+        Args:
+        
             data1: (pd.DataFrame, pd.Series, np.array) dataset 1 to permute
             data2: (pd.DataFrame, pd.Series, np.array) dataset 2 to permute
             n_permute: (int) number of permutations
             metric: (str) type of association metric ['spearman','pearson',
                     'kendall']
+            method: (str) type of permutation ['random', 'circle_shift', 'phase_randomize']
+            random_state: (int, None, or np.random.RandomState) Initial random seed (default: None)
             tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
             n_jobs: (int) The number of CPUs to use to do the computation.
                     -1 means all CPUs.
             return_parms: (bool) Return the permutation distribution along with the p-value; default False
 
         Returns:
+        
             stats: (dict) dictionary of permutation results ['correlation','p']
 
     '''
+    if len(data1) != len(data2):
+        raise ValueError('Make sure that data1 is the same length as data2')
+    
+    if method not in ['random', 'circle_shift', 'phase_randomize']:
+        raise ValueError("Make sure that method is ['random', 'circle_shift', 'phase_randomize']")
 
     random_state = check_random_state(random_state)
 
-    stats = {}
     data1 = np.array(data1)
     data2 = np.array(data2)
 
-    stats['correlation'] = correlation(data1, data2, metric=metric)[0]
+    stats = {'correlation':correlation(data1, data2, metric=metric)[0]}
 
-    all_p = Parallel(n_jobs=n_jobs)(delayed(correlation)(
-                    random_state.permutation(data1), data2, metric=metric)
-                    for i in range(n_permute))
+    if method == 'random':
+        all_p = Parallel(n_jobs=n_jobs)(delayed(correlation)(
+                        random_state.permutation(data1), data2, metric=metric)
+                        for i in range(n_permute))
+    elif method == 'circle_shift':
+        shift = random_state.choice(np.arange(len(data1)))
+        all_p = Parallel(n_jobs=n_jobs)(delayed(correlation)(
+                circle_shift(data1, shift), data2, metric=metric)
+                for i in range(n_permute))
+    elif method == 'phase_randomize':
+        all_p = Parallel(n_jobs=n_jobs)(delayed(correlation)(
+                phase_randomize(data1, random_state=random_state), phase_randomize(data2), metric=metric)
+                for i in range(n_permute))
+
     all_p = [x[0] for x in all_p]
 
     stats['p'] = _calc_pvalue(all_p, stats['correlation'], tail)
@@ -765,7 +864,8 @@ def transform_pairwise(X, y):
     '''
 
     X_new, y_new, y_group = [], [], []
-    if y.ndim == 1:
+    y_ndim = y.ndim
+    if y_ndim == 1:
         y = np.c_[y, np.ones(y.shape[0])]
     comb = itertools.combinations(range(X.shape[0]), 2)
     for k, (i, j) in enumerate(comb):
@@ -779,9 +879,9 @@ def transform_pairwise(X, y):
         if y_new[-1] != (-1) ** k:
             y_new[-1] = - y_new[-1]
             X_new[-1] = - X_new[-1]
-    if y.ndim == 1:
+    if y_ndim == 1:
         return np.asarray(X_new), np.asarray(y_new).ravel()
-    elif y.ndim == 2:
+    elif y_ndim == 2:
         return np.asarray(X_new), np.vstack((np.asarray(y_new), np.asarray(y_group))).T
 
 
@@ -1081,12 +1181,13 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
     ''' Align subject data into a common response model.
 
         Can be used to hyperalign source data to target data using
-        Hyperalignemnt from Dartmouth (i.e., procrustes transformation; see
+        Hyperalignment from Dartmouth (i.e., procrustes transformation; see
         nltools.stats.procrustes) or Shared Response Model from Princeton (see
         nltools.external.srm). (see nltools.data.Brain_Data.align for aligning
         a single Brain object to another). Common Model is shared response
-        model or centered target data.Transformed data can be back projected to
-        original data using Tranformation matrix.
+        model or centered target data. Transformed data can be back projected to
+        original data using Tranformation matrix. Inputs must be a list of Brain_Data 
+        instances or numpy arrays (observations by features).
 
         Examples:
             Hyperalign using procrustes transform:
@@ -1131,6 +1232,7 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
         data = [x.data.T for x in data]
     elif isinstance(data[0], np.ndarray):
         data_type = 'numpy'
+        data = [x.T for x in data]
     else:
         raise ValueError('Type %s is not implemented yet.' % type(data[0]))
 
@@ -1150,7 +1252,7 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
             srm = SRM(features=n_features, *args, **kwargs)
         srm.fit(data)
         out['transformed'] = [x for x in srm.transform(data)]
-        out['common_model'] = srm.s_
+        out['common_model'] = srm.s_.T
         out['transformation_matrix'] = srm.w_
 
     elif method == 'procrustes':
@@ -1207,7 +1309,7 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
             disparity.append(d)
             scale.append(s)
         out['transformed'] = aligned
-        out['common_model'] = common.T
+        out['common_model'] = common
         out['transformation_matrix'] = transformation_matrix
         out['disparity'] = disparity
         out['scale'] = scale
@@ -1216,9 +1318,12 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
         out['transformed'] = [x.T for x in out['transformed']]
         out['common_model'] = out['common_model'].T
 
+        if data_type == 'Brain_Data':
+            out['transformation_matrix'] = [x.T for x in out['transformation_matrix']]
+
     # Calculate Intersubject correlation on aligned components
     if n_features is None:
-        n_features = out['common_model'].shape[0]
+        n_features = out['common_model'].shape[1]
 
     a = Adjacency()
     for f in range(n_features):
@@ -1231,7 +1336,7 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
                 data_out[i].data = x.T
                 out['transformed'] = data_out
             common = data_out[0].copy()
-            common.data = out['common_model'].T
+            common.data = out['common_model']
             out['common_model'] = common
         else:
             out['transformed'] = [x.T for x in out['transformed']]

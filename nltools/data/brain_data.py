@@ -335,7 +335,8 @@ class Brain_Data(object):
         return new
 
     def __iter__(self):
-        yield from self
+        for x in range(len(self)):
+            yield self[x]
 
     def shape(self):
         """ Get images by voxels shape. """
@@ -1804,13 +1805,23 @@ class Brain_Data(object):
             raise ValueError("Method must be ['probabilistic_srm','deterministic_srm','procrustes']")
         
         source = self.copy()
-        data1 = self.data.T.copy()
+        data1 = self.data.copy()
 
         if method == 'procrustes':
             target = check_brain_data(target)
-            data2 = target.data.T.copy()
+            data2 = target.data.copy()
+            
+            # pad columns if different shapes
+            sizes_0 = [x.shape[0] for x in [data1, data2]]
+            sizes_1 = [x.shape[1] for x in [data1, data2]]
+            R = min(sizes_0)
+            C = max(sizes_1)
+            y = data1[:, 0:C]
+            missing = C - y.shape[1]
+            add = np.zeros((y.shape[0], missing))
+            data1 = np.append(y, add, axis=1)
         else:
-            data2 = target.T.copy()
+            data2 = target.copy()
 
         if axis == 1:
             data1 = data1.T
@@ -1818,29 +1829,32 @@ class Brain_Data(object):
 
         out = {}
         if method in ['deterministic_srm', 'probabilistic_srm']:
-            if target.shape[1] != data1.shape[1]:
+            if data2.shape[0] != data1.shape[0]:
                 raise ValueError("The number of timepoints(TRs) does not match the model.")
 
-            A = data1.dot(data2)
+            A = data1.T.dot(data2)
 
             # # Solve the Procrustes problem
             U, _, V = np.linalg.svd(A, full_matrices=False)
 
             out['transformation_matrix'] = source
-            out['transformation_matrix'].data = U.dot(V).T
+            out['transformation_matrix'].data = U.dot(V)
 
-            out['transformed'] = data1.T.dot(out['transformation_matrix'].data.T)
+            out['transformed'] = data1.dot(out['transformation_matrix'].data)
             out['common_model'] = target
         elif method == 'procrustes':
-            _, mtx2, out['disparity'], t, out['scale'] = procrustes(data2.T, data1.T)
-            source.data = mtx2
+            _, transformed, out['disparity'], tf_mtx, out['scale'] = procrustes(data2, data1)
+            source.data = transformed
             out['transformed'] = source
             out['common_model'] = target
-            out['transformation_matrix'] = source
-            out['transformation_matrix'].data = t
+            out['transformation_matrix'] = source.copy()
+            out['transformation_matrix'].data = tf_mtx
         if axis == 1:
-            out['transformed'].data = out['transformed'].data.T
-            out['common_model'].data = out['common_model'].data.T
+            if method == 'procrustes':
+                out['transformed'].data = out['transformed'].data.T
+            else:
+                out['transformed'] = out['transformed'].T
+
         return out
 
     def smooth(self, fwhm):
