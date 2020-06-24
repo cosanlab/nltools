@@ -36,7 +36,9 @@ __all__ = ['pearson',
            'distance_correlation',
            'transform_pairwise',
            'double_center',
-           'u_center',]
+           'u_center',
+           '_bootstrap_isc',
+           'isc']
 
 import numpy as np
 from numpy.fft import fft, ifft
@@ -555,79 +557,6 @@ def two_sample_permutation(data1, data2, n_permute=5000,
     if return_perms:
         stats['perm_dist'] = all_p
     return stats
-
-def phase_randomize(data, random_state=None):
-    '''Perform phase randomization on time-series signal
-        
-        This procedure preserves the power spectrum/autocorrelation,
-        but destroys any nonlinear behavior. Based on the algorithm 
-        described in:
-        
-        Theiler, J., Galdrikian, B., Longtin, A., Eubank, S., & Farmer, J. D. (1991). 
-        Testing for nonlinearity in time series: the method of surrogate data 
-        (No. LA-UR-91-3343; CONF-9108181-1). Los Alamos National Lab., NM (United States).
-
-        Lancaster, G., Iatsenko, D., Pidde, A., Ticcinelli, V., & Stefanovska, A. (2018). 
-        Surrogate data for hypothesis testing of physical systems. Physics Reports, 748, 1-60.
-            
-        1. Calculate the Fourier transform ftx of the original signal xn.
-        2. Generate a vector of random phases in the range[0, 2π]) with 
-           length L/2,where L is the length of the time series.
-        3. As the Fourier transform is symmetrical, to create the new phase 
-           randomized vector ftr , multiply the first half of ftx (i.e.the half 
-           corresponding to the positive frequencies) by exp(iφr) to create the 
-           first half of ftr.The remainder of ftr is then the horizontally flipped 
-           complex conjugate of the first half.
-        4. Finally, the inverse Fourier transform of ftr gives the FT surrogate.
-
-        Args:
-        
-            data: (np.array) data
-            random_state: (int, None, or np.random.RandomState) Initial random seed (default: None)
-                 
-        Returns:
-        
-            shifted_data: (np.array) phase randomized data
-    '''
-    random_state = check_random_state(random_state)
-
-    data = np.array(data)
-    fft_data = fft(data, axis=0)
-
-    if data.shape[0] % 2 == 0:
-        pos_freq = np.arange(1, data.shape[0] // 2)
-        neg_freq = np.arange(data.shape[0] - 1, data.shape[0] // 2, -1)
-    else:
-        pos_freq = np.arange(1, (data.shape[0] - 1) // 2 + 1)
-        neg_freq = np.arange(data.shape[0] - 1, (data.shape[0] - 1) // 2, -1)
-
-    phase_shifts = random_state.uniform(0, 2*np.pi, size=(len(pos_freq)))
-    fft_data[pos_freq] *= np.exp(1j * phase_shifts)
-    fft_data[neg_freq] *= np.exp(-1j * phase_shifts)
-    return np.real(ifft(fft_data, axis=0))
-
-def circle_shift(data, random_state=None):
-    '''Circle shift data for each feature
-        
-    Args:
-    
-        data: time series (1D or 2D). If 2D, then must be observations by features
-        random_state: (int, None, or np.random.RandomState) Initial random seed (default: None)
-            
-    Returns:
-    
-        shifted data
-    
-    '''
-    random_state = check_random_state(random_state)
-    data = np.array(data)
-    if len(data.shape) == 1:
-        shift = random_state.choice(np.arange(len(data)))
-        shifted = np.concatenate((data[-shift:], data[:-shift]))
-    else:
-        shift = random_state.choice(np.arange(data.shape[0]), size=data.shape[1])
-        shifted = np.array([np.concatenate([data[-int(s):, int(d)], data[:-int(s), int(d)]]) for d,s in zip(range(data.shape[1]), shift)]).T
-    return shifted
         
     
 def correlation_permutation(data1, data2, method='random', n_permute=5000, metric='spearman',
@@ -1656,3 +1585,228 @@ def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
             outlier['diff_spike' + str(i + 1)] = 0
             outlier['diff_spike' + str(i + 1)].iloc[int(loc)] = 1
     return outlier
+
+
+def phase_randomize(data, random_state=None):
+    '''Perform phase randomization on time-series signal
+        
+        This procedure preserves the power spectrum/autocorrelation,
+        but destroys any nonlinear behavior. Based on the algorithm 
+        described in:
+        
+        Theiler, J., Galdrikian, B., Longtin, A., Eubank, S., & Farmer, J. D. (1991). 
+        Testing for nonlinearity in time series: the method of surrogate data 
+        (No. LA-UR-91-3343; CONF-9108181-1). Los Alamos National Lab., NM (United States).
+
+        Lancaster, G., Iatsenko, D., Pidde, A., Ticcinelli, V., & Stefanovska, A. (2018). 
+        Surrogate data for hypothesis testing of physical systems. Physics Reports, 748, 1-60.
+            
+        1. Calculate the Fourier transform ftx of the original signal xn.
+        2. Generate a vector of random phases in the range[0, 2π]) with 
+           length L/2,where L is the length of the time series.
+        3. As the Fourier transform is symmetrical, to create the new phase 
+           randomized vector ftr , multiply the first half of ftx (i.e.the half 
+           corresponding to the positive frequencies) by exp(iφr) to create the 
+           first half of ftr.The remainder of ftr is then the horizontally flipped 
+           complex conjugate of the first half.
+        4. Finally, the inverse Fourier transform of ftr gives the FT surrogate.
+
+        Args:
+        
+            data: (np.array) data (can be 1d or 2d, time by features)
+            random_state: (int, None, or np.random.RandomState) Initial random seed (default: None)
+                 
+        Returns:
+        
+            shifted_data: (np.array) phase randomized data
+    '''
+    random_state = check_random_state(random_state)
+
+    data = np.array(data)
+    fft_data = fft(data, axis=0)
+
+    if data.shape[0] % 2 == 0:
+        pos_freq = np.arange(1, data.shape[0] // 2)
+        neg_freq = np.arange(data.shape[0] - 1, data.shape[0] // 2, -1)
+    else:
+        pos_freq = np.arange(1, (data.shape[0] - 1) // 2 + 1)
+        neg_freq = np.arange(data.shape[0] - 1, (data.shape[0] - 1) // 2, -1)
+            
+    if len(data.shape) == 1:
+        phase_shifts = random_state.uniform(0, 2*np.pi, size=(len(pos_freq)))
+        fft_data[pos_freq] *= np.exp(1j * phase_shifts)
+        fft_data[neg_freq] *= np.exp(-1j * phase_shifts)
+    else:
+        phase_shifts = random_state.uniform(0, 2*np.pi, size=(len(pos_freq), data.shape[1]))
+        fft_data[pos_freq, :] *= np.exp(1j * phase_shifts)
+        fft_data[neg_freq, :] *= np.exp(-1j * phase_shifts)
+    return np.real(ifft(fft_data, axis=0))
+
+def circle_shift(data, random_state=None):
+    '''Circle shift data for each feature
+        
+    Args:
+    
+        data: time series (1D or 2D). If 2D, then must be observations by features
+        random_state: (int, None, or np.random.RandomState) Initial random seed (default: None)
+            
+    Returns:
+    
+        shifted data
+    
+    '''
+    random_state = check_random_state(random_state)
+    data = np.array(data)
+    if len(data.shape) == 1:
+        shift = random_state.choice(np.arange(len(data)))
+        shifted = np.concatenate((data[-shift:], data[:-shift]))
+    else:
+        shift = random_state.choice(np.arange(data.shape[0]), size=data.shape[1])
+        shifted = np.array([np.concatenate([data[-int(s):, int(d)], data[:-int(s), int(d)]]) for d,s in zip(range(data.shape[1]), shift)]).T
+    return shifted
+    
+def _bootstrap_isc(similarity_matrix, metric='median', exclude_self_corr=True, random_state=None):
+    '''Helper function to compute bootstrapped ISC from Adjacency Instance
+
+        This function implements the subject-wise bootstrap method discussed in Chen et al., 2016.
+
+        Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B., 
+        & Cox, R. W. (2016). Untangling the relatedness among correlations, part I: 
+        nonparametric approaches to inter-subject correlation analysis at the group level. 
+        NeuroImage, 142, 248-259.
+        
+        Args:
+        
+            similarity_matrix: (Adjacency) Adjacency matrix of pairwise correlation values
+            metric: (str) type of summary statistic (Default: median)
+            exclude_self_corr: (bool) set correlations with random draws of same subject to NaN (Default: True)
+            random_state: random_state instance for permutation
+
+        Returns:
+        
+            isc: summary statistic of bootstrapped similarity matrix
+
+    '''
+    from nltools.data import Adjacency
+
+    if not isinstance(similarity_matrix, Adjacency):
+        raise ValueError('similarity_matrix must be an Adjacency instance.')
+        
+    random_state = check_random_state(random_state)
+
+    square = similarity_matrix.squareform()
+    n_sub = square.shape[0]
+    np.fill_diagonal(square, 1)
+    
+    bootstrap_subject = sorted(random_state.choice(np.arange(n_sub), size=n_sub, replace=True))
+    bootstrap_sample = Adjacency(square[bootstrap_subject, :][:, bootstrap_subject], matrix_type='similarity')
+    
+    if exclude_self_corr:
+        bootstrap_sample.data[bootstrap_sample.data == 1] = np.nan
+
+    if metric == 'mean':
+        return np.tanh(bootstrap_sample.r_to_z().mean())
+    elif metric == 'median':
+        return bootstrap_sample.median()
+
+def _compute_isc(data, metric='median'):
+    ''' Helper function to compute intersubject correlation from observations by subjects array.
+        
+        Args:
+            data: (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects
+            metric: (str) type of association metric ['spearman','pearson','kendall']
+        
+        Returns:
+            isc: (float) intersubject correlation coefficient
+            
+    '''
+
+    similarity = Adjacency(1 - pairwise_distances(data.T, metric='correlation'), matrix_type='similarity')
+    if metric =='mean':
+        isc = np.tanh(similarity.r_to_z().mean())
+    elif metric =='median':
+        isc = similarity.median()
+    return isc
+
+def isc(data, n_bootstraps=5000, metric='median', method='bootstrap', ci_percentile=95, exclude_self_corr=True,
+            return_bootstraps=False, tail=2, n_jobs=-1, random_state=None):
+    ''' Compute pairwise intersubject correlation from observations by subjects array.
+            
+        This function computes pairwise intersubject correlations (ISC) using the median as recommended by Chen
+        et al., 2016). However, if the mean is preferred, we compute the mean correlation after performing
+        the fisher r-to-z transformation and then convert back to correlations to minimize artificially 
+        inflating the correlation values.
+        
+        There are currently three different methods to compute p-values. These include the classic methods for 
+        computing permuted time-series by either circle-shifting the data or phase-randomizing the data 
+        (see Lancaster et al., 2018). These methods create random surrogate data while preserving the temporal
+        autocorrelation inherent to the signal. By default, we use the subject-wise bootstrap method from 
+        Chen et al., 2016. Instead of recomputing the pairwise ISC using circle_shift or phase_randomization methods,
+        this approach uses the computationally more efficient method of bootstrapping the subjects
+        and computing a new pairwise similarity matrix with randomly selected subjects with replacement.
+        If the same subject is selected multiple times, we set the perfect correlation to a nan with 
+        (exclude_self_corr=True). We compute the p-values using the percentile method using the same
+        method in Brainiak.
+        
+        Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B., 
+        & Cox, R. W. (2016). Untangling the relatedness among correlations, part I: 
+        nonparametric approaches to inter-subject correlation analysis at the group level. 
+        NeuroImage, 142, 248-259.
+        
+        Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap hypothesis testing. 
+        Biometrics, 757-762.
+        
+        Lancaster, G., Iatsenko, D., Pidde, A., Ticcinelli, V., & Stefanovska, A. (2018). 
+        Surrogate data for hypothesis testing of physical systems. Physics Reports, 748, 1-60.
+
+        Args:
+            data: (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects
+            n_bootstraps: (int) number of bootstraps
+            metric: (str) type of association metric ['spearman','pearson','kendall']
+            method: (str) method to compute p-values ['bootstrap', 'circle_shift','phase_randomize'] (default: bootstrap)
+            tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
+            n_jobs: (int) The number of CPUs to use to do the computation. -1 means all CPUs.
+            return_parms: (bool) Return the permutation distribution along with the p-value; default False
+
+        Returns:
+            stats: (dict) dictionary of permutation results ['correlation','p']
+
+    '''
+    
+    random_state = check_random_state(random_state)
+
+    if not isinstance(data, (pd.DataFrame, np.array)):
+        raise ValueError("data must be a pandas dataframe or numpy array")
+
+    if metric not in ['mean', 'median']:
+        raise ValueError("metric must be ['mean', 'median']")
+
+
+    stats = {'isc': _compute_isc(data, metric=metric)}
+    
+    if method == 'bootstrap':
+        all_bootstraps = Parallel(n_jobs=n_jobs)(delayed(_bootstrap_isc)(
+                    similarity, metric=metric, exclude_self_corr=exclude_self_corr, 
+                    random_state=random_state) for i in range(n_bootstraps))
+
+    elif method == 'circle_shift':
+        all_bootstraps = Parallel(n_jobs=n_jobs)(delayed(_compute_isc)(
+                    circle_shift(data, random_state=random_state), metric=metric) 
+                                                    for i in range(n_bootstraps))
+    elif method == 'phase_randomize':
+        all_bootstraps = Parallel(n_jobs=n_jobs)(delayed(_compute_isc)(
+                    phase_randomize(data, random_state=random_state), metric=metric) 
+                                                    for i in range(n_bootstraps))
+    else:
+        raise ValueError("method can only be ['bootstrap', 'circle_shift','phase_randomize']")
+        
+    stats['p'] = _calc_pvalue(all_bootstraps - stats['isc'], stats['isc'], tail)
+
+    stats['ci'] = (np.percentile(np.array(all_bootstraps), (100 - ci_percentile)/2, axis=0),
+                    np.percentile(np.array(all_bootstraps), ci_percentile + (100 - ci_percentile)/2, axis=0))
+
+    if return_bootstraps:
+        stats['null_distribution'] = all_bootstraps
+        
+    return stats
+

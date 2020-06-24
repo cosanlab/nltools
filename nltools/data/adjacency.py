@@ -28,7 +28,8 @@ from nltools.stats import (correlation_permutation,
                            matrix_permutation,
                            jackknife_permutation,
                            fisher_r_to_z,
-                           _calc_pvalue)
+                           _calc_pvalue,
+                           _bootstrap_isc)
 from nltools.stats import regress as regression
 from nltools.plotting import (plot_stacked_adjacency,
                               plot_silhouette)
@@ -185,7 +186,7 @@ class Adjacency(object):
     def __iter__(self):
         for x in range(len(self)):
             yield self[x]
-            
+
     def __add__(self, y):
         new = deepcopy(self)
         if isinstance(y, (int, np.integer, float, np.floating)):
@@ -892,14 +893,10 @@ class Adjacency(object):
             Biometrics, 757-762.
 
             Args:
-                data1: (pd.DataFrame, pd.Series, np.array) dataset 1 to permute
-                data2: (pd.DataFrame, pd.Series, np.array) dataset 2 to permute
                 n_bootstraps: (int) number of bootstraps
-                metric: (str) type of association metric ['spearman','pearson',
-                        'kendall']
+                metric: (str) type of association metric ['spearman','pearson','kendall']
                 tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
-                n_jobs: (int) The number of CPUs to use to do the computation.
-                        -1 means all CPUs.
+                n_jobs: (int) The number of CPUs to use to do the computation. -1 means all CPUs.
                 return_parms: (bool) Return the permutation distribution along with the p-value; default False
 
             Returns:
@@ -1310,44 +1307,3 @@ class Adjacency(object):
 
         return results
 
-def _bootstrap_isc(similarity_matrix, metric='median', exclude_self_corr=True, random_state=None):
-    '''Helper function to compute bootstrapped ISC from Adjacency Instance
-
-        This function implements the subject-wise bootstrap method discussed in Chen et al., 2016.
-
-        Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B., 
-        & Cox, R. W. (2016). Untangling the relatedness among correlations, part I: 
-        nonparametric approaches to inter-subject correlation analysis at the group level. 
-        NeuroImage, 142, 248-259.
-        
-        Args:
-        
-            similarity_matrix: (Adjacency) Adjacency matrix of pairwise correlation values
-            metric: (str) type of summary statistic (Default: median)
-            exclude_self_corr: (bool) set correlations with random draws of same subject to NaN (Default: True)
-            random_state: random_state instance for permutation
-
-        Returns:
-        
-            isc: summary statistic of bootstrapped similarity matrix
-
-    '''
-    if not isinstance(similarity_matrix, Adjacency):
-        raise ValueError('similarity_matrix must be an Adjacency instance.')
-        
-    random_state = check_random_state(random_state)
-
-    square = similarity_matrix.squareform()
-    n_sub = square.shape[0]
-    np.fill_diagonal(square, 1)
-    
-    bootstrap_subject = sorted(random_state.choice(np.arange(n_sub), size=n_sub, replace=True))
-    bootstrap_sample = Adjacency(square[bootstrap_subject, :][:, bootstrap_subject], matrix_type='similarity')
-    
-    if exclude_self_corr:
-        bootstrap_sample.data[bootstrap_sample.data == 1] = np.nan
-
-    if metric == 'mean':
-        return np.tanh(bootstrap_sample.r_to_z().mean())
-    elif metric == 'median':
-        return bootstrap_sample.median()
