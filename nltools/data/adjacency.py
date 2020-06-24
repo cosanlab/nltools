@@ -26,7 +26,9 @@ from nltools.stats import (correlation_permutation,
                            two_sample_permutation,
                            summarize_bootstrap,
                            matrix_permutation,
-                           jackknife_permutation)
+                           jackknife_permutation,
+                           fisher_r_to_z,
+                           _calc_pvalue)
 from nltools.stats import regress as regression
 from nltools.plotting import (plot_stacked_adjacency,
                               plot_silhouette)
@@ -181,8 +183,9 @@ class Adjacency(object):
             return self.data.shape[0]
 
     def __iter__(self):
-        yield from self
-
+        for x in range(len(self)):
+            yield self[x]
+            
     def __add__(self, y):
         new = deepcopy(self)
         if isinstance(y, (int, np.integer, float, np.floating)):
@@ -456,6 +459,28 @@ class Adjacency(object):
             elif axis == 1:
                 return np.nanstd(self.data, axis=axis)
 
+    def median(self, axis=0):
+        ''' Calculate median of Adjacency
+
+        Args:
+            axis:  (int) calculate median over features (0) or data (1).
+                    For data it will be on upper triangle.
+
+        Returns:
+            mean:  float if single, adjacency if axis=0, np.array if axis=1
+                    and multiple
+
+        '''
+
+        if self.is_single_matrix:
+            return np.nanmedian(self.data)
+        else:
+            if axis == 0:
+                return Adjacency(data=np.nanmedian(self.data, axis=axis),
+                                 matrix_type=self.matrix_type + '_flat')
+            elif axis == 1:
+                return np.nanmedian(self.data, axis=axis)
+
     def shape(self):
         ''' Calculate shape of data. '''
         return self.data.shape
@@ -620,6 +645,14 @@ class Adjacency(object):
         '''
         return Adjacency(pairwise_distances(self.data, metric=metric, **kwargs),
                          matrix_type='distance')
+
+    def r_to_z(self):
+        ''' Apply Fisher's r to z transformation to each element of the data
+            object.'''
+
+        out = self.copy()
+        out.data = fisher_r_to_z(out.data)
+        return out
 
     def threshold(self, upper=None, lower=None, binarize=False):
         '''Threshold Adjacency instance. Provide upper and lower values or
@@ -834,6 +867,70 @@ class Adjacency(object):
                         for i in range(n_samples))
         bootstrapped = Adjacency(bootstrapped)
         return summarize_bootstrap(bootstrapped, save_weights=save_weights)
+
+    def isc(self, n_bootstraps=5000, metric='median', ci_percentile=95, exclude_self_corr=True,
+            return_bootstraps=False, tail=2, n_jobs=-1, random_state=None):
+        ''' Compute intersubject correlation.
+        
+            This implementation uses the subject-wise bootstrap method from Chen et al., 2016.
+            Instead of recomputing the pairwise ISC using circle_shift or phase_randomization methods,
+            this approach uses the computationally more efficient method of bootstrapping the subjects
+            and computing a new pairwise similarity matrix with randomly selected subjects with replacement.
+            If the same subject is selected multiple times, we set the perfect correlation to a nan with 
+            (exclude_self_corr=True). As recommended by Chen et al., 2016, we compute the median pairwise ISC
+            by default. However, if the mean is preferred, we compute the mean correlation after performing
+            the fisher r-to-z transformation and then convert back to correlations to minimize artificially 
+            inflating the correlation values. We compute the p-values using the percentile method using the same
+            method in Brainiak.
+            
+            Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B., 
+            & Cox, R. W. (2016). Untangling the relatedness among correlations, part I: 
+            nonparametric approaches to inter-subject correlation analysis at the group level. 
+            NeuroImage, 142, 248-259.
+            
+            Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap hypothesis testing. 
+            Biometrics, 757-762.
+
+            Args:
+                data1: (pd.DataFrame, pd.Series, np.array) dataset 1 to permute
+                data2: (pd.DataFrame, pd.Series, np.array) dataset 2 to permute
+                n_bootstraps: (int) number of bootstraps
+                metric: (str) type of association metric ['spearman','pearson',
+                        'kendall']
+                tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
+                n_jobs: (int) The number of CPUs to use to do the computation.
+                        -1 means all CPUs.
+                return_parms: (bool) Return the permutation distribution along with the p-value; default False
+
+            Returns:
+                stats: (dict) dictionary of permutation results ['correlation','p']
+
+        '''
+        
+        random_state = check_random_state(random_state)
+
+        if metric not in ['mean', 'median']:
+            raise ValueError("metric must be ['mean', 'median']")
+
+        if metric =='mean':
+            isc = np.tanh(self.r_to_z().mean())
+        elif metric =='median':
+            isc = self.median()
+        stats = {'isc': isc}
+        
+        all_bootstraps = Parallel(n_jobs=n_jobs)(delayed(_bootstrap_isc)(
+                    self, metric=metric, exclude_self_corr=exclude_self_corr, 
+                    random_state=random_state) for i in range(n_bootstraps))
+        
+        stats['p'] = _calc_pvalue(all_bootstraps - stats['isc'], stats['isc'], tail)
+
+        stats['ci'] = (np.percentile(np.array(all_bootstraps), (100 - ci_percentile)/2, axis=0),
+                    np.percentile(np.array(all_bootstraps), ci_percentile + (100 - ci_percentile)/2, axis=0))
+        
+        if return_bootstraps:
+            stats['null_distribution'] = all_bootstraps
+            
+        return stats
 
     def plot_mds(self, n_components=2, metric=True, labels=None, labels_color=None,
                  cmap=plt.cm.hot_r, n_jobs=-1, view=(30, 20),
@@ -1212,3 +1309,45 @@ class Adjacency(object):
             summarize_srm_results(results)
 
         return results
+
+def _bootstrap_isc(similarity_matrix, metric='median', exclude_self_corr=True, random_state=None):
+    '''Helper function to compute bootstrapped ISC from Adjacency Instance
+
+        This function implements the subject-wise bootstrap method discussed in Chen et al., 2016.
+
+        Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B., 
+        & Cox, R. W. (2016). Untangling the relatedness among correlations, part I: 
+        nonparametric approaches to inter-subject correlation analysis at the group level. 
+        NeuroImage, 142, 248-259.
+        
+        Args:
+        
+            similarity_matrix: (Adjacency) Adjacency matrix of pairwise correlation values
+            metric: (str) type of summary statistic (Default: median)
+            exclude_self_corr: (bool) set correlations with random draws of same subject to NaN (Default: True)
+            random_state: random_state instance for permutation
+
+        Returns:
+        
+            isc: summary statistic of bootstrapped similarity matrix
+
+    '''
+    if not isinstance(similarity_matrix, Adjacency):
+        raise ValueError('similarity_matrix must be an Adjacency instance.')
+        
+    random_state = check_random_state(random_state)
+
+    square = similarity_matrix.squareform()
+    n_sub = square.shape[0]
+    np.fill_diagonal(square, 1)
+    
+    bootstrap_subject = sorted(random_state.choice(np.arange(n_sub), size=n_sub, replace=True))
+    bootstrap_sample = Adjacency(square[bootstrap_subject, :][:, bootstrap_subject], matrix_type='similarity')
+    
+    if exclude_self_corr:
+        bootstrap_sample.data[bootstrap_sample.data == 1] = np.nan
+
+    if metric == 'mean':
+        return np.tanh(bootstrap_sample.r_to_z().mean())
+    elif metric == 'median':
+        return bootstrap_sample.median()

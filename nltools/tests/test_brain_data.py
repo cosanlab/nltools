@@ -470,41 +470,38 @@ def test_hyperalignment():
     d3 = sim.create_data(y, 3, reps=n_reps, output_dir=None).apply_mask(s1)
     data = [d1, d2, d3]
 
-    # Test procrustes using align
-    out = align(data, method='procrustes')
-    assert len(data) == len(out['transformed'])
-    assert len(data) == len(out['transformation_matrix'])
-    assert data[0].shape() == out['common_model'].shape()
-    transformed = np.dot(d1.data, out['transformation_matrix'][0])
-    centered = d1.data - np.mean(d1.data, 0)
-    transformed = (np.dot(centered/np.linalg.norm(centered), out['transformation_matrix'][0])*out['scale'][0])
-    np.testing.assert_almost_equal(0, np.sum(out['transformed'][0].data - transformed), decimal=5)
-
     # Test deterministic brain_data
+    out = align(data, method='deterministic_srm')
+
     bout = d1.align(out['common_model'], method='deterministic_srm')
-    assert d1.shape() == bout['transformed'].shape()
-    assert d1.shape() == bout['common_model'].shape()
-    assert d1.shape()[1] == bout['transformation_matrix'].shape[0]
-    btransformed = np.dot(d1.data, bout['transformation_matrix'])
+    assert d1.shape() == bout['transformed'].shape
+    assert d1.shape() == bout['common_model'].shape
+    assert d1.shape()[1] == bout['transformation_matrix'].shape()[0]
+    btransformed = np.dot(d1.data, bout['transformation_matrix'].data)
     np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data - btransformed))
 
-    # Test deterministic brain_data
+    # Test probabilistic brain_data
     bout = d1.align(out['common_model'], method='probabilistic_srm')
-    assert d1.shape() == bout['transformed'].shape()
-    assert d1.shape() == bout['common_model'].shape()
-    assert d1.shape()[1] == bout['transformation_matrix'].shape[0]
-    btransformed = np.dot(d1.data, bout['transformation_matrix'])
+    assert d1.shape() == bout['transformed'].shape
+    assert d1.shape() == bout['common_model'].shape
+    assert d1.shape()[1] == bout['transformation_matrix'].shape()[0]
+    btransformed = np.dot(d1.data, bout['transformation_matrix'].data)
     np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data-btransformed))
 
     # Test procrustes brain_data
+    out = align(data, method='procrustes')
+    centered = data[0].data-np.mean(data[0].data, 0)
+    transformed = (np.dot(centered/np.linalg.norm(centered), out['transformation_matrix'][0].data)*out['scale'][0])
+
     bout = d1.align(out['common_model'], method='procrustes')
     assert d1.shape() == bout['transformed'].shape()
     assert d1.shape() == bout['common_model'].shape()
-    assert d1.shape()[1] == bout['transformation_matrix'].shape[0]
+    assert d1.shape()[1] == bout['transformation_matrix'].shape()[0]
     centered = d1.data - np.mean(d1.data, 0)
-    btransformed = (np.dot(centered/np.linalg.norm(centered), bout['transformation_matrix'])*bout['scale'])
+    btransformed = (np.dot(centered/np.linalg.norm(centered), bout['transformation_matrix'].data)*bout['scale'])
     np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data-btransformed), decimal=5)
     np.testing.assert_almost_equal(0, np.sum(out['transformed'][0].data - bout['transformed'].data))
+
 
     # Test over time
     sim = Simulator()
@@ -516,33 +513,28 @@ def test_hyperalignment():
     d3 = sim.create_data(y, 3, reps=n_reps, output_dir=None).apply_mask(s1)
     data = [d1, d2, d3]
 
-    out = align(data, method='procrustes', axis=1)
-    assert len(data) == len(out['transformed'])
-    assert len(data) == len(out['transformation_matrix'])
-    assert data[0].shape() == out['common_model'].shape()
-    centered = data[0].data.T-np.mean(data[0].data.T, 0)
-    transformed = (np.dot(centered/np.linalg.norm(centered), out['transformation_matrix'][0])*out['scale'][0])
-    np.testing.assert_almost_equal(0, np.sum(out['transformed'][0].data-transformed.T), decimal=5)
-
+    out = align(data, method='deterministic_srm', axis=1)
     bout = d1.align(out['common_model'], method='deterministic_srm', axis=1)
-    assert d1.shape() == bout['transformed'].shape()
-    assert d1.shape() == bout['common_model'].shape()
-    assert d1.shape()[0] == bout['transformation_matrix'].shape[0]
-    btransformed = np.dot(d1.data.T, bout['transformation_matrix'])
+    assert d1.shape() == bout['transformed'].shape
+    assert d1.shape() == bout['common_model'].shape
+    assert d1.shape()[0] == bout['transformation_matrix'].shape()[0]
+    btransformed = np.dot(d1.data.T, bout['transformation_matrix'].data)
     np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data-btransformed.T))
 
+    out = align(data, method='probabilistic_srm', axis=1)
     bout = d1.align(out['common_model'], method='probabilistic_srm', axis=1)
-    assert d1.shape() == bout['transformed'].shape()
-    assert d1.shape() == bout['common_model'].shape()
-    assert d1.shape()[0] == bout['transformation_matrix'].shape[0]
-    btransformed = np.dot(d1.data.T, bout['transformation_matrix'])
+    assert d1.shape() == bout['transformed'].shape
+    assert d1.shape() == bout['common_model'].shape
+    assert d1.shape()[0] == bout['transformation_matrix'].shape()[0]
+    btransformed = np.dot(d1.data.T, bout['transformation_matrix'].data)
     np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data-btransformed.T))
 
+    out = align(data, method='procrustes', axis=1)
     bout = d1.align(out['common_model'], method='procrustes', axis=1)
     assert d1.shape() == bout['transformed'].shape()
     assert d1.shape() == bout['common_model'].shape()
-    assert d1.shape()[0] == bout['transformation_matrix'].shape[0]
+    assert d1.shape()[0] == bout['transformation_matrix'].shape()[0]
     centered = d1.data.T-np.mean(d1.data.T, 0)
-    btransformed = (np.dot(centered/np.linalg.norm(centered), bout['transformation_matrix'])*bout['scale'])
+    btransformed = (np.dot(centered/np.linalg.norm(centered), bout['transformation_matrix'].data)*bout['scale'])
     np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data-btransformed.T), decimal=5)
     np.testing.assert_almost_equal(0, np.sum(out['transformed'][0].data-bout['transformed'].data))
