@@ -877,19 +877,19 @@ class Adjacency(object):
             Instead of recomputing the pairwise ISC using circle_shift or phase_randomization methods,
             this approach uses the computationally more efficient method of bootstrapping the subjects
             and computing a new pairwise similarity matrix with randomly selected subjects with replacement.
-            If the same subject is selected multiple times, we set the perfect correlation to a nan with 
+            If the same subject is selected multiple times, we set the perfect correlation to a nan with
             (exclude_self_corr=True). As recommended by Chen et al., 2016, we compute the median pairwise ISC
             by default. However, if the mean is preferred, we compute the mean correlation after performing
-            the fisher r-to-z transformation and then convert back to correlations to minimize artificially 
+            the fisher r-to-z transformation and then convert back to correlations to minimize artificially
             inflating the correlation values. We compute the p-values using the percentile method using the same
             method in Brainiak.
             
-            Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B., 
-            & Cox, R. W. (2016). Untangling the relatedness among correlations, part I: 
-            nonparametric approaches to inter-subject correlation analysis at the group level. 
+            Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B.,
+            & Cox, R. W. (2016). Untangling the relatedness among correlations, part I:
+            nonparametric approaches to inter-subject correlation analysis at the group level.
             NeuroImage, 142, 248-259.
             
-            Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap hypothesis testing. 
+            Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap hypothesis testing.
             Biometrics, 757-762.
 
             Args:
@@ -916,7 +916,7 @@ class Adjacency(object):
         stats = {'isc': isc}
         
         all_bootstraps = Parallel(n_jobs=n_jobs)(delayed(_bootstrap_isc)(
-                    self, metric=metric, exclude_self_corr=exclude_self_corr, 
+                    self, metric=metric, exclude_self_corr=exclude_self_corr,
                     random_state=random_state) for i in range(n_bootstraps))
         
         stats['p'] = _calc_pvalue(all_bootstraps - stats['isc'], stats['isc'], tail)

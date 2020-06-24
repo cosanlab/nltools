@@ -66,7 +66,6 @@ from nltools.stats import (pearson,
 from nltools.stats import regress as regression
 from .adjacency import Adjacency
 from nltools.prefs import MNI_Template, resolve_mni_path
-from nltools.external.srm import DetSRM, SRM
 from nilearn.decoding import SearchLight
 import deepdish as dd
 
@@ -483,7 +482,7 @@ class Brain_Data(object):
 
         return out
 
-    def plot(self, limit=5, anatomical=None, view='axial', colorbar=False, black_bg=True, draw_cross=False, 
+    def plot(self, limit=5, anatomical=None, view='axial', colorbar=False, black_bg=True, draw_cross=False,
     threshold_upper=None, threshold_lower=None, axes=None, **kwargs):
         """ Create a quick plot of self.data.  Will plot each image separately
 
@@ -498,7 +497,7 @@ class Brain_Data(object):
                              'mni', or 'full'
             threshold_lower: (str/float)threshold if view is 'glass',
                              'mni', or 'full'
-            save: (str/bool): optional string file name or path for saving; only applies if view is 'mni', 'glass', or 'full'. 
+            save: (str/bool): optional string file name or path for saving; only applies if view is 'mni', 'glass', or 'full'.
                             Filenames will appended with the orientation they belong to
 
         """
@@ -1814,7 +1813,6 @@ class Brain_Data(object):
             # pad columns if different shapes
             sizes_0 = [x.shape[0] for x in [data1, data2]]
             sizes_1 = [x.shape[1] for x in [data1, data2]]
-            R = min(sizes_0)
             C = max(sizes_1)
             y = data1[:, 0:C]
             missing = C - y.shape[1]
