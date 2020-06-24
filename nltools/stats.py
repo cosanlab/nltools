@@ -604,9 +604,8 @@ def correlation_permutation(data1, data2, method='random', n_permute=5000, metri
                         random_state.permutation(data1), data2, metric=metric)
                         for i in range(n_permute))
     elif method == 'circle_shift':
-        shift = random_state.choice(np.arange(len(data1)))
         all_p = Parallel(n_jobs=n_jobs)(delayed(correlation)(
-                circle_shift(data1, shift), data2, metric=metric)
+                circle_shift(data1, random_state=random_state), data2, metric=metric)
                 for i in range(n_permute))
     elif method == 'phase_randomize':
         all_p = Parallel(n_jobs=n_jobs)(delayed(correlation)(
@@ -1775,7 +1774,7 @@ def isc(data, n_bootstraps=5000, metric='median', method='bootstrap', ci_percent
     
     random_state = check_random_state(random_state)
 
-    if not isinstance(data, (pd.DataFrame, np.array)):
+    if not isinstance(data, (pd.DataFrame, np.ndarray)):
         raise ValueError("data must be a pandas dataframe or numpy array")
 
     if metric not in ['mean', 'median']:
