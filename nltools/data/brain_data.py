@@ -1865,6 +1865,9 @@ class Brain_Data(object):
         '''
         out = self.copy()
         out.data = out.nifti_masker.fit_transform(smooth_img(self.to_nifti(), fwhm))
+        
+        if 1 in out.data.shape:
+            out.data = out.data.squeeze()
         return out
 
     def find_spikes(self, global_spike_cutoff=3, diff_spike_cutoff=3):
