@@ -303,3 +303,18 @@ def test_find_spikes():
     spikes = find_spikes(d1.to_nifti())
     assert isinstance(spikes, pd.DataFrame)
     assert spikes.shape[0] == len(d1)
+
+def test_isc():
+    n_boot = 100
+    dat = np.random.multivariate_normal([0,0,0,0,0], [[1, .2, .5, .7, .3],
+                                                    [.2, 1, .6, .1, .2],
+                                                    [.5, .6, 1, .3, .1],
+                                                    [.7, .1, .3, 1, .4],
+                                                    [.3, .2, .1, .4, 1]], 500)
+    for method in ['bootstrap', 'circle_shift', 'phase_randomize']:
+        for metric in ['median', 'mean']:
+            stats = isc(dat, method=method, metric=metric, n_bootstraps=n_boot, return_bootstraps=True)
+            assert stats['isc'] > .1
+            assert (stats['isc'] > -1) & (stats['isc'] < 1)
+            assert (stats['p'] > 0) & (stats['p'] < 1)
+            assert len(stats['null_distribution']) == n_boot
