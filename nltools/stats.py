@@ -1114,7 +1114,7 @@ def align(data, method='deterministic_srm', n_features=None, axis=0,
         nltools.external.srm). (see nltools.data.Brain_Data.align for aligning
         a single Brain object to another). Common Model is shared response
         model or centered target data. Transformed data can be back projected to
-        original data using Tranformation matrix. Inputs must be a list of Brain_Data 
+        original data using Tranformation matrix. Inputs must be a list of Brain_Data
         instances or numpy arrays (observations by features).
 
         Examples:
