@@ -1811,7 +1811,6 @@ class Brain_Data(object):
             data2 = target.data.copy()
             
             # pad columns if different shapes
-            sizes_0 = [x.shape[0] for x in [data1, data2]]
             sizes_1 = [x.shape[1] for x in [data1, data2]]
             C = max(sizes_1)
             y = data1[:, 0:C]
