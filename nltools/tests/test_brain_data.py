@@ -260,6 +260,8 @@ def test_smooth(sim_brain_data):
     smoothed = sim_brain_data.smooth(5.0)
     assert isinstance(smoothed, Brain_Data)
     assert smoothed.shape() == sim_brain_data.shape()
+    smoothed = sim_brain_data[0].smooth(5.0)
+    assert len(smoothed) == 1
 
 def test_groupby_aggregate(sim_brain_data):
     s1 = create_sphere([12, 10, -8], radius=10)
