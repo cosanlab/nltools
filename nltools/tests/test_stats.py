@@ -12,7 +12,8 @@ from nltools.stats import (one_sample_permutation,
                            transform_pairwise,
                            _calc_pvalue,
                            find_spikes,
-                           isc)
+                           isc,
+                           isfc)
 from nltools.simulator import Simulator
 from nltools.mask import create_sphere
 from sklearn.metrics import pairwise_distances
