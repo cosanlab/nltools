@@ -559,11 +559,11 @@ def two_sample_permutation(data1, data2, n_permute=5000,
     return stats
         
     
-def correlation_permutation(data1, data2, method='random', n_permute=5000, metric='spearman',
+def correlation_permutation(data1, data2, method='permute', n_permute=5000, metric='spearman',
                             tail=2, n_jobs=-1, return_perms=False, random_state=None):
     ''' Compute correlation and calculate p-value using permutation methods.
 
-        'random' method randomly shuffles one of the vectors. This method is recommended
+        'permute' method randomly shuffles one of the vectors. This method is recommended
         for independent data. For timeseries data we recommend using 'circle_shift' or
         'phase_randomize' methods.
 
@@ -574,7 +574,7 @@ def correlation_permutation(data1, data2, method='random', n_permute=5000, metri
             n_permute: (int) number of permutations
             metric: (str) type of association metric ['spearman','pearson',
                     'kendall']
-            method: (str) type of permutation ['random', 'circle_shift', 'phase_randomize']
+            method: (str) type of permutation ['permute', 'circle_shift', 'phase_randomize']
             random_state: (int, None, or np.random.RandomState) Initial random seed (default: None)
             tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
             n_jobs: (int) The number of CPUs to use to do the computation.
@@ -589,8 +589,8 @@ def correlation_permutation(data1, data2, method='random', n_permute=5000, metri
     if len(data1) != len(data2):
         raise ValueError('Make sure that data1 is the same length as data2')
     
-    if method not in ['random', 'circle_shift', 'phase_randomize']:
-        raise ValueError("Make sure that method is ['random', 'circle_shift', 'phase_randomize']")
+    if method not in ['permute', 'circle_shift', 'phase_randomize']:
+        raise ValueError("Make sure that method is ['permute', 'circle_shift', 'phase_randomize']")
 
     random_state = check_random_state(random_state)
 
@@ -599,7 +599,7 @@ def correlation_permutation(data1, data2, method='random', n_permute=5000, metri
 
     stats = {'correlation':correlation(data1, data2, metric=metric)[0]}
 
-    if method == 'random':
+    if method == 'permute':
         all_p = Parallel(n_jobs=n_jobs)(delayed(correlation)(
                         random_state.permutation(data1), data2, metric=metric)
                         for i in range(n_permute))
@@ -1657,10 +1657,10 @@ def circle_shift(data, random_state=None):
     random_state = check_random_state(random_state)
     data = np.array(data)
     if len(data.shape) == 1:
-        shift = random_state.choice(np.arange(len(data)))
+        shift = random_state.choice(np.arange(len(data)), replace=False)
         shifted = np.concatenate((data[-shift:], data[:-shift]))
     else:
-        shift = random_state.choice(np.arange(data.shape[0]), size=data.shape[1])
+        shift = random_state.choice(np.arange(data.shape[0]), size=data.shape[1], replace=False)
         shifted = np.array([np.concatenate([data[-int(s):, int(d)], data[:-int(s), int(d)]]) for d,s in zip(range(data.shape[1]), shift)]).T
     return shifted
     

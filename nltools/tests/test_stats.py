@@ -29,11 +29,10 @@ def test_permutation():
     assert (stats['mean'] < -2) & (stats['mean'] > -6) & (stats['p'] < .001)
     stats = one_sample_permutation(x-y, tail=1, n_permute=1000)
     assert (stats['mean'] < -2) & (stats['mean'] > -6) & (stats['p'] < .001)
-    stats = correlation_permutation(x, y, metric='pearson', tail=1)
-    assert (stats['correlation'] > .4) & (stats['correlation'] < .85) & (stats['p'] < .001)
-    for metric in ['spearman', 'kendall', 'pearson']:
-        stats = correlation_permutation(x, y, metric=metric, tail=1)
-        assert (stats['correlation'] > .4) & (stats['correlation'] < .85) & (stats['p'] < .01)
+    for method in ['permute', 'circle_shift', 'phase_randomize']:
+        for metric in ['spearman', 'kendall', 'pearson']:
+            stats = correlation_permutation(x, y, metric=metric, method=method, n_permute=100, tail=1)
+            assert (stats['correlation'] > .4) & (stats['correlation'] < .85) & (stats['p'] < .01)
 
     # with pytest.raises(ValueError):
     # 	correlation_permutation(x, y, metric='kendall',tail=3)
@@ -66,7 +65,6 @@ def test_permutation():
     data2 = pairwise_distances(dat[100:, :].T, metric='correlation')
 
     stats = jackknife_permutation(data1, data2)
-    print(stats)
     assert (stats['correlation'] >= .4) & (stats['correlation'] <= .99) & (stats['p'] <= .05)
 
 
