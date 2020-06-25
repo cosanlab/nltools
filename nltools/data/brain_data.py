@@ -1768,16 +1768,16 @@ class Brain_Data(object):
         return out
 
     def align(self, target, method='procrustes', axis=0, *args, **kwargs):
-        ''' Align Brain_Data instance to target object
+        ''' Align Brain_Data instance to target object using functional alignment
 
-        Can be used to hyperalign source data to target data using
-        Hyperalignemnt from Dartmouth (i.e., procrustes transformation; see
-        nltools.stats.procrustes) or Shared Response Model from Princeton (see
-        nltools.external.srm). (see nltools.stats.align for aligning many data
-        objects together). Common Model is shared response model or centered
-        target data.Transformed data can be back projected to original data
-        using Tranformation matrix.
-
+        Alignment type can be hyperalignment or Shared Response Model. When
+        using hyperalignment, `target` image can be another subject or an
+        already estimated common model. When using SRM, `target` must be a previously
+        estimated common model stored as a numpy array. Transformed data can be back
+        projected to original data using Tranformation matrix.
+        
+        See nltools.stats.align for aligning multiple Brain_Data instances
+        
         Examples:
             Hyperalign using procrustes transform:
                 out = data.align(target, method='procrustes')
@@ -1826,6 +1826,9 @@ class Brain_Data(object):
 
         out = {}
         if method in ['deterministic_srm', 'probabilistic_srm']:
+            if not isinstance(method, np.ndarray):
+                raise ValueError("Common Model must be a numpy array for  ['deterministic_srm', 'probabilistic_srm']")
+            
             if data2.shape[0] != data1.shape[0]:
                 raise ValueError("The number of timepoints(TRs) does not match the model.")
 
