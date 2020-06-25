@@ -38,7 +38,9 @@ __all__ = ['pearson',
            'double_center',
            'u_center',
            '_bootstrap_isc',
-           'isc']
+           'isc',
+           'isfc',
+           'compute_matrix_correlation']
 
 import numpy as np
 from numpy.fft import fft, ifft
@@ -1816,3 +1818,42 @@ def isc(data, n_bootstraps=5000, metric='median', method='bootstrap', ci_percent
         
     return stats
 
+def compute_matrix_correlation(matrix1, matrix2):
+    '''Computes the intersubject functional correlation between 2 matrices (observation x feature)'''
+    return np.corrcoef(matrix1.T, matrix2.T)[matrix1.shape[1]:,:matrix2.shape[1]]
+
+def isfc(data, method='average'):
+    '''Compute ISFC from a list of observation x feature matrices
+    
+    This function uses the leave one out approach to compute ISFC (Simony et al., 2016).
+    For each subject, compute the cross-correlation between each voxel/roi
+    with the average of the rest of the subjects data. In other words,
+    compute the mean voxel/ROI response for all participants except the
+    target subject. Then compute the correlation between each ROI within
+    the target subject with the mean ROI response in the group average.
+    
+    Simony, E., Honey, C. J., Chen, J., Lositsky, O., Yeshurun, Y., Wiesel, A., & Hasson, U. (2016).
+    Dynamic reconfiguration of the default mode network during narrative comprehension.
+    Nature communications, 7, 12141.
+    
+    Args:
+        data: list of subject matrices (observations x voxels/rois)
+        method: approach to computing ISFC. 'average' uses leave one
+        
+    Returns:
+        list of subject ISFC matrices
+    
+    '''
+    subjects = np.arange(len(data))
+    
+    if method == 'average':
+        sub_isfc = []
+        for target in subjects:
+            m1 = data[target]
+            sub_mean = np.zeros(m1.shape)
+            for y in (y for y in subjects if y != target):
+                sub_mean += data[y]
+            sub_isfc.append(compute_matrix_correlation(m1, sub_mean/(len(subjects)-1)))
+    else:
+        raise NotImplemented('Only average method is implemented. Pairwise will be added at some point.')
+    return sub_isfc
