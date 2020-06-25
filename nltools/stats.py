@@ -1855,5 +1855,5 @@ def isfc(data, method='average'):
                 sub_mean += data[y]
             sub_isfc.append(compute_matrix_correlation(m1, sub_mean/(len(subjects)-1)))
     else:
-        raise NotImplemented('Only average method is implemented. Pairwise will be added at some point.')
+        raise NotImplementedError('Only average method is implemented. Pairwise will be added at some point.')
     return sub_isfc
