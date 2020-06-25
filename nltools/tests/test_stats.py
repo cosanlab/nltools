@@ -31,8 +31,8 @@ def test_permutation():
     assert (stats['mean'] < -2) & (stats['mean'] > -6) & (stats['p'] < .001)
     for method in ['permute', 'circle_shift', 'phase_randomize']:
         for metric in ['spearman', 'kendall', 'pearson']:
-            stats = correlation_permutation(x, y, metric=metric, method=method, n_permute=100, tail=1)
-            assert (stats['correlation'] > .4) & (stats['correlation'] < .85) & (stats['p'] < .01)
+            stats = correlation_permutation(x, y, metric=metric, method=method, n_permute=500, tail=1)
+            assert (stats['correlation'] > .4) & (stats['correlation'] < .85) & (stats['p'] < .05)
 
     # with pytest.raises(ValueError):
     # 	correlation_permutation(x, y, metric='kendall',tail=3)
