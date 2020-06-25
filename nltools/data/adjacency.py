@@ -390,8 +390,8 @@ class Adjacency(object):
         ''' Create Heatmap of Adjacency Matrix
             
             Can pass in any sns.heatmap argument
-            
-            Args: 
+
+            Args:
                 limit: (int) number of heatmaps to plot if object contains multiple adjacencies (default: 3)
                 axes: matplotlib axis handle
         '''

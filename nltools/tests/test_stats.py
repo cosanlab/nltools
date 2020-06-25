@@ -313,3 +313,21 @@ def test_isc():
             assert (stats['isc'] > -1) & (stats['isc'] < 1)
             assert (stats['p'] > 0) & (stats['p'] < 1)
             assert len(stats['null_distribution']) == n_boot
+
+def simulate_sub_roi_data(n_sub, n_tr):
+    sub_dat = []
+    for i in range(n_sub):
+        sub_dat.append(np.random.multivariate_normal([0,0,0,0,0], [[1, .2, .5, .7, .3],
+                                                        [.2, 1, .6, .1, .2],
+                                                        [.5, .6, 1, .3, .1],
+                                                        [.7, .1, .3, 1, .4],
+                                                        [.3, .2, .1, .4, 1]], n_tr))
+    return sub_dat
+
+n_sub = 10
+sub_dat = simulate_sub_roi_data(n_sub, 500)
+isfc_out = isfc(sub_dat)
+isfc_mean = np.array(isfc_out).mean(axis=0)
+assert len(isfc_out) == n_sub
+assert isfc_mean.shape == (5,5)
+np.testing.assert_almost_equal(np.array(isfc_out).mean(axis=0).mean(), 0, decimal=1)
