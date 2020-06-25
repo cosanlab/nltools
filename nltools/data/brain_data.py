@@ -1826,9 +1826,9 @@ class Brain_Data(object):
 
         out = {}
         if method in ['deterministic_srm', 'probabilistic_srm']:
-            if not isinstance(method, np.ndarray):
+            if not isinstance(target, np.ndarray):
                 raise ValueError("Common Model must be a numpy array for  ['deterministic_srm', 'probabilistic_srm']")
-            
+
             if data2.shape[0] != data1.shape[0]:
                 raise ValueError("The number of timepoints(TRs) does not match the model.")
 
