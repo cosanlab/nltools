@@ -61,7 +61,7 @@ def test_permutation():
                                          [.7, .1, .1, 1, .3, .6],
                                          [.8, .1, .1, .3, 1, .5],
                                          [.9, .1, .1, .6, .5, 1]], 200)
-    dat = dat + np.random.randn(dat.shape[0], dat.shape[1])*.5
+    dat = dat + np.random.randn(dat.shape[0], dat.shape[1])*.1
     data1 = pairwise_distances(dat[0:100, :].T, metric='correlation')
     data2 = pairwise_distances(dat[100:, :].T, metric='correlation')
 
