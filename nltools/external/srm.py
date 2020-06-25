@@ -41,7 +41,8 @@ import numpy as np
 import scipy
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils import assert_all_finite
-from sklearn.utils.validation import NotFittedError
+from sklearn.exceptions import NotFittedError
+import sys
 
 __all__ = [
     "SRM", "DetSRM"
@@ -50,25 +51,33 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def _init_w_transforms(data, features):
+def _init_w_transforms(data, features, random_states):
     """Initialize the mappings (Wi) for the SRM with random orthogonal matrices.
+
     Parameters
     ----------
+
     data : list of 2D arrays, element i has shape=[voxels_i, samples]
         Each element in the list contains the fMRI data of one subject.
-    features : int
-        The number of features in the model.
+    features : int The number of features in the model.
+    random_states : list of `RandomState`s. One `RandomState` instance per subject.
+
     Returns
     -------
+
     w : list of array, element i has shape=[voxels_i, features]
         The initialized orthogonal transforms (mappings) :math:`W_i` for each
         subject.
+
     voxels : list of int
         A list with the number of voxels per subject.
+
     Note
     ----
+
         This function assumes that the numpy random number generator was
         initialized.
+
         Not thread safe.
     """
     w = []
@@ -77,47 +86,71 @@ def _init_w_transforms(data, features):
 
     # Set Wi to a random orthogonal voxels by features matrix
     for subject in range(subjects):
-        voxels[subject] = data[subject].shape[0]
-        rnd_matrix = np.random.random((voxels[subject], features))
-        q, r = np.linalg.qr(rnd_matrix)
-        w.append(q)
+        if data[subject] is not None:
+            voxels[subject] = data[subject].shape[0]
+            rnd_matrix = random_states[subject].random_sample((voxels[subject], features))
+            q, r = np.linalg.qr(rnd_matrix)
+            w.append(q)
+        else:
+            voxels[subject] = 0
+            w.append(None)
 
     return w, voxels
 
 
 class SRM(BaseEstimator, TransformerMixin):
     """Probabilistic Shared Response Model (SRM)
+
     Given multi-subject data, factorize it as a shared response S among all
     subjects and an orthogonal transform W per subject:
+
     .. math:: X_i \\approx W_i S, \\forall i=1 \\dots N
+
     Parameters
     ----------
+
     n_iter : int, default: 10
         Number of iterations to run the algorithm.
+
     features : int, default: 50
         Number of features to compute.
+
     rand_seed : int, default: 0
         Seed for initializing the random number generator.
+
     Attributes
     ----------
+
     w_ : list of array, element i has shape=[voxels_i, features]
         The orthogonal transforms (mappings) for each subject.
+
     s_ : array, shape=[features, samples]
         The shared response.
+
     sigma_s_ : array, shape=[features, features]
         The covariance of the shared response Normal distribution.
+
     mu_ : list of array, element i has shape=[voxels_i]
         The voxel means over the samples for each subject.
+
     rho2_ : array, shape=[subjects]
         The estimated noise variance :math:`\\rho_i^2` for each subject
+        
+    random_state_: `RandomState`
+        Random number generator initialized using rand_seed
+
     Note
     ----
+
        The number of voxels may be different between subjects. However, the
        number of samples must be the same across subjects.
+
        The probabilistic Shared Response Model is approximated using the
        Expectation Maximization (EM) algorithm proposed in [Chen2015]_. The
        implementation follows the optimizations published in [Anderson2016]_.
+
        This is a single node version.
+
        The run-time complexity is :math:`O(I (V T K + V K^2 + K^3))` and the
        memory complexity is :math:`O(V T)` with I - the number of iterations,
        V - the sum of voxels from all subjects, T - the number of samples, and
@@ -132,10 +165,12 @@ class SRM(BaseEstimator, TransformerMixin):
 
     def fit(self, X, y=None):
         """Compute the probabilistic Shared Response Model
+
         Parameters
         ----------
         X :  list of 2D arrays, element i has shape=[voxels_i, samples]
             Each element in the list contains the fMRI data of one subject.
+
         y : not used
         """
         logger.info('Starting Probabilistic SRM')
@@ -155,7 +190,8 @@ class SRM(BaseEstimator, TransformerMixin):
         number_trs = X[0].shape[1]
         number_subjects = len(X)
         for subject in range(number_subjects):
-            assert_all_finite(X[subject])
+            if X[subject] is not None:
+                assert_all_finite(X[subject])
             if X[subject].shape[1] != number_trs:
                 raise ValueError("Different number of samples between subjects"
                                  ".")
@@ -167,12 +203,14 @@ class SRM(BaseEstimator, TransformerMixin):
 
     def transform(self, X, y=None):
         """Use the model to transform matrix to Shared Response space
+
         Parameters
         ----------
         X : list of 2D arrays, element i has shape=[voxels_i, samples_i]
             Each element in the list contains the fMRI data of one subject
             note that number of voxels and samples can vary across subjects
         y : not used (as it is unsupervised learning)
+
         Returns
         -------
         s : list of 2D arrays, element i has shape=[features_i, samples_i]
@@ -190,26 +228,33 @@ class SRM(BaseEstimator, TransformerMixin):
 
         s = [None] * len(X)
         for subject in range(len(X)):
-            s[subject] = self.w_[subject].T.dot(X[subject])
+            if X[subject] is not None:
+                s[subject] = self.w_[subject].T.dot(X[subject])
 
         return s
 
     def _init_structures(self, data, subjects):
         """Initializes data structures for SRM and preprocess the data.
+
         Parameters
         ----------
         data : list of 2D arrays, element i has shape=[voxels_i, samples]
             Each element in the list contains the fMRI data of one subject.
+
         subjects : int
             The total number of subjects in `data`.
+
         Returns
         -------
         x : list of array, element i has shape=[voxels_i, samples]
             Demeaned data for each subject.
+
         mu : list of array, element i has shape=[voxels_i]
             Voxel means over samples, per subject.
+
         rho2 : array, shape=[subjects]
             Noise variance :math:`\\rho^2` per subject.
+
         trace_xtx : array, shape=[subjects]
             The squared Frobenius norm of the demeaned data in `x`.
         """
@@ -218,11 +263,17 @@ class SRM(BaseEstimator, TransformerMixin):
         rho2 = np.zeros(subjects)
 
         trace_xtx = np.zeros(subjects)
+
         for subject in range(subjects):
-            mu.append(np.mean(data[subject], 1))
             rho2[subject] = 1
-            trace_xtx[subject] = np.sum(data[subject] ** 2)
-            x.append(data[subject] - mu[subject][:, np.newaxis])
+            if data[subject] is not None:
+                mu.append(np.mean(data[subject], 1))
+                trace_xtx[subject] = np.sum(data[subject] ** 2)
+                x.append(data[subject] - mu[subject][:, np.newaxis])
+            else:
+                mu.append(None)
+                trace_xtx[subject] = 0
+                x.append(None)
 
         return x, mu, rho2, trace_xtx
 
@@ -230,25 +281,35 @@ class SRM(BaseEstimator, TransformerMixin):
                     trace_xt_invsigma2_x, inv_sigma_s_rhos, wt_invpsi_x,
                     samples):
         """Calculate the log-likelihood function
+
         Parameters
         ----------
+
         chol_sigma_s_rhos : array, shape=[features, features]
             Cholesky factorization of the matrix (Sigma_S + sum_i(1/rho_i^2)
             * I)
+
         log_det_psi : float
             Determinant of diagonal matrix Psi (containing the rho_i^2 value
             voxels_i times).
+
         chol_sigma_s : array, shape=[features, features]
             Cholesky factorization of the matrix Sigma_S
+
         trace_xt_invsigma2_x : float
             Trace of :math:`\\sum_i (||X_i||_F^2/\\rho_i^2)`
+
         inv_sigma_s_rhos : array, shape=[features, features]
             Inverse of :math:`(\\Sigma_S + \\sum_i(1/\\rho_i^2) * I)`
+
         wt_invpsi_x : array, shape=[features, samples]
+
         samples : int
             The total number of samples in the data.
+
         Returns
         -------
+
         loglikehood : float
             The log-likelihood value.
         """
@@ -261,36 +322,100 @@ class SRM(BaseEstimator, TransformerMixin):
 
         return loglikehood
 
-    def _srm(self, data):
-        """Expectation-Maximization algorithm for fitting the probabilistic SRM.
+    @staticmethod
+    def _update_transform_subject(Xi, S):
+        """Updates the mappings `W_i` for one subject.
+
         Parameters
         ----------
-        data : list of 2D arrays, element i has shape=[voxels_i, samples]
-            Each element in the list contains the fMRI data of one subject.
+
+        Xi : array, shape=[voxels, timepoints]
+            The fMRI data :math:`X_i` for aligning the subject.
+
+        S : array, shape=[features, timepoints]
+            The shared response.
+
         Returns
         -------
+
+        Wi : array, shape=[voxels, features]
+            The orthogonal transform (mapping) :math:`W_i` for the subject.
+        """
+        A = Xi.dot(S.T)
+        # Solve the Procrustes problem
+        U, _, V = np.linalg.svd(A, full_matrices=False)
+        return U.dot(V)
+
+    def transform_subject(self, X):
+        """Transform a new subject using the existing model.
+        The subject is assumed to have recieved equivalent stimulation
+
+        Parameters
+        ----------
+
+        X : 2D array, shape=[voxels, timepoints]
+            The fMRI data of the new subject.
+
+        Returns
+        -------
+
+        w : 2D array, shape=[voxels, features]
+            Orthogonal mapping `W_{new}` for new subject
+
+        """
+        # Check if the model exist
+        if hasattr(self, 'w_') is False:
+            raise NotFittedError("The model fit has not been run yet.")
+
+        # Check the number of TRs in the subject
+        if X.shape[1] != self.s_.shape[1]:
+            raise ValueError("The number of timepoints(TRs) does not match the"
+                             "one in the model.")
+
+        w = self._update_transform_subject(X, self.s_)
+
+        return w
+
+    def _srm(self, data):
+        """Expectation-Maximization algorithm for fitting the probabilistic SRM.
+
+        Parameters
+        ----------
+        
+        data : list of 2D arrays, element i has shape=[voxels_i, samples]
+            Each element in the list contains the fMRI data of one subject.
+
+
+        Returns
+        -------
+
         sigma_s : array, shape=[features, features]
             The covariance :math:`\\Sigma_s` of the shared response Normal
             distribution.
+
         w : list of array, element i has shape=[voxels_i, features]
             The orthogonal transforms (mappings) :math:`W_i` for each subject.
+
         mu : list of array, element i has shape=[voxels_i]
             The voxel means :math:`\\mu_i` over the samples for each subject.
+
         rho2 : array, shape=[subjects]
             The estimated noise variance :math:`\\rho_i^2` for each subject
+
         s : array, shape=[features, samples]
             The shared response.
         """
 
-        samples = data[0].shape[1]
+        samples = min([d.shape[1] for d in data if d is not None],
+                        default=sys.maxsize)
         subjects = len(data)
-
-        np.random.seed(self.rand_seed)
+        self.random_state_ = np.random.RandomState(self.rand_seed)
+        random_states = [np.random.RandomState(self.random_state_.randint(2 ** 32)) for i in range(len(data))]
 
         # Initialization step: initialize the outputs with initial values,
         # voxels with the number of voxels in each subject, and trace_xtx with
         # the ||X_i||_F^2 of each subject.
-        w, voxels = _init_w_transforms(data, self.features)
+        w, voxels = _init_w_transforms(data, self.features, random_states)
         x, mu, rho2, trace_xtx = self._init_structures(data, subjects)
         shared_response = np.zeros((self.features, samples))
         sigma_s = np.identity(self.features)
@@ -313,8 +438,9 @@ class SRM(BaseEstimator, TransformerMixin):
 
             # Invert (Sigma_s + rho_0 * I) using Cholesky factorization
             sigma_s_rhos = inv_sigma_s + np.identity(self.features) * rho0
-            (chol_sigma_s_rhos, lower_sigma_s_rhos) = scipy.linalg.cho_factor(
-                sigma_s_rhos, check_finite=False)
+            chol_sigma_s_rhos, lower_sigma_s_rhos = \
+                scipy.linalg.cho_factor(sigma_s_rhos,
+                                            check_finite=False)
             inv_sigma_s_rhos = scipy.linalg.cho_solve(
                 (chol_sigma_s_rhos, lower_sigma_s_rhos),
                 np.identity(self.features), check_finite=False)
@@ -324,8 +450,9 @@ class SRM(BaseEstimator, TransformerMixin):
             wt_invpsi_x = np.zeros((self.features, samples))
             trace_xt_invsigma2_x = 0.0
             for subject in range(subjects):
-                wt_invpsi_x += (w[subject].T.dot(x[subject])) / rho2[subject]
-                trace_xt_invsigma2_x += trace_xtx[subject] / rho2[subject]
+                if data[subject] is not None:
+                    wt_invpsi_x += (w[subject].T.dot(x[subject])) / rho2[subject]
+                    trace_xt_invsigma2_x += trace_xtx[subject] / rho2[subject]
 
             log_det_psi = np.sum(np.log(rho2) * voxels)
 
@@ -344,17 +471,19 @@ class SRM(BaseEstimator, TransformerMixin):
             # Update each subject's mapping transform W_i and error variance
             # rho_i^2
             for subject in range(subjects):
-                a_subject = x[subject].dot(shared_response.T)
-                perturbation = np.zeros(a_subject.shape)
-                np.fill_diagonal(perturbation, 0.001)
-                u_subject, s_subject, v_subject = np.linalg.svd(
-                    a_subject + perturbation, full_matrices=False)
-                w[subject] = u_subject.dot(v_subject)
-                rho2[subject] = trace_xtx[subject]
-                rho2[subject] += -2 * np.sum(w[subject] * a_subject).sum()
-                rho2[subject] += trace_sigma_s
-                rho2[subject] /= samples * voxels[subject]
-
+                if x[subject] is not None:
+                    a_subject = x[subject].dot(shared_response.T)
+                    perturbation = np.zeros(a_subject.shape)
+                    np.fill_diagonal(perturbation, 0.001)
+                    u_subject, s_subject, v_subject = np.linalg.svd(
+                        a_subject + perturbation, full_matrices=False)
+                    w[subject] = u_subject.dot(v_subject)
+                    rho2[subject] = trace_xtx[subject]
+                    rho2[subject] += -2 * np.sum(w[subject] * a_subject).sum()
+                    rho2[subject] += trace_sigma_s
+                    rho2[subject] /= samples * voxels[subject]
+                else:
+                    rho2[subject] = 0
             if logger.isEnabledFor(logging.INFO):
                 # Calculate and log the current log-likelihood for checking
                 # convergence
@@ -369,30 +498,47 @@ class SRM(BaseEstimator, TransformerMixin):
 
 class DetSRM(BaseEstimator, TransformerMixin):
     """Deterministic Shared Response Model (DetSRM)
+
     Given multi-subject data, factorize it as a shared response S among all
     subjects and an orthogonal transform W per subject:
+
     .. math:: X_i \\approx W_i S, \\forall i=1 \\dots N
+
     Parameters
     ----------
+
     n_iter : int, default: 10
         Number of iterations to run the algorithm.
+
     features : int, default: 50
         Number of features to compute.
+
     rand_seed : int, default: 0
         Seed for initializing the random number generator.
+
     Attributes
     ----------
+
     w_ : list of array, element i has shape=[voxels_i, features]
         The orthogonal transforms (mappings) for each subject.
+
     s_ : array, shape=[features, samples]
         The shared response.
+
+    random_state_: `RandomState`
+        Random number generator initialized using rand_seed
+
     Note
     ----
+
         The number of voxels may be different between subjects. However, the
         number of samples must be the same across subjects.
+
         The Deterministic Shared Response Model is approximated using the
         Block Coordinate Descent (BCD) algorithm proposed in [Chen2015]_.
+
         This is a single node version.
+
         The run-time complexity is :math:`O(I (V T K + V K^2))` and the memory
         complexity is :math:`O(V T)` with I - the number of iterations, V - the
         sum of voxels from all subjects, T - the number of samples, K - the
@@ -408,10 +554,12 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
     def fit(self, X, y=None):
         """Compute the Deterministic Shared Response Model
+
         Parameters
         ----------
         X : list of 2D arrays, element i has shape=[voxels_i, samples]
             Each element in the list contains the fMRI data of one subject.
+
         y : not used
         """
         logger.info('Starting Deterministic SRM')
@@ -443,13 +591,17 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
     def transform(self, X, y=None):
         """Use the model to transform data to the Shared Response subspace
+
         Parameters
         ----------
         X : list of 2D arrays, element i has shape=[voxels_i, samples_i]
             Each element in the list contains the fMRI data of one subject.
+
         y : not used
+
         Returns
         -------
+
         s : list of 2D arrays, element i has shape=[features_i, samples_i]
             Shared responses from input data (X)
         """
@@ -471,16 +623,22 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
     def _objective_function(self, data, w, s):
         """Calculate the objective function
+
         Parameters
         ----------
+
         data : list of 2D arrays, element i has shape=[voxels_i, samples]
             Each element in the list contains the fMRI data of one subject.
+
         w : list of 2D arrays, element i has shape=[voxels_i, features]
             The orthogonal transforms (mappings) :math:`W_i` for each subject.
+
         s : array, shape=[features, samples]
             The shared response
+
         Returns
         -------
+
         objective : float
             The objective function value.
         """
@@ -494,14 +652,19 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
     def _compute_shared_response(self, data, w):
         """ Compute the shared response S
+
         Parameters
         ----------
+
         data : list of 2D arrays, element i has shape=[voxels_i, samples]
             Each element in the list contains the fMRI data of one subject.
+
         w : list of 2D arrays, element i has shape=[voxels_i, features]
             The orthogonal transforms (mappings) :math:`W_i` for each subject.
+
         Returns
         -------
+
         s : array, shape=[features, samples]
             The shared response for the subjects data with the mappings in w.
         """
@@ -512,27 +675,88 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         return s
 
-    def _srm(self, data):
-        """Expectation-Maximization algorithm for fitting the probabilistic SRM.
+    @staticmethod
+    def _update_transform_subject(Xi, S):
+        """Updates the mappings `W_i` for one subject.
+
         Parameters
         ----------
-        data : list of 2D arrays, element i has shape=[voxels_i, samples]
-            Each element in the list contains the fMRI data of one subject.
+
+        Xi : array, shape=[voxels, timepoints]
+            The fMRI data :math:`X_i` for aligning the subject.
+
+        S : array, shape=[features, timepoints]
+            The shared response.
+
         Returns
         -------
+
+        Wi : array, shape=[voxels, features]
+            The orthogonal transform (mapping) :math:`W_i` for the subject.
+        """
+        A = Xi.dot(S.T)
+        # Solve the Procrustes problem
+        U, _, V = np.linalg.svd(A, full_matrices=False)
+        return U.dot(V)
+
+    def transform_subject(self, X):
+        """Transform a new subject using the existing model.
+        The subject is assumed to have recieved equivalent stimulation
+
+        Parameters
+        ----------
+
+        X : 2D array, shape=[voxels, timepoints]
+            The fMRI data of the new subject.
+
+        Returns
+        -------
+
+        w : 2D array, shape=[voxels, features]
+            Orthogonal mapping `W_{new}` for new subject
+        """
+        # Check if the model exist
+        if hasattr(self, 'w_') is False:
+            raise NotFittedError("The model fit has not been run yet.")
+
+        # Check the number of TRs in the subject
+        if X.shape[1] != self.s_.shape[1]:
+            raise ValueError("The number of timepoints(TRs) does not match the"
+                             "one in the model.")
+
+        w = self._update_transform_subject(X, self.s_)
+
+        return w
+
+    def _srm(self, data):
+        """Expectation-Maximization algorithm for fitting the probabilistic SRM.
+
+        Parameters
+        ----------
+
+        data : list of 2D arrays, element i has shape=[voxels_i, samples]
+            Each element in the list contains the fMRI data of one subject.
+
+        Returns
+        -------
+
         w : list of array, element i has shape=[voxels_i, features]
             The orthogonal transforms (mappings) :math:`W_i` for each subject.
+
         s : array, shape=[features, samples]
             The shared response.
         """
 
         subjects = len(data)
 
-        np.random.seed(self.rand_seed)
+        self.random_state_ = np.random.RandomState(self.rand_seed)
+        random_states = [
+            np.random.RandomState(self.random_state_.randint(2 ** 32))
+            for i in range(len(data))]
 
         # Initialization step: initialize the outputs with initial values,
         # voxels with the number of voxels in each subject.
-        w, _ = _init_w_transforms(data, self.features)
+        w, _ = _init_w_transforms(data, self.features, random_states)
         shared_response = self._compute_shared_response(data, w)
         if logger.isEnabledFor(logging.INFO):
             # Calculate the current objective function value
