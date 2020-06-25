@@ -143,24 +143,22 @@ class Design_Matrix(DataFrame):
             verbose (bool): print messages during append about how polynomials are going to be separated
 
         """
-        if not isinstance(dm, list):
-            to_append = [dm]
-        else:
-            to_append = dm[:]
-
+        to_append = [dm] if not isinstance(dm, list) else dm[:]
         # Check all items to be appended are Design Matrices and have the same sampling rate
-        if not all([isinstance(elem, self.__class__) for elem in to_append]):
+        if not all(isinstance(elem, self.__class__) for elem in to_append):
             raise TypeError("Each object to be appended must be a Design_Matrix!")
-        if not all([elem.sampling_freq == self.sampling_freq for elem in to_append]):
+        if not all(elem.sampling_freq == self.sampling_freq for elem in to_append):
             raise ValueError("All Design Matrices must have the same sampling frequency!")
 
-        if axis == 1:
-            if any([not set(self.columns).isdisjoint(elem.columns) for elem in to_append]):
+        if axis == 0:
+            return self._vertcat(to_append, keep_separate=keep_separate, unique_cols=unique_cols, fill_na=fill_na, verbose=verbose)
+
+        elif axis == 1:
+            if any(
+                not set(self.columns).isdisjoint(elem.columns) for elem in to_append
+            ):
                 print("Duplicate column names detected. Will be repeated.")
             return self._horzcat(to_append, fill_na=fill_na)
-
-        elif axis == 0:
-            return self._vertcat(to_append, keep_separate=keep_separate, unique_cols=unique_cols, fill_na=fill_na, verbose=verbose)
 
         else:
             raise ValueError("Axis must be 0 (row) or 1 (column)")
@@ -171,7 +169,7 @@ class Design_Matrix(DataFrame):
 
         """
 
-        if all([elem.shape[0] == self.shape[0] for elem in to_append]):
+        if all(elem.shape[0] == self.shape[0] for elem in to_append):
             out = pd.concat([self] + to_append, axis=1)
             out = self._inherit_attributes(out)
             out.polys = self.polys[:]
@@ -463,7 +461,7 @@ class Design_Matrix(DataFrame):
         for _, spine in ax.spines.items():
             spine.set_visible(True)
         for i, label in enumerate(ax.get_yticklabels()):
-            if i == 0 or i == self.shape[0]-1:
+            if i in [0, self.shape[0] - 1]:
                 label.set_visible(True)
             else:
                 label.set_visible(False)
@@ -572,9 +570,7 @@ class Design_Matrix(DataFrame):
         df = zscore(self[columns])
         df = pd.concat([df, self[nonZ]], axis=1)
         df = df[colOrder]
-        newMat = self._inherit_attributes(df)
-
-        return newMat
+        return self._inherit_attributes(df)
 
     def add_poly(self, order=0, include_lower=True):
         """Add nth order Legendre polynomial terms as columns to design matrix. Good for adding constant/intercept to model (order = 0) and accounting for slow-frequency nuisance artifacts e.g. linear, quadratic, etc drifts. Care is recommended when using this with `.add_dct_basis()` as some columns will be highly correlated.
@@ -588,9 +584,8 @@ class Design_Matrix(DataFrame):
         if order < 0:
             raise ValueError("Order must be 0 or greater")
 
-        if self.polys:
-            if any([elem.count('_') == 2 for elem in self.polys]):
-                raise AmbiguityError("It appears that this Design Matrix contains polynomial terms that were kept seperate from a previous append operation. This makes it ambiguous for adding polynomials terms. Try calling .add_poly() on each separate Design Matrix before appending them instead.")
+        if self.polys and any(elem.count('_') == 2 for elem in self.polys):
+            raise AmbiguityError("It appears that this Design Matrix contains polynomial terms that were kept seperate from a previous append operation. This makes it ambiguous for adding polynomials terms. Try calling .add_poly() on each separate Design Matrix before appending them instead.")
 
         polyDict = {}
         # Normal/canonical legendre polynomials on the range -1,1 but with size defined by number of observations; keeps all polynomials on similar scales (i.e. big polys don't blow up) and betas are better behaved
@@ -601,7 +596,7 @@ class Design_Matrix(DataFrame):
             return self
 
         if include_lower:
-            for i in range(0, order+1):
+            for i in range(order+1):
                 if 'poly_'+str(i) in self.polys:
                     print("Design Matrix already has {}th order polynomial...skipping".format(i))
                 else:
@@ -631,9 +626,10 @@ class Design_Matrix(DataFrame):
         if self.sampling_freq is None:
             raise ValueError("Design_Matrix has no sampling_freq set!")
 
-        if self.polys:
-            if any([elem.count('_') == 2 and 'cosine' in elem for elem in self.polys]):
-                raise AmbiguityError("It appears that this Design Matrix contains cosine bases that were kept seperate from a previous append operation. This makes it ambiguous for adding polynomials terms. Try calling .add_dct_basis() on each separate Design Matrix before appending them instead.")
+        if self.polys and any(
+            elem.count('_') == 2 and 'cosine' in elem for elem in self.polys
+        ):
+            raise AmbiguityError("It appears that this Design Matrix contains cosine bases that were kept seperate from a previous append operation. This makes it ambiguous for adding polynomials terms. Try calling .add_dct_basis() on each separate Design Matrix before appending them instead.")
 
         basis_mat = make_cosine_basis(self.shape[0], 1./self.sampling_freq, duration, drop=drop)
 

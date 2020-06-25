@@ -8,5 +8,5 @@
 	scipy
 	six
 	pynv
-	joblib==0.11
+	joblib>=0.15
 	deepdish>=0.3.6
