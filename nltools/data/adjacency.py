@@ -387,7 +387,14 @@ class Adjacency(object):
                                        int(np.sqrt(x.data.shape[0]))) for x in self]
 
     def plot(self, limit=3, axes=None, *args, **kwargs):
-        ''' Create Heatmap of Adjacency Matrix'''
+        ''' Create Heatmap of Adjacency Matrix
+            
+            Can pass in any sns.heatmap argument
+            
+            Args: 
+                limit: (int) number of heatmaps to plot if object contains multiple adjacencies (default: 3)
+                axes: matplotlib axis handle
+        '''
 
         if self.is_single_matrix:
             if axes is None:
@@ -556,12 +563,7 @@ class Adjacency(object):
                 'issymmetric': self.issymmetric
             }, compression=kwargs.get('compression', 'blosc'))
         else:
-            if (
-                self.is_single_matrix
-                and method == 'long'
-                or not self.is_single_matrix
-                and method == 'long'
-            ):
+            if method == 'long':
                 pd.DataFrame(self.data).to_csv(file_name, index=None)
             elif self.is_single_matrix and method == 'square':
                 pd.DataFrame(self.squareform()).to_csv(file_name, index=None)

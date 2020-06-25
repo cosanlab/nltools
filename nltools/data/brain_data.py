@@ -483,7 +483,7 @@ class Brain_Data(object):
         return out
 
     def plot(self, limit=5, anatomical=None, view='axial', colorbar=False, black_bg=True, draw_cross=False,
-    threshold_upper=None, threshold_lower=None, axes=None, **kwargs):
+    threshold_upper=None, threshold_lower=None, figsize=(15, 2), axes=None, **kwargs):
         """ Create a quick plot of self.data.  Will plot each image separately
 
         Args:
@@ -517,7 +517,7 @@ class Brain_Data(object):
 
             if self.data.ndim == 1:
                 if axes is None:
-                    _, axes = plt.subplots(nrows=1, figsize=(15, 2))
+                    _, axes = plt.subplots(nrows=1, figsize=figsize)
                 plot_stat_map(self.to_nifti(), anatomical,
                               cut_coords=range(-40, 60, 10), display_mode='z',
                               black_bg=black_bg, colorbar=colorbar, draw_cross=draw_cross,
@@ -526,7 +526,7 @@ class Brain_Data(object):
                 if axes is not None:
                     print("axes is ignored when plotting multiple images")
                 n_subs = np.minimum(self.data.shape[0], limit)
-                _, a = plt.subplots(nrows=n_subs, figsize=(15, len(self) * 2))
+                _, a = plt.subplots(nrows=n_subs, figsize=(figsize[0], len(self) * figsize[1]))
                 for i in range(n_subs):
                     plot_stat_map(self[i].to_nifti(), anatomical,
                                   cut_coords=range(-40, 60, 10),
