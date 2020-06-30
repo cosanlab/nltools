@@ -540,3 +540,10 @@ def test_hyperalignment():
     btransformed = (np.dot(centered/np.linalg.norm(centered), bout['transformation_matrix'].data)*bout['scale'])
     np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data-btransformed.T), decimal=5)
     np.testing.assert_almost_equal(0, np.sum(out['transformed'][0].data-bout['transformed'].data))
+
+def test_temporal_resample(sim_brain_data):
+    up = sim_brain_data.temporal_resample(sampling_freq=1/2, target=2, target_type='hz')
+    assert len(sim_brain_data) * 4 == len(up)
+    down = up.temporal_resample(sampling_freq=2, target=1/2, target_type='hz')
+    assert len(sim_brain_data) == len(down)
+    assert len(up)/4 == len(down)
