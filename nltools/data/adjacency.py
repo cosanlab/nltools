@@ -26,7 +26,6 @@ from nltools.stats import (correlation_permutation,
                            two_sample_permutation,
                            summarize_bootstrap,
                            matrix_permutation,
-                           jackknife_permutation,
                            fisher_r_to_z,
                            _calc_pvalue,
                            _bootstrap_isc)
@@ -593,8 +592,6 @@ class Adjacency(object):
             similarity_func = correlation_permutation
         elif perm_type == '2d':
             similarity_func = matrix_permutation
-        elif perm_type == 'jackknife':
-            similarity_func = jackknife_permutation
         else:
             raise ValueError("perm_type must be ['1d','2d', 'jackknife', or None']")
 
