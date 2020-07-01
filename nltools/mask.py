@@ -43,6 +43,7 @@ def create_sphere(coordinates, radius=5, mask=None):
             else:
                 raise ValueError("mask is not a nibabel instance or a valid "
                                  "file name")
+
     else:
         mask = nib.load(resolve_mni_path(MNI_Template)['mask'])
 
@@ -182,33 +183,19 @@ def roi_to_brain(data, mask_x):
     Args:
         data: Pandas series, dataframe, list, np.array of ROI by observation
         mask_x: an expanded binary mask
+
     Returns:
         out: (Brain_Data) Brain_Data instance where each ROI is now populated
              with a value
     '''
     from nltools.data import Brain_Data
 
-    def series_to_brain(data, mask_x):
-        '''Converts a pandas series of ROIs to a Brain_Data instance. Index must correspond to ROI index'''
-
-        if not isinstance(data, pd.Series):
-            raise ValueError('Data must be a pandas series')
-        if len(mask_x) != len(data):
-            raise ValueError('Data must have the same number of rows as mask has ROIs.')
-        return Brain_Data([mask_x[x]*data[x] for x in data.keys()]).sum()
-
     if not isinstance(data, (pd.Series, pd.DataFrame)):
         if isinstance(data, list):
-            if len(data) != len(mask_x):
-                raise ValueError('Data must have the same number of rows as mask has ROIs.')
-            else:
-                data = pd.Series(data)
+            data = pd.Series(data)
         elif isinstance(data, np.ndarray):
             if len(data.shape) == 1:
-                if len(data) != len(mask_x):
-                    raise ValueError('Data must have the same number of rows as mask has ROIs.')
-                else:
-                    data = pd.Series(data)
+                data = pd.Series(data)
             elif len(data.shape) == 2:
                 data = pd.DataFrame(data)
                 if data.shape[0] != len(mask_x):
@@ -220,15 +207,17 @@ def roi_to_brain(data, mask_x):
                 raise NotImplementedError
 
         else:
-            raise NotImplementedError
-
+            raise ValueError("Data must be a pandas series or data frame.")
 
     if len(mask_x) != data.shape[0]:
         raise ValueError('Data must have the same number of rows as mask has ROIs.')
 
     if isinstance(data, pd.Series):
-        return series_to_brain(data, mask_x)
-    elif isinstance(data, pd.DataFrame):
-        return Brain_Data([series_to_brain(data[x], mask_x) for x in data.keys()])
+        return Brain_Data([mask_x[x]*data[x] for x in data.keys()]).sum()
     else:
-        raise ValueError("Data must be a pandas series or data frame.")
+        out = mask_x.copy()
+        out.data = np.ones((data.shape[1], out.data.shape[1]))
+        for roi in range(len(mask_x)):
+            roi_data = np.reshape(data.iloc[roi,:].values, (-1,1))
+            out.data[:, mask_x[roi].data==1] = np.repeat(roi_data.T, np.sum(mask_x[roi].data==1), axis=0).T
+        return out
