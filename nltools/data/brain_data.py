@@ -1889,9 +1889,9 @@ class Brain_Data(object):
                             diff_spike_cutoff=diff_spike_cutoff)
 
     def temporal_resample(self, sampling_freq=None, target=None, target_type='hz'):
-        ''' Resample Brain_Data timeseries to a new target frequency or number of samples 
+        ''' Resample Brain_Data timeseries to a new target frequency or number of samples
         using Piecewise Cubic Hermite Interpolating Polynomial (PCHIP) interpolation.
-        This function can up- or down-sample data. 
+        This function can up- or down-sample data.
         
         Note: this function can use quite a bit of RAM.
 
