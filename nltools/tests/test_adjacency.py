@@ -96,7 +96,6 @@ def test_similarity(sim_adjacency_multiple):
     assert sim_adjacency_multiple[0].similarity(data2.squareform(), perm_type=None, n_permute=n_permute)['correlation'] > .5
     assert sim_adjacency_multiple[0].similarity(data2.squareform(), perm_type='1d', n_permute=n_permute)['correlation'] > .5
     assert sim_adjacency_multiple[0].similarity(data2.squareform(), perm_type='2d', n_permute=n_permute)['correlation'] > .5
-    assert sim_adjacency_multiple[0].similarity(data2.squareform(), perm_type='jackknife', n_permute=n_permute)['correlation'] > .5
 
 
 def test_similarity_matrix_permutation():
@@ -124,10 +123,6 @@ def test_directed_similarity():
         x.similarity(y, perm_type='2d')
     except TypeError as e:
         pass 
-    try:
-        x.similarity(y, perm_type='jackknife')
-    except TypeError as e:
-        pass
 
 
 def test_distance(sim_adjacency_multiple):

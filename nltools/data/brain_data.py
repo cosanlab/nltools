@@ -18,6 +18,7 @@ from nilearn.signal import clean
 from scipy.stats import ttest_1samp, pearsonr
 from scipy.stats import t as t_dist
 from scipy.signal import detrend
+from scipy.interpolate import pchip
 import os
 import shutil
 import nibabel as nib
@@ -1887,6 +1888,41 @@ class Brain_Data(object):
                             global_spike_cutoff=global_spike_cutoff,
                             diff_spike_cutoff=diff_spike_cutoff)
 
+    def temporal_resample(self, sampling_freq=None, target=None, target_type='hz'):
+        ''' Resample Brain_Data timeseries to a new target frequency or number of samples
+        using Piecewise Cubic Hermite Interpolating Polynomial (PCHIP) interpolation.
+        This function can up- or down-sample data.
+        
+        Note: this function can use quite a bit of RAM.
+
+            Args:
+                sampling_freq:  (float) sampling frequency of data in hertz
+                target: (float) upsampling target
+                target_type: (str) type of target can be [samples,seconds,hz]
+                
+            Returns:
+                upsampled Brain_Data instance
+        '''
+        
+        out = self.copy()
+
+        if target_type == 'samples':
+            n_samples = target
+        elif target_type == 'seconds':
+            n_samples = target*sampling_freq
+        elif target_type == 'hz':
+            n_samples = float(sampling_freq)/float(target)
+        else:
+            raise ValueError('Make sure target_type is "samples", "seconds", or "hz".')
+        
+        orig_spacing = np.arange(0, self.shape()[0], 1)
+        new_spacing = np.arange(0, self.shape()[0], n_samples)
+        
+        out.data = np.zeros([len(new_spacing), self.shape()[1]])
+        for i in range(self.shape()[1]):
+            interpolate = pchip(orig_spacing, self.data[:, i])
+            out.data[:, i] = interpolate(new_spacing)
+        return out
 
 class Groupby(object):
     def __init__(self, data, mask):
