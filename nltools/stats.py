@@ -1822,16 +1822,13 @@ def isps(data, sampling_freq=.5, low_cut=.04, high_cut=.07, order=5):
     timeseries. Requires multiple subjects. This method is largely based on that described by Glerean
     et al., 2012 and performs a hilbert transform on narrow bandpass filtered timeseries (butterworth)
     data to get the instantaneous phase angle. The function returns a dictionary containing the
-    average phase angle, the average vector length, and the rayleigh statistic using circular
-    statistics (Fisher, 1993).
+    average phase angle, the average vector length, and parametric p-values computed using the rayleigh
+    test using circular statistics (Fisher, 1993).
     
     This function requires narrow band filtering your data. As a default we use the recommendations
     by (Glerean et al., 2012) of .04-.07Hz. This is similar to the "slow-4" band (0.025–0.067 Hz)
     described by (Zuo et al., 2010; Penttonen & Buzsáki, 2003), but excludes the .03 band, which has been
     demonstrated to contain aliased respiration signals (Birn, 2006).
-    
-    Though this function return mean phase angle and p-values, we primarily recommend focusing
-    on ISPS(i.e., vector_length).
 
     Birn RM, Smith MA, Bandettini PA, Diamond JB. 2006. Separating respiratory-variation-related
     fluctuations from neuronal-activity- related fluctuations in fMRI. Neuroimage 31:1536–1548.

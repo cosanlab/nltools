@@ -575,7 +575,7 @@ class Adjacency(object):
         Default is to use spearman correlation and permutation test.
         Args:
             data: Adjacency data, or 1-d array same size as self.data
-            perm_type: (str) '1d','2d', 'jackknife', or None
+            perm_type: (str) '1d','2d', or None
             metric: (str) 'spearman','pearson','kendall'
             ignore_diagonal: (bool) only applies to 'directed' Adjacency types using perm_type=None or perm_type='1d'
         '''
@@ -593,7 +593,7 @@ class Adjacency(object):
         elif perm_type == '2d':
             similarity_func = matrix_permutation
         else:
-            raise ValueError("perm_type must be ['1d','2d', 'jackknife', or None']")
+            raise ValueError("perm_type must be ['1d','2d', or None']")
 
         def _convert_data_similarity(data, perm_type=None, ignore_diagonal=ignore_diagonal):
             '''Helper function to convert data correctly'''
@@ -603,13 +603,13 @@ class Adjacency(object):
                     data = d[~np.eye(d.shape[0]).astype(bool)]
                 else:
                     data = data.data
-            elif perm_type in ['2d', 'jackknife']:
+            elif perm_type == '2d':
                 if not data.issymmetric:
                     raise TypeError(f"data must be symmetric to do {perm_type} permutation")
                 else:
                     data = data.squareform()
             else:
-                raise ValueError("perm_type must be ['1d','2d', 'jackknife', or None']")
+                raise ValueError("perm_type must be ['1d','2d', or None']")
             return data
 
         if self.is_single_matrix:
