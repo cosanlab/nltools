@@ -24,7 +24,6 @@ __all__ = ['pearson',
            'two_sample_permutation',
            'correlation_permutation',
            'matrix_permutation',
-           'jackknife_permutation',
            'make_cosine_basis',
            'summarize_bootstrap',
            'regress',
@@ -40,7 +39,12 @@ __all__ = ['pearson',
            '_bootstrap_isc',
            'isc',
            'isfc',
-           'compute_matrix_correlation']
+           'isps',
+           '_compute_matrix_correlation',
+           '_phase_mean_angle',
+           '_phase_vector_length',
+           '_butter_bandpass_filter',
+           '_phase_rayleigh_p']
 
 import numpy as np
 from numpy.fft import fft, ifft
@@ -48,6 +52,9 @@ import pandas as pd
 from scipy.stats import pearsonr, spearmanr, kendalltau, norm, ttest_1samp
 from scipy.stats import t as t_dist
 from scipy.spatial.distance import squareform, pdist
+from scipy.linalg import orthogonal_procrustes
+from scipy.spatial import procrustes as procrust
+from scipy.signal import hilbert, butter, filtfilt
 from copy import deepcopy
 import nibabel as nib
 from scipy.interpolate import interp1d
@@ -57,8 +64,6 @@ from joblib import Parallel, delayed
 import six
 from .utils import attempt_to_import, check_square_numpy_matrix
 from .external.srm import SRM, DetSRM
-from scipy.linalg import orthogonal_procrustes
-from scipy.spatial import procrustes as procrust
 from sklearn.utils import check_random_state
 from sklearn.metrics import pairwise_distances
 
@@ -661,54 +666,6 @@ def matrix_permutation(data1, data2, n_permute=5000, metric='spearman',
     if return_perms:
         stats['perm_dist'] = all_p
     return stats
-
-
-def jackknife_permutation(data1, data2, metric='spearman',
-                          p_value='permutation', n_jobs=-1, n_permute=5000,
-                          tail=2, random_state=None):
-    ''' This function uses a randomization test on a jackknife of absolute
-        distance/similarity of each subject
-
-        Args:
-            data1: (Adjacency, pd.DataFrame, np.array) square matrix
-            data2: (Adjacency, pd.DataFrame, np.array) square matrix
-            metric: (str) type of association metric ['spearman','pearson',
-                    'kendall']
-            tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
-            p_value: ['ttest', 'permutation']
-            n_permute: (int) number of permutations
-            n_jobs: (int) The number of CPUs to use to do the computation.
-                    -1 means all CPUs.
-
-        Returns:
-            stats: (dict) dictionary of permutation results ['correlation','p']
-
-    '''
-
-    random_state = check_random_state(random_state)
-
-    data1 = check_square_numpy_matrix(data1)
-    data2 = check_square_numpy_matrix(data2)
-
-    stats = {'all_r': []}
-    for s in range(data1.shape[0]):
-        stats['all_r'].append(correlation(np.delete(data1[s, ], s),
-                                          np.delete(data2[s, ], s),
-                                          metric=metric)[0])
-    stats['correlation'] = np.mean(stats['all_r'])
-
-    if p_value == 'permutation':
-        stats_permute = one_sample_permutation(stats['all_r'],
-                                               n_permute=n_permute, tail=tail,
-                                               n_jobs=n_jobs,
-                                               random_state=random_state)
-        stats['p'] = stats_permute['p']
-    elif p_value == 'ttest':
-        stats['p'] = ttest_1samp(stats['all_r'], 0)[1]
-    else:
-        raise NotImplementedError("Only ['ttest', 'permutation'] are currently implemented.")
-    return stats
-
 
 def make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale=True, drop=0):
     """ Create a series of cosine basis functions for a discrete cosine
@@ -1818,12 +1775,12 @@ def isc(data, n_bootstraps=5000, metric='median', method='bootstrap', ci_percent
         
     return stats
 
-def compute_matrix_correlation(matrix1, matrix2):
+def _compute_matrix_correlation(matrix1, matrix2):
     '''Computes the intersubject functional correlation between 2 matrices (observation x feature)'''
     return np.corrcoef(matrix1.T, matrix2.T)[matrix1.shape[1]:,:matrix2.shape[1]]
 
 def isfc(data, method='average'):
-    '''Compute ISFC from a list of observation x feature matrices
+    '''Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices
     
     This function uses the leave one out approach to compute ISFC (Simony et al., 2016).
     For each subject, compute the cross-correlation between each voxel/roi
@@ -1853,7 +1810,142 @@ def isfc(data, method='average'):
             sub_mean = np.zeros(m1.shape)
             for y in (y for y in subjects if y != target):
                 sub_mean += data[y]
-            sub_isfc.append(compute_matrix_correlation(m1, sub_mean/(len(subjects)-1)))
+            sub_isfc.append(_compute_matrix_correlation(m1, sub_mean/(len(subjects)-1)))
     else:
         raise NotImplementedError('Only average method is implemented. Pairwise will be added at some point.')
     return sub_isfc
+
+def isps(data, sampling_freq=.5, low_cut=.04, high_cut=.07, order=5):
+    '''Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array)
+    
+    This function computes the instantaneous intersubject phase synchrony for a single voxel/roi
+    timeseries. Requires multiple subjects. This method is largely based on that described by Glerean
+    et al., 2012 and performs a hilbert transform on narrow bandpass filtered timeseries (butterworth)
+    data to get the instantaneous phase angle. The function returns a dictionary containing the
+    average phase angle, the average vector length, and the rayleigh statistic using circular
+    statistics (Fisher, 1993).
+    
+    This function requires narrow band filtering your data. As a default we use the recommendations
+    by (Glerean et al., 2012) of .04-.07Hz. This is similar to the "slow-4" band (0.025–0.067 Hz)
+    described by (Zuo et al., 2010; Penttonen & Buzsáki, 2003), but excludes the .03 band, which has been
+    demonstrated to contain aliased respiration signals (Birn, 2006).
+    
+    Though this function return mean phase angle and p-values, we primarily recommend focusing
+    on ISPS(i.e., vector_length).
+
+    Birn RM, Smith MA, Bandettini PA, Diamond JB. 2006. Separating respiratory-variation-related
+    fluctuations from neuronal-activity- related fluctuations in fMRI. Neuroimage 31:1536–1548.
+    
+    Buzsáki, G., & Draguhn, A. (2004). Neuronal oscillations in cortical networks. Science,
+    304(5679), 1926-1929.
+    
+    Fisher, N. I. (1995). Statistical analysis of circular data. cambridge university press.
+
+    Glerean, E., Salmi, J., Lahnakoski, J. M., Jääskeläinen, I. P., & Sams, M. (2012). 
+    Functional magnetic resonance imaging phase synchronization as a measure of dynamic 
+    functional connectivity. Brain connectivity, 2(2), 91-101.
+    
+    Args:
+        data: (pd.DataFrame, np.ndarray) observations x subjects data
+        sampling_freq: (float) sampling freqency of data in Hz
+        low_cut: (float) lower bound cutoff for high pass filter
+        high_cut: (float) upper bound cutoff for low pass filter
+        order: (int) filter order for butterworth bandpass
+        
+    Returns:
+        dictionary with mean phase angle, vector length, and rayleigh statistic
+        
+    '''
+    
+    if not isinstance(data, (pd.DataFrame, np.ndarray)):
+        raise ValueError('data must be a pandas dataframe or numpy array (observations by subjects)')
+        
+    phase = np.angle(hilbert(_butter_bandpass_filter(pd.DataFrame(data), low_cut, high_cut, sampling_freq, order=order)))
+    
+    out = {'average_angle':_phase_mean_angle(phase)}
+    out['vector_length'] = _phase_vector_length(phase)
+    out['p'] = _phase_rayleigh_p(phase)
+    return out
+
+def _butter_bandpass_filter(data, low_cut, high_cut, fs, axis = 0, order=5):
+    '''Apply a bandpass butterworth filter with zero-phase filtering
+
+    Args:
+        data: (np.array) 
+        low_cut: (float) lower bound cutoff for high pass filter
+        high_cut: (float) upper bound cutoff for low pass filter
+        fs: (float) sampling frequency in Hz
+        axis: (int) axis to perform filtering.
+        order: (int) filter order for butterworth bandpass
+    
+    Returns:
+        bandpass filtered data.
+    '''
+    nyq = 0.5 * fs
+    b, a = butter(order, [low_cut/nyq, high_cut/nyq], btype='band')
+    return filtfilt(b, a, data, axis=axis)
+
+def _phase_mean_angle(phase_angles):
+    '''Compute mean phase angle using circular statistics
+    
+        Can take 1D (observation for a single feature) or 2D (observation x feature) signals
+        
+        Implementation from:
+        
+            Fisher, N. I. (1995). Statistical analysis of circular data. cambridge university press.
+            
+        Args:
+            phase_angles: (np.array) 1D or 2D array of phase angles
+
+        Returns:
+            mean phase angle: (np.array)
+
+    '''
+    
+    axis = 0 if len(phase_angles.shape) == 1 else 1
+    return np.arctan2(np.mean(np.sin(phase_angles), axis=axis), np.mean(np.cos(phase_angles), axis=axis))
+
+def _phase_vector_length(phase_angles):
+    '''Compute vector length of phase angles using circular statistics
+    
+        Can take 1D (observation for a single feature) or 2D (observation x feature) signals
+        
+        Implementation from:
+        
+            Fisher, N. I. (1995). Statistical analysis of circular data. cambridge university press.
+            
+        Args:
+            phase_angles: (np.array) 1D or 2D array of phase angles
+
+        Returns:
+             phase angle vector length: (np.array)
+
+    '''
+    
+    axis = 0 if len(phase_angles.shape) == 1 else 1
+    return np.float32(np.sqrt(np.mean(np.cos(phase_angles), axis=axis)**2 + np.mean(np.sin(phase_angles), axis=axis)**2))
+
+def _phase_rayleigh_p(phase_angles):
+    '''Compute the p-value of the phase_angles using the Rayleigh statistic
+    
+        Note: this test assumes every time point is independent, which is unlikely to be true in a timeseries with autocorrelation
+
+        Implementation from:
+        
+            Fisher, N. I. (1995). Statistical analysis of circular data. cambridge university press.
+            
+        Args:
+            phase_angles: (np.array) 1D or 2D array of phase angles
+
+        Returns:
+             p-values: (np.array)
+
+    '''
+    
+    n = len(phase_angles) if len(phase_angles.shape) == 1 else phase_angles.shape[1]
+
+    Z = n*_phase_vector_length(phase_angles)**2
+    if n <= 50:
+        return np.exp(-1*Z)*(1 + (2*Z - Z**2)/(4*n) - (24*Z - 132*Z**2 +76*Z**3 - 9*Z**4)/(288*n**2))
+    else:
+        return np.exp(-1*Z)
