@@ -1838,8 +1838,8 @@ def isps(data, sampling_freq=.5, low_cut=.04, high_cut=.07, order=5):
     
     Fisher, N. I. (1995). Statistical analysis of circular data. cambridge university press.
 
-    Glerean, E., Salmi, J., Lahnakoski, J. M., Jääskeläinen, I. P., & Sams, M. (2012). 
-    Functional magnetic resonance imaging phase synchronization as a measure of dynamic 
+    Glerean, E., Salmi, J., Lahnakoski, J. M., Jääskeläinen, I. P., & Sams, M. (2012).
+    Functional magnetic resonance imaging phase synchronization as a measure of dynamic
     functional connectivity. Brain connectivity, 2(2), 91-101.
     
     Args:
@@ -1868,7 +1868,7 @@ def _butter_bandpass_filter(data, low_cut, high_cut, fs, axis = 0, order=5):
     '''Apply a bandpass butterworth filter with zero-phase filtering
 
     Args:
-        data: (np.array) 
+        data: (np.array)
         low_cut: (float) lower bound cutoff for high pass filter
         high_cut: (float) upper bound cutoff for low pass filter
         fs: (float) sampling frequency in Hz
