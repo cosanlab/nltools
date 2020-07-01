@@ -1,10 +1,10 @@
 import numpy as np
+from numpy import sin, pi, arange
 import pandas as pd
 from nltools.stats import (one_sample_permutation,
                            two_sample_permutation,
                            correlation_permutation,
                            matrix_permutation,
-                           jackknife_permutation,
                            downsample,
                            upsample,
                            winsorize,
@@ -13,7 +13,8 @@ from nltools.stats import (one_sample_permutation,
                            _calc_pvalue,
                            find_spikes,
                            isc,
-                           isfc)
+                           isfc,
+                           isps)
 from nltools.simulator import Simulator
 from nltools.mask import create_sphere
 from sklearn.metrics import pairwise_distances
@@ -318,3 +319,22 @@ def test_isfc():
     assert len(isfc_out) == n_sub
     assert isfc_mean.shape == (5,5)
     np.testing.assert_almost_equal(np.array(isfc_out).mean(axis=0).mean(), 0, decimal=1)
+    
+def test_isps():
+    sampling_freq = .5
+    time = arange(0, 200, 1)
+    amplitude = 5
+    freq = .1
+    theta = 0
+    n_sub = 15
+    simulation = amplitude * sin(2 * pi * freq * time + theta)
+    simulation = np.array([simulation] * n_sub).T
+    simulation += np.random.randn(simulation.shape[0], simulation.shape[1])*2
+    simulation[50:150,:] = np.random.randn(100, simulation.shape[1])*5
+    stats = isps(simulation, low_cut=.05, high_cut=.2, sampling_freq=sampling_freq)
+
+    assert stats['average_angle'].shape == time.shape
+    assert stats['vector_length'].shape == time.shape
+    assert stats['p'].shape == time.shape
+    assert stats['p'][50:150].mean() > (np.mean([stats['p'][:50].mean(), stats['p'][150:].mean()]))
+    assert stats['vector_length'][50:150].mean() < (np.mean([stats['vector_length'][:50].mean(), stats['vector_length'][150:].mean()]))
