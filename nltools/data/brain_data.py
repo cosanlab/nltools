@@ -1839,9 +1839,9 @@ class Brain_Data(object):
             U, _, V = np.linalg.svd(A, full_matrices=False)
 
             out['transformation_matrix'] = source
-            out['transformation_matrix'].data = U.dot(V)
+            out['transformation_matrix'].data = U.dot(V).T
 
-            out['transformed'] = data1.dot(out['transformation_matrix'].data)
+            out['transformed'] = data1.dot(out['transformation_matrix'].data.T)
             out['common_model'] = target
         elif method == 'procrustes':
             _, transformed, out['disparity'], tf_mtx, out['scale'] = procrustes(data2, data1)

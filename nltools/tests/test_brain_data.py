@@ -479,7 +479,7 @@ def test_hyperalignment():
     assert d1.shape() == bout['transformed'].shape
     assert d1.shape() == bout['common_model'].shape
     assert d1.shape()[1] == bout['transformation_matrix'].shape()[0]
-    btransformed = np.dot(d1.data, bout['transformation_matrix'].data)
+    btransformed = np.dot(d1.data, bout['transformation_matrix'].data.T)
     np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data - btransformed))
 
     # Test probabilistic brain_data
@@ -487,7 +487,7 @@ def test_hyperalignment():
     assert d1.shape() == bout['transformed'].shape
     assert d1.shape() == bout['common_model'].shape
     assert d1.shape()[1] == bout['transformation_matrix'].shape()[0]
-    btransformed = np.dot(d1.data, bout['transformation_matrix'].data)
+    btransformed = np.dot(d1.data, bout['transformation_matrix'].data.T)
     np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data-btransformed))
 
     # Test procrustes brain_data
@@ -520,7 +520,7 @@ def test_hyperalignment():
     assert d1.shape() == bout['transformed'].shape
     assert d1.shape() == bout['common_model'].shape
     assert d1.shape()[0] == bout['transformation_matrix'].shape()[0]
-    btransformed = np.dot(d1.data.T, bout['transformation_matrix'].data)
+    btransformed = np.dot(d1.data.T, bout['transformation_matrix'].data.T)
     np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data-btransformed.T))
 
     out = align(data, method='probabilistic_srm', axis=1)
@@ -528,7 +528,7 @@ def test_hyperalignment():
     assert d1.shape() == bout['transformed'].shape
     assert d1.shape() == bout['common_model'].shape
     assert d1.shape()[0] == bout['transformation_matrix'].shape()[0]
-    btransformed = np.dot(d1.data.T, bout['transformation_matrix'].data)
+    btransformed = np.dot(d1.data.T, bout['transformation_matrix'].data.T)
     np.testing.assert_almost_equal(0, np.sum(bout['transformed'].data-btransformed.T))
 
     out = align(data, method='procrustes', axis=1)
