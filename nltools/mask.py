@@ -213,7 +213,11 @@ def roi_to_brain(data, mask_x):
         raise ValueError('Data must have the same number of rows as mask has ROIs.')
 
     if isinstance(data, pd.Series):
-        return Brain_Data([mask_x[x]*data[x] for x in data.keys()]).sum()
+        out = mask_x[0].copy()
+        out.data = np.zeros(out.data.shape)
+        for roi in range(len(mask_x)):
+            out.data[np.where(mask_x.data[roi,:])] = data[roi]
+        return out
     else:
         out = mask_x.copy()
         out.data = np.ones((data.shape[1], out.data.shape[1]))
