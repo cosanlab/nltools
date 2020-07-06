@@ -112,7 +112,7 @@ class Brain_Data(object):
 
         if data is not None:
             if isinstance(data, six.string_types):
-                if 'http://' in data:
+                if 'http://' in data or 'https://' in data:
                     from nltools.datasets import download_nifti
                     tmp_dir = os.path.join(tempfile.gettempdir(),
                                            str(os.times()[-1]))
