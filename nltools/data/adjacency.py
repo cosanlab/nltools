@@ -908,6 +908,9 @@ class Adjacency(object):
         if metric not in ['mean', 'median']:
             raise ValueError("metric must be ['mean', 'median']")
 
+        if not self.is_single_matrix:
+            raise NotImplementedError('Currently we can only compute ISC values on single Adjacency matrices')
+        
         if metric =='mean':
             isc = np.tanh(self.r_to_z().mean())
         elif metric =='median':
