@@ -40,10 +40,11 @@ version = version['__version__']
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
-    'sphinxcontrib.napoleon',
     'sphinx.ext.viewcode',
-    'sphinx_gallery.gen_gallery',
     'sphinx.ext.mathjax',
+    'sphinxcontrib.napoleon',
+    'sphinx_gallery.gen_gallery',
+    'sphinxcontrib.yt'
     ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -76,8 +77,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'nltools'
-copyright = u'2020, Cosan Lab'
-author = u'Cosan Lab'
+copyright = u'2020, Cosan Laboratory'
+author = u'Cosan Laboratory'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
