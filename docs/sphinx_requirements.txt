@@ -1,3 +1,4 @@
+sphinx >= 3.2.1
 mock
 sphinx-gallery
 sphinxcontrib-napoleon
