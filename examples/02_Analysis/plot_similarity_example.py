@@ -40,7 +40,7 @@ import numpy as np
 import matplotlib.pylab as plt
 
 high = data[np.where(data.X['PainLevel']==3)[0]].mean()
-r = high.similarity(data, metric='correlation')
+r = high.similarity(data, method='correlation')
 
 f,a = plt.subplots(ncols=2, figsize=(10,4))
 a[0].hist(r)
