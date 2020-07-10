@@ -2,5 +2,5 @@ mock
 sphinx-gallery
 sphinxcontrib-napoleon
 sphinx_bootstrap_theme
-sphinxcontrib.youtube
+sphinxcontrib.yt
 networkx
