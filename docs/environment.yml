@@ -5,7 +5,7 @@ name:
   - nltools >= 0.4.2
 
 dependencies:
-  - python >= 3.6
+  - python >= 3.7
   - pip:
     - sphinx >= 3.1.2
     - sphinx-gallery
