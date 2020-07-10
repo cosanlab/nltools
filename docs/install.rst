@@ -35,7 +35,7 @@ nltools requires several dependencies.  All are available in pypi.  Can use *pip
  - scipy
  - six
  - pynv
- - joblib==0.11
+ - joblib
  - deepdish>=0.3.6
 
 Optional Dependencies

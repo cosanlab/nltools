@@ -60,7 +60,7 @@ mask.plot()
 # We can expand this mask into 50 separate regions
 
 mask_x = expand_mask(mask)
-mask_x.plot()
+mask_x[:3].plot()
 
 #########################################################################
 # We can collapse these 50 separate regions as unique values in a single image 
@@ -76,9 +76,7 @@ mask_c.plot()
 # threshold method.  Here we calculate the mean of the high pain images and
 # threshold using the 95 percentile.
 
-import numpy as np
-
-high = data[np.where(data.X['PainLevel']==3)[0]]
+high = data[data.X['PainLevel']==3]
 high.mean().threshold(lower='2.5%', upper='97.5%').plot()
 
 #########################################################################
@@ -93,3 +91,41 @@ mask_b.plot()
 region = high.mean().threshold(lower='2.5%', upper='97.5%').regions()
 region.plot()
 
+#########################################################################
+# Finally, we can perform operations on ROIs from a mask and then convert them
+# back into a Brain_Data instance. In this example, let's compute a linear contrast
+# of increasing pain for each each participant. Then, let's compute functional 
+# connectivity across participants within each ROI and calculate the degree 
+# centrality of each ROI after arbitrarily thresholding the connectivity matrix.
+# We can then convert each ROIs degree back into a Brain_Data instance to help
+# visualize which regions are more central in this analysis.
+
+from sklearn.metrics import pairwise_distances
+from nltools.data import Adjacency
+from nltools.mask import roi_to_brain
+import pandas as pd
+import numpy as np
+
+sub_list = data.X['SubjectID'].unique()
+
+# perform matrix multiplication to compute linear contrast for each subject
+lin_contrast = []
+for sub in sub_list:
+    lin_contrast.append(data[data.X['SubjectID'] == sub] * np.array([1, -1,  0])) 
+
+# concatenate list of Brain_Data instances into a single instance
+lin_contrast = Brain_Data(lin_contrast) 
+
+# Compute correlation distance between each ROI
+dist = Adjacency(pairwise_distances(lin_contrast.extract_roi(mask), metric='correlation'), matrix_type='distance')
+
+# Threshold functional connectivity and convert to Adjacency Matrix. Plot as heatmap
+dist.threshold(upper=.4, binarize=True).plot()
+
+# Convert Adjacency matrix to networkX instance
+g = dist.threshold(upper=.4, binarize=True).to_graph()
+
+# Compute degree centrality and convert back into Brain_Data instance.
+degree_centrality = roi_to_brain(pd.Series(dict(g.degree())), mask_x)
+
+degree_centrality.plot()

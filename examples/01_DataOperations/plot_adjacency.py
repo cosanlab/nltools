@@ -102,7 +102,7 @@ dist.distance_to_similarity().plot()
 #
 # We can perform additional analyses on distance matrices such as multidimensional scaling. Here we provide an example to create a 3D multidimensional scaling plot of our data to see if the on and off matrices might naturally group together.
 
-dat = Adjacency(noisy, matrix_type='similarity', labels=['C1']*4 + ['C2']*4 + ['C3']*4)
+dist = data.distance(metric='correlation')
 dist.labels = ['On']*5 + ['Off']*5 + ['On']*5
 dist.plot_mds(n_components=3)
 

@@ -15,7 +15,6 @@
 import sys
 import os
 import shlex
-from mock import Mock as MagicMock
 sys.path.insert(0, os.path.abspath('sphinxext'))
 import sphinx_gallery
 import sphinx_bootstrap_theme
@@ -29,15 +28,6 @@ version = {}
 with open("../nltools/version.py") as f:
     exec(f.read(), version)
 version = version['__version__']
-
-# ReadTheDocks doesn't support necessary C dependencies (e.g., Atlas), so we
-# mock them out per https://docs.readthedocs.org/en/latest/faq.html#i-get-import-errors-on-libraries-that-depend-on-c-modules.
-
-class Mock(MagicMock):
-    __all__ = []
-    @classmethod
-    def __getattr__(cls, name):
-            return Mock()
 
 # -- General configuration ------------------------------------------------
 

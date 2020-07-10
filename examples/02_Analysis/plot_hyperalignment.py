@@ -146,17 +146,16 @@ a[1].set_title('Average Voxel x Time Matrix of Aligned Data', fontsize=16)
 # the algorithm that would need to be accounted for to fully recover the original
 # data (e.g., centering, and scaling by norm).
 
-original_data = [np.dot(t.data, tm.T) for t,tm in zip(out['transformed'], out['transformation_matrix'])]
+backprojected = [np.dot(t.data, tm.data) for t,tm, in zip(out['transformed'], out['transformation_matrix'])]
 
 f,a = plt.subplots(nrows=3, ncols=3, figsize=(15,10), sharex=True, sharey=True)
 [a[0, i].imshow(x.data.T, aspect='auto') for i, x in enumerate(data)]
 [a[1, i].imshow(x.data.T, aspect='auto') for i, x in enumerate(out['transformed'])]
-[a[2, i].imshow(x.T, aspect='auto') for i, x in enumerate(original_data)]
+[a[2, i].imshow(x.T, aspect='auto') for i, x in enumerate(backprojected)]
 [a[i, 0].set_ylabel(x,fontsize=16) for i, x in enumerate(['Original Voxels','Aligned Features', 'Backprojected Voxels'])]
 [a[2, x].set_xlabel('Time', fontsize=16) for x in range(3)]
 [a[0, x].set_title('Subject %s' % str(x+1), fontsize=16) for x in range(3)]
 plt.tight_layout()
-
 
 #########################################################################
 # Align new subject to common model
@@ -168,8 +167,8 @@ plt.tight_layout()
 # original subject voxel space.
 
 d3 = data[2]
-d3_out = d3.align(out['common_model'], method='deterministic_srm')
-bp = np.dot(d3_out['transformed'].data, d3_out['transformation_matrix'].T)
+d3_out = d3.align(out['common_model'], method='procrustes')
+bp = np.dot(d3_out['transformed'].data, d3_out['transformation_matrix'].data)
 
 f,a = plt.subplots(ncols=3, figsize=(15,5), sharex=True, sharey=True)
 a[0].imshow(d3.data.T, aspect='auto')
@@ -195,13 +194,14 @@ plt.tight_layout()
 n_features = 10
 out = align(data, method='probabilistic_srm', n_features=n_features)
 
-original_data = [np.dot(t.data,tm.T) for t,tm in zip(out['transformed'],out['transformation_matrix'])]
+backprojected = [np.dot(t, tm.data) for t,tm in zip(out['transformed'],out['transformation_matrix'])]
 
 f,a = plt.subplots(nrows=3, ncols=3, figsize=(15,10), sharex=True, sharey=False)
 [a[0, i].imshow(x.data.T, aspect='auto') for i, x in enumerate(data)]
-[a[1, i].imshow(x.data.T, aspect='auto') for i, x in enumerate(out['transformed'])]
-[a[2, i].imshow(x.T, aspect='auto') for i, x in enumerate(original_data)]
+[a[1, i].imshow(x.T, aspect='auto') for i, x in enumerate(out['transformed'])]
+[a[2, i].imshow(x.T, aspect='auto') for i, x in enumerate(backprojected)]
 [a[i, 0].set_ylabel(x, fontsize=16) for i, x in enumerate(['Original Voxels','Aligned Features', 'Backprojected Voxels'])]
 [a[2, x].set_xlabel('Time', fontsize=16) for x in range(3)]
 [a[0, x].set_title('Subject %s' % str(x+1), fontsize=16) for x in range(3)]
 plt.tight_layout()
+

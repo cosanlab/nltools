@@ -62,12 +62,12 @@ t_stats['thr_t'].plot()
 # across pain intensities, we can also calculate a linear contrast c=(-1,0,1).
 # This is simple using matrix multiplication on the centered pain intensity values.
 
-all_sub = Brain_Data()
-for s in subject_id.unique():
-    sdat = data[np.where(metadata['SubjectID']==s)[0]]
+all_sub = []
+for sub in subject_id.unique():
+    sdat = data[metadata['SubjectID']==sub]
     sdat.X = pd.DataFrame(data={'Pain':sdat.X['PainLevel']})
-    sdat.data = np.dot(sdat.data.T,sdat.X['Pain']-2)
-    all_sub = all_sub.append(sdat)
+    all_sub.append(sdat * np.array(sdat.X['Pain'] - 2))
+all_sub = Brain_Data(all_sub)
 
 #########################################################################
 # We can again run a one-sample t-test at every voxel using an FDR threshold
@@ -75,4 +75,6 @@ for s in subject_id.unique():
 
 t_stats = all_sub.ttest(threshold_dict={'fdr':.001})
 t_stats['thr_t'].plot()
+
+
 
