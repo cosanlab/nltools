@@ -1,7 +1,7 @@
 sphinx >= 3.1.2
-mock
 sphinx-gallery
 sphinxcontrib-napoleon
 sphinx_bootstrap_theme
-sphinxcontrib.yt
 networkx
+sphinxcontrib.yt >= 0.2.2
+
