@@ -24,7 +24,7 @@ import numpy as np
 
 m1 = block_diag(np.ones((4, 4)), np.zeros((4, 4)), np.zeros((4, 4)))
 m2 = block_diag(np.zeros((4, 4)), np.ones((4, 4)), np.zeros((4, 4)))
-m3 = block_diag(np.zeros((4, 4)), np.zeros((4, 4)), np.ones((4, 4)))*3
+m3 = block_diag(np.zeros((4, 4)), np.zeros((4, 4)), np.ones((4, 4)))
 noisy = (m1*1+m2*2+m3*3) + np.random.randn(12, 12)*.1
 dat = Adjacency(noisy, matrix_type='similarity', labels=['C1']*4 + ['C2']*4 + ['C3']*4)
 
