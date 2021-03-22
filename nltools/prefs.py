@@ -1,10 +1,10 @@
-'''
+"""
 NeuroLearn Preferences
 ======================
 
 
-'''
-__all__ = ['MNI_Template', 'resolve_mni_path']
+"""
+__all__ = ["MNI_Template", "resolve_mni_path"]
 __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
@@ -13,50 +13,67 @@ from nltools.utils import get_resource_path
 import six
 
 MNI_Template = dict(
-    resolution='2mm',
-    mask_type='with_ventricles',
-    mask=os.path.join(get_resource_path(), 'MNI152_T1_2mm_brain_mask.nii.gz'),
-    plot=os.path.join(get_resource_path(), 'MNI152_T1_2mm.nii.gz'),
-    brain=os.path.join(get_resource_path(), 'MNI152_T1_2mm_brain.nii.gz'),
+    resolution="2mm",
+    mask_type="with_ventricles",
+    mask=os.path.join(get_resource_path(), "MNI152_T1_2mm_brain_mask.nii.gz"),
+    plot=os.path.join(get_resource_path(), "MNI152_T1_2mm.nii.gz"),
+    brain=os.path.join(get_resource_path(), "MNI152_T1_2mm_brain.nii.gz"),
 )
 
 
 def resolve_mni_path(MNI_Template):
     """ Helper function to resolve MNI path based on MNI_Template prefs setting."""
 
-    res = MNI_Template['resolution']
-    m = MNI_Template['mask_type']
+    res = MNI_Template["resolution"]
+    m = MNI_Template["mask_type"]
     if not isinstance(res, six.string_types):
         raise ValueError("resolution must be provided as a string!")
     if not isinstance(m, six.string_types):
         raise ValueError("mask_type must be provided as a string!")
 
-    if res == '3mm':
-        if m == 'with_ventricles':
-            MNI_Template['mask'] = os.path.join(get_resource_path(), 'MNI152_T1_3mm_brain_mask.nii.gz')
-        elif m == 'no_ventricles':
-            MNI_Template['mask'] = os.path.join(get_resource_path(), 'MNI152_T1_3mm_brain_mask_no_ventricles.nii.gz')
+    if res == "3mm":
+        if m == "with_ventricles":
+            MNI_Template["mask"] = os.path.join(
+                get_resource_path(), "MNI152_T1_3mm_brain_mask.nii.gz"
+            )
+        elif m == "no_ventricles":
+            MNI_Template["mask"] = os.path.join(
+                get_resource_path(), "MNI152_T1_3mm_brain_mask_no_ventricles.nii.gz"
+            )
         else:
-            raise ValueError("Available mask_types are 'with_ventricles' or 'no_ventricles'")
+            raise ValueError(
+                "Available mask_types are 'with_ventricles' or 'no_ventricles'"
+            )
 
-        MNI_Template['plot'] = os.path.join(get_resource_path(), 'MNI152_T1_3mm.nii.gz')
+        MNI_Template["plot"] = os.path.join(get_resource_path(), "MNI152_T1_3mm.nii.gz")
 
-        MNI_Template['brain'] = os.path.join(get_resource_path(), 'MNI152_T1_3mm_brain.nii.gz')
+        MNI_Template["brain"] = os.path.join(
+            get_resource_path(), "MNI152_T1_3mm_brain.nii.gz"
+        )
 
-    elif res == '2mm':
-        if m == 'with_ventricles':
-            MNI_Template['mask'] = os.path.join(get_resource_path(), 'MNI152_T1_2mm_brain_mask.nii.gz')
-        elif m == 'no_ventricles':
-            MNI_Template['mask'] = os.path.join(get_resource_path(), 'MNI152_T1_2mm_brain_mask_no_ventricles.nii.gz')
+    elif res == "2mm":
+        if m == "with_ventricles":
+            MNI_Template["mask"] = os.path.join(
+                get_resource_path(), "MNI152_T1_2mm_brain_mask.nii.gz"
+            )
+        elif m == "no_ventricles":
+            MNI_Template["mask"] = os.path.join(
+                get_resource_path(), "MNI152_T1_2mm_brain_mask_no_ventricles.nii.gz"
+            )
         else:
-            raise ValueError("Available mask_types are 'with_ventricles' or 'no_ventricles'")
+            raise ValueError(
+                "Available mask_types are 'with_ventricles' or 'no_ventricles'"
+            )
 
-        MNI_Template['plot'] = os.path.join(get_resource_path(), 'MNI152_T1_2mm.nii.gz')
+        MNI_Template["plot"] = os.path.join(get_resource_path(), "MNI152_T1_2mm.nii.gz")
 
-        MNI_Template['brain'] = os.path.join(get_resource_path(), 'MNI152_T1_2mm_brain.nii.gz')
+        MNI_Template["brain"] = os.path.join(
+            get_resource_path(), "MNI152_T1_2mm_brain.nii.gz"
+        )
     else:
         raise ValueError("Available templates are '2mm' or '3mm'")
     return MNI_Template
+
 
 # class Prefs(object):
 #

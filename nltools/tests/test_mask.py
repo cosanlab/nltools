@@ -19,26 +19,26 @@ def test_roi_to_brain():
     s1 = create_sphere([15, 10, -8], radius=10)
     s2 = create_sphere([-15, 10, -8], radius=10)
     s3 = create_sphere([0, -15, -8], radius=10)
-    masks = Brain_Data([s1,s2,s3])
+    masks = Brain_Data([s1, s2, s3])
 
-    d = [1,2,3]
+    d = [1, 2, 3]
     m = roi_to_brain(d, masks)
-    assert np.all([np.any(m.data==x) for x in d])
+    assert np.all([np.any(m.data == x) for x in d])
 
     d = pd.Series([1.1, 2.1, 3.1])
     m = roi_to_brain(d, masks)
-    assert np.all([np.any(m.data==x) for x in d])
+    assert np.all([np.any(m.data == x) for x in d])
 
     d = np.array([1, 2, 3])
     m = roi_to_brain(d, masks)
-    assert np.all([np.any(m.data==x) for x in d])
+    assert np.all([np.any(m.data == x) for x in d])
 
-    d = pd.DataFrame([np.ones(10)*x for x in [1, 2, 3]])
+    d = pd.DataFrame([np.ones(10) * x for x in [1, 2, 3]])
     m = roi_to_brain(d, masks)
     assert len(m) == d.shape[1]
-    assert np.all([np.any(m[0].data==x) for x in d[0]])
+    assert np.all([np.any(m[0].data == x) for x in d[0]])
 
-    d = np.array([np.ones(10)*x for x in [1, 2, 3]])
+    d = np.array([np.ones(10) * x for x in [1, 2, 3]])
     m = roi_to_brain(d, masks)
     assert len(m) == d.shape[1]
-    assert np.all([np.any(m[0].data==x) for x in d[0]])
+    assert np.all([np.any(m[0].data == x) for x in d[0]])

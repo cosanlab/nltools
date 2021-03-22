@@ -51,7 +51,7 @@ def test_onsets_to_dm():
     # Multiple onsets with polynomials auto-added
     dm = onsets_to_dm([data, data], sampling_freq, run_length, add_poly=2)
     assert dm.shape == (run_length * 2, data.Stim.nunique() + (3 * 2))
-    
+
     dm = onsets_to_dm(
         [data, data], sampling_freq, run_length, add_poly=2, keep_separate=False
     )
