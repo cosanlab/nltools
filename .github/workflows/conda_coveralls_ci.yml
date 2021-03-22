@@ -68,7 +68,7 @@ jobs:
       # Check code formatting
       - name: Check code formatting
         run: |
-          black . --check --diff
+          black nltools --check --diff
 
       # 4. Actually run the tests with coverage
       - name: Run Tests
