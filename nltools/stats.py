@@ -20,6 +20,7 @@ __all__ = ['pearson',
            'downsample',
            'upsample',
            'fisher_r_to_z',
+           'fisher_z_to_r',
            'one_sample_permutation',
            'two_sample_permutation',
            'correlation_permutation',
@@ -44,7 +45,8 @@ __all__ = ['pearson',
            '_phase_mean_angle',
            '_phase_vector_length',
            '_butter_bandpass_filter',
-           '_phase_rayleigh_p']
+           '_phase_rayleigh_p',
+           'align_states']
 
 import numpy as np
 from numpy.fft import fft, ifft
@@ -55,6 +57,7 @@ from scipy.spatial.distance import squareform, pdist
 from scipy.linalg import orthogonal_procrustes
 from scipy.spatial import procrustes as procrust
 from scipy.signal import hilbert, butter, filtfilt
+from scipy.optimize import linear_sum_assignment
 from copy import deepcopy
 import nibabel as nib
 from scipy.interpolate import interp1d
@@ -427,7 +430,12 @@ def upsample(data, sampling_freq=None, target=None, target_type='samples', metho
 def fisher_r_to_z(r):
     ''' Use Fisher transformation to convert correlation to z score '''
 
-    return .5*np.log((1+r)/(1-r))
+    # return .5*np.log((1 + r)/(1 - r))
+    return np.arctanh(r)
+
+def fisher_z_to_r(z):
+    ''' Use Fisher transformation to convert correlation to z score '''
+    return np.tanh(z)
 
 
 def correlation(data1, data2, metric='pearson'):
@@ -1946,3 +1954,40 @@ def _phase_rayleigh_p(phase_angles):
         return np.exp(-1*Z)*(1 + (2*Z - Z**2)/(4*n) - (24*Z - 132*Z**2 +76*Z**3 - 9*Z**4)/(288*n**2))
     else:
         return np.exp(-1*Z)
+
+def align_states(reference, target, metric='correlation', return_index=False, replace_zero_variance=False):
+    '''Align state weight maps using hungarian algorithm by minimizing pairwise distance between group states.
+    
+    Args:
+        reference: (np.array) reference pattern x state matrix
+        target: (np.array) target pattern x state matrix to align to reference
+        metric: (str) distance metric to use
+        return_index: (bool) return index if True, return remapped data if False
+        replace_zero_variance: (bool) transform a vector with zero variance to random numbers from a uniform distribution.
+                                Useful for when using correlation as a distance metric to avoid NaNs.
+    Returns:
+        ordered_weights: (list) a list of reordered state X pattern matrices
+    
+    '''
+    if reference.shape != target.shape:
+        raise ValueError('reference and target must be the same size')
+    
+    reference = np.array(reference)
+    target = np.array(target)
+    
+    def replace_zero_variance_columns(data):
+        if np.any(data.std(axis=0) == 0):
+            for i in np.where(data.std(axis=0) == 0)[0]:
+                data[:,i] = np.random.uniform(low=0, high=1, size=data.shape[0])
+        return data
+    
+    if replace_zero_variance:
+        reference = replace_zero_variance_columns(reference)
+        target = replace_zero_variance_columns(target) 
+
+    remapping = linear_sum_assignment(pairwise_distances(reference.T, target.T, metric=metric))[1]
+    
+    if return_index:
+        return remapping
+    else:
+        return target[:, remapping]

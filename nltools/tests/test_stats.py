@@ -14,7 +14,9 @@ from nltools.stats import (one_sample_permutation,
                            find_spikes,
                            isc,
                            isfc,
-                           isps)
+                           isps,
+                           fisher_r_to_z,
+                           fisher_z_to_r)
 from nltools.simulator import Simulator
 from nltools.mask import create_sphere
 from sklearn.metrics import pairwise_distances
@@ -338,3 +340,7 @@ def test_isps():
     assert stats['p'].shape == time.shape
     assert stats['p'][50:150].mean() > (np.mean([stats['p'][:50].mean(), stats['p'][150:].mean()]))
     assert stats['vector_length'][50:150].mean() < (np.mean([stats['vector_length'][:50].mean(), stats['vector_length'][150:].mean()]))
+
+def test_fisher_r_to_z():
+    for r in np.arange(0,1,.05):
+        np.testing.assert_almost_equal(r,fisher_z_to_r(fisher_r_to_z(r)), decimal=3)
