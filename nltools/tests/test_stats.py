@@ -1,6 +1,7 @@
 import numpy as np
 from numpy import sin, pi, arange
 import pandas as pd
+<<<<<<< HEAD
 from nltools.stats import (
     one_sample_permutation,
     two_sample_permutation,
@@ -17,6 +18,24 @@ from nltools.stats import (
     isfc,
     isps,
 )
+=======
+from nltools.stats import (one_sample_permutation,
+                           two_sample_permutation,
+                           correlation_permutation,
+                           matrix_permutation,
+                           downsample,
+                           upsample,
+                           winsorize,
+                           align,
+                           transform_pairwise,
+                           _calc_pvalue,
+                           find_spikes,
+                           isc,
+                           isfc,
+                           isps,
+                           fisher_r_to_z,
+                           fisher_z_to_r)
+>>>>>>> update fisher r to z
 from nltools.simulator import Simulator
 from nltools.mask import create_sphere
 from sklearn.metrics import pairwise_distances
@@ -519,6 +538,7 @@ def test_isps():
     n_sub = 15
     simulation = amplitude * sin(2 * pi * freq * time + theta)
     simulation = np.array([simulation] * n_sub).T
+<<<<<<< HEAD
     simulation += np.random.randn(simulation.shape[0], simulation.shape[1]) * 2
     simulation[50:150, :] = np.random.randn(100, simulation.shape[1]) * 5
     stats = isps(simulation, low_cut=0.05, high_cut=0.2, sampling_freq=sampling_freq)
@@ -534,3 +554,18 @@ def test_isps():
             [stats["vector_length"][:50].mean(), stats["vector_length"][150:].mean()]
         )
     )
+=======
+    simulation += np.random.randn(simulation.shape[0], simulation.shape[1])*2
+    simulation[50:150,:] = np.random.randn(100, simulation.shape[1])*5
+    stats = isps(simulation, low_cut=.05, high_cut=.2, sampling_freq=sampling_freq)
+
+    assert stats['average_angle'].shape == time.shape
+    assert stats['vector_length'].shape == time.shape
+    assert stats['p'].shape == time.shape
+    assert stats['p'][50:150].mean() > (np.mean([stats['p'][:50].mean(), stats['p'][150:].mean()]))
+    assert stats['vector_length'][50:150].mean() < (np.mean([stats['vector_length'][:50].mean(), stats['vector_length'][150:].mean()]))
+
+def test_fisher_r_to_z():
+    for r in np.arange(0,1,.05):
+        np.testing.assert_almost_equal(r,fisher_z_to_r(fisher_r_to_z(r)), decimal=3)
+>>>>>>> update fisher r to z
