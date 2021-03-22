@@ -540,3 +540,23 @@ def test_fisher_r_to_z():
     for r in np.arange(0, 1, 0.05):
         np.testing.assert_almost_equal(r, fisher_z_to_r(fisher_r_to_z(r)), decimal=3)
 
+
+def test_align_states():
+    n = 20
+    states = pd.DataFrame(
+        {
+            "State1": np.random.randint(1, 100, n),
+            "State2": np.random.randint(1, 100, n),
+            "State3": np.random.randint(1, 100, n),
+        }
+    )
+    scramble_index = np.array([2, 0, 1])
+    scrambled_states = states.iloc[:, scramble_index]
+
+    assert np.array_equal(
+        align_states(scrambled_states, states, return_index=True), scramble_index
+    )
+    assert np.array_equal(
+        states.shape, align_states(scrambled_states, states, return_index=False).shape
+    )
+
