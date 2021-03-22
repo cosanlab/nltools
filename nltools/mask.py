@@ -15,7 +15,6 @@ import nibabel as nib
 from nltools.prefs import MNI_Template, resolve_mni_path
 import pandas as pd
 import numpy as np
-import six
 import warnings
 from nilearn.masking import intersect_masks
 
@@ -34,7 +33,7 @@ def create_sphere(coordinates, radius=5, mask=None):
 
     if mask is not None:
         if not isinstance(mask, nib.Nifti1Image):
-            if isinstance(mask, six.string_types):
+            if isinstance(mask, str):
                 if os.path.isfile(mask):
                     mask = nib.load(mask)
             else:

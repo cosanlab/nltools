@@ -1,5 +1,3 @@
-from __future__ import division
-
 """
 NeuroLearn Statistics Tools
 ===========================
@@ -63,7 +61,6 @@ from scipy.interpolate import interp1d
 import warnings
 import itertools
 from joblib import Parallel, delayed
-import six
 from .utils import attempt_to_import, check_square_numpy_matrix
 from .external.srm import SRM, DetSRM
 from sklearn.utils import check_random_state
@@ -1031,10 +1028,10 @@ def regress(X, Y, mode="ols", stats="full", **kwargs):
 
     """
 
-    if not isinstance(mode, six.string_types):
+    if not isinstance(mode, str):
         raise ValueError("mode must be a string")
 
-    if not isinstance(stats, six.string_types):
+    if not isinstance(stats, str):
         raise ValueError("stats must be a string")
 
     if mode not in ["ols", "robust", "arma"]:

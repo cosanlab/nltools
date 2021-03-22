@@ -1,4 +1,3 @@
-from __future__ import division
 from nltools.simulator import Simulator
 from nltools.analysis import Roc
 import matplotlib

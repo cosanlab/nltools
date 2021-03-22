@@ -12,7 +12,6 @@ __license__ = "MIT"
 
 
 import os
-import six
 import numpy as np
 import nibabel as nib
 import pandas as pd
@@ -217,7 +216,7 @@ class Simulator:
         dat.Y = self.y
 
         # Write Data to files if requested
-        if output_dir is not None and isinstance(output_dir, six.string_types):
+        if output_dir is not None and isinstance(output_dir, str):
             NF_list.write(os.path.join(output_dir, "data.nii.gz"))
             self.y.to_csv(os.path.join(output_dir, "y.csv"), index=None, header=False)
             self.rep_id.to_csv(
@@ -300,7 +299,7 @@ class Simulator:
         # self.y = mv_sim[:,0]
         # mv_sim = mv_sim[:,1:]
         # A_4d = np.resize(A,(reps,A.shape[0],A.shape[1],A.shape[2]))
-        # for i in xrange(len(x)):
+        # for i in range(len(x)):
         #     A_4d[:,x[i],y[i],z[i]]=mv_sim[:,i]
         # A_4d = np.rollaxis(A_4d,0,4) # reorder shape of matrix so that time is in 4th dimension
         # self.data = self.to_nifti(np.add(A_4d,np.random.standard_normal(size=A_4d.shape)*sigma)) # add noise scaled by sigma
@@ -308,7 +307,7 @@ class Simulator:
 
         # Write Data to files if requested
         if output_dir is not None:
-            if isinstance(output_dir, six.string_types):
+            if isinstance(output_dir, str):
                 if not os.path.isdir(output_dir):
                     os.makedirs(output_dir)
                 self.data.to_filename(
