@@ -11,7 +11,7 @@ dist/
 .cache/
 htmlcov
 .pytest_cache/*
-dev/ 
+dev/
 # Logs and databases #
 ######################
 *.log
@@ -46,3 +46,5 @@ htmlcov/
 #####
 .tox
 .tox/*
+
+.pytest_cache

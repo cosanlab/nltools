@@ -37,7 +37,7 @@ def check_cv_coverage(cv, X, y, groups, expected_n_splits=None):
 
 
 def test_stratified_kfold_ratios():
-    y = pd.DataFrame(np.random.randn(1000))*20+50
+    y = pd.DataFrame(np.random.randn(1000)) * 20 + 50
     n_folds = 5
     cv = KFoldStratified(n_splits=n_folds)
     for train, test in cv.split(np.zeros(len(y)), y):
@@ -45,12 +45,16 @@ def test_stratified_kfold_ratios():
 
 
 def test_kfoldstratified():
-    y = pd.DataFrame(np.random.randn(50))*20+50
+    y = pd.DataFrame(np.random.randn(50)) * 20 + 50
     n_folds = 5
     cv = KFoldStratified(n_splits=n_folds)
-    check_cv_coverage(cv, X=np.zeros(len(y)), y=y, groups=None, expected_n_splits=n_folds)
+    check_cv_coverage(
+        cv, X=np.zeros(len(y)), y=y, groups=None, expected_n_splits=n_folds
+    )
 
-    y = pd.DataFrame(np.random.randn(51))*20+50
+    y = pd.DataFrame(np.random.randn(51)) * 20 + 50
     n_folds = 5
     cv = KFoldStratified(n_splits=n_folds)
-    check_cv_coverage(cv, X=np.zeros(len(y)), y=y, groups=None, expected_n_splits=n_folds)
+    check_cv_coverage(
+        cv, X=np.zeros(len(y)), y=y, groups=None, expected_n_splits=n_folds
+    )
