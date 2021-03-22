@@ -39,6 +39,7 @@ from nltools.utils import (
 )
 from .design_matrix import Design_Matrix
 from joblib import Parallel, delayed
+from pathlib import Path
 
 # Optional dependencies
 nx = attempt_to_import("networkx", "nx")
@@ -112,7 +113,9 @@ class Adjacency(object):
                 self.issymmetric = symmetric_all[0]
                 self.matrix_type = matrix_type_all[0]
             self.is_single_matrix = False
-        elif isinstance(data, str) and ((".h5" in data) or (".hdf5" in data)):
+        elif (isinstance(data, str) or isinstance(data, Path)) and (
+            (".h5" in data) or (".hdf5" in data)
+        ):
             f = dd.io.load(data)
             self.data = f["data"]
             self.Y = pd.DataFrame(
@@ -142,7 +145,7 @@ class Adjacency(object):
             ) = self._import_single_data(data, matrix_type=matrix_type)
 
         if Y is not None:
-            if isinstance(Y, str) and os.path.isfile(Y):
+            if (isinstance(Y, str) or isinstance(Y, Path)) and os.path.isfile(Y):
                 Y = pd.read_csv(Y, header=None, index_col=None)
             if isinstance(Y, pd.DataFrame):
                 if self.data.shape[0] != len(Y):
@@ -325,7 +328,7 @@ class Adjacency(object):
     def _import_single_data(self, data, matrix_type=None):
         """ Helper function to import single data matrix."""
 
-        if isinstance(data, str):
+        if isinstance(data, str) or isinstance(data, Path):
             if os.path.isfile(data):
                 data = pd.read_csv(data)
             else:
