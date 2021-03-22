@@ -70,6 +70,7 @@ from .adjacency import Adjacency
 from nltools.prefs import MNI_Template, resolve_mni_path
 from nilearn.decoding import SearchLight
 import deepdish as dd
+from pathlib import Path
 
 
 # Optional dependencies
@@ -105,7 +106,7 @@ class Brain_Data(object):
     ):
         if mask is not None:
             if not isinstance(mask, nib.Nifti1Image):
-                if isinstance(mask, str):
+                if isinstance(mask, str) or isinstance(mask, Path):
                     if os.path.isfile(mask):
                         mask = nib.load(mask)
                 else:
@@ -174,7 +175,7 @@ class Brain_Data(object):
                     if all(isinstance(x, data[0].__class__) for x in data):
                         self.data = []
                         for i in data:
-                            if isinstance(i, str):
+                            if isinstance(i, str) or isinstance(i, Path):
                                 self.data.append(
                                     self.nifti_masker.fit_transform(nib.load(i))
                                 )
@@ -197,7 +198,7 @@ class Brain_Data(object):
             self.data = np.array([])
 
         if Y is not None:
-            if isinstance(Y, str) and os.path.isfile(Y):
+            if (isinstance(Y, str) or isinstance(Y, Path)) and os.path.isfile(Y):
                 Y = pd.read_csv(Y, header=None, index_col=None)
             if isinstance(Y, pd.DataFrame):
                 if self.data.shape[0] != len(Y):
@@ -209,7 +210,7 @@ class Brain_Data(object):
             self.Y = pd.DataFrame()
 
         if X is not None:
-            if isinstance(X, str) and os.path.isfile(X):
+            if (isinstance(X, str) or isinstance(X, Path)) and os.path.isfile(X):
                 X = pd.read_csv(X, header=None, index_col=None)
             if isinstance(X, pd.DataFrame):
                 if self.data.shape[0] != X.shape[0]:
@@ -567,7 +568,7 @@ class Brain_Data(object):
                 print("threshold is ignored for simple axial plots")
             if anatomical is not None:
                 if not isinstance(anatomical, nib.Nifti1Image):
-                    if isinstance(anatomical, str):
+                    if isinstance(anatomical, str) or isinstance(anatomical, str):
                         anatomical = nib.load(anatomical)
                     else:
                         raise ValueError("anatomical is not a nibabel instance")
@@ -642,7 +643,7 @@ class Brain_Data(object):
         """
         if anatomical is not None:
             if not isinstance(anatomical, nib.Nifti1Image):
-                if isinstance(anatomical, str):
+                if isinstance(anatomical, str) or isinstance(anatomical, Path):
                     anatomical = nib.load(anatomical)
                 else:
                     raise ValueError("anatomical is not a nibabel instance")
@@ -1434,7 +1435,7 @@ class Brain_Data(object):
             groups = None
 
         if method == "rois":
-            if isinstance(rois, str):
+            if isinstance(rois, str) or isinstance(rois, Path):
                 if os.path.isfile(rois):
                     rois_img = Brain_Data(rois, mask=self.mask)
             elif isinstance(rois, Brain_Data):
@@ -1461,7 +1462,7 @@ class Brain_Data(object):
                 process_mask_img = process_mask
             elif isinstance(process_mask, Brain_Data):
                 process_mask_img = process_mask.to_nifti()
-            elif isinstance(process_mask, str):
+            elif isinstance(process_mask, str) or isinstance(process_mask, Path):
                 if os.path.isfile(process_mask):
                     process_mask_img = nib.load(process_mask)
                 else:

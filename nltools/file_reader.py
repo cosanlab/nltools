@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 from nltools.data import Design_Matrix
 import warnings
+from pathlib import Path
 
 
 def onsets_to_dm(
@@ -64,7 +65,7 @@ def onsets_to_dm(
     out = []
     TR = 1.0 / sampling_freq
     for f in F:
-        if isinstance(f, str):
+        if isinstance(f, str) or isinstance(f, Path):
             df = pd.read_csv(f, header=header, **kwargs)
         elif isinstance(f, pd.core.frame.DataFrame):
             df = f.copy()

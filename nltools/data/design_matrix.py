@@ -19,6 +19,7 @@ from scipy.special import legendre
 from ..external.hrf import glover_hrf
 from nltools.stats import downsample, upsample, zscore, make_cosine_basis
 from nltools.utils import AmbiguityError
+from pathlib import Path
 
 
 class Design_Matrix_Series(Series):
