@@ -16,6 +16,8 @@ from nltools.stats import (
     isc,
     isfc,
     isps,
+    fisher_r_to_z,
+    fisher_z_to_r,
 )
 from nltools.simulator import Simulator
 from nltools.mask import create_sphere
@@ -416,9 +418,7 @@ def test_transform_pairwise():
     # Test without groups
     new_n_samples = int(n_samples * (n_samples - 1) / 2)
     X = np.random.rand(n_samples, n_features)
-    y = np.random.rand(
-        n_samples,
-    )
+    y = np.random.rand(n_samples,)
     x_new, y_new = transform_pairwise(X, y)
     assert x_new.shape == (new_n_samples, n_features)
     assert y_new.shape == (new_n_samples,)
@@ -534,3 +534,9 @@ def test_isps():
             [stats["vector_length"][:50].mean(), stats["vector_length"][150:].mean()]
         )
     )
+
+
+def test_fisher_r_to_z():
+    for r in np.arange(0, 1, 0.05):
+        np.testing.assert_almost_equal(r, fisher_z_to_r(fisher_r_to_z(r)), decimal=3)
+
