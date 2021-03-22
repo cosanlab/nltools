@@ -1,8 +1,5 @@
 from nltools.simulator import Simulator
 from nltools.analysis import Roc
-import matplotlib
-
-matplotlib.use("TkAgg")
 
 
 def test_roc(tmpdir):
