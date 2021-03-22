@@ -3,4 +3,5 @@ black
 sphinx
 sphinx_gallery
 sphinx_bootstrap_theme
+sphinxcontrib-napoleon
 
