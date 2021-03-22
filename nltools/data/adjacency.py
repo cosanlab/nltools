@@ -1,5 +1,3 @@
-from __future__ import division
-
 """
 This data class is for working with similarity/dissimilarity matrices
 """
@@ -10,7 +8,6 @@ __license__ = "MIT"
 import os
 import pandas as pd
 import numpy as np
-import six
 import deepdish as dd
 from copy import deepcopy
 from sklearn.metrics.pairwise import pairwise_distances
@@ -115,9 +112,7 @@ class Adjacency(object):
                 self.issymmetric = symmetric_all[0]
                 self.matrix_type = matrix_type_all[0]
             self.is_single_matrix = False
-        elif isinstance(data, six.string_types) and (
-            (".h5" in data) or (".hdf5" in data)
-        ):
+        elif isinstance(data, str) and ((".h5" in data) or (".hdf5" in data)):
             f = dd.io.load(data)
             self.data = f["data"]
             self.Y = pd.DataFrame(
@@ -147,7 +142,7 @@ class Adjacency(object):
             ) = self._import_single_data(data, matrix_type=matrix_type)
 
         if Y is not None:
-            if isinstance(Y, six.string_types) and os.path.isfile(Y):
+            if isinstance(Y, str) and os.path.isfile(Y):
                 Y = pd.read_csv(Y, header=None, index_col=None)
             if isinstance(Y, pd.DataFrame):
                 if self.data.shape[0] != len(Y):
@@ -330,7 +325,7 @@ class Adjacency(object):
     def _import_single_data(self, data, matrix_type=None):
         """ Helper function to import single data matrix."""
 
-        if isinstance(data, six.string_types):
+        if isinstance(data, str):
             if os.path.isfile(data):
                 data = pd.read_csv(data)
             else:
@@ -776,9 +771,9 @@ class Adjacency(object):
         """
 
         b = self.copy()
-        if isinstance(upper, six.string_types) and upper[-1] == "%":
+        if isinstance(upper, str) and upper[-1] == "%":
             upper = np.percentile(b.data, float(upper[:-1]))
-        if isinstance(lower, six.string_types) and lower[-1] == "%":
+        if isinstance(lower, str) and lower[-1] == "%":
             lower = np.percentile(b.data, float(lower[:-1]))
 
         if upper and lower:

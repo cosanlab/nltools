@@ -1,5 +1,3 @@
-from __future__ import division
-
 """
 NeuroLearn Brain Data
 =====================
@@ -28,7 +26,6 @@ import pandas as pd
 import warnings
 import tempfile
 from copy import deepcopy
-import six
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.metrics.pairwise import pairwise_distances, cosine_similarity
 from sklearn.utils import check_random_state
@@ -108,7 +105,7 @@ class Brain_Data(object):
     ):
         if mask is not None:
             if not isinstance(mask, nib.Nifti1Image):
-                if isinstance(mask, six.string_types):
+                if isinstance(mask, str):
                     if os.path.isfile(mask):
                         mask = nib.load(mask)
                 else:
@@ -121,7 +118,7 @@ class Brain_Data(object):
         self.nifti_masker = NiftiMasker(mask_img=self.mask)
 
         if data is not None:
-            if isinstance(data, six.string_types):
+            if isinstance(data, str):
                 if "http://" in data or "https://" in data:
                     from nltools.datasets import download_nifti
 
@@ -177,7 +174,7 @@ class Brain_Data(object):
                     if all(isinstance(x, data[0].__class__) for x in data):
                         self.data = []
                         for i in data:
-                            if isinstance(i, six.string_types):
+                            if isinstance(i, str):
                                 self.data.append(
                                     self.nifti_masker.fit_transform(nib.load(i))
                                 )
@@ -200,7 +197,7 @@ class Brain_Data(object):
             self.data = np.array([])
 
         if Y is not None:
-            if isinstance(Y, six.string_types) and os.path.isfile(Y):
+            if isinstance(Y, str) and os.path.isfile(Y):
                 Y = pd.read_csv(Y, header=None, index_col=None)
             if isinstance(Y, pd.DataFrame):
                 if self.data.shape[0] != len(Y):
@@ -212,7 +209,7 @@ class Brain_Data(object):
             self.Y = pd.DataFrame()
 
         if X is not None:
-            if isinstance(X, six.string_types) and os.path.isfile(X):
+            if isinstance(X, str) and os.path.isfile(X):
                 X = pd.read_csv(X, header=None, index_col=None)
             if isinstance(X, pd.DataFrame):
                 if self.data.shape[0] != X.shape[0]:
@@ -570,7 +567,7 @@ class Brain_Data(object):
                 print("threshold is ignored for simple axial plots")
             if anatomical is not None:
                 if not isinstance(anatomical, nib.Nifti1Image):
-                    if isinstance(anatomical, six.string_types):
+                    if isinstance(anatomical, str):
                         anatomical = nib.load(anatomical)
                     else:
                         raise ValueError("anatomical is not a nibabel instance")
@@ -645,7 +642,7 @@ class Brain_Data(object):
         """
         if anatomical is not None:
             if not isinstance(anatomical, nib.Nifti1Image):
-                if isinstance(anatomical, six.string_types):
+                if isinstance(anatomical, str):
                     anatomical = nib.load(anatomical)
                 else:
                     raise ValueError("anatomical is not a nibabel instance")
@@ -1437,7 +1434,7 @@ class Brain_Data(object):
             groups = None
 
         if method == "rois":
-            if isinstance(rois, six.string_types):
+            if isinstance(rois, str):
                 if os.path.isfile(rois):
                     rois_img = Brain_Data(rois, mask=self.mask)
             elif isinstance(rois, Brain_Data):
@@ -1464,7 +1461,7 @@ class Brain_Data(object):
                 process_mask_img = process_mask
             elif isinstance(process_mask, Brain_Data):
                 process_mask_img = process_mask.to_nifti()
-            elif isinstance(process_mask, six.string_types):
+            elif isinstance(process_mask, str):
                 if os.path.isfile(process_mask):
                     process_mask_img = nib.load(process_mask)
                 else:
@@ -1763,7 +1760,7 @@ class Brain_Data(object):
             """
             if (len(dat.shape()) > 1) & (dat.shape()[0] > 1):
                 raise ValueError('"dat" must be a single image.')
-            if not dat.X.empty and isinstance(dat.X.name, six.string_types):
+            if not dat.X.empty and isinstance(dat.X.name, str):
                 img_name = dat.X.name
             else:
                 img_name = collection["name"] + "_" + str(index_id) + ".nii.gz"
@@ -1917,10 +1914,10 @@ class Brain_Data(object):
         if coerce_nan:
             b.data = np.nan_to_num(b.data)
 
-        if isinstance(upper, six.string_types) and upper[-1] == "%":
+        if isinstance(upper, str) and upper[-1] == "%":
             upper = np.percentile(b.data, float(upper[:-1]))
 
-        if isinstance(lower, six.string_types) and lower[-1] == "%":
+        if isinstance(lower, str) and lower[-1] == "%":
             lower = np.percentile(b.data, float(lower[:-1]))
 
         if upper and lower:

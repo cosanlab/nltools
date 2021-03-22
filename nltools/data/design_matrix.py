@@ -1,5 +1,3 @@
-from __future__ import division
-
 """
 NeuroLearn Design Matrix
 ========================
@@ -18,7 +16,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy.stats import pearsonr
 from scipy.special import legendre
-import six
 from ..external.hrf import glover_hrf
 from nltools.stats import downsample, upsample, zscore, make_cosine_basis
 from nltools.utils import AmbiguityError
@@ -539,7 +536,7 @@ class Design_Matrix(DataFrame):
         if isinstance(conv_func, np.ndarray):
             if len(conv_func.shape) > 2:
                 raise ValueError("2d conv_func must be formatted as samplex X kernals!")
-        elif isinstance(conv_func, six.string_types):
+        elif isinstance(conv_func, str):
             if conv_func != "hrf":
                 raise ValueError(
                     "Did you mean 'hrf'? 'hrf' can generate a kernel for you, otherwise custom kernels should be passed in as 1d or 2d arrays."

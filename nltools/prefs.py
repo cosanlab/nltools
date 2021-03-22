@@ -10,7 +10,6 @@ __license__ = "MIT"
 
 import os
 from nltools.utils import get_resource_path
-import six
 
 MNI_Template = dict(
     resolution="2mm",
@@ -26,9 +25,9 @@ def resolve_mni_path(MNI_Template):
 
     res = MNI_Template["resolution"]
     m = MNI_Template["mask_type"]
-    if not isinstance(res, six.string_types):
+    if not isinstance(res, str):
         raise ValueError("resolution must be provided as a string!")
-    if not isinstance(m, six.string_types):
+    if not isinstance(m, str):
         raise ValueError("mask_type must be provided as a string!")
 
     if res == "3mm":
@@ -96,7 +95,7 @@ def resolve_mni_path(MNI_Template):
 #         return strOut
 #
 #     def use_template(self,template_name):
-#         if isinstance(template_name,six.string_types):
+#         if isinstance(template_name, str):
 #             if template_name == '3mm':
 #                 self.MNI_Template['mask'] = os.path.join(get_resource_path(),'MNI152_T1_3mm_brain_mask.nii.gz')
 #                 self.MNI_Template['plot'] =        os.path.join(get_resource_path(),'MNI152_T1_3mm.nii.gz')
