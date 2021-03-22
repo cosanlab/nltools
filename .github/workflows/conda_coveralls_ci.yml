@@ -6,6 +6,11 @@ on:
       - master
       - main
 
+  pull_request:
+    branches:
+      - main
+      - master
+
 jobs:
   # Job (1): Run testing in parallel against multiples OSs and Python versions
   test:
