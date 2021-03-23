@@ -80,6 +80,22 @@ def test_std(sim_adjacency_multiple):
     assert len(sim_adjacency_multiple.std(axis=0)) == 1
     assert len(sim_adjacency_multiple.std(axis=1)) == len(np.std(sim_adjacency_multiple.data, axis=1))
 
+def test_sum():
+    n = 10
+    a = Adjacency(np.ones((n, n)), matrix_type='directed')
+    assert a.sum() == n**2
+    a = Adjacency([a,a])
+    assert a.sum().data.sum() == (n**2)*2
+
+    a = Adjacency(np.ones((n, n)), matrix_type='similarity')
+    assert a.sum() == n*(n-1)/2
+    a = Adjacency([a,a])
+    assert a.sum().data.sum() == n*(n-1)
+
+    a = Adjacency(np.ones((n, n)), matrix_type='distance')
+    assert a.sum() == n*(n-1)/2
+    a = Adjacency([a,a])
+    assert a.sum().data.sum() == n*(n-1)
 
 def test_similarity(sim_adjacency_multiple):
     n_permute = 1000
@@ -263,3 +279,4 @@ def test_cluster_summary():
         
     for i in dat.cluster_summary(clusters=clusters, summary='between').values():
         np.testing.assert_almost_equal(0,i,decimal=1)
+
