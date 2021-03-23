@@ -74,7 +74,6 @@ MAX_INT = np.iinfo(np.int32).max
 # Optional dependencies
 sm = attempt_to_import("statsmodels.tsa.arima_model", name="sm")
 
-
 def pearson(x, y):
     """Correlates row vector x with each row vector in 2D array y.
     From neurosynth.stats.py - author: Tal Yarkoni
