@@ -147,6 +147,7 @@ jobs:
           cd docs
           make clean
           make html
+          touch _build/html/.nojekyll
 
       - name: Deploy docs
         if: success()
