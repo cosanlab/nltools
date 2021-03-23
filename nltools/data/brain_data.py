@@ -1524,6 +1524,13 @@ class Brain_Data(object):
         out.data = fisher_r_to_z(out.data)
         return out
 
+    def z_to_r(self):
+        ''' Convert z score back into r value for each element of data object'''
+
+        out = self.copy()
+        out.data = fisher_z_to_r(out.data)
+        return out
+        
     def filter(self, sampling_freq=None, high_pass=None, low_pass=None, **kwargs):
         ''' Apply 5th order butterworth filter to data. Wraps nilearn
         functionality. Does not default to detrending and standardizing like
