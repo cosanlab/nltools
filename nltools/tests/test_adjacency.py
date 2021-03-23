@@ -353,3 +353,27 @@ def test_isc(sim_adjacency_single):
         assert (stats["isc"] > -1) & (stats["isc"] < 1)
         assert (stats["p"] > 0) & (stats["p"] < 1)
         assert len(stats["null_distribution"]) == n_boot
+
+
+def test_fisher_r_to_z(sim_adjacency_single):
+    assert (sim_adjacency.data - sim_adjacency_single.r_to_z().z_to_r().data) == 0
+
+
+def test_cluster_summary():
+    m1 = block_diag(np.ones((4, 4)), np.zeros((4, 4)), np.zeros((4, 4)))
+    m2 = block_diag(np.zeros((4, 4)), np.ones((4, 4)), np.zeros((4, 4)))
+    m3 = block_diag(np.zeros((4, 4)), np.zeros((4, 4)), np.ones((4, 4)))
+    noisy = (m1 * 1 + m2 * 2 + m3 * 3) + np.random.randn(12, 12) * 0.1
+    dat = Adjacency(
+        noisy, matrix_type="similarity", labels=["C1"] * 4 + ["C2"] * 4 + ["C3"] * 4
+    )
+
+    clusters = [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]
+    cluster_mean = dat.cluster_summary(clusters=clusters)
+    for i, j in zip(
+        np.array([1, 2, 3]), np.array([cluster_mean[x] for x in cluster_mean])
+    ):
+        np.testing.assert_almost_equal(i, j, decimal=2)
+
+    for i in dat.cluster_summary(clusters=clusters, summary="between").values():
+        np.testing.assert_almost_equal(0, i, decimal=1)
