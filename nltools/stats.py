@@ -125,6 +125,9 @@ def fdr(p, q=0.05):
     if any(p < 0) or any(p > 1):
         raise ValueError("array contains p-values that are outside the range 0-1")
 
+    if np.any(p > 1) or np.any(p < 0):
+        raise ValueError('Does not include valid p-values.')
+
     s = np.sort(p)
     nvox = p.shape[0]
     null = np.array(range(1, nvox + 1), dtype="float") * q / nvox
