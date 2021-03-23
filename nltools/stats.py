@@ -119,6 +119,8 @@ def fdr(p, q=0.05):
 
     if not isinstance(p, np.ndarray):
         raise ValueError("Make sure vector of p-values is a numpy array")
+    if any(p < 0) or any(p > 1):
+        raise ValueError("array contains p-values that are outside the range 0-1")
 
     s = np.sort(p)
     nvox = p.shape[0]
