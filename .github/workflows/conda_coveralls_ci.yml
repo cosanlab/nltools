@@ -140,7 +140,7 @@ jobs:
         run: |
           python3 -m pip install . -r requirements.txt
           python3 -m pip install . -r requirements-dev.txt
-          python3 -m pip install . -r optional-dependencies.txt
+          python3 - m pip install . -r optional-dependencies.txt
 
       - name: Build docs
         run: |
