@@ -247,6 +247,7 @@ def test_plot(sim_adjacency_multiple):
 
 def test_plot_mds(sim_adjacency_single):
     sim_adjacency_single.plot_mds()
+    sim_adjacency_single.plot_mds(n_components=3)
 
 
 def test_similarity_conversion(sim_adjacency_single):
