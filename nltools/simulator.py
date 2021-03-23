@@ -23,10 +23,13 @@ from nltools.stats import fdr, one_sample_permutation
 from nltools.prefs import MNI_Template, resolve_mni_path
 import csv
 from copy import deepcopy
+from sklearn.utils import check_random_state
 
 
 class Simulator:
-    def __init__(self, brain_mask=None, output_dir=None):  # no scoring param
+    def __init__(
+        self, brain_mask=None, output_dir=None, random_state=None
+    ):  # no scoring param
         # self.resource_folder = os.path.join(os.getcwd(),'resources')
         if output_dir is None:
             self.output_dir = os.path.join(os.getcwd())
@@ -41,6 +44,7 @@ class Simulator:
             raise ValueError("brain_mask is not a string or a nibabel instance")
         self.brain_mask = brain_mask
         self.nifti_masker = NiftiMasker(mask_img=self.brain_mask)
+        self.random_state = check_random_state(random_state)
 
     def gaussian(self, mu, sigma, i_tot):
         """create a 3D gaussian signal normalized to a given intensity
@@ -105,7 +109,7 @@ class Simulator:
         self.nifti_masker.fit(self.brain_mask)
         vlength = int(np.sum(self.brain_mask.get_data()))
         if sigma != 0:
-            n = np.random.normal(mu, sigma, vlength)
+            n = self.random_state.normal(mu, sigma, vlength)
         else:
             n = [mu] * vlength
         m = self.nifti_masker.inverse_transform(n)
@@ -256,7 +260,7 @@ class Simulator:
         cov_matrix[0, :] = cor  # set covariance with y
         cov_matrix[:, 0] = cor  # set covariance with all other voxels
         np.fill_diagonal(cov_matrix, 1)  # set diagonal to 1
-        mv_sim = np.random.multivariate_normal(
+        mv_sim = self.random_state.multivariate_normal(
             np.zeros([n_vox + 1]), cov_matrix, size=reps
         )
         print(mv_sim)
@@ -266,7 +270,9 @@ class Simulator:
         new_dat = np.ones([mv_sim.shape[0], flat_sphere.shape[1]])
         new_dat[:, np.where(flat_sphere == 1)[1]] = mv_sim
         self.data = self.nifti_masker.inverse_transform(
-            np.add(new_dat, np.random.standard_normal(size=new_dat.shape) * sigma)
+            np.add(
+                new_dat, self.random_state.standard_normal(size=new_dat.shape) * sigma
+            )
         )  # add noise scaled by sigma
         self.rep_id = [1] * len(y)
         if n_sub > 1:
@@ -278,13 +284,14 @@ class Simulator:
                         self.nifti_masker.inverse_transform(
                             np.add(
                                 new_dat,
-                                np.random.standard_normal(size=new_dat.shape) * sigma,
+                                self.random_state.standard_normal(size=new_dat.shape)
+                                * sigma,
                             )
                         ),
                     ],
                     axis=3,
                 )  # add noise scaled by sigma
-                noise_y = list(y + np.random.randn(len(y)) * sigma)
+                noise_y = list(y + self.random_state.randn(len(y)) * sigma)
                 self.y = self.y + noise_y
                 self.rep_id = self.rep_id + [s + 1] * len(mv_sim[:, 0])
             self.y = np.array(self.y)
@@ -295,14 +302,14 @@ class Simulator:
         # cov_matrix[0,:] = cor # set covariance with y
         # cov_matrix[:,0] = cor # set covariance with all other voxels
         # np.fill_diagonal(cov_matrix,1) # set diagonal to 1
-        # mv_sim = np.random.multivariate_normal(np.zeros([len(x)+1]),cov_matrix, size=reps) # simulate data from multivariate covar
+        # mv_sim = self.random_state.multivariate_normal(np.zeros([len(x)+1]),cov_matrix, size=reps) # simulate data from multivariate covar
         # self.y = mv_sim[:,0]
         # mv_sim = mv_sim[:,1:]
         # A_4d = np.resize(A,(reps,A.shape[0],A.shape[1],A.shape[2]))
         # for i in range(len(x)):
         #     A_4d[:,x[i],y[i],z[i]]=mv_sim[:,i]
         # A_4d = np.rollaxis(A_4d,0,4) # reorder shape of matrix so that time is in 4th dimension
-        # self.data = self.to_nifti(np.add(A_4d,np.random.standard_normal(size=A_4d.shape)*sigma)) # add noise scaled by sigma
+        # self.data = self.to_nifti(np.add(A_4d,self.random_state.standard_normal(size=A_4d.shape)*sigma)) # add noise scaled by sigma
         # self.rep_id = ???  # need to add this later
 
         # Write Data to files if requested
@@ -404,7 +411,7 @@ class Simulator:
 
         # these operations happen in one vector that we'll later split into the separate regions
         print("Generating multivariate normal distribution...")
-        mv_sim_l = np.random.multivariate_normal(
+        mv_sim_l = self.random_state.multivariate_normal(
             np.zeros([np.sum(n_vox) + 1]), cov_matrix, size=reps
         )
         print(mv_sim_l)
@@ -422,7 +429,7 @@ class Simulator:
                     rep, start:stop
                 ]
 
-        noise = np.random.standard_normal(size=new_dats.shape[1]) * sigma
+        noise = self.random_state.standard_normal(size=new_dats.shape[1]) * sigma
         self.data = self.nifti_masker.inverse_transform(
             np.add(new_dats, noise)
         )  # append 3d simulated data to list
@@ -435,11 +442,13 @@ class Simulator:
             y = list(self.y)
             for s in range(1, n_sub):
                 # ask Luke about this new version
-                noise = np.random.standard_normal(size=new_dats.shape[1]) * sigma
+                noise = (
+                    self.random_state.standard_normal(size=new_dats.shape[1]) * sigma
+                )
                 next_subj = self.nifti_masker.inverse_transform(np.add(new_dats, noise))
                 self.data = nib.concat_images([self.data, next_subj], axis=3)
 
-                y += list(self.y + np.random.randn(len(self.y)) * sigma)
+                y += list(self.y + self.random_state.randn(len(self.y)) * sigma)
                 print("y == " + str(len(y)))
                 self.rep_id += [s + 1] * len(mv_sim[:, 0])
             self.y = np.array(y)
@@ -478,6 +487,7 @@ class SimulateGrid(object):
         n_subjects=20,
         sigma=1,
         signal_amplitude=None,
+        random_state=None,
     ):
 
         self.isfit = False
@@ -490,6 +500,7 @@ class SimulateGrid(object):
         self.n_subjects = n_subjects
         self.sigma = sigma
         self.grid_width = grid_width
+        self.random_state = check_random_state(random_state)
         self.data = self._create_noise()
 
         if signal_amplitude is not None:
@@ -507,7 +518,7 @@ class SimulateGrid(object):
             simulated_data (np.array): simulated noise using object parameters
         """
         return (
-            np.random.randn(self.grid_width, self.grid_width, self.n_subjects)
+            self.random_state.randn(self.grid_width, self.grid_width, self.n_subjects)
             * self.sigma
         )
 
@@ -686,7 +697,7 @@ class SimulateGrid(object):
 
         if self.signal_mask is None:
             simulations = [
-                self._run_ttest(self._create_noise()) for x in range(n_simulations)
+                self._run_ttest(self._create_noise()) for _ in range(n_simulations)
             ]
         else:
             signal = (
@@ -697,7 +708,7 @@ class SimulateGrid(object):
             )
             simulations = [
                 self._run_ttest(self._create_noise() + signal)
-                for x in range(n_simulations)
+                for _ in range(n_simulations)
             ]
 
         self.multiple_thresholded = [
@@ -736,9 +747,9 @@ class SimulateGrid(object):
         )
 
         if self.signal_mask is None:
-            f, a = plt.subplots(ncols=3, figsize=(15, 5))
+            _, a = plt.subplots(ncols=3, figsize=(15, 5))
         else:
-            f, a = plt.subplots(ncols=4, figsize=(18, 5))
+            _, a = plt.subplots(ncols=4, figsize=(18, 5))
             a[3].hist(self.multiple_tp)
             a[3].set_ylabel("Frequency", fontsize=18)
             a[3].set_xlabel("Percent Signal Recovery", fontsize=18)
