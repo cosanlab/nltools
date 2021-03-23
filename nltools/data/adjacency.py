@@ -512,6 +512,28 @@ class Adjacency(object):
             elif axis == 1:
                 return np.nanmean(self.data, axis=axis)
 
+    def sum(self, axis=0):
+        ''' Calculate sum of Adjacency
+
+        Args:
+            axis:  (int) calculate mean over features (0) or data (1).
+                    For data it will be on upper triangle.
+
+        Returns:
+            mean:  float if single, adjacency if axis=0, np.array if axis=1
+                    and multiple
+
+        '''
+
+        if self.is_single_matrix:
+            return np.nansum(self.data)
+        else:
+            if axis == 0:
+                return Adjacency(data=np.nansum(self.data, axis=axis),
+                                 matrix_type=self.matrix_type + '_flat')
+            elif axis == 1:
+                return np.nansum(self.data, axis=axis)
+
     def std(self, axis=0):
         """Calculate standard deviation of Adjacency
 
