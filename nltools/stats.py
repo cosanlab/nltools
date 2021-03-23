@@ -1832,8 +1832,9 @@ def isps(data, sampling_freq=.5, low_cut=.04, high_cut=.07, order=5):
     timeseries. Requires multiple subjects. This method is largely based on that described by Glerean
     et al., 2012 and performs a hilbert transform on narrow bandpass filtered timeseries (butterworth)
     data to get the instantaneous phase angle. The function returns a dictionary containing the
-    average phase angle, the average vector length, and parametric p-values computed using the rayleigh
-    test using circular statistics (Fisher, 1993).
+    average phase angle of the pairwise subject differences, the average vector length of the pairwise
+    subject differences, and parametric p-values computed using the rayleigh test using circular 
+    statistics (Fisher, 1993).
     
     This function requires narrow band filtering your data. As a default we use the recommendations
     by (Glerean et al., 2012) of .04-.07Hz. This is similar to the "slow-4" band (0.025–0.067 Hz)
@@ -1868,10 +1869,11 @@ def isps(data, sampling_freq=.5, low_cut=.04, high_cut=.07, order=5):
         raise ValueError('data must be a pandas dataframe or numpy array (observations by subjects)')
         
     phase = np.angle(hilbert(_butter_bandpass_filter(pd.DataFrame(data), low_cut, high_cut, sampling_freq, order=order)))
-    
-    out = {'average_angle':_phase_mean_angle(phase)}
-    out['vector_length'] = _phase_vector_length(phase)
-    out['p'] = _phase_rayleigh_p(phase)
+    phase_diff = np.array([phase[:,i] - phase[:,j] for i in range(phase.shape[1]) for j in range(phase.shape[1]) if i < j]).T
+
+    out = {'average_angle':_phase_mean_angle(phase_diff)}
+    out['vector_length'] = _phase_vector_length(phase_diff)
+    out['p'] = _phase_rayleigh_p(phase_diff)
     return out
 
 def _butter_bandpass_filter(data, low_cut, high_cut, fs, axis = 0, order=5):
