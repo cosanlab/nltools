@@ -56,11 +56,12 @@ jobs:
         uses: actions/checkout@v2
 
       # 3. Install common sci-py packages via conda as well as testing packages and requirements
+      # TODO: unpin pandas version when deepdish adds support for 1.2: https://github.com/uchicago-cs/deepdish/issues/45
       - name: Install Dependencies
         run: |
           conda activate test
           conda env list
-          conda install -y pip numpy pandas scipy matplotlib seaborn scikit-learn
+          conda install -y pip pandas">=1.1.0,<1.2" numpy scipy matplotlib seaborn scikit-learn
           conda install -y -c conda-forge pytest pytest-xdist pytest-sugar coveralls black
           pip install . -r requirements.txt
           pip install . -r optional-dependencies.txt
@@ -139,6 +140,7 @@ jobs:
         run: |
           python3 -m pip install . -r requirements.txt
           python3 -m pip install . -r requirements-dev.txt
+          python3 - m pip install . -r optional-dependencies.txt
 
       - name: Build docs
         run: |
