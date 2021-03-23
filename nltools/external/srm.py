@@ -423,7 +423,9 @@ class SRM(BaseEstimator, TransformerMixin):
         subjects = len(data)
         self.random_state_ = np.random.RandomState(self.rand_seed)
         random_states = [
-            np.random.RandomState(self.random_state_.randint(2 ** 32 - 1))
+            np.random.RandomState(
+                self.random_state_.randint(2 ** 32 - 1, dtype=np.int64)
+            )
             for i in range(len(data))
         ]
 
@@ -781,7 +783,9 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         self.random_state_ = np.random.RandomState(self.rand_seed)
         random_states = [
-            np.random.RandomState(self.random_state_.randint(2 ** 32 - 1))
+            np.random.RandomState(
+                self.random_state_.randint(2 ** 32 - 1, dtype=np.int64)
+            )
             for i in range(len(data))
         ]
 
