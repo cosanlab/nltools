@@ -25,6 +25,7 @@ from nltools.stats import (
     summarize_bootstrap,
     matrix_permutation,
     fisher_r_to_z,
+    fisher_z_to_r,
     _calc_pvalue,
     _bootstrap_isc,
 )
@@ -752,6 +753,13 @@ class Adjacency(object):
         out.data = fisher_r_to_z(out.data)
         return out
 
+    def z_to_r(self):
+        """ Convert z score back into r value for each element of data object"""
+
+        out = self.copy()
+        out.data = fisher_z_to_r(out.data)
+        return out
+
     def threshold(self, upper=None, lower=None, binarize=False):
         """Threshold Adjacency instance. Provide upper and lower values or
            percentages to perform two-sided thresholding. Binarize will return
@@ -1185,42 +1193,50 @@ class Adjacency(object):
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
 
-    def distance_to_similarity(self, beta=1):
-        """Convert distance matrix to similarity matrix
+    def distance_to_similarity(self, metric="correlation", beta=1):
+        """Convert distance matrix to similarity matrix.
+
+        Note: currently only implemented for correlation and euclidean.
 
         Args:
-            beta: (float) parameter to scale exponential function (default: 1)
+            metric: (str) Can only be correlation or euclidean
+            beta: (float) parameter to scale exponential function (default: 1) for euclidean
 
         Returns:
             out: (Adjacency) Adjacency object
 
         """
         if self.matrix_type == "distance":
-            return Adjacency(
-                np.exp(-beta * self.squareform() / self.squareform().std()),
-                labels=self.labels,
-                matrix_type="similarity",
-            )
+            if metric is "correlation":
+                return Adjacency(1 - self.squareform(), matrix_type="similarity")
+            elif metric is "euclidean":
+                return Adjacency(
+                    np.exp(-beta * self.squareform() / self.squareform().std()),
+                    labels=self.labels,
+                    matrix_type="similarity",
+                )
+            else:
+                raise ValueError('metric can only be ["correlation","euclidean"]')
         else:
             raise ValueError("Matrix is not a distance matrix.")
 
-    def similarity_to_distance(self):
-        """Convert similarity matrix to distance matrix"""
-        if self.matrix_type == "similarity":
-            return Adjacency(
-                1 - self.squareform(), labels=self.labels, matrix_type="distance"
-            )
-        else:
-            raise ValueError("Matrix is not a similarity matrix.")
-
-    def within_cluster_mean(self, clusters=None):
-        """This function calculates mean within cluster labels
+    def cluster_summary(self, clusters=None, metric="mean", summary="within"):
+        """ This function provides summaries of clusters within Adjacency matrices.
+        
+        It can compute mean/median of within and between cluster values. Requires a
+        list of cluster ids indicating the row/column of each cluster.
 
         Args:
             clusters: (list) list of cluster labels
+            metric: (str) method to summarize mean or median. If 'None" then return all r values
+            summary: (str) summarize within cluster or between clusters
+
         Returns:
             dict: (dict) within cluster means
+
         """
+        if metric not in ["mean", "median", None]:
+            raise ValueError("metric must be ['mean','median', None]")
 
         distance = pd.DataFrame(self.squareform())
         clusters = np.array(clusters)
@@ -1228,14 +1244,34 @@ class Adjacency(object):
         if len(clusters) != distance.shape[0]:
             raise ValueError("Cluster labels must be same length as distance matrix")
 
-        out = pd.DataFrame(columns=["Mean", "Label"], index=None)
         out = {}
         for i in list(set(clusters)):
-            out[i] = np.mean(
-                distance.loc[clusters == i, clusters == i].values[
-                    np.triu_indices(sum(clusters == i), k=1)
-                ]
-            )
+            if summary == "within":
+                if metric == "mean":
+                    out[i] = np.mean(
+                        distance.loc[clusters == i, clusters == i].values[
+                            np.triu_indices(sum(clusters == i), k=1)
+                        ]
+                    )
+                elif metric == "median":
+                    out[i] = np.median(
+                        distance.loc[clusters == i, clusters == i].values[
+                            np.triu_indices(sum(clusters == i), k=1)
+                        ]
+                    )
+                elif metric is None:
+                    out[i] = distance.loc[clusters == i, clusters == i].values[
+                        np.triu_indices(sum(clusters == i), k=1)
+                    ]
+            elif summary == "between":
+                if metric == "mean":
+                    out[i] = distance.loc[clusters == i, clusters != i].mean().mean()
+                elif metric == "median":
+                    out[i] = (
+                        distance.loc[clusters == i, clusters != i].median().median()
+                    )
+                elif metric is None:
+                    out[i] = distance.loc[clusters == i, clusters != i]
         return out
 
     def regress(self, X, mode="ols", **kwargs):
