@@ -44,9 +44,9 @@ dat.squareform()
 dat.plot()
 
 #########################################################################
-# The mean within a a grouping label can be calculated using the `.within_cluster_mean()` method.  You must specify a group variable to group the  data.  Here we use the labels.
+# The mean within a a grouping label can be calculated using the `.cluster_summary()` method.  You must specify a group variable to group the  data.  Here we use the labels.
 
-print(dat.within_cluster_mean(clusters=dat.labels))
+print(dat.cluster_summary(clusters=dat.labels, method='within',  metric='mean'))
 
 #########################################################################
 # Regression
@@ -94,7 +94,7 @@ dist.plot()
 #########################################################################
 # Similarity matrices can be converted to and from Distance matrices using `.similarity_to_distance()` and `.distance_to_similarity()`.
 
-dist.distance_to_similarity().plot()
+dist.distance_to_similarity(metric='correlation').plot()
 
 #########################################################################
 # Multidimensional Scaling
