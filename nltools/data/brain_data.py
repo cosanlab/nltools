@@ -74,12 +74,16 @@ from pathlib import Path
 
 
 # Optional dependencies
+<<<<<<< HEAD
 nx = attempt_to_import("networkx", "nx")
 mne_stats = attempt_to_import(
     "mne.stats",
     name="mne_stats",
     fromlist=["spatio_temporal_cluster_1samp_test", "ttest_1samp_no_p"],
 )
+=======
+nx = attempt_to_import('networkx', 'nx')
+>>>>>>> 4a5aa23... removed ttest permutation and mne dependencies
 MAX_INT = np.iinfo(np.int32).max
 
 
@@ -788,8 +792,7 @@ class Brain_Data(object):
 
         Args:
             threshold_dict: (dict) a dictionary of threshold parameters
-                            {'unc':.001} or {'fdr':.05} or {'permutation':tcfe,
-                            n_permutation:5000}
+                            {'unc':.001} or {'fdr':.05} 
             return_mask: (bool) if thresholding is requested, optionall return the mask of voxels that exceed threshold, e.g. for use with another map
 
         Returns:
@@ -801,66 +804,17 @@ class Brain_Data(object):
         t = deepcopy(self)
         p = deepcopy(self)
 
-        if threshold_dict is not None and "permutation" in threshold_dict:
-            # Convert data to correct shape (subjects, time, space)
-            data_convert_shape = deepcopy(self.data)
-            data_convert_shape = np.expand_dims(data_convert_shape, axis=1)
-            if "n_permutations" in threshold_dict:
-                n_permutations = threshold_dict["n_permutations"]
-            else:
-                n_permutations = 1000
-                warnings.warn(
-                    "n_permutations not set:  running with 1000 " "permutations"
-                )
-
-            if "connectivity" in threshold_dict:
-                connectivity = threshold_dict["connectivity"]
-            else:
-                connectivity = None
-
-            n_jobs = threshold_dict["n_jobs"] if "n_jobs" in threshold_dict else 1
-            if threshold_dict["permutation"] == "tfce":
-                perm_threshold = dict(start=0, step=0.2)
-            else:
-                perm_threshold = None
-
-            if "stat_fun" in threshold_dict:
-                stat_fun = threshold_dict["stat_fun"]
-            else:
-                stat_fun = mne_stats.ttest_1samp_no_p
-
-            (
-                t.data,
-                clusters,
-                p_values,
-                _,
-            ) = mne_stats.spatio_temporal_cluster_1samp_test(
-                data_convert_shape,
-                tail=0,
-                threshold=perm_threshold,
-                stat_fun=stat_fun,
-                connectivity=connectivity,
-                n_permutations=n_permutations,
-                n_jobs=n_jobs,
-            )
-
-            t.data = t.data.squeeze()
-
-            p = deepcopy(t)
-            for cl, pval in zip(clusters, p_values):
-                p.data[cl[1][0]] = pval
-        else:
-            t.data, p.data = ttest_1samp(self.data, 0, 0)
+        t.data, p.data = ttest_1samp(self.data, 0, 0)
+        
         if threshold_dict is not None:
             if isinstance(threshold_dict, dict):
-                if "unc" in threshold_dict:
-                    thr = threshold_dict["unc"]
-                elif "fdr" in threshold_dict:
-                    thr = fdr(p.data, q=threshold_dict["fdr"])
-                elif "holm-bonf" in threshold_dict:
-                    thr = holm_bonf(p.data, alpha=threshold_dict["holm-bonf"])
-                elif "permutation" in threshold_dict:
-                    thr = 0.05
+                if 'unc' in threshold_dict:
+                    thr = threshold_dict['unc']
+                elif 'fdr' in threshold_dict:
+                    thr = fdr(p.data, q=threshold_dict['fdr'])
+                elif 'holm-bonf' in threshold_dict:
+                    thr = holm_bonf(p.data, alpha=threshold_dict['holm-bonf'])
+
                 if return_mask:
                     thr_t, thr_mask = threshold(t, p, thr, True)
                     out = {"t": t, "p": p, "thr_t": thr_t, "thr_mask": thr_mask}
