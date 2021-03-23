@@ -74,6 +74,7 @@ MAX_INT = np.iinfo(np.int32).max
 # Optional dependencies
 sm = attempt_to_import("statsmodels.tsa.arima_model", name="sm")
 
+
 def pearson(x, y):
     """Correlates row vector x with each row vector in 2D array y.
     From neurosynth.stats.py - author: Tal Yarkoni
@@ -125,7 +126,7 @@ def fdr(p, q=0.05):
         raise ValueError("array contains p-values that are outside the range 0-1")
 
     if np.any(p > 1) or np.any(p < 0):
-        raise ValueError('Does not include valid p-values.')
+        raise ValueError("Does not include valid p-values.")
 
     s = np.sort(p)
     nvox = p.shape[0]
@@ -2033,9 +2034,10 @@ def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5):
     timeseries. Requires multiple subjects. This method is largely based on that described by Glerean
     et al., 2012 and performs a hilbert transform on narrow bandpass filtered timeseries (butterworth)
     data to get the instantaneous phase angle. The function returns a dictionary containing the
-    average phase angle, the average vector length, and parametric p-values computed using the rayleigh
-    test using circular statistics (Fisher, 1993).
-
+    average phase angle of the pairwise subject differences, the average vector length of the pairwise
+    subject differences, and parametric p-values computed using the rayleigh test using circular 
+    statistics (Fisher, 1993).
+    
     This function requires narrow band filtering your data. As a default we use the recommendations
     by (Glerean et al., 2012) of .04-.07Hz. This is similar to the "slow-4" band (0.025–0.067 Hz)
     described by (Zuo et al., 2010; Penttonen & Buzsáki, 2003), but excludes the .03 band, which has been
@@ -2077,10 +2079,18 @@ def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5):
             )
         )
     )
+    phase_diff = np.array(
+        [
+            phase[:, i] - phase[:, j]
+            for i in range(phase.shape[1])
+            for j in range(phase.shape[1])
+            if i < j
+        ]
+    ).T
 
-    out = {"average_angle": _phase_mean_angle(phase)}
-    out["vector_length"] = _phase_vector_length(phase)
-    out["p"] = _phase_rayleigh_p(phase)
+    out = {"average_angle": _phase_mean_angle(phase_diff)}
+    out["vector_length"] = _phase_vector_length(phase_diff)
+    out["p"] = _phase_rayleigh_p(phase_diff)
     return out
 
 
