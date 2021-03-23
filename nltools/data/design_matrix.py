@@ -112,16 +112,7 @@ class Design_Matrix(DataFrame):
         return self[data_cols + separated_cols + self.polys]
 
     def details(self):
-        return (
-            "%s.%s(sampling_freq=%s (hz), shape=%s, multi=%s, convolved=%s, polynomials=%s)"
-            % self.__class__.__module__,
-            self.__class__.__name__,
-            self.sampling_freq,
-            self.shape,
-            self.multi,
-            self.convolved,
-            self.polys,
-        )
+        return f"{self.__class__.__module__}.{self.__class__.__name__}(sampling_freq={self.sampling_freq} (hz), shape={self.shape}, multi={self.multi}, convolved={self.convolved}, polynomials={self.polys})"
 
     def append(
         self, dm, axis=0, keep_separate=True, unique_cols=None, fill_na=0, verbose=False
@@ -588,7 +579,7 @@ class Design_Matrix(DataFrame):
                 sampling_freq=self.sampling_freq,
                 target=target,
                 target_type="hz",
-                **kwargs
+                **kwargs,
             )
         )
 
@@ -616,7 +607,7 @@ class Design_Matrix(DataFrame):
                 sampling_freq=self.sampling_freq,
                 target=target,
                 target_type="hz",
-                **kwargs
+                **kwargs,
             )
         )
 
