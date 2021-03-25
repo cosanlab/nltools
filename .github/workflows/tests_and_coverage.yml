@@ -108,7 +108,7 @@ jobs:
   # Job (3): Build docs, but don't deploy. This is effectively another layer of testing because of our sphinx-gallery auto-examples
   docs:
     if: "!contains(github.event.head_commit.message, 'skip ci')"
-    name: Build & deploy docs
+    name: Build docs and auto-examples
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
