@@ -1,4 +1,4 @@
-name: nltools
+name: Tests and Coverage
 
 on:
   push:
@@ -32,30 +32,30 @@ jobs:
         python-version: [3.7, 3.8]
         # By default everything should pass for the workflow to pass
         ok-fail: [false]
-#         include:
-          # Rather than include 3.9 in the python versions, do it here so we can ignore failures on mac and windows with 3.9 (they have install issues)
-#           - os: ubuntu-latest
-#             python-version: 3.9
-#             ok-fail: false
-#           - os: macos-latest
-#             python-version: 3.9
-#             ok-fail: true
-#           - os: windows-latest
-#             python-version: 3.9
-#             ok-fail: true
+    #         include:
+    # Rather than include 3.9 in the python versions, do it here so we can ignore failures on mac and windows with 3.9 (they have install issues)
+    #           - os: ubuntu-latest
+    #             python-version: 3.9
+    #             ok-fail: false
+    #           - os: macos-latest
+    #             python-version: 3.9
+    #             ok-fail: true
+    #           - os: windows-latest
+    #             python-version: 3.9
+    #             ok-fail: true
     steps:
-      # 1. Step up miniconda
+      # Step up miniconda
       - name: Download and setup Miniconda
         uses: conda-incubator/setup-miniconda@v2
         with:
           miniconda-version: "latest"
           python-version: ${{ matrix.python-version }}
 
-      # 2. Check out latest code on github
+      # Check out latest code on github
       - name: Checkout Code
         uses: actions/checkout@v2
 
-      # 3. Install common sci-py packages via conda as well as testing packages and requirements
+      # Install common sci-py packages via conda as well as testing packages and requirements
       # TODO: unpin pandas version when deepdish adds support for 1.2: https://github.com/uchicago-cs/deepdish/issues/45
       - name: Install Dependencies
         run: |
@@ -71,14 +71,14 @@ jobs:
         run: |
           black nltools --check --diff
 
-      # 4. Actually run the tests with coverage
+      # Actually run the tests with coverage
       - name: Run Tests
         run: |
           conda activate test
           conda env list
           coverage run --source=nltools -m pytest -rs -n auto
 
-      # 5. Send coverage to coveralls.io but waiting on parallelization to finish
+      # Send coverage to coveralls.io but waiting on parallelization to finish
       # Not using the official github action in the marketplace to upload because it requires a .lcov file, which pytest doesn't generate. It's just easier to use the coveralls python library which does the same thing, but works with pytest.
       - name: Upload Coverage
         # The coveralls python package has some 422 server issues with uploads from github-actions so try both service providers, for more see:
@@ -105,7 +105,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Job (3): Build and deploy docs
+  # Job (3): Build docs, but don't deploy. This is effectively another layer of testing because of our sphinx-gallery auto-examples
   docs:
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     name: Build & deploy docs
@@ -147,31 +147,3 @@ jobs:
           cd docs
           make clean
           make html
-          touch _build/html/.nojekyll
-
-      - name: Deploy docs
-        if: success()
-        uses: crazy-max/ghaction-github-pages@v2
-        with:
-          target_branch: gh-pages
-          build_dir: docs/_build/html
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # - name: Deploy docs
-      # uses: peaceiris/actions-gh-pages@v3
-      # with:
-      # github_token: ${{ secrets.GITHUB_TOKEN }}
-      # publish_dir: ./site
-
-  # Job (4): Build package and upload to conda/pypi
-  # deploy:
-  #   if: "!contains(github.event.head_commit.message, 'skip ci')"
-  #   name: Build & deploy package
-  #   runs-on: ubuntu-latest
-  #   needs: test
-  #   steps:
-  #     - name: Say Hi
-  #       shell: bash
-  #       run: |
-  #         echo "hello world. I havent been configured for package deployment yet!"
