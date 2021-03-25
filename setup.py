@@ -14,7 +14,7 @@ setup(
     version=version["__version__"],
     author="Cosan Lab",
     author_email="luke.j.chang@dartmouth.edu",
-    url="http://neurolearn.readthedocs.org/en/latest/",
+    url="https://cosanlab.github.io/nltools",
     python_requires=">=3.6",
     install_requires=requirements,
     extras_require={"interactive_plots": ["ipywidgets>=5.2.2"]},
@@ -29,7 +29,6 @@ setup(
     "analysis engine powering www.neuro-learn.org.",
     keywords=["neuroimaging", "preprocessing", "analysis", "machine-learning"],
     classifiers=[
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Operating System :: OS Independent",
