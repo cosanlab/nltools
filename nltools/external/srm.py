@@ -33,8 +33,6 @@
 
 # Authors: Po-Hsuan Chen (Princeton Neuroscience Institute) and Javier Turek
 # (Intel Labs), 2015
-from __future__ import division
-
 import logging
 
 import numpy as np
@@ -44,9 +42,7 @@ from sklearn.utils import assert_all_finite
 from sklearn.exceptions import NotFittedError
 import sys
 
-__all__ = [
-    "SRM", "DetSRM"
-]
+__all__ = ["SRM", "DetSRM"]
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +84,9 @@ def _init_w_transforms(data, features, random_states):
     for subject in range(subjects):
         if data[subject] is not None:
             voxels[subject] = data[subject].shape[0]
-            rnd_matrix = random_states[subject].random_sample((voxels[subject], features))
+            rnd_matrix = random_states[subject].random_sample(
+                (voxels[subject], features)
+            )
             q, r = np.linalg.qr(rnd_matrix)
             w.append(q)
         else:
@@ -135,7 +133,7 @@ class SRM(BaseEstimator, TransformerMixin):
 
     rho2_ : array, shape=[subjects]
         The estimated noise variance :math:`\\rho_i^2` for each subject
-        
+
     random_state_: `RandomState`
         Random number generator initialized using rand_seed
 
@@ -173,18 +171,21 @@ class SRM(BaseEstimator, TransformerMixin):
 
         y : not used
         """
-        logger.info('Starting Probabilistic SRM')
+        logger.info("Starting Probabilistic SRM")
 
         # Check the number of subjects
         if len(X) <= 1:
-            raise ValueError("There are not enough subjects "
-                             "({0:d}) to train the model.".format(len(X)))
+            raise ValueError(
+                "There are not enough subjects "
+                "({0:d}) to train the model.".format(len(X))
+            )
 
         # Check for input data sizes
         if X[0].shape[1] < self.features:
             raise ValueError(
                 "There are not enough samples to train the model with "
-                "{0:d} features.".format(self.features))
+                "{0:d} features.".format(self.features)
+            )
 
         # Check if all subjects have same number of TRs
         number_trs = X[0].shape[1]
@@ -193,8 +194,7 @@ class SRM(BaseEstimator, TransformerMixin):
             if X[subject] is not None:
                 assert_all_finite(X[subject])
             if X[subject].shape[1] != number_trs:
-                raise ValueError("Different number of samples between subjects"
-                                 ".")
+                raise ValueError("Different number of samples between subjects" ".")
 
         # Run SRM
         self.sigma_s_, self.w_, self.mu_, self.rho2_, self.s_ = self._srm(X)
@@ -218,13 +218,14 @@ class SRM(BaseEstimator, TransformerMixin):
         """
 
         # Check if the model exist
-        if hasattr(self, 'w_') is False:
+        if hasattr(self, "w_") is False:
             raise NotFittedError("The model fit has not been run yet.")
 
         # Check the number of subjects
         if len(X) != len(self.w_):
-            raise ValueError("The number of subjects does not match the one"
-                             " in the model.")
+            raise ValueError(
+                "The number of subjects does not match the one" " in the model."
+            )
 
         s = [None] * len(X)
         for subject in range(len(X)):
@@ -277,9 +278,16 @@ class SRM(BaseEstimator, TransformerMixin):
 
         return x, mu, rho2, trace_xtx
 
-    def _likelihood(self, chol_sigma_s_rhos, log_det_psi, chol_sigma_s,
-                    trace_xt_invsigma2_x, inv_sigma_s_rhos, wt_invpsi_x,
-                    samples):
+    def _likelihood(
+        self,
+        chol_sigma_s_rhos,
+        log_det_psi,
+        chol_sigma_s,
+        trace_xt_invsigma2_x,
+        inv_sigma_s_rhos,
+        wt_invpsi_x,
+        samples,
+    ):
         """Calculate the log-likelihood function
 
         Parameters
@@ -313,11 +321,15 @@ class SRM(BaseEstimator, TransformerMixin):
         loglikehood : float
             The log-likelihood value.
         """
-        log_det = (np.log(np.diag(chol_sigma_s_rhos) ** 2).sum() + log_det_psi
-                   + np.log(np.diag(chol_sigma_s) ** 2).sum())
+        log_det = (
+            np.log(np.diag(chol_sigma_s_rhos) ** 2).sum()
+            + log_det_psi
+            + np.log(np.diag(chol_sigma_s) ** 2).sum()
+        )
         loglikehood = -0.5 * samples * log_det - 0.5 * trace_xt_invsigma2_x
         loglikehood += 0.5 * np.trace(
-            wt_invpsi_x.T.dot(inv_sigma_s_rhos).dot(wt_invpsi_x))
+            wt_invpsi_x.T.dot(inv_sigma_s_rhos).dot(wt_invpsi_x)
+        )
         # + const --> -0.5*nTR*nvoxel*subjects*math.log(2*math.pi)
 
         return loglikehood
@@ -364,13 +376,14 @@ class SRM(BaseEstimator, TransformerMixin):
 
         """
         # Check if the model exist
-        if hasattr(self, 'w_') is False:
+        if hasattr(self, "w_") is False:
             raise NotFittedError("The model fit has not been run yet.")
 
         # Check the number of TRs in the subject
         if X.shape[1] != self.s_.shape[1]:
-            raise ValueError("The number of timepoints(TRs) does not match the"
-                             "one in the model.")
+            raise ValueError(
+                "The number of timepoints(TRs) does not match the" "one in the model."
+            )
 
         w = self._update_transform_subject(X, self.s_)
 
@@ -381,7 +394,7 @@ class SRM(BaseEstimator, TransformerMixin):
 
         Parameters
         ----------
-        
+
         data : list of 2D arrays, element i has shape=[voxels_i, samples]
             Each element in the list contains the fMRI data of one subject.
 
@@ -406,11 +419,15 @@ class SRM(BaseEstimator, TransformerMixin):
             The shared response.
         """
 
-        samples = min([d.shape[1] for d in data if d is not None],
-                        default=sys.maxsize)
+        samples = min([d.shape[1] for d in data if d is not None], default=sys.maxsize)
         subjects = len(data)
         self.random_state_ = np.random.RandomState(self.rand_seed)
-        random_states = [np.random.RandomState(self.random_state_.randint(2 ** 32)) for i in range(len(data))]
+        random_states = [
+            np.random.RandomState(
+                self.random_state_.randint(2 ** 32 - 1, dtype=np.int64)
+            )
+            for i in range(len(data))
+        ]
 
         # Initialization step: initialize the outputs with initial values,
         # voxels with the number of voxels in each subject, and trace_xtx with
@@ -422,7 +439,7 @@ class SRM(BaseEstimator, TransformerMixin):
 
         # Main loop of the algorithm (run
         for iteration in range(self.n_iter):
-            logger.info('Iteration %d' % (iteration + 1))
+            logger.info("Iteration %d" % (iteration + 1))
 
             # E-step:
 
@@ -431,19 +448,24 @@ class SRM(BaseEstimator, TransformerMixin):
 
             # Invert Sigma_s using Cholesky factorization
             (chol_sigma_s, lower_sigma_s) = scipy.linalg.cho_factor(
-                sigma_s, check_finite=False)
+                sigma_s, check_finite=False
+            )
             inv_sigma_s = scipy.linalg.cho_solve(
-                (chol_sigma_s, lower_sigma_s), np.identity(self.features),
-                check_finite=False)
+                (chol_sigma_s, lower_sigma_s),
+                np.identity(self.features),
+                check_finite=False,
+            )
 
             # Invert (Sigma_s + rho_0 * I) using Cholesky factorization
             sigma_s_rhos = inv_sigma_s + np.identity(self.features) * rho0
-            chol_sigma_s_rhos, lower_sigma_s_rhos = \
-                scipy.linalg.cho_factor(sigma_s_rhos,
-                                            check_finite=False)
+            chol_sigma_s_rhos, lower_sigma_s_rhos = scipy.linalg.cho_factor(
+                sigma_s_rhos, check_finite=False
+            )
             inv_sigma_s_rhos = scipy.linalg.cho_solve(
                 (chol_sigma_s_rhos, lower_sigma_s_rhos),
-                np.identity(self.features), check_finite=False)
+                np.identity(self.features),
+                check_finite=False,
+            )
 
             # Compute the sum of W_i^T * rho_i^-2 * X_i, and the sum of traces
             # of X_i^T * rho_i^-2 * X_i
@@ -458,14 +480,15 @@ class SRM(BaseEstimator, TransformerMixin):
 
             # Update the shared response
             shared_response = sigma_s.dot(
-                np.identity(self.features) - rho0 * inv_sigma_s_rhos).dot(
-                    wt_invpsi_x)
+                np.identity(self.features) - rho0 * inv_sigma_s_rhos
+            ).dot(wt_invpsi_x)
 
             # M-step
 
             # Update Sigma_s and compute its trace
-            sigma_s = (inv_sigma_s_rhos
-                       + shared_response.dot(shared_response.T) / samples)
+            sigma_s = (
+                inv_sigma_s_rhos + shared_response.dot(shared_response.T) / samples
+            )
             trace_sigma_s = samples * np.trace(sigma_s)
 
             # Update each subject's mapping transform W_i and error variance
@@ -476,7 +499,8 @@ class SRM(BaseEstimator, TransformerMixin):
                     perturbation = np.zeros(a_subject.shape)
                     np.fill_diagonal(perturbation, 0.001)
                     u_subject, s_subject, v_subject = np.linalg.svd(
-                        a_subject + perturbation, full_matrices=False)
+                        a_subject + perturbation, full_matrices=False
+                    )
                     w[subject] = u_subject.dot(v_subject)
                     rho2[subject] = trace_xtx[subject]
                     rho2[subject] += -2 * np.sum(w[subject] * a_subject).sum()
@@ -488,10 +512,15 @@ class SRM(BaseEstimator, TransformerMixin):
                 # Calculate and log the current log-likelihood for checking
                 # convergence
                 loglike = self._likelihood(
-                    chol_sigma_s_rhos, log_det_psi, chol_sigma_s,
-                    trace_xt_invsigma2_x, inv_sigma_s_rhos, wt_invpsi_x,
-                    samples)
-                logger.info('Objective function %f' % loglike)
+                    chol_sigma_s_rhos,
+                    log_det_psi,
+                    chol_sigma_s,
+                    trace_xt_invsigma2_x,
+                    inv_sigma_s_rhos,
+                    wt_invpsi_x,
+                    samples,
+                )
+                logger.info("Objective function %f" % loglike)
 
         return sigma_s, w, mu, rho2, shared_response
 
@@ -562,18 +591,21 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         y : not used
         """
-        logger.info('Starting Deterministic SRM')
+        logger.info("Starting Deterministic SRM")
 
         # Check the number of subjects
         if len(X) <= 1:
-            raise ValueError("There are not enough subjects "
-                             "({0:d}) to train the model.".format(len(X)))
+            raise ValueError(
+                "There are not enough subjects "
+                "({0:d}) to train the model.".format(len(X))
+            )
 
         # Check for input data sizes
         if X[0].shape[1] < self.features:
             raise ValueError(
                 "There are not enough samples to train the model with "
-                "{0:d} features.".format(self.features))
+                "{0:d} features.".format(self.features)
+            )
 
         # Check if all subjects have same number of TRs
         number_trs = X[0].shape[1]
@@ -581,8 +613,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
         for subject in range(number_subjects):
             assert_all_finite(X[subject])
             if X[subject].shape[1] != number_trs:
-                raise ValueError("Different number of samples between subjects"
-                                 ".")
+                raise ValueError("Different number of samples between subjects" ".")
 
         # Run SRM
         self.w_, self.s_ = self._srm(X)
@@ -607,13 +638,14 @@ class DetSRM(BaseEstimator, TransformerMixin):
         """
 
         # Check if the model exist
-        if hasattr(self, 'w_') is False:
+        if hasattr(self, "w_") is False:
             raise NotFittedError("The model fit has not been run yet.")
 
         # Check the number of subjects
         if len(X) != len(self.w_):
-            raise ValueError("The number of subjects does not match the one"
-                             " in the model.")
+            raise ValueError(
+                "The number of subjects does not match the one" " in the model."
+            )
 
         s = [None] * len(X)
         for subject in range(len(X)):
@@ -645,13 +677,12 @@ class DetSRM(BaseEstimator, TransformerMixin):
         subjects = len(data)
         objective = 0.0
         for m in range(subjects):
-            objective += \
-                np.linalg.norm(data[m] - w[m].dot(s), 'fro')**2
+            objective += np.linalg.norm(data[m] - w[m].dot(s), "fro") ** 2
 
         return objective * 0.5 / data[0].shape[1]
 
     def _compute_shared_response(self, data, w):
-        """ Compute the shared response S
+        """Compute the shared response S
 
         Parameters
         ----------
@@ -716,13 +747,14 @@ class DetSRM(BaseEstimator, TransformerMixin):
             Orthogonal mapping `W_{new}` for new subject
         """
         # Check if the model exist
-        if hasattr(self, 'w_') is False:
+        if hasattr(self, "w_") is False:
             raise NotFittedError("The model fit has not been run yet.")
 
         # Check the number of TRs in the subject
         if X.shape[1] != self.s_.shape[1]:
-            raise ValueError("The number of timepoints(TRs) does not match the"
-                             "one in the model.")
+            raise ValueError(
+                "The number of timepoints(TRs) does not match the" "one in the model."
+            )
 
         w = self._update_transform_subject(X, self.s_)
 
@@ -751,8 +783,11 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         self.random_state_ = np.random.RandomState(self.rand_seed)
         random_states = [
-            np.random.RandomState(self.random_state_.randint(2 ** 32))
-            for i in range(len(data))]
+            np.random.RandomState(
+                self.random_state_.randint(2 ** 32 - 1, dtype=np.int64)
+            )
+            for i in range(len(data))
+        ]
 
         # Initialization step: initialize the outputs with initial values,
         # voxels with the number of voxels in each subject.
@@ -761,11 +796,11 @@ class DetSRM(BaseEstimator, TransformerMixin):
         if logger.isEnabledFor(logging.INFO):
             # Calculate the current objective function value
             objective = self._objective_function(data, w, shared_response)
-            logger.info('Objective function %f' % objective)
+            logger.info("Objective function %f" % objective)
 
         # Main loop of the algorithm
         for iteration in range(self.n_iter):
-            logger.info('Iteration %d' % (iteration + 1))
+            logger.info("Iteration %d" % (iteration + 1))
 
             # Update each subject's mapping transform W_i:
             for subject in range(subjects):
@@ -773,7 +808,8 @@ class DetSRM(BaseEstimator, TransformerMixin):
                 perturbation = np.zeros(a_subject.shape)
                 np.fill_diagonal(perturbation, 0.001)
                 u_subject, _, v_subject = np.linalg.svd(
-                    a_subject + perturbation, full_matrices=False)
+                    a_subject + perturbation, full_matrices=False
+                )
                 w[subject] = u_subject.dot(v_subject)
 
             # Update the shared response:
@@ -782,6 +818,6 @@ class DetSRM(BaseEstimator, TransformerMixin):
             if logger.isEnabledFor(logging.INFO):
                 # Calculate the current objective function value
                 objective = self._objective_function(data, w, shared_response)
-                logger.info('Objective function %f' % objective)
+                logger.info("Objective function %f" % objective)
 
         return w, shared_response

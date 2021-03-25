@@ -6,7 +6,6 @@
 	seaborn>=0.7.0
 	matplotlib>=2.2.0
 	scipy
-	six
 	pynv
 	joblib>=0.15
 	deepdish>=0.3.6
