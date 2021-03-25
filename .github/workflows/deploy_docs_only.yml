@@ -45,6 +45,7 @@ jobs:
           make clean
           make html
           touch _build/html/.nojekyll
+          echo 'nltools.org' > _build/html/CNAME
 
       - name: Deploy docs
         if: success()
