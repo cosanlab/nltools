@@ -1,4 +1,4 @@
-name: nltools
+name: Deploy Docs and PyPI
 
 on: release
 
