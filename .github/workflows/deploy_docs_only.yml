@@ -1,4 +1,4 @@
-name: Manually Deploy Docs
+name: (Manual) Deploy Docs
 
 on: workflow_dispatch
 

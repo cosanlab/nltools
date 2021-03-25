@@ -3,46 +3,26 @@
 Installation
 ------------
 
-1. Method 1 - Install from PyPi
+1. Method 1 (stable)
 
 .. code-block:: python
 
 	pip install nltools
 
-2. Method 2 - Install directly from github (Most up to date)
+2. Method 2 (bleeding edge)
 
 .. code-block:: python
 
-	pip install git+https://github.com/ljchang/neurolearn
+	pip install git+https://github.com/cosanlab/nltools
 
-3. Method 3 - Clone github repository
+3. Method 3 (for development)
 
 .. code-block:: python
 
-	git clone https://github.com/ljchang/neurolearn
-	python setup.py install
+	git clone https://github.com/cosanlab/nltools
+	pip install -e nltools
 
-Dependencies
-^^^^^^^^^^^^
+Preprocessing
+^^^^^^^^^^^^^
 
-nltools requires several dependencies.  All are available in pypi.  Can use *pip install 'package'*
-
- - nibabel>=3.0.1
- - scikit-learn>=0.21.0
- - nilearn>=0.6.0
- - pandas>=0.20
- - numpy>=1.9
- - seaborn>=0.7.0
- - matplotlib>=2.2.0
- - scipy
- - pynv
- - joblib
- - deepdish>=0.3.6
-
-Optional Dependencies
-^^^^^^^^^^^^^^^^^^^^^
-
- - mne
- - requests
- - ipywidgets
- - networkx
+Nltools has minimal routines for pre-processing data. For more complete pre-processing pipelines please see our `cosanlab_preproc <https://github.com/cosanlab/cosanlab_preproc>`_ library built with `nipype`.
