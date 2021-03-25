@@ -35,7 +35,6 @@ nltools requires several dependencies.  All are available in pypi.  Can use *pip
  - seaborn>=0.7.0
  - matplotlib>=2.2.0
  - scipy
- - six
  - pynv
  - joblib
  - deepdish>=0.3.6

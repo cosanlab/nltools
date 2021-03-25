@@ -10,9 +10,9 @@ __license__ = "MIT"
 
 import pandas as pd
 import numpy as np
-import six
 from nltools.data import Design_Matrix
 import warnings
+from pathlib import Path
 
 
 def onsets_to_dm(
@@ -65,7 +65,7 @@ def onsets_to_dm(
     out = []
     TR = 1.0 / sampling_freq
     for f in F:
-        if isinstance(f, six.string_types):
+        if isinstance(f, str) or isinstance(f, Path):
             df = pd.read_csv(f, header=header, **kwargs)
         elif isinstance(f, pd.core.frame.DataFrame):
             df = f.copy()
@@ -84,9 +84,9 @@ def onsets_to_dm(
         # Try to infer the header
         if header is None:
             possibleHeaders = ["Stim", "Onset", "Duration"]
-            if isinstance(df.iloc[0, 0], six.string_types):
+            if isinstance(df.iloc[0, 0], str):
                 df.columns = possibleHeaders[: df.shape[1]]
-            elif isinstance(df.iloc[0, df.shape[1] - 1], six.string_types):
+            elif isinstance(df.iloc[0, df.shape[1] - 1], str):
                 df.columns = possibleHeaders[1:] + [possibleHeaders[0]]
             else:
                 raise ValueError(
