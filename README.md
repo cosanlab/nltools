@@ -1,8 +1,8 @@
 [![Package versioning](https://img.shields.io/pypi/v/nltools.svg)](https://pypi.org/project/nltools/)
-[![Build Status](https://github.com/cosanlab/nltools/workflows/tests_and_coverage/badge.svg)]
+[![Tests and Coverage](https://github.com/cosanlab/nltools/actions/workflows/tests_and_coverage.yml/badge.svg)](https://github.com/cosanlab/nltools/actions/workflows/tests_and_coverage.yml)
+[![Deploy Docs and PyPI](https://github.com/cosanlab/nltools/actions/workflows/deploy_docs_pypi_onrelease.yml/badge.svg)](https://nltools.org)
 [![codecov](https://codecov.io/gh/cosanlab/nltools/branch/master/graph/badge.svg)](https://codecov.io/gh/cosanlab/nltools)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/625677967a0749299f38c2bf8ee269c3)](https://www.codacy.com/app/ljchang/nltools?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=ljchang/nltools&amp;utm_campaign=Badge_Grade)
-[![Documentation Status](https://github.com/cosanlab/nltools/workflows/deploy_docs_pypi_onrelease/badge.svg)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2229813.svg)](https://doi.org/10.5281/zenodo.2229813)
 ![Python Versions](https://img.shields.io/badge/python-3.7%20%7C%203.8-blue)
 ![Platforms](https://img.shields.io/badge/platform-linux%20%7C%20osx%20%7C%20win-blue)
