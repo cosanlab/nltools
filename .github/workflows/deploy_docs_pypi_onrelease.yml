@@ -1,4 +1,4 @@
-name: Deploy Docs and PyPI
+name: (Auto) Deploy Docs and PyPI on release
 
 on: release
 

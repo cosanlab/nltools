@@ -1,9 +1,8 @@
 # Python Related #
 ###################
 *.pyc
-docs/_*/*
+docs/_build
 docs/auto_examples
-docs/modules
 *.log
 *.egg*
 build/
@@ -37,6 +36,7 @@ Thumbs.db
 ##################
 .coverage
 htmlcov/
+.pytest_cache
 
 # PyCharm
 #########
@@ -47,4 +47,6 @@ htmlcov/
 .tox
 .tox/*
 
-.pytest_cache
+# Docs
+######
+examples/**/*.nii.gz
