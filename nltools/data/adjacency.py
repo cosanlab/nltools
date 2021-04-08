@@ -36,6 +36,7 @@ from nltools.utils import (
     concatenate,
     _bootstrap_apply_func,
     _df_meta_to_arr,
+    isiterable,
 )
 from .design_matrix import Design_Matrix
 from joblib import Parallel, delayed
@@ -1563,3 +1564,32 @@ class Adjacency(object):
             summarize_srm_results(results)
 
         return results
+
+    def generate_permutations(self, n_perm, random_state=None):
+        """
+        Generate n_perm permutated versions of Adjacency in a lazy fashion. Useful for iterating against.
+
+
+        Args:
+            n_perm (int): number of permutations
+            random_state (int, np.random.seed, optional): random seed for reproducibility. Defaults to None.
+
+        Examples:
+            >>> for perm in adj.generate_permutations(1000):
+            >>>     out = neural_distance_mat.similarity(perm)
+            >>>     ...
+
+        Yields:
+            Adjacency: permuted version of self
+        """
+
+        random_state = check_random_state(random_state)
+
+        for _ in range(n_perm):
+            dat = pd.DataFrame(self.squareform())
+            row_idx = range(dat.shape[0])
+            permuted_idx = random_state.choice(
+                row_idx, size=len(row_idx), replace=False
+            )
+            dat = dat.iloc[permuted_idx, permuted_idx].to_numpy()
+            yield Adjacency(dat)
