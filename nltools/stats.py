@@ -4,50 +4,7 @@ NeuroLearn Statistics Tools
 
 Tools to help with statistical analyses.
 
-<<<<<<< HEAD
 """
-
-__all__ = [
-    "pearson",
-    "zscore",
-    "fdr",
-    "holm_bonf",
-    "threshold",
-    "multi_threshold",
-    "winsorize",
-    "trim",
-    "calc_bpm",
-    "downsample",
-    "upsample",
-    "fisher_r_to_z",
-    "one_sample_permutation",
-    "two_sample_permutation",
-    "correlation_permutation",
-    "matrix_permutation",
-    "make_cosine_basis",
-    "summarize_bootstrap",
-    "regress",
-    "procrustes",
-    "procrustes_distance",
-    "align",
-    "find_spikes",
-    "correlation",
-    "distance_correlation",
-    "transform_pairwise",
-    "double_center",
-    "u_center",
-    "_bootstrap_isc",
-    "isc",
-    "isfc",
-    "isps",
-    "_compute_matrix_correlation",
-    "_phase_mean_angle",
-    "_phase_vector_length",
-    "_butter_bandpass_filter",
-    "_phase_rayleigh_p",
-]
-=======
-'''
 
 __all__ = ['pearson',
            'zscore',
@@ -88,7 +45,6 @@ __all__ = ['pearson',
            '_butter_bandpass_filter',
            '_phase_rayleigh_p',
            'align_states']
->>>>>>> update fisher r to z
 
 import numpy as np
 from numpy.fft import fft, ifft
@@ -115,6 +71,7 @@ MAX_INT = np.iinfo(np.int32).max
 
 # Optional dependencies
 sm = attempt_to_import("statsmodels.tsa.arima_model", name="sm")
+
 
 def pearson(x, y):
     """Correlates row vector x with each row vector in 2D array y.
@@ -164,10 +121,8 @@ def fdr(p, q=0.05):
     if not isinstance(p, np.ndarray):
         raise ValueError("Make sure vector of p-values is a numpy array")
     if any(p < 0) or any(p > 1):
-        raise ValueError("array contains p-values that are outside the range 0-1")
-
-    if np.any(p > 1) or np.any(p < 0):
-        raise ValueError('Does not include valid p-values.')
+        raise ValueError(
+            "array contains p-values that are outside the range 0-1")
 
     s = np.sort(p)
     nvox = p.shape[0]
@@ -351,7 +306,8 @@ def _transform_outliers(data, cutoff, replace_with_cutoff, method):
                 q.iloc[0] = data[data > q.iloc[0]].min()
                 q.iloc[1] = data[data < q.iloc[1]].max()
         else:
-            raise ValueError("cutoff must be a dictionary with quantile or std keys.")
+            raise ValueError(
+                "cutoff must be a dictionary with quantile or std keys.")
         if method == "trim":
             data[data < q.iloc[0]] = np.nan
             data[data > q.iloc[1]] = np.nan
@@ -424,12 +380,15 @@ def downsample(
     elif target_type == "hz":
         n_samples = sampling_freq / target
     else:
-        raise ValueError('Make sure target_type is "samples", "seconds", ' ' or "hz".')
+        raise ValueError(
+            'Make sure target_type is "samples", "seconds", ' ' or "hz".')
 
-    idx = np.sort(np.repeat(np.arange(1, data.shape[0] / n_samples, 1), n_samples))
+    idx = np.sort(
+        np.repeat(np.arange(1, data.shape[0] / n_samples, 1), n_samples))
     # if data.shape[0] % n_samples:
     if data.shape[0] > len(idx):
-        idx = np.concatenate([idx, np.repeat(idx[-1] + 1, data.shape[0] - len(idx))])
+        idx = np.concatenate(
+            [idx, np.repeat(idx[-1] + 1, data.shape[0] - len(idx))])
     if method == "mean":
         return data.groupby(idx).mean().reset_index(drop=True)
     elif method == "median":
@@ -469,7 +428,8 @@ def upsample(
     elif target_type == "hz":
         n_samples = float(sampling_freq) / float(target)
     else:
-        raise ValueError('Make sure target_type is "samples", "seconds", or "hz".')
+        raise ValueError(
+            'Make sure target_type is "samples", "seconds", or "hz".')
 
     orig_spacing = np.arange(0, data.shape[0], 1)
     new_spacing = np.arange(0, data.shape[0] - 1, n_samples)
@@ -497,16 +457,13 @@ def upsample(
 def fisher_r_to_z(r):
     """ Use Fisher transformation to convert correlation to z score """
 
-<<<<<<< HEAD
-    return 0.5 * np.log((1 + r) / (1 - r))
-=======
     # return .5*np.log((1 + r)/(1 - r))
     return np.arctanh(r)
+
 
 def fisher_z_to_r(z):
     ''' Use Fisher transformation to convert correlation to z score '''
     return np.tanh(z)
->>>>>>> update fisher r to z
 
 
 def correlation(data1, data2, metric="pearson"):
@@ -559,7 +516,8 @@ def _permute_func(data1, data2, metric, random_state=None):
     random_state = check_random_state(random_state)
 
     data_row_id = range(data1.shape[0])
-    permuted_ix = random_state.choice(data_row_id, size=len(data_row_id), replace=False)
+    permuted_ix = random_state.choice(
+        data_row_id, size=len(data_row_id), replace=False)
     new_fmri_dist = data1.iloc[permuted_ix, permuted_ix].values
     new_fmri_dist = new_fmri_dist[np.triu_indices(new_fmri_dist.shape[0], k=1)]
     return correlation(new_fmri_dist, data2, metric=metric)[0]
@@ -575,7 +533,8 @@ def _calc_pvalue(all_p, stat, tail):
 
     denom = float(len(all_p)) + 1
     if tail == 1:
-        numer = np.sum(all_p >= stat) + 1 if stat >= 0 else np.sum(all_p <= stat) + 1
+        numer = np.sum(all_p >= stat) + \
+            1 if stat >= 0 else np.sum(all_p <= stat) + 1
     elif tail == 2:
         numer = np.sum(np.abs(all_p) >= np.abs(stat)) + 1
     else:
@@ -711,7 +670,8 @@ def correlation_permutation(
 
     if method == "permute":
         all_p = Parallel(n_jobs=n_jobs)(
-            delayed(correlation)(random_state.permutation(data1), data2, metric=metric)
+            delayed(correlation)(random_state.permutation(
+                data1), data2, metric=metric)
             for i in range(n_permute)
         )
     elif method == "circle_shift":
@@ -936,7 +896,8 @@ def _robust_estimator(vals, X, robust_estimator="hc0", nlags=1):
         meat = np.dot(np.dot(X.T, V), X)
 
     elif robust_estimator == "hc3":
-        V = np.diag(vals ** 2) / (1 - np.diag(np.dot(X, np.dot(bread, X.T)))) ** 2
+        V = np.diag(vals ** 2) / \
+            (1 - np.diag(np.dot(X, np.dot(bread, X.T)))) ** 2
         meat = np.dot(np.dot(X.T, V), X)
 
     elif robust_estimator == "hac":
@@ -1001,7 +962,8 @@ def _arma_func(X, Y, idx=None, **kwargs):
     trend = kwargs.pop("trend", "nc")
 
     if len(Y.shape) == 2:
-        model = sm.tsa.arima_model.ARMA(endog=Y[:, idx], exog=X.values, order=order)
+        model = sm.tsa.arima_model.ARMA(
+            endog=Y[:, idx], exog=X.values, order=order)
     else:
         model = sm.tsa.arima_model.ARMA(endog=Y, exog=X.values, order=order)
     try:
@@ -1199,7 +1161,8 @@ def regress_permutation(
     if (X.shape[1] == 1) and (all(X[:].values == 1.0)):
         if verbose:
             print("Running 1-sample sign flip test")
-        func = lambda x: (x.squeeze() * random_state.choice([1, -1], x.shape[0]))[
+
+        def func(x): return (x.squeeze() * random_state.choice([1, -1], x.shape[0]))[
             :, np.newaxis
         ]
     else:
@@ -1266,7 +1229,8 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
     if not isinstance(data, list):
         raise ValueError("Make sure you are inputting data is a list.")
     if not all(type(x) for x in data):
-        raise ValueError("Make sure all objects in the list are the same type.")
+        raise ValueError(
+            "Make sure all objects in the list are the same type.")
     if method not in ["probabilistic_srm", "deterministic_srm", "procrustes"]:
         raise ValueError(
             "Method must be ['probabilistic_srm','deterministic_srm','procrustes']"
@@ -1348,7 +1312,7 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
             common += trans
         common /= len(m)
 
-        ## STEP 3 (below): ALIGN TO NEW TEMPLATE
+        # STEP 3 (below): ALIGN TO NEW TEMPLATE
         aligned = []
         transformation_matrix = []
         disparity = []
@@ -1370,7 +1334,8 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
         out["common_model"] = out["common_model"].T
 
         if data_type == "Brain_Data":
-            out["transformation_matrix"] = [x.T for x in out["transformation_matrix"]]
+            out["transformation_matrix"] = [
+                x.T for x in out["transformation_matrix"]]
 
     # Calculate Intersubject correlation on aligned components
     if n_features is None:
@@ -1655,9 +1620,11 @@ def procrustes_distance(
     if len(mat2.shape) < 2:
         mat2 = mat2[:, np.newaxis]
     if mat1.shape[1] > mat2.shape[1]:
-        mat2 = np.pad(mat2, ((0, 0), (0, mat1.shape[1] - mat2.shape[1])), "constant")
+        mat2 = np.pad(
+            mat2, ((0, 0), (0, mat1.shape[1] - mat2.shape[1])), "constant")
     elif mat2.shape[1] > mat1.shape[1]:
-        mat1 = np.pad(mat1, ((0, 0), (0, mat2.shape[1] - mat1.shape[1])), "constant")
+        mat1 = np.pad(
+            mat1, ((0, 0), (0, mat2.shape[1] - mat1.shape[1])), "constant")
 
     _, _, sse = procrust(mat1, mat2)
 
@@ -1689,7 +1656,8 @@ def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
     from nltools.data import Brain_Data
 
     if (global_spike_cutoff is None) & (diff_spike_cutoff is None):
-        raise ValueError("Did not input any cutoffs to identify spikes in this data.")
+        raise ValueError(
+            "Did not input any cutoffs to identify spikes in this data.")
 
     if isinstance(data, Brain_Data):
         data = deepcopy(data.data)
@@ -1711,10 +1679,12 @@ def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
     if global_spike_cutoff is not None:
         global_outliers = np.append(
             np.where(
-                global_mn > np.mean(global_mn) + np.std(global_mn) * global_spike_cutoff
+                global_mn > np.mean(global_mn) +
+                np.std(global_mn) * global_spike_cutoff
             ),
             np.where(
-                global_mn < np.mean(global_mn) - np.std(global_mn) * global_spike_cutoff
+                global_mn < np.mean(global_mn) -
+                np.std(global_mn) * global_spike_cutoff
             ),
         )
 
@@ -1730,7 +1700,8 @@ def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
             ),
         )
     # build spike regressors
-    outlier = pd.DataFrame([x + 1 for x in range(len(global_mn))], columns=["TR"])
+    outlier = pd.DataFrame(
+        [x + 1 for x in range(len(global_mn))], columns=["TR"])
     if global_spike_cutoff is not None:
         for i, loc in enumerate(global_outliers):
             outlier["global_spike" + str(i + 1)] = 0
@@ -1826,7 +1797,8 @@ def circle_shift(data, random_state=None):
         )
         shifted = np.array(
             [
-                np.concatenate([data[-int(s) :, int(d)], data[: -int(s), int(d)]])
+                np.concatenate(
+                    [data[-int(s):, int(d)], data[: -int(s), int(d)]])
                 for d, s in zip(range(data.shape[1]), shift)
             ]
         ).T
@@ -1872,7 +1844,8 @@ def _bootstrap_isc(
         random_state.choice(np.arange(n_sub), size=n_sub, replace=True)
     )
     bootstrap_sample = Adjacency(
-        square[bootstrap_subject, :][:, bootstrap_subject], matrix_type="similarity"
+        square[bootstrap_subject, :][:,
+                                     bootstrap_subject], matrix_type="similarity"
     )
 
     if exclude_self_corr:
@@ -1989,7 +1962,8 @@ def isc(
             )
             for i in range(n_bootstraps)
         )
-        stats["p"] = _calc_pvalue(all_bootstraps - stats["isc"], stats["isc"], tail)
+        stats["p"] = _calc_pvalue(
+            all_bootstraps - stats["isc"], stats["isc"], tail)
 
     elif method == "circle_shift":
         all_bootstraps = Parallel(n_jobs=n_jobs)(
@@ -2013,7 +1987,8 @@ def isc(
         )
 
     stats["ci"] = (
-        np.percentile(np.array(all_bootstraps), (100 - ci_percentile) / 2, axis=0),
+        np.percentile(np.array(all_bootstraps),
+                      (100 - ci_percentile) / 2, axis=0),
         np.percentile(
             np.array(all_bootstraps), ci_percentile + (100 - ci_percentile) / 2, axis=0
         ),
@@ -2027,7 +2002,7 @@ def isc(
 
 def _compute_matrix_correlation(matrix1, matrix2):
     """Computes the intersubject functional correlation between 2 matrices (observation x feature)"""
-    return np.corrcoef(matrix1.T, matrix2.T)[matrix1.shape[1] :, : matrix2.shape[1]]
+    return np.corrcoef(matrix1.T, matrix2.T)[matrix1.shape[1]:, : matrix2.shape[1]]
 
 
 def isfc(data, method="average"):
@@ -2078,16 +2053,9 @@ def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5):
     timeseries. Requires multiple subjects. This method is largely based on that described by Glerean
     et al., 2012 and performs a hilbert transform on narrow bandpass filtered timeseries (butterworth)
     data to get the instantaneous phase angle. The function returns a dictionary containing the
-<<<<<<< HEAD
     average phase angle, the average vector length, and parametric p-values computed using the rayleigh
     test using circular statistics (Fisher, 1993).
 
-=======
-    average phase angle of the pairwise subject differences, the average vector length of the pairwise
-    subject differences, and parametric p-values computed using the rayleigh test using circular 
-    statistics (Fisher, 1993).
-    
->>>>>>> updated isps with differences
     This function requires narrow band filtering your data. As a default we use the recommendations
     by (Glerean et al., 2012) of .04-.07Hz. This is similar to the "slow-4" band (0.025–0.067 Hz)
     described by (Zuo et al., 2010; Penttonen & Buzsáki, 2003), but excludes the .03 band, which has been
@@ -2118,7 +2086,6 @@ def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5):
     """
 
     if not isinstance(data, (pd.DataFrame, np.ndarray)):
-<<<<<<< HEAD
         raise ValueError(
             "data must be a pandas dataframe or numpy array (observations by subjects)"
         )
@@ -2134,16 +2101,6 @@ def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5):
     out = {"average_angle": _phase_mean_angle(phase)}
     out["vector_length"] = _phase_vector_length(phase)
     out["p"] = _phase_rayleigh_p(phase)
-=======
-        raise ValueError('data must be a pandas dataframe or numpy array (observations by subjects)')
-        
-    phase = np.angle(hilbert(_butter_bandpass_filter(pd.DataFrame(data), low_cut, high_cut, sampling_freq, order=order)))
-    phase_diff = np.array([phase[:,i] - phase[:,j] for i in range(phase.shape[1]) for j in range(phase.shape[1]) if i < j]).T
-
-    out = {'average_angle':_phase_mean_angle(phase_diff)}
-    out['vector_length'] = _phase_vector_length(phase_diff)
-    out['p'] = _phase_rayleigh_p(phase_diff)
->>>>>>> updated isps with differences
     return out
 
 
@@ -2233,7 +2190,8 @@ def _phase_rayleigh_p(phase_angles):
 
     """
 
-    n = len(phase_angles) if len(phase_angles.shape) == 1 else phase_angles.shape[1]
+    n = len(phase_angles) if len(
+        phase_angles.shape) == 1 else phase_angles.shape[1]
 
     Z = n * _phase_vector_length(phase_angles) ** 2
     if n <= 50:
@@ -2243,14 +2201,12 @@ def _phase_rayleigh_p(phase_angles):
             - (24 * Z - 132 * Z ** 2 + 76 * Z ** 3 - 9 * Z ** 4) / (288 * n ** 2)
         )
     else:
-<<<<<<< HEAD
-        return np.exp(-1 * Z)
-=======
         return np.exp(-1*Z)
+
 
 def align_states(reference, target, metric='correlation', return_index=False, replace_zero_variance=False):
     '''Align state weight maps using hungarian algorithm by minimizing pairwise distance between group states.
-    
+
     Args:
         reference: (np.array) reference pattern x state matrix
         target: (np.array) target pattern x state matrix to align to reference
@@ -2260,28 +2216,29 @@ def align_states(reference, target, metric='correlation', return_index=False, re
                                 Useful for when using correlation as a distance metric to avoid NaNs.
     Returns:
         ordered_weights: (list) a list of reordered state X pattern matrices
-    
+
     '''
     if reference.shape != target.shape:
         raise ValueError('reference and target must be the same size')
-    
+
     reference = np.array(reference)
     target = np.array(target)
-    
+
     def replace_zero_variance_columns(data):
         if np.any(data.std(axis=0) == 0):
             for i in np.where(data.std(axis=0) == 0)[0]:
-                data[:,i] = np.random.uniform(low=0, high=1, size=data.shape[0])
+                data[:, i] = np.random.uniform(
+                    low=0, high=1, size=data.shape[0])
         return data
-    
+
     if replace_zero_variance:
         reference = replace_zero_variance_columns(reference)
-        target = replace_zero_variance_columns(target) 
+        target = replace_zero_variance_columns(target)
 
-    remapping = linear_sum_assignment(pairwise_distances(reference.T, target.T, metric=metric))[1]
-    
+    remapping = linear_sum_assignment(pairwise_distances(
+        reference.T, target.T, metric=metric))[1]
+
     if return_index:
         return remapping
     else:
         return target[:, remapping]
->>>>>>> update fisher r to z
