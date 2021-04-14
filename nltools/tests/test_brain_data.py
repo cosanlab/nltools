@@ -673,6 +673,7 @@ def test_temporal_resample(sim_brain_data):
     down = up.temporal_resample(sampling_freq=2, target=1 / 2, target_type="hz")
     assert len(sim_brain_data) == len(down)
 <<<<<<< HEAD
+<<<<<<< HEAD
     assert len(up) / 4 == len(down)
 =======
     assert len(up)/4 == len(down)
@@ -680,3 +681,9 @@ def test_temporal_resample(sim_brain_data):
 def test_fisher_r_to_z(sim_brain_data):
     assert (sim_brain_data.data - sim_brain_data.r_to_z().z_to_r().data) == 0
 >>>>>>> added tests for cluster_summary and r_to_z
+=======
+    assert len(up)/4 == len(down)
+
+def test_fisher_r_to_z(sim_brain_data):
+    assert (sim_brain_data.data - sim_brain_data.r_to_z().z_to_r().data) == 0
+>>>>>>> a896eb704bc93e137e57271ce8f22746a3929867

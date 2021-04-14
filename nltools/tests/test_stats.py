@@ -35,7 +35,10 @@ from nltools.stats import (one_sample_permutation,
                            isps,
                            fisher_r_to_z,
                            fisher_z_to_r)
+<<<<<<< HEAD
 >>>>>>> update fisher r to z
+=======
+>>>>>>> a896eb704bc93e137e57271ce8f22746a3929867
 from nltools.simulator import Simulator
 from nltools.mask import create_sphere
 from sklearn.metrics import pairwise_distances
@@ -569,8 +572,11 @@ def test_fisher_r_to_z():
     for r in np.arange(0,1,.05):
         np.testing.assert_almost_equal(r,fisher_z_to_r(fisher_r_to_z(r)), decimal=3)
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> update fisher r to z
 =======
+=======
+>>>>>>> a896eb704bc93e137e57271ce8f22746a3929867
 
 def test_align_states():
     n = 20
@@ -581,5 +587,9 @@ def test_align_states():
     scrambled_states = states.iloc[:,scramble_index]
 
     assert np.array_equal(align_states(scrambled_states, states, return_index=True), scramble_index)
+<<<<<<< HEAD
     assert np.array_equal(states.shape, align_states(scrambled_states, states, return_index=False).shape)
 >>>>>>> add test for align states
+=======
+    assert np.array_equal(states.shape, align_states(scrambled_states, states, return_index=False).shape)
+>>>>>>> a896eb704bc93e137e57271ce8f22746a3929867

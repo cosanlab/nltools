@@ -1227,14 +1227,20 @@ class Adjacency(object):
         ax.yaxis.set_visible(False)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     def distance_to_similarity(self, beta=1):
         """Convert distance matrix to similarity matrix
 =======
+=======
+>>>>>>> a896eb704bc93e137e57271ce8f22746a3929867
     def distance_to_similarity(self, metric='correlation', beta=1):
         '''Convert distance matrix to similarity matrix.
 
         Note: currently only implemented for correlation and euclidean.
+<<<<<<< HEAD
 >>>>>>> added tests for cluster_summary and r_to_z
+=======
+>>>>>>> a896eb704bc93e137e57271ce8f22746a3929867
 
         Args:
             metric: (str) Can only be correlation or euclidean
@@ -1261,10 +1267,14 @@ class Adjacency(object):
                                 labels=self.labels, matrix_type='similarity')
             else:
                 raise ValueError('metric can only be ["correlation","euclidean"]')
+<<<<<<< HEAD
 >>>>>>> added tests for cluster_summary and r_to_z
+=======
+>>>>>>> a896eb704bc93e137e57271ce8f22746a3929867
         else:
             raise ValueError("Matrix is not a distance matrix.")
 
+<<<<<<< HEAD
 <<<<<<< HEAD
     def similarity_to_distance(self):
         """Convert similarity matrix to distance matrix"""
@@ -1278,12 +1288,17 @@ class Adjacency(object):
     def within_cluster_mean(self, clusters=None):
         """This function calculates mean within cluster labels
 =======
+=======
+>>>>>>> a896eb704bc93e137e57271ce8f22746a3929867
     def cluster_summary(self, clusters=None, metric='mean', summary='within'):
         ''' This function provides summaries of clusters within Adjacency matrices.
         
         It can compute mean/median of within and between cluster values. Requires a
         list of cluster ids indicating the row/column of each cluster.
+<<<<<<< HEAD
 >>>>>>> added tests for cluster_summary and r_to_z
+=======
+>>>>>>> a896eb704bc93e137e57271ce8f22746a3929867
 
         Args:
             clusters: (list) list of cluster labels
@@ -1293,13 +1308,19 @@ class Adjacency(object):
         Returns:
             dict: (dict) within cluster means
 <<<<<<< HEAD
+<<<<<<< HEAD
         """
 =======
+=======
+>>>>>>> a896eb704bc93e137e57271ce8f22746a3929867
 
         '''
         if metric not in ['mean', 'median', None]:
             raise ValueError("metric must be ['mean','median', None]")
+<<<<<<< HEAD
 >>>>>>> added tests for cluster_summary and r_to_z
+=======
+>>>>>>> a896eb704bc93e137e57271ce8f22746a3929867
 
         distance = pd.DataFrame(self.squareform())
         clusters = np.array(clusters)
@@ -1307,6 +1328,7 @@ class Adjacency(object):
         if len(clusters) != distance.shape[0]:
             raise ValueError("Cluster labels must be same length as distance matrix")
 
+<<<<<<< HEAD
 <<<<<<< HEAD
         out = pd.DataFrame(columns=["Mean", "Label"], index=None)
         out = {}
@@ -1319,6 +1341,10 @@ class Adjacency(object):
 =======
         out = {}
         for i in list(set(clusters)):
+=======
+        out = {}
+        for i in list(set(clusters)):
+>>>>>>> a896eb704bc93e137e57271ce8f22746a3929867
             if summary == 'within':
                 if metric == 'mean':
                     out[i] = np.mean(distance.loc[clusters == i, clusters == i].values[np.triu_indices(sum(clusters == i), k=1)])
@@ -1333,7 +1359,10 @@ class Adjacency(object):
                     out[i] = distance.loc[clusters == i, clusters != i].median().median()
                 elif metric is None:
                     out[i] = distance.loc[clusters == i, clusters != i]
+<<<<<<< HEAD
 >>>>>>> added tests for cluster_summary and r_to_z
+=======
+>>>>>>> a896eb704bc93e137e57271ce8f22746a3929867
         return out
 
     def regress(self, X, mode="ols", **kwargs):

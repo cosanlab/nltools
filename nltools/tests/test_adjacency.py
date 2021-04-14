@@ -122,6 +122,21 @@ def test_sum():
     a = Adjacency([a,a])
     assert a.sum().data.sum() == n*(n-1)
 
+<<<<<<< HEAD
+=======
+def test_sum():
+    n = 10
+    a = Adjacency(np.ones((n, n)), matrix_type='directed')
+    assert a.sum() == n**2
+    a = Adjacency([a,a])
+    assert a.sum().data.sum() == (n**2)*2
+
+    a = Adjacency(np.ones((n, n)), matrix_type='similarity')
+    assert a.sum() == n*(n-1)/2
+    a = Adjacency([a,a])
+    assert a.sum().data.sum() == n*(n-1)
+
+>>>>>>> a896eb704bc93e137e57271ce8f22746a3929867
     a = Adjacency(np.ones((n, n)), matrix_type='distance')
     assert a.sum() == n*(n-1)/2
     a = Adjacency([a,a])
@@ -395,7 +410,11 @@ def test_cluster_summary():
     for i in dat.cluster_summary(clusters=clusters, summary='between').values():
         np.testing.assert_almost_equal(0,i,decimal=1)
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> added tests for cluster_summary and r_to_z
 =======
 
 >>>>>>> added Adjacency.sum() method
+=======
+
+>>>>>>> a896eb704bc93e137e57271ce8f22746a3929867

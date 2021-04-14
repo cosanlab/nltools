@@ -83,7 +83,10 @@ mne_stats = attempt_to_import(
 )
 =======
 nx = attempt_to_import('networkx', 'nx')
+<<<<<<< HEAD
 >>>>>>> removed ttest permutation and mne dependencies
+=======
+>>>>>>> a896eb704bc93e137e57271ce8f22746a3929867
 MAX_INT = np.iinfo(np.int32).max
 
 
@@ -805,6 +808,7 @@ class Brain_Data(object):
         p = deepcopy(self)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         if threshold_dict is not None and "permutation" in threshold_dict:
             # Convert data to correct shape (subjects, time, space)
             data_convert_shape = deepcopy(self.data)
@@ -855,6 +859,10 @@ class Brain_Data(object):
                 p.data[cl[1][0]] = pval
         else:
             t.data, p.data = ttest_1samp(self.data, 0, 0)
+=======
+        t.data, p.data = ttest_1samp(self.data, 0, 0)
+        
+>>>>>>> a896eb704bc93e137e57271ce8f22746a3929867
         if threshold_dict is not None:
             if isinstance(threshold_dict, dict):
                 if "unc" in threshold_dict:
@@ -877,7 +885,10 @@ class Brain_Data(object):
                 elif 'holm-bonf' in threshold_dict:
                     thr = holm_bonf(p.data, alpha=threshold_dict['holm-bonf'])
 
+<<<<<<< HEAD
 >>>>>>> removed ttest permutation and mne dependencies
+=======
+>>>>>>> a896eb704bc93e137e57271ce8f22746a3929867
                 if return_mask:
                     thr_t, thr_mask = threshold(t, p, thr, True)
                     out = {"t": t, "p": p, "thr_t": thr_t, "thr_mask": thr_mask}

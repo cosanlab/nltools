@@ -124,6 +124,9 @@ def fdr(p, q=0.05):
         raise ValueError(
             "array contains p-values that are outside the range 0-1")
 
+    if np.any(p > 1) or np.any(p < 0):
+        raise ValueError('Does not include valid p-values.')
+
     s = np.sort(p)
     nvox = p.shape[0]
     null = np.array(range(1, nvox + 1), dtype="float") * q / nvox
@@ -2046,15 +2049,17 @@ def isfc(data, method="average"):
     return sub_isfc
 
 
-def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5):
-    """Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array)
+def isps(data, sampling_freq=.5, low_cut=.04, high_cut=.07, order=5, pairwise=False):
+    '''Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array)
 
     This function computes the instantaneous intersubject phase synchrony for a single voxel/roi
     timeseries. Requires multiple subjects. This method is largely based on that described by Glerean
     et al., 2012 and performs a hilbert transform on narrow bandpass filtered timeseries (butterworth)
     data to get the instantaneous phase angle. The function returns a dictionary containing the
-    average phase angle, the average vector length, and parametric p-values computed using the rayleigh
-    test using circular statistics (Fisher, 1993).
+    average phase angle, the average vector length, and parametric p-values computed using the rayleigh test using circular 
+    statistics (Fisher, 1993). If pairwise=True, then it will compute these on the pairwise phase angle differences, 
+    if pairwise=False, it will compute these on the actual phase angles. This is called inter-site phase coupling
+    or inter-trial phase coupling respectively in the EEG literatures.
 
     This function requires narrow band filtering your data. As a default we use the recommendations
     by (Glerean et al., 2012) of .04-.07Hz. This is similar to the "slow-4" band (0.025–0.067 Hz)
@@ -2079,28 +2084,28 @@ def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5):
         low_cut: (float) lower bound cutoff for high pass filter
         high_cut: (float) upper bound cutoff for low pass filter
         order: (int) filter order for butterworth bandpass
+        pairwise: (bool) compute phase angle coherence on pairwise phase angle differences 
+                or on raw phase angle.
 
     Returns:
         dictionary with mean phase angle, vector length, and rayleigh statistic
 
-    """
+    '''
 
     if not isinstance(data, (pd.DataFrame, np.ndarray)):
         raise ValueError(
-            "data must be a pandas dataframe or numpy array (observations by subjects)"
-        )
+            'data must be a pandas dataframe or numpy array (observations by subjects)')
 
-    phase = np.angle(
-        hilbert(
-            _butter_bandpass_filter(
-                pd.DataFrame(data), low_cut, high_cut, sampling_freq, order=order
-            )
-        )
-    )
+    phase = np.angle(hilbert(_butter_bandpass_filter(pd.DataFrame(
+        data), low_cut, high_cut, sampling_freq, order=order), axis=0))
 
-    out = {"average_angle": _phase_mean_angle(phase)}
-    out["vector_length"] = _phase_vector_length(phase)
-    out["p"] = _phase_rayleigh_p(phase)
+    if pairwise:
+        phase = np.array([phase[:, i] - phase[:, j] for i in range(phase.shape[1])
+                         for j in range(phase.shape[1]) if i < j]).T
+
+    out = {'average_angle': _phase_mean_angle(phase)}
+    out['vector_length'] = _phase_vector_length(phase)
+    out['p'] = _phase_rayleigh_p(phase)
     return out
 
 
