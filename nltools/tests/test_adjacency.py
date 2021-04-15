@@ -374,7 +374,9 @@ def test_isc(sim_adjacency_single):
 
 
 def test_fisher_r_to_z(sim_adjacency_single):
-    assert (sim_adjacency.data - sim_adjacency_single.r_to_z().z_to_r().data) == 0
+    assert (
+        sim_adjacency_single.data - sim_adjacency_single.r_to_z().z_to_r().data
+    ) == 0
 
 
 def test_cluster_summary():
@@ -395,4 +397,3 @@ def test_cluster_summary():
 
     for i in dat.cluster_summary(clusters=clusters, summary="between").values():
         np.testing.assert_almost_equal(0, i, decimal=1)
-

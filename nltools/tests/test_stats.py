@@ -10,6 +10,7 @@ from nltools.stats import (
     upsample,
     winsorize,
     align,
+    align_states,
     transform_pairwise,
     _calc_pvalue,
     find_spikes,
@@ -21,7 +22,6 @@ from nltools.stats import (
 )
 from nltools.simulator import Simulator
 from nltools.mask import create_sphere
-from sklearn.metrics import pairwise_distances
 from scipy.spatial.distance import squareform
 
 # import pytest
@@ -418,7 +418,9 @@ def test_transform_pairwise():
     # Test without groups
     new_n_samples = int(n_samples * (n_samples - 1) / 2)
     X = np.random.rand(n_samples, n_features)
-    y = np.random.rand(n_samples,)
+    y = np.random.rand(
+        n_samples,
+    )
     x_new, y_new = transform_pairwise(X, y)
     assert x_new.shape == (new_n_samples, n_features)
     assert y_new.shape == (new_n_samples,)
@@ -559,4 +561,3 @@ def test_align_states():
     assert np.array_equal(
         states.shape, align_states(scrambled_states, states, return_index=False).shape
     )
-
