@@ -10,7 +10,6 @@ from nltools.stats import (
     upsample,
     winsorize,
     align,
-    align_states,
     transform_pairwise,
     _calc_pvalue,
     find_spikes,
@@ -19,6 +18,7 @@ from nltools.stats import (
     isps,
     fisher_r_to_z,
     fisher_z_to_r,
+    align_states,
 )
 from nltools.simulator import Simulator
 from nltools.mask import create_sphere

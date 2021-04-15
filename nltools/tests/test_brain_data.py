@@ -676,4 +676,8 @@ def test_temporal_resample(sim_brain_data):
 
 
 def test_fisher_r_to_z(sim_brain_data):
-    assert (sim_brain_data.data - sim_brain_data.r_to_z().z_to_r().data) == 0
+    np.testing.assert_almost_equal(
+        np.nansum(sim_brain_data.data - sim_brain_data.r_to_z().z_to_r().data),
+        0,
+        decimal=2,
+    )
