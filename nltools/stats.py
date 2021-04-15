@@ -1,3 +1,5 @@
+from __future__ import division
+
 """
 NeuroLearn Statistics Tools
 ===========================
@@ -107,7 +109,7 @@ def zscore(df):
 
 
 def fdr(p, q=0.05):
-    """Determine FDR threshold given a p value array and desired false
+    """ Determine FDR threshold given a p value array and desired false
     discovery rate q. Written by Tal Yarkoni
 
     Args:
@@ -122,8 +124,6 @@ def fdr(p, q=0.05):
 
     if not isinstance(p, np.ndarray):
         raise ValueError("Make sure vector of p-values is a numpy array")
-    if any(p < 0) or any(p > 1):
-        raise ValueError("array contains p-values that are outside the range 0-1")
 
     if np.any(p > 1) or np.any(p < 0):
         raise ValueError("Does not include valid p-values.")
@@ -136,7 +136,7 @@ def fdr(p, q=0.05):
 
 
 def holm_bonf(p, alpha=0.05):
-    """Compute corrected p-values based on the Holm-Bonferroni method, i.e. step-down procedure applying iteratively less correction to highest p-values. A bit more conservative than fdr, but much more powerful thanvanilla bonferroni.
+    """ Compute corrected p-values based on the Holm-Bonferroni method, i.e. step-down procedure applying iteratively less correction to highest p-values. A bit more conservative than fdr, but much more powerful thanvanilla bonferroni.
 
     Args:
         p: (np.array) vector of p-values
@@ -159,7 +159,7 @@ def holm_bonf(p, alpha=0.05):
 
 
 def threshold(stat, p, thr=0.05, return_mask=False):
-    """Threshold test image by p-value from p image
+    """ Threshold test image by p-value from p image
 
     Args:
         stat: (Brain_Data) Brain_Data instance of arbitrary statistic metric
@@ -242,17 +242,17 @@ def multi_threshold(t_map, p_map, thresh):
 
 
 def winsorize(data, cutoff=None, replace_with_cutoff=True):
-    """Winsorize a Pandas DataFrame or Series with the largest/lowest value not considered outlier
+    """ Winsorize a Pandas DataFrame or Series with the largest/lowest value not considered outlier
 
-    Args:
-        data: (pd.DataFrame, pd.Series) data to winsorize
-        cutoff: (dict) a dictionary with keys {'std':[low,high]} or
-                {'quantile':[low,high]}
-        replace_with_cutoff: (bool) If True, replace outliers with cutoff.
-                             If False, replaces outliers with closest
-                             existing values; (default: False)
-    Returns:
-        out: (pd.DataFrame, pd.Series) winsorized data
+        Args:
+            data: (pd.DataFrame, pd.Series) data to winsorize
+            cutoff: (dict) a dictionary with keys {'std':[low,high]} or
+                    {'quantile':[low,high]}
+            replace_with_cutoff: (bool) If True, replace outliers with cutoff.
+                                 If False, replaces outliers with closest
+                                 existing values; (default: False)
+        Returns:
+            out: (pd.DataFrame, pd.Series) winsorized data
     """
     return _transform_outliers(
         data, cutoff, replace_with_cutoff=replace_with_cutoff, method="winsorize"
@@ -260,33 +260,33 @@ def winsorize(data, cutoff=None, replace_with_cutoff=True):
 
 
 def trim(data, cutoff=None):
-    """Trim a Pandas DataFrame or Series by replacing outlier values with NaNs
+    """ Trim a Pandas DataFrame or Series by replacing outlier values with NaNs
 
-    Args:
-        data: (pd.DataFrame, pd.Series) data to trim
-        cutoff: (dict) a dictionary with keys {'std':[low,high]} or
-                {'quantile':[low,high]}
-    Returns:
-        out: (pd.DataFrame, pd.Series) trimmed data
+        Args:
+            data: (pd.DataFrame, pd.Series) data to trim
+            cutoff: (dict) a dictionary with keys {'std':[low,high]} or
+                    {'quantile':[low,high]}
+        Returns:
+            out: (pd.DataFrame, pd.Series) trimmed data
     """
     return _transform_outliers(data, cutoff, replace_with_cutoff=None, method="trim")
 
 
 def _transform_outliers(data, cutoff, replace_with_cutoff, method):
-    """This function is not exposed to user but is called by either trim
-    or winsorize.
+    """ This function is not exposed to user but is called by either trim
+        or winsorize.
 
-    Args:
-        data: (pd.DataFrame, pd.Series) data to transform
-        cutoff: (dict) a dictionary with keys {'std':[low,high]} or
-                {'quantile':[low,high]}
-        replace_with_cutoff: (bool) If True, replace outliers with cutoff.
-                                    If False, replaces outliers with closest
-                                    existing values. (default: False)
-        method: 'winsorize' or 'trim'
+        Args:
+            data: (pd.DataFrame, pd.Series) data to transform
+            cutoff: (dict) a dictionary with keys {'std':[low,high]} or
+                    {'quantile':[low,high]}
+            replace_with_cutoff: (bool) If True, replace outliers with cutoff.
+                                        If False, replaces outliers with closest
+                                        existing values. (default: False)
+            method: 'winsorize' or 'trim'
 
-    Returns:
-        out: (pd.DataFrame, pd.Series) transformed data
+        Returns:
+            out: (pd.DataFrame, pd.Series) transformed data
     """
     df = data.copy()  # To not overwrite data make a copy
 
@@ -339,15 +339,15 @@ def _transform_outliers(data, cutoff, replace_with_cutoff, method):
 
 
 def calc_bpm(beat_interval, sampling_freq):
-    """Calculate instantaneous BPM from beat to beat interval
+    """ Calculate instantaneous BPM from beat to beat interval
 
     Args:
         beat_interval: (int) number of samples in between each beat
                         (typically R-R Interval)
         sampling_freq: (float) sampling frequency in Hz
 
-    Returns:
-        bpm:  (float) beats per minute for time interval
+        Returns:
+            bpm:  (float) beats per minute for time interval
     """
     return 60 * sampling_freq * (1 / (beat_interval))
 
@@ -355,8 +355,8 @@ def calc_bpm(beat_interval, sampling_freq):
 def downsample(
     data, sampling_freq=None, target=None, target_type="samples", method="mean"
 ):
-    """Downsample pandas to a new target frequency or number of samples
-    using averaging.
+    """ Downsample pandas to a new target frequency or number of samples
+        using averaging.
 
     Args:
         data: (pd.DataFrame, pd.Series) data to downsample
@@ -398,7 +398,7 @@ def downsample(
 def upsample(
     data, sampling_freq=None, target=None, target_type="samples", method="linear"
 ):
-    """Upsample pandas to a new target frequency or number of samples using interpolation.
+    """ Upsample pandas to a new target frequency or number of samples using interpolation.
 
     Args:
         data: (pd.DataFrame, pd.Series) data to upsample
@@ -466,7 +466,7 @@ def fisher_z_to_r(z):
 
 
 def correlation(data1, data2, metric="pearson"):
-    """This function calculates the correlation between data1 and data2
+    """ This function calculates the correlation between data1 and data2
 
     Args:
         data1: (np.array) x
@@ -542,7 +542,7 @@ def _calc_pvalue(all_p, stat, tail):
 def one_sample_permutation(
     data, n_permute=5000, tail=2, n_jobs=-1, return_perms=False, random_state=None
 ):
-    """One sample permutation test using randomization.
+    """ One sample permutation test using randomization.
 
     Args:
         data: (pd.DataFrame, pd.Series, np.array) data to permute
@@ -581,7 +581,7 @@ def two_sample_permutation(
     return_perms=False,
     random_state=None,
 ):
-    """Independent sample permutation test.
+    """ Independent sample permutation test.
 
     Args:
         data1: (pd.DataFrame, pd.Series, np.array) dataset 1 to permute
@@ -645,10 +645,6 @@ def correlation_permutation(
                 -1 means all CPUs.
         return_parms: (bool) Return the permutation distribution along with the p-value; default False
 
-    Returns:
-
-        stats: (dict) dictionary of permutation results ['correlation','p']
-
     """
     if len(data1) != len(data2):
         raise ValueError("Make sure that data1 is the same length as data2")
@@ -656,13 +652,6 @@ def correlation_permutation(
     if method not in ["permute", "circle_shift", "phase_randomize"]:
         raise ValueError(
             "Make sure that method is ['permute', 'circle_shift', 'phase_randomize']"
-        )
-
-    random_state = check_random_state(random_state)
-
-    data1 = np.array(data1)
-    data2 = np.array(data2)
-
     stats = {"correlation": correlation(data1, data2, metric=metric)[0]}
 
     if method == "permute":
@@ -705,26 +694,26 @@ def matrix_permutation(
     return_perms=False,
     random_state=None,
 ):
-    """Permute 2-dimensional matrix correlation (mantel test).
+    """ Permute 2-dimensional matrix correlation (mantel test).
 
-    Chen, G. et al. (2016). Untangling the relatedness among correlations,
-    part I: nonparametric approaches to inter-subject correlation analysis
-    at the group level. Neuroimage, 142, 248-259.
+        Chen, G. et al. (2016). Untangling the relatedness among correlations,
+        part I: nonparametric approaches to inter-subject correlation analysis
+        at the group level. Neuroimage, 142, 248-259.
 
-    Args:
-        data1: (pd.DataFrame, np.array) square matrix
-        data2: (pd.DataFrame, np.array) square matrix
-        n_permute: (int) number of permutations
-        metric: (str) type of association metric ['spearman','pearson',
-                'kendall']
-        tail: (int) either 1 for one-tail or 2 for two-tailed test
-              (default: 2)
-        n_jobs: (int) The number of CPUs to use to do the computation.
-                -1 means all CPUs.
-        return_parms: (bool) Return the permutation distribution along with the p-value; default False
+        Args:
+            data1: (pd.DataFrame, np.array) square matrix
+            data2: (pd.DataFrame, np.array) square matrix
+            n_permute: (int) number of permutations
+            metric: (str) type of association metric ['spearman','pearson',
+                    'kendall']
+            tail: (int) either 1 for one-tail or 2 for two-tailed test
+                  (default: 2)
+            n_jobs: (int) The number of CPUs to use to do the computation.
+                    -1 means all CPUs.
+            return_parms: (bool) Return the permutation distribution along with the p-value; default False
 
-    Returns:
-        stats: (dict) dictionary of permutation results ['correlation','p']
+        Returns:
+            stats: (dict) dictionary of permutation results ['correlation','p']
     """
     random_state = check_random_state(random_state)
     seeds = random_state.randint(MAX_INT, size=n_permute)
@@ -991,7 +980,7 @@ def _arma_func(X, Y, idx=None, **kwargs):
 
 
 def regress(X, Y, mode="ols", stats="full", **kwargs):
-    """This is a flexible function to run several types of regression models provided X and Y numpy arrays. Y can be a 1d numpy array or 2d numpy array. In the latter case, results will be output with shape 1 x Y.shape[1], in other words fitting a separate regression model to each column of Y.
+    """ This is a flexible function to run several types of regression models provided X and Y numpy arrays. Y can be a 1d numpy array or 2d numpy array. In the latter case, results will be output with shape 1 x Y.shape[1], in other words fitting a separate regression model to each column of Y.
 
     Does NOT add an intercept automatically to the X matrix before fitting like some other software packages. This is left up to the user.
 
@@ -1042,10 +1031,10 @@ def regress(X, Y, mode="ols", stats="full", **kwargs):
 
     """
 
-    if not isinstance(mode, str):
+    if not isinstance(mode, six.string_types):
         raise ValueError("mode must be a string")
 
-    if not isinstance(stats, str):
+    if not isinstance(stats, six.string_types):
         raise ValueError("stats must be a string")
 
     if mode not in ["ols", "robust", "arma"]:
@@ -1181,7 +1170,7 @@ def regress_permutation(
 
 
 def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kwargs):
-    """Align subject data into a common response model.
+    """ Align subject data into a common response model.
 
     Can be used to hyperalign source data to target data using
     Hyperalignment from Dartmouth (i.e., procrustes transformation; see
@@ -1366,7 +1355,7 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
 
 def procrustes(data1, data2):
     """Procrustes analysis, a similarity test for two data sets.
-
+    
     Each input matrix is a set of points or vectors (the rows of the matrix).
     The dimension of the space is the number of columns of each matrix. Given
     two identically sized matrices, procrustes standardizes both such that:
@@ -1584,7 +1573,7 @@ def distance_correlation(x, y, bias_corrected=True, ttest=False):
 def procrustes_distance(
     mat1, mat2, n_permute=5000, tail=2, n_jobs=-1, random_state=None
 ):
-    """Use procrustes super-position to perform a similarity test between 2 matrices. Matrices need to match in size on their first dimension only, as the smaller matrix on the second dimension will be padded with zeros. After aligning two matrices using the procrustes transformation, use the computed disparity between them (sum of squared error of elements) as a similarity metric. Shuffle the rows of one of the matrices and recompute the disparity to perform inference (Peres-Neto & Jackson, 2001).
+    """ Use procrustes super-position to perform a similarity test between 2 matrices. Matrices need to match in size on their first dimension only, as the smaller matrix on the second dimension will be padded with zeros. After aligning two matrices using the procrustes transformation, use the computed disparity between them (sum of squared error of elements) as a similarity metric. Shuffle the rows of one of the matrices and recompute the disparity to perform inference (Peres-Neto & Jackson, 2001).
 
     Args:
         mat1 (ndarray): 2d numpy array; must have same number of rows as mat2
@@ -1632,14 +1621,14 @@ def procrustes_distance(
 def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
     """Function to identify spikes from fMRI Time Series Data
 
-    Args:
-        data: Brain_Data or nibabel instance
-        global_spike_cutoff: (int,None) cutoff to identify spikes in global signal
-                             in standard deviations, None indicates do not calculate.
-        diff_spike_cutoff: (int,None) cutoff to identify spikes in average frame difference
-                             in standard deviations, None indicates do not calculate.
-    Returns:
-        pandas dataframe with spikes as indicator variables
+        Args:
+            data: Brain_Data or nibabel instance
+            global_spike_cutoff: (int,None) cutoff to identify spikes in global signal
+                                 in standard deviations, None indicates do not calculate.
+            diff_spike_cutoff: (int,None) cutoff to identify spikes in average frame difference
+                                 in standard deviations, None indicates do not calculate.
+        Returns:
+            pandas dataframe with spikes as indicator variables
     """
 
     from nltools.data import Brain_Data
@@ -1702,36 +1691,36 @@ def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
 
 def phase_randomize(data, random_state=None):
     """Perform phase randomization on time-series signal
+        
+        This procedure preserves the power spectrum/autocorrelation,
+        but destroys any nonlinear behavior. Based on the algorithm
+        described in:
+        
+        Theiler, J., Galdrikian, B., Longtin, A., Eubank, S., & Farmer, J. D. (1991).
+        Testing for nonlinearity in time series: the method of surrogate data
+        (No. LA-UR-91-3343; CONF-9108181-1). Los Alamos National Lab., NM (United States).
 
-    This procedure preserves the power spectrum/autocorrelation,
-    but destroys any nonlinear behavior. Based on the algorithm
-    described in:
+        Lancaster, G., Iatsenko, D., Pidde, A., Ticcinelli, V., & Stefanovska, A. (2018).
+        Surrogate data for hypothesis testing of physical systems. Physics Reports, 748, 1-60.
+            
+        1. Calculate the Fourier transform ftx of the original signal xn.
+        2. Generate a vector of random phases in the range[0, 2π]) with
+           length L/2,where L is the length of the time series.
+        3. As the Fourier transform is symmetrical, to create the new phase
+           randomized vector ftr , multiply the first half of ftx (i.e.the half
+           corresponding to the positive frequencies) by exp(iφr) to create the
+           first half of ftr.The remainder of ftr is then the horizontally flipped
+           complex conjugate of the first half.
+        4. Finally, the inverse Fourier transform of ftr gives the FT surrogate.
 
-    Theiler, J., Galdrikian, B., Longtin, A., Eubank, S., & Farmer, J. D. (1991).
-    Testing for nonlinearity in time series: the method of surrogate data
-    (No. LA-UR-91-3343; CONF-9108181-1). Los Alamos National Lab., NM (United States).
-
-    Lancaster, G., Iatsenko, D., Pidde, A., Ticcinelli, V., & Stefanovska, A. (2018).
-    Surrogate data for hypothesis testing of physical systems. Physics Reports, 748, 1-60.
-
-    1. Calculate the Fourier transform ftx of the original signal xn.
-    2. Generate a vector of random phases in the range[0, 2π]) with
-       length L/2,where L is the length of the time series.
-    3. As the Fourier transform is symmetrical, to create the new phase
-       randomized vector ftr , multiply the first half of ftx (i.e.the half
-       corresponding to the positive frequencies) by exp(iφr) to create the
-       first half of ftr.The remainder of ftr is then the horizontally flipped
-       complex conjugate of the first half.
-    4. Finally, the inverse Fourier transform of ftr gives the FT surrogate.
-
-    Args:
-
-        data: (np.array) data (can be 1d or 2d, time by features)
-        random_state: (int, None, or np.random.RandomState) Initial random seed (default: None)
-
-    Returns:
-
-        shifted_data: (np.array) phase randomized data
+        Args:
+        
+            data: (np.array) data (can be 1d or 2d, time by features)
+            random_state: (int, None, or np.random.RandomState) Initial random seed (default: None)
+                 
+        Returns:
+        
+            shifted_data: (np.array) phase randomized data
     """
     random_state = check_random_state(random_state)
 
@@ -1760,7 +1749,7 @@ def phase_randomize(data, random_state=None):
 
 def circle_shift(data, random_state=None):
     """Circle shift data for each feature
-
+        
     Args:
 
         data: time series (1D or 2D). If 2D, then must be observations by features
@@ -1769,7 +1758,7 @@ def circle_shift(data, random_state=None):
     Returns:
 
         shifted data
-
+    
     """
     random_state = check_random_state(random_state)
     data = np.array(data)
@@ -1841,15 +1830,15 @@ def _bootstrap_isc(
 
 
 def _compute_isc(data, metric="median"):
-    """Helper function to compute intersubject correlation from observations by subjects array.
-
-    Args:
-        data: (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects
-        metric: (str) type of association metric ['spearman','pearson','kendall']
-
-    Returns:
-        isc: (float) intersubject correlation coefficient
-
+    """ Helper function to compute intersubject correlation from observations by subjects array.
+        
+        Args:
+            data: (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects
+            metric: (str) type of association metric ['spearman','pearson','kendall']
+        
+        Returns:
+            isc: (float) intersubject correlation coefficient
+            
     """
 
     from nltools.data import Adjacency
@@ -1876,46 +1865,46 @@ def isc(
     n_jobs=-1,
     random_state=None,
 ):
-    """Compute pairwise intersubject correlation from observations by subjects array.
+    """ Compute pairwise intersubject correlation from observations by subjects array.
+            
+        This function computes pairwise intersubject correlations (ISC) using the median as recommended by Chen
+        et al., 2016). However, if the mean is preferred, we compute the mean correlation after performing
+        the fisher r-to-z transformation and then convert back to correlations to minimize artificially
+        inflating the correlation values.
+        
+        There are currently three different methods to compute p-values. These include the classic methods for
+        computing permuted time-series by either circle-shifting the data or phase-randomizing the data
+        (see Lancaster et al., 2018). These methods create random surrogate data while preserving the temporal
+        autocorrelation inherent to the signal. By default, we use the subject-wise bootstrap method from
+        Chen et al., 2016. Instead of recomputing the pairwise ISC using circle_shift or phase_randomization methods,
+        this approach uses the computationally more efficient method of bootstrapping the subjects
+        and computing a new pairwise similarity matrix with randomly selected subjects with replacement.
+        If the same subject is selected multiple times, we set the perfect correlation to a nan with
+        (exclude_self_corr=True). We compute the p-values using the percentile method using the same
+        method in Brainiak.
+        
+        Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B.,
+        & Cox, R. W. (2016). Untangling the relatedness among correlations, part I:
+        nonparametric approaches to inter-subject correlation analysis at the group level.
+        NeuroImage, 142, 248-259.
+        
+        Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap hypothesis testing.
+        Biometrics, 757-762.
+        
+        Lancaster, G., Iatsenko, D., Pidde, A., Ticcinelli, V., & Stefanovska, A. (2018).
+        Surrogate data for hypothesis testing of physical systems. Physics Reports, 748, 1-60.
 
-    This function computes pairwise intersubject correlations (ISC) using the median as recommended by Chen
-    et al., 2016). However, if the mean is preferred, we compute the mean correlation after performing
-    the fisher r-to-z transformation and then convert back to correlations to minimize artificially
-    inflating the correlation values.
+        Args:
+            data: (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects
+            n_bootstraps: (int) number of bootstraps
+            metric: (str) type of association metric ['spearman','pearson','kendall']
+            method: (str) method to compute p-values ['bootstrap', 'circle_shift','phase_randomize'] (default: bootstrap)
+            tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
+            n_jobs: (int) The number of CPUs to use to do the computation. -1 means all CPUs.
+            return_parms: (bool) Return the permutation distribution along with the p-value; default False
 
-    There are currently three different methods to compute p-values. These include the classic methods for
-    computing permuted time-series by either circle-shifting the data or phase-randomizing the data
-    (see Lancaster et al., 2018). These methods create random surrogate data while preserving the temporal
-    autocorrelation inherent to the signal. By default, we use the subject-wise bootstrap method from
-    Chen et al., 2016. Instead of recomputing the pairwise ISC using circle_shift or phase_randomization methods,
-    this approach uses the computationally more efficient method of bootstrapping the subjects
-    and computing a new pairwise similarity matrix with randomly selected subjects with replacement.
-    If the same subject is selected multiple times, we set the perfect correlation to a nan with
-    (exclude_self_corr=True). We compute the p-values using the percentile method using the same
-    method in Brainiak.
-
-    Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B.,
-    & Cox, R. W. (2016). Untangling the relatedness among correlations, part I:
-    nonparametric approaches to inter-subject correlation analysis at the group level.
-    NeuroImage, 142, 248-259.
-
-    Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap hypothesis testing.
-    Biometrics, 757-762.
-
-    Lancaster, G., Iatsenko, D., Pidde, A., Ticcinelli, V., & Stefanovska, A. (2018).
-    Surrogate data for hypothesis testing of physical systems. Physics Reports, 748, 1-60.
-
-    Args:
-        data: (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects
-        n_bootstraps: (int) number of bootstraps
-        metric: (str) type of association metric ['spearman','pearson','kendall']
-        method: (str) method to compute p-values ['bootstrap', 'circle_shift','phase_randomize'] (default: bootstrap)
-        tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
-        n_jobs: (int) The number of CPUs to use to do the computation. -1 means all CPUs.
-        return_parms: (bool) Return the permutation distribution along with the p-value; default False
-
-    Returns:
-        stats: (dict) dictionary of permutation results ['correlation','p']
+        Returns:
+            stats: (dict) dictionary of permutation results ['correlation','p']
 
     """
 
@@ -1988,7 +1977,7 @@ def _compute_matrix_correlation(matrix1, matrix2):
 
 def isfc(data, method="average"):
     """Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices
-
+    
     This function uses the leave one out approach to compute ISFC (Simony et al., 2016).
     For each subject, compute the cross-correlation between each voxel/roi
     with the average of the rest of the subjects data. In other words,
@@ -2006,7 +1995,7 @@ def isfc(data, method="average"):
 
     Returns:
         list of subject ISFC matrices
-
+    
     """
     subjects = np.arange(len(data))
 
@@ -2067,7 +2056,7 @@ def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5, pairwise
         
     Returns:
         dictionary with mean phase angle, vector length, and rayleigh statistic
-
+        
     """
 
     if not isinstance(data, (pd.DataFrame, np.ndarray)):
@@ -2140,8 +2129,6 @@ def _phase_mean_angle(phase_angles):
     return np.arctan2(
         np.mean(np.sin(phase_angles), axis=axis),
         np.mean(np.cos(phase_angles), axis=axis),
-    )
-
 
 def _phase_vector_length(phase_angles):
     """Compute vector length of phase angles using circular statistics

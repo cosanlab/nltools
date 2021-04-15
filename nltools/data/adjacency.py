@@ -1,3 +1,8 @@
+<<<<<<< HEAD
+=======
+from __future__ import division
+
+>>>>>>> 57e9110... update formatting to be consistent with black
 """
 This data class is for working with similarity/dissimilarity matrices
 """
@@ -37,7 +42,10 @@ from nltools.utils import (
     concatenate,
     _bootstrap_apply_func,
     _df_meta_to_arr,
+<<<<<<< HEAD
     isiterable,
+=======
+>>>>>>> 57e9110... update formatting to be consistent with black
 )
 from .design_matrix import Design_Matrix
 from joblib import Parallel, delayed
@@ -115,7 +123,11 @@ class Adjacency(object):
                 self.issymmetric = symmetric_all[0]
                 self.matrix_type = matrix_type_all[0]
             self.is_single_matrix = False
+<<<<<<< HEAD
         elif (isinstance(data, str) or isinstance(data, Path)) and (
+=======
+        elif isinstance(data, six.string_types) and (
+>>>>>>> 57e9110... update formatting to be consistent with black
             (".h5" in data) or (".hdf5" in data)
         ):
             f = dd.io.load(data)
@@ -442,6 +454,7 @@ class Adjacency(object):
                 ]
 
     def plot(self, limit=3, axes=None, *args, **kwargs):
+<<<<<<< HEAD
         """Create Heatmap of Adjacency Matrix
 
         Can pass in any sns.heatmap argument
@@ -449,6 +462,15 @@ class Adjacency(object):
         Args:
             limit: (int) number of heatmaps to plot if object contains multiple adjacencies (default: 3)
             axes: matplotlib axis handle
+=======
+        """ Create Heatmap of Adjacency Matrix
+            
+            Can pass in any sns.heatmap argument
+
+            Args:
+                limit: (int) number of heatmaps to plot if object contains multiple adjacencies (default: 3)
+                axes: matplotlib axis handle
+>>>>>>> 57e9110... update formatting to be consistent with black
         """
 
         if self.is_single_matrix:
@@ -489,7 +511,11 @@ class Adjacency(object):
         return
 
     def mean(self, axis=0):
+<<<<<<< HEAD
         """Calculate mean of Adjacency
+=======
+        """ Calculate mean of Adjacency
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             axis:  (int) calculate mean over features (0) or data (1).
@@ -513,7 +539,7 @@ class Adjacency(object):
                 return np.nanmean(self.data, axis=axis)
 
     def sum(self, axis=0):
-        ''' Calculate sum of Adjacency
+        """ Calculate sum of Adjacency
 
         Args:
             axis:  (int) calculate mean over features (0) or data (1).
@@ -523,19 +549,25 @@ class Adjacency(object):
             mean:  float if single, adjacency if axis=0, np.array if axis=1
                     and multiple
 
-        '''
+        """
 
         if self.is_single_matrix:
             return np.nansum(self.data)
         else:
             if axis == 0:
-                return Adjacency(data=np.nansum(self.data, axis=axis),
-                                 matrix_type=self.matrix_type + '_flat')
+                return Adjacency(
+                    data=np.nansum(self.data, axis=axis),
+                    matrix_type=self.matrix_type + "_flat",
+                )
             elif axis == 1:
                 return np.nansum(self.data, axis=axis)
 
     def std(self, axis=0):
+<<<<<<< HEAD
         """Calculate standard deviation of Adjacency
+=======
+        """ Calculate standard deviation of Adjacency
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             axis:  (int) calculate std over features (0) or data (1).
@@ -559,7 +591,11 @@ class Adjacency(object):
                 return np.nanstd(self.data, axis=axis)
 
     def median(self, axis=0):
+<<<<<<< HEAD
         """Calculate median of Adjacency
+=======
+        """ Calculate median of Adjacency
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             axis:  (int) calculate median over features (0) or data (1).
@@ -601,7 +637,11 @@ class Adjacency(object):
         return deepcopy(self)
 
     def append(self, data):
+<<<<<<< HEAD
         """Append data to Adjacency instance
+=======
+        """ Append data to Adjacency instance
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             data:  (Adjacency) Adjacency instance to append
@@ -629,7 +669,11 @@ class Adjacency(object):
         return out
 
     def write(self, file_name, method="long", **kwargs):
+<<<<<<< HEAD
         """Write out Adjacency object to csv file.
+=======
+        """ Write out Adjacency object to csv file.
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             file_name (str):  name of file name to write
@@ -680,7 +724,11 @@ class Adjacency(object):
         ignore_diagonal=False,
         **kwargs,
     ):
+<<<<<<< HEAD
         """Calculate similarity between two Adjacency matrices.
+=======
+        """ Calculate similarity between two Adjacency matrices.
+>>>>>>> 57e9110... update formatting to be consistent with black
         Default is to use spearman correlation and permutation test.
         Args:
             data: Adjacency data, or 1-d array same size as self.data
@@ -752,7 +800,11 @@ class Adjacency(object):
             ]
 
     def distance(self, metric="correlation", **kwargs):
+<<<<<<< HEAD
         """Calculate distance between images within an Adjacency() instance.
+=======
+        """ Calculate distance between images within an Adjacency() instance.
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             metric: (str) type of distance metric (can use any scikit learn or
@@ -768,8 +820,13 @@ class Adjacency(object):
         )
 
     def r_to_z(self):
+<<<<<<< HEAD
         """Apply Fisher's r to z transformation to each element of the data
         object."""
+=======
+        """ Apply Fisher's r to z transformation to each element of the data
+            object."""
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         out = self.copy()
         out.data = fisher_r_to_z(out.data)
@@ -805,9 +862,15 @@ class Adjacency(object):
         """
 
         b = self.copy()
+<<<<<<< HEAD
         if isinstance(upper, str) and upper[-1] == "%":
             upper = np.percentile(b.data, float(upper[:-1]))
         if isinstance(lower, str) and lower[-1] == "%":
+=======
+        if isinstance(upper, six.string_types) and upper[-1] == "%":
+            upper = np.percentile(b.data, float(upper[:-1]))
+        if isinstance(lower, six.string_types) and lower[-1] == "%":
+>>>>>>> 57e9110... update formatting to be consistent with black
             lower = np.percentile(b.data, float(lower[:-1]))
 
         if upper and lower:
@@ -821,8 +884,13 @@ class Adjacency(object):
         return b
 
     def to_graph(self):
+<<<<<<< HEAD
         """Convert Adjacency into networkx graph.  only works on
         single_matrix for now."""
+=======
+        """ Convert Adjacency into networkx graph.  only works on
+            single_matrix for now."""
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         if self.is_single_matrix:
             if self.matrix_type == "directed":
@@ -839,7 +907,11 @@ class Adjacency(object):
             )
 
     def ttest(self, permutation=False, **kwargs):
+<<<<<<< HEAD
         """Calculate ttest across samples.
+=======
+        """ Calculate ttest across samples.
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             permutation: (bool) Run ttest as permutation. Note this can be very slow.
@@ -869,7 +941,11 @@ class Adjacency(object):
         return {"t": t, "p": p}
 
     def plot_label_distance(self, labels=None, ax=None):
+<<<<<<< HEAD
         """Create a violin plot indicating within and between label distance
+=======
+        """ Create a violin plot indicating within and between label distance
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             labels (np.array):  numpy array of labels to plot
@@ -922,7 +998,11 @@ class Adjacency(object):
         return
 
     def stats_label_distance(self, labels=None, n_permute=5000, n_jobs=-1):
+<<<<<<< HEAD
         """Calculate permutation tests on within and between label distance.
+=======
+        """ Calculate permutation tests on within and between label distance.
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             labels (np.array):  numpy array of labels to plot
@@ -1041,6 +1121,7 @@ class Adjacency(object):
         n_jobs=-1,
         random_state=None,
     ):
+<<<<<<< HEAD
         """Compute intersubject correlation.
 
         This implementation uses the subject-wise bootstrap method from Chen et al., 2016.
@@ -1074,6 +1155,41 @@ class Adjacency(object):
 
         """
 
+=======
+        """ Compute intersubject correlation.
+        
+            This implementation uses the subject-wise bootstrap method from Chen et al., 2016.
+            Instead of recomputing the pairwise ISC using circle_shift or phase_randomization methods,
+            this approach uses the computationally more efficient method of bootstrapping the subjects
+            and computing a new pairwise similarity matrix with randomly selected subjects with replacement.
+            If the same subject is selected multiple times, we set the perfect correlation to a nan with
+            (exclude_self_corr=True). As recommended by Chen et al., 2016, we compute the median pairwise ISC
+            by default. However, if the mean is preferred, we compute the mean correlation after performing
+            the fisher r-to-z transformation and then convert back to correlations to minimize artificially
+            inflating the correlation values. We compute the p-values using the percentile method using the same
+            method in Brainiak.
+            
+            Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B.,
+            & Cox, R. W. (2016). Untangling the relatedness among correlations, part I:
+            nonparametric approaches to inter-subject correlation analysis at the group level.
+            NeuroImage, 142, 248-259.
+            
+            Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap hypothesis testing.
+            Biometrics, 757-762.
+
+            Args:
+                n_bootstraps: (int) number of bootstraps
+                metric: (str) type of association metric ['spearman','pearson','kendall']
+                tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
+                n_jobs: (int) The number of CPUs to use to do the computation. -1 means all CPUs.
+                return_parms: (bool) Return the permutation distribution along with the p-value; default False
+
+            Returns:
+                stats: (dict) dictionary of permutation results ['correlation','p']
+
+        """
+
+>>>>>>> 57e9110... update formatting to be consistent with black
         random_state = check_random_state(random_state)
 
         if metric not in ["mean", "median"]:
@@ -1130,7 +1246,11 @@ class Adjacency(object):
         *args,
         **kwargs,
     ):
+<<<<<<< HEAD
         """Plot Multidimensional Scaling
+=======
+        """ Plot Multidimensional Scaling
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             n_components: (int) Number of dimensions to project (can be 2 or 3)
@@ -1297,16 +1417,27 @@ class Adjacency(object):
         return out
 
     def regress(self, X, mode="ols", **kwargs):
+<<<<<<< HEAD
         """Run a regression on an adjacency instance.
         You can decompose an adjacency instance with another adjacency instance.
         You can also decompose each pixel by passing a design_matrix instance.
+=======
+        """ Run a regression on an adjacency instance.
+            You can decompose an adjacency instance with another adjacency instance.
+            You can also decompose each pixel by passing a design_matrix instance.
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             X: Design matrix can be an Adjacency or Design_Matrix instance
             method: type of regression (default: ols)
 
+<<<<<<< HEAD
         Returns:
             stats: (dict) dictionary of stats outputs.
+=======
+            Returns:
+                stats: (dict) dictionary of stats outputs.
+>>>>>>> 57e9110... update formatting to be consistent with black
         """
 
         stats = {}
@@ -1338,7 +1469,11 @@ class Adjacency(object):
 
     def social_relations_model(self, summarize_results=True, nan_replace=True):
         """Estimate the social relations model from a matrix for a round-robin design.
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> 57e9110... update formatting to be consistent with black
         X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \episolon_{ijl}
 
         where X_{ij} is the score for person i rating person j, m is the group mean,

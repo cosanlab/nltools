@@ -1,3 +1,8 @@
+<<<<<<< HEAD
+=======
+from __future__ import division
+
+>>>>>>> 57e9110... update formatting to be consistent with black
 """
 NeuroLearn Brain Data
 =====================
@@ -59,11 +64,19 @@ from nltools.stats import (
     holm_bonf,
     threshold,
     fisher_r_to_z,
+<<<<<<< HEAD
+=======
+    fisher_z_to_r,
+>>>>>>> 57e9110... update formatting to be consistent with black
     transform_pairwise,
     summarize_bootstrap,
     procrustes,
     find_spikes,
+<<<<<<< HEAD
     regress_permutation,
+=======
+    regress_permutation
+>>>>>>> 57e9110... update formatting to be consistent with black
 )
 from nltools.stats import regress as regression
 from .adjacency import Adjacency
@@ -75,6 +88,7 @@ from pathlib import Path
 
 # Optional dependencies
 <<<<<<< HEAD
+<<<<<<< HEAD
 nx = attempt_to_import("networkx", "nx")
 mne_stats = attempt_to_import(
     "mne.stats",
@@ -84,6 +98,9 @@ mne_stats = attempt_to_import(
 =======
 nx = attempt_to_import('networkx', 'nx')
 >>>>>>> 4a5aa23... removed ttest permutation and mne dependencies
+=======
+nx = attempt_to_import("networkx", "nx")
+>>>>>>> 57e9110... update formatting to be consistent with black
 MAX_INT = np.iinfo(np.int32).max
 
 
@@ -123,7 +140,11 @@ class Brain_Data(object):
         self.nifti_masker = NiftiMasker(mask_img=self.mask)
 
         if data is not None:
+<<<<<<< HEAD
             if isinstance(data, str):
+=======
+            if isinstance(data, six.string_types):
+>>>>>>> 57e9110... update formatting to be consistent with black
                 if "http://" in data or "https://" in data:
                     from nltools.datasets import download_nifti
 
@@ -179,7 +200,11 @@ class Brain_Data(object):
                     if all(isinstance(x, data[0].__class__) for x in data):
                         self.data = []
                         for i in data:
+<<<<<<< HEAD
                             if isinstance(i, str) or isinstance(i, Path):
+=======
+                            if isinstance(i, six.string_types):
+>>>>>>> 57e9110... update formatting to be consistent with black
                                 self.data.append(
                                     self.nifti_masker.fit_transform(nib.load(i))
                                 )
@@ -392,6 +417,7 @@ class Brain_Data(object):
         return self.data.shape
 
     def mean(self, axis=0):
+<<<<<<< HEAD
         """Get mean of each voxel or image
 
         Args:
@@ -400,6 +426,16 @@ class Brain_Data(object):
         Returns:
             out: (float/np.array/Brain_Data)
 
+=======
+        """ Get mean of each voxel or image
+            
+            Args:
+                axis: (int) across images=0 (default), within images=1
+            
+            Returns:
+                out: (float/np.array/Brain_Data)
+
+>>>>>>> 57e9110... update formatting to be consistent with black
         """
 
         out = deepcopy(self)
@@ -417,6 +453,7 @@ class Brain_Data(object):
         return out
 
     def median(self, axis=0):
+<<<<<<< HEAD
         """Get median of each voxel or image
 
         Args:
@@ -425,6 +462,16 @@ class Brain_Data(object):
         Returns:
             out: (float/np.array/Brain_Data)
 
+=======
+        """ Get median of each voxel or image
+            
+            Args:
+                axis: (int) across images=0 (default), within images=1
+            
+            Returns:
+                out: (float/np.array/Brain_Data)
+                
+>>>>>>> 57e9110... update formatting to be consistent with black
         """
 
         out = deepcopy(self)
@@ -442,6 +489,7 @@ class Brain_Data(object):
         return out
 
     def std(self, axis=0):
+<<<<<<< HEAD
         """Get standard deviation of each voxel or image.
 
         Args:
@@ -449,6 +497,15 @@ class Brain_Data(object):
 
         Returns:
             out: (float/np.array/Brain_Data)
+=======
+        """ Get standard deviation of each voxel or image.
+            
+            Args:
+                axis: (int) across images=0 (default), within images=1
+            
+            Returns:
+                out: (float/np.array/Brain_Data)
+>>>>>>> 57e9110... update formatting to be consistent with black
         """
 
         out = deepcopy(self)
@@ -515,7 +572,11 @@ class Brain_Data(object):
             self.to_nifti().to_filename(file_name)
 
     def scale(self, scale_val=100.0):
+<<<<<<< HEAD
         """Scale all values such that they are on the range [0, scale_val],
+=======
+        """ Scale all values such that they are on the range [0, scale_val],
+>>>>>>> 57e9110... update formatting to be consistent with black
             via grand-mean scaling. This is NOT global-scaling/intensity
             normalization. This is useful for ensuring that data is on a
             common scale (e.g. good for multiple runs, participants, etc)
@@ -549,7 +610,11 @@ class Brain_Data(object):
         axes=None,
         **kwargs
     ):
+<<<<<<< HEAD
         """Create a quick plot of self.data.  Will plot each image separately
+=======
+        """ Create a quick plot of self.data.  Will plot each image separately
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             limit: (int) max number of images to return
@@ -659,7 +724,11 @@ class Brain_Data(object):
         )
 
     def regress(self, mode="ols", **kwargs):
+<<<<<<< HEAD
         """Run a mass-univariate regression across voxels. Three types of regressions can be run:
+=======
+        """ Run a mass-univariate regression across voxels. Three types of regressions can be run:
+>>>>>>> 57e9110... update formatting to be consistent with black
         1) Standard OLS (default)
         2) Robust OLS (heteroscedasticty and/or auto-correlation robust errors), i.e. OLS with "sandwich estimators"
         3) ARMA (auto-regressive and moving-average lags = 1 by default; experimental)
@@ -805,15 +874,15 @@ class Brain_Data(object):
         p = deepcopy(self)
 
         t.data, p.data = ttest_1samp(self.data, 0, 0)
-        
+
         if threshold_dict is not None:
             if isinstance(threshold_dict, dict):
-                if 'unc' in threshold_dict:
-                    thr = threshold_dict['unc']
-                elif 'fdr' in threshold_dict:
-                    thr = fdr(p.data, q=threshold_dict['fdr'])
-                elif 'holm-bonf' in threshold_dict:
-                    thr = holm_bonf(p.data, alpha=threshold_dict['holm-bonf'])
+                if "unc" in threshold_dict:
+                    thr = threshold_dict["unc"]
+                elif "fdr" in threshold_dict:
+                    thr = fdr(p.data, q=threshold_dict["fdr"])
+                elif "holm-bonf" in threshold_dict:
+                    thr = holm_bonf(p.data, alpha=threshold_dict["holm-bonf"])
 
                 if return_mask:
                     thr_t, thr_mask = threshold(t, p, thr, True)
@@ -896,8 +965,13 @@ class Brain_Data(object):
         return boolean
 
     def similarity(self, image, method="correlation"):
+<<<<<<< HEAD
         """Calculate similarity of Brain_Data() instance with single
         Brain_Data or Nibabel image
+=======
+        """ Calculate similarity of Brain_Data() instance with single
+            Brain_Data or Nibabel image
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             image: (Brain_Data, nifti)  image to evaluate similarity
@@ -983,7 +1057,11 @@ class Brain_Data(object):
         return flatten_array(pexp)
 
     def distance(self, metric="euclidean", **kwargs):
+<<<<<<< HEAD
         """Calculate distance between images within a Brain_Data() instance.
+=======
+        """ Calculate distance between images within a Brain_Data() instance.
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             metric: (str) type of distance metric (can use any scikit learn or
@@ -1000,8 +1078,13 @@ class Brain_Data(object):
         )
 
     def multivariate_similarity(self, images, method="ols"):
+<<<<<<< HEAD
         """Predict spatial distribution of Brain_Data() instance from linear
         combination of other Brain_Data() instances or Nibabel images
+=======
+        """ Predict spatial distribution of Brain_Data() instance from linear
+            combination of other Brain_Data() instances or Nibabel images
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             self: Brain_Data instance of data to be applied
@@ -1340,7 +1423,11 @@ class Brain_Data(object):
         verbose=0,
         **kwargs
     ):
+<<<<<<< HEAD
         """Perform multi-region prediction. This can be a searchlight analysis or multi-roi analysis if provided a Brain_Data instance with labeled non-overlapping rois.
+=======
+        """ Perform multi-region prediction. This can be a searchlight analysis or multi-roi analysis if provided a Brain_Data instance with labeled non-overlapping rois.
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             algorithm (string): algorithm to use for prediction Must be one of 'svm',
@@ -1389,7 +1476,11 @@ class Brain_Data(object):
             groups = None
 
         if method == "rois":
+<<<<<<< HEAD
             if isinstance(rois, str) or isinstance(rois, Path):
+=======
+            if isinstance(rois, six.string_types):
+>>>>>>> 57e9110... update formatting to be consistent with black
                 if os.path.isfile(rois):
                     rois_img = Brain_Data(rois, mask=self.mask)
             elif isinstance(rois, Brain_Data):
@@ -1484,7 +1575,11 @@ class Brain_Data(object):
         return masked
 
     def extract_roi(self, mask, metric="mean", n_components=None):
+<<<<<<< HEAD
         """Extract activity from mask
+=======
+        """ Extract activity from mask
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             mask: (nifti) nibabel mask can be binary or numbered for
@@ -1556,7 +1651,11 @@ class Brain_Data(object):
         return out
 
     def icc(self, icc_type="icc2"):
+<<<<<<< HEAD
         """Calculate intraclass correlation coefficient for data within
+=======
+        """ Calculate intraclass correlation coefficient for data within
+>>>>>>> 57e9110... update formatting to be consistent with black
             Brain_Data class
 
         ICC Formulas are based on:
@@ -1634,7 +1733,11 @@ class Brain_Data(object):
         return ICC
 
     def detrend(self, method="linear"):
+<<<<<<< HEAD
         """Remove linear trend from each voxel
+=======
+        """ Remove linear trend from each voxel
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             type: ('linear','constant', optional) type of detrending
@@ -1666,7 +1769,11 @@ class Brain_Data(object):
         img_modality=None,
         **kwargs
     ):
+<<<<<<< HEAD
         """Upload Data to Neurovault.  Will add any columns in self.X to image
+=======
+        """ Upload Data to Neurovault.  Will add any columns in self.X to image
+>>>>>>> 57e9110... update formatting to be consistent with black
             metadata. Index will be used as image name.
 
         Args:
@@ -1746,22 +1853,31 @@ class Brain_Data(object):
         return collection
 
     def r_to_z(self):
+<<<<<<< HEAD
         """Apply Fisher's r to z transformation to each element of the data
         object."""
+=======
+        """ Apply Fisher's r to z transformation to each element of the data
+            object."""
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         out = self.copy()
         out.data = fisher_r_to_z(out.data)
         return out
 
     def z_to_r(self):
-        ''' Convert z score back into r value for each element of data object'''
+        """ Convert z score back into r value for each element of data object"""
 
         out = self.copy()
         out.data = fisher_z_to_r(out.data)
         return out
-        
+
     def filter(self, sampling_freq=None, high_pass=None, low_pass=None, **kwargs):
+<<<<<<< HEAD
         """Apply 5th order butterworth filter to data. Wraps nilearn
+=======
+        """ Apply 5th order butterworth filter to data. Wraps nilearn
+>>>>>>> 57e9110... update formatting to be consistent with black
         functionality. Does not default to detrending and standardizing like
         nilearn implementation, but this can be overridden using kwargs.
 
@@ -1798,7 +1914,11 @@ class Brain_Data(object):
         return self.data.dtype
 
     def astype(self, dtype):
+<<<<<<< HEAD
         """Cast Brain_Data.data as type.
+=======
+        """ Cast Brain_Data.data as type.
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             dtype: datatype to convert
@@ -1813,7 +1933,11 @@ class Brain_Data(object):
         return out
 
     def standardize(self, axis=0, method="center"):
+<<<<<<< HEAD
         """Standardize Brain_Data() instance.
+=======
+        """ Standardize Brain_Data() instance.
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             axis: 0 for observations 1 for voxels
@@ -1876,10 +2000,17 @@ class Brain_Data(object):
         if coerce_nan:
             b.data = np.nan_to_num(b.data)
 
+<<<<<<< HEAD
         if isinstance(upper, str) and upper[-1] == "%":
             upper = np.percentile(b.data, float(upper[:-1]))
 
         if isinstance(lower, str) and lower[-1] == "%":
+=======
+        if isinstance(upper, six.string_types) and upper[-1] == "%":
+            upper = np.percentile(b.data, float(upper[:-1]))
+
+        if isinstance(lower, six.string_types) and lower[-1] == "%":
+>>>>>>> 57e9110... update formatting to be consistent with black
             lower = np.percentile(b.data, float(lower[:-1]))
 
         if upper and lower:
@@ -1900,7 +2031,11 @@ class Brain_Data(object):
         smoothing_fwhm=6,
         is_mask=False,
     ):
+<<<<<<< HEAD
         """Extract brain connected regions into separate regions.
+=======
+        """ Extract brain connected regions into separate regions.
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             min_region_size (int): Minimum volume in mm3 for a region to be
@@ -1937,7 +2072,11 @@ class Brain_Data(object):
         return Brain_Data(regions, mask=self.mask)
 
     def transform_pairwise(self):
+<<<<<<< HEAD
         """Extract brain connected regions into separate regions.
+=======
+        """ Extract brain connected regions into separate regions.
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
 
@@ -1996,7 +2135,11 @@ class Brain_Data(object):
     def decompose(
         self, algorithm="pca", axis="voxels", n_components=None, *args, **kwargs
     ):
+<<<<<<< HEAD
         """Decompose Brain_Data object
+=======
+        """ Decompose Brain_Data object
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Args:
             algorithm: (str) Algorithm to perform decomposition
@@ -2029,7 +2172,11 @@ class Brain_Data(object):
         return out
 
     def align(self, target, method="procrustes", axis=0, *args, **kwargs):
+<<<<<<< HEAD
         """Align Brain_Data instance to target object using functional alignment
+=======
+        """ Align Brain_Data instance to target object using functional alignment
+>>>>>>> 57e9110... update formatting to be consistent with black
 
         Alignment type can be hyperalignment or Shared Response Model. When
         using hyperalignment, `target` image can be another subject or an
@@ -2129,10 +2276,17 @@ class Brain_Data(object):
     def smooth(self, fwhm):
         """Apply spatial smoothing using nilearn smooth_img()
 
+<<<<<<< HEAD
         Args:
             fwhm: (float) full width half maximum of gaussian spatial filter
         Returns:
             Brain_Data instance
+=======
+            Args:
+                fwhm: (float) full width half maximum of gaussian spatial filter
+            Returns:
+                Brain_Data instance
+>>>>>>> 57e9110... update formatting to be consistent with black
         """
         out = self.copy()
         out.data = out.nifti_masker.fit_transform(smooth_img(self.to_nifti(), fwhm))
@@ -2144,6 +2298,7 @@ class Brain_Data(object):
     def find_spikes(self, global_spike_cutoff=3, diff_spike_cutoff=3):
         """Function to identify spikes from Time Series Data
 
+<<<<<<< HEAD
         Args:
             global_spike_cutoff: (int,None) cutoff to identify spikes in global signal
                                  in standard deviations, None indicates do not calculate.
@@ -2151,6 +2306,15 @@ class Brain_Data(object):
                                  in standard deviations, None indicates do not calculate.
         Returns:
             pandas dataframe with spikes as indicator variables
+=======
+            Args:
+                global_spike_cutoff: (int,None) cutoff to identify spikes in global signal
+                                     in standard deviations, None indicates do not calculate.
+                diff_spike_cutoff: (int,None) cutoff to identify spikes in average frame difference
+                                     in standard deviations, None indicates do not calculate.
+            Returns:
+                pandas dataframe with spikes as indicator variables
+>>>>>>> 57e9110... update formatting to be consistent with black
         """
         return find_spikes(
             self,
@@ -2159,7 +2323,11 @@ class Brain_Data(object):
         )
 
     def temporal_resample(self, sampling_freq=None, target=None, target_type="hz"):
+<<<<<<< HEAD
         """Resample Brain_Data timeseries to a new target frequency or number of samples
+=======
+        """ Resample Brain_Data timeseries to a new target frequency or number of samples
+>>>>>>> 57e9110... update formatting to be consistent with black
         using Piecewise Cubic Hermite Interpolating Polynomial (PCHIP) interpolation.
         This function can up- or down-sample data.
 
@@ -2233,7 +2401,11 @@ class Groupby(object):
 
     def split(self, data, mask):
         """Split Brain_Data instance into separate masks and store as a
+<<<<<<< HEAD
         dictionary.
+=======
+            dictionary.
+>>>>>>> 57e9110... update formatting to be consistent with black
         """
 
         self.data = {}
@@ -2242,7 +2414,11 @@ class Groupby(object):
 
     def apply(self, method):
         """Apply Brain_Data instance methods to each element of Groupby
+<<<<<<< HEAD
         object.
+=======
+            object.
+>>>>>>> 57e9110... update formatting to be consistent with black
         """
         return dict([(i, getattr(x, method)()) for i, x in self])
 
