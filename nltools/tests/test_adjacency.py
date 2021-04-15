@@ -131,22 +131,27 @@ def test_sum():
 
 def test_similarity(sim_adjacency_multiple):
     n_permute = 1000
-    squaremat = sim_adjacency_multiple[0].squareform()
-
-    res = sim_adjacency_multiple.similarity(
-        squaremat, perm_type="1d", n_permute=n_permute
-    )
-    assert len(res) == len(sim_adjacency_multiple)
-
-    res = sim_adjacency_multiple.similarity(
-        squaremat, perm_type="1d", metric="pearson", n_permute=n_permute
-    )
-    assert len(res) == len(sim_adjacency_multiple)
-
-    res = sim_adjacency_multiple.similarity(
-        squaremat, perm_type="1d", metric="kendall", n_permute=n_permute
-    )
-    assert len(res) == len(sim_adjacency_multiple)
+    assert len(
+        sim_adjacency_multiple.similarity(
+            sim_adjacency_multiple[0].squareform(), perm_type="1d", n_permute=n_permute
+        )
+    ) == len(sim_adjacency_multiple)
+    assert len(
+        sim_adjacency_multiple.similarity(
+            sim_adjacency_multiple[0].squareform(),
+            perm_type="1d",
+            metric="pearson",
+            n_permute=n_permute,
+        )
+    ) == len(sim_adjacency_multiple)
+    assert len(
+        sim_adjacency_multiple.similarity(
+            sim_adjacency_multiple[0].squareform(),
+            perm_type="1d",
+            metric="kendall",
+            n_permute=n_permute,
+        )
+    ) == len(sim_adjacency_multiple)
 
     data2 = sim_adjacency_multiple[0].copy()
     data2.data = data2.data + np.random.randn(len(data2.data)) * 0.1
@@ -201,7 +206,7 @@ def test_directed_similarity():
     # Error out but make usre TypeError is the reason why
     try:
         x.similarity(y, perm_type="2d")
-    except TypeError as _:  # noqa
+    except TypeError as e:
         pass
 
 
@@ -277,24 +282,6 @@ def test_similarity_conversion(sim_adjacency_single):
         )[0],
         significant=1,
     )
-    np.testing.assert_approx_equal(
-        -1,
-        pearsonr(
-            sim_adjacency_single.distance_to_similarity().data,
-            sim_adjacency_single.distance_to_similarity().similarity_to_distance().data,
-        )[0],
-        significant=1,
-    )
-
-
-def test_cluster_mean():
-    test_dat = Adjacency(
-        block_diag(np.ones((4, 4)), np.ones((4, 4)) * 2, np.ones((4, 4)) * 3),
-        matrix_type="similarity",
-    )
-    test_labels = np.concatenate([np.ones(4) * x for x in range(1, 4)])
-    out = test_dat.within_cluster_mean(clusters=test_labels)
-    assert np.sum(np.array([1, 2, 3]) - np.array([out[x] for x in out])) == 0
 
 
 def test_regression():
@@ -313,17 +300,18 @@ def test_regression():
     d = Adjacency(
         [
             block_diag(np.ones((4, 4)) + np.random.randn(4, 4) * 0.1, np.zeros((8, 8)))
-            for _ in range(n)
+            for x in range(n)
         ],
         matrix_type="similarity",
     )
     X = Design_Matrix(np.ones(n))
     stats = d.regress(X)
-    out = stats["beta"].within_cluster_mean(clusters=["Group1"] * 4 + ["Group2"] * 8)
+    out = stats["beta"].cluster_summary(
+        clusters=["Group1"] * 4 + ["Group2"] * 8, summary="within"
+    )
     assert np.allclose(
         np.array([out["Group1"], out["Group2"]]), np.array([1, 0]), rtol=1e-01
-    )
-    # np.allclose(np.sum(stats['beta']-np.array([1,2,3])),0)
+    )  # np.allclose(np.sum(stats['beta']-np.array([1,2,3])),0)
 
 
 def test_social_relations_model():
@@ -374,7 +362,13 @@ def test_isc(sim_adjacency_single):
 
 
 def test_fisher_r_to_z(sim_adjacency_single):
-    assert (sim_adjacency.data - sim_adjacency_single.r_to_z().z_to_r().data) == 0
+    np.testing.assert_almost_equal(
+        np.nansum(
+            sim_adjacency_single.data - sim_adjacency_single.r_to_z().z_to_r().data
+        ),
+        0,
+        decimal=2,
+    )
 
 
 def test_cluster_summary():
@@ -391,7 +385,7 @@ def test_cluster_summary():
     for i, j in zip(
         np.array([1, 2, 3]), np.array([cluster_mean[x] for x in cluster_mean])
     ):
-        np.testing.assert_almost_equal(i, j, decimal=2)
+        np.testing.assert_almost_equal(i, j, decimal=1)
 
     for i in dat.cluster_summary(clusters=clusters, summary="between").values():
         np.testing.assert_almost_equal(0, i, decimal=1)
