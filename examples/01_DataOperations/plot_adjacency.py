@@ -46,7 +46,7 @@ dat.plot()
 #########################################################################
 # The mean within a a grouping label can be calculated using the `.cluster_summary()` method.  You must specify a group variable to group the  data.  Here we use the labels.
 
-print(dat.cluster_summary(clusters=dat.labels, method='within',  metric='mean'))
+print(dat.cluster_summary(clusters=dat.labels, metric='within',  metric='mean'))
 
 #########################################################################
 # Regression
