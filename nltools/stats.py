@@ -2029,16 +2029,16 @@ def isfc(data, method="average"):
 
 def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5, pairwise=False):
     """Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array)
-    
+
     This function computes the instantaneous intersubject phase synchrony for a single voxel/roi
     timeseries. Requires multiple subjects. This method is largely based on that described by Glerean
     et al., 2012 and performs a hilbert transform on narrow bandpass filtered timeseries (butterworth)
     data to get the instantaneous phase angle. The function returns a dictionary containing the
-    average phase angle, the average vector length, and parametric p-values computed using the rayleigh test using circular 
-    statistics (Fisher, 1993). If pairwise=True, then it will compute these on the pairwise phase angle differences, 
+    average phase angle, the average vector length, and parametric p-values computed using the rayleigh test using circular
+    statistics (Fisher, 1993). If pairwise=True, then it will compute these on the pairwise phase angle differences,
     if pairwise=False, it will compute these on the actual phase angles. This is called inter-site phase coupling
     or inter-trial phase coupling respectively in the EEG literatures.
-    
+
     This function requires narrow band filtering your data. As a default we use the recommendations
     by (Glerean et al., 2012) of .04-.07Hz. This is similar to the "slow-4" band (0.025–0.067 Hz)
     described by (Zuo et al., 2010; Penttonen & Buzsáki, 2003), but excludes the .03 band, which has been
@@ -2062,9 +2062,9 @@ def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5, pairwise
         low_cut: (float) lower bound cutoff for high pass filter
         high_cut: (float) upper bound cutoff for low pass filter
         order: (int) filter order for butterworth bandpass
-        pairwise: (bool) compute phase angle coherence on pairwise phase angle differences 
+        pairwise: (bool) compute phase angle coherence on pairwise phase angle differences
                 or on raw phase angle.
-        
+
     Returns:
         dictionary with mean phase angle, vector length, and rayleigh statistic
 
@@ -2207,7 +2207,7 @@ def align_states(
     replace_zero_variance=False,
 ):
     """Align state weight maps using hungarian algorithm by minimizing pairwise distance between group states.
-    
+
     Args:
         reference: (np.array) reference pattern x state matrix
         target: (np.array) target pattern x state matrix to align to reference
@@ -2217,7 +2217,7 @@ def align_states(
                                 Useful for when using correlation as a distance metric to avoid NaNs.
     Returns:
         ordered_weights: (list) a list of reordered state X pattern matrices
-    
+
     """
     if reference.shape != target.shape:
         raise ValueError("reference and target must be the same size")

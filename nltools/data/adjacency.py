@@ -37,7 +37,6 @@ from nltools.utils import (
     concatenate,
     _bootstrap_apply_func,
     _df_meta_to_arr,
-    isiterable,
 )
 from .design_matrix import Design_Matrix
 from joblib import Parallel, delayed
@@ -513,7 +512,7 @@ class Adjacency(object):
                 return np.nanmean(self.data, axis=axis)
 
     def sum(self, axis=0):
-        ''' Calculate sum of Adjacency
+        """Calculate sum of Adjacency
 
         Args:
             axis:  (int) calculate mean over features (0) or data (1).
@@ -523,14 +522,16 @@ class Adjacency(object):
             mean:  float if single, adjacency if axis=0, np.array if axis=1
                     and multiple
 
-        '''
+        """
 
         if self.is_single_matrix:
             return np.nansum(self.data)
         else:
             if axis == 0:
-                return Adjacency(data=np.nansum(self.data, axis=axis),
-                                 matrix_type=self.matrix_type + '_flat')
+                return Adjacency(
+                    data=np.nansum(self.data, axis=axis),
+                    matrix_type=self.matrix_type + "_flat",
+                )
             elif axis == 1:
                 return np.nansum(self.data, axis=axis)
 
@@ -1229,9 +1230,9 @@ class Adjacency(object):
 
         """
         if self.matrix_type == "distance":
-            if metric is "correlation":
+            if metric == "correlation":
                 return Adjacency(1 - self.squareform(), matrix_type="similarity")
-            elif metric is "euclidean":
+            elif metric == "euclidean":
                 return Adjacency(
                     np.exp(-beta * self.squareform() / self.squareform().std()),
                     labels=self.labels,
@@ -1243,8 +1244,8 @@ class Adjacency(object):
             raise ValueError("Matrix is not a distance matrix.")
 
     def cluster_summary(self, clusters=None, metric="mean", summary="within"):
-        """ This function provides summaries of clusters within Adjacency matrices.
-        
+        """This function provides summaries of clusters within Adjacency matrices.
+
         It can compute mean/median of within and between cluster values. Requires a
         list of cluster ids indicating the row/column of each cluster.
 

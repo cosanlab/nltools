@@ -23,7 +23,6 @@ import nibabel as nib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import warnings
 import tempfile
 from copy import deepcopy
 from sklearn.metrics import balanced_accuracy_score
@@ -59,6 +58,7 @@ from nltools.stats import (
     holm_bonf,
     threshold,
     fisher_r_to_z,
+    fisher_z_to_r,
     transform_pairwise,
     summarize_bootstrap,
     procrustes,
@@ -74,16 +74,7 @@ from pathlib import Path
 
 
 # Optional dependencies
-<<<<<<< HEAD
 nx = attempt_to_import("networkx", "nx")
-mne_stats = attempt_to_import(
-    "mne.stats",
-    name="mne_stats",
-    fromlist=["spatio_temporal_cluster_1samp_test", "ttest_1samp_no_p"],
-)
-=======
-nx = attempt_to_import('networkx', 'nx')
->>>>>>> 4a5aa23... removed ttest permutation and mne dependencies
 MAX_INT = np.iinfo(np.int32).max
 
 
@@ -792,7 +783,7 @@ class Brain_Data(object):
 
         Args:
             threshold_dict: (dict) a dictionary of threshold parameters
-                            {'unc':.001} or {'fdr':.05} 
+                            {'unc':.001} or {'fdr':.05}
             return_mask: (bool) if thresholding is requested, optionall return the mask of voxels that exceed threshold, e.g. for use with another map
 
         Returns:
@@ -805,15 +796,15 @@ class Brain_Data(object):
         p = deepcopy(self)
 
         t.data, p.data = ttest_1samp(self.data, 0, 0)
-        
+
         if threshold_dict is not None:
             if isinstance(threshold_dict, dict):
-                if 'unc' in threshold_dict:
-                    thr = threshold_dict['unc']
-                elif 'fdr' in threshold_dict:
-                    thr = fdr(p.data, q=threshold_dict['fdr'])
-                elif 'holm-bonf' in threshold_dict:
-                    thr = holm_bonf(p.data, alpha=threshold_dict['holm-bonf'])
+                if "unc" in threshold_dict:
+                    thr = threshold_dict["unc"]
+                elif "fdr" in threshold_dict:
+                    thr = fdr(p.data, q=threshold_dict["fdr"])
+                elif "holm-bonf" in threshold_dict:
+                    thr = holm_bonf(p.data, alpha=threshold_dict["holm-bonf"])
 
                 if return_mask:
                     thr_t, thr_mask = threshold(t, p, thr, True)
@@ -1754,12 +1745,12 @@ class Brain_Data(object):
         return out
 
     def z_to_r(self):
-        ''' Convert z score back into r value for each element of data object'''
+        """ Convert z score back into r value for each element of data object"""
 
         out = self.copy()
         out.data = fisher_z_to_r(out.data)
         return out
-        
+
     def filter(self, sampling_freq=None, high_pass=None, low_pass=None, **kwargs):
         """Apply 5th order butterworth filter to data. Wraps nilearn
         functionality. Does not default to detrending and standardizing like
