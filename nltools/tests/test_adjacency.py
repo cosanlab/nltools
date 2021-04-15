@@ -5,6 +5,7 @@ from nltools.data import Adjacency, Design_Matrix
 import networkx as nx
 from scipy.stats import pearsonr
 from scipy.linalg import block_diag
+from pathlib import Path
 
 
 def test_type_single(sim_adjacency_single):
@@ -85,12 +86,18 @@ def test_write_multiple(sim_adjacency_multiple, tmpdir):
             assert b.__dict__[k] == sim_adjacency_multiple.__dict__[k]
 
 
-def test_write_directed(sim_adjacency_directed, tmpdir):
+def test_read_and_write_directed(sim_adjacency_directed, tmpdir):
     sim_adjacency_directed.write(
         os.path.join(str(tmpdir.join("Test.csv"))), method="long"
     )
     dat_directed2 = Adjacency(
         os.path.join(str(tmpdir.join("Test.csv"))), matrix_type="directed_flat"
+    )
+    assert np.all(np.isclose(sim_adjacency_directed.data, dat_directed2.data))
+
+    # Load Path
+    dat_directed2 = Adjacency(
+        Path(tmpdir.join("Test.csv")), matrix_type="directed_flat"
     )
     assert np.all(np.isclose(sim_adjacency_directed.data, dat_directed2.data))
 

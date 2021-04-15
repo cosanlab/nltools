@@ -102,6 +102,8 @@ class Brain_Data(object):
         if mask is not None:
             if not isinstance(mask, nib.Nifti1Image):
                 if isinstance(mask, str) or isinstance(mask, Path):
+                    # Convert Path objects to string; converting string is a no-op so this won't affect real strings
+                    to_load = str(mask)
                     if os.path.isfile(mask):
                         mask = nib.load(mask)
                 else:
@@ -114,15 +116,17 @@ class Brain_Data(object):
         self.nifti_masker = NiftiMasker(mask_img=self.mask)
 
         if data is not None:
-            if isinstance(data, str):
-                if "http://" in data or "https://" in data:
+            if isinstance(data, str) or isinstance(data, Path):
+                # Convert Path objects to string; converting string is a no-op so this won't affect real strings
+                to_load = str(data)
+                if "http://" in to_load or "https://" in to_load:
                     from nltools.datasets import download_nifti
 
                     tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
                     os.makedirs(tmp_dir)
-                    data = nib.load(download_nifti(data, data_dir=tmp_dir))
-                elif (".h5" in data) or (".hdf5" in data):
-                    f = dd.io.load(data)
+                    data = nib.load(download_nifti(to_load, data_dir=tmp_dir))
+                elif (".h5" in to_load) or (".hdf5" in to_load):
+                    f = dd.io.load(to_load)
                     self.data = f["data"]
                     self.X = pd.DataFrame(
                         f["X"],
@@ -171,8 +175,10 @@ class Brain_Data(object):
                         self.data = []
                         for i in data:
                             if isinstance(i, str) or isinstance(i, Path):
+                                # Convert Path objects to string; converting string is a no-op so this won't affect real strings
+                                to_load = str(i)
                                 self.data.append(
-                                    self.nifti_masker.fit_transform(nib.load(i))
+                                    self.nifti_masker.fit_transform(nib.load(to_load))
                                 )
                             elif isinstance(i, nib.Nifti1Image):
                                 self.data.append(self.nifti_masker.fit_transform(i))
@@ -496,7 +502,7 @@ class Brain_Data(object):
                     "Y_columns": y_columns,
                     "Y_index": y_index,
                     "mask_affine": self.mask.affine,
-                    "mask_data": self.mask.get_data(),
+                    "mask_data": self.mask.get_fdata(),
                     "mask_file_name": self.mask.get_filename(),
                     "file_name": self.file_name,
                 },
@@ -904,8 +910,8 @@ class Brain_Data(object):
         # Check to make sure masks are the same for each dataset and if not
         # create a union mask
         # This might be handy code for a new Brain_Data method
-        if np.sum(self.nifti_masker.mask_img.get_data() == 1) != np.sum(
-            image.nifti_masker.mask_img.get_data() == 1
+        if np.sum(self.nifti_masker.mask_img.get_fdata() == 1) != np.sum(
+            image.nifti_masker.mask_img.get_fdata() == 1
         ):
             new_mask = intersect_masks(
                 [self.nifti_masker.mask_img, image.nifti_masker.mask_img],
@@ -1012,8 +1018,8 @@ class Brain_Data(object):
 
         # Check to make sure masks are the same for each dataset and if not create a union mask
         # This might be handy code for a new Brain_Data method
-        if np.sum(self.nifti_masker.mask_img.get_data() == 1) != np.sum(
-            images.nifti_masker.mask_img.get_data() == 1
+        if np.sum(self.nifti_masker.mask_img.get_fdata() == 1) != np.sum(
+            images.nifti_masker.mask_img.get_fdata() == 1
         ):
             new_mask = intersect_masks(
                 [self.nifti_masker.mask_img, images.nifti_masker.mask_img],

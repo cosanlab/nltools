@@ -114,29 +114,40 @@ class Adjacency(object):
                 self.issymmetric = symmetric_all[0]
                 self.matrix_type = matrix_type_all[0]
             self.is_single_matrix = False
-        elif (isinstance(data, str) or isinstance(data, Path)) and (
-            (".h5" in data) or (".hdf5" in data)
-        ):
-            f = dd.io.load(data)
-            self.data = f["data"]
-            self.Y = pd.DataFrame(
-                f["Y"],
-                columns=[
+        elif isinstance(data, str) or isinstance(data, Path):
+            to_load = str(data)
+            # Data is a string or apth and h5
+            if (".h5" in to_load) or (".hdf5" in to_load):
+                f = dd.io.load(data)
+                self.data = f["data"]
+                self.Y = pd.DataFrame(
+                    f["Y"],
+                    columns=[
+                        e.decode("utf-8") if isinstance(e, bytes) else e
+                        for e in f["Y_columns"]
+                    ],
+                    index=[
+                        e.decode("utf-8") if isinstance(e, bytes) else e
+                        for e in f["Y_index"]
+                    ],
+                )
+                self.matrix_type = f["matrix_type"]
+                self.is_single_matrix = f["is_single_matrix"]
+                self.issymmetric = f["issymmetric"]
+                self.labels = [
                     e.decode("utf-8") if isinstance(e, bytes) else e
-                    for e in f["Y_columns"]
-                ],
-                index=[
-                    e.decode("utf-8") if isinstance(e, bytes) else e
-                    for e in f["Y_index"]
-                ],
-            )
-            self.matrix_type = f["matrix_type"]
-            self.is_single_matrix = f["is_single_matrix"]
-            self.issymmetric = f["issymmetric"]
-            self.labels = [
-                e.decode("utf-8") if isinstance(e, bytes) else e for e in f["labels"]
-            ]
-            return
+                    for e in f["labels"]
+                ]
+                return
+            # Data is a string or path but not h5
+            else:
+                (
+                    self.data,
+                    self.issymmetric,
+                    self.matrix_type,
+                    self.is_single_matrix,
+                ) = self._import_single_data(data, matrix_type=matrix_type)
+        # Data is not a string or path
         else:
             (
                 self.data,
