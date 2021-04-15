@@ -51,7 +51,7 @@ __all__ = [
 import numpy as np
 from numpy.fft import fft, ifft
 import pandas as pd
-from scipy.stats import pearsonr, spearmanr, kendalltau, norm, ttest_1samp
+from scipy.stats import pearsonr, spearmanr, kendalltau, norm
 from scipy.stats import t as t_dist
 from scipy.spatial.distance import squareform, pdist
 from scipy.linalg import orthogonal_procrustes
@@ -668,14 +668,14 @@ def correlation_permutation(
     if method == "permute":
         all_p = Parallel(n_jobs=n_jobs)(
             delayed(correlation)(random_state.permutation(data1), data2, metric=metric)
-            for i in range(n_permute)
+            for _ in range(n_permute)
         )
     elif method == "circle_shift":
         all_p = Parallel(n_jobs=n_jobs)(
             delayed(correlation)(
                 circle_shift(data1, random_state=random_state), data2, metric=metric
             )
-            for i in range(n_permute)
+            for _ in range(n_permute)
         )
     elif method == "phase_randomize":
         all_p = Parallel(n_jobs=n_jobs)(
@@ -684,7 +684,7 @@ def correlation_permutation(
                 phase_randomize(data2),
                 metric=metric,
             )
-            for i in range(n_permute)
+            for _ in range(n_permute)
         )
 
     all_p = [x[0] for x in all_p]
@@ -1620,7 +1620,7 @@ def procrustes_distance(
     stats = {"similarity": sse}
     all_p = Parallel(n_jobs=n_jobs)(
         delayed(procrust)(random_state.permutation(mat1), mat2)
-        for i in range(n_permute)
+        for _ in range(n_permute)
     )
     all_p = [1 - x[2] for x in all_p]
 
@@ -1943,7 +1943,7 @@ def isc(
                 exclude_self_corr=exclude_self_corr,
                 random_state=random_state,
             )
-            for i in range(n_bootstraps)
+            for _ in range(n_bootstraps)
         )
         stats["p"] = _calc_pvalue(all_bootstraps - stats["isc"], stats["isc"], tail)
 
@@ -1952,7 +1952,7 @@ def isc(
             delayed(_compute_isc)(
                 circle_shift(data, random_state=random_state), metric=metric
             )
-            for i in range(n_bootstraps)
+            for _ in range(n_bootstraps)
         )
         stats["p"] = _calc_pvalue(all_bootstraps, stats["isc"], tail)
     elif method == "phase_randomize":
@@ -1960,7 +1960,7 @@ def isc(
             delayed(_compute_isc)(
                 phase_randomize(data, random_state=random_state), metric=metric
             )
-            for i in range(n_bootstraps)
+            for _ in range(n_bootstraps)
         )
         stats["p"] = _calc_pvalue(all_bootstraps, stats["isc"], tail)
     else:
