@@ -1098,7 +1098,7 @@ class Adjacency(object):
                 exclude_self_corr=exclude_self_corr,
                 random_state=random_state,
             )
-            for i in range(n_bootstraps)
+            for _ in range(n_bootstraps)
         )
 
         stats["p"] = _calc_pvalue(all_bootstraps - stats["isc"], stats["isc"], tail)
@@ -1340,11 +1340,11 @@ class Adjacency(object):
     def social_relations_model(self, summarize_results=True, nan_replace=True):
         """Estimate the social relations model from a matrix for a round-robin design.
 
-        X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \episolon_{ijl}
+        X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \epsilon_{ijl}
 
         where X_{ij} is the score for person i rating person j, m is the group mean,
         \alpha_i  is person i's actor effect, \beta_j is person j's partner effect, g_{ij}
-        is the relationship  effect and \episolon_{ijl} is the error in measure l  for actor i and partner j.
+        is the relationship  effect and \epsilon_{ijl} is the error in measure l  for actor i and partner j.
 
         This model is primarily concerned with partioning the variance of the various effects.
 
@@ -1610,7 +1610,7 @@ class Adjacency(object):
             return (X, coord)
 
         if nan_replace:
-            data, coord = replace_missing(self)
+            data, _ = replace_missing(self)
         else:
             data = self.copy()
 

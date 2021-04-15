@@ -487,7 +487,7 @@ def test_isc():
 def test_isfc():
     def simulate_sub_roi_data(n_sub, n_tr):
         sub_dat = []
-        for i in range(n_sub):
+        for _ in range(n_sub):
             sub_dat.append(
                 np.random.multivariate_normal(
                     [0, 0, 0, 0, 0],
