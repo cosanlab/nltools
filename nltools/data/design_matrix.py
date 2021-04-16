@@ -19,7 +19,6 @@ from scipy.special import legendre
 from ..external.hrf import glover_hrf
 from nltools.stats import downsample, upsample, zscore, make_cosine_basis
 from nltools.utils import AmbiguityError
-from pathlib import Path
 
 
 class Design_Matrix_Series(Series):
@@ -494,7 +493,7 @@ class Design_Matrix(DataFrame):
 
         """
         cmap = kwargs.pop("cmap", "gray")
-        fig, ax = plt.subplots(1, figsize=figsize)
+        _, ax = plt.subplots(1, figsize=figsize)
         ax = sns.heatmap(self, cmap=cmap, cbar=False, ax=ax, **kwargs)
         for _, spine in ax.spines.items():
             spine.set_visible(True)

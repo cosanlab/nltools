@@ -5,6 +5,7 @@ from nltools.data import Adjacency, Design_Matrix
 import networkx as nx
 from scipy.stats import pearsonr
 from scipy.linalg import block_diag
+from pathlib import Path
 
 
 def test_type_single(sim_adjacency_single):
@@ -85,12 +86,18 @@ def test_write_multiple(sim_adjacency_multiple, tmpdir):
             assert b.__dict__[k] == sim_adjacency_multiple.__dict__[k]
 
 
-def test_write_directed(sim_adjacency_directed, tmpdir):
+def test_read_and_write_directed(sim_adjacency_directed, tmpdir):
     sim_adjacency_directed.write(
         os.path.join(str(tmpdir.join("Test.csv"))), method="long"
     )
     dat_directed2 = Adjacency(
         os.path.join(str(tmpdir.join("Test.csv"))), matrix_type="directed_flat"
+    )
+    assert np.all(np.isclose(sim_adjacency_directed.data, dat_directed2.data))
+
+    # Load Path
+    dat_directed2 = Adjacency(
+        Path(tmpdir.join("Test.csv")), matrix_type="directed_flat"
     )
     assert np.all(np.isclose(sim_adjacency_directed.data, dat_directed2.data))
 
@@ -111,24 +118,53 @@ def test_std(sim_adjacency_multiple):
     )
 
 
+def test_sum():
+    n = 10
+    a = Adjacency(np.ones((n, n)), matrix_type="directed")
+    assert a.sum() == n ** 2
+    a = Adjacency([a, a])
+    assert a.sum().data.sum() == (n ** 2) * 2
+
+    a = Adjacency(np.ones((n, n)), matrix_type="similarity")
+    assert a.sum() == n * (n - 1) / 2
+    a = Adjacency([a, a])
+    assert a.sum().data.sum() == n * (n - 1)
+
+    a = Adjacency(np.ones((n, n)), matrix_type="distance")
+    assert a.sum() == n * (n - 1) / 2
+    a = Adjacency([a, a])
+    assert a.sum().data.sum() == n * (n - 1)
+
+
 def test_similarity(sim_adjacency_multiple):
     n_permute = 1000
-    squaremat = sim_adjacency_multiple[0].squareform()
-
-    res = sim_adjacency_multiple.similarity(
-        squaremat, perm_type="1d", n_permute=n_permute
+    assert len(
+        sim_adjacency_multiple.similarity(
+            sim_adjacency_multiple[0].squareform(), perm_type="1d", n_permute=n_permute
+        )
+    ) == len(sim_adjacency_multiple)
+    assert (
+        len(
+            sim_adjacency_multiple.similarity(
+                sim_adjacency_multiple[0].squareform(),
+                perm_type="1d",
+                metric="pearson",
+                n_permute=n_permute,
+            )
+        )
+        == len(sim_adjacency_multiple)
     )
-    assert len(res) == len(sim_adjacency_multiple)
-
-    res = sim_adjacency_multiple.similarity(
-        squaremat, perm_type="1d", metric="pearson", n_permute=n_permute
+    assert (
+        len(
+            sim_adjacency_multiple.similarity(
+                sim_adjacency_multiple[0].squareform(),
+                perm_type="1d",
+                metric="kendall",
+                n_permute=n_permute,
+            )
+        )
+        == len(sim_adjacency_multiple)
     )
-    assert len(res) == len(sim_adjacency_multiple)
-
-    res = sim_adjacency_multiple.similarity(
-        squaremat, perm_type="1d", metric="kendall", n_permute=n_permute
-    )
-    assert len(res) == len(sim_adjacency_multiple)
 
     data2 = sim_adjacency_multiple[0].copy()
     data2.data = data2.data + np.random.randn(len(data2.data)) * 0.1
@@ -259,24 +295,6 @@ def test_similarity_conversion(sim_adjacency_single):
         )[0],
         significant=1,
     )
-    np.testing.assert_approx_equal(
-        -1,
-        pearsonr(
-            sim_adjacency_single.distance_to_similarity().data,
-            sim_adjacency_single.distance_to_similarity().similarity_to_distance().data,
-        )[0],
-        significant=1,
-    )
-
-
-def test_cluster_mean():
-    test_dat = Adjacency(
-        block_diag(np.ones((4, 4)), np.ones((4, 4)) * 2, np.ones((4, 4)) * 3),
-        matrix_type="similarity",
-    )
-    test_labels = np.concatenate([np.ones(4) * x for x in range(1, 4)])
-    out = test_dat.within_cluster_mean(clusters=test_labels)
-    assert np.sum(np.array([1, 2, 3]) - np.array([out[x] for x in out])) == 0
 
 
 def test_regression():
@@ -301,11 +319,12 @@ def test_regression():
     )
     X = Design_Matrix(np.ones(n))
     stats = d.regress(X)
-    out = stats["beta"].within_cluster_mean(clusters=["Group1"] * 4 + ["Group2"] * 8)
+    out = stats["beta"].cluster_summary(
+        clusters=["Group1"] * 4 + ["Group2"] * 8, summary="within"
+    )
     assert np.allclose(
         np.array([out["Group1"], out["Group2"]]), np.array([1, 0]), rtol=1e-01
-    )
-    # np.allclose(np.sum(stats['beta']-np.array([1,2,3])),0)
+    )  # np.allclose(np.sum(stats['beta']-np.array([1,2,3])),0)
 
 
 def test_social_relations_model():
@@ -353,3 +372,36 @@ def test_isc(sim_adjacency_single):
         assert (stats["isc"] > -1) & (stats["isc"] < 1)
         assert (stats["p"] > 0) & (stats["p"] < 1)
         assert len(stats["null_distribution"]) == n_boot
+
+
+def test_fisher_r_to_z(sim_adjacency_single):
+    np.testing.assert_almost_equal(
+        np.nansum(
+            sim_adjacency_single.data - sim_adjacency_single.r_to_z().z_to_r().data
+        ),
+        0,
+        decimal=2,
+    )
+
+
+def test_cluster_summary():
+    m1 = block_diag(np.ones((4, 4)), np.zeros((4, 4)), np.zeros((4, 4)))
+    m2 = block_diag(np.zeros((4, 4)), np.ones((4, 4)), np.zeros((4, 4)))
+    m3 = block_diag(np.zeros((4, 4)), np.zeros((4, 4)), np.ones((4, 4)))
+    noisy = (m1 * 1 + m2 * 2 + m3 * 3) + np.random.randn(12, 12) * 0.1
+    dat = Adjacency(
+        noisy, matrix_type="similarity", labels=["C1"] * 4 + ["C2"] * 4 + ["C3"] * 4
+    )
+
+    clusters = [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]
+    cluster_mean = dat.cluster_summary(clusters=clusters)
+    for i, j in zip(
+        np.array([1, 2, 3]), np.array([cluster_mean[x] for x in cluster_mean])
+    ):
+        np.testing.assert_almost_equal(i, j, decimal=1)
+
+    for i in dat.cluster_summary(clusters=clusters, summary="between").values():
+        np.testing.assert_almost_equal(0, i, decimal=1)
+
+    for i in dat.cluster_summary(clusters=clusters, summary="between").values():
+        np.testing.assert_almost_equal(0, i, decimal=1)

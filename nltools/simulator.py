@@ -96,7 +96,7 @@ class Simulator:
         activation = nib.Nifti1Image(activation, affine=np.eye(4))
 
         # return the 3D numpy matrix of zeros containing the sphere as a region of ones
-        return activation.get_data()
+        return activation.get_fdata()
 
     def normal_noise(self, mu, sigma):
         """produce a normal noise distribution for all all points in the brain mask

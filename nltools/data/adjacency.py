@@ -25,6 +25,7 @@ from nltools.stats import (
     summarize_bootstrap,
     matrix_permutation,
     fisher_r_to_z,
+    fisher_z_to_r,
     _calc_pvalue,
     _bootstrap_isc,
 )
@@ -36,7 +37,6 @@ from nltools.utils import (
     concatenate,
     _bootstrap_apply_func,
     _df_meta_to_arr,
-    isiterable,
 )
 from .design_matrix import Design_Matrix
 from joblib import Parallel, delayed
@@ -114,29 +114,40 @@ class Adjacency(object):
                 self.issymmetric = symmetric_all[0]
                 self.matrix_type = matrix_type_all[0]
             self.is_single_matrix = False
-        elif (isinstance(data, str) or isinstance(data, Path)) and (
-            (".h5" in data) or (".hdf5" in data)
-        ):
-            f = dd.io.load(data)
-            self.data = f["data"]
-            self.Y = pd.DataFrame(
-                f["Y"],
-                columns=[
+        elif isinstance(data, str) or isinstance(data, Path):
+            to_load = str(data)
+            # Data is a string or apth and h5
+            if (".h5" in to_load) or (".hdf5" in to_load):
+                f = dd.io.load(data)
+                self.data = f["data"]
+                self.Y = pd.DataFrame(
+                    f["Y"],
+                    columns=[
+                        e.decode("utf-8") if isinstance(e, bytes) else e
+                        for e in f["Y_columns"]
+                    ],
+                    index=[
+                        e.decode("utf-8") if isinstance(e, bytes) else e
+                        for e in f["Y_index"]
+                    ],
+                )
+                self.matrix_type = f["matrix_type"]
+                self.is_single_matrix = f["is_single_matrix"]
+                self.issymmetric = f["issymmetric"]
+                self.labels = [
                     e.decode("utf-8") if isinstance(e, bytes) else e
-                    for e in f["Y_columns"]
-                ],
-                index=[
-                    e.decode("utf-8") if isinstance(e, bytes) else e
-                    for e in f["Y_index"]
-                ],
-            )
-            self.matrix_type = f["matrix_type"]
-            self.is_single_matrix = f["is_single_matrix"]
-            self.issymmetric = f["issymmetric"]
-            self.labels = [
-                e.decode("utf-8") if isinstance(e, bytes) else e for e in f["labels"]
-            ]
-            return
+                    for e in f["labels"]
+                ]
+                return
+            # Data is a string or path but not h5
+            else:
+                (
+                    self.data,
+                    self.issymmetric,
+                    self.matrix_type,
+                    self.is_single_matrix,
+                ) = self._import_single_data(data, matrix_type=matrix_type)
+        # Data is not a string or path
         else:
             (
                 self.data,
@@ -511,6 +522,30 @@ class Adjacency(object):
             elif axis == 1:
                 return np.nanmean(self.data, axis=axis)
 
+    def sum(self, axis=0):
+        """Calculate sum of Adjacency
+
+        Args:
+            axis:  (int) calculate mean over features (0) or data (1).
+                    For data it will be on upper triangle.
+
+        Returns:
+            mean:  float if single, adjacency if axis=0, np.array if axis=1
+                    and multiple
+
+        """
+
+        if self.is_single_matrix:
+            return np.nansum(self.data)
+        else:
+            if axis == 0:
+                return Adjacency(
+                    data=np.nansum(self.data, axis=axis),
+                    matrix_type=self.matrix_type + "_flat",
+                )
+            elif axis == 1:
+                return np.nansum(self.data, axis=axis)
+
     def std(self, axis=0):
         """Calculate standard deviation of Adjacency
 
@@ -750,6 +785,13 @@ class Adjacency(object):
 
         out = self.copy()
         out.data = fisher_r_to_z(out.data)
+        return out
+
+    def z_to_r(self):
+        """ Convert z score back into r value for each element of data object"""
+
+        out = self.copy()
+        out.data = fisher_z_to_r(out.data)
         return out
 
     def threshold(self, upper=None, lower=None, binarize=False):
@@ -1067,7 +1109,7 @@ class Adjacency(object):
                 exclude_self_corr=exclude_self_corr,
                 random_state=random_state,
             )
-            for i in range(n_bootstraps)
+            for _ in range(n_bootstraps)
         )
 
         stats["p"] = _calc_pvalue(all_bootstraps - stats["isc"], stats["isc"], tail)
@@ -1185,42 +1227,50 @@ class Adjacency(object):
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
 
-    def distance_to_similarity(self, beta=1):
-        """Convert distance matrix to similarity matrix
+    def distance_to_similarity(self, metric="correlation", beta=1):
+        """Convert distance matrix to similarity matrix.
+
+        Note: currently only implemented for correlation and euclidean.
 
         Args:
-            beta: (float) parameter to scale exponential function (default: 1)
+            metric: (str) Can only be correlation or euclidean
+            beta: (float) parameter to scale exponential function (default: 1) for euclidean
 
         Returns:
             out: (Adjacency) Adjacency object
 
         """
         if self.matrix_type == "distance":
-            return Adjacency(
-                np.exp(-beta * self.squareform() / self.squareform().std()),
-                labels=self.labels,
-                matrix_type="similarity",
-            )
+            if metric == "correlation":
+                return Adjacency(1 - self.squareform(), matrix_type="similarity")
+            elif metric == "euclidean":
+                return Adjacency(
+                    np.exp(-beta * self.squareform() / self.squareform().std()),
+                    labels=self.labels,
+                    matrix_type="similarity",
+                )
+            else:
+                raise ValueError('metric can only be ["correlation","euclidean"]')
         else:
             raise ValueError("Matrix is not a distance matrix.")
 
-    def similarity_to_distance(self):
-        """Convert similarity matrix to distance matrix"""
-        if self.matrix_type == "similarity":
-            return Adjacency(
-                1 - self.squareform(), labels=self.labels, matrix_type="distance"
-            )
-        else:
-            raise ValueError("Matrix is not a similarity matrix.")
+    def cluster_summary(self, clusters=None, metric="mean", summary="within"):
+        """This function provides summaries of clusters within Adjacency matrices.
 
-    def within_cluster_mean(self, clusters=None):
-        """This function calculates mean within cluster labels
+        It can compute mean/median of within and between cluster values. Requires a
+        list of cluster ids indicating the row/column of each cluster.
 
         Args:
             clusters: (list) list of cluster labels
+            metric: (str) method to summarize mean or median. If 'None" then return all r values
+            summary: (str) summarize within cluster or between clusters
+
         Returns:
             dict: (dict) within cluster means
+
         """
+        if metric not in ["mean", "median", None]:
+            raise ValueError("metric must be ['mean','median', None]")
 
         distance = pd.DataFrame(self.squareform())
         clusters = np.array(clusters)
@@ -1228,14 +1278,34 @@ class Adjacency(object):
         if len(clusters) != distance.shape[0]:
             raise ValueError("Cluster labels must be same length as distance matrix")
 
-        out = pd.DataFrame(columns=["Mean", "Label"], index=None)
         out = {}
         for i in list(set(clusters)):
-            out[i] = np.mean(
-                distance.loc[clusters == i, clusters == i].values[
-                    np.triu_indices(sum(clusters == i), k=1)
-                ]
-            )
+            if summary == "within":
+                if metric == "mean":
+                    out[i] = np.mean(
+                        distance.loc[clusters == i, clusters == i].values[
+                            np.triu_indices(sum(clusters == i), k=1)
+                        ]
+                    )
+                elif metric == "median":
+                    out[i] = np.median(
+                        distance.loc[clusters == i, clusters == i].values[
+                            np.triu_indices(sum(clusters == i), k=1)
+                        ]
+                    )
+                elif metric is None:
+                    out[i] = distance.loc[clusters == i, clusters == i].values[
+                        np.triu_indices(sum(clusters == i), k=1)
+                    ]
+            elif summary == "between":
+                if metric == "mean":
+                    out[i] = distance.loc[clusters == i, clusters != i].mean().mean()
+                elif metric == "median":
+                    out[i] = (
+                        distance.loc[clusters == i, clusters != i].median().median()
+                    )
+                elif metric is None:
+                    out[i] = distance.loc[clusters == i, clusters != i]
         return out
 
     def regress(self, X, mode="ols", **kwargs):
@@ -1281,11 +1351,11 @@ class Adjacency(object):
     def social_relations_model(self, summarize_results=True, nan_replace=True):
         """Estimate the social relations model from a matrix for a round-robin design.
 
-        X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \episolon_{ijl}
+        X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \epsilon_{ijl}
 
         where X_{ij} is the score for person i rating person j, m is the group mean,
         \alpha_i  is person i's actor effect, \beta_j is person j's partner effect, g_{ij}
-        is the relationship  effect and \episolon_{ijl} is the error in measure l  for actor i and partner j.
+        is the relationship  effect and \epsilon_{ijl} is the error in measure l  for actor i and partner j.
 
         This model is primarily concerned with partioning the variance of the various effects.
 
@@ -1551,7 +1621,7 @@ class Adjacency(object):
             return (X, coord)
 
         if nan_replace:
-            data, coord = replace_missing(self)
+            data, _ = replace_missing(self)
         else:
             data = self.copy()
 
