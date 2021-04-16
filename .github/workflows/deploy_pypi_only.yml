@@ -1,0 +1,30 @@
+name: (Manual) Deploy PyPi
+
+on: workflow_dispatch
+
+jobs:
+  deploy:
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    name: Build & deploy package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.8"
+
+      - name: Pypa build
+        run: |
+          python3 -m pip install build --user
+
+      - name: Wheel and source build
+        run: |
+          python3 -m build --sdist --wheel --outdir dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
