@@ -7,9 +7,6 @@ NLTools
 .. image:: https://github.com/cosanlab/nltools/actions/workflows/tests_and_coverage.yml/badge.svg
     :target: https://github.com/cosanlab/nltools/actions/workflows/tests_and_coverage.yml
 
-.. image:: https://github.com/cosanlab/nltools/actions/workflows/deploy_docs_pypi_onrelease.yml/badge.svg
-    :target: https://nltools.org
-
 .. image:: https://codecov.io/gh/cosanlab/nltools/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/cosanlab/nltools
 
