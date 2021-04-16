@@ -23,7 +23,6 @@ import nibabel as nib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import warnings
 import tempfile
 from copy import deepcopy
 from sklearn.metrics import balanced_accuracy_score
@@ -59,6 +58,7 @@ from nltools.stats import (
     holm_bonf,
     threshold,
     fisher_r_to_z,
+    fisher_z_to_r,
     transform_pairwise,
     summarize_bootstrap,
     procrustes,
@@ -75,11 +75,6 @@ from pathlib import Path
 
 # Optional dependencies
 nx = attempt_to_import("networkx", "nx")
-mne_stats = attempt_to_import(
-    "mne.stats",
-    name="mne_stats",
-    fromlist=["spatio_temporal_cluster_1samp_test", "ttest_1samp_no_p"],
-)
 MAX_INT = np.iinfo(np.int32).max
 
 
@@ -107,6 +102,8 @@ class Brain_Data(object):
         if mask is not None:
             if not isinstance(mask, nib.Nifti1Image):
                 if isinstance(mask, str) or isinstance(mask, Path):
+                    # Convert Path objects to string; converting string is a no-op so this won't affect real strings
+                    to_load = str(mask)
                     if os.path.isfile(mask):
                         mask = nib.load(mask)
                 else:
@@ -119,15 +116,17 @@ class Brain_Data(object):
         self.nifti_masker = NiftiMasker(mask_img=self.mask)
 
         if data is not None:
-            if isinstance(data, str):
-                if "http://" in data or "https://" in data:
+            if isinstance(data, str) or isinstance(data, Path):
+                # Convert Path objects to string; converting string is a no-op so this won't affect real strings
+                to_load = str(data)
+                if "http://" in to_load or "https://" in to_load:
                     from nltools.datasets import download_nifti
 
                     tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
                     os.makedirs(tmp_dir)
-                    data = nib.load(download_nifti(data, data_dir=tmp_dir))
-                elif (".h5" in data) or (".hdf5" in data):
-                    f = dd.io.load(data)
+                    data = nib.load(download_nifti(to_load, data_dir=tmp_dir))
+                elif (".h5" in to_load) or (".hdf5" in to_load):
+                    f = dd.io.load(to_load)
                     self.data = f["data"]
                     self.X = pd.DataFrame(
                         f["X"],
@@ -176,8 +175,10 @@ class Brain_Data(object):
                         self.data = []
                         for i in data:
                             if isinstance(i, str) or isinstance(i, Path):
+                                # Convert Path objects to string; converting string is a no-op so this won't affect real strings
+                                to_load = str(i)
                                 self.data.append(
-                                    self.nifti_masker.fit_transform(nib.load(i))
+                                    self.nifti_masker.fit_transform(nib.load(to_load))
                                 )
                             elif isinstance(i, nib.Nifti1Image):
                                 self.data.append(self.nifti_masker.fit_transform(i))
@@ -501,7 +502,7 @@ class Brain_Data(object):
                     "Y_columns": y_columns,
                     "Y_index": y_index,
                     "mask_affine": self.mask.affine,
-                    "mask_data": self.mask.get_data(),
+                    "mask_data": self.mask.get_fdata(),
                     "mask_file_name": self.mask.get_filename(),
                     "file_name": self.file_name,
                 },
@@ -788,8 +789,7 @@ class Brain_Data(object):
 
         Args:
             threshold_dict: (dict) a dictionary of threshold parameters
-                            {'unc':.001} or {'fdr':.05} or {'permutation':tcfe,
-                            n_permutation:5000}
+                            {'unc':.001} or {'fdr':.05}
             return_mask: (bool) if thresholding is requested, optionall return the mask of voxels that exceed threshold, e.g. for use with another map
 
         Returns:
@@ -801,56 +801,8 @@ class Brain_Data(object):
         t = deepcopy(self)
         p = deepcopy(self)
 
-        if threshold_dict is not None and "permutation" in threshold_dict:
-            # Convert data to correct shape (subjects, time, space)
-            data_convert_shape = deepcopy(self.data)
-            data_convert_shape = np.expand_dims(data_convert_shape, axis=1)
-            if "n_permutations" in threshold_dict:
-                n_permutations = threshold_dict["n_permutations"]
-            else:
-                n_permutations = 1000
-                warnings.warn(
-                    "n_permutations not set:  running with 1000 " "permutations"
-                )
+        t.data, p.data = ttest_1samp(self.data, 0, 0)
 
-            if "connectivity" in threshold_dict:
-                connectivity = threshold_dict["connectivity"]
-            else:
-                connectivity = None
-
-            n_jobs = threshold_dict["n_jobs"] if "n_jobs" in threshold_dict else 1
-            if threshold_dict["permutation"] == "tfce":
-                perm_threshold = dict(start=0, step=0.2)
-            else:
-                perm_threshold = None
-
-            if "stat_fun" in threshold_dict:
-                stat_fun = threshold_dict["stat_fun"]
-            else:
-                stat_fun = mne_stats.ttest_1samp_no_p
-
-            (
-                t.data,
-                clusters,
-                p_values,
-                _,
-            ) = mne_stats.spatio_temporal_cluster_1samp_test(
-                data_convert_shape,
-                tail=0,
-                threshold=perm_threshold,
-                stat_fun=stat_fun,
-                connectivity=connectivity,
-                n_permutations=n_permutations,
-                n_jobs=n_jobs,
-            )
-
-            t.data = t.data.squeeze()
-
-            p = deepcopy(t)
-            for cl, pval in zip(clusters, p_values):
-                p.data[cl[1][0]] = pval
-        else:
-            t.data, p.data = ttest_1samp(self.data, 0, 0)
         if threshold_dict is not None:
             if isinstance(threshold_dict, dict):
                 if "unc" in threshold_dict:
@@ -859,8 +811,7 @@ class Brain_Data(object):
                     thr = fdr(p.data, q=threshold_dict["fdr"])
                 elif "holm-bonf" in threshold_dict:
                     thr = holm_bonf(p.data, alpha=threshold_dict["holm-bonf"])
-                elif "permutation" in threshold_dict:
-                    thr = 0.05
+
                 if return_mask:
                     thr_t, thr_mask = threshold(t, p, thr, True)
                     out = {"t": t, "p": p, "thr_t": thr_t, "thr_mask": thr_mask}
@@ -959,8 +910,8 @@ class Brain_Data(object):
         # Check to make sure masks are the same for each dataset and if not
         # create a union mask
         # This might be handy code for a new Brain_Data method
-        if np.sum(self.nifti_masker.mask_img.get_data() == 1) != np.sum(
-            image.nifti_masker.mask_img.get_data() == 1
+        if np.sum(self.nifti_masker.mask_img.get_fdata() == 1) != np.sum(
+            image.nifti_masker.mask_img.get_fdata() == 1
         ):
             new_mask = intersect_masks(
                 [self.nifti_masker.mask_img, image.nifti_masker.mask_img],
@@ -1067,8 +1018,8 @@ class Brain_Data(object):
 
         # Check to make sure masks are the same for each dataset and if not create a union mask
         # This might be handy code for a new Brain_Data method
-        if np.sum(self.nifti_masker.mask_img.get_data() == 1) != np.sum(
-            images.nifti_masker.mask_img.get_data() == 1
+        if np.sum(self.nifti_masker.mask_img.get_fdata() == 1) != np.sum(
+            images.nifti_masker.mask_img.get_fdata() == 1
         ):
             new_mask = intersect_masks(
                 [self.nifti_masker.mask_img, images.nifti_masker.mask_img],
@@ -1797,6 +1748,13 @@ class Brain_Data(object):
 
         out = self.copy()
         out.data = fisher_r_to_z(out.data)
+        return out
+
+    def z_to_r(self):
+        """ Convert z score back into r value for each element of data object"""
+
+        out = self.copy()
+        out.data = fisher_z_to_r(out.data)
         return out
 
     def filter(self, sampling_freq=None, high_pass=None, low_pass=None, **kwargs):

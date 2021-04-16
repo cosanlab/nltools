@@ -7,6 +7,7 @@ from nltools.simulator import Simulator
 from nltools.data import Brain_Data, Adjacency, Groupby
 from nltools.stats import threshold, align
 from nltools.mask import create_sphere, roi_to_brain
+from pathlib import Path
 
 # from nltools.prefs import MNI_Template
 
@@ -40,8 +41,9 @@ def test_load(tmpdir):
     dat = Brain_Data(file_list)
     dat = Brain_Data([nb.load(x) for x in file_list])
 
-    # Test load list
+    # Test load string and path
     dat = Brain_Data(data=str(tmpdir.join("data.nii.gz")), Y=y)
+    dat = Brain_Data(data=Path(tmpdir.join("data.nii.gz")), Y=y)
 
     # Test Write
     dat.write(os.path.join(str(tmpdir.join("test_write.nii"))))
@@ -57,12 +59,12 @@ def test_load(tmpdir):
             assert all(b.__dict__[k].eq(dat.__dict__[k]).values)
         elif k == "mask":
             assert np.allclose(b.__dict__[k].affine, dat.__dict__[k].affine)
-            assert np.allclose(b.__dict__[k].get_data(), dat.__dict__[k].get_data())
+            assert np.allclose(b.__dict__[k].get_fdata(), dat.__dict__[k].get_fdata())
             assert b.__dict__[k].get_filename() == dat.__dict__[k].get_filename()
         elif k == "nifti_masker":
             assert np.allclose(b.__dict__[k].affine_, dat.__dict__[k].affine_)
             assert np.allclose(
-                b.__dict__[k].mask_img.get_data(), dat.__dict__[k].mask_img.get_data()
+                b.__dict__[k].mask_img.get_fdata(), dat.__dict__[k].mask_img.get_fdata()
             )
         else:
             assert b.__dict__[k] == dat.__dict__[k]
@@ -242,9 +244,9 @@ def test_apply_mask(sim_brain_data):
     s1 = create_sphere([12, 10, -8], radius=10)
     assert isinstance(s1, nb.Nifti1Image)
     masked_dat = sim_brain_data.apply_mask(s1)
-    assert masked_dat.shape()[1] == np.sum(s1.get_data() != 0)
+    assert masked_dat.shape()[1] == np.sum(s1.get_fdata() != 0)
     masked_dat = sim_brain_data.apply_mask(s1, resample_mask_to_brain=True)
-    assert masked_dat.shape()[1] == np.sum(s1.get_data() != 0)
+    assert masked_dat.shape()[1] == np.sum(s1.get_fdata() != 0)
 
 
 def test_extract_roi(sim_brain_data):
@@ -352,7 +354,7 @@ def test_threshold():
     r = mask.regions(min_region_size=10)
     m1 = Brain_Data(s1)
     m2 = r.threshold(1, binarize=True)
-    assert len(np.unique(r.to_nifti().get_data())) == 2
+    assert len(np.unique(r.to_nifti().get_fdata())) == 2
     diff = m2 - m1
     assert np.sum(diff.data) == 0
 
@@ -673,3 +675,11 @@ def test_temporal_resample(sim_brain_data):
     down = up.temporal_resample(sampling_freq=2, target=1 / 2, target_type="hz")
     assert len(sim_brain_data) == len(down)
     assert len(up) / 4 == len(down)
+
+
+def test_fisher_r_to_z(sim_brain_data):
+    np.testing.assert_almost_equal(
+        np.nansum(sim_brain_data.data - sim_brain_data.r_to_z().z_to_r().data),
+        0,
+        decimal=2,
+    )

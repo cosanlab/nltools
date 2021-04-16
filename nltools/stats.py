@@ -19,6 +19,7 @@ __all__ = [
     "downsample",
     "upsample",
     "fisher_r_to_z",
+    "fisher_z_to_r",
     "one_sample_permutation",
     "two_sample_permutation",
     "correlation_permutation",
@@ -44,17 +45,19 @@ __all__ = [
     "_phase_vector_length",
     "_butter_bandpass_filter",
     "_phase_rayleigh_p",
+    "align_states",
 ]
 
 import numpy as np
 from numpy.fft import fft, ifft
 import pandas as pd
-from scipy.stats import pearsonr, spearmanr, kendalltau, norm, ttest_1samp
+from scipy.stats import pearsonr, spearmanr, kendalltau, norm
 from scipy.stats import t as t_dist
 from scipy.spatial.distance import squareform, pdist
 from scipy.linalg import orthogonal_procrustes
 from scipy.spatial import procrustes as procrust
 from scipy.signal import hilbert, butter, filtfilt
+from scipy.optimize import linear_sum_assignment
 from copy import deepcopy
 import nibabel as nib
 from scipy.interpolate import interp1d
@@ -121,6 +124,9 @@ def fdr(p, q=0.05):
         raise ValueError("Make sure vector of p-values is a numpy array")
     if any(p < 0) or any(p > 1):
         raise ValueError("array contains p-values that are outside the range 0-1")
+
+    if np.any(p > 1) or np.any(p < 0):
+        raise ValueError("Does not include valid p-values.")
 
     s = np.sort(p)
     nvox = p.shape[0]
@@ -450,7 +456,13 @@ def upsample(
 def fisher_r_to_z(r):
     """ Use Fisher transformation to convert correlation to z score """
 
-    return 0.5 * np.log((1 + r) / (1 - r))
+    # return .5*np.log((1 + r)/(1 - r))
+    return np.arctanh(r)
+
+
+def fisher_z_to_r(z):
+    """ Use Fisher transformation to convert correlation to z score """
+    return np.tanh(z)
 
 
 def correlation(data1, data2, metric="pearson"):
@@ -656,14 +668,14 @@ def correlation_permutation(
     if method == "permute":
         all_p = Parallel(n_jobs=n_jobs)(
             delayed(correlation)(random_state.permutation(data1), data2, metric=metric)
-            for i in range(n_permute)
+            for _ in range(n_permute)
         )
     elif method == "circle_shift":
         all_p = Parallel(n_jobs=n_jobs)(
             delayed(correlation)(
                 circle_shift(data1, random_state=random_state), data2, metric=metric
             )
-            for i in range(n_permute)
+            for _ in range(n_permute)
         )
     elif method == "phase_randomize":
         all_p = Parallel(n_jobs=n_jobs)(
@@ -672,7 +684,7 @@ def correlation_permutation(
                 phase_randomize(data2),
                 metric=metric,
             )
-            for i in range(n_permute)
+            for _ in range(n_permute)
         )
 
     all_p = [x[0] for x in all_p]
@@ -1608,7 +1620,7 @@ def procrustes_distance(
     stats = {"similarity": sse}
     all_p = Parallel(n_jobs=n_jobs)(
         delayed(procrust)(random_state.permutation(mat1), mat2)
-        for i in range(n_permute)
+        for _ in range(n_permute)
     )
     all_p = [1 - x[2] for x in all_p]
 
@@ -1931,7 +1943,7 @@ def isc(
                 exclude_self_corr=exclude_self_corr,
                 random_state=random_state,
             )
-            for i in range(n_bootstraps)
+            for _ in range(n_bootstraps)
         )
         stats["p"] = _calc_pvalue(all_bootstraps - stats["isc"], stats["isc"], tail)
 
@@ -1940,7 +1952,7 @@ def isc(
             delayed(_compute_isc)(
                 circle_shift(data, random_state=random_state), metric=metric
             )
-            for i in range(n_bootstraps)
+            for _ in range(n_bootstraps)
         )
         stats["p"] = _calc_pvalue(all_bootstraps, stats["isc"], tail)
     elif method == "phase_randomize":
@@ -1948,7 +1960,7 @@ def isc(
             delayed(_compute_isc)(
                 phase_randomize(data, random_state=random_state), metric=metric
             )
-            for i in range(n_bootstraps)
+            for _ in range(n_bootstraps)
         )
         stats["p"] = _calc_pvalue(all_bootstraps, stats["isc"], tail)
     else:
@@ -2015,15 +2027,17 @@ def isfc(data, method="average"):
     return sub_isfc
 
 
-def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5):
+def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5, pairwise=False):
     """Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array)
 
     This function computes the instantaneous intersubject phase synchrony for a single voxel/roi
     timeseries. Requires multiple subjects. This method is largely based on that described by Glerean
     et al., 2012 and performs a hilbert transform on narrow bandpass filtered timeseries (butterworth)
     data to get the instantaneous phase angle. The function returns a dictionary containing the
-    average phase angle, the average vector length, and parametric p-values computed using the rayleigh
-    test using circular statistics (Fisher, 1993).
+    average phase angle, the average vector length, and parametric p-values computed using the rayleigh test using circular
+    statistics (Fisher, 1993). If pairwise=True, then it will compute these on the pairwise phase angle differences,
+    if pairwise=False, it will compute these on the actual phase angles. This is called inter-site phase coupling
+    or inter-trial phase coupling respectively in the EEG literatures.
 
     This function requires narrow band filtering your data. As a default we use the recommendations
     by (Glerean et al., 2012) of .04-.07Hz. This is similar to the "slow-4" band (0.025–0.067 Hz)
@@ -2048,6 +2062,8 @@ def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5):
         low_cut: (float) lower bound cutoff for high pass filter
         high_cut: (float) upper bound cutoff for low pass filter
         order: (int) filter order for butterworth bandpass
+        pairwise: (bool) compute phase angle coherence on pairwise phase angle differences
+                or on raw phase angle.
 
     Returns:
         dictionary with mean phase angle, vector length, and rayleigh statistic
@@ -2063,9 +2079,20 @@ def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5):
         hilbert(
             _butter_bandpass_filter(
                 pd.DataFrame(data), low_cut, high_cut, sampling_freq, order=order
-            )
+            ),
+            axis=0,
         )
     )
+
+    if pairwise:
+        phase = np.array(
+            [
+                phase[:, i] - phase[:, j]
+                for i in range(phase.shape[1])
+                for j in range(phase.shape[1])
+                if i < j
+            ]
+        ).T
 
     out = {"average_angle": _phase_mean_angle(phase)}
     out["vector_length"] = _phase_vector_length(phase)
@@ -2170,3 +2197,49 @@ def _phase_rayleigh_p(phase_angles):
         )
     else:
         return np.exp(-1 * Z)
+
+
+def align_states(
+    reference,
+    target,
+    metric="correlation",
+    return_index=False,
+    replace_zero_variance=False,
+):
+    """Align state weight maps using hungarian algorithm by minimizing pairwise distance between group states.
+
+    Args:
+        reference: (np.array) reference pattern x state matrix
+        target: (np.array) target pattern x state matrix to align to reference
+        metric: (str) distance metric to use
+        return_index: (bool) return index if True, return remapped data if False
+        replace_zero_variance: (bool) transform a vector with zero variance to random numbers from a uniform distribution.
+                                Useful for when using correlation as a distance metric to avoid NaNs.
+    Returns:
+        ordered_weights: (list) a list of reordered state X pattern matrices
+
+    """
+    if reference.shape != target.shape:
+        raise ValueError("reference and target must be the same size")
+
+    reference = np.array(reference)
+    target = np.array(target)
+
+    def replace_zero_variance_columns(data):
+        if np.any(data.std(axis=0) == 0):
+            for i in np.where(data.std(axis=0) == 0)[0]:
+                data[:, i] = np.random.uniform(low=0, high=1, size=data.shape[0])
+        return data
+
+    if replace_zero_variance:
+        reference = replace_zero_variance_columns(reference)
+        target = replace_zero_variance_columns(target)
+
+    remapping = linear_sum_assignment(
+        pairwise_distances(reference.T, target.T, metric=metric)
+    )[1]
+
+    if return_index:
+        return remapping
+    else:
+        return target[:, remapping]

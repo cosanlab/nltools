@@ -16,10 +16,12 @@ from nltools.stats import (
     isc,
     isfc,
     isps,
+    fisher_r_to_z,
+    fisher_z_to_r,
+    align_states,
 )
 from nltools.simulator import Simulator
 from nltools.mask import create_sphere
-from sklearn.metrics import pairwise_distances
 from scipy.spatial.distance import squareform
 
 # import pytest
@@ -485,7 +487,7 @@ def test_isc():
 def test_isfc():
     def simulate_sub_roi_data(n_sub, n_tr):
         sub_dat = []
-        for i in range(n_sub):
+        for _ in range(n_sub):
             sub_dat.append(
                 np.random.multivariate_normal(
                     [0, 0, 0, 0, 0],
@@ -533,4 +535,29 @@ def test_isps():
         np.mean(
             [stats["vector_length"][:50].mean(), stats["vector_length"][150:].mean()]
         )
+    )
+
+
+def test_fisher_r_to_z():
+    for r in np.arange(0, 1, 0.05):
+        np.testing.assert_almost_equal(r, fisher_z_to_r(fisher_r_to_z(r)), decimal=3)
+
+
+def test_align_states():
+    n = 20
+    states = pd.DataFrame(
+        {
+            "State1": np.random.randint(1, 100, n),
+            "State2": np.random.randint(1, 100, n),
+            "State3": np.random.randint(1, 100, n),
+        }
+    )
+    scramble_index = np.array([2, 0, 1])
+    scrambled_states = states.iloc[:, scramble_index]
+
+    assert np.array_equal(
+        align_states(scrambled_states, states, return_index=True), scramble_index
+    )
+    assert np.array_equal(
+        states.shape, align_states(scrambled_states, states, return_index=False).shape
     )
