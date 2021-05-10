@@ -21,7 +21,7 @@ MNI_Template = dict(
 
 
 def resolve_mni_path(MNI_Template):
-    """ Helper function to resolve MNI path based on MNI_Template prefs setting."""
+    """Helper function to resolve MNI path based on MNI_Template prefs setting."""
 
     res = MNI_Template["resolution"]
     m = MNI_Template["mask_type"]

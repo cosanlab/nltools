@@ -384,7 +384,7 @@ class Brain_Data(object):
             yield self[x]
 
     def shape(self):
-        """ Get images by voxels shape. """
+        """Get images by voxels shape."""
 
         return self.data.shape
 
@@ -463,7 +463,7 @@ class Brain_Data(object):
         return out
 
     def sum(self):
-        """ Sum over voxels."""
+        """Sum over voxels."""
 
         out = deepcopy(self)
         if len(self.shape()) > 1:
@@ -475,7 +475,7 @@ class Brain_Data(object):
         return out
 
     def to_nifti(self):
-        """ Convert Brain_Data Instance into Nifti Object """
+        """Convert Brain_Data Instance into Nifti Object"""
 
         return self.nifti_masker.inverse_transform(self.data)
 
@@ -872,7 +872,7 @@ class Brain_Data(object):
         return out
 
     def empty(self, data=True, Y=True, X=True):
-        """ Initalize Brain_Data.data as empty """
+        """Initalize Brain_Data.data as empty"""
 
         tmp = deepcopy(self)
         if data:
@@ -884,7 +884,7 @@ class Brain_Data(object):
         return tmp
 
     def isempty(self):
-        """ Check if Brain_Data.data is empty """
+        """Check if Brain_Data.data is empty"""
 
         if isinstance(self.data, np.ndarray):
             boolean = False if self.data.size else True
@@ -1651,7 +1651,7 @@ class Brain_Data(object):
         return out
 
     def copy(self):
-        """ Create a copy of a Brain_Data instance.  """
+        """Create a copy of a Brain_Data instance."""
         return deepcopy(self)
 
     def upload_neurovault(
@@ -1751,7 +1751,7 @@ class Brain_Data(object):
         return out
 
     def z_to_r(self):
-        """ Convert z score back into r value for each element of data object"""
+        """Convert z score back into r value for each element of data object"""
 
         out = self.copy()
         out.data = fisher_z_to_r(out.data)
@@ -1791,7 +1791,7 @@ class Brain_Data(object):
         return out
 
     def dtype(self):
-        """ Get data type of Brain_Data.data."""
+        """Get data type of Brain_Data.data."""
         return self.data.dtype
 
     def astype(self, dtype):

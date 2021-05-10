@@ -1,15 +1,9 @@
 name: (Auto) Tests and Coverage
 
 on:
-  push:
-    branches:
-      - master
-      - main
-
-  pull_request:
-    branches:
-      - main
-      - master
+  # Run tests every week on sundays
+  schedule:
+    - cron: "0 0 * * 0"
 
 jobs:
   # Job (1): Run testing in parallel against multiples OSs and Python versions
@@ -65,11 +59,6 @@ jobs:
           conda install -y -c conda-forge pytest pytest-xdist pytest-sugar coveralls black
           pip install . -r requirements.txt
           pip install . -r optional-dependencies.txt
-
-      # Check code formatting
-      - name: Check code formatting
-        run: |
-          black nltools --check --diff
 
       # Actually run the tests with coverage
       - name: Run Tests

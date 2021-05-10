@@ -338,7 +338,7 @@ class Adjacency(object):
         return len(data.shape) == 1
 
     def _import_single_data(self, data, matrix_type=None):
-        """ Helper function to import single data matrix."""
+        """Helper function to import single data matrix."""
 
         if isinstance(data, str) or isinstance(data, Path):
             if os.path.isfile(data):
@@ -595,11 +595,11 @@ class Adjacency(object):
                 return np.nanmedian(self.data, axis=axis)
 
     def shape(self):
-        """ Calculate shape of data. """
+        """Calculate shape of data."""
         return self.data.shape
 
     def square_shape(self):
-        """ Calculate shape of squareform data. """
+        """Calculate shape of squareform data."""
         if self.matrix_type == "empty":
             return np.array([])
         else:
@@ -609,7 +609,7 @@ class Adjacency(object):
                 return self[0].squareform().shape
 
     def copy(self):
-        """ Create a copy of Adjacency object."""
+        """Create a copy of Adjacency object."""
         return deepcopy(self)
 
     def append(self, data):
@@ -788,7 +788,7 @@ class Adjacency(object):
         return out
 
     def z_to_r(self):
-        """ Convert z score back into r value for each element of data object"""
+        """Convert z score back into r value for each element of data object"""
 
         out = self.copy()
         out.data = fisher_z_to_r(out.data)
