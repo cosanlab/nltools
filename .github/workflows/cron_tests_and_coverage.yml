@@ -1,20 +1,13 @@
-name: (Auto) Tests and Coverage
+name: (Auto-Weekly) Tests and Coverage
 
 on:
-  push:
-    branches:
-      - master
-      - main
-
-  pull_request:
-    branches:
-      - main
-      - master
+  # Run tests every week on sundays
+  schedule:
+    - cron: "0 0 * * 0"
 
 jobs:
   # Job (1): Run testing in parallel against multiples OSs and Python versions
   test:
-    if: "!contains(github.event.head_commit.message, 'skip ci')"
     name: Test
     runs-on: ${{ matrix.os }}
     # Determines whether the entire workflow should pass/fail based on parallel jobs
@@ -66,11 +59,6 @@ jobs:
           pip install . -r requirements.txt
           pip install . -r optional-dependencies.txt
 
-      # Check code formatting
-      - name: Check code formatting
-        run: |
-          black nltools --check --diff
-
       # Actually run the tests with coverage
       - name: Run Tests
         run: |
@@ -91,7 +79,6 @@ jobs:
 
   # Job (2): Send a finish notification to coveralls.io to integrate coverage across parallel tests
   coveralls:
-    if: "!contains(github.event.head_commit.message, 'skip ci')"
     name: Coveralls.io Upload
     needs: test
     runs-on: ubuntu-latest
@@ -107,7 +94,6 @@ jobs:
 
   # Job (3): Build docs, but don't deploy. This is effectively another layer of testing because of our sphinx-gallery auto-examples
   docs:
-    if: "!contains(github.event.head_commit.message, 'skip ci')"
     name: Build docs and auto-examples
     runs-on: ubuntu-latest
     steps:

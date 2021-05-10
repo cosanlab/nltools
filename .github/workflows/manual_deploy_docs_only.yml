@@ -1,11 +1,9 @@
-name: (Auto) Deploy Docs and PyPI on release
+name: (Manual) Deploy Docs
 
-on: release
+on: workflow_dispatch
 
 jobs:
-  # Job (1): Build and deploy docs.
   docs:
-    if: "!contains(github.event.head_commit.message, 'skip ci')"
     name: Build & deploy docs
     runs-on: ubuntu-latest
     steps:
@@ -56,31 +54,3 @@ jobs:
           build_dir: docs/_build/html
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # Job (2): Build package and upload to pypi
-  deploy:
-    if: "!contains(github.event.head_commit.message, 'skip ci')"
-    name: Build & deploy package
-    runs-on: ubuntu-latest
-    needs: docs
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
-
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.8"
-
-      - name: Pypa build
-        run: |
-          python3 -m pip install build --user
-
-      - name: Wheel and source build
-        run: |
-          python3 -m build --sdist --wheel --outdir dist/
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@master
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}

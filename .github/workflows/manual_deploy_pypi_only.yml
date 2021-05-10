@@ -4,7 +4,6 @@ on: workflow_dispatch
 
 jobs:
   deploy:
-    if: "!contains(github.event.head_commit.message, 'skip ci')"
     name: Build & deploy package
     runs-on: ubuntu-latest
     steps:
