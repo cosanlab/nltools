@@ -1,4 +1,4 @@
-name: (Auto-On-Push/PR) Formatting, Tests, and Coverage
+name: (Auto) Tests
 
 on:
   push:
