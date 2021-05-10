@@ -454,14 +454,14 @@ def upsample(
 
 
 def fisher_r_to_z(r):
-    """ Use Fisher transformation to convert correlation to z score """
+    """Use Fisher transformation to convert correlation to z score"""
 
     # return .5*np.log((1 + r)/(1 - r))
     return np.arctanh(r)
 
 
 def fisher_z_to_r(z):
-    """ Use Fisher transformation to convert correlation to z score """
+    """Use Fisher transformation to convert correlation to z score"""
     return np.tanh(z)
 
 

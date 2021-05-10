@@ -54,7 +54,7 @@ def _df_meta_to_arr(df):
 
 
 def get_resource_path():
-    """ Get path to nltools resource directory. """
+    """Get path to nltools resource directory."""
     return join(dirname(__file__), "resources") + pathsep
 
 
@@ -231,7 +231,7 @@ def set_decomposition_algorithm(algorithm, n_components=None, *args, **kwargs):
 
 
 def isiterable(obj):
-    """ Returns True if the object is one of allowable iterable types. """
+    """Returns True if the object is one of allowable iterable types."""
     return isinstance(obj, (list, tuple, GeneratorType))
 
 

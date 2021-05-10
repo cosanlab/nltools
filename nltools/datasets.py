@@ -33,7 +33,7 @@ except ImportError:
 
 
 def download_nifti(url, data_dir=None):
-    """ Download a image to a nifti file."""
+    """Download a image to a nifti file."""
     local_filename = url.split("/")[-1]
     if data_dir is not None:
         if not os.path.isdir(data_dir):

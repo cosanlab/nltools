@@ -311,7 +311,7 @@ class Roc(object):
         return fig
 
     def summary(self):
-        """ Display a formatted summary of ROC analysis. """
+        """Display a formatted summary of ROC analysis."""
 
         print("------------------------")
         print(".:ROC Analysis Summary:.")
