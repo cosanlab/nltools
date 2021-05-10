@@ -1,5 +1,5 @@
 [![Package versioning](https://img.shields.io/pypi/v/nltools.svg)](https://pypi.org/project/nltools/)
-[![Tests and Coverage](https://github.com/cosanlab/nltools/actions/workflows/tests_and_coverage.yml/badge.svg)](https://github.com/cosanlab/nltools/actions/workflows/tests_and_coverage.yml)
+[![(Auto-On-Push/PR) Formatting, Tests, and Coverage](https://github.com/cosanlab/nltools/actions/workflows/auto_formatting_tests_and_coverage.yml/badge.svg)](https://github.com/cosanlab/nltools/actions/workflows/auto_formatting_tests_and_coverage.yml)
 [![codecov](https://codecov.io/gh/cosanlab/nltools/branch/master/graph/badge.svg)](https://codecov.io/gh/cosanlab/nltools)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/625677967a0749299f38c2bf8ee269c3)](https://www.codacy.com/app/ljchang/nltools?utm_source=github.com&utm_medium=referral&utm_content=ljchang/nltools&utm_campaign=Badge_Grade)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2229813.svg)](https://doi.org/10.5281/zenodo.2229813)
