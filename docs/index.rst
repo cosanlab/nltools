@@ -4,8 +4,8 @@ NLTools
 .. image:: https://img.shields.io/pypi/v/nltools.svg
     :target: https://pypi.org/project/nltools/
 
-.. image:: https://github.com/cosanlab/nltools/actions/workflows/tests_and_coverage.yml/badge.svg
-    :target: https://github.com/cosanlab/nltools/actions/workflows/tests_and_coverage.yml
+.. image:: https://github.com/cosanlab/nltools/actions/workflows/auto_formatting_tests_and_coverage.yml/badge.svg
+    :target: https://github.com/cosanlab/nltools/actions/workflows/auto_formatting_tests_and_coverage.yml
 
 .. image:: https://codecov.io/gh/cosanlab/nltools/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/cosanlab/nltools

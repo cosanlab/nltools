@@ -117,22 +117,22 @@ jobs:
         with:
           python-version: "3.8"
 
-      - name: Upgrade pip
-        run: |
-          # install pip=>20.1 to use "pip cache dir"
-          python3 -m pip install --upgrade pip
+      # - name: Upgrade pip
+      #   run: |
+      #     # install pip=>20.1 to use "pip cache dir"
+      #     python3 -m pip install --upgrade pip
 
-      - name: Setup pip-cache
-        id: pip-cache
-        run: echo "::set-output name=dir::$(pip cache dir)"
+      # - name: Setup pip-cache
+      #   id: pip-cache
+      #   run: echo "::set-output name=dir::$(pip cache dir)"
 
-      - name: Cache deps
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.pip-cache.outputs.dir }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+      # - name: Cache deps
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: ${{ steps.pip-cache.outputs.dir }}
+      #     key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-pip-
 
       - name: Install deps
         run: |
