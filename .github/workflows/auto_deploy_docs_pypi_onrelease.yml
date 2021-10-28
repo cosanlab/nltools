@@ -1,6 +1,8 @@
 name: (Auto-On-Release) Deploy Docs and PyPI
 
-on: release
+on:
+  release:
+    types: [published]
 
 jobs:
   # Job (1): Build and deploy docs.
