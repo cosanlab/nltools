@@ -1,7 +1,0 @@
-sphinx >= 3.1.2
-sphinx-gallery
-sphinxcontrib-napoleon
-sphinx_bootstrap_theme
-networkx
-sphinxcontrib.yt >= 0.2.2
-
