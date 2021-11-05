@@ -72,6 +72,7 @@ from nltools.prefs import MNI_Template, resolve_mni_path
 from nilearn.decoding import SearchLight
 import deepdish as dd
 from pathlib import Path
+import warnings
 
 
 # Optional dependencies
@@ -91,15 +92,12 @@ class Brain_Data(object):
         Y: Pandas DataFrame of training labels
         X: Pandas DataFrame Design Matrix for running univariate models
         mask: binary nifiti file to mask brain data
-        output_file: Name to write out to nifti file
         **kwargs: Additional keyword arguments to pass to the prediction
                 algorithm
 
     """
 
-    def __init__(
-        self, data=None, Y=None, X=None, mask=None, output_file=None, **kwargs
-    ):
+    def __init__(self, data=None, Y=None, X=None, mask=None, **kwargs):
         if mask is not None:
             if not isinstance(mask, nib.Nifti1Image):
                 if isinstance(mask, str) or isinstance(mask, Path):
@@ -113,7 +111,9 @@ class Brain_Data(object):
                     )
             self.mask = mask
         else:
+            # Load default mask
             self.mask = nib.load(resolve_mni_path(MNI_Template)["mask"])
+        # Learn transformation on mask
         self.nifti_masker = NiftiMasker(mask_img=self.mask)
 
         if data is not None:
@@ -151,25 +151,36 @@ class Brain_Data(object):
                             for e in f["Y_index"]
                         ],
                     )
-                    self.mask = nib.Nifti1Image(
-                        f["mask_data"],
-                        affine=f["mask_affine"],
-                        file_map={
-                            "image": nib.FileHolder(filename=f["mask_file_name"])
-                        },
-                    )
-                    nifti_masker = NiftiMasker(self.mask)
-                    self.nifti_masker = nifti_masker.fit(self.mask)
-                    self.file_name = f["file_name"]
+                    if mask is None:
+                        # User didn't request a mask so try to load it from the h5 file,
+                        # i.e. overwrite the default mask loaded above
+                        self.mask = nib.Nifti1Image(
+                            f["mask_data"],
+                            affine=f["mask_affine"],
+                            file_map={
+                                "image": nib.FileHolder(filename=f["mask_file_name"])
+                            },
+                        )
+                        nifti_masker = NiftiMasker(self.mask)
+                        self.nifti_masker = nifti_masker.fit(self.mask)
+                    else:
+                        # Mask is already set above so use the default or user requested
+                        # mask rather than the one in h5 (if it exists)
+                        if "mask_data" in f:
+                            warnings.warn(
+                                "Existing mask found in HDF5 file but is being ignored because you passed a value for mask. Set mask=None to use existing mask in the HDF5 file"
+                            )
+                    # We're done initializing from the h5 file so just return no need to
+                    # run any of the additional checks and code below. We should really
+                    # refactor this entire init...
                     return
-
                 else:
                     data = nib.load(data)
                 self.data = self.nifti_masker.fit_transform(data)
             elif isinstance(data, list):
                 if isinstance(data[0], Brain_Data):
                     tmp = concatenate(data)
-                    for item in ["data", "Y", "X", "mask", "nifti_masker", "file_name"]:
+                    for item in ["data", "Y", "X", "mask", "nifti_masker"]:
                         setattr(self, item, getattr(tmp, item))
                 else:
                     if all(isinstance(x, data[0].__class__) for x in data):
@@ -223,17 +234,14 @@ class Brain_Data(object):
         else:
             self.X = pd.DataFrame()
 
-        self.file_name = output_file if output_file is not None else []
-
     def __repr__(self):
-        return "%s.%s(data=%s, Y=%s, X=%s, mask=%s, output_file=%s)" % (
+        return "%s.%s(data=%s, Y=%s, X=%s, mask=%s)" % (
             self.__class__.__module__,
             self.__class__.__name__,
             self.shape(),
             len(self.Y),
             self.X.shape,
             os.path.basename(self.mask.get_filename()),
-            self.file_name,
         )
 
     def __getitem__(self, index):
@@ -489,7 +497,7 @@ class Brain_Data(object):
 
         return self.nifti_masker.inverse_transform(self.data)
 
-    def write(self, file_name=None, **kwargs):
+    def write(self, file_name, **kwargs):
         """Write out Brain_Data object to Nifti or HDF5 File.
 
         Args:
@@ -514,7 +522,6 @@ class Brain_Data(object):
                     "mask_affine": self.mask.affine,
                     "mask_data": self.mask.get_fdata(),
                     "mask_file_name": self.mask.get_filename(),
-                    "file_name": self.file_name,
                 },
                 compression=kwargs.get("compression", "blosc"),
             )

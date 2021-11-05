@@ -9,7 +9,7 @@ from nltools.stats import threshold, align
 from nltools.mask import create_sphere, roi_to_brain
 from pathlib import Path
 
-# from nltools.prefs import MNI_Template
+from nltools.prefs import MNI_Template
 
 
 shape_3d = (91, 109, 91)
@@ -52,7 +52,7 @@ def test_load(tmpdir):
     # Test i/o for hdf5
     dat.write(os.path.join(str(tmpdir.join("test_write.h5"))))
     b = Brain_Data(os.path.join(tmpdir.join("test_write.h5")))
-    for k in ["X", "Y", "mask", "nifti_masker", "file_name", "data"]:
+    for k in ["X", "Y", "mask", "nifti_masker", "data"]:
         if k == "data":
             assert np.allclose(b.__dict__[k], dat.__dict__[k])
         elif k in ["X", "Y"]:
@@ -68,6 +68,14 @@ def test_load(tmpdir):
             )
         else:
             assert b.__dict__[k] == dat.__dict__[k]
+    # Test situation where we present a user warning when they're trying to load an .h5
+    # file that includes a mask AND they pass in value for the mask argument. In this
+    # case the mask argument takes precedence so we warn the user
+    with pytest.warns(UserWarning):
+        bb = Brain_Data(
+            os.path.join(tmpdir.join("test_write.h5")), mask=MNI_Template["mask"]
+        )
+        assert bb.mask.get_filename() == MNI_Template["mask"]
 
 
 def test_shape(sim_brain_data):
