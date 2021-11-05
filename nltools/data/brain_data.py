@@ -71,6 +71,7 @@ from nltools.prefs import MNI_Template, resolve_mni_path
 from nilearn.decoding import SearchLight
 import deepdish as dd
 from pathlib import Path
+import warnings
 
 
 # Optional dependencies
@@ -112,7 +113,9 @@ class Brain_Data(object):
                     )
             self.mask = mask
         else:
+            # Load default mask
             self.mask = nib.load(resolve_mni_path(MNI_Template)["mask"])
+        # Learn transformation on mask
         self.nifti_masker = NiftiMasker(mask_img=self.mask)
 
         if data is not None:
@@ -150,16 +153,26 @@ class Brain_Data(object):
                             for e in f["Y_index"]
                         ],
                     )
-                    self.mask = nib.Nifti1Image(
-                        f["mask_data"],
-                        affine=f["mask_affine"],
-                        file_map={
-                            "image": nib.FileHolder(filename=f["mask_file_name"])
-                        },
-                    )
-                    nifti_masker = NiftiMasker(self.mask)
-                    self.nifti_masker = nifti_masker.fit(self.mask)
-                    self.file_name = f["file_name"]
+                    if mask is None:
+                        # User didn't request a mask so try to load it from the h5 file,
+                        # i.e. overwrite the default mask loaded above
+                        self.mask = nib.Nifti1Image(
+                            f["mask_data"],
+                            affine=f["mask_affine"],
+                            file_map={
+                                "image": nib.FileHolder(filename=f["mask_file_name"])
+                            },
+                        )
+                        nifti_masker = NiftiMasker(self.mask)
+                        self.nifti_masker = nifti_masker.fit(self.mask)
+                        self.file_name = f["file_name"]
+                    else:
+                        # Mask is already set above so use the default or user requested
+                        # mask rather than the one in h5 (if it exists)
+                        if "mask_data" in f:
+                            warnings.warn(
+                                "Existing mask found in HDF5 file but is being ignored because you passed a value for mask. Set mask=None to use existing mask in the HDF5 file"
+                            )
                     return
 
                 else:
