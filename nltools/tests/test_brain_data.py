@@ -52,7 +52,7 @@ def test_load(tmpdir):
     # Test i/o for hdf5
     dat.write(os.path.join(str(tmpdir.join("test_write.h5"))))
     b = Brain_Data(os.path.join(tmpdir.join("test_write.h5")))
-    for k in ["X", "Y", "mask", "nifti_masker", "file_name", "data"]:
+    for k in ["X", "Y", "mask", "nifti_masker", "data"]:
         if k == "data":
             assert np.allclose(b.__dict__[k], dat.__dict__[k])
         elif k in ["X", "Y"]:

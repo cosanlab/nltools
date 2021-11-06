@@ -91,15 +91,12 @@ class Brain_Data(object):
         Y: Pandas DataFrame of training labels
         X: Pandas DataFrame Design Matrix for running univariate models
         mask: binary nifiti file to mask brain data
-        output_file: Name to write out to nifti file
         **kwargs: Additional keyword arguments to pass to the prediction
                 algorithm
 
     """
 
-    def __init__(
-        self, data=None, Y=None, X=None, mask=None, output_file=None, **kwargs
-    ):
+    def __init__(self, data=None, Y=None, X=None, mask=None, **kwargs):
         if mask is not None:
             if not isinstance(mask, nib.Nifti1Image):
                 if isinstance(mask, str) or isinstance(mask, Path):
@@ -165,7 +162,6 @@ class Brain_Data(object):
                         )
                         nifti_masker = NiftiMasker(self.mask)
                         self.nifti_masker = nifti_masker.fit(self.mask)
-                        self.file_name = f["file_name"]
                     else:
                         # Mask is already set above so use the default or user requested
                         # mask rather than the one in h5 (if it exists)
@@ -173,15 +169,13 @@ class Brain_Data(object):
                             warnings.warn(
                                 "Existing mask found in HDF5 file but is being ignored because you passed a value for mask. Set mask=None to use existing mask in the HDF5 file"
                             )
-                    return
-
                 else:
                     data = nib.load(data)
                 self.data = self.nifti_masker.fit_transform(data)
             elif isinstance(data, list):
                 if isinstance(data[0], Brain_Data):
                     tmp = concatenate(data)
-                    for item in ["data", "Y", "X", "mask", "nifti_masker", "file_name"]:
+                    for item in ["data", "Y", "X", "mask", "nifti_masker"]:
                         setattr(self, item, getattr(tmp, item))
                 else:
                     if all(isinstance(x, data[0].__class__) for x in data):
@@ -235,17 +229,14 @@ class Brain_Data(object):
         else:
             self.X = pd.DataFrame()
 
-        self.file_name = output_file if output_file is not None else []
-
     def __repr__(self):
-        return "%s.%s(data=%s, Y=%s, X=%s, mask=%s, output_file=%s)" % (
+        return "%s.%s(data=%s, Y=%s, X=%s, mask=%s)" % (
             self.__class__.__module__,
             self.__class__.__name__,
             self.shape(),
             len(self.Y),
             self.X.shape,
             os.path.basename(self.mask.get_filename()),
-            self.file_name,
         )
 
     def __getitem__(self, index):
@@ -492,7 +483,7 @@ class Brain_Data(object):
 
         return self.nifti_masker.inverse_transform(self.data)
 
-    def write(self, file_name=None, **kwargs):
+    def write(self, file_name, **kwargs):
         """Write out Brain_Data object to Nifti or HDF5 File.
 
         Args:
@@ -517,7 +508,6 @@ class Brain_Data(object):
                     "mask_affine": self.mask.affine,
                     "mask_data": self.mask.get_fdata(),
                     "mask_file_name": self.mask.get_filename(),
-                    "file_name": self.file_name,
                 },
                 compression=kwargs.get("compression", "blosc"),
             )
