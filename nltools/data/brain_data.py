@@ -169,6 +169,10 @@ class Brain_Data(object):
                             warnings.warn(
                                 "Existing mask found in HDF5 file but is being ignored because you passed a value for mask. Set mask=None to use existing mask in the HDF5 file"
                             )
+                    # We're done initializing from the h5 file so just return no need to
+                    # run any of the additional checks and code below. We should really
+                    # refactor this entire init...
+                    return
                 else:
                     data = nib.load(data)
                 self.data = self.nifti_masker.fit_transform(data)
