@@ -20,7 +20,7 @@ def test_simulategrid_fpr(tmpdir):
     n_subjects = 25
     n_simulations = 100
     thresh = 0.05
-    bonferroni_threshold = thresh / (grid_width ** 2)
+    bonferroni_threshold = thresh / (grid_width**2)
     simulation = SimulateGrid(
         grid_width=grid_width, n_subjects=n_subjects, random_state=0
     )

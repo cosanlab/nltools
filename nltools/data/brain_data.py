@@ -1598,7 +1598,7 @@ class Brain_Data(object):
             np.dot(np.dot(X, np.linalg.pinv(np.dot(X.T, X))), X.T), Y.flatten("F")
         )
         residuals = Y.flatten("F") - predicted_Y
-        SSE = (residuals ** 2).sum()
+        SSE = (residuals**2).sum()
 
         MSE = SSE / dfe
 

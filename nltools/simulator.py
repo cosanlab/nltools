@@ -63,7 +63,7 @@ class Simulator:
         # Need an (N, 3) array of (x, y) pairs.
         xyz = np.column_stack([x.flat, y.flat, z.flat])
 
-        covariance = np.diag(sigma ** 2)
+        covariance = np.diag(sigma**2)
         g = multivariate_normal.pdf(xyz, mean=mu, cov=covariance)
 
         # Reshape back to a 3D grid.
@@ -652,10 +652,10 @@ class SimulateGrid(object):
         """
 
         if self.signal_mask is None:
-            fp_percent = np.sum(thresholded != 0) / (self.grid_width ** 2)
+            fp_percent = np.sum(thresholded != 0) / (self.grid_width**2)
         else:
             fp_percent = np.sum(thresholded[self.signal_mask != 1] != 0) / (
-                self.grid_width ** 2 - self.signal_width ** 2
+                self.grid_width**2 - self.signal_width**2
             )
         return fp_percent
 
@@ -671,7 +671,7 @@ class SimulateGrid(object):
         if self.signal_mask is None:
             raise ValueError("No mask exists, run add_signal() first.")
         tp_percent = np.sum(thresholded[self.signal_mask == 1] != 0) / (
-            self.signal_width ** 2
+            self.signal_width**2
         )
         return tp_percent
 

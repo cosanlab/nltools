@@ -888,18 +888,18 @@ def _robust_estimator(vals, X, robust_estimator="hc0", nlags=1):
 
     # Then we need meat
     if robust_estimator == "hc0":
-        V = np.diag(vals ** 2)
+        V = np.diag(vals**2)
         meat = np.dot(np.dot(X.T, V), X)
 
     elif robust_estimator == "hc3":
-        V = np.diag(vals ** 2) / (1 - np.diag(np.dot(X, np.dot(bread, X.T)))) ** 2
+        V = np.diag(vals**2) / (1 - np.diag(np.dot(X, np.dot(bread, X.T)))) ** 2
         meat = np.dot(np.dot(X.T, V), X)
 
     elif robust_estimator == "hac":
         weights = 1 - np.arange(nlags + 1.0) / (nlags + 1.0)
 
         # First compute lag 0
-        V = np.diag(vals ** 2)
+        V = np.diag(vals**2)
         meat = weights[0] * np.dot(np.dot(X.T, V), X)
 
         # Now loop over additional lags
@@ -1572,7 +1572,7 @@ def distance_correlation(x, y, bias_corrected=True, ttest=False):
         out["dcorr_squared"] = dcor
     if ttest:
         dof = (adjusted_n / 2) - 1
-        t = np.sqrt(dof) * (dcor / np.sqrt(1 - dcor ** 2))
+        t = np.sqrt(dof) * (dcor / np.sqrt(1 - dcor**2))
         p = 1 - t_dist.cdf(t, dof)
         out["t"] = t
         out["p"] = p
@@ -2192,8 +2192,8 @@ def _phase_rayleigh_p(phase_angles):
     if n <= 50:
         return np.exp(-1 * Z) * (
             1
-            + (2 * Z - Z ** 2) / (4 * n)
-            - (24 * Z - 132 * Z ** 2 + 76 * Z ** 3 - 9 * Z ** 4) / (288 * n ** 2)
+            + (2 * Z - Z**2) / (4 * n)
+            - (24 * Z - 132 * Z**2 + 76 * Z**3 - 9 * Z**4) / (288 * n**2)
         )
     else:
         return np.exp(-1 * Z)
