@@ -121,9 +121,9 @@ def test_std(sim_adjacency_multiple):
 def test_sum():
     n = 10
     a = Adjacency(np.ones((n, n)), matrix_type="directed")
-    assert a.sum() == n ** 2
+    assert a.sum() == n**2
     a = Adjacency([a, a])
-    assert a.sum().data.sum() == (n ** 2) * 2
+    assert a.sum().data.sum() == (n**2) * 2
 
     a = Adjacency(np.ones((n, n)), matrix_type="similarity")
     assert a.sum() == n * (n - 1) / 2
@@ -143,28 +143,22 @@ def test_similarity(sim_adjacency_multiple):
             sim_adjacency_multiple[0].squareform(), perm_type="1d", n_permute=n_permute
         )
     ) == len(sim_adjacency_multiple)
-    assert (
-        len(
-            sim_adjacency_multiple.similarity(
-                sim_adjacency_multiple[0].squareform(),
-                perm_type="1d",
-                metric="pearson",
-                n_permute=n_permute,
-            )
+    assert len(
+        sim_adjacency_multiple.similarity(
+            sim_adjacency_multiple[0].squareform(),
+            perm_type="1d",
+            metric="pearson",
+            n_permute=n_permute,
         )
-        == len(sim_adjacency_multiple)
-    )
-    assert (
-        len(
-            sim_adjacency_multiple.similarity(
-                sim_adjacency_multiple[0].squareform(),
-                perm_type="1d",
-                metric="kendall",
-                n_permute=n_permute,
-            )
+    ) == len(sim_adjacency_multiple)
+    assert len(
+        sim_adjacency_multiple.similarity(
+            sim_adjacency_multiple[0].squareform(),
+            perm_type="1d",
+            metric="kendall",
+            n_permute=n_permute,
         )
-        == len(sim_adjacency_multiple)
-    )
+    ) == len(sim_adjacency_multiple)
 
     data2 = sim_adjacency_multiple[0].copy()
     data2.data = data2.data + np.random.randn(len(data2.data)) * 0.1
