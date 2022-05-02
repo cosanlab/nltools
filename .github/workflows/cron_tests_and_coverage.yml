@@ -11,7 +11,7 @@ jobs:
     name: Test
     runs-on: ${{ matrix.os }}
     # Determines whether the entire workflow should pass/fail based on parallel jobs
-    continue-on-error: ${{ matrix.ok-fail }}
+    continue-on-error: ${{ matrix.experimental }}
     defaults:
       # This ensures each step gets properly configured bash shell for conda commands to work
       run:
