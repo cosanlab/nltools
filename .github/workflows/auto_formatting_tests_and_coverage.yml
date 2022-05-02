@@ -26,9 +26,9 @@ jobs:
       fail-fast: false
       matrix:
         # OSs to test
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
         # Python versions to test
-        python-version: [3.7, 3.8]
+        python-version: [3.7, 3.8, 3.9]
         # By default everything should pass for the workflow to pass
         experimental: [false]
         include:
@@ -38,6 +38,9 @@ jobs:
             experimental: true
           - os: windows-latest
             python-version: 3.8
+            experimental: true
+          - os: windows-latest
+            python-version: 3.9
             experimental: true
     steps:
       # Step up miniconda
