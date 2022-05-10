@@ -132,6 +132,18 @@ def test_multiply(sim_brain_data):
     )
     np.testing.assert_almost_equal((new - new2).sum(), 0, decimal=4)
 
+    # Test multiplication from both directions (e.g. like a contrast)
+    # [A, A, A, B, B, B]  -> B > A
+    # NOTE: Multiplication from the right, i.e. contrasts * brain, only works with
+    # python lists NOT numpy arrays. That's because numpy arrays have arr.__mul__ that
+    # supports iterables as the input, but lists raise NotImplemented which then uses
+    # Brain_Data.__rmul__. So arrays will try to iterate over each item in a Brain_Data
+    # and finally fail with a __getitem__ method error.
+    cons = [-1, -1, -1, 1, 1, 1]
+    con1 = sim_brain_data * cons
+    con2 = cons * sim_brain_data
+    np.testing.assert_allclose(con1.data, con2.data)
+
 
 def test_divide(sim_brain_data):
     new = sim_brain_data / sim_brain_data
