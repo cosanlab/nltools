@@ -361,6 +361,15 @@ class Brain_Data(object):
                     "Both Brain_Data() instances need to be the " "same shape."
                 )
             new.data = np.multiply(y.data, new.data)
+        elif isinstance(y, (list, np.ndarray)):
+            if len(y) != len(self):
+                raise ValueError(
+                    "Vector multiplication requires that the "
+                    "length of the vector match the number of "
+                    "images in Brain_Data instance."
+                )
+            else:
+                new.data = np.dot(y, new.data)
         else:
             raise ValueError("Can only multiply int, float, or Brain_Data")
         return new
