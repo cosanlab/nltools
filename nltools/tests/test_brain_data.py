@@ -518,6 +518,17 @@ def test_similarity(sim_brain_data):
     assert len(r) == shape_2d[0]
     r = sim_brain_data.similarity(stats["weight_map"], method="cosine")
     assert len(r) == shape_2d[0]
+    r = sim_brain_data.similarity(stats["weight_map"], method="spearman")
+    assert len(r) == shape_2d[0]
+    r = sim_brain_data.similarity(stats["weight_map"], method="pearson")
+    assert len(r) == shape_2d[0]
+    r = sim_brain_data.similarity(stats["weight_map"], method="correlation")
+    assert len(r) == shape_2d[0]
+    r = sim_brain_data.similarity(stats["weight_map"], method="rank_correlation")
+    assert len(r) == shape_2d[0]
+    r = stats["weight_map"].similarity(sim_brain_data)
+    assert len(r) == shape_2d[0]
+
     r = sim_brain_data.similarity(sim_brain_data, method="correlation")
     assert r.shape == (sim_brain_data.shape()[0], sim_brain_data.shape()[0])
     r = sim_brain_data.similarity(sim_brain_data, method="dot_product")
