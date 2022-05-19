@@ -13,7 +13,8 @@ __author__ = ["Luke Chang"]
 __license__ = "MIT"
 
 from nilearn.signal import clean
-from scipy.stats import ttest_1samp, pearsonr
+from scipy.stats import ttest_1samp, pearsonr, spearmanr
+from scipy.spatial.distance import cdist
 from scipy.stats import t as t_dist
 from scipy.signal import detrend
 from scipy.interpolate import pchip
@@ -553,7 +554,7 @@ class Brain_Data(object):
         threshold_lower=None,
         figsize=(15, 2),
         axes=None,
-        **kwargs
+        **kwargs,
     ):
         """Create a quick plot of self.data.  Will plot each image separately
 
@@ -598,7 +599,7 @@ class Brain_Data(object):
                     colorbar=colorbar,
                     draw_cross=draw_cross,
                     axes=axes,
-                    **kwargs
+                    **kwargs,
                 )
             else:
                 if axes is not None:
@@ -617,7 +618,7 @@ class Brain_Data(object):
                         colorbar=colorbar,
                         draw_cross=draw_cross,
                         axes=a[i],
-                        **kwargs
+                        **kwargs,
                     )
             return
         elif view in ["glass", "mni", "full"]:
@@ -627,7 +628,7 @@ class Brain_Data(object):
                     how=view,
                     thr_upper=threshold_upper,
                     thr_lower=threshold_lower,
-                    **kwargs
+                    **kwargs,
                 )
             else:
                 raise ValueError(
@@ -914,6 +915,17 @@ class Brain_Data(object):
 
         """
 
+        supported_metrics = [
+            "correlation",
+            "pearson",
+            "rank_correlation",
+            "spearman",
+            "dot_product",
+            "cosine",
+        ]
+        if method not in supported_metrics:
+            raise ValueError(f"method must be one of {supported_metrics}")
+
         image = check_brain_data(image)
 
         # Check to make sure masks are the same for each dataset and if not
@@ -934,59 +946,20 @@ class Brain_Data(object):
             data2 = self.data
             image2 = image.data
 
-        def vector2array(data):
-            if len(data.shape) == 1:
-                return data.reshape(-1, 1).T
-            else:
-                return data
-
-        def flatten_array(data):
-            if np.any(np.array(data.shape) == 1):
-                data = data.flatten()
-                if len(data) == 1 & data.shape[0] == 1:
-                    data = data[0]
-            return data
-
-        # Calculate pattern expression
         if method == "dot_product":
-            if len(image2.shape) > 1:
-                if image2.shape[0] > 1:
-                    pexp = []
-                    for i in range(image2.shape[0]):
-                        pexp.append(np.dot(data2, image2[i, :]))
-                    pexp = np.array(pexp)
-                else:
-                    pexp = np.dot(data2, image2)
-            else:
-                pexp = np.dot(data2, image2)
-        elif method == "correlation":
-            if len(image2.shape) > 1:
-                if image2.shape[0] > 1:
-                    pexp = []
-                    for i in range(image2.shape[0]):
-                        pexp.append(pearson(image2[i, :], data2))
-                    pexp = np.array(pexp)
-                else:
-                    pexp = pearson(image2, data2)
-            else:
-                pexp = pearson(image2, data2)
+            func = lambda x, y: np.dot(x, y)
+        elif method in ["pearson", "correlation"]:
+            func = lambda x, y: pearsonr(x, y)[0]
+        elif method in ["spearman", "rank_correlation"]:
+            func = lambda x, y: spearmanr(x, y)[0]
         elif method == "cosine":
-            image2 = vector2array(image2)
-            data2 = vector2array(data2)
-            if image2.shape[1] > 1:
-                pexp = []
-                for i in range(image2.shape[0]):
-                    pexp.append(
-                        cosine_similarity(
-                            image2[i, :].reshape(-1, 1).T, data2
-                        ).flatten()
-                    )
-                pexp = np.array(pexp)
-            else:
-                pexp = cosine_similarity(image2, data2).flatten()
-        else:
-            raise ValueError("Method must be one of: correlation, dot_product, cosine")
-        return flatten_array(pexp)
+            func = method
+
+        out = cdist(np.atleast_2d(data2), np.atleast_2d(image2), func).squeeze()
+        # cdist metric argument returns distances by default (unless we specific a
+        # custom function like above) so flip it to similarity
+        out = 1 - out if method == "cosine" else out
+        return out
 
     def distance(self, metric="euclidean", **kwargs):
         """Calculate distance between images within a Brain_Data() instance.
@@ -1344,7 +1317,7 @@ class Brain_Data(object):
         scoring=None,
         n_jobs=1,
         verbose=0,
-        **kwargs
+        **kwargs,
     ):
         """Perform multi-region prediction. This can be a searchlight analysis or multi-roi analysis if provided a Brain_Data instance with labeled non-overlapping rois.
 
@@ -1670,7 +1643,7 @@ class Brain_Data(object):
         collection_id=None,
         img_type=None,
         img_modality=None,
-        **kwargs
+        **kwargs,
     ):
         """Upload Data to Neurovault.  Will add any columns in self.X to image
             metadata. Index will be used as image name.
@@ -1735,7 +1708,7 @@ class Brain_Data(object):
                 name=img_name,
                 modality=img_modality,
                 map_type=img_type,
-                **kwargs
+                **kwargs,
             )
 
         if len(self.shape()) == 1:
@@ -1795,7 +1768,7 @@ class Brain_Data(object):
             standardize=standardize,
             high_pass=high_pass,
             low_pass=low_pass,
-            **kwargs
+            **kwargs,
         )
         return out
 
@@ -1964,7 +1937,7 @@ class Brain_Data(object):
         n_jobs=-1,
         random_state=None,
         *args,
-        **kwargs
+        **kwargs,
     ):
         """Bootstrap a Brain_Data method.
 
