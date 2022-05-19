@@ -774,6 +774,11 @@ class Design_Matrix(DataFrame):
         """
 
         # Temporarily turn off warnings for correlations
+        if any(self.columns.duplicated()):
+            raise ValueError(
+                "Duplicate columns names detected. Using .clean() with duplicate columns is not supported as it can produce unexpected results"
+            )
+
         old_settings = np.seterr(all="ignore")
         if fill_na is not None:
             out = self.fillna(fill_na)
@@ -801,6 +806,10 @@ class Design_Matrix(DataFrame):
             out = out.drop(remove, axis=1)
             out.polys = [elem for elem in out.polys if elem not in remove]
             out = out._sort_cols()
+            if out.shape[1] >= self.shape[1]:
+                raise ValueError(
+                    f"Removing {len(remove)} cols has somehow made the design matrix LARGER or failed to change it's shape. Previously had {self.shape[1]} columns and now has {out.shape[1]} columns. This usually happens if you had duplicate column names prior to calling clean!"
+                )
         else:
             print("Dropping columns not needed...skipping")
         np.seterr(**old_settings)
