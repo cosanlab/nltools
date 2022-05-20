@@ -812,9 +812,9 @@ def transform_pairwise(X, y):
     there are the same number of -1 as +1
 
     Reference: "Large Margin Rank Boundaries for Ordinal Regression",
-    R. Herbrich, T. Graepel, K. Obermayer.
-    Authors: Fabian Pedregosa <fabian@fseoane.net>
-             Alexandre Gramfort <alexandre.gramfort@inria.fr>
+    R. Herbrich, T. Graepel, K. Obermayer. Authors: Fabian Pedregosa
+    <fabian@fseoane.net> Alexandre Gramfort <alexandre.gramfort@inria.fr>
+
     Args:
         X: (np.array), shape (n_samples, n_features)
             The data
@@ -996,12 +996,34 @@ def regress(X, Y, mode="ols", stats="full", **kwargs):
     Does NOT add an intercept automatically to the X matrix before fitting like some other software packages. This is left up to the user.
 
     This function can compute regression in 3 ways:
-    1) Standard OLS
-    2) OLS with robust sandwich estimators for standard errors. 3 robust types of estimators exist:
-        1) 'hc0' - classic huber-white estimator robust to heteroscedasticity (default)
-        2) 'hc3' - a variant on huber-white estimator slightly more conservative when sample sizes are small
-        3) 'hac' - an estimator robust to both heteroscedasticity and auto-correlation; auto-correlation lag can be controlled with the 'nlags' keyword argument; default is 1
-    3) ARMA (auto-regressive moving-average) model (experimental). This model is fit through statsmodels.tsa.arima_model.ARMA, so more information about options can be found there. Any settings can be passed in as kwargs. By default fits a (1,1) model with starting lags of 2. This mode is **computationally intensive** and can take quite a while if Y has many columns.  If Y is a 2d array joblib.Parallel is used for faster fitting by parallelizing fits across columns of Y. Parallelization can be controlled by passing in kwargs. Defaults to multi-threading using 10 separate threads, as threads don't require large arrays to be duplicated in memory. Defaults are also set to enable memory-mapping for very large arrays if backend='multiprocessing' to prevent crashes and hangs. Various levels of progress can be monitored using the 'disp' (statsmodels) and 'verbose' (joblib) keyword arguments with integer values > 0.
+
+    1. Standard OLS
+    2. OLS with robust sandwich estimators for standard errors. 3 robust types of
+       estimators exist:
+
+    - 'hc0' - classic huber-white estimator robust to heteroscedasticity (default)
+    - 'hc3' - a variant on huber-white estimator slightly more conservative when sample sizes are small
+    - 'hac' - an estimator robust to both heteroscedasticity and auto-correlation;
+      auto-correlation lag can be controlled with the `nlags` keyword argument; default
+      is 1
+
+    3. ARMA (auto-regressive moving-average) model (experimental). This model is fit through statsmodels.tsa.arima_model.ARMA, so more information about options can be found there. Any settings can be passed in as kwargs. By default fits a (1,1) model with starting lags of 2. This mode is **computationally intensive** and can take quite a while if Y has many columns.  If Y is a 2d array joblib.Parallel is used for faster fitting by parallelizing fits across columns of Y. Parallelization can be controlled by passing in kwargs. Defaults to multi-threading using 10 separate threads, as threads don't require large arrays to be duplicated in memory. Defaults are also set to enable memory-mapping for very large arrays if backend='multiprocessing' to prevent crashes and hangs. Various levels of progress can be monitored using the 'disp' (statsmodels) and 'verbose' (joblib) keyword arguments with integer values > 0.
+
+    Args:
+        X (ndarray): design matrix; assumes intercept is included
+        Y (ndarray): dependent variable array; if 2d, a model is fit to each column of Y separately
+        mode (str): kind of model to fit; must be one of 'ols' (default), 'robust', or 'arma'
+        robust_estimator (str,optional): kind of robust estimator to use if mode = 'robust'; default 'hc0'
+        nlags (int,optional): auto-correlation lag correction if mode = 'robust' and robust_estimator = 'hac'; default 1
+        order (tuple,optional): auto-regressive and moving-average orders for mode = 'arma'; default (1,1)
+        kwargs (dict): additional keyword arguments to statsmodels.tsa.arima_model.ARMA and joblib.Parallel
+
+    Returns:
+        b: coefficients
+        t: t-statistics (coef/sterr)
+        p : p-values
+        df: degrees of freedom
+        res: residuals
 
     Examples:
         Standard OLS
@@ -1023,22 +1045,6 @@ def regress(X, Y, mode="ols", stats="full", **kwargs):
         Auto-regressive model with auto-regressive lag = 2, moving-average lag = 3, and multi-processing instead of multi-threading using 8 cores (this can use a lot of memory if input arrays are very large!).
 
         >>> results = regress(X,Y,mode='arma',order=(2,3),backend='multiprocessing',n_jobs=8)
-
-    Args:
-        X (ndarray): design matrix; assumes intercept is included
-        Y (ndarray): dependent variable array; if 2d, a model is fit to each column of Y separately
-        mode (str): kind of model to fit; must be one of 'ols' (default), 'robust', or 'arma'
-        robust_estimator (str,optional): kind of robust estimator to use if mode = 'robust'; default 'hc0'
-        nlags (int,optional): auto-correlation lag correction if mode = 'robust' and robust_estimator = 'hac'; default 1
-        order (tuple,optional): auto-regressive and moving-average orders for mode = 'arma'; default (1,1)
-        kwargs (dict): additional keyword arguments to statsmodels.tsa.arima_model.ARMA and joblib.Parallel
-
-    Returns:
-        b: coefficients
-        t: t-statistics (coef/sterr)
-        p : p-values
-        df: degrees of freedom
-        res: residuals
 
     """
 
@@ -1192,15 +1198,6 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
     original data using Tranformation matrix. Inputs must be a list of Brain_Data
     instances or numpy arrays (observations by features).
 
-    Examples:
-        Hyperalign using procrustes transform:
-            out = align(data, method='procrustes')
-
-        Align using shared response model:
-            out = align(data, method='probabilistic_srm', n_features=None)
-
-        Project aligned data into original data:
-            original_data = [np.dot(t.data,tm.T) for t,tm in zip(out['transformed'], out['transformation_matrix'])]
 
     Args:
         data: (list) A list of Brain_Data objects
@@ -1215,6 +1212,13 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
             matrices, a list of transformation matrices, the shared
             response matrix, and the intersubject correlation of the shared resposnes
 
+    Examples:
+        - Hyperalign using procrustes transform:
+            >>> out = align(data, method='procrustes')
+        - Align using shared response model:
+            >>> out = align(data, method='probabilistic_srm', n_features=None)
+        - Project aligned data into original data:
+            >>> original_data = [np.dot(t.data,tm.T) for t,tm in zip(out['transformed'], out['transformation_matrix'])]
     """
 
     from nltools.data import Brain_Data, Adjacency
