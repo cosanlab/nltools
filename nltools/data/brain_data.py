@@ -1946,21 +1946,23 @@ class Brain_Data(object):
         *args,
         **kwargs,
     ):
-        """Bootstrap a Brain_Data method.
-
-            Example Useage:
-            b = dat.bootstrap('mean', n_samples=5000)
-            b = dat.bootstrap('predict', n_samples=5000, algorithm='ridge')
-            b = dat.bootstrap('predict', n_samples=5000, save_weights=True)
+        """Bootstrap a `Brain_Data` method.
 
         Args:
             function: (str) method to apply to data for each bootstrap
             n_samples: (int) number of samples to bootstrap with replacement
-            save_weights: (bool) Save each bootstrap iteration
-                        (useful for aggregating many bootstraps on a cluster)
-            n_jobs: (int) The number of CPUs to use to do the computation.
-                        -1 means all CPUs.Returns:
-        output: summarized studentized bootstrap output
+            save_weights: (bool) Save each bootstrap iteration (useful for aggregating
+            many bootstraps on a cluster)
+            n_jobs: (int) The number of CPUs to use to do the computation. -1 means all
+            CPUs.Returns:
+
+        Returns:
+            output: summarized studentized bootstrap output
+
+        Examples:
+            >>>  b = dat.bootstrap('mean', n_samples=5000)
+            >>>  b = dat.bootstrap('predict', n_samples=5000, algorithm='ridge')
+            >>>  b = dat.bootstrap('predict', n_samples=5000, save_weights=True)
 
         """
 
@@ -2025,16 +2027,6 @@ class Brain_Data(object):
 
         See nltools.stats.align for aligning multiple Brain_Data instances
 
-        Examples:
-            Hyperalign using procrustes transform:
-                out = data.align(target, method='procrustes')
-
-            Align using shared response model:
-                out = data.align(target, method='probabilistic_srm', n_features=None)
-
-            Project aligned data into original data:
-                original_data = np.dot(out['transformed'].data,out['transformation_matrix'].T)
-
         Args:
             target: (Brain_Data) object to align to.
             method: (str) alignment method to use
@@ -2045,6 +2037,13 @@ class Brain_Data(object):
             out: (dict) a dictionary containing transformed object,
                 transformation matrix, and the shared response matrix
 
+        Examples:
+            - Hyperalign using procrustes transform:
+                >>> out = data.align(target, method='procrustes')
+            - Align using shared response model:
+                >>> out = data.align(target, method='probabilistic_srm', n_features=None)
+            - Project aligned data into original data:
+                >>> original_data = np.dot(out[‘transformed’].data,out[‘transformation_matrix’].T)
         """
 
         if method not in ["probabilistic_srm", "deterministic_srm", "procrustes"]:
@@ -2145,19 +2144,20 @@ class Brain_Data(object):
         )
 
     def temporal_resample(self, sampling_freq=None, target=None, target_type="hz"):
-        """Resample Brain_Data timeseries to a new target frequency or number of samples
+        """
+        Resample Brain_Data timeseries to a new target frequency or number of samples
         using Piecewise Cubic Hermite Interpolating Polynomial (PCHIP) interpolation.
         This function can up- or down-sample data.
 
         Note: this function can use quite a bit of RAM.
 
-            Args:
-                sampling_freq:  (float) sampling frequency of data in hertz
-                target: (float) upsampling target
-                target_type: (str) type of target can be [samples,seconds,hz]
+        Args:
+            sampling_freq:  (float) sampling frequency of data in hertz
+            target: (float) upsampling target
+            target_type: (str) type of target can be [samples,seconds,hz]
 
-            Returns:
-                upsampled Brain_Data instance
+        Returns:
+            upsampled Brain_Data instance
         """
 
         out = self.copy()

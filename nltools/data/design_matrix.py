@@ -464,11 +464,16 @@ class Design_Matrix(DataFrame):
 
     def vif(self, exclude_polys=True):
         """
-        Compute variance inflation factor amongst columns of design matrix,ignoring polynomial terms. Much faster that statsmodels and more reliable too. Uses the same method as Matlab and R (diagonal elements of the inverted correlation matrix).
+        Compute variance inflation factor amongst columns of design matrix,ignoring
+        polynomial terms. Much faster that statsmodels and more reliable too. Uses the
+        same method as Matlab and R (diagonal elements of the inverted correlation
+        matrix).
+
+        Args:
+            exclude_polys (bool): whether to skip checking of polynomial terms (i.e intercept, trends, basis functions); default True
 
         Returns:
             vifs (list): list with length == number of columns - intercept
-            exclude_polys (bool): whether to skip checking of polynomial terms (i.e intercept, trends, basis functions); default True
 
         """
         if self.shape[1] <= 1:
@@ -560,9 +565,8 @@ class Design_Matrix(DataFrame):
         return out
 
     def downsample(self, target, **kwargs):
-        """Downsample columns of design matrix. Relies on
-            nltools.stats.downsample, but ensures that returned object is a
-            design matrix.
+        """
+        Downsample columns of design matrix. Relies on nltools.stats.downsample, but ensures that returned object is a design matrix.
 
         Args:
             target(float): desired frequency in hz
@@ -588,9 +592,8 @@ class Design_Matrix(DataFrame):
         return newMat
 
     def upsample(self, target, **kwargs):
-        """Upsample columns of design matrix. Relies on
-            nltools.stats.upsample, but ensures that returned object is a
-            design matrix.
+        """
+        Upsample columns of design matrix. Relies on nltools.stats.upsample, but ensures that returned object is a design matrix.
 
         Args:
             target(float): desired frequence in hz
@@ -616,9 +619,8 @@ class Design_Matrix(DataFrame):
         return newMat
 
     def zscore(self, columns=[]):
-        """Z-score specific columns of design matrix. Relies on
-            nltools.stats.downsample, but ensures that returned object is a
-            design matrix.
+        """
+        Z-score specific columns of design matrix. Relies on nltools.stats.downsample, but ensures that returned object is a design matrix.
 
         Args:
             columns (list): columns to z-score; defaults to all columns
