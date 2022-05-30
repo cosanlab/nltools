@@ -114,7 +114,7 @@ class Brain_Data(object):
             # Load default mask
             self.mask = nib.load(resolve_mni_path(MNI_Template)["mask"])
         # Learn transformation on mask
-        self.nifti_masker = NiftiMasker(mask_img=self.mask)
+        self.nifti_masker = NiftiMasker(mask_img=self.mask, **kwargs)
 
         if data is not None:
             if isinstance(data, str) or isinstance(data, Path):
