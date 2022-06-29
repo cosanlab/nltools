@@ -155,9 +155,7 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
                 m_list.append(mask[x].to_nifti())
             intersect = intersect_masks(m_list, threshold=1, connected=False)
             intersect = Brain_Data(
-                nib.Nifti1Image(
-                    np.abs(intersect.get_data() - 1), intersect.get_affine()
-                ),
+                nib.Nifti1Image(np.abs(intersect.get_data() - 1), intersect.affine),
                 mask=custom_mask,
             )
 
