@@ -225,7 +225,7 @@ def multi_threshold(t_map, p_map, thresh):
     if not isinstance(thresh, list):
         raise ValueError("Make sure thresh is a list of p-values")
 
-    affine = t_map.to_nifti().get_affine()
+    affine = t_map.to_nifti().affine
     pos_out = np.zeros(t_map.to_nifti().shape)
     neg_out = deepcopy(pos_out)
     for thr in thresh:
