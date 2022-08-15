@@ -16,7 +16,7 @@ import numpy as np
 import nibabel as nib
 import pandas as pd
 import matplotlib.pyplot as plt
-from nilearn.input_data import NiftiMasker
+from nilearn.maskers import NiftiMasker
 from scipy.stats import multivariate_normal, binom, ttest_1samp
 from nltools.data import Brain_Data
 from nltools.stats import fdr, one_sample_permutation

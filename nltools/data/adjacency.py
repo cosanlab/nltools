@@ -692,13 +692,17 @@ class Adjacency(object):
         ignore_diagonal=False,
         **kwargs,
     ):
-        """Calculate similarity between two Adjacency matrices.
-        Default is to use spearman correlation and permutation test.
+        """
+        Calculate similarity between two Adjacency matrices. Default is to use spearman
+        correlation and permutation test.
+
         Args:
-            data: Adjacency data, or 1-d array same size as self.data
+            data (Adjacency or array): Adjacency data, or 1-d array same size as self.data
             perm_type: (str) '1d','2d', or None
             metric: (str) 'spearman','pearson','kendall'
-            ignore_diagonal: (bool) only applies to 'directed' Adjacency types using perm_type=None or perm_type='1d'
+            ignore_diagonal: (bool) only applies to 'directed' Adjacency types using
+            perm_type=None or perm_type='1d'
+
         """
         data1 = self.copy()
         if not isinstance(data, Adjacency):
@@ -1015,11 +1019,6 @@ class Adjacency(object):
     ):
         """Bootstrap an Adjacency method.
 
-            Example Useage:
-            b = dat.bootstrap('mean', n_samples=5000)
-            b = dat.bootstrap('predict', n_samples=5000, algorithm='ridge')
-            b = dat.bootstrap('predict', n_samples=5000, save_weights=True)
-
         Args:
             function: (str) method to apply to data for each bootstrap
             n_samples: (int) number of samples to bootstrap with replacement
@@ -1027,7 +1026,14 @@ class Adjacency(object):
                         (useful for aggregating many bootstraps on a cluster)
             n_jobs: (int) The number of CPUs to use to do the computation.
                         -1 means all CPUs.Returns:
-        output: summarized studentized bootstrap output
+
+        Returns:
+            summarized studentized bootstrap output
+
+        Examples:
+            >>>  b = dat.bootstrap('mean', n_samples=5000)
+            >>>  b = dat.bootstrap('predict', n_samples=5000, algorithm='ridge')
+            >>>  b = dat.bootstrap('predict', n_samples=5000, save_weights=True)
 
         """
 

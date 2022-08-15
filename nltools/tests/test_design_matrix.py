@@ -1,6 +1,8 @@
 import numpy as np
+import pandas as pd
 from nltools.data import Design_Matrix
 from nltools.external.hrf import glover_hrf
+import pytest
 
 
 def test_add_poly(sim_design_matrix):
@@ -127,3 +129,16 @@ def test_append(sim_design_matrix):
         run = run.add_poly(2)
         all_runs = all_runs.append(run, unique_cols=["stim*", "cond*"])
     assert all_runs.shape == (44, 28)
+
+
+def test_clean(sim_design_matrix):
+
+    # Drop correlated column
+    corr_cols = sim_design_matrix.assign(new_col=lambda df: df.iloc[:, 0])
+    out = corr_cols.clean(verbose=True)
+    assert out.shape[1] < corr_cols.shape[1]
+
+    # Raise an error if try to clean with an input matrix that has duplicate column names
+    dup_cols = pd.concat([sim_design_matrix, sim_design_matrix], axis=1)
+    with pytest.raises(ValueError):
+        _ = dup_cols.clean()
