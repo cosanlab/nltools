@@ -1,5 +1,7 @@
 {
-    "editor.formatOnSave": true,
+    "[python]": {
+        "editor.formatOnSave": true
+    },
     "python.testing.pytestEnabled": true,
     "python.testing.unittestEnabled": false,
     "python.testing.nosetestsEnabled": false,

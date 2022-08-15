@@ -146,12 +146,12 @@ def plot_t_brain(
     """
     Takes a brain data object and computes a 1 sample t-test across it's first axis. If a list is provided will compute difference between brain data objects in list (i.e. paired samples t-test).
     Args:
-        objIn:(list/Brain_Data) if list will compute difference map first
-        how: (list) whether to plot a glass brain 'glass', 3 view-multi-slice mni 'mni', or both 'full'
-        thr: (str) what method to use for multiple comparisons correction unc, fdr, or tfce
-        alpha: (float) p-value threshold
-        nperm: (int) number of permutations for tcfe; default 1000
-        cut_coords: (list) x,y,z coords to plot brain slice
+        objIn (list/Brain_Data): if list will compute difference map first
+        how (list): whether to plot a glass brain 'glass', 3 view-multi-slice mni 'mni', or both 'full'
+        thr (str): what method to use for multiple comparisons correction unc, fdr, or tfce
+        alpha (float): p-value threshold
+        nperm (int): number of permutations for tcfe; default 1000
+        cut_coords (list): x,y,z coords to plot brain slice
         kwargs: optionals args to nilearn plot functions (e.g. vmax)
 
     """
@@ -250,11 +250,12 @@ def plot_t_brain(
 def plot_brain(objIn, how="full", thr_upper=None, thr_lower=None, save=False, **kwargs):
     """
     More complete brain plotting of a Brain_Data instance
+
     Args:
-        obj: (Brain_Data) object to plot
-        how: (str) whether to plot a glass brain 'glass', 3 view-multi-slice mni 'mni', or both 'full'
-        thr_upper: (str/float) thresholding of image. Can be string for percentage, or float for data units (see Brain_Data.threshold()
-        thr_lower: (str/float) thresholding of image. Can be string for percentage, or float for data units (see Brain_Data.threshold()
+        obj (Brain_Data): object to plot
+        how (str): whether to plot a glass brain 'glass', 3 view-multi-slice mni 'mni', or both 'full'
+        thr_upper (str/float): thresholding of image. Can be string for percentage, or float for data units (see Brain_Data.threshold()
+        thr_lower (str/float): thresholding of image. Can be string for percentage, or float for data units (see Brain_Data.threshold()
         save (str): if a string file name or path is provided plots will be saved into this directory appended with the orientation they belong to
         kwargs: optionals args to nilearn plot functions (e.g. vmax)
 
