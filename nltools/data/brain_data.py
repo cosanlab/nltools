@@ -34,7 +34,7 @@ from pynv import Client
 from joblib import Parallel, delayed
 from nltools.mask import expand_mask
 from nltools.analysis import Roc
-from nilearn.input_data import NiftiMasker
+from nilearn.maskers import NiftiMasker
 from nilearn.plotting import plot_stat_map
 from nilearn.image import smooth_img, resample_to_img
 from nilearn.masking import intersect_masks

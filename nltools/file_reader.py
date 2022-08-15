@@ -28,7 +28,7 @@ def onsets_to_dm(
     **kwargs,
 ):
     """
-    This function can assist in reading in one or several in a 2-3 column onsets files, specified in seconds and converting it to a Design Matrix organized as samples X Stimulus Classes. sampling_freq should be specified in hertz; for TRs use hertz = 1/TR. Onsets files **must** be organized with columns in one of the following 4 formats:
+        This function can assist in reading in one or several in a 2-3 column onsets files, specified in seconds and converting it to a Design Matrix organized as samples X Stimulus Classes. sampling_freq should be specified in hertz; for TRs use hertz = 1/TR. Onsets files **must** be organized with columns in one of the following 4 formats:
 
     1) 'Stim, Onset'
     2) 'Onset, Stim'
@@ -38,22 +38,23 @@ def onsets_to_dm(
     No other file organizations are currently supported. *Note:* Stimulus offsets (onset + duration) that fall into an adjacent TR include that full TR. E.g. offset of 10.16s with TR = 2 has an offset of TR 5, which spans 10-12s, rather than an offset of TR 4, which spans 8-10s.
 
     Args:
-        F (filepath/DataFrame/list): path to file, pandas dataframe, or list of files or pandas dataframes
-        sampling_freq (float): sampling frequency in hertz; for TRs use (1 / TR)         run_length (int): number of TRs in the run these onsets came from
-        sort (bool, optional): whether to sort the columns of the resulting
-                                design matrix alphabetically; defaults to
-                                False
-        addpoly (int, optional: what order polynomial terms to add as new columns (e.g. 0 for intercept, 1 for linear trend and intercept, etc); defaults to None
-        header (str,optional): None if missing header, otherwise pandas
-                                header keyword; defaults to 'infer'
-        keep_separate (bool): whether to seperate polynomial columns if reading a list of files and using the addpoly option; defaults to True
-        unique_cols (list, optional): additional columns to keep seperate across files (e.g. spikes); defaults to []
-        fill_na (str/int/float, optional): what value fill NaNs in with if reading in a list of files; defaults to None
-        kwargs: additional inputs to pandas.read_csv
+        F (str/Path/pd.DataFrame): filepath or pandas dataframe
+        sampling_freq (float): samping frequency in hertz, i.e 1 / TR
+        run_length (int): run length in number of TRs
+        header (str/None, optional): whether there's an additional header row in the
+        supplied file/dataframe. See `pd.read_csv` for more details. Defaults to `"infer"`.
+        sort (bool, optional): whether to sort dataframe columns alphabetically. Defaults to False.
+        keep_separate (bool, optional): if a list of files or dataframes is supplied,
+        whether to create separate polynomial columns per file. Defaults to `True`.
+        add_poly (bool/int, optional): whether to add Nth order polynomials to design
+        matrix. Defaults to None.
+        unique_cols (list/None, optional): if a list of files or dataframes is supplied,
+        what additional columns to keep separate per file (e.g. spikes). Defaults to None.
+        fill_na (Any, optional): what to replace NaNs with. Defaults to None (no filling).
 
-        Returns:
-            Design_Matrix class
 
+    Returns:
+        nltools.data.Design_Matrix: design matrix organized as TRs x Stims
     """
 
     if not isinstance(F, list):
@@ -128,18 +129,19 @@ def onsets_to_dm(
                 X.loc[row["Onset"] : row["Offset"], row["Stim"]] = 1
             else:
                 X.loc[row["Onset"], row["Stim"]] = 1
+        # DISABLED cause this isn't quite accurate for stimuli of different durations
         # Run a check
-        if "Offset" in df.columns:
-            onsets = X.sum().values
-            stim_counts = data.Stim.value_counts(sort=False)[X.columns]
-            durations = data.groupby("Stim").Duration.mean().values
-            for i, (o, c, d) in enumerate(zip(onsets, stim_counts, durations)):
-                if c * (d / TR) <= o <= c * ((d / TR) + 1):
-                    pass
-                else:
-                    warnings.warn(
-                        f"Computed onsets for {data.Stim.unique()[i]} are inconsistent with expected values. Please manually verify the outputted Design_Matrix!"
-                    )
+        # if "Offset" in df.columns:
+        #     onsets = X.sum().values
+        #     stim_counts = data.Stim.value_counts(sort=False)[X.columns]
+        #     durations = data.groupby("Stim").Duration.mean().values
+        #     for i, (o, c, d) in enumerate(zip(onsets, stim_counts, durations)):
+        #         if c * (d / TR) <= o <= c * ((d / TR) + 1):
+        #             pass
+        #         else:
+        #             warnings.warn(
+        #                 f"Computed onsets for {data.Stim.unique()[i]} are inconsistent ({o}) with expected values ({c * (d / TR)} to {c * ((d / TR) + 1)}). Please manually verify the outputted Design_Matrix!"
+        #             )
 
         if sort:
             X = X.reindex(sorted(X.columns), axis=1)
