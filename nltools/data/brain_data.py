@@ -693,7 +693,7 @@ class Brain_Data(object):
         if self.data.shape[0] != self.X.shape[0]:
             raise ValueError("self.X does not match the correct size of " "self.data")
 
-        b, t, p, _, res = regression(self.X, self.data, mode=mode, **kwargs)
+        b, se, t, p, df, res = regression(self.X, self.data, mode=mode, **kwargs)
 
         # Prevent copy of all data in self multiple times; instead start with an empty instance and copy only needed attributes from self, and use this as a template for other outputs
         b_out = self.__class__()
@@ -701,15 +701,24 @@ class Brain_Data(object):
         b_out.nifti_masker = deepcopy(self.nifti_masker)
 
         # Use this as template for other outputs before setting data
+        se_out = b_out.copy()
         t_out = b_out.copy()
         p_out = b_out.copy()
-        sigma_out = b_out.copy()
+        df_out = b_out.copy()
         res_out = b_out.copy()
-        b_out.data, t_out.data, p_out.data, sigma_out.data, res_out.data = (
+        (
+            b_out.data,
+            se_out.data,
+            t_out.data,
+            p_out.data,
+            df_out.data,
+            res_out.data,
+        ) = (
             b,
+            se,
             t,
             p,
-            sigma_out,
+            df,
             res,
         )
 
@@ -717,7 +726,8 @@ class Brain_Data(object):
             "beta": b_out,
             "t": t_out,
             "p": p_out,
-            "sigma": sigma_out,
+            "df": df_out,
+            "sigma": se_out,
             "residual": res_out,
         }
 

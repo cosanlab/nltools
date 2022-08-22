@@ -1012,7 +1012,10 @@ def regress(X, Y, mode="ols", stats="full", **kwargs):
     Args:
         X (ndarray): design matrix; assumes intercept is included
         Y (ndarray): dependent variable array; if 2d, a model is fit to each column of Y separately
-        mode (str): kind of model to fit; must be one of 'ols' (default), 'robust', or 'arma'
+        mode (str): kind of model to fit; must be one of 'ols' (default), 'robust', or
+        'arma'
+        stats (str): one of 'full', 'betas', 'tstats'. Useful to speed up calculation if
+        you know you only need some statistics and not others. Defaults to 'full'.
         robust_estimator (str,optional): kind of robust estimator to use if mode = 'robust'; default 'hc0'
         nlags (int,optional): auto-correlation lag correction if mode = 'robust' and robust_estimator = 'hac'; default 1
         order (tuple,optional): auto-regressive and moving-average orders for mode = 'arma'; default (1,1)
@@ -1020,6 +1023,7 @@ def regress(X, Y, mode="ols", stats="full", **kwargs):
 
     Returns:
         b: coefficients
+        se: standard error of coefficients
         t: t-statistics (coef/sterr)
         p : p-values
         df: degrees of freedom
@@ -1130,7 +1134,18 @@ def regress(X, Y, mode="ols", stats="full", **kwargs):
         else:
             b, t, p, df, res = _arma_func(X, Y, **kwargs)
 
-    return b.squeeze(), t.squeeze(), p.squeeze(), df.squeeze(), res.squeeze()
+        # Arma models don't return stderr, so make a variable for consistent function
+        # return values
+        stderr = np.empty_like(b)
+
+    return (
+        b.squeeze(),
+        stderr.squeeze(),
+        t.squeeze(),
+        p.squeeze(),
+        df.squeeze(),
+        res.squeeze(),
+    )
 
 
 def regress_permutation(

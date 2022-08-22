@@ -1331,24 +1331,30 @@ class Adjacency(object):
         if isinstance(X, Adjacency):
             if X.square_shape()[0] != self.square_shape()[0]:
                 raise ValueError("Adjacency instances must be the same size.")
-            b, t, p, _, res = regression(X.data.T, self.data, mode=mode, **kwargs)
-            stats["beta"], stats["t"], stats["p"], stats["residual"] = (b, t, p, res)
+            (
+                stats["beta"],
+                stats["sigma"],
+                stats["t"],
+                stats["p"],
+                stats["df"],
+                stats["residual"],
+            ) = regression(X.data.T, self.data, mode=mode, **kwargs)
         elif isinstance(X, Design_Matrix):
             if X.shape[0] != len(self):
                 raise ValueError(
                     "Design matrix must have same number of observations as Adjacency"
                 )
-            b, t, p, df, res = regression(X, self.data, mode=mode, **kwargs)
-            mode = "ols"
-            stats["beta"], stats["t"], stats["p"] = [x for x in self[:3]]
-            stats["beta"].data, stats["t"].data, stats["p"].data = (
-                b.squeeze(),
-                t.squeeze(),
-                p.squeeze(),
-            )
-            stats["residual"] = self.copy()
-            stats["residual"].data = res
-            stats["df"] = df
+            (b, se, t, p, df, res) = regression(X, self.data, mode=mode, **kwargs)
+
+            stats["beta"], stats["sigma"], stats["t"] = [x for x in self[:3]]
+            stats["p"], stats["df"], stats["residual"] = [x for x in self[:3]]
+
+            stats["beta"].data = b.squeeze()
+            stats["sigma"].data = se.squeeze()
+            stats["t"].data = t.squeeze()
+            stats["p"].data = p.squeeze()
+            stats["df"].data = df.squeeze()
+            stats["residual"].data = res.squeeze()
         else:
             raise ValueError("X must be a Design_Matrix or Adjacency Instance.")
 
