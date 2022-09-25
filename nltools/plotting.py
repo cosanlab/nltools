@@ -391,9 +391,9 @@ def scatterplot(stats_output):
     """
 
     if "yfit_xval" in stats_output.columns:
-        sns.lmplot("Y", "yfit_xval", data=stats_output)
+        sns.lmplot(x="Y", y="yfit_xval", data=stats_output)
     else:
-        sns.lmplot("Y", "yfit_all", data=stats_output)
+        sns.lmplot(x="Y", y="yfit_all", data=stats_output)
     plt.xlabel("Y", fontsize=16)
     plt.ylabel("Predicted Value", fontsize=16)
     plt.title("Prediction", fontsize=18)
