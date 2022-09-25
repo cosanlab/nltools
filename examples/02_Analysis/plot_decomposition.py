@@ -99,7 +99,7 @@ wt_long = pd.melt(wt,
 				  id_vars='PainIntensity')
 
 with sns.plotting_context(context='paper', font_scale=2):
-    sns.factorplot(data=wt_long,
+    sns.catplot(data=wt_long,
                     y='Weight',
                     x='PainIntensity',
                     hue='Component',
