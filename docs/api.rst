@@ -64,13 +64,13 @@ methods in the current release of Neurolearn.
     :members:
 
 :mod:`nltools.utils`: Utilities
-==============================
+===============================
 
 .. automodule:: nltools.utils
     :members:
 
 :mod:`nltools.prefs`: Preferences
-================================
+=================================
 
 This module can be used to adjust the default MNI template settings that are used
 internally by all `Brain_Data` operations. By default all operations are performed in
@@ -93,7 +93,11 @@ Alternatively this module can be used to switch between 2mm or 3mm MNI spaces wi
     from nltools.prefs import MNI_Template, resolve_mni_path
     from nltools.data import Brain_Data
 
+    # Update the resolution globally
     MNI_Template['resolution'] = '3mm'
+
+    # This works too:
+    MNI_Template.resolution = 3
 
     # my_brain will be resampled to 3mm and future operation will be in 3mm space
     brain = Brain_Data('my_brain.nii.gz') 
