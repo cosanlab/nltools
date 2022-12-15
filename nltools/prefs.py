@@ -1,15 +1,7 @@
-"""
-NeuroLearn Preferences
-======================
-
-
-"""
-__all__ = ["MNI_Template", "resolve_mni_path"]
-__author__ = ["Luke Chang"]
-__license__ = "MIT"
-
 import os
 from nltools.utils import get_resource_path
+
+__all__ = ["MNI_Template", "resolve_mni_path"]
 
 MNI_Template = dict(
     resolution="2mm",

@@ -10,6 +10,7 @@ __all__ = [
     "mask",
     "prefs",
     "external",
+    "prefs",
     "__version__",
 ]
 
