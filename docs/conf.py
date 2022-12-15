@@ -15,6 +15,7 @@
 import sys
 import os
 import shlex
+import time
 
 sys.path.insert(0, os.path.abspath("sphinxext"))
 import sphinx_gallery
@@ -76,9 +77,9 @@ source_suffix = ".rst"
 master_doc = "index"
 
 # General information about the project.
-project = u"nltools"
-copyright = u"2020, Cosan Laboratory"
-author = u"Cosan Laboratory"
+project = "nltools"
+copyright = f"{time.strftime('%Y')}, Cosan Laboratory"
+author = "Cosan Laboratory"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -169,7 +170,7 @@ html_theme_options = {
     "bootstrap_version": "3",
     "globaltoc_includehidden": "true",
     "source_link_position": "footer",
-    "globaltoc_depth": 1,
+    "globaltoc_depth": 2,
     "navbar_pagenav_name": "TOC",
     "navbar_links": [
         ("Installation", "install"),
@@ -315,7 +316,7 @@ htmlhelp_basename = "nltoolsdoc"
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, "nltools", u"nltools Documentation", [author], 1)]
+man_pages = [(master_doc, "nltools", "nltools Documentation", [author], 1)]
 
 # If true, show URL addresses after external links.
 # man_show_urls = False
@@ -330,7 +331,7 @@ texinfo_documents = [
     (
         master_doc,
         "nltools",
-        u"nltools Documentation",
+        "nltools Documentation",
         author,
         "nltools",
         "One line description of project.",
