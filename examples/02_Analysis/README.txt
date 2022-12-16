@@ -1,2 +1,2 @@
-Neuroimaging Analysis Examples
-------------------------------
+Analysis Examples
+^^^^^^^^^^^^^^^^^

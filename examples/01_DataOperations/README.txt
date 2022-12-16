@@ -1,2 +1,2 @@
-Neuroimaging Data Operations Examples
--------------------------------------
+Data Operations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
