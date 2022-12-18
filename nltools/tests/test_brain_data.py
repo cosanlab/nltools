@@ -389,27 +389,23 @@ def test_bootstrap(sim_brain_data):
 
 def test_predict(sim_brain_data):
     holdout = np.array([[x] * 2 for x in range(3)]).flatten()
+    cv_dict = {"type": "kfolds", "n_folds": 2}
     stats = sim_brain_data.predict(
-        algorithm="svm",
-        cv_dict={"type": "kfolds", "n_folds": 2},
-        plot=False,
-        **{"kernel": "linear"}
+        algorithm="svm", cv_dict=cv_dict, plot=False, **{"kernel": "linear"}
     )
 
     # Support Vector Regression, with 5 fold cross-validation with Platt Scaling
     # This will output probabilities of each class
     stats = sim_brain_data.predict(
         algorithm="svm",
-        cv_dict=None,
+        cv_dict=cv_dict,
         plot=False,
         **{"kernel": "linear", "probability": True}
     )
     assert isinstance(stats["weight_map"], Brain_Data)
 
     # Logistic classificiation, with 2 fold cross-validation.
-    stats = sim_brain_data.predict(
-        algorithm="logistic", cv_dict={"type": "kfolds", "n_folds": 2}, plot=False
-    )
+    stats = sim_brain_data.predict(algorithm="logistic", cv_dict=cv_dict, plot=False)
     assert isinstance(stats["weight_map"], Brain_Data)
 
     # Ridge classificiation,
@@ -436,6 +432,18 @@ def test_predict(sim_brain_data):
 
     # PCR
     stats = sim_brain_data.predict(algorithm="pcr", cv_dict=None, plot=False)
+    stats = sim_brain_data.predict(algorithm="pcr", cv_dict=cv_dict, plot=False)
+
+    # Issue #368
+    stats = sim_brain_data.predict(
+        algorithm="lassopcr",
+        cv_dict={"type": "kfolds", "n_folds": 2},
+        plot=False,
+        **{"kernel": "linear"}
+    )
+    assert not np.allclose(
+        [1.0, 1.0], stats["weight_map"].similarity(stats["weight_map_xval"])
+    )
 
 
 def test_predict_multi():
