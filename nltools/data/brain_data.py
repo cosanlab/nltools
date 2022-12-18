@@ -1209,13 +1209,9 @@ class Brain_Data(object):
                             )
                 # Intercept
                 if predictor_settings["algorithm"] == "pcr":
-                    output["intercept_xval"].append(
-                        predictor_settings["_regress"].intercept_
-                    )
+                    output["intercept_xval"].append(predictor_cv["regress"].intercept_)
                 elif predictor_settings["algorithm"] == "lassopcr":
-                    output["intercept_xval"].append(
-                        predictor_settings["_lasso"].intercept_
-                    )
+                    output["intercept_xval"].append(predictor_cv["lasso"].intercept_)
                 else:
                     output["intercept_xval"].append(predictor_cv.intercept_)
                 output["cv_idx"].append((train, test))
@@ -1233,15 +1229,15 @@ class Brain_Data(object):
                     if predictor_settings["algorithm"] == "lassopcr":
                         wt_map_xval.append(
                             np.dot(
-                                predictor_settings["_pca"].components_.T,
-                                predictor_settings["_lasso"].coef_,
+                                predictor_cv["pca"].components_.T,
+                                predictor_cv["lasso"].coef_,
                             )
                         )
                     elif predictor_settings["algorithm"] == "pcr":
                         wt_map_xval.append(
                             np.dot(
-                                predictor_settings["_pca"].components_.T,
-                                predictor_settings["_regress"].coef_,
+                                predictor_cv["pca"].components_.T,
+                                predictor_cv["regress"].coef_,
                             )
                         )
                     else:
