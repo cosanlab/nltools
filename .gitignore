@@ -50,3 +50,8 @@ htmlcov/
 # Docs
 ######
 examples/**/*.nii.gz
+data.nii.gz
+docs/backreferences/
+environment.yml
+rep_id.csv
+y.csv
