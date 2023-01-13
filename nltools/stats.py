@@ -1887,7 +1887,7 @@ def _compute_isc(data, metric="median"):
 
 def isc(
     data,
-    n_bootstraps=5000,
+    n_samples=5000,
     metric="median",
     method="bootstrap",
     ci_percentile=95,
@@ -1928,7 +1928,7 @@ def isc(
 
     Args:
         data: (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects
-        n_bootstraps: (int) number of bootstraps
+        n_samples: (int) number of random samples/bootstraps
         metric: (str) type of isc summary metric ['mean','median']
         method: (str) method to compute p-values ['bootstrap', 'circle_shift','phase_randomize'] (default: bootstrap)
         tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
@@ -1964,7 +1964,7 @@ def isc(
                 exclude_self_corr=exclude_self_corr,
                 random_state=random_state,
             )
-            for _ in range(n_bootstraps)
+            for _ in range(n_samples)
         )
         stats["p"] = _calc_pvalue(all_bootstraps - stats["isc"], stats["isc"], tail)
 
@@ -1973,7 +1973,7 @@ def isc(
             delayed(_compute_isc)(
                 circle_shift(data, random_state=random_state), metric=metric
             )
-            for _ in range(n_bootstraps)
+            for _ in range(n_samples)
         )
         stats["p"] = _calc_pvalue(all_bootstraps, stats["isc"], tail)
     elif method == "phase_randomize":
@@ -1981,7 +1981,7 @@ def isc(
             delayed(_compute_isc)(
                 phase_randomize(data, random_state=random_state), metric=metric
             )
-            for _ in range(n_bootstraps)
+            for _ in range(n_samples)
         )
         stats["p"] = _calc_pvalue(all_bootstraps, stats["isc"], tail)
     else:

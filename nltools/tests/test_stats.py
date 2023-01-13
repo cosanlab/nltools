@@ -477,7 +477,7 @@ def test_isc():
                 dat,
                 method=method,
                 metric=metric,
-                n_bootstraps=n_boot,
+                n_samples=n_boot,
                 return_null=True,
             )
             assert stats["isc"] > 0.1
