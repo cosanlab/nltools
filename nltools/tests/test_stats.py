@@ -14,6 +14,7 @@ from nltools.stats import (
     _calc_pvalue,
     find_spikes,
     isc,
+    isc_group,
     isfc,
     isps,
     fisher_r_to_z,
@@ -23,6 +24,7 @@ from nltools.stats import (
 from nltools.simulator import Simulator
 from nltools.mask import create_sphere
 from scipy.spatial.distance import squareform
+from sklearn.metrics import pairwise_distances
 
 # import pytest
 
@@ -476,12 +478,53 @@ def test_isc():
                 method=method,
                 metric=metric,
                 n_bootstraps=n_boot,
-                return_bootstraps=True,
+                return_null=True,
             )
             assert stats["isc"] > 0.1
             assert (stats["isc"] > -1) & (stats["isc"] < 1)
             assert (stats["p"] > 0) & (stats["p"] < 1)
             assert len(stats["null_distribution"]) == n_boot
+
+
+def test_isc_group():
+    n_samples = 100
+    diff = 0.2
+    data = np.random.multivariate_normal(
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [
+            [1, 0.2, 0.5, 0.7, 0.3, 0, 0, 0, 0, 0],
+            [0.2, 1, 0.6, 0.1, 0.2, 0, 0, 0, 0, 0],
+            [0.5, 0.6, 1, 0.3, 0.1, 0, 0, 0, 0, 0],
+            [0.7, 0.1, 0.3, 1, 0.4, 0, 0, 0, 0, 0],
+            [0.3, 0.2, 0.1, 0.4, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 1, 0.2 + diff, 0.5 + diff, 0.7 + diff, 0.3 + diff],
+            [0, 0, 0, 0, 0, 0.2 + diff, 1, 0.6 + diff, 0.1 + diff, 0.2 + diff],
+            [0, 0, 0, 0, 0, 0.5 + diff, 0.6 + diff, 1, 0.3 + diff, 0.1 + diff],
+            [0, 0, 0, 0, 0, 0.7 + diff, 0.1 + diff, 0.3 + diff, 1, 0.4 + diff],
+            [0, 0, 0, 0, 0, 0.3 + diff, 0.2 + diff, 0.1 + diff, 0.4 + diff, 1],
+        ],
+        500,
+    )
+
+    group = np.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
+
+    data_similarity = 1 - pairwise_distances(data.T, metric="correlation")
+
+    for method in ["permute", "bootstrap"]:
+        for metric in ["median", "mean"]:
+            stats = isc_group(
+                group1,
+                group2,
+                metric=metric,
+                method=method,
+                return_null=True,
+                n_samples=n_samples,
+            )
+            np.testing.assert_almost_equal(
+                stats["isc_group_difference"], diff, decimal=0
+            )
+            assert (stats["p"] > 0) & (stats["p"] < 1)
+            assert len(stats["null_distribution"]) == n_samples
 
 
 def test_isfc():

@@ -38,13 +38,15 @@ __all__ = [
     "u_center",
     "_bootstrap_isc",
     "isc",
-    "isfc",
+    "isc_group" "isfc",
     "isps",
     "_compute_matrix_correlation",
     "_phase_mean_angle",
     "_phase_vector_length",
     "_butter_bandpass_filter",
     "_phase_rayleigh_p",
+    "_compute_isc_group",
+    "_permute_isc_group",
     "align_states",
 ]
 
@@ -515,7 +517,7 @@ def _permute_func(data1, data2, metric, random_state=None):
     random_state = check_random_state(random_state)
 
     data_row_id = range(data1.shape[0])
-    permuted_ix = random_state.choice(data_row_id, size=len(data_row_id), replace=False)
+    permuted_ix = random_state.permutation(data_row_id)
     new_fmri_dist = data1.iloc[permuted_ix, permuted_ix].values
     new_fmri_dist = new_fmri_dist[np.triu_indices(new_fmri_dist.shape[0], k=1)]
     return correlation(new_fmri_dist, data2, metric=metric)[0]
@@ -1864,7 +1866,7 @@ def _compute_isc(data, metric="median"):
 
     Args:
         data: (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects
-        metric: (str) type of association metric ['spearman','pearson','kendall']
+        metric: (str) type of isc metric ['mean','median']
 
     Returns:
         isc: (float) intersubject correlation coefficient
@@ -1890,7 +1892,7 @@ def isc(
     method="bootstrap",
     ci_percentile=95,
     exclude_self_corr=True,
-    return_bootstraps=False,
+    return_null=False,
     tail=2,
     n_jobs=-1,
     random_state=None,
@@ -1927,11 +1929,11 @@ def isc(
     Args:
         data: (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects
         n_bootstraps: (int) number of bootstraps
-        metric: (str) type of association metric ['spearman','pearson','kendall']
+        metric: (str) type of isc summary metric ['mean','median']
         method: (str) method to compute p-values ['bootstrap', 'circle_shift','phase_randomize'] (default: bootstrap)
         tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
         n_jobs: (int) The number of CPUs to use to do the computation. -1 means all CPUs.
-        return_parms: (bool) Return the permutation distribution along with the p-value; default False
+        return_null: (bool) Return the permutation distribution along with the p-value; default False
 
     Returns:
         stats: (dict) dictionary of permutation results ['correlation','p']
@@ -1983,7 +1985,7 @@ def isc(
         )
         stats["p"] = _calc_pvalue(all_bootstraps, stats["isc"], tail)
     else:
-        raise ValueError(
+        raise NotImplementedError(
             "method can only be ['bootstrap', 'circle_shift','phase_randomize']"
         )
 
@@ -1994,8 +1996,266 @@ def isc(
         ),
     )
 
-    if return_bootstraps:
+    if return_null:
         stats["null_distribution"] = all_bootstraps
+
+    return stats
+
+
+def _compute_isc_group(group1, group2, metric="median"):
+    """Helper function to compute intersubject correlation difference between two groups from either:
+    1) an observations by subjects array
+    2) or an Adjacency instance of a similarity matrix.
+
+    Args:
+        group1: (pd.DataFrame, np.array, Adjacency) group1 data or similarity matrix
+        group2: (pd.DataFrame, np.array,Adjacency)  group2 data or similarity matrix
+        metric: (str) type of isc metric ['mean','median']
+
+    Returns:
+        isc: (float) intersubject correlation coefficient difference across groups
+
+    """
+
+    from nltools.data import Adjacency
+
+    if isinstance(group1, (pd.DataFrame, np.ndarray)) and isinstance(
+        group2, (pd.DataFrame, np.ndarray)
+    ):
+        if group1.shape[0] != group2.shape[0]:
+            raise ValueError(
+                "group1 has a different number of observations from group2."
+            )
+
+        similarity_group1 = Adjacency(
+            1 - pairwise_distances(group1.T, metric="correlation"),
+            matrix_type="similarity",
+        )
+        similarity_group2 = Adjacency(
+            1 - pairwise_distances(group2.T, metric="correlation"),
+            matrix_type="similarity",
+        )
+    elif isinstance(group1, (Adjacency)) and isinstance(group2, (Adjacency)):
+        similarity_group1 = group1
+        similarity_group2 = group2
+    else:
+        raise ValueError(
+            "group1 and group2 data must either be a observation by feature matrix or Adjacency instances."
+        )
+
+    if metric == "mean":
+        isc_group1 = np.tanh(similarity_group1.r_to_z().mean())
+        isc_group2 = np.tanh(similarity_group2.r_to_z().mean())
+    elif metric == "median":
+        isc_group1 = similarity_group1.median()
+        isc_group2 = similarity_group2.median()
+    return isc_group1 - isc_group2
+
+
+def _permute_isc_group(similarity_matrix, group, metric="median", random_state=None):
+    """Helper function to compute ISC differences between groups from Adjacency instance
+
+    This function implements the subject-wise permutation method discussed in Chen et al., 2016.
+
+    Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B.,
+    & Cox, R. W. (2016). Untangling the relatedness among correlations, part I:
+    nonparametric approaches to inter-subject correlation analysis at the group level.
+    NeuroImage, 142, 248-259.
+
+    Args:
+
+        similarity_matrix: (Adjacency) Adjacency matrix of pairwise correlation values
+        group: (numpy array) Array indicating group 1 and group 2 order (i.e., np.array([1,1,1,2,2,2]))
+        metric: (str) type of summary statistic (Default: median)
+        exclude_self_corr: (bool) set correlations with random draws of same subject to NaN (Default: True)
+        random_state: random_state instance for permutation
+
+    Returns:
+
+        isc: summary statistic of bootstrapped similarity matrix
+
+    """
+    from nltools.data import Adjacency
+
+    if not isinstance(similarity_matrix, Adjacency):
+        raise ValueError("similarity_matrix must be an Adjacency instance.")
+
+    if not isinstance(group, np.ndarray):
+        raise ValueError("group must be a numpy array.")
+
+    if len(group) != similarity.square_shape()[0]:
+        raise ValueError(
+            "Group array must be the same length as the similarity matrix."
+        )
+
+    if len(np.unique(group)) != 2:
+        raise ValueError("There must only be 2 unique group ids in the group array.")
+
+    random_state = check_random_state(random_state)
+
+    group1_id, group2_id = np.unique(group)
+    permute_group = permute_group = random_state.permutation(group)
+    permute_order = np.concatenate(
+        [
+            np.where(permute_group == group1_id)[0],
+            np.where(permute_group == group2_id)[0],
+        ]
+    )
+
+    permuted_matrix = similarity_matrix.squareform()[permute_order, :][:, permute_order]
+    group1_similarity_permuted = Adjacency(
+        permuted_matrix[group == group1_id, :][:, group == group1_id],
+        matrix_type="similarity",
+    )
+    group2_similarity_permuted = Adjacency(
+        permuted_matrix[group == group2_id, :][:, group == group2_id],
+        matrix_type="similarity",
+    )
+
+    return _compute_isc_group(
+        group1_similarity_permuted, group2_similarity_permuted, metric=metric
+    )
+
+
+def isc_group(
+    group1,
+    group2,
+    n_samples=5000,
+    metric="median",
+    method="permute",
+    ci_percentile=95,
+    exclude_self_corr=True,
+    return_null=False,
+    tail=2,
+    n_jobs=-1,
+    random_state=None,
+):
+    """Compute difference in intersubject correlation between groups.
+
+    This function computes pairwise intersubject correlations (ISC) using the median as recommended by Chen
+    et al., 2016). However, if the mean is preferred, we compute the mean correlation after performing
+    the fisher r-to-z transformation and then convert back to correlations to minimize artificially
+    inflating the correlation values.
+
+    There are currently two different methods to compute p-values. By default, we use the subject-wise permutation
+    method recommended Chen et al., 2016. This method combines the two groups and computes pairwise similarity both
+    within and between the groups. Then the group labels are permuted and the mean difference between the two groups
+    are recomputed to generate a null distribution. The second method uses subject-wise bootstrapping, where a new
+    pairwise similarity matrix with randomly selected subjects with replacement is created separately for each group
+    and the ISC difference between these groups is used to generate a null distribution. If the same subject is
+    selected multiple times, we set the perfect correlation to a nan with (exclude_self_corr=True). We compute the
+    p-values using the percentile method (Hall & Wilson, 1991).
+
+    Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B.,
+    & Cox, R. W. (2016). Untangling the relatedness among correlations, part I:
+    nonparametric approaches to inter-subject correlation analysis at the group level.
+    NeuroImage, 142, 248-259.
+
+    Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap hypothesis testing.
+    Biometrics, 757-762.
+
+    Args:
+        group1: (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects
+        group2: (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects
+        n_samples: (int) number of samples for permutation or bootstrapping
+        metric: (str) type of isc summary metric ['mean','median']
+        method: (str) method to compute p-values ['bootstrap', 'circle_shift','phase_randomize'] (default: bootstrap)
+        tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
+        n_jobs: (int) The number of CPUs to use to do the computation. -1 means all CPUs.
+        return_null: (bool) Return the permutation distribution along with the p-value; default False
+
+    Returns:
+        stats: (dict) dictionary of permutation results ['correlation','p']
+
+    """
+
+    from nltools.data import Adjacency
+
+    random_state = check_random_state(random_state)
+
+    for group_data in [group1, group2]:
+        if not isinstance(group_data, (pd.DataFrame, np.ndarray)):
+            raise ValueError("group data must be a pandas dataframe or numpy array")
+
+    if metric not in ["mean", "median"]:
+        raise ValueError("metric must be ['mean', 'median']")
+
+    if group1.shape[0] != group2.shape[0]:
+        raise ValueError("group1 has a different number of observations from group2.")
+
+    stats = {"isc_group_difference": _compute_isc_group(group1, group2, metric=metric)}
+
+    if method == "permute":
+        data = np.concatenate([group1, group2], axis=1)
+        group = np.array([1] * group1.shape[1] + [2] * group2.shape[1])
+        similarity = Adjacency(
+            1 - pairwise_distances(data.T, metric="correlation"),
+            matrix_type="similarity",
+        )
+
+        isc_group_differences_null = np.array(
+            Parallel(n_jobs=n_jobs)(
+                delayed(_permute_isc_group)(
+                    similarity, group, metric=metric, random_state=random_state
+                )
+                for _ in range(n_samples)
+            )
+        )
+    elif method == "bootstrap":
+        group1_similarity = Adjacency(
+            1 - pairwise_distances(group1.T, metric="correlation"),
+            matrix_type="similarity",
+        )
+        group1_all_bootstraps = Parallel(n_jobs=n_jobs)(
+            delayed(_bootstrap_isc)(
+                group1_similarity,
+                metric=metric,
+                exclude_self_corr=exclude_self_corr,
+                random_state=random_state,
+            )
+            for _ in range(n_samples)
+        )
+
+        group2_similarity = Adjacency(
+            1 - pairwise_distances(group2.T, metric="correlation"),
+            matrix_type="similarity",
+        )
+        group2_all_bootstraps = Parallel(n_jobs=n_jobs)(
+            delayed(_bootstrap_isc)(
+                group2_similarity,
+                metric=metric,
+                exclude_self_corr=exclude_self_corr,
+                random_state=random_state,
+            )
+            for _ in range(n_samples)
+        )
+
+        isc_group_differences_null = (
+            np.array(group1_all_bootstraps) - np.array(group2_all_bootstraps)
+        ) - stats["isc_group_difference"]
+
+    else:
+        raise NotImplementedError("method can only be ['permutation', 'bootstrap']")
+
+    isc_group_differences_null = isc_group_differences_null[
+        ~np.isnan(isc_group_differences_null)
+    ]
+
+    stats["p"] = _calc_pvalue(
+        isc_group_differences_null, stats["isc_group_difference"], tail
+    )
+
+    stats["ci"] = (
+        np.percentile(isc_group_differences_null, (100 - ci_percentile) / 2, axis=0),
+        np.percentile(
+            isc_group_differences_null,
+            ci_percentile + (100 - ci_percentile) / 2,
+            axis=0,
+        ),
+    )
+
+    if return_null:
+        stats["null_distribution"] = isc_group_differences_null
 
     return stats
 
