@@ -506,9 +506,8 @@ def test_isc_group():
         500,
     )
 
-    group = np.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
-
-    data_similarity = 1 - pairwise_distances(data.T, metric="correlation")
+    group1 = data[:, :5]
+    group2 = data[:, 5:]
 
     for method in ["permute", "bootstrap"]:
         for metric in ["median", "mean"]:

@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 from nltools.data import Adjacency, Design_Matrix
+from nltools.stats import isc_group
 import networkx as nx
 from scipy.stats import pearsonr
 from scipy.linalg import block_diag
@@ -362,7 +363,7 @@ def test_isc(sim_adjacency_single):
     n_boot = 100
     for metric in ["median", "mean"]:
         stats = sim_adjacency_single.isc(
-            metric=metric, n_bootstraps=n_boot, return_bootstraps=True
+            metric=metric, n_samples=n_boot, return_null=True
         )
         assert (stats["isc"] > -1) & (stats["isc"] < 1)
         assert (stats["p"] > 0) & (stats["p"] < 1)

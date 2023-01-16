@@ -38,7 +38,8 @@ __all__ = [
     "u_center",
     "_bootstrap_isc",
     "isc",
-    "isc_group" "isfc",
+    "isc_group",
+    "isfc",
     "isps",
     "_compute_matrix_correlation",
     "_phase_mean_angle",
@@ -2083,7 +2084,7 @@ def _permute_isc_group(similarity_matrix, group, metric="median", random_state=N
     if not isinstance(group, np.ndarray):
         raise ValueError("group must be a numpy array.")
 
-    if len(group) != similarity.square_shape()[0]:
+    if len(group) != similarity_matrix.square_shape()[0]:
         raise ValueError(
             "Group array must be the same length as the similarity matrix."
         )
