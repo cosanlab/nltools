@@ -55,7 +55,7 @@ jobs:
           conda activate test
           conda env list
           conda install -y pip pandas">=1.1.0,<1.2" numpy scipy matplotlib seaborn scikit-learn
-          conda install -y -c conda-forge pytest pytest-xdist pytest-sugar coveralls black
+          conda install -y -c conda-forge pytest pytest-sugar coveralls black
           pip install . -r requirements.txt
           pip install . -r optional-dependencies.txt
 
