@@ -2,10 +2,12 @@ import os
 import numpy as np
 import pandas as pd
 from nltools.data import Adjacency, Design_Matrix
+from nltools.stats import isc_group
 import networkx as nx
 from scipy.stats import pearsonr
 from scipy.linalg import block_diag
 from pathlib import Path
+from sklearn.metrics import pairwise_distances
 
 
 def test_type_single(sim_adjacency_single):
@@ -361,11 +363,53 @@ def test_isc(sim_adjacency_single):
     n_boot = 100
     for metric in ["median", "mean"]:
         stats = sim_adjacency_single.isc(
-            metric=metric, n_bootstraps=n_boot, return_bootstraps=True
+            metric=metric, n_samples=n_boot, return_null=True
         )
         assert (stats["isc"] > -1) & (stats["isc"] < 1)
         assert (stats["p"] > 0) & (stats["p"] < 1)
         assert len(stats["null_distribution"]) == n_boot
+
+
+def test_isc_group():
+    n_samples = 100
+    diff = 0.2
+    data = np.random.multivariate_normal(
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [
+            [1, 0.2, 0.5, 0.7, 0.3, 0, 0, 0, 0, 0],
+            [0.2, 1, 0.6, 0.1, 0.2, 0, 0, 0, 0, 0],
+            [0.5, 0.6, 1, 0.3, 0.1, 0, 0, 0, 0, 0],
+            [0.7, 0.1, 0.3, 1, 0.4, 0, 0, 0, 0, 0],
+            [0.3, 0.2, 0.1, 0.4, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 1, 0.2 + diff, 0.5 + diff, 0.7 + diff, 0.3 + diff],
+            [0, 0, 0, 0, 0, 0.2 + diff, 1, 0.6 + diff, 0.1 + diff, 0.2 + diff],
+            [0, 0, 0, 0, 0, 0.5 + diff, 0.6 + diff, 1, 0.3 + diff, 0.1 + diff],
+            [0, 0, 0, 0, 0, 0.7 + diff, 0.1 + diff, 0.3 + diff, 1, 0.4 + diff],
+            [0, 0, 0, 0, 0, 0.3 + diff, 0.2 + diff, 0.1 + diff, 0.4 + diff, 1],
+        ],
+        500,
+    )
+
+    group = np.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
+
+    similarity = Adjacency(
+        1 - pairwise_distances(data.T, metric="correlation"), matrix_type="similarity"
+    )
+
+    for method in ["permute", "bootstrap"]:
+        for metric in ["median", "mean"]:
+            stats = similarity.isc_group(
+                group,
+                metric=metric,
+                method=method,
+                return_null=True,
+                n_samples=n_samples,
+            )
+            np.testing.assert_almost_equal(
+                stats["isc_group_difference"], diff, decimal=0
+            )
+            assert (stats["p"] > 0) & (stats["p"] < 1)
+            assert len(stats["null_distribution"]) == n_samples
 
 
 def test_fisher_r_to_z(sim_adjacency_single):
