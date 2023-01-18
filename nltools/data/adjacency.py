@@ -28,6 +28,8 @@ from nltools.stats import (
     fisher_z_to_r,
     _calc_pvalue,
     _bootstrap_isc,
+    _compute_isc_group,
+    _permute_isc_group,
 )
 from nltools.stats import regress as regression
 from nltools.plotting import plot_stacked_adjacency, plot_silhouette
@@ -1050,11 +1052,11 @@ class Adjacency(object):
 
     def isc(
         self,
-        n_bootstraps=5000,
+        n_samples=5000,
         metric="median",
         ci_percentile=95,
         exclude_self_corr=True,
-        return_bootstraps=False,
+        return_null=False,
         tail=2,
         n_jobs=-1,
         random_state=None,
@@ -1115,7 +1117,7 @@ class Adjacency(object):
                 exclude_self_corr=exclude_self_corr,
                 random_state=random_state,
             )
-            for _ in range(n_bootstraps)
+            for _ in range(n_samples)
         )
 
         stats["p"] = _calc_pvalue(all_bootstraps - stats["isc"], stats["isc"], tail)
@@ -1129,8 +1131,158 @@ class Adjacency(object):
             ),
         )
 
-        if return_bootstraps:
+        if return_null:
             stats["null_distribution"] = all_bootstraps
+
+        return stats
+
+    def isc_group(
+        self,
+        group,
+        n_samples=5000,
+        metric="median",
+        method="permute",
+        ci_percentile=95,
+        exclude_self_corr=True,
+        return_null=False,
+        tail=2,
+        n_jobs=-1,
+        random_state=None,
+    ):
+        """Compute intersubject correlation differences between groups.
+
+            This function computes pairwise intersubject correlations (ISC) using the median as recommended by Chen
+            et al., 2016). However, if the mean is preferred, we compute the mean correlation after performing
+            the fisher r-to-z transformation and then convert back to correlations to minimize artificially
+            inflating the correlation values.
+
+            There are currently two different methods to compute p-values. By default, we use the subject-wise permutation
+            method recommended Chen et al., 2016. This method combines the two groups and computes pairwise similarity both
+            within and between the groups. Then the group labels are permuted and the mean difference between the two groups
+            are recomputed to generate a null distribution. The second method uses subject-wise bootstrapping, where a new
+            pairwise similarity matrix with randomly selected subjects with replacement is created separately for each group
+            and the ISC difference between these groups is used to generate a null distribution. If the same subject is
+            selected multiple times, we set the perfect correlation to a nan with (exclude_self_corr=True). We compute the
+            p-values using the percentile method (Hall & Wilson, 1991).
+
+            Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B.,
+            & Cox, R. W. (2016). Untangling the relatedness among correlations, part I:
+            nonparametric approaches to inter-subject correlation analysis at the group level.
+            NeuroImage, 142, 248-259.
+
+            Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap hypothesis testing.
+            Biometrics, 757-762.
+
+        Args:
+            group: (np.array) vector of group ids corresponding to subject data in Adjacency instance
+            n_samples: (int) number of samples for permutation or bootstrapping
+            metric: (str) type of isc summary metric ['mean','median']
+            method: (str) method to compute p-values ['permute', 'bootstrap'] (default: permute)
+            tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
+            n_jobs: (int) The number of CPUs to use to do the computation. -1 means all CPUs.
+            return_null: (bool) Return the permutation distribution along with the p-value; default False
+
+        Returns:
+            stats: (dict) dictionary of permutation results ['correlation','p']
+
+        """
+
+        random_state = check_random_state(random_state)
+
+        if metric not in ["mean", "median"]:
+            raise ValueError("metric must be ['mean', 'median']")
+
+        if not self.is_single_matrix:
+            raise NotImplementedError(
+                "Currently we can only compute ISC values on single Adjacency matrices"
+            )
+
+        if not isinstance(group, np.ndarray):
+            raise ValueError("group must be a numpy array.")
+
+        if len(group) != self.square_shape()[0]:
+            raise ValueError(
+                "Group array must be the same length as the Adjacency instance."
+            )
+
+        if len(np.unique(group)) != 2:
+            raise ValueError(
+                "There must only be 2 unique group ids in the group array."
+            )
+
+        group1_id, group2_id = np.unique(group)
+        group1 = Adjacency(
+            self.squareform()[group == group1_id, :][:, group == group1_id],
+            matrix_type="similarity",
+        )
+        group2 = Adjacency(
+            self.squareform()[group == group2_id, :][:, group == group2_id],
+            matrix_type="similarity",
+        )
+
+        stats = {
+            "isc_group_difference": _compute_isc_group(group1, group2, metric=metric)
+        }
+
+        if method == "permute":
+
+            isc_group_differences_null = np.array(
+                Parallel(n_jobs=n_jobs)(
+                    delayed(_permute_isc_group)(
+                        self, group, metric=metric, random_state=random_state
+                    )
+                    for _ in range(n_samples)
+                )
+            )
+        elif method == "bootstrap":
+            group1_all_bootstraps = Parallel(n_jobs=n_jobs)(
+                delayed(_bootstrap_isc)(
+                    group1,
+                    metric=metric,
+                    exclude_self_corr=exclude_self_corr,
+                    random_state=random_state,
+                )
+                for _ in range(n_samples)
+            )
+
+            group2_all_bootstraps = Parallel(n_jobs=n_jobs)(
+                delayed(_bootstrap_isc)(
+                    group2,
+                    metric=metric,
+                    exclude_self_corr=exclude_self_corr,
+                    random_state=random_state,
+                )
+                for _ in range(n_samples)
+            )
+
+            isc_group_differences_null = (
+                np.array(group1_all_bootstraps) - np.array(group2_all_bootstraps)
+            ) - stats["isc_group_difference"]
+
+        else:
+            raise NotImplementedError("method can only be ['permutation', 'bootstrap']")
+
+        isc_group_differences_null = isc_group_differences_null[
+            ~np.isnan(isc_group_differences_null)
+        ]
+
+        stats["p"] = _calc_pvalue(
+            isc_group_differences_null, stats["isc_group_difference"], tail
+        )
+
+        stats["ci"] = (
+            np.percentile(
+                isc_group_differences_null, (100 - ci_percentile) / 2, axis=0
+            ),
+            np.percentile(
+                isc_group_differences_null,
+                ci_percentile + (100 - ci_percentile) / 2,
+                axis=0,
+            ),
+        )
+
+        if return_null:
+            stats["null_distribution"] = isc_group_differences_null
 
         return stats
 
