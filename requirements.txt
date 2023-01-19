@@ -1,3 +1,4 @@
+    burnt-ends>=0.0.2
 	nibabel>=3.0.1
 	scikit-learn>=0.21.0
 	nilearn>=0.6.0
