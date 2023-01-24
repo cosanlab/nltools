@@ -73,25 +73,12 @@ from sklearn.utils import check_random_state
 from sklearn.metrics import pairwise_distances
 
 # Stats imports from burnt-ends
-from ends.stats import regress, fdr, holm_bonf
+from ends.stats import regress, fdr, holm_bonf, pearson2d as pearson
 
 MAX_INT = np.iinfo(np.int32).max
 
 # Optional dependencies
 sm = attempt_to_import("statsmodels.tsa.arima_model", name="sm")
-
-
-def pearson(x, y):
-    """Correlates row vector x with each row vector in 2D array y.
-    From neurosynth.stats.py - author: Tal Yarkoni
-    """
-    data = np.vstack((x, y))
-    ms = data.mean(axis=1)[(slice(None, None, None), None)]
-    datam = data - ms
-    datass = np.sqrt(np.sum(datam * datam, axis=1))
-    # datass = np.sqrt(ss(datam, axis=1))
-    temp = np.dot(datam[1:], datam[0].T)
-    return temp / (datass[1:] * datass[0])
 
 
 def zscore(df):
