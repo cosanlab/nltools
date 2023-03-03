@@ -787,7 +787,7 @@ class Design_Matrix(DataFrame):
 
         if exclude_polys:
             data_cols = [c for c in self.columns if c not in self.polys]
-            if out in locals():
+            if 'out' in locals():
                 out = out[data_cols]
             else:
                 out = self[data_cols]
