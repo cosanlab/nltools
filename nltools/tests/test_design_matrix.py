@@ -138,6 +138,10 @@ def test_clean(sim_design_matrix):
     out = corr_cols.clean(verbose=True)
     assert out.shape[1] < corr_cols.shape[1]
 
+    # Test for bug #413 about args combinations
+    out = corr_cols.clean(fill_na=None, exclude_polys=True, verbose=True)
+    assert out.shape[1] < corr_cols.shape[1]
+
     # Raise an error if try to clean with an input matrix that has duplicate column names
     dup_cols = pd.concat([sim_design_matrix, sim_design_matrix], axis=1)
     with pytest.raises(ValueError):
