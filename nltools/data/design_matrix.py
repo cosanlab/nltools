@@ -782,6 +782,8 @@ class Design_Matrix(DataFrame):
             )
 
         old_settings = np.seterr(all="ignore")
+
+        out = self.copy()
         if fill_na is not None:
             out = self.fillna(fill_na)
 
