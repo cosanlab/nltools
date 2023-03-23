@@ -59,16 +59,38 @@ def test_permutation():
     sum_p = upper_p + lower_p
     np.testing.assert_almost_equal(two_sided, sum_p, decimal=3)
 
-    # Test matrix_permutation
+
+def test_matrix_permutation():
     dat = np.random.multivariate_normal([2, 6], [[0.5, 2], [0.5, 3]], 190)
     x = squareform(dat[:, 0])
     y = squareform(dat[:, 1])
-    stats = matrix_permutation(x, y, n_permute=1000)
+    stats = matrix_permutation(x, y, n_permute=1000, random_state=111)
     assert (
         (stats["correlation"] > 0.4)
         & (stats["correlation"] < 0.85)
         & (stats["p"] < 0.001)
     )
+
+    # For symmetric matrices upper and lower give the same answer
+    stats_lower = matrix_permutation(
+        x, y, how="lower", n_permute=1000, random_state=111
+    )
+    assert np.allclose(list(stats.values()), list(stats_lower.values()))
+
+    # Add noise to break the symmetry
+    x_noisy = x + np.random.randn(*x.shape)
+    y_noisy = y + np.random.randn(*y.shape)
+
+    stats_full = matrix_permutation(
+        x_noisy, y_noisy, how="full", n_permute=1000, random_state=111
+    )
+    assert stats_full["correlation"] < stats_lower["correlation"]
+
+    # Including the diagonal should increase the correlations
+    stats_full_diag = matrix_permutation(
+        x, y, how="full", include_diag=True, n_permute=1000, random_state=111
+    )
+    assert stats_full_diag["correlation"] > stats_full["correlation"]
 
 
 def test_downsample():
