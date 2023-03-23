@@ -504,7 +504,7 @@ def _permute_group(data, random_state=None):
     )
 
 
-def _permute_func(data1, data2, metric, random_state=None):
+def _permute_func(data1, data2, metric, how, include_diag=False, random_state=None):
     """Helper function for matrix_permutation.
     Can take a functon, that would be repeated for calculation.
     Args:
@@ -520,7 +520,22 @@ def _permute_func(data1, data2, metric, random_state=None):
     data_row_id = range(data1.shape[0])
     permuted_ix = random_state.permutation(data_row_id)
     new_fmri_dist = data1.iloc[permuted_ix, permuted_ix].values
-    new_fmri_dist = new_fmri_dist[np.triu_indices(new_fmri_dist.shape[0], k=1)]
+
+    if how == "upper":
+        new_fmri_dist = new_fmri_dist[np.triu_indices(new_fmri_dist.shape[0], k=1)]
+    elif how == "lower":
+        new_fmri_dist = new_fmri_dist[np.tril_indices(new_fmri_dist.shape[0], k=-1)]
+    elif how == "full":
+        if include_diag:
+            new_fmri_dist = new_fmri_dist.ravel()
+        else:
+            new_fmri_dist = np.concatenate(
+                [
+                    new_fmri_dist[np.triu_indices(new_fmri_dist.shape[0], k=1)],
+                    new_fmri_dist[np.tril_indices(new_fmri_dist.shape[0], k=-1)],
+                ]
+            )
+
     return correlation(new_fmri_dist, data2, metric=metric)[0]
 
 
@@ -703,6 +718,8 @@ def matrix_permutation(
     data2,
     n_permute=5000,
     metric="spearman",
+    how="upper",
+    include_diag=False,
     tail=2,
     n_jobs=-1,
     return_perms=False,
@@ -720,6 +737,10 @@ def matrix_permutation(
         n_permute: (int) number of permutations
         metric: (str) type of association metric ['spearman','pearson',
                 'kendall']
+        how: (str) whether to use the 'upper' (default), 'lower', or 'full' matrix. The
+            default of 'upper' assumes both matrices are symmetric
+        include_diag (bool): only applies if `how='full'`. Whether to include the
+            diagonal elements in the comparison
         tail: (int) either 1 for one-tail or 2 for two-tailed test
               (default: 2)
         n_jobs: (int) The number of CPUs to use to do the computation.
@@ -733,14 +754,41 @@ def matrix_permutation(
     seeds = random_state.randint(MAX_INT, size=n_permute)
     sq_data1 = check_square_numpy_matrix(data1)
     sq_data2 = check_square_numpy_matrix(data2)
-    data1 = sq_data1[np.triu_indices(sq_data1.shape[0], k=1)]
-    data2 = sq_data2[np.triu_indices(sq_data2.shape[0], k=1)]
+
+    if how == "upper":
+        data1 = sq_data1[np.triu_indices(sq_data1.shape[0], k=1)]
+        data2 = sq_data2[np.triu_indices(sq_data2.shape[0], k=1)]
+    elif how == "lower":
+        data1 = sq_data1[np.tril_indices(sq_data1.shape[0], k=-1)]
+        data2 = sq_data2[np.tril_indices(sq_data2.shape[0], k=-1)]
+    elif how == "full":
+        if include_diag:
+            data1 = sq_data1.ravel()
+            data2 = sq_data2.ravel()
+        else:
+            data1 = np.concatenate(
+                [
+                    sq_data1[np.triu_indices(sq_data1.shape[0], k=1)],
+                    sq_data1[np.tril_indices(sq_data1.shape[0], k=-1)],
+                ]
+            )
+            data2 = np.concatenate(
+                [
+                    sq_data2[np.triu_indices(sq_data2.shape[0], k=1)],
+                    sq_data2[np.tril_indices(sq_data2.shape[0], k=-1)],
+                ]
+            )
 
     stats = {"correlation": correlation(data1, data2, metric=metric)[0]}
 
     all_p = Parallel(n_jobs=n_jobs)(
         delayed(_permute_func)(
-            pd.DataFrame(sq_data1), data2, metric=metric, random_state=seeds[i]
+            pd.DataFrame(sq_data1),
+            data2,
+            metric=metric,
+            how=how,
+            include_diag=include_diag,
+            random_state=seeds[i],
         )
         for i in range(n_permute)
     )
