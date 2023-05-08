@@ -11,6 +11,10 @@ on:
       - main
       - master
 
+  # Run tests every week on sundays
+  schedule:
+    - cron: "0 0 * * 0"
+
 jobs:
   # Job (1): Run testing in parallel against multiples OSs and Python versions
   test:
@@ -106,19 +110,25 @@ jobs:
   docs:
     name: Build docs and auto-examples
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
     steps:
+      - name: Download and setup Miniconda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          miniconda-version: "latest"
+          python-version: 3.8
+
       - name: Checkout Code
         uses: actions/checkout@v2
 
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.8"
-
-      - name: Install deps
+      - name: Install Dependencies
         run: |
-          python3 -m pip install -r requirements-dev.txt
-          python3 -m pip install -r optional-dependencies.txt
+          conda activate test
+          conda env list
+          pip install -r requirements-dev.txt
+          pip install -r optional-dependencies.txt
 
       - name: Build docs
         run: |
