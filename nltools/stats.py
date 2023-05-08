@@ -238,8 +238,8 @@ def multi_threshold(t_map, p_map, thresh):
         t_neg = deepcopy(t_pos)
         t_pos.data[t.data > 0] = 1
         t_neg.data[t.data < 0] = 1
-        pos_out = pos_out + t_pos.to_nifti().get_data()
-        neg_out = neg_out + t_neg.to_nifti().get_data()
+        pos_out = pos_out + t_pos.to_nifti().get_fdata()
+        neg_out = neg_out + t_neg.to_nifti().get_fdata()
     pos_out = pos_out + neg_out * -1
     return Brain_Data(nib.Nifti1Image(pos_out, affine))
 
@@ -1722,7 +1722,7 @@ def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
         global_mn = np.mean(data.data, axis=1)
         frame_diff = np.mean(np.abs(np.diff(data.data, axis=0)), axis=1)
     elif isinstance(data, nib.Nifti1Image):
-        data = deepcopy(data.get_data())
+        data = deepcopy(data.get_fdata())
         if len(data.shape) > 3:
             data = np.squeeze(data)
         elif len(data.shape) < 3:

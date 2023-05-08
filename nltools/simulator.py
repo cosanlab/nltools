@@ -70,7 +70,7 @@ class Simulator:
         g = g.reshape(x.shape).astype(float)
 
         # select only the regions within the brain mask
-        g = np.multiply(self.brain_mask.get_data(), g)
+        g = np.multiply(self.brain_mask.get_fdata(), g)
         # adjust total intensity of gaussian
         g = np.multiply(i_tot / np.sum(g), g)
 
@@ -92,7 +92,7 @@ class Simulator:
 
         activation = np.zeros(dims)
         activation[mask] = 1
-        activation = np.multiply(activation, self.brain_mask.get_data())
+        activation = np.multiply(activation, self.brain_mask.get_fdata())
         activation = nib.Nifti1Image(activation, affine=np.eye(4))
 
         # return the 3D numpy matrix of zeros containing the sphere as a region of ones
@@ -107,7 +107,7 @@ class Simulator:
         """
 
         self.nifti_masker.fit(self.brain_mask)
-        vlength = int(np.sum(self.brain_mask.get_data()))
+        vlength = int(np.sum(self.brain_mask.get_fdata()))
         if sigma != 0:
             n = self.random_state.normal(mu, sigma, vlength)
         else:
@@ -115,7 +115,7 @@ class Simulator:
         m = self.nifti_masker.inverse_transform(n)
 
         # return the 3D numpy matrix of zeros containing the brain mask filled with noise produced over a normal distribution
-        return m.get_data()
+        return m.get_fdata()
 
     def to_nifti(self, m):
         """convert a numpy matrix to the nifti format and assign to it the brain_mask's affine matrix
@@ -140,7 +140,7 @@ class Simulator:
             centers: a vector of sphere centers of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]]
         """
         # initialize useful values
-        dims = self.brain_mask.get_data().shape
+        dims = self.brain_mask.get_fdata().shape
 
         # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
         if isinstance(radius, int):
@@ -158,7 +158,7 @@ class Simulator:
             and (type(center) is list)
             and (len(radius) == len(center))
         ):
-            A = np.zeros_like(self.brain_mask.get_data())
+            A = np.zeros_like(self.brain_mask.get_fdata())
             for i in range(len(radius)):
                 A = np.add(A, self.sphere(radius[i], center[i]))
             return A
@@ -489,7 +489,6 @@ class SimulateGrid(object):
         signal_amplitude=None,
         random_state=None,
     ):
-
         self.isfit = False
         self.thresholded = None
         self.threshold = None
