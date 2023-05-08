@@ -75,7 +75,7 @@ from sklearn.metrics import pairwise_distances
 MAX_INT = np.iinfo(np.int32).max
 
 # Optional dependencies
-sm = attempt_to_import("statsmodels.tsa.arima_model", name="sm")
+sm = attempt_to_import("statsmodels.tsa.arima.model", name="sm")
 
 
 def pearson(x, y):
