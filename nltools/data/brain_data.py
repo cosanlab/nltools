@@ -1052,7 +1052,7 @@ class Brain_Data(object):
             "residual": res,
         }
 
-    def predict(self, algorithm=None, cv_dict=None, plot=True, **kwargs):
+    def predict(self, algorithm=None, cv_dict=None, plot=True, verbose=True, **kwargs):
         """Run prediction
 
         Args:
@@ -1067,6 +1067,7 @@ class Brain_Data(object):
                     where 'n' = number of folds, and 'holdout' = vector of
                     subject ids that corresponds to self.Y
             plot: Boolean indicating whether or not to create plots.
+            verbose (bool): print performance; Default True
             **kwargs: Additional keyword arguments to pass to the prediction
                     algorithm
 
@@ -1249,26 +1250,32 @@ class Brain_Data(object):
             output["mcr_all"] = balanced_accuracy_score(
                 self.Y.values, output["yfit_all"]
             )
-            print("overall accuracy: %.2f" % output["mcr_all"])
+            if verbose:
+                print("overall accuracy: %.2f" % output["mcr_all"])
             if cv_dict is not None:
                 output["mcr_xval"] = np.mean(
                     output["yfit_xval"] == np.array(self.Y).flatten()
                 )
-                print("overall CV accuracy: %.2f" % output["mcr_xval"])
+                if verbose:
+                    print("overall CV accuracy: %.2f" % output["mcr_xval"])
         elif predictor_settings["prediction_type"] == "prediction":
             output["rmse_all"] = np.sqrt(
                 np.mean((output["yfit_all"] - output["Y"]) ** 2)
             )
             output["r_all"] = pearsonr(output["Y"], output["yfit_all"])[0]
-            print("overall Root Mean Squared Error: %.2f" % output["rmse_all"])
-            print("overall Correlation: %.2f" % output["r_all"])
+            if verbose:
+                print("overall Root Mean Squared Error: %.2f" % output["rmse_all"])
+                print("overall Correlation: %.2f" % output["r_all"])
             if cv_dict is not None:
                 output["rmse_xval"] = np.sqrt(
                     np.mean((output["yfit_xval"] - output["Y"]) ** 2)
                 )
                 output["r_xval"] = pearsonr(output["Y"], output["yfit_xval"])[0]
-                print("overall CV Root Mean Squared Error: %.2f" % output["rmse_xval"])
-                print("overall CV Correlation: %.2f" % output["r_xval"])
+                if verbose:
+                    print(
+                        "overall CV Root Mean Squared Error: %.2f" % output["rmse_xval"]
+                    )
+                    print("overall CV Correlation: %.2f" % output["r_xval"])
 
         # Plot
         if plot:
