@@ -10,8 +10,8 @@ NLTools
 .. image:: https://codecov.io/gh/cosanlab/nltools/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/cosanlab/nltools
 
-.. image:: https://api.codacy.com/project/badge/Grade/625677967a0749299f38c2bf8ee269c3
-    :target: https://www.codacy.com/app/ljchang/nltools?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=ljchang/nltools&amp;utm_campaign=Badge_Grade
+.. image:: https://app.codacy.com/project/badge/Grade/f118dc39e5df46d28e80d0d326721cbb
+    :target: https://app.codacy.com/gh/cosanlab/nltools/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade
 
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.2229813.svg
     :target: https://doi.org/10.5281/zenodo.2229813
