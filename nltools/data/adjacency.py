@@ -654,6 +654,9 @@ class Adjacency(object):
         if method not in ["long", "square"]:
             raise ValueError('Make sure method is ["long","square"].')
 
+        if isinstance(file_name, Path):
+            file_name = str(file_name)
+
         if (".h5" in file_name) or (".hdf5" in file_name):
             if method == "square":
                 raise NotImplementedError(

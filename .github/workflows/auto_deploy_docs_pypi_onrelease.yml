@@ -7,39 +7,27 @@ on:
 jobs:
   # Job (1): Build and deploy docs.
   docs:
-    name: Build & deploy docs
+    name: Build docs and auto-examples
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
     steps:
+      - name: Download and setup Miniconda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          miniconda-version: "latest"
+          python-version: 3.8
+
       - name: Checkout Code
         uses: actions/checkout@v2
 
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.8"
-
-      - name: Upgrade pip
+      - name: Install Dependencies
         run: |
-          # install pip=>20.1 to use "pip cache dir"
-          python3 -m pip install --upgrade pip
-
-      - name: Setup pip-cache
-        id: pip-cache
-        run: echo "::set-output name=dir::$(pip cache dir)"
-
-      - name: Cache deps
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.pip-cache.outputs.dir }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install deps
-        run: |
-          python3 -m pip install . -r requirements.txt
-          python3 -m pip install . -r requirements-dev.txt
-          python3 -m pip install . -r optional-dependencies.txt
+          conda activate test
+          conda env list
+          pip install -r requirements-dev.txt
+          pip install -r optional-dependencies.txt
 
       - name: Build docs
         run: |
