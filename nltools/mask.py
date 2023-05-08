@@ -83,7 +83,7 @@ def create_sphere(coordinates, radius=5, mask=None):
         elif isinstance(radius, int):
             radius = [radius] * len(coordinates)
         out = Brain_Data(
-            nib.Nifti1Image(np.zeros_like(mask.get_data()), affine=mask.affine),
+            nib.Nifti1Image(np.zeros_like(mask.get_fdata()), affine=mask.affine),
             mask=mask,
         )
         for r, c in zip(radius, coordinates):
@@ -91,8 +91,8 @@ def create_sphere(coordinates, radius=5, mask=None):
     else:
         out = Brain_Data(sphere(radius, coordinates, mask), mask=mask)
     out = out.to_nifti()
-    out.get_data()[out.get_data() > 0.5] = 1
-    out.get_data()[out.get_data() < 0.5] = 0
+    out.get_fdata()[out.get_fdata() > 0.5] = 1
+    out.get_fdata()[out.get_fdata() < 0.5] = 0
     return out
 
 
@@ -155,7 +155,7 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
                 m_list.append(mask[x].to_nifti())
             intersect = intersect_masks(m_list, threshold=1, connected=False)
             intersect = Brain_Data(
-                nib.Nifti1Image(np.abs(intersect.get_data() - 1), intersect.affine),
+                nib.Nifti1Image(np.abs(intersect.get_fdata() - 1), intersect.affine),
                 mask=custom_mask,
             )
 
