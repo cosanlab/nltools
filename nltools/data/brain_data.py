@@ -497,6 +497,9 @@ class Brain_Data(object):
 
         """
 
+        if isinstance(file_name, Path):
+            file_name = str(file_name)
+
         if (".h5" in file_name) or (".hdf5" in file_name):
             x_columns, x_index = _df_meta_to_arr(self.X)
             y_columns, y_index = _df_meta_to_arr(self.Y)
