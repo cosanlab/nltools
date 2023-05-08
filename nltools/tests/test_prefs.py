@@ -4,7 +4,6 @@ import pytest
 
 
 def test_change_mni_resolution():
-
     # Defaults
     brain = Brain_Data()
     assert brain.mask.affine[1, 1] == 2.0

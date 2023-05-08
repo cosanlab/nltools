@@ -132,7 +132,6 @@ def test_append(sim_design_matrix):
 
 
 def test_clean(sim_design_matrix):
-
     # Drop correlated column
     corr_cols = sim_design_matrix.assign(new_col=lambda df: df.iloc[:, 0])
     out = corr_cols.clean(verbose=True)

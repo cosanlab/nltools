@@ -53,7 +53,6 @@ class Design_Matrix(DataFrame):
     _metadata = ["sampling_freq", "convolved", "polys", "multi"]
 
     def __init__(self, *args, **kwargs):
-
         sampling_freq = kwargs.pop("sampling_freq", None)
         convolved = kwargs.pop("convolved", [])
         polys = kwargs.pop("polys", [])
@@ -178,7 +177,6 @@ class Design_Matrix(DataFrame):
         return out
 
     def _vertcat(self, df, keep_separate, unique_cols, fill_na, verbose):
-
         """Used by .append(). Append another design matrix row-wise (vert cat).
         Always returns a new design matrix.
 
@@ -793,8 +791,8 @@ class Design_Matrix(DataFrame):
 
         keep = []
         remove = []
-        for i, c in out.iteritems():
-            for j, c2 in out.iteritems():
+        for i, c in out.items():
+            for j, c2 in out.items():
                 if i != j:
                     r = np.abs(pearsonr(c, c2)[0])
                     if (r >= thresh) and (j not in keep) and (j not in remove):

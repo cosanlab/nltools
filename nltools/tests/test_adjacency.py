@@ -370,7 +370,7 @@ def test_isc(sim_adjacency_single):
         assert len(stats["null_distribution"]) == n_boot
 
 
-def test_isc_group():
+def test_isc_group_adj():
     n_samples = 100
     diff = 0.2
     data = np.random.multivariate_normal(
