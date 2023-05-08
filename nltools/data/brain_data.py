@@ -50,6 +50,7 @@ from nltools.utils import (
     _roi_func,
     get_mni_from_img_resolution,
     _df_meta_to_arr,
+    to_h5,
 )
 from nltools.cross_validation import set_cv
 from nltools.plotting import scatterplot, plot_interactive_brain, plot_brain
@@ -70,9 +71,9 @@ from nltools.stats import regress as regression
 from .adjacency import Adjacency
 from nltools.prefs import MNI_Template, resolve_mni_path
 from nilearn.decoding import SearchLight
-import deepdish as dd
 from pathlib import Path
 import warnings
+from h5py import File as h5File
 
 
 # Optional dependencies
@@ -126,50 +127,37 @@ class Brain_Data(object):
                     tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
                     os.makedirs(tmp_dir)
                     data = nib.load(download_nifti(to_load, data_dir=tmp_dir))
+
                 elif (".h5" in to_load) or (".hdf5" in to_load):
-                    f = dd.io.load(to_load)
-                    self.data = f["data"]
-                    self.X = pd.DataFrame(
-                        f["X"],
-                        columns=[
-                            e.decode("utf-8") if isinstance(e, bytes) else e
-                            for e in f["X_columns"]
-                        ],
-                        index=[
-                            e.decode("utf-8") if isinstance(e, bytes) else e
-                            for e in f["X_index"]
-                        ],
-                    )
-                    self.Y = pd.DataFrame(
-                        f["Y"],
-                        columns=[
-                            e.decode("utf-8") if isinstance(e, bytes) else e
-                            for e in f["Y_columns"]
-                        ],
-                        index=[
-                            e.decode("utf-8") if isinstance(e, bytes) else e
-                            for e in f["Y_index"]
-                        ],
-                    )
-                    if mask is None:
-                        # User didn't request a mask so try to load it from the h5 file,
-                        # i.e. overwrite the default mask loaded above
-                        self.mask = nib.Nifti1Image(
-                            f["mask_data"],
-                            affine=f["mask_affine"],
-                            file_map={
-                                "image": nib.FileHolder(filename=f["mask_file_name"])
-                            },
-                        )
-                        nifti_masker = NiftiMasker(self.mask)
-                        self.nifti_masker = nifti_masker.fit(self.mask)
-                    else:
-                        # Mask is already set above so use the default or user requested
-                        # mask rather than the one in h5 (if it exists)
-                        if "mask_data" in f:
-                            warnings.warn(
-                                "Existing mask found in HDF5 file but is being ignored because you passed a value for mask. Set mask=None to use existing mask in the HDF5 file"
+                    # Load X and Y attributes
+                    with pd.HDFStore(to_load, "r") as f:
+                        self.X = f["X"]
+                        self.Y = f["Y"]
+
+                    # Load data and masker stuffs
+                    with h5File(to_load, "r") as f:
+                        self.data = np.array(f["data"])
+                        if mask is None:
+                            # User didn't request a mask so try to load it from the h5 file,
+                            # i.e. overwrite the default mask loaded above
+                            self.mask = nib.Nifti1Image(
+                                np.array(f["mask_data"]),
+                                affine=np.array(f["mask_affine"]),
+                                file_map={
+                                    "image": nib.FileHolder(
+                                        filename=f["mask_file_name"].asstr()[0]
+                                    )
+                                },
                             )
+                            nifti_masker = NiftiMasker(self.mask)
+                            self.nifti_masker = nifti_masker.fit(self.mask)
+                        else:
+                            # Mask is already set above so use the default or user requested
+                            # mask rather than the one in h5 (if it exists)
+                            if "mask_data" in f:
+                                warnings.warn(
+                                    "Existing mask found in HDF5 file but is being ignored because you passed a value for mask. Set mask=None to use existing mask in the HDF5 file"
+                                )
                     # We're done initializing from the h5 file so just return no need to
                     # run any of the additional checks and code below. We should really
                     # refactor this entire init...
@@ -501,24 +489,7 @@ class Brain_Data(object):
             file_name = str(file_name)
 
         if (".h5" in file_name) or (".hdf5" in file_name):
-            x_columns, x_index = _df_meta_to_arr(self.X)
-            y_columns, y_index = _df_meta_to_arr(self.Y)
-            dd.io.save(
-                file_name,
-                {
-                    "data": self.data,
-                    "X": self.X.values,
-                    "X_columns": x_columns,
-                    "X_index": x_index,
-                    "Y": self.Y.values,
-                    "Y_columns": y_columns,
-                    "Y_index": y_index,
-                    "mask_affine": self.mask.affine,
-                    "mask_data": self.mask.get_fdata(),
-                    "mask_file_name": self.mask.get_filename(),
-                },
-                compression=kwargs.get("compression", "blosc"),
-            )
+            to_h5(self, file_name, obj_type="brain_data")
         else:
             self.to_nifti().to_filename(file_name)
 
