@@ -9,3 +9,4 @@ scipy
 pynv
 joblib>=0.15
 h5py
+tables
