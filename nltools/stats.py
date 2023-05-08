@@ -448,7 +448,7 @@ def upsample(
                 UserWarning,
             )
         out = pd.DataFrame(columns=numeric_data.columns, index=None)
-        for i, x in numeric_data.iteritems():
+        for i, x in numeric_data.items():
             interpolate = interp1d(orig_spacing, x, kind=method)
             out.loc[:, i] = interpolate(new_spacing)
         return out
@@ -619,8 +619,8 @@ def two_sample_permutation(
 
     stats = {"mean": np.nanmean(data1) - np.nanmean(data2)}
     data = pd.DataFrame(data={"Values": data1, "Group": np.ones(len(data1))})
-    data = data.append(
-        pd.DataFrame(data={"Values": data2, "Group": np.zeros(len(data2))})
+    data = pd.concat(
+        [data, pd.DataFrame(data={"Values": data2, "Group": np.zeros(len(data2))})]
     )
     all_p = Parallel(n_jobs=n_jobs)(
         delayed(_permute_group)(data, random_state=seeds[i]) for i in range(n_permute)
@@ -955,7 +955,6 @@ def _robust_estimator(vals, X, robust_estimator="hc0", nlags=1):
 
         # Now loop over additional lags
         for l in range(1, nlags + 1):
-
             V = np.diag(vals[l:] * vals[:-l])
             meat_1 = np.dot(np.dot(X[l:].T, V), X[:-l])
             meat_2 = np.dot(np.dot(X[:-l].T, V), X[l:])
@@ -1121,7 +1120,6 @@ def regress(X, Y, mode="ols", stats="full", **kwargs):
 
     # Compute standard errors based on regression mode
     if mode == "ols" or mode == "robust":
-
         b = np.dot(np.linalg.pinv(X), Y)
 
         # Return betas and stop other computations if that's all that's requested

@@ -1225,7 +1225,6 @@ class Adjacency(object):
         }
 
         if method == "permute":
-
             isc_group_differences_null = np.array(
                 Parallel(n_jobs=n_jobs)(
                     delayed(_permute_isc_group)(
@@ -1363,7 +1362,7 @@ class Adjacency(object):
         if labels_color is None:
             labels_color = ["black"] * len(labels)
         if n_components == 3:
-            for ((x, y, z), label, color) in zip(proj, labels, labels_color):
+            for (x, y, z), label, color in zip(proj, labels, labels_color):
                 ax.text(
                     x,
                     y,
@@ -1373,7 +1372,7 @@ class Adjacency(object):
                     bbox=dict(facecolor=color, alpha=1, boxstyle="round,pad=0.3"),
                 )
         else:
-            for ((x, y), label, color) in zip(proj, labels, labels_color):
+            for (x, y), label, color in zip(proj, labels, labels_color):
                 ax.text(
                     x,
                     y,

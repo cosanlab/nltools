@@ -1,5 +1,8 @@
+-r requirements.txt
 pytest
-black
+pytest-sugar
+black==23.3.0
+coveralls
 sphinx
 sphinx_gallery
 sphinx_bootstrap_theme

@@ -71,7 +71,7 @@ def get_collection_image_metadata(collection=None, data_dir=None, limit=10):
         dat = pd.DataFrame(columns=i["results"][0].keys())
         while int(offset) < int(i["count"]):
             for x in i["results"]:
-                dat = dat.append(x, ignore_index=True)
+                dat = pd.concat([dat, x], ignore_index=True)
             offset = offset + limit
             i = api.get_collection_images(
                 collection_id=collection, limit=limit, offset=offset

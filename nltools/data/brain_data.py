@@ -881,10 +881,10 @@ class Brain_Data(object):
             out = deepcopy(self)
             out.data = np.vstack([self.data, data.data])
             if out.Y.size:
-                out.Y = self.Y.append(data.Y)
+                out.Y = pd.concat([self.Y, data.Y])
             if self.X.size:
                 if isinstance(self.X, pd.DataFrame):
-                    out.X = self.X.append(data.X, **kwargs)
+                    out.X = pd.concat([self.X, data.X], **kwargs)
                 else:
                     out.X = np.vstack([self.X, data.X])
         return out
@@ -2180,7 +2180,6 @@ class Brain_Data(object):
 
 class Groupby(object):
     def __init__(self, data, mask):
-
         data = check_brain_data(data)
         mask = check_brain_data(mask)
 

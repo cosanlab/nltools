@@ -1,11 +1,11 @@
-	nibabel>=3.0.1
-	scikit-learn>=0.21.0
-	nilearn>=0.6.0
-    pandas >= 1.1.0
-	numpy>=1.9
-	seaborn>=0.7.0
-	matplotlib>=2.2.0
-	scipy
-	pynv
-	joblib>=0.15
-	deepdish>=0.3.6
+nibabel>=3.0.1
+scikit-learn>=0.21.0
+nilearn>=0.6.0
+pandas>=1.1.0
+numpy<1.24
+seaborn>=0.7.0
+matplotlib>=2.2.0
+scipy
+pynv
+joblib>=0.15
+deepdish>=0.3.6

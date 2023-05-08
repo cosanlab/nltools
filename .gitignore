@@ -55,3 +55,5 @@ docs/backreferences/
 environment.yml
 rep_id.csv
 y.csv
+env
+.vscode/settings.json

@@ -60,14 +60,13 @@ jobs:
         run: |
           conda activate test
           conda env list
-          conda install -y pip pandas">=1.1.0,<1.2" numpy scipy matplotlib seaborn scikit-learn
-          conda install -y -c conda-forge pytest pytest-sugar coveralls black
-          pip install . -r requirements.txt
-          pip install . -r optional-dependencies.txt
+          pip install -r requirements-dev.txt
+          pip install -r optional-dependencies.txt
 
       # Check code formatting
       - name: Check code formatting
         run: |
+          conda activate test
           black --version
           black --check --diff --verbose nltools
 
@@ -75,7 +74,6 @@ jobs:
       - name: Run Tests
         run: |
           conda activate test
-          conda env list
           coverage run --source=nltools -m pytest -rs
 
       # Send coverage to coveralls.io but waiting on parallelization to finish
@@ -117,28 +115,10 @@ jobs:
         with:
           python-version: "3.8"
 
-      # - name: Upgrade pip
-      #   run: |
-      #     # install pip=>20.1 to use "pip cache dir"
-      #     python3 -m pip install --upgrade pip
-
-      # - name: Setup pip-cache
-      #   id: pip-cache
-      #   run: echo "::set-output name=dir::$(pip cache dir)"
-
-      # - name: Cache deps
-      #   uses: actions/cache@v2
-      #   with:
-      #     path: ${{ steps.pip-cache.outputs.dir }}
-      #     key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-pip-
-
       - name: Install deps
         run: |
-          python3 -m pip install . -r requirements.txt
-          python3 -m pip install . -r requirements-dev.txt
-          python3 -m pip install . -r optional-dependencies.txt
+          python3 -m pip install -r requirements-dev.txt
+          python3 -m pip install -r optional-dependencies.txt
 
       - name: Build docs
         run: |
