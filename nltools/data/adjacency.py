@@ -39,10 +39,12 @@ from nltools.utils import (
     concatenate,
     _bootstrap_apply_func,
     _df_meta_to_arr,
+    to_h5,
 )
 from .design_matrix import Design_Matrix
 from joblib import Parallel, delayed
 from pathlib import Path
+from h5py import File as h5File
 
 # Optional dependencies
 nx = attempt_to_import("networkx", "nx")
@@ -120,26 +122,18 @@ class Adjacency(object):
             to_load = str(data)
             # Data is a string or apth and h5
             if (".h5" in to_load) or (".hdf5" in to_load):
-                f = dd.io.load(data)
-                self.data = f["data"]
-                self.Y = pd.DataFrame(
-                    f["Y"],
-                    columns=[
-                        e.decode("utf-8") if isinstance(e, bytes) else e
-                        for e in f["Y_columns"]
-                    ],
-                    index=[
-                        e.decode("utf-8") if isinstance(e, bytes) else e
-                        for e in f["Y_index"]
-                    ],
-                )
-                self.matrix_type = f["matrix_type"]
-                self.is_single_matrix = f["is_single_matrix"]
-                self.issymmetric = f["issymmetric"]
-                self.labels = [
-                    e.decode("utf-8") if isinstance(e, bytes) else e
-                    for e in f["labels"]
-                ]
+                # Load X and Y attributes
+                with pd.HDFStore(to_load, "r") as f:
+                    self.Y = f["Y"]
+
+                # Load other attributes
+                with h5File(to_load, "r") as f:
+                    self.data = np.array(f["data"])
+                    self.matrix_type = f["matrix_type"].asstr()[0]
+                    self.is_single_matrix = f["is_single_matrix"][0]
+                    self.issymmetric = f["issymmetric"][0]
+                    self.labels = f["labels"].asstr()[:]
+
                 return
             # Data is a string or path but not h5
             else:
@@ -662,21 +656,7 @@ class Adjacency(object):
                 raise NotImplementedError(
                     'Saving as hdf5 does not support method="square"'
                 )
-            y_columns, y_index = _df_meta_to_arr(self.Y)
-            dd.io.save(
-                file_name,
-                {
-                    "data": self.data,
-                    "Y": self.Y.values,
-                    "Y_columns": y_columns,
-                    "Y_index": y_index,
-                    "matrix_type": self.matrix_type,
-                    "labels": np.array(self.labels, dtype="S"),
-                    "is_single_matrix": self.is_single_matrix,
-                    "issymmetric": self.issymmetric,
-                },
-                compression=kwargs.get("compression", "blosc"),
-            )
+            to_h5(self, file_name, obj_type="adjacency")
         else:
             if method == "long":
                 pd.DataFrame(self.data).to_csv(file_name, index=None)

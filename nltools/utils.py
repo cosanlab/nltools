@@ -40,16 +40,25 @@ def to_h5(obj, file_name, obj_type="brain_data"):
         raise TypeError("obj_type must be one of 'brain_data' or 'adjacency'")
 
     if obj_type == "brain_data":
-        # Simplest way to replace deepdish is using a combination of pandas native hdf5
-        # support which uses pytables, along with h5py to save numpy arrays
         with pd.HDFStore(file_name, "w") as f:
             f["X"] = obj.X
             f["Y"] = obj.Y
+
         with h5File(file_name, "a") as f:
             f["data"] = obj.data
             f["mask_affine"] = obj.mask.affine
             f["mask_data"] = obj.mask.get_fdata()
             f["mask_file_name"] = [obj.mask.get_filename()]
+    else:
+        with pd.HDFStore(file_name, "w") as f:
+            f["Y"] = obj.Y
+
+        with h5File(file_name, "a") as f:
+            f["data"] = obj.data
+            f["matrix_type"] = [obj.matrix_type]
+            f["issymmetric"] = [obj.issymmetric]
+            f["labels"] = obj.labels
+            f["is_single_matrix"] = [obj.is_single_matrix]
 
 
 def _df_meta_to_arr(df):
