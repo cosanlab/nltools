@@ -476,12 +476,11 @@ class Brain_Data(object):
 
         return self.nifti_masker.inverse_transform(self.data)
 
-    def write(self, file_name, **kwargs):
+    def write(self, file_name):
         """Write out Brain_Data object to Nifti or HDF5 File.
 
         Args:
             file_name: (str) name of nifti file including path
-            kwargs: optional arguments to deepdish.io.save
 
         """
 

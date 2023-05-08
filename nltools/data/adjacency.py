@@ -8,7 +8,6 @@ __license__ = "MIT"
 import os
 import pandas as pd
 import numpy as np
-import deepdish as dd
 from copy import deepcopy
 from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.manifold import MDS
@@ -636,13 +635,12 @@ class Adjacency(object):
 
         return out
 
-    def write(self, file_name, method="long", **kwargs):
+    def write(self, file_name, method="long"):
         """Write out Adjacency object to csv file.
 
         Args:
             file_name (str):  name of file name to write
             method (str):     method to write out data ['long','square']
-            kwargs: optional arguments to deepdish.io.save
 
         """
         if method not in ["long", "square"]:
