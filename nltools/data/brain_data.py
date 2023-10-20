@@ -74,6 +74,7 @@ from nilearn.decoding import SearchLight
 from pathlib import Path
 import warnings
 from h5py import File as h5File
+import tables
 
 
 # Optional dependencies
@@ -99,6 +100,7 @@ class Brain_Data(object):
     """
 
     def __init__(self, data=None, Y=None, X=None, mask=None, **kwargs):
+        legacy_h5 = kwargs.pop("legacy_h5", False)
         if mask is not None:
             if not isinstance(mask, nib.Nifti1Image):
                 if isinstance(mask, str) or isinstance(mask, Path):
@@ -129,39 +131,96 @@ class Brain_Data(object):
                     data = nib.load(download_nifti(to_load, data_dir=tmp_dir))
 
                 elif (".h5" in to_load) or (".hdf5" in to_load):
-                    # Load X and Y attributes
-                    with pd.HDFStore(to_load, "r") as f:
-                        self.X = f["X"]
-                        self.Y = f["Y"]
-
-                    # Load data and masker stuffs
-                    with h5File(to_load, "r") as f:
-                        self.data = np.array(f["data"])
-                        if mask is None:
-                            # User didn't request a mask so try to load it from the h5 file,
-                            # i.e. overwrite the default mask loaded above
-                            self.mask = nib.Nifti1Image(
-                                np.array(f["mask_data"]),
-                                affine=np.array(f["mask_affine"]),
-                                file_map={
-                                    "image": nib.FileHolder(
-                                        filename=f["mask_file_name"].asstr()[0]
-                                    )
-                                },
-                            )
-                            nifti_masker = NiftiMasker(self.mask)
-                            self.nifti_masker = nifti_masker.fit(self.mask)
-                        else:
-                            # Mask is already set above so use the default or user requested
-                            # mask rather than the one in h5 (if it exists)
-                            if "mask_data" in f:
-                                warnings.warn(
-                                    "Existing mask found in HDF5 file but is being ignored because you passed a value for mask. Set mask=None to use existing mask in the HDF5 file"
+                    if legacy_h5:
+                        with tables.open_file(to_load, mode="r") as f:
+                            self.data = np.array(f.root["data"])
+                            if len(list(f.root["X_columns"])):
+                                self.X = pd.DataFrame(
+                                    np.array(f.root["X"]).squeeze(),
+                                    columns=[
+                                        e.decode("utf-8") if isinstance(e, bytes) else e
+                                        for e in np.array(f.root["X_columns"])
+                                    ],
+                                    index=[
+                                        e.decode("utf-8") if isinstance(e, bytes) else e
+                                        for e in np.array(f.root["X_index"])
+                                    ],
                                 )
-                    # We're done initializing from the h5 file so just return no need to
-                    # run any of the additional checks and code below. We should really
-                    # refactor this entire init...
-                    return
+                            else:
+                                self.X = pd.DataFrame()
+                            if len(list(f.root["Y_columns"])):
+                                self.Y = pd.DataFrame(
+                                    np.array(f.root["Y"]).squeeze(),
+                                    columns=[
+                                        e.decode("utf-8") if isinstance(e, bytes) else e
+                                        for e in np.array(f.root["Y_columns"])
+                                    ],
+                                    index=[
+                                        e.decode("utf-8") if isinstance(e, bytes) else e
+                                        for e in np.array(f.root["Y_index"])
+                                    ],
+                                )
+                            else:
+                                self.Y = pd.DataFrame()
+                            if mask is None:
+                                # User didn't request a mask so try to load it from the h5 file,
+                                # i.e. overwrite the default mask loaded above
+                                filename = (
+                                    f.root["mask_file_name"]
+                                    if "mask_file_name" in f.root
+                                    else self.mask.get_filename()
+                                )
+                                self.mask = nib.Nifti1Image(
+                                    np.array(f.root["mask_data"]),
+                                    affine=np.array(f.root["mask_affine"]),
+                                    file_map={
+                                        "image": nib.FileHolder(filename=filename)
+                                    },
+                                )
+                                nifti_masker = NiftiMasker(self.mask)
+                                self.nifti_masker = nifti_masker.fit(self.mask)
+                            else:
+                                # Mask is already set above so use the default or user requested
+                                # mask rather than the one in h5 (if it exists)
+                                if "mask_data" in f.root:
+                                    warnings.warn(
+                                        "Existing mask found in HDF5 file but is being ignored because you passed a value for mask. Set mask=None to use existing mask in the HDF5 file"
+                                    )
+                            return
+                    else:
+                        # Load X and Y attributes
+                        with pd.HDFStore(to_load, "r") as f:
+                            self.X = f["X"]
+                            self.Y = f["Y"]
+
+                        # Load data and masker stuffs
+                        with h5File(to_load, "r") as f:
+                            self.data = np.array(f["data"])
+                            if mask is None:
+                                # User didn't request a mask so try to load it from the h5 file,
+                                # i.e. overwrite the default mask loaded above
+                                self.mask = nib.Nifti1Image(
+                                    np.array(f["mask_data"]),
+                                    affine=np.array(f["mask_affine"]),
+                                    file_map={
+                                        "image": nib.FileHolder(
+                                            filename=f["mask_file_name"].asstr()[0]
+                                        )
+                                    },
+                                )
+                                nifti_masker = NiftiMasker(self.mask)
+                                self.nifti_masker = nifti_masker.fit(self.mask)
+                            else:
+                                # Mask is already set above so use the default or user requested
+                                # mask rather than the one in h5 (if it exists)
+                                if "mask_data" in f:
+                                    warnings.warn(
+                                        "Existing mask found in HDF5 file but is being ignored because you passed a value for mask. Set mask=None to use existing mask in the HDF5 file"
+                                    )
+                        # We're done initializing from the h5 file so just return no need to
+                        # run any of the additional checks and code below. We should really
+                        # refactor this entire init...
+                        return
                 else:
                     data = nib.load(data)
                 self.data = self.nifti_masker.fit_transform(data)
