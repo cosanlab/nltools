@@ -100,10 +100,10 @@ def sim_groupby(sim_brain_data):
 @pytest.fixture(scope="module")
 def old_h5(request):
     test_dir = os.path.dirname(request.module.__file__)
-    return os.path.join(test_dir, "oldh5.h5")
+    return os.path.join(test_dir, "old_brain.h5")
 
 
 @pytest.fixture(scope="module")
 def new_h5(request):
     test_dir = os.path.dirname(request.module.__file__)
-    return os.path.join(test_dir, "newh5.h5")
+    return os.path.join(test_dir, "new_brain.h5")

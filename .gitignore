@@ -58,3 +58,4 @@ y.csv
 env
 .vscode/settings.json
 dev.py
+dev.ipynb
