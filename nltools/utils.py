@@ -61,28 +61,6 @@ def to_h5(obj, file_name, obj_type="brain_data"):
             f["is_single_matrix"] = [obj.is_single_matrix]
 
 
-def _df_meta_to_arr(df):
-    """Check what kind of data exists in pandas columns or index. If string return as numpy array 'S' type, otherwise regular numpy array. Used when saving Brain_Data objects to hdf5."""
-
-    if len(df.columns):
-        if isinstance(df.columns[0], str):
-            columns = df.columns.values.astype("S")
-        else:
-            columns = df.columns.values
-    else:
-        columns = []
-
-    if len(df.index):
-        if isinstance(df.index[0], str):
-            index = df.index.values.astype("S")
-        else:
-            index = df.index.values
-    else:
-        index = []
-
-    return columns, index
-
-
 def get_resource_path():
     """Get path to nltools resource directory."""
     return join(dirname(__file__), "resources") + pathsep

@@ -49,7 +49,6 @@ from nltools.utils import (
     check_brain_data_is_single,
     _roi_func,
     get_mni_from_img_resolution,
-    _df_meta_to_arr,
     to_h5,
 )
 from nltools.cross_validation import set_cv
@@ -74,11 +73,11 @@ from nilearn.decoding import SearchLight
 from pathlib import Path
 import warnings
 from h5py import File as h5File
-import tables
 
 
 # Optional dependencies
 nx = attempt_to_import("networkx", "nx")
+tables = attempt_to_import("tables")
 MAX_INT = np.iinfo(np.int32).max
 
 
@@ -100,193 +99,225 @@ class Brain_Data(object):
     """
 
     def __init__(self, data=None, Y=None, X=None, mask=None, **kwargs):
+        # Flag to support hdf5 files saved using nltools <= 0.4.8
         legacy_h5 = kwargs.pop("legacy_h5", False)
-        if mask is not None:
-            if not isinstance(mask, nib.Nifti1Image):
-                if isinstance(mask, str) or isinstance(mask, Path):
-                    # Convert Path objects to string; converting string is a no-op so this won't affect real strings
-                    to_load = str(mask)
-                    if os.path.isfile(mask):
-                        mask = nib.load(mask)
-                else:
-                    raise ValueError(
-                        "mask is not a nibabel instance or a " "valid file name"
-                    )
-            self.mask = mask
-        else:
+
+        # Setup default or specified nifti masker
+        if mask is None:
             # Load default mask
             self.mask = nib.load(resolve_mni_path(MNI_Template)["mask"])
+        elif isinstance(mask, (str, Path)):
+            self.mask = nib.load(str(mask))
+        elif isinstance(mask, nib.Nifti1Image):
+            self.mask = mask
+        else:
+            raise TypeError("mask is not a nibabel instance or a " "valid file name")
+
         # Learn transformation on mask
         self.nifti_masker = NiftiMasker(mask_img=self.mask, **kwargs)
 
-        if data is not None:
-            if isinstance(data, str) or isinstance(data, Path):
-                # Convert Path objects to string; converting string is a no-op so this won't affect real strings
-                to_load = str(data)
-                if "http://" in to_load or "https://" in to_load:
-                    from nltools.datasets import download_nifti
-
-                    tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
-                    os.makedirs(tmp_dir)
-                    data = nib.load(download_nifti(to_load, data_dir=tmp_dir))
-
-                elif (".h5" in to_load) or (".hdf5" in to_load):
-                    if legacy_h5:
-                        with tables.open_file(to_load, mode="r") as f:
-                            self.data = np.array(f.root["data"])
-                            if len(list(f.root["X_columns"])):
-                                self.X = pd.DataFrame(
-                                    np.array(f.root["X"]).squeeze(),
-                                    columns=[
-                                        e.decode("utf-8") if isinstance(e, bytes) else e
-                                        for e in np.array(f.root["X_columns"])
-                                    ],
-                                    index=[
-                                        e.decode("utf-8") if isinstance(e, bytes) else e
-                                        for e in np.array(f.root["X_index"])
-                                    ],
-                                )
-                            else:
-                                self.X = pd.DataFrame()
-                            if len(list(f.root["Y_columns"])):
-                                self.Y = pd.DataFrame(
-                                    np.array(f.root["Y"]).squeeze(),
-                                    columns=[
-                                        e.decode("utf-8") if isinstance(e, bytes) else e
-                                        for e in np.array(f.root["Y_columns"])
-                                    ],
-                                    index=[
-                                        e.decode("utf-8") if isinstance(e, bytes) else e
-                                        for e in np.array(f.root["Y_index"])
-                                    ],
-                                )
-                            else:
-                                self.Y = pd.DataFrame()
-                            if mask is None:
-                                # User didn't request a mask so try to load it from the h5 file,
-                                # i.e. overwrite the default mask loaded above
-                                filename = (
-                                    f.root["mask_file_name"]
-                                    if "mask_file_name" in f.root
-                                    else self.mask.get_filename()
-                                )
-                                self.mask = nib.Nifti1Image(
-                                    np.array(f.root["mask_data"]),
-                                    affine=np.array(f.root["mask_affine"]),
-                                    file_map={
-                                        "image": nib.FileHolder(filename=filename)
-                                    },
-                                )
-                                nifti_masker = NiftiMasker(self.mask)
-                                self.nifti_masker = nifti_masker.fit(self.mask)
-                            else:
-                                # Mask is already set above so use the default or user requested
-                                # mask rather than the one in h5 (if it exists)
-                                if "mask_data" in f.root:
-                                    warnings.warn(
-                                        "Existing mask found in HDF5 file but is being ignored because you passed a value for mask. Set mask=None to use existing mask in the HDF5 file"
-                                    )
-                            return
-                    else:
-                        # Load X and Y attributes
-                        with pd.HDFStore(to_load, "r") as f:
-                            self.X = f["X"]
-                            self.Y = f["Y"]
-
-                        # Load data and masker stuffs
-                        with h5File(to_load, "r") as f:
-                            self.data = np.array(f["data"])
-                            if mask is None:
-                                # User didn't request a mask so try to load it from the h5 file,
-                                # i.e. overwrite the default mask loaded above
-                                self.mask = nib.Nifti1Image(
-                                    np.array(f["mask_data"]),
-                                    affine=np.array(f["mask_affine"]),
-                                    file_map={
-                                        "image": nib.FileHolder(
-                                            filename=f["mask_file_name"].asstr()[0]
-                                        )
-                                    },
-                                )
-                                nifti_masker = NiftiMasker(self.mask)
-                                self.nifti_masker = nifti_masker.fit(self.mask)
-                            else:
-                                # Mask is already set above so use the default or user requested
-                                # mask rather than the one in h5 (if it exists)
-                                if "mask_data" in f:
-                                    warnings.warn(
-                                        "Existing mask found in HDF5 file but is being ignored because you passed a value for mask. Set mask=None to use existing mask in the HDF5 file"
-                                    )
-                        # We're done initializing from the h5 file so just return no need to
-                        # run any of the additional checks and code below. We should really
-                        # refactor this entire init...
-                        return
-                else:
-                    data = nib.load(data)
-                self.data = self.nifti_masker.fit_transform(data)
-            elif isinstance(data, list):
-                if isinstance(data[0], Brain_Data):
-                    tmp = concatenate(data)
-                    for item in ["data", "Y", "X", "mask", "nifti_masker"]:
-                        setattr(self, item, getattr(tmp, item))
-                else:
-                    if all(isinstance(x, data[0].__class__) for x in data):
-                        self.data = []
-                        for i in data:
-                            if isinstance(i, str) or isinstance(i, Path):
-                                # Convert Path objects to string; converting string is a no-op so this won't affect real strings
-                                to_load = str(i)
-                                self.data.append(
-                                    self.nifti_masker.fit_transform(nib.load(to_load))
-                                )
-                            elif isinstance(i, nib.Nifti1Image):
-                                self.data.append(self.nifti_masker.fit_transform(i))
-                        self.data = np.concatenate(self.data)
-                    else:
-                        raise ValueError(
-                            "Make sure all objects in the list are the same type."
-                        )
-            elif isinstance(data, nib.Nifti1Image):
-                self.data = np.array(self.nifti_masker.fit_transform(data))
-            else:
-                raise ValueError("data is not a nibabel instance")
-
-            # Collapse any extra dimension
-            if 1 in self.data.shape:
-                self.data = self.data.squeeze()
-        else:
+        # Setup data
+        if data is None:
             self.data = np.array([])
 
-        if Y is not None:
-            if (isinstance(Y, str) or isinstance(Y, Path)) and os.path.isfile(Y):
-                Y = pd.read_csv(Y, header=None, index_col=None)
-            if isinstance(Y, pd.DataFrame):
-                if self.data.shape[0] != len(Y):
-                    raise ValueError("Y does not match the correct size " "of data")
-                self.Y = Y
+        # Filepath or URL
+        elif isinstance(data, (str, Path)):
+            # Convert Path objects to string; converting string is a no-op so this won't affect real strings
+            to_load = str(data)
+
+            # Web download
+            if "http://" in to_load or "https://" in to_load:
+                from nltools.datasets import download_nifti
+
+                tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
+                os.makedirs(tmp_dir)
+                data = nib.load(download_nifti(to_load, data_dir=tmp_dir))
+
+            # HDF5
+            elif (".h5" in to_load) or (".hdf5" in to_load):
+                # <= 0.4.8 compatibility
+                if legacy_h5:
+                    with tables.open_file(to_load, mode="r") as f:
+                        # Setup data
+                        self.data = np.array(f.root["data"])
+
+                        # Setup X
+                        if len(list(f.root["X_columns"])):
+                            self.X = pd.DataFrame(
+                                np.array(f.root["X"]).squeeze(),
+                                columns=[
+                                    e.decode("utf-8") if isinstance(e, bytes) else e
+                                    for e in np.array(f.root["X_columns"])
+                                ],
+                                index=[
+                                    e.decode("utf-8") if isinstance(e, bytes) else e
+                                    for e in np.array(f.root["X_index"])
+                                ],
+                            )
+                        else:
+                            self.X = pd.DataFrame()
+
+                        # Setup Y
+                        if len(list(f.root["Y_columns"])):
+                            self.Y = pd.DataFrame(
+                                np.array(f.root["Y"]).squeeze(),
+                                columns=[
+                                    e.decode("utf-8") if isinstance(e, bytes) else e
+                                    for e in np.array(f.root["Y_columns"])
+                                ],
+                                index=[
+                                    e.decode("utf-8") if isinstance(e, bytes) else e
+                                    for e in np.array(f.root["Y_index"])
+                                ],
+                            )
+                        else:
+                            self.Y = pd.DataFrame()
+
+                        # Setup mask
+                        if mask is None:
+                            # User didn't request a mask so try to load it from the h5 file,
+                            # i.e. overwrite the default mask loaded above
+                            filename = (
+                                f.root["mask_file_name"]
+                                if "mask_file_name" in f.root
+                                else self.mask.get_filename()
+                            )
+                            self.mask = nib.Nifti1Image(
+                                np.array(f.root["mask_data"]),
+                                affine=np.array(f.root["mask_affine"]),
+                                file_map={"image": nib.FileHolder(filename=filename)},
+                            )
+                            nifti_masker = NiftiMasker(self.mask)
+                            self.nifti_masker = nifti_masker.fit(self.mask)
+                        else:
+                            # Mask is already set above so use the default or user requested
+                            # mask rather than the one in h5 (if it exists)
+                            if "mask_data" in f.root:
+                                warnings.warn(
+                                    "Existing mask found in HDF5 file but is being ignored because you passed a value for mask. Set mask=None to use existing mask in the HDF5 file"
+                                )
+
+                        # We're done initializing
+                        return
+                else:
+                    # Load X and Y dataframes
+                    with pd.HDFStore(to_load, "r") as f:
+                        self.X = f["X"]
+                        self.Y = f["Y"]
+
+                    # Load data and masker stuffs
+                    with h5File(to_load, "r") as f:
+                        self.data = np.array(f["data"])
+                        if mask is None:
+                            # User didn't request a mask so try to load it from the h5 file,
+                            # i.e. overwrite the default mask loaded above
+                            self.mask = nib.Nifti1Image(
+                                np.array(f["mask_data"]),
+                                affine=np.array(f["mask_affine"]),
+                                file_map={
+                                    "image": nib.FileHolder(
+                                        filename=f["mask_file_name"].asstr()[0]
+                                    )
+                                },
+                            )
+                            nifti_masker = NiftiMasker(self.mask)
+                            self.nifti_masker = nifti_masker.fit(self.mask)
+                        else:
+                            # Mask is already set above so use the default or user requested
+                            # mask rather than the one in h5 (if it exists)
+                            if "mask_data" in f:
+                                warnings.warn(
+                                    "Existing mask found in HDF5 file but is being ignored because you passed a value for mask. Set mask=None to use existing mask in the HDF5 file"
+                                )
+                    # We're done initializing
+                    return
+
+            # .nii/.nii.gz file
             else:
-                raise ValueError("Make sure Y is a pandas data frame.")
+                data = nib.load(data)
+            self.data = self.nifti_masker.fit_transform(data)
+
+        # Nibabel/Nilearn object
+        elif isinstance(data, nib.Nifti1Image):
+            self.data = np.array(self.nifti_masker.fit_transform(data))
+
+        # List of brain data objects or string filenames
+        elif isinstance(data, list):
+            # Brain datas
+            if isinstance(data[0], Brain_Data):
+                tmp = concatenate(data)
+                for item in ["data", "Y", "X", "mask", "nifti_masker"]:
+                    setattr(self, item, getattr(tmp, item))
+
+            # File paths or niftis
+            else:
+                if all(isinstance(x, data[0].__class__) for x in data):
+                    self.data = []
+                    for i in data:
+                        if isinstance(i, (str, Path)):
+                            # Convert Path objects to string; converting string is a no-op so this won't affect real strings
+                            to_load = str(i)
+                            self.data.append(
+                                self.nifti_masker.fit_transform(nib.load(to_load))
+                            )
+                        elif isinstance(i, nib.Nifti1Image):
+                            self.data.append(self.nifti_masker.fit_transform(i))
+                    self.data = np.concatenate(self.data)
+                else:
+                    raise ValueError(
+                        "Make sure all objects in the list are the same type."
+                    )
+
         else:
+            raise TypeError(
+                "data must be a single or list of: Brain_Data, filepath, or nib.Nifti1Image"
+            )
+
+        # Collapse any extra data dimension
+        if 1 in self.data.shape:
+            self.data = self.data.squeeze()
+
+        # Setup Y dataframe
+        if Y is None:
             self.Y = pd.DataFrame()
 
-        if X is not None:
-            if (isinstance(X, str) or isinstance(X, Path)) and os.path.isfile(X):
-                X = pd.read_csv(X, header=None, index_col=None)
-            if isinstance(X, pd.DataFrame):
-                if self.data.shape[0] != X.shape[0]:
-                    raise ValueError("X does not match the correct size " "of data")
-                self.X = X
-            else:
-                raise ValueError("Make sure X is a pandas data frame.")
+        elif isinstance(Y, (str, Path)):
+            self.Y = pd.read_csv(Y, header=None, index_col=None)
+
+        elif isinstance(Y, pd.DataFrame):
+            self.Y = Y
         else:
+            raise TypeError("Make sure Y filepath or pandas data frame.")
+
+        # Setup X dataframe
+        if X is None:
             self.X = pd.DataFrame()
+
+        elif isinstance(X, (str, Path)):
+            self.X = pd.read_csv(X, header=None, index_col=None)
+
+        elif isinstance(X, pd.DataFrame):
+            self.X = X
+        else:
+            raise TypeError("Make sure X filepath or pandas data frame.")
+
+        # Ensure consistency
+        if not self.Y.empty and self.data.shape[0] != self.Y.shape[0]:
+            raise ValueError(
+                f"Y rows ({self.Y.shape[0]}) do not match data rows ({self.data.shape[0]})"
+            )
+
+        if not self.X.empty and self.data.shape[0] != self.X.shape[0]:
+            raise ValueError(
+                f"X rows ({self.X.shape[0]}) do not match data rows ({self.data.shape[0]})"
+            )
 
     def __repr__(self):
         return "%s.%s(data=%s, Y=%s, X=%s, mask=%s)" % (
             self.__class__.__module__,
             self.__class__.__name__,
             self.shape(),
-            len(self.Y),
+            self.Y.shape,
             self.X.shape,
             os.path.basename(self.mask.get_filename()),
         )

@@ -37,7 +37,6 @@ from nltools.utils import (
     attempt_to_import,
     concatenate,
     _bootstrap_apply_func,
-    _df_meta_to_arr,
     to_h5,
 )
 from .design_matrix import Design_Matrix
@@ -121,6 +120,8 @@ class Adjacency(object):
             to_load = str(data)
             # Data is a string or apth and h5
             if (".h5" in to_load) or (".hdf5" in to_load):
+                # TODO: Add support for legacy
+
                 # Load X and Y attributes
                 with pd.HDFStore(to_load, "r") as f:
                     self.Y = f["Y"]
