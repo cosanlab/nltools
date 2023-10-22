@@ -250,16 +250,18 @@ class Brain_Data(object):
                     setattr(self, item, getattr(tmp, item))
 
             # File paths or niftis
+            # NOTE: We don't support list of hdf5 filepaths! Only .nii/.nii.gz
             else:
                 if all(isinstance(x, data[0].__class__) for x in data):
                     self.data = []
                     for i in data:
+                        # Filepath
                         if isinstance(i, (str, Path)):
-                            # Convert Path objects to string; converting string is a no-op so this won't affect real strings
                             to_load = str(i)
                             self.data.append(
                                 self.nifti_masker.fit_transform(nib.load(to_load))
                             )
+                        # Loaded nifti object
                         elif isinstance(i, nib.Nifti1Image):
                             self.data.append(self.nifti_masker.fit_transform(i))
                     self.data = np.concatenate(self.data)
