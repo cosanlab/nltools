@@ -712,9 +712,9 @@ def test_fisher_r_to_z(sim_brain_data):
     )
 
 
-def test_load_legacy_h5(old_h5, new_h5):
-    b_old = Brain_Data(old_h5, legacy_h5=True)
-    b_new = Brain_Data(new_h5)
+def test_load_legacy_h5(old_h5_brain, new_h5_brain):
+    b_old = Brain_Data(old_h5_brain, legacy_h5=True)
+    b_new = Brain_Data(new_h5_brain)
     assert b_old.shape() == b_new.shape()
     assert np.allclose(b_old.data, b_new.data)
     # NOTE: We lose pandas column dtype information between old and new h5 files

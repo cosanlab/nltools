@@ -43,9 +43,11 @@ from .design_matrix import Design_Matrix
 from joblib import Parallel, delayed
 from pathlib import Path
 from h5py import File as h5File
+import warnings
 
 # Optional dependencies
 nx = attempt_to_import("networkx", "nx")
+tables = attempt_to_import("tables")
 
 MAX_INT = np.iinfo(np.int32).max
 
@@ -135,9 +137,52 @@ class Adjacency(object):
 
             # HDF5
             if (".h5" in to_load) or (".hdf5" in to_load):
-                # TODO: Add support for legacy
                 if legacy_h5:
-                    pass
+                    with tables.open_file(to_load, mode="r") as f:
+                        # Setup data
+                        self.data = np.array(f.root["data"])
+
+                        # Setup Y
+                        if len(list(f.root["Y_columns"])):
+                            self.Y = pd.DataFrame(
+                                np.array(f.root["Y"]).squeeze(),
+                                columns=[
+                                    e.decode("utf-8") if isinstance(e, bytes) else e
+                                    for e in np.array(f.root["Y_columns"])
+                                ],
+                                index=[
+                                    e.decode("utf-8") if isinstance(e, bytes) else e
+                                    for e in np.array(f.root["Y_index"])
+                                ],
+                            )
+                        else:
+                            self.Y = pd.DataFrame()
+
+                        # Setup other attributes
+                        if "matrix_type" in f.root:
+                            self.matrix_type = list(f.root["matrix_type"])[0]
+                        else:
+                            warnings.warn(
+                                "unknown matrix_type, key was missing in h5 file, assuming 'distance'"
+                            )
+                            self.matrix_type = "distance_flat"
+
+                        if "labels" in f.root:
+                            self.labels = list(f.root["labels"])
+                        else:
+                            self.labels = None
+
+                        # Compute other properties from data and matrix type
+                        (
+                            self.data,
+                            self.issymmetric,
+                            self.matrix_type,
+                            self.is_single_matrix,
+                        ) = self._import_single_data(
+                            self.data, matrix_type=self.matrix_type
+                        )
+
+                        return
 
                 else:
                     # Load X and Y attributes
@@ -150,7 +195,13 @@ class Adjacency(object):
                         self.matrix_type = f["matrix_type"].asstr()[0]
                         self.is_single_matrix = f["is_single_matrix"][0]
                         self.issymmetric = f["issymmetric"][0]
-                        self.labels = f["labels"].asstr()[:]
+                        # Deepdish saved empty label lists as np arrays of length 1
+                        if len(f["labels"]) == 1:
+                            self.labels = list(f["labels"])
+                        elif len(f["labels"]) > 1:
+                            self.labels = list(f["labels"].asstr())
+                        else:
+                            self.labels = []
 
                     # Done initializing
                     return

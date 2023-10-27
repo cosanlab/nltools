@@ -57,5 +57,6 @@ rep_id.csv
 y.csv
 env
 .vscode/settings.json
+.vscode/bookmarks.json
 dev.py
 dev.ipynb

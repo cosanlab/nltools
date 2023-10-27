@@ -443,3 +443,31 @@ def test_cluster_summary():
 
     for i in dat.cluster_summary(clusters=clusters, summary="between").values():
         np.testing.assert_almost_equal(0, i, decimal=1)
+
+
+def test_load_legacy_h5(
+    old_h5_adj_single, new_h5_adj_single, old_h5_adj_double, new_h5_adj_double
+):
+    b_old = Adjacency(old_h5_adj_single, legacy_h5=True)
+    b_new = Adjacency(new_h5_adj_single)
+    assert b_old.shape() == b_new.shape()
+    assert np.allclose(b_old.data, b_new.data)
+    # NOTE: We lose pandas column dtype information between old and new h5 files
+    # so we can't use .equals()
+    assert b_old.Y.shape == b_new.Y.shape
+    assert b_old.matrix_type == b_new.matrix_type
+    assert b_old.is_single_matrix == b_new.is_single_matrix
+    assert b_old.issymmetric == b_new.issymmetric
+    assert b_old.labels == b_new.labels
+
+    b_old = Adjacency(old_h5_adj_double, legacy_h5=True)
+    b_new = Adjacency(new_h5_adj_double)
+    assert b_old.shape() == b_new.shape()
+    assert np.allclose(b_old.data, b_new.data)
+    # NOTE: We lose pandas column dtype information between old and new h5 files
+    # so we can't use .equals()
+    assert b_old.Y.shape == b_new.Y.shape
+    assert b_old.matrix_type == b_new.matrix_type
+    assert b_old.is_single_matrix == b_new.is_single_matrix
+    assert b_old.issymmetric == b_new.issymmetric
+    assert b_old.labels == b_new.labels
