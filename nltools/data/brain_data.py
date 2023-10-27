@@ -101,6 +101,7 @@ class Brain_Data(object):
     def __init__(self, data=None, Y=None, X=None, mask=None, **kwargs):
         # Flag to support hdf5 files saved using nltools <= 0.4.8
         legacy_h5 = kwargs.pop("legacy_h5", False)
+        self._h5_compression = kwargs.pop("h5_compression", "gzip")
 
         # Setup default or specified nifti masker
         if mask is None:
@@ -216,7 +217,7 @@ class Brain_Data(object):
                                 affine=np.array(f["mask_affine"]),
                                 file_map={
                                     "image": nib.FileHolder(
-                                        filename=f["mask_file_name"].asstr()[0]
+                                        filename=f["mask_file_name"][()].decode()
                                     )
                                 },
                             )
@@ -580,7 +581,12 @@ class Brain_Data(object):
             file_name = str(file_name)
 
         if (".h5" in file_name) or (".hdf5" in file_name):
-            to_h5(self, file_name, obj_type="brain_data")
+            to_h5(
+                self,
+                file_name,
+                obj_type="brain_data",
+                h5_compression=self._h5_compression,
+            )
         else:
             self.to_nifti().to_filename(file_name)
 

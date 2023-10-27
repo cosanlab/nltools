@@ -32,7 +32,7 @@ from types import GeneratorType
 from h5py import File as h5File
 
 
-def to_h5(obj, file_name, obj_type="brain_data"):
+def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
     """User a combination of pandas and h5py to save objects to h5 files. Replaces
     deepdish. File loading is handled by class-specific methods"""
 
@@ -45,20 +45,24 @@ def to_h5(obj, file_name, obj_type="brain_data"):
             f["Y"] = obj.Y
 
         with h5File(file_name, "a") as f:
-            f["data"] = obj.data
-            f["mask_affine"] = obj.mask.affine
-            f["mask_data"] = obj.mask.get_fdata()
-            f["mask_file_name"] = [obj.mask.get_filename()]
+            f.create_dataset("data", data=obj.data, compression=h5_compression)
+            f.create_dataset(
+                "mask_affine", data=obj.mask.affine, compression=h5_compression
+            )
+            f.create_dataset(
+                "mask_data", data=obj.mask.get_fdata(), compression=h5_compression
+            )
+            f.create_dataset("mask_file_name", data=obj.mask.get_filename())
     else:
         with pd.HDFStore(file_name, "w") as f:
             f["Y"] = obj.Y
 
         with h5File(file_name, "a") as f:
-            f["data"] = obj.data
-            f["matrix_type"] = [obj.matrix_type]
-            f["issymmetric"] = [obj.issymmetric]
-            f["labels"] = obj.labels
-            f["is_single_matrix"] = [obj.is_single_matrix]
+            f.create_dataset("data", data=obj.data, compression=h5_compression)
+            f.create_dataset("matrix_type", data=obj.matrix_type)
+            f.create_dataset("issymmetric", data=obj.issymmetric)
+            f.create_dataset("labels", data=obj.labels)
+            f.create_dataset("is_single_matrix", data=obj.is_single_matrix)
 
 
 def get_resource_path():

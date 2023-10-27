@@ -192,9 +192,9 @@ class Adjacency(object):
                     # Load other attributes
                     with h5File(to_load, "r") as f:
                         self.data = np.array(f["data"])
-                        self.matrix_type = f["matrix_type"].asstr()[0]
-                        self.is_single_matrix = f["is_single_matrix"][0]
-                        self.issymmetric = f["issymmetric"][0]
+                        self.matrix_type = f["matrix_type"][()].decode()
+                        self.is_single_matrix = f["is_single_matrix"][()]
+                        self.issymmetric = f["issymmetric"][()]
                         # Deepdish saved empty label lists as np arrays of length 1
                         if len(f["labels"]) == 1:
                             self.labels = list(f["labels"])
