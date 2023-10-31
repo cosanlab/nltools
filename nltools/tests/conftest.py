@@ -5,6 +5,7 @@ from sklearn.metrics import pairwise_distances
 from nltools.simulator import Simulator
 from nltools.data import Brain_Data, Adjacency, Groupby, Design_Matrix
 from nltools.mask import create_sphere
+import os
 
 
 @pytest.fixture(scope="module", params=["2mm"])
@@ -94,3 +95,39 @@ def sim_groupby(sim_brain_data):
     s2 = create_sphere([22, -2, -22], radius=r)
     mask = Brain_Data([s1, s2])
     return Groupby(sim_brain_data, mask)
+
+
+@pytest.fixture(scope="module")
+def old_h5_brain(request):
+    test_dir = os.path.dirname(request.module.__file__)
+    return os.path.join(test_dir, "old_brain.h5")
+
+
+@pytest.fixture(scope="module")
+def new_h5_brain(request):
+    test_dir = os.path.dirname(request.module.__file__)
+    return os.path.join(test_dir, "new_brain.h5")
+
+
+@pytest.fixture(scope="module")
+def old_h5_adj_single(request):
+    test_dir = os.path.dirname(request.module.__file__)
+    return os.path.join(test_dir, "old_single.h5")
+
+
+@pytest.fixture(scope="module")
+def new_h5_adj_single(request):
+    test_dir = os.path.dirname(request.module.__file__)
+    return os.path.join(test_dir, "new_single.h5")
+
+
+@pytest.fixture(scope="module")
+def old_h5_adj_double(request):
+    test_dir = os.path.dirname(request.module.__file__)
+    return os.path.join(test_dir, "old_double.h5")
+
+
+@pytest.fixture(scope="module")
+def new_h5_adj_double(request):
+    test_dir = os.path.dirname(request.module.__file__)
+    return os.path.join(test_dir, "new_double.h5")

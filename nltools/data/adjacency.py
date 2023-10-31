@@ -8,7 +8,6 @@ __license__ = "MIT"
 import os
 import pandas as pd
 import numpy as np
-import deepdish as dd
 from copy import deepcopy
 from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.manifold import MDS
@@ -38,14 +37,17 @@ from nltools.utils import (
     attempt_to_import,
     concatenate,
     _bootstrap_apply_func,
-    _df_meta_to_arr,
+    to_h5,
 )
 from .design_matrix import Design_Matrix
 from joblib import Parallel, delayed
 from pathlib import Path
+from h5py import File as h5File
+import warnings
 
 # Optional dependencies
 nx = attempt_to_import("networkx", "nx")
+tables = attempt_to_import("tables")
 
 MAX_INT = np.iinfo(np.int32).max
 
@@ -67,7 +69,7 @@ class Adjacency(object):
 
     """
 
-    def __init__(self, data=None, Y=None, matrix_type=None, labels=[], **kwargs):
+    def __init__(self, data=None, Y=None, matrix_type=None, labels=None, **kwargs):
         if matrix_type is not None and matrix_type.lower() not in [
             "distance",
             "similarity",
@@ -82,21 +84,31 @@ class Adjacency(object):
                 "'similarity_flat','directed_flat']"
             )
 
+        # Flag to support hdf5 files saved using nltools <= 0.4.8
+        legacy_h5 = kwargs.pop("legacy_h5", False)
+
+        # Setup data
         if data is None:
             self.data = np.array([])
             self.matrix_type = "empty"
             self.is_single_matrix = np.nan
             self.issymmetric = np.nan
+
+        # List of Adjacency or filepaths to h5s or csvs
         elif isinstance(data, list):
             if isinstance(data[0], Adjacency):
                 tmp = concatenate(data)
                 for item in ["data", "matrix_type", "Y", "issymmetric"]:
                     setattr(self, item, getattr(tmp, item))
+
+            # File paths or array/dataframes
+            # NOTE: We don't support list of hdf5 filepaths! Only .csvs
             else:
                 d_all = []
                 symmetric_all = []
                 matrix_type_all = []
                 for d in data:
+                    # CSV or array/dataframe
                     (
                         data_tmp,
                         issymmetric_tmp,
@@ -106,42 +118,95 @@ class Adjacency(object):
                     d_all.append(data_tmp)
                     symmetric_all.append(issymmetric_tmp)
                     matrix_type_all.append(matrix_type_tmp)
+
                 if not all_same(symmetric_all):
                     raise ValueError(
                         "Not all matrices are of the same " "symmetric type."
                     )
                 if not all_same(matrix_type_all):
                     raise ValueError("Not all matrices are of the same matrix " "type.")
+
                 self.data = np.array(d_all)
                 self.issymmetric = symmetric_all[0]
                 self.matrix_type = matrix_type_all[0]
             self.is_single_matrix = False
-        elif isinstance(data, str) or isinstance(data, Path):
+
+        # File path
+        elif isinstance(data, (str, Path)):
             to_load = str(data)
-            # Data is a string or apth and h5
+
+            # HDF5
             if (".h5" in to_load) or (".hdf5" in to_load):
-                f = dd.io.load(data)
-                self.data = f["data"]
-                self.Y = pd.DataFrame(
-                    f["Y"],
-                    columns=[
-                        e.decode("utf-8") if isinstance(e, bytes) else e
-                        for e in f["Y_columns"]
-                    ],
-                    index=[
-                        e.decode("utf-8") if isinstance(e, bytes) else e
-                        for e in f["Y_index"]
-                    ],
-                )
-                self.matrix_type = f["matrix_type"]
-                self.is_single_matrix = f["is_single_matrix"]
-                self.issymmetric = f["issymmetric"]
-                self.labels = [
-                    e.decode("utf-8") if isinstance(e, bytes) else e
-                    for e in f["labels"]
-                ]
-                return
-            # Data is a string or path but not h5
+                if legacy_h5:
+                    with tables.open_file(to_load, mode="r") as f:
+                        # Setup data
+                        self.data = np.array(f.root["data"])
+
+                        # Setup Y
+                        if len(list(f.root["Y_columns"])):
+                            self.Y = pd.DataFrame(
+                                np.array(f.root["Y"]).squeeze(),
+                                columns=[
+                                    e.decode("utf-8") if isinstance(e, bytes) else e
+                                    for e in np.array(f.root["Y_columns"])
+                                ],
+                                index=[
+                                    e.decode("utf-8") if isinstance(e, bytes) else e
+                                    for e in np.array(f.root["Y_index"])
+                                ],
+                            )
+                        else:
+                            self.Y = pd.DataFrame()
+
+                        # Setup other attributes
+                        if "matrix_type" in f.root:
+                            self.matrix_type = list(f.root["matrix_type"])[0]
+                        else:
+                            warnings.warn(
+                                "unknown matrix_type, key was missing in h5 file, assuming 'distance'"
+                            )
+                            self.matrix_type = "distance_flat"
+
+                        if "labels" in f.root:
+                            self.labels = list(f.root["labels"])
+                        else:
+                            self.labels = None
+
+                        # Compute other properties from data and matrix type
+                        (
+                            self.data,
+                            self.issymmetric,
+                            self.matrix_type,
+                            self.is_single_matrix,
+                        ) = self._import_single_data(
+                            self.data, matrix_type=self.matrix_type
+                        )
+
+                        return
+
+                else:
+                    # Load X and Y attributes
+                    with pd.HDFStore(to_load, "r") as f:
+                        self.Y = f["Y"]
+
+                    # Load other attributes
+                    with h5File(to_load, "r") as f:
+                        self.data = np.array(f["data"])
+                        self.matrix_type = f["matrix_type"][()].decode()
+                        self.is_single_matrix = f["is_single_matrix"][()]
+                        self.issymmetric = f["issymmetric"][()]
+                        # Deepdish saved empty label lists as np arrays of length 1
+                        if len(f["labels"]) == 1:
+                            self.labels = list(f["labels"])
+                        elif len(f["labels"]) > 1:
+                            self.labels = list(f["labels"].asstr())
+                        else:
+                            self.labels = []
+
+                    # Done initializing
+                    return
+
+            # CSV or array/dateframe
             else:
                 (
                     self.data,
@@ -149,7 +214,8 @@ class Adjacency(object):
                     self.matrix_type,
                     self.is_single_matrix,
                 ) = self._import_single_data(data, matrix_type=matrix_type)
-        # Data is not a string or path
+
+        # CSV or array/dataframe
         else:
             (
                 self.data,
@@ -158,21 +224,28 @@ class Adjacency(object):
                 self.is_single_matrix,
             ) = self._import_single_data(data, matrix_type=matrix_type)
 
-        if Y is not None:
-            if (isinstance(Y, str) or isinstance(Y, Path)) and os.path.isfile(Y):
-                Y = pd.read_csv(Y, header=None, index_col=None)
-            if isinstance(Y, pd.DataFrame):
-                if self.data.shape[0] != len(Y):
-                    raise ValueError("Y does not match the correct size of " "data")
-                self.Y = Y
-            else:
-                raise ValueError("Make sure Y is a pandas data frame.")
-        else:
+        # Setup Y dataframe
+        if Y is None:
             self.Y = pd.DataFrame()
 
-        if labels:
-            if not isinstance(labels, (list, np.ndarray)):
-                raise ValueError("Make sure labels is a list or numpy array.")
+        elif isinstance(Y, (str, Path)):
+            self.Y = pd.read_csv(Y, header=None, index_col=None)
+
+        elif isinstance(Y, pd.DataFrame):
+            self.Y = Y
+        else:
+            raise TypeError("Make sure Y filepath or pandas data frame.")
+
+        # Ensure consistency
+        if not self.Y.empty and self.data.shape[0] != self.Y.shape[0]:
+            raise ValueError(
+                f"Y rows ({self.Y.shape[0]}) do not match data rows ({self.data.shape[0]})"
+            )
+
+        if labels is None:
+            self.labels = []
+
+        elif isinstance(labels, (list, np.ndarray)):
             if self.is_single_matrix:
                 if len(labels) != self.square_shape()[0]:
                     raise ValueError(
@@ -199,7 +272,7 @@ class Adjacency(object):
                         )
                     self.labels = deepcopy(labels)
         else:
-            self.labels = []
+            raise TypeError("Make sure labels is a list or numpy array.")
 
     def __repr__(self):
         return (
@@ -209,7 +282,7 @@ class Adjacency(object):
             self.__class__.__name__,
             self.shape(),
             self.square_shape(),
-            len(self.Y),
+            self.Y.shape,
             self.issymmetric,
             self.matrix_type,
         )
@@ -642,13 +715,12 @@ class Adjacency(object):
 
         return out
 
-    def write(self, file_name, method="long", **kwargs):
+    def write(self, file_name, method="long"):
         """Write out Adjacency object to csv file.
 
         Args:
             file_name (str):  name of file name to write
             method (str):     method to write out data ['long','square']
-            kwargs: optional arguments to deepdish.io.save
 
         """
         if method not in ["long", "square"]:
@@ -662,21 +734,7 @@ class Adjacency(object):
                 raise NotImplementedError(
                     'Saving as hdf5 does not support method="square"'
                 )
-            y_columns, y_index = _df_meta_to_arr(self.Y)
-            dd.io.save(
-                file_name,
-                {
-                    "data": self.data,
-                    "Y": self.Y.values,
-                    "Y_columns": y_columns,
-                    "Y_index": y_index,
-                    "matrix_type": self.matrix_type,
-                    "labels": np.array(self.labels, dtype="S"),
-                    "is_single_matrix": self.is_single_matrix,
-                    "issymmetric": self.issymmetric,
-                },
-                compression=kwargs.get("compression", "blosc"),
-            )
+            to_h5(self, file_name, obj_type="adjacency")
         else:
             if method == "long":
                 pd.DataFrame(self.data).to_csv(file_name, index=None)

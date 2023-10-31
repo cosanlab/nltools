@@ -8,4 +8,4 @@ matplotlib>=2.2.0
 scipy
 pynv
 joblib>=0.15
-deepdish>=0.3.6
+h5py
