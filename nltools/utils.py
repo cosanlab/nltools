@@ -29,28 +29,40 @@ import numpy as np
 import pandas as pd
 import collections
 from types import GeneratorType
+from h5py import File as h5File
 
 
-def _df_meta_to_arr(df):
-    """Check what kind of data exists in pandas columns or index. If string return as numpy array 'S' type, otherwise regular numpy array. Used when saving Brain_Data objects to hdf5."""
+def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
+    """User a combination of pandas and h5py to save objects to h5 files. Replaces
+    deepdish. File loading is handled by class-specific methods"""
 
-    if len(df.columns):
-        if isinstance(df.columns[0], str):
-            columns = df.columns.values.astype("S")
-        else:
-            columns = df.columns.values
+    if obj_type not in ["brain_data", "adjacency"]:
+        raise TypeError("obj_type must be one of 'brain_data' or 'adjacency'")
+
+    if obj_type == "brain_data":
+        with pd.HDFStore(file_name, "w") as f:
+            f["X"] = obj.X
+            f["Y"] = obj.Y
+
+        with h5File(file_name, "a") as f:
+            f.create_dataset("data", data=obj.data, compression=h5_compression)
+            f.create_dataset(
+                "mask_affine", data=obj.mask.affine, compression=h5_compression
+            )
+            f.create_dataset(
+                "mask_data", data=obj.mask.get_fdata(), compression=h5_compression
+            )
+            f.create_dataset("mask_file_name", data=obj.mask.get_filename())
     else:
-        columns = []
+        with pd.HDFStore(file_name, "w") as f:
+            f["Y"] = obj.Y
 
-    if len(df.index):
-        if isinstance(df.index[0], str):
-            index = df.index.values.astype("S")
-        else:
-            index = df.index.values
-    else:
-        index = []
-
-    return columns, index
+        with h5File(file_name, "a") as f:
+            f.create_dataset("data", data=obj.data, compression=h5_compression)
+            f.create_dataset("matrix_type", data=obj.matrix_type)
+            f.create_dataset("issymmetric", data=obj.issymmetric)
+            f.create_dataset("labels", data=obj.labels)
+            f.create_dataset("is_single_matrix", data=obj.is_single_matrix)
 
 
 def get_resource_path():
