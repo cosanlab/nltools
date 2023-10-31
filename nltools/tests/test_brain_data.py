@@ -712,7 +712,7 @@ def test_fisher_r_to_z(sim_brain_data):
     )
 
 
-def test_load_legacy_h5(old_h5_brain, new_h5_brain):
+def test_load_legacy_h5(old_h5_brain, new_h5_brain, tmpdir):
     b_old = Brain_Data(old_h5_brain, legacy_h5=True)
     b_new = Brain_Data(new_h5_brain)
     assert b_old.shape() == b_new.shape()
@@ -723,3 +723,10 @@ def test_load_legacy_h5(old_h5_brain, new_h5_brain):
     assert b_old.Y.shape == b_new.Y.shape
     assert np.allclose(b_old.mask.affine, b_new.mask.affine)
     assert np.allclose(b_old.mask.get_fdata(), b_new.mask.get_fdata())
+
+    new_file = Path(tmpdir) / "tmp.h5"
+    b_new.write(new_file)
+    b_new_written = Brain_Data(new_file)
+    assert b_new.shape() == b_new_written.shape()
+    assert np.allclose(b_new.data, b_new_written.data)
+    new_file.unlink()

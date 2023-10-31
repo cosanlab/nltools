@@ -446,7 +446,7 @@ def test_cluster_summary():
 
 
 def test_load_legacy_h5(
-    old_h5_adj_single, new_h5_adj_single, old_h5_adj_double, new_h5_adj_double
+    old_h5_adj_single, new_h5_adj_single, old_h5_adj_double, new_h5_adj_double, tmpdir
 ):
     b_old = Adjacency(old_h5_adj_single, legacy_h5=True)
     b_new = Adjacency(new_h5_adj_single)
@@ -471,3 +471,10 @@ def test_load_legacy_h5(
     assert b_old.is_single_matrix == b_new.is_single_matrix
     assert b_old.issymmetric == b_new.issymmetric
     assert b_old.labels == b_new.labels
+
+    new_file = Path(tmpdir) / "tmp.h5"
+    b_new.write(new_file)
+    b_new_written = Adjacency(new_file)
+    assert b_new.shape() == b_new_written.shape()
+    assert np.allclose(b_new.data, b_new_written.data)
+    new_file.unlink()
