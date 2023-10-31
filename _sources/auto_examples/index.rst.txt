@@ -1,0 +1,310 @@
+:orphan:
+
+NLTools Tutorials, Resources, and Community
+===========================================
+
+
+
+1. Comprehensive Courses
+---------------------
+
+For detailed examples of ``nltools`` functionality you can check out the
+following online courses that make use of the toolbox. Both courses use `Hypothesis <https://web.hypothes.is/>`_ which is a service that allows anyone to annotate webpages. This allows you to read and post questions and notes that other users can see on each course website. You can do this by clicking on the chevron ("<") on the top right of each site: 
+
+`DartBrains <https://dartbrains.org/content/intro.html>`_
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+A fundmentals of neuroimaging undergraduate level course  
+
+`Naturalistic Neuroimaging Analysis Methods <https://naturalistic-data.org/content/intro.html>`_
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+A more advanced neuroimaging data analysis course for working with `naturalistic` neuroimaging datasets (e.g. watching tv, movies, playing games, etc)  
+
+2. Community
+---------
+
+`Discourse Community <https://www.askpbs.org/c/nltools/13>`_ 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+A Stack Overflow like forum where you can view, contribute, and vote on FAQs regarding ``nltools`` usage. Please ask questions here first so other users can benefit from the answers!
+
+`Open a Github issue <https://github.com/cosanlab/nltools/issues>`_ 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+For all code related problems
+
+
+3. Basic Usage Examples
+--------------------
+
+Check out more basic tutorials below:
+
+
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbnails">
+
+
+.. raw:: html
+
+    </div>
+
+Data Operations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbnails">
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Data can be easily downloaded and uploaded to neurovault using pynv, a python wrapper for the n...">
+
+.. only:: html
+
+  .. image:: /auto_examples/01_DataOperations/images/thumb/sphx_glr_plot_neurovault_io_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_01_DataOperations_plot_neurovault_io.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Neurovault I/O</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="A simple example showing how to download a dataset from neurovault and perform basic data opera...">
+
+.. only:: html
+
+  .. image:: /auto_examples/01_DataOperations/images/thumb/sphx_glr_plot_download_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_01_DataOperations_plot_download.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Basic Data Operations</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="By default nltools uses a 2mm MNI template which means all Brain_Data operations will automatic...">
+
+.. only:: html
+
+  .. image:: /auto_examples/01_DataOperations/images/thumb/sphx_glr_plot_mni_prefs_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_01_DataOperations_plot_mni_prefs.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Brain resolution and MNI Template Preferences</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Nltools has an additional data structure class for working with two-dimensional square matrices...">
+
+.. only:: html
+
+  .. image:: /auto_examples/01_DataOperations/images/thumb/sphx_glr_plot_adjacency_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_01_DataOperations_plot_adjacency.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Adjacency Class</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This tutorial illustrates methods to help with masking data.">
+
+.. only:: html
+
+  .. image:: /auto_examples/01_DataOperations/images/thumb/sphx_glr_plot_mask_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_01_DataOperations_plot_mask.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Masking Example</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This tutorial illustrates how to use the Design_Matrix class to flexibly create design matrices...">
+
+.. only:: html
+
+  .. image:: /auto_examples/01_DataOperations/images/thumb/sphx_glr_plot_design_matrix_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_01_DataOperations_plot_design_matrix.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Design Matrix</div>
+    </div>
+
+
+.. raw:: html
+
+    </div>
+
+Analysis Examples
+^^^^^^^^^^^^^^^^^
+
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbnails">
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This tutorial illustrates how to calculate similarity and distance between images.">
+
+.. only:: html
+
+  .. image:: /auto_examples/02_Analysis/images/thumb/sphx_glr_plot_similarity_example_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_02_Analysis_plot_similarity_example.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Similarity and Distance</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This example simulates data according to a very simple sketch of brain imaging data and applies...">
+
+.. only:: html
+
+  .. image:: /auto_examples/02_Analysis/images/thumb/sphx_glr_plot_univariate_regression_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_02_Analysis_plot_univariate_regression.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Univariate Regression</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Here we demonstrate how to perform a decomposition of an imaging dataset. All you need to do is...">
+
+.. only:: html
+
+  .. image:: /auto_examples/02_Analysis/images/thumb/sphx_glr_plot_decomposition_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_02_Analysis_plot_decomposition.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Decomposition</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This tutorial provides an example of how to run classification analyses.">
+
+.. only:: html
+
+  .. image:: /auto_examples/02_Analysis/images/thumb/sphx_glr_plot_multivariate_classification_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_02_Analysis_plot_multivariate_classification.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Multivariate Classification</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Running MVPA style analyses using multivariate regression is even easier and faster than univar...">
+
+.. only:: html
+
+  .. image:: /auto_examples/02_Analysis/images/thumb/sphx_glr_plot_multivariate_prediction_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_02_Analysis_plot_multivariate_prediction.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Multivariate Prediction</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="When performing any type of group analysis, we assume that each voxel is reflecting the same co...">
+
+.. only:: html
+
+  .. image:: /auto_examples/02_Analysis/images/thumb/sphx_glr_plot_hyperalignment_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_02_Analysis_plot_hyperalignment.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Functional Alignment</div>
+    </div>
+
+
+.. raw:: html
+
+    </div>
+
+
+.. toctree::
+   :hidden:
+   :includehidden:
+
+
+   /auto_examples/01_DataOperations/index.rst
+   /auto_examples/02_Analysis/index.rst
+
+
+.. only:: html
+
+  .. container:: sphx-glr-footer sphx-glr-footer-gallery
+
+    .. container:: sphx-glr-download sphx-glr-download-python
+
+      :download:`Download all examples in Python source code: auto_examples_python.zip </auto_examples/auto_examples_python.zip>`
+
+    .. container:: sphx-glr-download sphx-glr-download-jupyter
+
+      :download:`Download all examples in Jupyter notebooks: auto_examples_jupyter.zip </auto_examples/auto_examples_jupyter.zip>`
+
+
+.. only:: html
+
+ .. rst-class:: sphx-glr-signature
+
+    `Gallery generated by Sphinx-Gallery <https://sphinx-gallery.github.io>`_

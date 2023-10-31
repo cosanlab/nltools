@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>nltools.utils &#8212; nltools 0.5.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../_static/bootstrap-sphinx.css?v=45361654" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=61a4c737" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js?v=3fadbb4a"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=4825356b"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../../_static/bootstrap-sphinx.js"></script>
+
+<!-- Google Analytics -->
+<script>
+  (function (i, s, o, g, r, a, m) {
+    i["GoogleAnalyticsObject"] = r;
+    (i[r] =
+      i[r] ||
+      function () {
+        (i[r].q = i[r].q || []).push(arguments);
+      }),
+      (i[r].l = 1 * new Date());
+    (a = s.createElement(o)), (m = s.getElementsByTagName(o)[0]);
+    a.async = 1;
+    a.src = g;
+    m.parentNode.insertBefore(a, m);
+  })(
+    window,
+    document,
+    "script",
+    "https://www.google-analytics.com/analytics.js",
+    "ga"
+  );
+
+  ga("create", "UA-138438649-1", "auto");
+  ga("send", "pageview");
+</script>
+<!-- End Google Analytics -->
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../../index.html">
+          nltools</a>
+        <span class="navbar-text navbar-version pull-left"><b>0.5.0</b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="../../install.html">Installation</a></li>
+                <li><a href="../../api.html">API</a></li>
+                <li><a href="../../auto_examples/index.html">Tutorials</a></li>
+                <li><a href="http://www.github.com/ljchang/nltools">Github</a></li>
+            
+            
+              <li class="dropdown globaltoc-container">
+  <a role="button"
+     id="dLabelGlobalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="../../index.html">Site <b class="caret"></b></a>
+  <ul class="dropdown-menu globaltoc"
+      role="menu"
+      aria-labelledby="dLabelGlobalToc"></ul>
+</li>
+              
+                <li class="dropdown">
+  <a role="button"
+     id="dLabelLocalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="#">TOC <b class="caret"></b></a>
+  <ul class="dropdown-menu localtoc"
+      role="menu"
+      aria-labelledby="dLabelLocalToc"></ul>
+</li>
+              
+            
+            
+              
+                
+              
+            
+            
+            
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <h1>Source code for nltools.utils</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">NeuroLearn Utilities</span>
+<span class="sd">====================</span>
+
+<span class="sd">handy utilities.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;get_resource_path&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;get_anatomical&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;set_algorithm&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;attempt_to_import&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;all_same&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;concatenate&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;_bootstrap_apply_func&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;set_decomposition_algorithm&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+<span class="n">__author__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Luke Chang&quot;</span><span class="p">]</span>
+<span class="n">__license__</span> <span class="o">=</span> <span class="s2">&quot;MIT&quot;</span>
+
+<span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">dirname</span><span class="p">,</span> <span class="n">join</span><span class="p">,</span> <span class="n">sep</span> <span class="k">as</span> <span class="n">pathsep</span>
+<span class="kn">import</span> <span class="nn">nibabel</span> <span class="k">as</span> <span class="nn">nib</span>
+<span class="kn">import</span> <span class="nn">importlib</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">sklearn.pipeline</span> <span class="kn">import</span> <span class="n">Pipeline</span>
+<span class="kn">from</span> <span class="nn">sklearn.utils</span> <span class="kn">import</span> <span class="n">check_random_state</span>
+<span class="kn">from</span> <span class="nn">scipy.spatial.distance</span> <span class="kn">import</span> <span class="n">squareform</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">GeneratorType</span>
+<span class="kn">from</span> <span class="nn">h5py</span> <span class="kn">import</span> <span class="n">File</span> <span class="k">as</span> <span class="n">h5File</span>
+
+
+<span class="k">def</span> <span class="nf">to_h5</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">obj_type</span><span class="o">=</span><span class="s2">&quot;brain_data&quot;</span><span class="p">,</span> <span class="n">h5_compression</span><span class="o">=</span><span class="s2">&quot;gzip&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;User a combination of pandas and h5py to save objects to h5 files. Replaces</span>
+<span class="sd">    deepdish. File loading is handled by class-specific methods&quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">obj_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;brain_data&quot;</span><span class="p">,</span> <span class="s2">&quot;adjacency&quot;</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;obj_type must be one of &#39;brain_data&#39; or &#39;adjacency&#39;&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">obj_type</span> <span class="o">==</span> <span class="s2">&quot;brain_data&quot;</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">pd</span><span class="o">.</span><span class="n">HDFStore</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="p">[</span><span class="s2">&quot;X&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">X</span>
+            <span class="n">f</span><span class="p">[</span><span class="s2">&quot;Y&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">Y</span>
+
+        <span class="k">with</span> <span class="n">h5File</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">obj</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">compression</span><span class="o">=</span><span class="n">h5_compression</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span>
+                <span class="s2">&quot;mask_affine&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">obj</span><span class="o">.</span><span class="n">mask</span><span class="o">.</span><span class="n">affine</span><span class="p">,</span> <span class="n">compression</span><span class="o">=</span><span class="n">h5_compression</span>
+            <span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span>
+                <span class="s2">&quot;mask_data&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">obj</span><span class="o">.</span><span class="n">mask</span><span class="o">.</span><span class="n">get_fdata</span><span class="p">(),</span> <span class="n">compression</span><span class="o">=</span><span class="n">h5_compression</span>
+            <span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s2">&quot;mask_file_name&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">obj</span><span class="o">.</span><span class="n">mask</span><span class="o">.</span><span class="n">get_filename</span><span class="p">())</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">pd</span><span class="o">.</span><span class="n">HDFStore</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="p">[</span><span class="s2">&quot;Y&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">Y</span>
+
+        <span class="k">with</span> <span class="n">h5File</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">obj</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">compression</span><span class="o">=</span><span class="n">h5_compression</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s2">&quot;matrix_type&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">obj</span><span class="o">.</span><span class="n">matrix_type</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s2">&quot;issymmetric&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">obj</span><span class="o">.</span><span class="n">issymmetric</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s2">&quot;labels&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">obj</span><span class="o">.</span><span class="n">labels</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s2">&quot;is_single_matrix&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">obj</span><span class="o">.</span><span class="n">is_single_matrix</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="get_resource_path"><a class="viewcode-back" href="../../api.html#nltools.utils.get_resource_path">[docs]</a><span class="k">def</span> <span class="nf">get_resource_path</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get path to nltools resource directory.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">),</span> <span class="s2">&quot;resources&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="n">pathsep</span></div>
+
+
+<div class="viewcode-block" id="get_anatomical"><a class="viewcode-back" href="../../api.html#nltools.utils.get_anatomical">[docs]</a><span class="k">def</span> <span class="nf">get_anatomical</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get nltools default anatomical image.</span>
+<span class="sd">    DEPRECATED. See MNI_Template and resolve_mni_path from nltools.prefs</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">nib</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">get_resource_path</span><span class="p">(),</span> <span class="s2">&quot;MNI152_T1_2mm.nii.gz&quot;</span><span class="p">))</span></div>
+
+
+<span class="k">def</span> <span class="nf">get_mni_from_img_resolution</span><span class="p">(</span><span class="n">brain</span><span class="p">,</span> <span class="n">img_type</span><span class="o">=</span><span class="s2">&quot;plot&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get the path to the resolution MNI anatomical image that matches the resolution of a Brain_Data instance. Used by Brain_Data.plot() and .iplot() to set backgrounds appropriately.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        brain: Brain_Data instance</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        file_path: path to MNI image</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">img_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;plot&quot;</span><span class="p">,</span> <span class="s2">&quot;brain&quot;</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;img_type must be &#39;plot&#39; or &#39;brain&#39; &quot;</span><span class="p">)</span>
+
+    <span class="n">res_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">brain</span><span class="o">.</span><span class="n">nifti_masker</span><span class="o">.</span><span class="n">affine_</span><span class="p">)[:</span><span class="mi">3</span><span class="p">])</span>
+    <span class="n">voxel_dims</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">res_array</span><span class="p">))</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">voxel_dims</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Voxels are not isometric and cannot be visualized in standard space&quot;</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">dim</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">voxel_dims</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span> <span class="o">+</span> <span class="s2">&quot;mm&quot;</span>
+        <span class="k">if</span> <span class="n">img_type</span> <span class="o">==</span> <span class="s2">&quot;brain&quot;</span><span class="p">:</span>
+            <span class="n">mni</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;MNI152_T1_</span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">_brain.nii.gz&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mni</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;MNI152_T1_</span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">.nii.gz&quot;</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">get_resource_path</span><span class="p">(),</span> <span class="n">mni</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="set_algorithm"><a class="viewcode-back" href="../../api.html#nltools.utils.set_algorithm">[docs]</a><span class="k">def</span> <span class="nf">set_algorithm</span><span class="p">(</span><span class="n">algorithm</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Setup the algorithm to use in subsequent prediction analyses.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        algorithm: The prediction algorithm to use. Either a string or an</span>
+<span class="sd">                    (uninitialized) scikit-learn prediction object. If string,</span>
+<span class="sd">                    must be one of &#39;svm&#39;,&#39;svr&#39;, linear&#39;,&#39;logistic&#39;,&#39;lasso&#39;,</span>
+<span class="sd">                    &#39;lassopcr&#39;,&#39;lassoCV&#39;,&#39;ridge&#39;,&#39;ridgeCV&#39;,&#39;ridgeClassifier&#39;,</span>
+<span class="sd">                    &#39;randomforest&#39;, or &#39;randomforestClassifier&#39;</span>
+<span class="sd">        kwargs: Additional keyword arguments to pass onto the scikit-learn</span>
+<span class="sd">                clustering object.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        predictor_settings: dictionary of settings for prediction</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># NOTE: function currently located here instead of analysis.py to avoid circular imports</span>
+
+    <span class="n">predictor_settings</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">predictor_settings</span><span class="p">[</span><span class="s2">&quot;algorithm&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">algorithm</span>
+
+    <span class="k">def</span> <span class="nf">load_class</span><span class="p">(</span><span class="n">import_string</span><span class="p">):</span>
+        <span class="n">class_data</span> <span class="o">=</span> <span class="n">import_string</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+        <span class="n">module_path</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">class_data</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">class_str</span> <span class="o">=</span> <span class="n">class_data</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">module</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="n">module_path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">class_str</span><span class="p">)</span>
+
+    <span class="n">algs_classify</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;svm&quot;</span><span class="p">:</span> <span class="s2">&quot;sklearn.svm.SVC&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;logistic&quot;</span><span class="p">:</span> <span class="s2">&quot;sklearn.linear_model.LogisticRegression&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;ridgeClassifier&quot;</span><span class="p">:</span> <span class="s2">&quot;sklearn.linear_model.RidgeClassifier&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;ridgeClassifierCV&quot;</span><span class="p">:</span> <span class="s2">&quot;sklearn.linear_model.RidgeClassifierCV&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;randomforestClassifier&quot;</span><span class="p">:</span> <span class="s2">&quot;sklearn.ensemble.RandomForestClassifier&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="n">algs_predict</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;svr&quot;</span><span class="p">:</span> <span class="s2">&quot;sklearn.svm.SVR&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;linear&quot;</span><span class="p">:</span> <span class="s2">&quot;sklearn.linear_model.LinearRegression&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;lasso&quot;</span><span class="p">:</span> <span class="s2">&quot;sklearn.linear_model.Lasso&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;lassoCV&quot;</span><span class="p">:</span> <span class="s2">&quot;sklearn.linear_model.LassoCV&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;ridge&quot;</span><span class="p">:</span> <span class="s2">&quot;sklearn.linear_model.Ridge&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;ridgeCV&quot;</span><span class="p">:</span> <span class="s2">&quot;sklearn.linear_model.RidgeCV&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;randomforest&quot;</span><span class="p">:</span> <span class="s2">&quot;sklearn.ensemble.RandomForest&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">if</span> <span class="n">algorithm</span> <span class="ow">in</span> <span class="n">algs_classify</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">predictor_settings</span><span class="p">[</span><span class="s2">&quot;prediction_type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;classification&quot;</span>
+        <span class="n">alg</span> <span class="o">=</span> <span class="n">load_class</span><span class="p">(</span><span class="n">algs_classify</span><span class="p">[</span><span class="n">algorithm</span><span class="p">])</span>
+        <span class="n">predictor_settings</span><span class="p">[</span><span class="s2">&quot;predictor&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">alg</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">algorithm</span> <span class="ow">in</span> <span class="n">algs_predict</span><span class="p">:</span>
+        <span class="n">predictor_settings</span><span class="p">[</span><span class="s2">&quot;prediction_type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;prediction&quot;</span>
+        <span class="n">alg</span> <span class="o">=</span> <span class="n">load_class</span><span class="p">(</span><span class="n">algs_predict</span><span class="p">[</span><span class="n">algorithm</span><span class="p">])</span>
+        <span class="n">predictor_settings</span><span class="p">[</span><span class="s2">&quot;predictor&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">alg</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">algorithm</span> <span class="o">==</span> <span class="s2">&quot;lassopcr&quot;</span><span class="p">:</span>
+        <span class="n">predictor_settings</span><span class="p">[</span><span class="s2">&quot;prediction_type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;prediction&quot;</span>
+        <span class="kn">from</span> <span class="nn">sklearn.linear_model</span> <span class="kn">import</span> <span class="n">Lasso</span>
+        <span class="kn">from</span> <span class="nn">sklearn.decomposition</span> <span class="kn">import</span> <span class="n">PCA</span>
+
+        <span class="n">predictor_settings</span><span class="p">[</span><span class="s2">&quot;_lasso&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Lasso</span><span class="p">()</span>
+        <span class="n">predictor_settings</span><span class="p">[</span><span class="s2">&quot;_pca&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">PCA</span><span class="p">()</span>
+        <span class="n">predictor_settings</span><span class="p">[</span><span class="s2">&quot;predictor&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span>
+            <span class="n">steps</span><span class="o">=</span><span class="p">[</span>
+                <span class="p">(</span><span class="s2">&quot;pca&quot;</span><span class="p">,</span> <span class="n">predictor_settings</span><span class="p">[</span><span class="s2">&quot;_pca&quot;</span><span class="p">]),</span>
+                <span class="p">(</span><span class="s2">&quot;lasso&quot;</span><span class="p">,</span> <span class="n">predictor_settings</span><span class="p">[</span><span class="s2">&quot;_lasso&quot;</span><span class="p">]),</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+    <span class="k">elif</span> <span class="n">algorithm</span> <span class="o">==</span> <span class="s2">&quot;pcr&quot;</span><span class="p">:</span>
+        <span class="n">predictor_settings</span><span class="p">[</span><span class="s2">&quot;prediction_type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;prediction&quot;</span>
+        <span class="kn">from</span> <span class="nn">sklearn.linear_model</span> <span class="kn">import</span> <span class="n">LinearRegression</span>
+        <span class="kn">from</span> <span class="nn">sklearn.decomposition</span> <span class="kn">import</span> <span class="n">PCA</span>
+
+        <span class="n">predictor_settings</span><span class="p">[</span><span class="s2">&quot;_regress&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">LinearRegression</span><span class="p">()</span>
+        <span class="n">predictor_settings</span><span class="p">[</span><span class="s2">&quot;_pca&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">PCA</span><span class="p">()</span>
+        <span class="n">predictor_settings</span><span class="p">[</span><span class="s2">&quot;predictor&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span>
+            <span class="n">steps</span><span class="o">=</span><span class="p">[</span>
+                <span class="p">(</span><span class="s2">&quot;pca&quot;</span><span class="p">,</span> <span class="n">predictor_settings</span><span class="p">[</span><span class="s2">&quot;_pca&quot;</span><span class="p">]),</span>
+                <span class="p">(</span><span class="s2">&quot;regress&quot;</span><span class="p">,</span> <span class="n">predictor_settings</span><span class="p">[</span><span class="s2">&quot;_regress&quot;</span><span class="p">]),</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Invalid prediction/classification algorithm name.</span>
+<span class="sd">            Valid options are &#39;svm&#39;,&#39;svr&#39;, &#39;linear&#39;, &#39;logistic&#39;, &#39;lasso&#39;,</span>
+<span class="sd">            &#39;lassopcr&#39;,&#39;lassoCV&#39;,&#39;ridge&#39;,&#39;ridgeCV&#39;,&#39;ridgeClassifier&#39;,</span>
+<span class="sd">            &#39;randomforest&#39;, or &#39;randomforestClassifier&#39;.&quot;&quot;&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">predictor_settings</span></div>
+
+
+<div class="viewcode-block" id="set_decomposition_algorithm"><a class="viewcode-back" href="../../api.html#nltools.utils.set_decomposition_algorithm">[docs]</a><span class="k">def</span> <span class="nf">set_decomposition_algorithm</span><span class="p">(</span><span class="n">algorithm</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Setup the algorithm to use in subsequent decomposition analyses.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        algorithm: The decomposition algorithm to use. Either a string or an</span>
+<span class="sd">                    (uninitialized) scikit-learn decomposition object.</span>
+<span class="sd">                    If string must be one of &#39;pca&#39;,&#39;nnmf&#39;, ica&#39;,&#39;fa&#39;,</span>
+<span class="sd">                    &#39;dictionary&#39;, &#39;kernelpca&#39;.</span>
+<span class="sd">        kwargs: Additional keyword arguments to pass onto the scikit-learn</span>
+<span class="sd">                clustering object.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        predictor_settings: dictionary of settings for prediction</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># NOTE: function currently located here instead of analysis.py to avoid circular imports</span>
+
+    <span class="k">def</span> <span class="nf">load_class</span><span class="p">(</span><span class="n">import_string</span><span class="p">):</span>
+        <span class="n">class_data</span> <span class="o">=</span> <span class="n">import_string</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+        <span class="n">module_path</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">class_data</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">class_str</span> <span class="o">=</span> <span class="n">class_data</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">module</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="n">module_path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">class_str</span><span class="p">)</span>
+
+    <span class="n">algs</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;pca&quot;</span><span class="p">:</span> <span class="s2">&quot;sklearn.decomposition.PCA&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;ica&quot;</span><span class="p">:</span> <span class="s2">&quot;sklearn.decomposition.FastICA&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;nnmf&quot;</span><span class="p">:</span> <span class="s2">&quot;sklearn.decomposition.NMF&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;fa&quot;</span><span class="p">:</span> <span class="s2">&quot;sklearn.decomposition.FactorAnalysis&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;dictionary&quot;</span><span class="p">:</span> <span class="s2">&quot;sklearn.decomposition.DictionaryLearning&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;kernelpca&quot;</span><span class="p">:</span> <span class="s2">&quot;sklearn.decomposition.KernelPCA&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">if</span> <span class="n">algorithm</span> <span class="ow">in</span> <span class="n">algs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">alg</span> <span class="o">=</span> <span class="n">load_class</span><span class="p">(</span><span class="n">algs</span><span class="p">[</span><span class="n">algorithm</span><span class="p">])</span>
+        <span class="n">alg</span> <span class="o">=</span> <span class="n">alg</span><span class="p">(</span><span class="n">n_components</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Invalid prediction/classification algorithm name.</span>
+<span class="sd">            Valid options are &#39;pca&#39;,&#39;ica&#39;, &#39;nnmf&#39;, &#39;fa&#39;&quot;&quot;&quot;</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">alg</span></div>
+
+
+<span class="k">def</span> <span class="nf">isiterable</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns True if the object is one of allowable iterable types.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">GeneratorType</span><span class="p">))</span>
+
+
+<span class="n">module_names</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">Dependency</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">namedtuple</span><span class="p">(</span><span class="s2">&quot;Dependency&quot;</span><span class="p">,</span> <span class="s2">&quot;package value&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">attempt_to_import</span><span class="p">(</span><span class="n">dependency</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fromlist</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">dependency</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">mod</span> <span class="o">=</span> <span class="nb">__import__</span><span class="p">(</span><span class="n">dependency</span><span class="p">,</span> <span class="n">fromlist</span><span class="o">=</span><span class="n">fromlist</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+        <span class="n">mod</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">module_names</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">Dependency</span><span class="p">(</span><span class="n">dependency</span><span class="p">,</span> <span class="n">mod</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">mod</span>
+
+
+<span class="k">def</span> <span class="nf">all_same</span><span class="p">(</span><span class="n">items</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">x</span> <span class="o">==</span> <span class="n">items</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">items</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="concatenate"><a class="viewcode-back" href="../../api.html#nltools.utils.concatenate">[docs]</a><span class="k">def</span> <span class="nf">concatenate</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Concatenate a list of Brain_Data() or Adjacency() objects&quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Make sure you are passing a list of objects.&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">all</span><span class="p">([</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="vm">__class__</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]):</span>
+        <span class="c1"># Temporarily Removing this for circular imports (LC)</span>
+        <span class="c1"># if not isinstance(data[0], (Brain_Data, Adjacency)):</span>
+        <span class="c1">#     raise ValueError(&#39;Make sure you are passing a list of Brain_Data&#39;</span>
+        <span class="c1">#                     &#39; or Adjacency objects.&#39;)</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="vm">__class__</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Make sure all objects in the list are the same type.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+
+
+<span class="k">def</span> <span class="nf">_bootstrap_apply_func</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Bootstrap helper function. Sample with replacement and apply function&quot;&quot;&quot;</span>
+    <span class="n">random_state</span> <span class="o">=</span> <span class="n">check_random_state</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+    <span class="n">data_row_id</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">new_dat</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span>
+        <span class="n">random_state</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">data_row_id</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">data_row_id</span><span class="p">),</span> <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="p">]</span>
+    <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">new_dat</span><span class="p">,</span> <span class="n">function</span><span class="p">)(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">check_square_numpy_matrix</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Helper function to make sure matrix is square and numpy array&quot;&quot;&quot;</span>
+
+    <span class="kn">from</span> <span class="nn">nltools.data</span> <span class="kn">import</span> <span class="n">Adjacency</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">Adjacency</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">squareform</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">values</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">squareform</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Array does not contain the correct number of elements to be square&quot;</span>
+            <span class="p">)</span>
+    <span class="k">return</span> <span class="n">data</span>
+
+
+<span class="k">def</span> <span class="nf">check_brain_data</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if data is a Brain_Data Instance.&quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">nltools.data</span> <span class="kn">import</span> <span class="n">Brain_Data</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">Brain_Data</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">nib</span><span class="o">.</span><span class="n">Nifti1Image</span><span class="p">):</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">Brain_Data</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Make sure data is a Brain_Data instance.&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">apply_mask</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">data</span>
+
+
+<span class="k">def</span> <span class="nf">check_brain_data_is_single</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Logical test if Brain_Data instance is a single image</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        data: brain data</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        (bool)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">check_brain_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">())</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+
+<span class="k">def</span> <span class="nf">_roi_func</span><span class="p">(</span><span class="n">brain</span><span class="p">,</span> <span class="n">roi</span><span class="p">,</span> <span class="n">algorithm</span><span class="p">,</span> <span class="n">cv_dict</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Brain_Data.predict_multi() helper function&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">brain</span><span class="o">.</span><span class="n">apply_mask</span><span class="p">(</span><span class="n">roi</span><span class="p">)</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span>
+        <span class="n">algorithm</span><span class="o">=</span><span class="n">algorithm</span><span class="p">,</span> <span class="n">cv_dict</span><span class="o">=</span><span class="n">cv_dict</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">AmbiguityError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="k">def</span> <span class="nf">generate_jitter</span><span class="p">(</span><span class="n">n_trials</span><span class="p">,</span> <span class="n">mean_time</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">min_time</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">max_time</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">0.2</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate jitter from exponential distribution with constraints</span>
+
+<span class="sd">    Draws from exponential distribution until the distribution satisfies the constraints:</span>
+<span class="sd">    np.abs(np.mean(min_time &gt; data &lt; max_time) - mean_time) &lt;= atol</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        n_trials: (int) number of trials to generate jitter</span>
+<span class="sd">        mean_time: (float) desired mean of distribution</span>
+<span class="sd">        min_time: (float) desired min of distribution</span>
+<span class="sd">        max_time: (float) desired max of distribution</span>
+<span class="sd">        atol: (float) precision of deviation from mean</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        data: (np.array) jitter for each trial</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">generate_data</span><span class="p">(</span><span class="n">n_trials</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">min_time</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">max_time</span><span class="o">=</span><span class="mi">12</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n_trials</span><span class="p">:</span>
+            <span class="n">datam</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">exponential</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">datam</span> <span class="o">&gt;</span> <span class="n">min_time</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">datam</span> <span class="o">&lt;</span> <span class="n">max_time</span><span class="p">):</span>
+                <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">datam</span><span class="p">)</span>
+                <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">data</span>
+
+    <span class="n">mean_diff</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">while</span> <span class="o">~</span><span class="n">mean_diff</span><span class="p">:</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">generate_data</span><span class="p">(</span><span class="n">n_trials</span><span class="p">,</span> <span class="n">min_time</span><span class="o">=</span><span class="n">min_time</span><span class="p">,</span> <span class="n">max_time</span><span class="o">=</span><span class="n">max_time</span><span class="p">)</span>
+        <span class="n">mean_diff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="n">mean_time</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="n">atol</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">data</span>
+</pre></div>
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+        <br/>
+        
+      
+    </p>
+    <p>
+        &copy; Copyright 2023, Cosan Laboratory.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 7.1.2.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

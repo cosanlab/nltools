@@ -1,0 +1,131 @@
+
+
+.. _sphx_glr_auto_examples_02_Analysis:
+
+Analysis Examples
+^^^^^^^^^^^^^^^^^
+
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbnails">
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This tutorial illustrates how to calculate similarity and distance between images.">
+
+.. only:: html
+
+  .. image:: /auto_examples/02_Analysis/images/thumb/sphx_glr_plot_similarity_example_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_02_Analysis_plot_similarity_example.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Similarity and Distance</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This example simulates data according to a very simple sketch of brain imaging data and applies...">
+
+.. only:: html
+
+  .. image:: /auto_examples/02_Analysis/images/thumb/sphx_glr_plot_univariate_regression_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_02_Analysis_plot_univariate_regression.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Univariate Regression</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Here we demonstrate how to perform a decomposition of an imaging dataset. All you need to do is...">
+
+.. only:: html
+
+  .. image:: /auto_examples/02_Analysis/images/thumb/sphx_glr_plot_decomposition_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_02_Analysis_plot_decomposition.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Decomposition</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This tutorial provides an example of how to run classification analyses.">
+
+.. only:: html
+
+  .. image:: /auto_examples/02_Analysis/images/thumb/sphx_glr_plot_multivariate_classification_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_02_Analysis_plot_multivariate_classification.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Multivariate Classification</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Running MVPA style analyses using multivariate regression is even easier and faster than univar...">
+
+.. only:: html
+
+  .. image:: /auto_examples/02_Analysis/images/thumb/sphx_glr_plot_multivariate_prediction_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_02_Analysis_plot_multivariate_prediction.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Multivariate Prediction</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="When performing any type of group analysis, we assume that each voxel is reflecting the same co...">
+
+.. only:: html
+
+  .. image:: /auto_examples/02_Analysis/images/thumb/sphx_glr_plot_hyperalignment_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_02_Analysis_plot_hyperalignment.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Functional Alignment</div>
+    </div>
+
+
+.. raw:: html
+
+    </div>
+
+
+.. toctree::
+   :hidden:
+
+   /auto_examples/02_Analysis/plot_similarity_example
+   /auto_examples/02_Analysis/plot_univariate_regression
+   /auto_examples/02_Analysis/plot_decomposition
+   /auto_examples/02_Analysis/plot_multivariate_classification
+   /auto_examples/02_Analysis/plot_multivariate_prediction
+   /auto_examples/02_Analysis/plot_hyperalignment
+

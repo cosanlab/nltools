@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>NLTools &#8212; nltools 0.5.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="_static/bootstrap-sphinx.css?v=45361654" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery.css?v=61a4c737" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=3fadbb4a"></script>
+    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/sphinx_highlight.js?v=4825356b"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="_static/bootstrap-sphinx.js"></script>
+
+<!-- Google Analytics -->
+<script>
+  (function (i, s, o, g, r, a, m) {
+    i["GoogleAnalyticsObject"] = r;
+    (i[r] =
+      i[r] ||
+      function () {
+        (i[r].q = i[r].q || []).push(arguments);
+      }),
+      (i[r].l = 1 * new Date());
+    (a = s.createElement(o)), (m = s.getElementsByTagName(o)[0]);
+    a.async = 1;
+    a.src = g;
+    m.parentNode.insertBefore(a, m);
+  })(
+    window,
+    document,
+    "script",
+    "https://www.google-analytics.com/analytics.js",
+    "ga"
+  );
+
+  ga("create", "UA-138438649-1", "auto");
+  ga("send", "pageview");
+</script>
+<!-- End Google Analytics -->
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="#">
+          nltools</a>
+        <span class="navbar-text navbar-version pull-left"><b>0.5.0</b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="install.html">Installation</a></li>
+                <li><a href="api.html">API</a></li>
+                <li><a href="auto_examples/index.html">Tutorials</a></li>
+                <li><a href="http://www.github.com/ljchang/nltools">Github</a></li>
+            
+            
+              <li class="dropdown globaltoc-container">
+  <a role="button"
+     id="dLabelGlobalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="#">Site <b class="caret"></b></a>
+  <ul class="dropdown-menu globaltoc"
+      role="menu"
+      aria-labelledby="dLabelGlobalToc"></ul>
+</li>
+              
+                <li class="dropdown">
+  <a role="button"
+     id="dLabelLocalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="#">TOC <b class="caret"></b></a>
+  <ul class="dropdown-menu localtoc"
+      role="menu"
+      aria-labelledby="dLabelLocalToc"><ul>
+<li><a class="reference internal" href="#">NLTools</a></li>
+</ul>
+</ul>
+</li>
+              
+            
+            
+              
+                
+              
+            
+            
+            
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <section id="nltools">
+<h1>NLTools<a class="headerlink" href="#nltools" title="Permalink to this heading">¶</a></h1>
+<a class="reference external image-reference" href="https://pypi.org/project/nltools/"><img alt="https://img.shields.io/pypi/v/nltools.svg" src="https://img.shields.io/pypi/v/nltools.svg" /></a>
+<a class="reference external image-reference" href="https://github.com/cosanlab/nltools/actions/workflows/auto_formatting_tests_and_coverage.yml"><img alt="https://github.com/cosanlab/nltools/actions/workflows/auto_formatting_tests_and_coverage.yml/badge.svg" src="https://github.com/cosanlab/nltools/actions/workflows/auto_formatting_tests_and_coverage.yml/badge.svg" /></a>
+<a class="reference external image-reference" href="https://codecov.io/gh/cosanlab/nltools"><img alt="https://codecov.io/gh/cosanlab/nltools/branch/master/graph/badge.svg" src="https://codecov.io/gh/cosanlab/nltools/branch/master/graph/badge.svg" /></a>
+<a class="reference external image-reference" href="https://app.codacy.com/gh/cosanlab/nltools/dashboard?utm_source=gh&amp;utm_medium=referral&amp;utm_content=&amp;utm_campaign=Badge_grade"><img alt="https://app.codacy.com/project/badge/Grade/f118dc39e5df46d28e80d0d326721cbb" src="https://app.codacy.com/project/badge/Grade/f118dc39e5df46d28e80d0d326721cbb" /></a>
+<a class="reference external image-reference" href="https://doi.org/10.5281/zenodo.2229813"><img alt="https://zenodo.org/badge/DOI/10.5281/zenodo.2229813.svg" src="https://zenodo.org/badge/DOI/10.5281/zenodo.2229813.svg" /></a>
+<a class="reference external image-reference" href="https://nltools.org"><img alt="https://img.shields.io/badge/python-3.7%20%7C%203.8-blue" src="https://img.shields.io/badge/python-3.7%20%7C%203.8-blue" /></a>
+<a class="reference external image-reference" href="https://nltools.org"><img alt="https://img.shields.io/badge/platform-linux%20%7C%20osx%20%7C%20win-blue" src="https://img.shields.io/badge/platform-linux%20%7C%20osx%20%7C%20win-blue" /></a>
+<p><a class="reference external" href="https://github.com/ljchang/neurolearn">NLTools</a> is a Python package for analyzing neuroimaging data.  It is the analysis engine powering <a class="reference external" href="http://neuro-learn.org">neuro-learn</a> There are tools to perform data manipulation and analyses such as univariate GLMs, predictive multivariate modeling, and representational similarity analyses.  It is based loosely off of Tor Wager’s <a class="reference external" href="https://github.com/canlab/CanlabCore">object-oriented Matlab toolbox</a> and leverages much code from <a class="reference external" href="http://nilearn.github.io/">nilearn</a> and  <a class="reference external" href="http://scikit-learn.org">scikit-learn</a></p>
+<p>Watch a video in which Dr. Eshin Jolly, PhD outlines some of the design principles behind nltools at SciPy 2020.</p>
+<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; height: auto;">
+     <iframe src="https://www.youtube.com/embed/1c1AnXLs7xM" frameborder="0" allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe>
+</div><p>Learn how to use nltools with hands on tutorials:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://dartbrains.org/">DartBrains</a> is an introductory neuroimaging analysis course that uses nltools.</p></li>
+<li><p><a class="reference external" href="http://naturalistic-data.org/">Naturalistic-Data</a> is a course covering advanced methods for analyzing naturalistic data. Many of the tutorials use functions from nltools.</p></li>
+</ul>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+        <br/>
+        
+<div id="sourcelink">
+  <a href="_sources/index.rst.txt"
+     rel="nofollow">Source</a>
+</div>
+      
+    </p>
+    <p>
+        &copy; Copyright 2023, Cosan Laboratory.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 7.1.2.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

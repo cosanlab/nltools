@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Adjacency Class &#8212; nltools 0.5.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../_static/bootstrap-sphinx.css?v=45361654" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=61a4c737" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js?v=3fadbb4a"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=4825356b"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../../_static/bootstrap-sphinx.js"></script>
+
+<!-- Google Analytics -->
+<script>
+  (function (i, s, o, g, r, a, m) {
+    i["GoogleAnalyticsObject"] = r;
+    (i[r] =
+      i[r] ||
+      function () {
+        (i[r].q = i[r].q || []).push(arguments);
+      }),
+      (i[r].l = 1 * new Date());
+    (a = s.createElement(o)), (m = s.getElementsByTagName(o)[0]);
+    a.async = 1;
+    a.src = g;
+    m.parentNode.insertBefore(a, m);
+  })(
+    window,
+    document,
+    "script",
+    "https://www.google-analytics.com/analytics.js",
+    "ga"
+  );
+
+  ga("create", "UA-138438649-1", "auto");
+  ga("send", "pageview");
+</script>
+<!-- End Google Analytics -->
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../../index.html">
+          nltools</a>
+        <span class="navbar-text navbar-version pull-left"><b>0.5.0</b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="../../install.html">Installation</a></li>
+                <li><a href="../../api.html">API</a></li>
+                <li><a href="../index.html">Tutorials</a></li>
+                <li><a href="http://www.github.com/ljchang/nltools">Github</a></li>
+            
+            
+              <li class="dropdown globaltoc-container">
+  <a role="button"
+     id="dLabelGlobalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="../../index.html">Site <b class="caret"></b></a>
+  <ul class="dropdown-menu globaltoc"
+      role="menu"
+      aria-labelledby="dLabelGlobalToc"></ul>
+</li>
+              
+                <li class="dropdown">
+  <a role="button"
+     id="dLabelLocalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="#">TOC <b class="caret"></b></a>
+  <ul class="dropdown-menu localtoc"
+      role="menu"
+      aria-labelledby="dLabelLocalToc"><ul>
+<li><a class="reference internal" href="#">Adjacency Class</a><ul>
+<li><a class="reference internal" href="#load-data">Load Data</a></li>
+<li><a class="reference internal" href="#regression">Regression</a></li>
+<li><a class="reference internal" href="#similarity-distance">Similarity/Distance</a></li>
+<li><a class="reference internal" href="#multidimensional-scaling">Multidimensional Scaling</a></li>
+<li><a class="reference internal" href="#graphs">Graphs</a></li>
+</ul>
+</li>
+</ul>
+</ul>
+</li>
+              
+            
+            
+              
+                
+              
+            
+            
+            
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-examples-01-dataoperations-plot-adjacency-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code</p>
+</div>
+<section class="sphx-glr-example-title" id="adjacency-class">
+<span id="sphx-glr-auto-examples-01-dataoperations-plot-adjacency-py"></span><h1>Adjacency Class<a class="headerlink" href="#adjacency-class" title="Permalink to this heading">¶</a></h1>
+<p>Nltools has an additional data structure class for working with two-dimensional
+square matrices. This can be helpful when working with similarity/distance
+matrices or directed or undirected graphs. Similar to the Brain_Data class,
+matrices are vectorized and can store multiple matrices in the same object.
+This might reflect different brain regions, subjects, or time. Most of the
+methods on the Adjacency class are consistent with those in the Brain_Data
+class.</p>
+<section id="load-data">
+<h2>Load Data<a class="headerlink" href="#load-data" title="Permalink to this heading">¶</a></h2>
+<p>Similar to the Brain_Data class, Adjacency instances can be initialized by passing in a numpy array or pandas data frame, or a path to a csv file or list of files.  Here we will generate some fake data to demonstrate how to use this class.  In addition to data, you must indicate the type of matrix.  Currently, you can specify <cite>[‘similarity’,’distance’,’directed’]</cite>.  Similarity matrices are symmetrical with typically ones along diagonal, Distance matrices are symmetrical with zeros along diagonal, and Directed graph matrices are not symmetrical.  Symmetrical matrices only store the upper triangle. The Adjacency class can also accommodate labels, but does not require them.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nltools.data</span> <span class="kn">import</span> <span class="n">Adjacency</span>
+<span class="kn">from</span> <span class="nn">scipy.linalg</span> <span class="kn">import</span> <span class="n">block_diag</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="n">m1</span> <span class="o">=</span> <span class="n">block_diag</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)),</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)),</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)))</span>
+<span class="n">m2</span> <span class="o">=</span> <span class="n">block_diag</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)),</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)),</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)))</span>
+<span class="n">m3</span> <span class="o">=</span> <span class="n">block_diag</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)),</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)),</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)))</span>
+<span class="n">noisy</span> <span class="o">=</span> <span class="p">(</span><span class="n">m1</span> <span class="o">*</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">m2</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">m3</span> <span class="o">*</span> <span class="mi">3</span><span class="p">)</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">12</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.1</span>
+<span class="n">dat</span> <span class="o">=</span> <span class="n">Adjacency</span><span class="p">(</span>
+    <span class="n">noisy</span><span class="p">,</span> <span class="n">matrix_type</span><span class="o">=</span><span class="s2">&quot;similarity&quot;</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;C1&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">4</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;C2&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">4</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;C3&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">4</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Basic information about the object can be viewed by simply calling it.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">dat</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>nltools.data.adjacency.Adjacency(shape=(66,), square_shape=(12, 12), Y=(0, 0), is_symmetric=True,matrix_type=similarity)
+</pre></div>
+</div>
+<p>Adjacency objects can easily be converted back into two-dimensional matrices with the <cite>.squareform()</cite> method.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dat</span><span class="o">.</span><span class="n">squareform</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>array([[ 0.        ,  0.92018409,  0.74068743,  1.02260813,  0.06689804,
+         0.01782825,  0.03962485, -0.1917708 , -0.21237046,  0.07989363,
+         0.21710569,  0.19311052],
+       [ 0.92018409,  0.        ,  0.96885124,  0.96970485,  0.14825097,
+         0.16105497,  0.01438529,  0.10534895,  0.13494436,  0.04394098,
+         0.06428946,  0.0073345 ],
+       [ 0.74068743,  0.96885124,  0.        ,  0.93270705,  0.0508121 ,
+        -0.07529936,  0.04727365,  0.01326191,  0.04173923,  0.10826393,
+         0.06454924, -0.0131297 ],
+       [ 1.02260813,  0.96970485,  0.93270705,  0.        ,  0.10779176,
+         0.19337345, -0.17196272,  0.26921398, -0.0575632 ,  0.04814594,
+         0.12723002, -0.0521637 ],
+       [ 0.06689804,  0.14825097,  0.0508121 ,  0.10779176,  0.        ,
+         2.14378751,  1.96539451,  1.86013451, -0.20117807,  0.01275289,
+        -0.01921029,  0.09297117],
+       [ 0.01782825,  0.16105497, -0.07529936,  0.19337345,  2.14378751,
+         0.        ,  1.98317644,  1.89140943,  0.18990611, -0.07635994,
+         0.02489561,  0.11711137],
+       [ 0.03962485,  0.01438529,  0.04727365, -0.17196272,  1.96539451,
+         1.98317644,  0.        ,  2.04430352, -0.15159531, -0.10679278,
+        -0.07479945,  0.2703446 ],
+       [-0.1917708 ,  0.10534895,  0.01326191,  0.26921398,  1.86013451,
+         1.89140943,  2.04430352,  0.        ,  0.04966625,  0.02380288,
+        -0.02481289, -0.14314387],
+       [-0.21237046,  0.13494436,  0.04173923, -0.0575632 , -0.20117807,
+         0.18990611, -0.15159531,  0.04966625,  0.        ,  2.9217931 ,
+         3.10791825,  3.02177763],
+       [ 0.07989363,  0.04394098,  0.10826393,  0.04814594,  0.01275289,
+        -0.07635994, -0.10679278,  0.02380288,  2.9217931 ,  0.        ,
+         3.02875458,  2.97004928],
+       [ 0.21710569,  0.06428946,  0.06454924,  0.12723002, -0.01921029,
+         0.02489561, -0.07479945, -0.02481289,  3.10791825,  3.02875458,
+         0.        ,  2.92770931],
+       [ 0.19311052,  0.0073345 , -0.0131297 , -0.0521637 ,  0.09297117,
+         0.11711137,  0.2703446 , -0.14314387,  3.02177763,  2.97004928,
+         2.92770931,  0.        ]])
+</pre></div>
+</div>
+<p>Matrices can viewed as a heatmap using the <cite>.plot()</cite> method.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dat</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+<img src="../../_images/sphx_glr_plot_adjacency_001.png" srcset="../../_images/sphx_glr_plot_adjacency_001.png" alt="plot adjacency" class = "sphx-glr-single-img"/><p>The mean within a a grouping label can be calculated using the <cite>.cluster_summary()</cite> method.  You must specify a group variable to group the  data.  Here we use the labels.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">dat</span><span class="o">.</span><span class="n">cluster_summary</span><span class="p">(</span><span class="n">clusters</span><span class="o">=</span><span class="n">dat</span><span class="o">.</span><span class="n">labels</span><span class="p">,</span> <span class="n">summary</span><span class="o">=</span><span class="s2">&quot;within&quot;</span><span class="p">,</span> <span class="n">metric</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>{&#39;C3&#39;: 2.9963336940336327, &#39;C2&#39;: 1.9813676530744562, &#39;C1&#39;: 0.9257904640198676}
+</pre></div>
+</div>
+</section>
+<section id="regression">
+<h2>Regression<a class="headerlink" href="#regression" title="Permalink to this heading">¶</a></h2>
+<p>Adjacency objects can currently accommodate two different types of regression. Sometimes we might want to decompose an Adjacency matrix from a linear combination of other Adjacency matrices.  Other times we might want to perform a regression at each pixel in a stack of Adjacency matrices. Here we provide an example of each method.  We use the same data we generated above, but attempt to decompose it by each block of data.  We create the design matrix by simply concatenating the matrices we used to create the data object. The regress method returns a dictionary containing all of the relevant information from the regression. Here we show that the model recovers the average weight in each block.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">X</span> <span class="o">=</span> <span class="n">Adjacency</span><span class="p">([</span><span class="n">m1</span><span class="p">,</span> <span class="n">m2</span><span class="p">,</span> <span class="n">m3</span><span class="p">],</span> <span class="n">matrix_type</span><span class="o">=</span><span class="s2">&quot;similarity&quot;</span><span class="p">)</span>
+<span class="n">stats</span> <span class="o">=</span> <span class="n">dat</span><span class="o">.</span><span class="n">regress</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">stats</span><span class="p">[</span><span class="s2">&quot;beta&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>[0.92579046 1.98136765 2.99633369]
+</pre></div>
+</div>
+<p>In addition to decomposing a single adjacency matrix, we can also estimate a model that predicts the variance over each voxel.  This is equivalent to a univariate regression in imaging analyses. Remember that just like in imaging these tests are non-independent and may require correcting for multiple comparisons.  Here we create some data that varies over matrices and identify pixels that follow a particular on-off-on pattern.  We plot the t-values that exceed 2.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nltools.data</span> <span class="kn">import</span> <span class="n">Design_Matrix</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="n">data</span> <span class="o">=</span> <span class="n">Adjacency</span><span class="p">(</span>
+    <span class="p">[</span><span class="n">m1</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">12</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.5</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">)]</span>
+    <span class="o">+</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">12</span><span class="p">,</span> <span class="mi">12</span><span class="p">))</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">12</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.5</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">)]</span>
+    <span class="o">+</span> <span class="p">[</span><span class="n">m1</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">12</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.5</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">)]</span>
+<span class="p">)</span>
+
+<span class="n">X</span> <span class="o">=</span> <span class="n">Design_Matrix</span><span class="p">([</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="mi">5</span> <span class="o">+</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">5</span> <span class="o">+</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="mi">5</span><span class="p">)</span>
+<span class="n">f</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+<span class="n">f</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Model&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
+
+<span class="n">stats</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">regress</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+<span class="n">t</span> <span class="o">=</span> <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;t&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">vmin</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Significant Pixels&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
+</pre></div>
+</div>
+<ul class="sphx-glr-horizontal">
+<li><img src="../../_images/sphx_glr_plot_adjacency_002.png" srcset="../../_images/sphx_glr_plot_adjacency_002.png" alt="Model" class = "sphx-glr-multi-img"/></li>
+<li><img src="../../_images/sphx_glr_plot_adjacency_003.png" srcset="../../_images/sphx_glr_plot_adjacency_003.png" alt="Significant Pixels" class = "sphx-glr-multi-img"/></li>
+</ul>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Text(0.5, 1.0, &#39;Significant Pixels&#39;)
+</pre></div>
+</div>
+</section>
+<section id="similarity-distance">
+<h2>Similarity/Distance<a class="headerlink" href="#similarity-distance" title="Permalink to this heading">¶</a></h2>
+<p>We can calculate similarity between two Adjacency matrices using <cite>.similiarity()</cite>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">stats</span> <span class="o">=</span> <span class="n">dat</span><span class="o">.</span><span class="n">similarity</span><span class="p">(</span><span class="n">m1</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">stats</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>{&#39;correlation&#39;: 0.29879205721671714, &#39;p&#39;: 0.010397920415916816}
+</pre></div>
+</div>
+<p>We can also calculate the distance between multiple matrices contained within a single Adjacency object. Any distance metric is available from the <a class="reference external" href="http://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise.pairwise_distances.html">sci-kit learn</a> by specifying the <cite>method</cite> flag. This outputs an Adjacency matrix.  In the example below we see that several matrices are more similar to each other (i.e., when the signal is on).  Remember that the nodes here now represent each matrix from the original distance matrix.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dist</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">distance</span><span class="p">(</span><span class="n">metric</span><span class="o">=</span><span class="s2">&quot;correlation&quot;</span><span class="p">)</span>
+<span class="n">dist</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+<img src="../../_images/sphx_glr_plot_adjacency_004.png" srcset="../../_images/sphx_glr_plot_adjacency_004.png" alt="plot adjacency" class = "sphx-glr-single-img"/><p>Similarity matrices can be converted to and from Distance matrices using <cite>.similarity_to_distance()</cite> and <cite>.distance_to_similarity()</cite>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dist</span><span class="o">.</span><span class="n">distance_to_similarity</span><span class="p">(</span><span class="n">metric</span><span class="o">=</span><span class="s2">&quot;correlation&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+<img src="../../_images/sphx_glr_plot_adjacency_005.png" srcset="../../_images/sphx_glr_plot_adjacency_005.png" alt="plot adjacency" class = "sphx-glr-single-img"/></section>
+<section id="multidimensional-scaling">
+<h2>Multidimensional Scaling<a class="headerlink" href="#multidimensional-scaling" title="Permalink to this heading">¶</a></h2>
+<p>We can perform additional analyses on distance matrices such as multidimensional scaling. Here we provide an example to create a 3D multidimensional scaling plot of our data to see if the on and off matrices might naturally group together.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dist</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">distance</span><span class="p">(</span><span class="n">metric</span><span class="o">=</span><span class="s2">&quot;correlation&quot;</span><span class="p">)</span>
+<span class="n">dist</span><span class="o">.</span><span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;On&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">5</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;Off&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">5</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;On&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">5</span>
+<span class="n">dist</span><span class="o">.</span><span class="n">plot_mds</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+</pre></div>
+</div>
+<img src="../../_images/sphx_glr_plot_adjacency_006.png" srcset="../../_images/sphx_glr_plot_adjacency_006.png" alt="plot adjacency" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/manifold/_mds.py:298: FutureWarning: The default value of `normalized_stress` will change to `&#39;auto&#39;` in version 1.4. To suppress this warning, manually set the value of `normalized_stress`.
+  warnings.warn(
+</pre></div>
+</div>
+</section>
+<section id="graphs">
+<h2>Graphs<a class="headerlink" href="#graphs" title="Permalink to this heading">¶</a></h2>
+<p>Adjacency matrices can be cast to networkx objects using <cite>.to_graph()</cite> if the optional dependency is installed. This allows any graph theoretic metrics or plots to be easily calculated from Adjacency objects.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">networkx</span> <span class="k">as</span> <span class="nn">nx</span>
+
+<span class="n">dat</span> <span class="o">=</span> <span class="n">Adjacency</span><span class="p">(</span><span class="n">m1</span> <span class="o">+</span> <span class="n">m2</span> <span class="o">+</span> <span class="n">m3</span><span class="p">,</span> <span class="n">matrix_type</span><span class="o">=</span><span class="s2">&quot;similarity&quot;</span><span class="p">)</span>
+<span class="n">g</span> <span class="o">=</span> <span class="n">dat</span><span class="o">.</span><span class="n">to_graph</span><span class="p">()</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Degree of each node: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">g</span><span class="o">.</span><span class="n">degree</span><span class="p">())</span>
+
+<span class="n">nx</span><span class="o">.</span><span class="n">draw_circular</span><span class="p">(</span><span class="n">g</span><span class="p">)</span>
+</pre></div>
+</div>
+<img src="../../_images/sphx_glr_plot_adjacency_007.png" srcset="../../_images/sphx_glr_plot_adjacency_007.png" alt="plot adjacency" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Degree of each node: [(0, 3), (1, 3), (2, 3), (3, 3), (4, 3), (5, 3), (6, 3), (7, 3), (8, 3), (9, 3), (10, 3), (11, 3)]
+</pre></div>
+</div>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 6.996 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-01-dataoperations-plot-adjacency-py">
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../../_downloads/ee92b42617752ac1536d4f7390367b73/plot_adjacency.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_adjacency.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../../_downloads/35d2feb98173247917a3d04ba75e488c/plot_adjacency.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_adjacency.ipynb</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+        <br/>
+        
+<div id="sourcelink">
+  <a href="../../_sources/auto_examples/01_DataOperations/plot_adjacency.rst.txt"
+     rel="nofollow">Source</a>
+</div>
+      
+    </p>
+    <p>
+        &copy; Copyright 2023, Cosan Laboratory.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 7.1.2.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

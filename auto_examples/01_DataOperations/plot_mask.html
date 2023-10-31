@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Masking Example &#8212; nltools 0.5.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../_static/bootstrap-sphinx.css?v=45361654" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=61a4c737" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js?v=3fadbb4a"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=4825356b"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../../_static/bootstrap-sphinx.js"></script>
+
+<!-- Google Analytics -->
+<script>
+  (function (i, s, o, g, r, a, m) {
+    i["GoogleAnalyticsObject"] = r;
+    (i[r] =
+      i[r] ||
+      function () {
+        (i[r].q = i[r].q || []).push(arguments);
+      }),
+      (i[r].l = 1 * new Date());
+    (a = s.createElement(o)), (m = s.getElementsByTagName(o)[0]);
+    a.async = 1;
+    a.src = g;
+    m.parentNode.insertBefore(a, m);
+  })(
+    window,
+    document,
+    "script",
+    "https://www.google-analytics.com/analytics.js",
+    "ga"
+  );
+
+  ga("create", "UA-138438649-1", "auto");
+  ga("send", "pageview");
+</script>
+<!-- End Google Analytics -->
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../../index.html">
+          nltools</a>
+        <span class="navbar-text navbar-version pull-left"><b>0.5.0</b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="../../install.html">Installation</a></li>
+                <li><a href="../../api.html">API</a></li>
+                <li><a href="../index.html">Tutorials</a></li>
+                <li><a href="http://www.github.com/ljchang/nltools">Github</a></li>
+            
+            
+              <li class="dropdown globaltoc-container">
+  <a role="button"
+     id="dLabelGlobalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="../../index.html">Site <b class="caret"></b></a>
+  <ul class="dropdown-menu globaltoc"
+      role="menu"
+      aria-labelledby="dLabelGlobalToc"></ul>
+</li>
+              
+                <li class="dropdown">
+  <a role="button"
+     id="dLabelLocalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="#">TOC <b class="caret"></b></a>
+  <ul class="dropdown-menu localtoc"
+      role="menu"
+      aria-labelledby="dLabelLocalToc"><ul>
+<li><a class="reference internal" href="#">Masking Example</a><ul>
+<li><a class="reference internal" href="#load-data">Load Data</a></li>
+<li><a class="reference internal" href="#apply-mask">Apply_Mask</a></li>
+<li><a class="reference internal" href="#extract-mean-within-roi">Extract Mean Within ROI</a></li>
+<li><a class="reference internal" href="#expand-and-contract-rois">Expand and Contract ROIs</a></li>
+<li><a class="reference internal" href="#threshold-and-regions">Threshold and Regions</a></li>
+</ul>
+</li>
+</ul>
+</ul>
+</li>
+              
+            
+            
+              
+                
+              
+            
+            
+            
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-examples-01-dataoperations-plot-mask-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code</p>
+</div>
+<section class="sphx-glr-example-title" id="masking-example">
+<span id="sphx-glr-auto-examples-01-dataoperations-plot-mask-py"></span><h1>Masking Example<a class="headerlink" href="#masking-example" title="Permalink to this heading">¶</a></h1>
+<p>This tutorial illustrates methods to help with masking data.</p>
+<section id="load-data">
+<h2>Load Data<a class="headerlink" href="#load-data" title="Permalink to this heading">¶</a></h2>
+<p>First, let’s load the pain data for this example.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nltools.datasets</span> <span class="kn">import</span> <span class="n">fetch_pain</span>
+
+<span class="n">data</span> <span class="o">=</span> <span class="n">fetch_pain</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/nilearn/maskers/nifti_masker.py:108: UserWarning: imgs are being resampled to the mask_img resolution. This process is memory intensive. You might want to provide a target_affine that is equal to the affine of the imgs or resample the mask beforehand to save memory and computation time.
+  warnings.warn(
+</pre></div>
+</div>
+</section>
+<section id="apply-mask">
+<h2>Apply_Mask<a class="headerlink" href="#apply-mask" title="Permalink to this heading">¶</a></h2>
+<p>Spherical masks can be created using the create_sphere function.
+It requires specifying a center voxel and the radius of the sphere.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nltools.mask</span> <span class="kn">import</span> <span class="n">create_sphere</span>
+
+<span class="n">mask</span> <span class="o">=</span> <span class="n">create_sphere</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">radius</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="n">masked_data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">apply_mask</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+<span class="n">masked_data</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+<img src="../../_images/sphx_glr_plot_mask_001.png" srcset="../../_images/sphx_glr_plot_mask_001.png" alt="plot mask" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/nilearn/maskers/nifti_masker.py:108: UserWarning: imgs are being resampled to the mask_img resolution. This process is memory intensive. You might want to provide a target_affine that is equal to the affine of the imgs or resample the mask beforehand to save memory and computation time.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/nilearn/image/resampling.py:291: UserWarning: Resampling binary images with continuous or linear interpolation. This might lead to unexpected results. You might consider using nearest interpolation instead.
+  warnings.warn(
+</pre></div>
+</div>
+</section>
+<section id="extract-mean-within-roi">
+<h2>Extract Mean Within ROI<a class="headerlink" href="#extract-mean-within-roi" title="Permalink to this heading">¶</a></h2>
+<p>We can easily calculate the mean within an ROI for each image within a
+Brain_Data() instance using the extract_roi() method.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="n">mean</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">extract_roi</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">mean</span><span class="p">)</span>
+</pre></div>
+</div>
+<img src="../../_images/sphx_glr_plot_mask_002.png" srcset="../../_images/sphx_glr_plot_mask_002.png" alt="plot mask" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>[&lt;matplotlib.lines.Line2D object at 0x7f377b662ca0&gt;]
+</pre></div>
+</div>
+</section>
+<section id="expand-and-contract-rois">
+<h2>Expand and Contract ROIs<a class="headerlink" href="#expand-and-contract-rois" title="Permalink to this heading">¶</a></h2>
+<p>Some masks have many ROIs indicated by a unique ID.  It is possible to
+expand these masks into separate ROIs and also collapse them into a single
+image again.  Here we will demonstrate on a k=50 parcellation hosted on
+<a class="reference external" href="http://neurovault.org">http://neurovault.org</a>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nltools.mask</span> <span class="kn">import</span> <span class="n">expand_mask</span><span class="p">,</span> <span class="n">collapse_mask</span>
+<span class="kn">from</span> <span class="nn">nltools.data</span> <span class="kn">import</span> <span class="n">Brain_Data</span>
+
+<span class="n">mask</span> <span class="o">=</span> <span class="n">Brain_Data</span><span class="p">(</span><span class="s1">&#39;http://neurovault.org/media/images/2099/Neurosynth%20Parcellation_0.nii.gz&#39;</span><span class="p">)</span>
+<span class="n">mask</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+<img src="../../_images/sphx_glr_plot_mask_003.png" srcset="../../_images/sphx_glr_plot_mask_003.png" alt="plot mask" class = "sphx-glr-single-img"/><p>We can expand this mask into 50 separate regions</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mask_x</span> <span class="o">=</span> <span class="n">expand_mask</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+<span class="n">mask_x</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+<img src="../../_images/sphx_glr_plot_mask_004.png" srcset="../../_images/sphx_glr_plot_mask_004.png" alt="plot mask" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/nilearn/masking.py:974: UserWarning: Data array used to create a new image contains 64-bit ints. This is likely due to creating the array with numpy and passing `int` as the `dtype`. Many tools such as FSL and SPM cannot deal with int64 in Nifti images, so for compatibility the data has been converted to int32.
+  return new_img_like(mask_img, unmasked, affine)
+</pre></div>
+</div>
+<p>We can collapse these 50 separate regions as unique values in a single image</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mask_c</span> <span class="o">=</span> <span class="n">collapse_mask</span><span class="p">(</span><span class="n">mask_x</span><span class="p">)</span>
+<span class="n">mask_c</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+<img src="../../_images/sphx_glr_plot_mask_005.png" srcset="../../_images/sphx_glr_plot_mask_005.png" alt="plot mask" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/nilearn/masking.py:974: UserWarning: Data array used to create a new image contains 64-bit ints. This is likely due to creating the array with numpy and passing `int` as the `dtype`. Many tools such as FSL and SPM cannot deal with int64 in Nifti images, so for compatibility the data has been converted to int32.
+  return new_img_like(mask_img, unmasked, affine)
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/nilearn/masking.py:974: UserWarning: Data array used to create a new image contains 64-bit ints. This is likely due to creating the array with numpy and passing `int` as the `dtype`. Many tools such as FSL and SPM cannot deal with int64 in Nifti images, so for compatibility the data has been converted to int32.
+  return new_img_like(mask_img, unmasked, affine)
+</pre></div>
+</div>
+</section>
+<section id="threshold-and-regions">
+<h2>Threshold and Regions<a class="headerlink" href="#threshold-and-regions" title="Permalink to this heading">¶</a></h2>
+<p>Images can be thresholded using an arbitrary cutoff or a percentile using the
+threshold method.  Here we calculate the mean of the high pain images and
+threshold using the 95 percentile.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">high</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">X</span><span class="p">[</span><span class="s1">&#39;PainLevel&#39;</span><span class="p">]</span><span class="o">==</span><span class="mi">3</span><span class="p">]</span>
+<span class="n">high</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">threshold</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="s1">&#39;2.5%&#39;</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="s1">&#39;97.5%&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+<img src="../../_images/sphx_glr_plot_mask_006.png" srcset="../../_images/sphx_glr_plot_mask_006.png" alt="plot mask" class = "sphx-glr-single-img"/><p>We might be interested in creating a binary mask from this threshold.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mask_b</span> <span class="o">=</span> <span class="n">high</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">threshold</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="s1">&#39;2.5%&#39;</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="s1">&#39;97.5%&#39;</span><span class="p">,</span><span class="n">binarize</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">mask_b</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+<img src="../../_images/sphx_glr_plot_mask_007.png" srcset="../../_images/sphx_glr_plot_mask_007.png" alt="plot mask" class = "sphx-glr-single-img"/><p>We might also want to create separate images from each contiguous ROI.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">region</span> <span class="o">=</span> <span class="n">high</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">threshold</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="s1">&#39;2.5%&#39;</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="s1">&#39;97.5%&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">regions</span><span class="p">()</span>
+<span class="n">region</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+<img src="../../_images/sphx_glr_plot_mask_008.png" srcset="../../_images/sphx_glr_plot_mask_008.png" alt="plot mask" class = "sphx-glr-single-img"/><p>Finally, we can perform operations on ROIs from a mask and then convert them
+back into a Brain_Data instance. In this example, let’s compute a linear contrast
+of increasing pain for each each participant. Then, let’s compute functional
+connectivity across participants within each ROI and calculate the degree
+centrality of each ROI after arbitrarily thresholding the connectivity matrix.
+We can then convert each ROIs degree back into a Brain_Data instance to help
+visualize which regions are more central in this analysis.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sklearn.metrics</span> <span class="kn">import</span> <span class="n">pairwise_distances</span>
+<span class="kn">from</span> <span class="nn">nltools.data</span> <span class="kn">import</span> <span class="n">Adjacency</span>
+<span class="kn">from</span> <span class="nn">nltools.mask</span> <span class="kn">import</span> <span class="n">roi_to_brain</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="n">sub_list</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">X</span><span class="p">[</span><span class="s1">&#39;SubjectID&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+
+<span class="c1"># perform matrix multiplication to compute linear contrast for each subject</span>
+<span class="n">lin_contrast</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">sub</span> <span class="ow">in</span> <span class="n">sub_list</span><span class="p">:</span>
+    <span class="n">lin_contrast</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">X</span><span class="p">[</span><span class="s1">&#39;SubjectID&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">sub</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>  <span class="mi">0</span><span class="p">]))</span>
+
+<span class="c1"># concatenate list of Brain_Data instances into a single instance</span>
+<span class="n">lin_contrast</span> <span class="o">=</span> <span class="n">Brain_Data</span><span class="p">(</span><span class="n">lin_contrast</span><span class="p">)</span>
+
+<span class="c1"># Compute correlation distance between each ROI</span>
+<span class="n">dist</span> <span class="o">=</span> <span class="n">Adjacency</span><span class="p">(</span><span class="n">pairwise_distances</span><span class="p">(</span><span class="n">lin_contrast</span><span class="o">.</span><span class="n">extract_roi</span><span class="p">(</span><span class="n">mask</span><span class="p">),</span> <span class="n">metric</span><span class="o">=</span><span class="s1">&#39;correlation&#39;</span><span class="p">),</span> <span class="n">matrix_type</span><span class="o">=</span><span class="s1">&#39;distance&#39;</span><span class="p">)</span>
+
+<span class="c1"># Threshold functional connectivity and convert to Adjacency Matrix. Plot as heatmap</span>
+<span class="n">dist</span><span class="o">.</span><span class="n">threshold</span><span class="p">(</span><span class="n">upper</span><span class="o">=</span><span class="mf">.4</span><span class="p">,</span> <span class="n">binarize</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+
+<span class="c1"># Convert Adjacency matrix to networkX instance</span>
+<span class="n">g</span> <span class="o">=</span> <span class="n">dist</span><span class="o">.</span><span class="n">threshold</span><span class="p">(</span><span class="n">upper</span><span class="o">=</span><span class="mf">.4</span><span class="p">,</span> <span class="n">binarize</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">to_graph</span><span class="p">()</span>
+
+<span class="c1"># Compute degree centrality and convert back into Brain_Data instance.</span>
+<span class="n">degree_centrality</span> <span class="o">=</span> <span class="n">roi_to_brain</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">degree</span><span class="p">())),</span> <span class="n">mask_x</span><span class="p">)</span>
+
+<span class="n">degree_centrality</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+<ul class="sphx-glr-horizontal">
+<li><img src="../../_images/sphx_glr_plot_mask_009.png" srcset="../../_images/sphx_glr_plot_mask_009.png" alt="plot mask" class = "sphx-glr-multi-img"/></li>
+<li><img src="../../_images/sphx_glr_plot_mask_010.png" srcset="../../_images/sphx_glr_plot_mask_010.png" alt="plot mask" class = "sphx-glr-multi-img"/></li>
+</ul>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/nilearn/masking.py:974: UserWarning: Data array used to create a new image contains 64-bit ints. This is likely due to creating the array with numpy and passing `int` as the `dtype`. Many tools such as FSL and SPM cannot deal with int64 in Nifti images, so for compatibility the data has been converted to int32.
+  return new_img_like(mask_img, unmasked, affine)
+</pre></div>
+</div>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (1 minutes 41.472 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-01-dataoperations-plot-mask-py">
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../../_downloads/f7220cd271c172dd06d974f7b4134f86/plot_mask.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_mask.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../../_downloads/8f93b9068b23bc7245c0d3e8584c74b5/plot_mask.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_mask.ipynb</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+        <br/>
+        
+<div id="sourcelink">
+  <a href="../../_sources/auto_examples/01_DataOperations/plot_mask.rst.txt"
+     rel="nofollow">Source</a>
+</div>
+      
+    </p>
+    <p>
+        &copy; Copyright 2023, Cosan Laboratory.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 7.1.2.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

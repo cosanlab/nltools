@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Multivariate Classification &#8212; nltools 0.5.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../_static/bootstrap-sphinx.css?v=45361654" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=61a4c737" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js?v=3fadbb4a"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=4825356b"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../../_static/bootstrap-sphinx.js"></script>
+
+<!-- Google Analytics -->
+<script>
+  (function (i, s, o, g, r, a, m) {
+    i["GoogleAnalyticsObject"] = r;
+    (i[r] =
+      i[r] ||
+      function () {
+        (i[r].q = i[r].q || []).push(arguments);
+      }),
+      (i[r].l = 1 * new Date());
+    (a = s.createElement(o)), (m = s.getElementsByTagName(o)[0]);
+    a.async = 1;
+    a.src = g;
+    m.parentNode.insertBefore(a, m);
+  })(
+    window,
+    document,
+    "script",
+    "https://www.google-analytics.com/analytics.js",
+    "ga"
+  );
+
+  ga("create", "UA-138438649-1", "auto");
+  ga("send", "pageview");
+</script>
+<!-- End Google Analytics -->
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../../index.html">
+          nltools</a>
+        <span class="navbar-text navbar-version pull-left"><b>0.5.0</b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="../../install.html">Installation</a></li>
+                <li><a href="../../api.html">API</a></li>
+                <li><a href="../index.html">Tutorials</a></li>
+                <li><a href="http://www.github.com/ljchang/nltools">Github</a></li>
+            
+            
+              <li class="dropdown globaltoc-container">
+  <a role="button"
+     id="dLabelGlobalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="../../index.html">Site <b class="caret"></b></a>
+  <ul class="dropdown-menu globaltoc"
+      role="menu"
+      aria-labelledby="dLabelGlobalToc"></ul>
+</li>
+              
+                <li class="dropdown">
+  <a role="button"
+     id="dLabelLocalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="#">TOC <b class="caret"></b></a>
+  <ul class="dropdown-menu localtoc"
+      role="menu"
+      aria-labelledby="dLabelLocalToc"><ul>
+<li><a class="reference internal" href="#">Multivariate Classification</a><ul>
+<li><a class="reference internal" href="#load-prepare-data">Load &amp; Prepare Data</a></li>
+<li><a class="reference internal" href="#classification-with-cross-validation">Classification with Cross-Validation</a></li>
+<li><a class="reference internal" href="#roc-analyses">ROC Analyses</a></li>
+</ul>
+</li>
+</ul>
+</ul>
+</li>
+              
+            
+            
+              
+                
+              
+            
+            
+            
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-examples-02-analysis-plot-multivariate-classification-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code</p>
+</div>
+<section class="sphx-glr-example-title" id="multivariate-classification">
+<span id="sphx-glr-auto-examples-02-analysis-plot-multivariate-classification-py"></span><h1>Multivariate Classification<a class="headerlink" href="#multivariate-classification" title="Permalink to this heading">¶</a></h1>
+<p>This tutorial provides an example of how to run classification analyses.</p>
+<section id="load-prepare-data">
+<h2>Load &amp; Prepare Data<a class="headerlink" href="#load-prepare-data" title="Permalink to this heading">¶</a></h2>
+<p>First, let’s load the pain data for this example.  We need to create a data
+object with high and low pain intensities.  These labels need to be specified in the
+dat.Y field as a pandas dataframe. We also need to create a vector of subject ids
+so that subject images can be held out together in cross-validation.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nltools.datasets</span> <span class="kn">import</span> <span class="n">fetch_pain</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="n">data</span> <span class="o">=</span> <span class="n">fetch_pain</span><span class="p">()</span>
+<span class="n">high</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">X</span><span class="p">[</span><span class="s1">&#39;PainLevel&#39;</span><span class="p">]</span><span class="o">==</span><span class="mi">3</span><span class="p">)[</span><span class="mi">0</span><span class="p">]]</span>
+<span class="n">low</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">X</span><span class="p">[</span><span class="s1">&#39;PainLevel&#39;</span><span class="p">]</span><span class="o">==</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]]</span>
+<span class="n">dat</span> <span class="o">=</span> <span class="n">high</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">low</span><span class="p">)</span>
+<span class="n">dat</span><span class="o">.</span><span class="n">Y</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">high</span><span class="p">)),</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">low</span><span class="p">))]))</span>
+<span class="n">subject_id</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">high</span><span class="o">.</span><span class="n">X</span><span class="p">[</span><span class="s1">&#39;SubjectID&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span><span class="n">low</span><span class="o">.</span><span class="n">X</span><span class="p">[</span><span class="s1">&#39;SubjectID&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">])</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/nilearn/maskers/nifti_masker.py:108: UserWarning: imgs are being resampled to the mask_img resolution. This process is memory intensive. You might want to provide a target_affine that is equal to the affine of the imgs or resample the mask beforehand to save memory and computation time.
+  warnings.warn(
+</pre></div>
+</div>
+</section>
+<section id="classification-with-cross-validation">
+<h2>Classification with Cross-Validation<a class="headerlink" href="#classification-with-cross-validation" title="Permalink to this heading">¶</a></h2>
+<p>We can now train a brain model to classify the different labels specified in dat.Y.
+First, we will use a support vector machine with 5 fold cross-validation in which the
+same images from each subject are held out together.
+The predict function runs the classification multiple times. One of the
+iterations uses all of the data to calculate the ‘weight_map’. The other iterations
+estimate the cross-validated predictive accuracy.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">svm_stats</span> <span class="o">=</span> <span class="n">dat</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">algorithm</span><span class="o">=</span><span class="s1">&#39;svm&#39;</span><span class="p">,</span>
+                                            <span class="n">cv_dict</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;kfolds&#39;</span><span class="p">,</span><span class="s1">&#39;n_folds&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s1">&#39;subject_id&#39;</span><span class="p">:</span><span class="n">subject_id</span><span class="p">},</span>
+                                            <span class="o">**</span><span class="p">{</span><span class="s1">&#39;kernel&#39;</span><span class="p">:</span><span class="s2">&quot;linear&quot;</span><span class="p">})</span>
+</pre></div>
+</div>
+<ul class="sphx-glr-horizontal">
+<li><img src="../../_images/sphx_glr_plot_multivariate_classification_001.png" srcset="../../_images/sphx_glr_plot_multivariate_classification_001.png" alt="ROC Plot" class = "sphx-glr-multi-img"/></li>
+<li><img src="../../_images/sphx_glr_plot_multivariate_classification_002.png" srcset="../../_images/sphx_glr_plot_multivariate_classification_002.png" alt="plot multivariate classification" class = "sphx-glr-multi-img"/></li>
+</ul>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>overall accuracy: 1.00
+overall CV accuracy: 0.79
+</pre></div>
+</div>
+<p>SVMs can be converted to predicted probabilities using Platt Scaling</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">platt_stats</span> <span class="o">=</span> <span class="n">dat</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">algorithm</span><span class="o">=</span><span class="s1">&#39;svm&#39;</span><span class="p">,</span>
+                                            <span class="n">cv_dict</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;kfolds&#39;</span><span class="p">,</span><span class="s1">&#39;n_folds&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s1">&#39;subject_id&#39;</span><span class="p">:</span><span class="n">subject_id</span><span class="p">},</span>
+                                            <span class="o">**</span><span class="p">{</span><span class="s1">&#39;kernel&#39;</span><span class="p">:</span><span class="s1">&#39;linear&#39;</span><span class="p">,</span><span class="s1">&#39;probability&#39;</span><span class="p">:</span><span class="kc">True</span><span class="p">})</span>
+</pre></div>
+</div>
+<ul class="sphx-glr-horizontal">
+<li><img src="../../_images/sphx_glr_plot_multivariate_classification_003.png" srcset="../../_images/sphx_glr_plot_multivariate_classification_003.png" alt="ROC Plot" class = "sphx-glr-multi-img"/></li>
+<li><img src="../../_images/sphx_glr_plot_multivariate_classification_004.png" srcset="../../_images/sphx_glr_plot_multivariate_classification_004.png" alt="plot multivariate classification" class = "sphx-glr-multi-img"/></li>
+</ul>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>overall accuracy: 1.00
+overall CV accuracy: 0.79
+</pre></div>
+</div>
+<p>Standard OLS Logistic Regression.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">logistic_stats</span> <span class="o">=</span> <span class="n">dat</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">algorithm</span><span class="o">=</span><span class="s1">&#39;logistic&#39;</span><span class="p">,</span>
+                                            <span class="n">cv_dict</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;kfolds&#39;</span><span class="p">,</span><span class="s1">&#39;n_folds&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s1">&#39;subject_id&#39;</span><span class="p">:</span><span class="n">subject_id</span><span class="p">})</span>
+</pre></div>
+</div>
+<ul class="sphx-glr-horizontal">
+<li><img src="../../_images/sphx_glr_plot_multivariate_classification_005.png" srcset="../../_images/sphx_glr_plot_multivariate_classification_005.png" alt="ROC Plot" class = "sphx-glr-multi-img"/></li>
+<li><img src="../../_images/sphx_glr_plot_multivariate_classification_006.png" srcset="../../_images/sphx_glr_plot_multivariate_classification_006.png" alt="plot multivariate classification" class = "sphx-glr-multi-img"/></li>
+</ul>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/linear_model/_logistic.py:460: ConvergenceWarning: lbfgs failed to converge (status=1):
+STOP: TOTAL NO. of ITERATIONS REACHED LIMIT.
+
+Increase the number of iterations (max_iter) or scale the data as shown in:
+    https://scikit-learn.org/stable/modules/preprocessing.html
+Please also refer to the documentation for alternative solver options:
+    https://scikit-learn.org/stable/modules/linear_model.html#logistic-regression
+  n_iter_i = _check_optimize_result(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/linear_model/_logistic.py:460: ConvergenceWarning: lbfgs failed to converge (status=1):
+STOP: TOTAL NO. of ITERATIONS REACHED LIMIT.
+
+Increase the number of iterations (max_iter) or scale the data as shown in:
+    https://scikit-learn.org/stable/modules/preprocessing.html
+Please also refer to the documentation for alternative solver options:
+    https://scikit-learn.org/stable/modules/linear_model.html#logistic-regression
+  n_iter_i = _check_optimize_result(
+overall accuracy: 1.00
+overall CV accuracy: 0.84
+</pre></div>
+</div>
+<p>Ridge classification</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ridge_stats</span> <span class="o">=</span> <span class="n">dat</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">algorithm</span><span class="o">=</span><span class="s1">&#39;ridgeClassifier&#39;</span><span class="p">,</span>
+    <span class="n">cv_dict</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;kfolds&#39;</span><span class="p">,</span><span class="s1">&#39;n_folds&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s1">&#39;subject_id&#39;</span><span class="p">:</span><span class="n">subject_id</span><span class="p">})</span>
+</pre></div>
+</div>
+<ul class="sphx-glr-horizontal">
+<li><img src="../../_images/sphx_glr_plot_multivariate_classification_007.png" srcset="../../_images/sphx_glr_plot_multivariate_classification_007.png" alt="ROC Plot" class = "sphx-glr-multi-img"/></li>
+<li><img src="../../_images/sphx_glr_plot_multivariate_classification_008.png" srcset="../../_images/sphx_glr_plot_multivariate_classification_008.png" alt="plot multivariate classification" class = "sphx-glr-multi-img"/></li>
+</ul>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>overall accuracy: 1.00
+overall CV accuracy: 0.77
+</pre></div>
+</div>
+</section>
+<section id="roc-analyses">
+<h2>ROC Analyses<a class="headerlink" href="#roc-analyses" title="Permalink to this heading">¶</a></h2>
+<p>We are often interested in evaluating how well a pattern can discriminate
+between different classes of data. However, accuracy could be high because
+of a highly sensitive but not specific model.  Receiver operator characteristic
+curves allow us to evaluate the sensitivity and specificity of the model.
+and evaluate how well it can discriminate between high and low pain using
+We use the Roc class to initialize an Roc object and the plot() and summary()
+methods to run the analyses. We could also just run the calculate() method
+to run the analysis without plotting.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nltools.analysis</span> <span class="kn">import</span> <span class="n">Roc</span>
+
+<span class="n">roc</span> <span class="o">=</span> <span class="n">Roc</span><span class="p">(</span><span class="n">input_values</span><span class="o">=</span><span class="n">svm_stats</span><span class="p">[</span><span class="s1">&#39;dist_from_hyperplane_xval&#39;</span><span class="p">],</span>
+            <span class="n">binary_outcome</span><span class="o">=</span><span class="n">svm_stats</span><span class="p">[</span><span class="s1">&#39;Y&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">))</span>
+<span class="n">roc</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+<span class="n">roc</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
+</pre></div>
+</div>
+<img src="../../_images/sphx_glr_plot_multivariate_classification_009.png" srcset="../../_images/sphx_glr_plot_multivariate_classification_009.png" alt="ROC Plot" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>------------------------
+.:ROC Analysis Summary:.
+------------------------
+Accuracy:           0.82
+Accuracy SE:        0.11
+Accuracy p-value:   0.00
+Sensitivity:        0.86
+Specificity:        0.79
+AUC:                0.88
+PPV:                0.80
+------------------------
+</pre></div>
+</div>
+<p>The above example uses single-interval classification, which attempts to
+determine the optimal classification interval. However, sometimes we are
+intersted in directly comparing responses to two images within the same person.
+In this situation we should use forced-choice classification, which looks at
+the relative classification accuracy between two images.  You must pass a list
+indicating the ids of each unique subject.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">roc_fc</span> <span class="o">=</span> <span class="n">Roc</span><span class="p">(</span><span class="n">input_values</span><span class="o">=</span><span class="n">svm_stats</span><span class="p">[</span><span class="s1">&#39;dist_from_hyperplane_xval&#39;</span><span class="p">],</span>
+                    <span class="n">binary_outcome</span><span class="o">=</span><span class="n">svm_stats</span><span class="p">[</span><span class="s1">&#39;Y&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">),</span> <span class="n">forced_choice</span><span class="o">=</span><span class="n">subject_id</span><span class="p">)</span>
+<span class="n">roc_fc</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+<span class="n">roc_fc</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
+</pre></div>
+</div>
+<img src="../../_images/sphx_glr_plot_multivariate_classification_010.png" srcset="../../_images/sphx_glr_plot_multivariate_classification_010.png" alt="ROC Plot" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>------------------------
+.:ROC Analysis Summary:.
+------------------------
+Accuracy:           1.00
+Accuracy SE:        0.19
+Accuracy p-value:   0.00
+Sensitivity:        0.99
+Specificity:        0.99
+AUC:                0.99
+PPV:                0.99
+------------------------
+</pre></div>
+</div>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (1 minutes 21.386 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-02-analysis-plot-multivariate-classification-py">
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../../_downloads/dbe34d06487af2bd66e543d1afee65fc/plot_multivariate_classification.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_multivariate_classification.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../../_downloads/2b86271d9b24d1e9df8c1b8648cf1ca2/plot_multivariate_classification.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_multivariate_classification.ipynb</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+        <br/>
+        
+<div id="sourcelink">
+  <a href="../../_sources/auto_examples/02_Analysis/plot_multivariate_classification.rst.txt"
+     rel="nofollow">Source</a>
+</div>
+      
+    </p>
+    <p>
+        &copy; Copyright 2023, Cosan Laboratory.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 7.1.2.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

@@ -1,0 +1,23 @@
+
+:orphan:
+
+.. _sphx_glr_auto_examples_01_DataOperations_sg_execution_times:
+
+
+Computation times
+=================
+**03:33.651** total execution time for **auto_examples_01_DataOperations** files:
+
++---------------------------------------------------------------------------------------------------+-----------+--------+
+| :ref:`sphx_glr_auto_examples_01_DataOperations_plot_mask.py` (``plot_mask.py``)                   | 01:41.472 | 0.0 MB |
++---------------------------------------------------------------------------------------------------+-----------+--------+
+| :ref:`sphx_glr_auto_examples_01_DataOperations_plot_download.py` (``plot_download.py``)           | 01:11.902 | 0.0 MB |
++---------------------------------------------------------------------------------------------------+-----------+--------+
+| :ref:`sphx_glr_auto_examples_01_DataOperations_plot_design_matrix.py` (``plot_design_matrix.py``) | 00:18.746 | 0.0 MB |
++---------------------------------------------------------------------------------------------------+-----------+--------+
+| :ref:`sphx_glr_auto_examples_01_DataOperations_plot_mni_prefs.py` (``plot_mni_prefs.py``)         | 00:09.992 | 0.0 MB |
++---------------------------------------------------------------------------------------------------+-----------+--------+
+| :ref:`sphx_glr_auto_examples_01_DataOperations_plot_adjacency.py` (``plot_adjacency.py``)         | 00:06.996 | 0.0 MB |
++---------------------------------------------------------------------------------------------------+-----------+--------+
+| :ref:`sphx_glr_auto_examples_01_DataOperations_plot_neurovault_io.py` (``plot_neurovault_io.py``) | 00:04.543 | 0.0 MB |
++---------------------------------------------------------------------------------------------------+-----------+--------+

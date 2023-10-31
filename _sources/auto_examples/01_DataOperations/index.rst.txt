@@ -1,0 +1,131 @@
+
+
+.. _sphx_glr_auto_examples_01_DataOperations:
+
+Data Operations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbnails">
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Data can be easily downloaded and uploaded to neurovault using pynv, a python wrapper for the n...">
+
+.. only:: html
+
+  .. image:: /auto_examples/01_DataOperations/images/thumb/sphx_glr_plot_neurovault_io_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_01_DataOperations_plot_neurovault_io.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Neurovault I/O</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="A simple example showing how to download a dataset from neurovault and perform basic data opera...">
+
+.. only:: html
+
+  .. image:: /auto_examples/01_DataOperations/images/thumb/sphx_glr_plot_download_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_01_DataOperations_plot_download.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Basic Data Operations</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="By default nltools uses a 2mm MNI template which means all Brain_Data operations will automatic...">
+
+.. only:: html
+
+  .. image:: /auto_examples/01_DataOperations/images/thumb/sphx_glr_plot_mni_prefs_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_01_DataOperations_plot_mni_prefs.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Brain resolution and MNI Template Preferences</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Nltools has an additional data structure class for working with two-dimensional square matrices...">
+
+.. only:: html
+
+  .. image:: /auto_examples/01_DataOperations/images/thumb/sphx_glr_plot_adjacency_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_01_DataOperations_plot_adjacency.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Adjacency Class</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This tutorial illustrates methods to help with masking data.">
+
+.. only:: html
+
+  .. image:: /auto_examples/01_DataOperations/images/thumb/sphx_glr_plot_mask_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_01_DataOperations_plot_mask.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Masking Example</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This tutorial illustrates how to use the Design_Matrix class to flexibly create design matrices...">
+
+.. only:: html
+
+  .. image:: /auto_examples/01_DataOperations/images/thumb/sphx_glr_plot_design_matrix_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_01_DataOperations_plot_design_matrix.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Design Matrix</div>
+    </div>
+
+
+.. raw:: html
+
+    </div>
+
+
+.. toctree::
+   :hidden:
+
+   /auto_examples/01_DataOperations/plot_neurovault_io
+   /auto_examples/01_DataOperations/plot_download
+   /auto_examples/01_DataOperations/plot_mni_prefs
+   /auto_examples/01_DataOperations/plot_adjacency
+   /auto_examples/01_DataOperations/plot_mask
+   /auto_examples/01_DataOperations/plot_design_matrix
+

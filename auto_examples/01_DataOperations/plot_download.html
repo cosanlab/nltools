@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Basic Data Operations &#8212; nltools 0.5.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../_static/bootstrap-sphinx.css?v=45361654" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=61a4c737" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js?v=3fadbb4a"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=4825356b"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../../_static/bootstrap-sphinx.js"></script>
+
+<!-- Google Analytics -->
+<script>
+  (function (i, s, o, g, r, a, m) {
+    i["GoogleAnalyticsObject"] = r;
+    (i[r] =
+      i[r] ||
+      function () {
+        (i[r].q = i[r].q || []).push(arguments);
+      }),
+      (i[r].l = 1 * new Date());
+    (a = s.createElement(o)), (m = s.getElementsByTagName(o)[0]);
+    a.async = 1;
+    a.src = g;
+    m.parentNode.insertBefore(a, m);
+  })(
+    window,
+    document,
+    "script",
+    "https://www.google-analytics.com/analytics.js",
+    "ga"
+  );
+
+  ga("create", "UA-138438649-1", "auto");
+  ga("send", "pageview");
+</script>
+<!-- End Google Analytics -->
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../../index.html">
+          nltools</a>
+        <span class="navbar-text navbar-version pull-left"><b>0.5.0</b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="../../install.html">Installation</a></li>
+                <li><a href="../../api.html">API</a></li>
+                <li><a href="../index.html">Tutorials</a></li>
+                <li><a href="http://www.github.com/ljchang/nltools">Github</a></li>
+            
+            
+              <li class="dropdown globaltoc-container">
+  <a role="button"
+     id="dLabelGlobalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="../../index.html">Site <b class="caret"></b></a>
+  <ul class="dropdown-menu globaltoc"
+      role="menu"
+      aria-labelledby="dLabelGlobalToc"></ul>
+</li>
+              
+                <li class="dropdown">
+  <a role="button"
+     id="dLabelLocalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="#">TOC <b class="caret"></b></a>
+  <ul class="dropdown-menu localtoc"
+      role="menu"
+      aria-labelledby="dLabelLocalToc"><ul>
+<li><a class="reference internal" href="#">Basic Data Operations</a><ul>
+<li><a class="reference internal" href="#download-pain-dataset-from-neurovault">Download pain dataset from neurovault</a></li>
+<li><a class="reference internal" href="#load-files">Load files</a></li>
+<li><a class="reference internal" href="#basic-brain-data-operations">Basic Brain_Data() Operations</a></li>
+<li><a class="reference internal" href="#basic-brain-data-plotting">Basic Brain_Data() Plotting</a></li>
+</ul>
+</li>
+</ul>
+</ul>
+</li>
+              
+            
+            
+              
+                
+              
+            
+            
+            
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-examples-01-dataoperations-plot-download-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code</p>
+</div>
+<section class="sphx-glr-example-title" id="basic-data-operations">
+<span id="sphx-glr-auto-examples-01-dataoperations-plot-download-py"></span><h1>Basic Data Operations<a class="headerlink" href="#basic-data-operations" title="Permalink to this heading">¶</a></h1>
+<p>A simple example showing how to download a dataset from neurovault and perform
+basic data operations.  The bulk of the nltools toolbox is built around the
+Brain_Data() class.  This class represents imaging data as a vectorized
+features by observations matrix.  Each image is an observation and each voxel
+is a feature.  The concept behind the class is to have a similar feel to a pandas
+dataframe, which means that it should feel intuitive to manipulate the data.</p>
+<section id="download-pain-dataset-from-neurovault">
+<h2>Download pain dataset from neurovault<a class="headerlink" href="#download-pain-dataset-from-neurovault" title="Permalink to this heading">¶</a></h2>
+<p>Here we fetch the pain dataset used in <a class="reference external" href="http://journals.plos.org/plosbiology/article?id=10.1371/journal.pbio.1002180">Chang et al., 2015</a>
+from <a class="reference external" href="http://neurovault.org/collections/504/">neurovault</a>. In this dataset
+there are 28 subjects with 3 separate beta images reflecting varying intensities
+of thermal pain (i.e., high, medium, low).  The data will be downloaded to ~/nilearn_data,
+and automatically loaded as a Brain_Data() instance.  The image metadata will be stored in data.X.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nltools.datasets</span> <span class="kn">import</span> <span class="n">fetch_pain</span>
+
+<span class="n">data</span> <span class="o">=</span> <span class="n">fetch_pain</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Dataset created in /home/runner/nilearn_data/chang2015_pain
+
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_10_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_10_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_10_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_11_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_11_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_11_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_12_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_12_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_12_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_13_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_13_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_13_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_14_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_14_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_14_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_15_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_15_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_15_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_16_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_16_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_16_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_17_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_17_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_17_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_18_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_18_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_18_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_19_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_19_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_19_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_1_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_1_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_1_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_20_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_20_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_20_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_21_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_21_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_21_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_22_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_22_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_22_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_23_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_23_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_23_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_24_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_24_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_24_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_25_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_25_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_25_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_26_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_26_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_26_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_27_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_27_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_27_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_28_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_28_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_28_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_2_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_2_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_2_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_3_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_3_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_3_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_4_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_4_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_4_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_5_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_5_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_5_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_6_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_6_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_6_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_7_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_7_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_7_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_8_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_8_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_8_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_9_High.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_9_Low.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/504/Pain_Subject_9_Medium.nii.gz ...
+ ...done. (0 seconds, 0 min)
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/nilearn/maskers/nifti_masker.py:108: UserWarning: imgs are being resampled to the mask_img resolution. This process is memory intensive. You might want to provide a target_affine that is equal to the affine of the imgs or resample the mask beforehand to save memory and computation time.
+  warnings.warn(
+</pre></div>
+</div>
+</section>
+<section id="load-files">
+<h2>Load files<a class="headerlink" href="#load-files" title="Permalink to this heading">¶</a></h2>
+<p>Nifti images can be easily loaded simply by passing a string to a nifti file.
+Many images can be loaded together by passing a list of nifti files.
+For example, on linux or OSX systmes, the downloads from fetch_pain() will be
+stored in ~/nilearn_data.  We will load subject 1’s data.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># NOTES: Need to figure out how to get path to data working on rtd server</span>
+<span class="c1"># from nltools.data import Brain_Data</span>
+<span class="c1"># import glob</span>
+<span class="c1">#</span>
+<span class="c1"># sub1 = Brain_Data(glob.glob(&#39;~/nilearn_data/chang2015_pain/Pain_Subject_1*.nii.gz&#39;))</span>
+</pre></div>
+</div>
+</section>
+<section id="basic-brain-data-operations">
+<h2>Basic Brain_Data() Operations<a class="headerlink" href="#basic-brain-data-operations" title="Permalink to this heading">¶</a></h2>
+<p>Here are a few quick basic data operations.
+Find number of images in Brain_Data() instance</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>84
+</pre></div>
+</div>
+<p>Find the dimensions of the data.  images x voxels</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">())</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>(84, 238955)
+</pre></div>
+</div>
+<p>We can use any type of indexing to slice the data such as integers, lists
+of integers, or boolean.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">data</span><span class="p">[[</span><span class="mi">1</span><span class="p">,</span><span class="mi">6</span><span class="p">,</span><span class="mi">2</span><span class="p">]])</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>nltools.data.brain_data.Brain_Data(data=(3, 238955), Y=(0, 0), X=(3, 57), mask=MNI152_T1_2mm_brain_mask.nii.gz)
+</pre></div>
+</div>
+<p>Calculate the mean for every voxel over images</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">data</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>nltools.data.brain_data.Brain_Data(data=(238955,), Y=(0, 0), X=(0, 0), mask=MNI152_T1_2mm_brain_mask.nii.gz)
+</pre></div>
+</div>
+<p>Calculate the standard deviation for every voxel over images</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">data</span><span class="o">.</span><span class="n">std</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>nltools.data.brain_data.Brain_Data(data=(238955,), Y=(0, 0), X=(0, 0), mask=MNI152_T1_2mm_brain_mask.nii.gz)
+</pre></div>
+</div>
+<p>Methods can be chained.  Here we get the shape of the mean.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">shape</span><span class="p">())</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>(238955,)
+</pre></div>
+</div>
+<p>Brain_Data instances can be added and subtracted</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">new</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="n">data</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Brain_Data instances can be manipulated with basic arithmetic operations
+Here we add 10 to every voxel and scale by 2</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">data2</span> <span class="o">=</span> <span class="p">(</span><span class="n">data</span><span class="o">+</span><span class="mi">10</span><span class="p">)</span><span class="o">*</span><span class="mi">2</span>
+</pre></div>
+</div>
+<p>Brain_Data instances can be copied</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">new</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Brain_Data instances can be easily converted to nibabel instances, which
+store the data in a 3D/4D matrix.  This is useful for interfacing with other
+python toolboxes such as <a class="reference external" href="http://nilearn.github.io/">nilearn</a></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">data</span><span class="o">.</span><span class="n">to_nifti</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;nibabel.nifti1.Nifti1Image object at 0x7f377be289a0&gt;
+</pre></div>
+</div>
+<p>Brain_Data instances can be concatenated using the append method</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">new</span> <span class="o">=</span> <span class="n">new</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">4</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>Any Brain_Data object can be written out to a nifti file</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">data</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;Tmp_Data.nii.gz&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Images within a Brain_Data() instance are iterable.  Here we use a list
+comprehension to calculate the overall mean across all voxels within an
+image.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>[0.86061627, 0.5476546, 0.7457299, 0.25735068, -0.06096518, 0.08957473, -0.1356948, -0.5642196, -0.5352845, 0.23520215, 0.073372886, 0.011462674, 0.2969622, -0.28074002, -0.18138647, 0.08738991, 0.05743886, 0.019836975, -0.036790244, -0.1305875, -0.029930038, 0.105367, 0.02061516, 0.008520396, 0.3590906, 0.040400386, 0.2065466, 0.36504507, 0.029532516, -0.026943885, -0.10943584, -0.3174775, -0.21014933, 0.30044985, -0.056538206, 0.13816155, 0.21413556, -0.20611525, -0.08890725, 0.56508994, 0.24812311, 0.35720587, 0.15037484, 0.05586886, -0.061988655, 0.8838908, 0.33612254, 0.45791322, 0.13033451, -0.1309218, -0.007976429, 0.045336694, -0.038327135, -0.09149013, 0.113571614, -0.05455998, 0.007123048, 0.051181536, -0.027594494, 0.007650891, -0.061395787, -0.09653523, -0.06447013, -0.003625449, -0.027816378, -0.027183175, 0.020997265, -0.05787875, -0.07143228, 0.33068687, 0.077882566, 0.2516894, 0.19467102, 0.10458751, 0.12041345, 0.24733096, 0.057716135, 0.21319006, 0.28260896, -0.18303774, 0.07332882, -0.0004305779, -0.24120164, -0.1059538]
+</pre></div>
+</div>
+</section>
+<section id="basic-brain-data-plotting">
+<h2>Basic Brain_Data() Plotting<a class="headerlink" href="#basic-brain-data-plotting" title="Permalink to this heading">¶</a></h2>
+<p>There are multiple ways to plot data.  First, Brain_Data() instances can be
+converted to a nibabel instance and plotted using any plot method such as
+nilearn.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nilearn.plotting</span> <span class="kn">import</span> <span class="n">plot_glass_brain</span>
+
+<span class="n">plot_glass_brain</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">to_nifti</span><span class="p">())</span>
+</pre></div>
+</div>
+<img src="../../_images/sphx_glr_plot_download_001.png" srcset="../../_images/sphx_glr_plot_download_001.png" alt="plot download" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;nilearn.plotting.displays._projectors.OrthoProjector object at 0x7f377b451f40&gt;
+</pre></div>
+</div>
+<p>There is also a fast montage plotting method.  Here we plot the average image
+it will render a separate plot for each image.  There is a ‘limit’ flag
+which allows you to specify the maximum number of images to display.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">data</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+<img src="../../_images/sphx_glr_plot_download_002.png" srcset="../../_images/sphx_glr_plot_download_002.png" alt="plot download" class = "sphx-glr-single-img"/><p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (1 minutes 11.902 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-01-dataoperations-plot-download-py">
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../../_downloads/7db9ee3c22109a6548d624db6560d342/plot_download.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_download.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../../_downloads/c14456974247b0c35e1559d9a69e9efe/plot_download.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_download.ipynb</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+        <br/>
+        
+<div id="sourcelink">
+  <a href="../../_sources/auto_examples/01_DataOperations/plot_download.rst.txt"
+     rel="nofollow">Source</a>
+</div>
+      
+    </p>
+    <p>
+        &copy; Copyright 2023, Cosan Laboratory.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 7.1.2.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

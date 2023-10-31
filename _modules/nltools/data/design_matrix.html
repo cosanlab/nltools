@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>nltools.data.design_matrix &#8212; nltools 0.5.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/bootstrap-sphinx.css?v=45361654" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=61a4c737" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js?v=3fadbb4a"></script>
+    <script src="../../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=4825356b"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../../../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../../../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../../../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../../../_static/bootstrap-sphinx.js"></script>
+
+<!-- Google Analytics -->
+<script>
+  (function (i, s, o, g, r, a, m) {
+    i["GoogleAnalyticsObject"] = r;
+    (i[r] =
+      i[r] ||
+      function () {
+        (i[r].q = i[r].q || []).push(arguments);
+      }),
+      (i[r].l = 1 * new Date());
+    (a = s.createElement(o)), (m = s.getElementsByTagName(o)[0]);
+    a.async = 1;
+    a.src = g;
+    m.parentNode.insertBefore(a, m);
+  })(
+    window,
+    document,
+    "script",
+    "https://www.google-analytics.com/analytics.js",
+    "ga"
+  );
+
+  ga("create", "UA-138438649-1", "auto");
+  ga("send", "pageview");
+</script>
+<!-- End Google Analytics -->
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../../../index.html">
+          nltools</a>
+        <span class="navbar-text navbar-version pull-left"><b>0.5.0</b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="../../../install.html">Installation</a></li>
+                <li><a href="../../../api.html">API</a></li>
+                <li><a href="../../../auto_examples/index.html">Tutorials</a></li>
+                <li><a href="http://www.github.com/ljchang/nltools">Github</a></li>
+            
+            
+              <li class="dropdown globaltoc-container">
+  <a role="button"
+     id="dLabelGlobalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="../../../index.html">Site <b class="caret"></b></a>
+  <ul class="dropdown-menu globaltoc"
+      role="menu"
+      aria-labelledby="dLabelGlobalToc"></ul>
+</li>
+              
+                <li class="dropdown">
+  <a role="button"
+     id="dLabelLocalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="#">TOC <b class="caret"></b></a>
+  <ul class="dropdown-menu localtoc"
+      role="menu"
+      aria-labelledby="dLabelLocalToc"></ul>
+</li>
+              
+            
+            
+              
+                
+              
+            
+            
+            
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../../../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <h1>Source code for nltools.data.design_matrix</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">NeuroLearn Design Matrix</span>
+<span class="sd">========================</span>
+
+<span class="sd">Class for working with design matrices.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Eshin Jolly&quot;</span><span class="p">]</span>
+<span class="n">__license__</span> <span class="o">=</span> <span class="s2">&quot;MIT&quot;</span>
+
+<span class="kn">from</span> <span class="nn">pandas</span> <span class="kn">import</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">Series</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="kn">import</span> <span class="n">pearsonr</span>
+<span class="kn">from</span> <span class="nn">scipy.special</span> <span class="kn">import</span> <span class="n">legendre</span>
+<span class="kn">from</span> <span class="nn">..external.hrf</span> <span class="kn">import</span> <span class="n">glover_hrf</span>
+<span class="kn">from</span> <span class="nn">nltools.stats</span> <span class="kn">import</span> <span class="n">downsample</span><span class="p">,</span> <span class="n">upsample</span><span class="p">,</span> <span class="n">zscore</span><span class="p">,</span> <span class="n">make_cosine_basis</span>
+<span class="kn">from</span> <span class="nn">nltools.utils</span> <span class="kn">import</span> <span class="n">AmbiguityError</span>
+
+
+<span class="k">class</span> <span class="nc">Design_Matrix_Series</span><span class="p">(</span><span class="n">Series</span><span class="p">):</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is a sub-class of pandas series. While not having additional methods</span>
+<span class="sd">    of it&#39;s own required to retain normal slicing functionality for the</span>
+<span class="sd">    Design_Matrix class, i.e. how slicing is typically handled in pandas.</span>
+<span class="sd">    All methods should be called on Design_Matrix below.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">_constructor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Design_Matrix_Series</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">_constructor_expanddim</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Design_Matrix</span>
+
+
+<div class="viewcode-block" id="Design_Matrix"><a class="viewcode-back" href="../../../api.html#nltools.data.Design_Matrix">[docs]</a><span class="k">class</span> <span class="nc">Design_Matrix</span><span class="p">(</span><span class="n">DataFrame</span><span class="p">):</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Design_Matrix is a class to represent design matrices with special methods for data processing (e.g. convolution, upsampling, downsampling) and also intelligent and flexible and intelligent appending (e.g. auto-matically keep certain columns or polynomial terms separated during concatentation). It plays nicely with Brain_Data and can be used to build an experimental design to pass to Brain_Data&#39;s X attribute. It is essentially an enhanced pandas df, with extra attributes and methods. Methods always return a new design matrix instance (copy). Column names are always string types.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        sampling_freq (float): sampling rate of each row in hertz; To covert seconds to hertz (e.g. in the case of TRs for neuroimaging) using hertz = 1 / TR</span>
+<span class="sd">        convolved (list, optional): on what columns convolution has been performed; defaults to None</span>
+<span class="sd">        polys (list, optional): list of polynomial terms in design matrix, e.g. intercept, polynomial trends, basis functions, etc; default None</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_metadata</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;sampling_freq&quot;</span><span class="p">,</span> <span class="s2">&quot;convolved&quot;</span><span class="p">,</span> <span class="s2">&quot;polys&quot;</span><span class="p">,</span> <span class="s2">&quot;multi&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">sampling_freq</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;sampling_freq&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">convolved</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;convolved&quot;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="n">polys</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;polys&quot;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sampling_freq</span> <span class="o">=</span> <span class="n">sampling_freq</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">convolved</span> <span class="o">=</span> <span class="n">convolved</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">polys</span> <span class="o">=</span> <span class="n">polys</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">multi</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">Design_Matrix</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="c1"># Ensure that column names are string types to all methods work</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">elem</span><span class="p">)</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">_constructor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Design_Matrix</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">_constructor_sliced</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Design_Matrix_Series</span>
+
+    <span class="k">def</span> <span class="nf">_inherit_attributes</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">dm_out</span><span class="p">,</span> <span class="n">atts</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;sampling_freq&quot;</span><span class="p">,</span> <span class="s2">&quot;convolved&quot;</span><span class="p">,</span> <span class="s2">&quot;polys&quot;</span><span class="p">,</span> <span class="s2">&quot;multi&quot;</span><span class="p">]</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This is helper function that simply ensures that attributes are copied over from  the current Design_Matrix to a new Design_Matrix.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            dm_out (Design_Matrix): the new design matrix to copy attributes to</span>
+<span class="sd">            atts (list; optional): the list of attributes to copy</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dm_out (Design_matrix): new design matrix</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">atts</span><span class="p">:</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">dm_out</span><span class="p">,</span> <span class="n">item</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">dm_out</span>
+
+    <span class="k">def</span> <span class="nf">_sort_cols</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This is a helper function that tries to ensure that columns of a Design Matrix are sorted according to: a) those not separated during append operations, b) those separated during append operations, c) polynomials. Called primarily during vertical concatentation and cleaning.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data_cols</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">elem</span>
+            <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">elem</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()</span> <span class="ow">and</span> <span class="n">elem</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">polys</span>
+        <span class="p">]</span>
+        <span class="n">separated_cols</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">elem</span>
+            <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span>
+            <span class="k">if</span> <span class="n">elem</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()</span> <span class="ow">and</span> <span class="n">elem</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">polys</span>
+        <span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="n">data_cols</span> <span class="o">+</span> <span class="n">separated_cols</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">polys</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">details</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__module__</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(sampling_freq=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sampling_freq</span><span class="si">}</span><span class="s2"> (hz), shape=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">, multi=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">multi</span><span class="si">}</span><span class="s2">, convolved=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">convolved</span><span class="si">}</span><span class="s2">, polynomials=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">polys</span><span class="si">}</span><span class="s2">)&quot;</span>
+
+<div class="viewcode-block" id="Design_Matrix.append"><a class="viewcode-back" href="../../../api.html#nltools.data.Design_Matrix.append">[docs]</a>    <span class="k">def</span> <span class="nf">append</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">dm</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">keep_separate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">unique_cols</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fill_na</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Method for concatenating another design matrix row or column-wise. When concatenating row-wise, has the ability to keep certain columns separated if they exist in multiple design matrices (e.g. keeping separate intercepts for multiple runs). This is on by default and will automatically separate out polynomial columns (i.e. anything added with the `add_poly` or `add_dct_basis` methods). Additional columns can be separate by run using the `unique_cols` parameter. Can also add new polynomial terms during vertical concatentation (when axis == 0). This will by default create new polynomial terms separately for each design matrix</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            dm (Design_Matrix or list): design_matrix or list of design_matrices to append</span>
+<span class="sd">            axis (int): 0 for row-wise (vert-cat), 1 for column-wise (horz-cat); default 0</span>
+<span class="sd">            keep_separate (bool,optional): whether try and uniquify columns;</span>
+<span class="sd">                                        defaults to True; only applies</span>
+<span class="sd">                                        when axis==0</span>
+<span class="sd">            unique_cols (list,optional): what additional columns to try to keep</span>
+<span class="sd">                                        separated by uniquifying, only applies when</span>
+<span class="sd">                                        axis = 0; defaults to None</span>
+<span class="sd">            fill_na (str/int/float): if provided will fill NaNs with this value during row-wise appending (when axis = 0) if separate columns are desired; default 0</span>
+<span class="sd">            verbose (bool): print messages during append about how polynomials are going to be separated</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">to_append</span> <span class="o">=</span> <span class="p">[</span><span class="n">dm</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dm</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="k">else</span> <span class="n">dm</span><span class="p">[:]</span>
+        <span class="c1"># Check all items to be appended are Design Matrices and have the same sampling rate</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">)</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">to_append</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Each object to be appended must be a Design_Matrix!&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">sampling_freq</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">sampling_freq</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">to_append</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;All Design Matrices must have the same sampling frequency!&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">axis</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vertcat</span><span class="p">(</span>
+                <span class="n">to_append</span><span class="p">,</span>
+                <span class="n">keep_separate</span><span class="o">=</span><span class="n">keep_separate</span><span class="p">,</span>
+                <span class="n">unique_cols</span><span class="o">=</span><span class="n">unique_cols</span><span class="p">,</span>
+                <span class="n">fill_na</span><span class="o">=</span><span class="n">fill_na</span><span class="p">,</span>
+                <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">axis</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span>
+                <span class="ow">not</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="o">.</span><span class="n">isdisjoint</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">to_append</span>
+            <span class="p">):</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Duplicate column names detected. Will be repeated.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_horzcat</span><span class="p">(</span><span class="n">to_append</span><span class="p">,</span> <span class="n">fill_na</span><span class="o">=</span><span class="n">fill_na</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Axis must be 0 (row) or 1 (column)&quot;</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_horzcat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">to_append</span><span class="p">,</span> <span class="n">fill_na</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Used by .append(). Append another design matrix, column-wise</span>
+<span class="sd">        (horz cat). Always returns a new design_matrix.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">to_append</span><span class="p">):</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="bp">self</span><span class="p">]</span> <span class="o">+</span> <span class="n">to_append</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inherit_attributes</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">polys</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">polys</span><span class="p">[:]</span>
+            <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">to_append</span><span class="p">:</span>
+                <span class="n">out</span><span class="o">.</span><span class="n">polys</span> <span class="o">+=</span> <span class="n">elem</span><span class="o">.</span><span class="n">polys</span>
+            <span class="k">if</span> <span class="n">fill_na</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="n">fill_na</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;All Design Matrices must have the same number of rows!&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="k">def</span> <span class="nf">_vertcat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">,</span> <span class="n">keep_separate</span><span class="p">,</span> <span class="n">unique_cols</span><span class="p">,</span> <span class="n">fill_na</span><span class="p">,</span> <span class="n">verbose</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Used by .append(). Append another design matrix row-wise (vert cat).</span>
+<span class="sd">        Always returns a new design matrix.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># make a copy of the dms to append</span>
+        <span class="n">to_append</span> <span class="o">=</span> <span class="n">df</span><span class="p">[:]</span>
+        <span class="n">orig</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>  <span class="c1"># Make a copy of the original cause we might alter it</span>
+
+        <span class="c1"># In order to append while keeping things separated we&#39;re going to create a new list of dataframes to append with renamed columns</span>
+        <span class="n">modify_to_append</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">all_polys</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">cols_to_separate</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">all_separated</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="n">unique_cols</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">keep_separate</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;unique_cols provided but keep_separate set to False. Set keep_separate to True to separate unique_cols&quot;</span>
+                <span class="p">)</span>
+
+            <span class="c1"># 1) Make sure unique_cols are in original Design Matrix</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+                <span class="n">to_rename</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="n">unique_count</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">unique_cols</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">u</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">):</span>
+                        <span class="n">searchstr</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="k">elif</span> <span class="n">u</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">):</span>
+                        <span class="n">searchstr</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">searchstr</span> <span class="o">=</span> <span class="n">u</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">([</span><span class="n">searchstr</span> <span class="ow">in</span> <span class="n">elem</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span><span class="p">]):</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                            <span class="s2">&quot;&#39;</span><span class="si">{}</span><span class="s2">&#39; not present in any column name of original Design Matrix&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="n">searchstr</span>
+                            <span class="p">)</span>
+                        <span class="p">)</span>
+                    <span class="c1"># 2) Prepend them with a 0_ if this dm has never been appended to be for otherwise grab their current prepended index are and start a unique_cols counter</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">searchstr</span> <span class="ow">in</span> <span class="n">c</span><span class="p">:</span>
+                                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">multi</span> <span class="ow">and</span> <span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
+                                    <span class="n">count</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                                    <span class="n">unique_count</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">count</span><span class="p">))</span>
+                                <span class="k">else</span><span class="p">:</span>
+                                    <span class="n">new_name</span> <span class="o">=</span> <span class="s2">&quot;0_&quot;</span> <span class="o">+</span> <span class="n">c</span>
+                                    <span class="n">all_separated</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_name</span><span class="p">)</span>
+                                    <span class="n">to_rename</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_name</span>
+                                    <span class="n">all_separated</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_name</span><span class="p">)</span>
+                    <span class="n">cols_to_separate</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">searchstr</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">to_rename</span><span class="p">:</span>
+                    <span class="n">orig</span> <span class="o">=</span> <span class="n">orig</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">to_rename</span><span class="p">)</span>
+                    <span class="n">max_unique_count</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">max_unique_count</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">unique_count</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+
+        <span class="c1"># 3) Handle several different cases:</span>
+        <span class="c1"># a) original has no polys, dms to append do</span>
+        <span class="c1"># b) original has no polys, dms to append dont</span>
+        <span class="c1"># c) original has polys, dms to append do</span>
+        <span class="c1"># d) original has polys, dms to append dont</span>
+        <span class="c1"># Within each of these also keep a counter, update, and check for unique cols if needed</span>
+        <span class="c1"># This unique_col checking code is uglyly repeated in each conditional branch of a-d, but differs in subtle ways; probably could be cleaned up in a refactor</span>
+        <span class="k">if</span> <span class="n">keep_separate</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">polys</span><span class="p">):</span>
+                <span class="c1"># Self no polys; append has polys.</span>
+                <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">polys</span><span class="p">)</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">to_append</span><span class="p">]):</span>
+                    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span>
+                            <span class="s2">&quot;Keep separate requested but original Design Matrix has no polynomial terms but matrices to be appended do. Inherting appended Design Matrices&#39; polynomials...&quot;</span>
+                        <span class="p">)</span>
+                    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">dm</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">to_append</span><span class="p">):</span>
+                        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">dm</span><span class="o">.</span><span class="n">polys</span><span class="p">:</span>
+                            <span class="n">all_polys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+
+                        <span class="c1"># Handle renaming additional unique cols to keep separate</span>
+                        <span class="k">if</span> <span class="n">cols_to_separate</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                                <span class="nb">print</span><span class="p">(</span>
+                                    <span class="s2">&quot;Unique cols requested. Trying to keep </span><span class="si">{}</span><span class="s2"> separated&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                        <span class="n">cols_to_separate</span>
+                                    <span class="p">)</span>
+                                <span class="p">)</span>
+                            <span class="n">to_rename</span> <span class="o">=</span> <span class="p">{}</span>
+                            <span class="n">data_cols</span> <span class="o">=</span> <span class="n">dm</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">dm</span><span class="o">.</span><span class="n">polys</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">columns</span>
+                            <span class="nb">print</span><span class="p">(</span><span class="n">data_cols</span><span class="p">)</span>
+                            <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">cols_to_separate</span><span class="p">:</span>
+                                <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">data_cols</span><span class="p">:</span>
+                                    <span class="k">if</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">c</span><span class="p">:</span>
+                                        <span class="k">if</span> <span class="n">dm</span><span class="o">.</span><span class="n">multi</span><span class="p">:</span>
+                                            <span class="n">count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+                                            <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:])</span>
+                                            <span class="n">count</span> <span class="o">+=</span> <span class="n">max_unique_count</span> <span class="o">+</span> <span class="mi">1</span>
+                                            <span class="n">new_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">count</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">name</span>
+                                            <span class="n">to_rename</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_name</span>
+                                        <span class="k">else</span><span class="p">:</span>
+                                            <span class="n">new_name</span> <span class="o">=</span> <span class="p">(</span>
+                                                <span class="nb">str</span><span class="p">(</span><span class="n">max_unique_count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">c</span>
+                                            <span class="p">)</span>
+                                            <span class="n">to_rename</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_name</span>
+                                        <span class="n">all_separated</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_name</span><span class="p">)</span>
+                            <span class="n">modify_to_append</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dm</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">to_rename</span><span class="p">))</span>
+                            <span class="n">max_unique_count</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">modify_to_append</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dm</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Self no polys; append no polys</span>
+                    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span>
+                            <span class="s2">&quot;Keep separate requested but neither original Design Matrix nor matrices to be appended have any polynomial terms Ignoring...&quot;</span>
+                        <span class="p">)</span>
+                    <span class="c1"># Handle renaming additional unique cols to keep separate</span>
+                    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">dm</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">to_append</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="n">cols_to_separate</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                                <span class="nb">print</span><span class="p">(</span>
+                                    <span class="s2">&quot;Unique cols requested. Trying to keep </span><span class="si">{}</span><span class="s2"> separated&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                        <span class="n">cols_to_separate</span>
+                                    <span class="p">)</span>
+                                <span class="p">)</span>
+                            <span class="n">to_rename</span> <span class="o">=</span> <span class="p">{}</span>
+                            <span class="n">data_cols</span> <span class="o">=</span> <span class="n">dm</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">dm</span><span class="o">.</span><span class="n">polys</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">columns</span>
+                            <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">cols_to_separate</span><span class="p">:</span>
+                                <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">data_cols</span><span class="p">:</span>
+                                    <span class="k">if</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">c</span><span class="p">:</span>
+                                        <span class="k">if</span> <span class="n">dm</span><span class="o">.</span><span class="n">multi</span><span class="p">:</span>
+                                            <span class="n">count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+                                            <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:])</span>
+                                            <span class="n">count</span> <span class="o">+=</span> <span class="n">max_unique_count</span> <span class="o">+</span> <span class="mi">1</span>
+                                            <span class="n">new_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">count</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">name</span>
+                                            <span class="n">to_rename</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_name</span>
+                                        <span class="k">else</span><span class="p">:</span>
+                                            <span class="n">new_name</span> <span class="o">=</span> <span class="p">(</span>
+                                                <span class="nb">str</span><span class="p">(</span><span class="n">max_unique_count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">c</span>
+                                            <span class="p">)</span>
+                                            <span class="n">to_rename</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_name</span>
+                                        <span class="n">all_separated</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_name</span><span class="p">)</span>
+                            <span class="n">modify_to_append</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dm</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">to_rename</span><span class="p">))</span>
+                            <span class="n">max_unique_count</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">modify_to_append</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dm</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Self has polys; append has polys</span>
+                <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">polys</span><span class="p">)</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">to_append</span><span class="p">]):</span>
+                    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span>
+                            <span class="s2">&quot;Keep separate requested and both original Design Matrix and matrices to be appended have polynomial terms. Separating...&quot;</span>
+                        <span class="p">)</span>
+                    <span class="c1"># Get the unique polynomials that currently exist</span>
+                    <span class="c1"># [name, count/None, isRoot]</span>
+                    <span class="n">current_polys</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">polys</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                            <span class="n">isRoot</span> <span class="o">=</span> <span class="kc">False</span>
+                            <span class="n">pSplit</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)</span>
+                            <span class="n">pName</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">pSplit</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+                            <span class="n">pCount</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">pSplit</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">isRoot</span> <span class="o">=</span> <span class="kc">True</span>
+                            <span class="n">pName</span> <span class="o">=</span> <span class="n">p</span>
+                            <span class="n">pCount</span> <span class="o">=</span> <span class="mi">0</span>
+                        <span class="n">current_polys</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">pName</span><span class="p">,</span> <span class="n">pCount</span><span class="p">,</span> <span class="n">isRoot</span><span class="p">])</span>
+
+                    <span class="c1"># Mixed type numpy array to make things a little easier</span>
+                    <span class="n">current_polys</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">current_polys</span><span class="p">)</span><span class="o">.</span><span class="n">values</span>
+
+                    <span class="c1"># If current polynomials dont begin with a prepended numerical identifier, created one, e.g. 0_poly_1</span>
+                    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">current_polys</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]):</span>
+                        <span class="n">renamed_polys</span> <span class="o">=</span> <span class="p">{}</span>
+                        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">current_polys</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+                            <span class="n">renamed_polys</span><span class="p">[</span><span class="n">current_polys</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(</span>
+                                <span class="nb">str</span><span class="p">(</span><span class="n">current_polys</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">current_polys</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+                            <span class="p">)</span>
+                        <span class="n">orig</span> <span class="o">=</span> <span class="n">orig</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">renamed_polys</span><span class="p">)</span>
+                        <span class="n">all_polys</span> <span class="o">+=</span> <span class="nb">list</span><span class="p">(</span><span class="n">renamed_polys</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">all_polys</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">polys</span>
+
+                    <span class="n">current_poly_max</span> <span class="o">=</span> <span class="n">current_polys</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+
+                    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">dm</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">to_append</span><span class="p">):</span>
+                        <span class="n">to_rename</span> <span class="o">=</span> <span class="p">{}</span>
+                        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">dm</span><span class="o">.</span><span class="n">polys</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                                <span class="n">pSplit</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)</span>
+                                <span class="n">pName</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">pSplit</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+                                <span class="n">pCount</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">pSplit</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">+</span> <span class="n">current_poly_max</span> <span class="o">+</span> <span class="mi">1</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="n">pName</span> <span class="o">=</span> <span class="n">p</span>
+                                <span class="n">pCount</span> <span class="o">=</span> <span class="n">current_poly_max</span> <span class="o">+</span> <span class="mi">1</span>
+                            <span class="n">to_rename</span><span class="p">[</span><span class="n">p</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">pCount</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">pName</span>
+                        <span class="n">temp_dm</span> <span class="o">=</span> <span class="n">dm</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">to_rename</span><span class="p">)</span>
+                        <span class="n">current_poly_max</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="n">all_polys</span> <span class="o">+=</span> <span class="nb">list</span><span class="p">(</span><span class="n">to_rename</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+                        <span class="c1"># Handle renaming additional unique cols to keep separate</span>
+                        <span class="k">if</span> <span class="n">cols_to_separate</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                                <span class="nb">print</span><span class="p">(</span>
+                                    <span class="s2">&quot;Unique cols requested. Trying to keep </span><span class="si">{}</span><span class="s2"> separated&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                        <span class="n">cols_to_separate</span>
+                                    <span class="p">)</span>
+                                <span class="p">)</span>
+                            <span class="n">to_rename</span> <span class="o">=</span> <span class="p">{}</span>
+                            <span class="n">data_cols</span> <span class="o">=</span> <span class="n">dm</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">dm</span><span class="o">.</span><span class="n">polys</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">columns</span>
+                            <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">cols_to_separate</span><span class="p">:</span>
+                                <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">data_cols</span><span class="p">:</span>
+                                    <span class="k">if</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">c</span><span class="p">:</span>
+                                        <span class="k">if</span> <span class="n">dm</span><span class="o">.</span><span class="n">multi</span><span class="p">:</span>
+                                            <span class="n">count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+                                            <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:])</span>
+                                            <span class="n">count</span> <span class="o">+=</span> <span class="n">max_unique_count</span> <span class="o">+</span> <span class="mi">1</span>
+                                            <span class="n">new_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">count</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">name</span>
+                                            <span class="n">to_rename</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_name</span>
+                                        <span class="k">else</span><span class="p">:</span>
+                                            <span class="n">new_name</span> <span class="o">=</span> <span class="p">(</span>
+                                                <span class="nb">str</span><span class="p">(</span><span class="n">max_unique_count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">c</span>
+                                            <span class="p">)</span>
+                                            <span class="n">to_rename</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_name</span>
+                                        <span class="n">all_separated</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_name</span><span class="p">)</span>
+
+                            <span class="c1"># Combine renamed polynomials and renamed uniqu_cols</span>
+                            <span class="n">modify_to_append</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">temp_dm</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">to_rename</span><span class="p">))</span>
+                            <span class="n">max_unique_count</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">modify_to_append</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">temp_dm</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Self has polys; append no polys</span>
+                    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span>
+                            <span class="s2">&quot;Keep separate requested but only original Design Matrix has polynomial terms. Retaining original Design Matrix&#39;s polynomials only...&quot;</span>
+                        <span class="p">)</span>
+                    <span class="n">all_polys</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">polys</span>
+
+                    <span class="c1"># Handle renaming additional unique cols to keep separate</span>
+                    <span class="k">if</span> <span class="n">cols_to_separate</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                            <span class="nb">print</span><span class="p">(</span>
+                                <span class="s2">&quot;Unique cols requested. Trying to keep </span><span class="si">{}</span><span class="s2"> separated&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                    <span class="n">cols_to_separate</span>
+                                <span class="p">)</span>
+                            <span class="p">)</span>
+                        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">dm</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">to_append</span><span class="p">):</span>
+                            <span class="n">to_rename</span> <span class="o">=</span> <span class="p">{}</span>
+                            <span class="n">data_cols</span> <span class="o">=</span> <span class="n">dm</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">dm</span><span class="o">.</span><span class="n">polys</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">columns</span>
+                            <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">cols_to_separate</span><span class="p">:</span>
+                                <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">data_cols</span><span class="p">:</span>
+                                    <span class="k">if</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">c</span><span class="p">:</span>
+                                        <span class="k">if</span> <span class="n">dm</span><span class="o">.</span><span class="n">multi</span><span class="p">:</span>
+                                            <span class="n">count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+                                            <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:])</span>
+                                            <span class="n">count</span> <span class="o">+=</span> <span class="n">max_unique_count</span> <span class="o">+</span> <span class="mi">1</span>
+                                            <span class="n">new_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">count</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">name</span>
+                                            <span class="n">to_rename</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_name</span>
+                                        <span class="k">else</span><span class="p">:</span>
+                                            <span class="n">new_name</span> <span class="o">=</span> <span class="p">(</span>
+                                                <span class="nb">str</span><span class="p">(</span><span class="n">max_unique_count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">c</span>
+                                            <span class="p">)</span>
+                                            <span class="n">to_rename</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_name</span>
+                                        <span class="n">all_separated</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_name</span><span class="p">)</span>
+                        <span class="n">modify_to_append</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dm</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">to_rename</span><span class="p">))</span>
+                        <span class="n">max_unique_count</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">modify_to_append</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dm</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">modify_to_append</span> <span class="o">=</span> <span class="n">to_append</span>
+        <span class="c1"># Combine original dm with the updated/renamed dms to be appended</span>
+        <span class="n">all_dms</span> <span class="o">=</span> <span class="p">[</span><span class="n">orig</span><span class="p">]</span> <span class="o">+</span> <span class="n">modify_to_append</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">all_dms</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">fill_na</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="n">fill_na</span><span class="p">)</span>
+
+        <span class="n">out</span><span class="o">.</span><span class="n">sampling_freq</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sampling_freq</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">convolved</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">convolved</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">multi</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">polys</span> <span class="o">=</span> <span class="n">all_polys</span>
+
+        <span class="k">return</span> <span class="n">out</span><span class="o">.</span><span class="n">_sort_cols</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Design_Matrix.vif"><a class="viewcode-back" href="../../../api.html#nltools.data.Design_Matrix.vif">[docs]</a>    <span class="k">def</span> <span class="nf">vif</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exclude_polys</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compute variance inflation factor amongst columns of design matrix,ignoring</span>
+<span class="sd">        polynomial terms. Much faster that statsmodels and more reliable too. Uses the</span>
+<span class="sd">        same method as Matlab and R (diagonal elements of the inverted correlation</span>
+<span class="sd">        matrix).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            exclude_polys (bool): whether to skip checking of polynomial terms (i.e intercept, trends, basis functions); default True</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            vifs (list): list with length == number of columns - intercept</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Can&#39;t compute vif with only 1 column!&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">polys</span> <span class="ow">and</span> <span class="n">exclude_polys</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">polys</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Always drop intercept before computing VIF</span>
+            <span class="n">intercepts</span> <span class="o">=</span> <span class="p">[</span><span class="n">elem</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="s2">&quot;poly_0&quot;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">elem</span><span class="p">)]</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">intercepts</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">corr</span><span class="p">()),</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">LinAlgError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="s2">&quot;ERROR: Cannot compute vifs! Design Matrix is singular because it has some perfectly correlated or duplicated columns. Using .clean() method may help.&quot;</span>
+            <span class="p">)</span></div>
+
+<div class="viewcode-block" id="Design_Matrix.heatmap"><a class="viewcode-back" href="../../../api.html#nltools.data.Design_Matrix.heatmap">[docs]</a>    <span class="k">def</span> <span class="nf">heatmap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Visualize Design Matrix spm style. Use .plot() for typical pandas</span>
+<span class="sd">        plotting functionality. Can pass optional keyword args to seaborn</span>
+<span class="sd">        heatmap.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cmap</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;cmap&quot;</span><span class="p">,</span> <span class="s2">&quot;gray&quot;</span><span class="p">)</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">sns</span><span class="o">.</span><span class="n">heatmap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">,</span> <span class="n">cbar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">spine</span> <span class="ow">in</span> <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">spine</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">ax</span><span class="o">.</span><span class="n">get_yticklabels</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]:</span>
+                <span class="n">label</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">label</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">linewidth</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">(</span><span class="n">rotation</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Design_Matrix.convolve"><a class="viewcode-back" href="../../../api.html#nltools.data.Design_Matrix.convolve">[docs]</a>    <span class="k">def</span> <span class="nf">convolve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">conv_func</span><span class="o">=</span><span class="s2">&quot;hrf&quot;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform convolution using an arbitrary function.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            conv_func (ndarray or string): either a 1d numpy array containing output of a function that you want to convolve; a samples by kernel 2d array of several kernels to convolve; or the string &#39;hrf&#39; which defaults to a glover HRF function at the Design_matrix&#39;s sampling_freq</span>
+<span class="sd">            columns (list): what columns to perform convolution on; defaults</span>
+<span class="sd">                            to all non-polynomial columns</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sampling_freq</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Design_matrix has no sampling_freq set!&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">columns</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="n">col</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">col</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">polys</span><span class="p">]</span>
+        <span class="n">nonConvolved</span> <span class="o">=</span> <span class="p">[</span><span class="n">col</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">col</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">conv_func</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">conv_func</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;2d conv_func must be formatted as samplex X kernals!&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">conv_func</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">conv_func</span> <span class="o">!=</span> <span class="s2">&quot;hrf&quot;</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Did you mean &#39;hrf&#39;? &#39;hrf&#39; can generate a kernel for you, otherwise custom kernels should be passed in as 1d or 2d arrays.&quot;</span>
+                <span class="p">)</span>
+            <span class="n">conv_func</span> <span class="o">=</span> <span class="n">glover_hrf</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">sampling_freq</span><span class="p">,</span> <span class="n">oversampling</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="s2">&quot;conv_func must be a 1d or 2d numpy array organized as samples x kernels, or the string &#39;hrf&#39; for the canonical glover hrf&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">conv_func</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">conv_mats</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">conv_func</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="n">columns</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
+                    <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">convolve</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">conv_func</span><span class="p">[:,</span> <span class="n">i</span><span class="p">])[:</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+                <span class="p">)</span>
+                <span class="n">c</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">col</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_c&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">c</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+                <span class="n">conv_mats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">conv_mats</span> <span class="o">+</span> <span class="p">[</span><span class="bp">self</span><span class="p">[</span><span class="n">nonConvolved</span><span class="p">]],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="n">columns</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
+                <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">convolve</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">conv_func</span><span class="p">)[:</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+            <span class="p">)</span>
+            <span class="n">c</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">col</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_c0&quot;</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">c</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">c</span><span class="p">,</span> <span class="bp">self</span><span class="p">[</span><span class="n">nonConvolved</span><span class="p">]],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inherit_attributes</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">convolved</span> <span class="o">=</span> <span class="n">columns</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+<div class="viewcode-block" id="Design_Matrix.downsample"><a class="viewcode-back" href="../../../api.html#nltools.data.Design_Matrix.downsample">[docs]</a>    <span class="k">def</span> <span class="nf">downsample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Downsample columns of design matrix. Relies on nltools.stats.downsample, but ensures that returned object is a design matrix.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            target(float): desired frequency in hz</span>
+<span class="sd">            kwargs: additional inputs to nltools.stats.downsample</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">target</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">sampling_freq</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Target must be longer than current sampling rate&quot;</span><span class="p">)</span>
+
+        <span class="n">df</span> <span class="o">=</span> <span class="n">Design_Matrix</span><span class="p">(</span>
+            <span class="n">downsample</span><span class="p">(</span>
+                <span class="bp">self</span><span class="p">,</span>
+                <span class="n">sampling_freq</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sampling_freq</span><span class="p">,</span>
+                <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
+                <span class="n">target_type</span><span class="o">=</span><span class="s2">&quot;hz&quot;</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="c1"># convert df to a design matrix</span>
+        <span class="n">newMat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inherit_attributes</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+        <span class="n">newMat</span><span class="o">.</span><span class="n">sampling_freq</span> <span class="o">=</span> <span class="n">target</span>
+        <span class="k">return</span> <span class="n">newMat</span></div>
+
+<div class="viewcode-block" id="Design_Matrix.upsample"><a class="viewcode-back" href="../../../api.html#nltools.data.Design_Matrix.upsample">[docs]</a>    <span class="k">def</span> <span class="nf">upsample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Upsample columns of design matrix. Relies on nltools.stats.upsample, but ensures that returned object is a design matrix.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            target(float): desired frequence in hz</span>
+<span class="sd">            kwargs: additional inputs to nltools.stats.downsample</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">target</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">sampling_freq</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Target must be shorter than current sampling rate&quot;</span><span class="p">)</span>
+
+        <span class="n">df</span> <span class="o">=</span> <span class="n">Design_Matrix</span><span class="p">(</span>
+            <span class="n">upsample</span><span class="p">(</span>
+                <span class="bp">self</span><span class="p">,</span>
+                <span class="n">sampling_freq</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sampling_freq</span><span class="p">,</span>
+                <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
+                <span class="n">target_type</span><span class="o">=</span><span class="s2">&quot;hz&quot;</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="c1"># convert df to a design matrix</span>
+        <span class="n">newMat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inherit_attributes</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+        <span class="n">newMat</span><span class="o">.</span><span class="n">sampling_freq</span> <span class="o">=</span> <span class="n">target</span>
+        <span class="k">return</span> <span class="n">newMat</span></div>
+
+<div class="viewcode-block" id="Design_Matrix.zscore"><a class="viewcode-back" href="../../../api.html#nltools.data.Design_Matrix.zscore">[docs]</a>    <span class="k">def</span> <span class="nf">zscore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[]):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Z-score specific columns of design matrix. Relies on nltools.stats.downsample, but ensures that returned object is a design matrix.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            columns (list): columns to z-score; defaults to all columns</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">colOrder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">list</span><span class="p">(</span><span class="n">columns</span><span class="p">):</span>
+            <span class="n">columns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span>
+        <span class="n">nonZ</span> <span class="o">=</span> <span class="p">[</span><span class="n">col</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">col</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">]</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">zscore</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="n">columns</span><span class="p">])</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df</span><span class="p">,</span> <span class="bp">self</span><span class="p">[</span><span class="n">nonZ</span><span class="p">]],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">colOrder</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inherit_attributes</span><span class="p">(</span><span class="n">df</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Design_Matrix.add_poly"><a class="viewcode-back" href="../../../api.html#nltools.data.Design_Matrix.add_poly">[docs]</a>    <span class="k">def</span> <span class="nf">add_poly</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">include_lower</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add nth order Legendre polynomial terms as columns to design matrix. Good for adding constant/intercept to model (order = 0) and accounting for slow-frequency nuisance artifacts e.g. linear, quadratic, etc drifts. Care is recommended when using this with `.add_dct_basis()` as some columns will be highly correlated.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            order (int): what order terms to add; 0 = constant/intercept</span>
+<span class="sd">                        (default), 1 = linear, 2 = quadratic, etc</span>
+<span class="sd">            include_lower: (bool) whether to add lower order terms if order &gt; 0</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">order</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Order must be 0 or greater&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">polys</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">polys</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">AmbiguityError</span><span class="p">(</span>
+                <span class="s2">&quot;It appears that this Design Matrix contains polynomial terms that were kept seperate from a previous append operation. This makes it ambiguous for adding polynomials terms. Try calling .add_poly() on each separate Design Matrix before appending them instead.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">polyDict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># Normal/canonical legendre polynomials on the range -1,1 but with size defined by number of observations; keeps all polynomials on similar scales (i.e. big polys don&#39;t blow up) and betas are better behaved</span>
+        <span class="n">norm_order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="s2">&quot;poly_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">order</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">polys</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="s2">&quot;Design Matrix already has </span><span class="si">{}</span><span class="s2">th order polynomial...skipping&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">order</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span>
+
+        <span class="k">if</span> <span class="n">include_lower</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">order</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="k">if</span> <span class="s2">&quot;poly_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">polys</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span>
+                        <span class="s2">&quot;Design Matrix already has </span><span class="si">{}</span><span class="s2">th order polynomial...skipping&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">i</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">polyDict</span><span class="p">[</span><span class="s2">&quot;poly_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span> <span class="o">=</span> <span class="n">legendre</span><span class="p">(</span><span class="n">i</span><span class="p">)(</span><span class="n">norm_order</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">polyDict</span><span class="p">[</span><span class="s2">&quot;poly_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">order</span><span class="p">)]</span> <span class="o">=</span> <span class="n">legendre</span><span class="p">(</span><span class="n">order</span><span class="p">)(</span><span class="n">norm_order</span><span class="p">)</span>
+
+        <span class="n">toAdd</span> <span class="o">=</span> <span class="n">Design_Matrix</span><span class="p">(</span><span class="n">polyDict</span><span class="p">,</span> <span class="n">sampling_freq</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sampling_freq</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">toAdd</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">out</span><span class="o">.</span><span class="n">polys</span><span class="p">:</span>
+            <span class="n">new_polys</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">polys</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">polyDict</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">polys</span> <span class="o">=</span> <span class="n">new_polys</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">polys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">polyDict</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+<div class="viewcode-block" id="Design_Matrix.add_dct_basis"><a class="viewcode-back" href="../../../api.html#nltools.data.Design_Matrix.add_dct_basis">[docs]</a>    <span class="k">def</span> <span class="nf">add_dct_basis</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="mi">180</span><span class="p">,</span> <span class="n">drop</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Adds unit scaled cosine basis functions to Design_Matrix columns,</span>
+<span class="sd">        based on spm-style discrete cosine transform for use in</span>
+<span class="sd">        high-pass filtering. Does not add intercept/constant. Care is recommended if using this along with `.add_poly()`, as some columns will be highly-correlated.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            duration (int): length of filter in seconds</span>
+<span class="sd">            drop (int): index of which early/slow bases to drop if any; will always drop constant (i.e. intercept) like SPM. Unlike SPM, retains first basis (i.e. linear/sigmoidal). Will cumulatively drop bases up to and inclusive of index provided (e.g. 2, drops bases 1 and 2); default None</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sampling_freq</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Design_Matrix has no sampling_freq set!&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">polys</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span>
+            <span class="n">elem</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span> <span class="ow">and</span> <span class="s2">&quot;cosine&quot;</span> <span class="ow">in</span> <span class="n">elem</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">polys</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="n">AmbiguityError</span><span class="p">(</span>
+                <span class="s2">&quot;It appears that this Design Matrix contains cosine bases that were kept seperate from a previous append operation. This makes it ambiguous for adding polynomials terms. Try calling .add_dct_basis() on each separate Design Matrix before appending them instead.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">basis_mat</span> <span class="o">=</span> <span class="n">make_cosine_basis</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">sampling_freq</span><span class="p">,</span> <span class="n">duration</span><span class="p">,</span> <span class="n">drop</span><span class="o">=</span><span class="n">drop</span>
+        <span class="p">)</span>
+
+        <span class="n">basis_frame</span> <span class="o">=</span> <span class="n">Design_Matrix</span><span class="p">(</span>
+            <span class="n">basis_mat</span><span class="p">,</span>
+            <span class="n">sampling_freq</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sampling_freq</span><span class="p">,</span>
+            <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">elem</span><span class="p">)</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">basis_mat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])],</span>
+        <span class="p">)</span>
+
+        <span class="n">basis_frame</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s2">&quot;cosine_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">basis_frame</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="p">]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">polys</span><span class="p">:</span>
+            <span class="c1"># Only add those we don&#39;t already have</span>
+            <span class="n">basis_to_add</span> <span class="o">=</span> <span class="p">[</span><span class="n">b</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">basis_frame</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">b</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">polys</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">basis_to_add</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">basis_frame</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">basis_to_add</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;All basis functions already exist...skipping&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">basis_to_add</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">basis_frame</span><span class="o">.</span><span class="n">columns</span><span class="p">):</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Some basis functions already exist...skipping&quot;</span><span class="p">)</span>
+            <span class="n">basis_frame</span> <span class="o">=</span> <span class="n">basis_frame</span><span class="p">[</span><span class="n">basis_to_add</span><span class="p">]</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">basis_frame</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">new_polys</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">polys</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">basis_frame</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">polys</span> <span class="o">=</span> <span class="n">new_polys</span>
+            <span class="k">return</span> <span class="n">out</span></div>
+
+<div class="viewcode-block" id="Design_Matrix.replace_data"><a class="viewcode-back" href="../../../api.html#nltools.data.Design_Matrix.replace_data">[docs]</a>    <span class="k">def</span> <span class="nf">replace_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">column_names</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convenient method to replace all data in Design_Matrix with new data while keeping attributes and polynomial columns untouched.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            columns_names (list): list of columns names for new data</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span>
+        <span class="p">):</span>
+            <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="n">Design_Matrix</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">column_names</span><span class="p">)</span>
+                <span class="n">polys</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">polys</span><span class="p">]</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">out</span><span class="p">,</span> <span class="n">polys</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inherit_attributes</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">out</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;New data cannot change the number of rows&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="s2">&quot;New data must be numpy array, pandas DataFrame or python dictionary type&quot;</span>
+            <span class="p">)</span></div>
+
+<div class="viewcode-block" id="Design_Matrix.clean"><a class="viewcode-back" href="../../../api.html#nltools.data.Design_Matrix.clean">[docs]</a>    <span class="k">def</span> <span class="nf">clean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fill_na</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">exclude_polys</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">thresh</span><span class="o">=</span><span class="mf">0.95</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method to fill NaNs in Design Matrix and remove duplicate columns based on data values, NOT names. Columns are dropped if they are correlated &gt;= the requested threshold (default = .95). In this case, only the first instance of that column will be retained and all others will be dropped.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            fill_na (str/int/float): value to fill NaNs with set to None to retain NaNs; default 0</span>
+<span class="sd">            exclude_polys (bool): whether to skip checking of polynomial terms (i.e. intercept, trends, basis functions); default False</span>
+<span class="sd">            thresh (float): correlation threshold to use to drop redundant columns; default .95</span>
+<span class="sd">            verbose (bool): print what column names were dropped; default True</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Temporarily turn off warnings for correlations</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">duplicated</span><span class="p">()):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Duplicate columns names detected. Using .clean() with duplicate columns is not supported as it can produce unexpected results&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">old_settings</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">seterr</span><span class="p">(</span><span class="nb">all</span><span class="o">=</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">fill_na</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="n">fill_na</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">exclude_polys</span><span class="p">:</span>
+            <span class="n">data_cols</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">c</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">polys</span><span class="p">]</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="n">data_cols</span><span class="p">]</span>
+
+        <span class="n">keep</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">remove</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">out</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">c2</span> <span class="ow">in</span> <span class="n">out</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="o">!=</span> <span class="n">j</span><span class="p">:</span>
+                    <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">pearsonr</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">c2</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">r</span> <span class="o">&gt;=</span> <span class="n">thresh</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">j</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">keep</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">j</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">remove</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                            <span class="nb">print</span><span class="p">(</span>
+                                <span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> and </span><span class="si">{}</span><span class="s2"> correlated at </span><span class="si">{}</span><span class="s2"> which is &gt;= threshold of </span><span class="si">{}</span><span class="s2">. Dropping </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                    <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">thresh</span><span class="p">,</span> <span class="n">j</span>
+                                <span class="p">)</span>
+                            <span class="p">)</span>
+                        <span class="n">keep</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+                        <span class="n">remove</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">j</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">remove</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">remove</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">polys</span> <span class="o">=</span> <span class="p">[</span><span class="n">elem</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">out</span><span class="o">.</span><span class="n">polys</span> <span class="k">if</span> <span class="n">elem</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">remove</span><span class="p">]</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">_sort_cols</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">out</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Removing </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">remove</span><span class="p">)</span><span class="si">}</span><span class="s2"> cols has somehow made the design matrix LARGER or failed to change it&#39;s shape. Previously had </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2"> columns and now has </span><span class="si">{</span><span class="n">out</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2"> columns. This usually happens if you had duplicate column names prior to calling clean!&quot;</span>
+                <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Dropping columns not needed...skipping&quot;</span><span class="p">)</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">seterr</span><span class="p">(</span><span class="o">**</span><span class="n">old_settings</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span></div></div>
+</pre></div>
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+        <br/>
+        
+      
+    </p>
+    <p>
+        &copy; Copyright 2023, Cosan Laboratory.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 7.1.2.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Brain resolution and MNI Template Preferences &#8212; nltools 0.5.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../_static/bootstrap-sphinx.css?v=45361654" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=61a4c737" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js?v=3fadbb4a"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=4825356b"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../../_static/bootstrap-sphinx.js"></script>
+
+<!-- Google Analytics -->
+<script>
+  (function (i, s, o, g, r, a, m) {
+    i["GoogleAnalyticsObject"] = r;
+    (i[r] =
+      i[r] ||
+      function () {
+        (i[r].q = i[r].q || []).push(arguments);
+      }),
+      (i[r].l = 1 * new Date());
+    (a = s.createElement(o)), (m = s.getElementsByTagName(o)[0]);
+    a.async = 1;
+    a.src = g;
+    m.parentNode.insertBefore(a, m);
+  })(
+    window,
+    document,
+    "script",
+    "https://www.google-analytics.com/analytics.js",
+    "ga"
+  );
+
+  ga("create", "UA-138438649-1", "auto");
+  ga("send", "pageview");
+</script>
+<!-- End Google Analytics -->
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../../index.html">
+          nltools</a>
+        <span class="navbar-text navbar-version pull-left"><b>0.5.0</b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="../../install.html">Installation</a></li>
+                <li><a href="../../api.html">API</a></li>
+                <li><a href="../index.html">Tutorials</a></li>
+                <li><a href="http://www.github.com/ljchang/nltools">Github</a></li>
+            
+            
+              <li class="dropdown globaltoc-container">
+  <a role="button"
+     id="dLabelGlobalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="../../index.html">Site <b class="caret"></b></a>
+  <ul class="dropdown-menu globaltoc"
+      role="menu"
+      aria-labelledby="dLabelGlobalToc"></ul>
+</li>
+              
+                <li class="dropdown">
+  <a role="button"
+     id="dLabelLocalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="#">TOC <b class="caret"></b></a>
+  <ul class="dropdown-menu localtoc"
+      role="menu"
+      aria-labelledby="dLabelLocalToc"><ul>
+<li><a class="reference internal" href="#">Brain resolution and MNI Template Preferences</a><ul>
+<li><a class="reference internal" href="#setting-global-mni-template-preferences">Setting GLOBAL MNI template preferences</a></li>
+<li><a class="reference internal" href="#setting-local-resolution-preferences">Setting local resolution preferences</a></li>
+</ul>
+</li>
+</ul>
+</ul>
+</li>
+              
+            
+            
+              
+                
+              
+            
+            
+            
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-examples-01-dataoperations-plot-mni-prefs-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code</p>
+</div>
+<section class="sphx-glr-example-title" id="brain-resolution-and-mni-template-preferences">
+<span id="sphx-glr-auto-examples-01-dataoperations-plot-mni-prefs-py"></span><h1>Brain resolution and MNI Template Preferences<a class="headerlink" href="#brain-resolution-and-mni-template-preferences" title="Permalink to this heading">¶</a></h1>
+<p>By default nltools uses a 2mm MNI template which means all <cite>Brain_Data</cite> operations will automatically be resampled to that space if they aren’t already at that resolution. If you know you want to work in another space you can set that for all operations using the prefs module:</p>
+<section id="setting-global-mni-template-preferences">
+<h2>Setting GLOBAL MNI template preferences<a class="headerlink" href="#setting-global-mni-template-preferences" title="Permalink to this heading">¶</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nltools.prefs</span> <span class="kn">import</span> <span class="n">MNI_Template</span><span class="p">,</span> <span class="n">resolve_mni_path</span>
+<span class="kn">from</span> <span class="nn">nltools.data</span> <span class="kn">import</span> <span class="n">Brain_Data</span>
+<span class="kn">from</span> <span class="nn">nltools.simulator</span> <span class="kn">import</span> <span class="n">Simulator</span>  <span class="c1"># just for dummy data</span>
+</pre></div>
+</div>
+<p>Here we create some dummy data. Notice that it defaults to 2mm resolution. You can verify this by seeing that the voxel count is approximately 240k:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dummy_brain</span> <span class="o">=</span> <span class="n">Simulator</span><span class="p">()</span><span class="o">.</span><span class="n">create_data</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="mi">1</span><span class="p">,</span> <span class="n">reps</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="n">dummy_brain</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;dummy_2mm_brain.nii.gz&quot;</span><span class="p">)</span>  <span class="c1"># save it for later</span>
+<span class="n">dummy_brain</span>  <span class="c1"># default 2mm resolution</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>nltools.data.brain_data.Brain_Data(data=(6, 238955), Y=(6, 1), X=(0, 0), mask=MNI152_T1_2mm_brain_mask.nii.gz)
+</pre></div>
+</div>
+<p>You can also get the exact file locations of the currently loaded default template and masks:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">resolve_mni_path</span><span class="p">(</span><span class="n">MNI_Template</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>{&#39;resolution&#39;: &#39;2mm&#39;, &#39;mask_type&#39;: &#39;with_ventricles&#39;, &#39;mask&#39;: &#39;/home/runner/work/nltools/nltools/nltools/resources/MNI152_T1_2mm_brain_mask.nii.gz&#39;, &#39;plot&#39;: &#39;/home/runner/work/nltools/nltools/nltools/resources/MNI152_T1_2mm.nii.gz&#39;, &#39;brain&#39;: &#39;/home/runner/work/nltools/nltools/nltools/resources/MNI152_T1_2mm_brain.nii.gz&#39;}
+</pre></div>
+</div>
+<p>To update this simply change the resolution attribute of the MNI_Template. NOTE: that this will change <strong>all</strong> subsequent Brain_Data operations to utilize this new space. Therefore we <strong>highly recommend</strong> doing this at the top of any analysis notebook or script you use to prevent unexpected results</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">MNI_Template</span><span class="o">.</span><span class="n">resolution</span> <span class="o">=</span> <span class="mi">3</span>  <span class="c1"># passing the string &#39;3mm&#39; also works</span>
+<span class="n">dummy_brain_3mm</span> <span class="o">=</span> <span class="n">Simulator</span><span class="p">()</span><span class="o">.</span><span class="n">create_data</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="mi">1</span><span class="p">,</span> <span class="n">reps</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="n">dummy_brain_3mm</span>  <span class="c1"># should be 3mm</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>nltools.data.brain_data.Brain_Data(data=(6, 71020), Y=(6, 1), X=(0, 0), mask=MNI152_T1_3mm_brain_mask.nii.gz)
+</pre></div>
+</div>
+<p>The voxel count is now ~70k and you can see the file paths of the global template:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">resolve_mni_path</span><span class="p">(</span><span class="n">MNI_Template</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>{&#39;resolution&#39;: &#39;3mm&#39;, &#39;mask_type&#39;: &#39;with_ventricles&#39;, &#39;mask&#39;: &#39;/home/runner/work/nltools/nltools/nltools/resources/MNI152_T1_3mm_brain_mask.nii.gz&#39;, &#39;plot&#39;: &#39;/home/runner/work/nltools/nltools/nltools/resources/MNI152_T1_3mm.nii.gz&#39;, &#39;brain&#39;: &#39;/home/runner/work/nltools/nltools/nltools/resources/MNI152_T1_3mm_brain.nii.gz&#39;}
+</pre></div>
+</div>
+<p>Notice that when we load we load the previous 2mm brain, it’s <strong>automatically</strong> resampled to the currently set default MNI template (3mm):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">loaded_brain</span> <span class="o">=</span> <span class="n">Brain_Data</span><span class="p">(</span><span class="s2">&quot;dummy_2mm_brain.nii.gz&quot;</span><span class="p">)</span>
+<span class="n">loaded_brain</span>  <span class="c1"># now in 3mm space!</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/nilearn/maskers/nifti_masker.py:108: UserWarning: imgs are being resampled to the mask_img resolution. This process is memory intensive. You might want to provide a target_affine that is equal to the affine of the imgs or resample the mask beforehand to save memory and computation time.
+  warnings.warn(
+
+nltools.data.brain_data.Brain_Data(data=(6, 71020), Y=(0, 0), X=(0, 0), mask=MNI152_T1_3mm_brain_mask.nii.gz)
+</pre></div>
+</div>
+</section>
+<section id="setting-local-resolution-preferences">
+<h2>Setting local resolution preferences<a class="headerlink" href="#setting-local-resolution-preferences" title="Permalink to this heading">¶</a></h2>
+<p>If you want to override the global setting on a case-by-case basis, simply use the <cite>mask</cite> argument in <cite>Brain_Data</cite>. This will resample data to the resolution of the <cite>mask</cite> ignoring whatever <cite>MNI_Template</cite> is set to:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Here we save the 3mm path as a variable, but in your own data you can provide</span>
+<span class="c1"># the location of any nifti file</span>
+<span class="n">mask_file_3mm</span> <span class="o">=</span> <span class="n">resolve_mni_path</span><span class="p">(</span><span class="n">MNI_Template</span><span class="p">)[</span><span class="s2">&quot;mask&quot;</span><span class="p">]</span>
+
+<span class="n">MNI_Template</span><span class="o">.</span><span class="n">resolution</span> <span class="o">=</span> <span class="mi">2</span>  <span class="c1"># reset the global MNI template to 2mm</span>
+<span class="n">load_using_default</span> <span class="o">=</span> <span class="n">Brain_Data</span><span class="p">(</span><span class="s2">&quot;dummy_2mm_brain.nii.gz&quot;</span><span class="p">)</span>
+<span class="n">load_using_default</span>  <span class="c1"># 2mm space</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>nltools.data.brain_data.Brain_Data(data=(6, 238955), Y=(0, 0), X=(0, 0), mask=MNI152_T1_2mm_brain_mask.nii.gz)
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">load_using_3mm_mask</span> <span class="o">=</span> <span class="n">Brain_Data</span><span class="p">(</span><span class="s2">&quot;dummy_2mm_brain.nii.gz&quot;</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask_file_3mm</span><span class="p">)</span>
+<span class="n">load_using_3mm_mask</span>  <span class="c1"># resampled to 3mm space because a mask was provided</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/nilearn/maskers/nifti_masker.py:108: UserWarning: imgs are being resampled to the mask_img resolution. This process is memory intensive. You might want to provide a target_affine that is equal to the affine of the imgs or resample the mask beforehand to save memory and computation time.
+  warnings.warn(
+
+nltools.data.brain_data.Brain_Data(data=(6, 71020), Y=(0, 0), X=(0, 0), mask=MNI152_T1_3mm_brain_mask.nii.gz)
+</pre></div>
+</div>
+<p>Notice that the global setting is still 2mm, but by providing a <cite>mask</cite> we were able to override it</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">resolve_mni_path</span><span class="p">(</span><span class="n">MNI_Template</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>{&#39;resolution&#39;: &#39;2mm&#39;, &#39;mask_type&#39;: &#39;with_ventricles&#39;, &#39;mask&#39;: &#39;/home/runner/work/nltools/nltools/nltools/resources/MNI152_T1_2mm_brain_mask.nii.gz&#39;, &#39;plot&#39;: &#39;/home/runner/work/nltools/nltools/nltools/resources/MNI152_T1_2mm.nii.gz&#39;, &#39;brain&#39;: &#39;/home/runner/work/nltools/nltools/nltools/resources/MNI152_T1_2mm_brain.nii.gz&#39;}
+</pre></div>
+</div>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 9.992 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-01-dataoperations-plot-mni-prefs-py">
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../../_downloads/5d45c34a6c46be43d3ba8459f82a82fd/plot_mni_prefs.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_mni_prefs.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../../_downloads/b281fd17df21fdab00c368101eecae92/plot_mni_prefs.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_mni_prefs.ipynb</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+        <br/>
+        
+<div id="sourcelink">
+  <a href="../../_sources/auto_examples/01_DataOperations/plot_mni_prefs.rst.txt"
+     rel="nofollow">Source</a>
+</div>
+      
+    </p>
+    <p>
+        &copy; Copyright 2023, Cosan Laboratory.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 7.1.2.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

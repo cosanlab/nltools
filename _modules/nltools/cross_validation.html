@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>nltools.cross_validation &#8212; nltools 0.5.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../_static/bootstrap-sphinx.css?v=45361654" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=61a4c737" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js?v=3fadbb4a"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=4825356b"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../../_static/bootstrap-sphinx.js"></script>
+
+<!-- Google Analytics -->
+<script>
+  (function (i, s, o, g, r, a, m) {
+    i["GoogleAnalyticsObject"] = r;
+    (i[r] =
+      i[r] ||
+      function () {
+        (i[r].q = i[r].q || []).push(arguments);
+      }),
+      (i[r].l = 1 * new Date());
+    (a = s.createElement(o)), (m = s.getElementsByTagName(o)[0]);
+    a.async = 1;
+    a.src = g;
+    m.parentNode.insertBefore(a, m);
+  })(
+    window,
+    document,
+    "script",
+    "https://www.google-analytics.com/analytics.js",
+    "ga"
+  );
+
+  ga("create", "UA-138438649-1", "auto");
+  ga("send", "pageview");
+</script>
+<!-- End Google Analytics -->
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../../index.html">
+          nltools</a>
+        <span class="navbar-text navbar-version pull-left"><b>0.5.0</b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="../../install.html">Installation</a></li>
+                <li><a href="../../api.html">API</a></li>
+                <li><a href="../../auto_examples/index.html">Tutorials</a></li>
+                <li><a href="http://www.github.com/ljchang/nltools">Github</a></li>
+            
+            
+              <li class="dropdown globaltoc-container">
+  <a role="button"
+     id="dLabelGlobalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="../../index.html">Site <b class="caret"></b></a>
+  <ul class="dropdown-menu globaltoc"
+      role="menu"
+      aria-labelledby="dLabelGlobalToc"></ul>
+</li>
+              
+                <li class="dropdown">
+  <a role="button"
+     id="dLabelLocalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="#">TOC <b class="caret"></b></a>
+  <ul class="dropdown-menu localtoc"
+      role="menu"
+      aria-labelledby="dLabelLocalToc"></ul>
+</li>
+              
+            
+            
+              
+                
+              
+            
+            
+            
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <h1>Source code for nltools.cross_validation</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Cross-Validation Data Classes</span>
+<span class="sd">=============================</span>
+
+<span class="sd">Scikit-learn compatible classes for performing various</span>
+<span class="sd">types of cross-validation</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;KFoldStratified&quot;</span><span class="p">,</span> <span class="s2">&quot;set_cv&quot;</span><span class="p">]</span>
+<span class="n">__author__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Luke Chang&quot;</span><span class="p">]</span>
+<span class="n">__license__</span> <span class="o">=</span> <span class="s2">&quot;MIT&quot;</span>
+
+<span class="kn">from</span> <span class="nn">sklearn.model_selection._split</span> <span class="kn">import</span> <span class="n">_BaseKFold</span>
+<span class="kn">from</span> <span class="nn">sklearn.utils.validation</span> <span class="kn">import</span> <span class="n">check_array</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+
+<div class="viewcode-block" id="KFoldStratified"><a class="viewcode-back" href="../../api.html#nltools.cross_validation.KFoldStratified">[docs]</a><span class="k">class</span> <span class="nc">KFoldStratified</span><span class="p">(</span><span class="n">_BaseKFold</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;K-Folds cross validation iterator which stratifies continuous data</span>
+<span class="sd">    (unlike scikit-learn equivalent).</span>
+
+<span class="sd">    Provides train/test indices to split data in train test sets. Split</span>
+<span class="sd">    dataset into k consecutive folds while ensuring that same subject is</span>
+<span class="sd">    held out within each fold.  Each fold is then used a validation set</span>
+<span class="sd">    once while the k - 1 remaining folds form the training set.</span>
+<span class="sd">    Extension of KFold from scikit-learn cross_validation model</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        n_splits: int, default=3</span>
+<span class="sd">            Number of folds. Must be at least 2.</span>
+<span class="sd">        shuffle: boolean, optional</span>
+<span class="sd">            Whether to shuffle the data before splitting into batches.</span>
+<span class="sd">        random_state: None, int or RandomState</span>
+<span class="sd">            Pseudo-random number generator state used for random</span>
+<span class="sd">            sampling. If None, use default numpy RNG for shuffling</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_splits</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">KFoldStratified</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">n_splits</span><span class="o">=</span><span class="n">n_splits</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="n">shuffle</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_make_test_folds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">groups</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="n">y_sort</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">test_folds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y_sort</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_splits</span><span class="p">):</span>
+            <span class="n">test_idx</span> <span class="o">=</span> <span class="n">y_sort</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">y_sort</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_splits</span><span class="p">)]</span>
+            <span class="n">test_folds</span><span class="p">[</span><span class="n">y_sort</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">test_idx</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">k</span>
+        <span class="k">return</span> <span class="n">test_folds</span>
+
+    <span class="k">def</span> <span class="nf">_iter_test_masks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">groups</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">test_folds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_test_folds</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_splits</span><span class="p">):</span>
+            <span class="k">yield</span> <span class="n">test_folds</span> <span class="o">==</span> <span class="n">i</span>
+
+<div class="viewcode-block" id="KFoldStratified.split"><a class="viewcode-back" href="../../api.html#nltools.cross_validation.KFoldStratified.split">[docs]</a>    <span class="k">def</span> <span class="nf">split</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">groups</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate indices to split data into training and test set.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            X : array-like, shape (n_samples, n_features)</span>
+<span class="sd">                Training data, where n_samples is the number of samples</span>
+<span class="sd">                and n_features is the number of features.</span>
+<span class="sd">                Note that providing ``y`` is sufficient to generate the splits</span>
+<span class="sd">                and hence ``np.zeros(n_samples)`` may be used as a placeholder</span>
+<span class="sd">                for ``X`` instead of actual training data.</span>
+<span class="sd">            y : array-like, shape (n_samples,)</span>
+<span class="sd">                The target variable for supervised learning problems.</span>
+<span class="sd">                Stratification is done based on the y labels.</span>
+<span class="sd">            groups : (object) Always ignored, exists for compatibility.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            train : (ndarray) The training set indices for that split.</span>
+<span class="sd">            test : (ndarray) The testing set indices for that split.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">check_array</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">ensure_2d</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">KFoldStratified</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">groups</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="set_cv"><a class="viewcode-back" href="../../api.html#nltools.cross_validation.set_cv">[docs]</a><span class="k">def</span> <span class="nf">set_cv</span><span class="p">(</span><span class="n">Y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cv_dict</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">return_generator</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Helper function to create a sci-kit learn compatible cv object using</span>
+<span class="sd">    common parameters for prediction analyses.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        Y:  (pd.DataFrame) Pandas Dataframe of Y labels</span>
+<span class="sd">        cv_dict: (dict) Type of cross_validation to use. A dictionary of</span>
+<span class="sd">            {&#39;type&#39;: &#39;kfolds&#39;, &#39;n_folds&#39;: n},</span>
+<span class="sd">            {&#39;type&#39;: &#39;kfolds&#39;, &#39;n_folds&#39;: n, &#39;stratified&#39;: Y},</span>
+<span class="sd">            {&#39;type&#39;: &#39;kfolds&#39;, &#39;n_folds&#39;: n, &#39;subject_id&#39;: holdout}, or</span>
+<span class="sd">            {&#39;type&#39;: &#39;loso&#39;, &#39;subject_id&#39;: holdout}</span>
+<span class="sd">        return_generator (bool): return a cv generator instead of an instance; default True</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        cv: a scikit-learn model-selection generator</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cv_dict</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">cv_dict</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;kfolds&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;subject_id&quot;</span> <span class="ow">in</span> <span class="n">cv_dict</span><span class="p">:</span>  <span class="c1"># Hold out subjects within each fold</span>
+                <span class="kn">from</span> <span class="nn">sklearn.model_selection</span> <span class="kn">import</span> <span class="n">GroupKFold</span>
+
+                <span class="n">cv_inst</span> <span class="o">=</span> <span class="n">GroupKFold</span><span class="p">(</span><span class="n">n_splits</span><span class="o">=</span><span class="n">cv_dict</span><span class="p">[</span><span class="s2">&quot;n_folds&quot;</span><span class="p">])</span>
+                <span class="n">cv</span> <span class="o">=</span> <span class="n">cv_inst</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
+                    <span class="n">X</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">Y</span><span class="p">)),</span> <span class="n">y</span><span class="o">=</span><span class="n">Y</span><span class="p">,</span> <span class="n">groups</span><span class="o">=</span><span class="n">cv_dict</span><span class="p">[</span><span class="s2">&quot;subject_id&quot;</span><span class="p">]</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="s2">&quot;stratified&quot;</span> <span class="ow">in</span> <span class="n">cv_dict</span><span class="p">:</span>  <span class="c1"># Stratified K-Folds Continuous</span>
+                <span class="kn">from</span> <span class="nn">nltools.cross_validation</span> <span class="kn">import</span> <span class="n">KFoldStratified</span>
+
+                <span class="n">cv_inst</span> <span class="o">=</span> <span class="n">KFoldStratified</span><span class="p">(</span><span class="n">n_splits</span><span class="o">=</span><span class="n">cv_dict</span><span class="p">[</span><span class="s2">&quot;n_folds&quot;</span><span class="p">])</span>
+                <span class="n">cv</span> <span class="o">=</span> <span class="n">cv_inst</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">Y</span><span class="p">)),</span> <span class="n">y</span><span class="o">=</span><span class="n">Y</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>  <span class="c1"># Normal K-Folds</span>
+                <span class="kn">from</span> <span class="nn">sklearn.model_selection</span> <span class="kn">import</span> <span class="n">KFold</span>
+
+                <span class="n">cv_inst</span> <span class="o">=</span> <span class="n">KFold</span><span class="p">(</span><span class="n">n_splits</span><span class="o">=</span><span class="n">cv_dict</span><span class="p">[</span><span class="s2">&quot;n_folds&quot;</span><span class="p">])</span>
+                <span class="n">cv</span> <span class="o">=</span> <span class="n">cv_inst</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">Y</span><span class="p">)),</span> <span class="n">y</span><span class="o">=</span><span class="n">Y</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">cv_dict</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;loso&quot;</span><span class="p">:</span>  <span class="c1"># Leave One Subject Out</span>
+            <span class="kn">from</span> <span class="nn">sklearn.model_selection</span> <span class="kn">import</span> <span class="n">LeaveOneGroupOut</span>
+
+            <span class="n">cv_inst</span> <span class="o">=</span> <span class="n">LeaveOneGroupOut</span><span class="p">()</span>
+            <span class="n">cv</span> <span class="o">=</span> <span class="n">cv_inst</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">Y</span><span class="p">)),</span> <span class="n">y</span><span class="o">=</span><span class="n">Y</span><span class="p">,</span> <span class="n">groups</span><span class="o">=</span><span class="n">cv_dict</span><span class="p">[</span><span class="s2">&quot;subject_id&quot;</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;Make sure you specify a dictionary of</span>
+<span class="sd">                            {&#39;type&#39;: &#39;kfolds&#39;, &#39;n_folds&#39;: n},</span>
+<span class="sd">                            {&#39;type&#39;: &#39;kfolds&#39;, &#39;n_folds&#39;: n, &#39;stratified&#39;: Y},</span>
+<span class="sd">                            {&#39;type&#39;: &#39;kfolds&#39;, &#39;n_folds&#39;: n,</span>
+<span class="sd">                            &#39;subject_id&#39;: holdout}, or {&#39;type&#39;: &#39;loso&#39;,</span>
+<span class="sd">                            &#39;subject_id&#39;: holdout}, where n = number of folds,</span>
+<span class="sd">                            and subject = vector of subject ids that</span>
+<span class="sd">                            corresponds to self.Y&quot;&quot;&quot;</span>
+            <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Make sure &#39;cv_dict&#39; is a dictionary.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">return_generator</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">cv</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">cv_inst</span></div>
+</pre></div>
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+        <br/>
+        
+      
+    </p>
+    <p>
+        &copy; Copyright 2023, Cosan Laboratory.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 7.1.2.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

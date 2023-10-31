@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Decomposition &#8212; nltools 0.5.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../_static/bootstrap-sphinx.css?v=45361654" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=61a4c737" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js?v=3fadbb4a"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=4825356b"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../../_static/bootstrap-sphinx.js"></script>
+
+<!-- Google Analytics -->
+<script>
+  (function (i, s, o, g, r, a, m) {
+    i["GoogleAnalyticsObject"] = r;
+    (i[r] =
+      i[r] ||
+      function () {
+        (i[r].q = i[r].q || []).push(arguments);
+      }),
+      (i[r].l = 1 * new Date());
+    (a = s.createElement(o)), (m = s.getElementsByTagName(o)[0]);
+    a.async = 1;
+    a.src = g;
+    m.parentNode.insertBefore(a, m);
+  })(
+    window,
+    document,
+    "script",
+    "https://www.google-analytics.com/analytics.js",
+    "ga"
+  );
+
+  ga("create", "UA-138438649-1", "auto");
+  ga("send", "pageview");
+</script>
+<!-- End Google Analytics -->
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../../index.html">
+          nltools</a>
+        <span class="navbar-text navbar-version pull-left"><b>0.5.0</b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="../../install.html">Installation</a></li>
+                <li><a href="../../api.html">API</a></li>
+                <li><a href="../index.html">Tutorials</a></li>
+                <li><a href="http://www.github.com/ljchang/nltools">Github</a></li>
+            
+            
+              <li class="dropdown globaltoc-container">
+  <a role="button"
+     id="dLabelGlobalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="../../index.html">Site <b class="caret"></b></a>
+  <ul class="dropdown-menu globaltoc"
+      role="menu"
+      aria-labelledby="dLabelGlobalToc"></ul>
+</li>
+              
+                <li class="dropdown">
+  <a role="button"
+     id="dLabelLocalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="#">TOC <b class="caret"></b></a>
+  <ul class="dropdown-menu localtoc"
+      role="menu"
+      aria-labelledby="dLabelLocalToc"><ul>
+<li><a class="reference internal" href="#">Decomposition</a><ul>
+<li><a class="reference internal" href="#load-data">Load Data</a></li>
+<li><a class="reference internal" href="#center-within-subject">Center within subject</a></li>
+<li><a class="reference internal" href="#decomposition-with-factor-analysis">Decomposition with Factor Analysis</a></li>
+</ul>
+</li>
+</ul>
+</ul>
+</li>
+              
+            
+            
+              
+                
+              
+            
+            
+            
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-examples-02-analysis-plot-decomposition-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code</p>
+</div>
+<section class="sphx-glr-example-title" id="decomposition">
+<span id="sphx-glr-auto-examples-02-analysis-plot-decomposition-py"></span><h1>Decomposition<a class="headerlink" href="#decomposition" title="Permalink to this heading">¶</a></h1>
+<p>Here we demonstrate how to perform a decomposition of an imaging dataset.
+All you need to do is specify the algorithm. Currently, we have several
+different algorithms implemented from
+<a class="reference external" href="http://scikit-learn.org/stable/">scikit-learn</a>
+(‘PCA’,’ICA’,’Factor Analysis’,’Non-Negative Matrix Factorization’).</p>
+<section id="load-data">
+<h2>Load Data<a class="headerlink" href="#load-data" title="Permalink to this heading">¶</a></h2>
+<p>First, let’s load the pain data for this example.  We need to specify the
+training levels.  We will grab the pain intensity variable from the data.X
+field.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nltools.datasets</span> <span class="kn">import</span> <span class="n">fetch_pain</span>
+
+<span class="n">data</span> <span class="o">=</span> <span class="n">fetch_pain</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/nilearn/maskers/nifti_masker.py:108: UserWarning: imgs are being resampled to the mask_img resolution. This process is memory intensive. You might want to provide a target_affine that is equal to the affine of the imgs or resample the mask beforehand to save memory and computation time.
+  warnings.warn(
+</pre></div>
+</div>
+</section>
+<section id="center-within-subject">
+<h2>Center within subject<a class="headerlink" href="#center-within-subject" title="Permalink to this heading">¶</a></h2>
+<p>Next we will center the data.  However, because we are combining three pain
+image intensities, we will perform centering separately for each participant.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">data_center</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">empty</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">X</span><span class="p">[</span><span class="s1">&#39;SubjectID&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">():</span>
+    <span class="n">sdat</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">X</span><span class="p">[</span><span class="s1">&#39;SubjectID&#39;</span><span class="p">]</span><span class="o">==</span><span class="n">s</span><span class="p">]</span>
+    <span class="n">data_center</span> <span class="o">=</span> <span class="n">data_center</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sdat</span><span class="o">.</span><span class="n">standardize</span><span class="p">())</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+/usr/share/miniconda3/envs/test/lib/python3.8/site-packages/sklearn/preprocessing/_data.py:246: UserWarning: Numerical issues were encountered when centering the data and might not be solved. Dataset may contain too large values. You may need to prescale your features.
+  warnings.warn(
+</pre></div>
+</div>
+</section>
+<section id="decomposition-with-factor-analysis">
+<h2>Decomposition with Factor Analysis<a class="headerlink" href="#decomposition-with-factor-analysis" title="Permalink to this heading">¶</a></h2>
+<p>We can now decompose the data into a subset of factors. For this example,
+we will use factor analysis, but we can easily switch out the algorithm with
+either ‘pca’, ‘ica’, or ‘nnmf’. Decomposition can be performed over voxels
+or alternatively over images.  Here we perform decomposition over images,
+which means that voxels are the observations and images are the features. Set
+axis=’voxels’ to decompose voxels treating images as observations.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">n_components</span> <span class="o">=</span> <span class="mi">5</span>
+
+<span class="n">output</span> <span class="o">=</span> <span class="n">data_center</span><span class="o">.</span><span class="n">decompose</span><span class="p">(</span><span class="n">algorithm</span><span class="o">=</span><span class="s1">&#39;fa&#39;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="s1">&#39;images&#39;</span><span class="p">,</span>
+                                <span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Display the available data in the output dictionary. The output contains
+a Brain_Data instance with the brain factors (e.g., output[‘components’]),
+the feature by component weighting matrix (output[‘weights’]), and the
+scikit-learn decomposition object (output[‘decomposition_object’].
+The Decomposition object contains the full set of information, including
+the parameters, the components, and the explained variance.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>dict_keys([&#39;decomposition_object&#39;, &#39;components&#39;, &#39;weights&#39;])
+</pre></div>
+</div>
+<p>Next, we can plot the results.  Here we plot a heatmap of how each
+brain image loads on each component.  We also plot the degree to which
+each voxel loads on each component.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pylab</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="k">with</span> <span class="n">sns</span><span class="o">.</span><span class="n">plotting_context</span><span class="p">(</span><span class="n">context</span><span class="o">=</span><span class="s1">&#39;paper&#39;</span><span class="p">,</span> <span class="n">font_scale</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+    <span class="n">sns</span><span class="o">.</span><span class="n">heatmap</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;weights&#39;</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Images&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Components&#39;</span><span class="p">)</span>
+
+<span class="n">output</span><span class="p">[</span><span class="s1">&#39;components&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">limit</span><span class="o">=</span><span class="n">n_components</span><span class="p">)</span>
+</pre></div>
+</div>
+<ul class="sphx-glr-horizontal">
+<li><img src="../../_images/sphx_glr_plot_decomposition_001.png" srcset="../../_images/sphx_glr_plot_decomposition_001.png" alt="plot decomposition" class = "sphx-glr-multi-img"/></li>
+<li><img src="../../_images/sphx_glr_plot_decomposition_002.png" srcset="../../_images/sphx_glr_plot_decomposition_002.png" alt="plot decomposition" class = "sphx-glr-multi-img"/></li>
+</ul>
+<p>Finally, we can examine if any of the components track the intensity of
+pain.  We plot the average loading of each component onto each pain
+intensity level. Interestingly, the first component with positive weights
+on the bilateral insula, s2, and  ACC monotonically tracks the pain
+intensity level.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="n">wt</span> <span class="o">=</span>  <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;weights&#39;</span><span class="p">])</span>
+<span class="n">wt</span><span class="p">[</span><span class="s1">&#39;PainIntensity&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data_center</span><span class="o">.</span><span class="n">X</span><span class="p">[</span><span class="s1">&#39;PainLevel&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">({</span><span class="mi">1</span><span class="p">:</span><span class="s1">&#39;Low&#39;</span><span class="p">,</span>
+                                                                                                              <span class="mi">2</span><span class="p">:</span><span class="s1">&#39;Medium&#39;</span><span class="p">,</span>
+                                                                                                              <span class="mi">3</span><span class="p">:</span><span class="s1">&#39;High&#39;</span><span class="p">}</span>
+                                                                                                             <span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">wt_long</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">melt</span><span class="p">(</span><span class="n">wt</span><span class="p">,</span>
+                              <span class="n">value_vars</span><span class="o">=</span><span class="nb">range</span><span class="p">(</span><span class="n">n_components</span><span class="p">),</span>
+                              <span class="n">value_name</span><span class="o">=</span><span class="s1">&#39;Weight&#39;</span><span class="p">,</span>
+                              <span class="n">var_name</span><span class="o">=</span><span class="s1">&#39;Component&#39;</span><span class="p">,</span>
+                              <span class="n">id_vars</span><span class="o">=</span><span class="s1">&#39;PainIntensity&#39;</span><span class="p">)</span>
+
+<span class="k">with</span> <span class="n">sns</span><span class="o">.</span><span class="n">plotting_context</span><span class="p">(</span><span class="n">context</span><span class="o">=</span><span class="s1">&#39;paper&#39;</span><span class="p">,</span> <span class="n">font_scale</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+    <span class="n">sns</span><span class="o">.</span><span class="n">catplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">wt_long</span><span class="p">,</span>
+                    <span class="n">y</span><span class="o">=</span><span class="s1">&#39;Weight&#39;</span><span class="p">,</span>
+                    <span class="n">x</span><span class="o">=</span><span class="s1">&#39;PainIntensity&#39;</span><span class="p">,</span>
+                    <span class="n">hue</span><span class="o">=</span><span class="s1">&#39;Component&#39;</span><span class="p">,</span>
+                    <span class="n">order</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Low&#39;</span><span class="p">,</span><span class="s1">&#39;Medium&#39;</span><span class="p">,</span><span class="s1">&#39;High&#39;</span><span class="p">],</span>
+                    <span class="n">aspect</span><span class="o">=</span><span class="mf">1.5</span><span class="p">)</span>
+</pre></div>
+</div>
+<img src="../../_images/sphx_glr_plot_decomposition_003.png" srcset="../../_images/sphx_glr_plot_decomposition_003.png" alt="plot decomposition" class = "sphx-glr-single-img"/><p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 50.307 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-02-analysis-plot-decomposition-py">
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../../_downloads/b8b43940d2890a838cb2d625d8b114d0/plot_decomposition.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_decomposition.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../../_downloads/005c53f1a1f5d495bcad8a0dec9ab44a/plot_decomposition.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_decomposition.ipynb</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+        <br/>
+        
+<div id="sourcelink">
+  <a href="../../_sources/auto_examples/02_Analysis/plot_decomposition.rst.txt"
+     rel="nofollow">Source</a>
+</div>
+      
+    </p>
+    <p>
+        &copy; Copyright 2023, Cosan Laboratory.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 7.1.2.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

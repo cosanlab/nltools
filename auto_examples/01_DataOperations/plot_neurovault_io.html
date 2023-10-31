@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Neurovault I/O &#8212; nltools 0.5.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../_static/bootstrap-sphinx.css?v=45361654" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=61a4c737" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js?v=3fadbb4a"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=4825356b"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../../_static/bootstrap-sphinx.js"></script>
+
+<!-- Google Analytics -->
+<script>
+  (function (i, s, o, g, r, a, m) {
+    i["GoogleAnalyticsObject"] = r;
+    (i[r] =
+      i[r] ||
+      function () {
+        (i[r].q = i[r].q || []).push(arguments);
+      }),
+      (i[r].l = 1 * new Date());
+    (a = s.createElement(o)), (m = s.getElementsByTagName(o)[0]);
+    a.async = 1;
+    a.src = g;
+    m.parentNode.insertBefore(a, m);
+  })(
+    window,
+    document,
+    "script",
+    "https://www.google-analytics.com/analytics.js",
+    "ga"
+  );
+
+  ga("create", "UA-138438649-1", "auto");
+  ga("send", "pageview");
+</script>
+<!-- End Google Analytics -->
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../../index.html">
+          nltools</a>
+        <span class="navbar-text navbar-version pull-left"><b>0.5.0</b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="../../install.html">Installation</a></li>
+                <li><a href="../../api.html">API</a></li>
+                <li><a href="../index.html">Tutorials</a></li>
+                <li><a href="http://www.github.com/ljchang/nltools">Github</a></li>
+            
+            
+              <li class="dropdown globaltoc-container">
+  <a role="button"
+     id="dLabelGlobalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="../../index.html">Site <b class="caret"></b></a>
+  <ul class="dropdown-menu globaltoc"
+      role="menu"
+      aria-labelledby="dLabelGlobalToc"></ul>
+</li>
+              
+                <li class="dropdown">
+  <a role="button"
+     id="dLabelLocalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="#">TOC <b class="caret"></b></a>
+  <ul class="dropdown-menu localtoc"
+      role="menu"
+      aria-labelledby="dLabelLocalToc"><ul>
+<li><a class="reference internal" href="#">Neurovault I/O</a><ul>
+<li><a class="reference internal" href="#download-a-collection">Download a Collection</a></li>
+<li><a class="reference internal" href="#download-a-single-image-from-the-web">Download a Single Image from the Web</a></li>
+<li><a class="reference internal" href="#upload-data-to-neurovault">Upload Data to Neurovault</a></li>
+</ul>
+</li>
+</ul>
+</ul>
+</li>
+              
+            
+            
+              
+                
+              
+            
+            
+            
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-examples-01-dataoperations-plot-neurovault-io-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code</p>
+</div>
+<section class="sphx-glr-example-title" id="neurovault-i-o">
+<span id="sphx-glr-auto-examples-01-dataoperations-plot-neurovault-io-py"></span><h1>Neurovault I/O<a class="headerlink" href="#neurovault-i-o" title="Permalink to this heading">¶</a></h1>
+<p>Data can be easily downloaded and uploaded to <a class="reference external" href="http://neurovault.org/">neurovault</a>
+using <a class="reference external" href="https://github.com/neurolearn/pynv">pynv</a>, a python wrapper for the
+neurovault api.</p>
+<section id="download-a-collection">
+<h2>Download a Collection<a class="headerlink" href="#download-a-collection" title="Permalink to this heading">¶</a></h2>
+<p>Entire collections from neurovault can be downloaded along with the
+accompanying image metadata.  You just need to know the collection ID.
+Data will be downloaded to the path specified in the ‘data_dir’ flag
+or ‘~/nilearn_data’ by default.  These files can then be imported into
+nltools as a Brain_Data() instance.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nltools.datasets</span> <span class="kn">import</span> <span class="n">download_collection</span>
+<span class="kn">from</span> <span class="nn">nltools.data</span> <span class="kn">import</span> <span class="n">Brain_Data</span>
+
+<span class="n">metadata</span><span class="p">,</span><span class="n">files</span> <span class="o">=</span> <span class="n">download_collection</span><span class="p">(</span><span class="n">collection</span><span class="o">=</span><span class="mi">2099</span><span class="p">)</span>
+<span class="n">mask</span> <span class="o">=</span> <span class="n">Brain_Data</span><span class="p">(</span><span class="n">files</span><span class="p">,</span><span class="n">X</span><span class="o">=</span><span class="n">metadata</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Dataset created in /home/runner/nilearn_data/2099
+
+Downloading data from http://neurovault.org/media/images/2099/Neurosynth%20Parcellation_0.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/2099/Neurosynth%20Parcellation_1.nii.gz ...
+ ...done. (0 seconds, 0 min)
+Downloading data from http://neurovault.org/media/images/2099/Neurosynth%20Parcellation_2.nii.gz ...
+ ...done. (0 seconds, 0 min)
+</pre></div>
+</div>
+</section>
+<section id="download-a-single-image-from-the-web">
+<h2>Download a Single Image from the Web<a class="headerlink" href="#download-a-single-image-from-the-web" title="Permalink to this heading">¶</a></h2>
+<p>It’s possible to load a single image from a web URL using the Brain_Data
+load method.  The files are downloaded to a temporary directory and will
+eventually be erased by your computer so be sure to write it out to a file
+if you would like to save it.  Here we plot it using nilearn’s glass brain
+function.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nilearn.plotting</span> <span class="kn">import</span> <span class="n">plot_glass_brain</span>
+
+<span class="n">mask</span> <span class="o">=</span> <span class="n">Brain_Data</span><span class="p">(</span><span class="s1">&#39;http://neurovault.org/media/images/2099/Neurosynth%20Parcellation_0.nii.gz&#39;</span><span class="p">)</span>
+
+<span class="n">plot_glass_brain</span><span class="p">(</span><span class="n">mask</span><span class="o">.</span><span class="n">to_nifti</span><span class="p">())</span>
+</pre></div>
+</div>
+<img src="../../_images/sphx_glr_plot_neurovault_io_001.png" srcset="../../_images/sphx_glr_plot_neurovault_io_001.png" alt="plot neurovault io" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;nilearn.plotting.displays._projectors.OrthoProjector object at 0x7f377bc94520&gt;
+</pre></div>
+</div>
+</section>
+<section id="upload-data-to-neurovault">
+<h2>Upload Data to Neurovault<a class="headerlink" href="#upload-data-to-neurovault" title="Permalink to this heading">¶</a></h2>
+<p>There is a method to easily upload a Brain_Data() instance to
+<a class="reference external" href="http://neurovault.org">neurovault</a>.  This requires using your api key, which can be found
+under your account settings.  Anything stored in data.X will be uploaded as
+image metadata.  The required fields include collection_name, the img_type,
+img_modality, and analysis_level.  See <a class="reference external" href="https://github.com/neurolearn/pyneurovault_upload">https://github.com/neurolearn/pyneurovault_upload</a>
+for additional information about the required fields.  (Don’t forget to uncomment the line!)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">api_key</span> <span class="o">=</span> <span class="s1">&#39;your_neurovault_api_key&#39;</span>
+
+<span class="c1"># mask.upload_neurovault(access_token=api_key, collection_name=&#39;Neurosynth Parcellation&#39;,</span>
+<span class="c1">#                        img_type=&#39;Pa&#39;, img_modality=&#39;Other&#39;,analysis_level=&#39;M&#39;)</span>
+</pre></div>
+</div>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 4.543 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-01-dataoperations-plot-neurovault-io-py">
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../../_downloads/c1b7df9c5939f9def789ed830b55ef9d/plot_neurovault_io.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_neurovault_io.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../../_downloads/2c07413499dba96e0afe1c9b6bfd30a2/plot_neurovault_io.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_neurovault_io.ipynb</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+        <br/>
+        
+<div id="sourcelink">
+  <a href="../../_sources/auto_examples/01_DataOperations/plot_neurovault_io.rst.txt"
+     rel="nofollow">Source</a>
+</div>
+      
+    </p>
+    <p>
+        &copy; Copyright 2023, Cosan Laboratory.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 7.1.2.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

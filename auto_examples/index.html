@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>NLTools Tutorials, Resources, and Community &#8212; nltools 0.5.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=45361654" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=61a4c737" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js?v=3fadbb4a"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=4825356b"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js"></script>
+
+<!-- Google Analytics -->
+<script>
+  (function (i, s, o, g, r, a, m) {
+    i["GoogleAnalyticsObject"] = r;
+    (i[r] =
+      i[r] ||
+      function () {
+        (i[r].q = i[r].q || []).push(arguments);
+      }),
+      (i[r].l = 1 * new Date());
+    (a = s.createElement(o)), (m = s.getElementsByTagName(o)[0]);
+    a.async = 1;
+    a.src = g;
+    m.parentNode.insertBefore(a, m);
+  })(
+    window,
+    document,
+    "script",
+    "https://www.google-analytics.com/analytics.js",
+    "ga"
+  );
+
+  ga("create", "UA-138438649-1", "auto");
+  ga("send", "pageview");
+</script>
+<!-- End Google Analytics -->
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          nltools</a>
+        <span class="navbar-text navbar-version pull-left"><b>0.5.0</b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="../install.html">Installation</a></li>
+                <li><a href="../api.html">API</a></li>
+                <li><a href="#">Tutorials</a></li>
+                <li><a href="http://www.github.com/ljchang/nltools">Github</a></li>
+            
+            
+              <li class="dropdown globaltoc-container">
+  <a role="button"
+     id="dLabelGlobalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="../index.html">Site <b class="caret"></b></a>
+  <ul class="dropdown-menu globaltoc"
+      role="menu"
+      aria-labelledby="dLabelGlobalToc"></ul>
+</li>
+              
+                <li class="dropdown">
+  <a role="button"
+     id="dLabelLocalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="#">TOC <b class="caret"></b></a>
+  <ul class="dropdown-menu localtoc"
+      role="menu"
+      aria-labelledby="dLabelLocalToc"><ul>
+<li><a class="reference internal" href="#">NLTools Tutorials, Resources, and Community</a><ul>
+<li><a class="reference internal" href="#comprehensive-courses">1. Comprehensive Courses</a><ul>
+<li><a class="reference internal" href="#id1">DartBrains</a></li>
+<li><a class="reference internal" href="#id2">Naturalistic Neuroimaging Analysis Methods</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#community">2. Community</a><ul>
+<li><a class="reference internal" href="#id3">Discourse Community</a></li>
+<li><a class="reference internal" href="#id4">Open a Github issue</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#basic-usage-examples">3. Basic Usage Examples</a><ul>
+<li><a class="reference internal" href="#data-operations">Data Operations</a></li>
+<li><a class="reference internal" href="#analysis-examples">Analysis Examples</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</ul>
+</li>
+              
+            
+            
+              
+                
+              
+            
+            
+            
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <section id="nltools-tutorials-resources-and-community">
+<h1>NLTools Tutorials, Resources, and Community<a class="headerlink" href="#nltools-tutorials-resources-and-community" title="Permalink to this heading">¶</a></h1>
+<section id="comprehensive-courses">
+<h2>1. Comprehensive Courses<a class="headerlink" href="#comprehensive-courses" title="Permalink to this heading">¶</a></h2>
+<p>For detailed examples of <code class="docutils literal notranslate"><span class="pre">nltools</span></code> functionality you can check out the
+following online courses that make use of the toolbox. Both courses use <a class="reference external" href="https://web.hypothes.is/">Hypothesis</a> which is a service that allows anyone to annotate webpages. This allows you to read and post questions and notes that other users can see on each course website. You can do this by clicking on the chevron (“&lt;”) on the top right of each site:</p>
+<section id="id1">
+<h3><a class="reference external" href="https://dartbrains.org/content/intro.html">DartBrains</a><a class="headerlink" href="#id1" title="Permalink to this heading">¶</a></h3>
+<p>A fundmentals of neuroimaging undergraduate level course</p>
+</section>
+<section id="id2">
+<h3><a class="reference external" href="https://naturalistic-data.org/content/intro.html">Naturalistic Neuroimaging Analysis Methods</a><a class="headerlink" href="#id2" title="Permalink to this heading">¶</a></h3>
+<p>A more advanced neuroimaging data analysis course for working with <cite>naturalistic</cite> neuroimaging datasets (e.g. watching tv, movies, playing games, etc)</p>
+</section>
+</section>
+<section id="community">
+<h2>2. Community<a class="headerlink" href="#community" title="Permalink to this heading">¶</a></h2>
+<section id="id3">
+<h3><a class="reference external" href="https://www.askpbs.org/c/nltools/13">Discourse Community</a><a class="headerlink" href="#id3" title="Permalink to this heading">¶</a></h3>
+<p>A Stack Overflow like forum where you can view, contribute, and vote on FAQs regarding <code class="docutils literal notranslate"><span class="pre">nltools</span></code> usage. Please ask questions here first so other users can benefit from the answers!</p>
+</section>
+<section id="id4">
+<h3><a class="reference external" href="https://github.com/cosanlab/nltools/issues">Open a Github issue</a><a class="headerlink" href="#id4" title="Permalink to this heading">¶</a></h3>
+<p>For all code related problems</p>
+</section>
+</section>
+<section id="basic-usage-examples">
+<h2>3. Basic Usage Examples<a class="headerlink" href="#basic-usage-examples" title="Permalink to this heading">¶</a></h2>
+<p>Check out more basic tutorials below:</p>
+<div class="sphx-glr-thumbnails"></div><section id="data-operations">
+<h3>Data Operations<a class="headerlink" href="#data-operations" title="Permalink to this heading">¶</a></h3>
+<div class="sphx-glr-thumbnails"><div class="sphx-glr-thumbcontainer" tooltip="Data can be easily downloaded and uploaded to neurovault using pynv, a python wrapper for the n..."><img alt="" src="../_images/sphx_glr_plot_neurovault_io_thumb.png" />
+<p><a class="reference internal" href="01_DataOperations/plot_neurovault_io.html#sphx-glr-auto-examples-01-dataoperations-plot-neurovault-io-py"><span class="std std-ref">Neurovault I/O</span></a></p>
+  <div class="sphx-glr-thumbnail-title">Neurovault I/O</div>
+</div><div class="sphx-glr-thumbcontainer" tooltip="A simple example showing how to download a dataset from neurovault and perform basic data opera..."><img alt="" src="../_images/sphx_glr_plot_download_thumb.png" />
+<p><a class="reference internal" href="01_DataOperations/plot_download.html#sphx-glr-auto-examples-01-dataoperations-plot-download-py"><span class="std std-ref">Basic Data Operations</span></a></p>
+  <div class="sphx-glr-thumbnail-title">Basic Data Operations</div>
+</div><div class="sphx-glr-thumbcontainer" tooltip="By default nltools uses a 2mm MNI template which means all Brain_Data operations will automatic..."><img alt="" src="../_images/sphx_glr_plot_mni_prefs_thumb.png" />
+<p><a class="reference internal" href="01_DataOperations/plot_mni_prefs.html#sphx-glr-auto-examples-01-dataoperations-plot-mni-prefs-py"><span class="std std-ref">Brain resolution and MNI Template Preferences</span></a></p>
+  <div class="sphx-glr-thumbnail-title">Brain resolution and MNI Template Preferences</div>
+</div><div class="sphx-glr-thumbcontainer" tooltip="Nltools has an additional data structure class for working with two-dimensional square matrices..."><img alt="" src="../_images/sphx_glr_plot_adjacency_thumb.png" />
+<p><a class="reference internal" href="01_DataOperations/plot_adjacency.html#sphx-glr-auto-examples-01-dataoperations-plot-adjacency-py"><span class="std std-ref">Adjacency Class</span></a></p>
+  <div class="sphx-glr-thumbnail-title">Adjacency Class</div>
+</div><div class="sphx-glr-thumbcontainer" tooltip="This tutorial illustrates methods to help with masking data."><img alt="" src="../_images/sphx_glr_plot_mask_thumb.png" />
+<p><a class="reference internal" href="01_DataOperations/plot_mask.html#sphx-glr-auto-examples-01-dataoperations-plot-mask-py"><span class="std std-ref">Masking Example</span></a></p>
+  <div class="sphx-glr-thumbnail-title">Masking Example</div>
+</div><div class="sphx-glr-thumbcontainer" tooltip="This tutorial illustrates how to use the Design_Matrix class to flexibly create design matrices..."><img alt="" src="../_images/sphx_glr_plot_design_matrix_thumb.png" />
+<p><a class="reference internal" href="01_DataOperations/plot_design_matrix.html#sphx-glr-auto-examples-01-dataoperations-plot-design-matrix-py"><span class="std std-ref">Design Matrix</span></a></p>
+  <div class="sphx-glr-thumbnail-title">Design Matrix</div>
+</div></div></section>
+<section id="analysis-examples">
+<h3>Analysis Examples<a class="headerlink" href="#analysis-examples" title="Permalink to this heading">¶</a></h3>
+<div class="sphx-glr-thumbnails"><div class="sphx-glr-thumbcontainer" tooltip="This tutorial illustrates how to calculate similarity and distance between images."><img alt="" src="../_images/sphx_glr_plot_similarity_example_thumb.png" />
+<p><a class="reference internal" href="02_Analysis/plot_similarity_example.html#sphx-glr-auto-examples-02-analysis-plot-similarity-example-py"><span class="std std-ref">Similarity and Distance</span></a></p>
+  <div class="sphx-glr-thumbnail-title">Similarity and Distance</div>
+</div><div class="sphx-glr-thumbcontainer" tooltip="This example simulates data according to a very simple sketch of brain imaging data and applies..."><img alt="" src="../_images/sphx_glr_plot_univariate_regression_thumb.png" />
+<p><a class="reference internal" href="02_Analysis/plot_univariate_regression.html#sphx-glr-auto-examples-02-analysis-plot-univariate-regression-py"><span class="std std-ref">Univariate Regression</span></a></p>
+  <div class="sphx-glr-thumbnail-title">Univariate Regression</div>
+</div><div class="sphx-glr-thumbcontainer" tooltip="Here we demonstrate how to perform a decomposition of an imaging dataset. All you need to do is..."><img alt="" src="../_images/sphx_glr_plot_decomposition_thumb.png" />
+<p><a class="reference internal" href="02_Analysis/plot_decomposition.html#sphx-glr-auto-examples-02-analysis-plot-decomposition-py"><span class="std std-ref">Decomposition</span></a></p>
+  <div class="sphx-glr-thumbnail-title">Decomposition</div>
+</div><div class="sphx-glr-thumbcontainer" tooltip="This tutorial provides an example of how to run classification analyses."><img alt="" src="../_images/sphx_glr_plot_multivariate_classification_thumb.png" />
+<p><a class="reference internal" href="02_Analysis/plot_multivariate_classification.html#sphx-glr-auto-examples-02-analysis-plot-multivariate-classification-py"><span class="std std-ref">Multivariate Classification</span></a></p>
+  <div class="sphx-glr-thumbnail-title">Multivariate Classification</div>
+</div><div class="sphx-glr-thumbcontainer" tooltip="Running MVPA style analyses using multivariate regression is even easier and faster than univar..."><img alt="" src="../_images/sphx_glr_plot_multivariate_prediction_thumb.png" />
+<p><a class="reference internal" href="02_Analysis/plot_multivariate_prediction.html#sphx-glr-auto-examples-02-analysis-plot-multivariate-prediction-py"><span class="std std-ref">Multivariate Prediction</span></a></p>
+  <div class="sphx-glr-thumbnail-title">Multivariate Prediction</div>
+</div><div class="sphx-glr-thumbcontainer" tooltip="When performing any type of group analysis, we assume that each voxel is reflecting the same co..."><img alt="" src="../_images/sphx_glr_plot_hyperalignment_thumb.png" />
+<p><a class="reference internal" href="02_Analysis/plot_hyperalignment.html#sphx-glr-auto-examples-02-analysis-plot-hyperalignment-py"><span class="std std-ref">Functional Alignment</span></a></p>
+  <div class="sphx-glr-thumbnail-title">Functional Alignment</div>
+</div></div><div class="toctree-wrapper compound">
+</div>
+<div class="sphx-glr-footer sphx-glr-footer-gallery docutils container">
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/07fcc19ba03226cd3d83d4e40ec44385/auto_examples_python.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">all</span> <span class="pre">examples</span> <span class="pre">in</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">auto_examples_python.zip</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/6f1e7a639e0699d6164445b55e6c116d/auto_examples_jupyter.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">all</span> <span class="pre">examples</span> <span class="pre">in</span> <span class="pre">Jupyter</span> <span class="pre">notebooks:</span> <span class="pre">auto_examples_jupyter.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+        <br/>
+        
+<div id="sourcelink">
+  <a href="../_sources/auto_examples/index.rst.txt"
+     rel="nofollow">Source</a>
+</div>
+      
+    </p>
+    <p>
+        &copy; Copyright 2023, Cosan Laboratory.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 7.1.2.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>
