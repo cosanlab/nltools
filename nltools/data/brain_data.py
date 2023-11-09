@@ -68,7 +68,7 @@ from nltools.stats import (
 )
 from nltools.stats import regress as regression
 from .adjacency import Adjacency
-from nltools.prefs import MNI_Template, resolve_mni_path
+from nltools.prefs import MNI_Template
 from nilearn.decoding import SearchLight
 from pathlib import Path
 import warnings
@@ -106,7 +106,7 @@ class Brain_Data(object):
         # Setup default or specified nifti masker
         if mask is None:
             # Load default mask
-            self.mask = nib.load(resolve_mni_path(MNI_Template)["mask"])
+            self.mask = nib.load(MNI_Template.mask)
         elif isinstance(mask, (str, Path)):
             self.mask = nib.load(str(mask))
         elif isinstance(mask, nib.Nifti1Image):
@@ -653,7 +653,7 @@ class Brain_Data(object):
                     else:
                         raise ValueError("anatomical is not a nibabel instance")
             else:
-                # anatomical = nib.load(resolve_mni_path(MNI_Template)['plot'])
+                # TODO: Update this after the function is updated or replace it with a reference to a brain data attribute
                 anatomical = get_mni_from_img_resolution(self, img_type="plot")
 
             if self.data.ndim == 1:
@@ -728,7 +728,6 @@ class Brain_Data(object):
                 else:
                     raise ValueError("anatomical is not a nibabel instance")
         else:
-            # anatomical = nib.load(resolve_mni_path(MNI_Template)['brain'])
             anatomical = get_mni_from_img_resolution(self, img_type="brain")
         return plot_interactive_brain(
             self, threshold=threshold, surface=surface, anatomical=anatomical, **kwargs

@@ -1,11 +1,10 @@
 import os
-from nltools.utils import get_resource_path
 
-__all__ = ["MNI_Template", "resolve_mni_path"]
+__all__ = ["MNI_Template"]
 
 
-class MNI_Template_Factory(dict):
-    """Class to build the default MNI_Template dictionary. This should never be used
+class MNI_Template_Factory(object):
+    """Class to build the default MNI_Template instance. This should never be used
     directly, instead just `from nltools.prefs import MNI_Template` and update that
     object's attributes to change MNI templates."""
 
@@ -13,25 +12,45 @@ class MNI_Template_Factory(dict):
         self,
         resolution="2mm",
         mask_type="with_ventricles",
-        mask=os.path.join(get_resource_path(), "MNI152_T1_2mm_brain_mask.nii.gz"),
-        plot=os.path.join(get_resource_path(), "MNI152_T1_2mm.nii.gz"),
-        brain=os.path.join(get_resource_path(), "MNI152_T1_2mm_brain.nii.gz"),
+        mni_version="nonlin_6thgen",
     ):
+        self._supported_resolutions = ["2mm", "3mm"]
+        self._supported_mni_versions = ["nonlin_6thgen", "2009a", "2009c"]
+        # Only applies to nonlin_6thgen
+        self._supported_mask_types = ["with_ventricles", "no_ventricles"]
+
         self._resolution = resolution
         self._mask_type = mask_type
-        self._mask = mask
-        self._plot = plot
-        self._brain = brain
+        self._mni_version = mni_version
 
-        self.update(
-            {
-                "resolution": self.resolution,
-                "mask_type": self.mask_type,
-                "mask": self.mask,
-                "plot": self.plot,
-                "brain": self.brain,
-            }
-        )
+        # Auto-populated (derive) mask, brain, plot
+        # This also always called on attribute access so the latest paths
+        # are resolved and can be safely used like nib.load(MNI_Template.mask)
+        # after updating an attribute, e.g. MNI_Template.resolution = 3
+        # Avoids having to do nib.load(resolve_mni_path(MNI_Template).mask) like
+        # we were previously
+        self.resolve_paths()
+
+    def __repr__(self) -> str:
+        if self.mni_version == "nonlin_6thgen":
+            return f"Current global template:\nresolution={self.resolution}\nmni_version={self.mni_version}\nmask_type={self.mask_type}\nmask={self.mask}\nbrain={self.brain}\nplot={self.plot}"
+        else:
+            return f"Current global template:\nresolution={self.resolution}\nmni_version={self.mni_version}\nmask={self.mask}\nbrain={self.brain}\nplot={self.plot}"
+
+    @property
+    def mask(self):
+        self.resolve_paths()
+        return self._mask
+
+    @property
+    def plot(self):
+        self.resolve_paths()
+        return self._plot
+
+    @property
+    def brain(self):
+        self.resolve_paths()
+        return self._brain
 
     @property
     def resolution(self):
@@ -41,12 +60,12 @@ class MNI_Template_Factory(dict):
     def resolution(self, resolution):
         if isinstance(resolution, (int, float)):
             resolution = f"{int(resolution)}mm"
-        if resolution not in ["2mm", "3mm"]:
+        if resolution not in self._supported_resolutions:
             raise NotImplementedError(
-                "Only 2mm and 3mm resolutions are currently supported"
+                f"Nltools currently supports the following MNI template resolutions: {self._supported_resolutions}"
             )
         self._resolution = resolution
-        self.update({"resolution": self._resolution})
+        self.resolve_paths()
 
     @property
     def mask_type(self):
@@ -54,95 +73,59 @@ class MNI_Template_Factory(dict):
 
     @mask_type.setter
     def mask_type(self, mask_type):
-        if mask_type not in ["with_ventricles", "no_ventricles"]:
+        if mask_type not in self._supported_mask_types:
             raise NotImplementedError(
-                "Only 'with_ventricles' and 'no_ventricles' mask_types are currently supported"
+                f"Nltools currently supports the following MNI mask_types (only applies to nonlin_6thgen): {self._supported_mask_types}"
             )
         self._mask_type = mask_type
-        self.update({"mask_type": self._mask_type})
+        self.resolve_paths()
 
     @property
-    def mask(self):
-        return self._mask
+    def mni_version(self):
+        return self._mni_version
 
-    @mask.setter
-    def mask(self, mask):
-        self._mask = mask
-        self.update({"mask": self._mask})
+    @mni_version.setter
+    def mni_version(self, mni_version):
+        if mni_version not in self._supported_mni_versions:
+            raise ValueError(
+                f"Nltools currently supports the following MNI template versions: {self._supported_mni_versions}"
+            )
+        self._mni_version = mni_version
+        self.resolve_paths()
 
-    @property
-    def plot(self):
-        return self._plot
-
-    @plot.setter
-    def plot(self, plot):
-        self._plot = plot
-        self.update({"plot": self._plot})
-
-    @property
-    def brain(self):
-        return self._brain
-
-    @brain.setter
-    def brain(self, brain):
-        self._brain = brain
-        self.update({"brain": self._brain})
+    def resolve_paths(self):
+        base_path = os.path.join(os.path.dirname(__file__), "resources") + os.path.sep
+        if self._mni_version == "nonlin_6thgen":
+            if self._resolution == "3mm":
+                if self._mask_type == "with_ventricles":
+                    self._mask = os.path.join(
+                        base_path, "MNI152_T1_3mm_brain_mask.nii.gz"
+                    )
+                elif self._mask_type == "no_ventricles":
+                    self._mask = os.path.join(
+                        base_path,
+                        "MNI152_T1_3mm_brain_mask_no_ventricles.nii.gz",
+                    )
+                self._plot = os.path.join(base_path, "MNI152_T1_3mm.nii.gz")
+                self._brain = os.path.join(base_path, "MNI152_T1_3mm_brain.nii.gz")
+            elif self._resolution == "2mm":
+                if self._mask_type == "with_ventricles":
+                    self._mask = os.path.join(
+                        base_path, "MNI152_T1_2mm_brain_mask.nii.gz"
+                    )
+                elif self._mask_type == "no_ventricles":
+                    self._mask = os.path.join(
+                        base_path,
+                        "MNI152_T1_2mm_brain_mask_no_ventricles.nii.gz",
+                    )
+                self._plot = os.path.join(base_path, "MNI152_T1_2mm.nii.gz")
+                self._brain = os.path.join(base_path, "MNI152_T1_2mm_brain.nii.gz")
+        elif self._mni_version == "2009c":
+            pass
+        elif self._mni_version == "2009a":
+            pass
 
 
 #  NOTE: We export this from the module and expect users to interact with it instead of
 #  the class constructor above
 MNI_Template = MNI_Template_Factory()
-
-
-def resolve_mni_path(MNI_Template):
-    """Helper function to resolve MNI path based on MNI_Template prefs setting."""
-
-    res = MNI_Template["resolution"]
-    m = MNI_Template["mask_type"]
-    if not isinstance(res, str):
-        raise ValueError("resolution must be provided as a string!")
-    if not isinstance(m, str):
-        raise ValueError("mask_type must be provided as a string!")
-
-    if res == "3mm":
-        if m == "with_ventricles":
-            MNI_Template["mask"] = os.path.join(
-                get_resource_path(), "MNI152_T1_3mm_brain_mask.nii.gz"
-            )
-        elif m == "no_ventricles":
-            MNI_Template["mask"] = os.path.join(
-                get_resource_path(), "MNI152_T1_3mm_brain_mask_no_ventricles.nii.gz"
-            )
-        else:
-            raise ValueError(
-                "Available mask_types are 'with_ventricles' or 'no_ventricles'"
-            )
-
-        MNI_Template["plot"] = os.path.join(get_resource_path(), "MNI152_T1_3mm.nii.gz")
-
-        MNI_Template["brain"] = os.path.join(
-            get_resource_path(), "MNI152_T1_3mm_brain.nii.gz"
-        )
-
-    elif res == "2mm":
-        if m == "with_ventricles":
-            MNI_Template["mask"] = os.path.join(
-                get_resource_path(), "MNI152_T1_2mm_brain_mask.nii.gz"
-            )
-        elif m == "no_ventricles":
-            MNI_Template["mask"] = os.path.join(
-                get_resource_path(), "MNI152_T1_2mm_brain_mask_no_ventricles.nii.gz"
-            )
-        else:
-            raise ValueError(
-                "Available mask_types are 'with_ventricles' or 'no_ventricles'"
-            )
-
-        MNI_Template["plot"] = os.path.join(get_resource_path(), "MNI152_T1_2mm.nii.gz")
-
-        MNI_Template["brain"] = os.path.join(
-            get_resource_path(), "MNI152_T1_2mm_brain.nii.gz"
-        )
-    else:
-        raise ValueError("Available templates are '2mm' or '3mm'")
-    return MNI_Template

@@ -8,6 +8,7 @@ from nltools.data import Brain_Data, Adjacency, Groupby
 from nltools.stats import threshold, align
 from nltools.mask import create_sphere, roi_to_brain
 from pathlib import Path
+import matplotlib.pyplot as plt
 
 from nltools.prefs import MNI_Template
 
@@ -23,13 +24,6 @@ def test_load(tmpdir):
     n_reps = 3
     output_dir = str(tmpdir)
     dat = sim.create_data(y, sigma, reps=n_reps, output_dir=output_dir)
-
-    # if MNI_Template["resolution"] == '2mm':
-    #     shape_3d = (91, 109, 91)
-    #     shape_2d = (6, 238955)
-    # elif MNI_Template["resolution"] == '3mm':
-    #     shape_3d = (60, 72, 60)
-    #     shape_2d = (6, 71020)
 
     y = pd.read_csv(
         os.path.join(str(tmpdir.join("y.csv"))), header=None, index_col=None
@@ -73,9 +67,9 @@ def test_load(tmpdir):
     # case the mask argument takes precedence so we warn the user
     with pytest.warns(UserWarning):
         bb = Brain_Data(
-            os.path.join(tmpdir.join("test_write.h5")), mask=MNI_Template["mask"]
+            os.path.join(tmpdir.join("test_write.h5")), mask=MNI_Template.mask
         )
-        assert bb.mask.get_filename() == MNI_Template["mask"]
+        assert bb.mask.get_filename() == MNI_Template.mask
 
 
 def test_shape(sim_brain_data):
@@ -730,3 +724,16 @@ def test_load_legacy_h5(old_h5_brain, new_h5_brain, tmpdir):
     assert b_new.shape() == b_new_written.shape()
     assert np.allclose(b_new.data, b_new_written.data)
     new_file.unlink()
+
+
+def test_plot(sim_brain_data):
+    # Plotting smoke tests
+    sim_brain_data.plot()
+
+    # Can't plot 4d glass brain
+    with pytest.raises(ValueError):
+        sim_brain_data.plot(view="glass")
+
+    sim_brain_data[0].plot(view="glass")
+
+    plt.close("all")
