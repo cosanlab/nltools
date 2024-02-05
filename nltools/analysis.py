@@ -12,13 +12,12 @@ __license__ = "MIT"
 import pandas as pd
 import numpy as np
 from nltools.plotting import roc_plot
-from scipy.stats import norm, binom_test
+from scipy.stats import norm, binomtest
 from sklearn.metrics import auc
 from copy import deepcopy
 
 
 class Roc(object):
-
     """Roc Class
 
     The Roc class is based on Tor Wager's Matlab roc_plot.m function and
@@ -233,7 +232,7 @@ class Roc(object):
 
         # Calculate p-Value using binomial test (can add hierarchical version of binomial test)
         self.n = len(self.misclass)
-        self.accuracy_p = binom_test(int(np.sum(~self.misclass)), self.n, p=0.5)
+        self.accuracy_p = binomtest(int(np.sum(~self.misclass)), self.n, p=0.5)
         self.accuracy_se = np.sqrt(
             np.mean(~self.misclass) * (np.mean(~self.misclass)) / self.n
         )
