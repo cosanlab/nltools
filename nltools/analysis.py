@@ -317,7 +317,7 @@ class Roc(object):
         print("------------------------")
         print("{:20s}".format("Accuracy:") + "{:.2f}".format(self.accuracy))
         print("{:20s}".format("Accuracy SE:") + "{:.2f}".format(self.accuracy_se))
-        print("{:20s}".format("Accuracy p-value:") + "{:.2f}".format(self.accuracy_p))
+        print("{:20s}".format("Accuracy p-value:") + "{:.2f}".format(self.accuracy_p.pvalue))
         print("{:20s}".format("Sensitivity:") + "{:.2f}".format(self.sensitivity))
         print("{:20s}".format("Specificity:") + "{:.2f}".format(self.specificity))
         print("{:20s}".format("AUC:") + "{:.2f}".format(self.auc))
