@@ -11,7 +11,7 @@ jobs:
         shell: bash -l {0}
     steps:
       - name: Download and setup Miniconda
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v3
         with:
           miniconda-version: "latest"
           python-version: 3.8
