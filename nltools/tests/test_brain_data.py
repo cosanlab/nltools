@@ -75,7 +75,9 @@ def test_load(tmpdir):
         bb = Brain_Data(
             os.path.join(tmpdir.join("test_write.h5")), mask=MNI_Template["mask"]
         )
-        assert bb.mask.get_filename() == MNI_Template["mask"]
+        assert os.path.abspath(bb.mask.get_filename()) == os.path.abspath(
+            MNI_Template["mask"]
+        )
 
 
 def test_shape(sim_brain_data):

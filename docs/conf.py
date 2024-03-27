@@ -44,7 +44,6 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.viewcode",
     "sphinx.ext.mathjax",
-    "sphinxcontrib.napoleon",
     "sphinx_gallery.gen_gallery",
 ]
 
