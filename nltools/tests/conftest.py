@@ -10,6 +10,7 @@ import os
 
 @pytest.fixture(scope="module", params=["2mm"])
 def sim_brain_data():
+    np.random.seed(0)
     # MNI_Template["resolution"] = request.params
     sim = Simulator()
     r = 10
@@ -25,6 +26,7 @@ def sim_brain_data():
 
 @pytest.fixture(scope="module")
 def sim_design_matrix():
+    np.random.seed(0)
     # Design matrices are specified in terms of sampling frequency
     TR = 2.0
     sampling_freq = 1.0 / TR
@@ -37,6 +39,7 @@ def sim_design_matrix():
 
 @pytest.fixture(scope="module")
 def sim_adjacency_single():
+    np.random.seed(0)
     sim = np.random.multivariate_normal(
         [0, 0, 0, 0],
         [
@@ -54,6 +57,7 @@ def sim_adjacency_single():
 
 @pytest.fixture(scope="module")
 def sim_adjacency_multiple():
+    np.random.seed(0)
     n = 10
     sim = np.random.multivariate_normal(
         [0, 0, 0, 0],
