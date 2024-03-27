@@ -82,7 +82,6 @@ MAX_INT = np.iinfo(np.int32).max
 
 
 class Brain_Data(object):
-
     """
     Brain_Data is a class to represent neuroimaging data in python as a vector
     rather than a 3-dimensional matrix.This makes it easier to perform data
@@ -653,9 +652,8 @@ class Brain_Data(object):
                     else:
                         raise ValueError("anatomical is not a nibabel instance")
             else:
-                # TODO: Update this after the function is updated or replace it with a reference to a brain data attribute
-                anatomical = get_mni_from_img_resolution(self, img_type="plot")
 
+                anatomical = get_mni_from_img_resolution(self, img_type="plot")
             if self.data.ndim == 1:
                 if axes is None:
                     _, axes = plt.subplots(nrows=1, figsize=figsize)
@@ -1268,9 +1266,9 @@ class Brain_Data(object):
                             self.data[test]
                         )
                     else:
-                        output["dist_from_hyperplane_xval"][
-                            test
-                        ] = predictor_cv.decision_function(self.data[test])
+                        output["dist_from_hyperplane_xval"][test] = (
+                            predictor_cv.decision_function(self.data[test])
+                        )
                         if (
                             predictor_settings["algorithm"] == "svm"
                             and predictor_cv.probability
