@@ -130,6 +130,8 @@ jobs:
   docs:
     name: Build docs and auto-examples
     runs-on: ubuntu-latest
+    #TODO: Remove when upstream doc building issues are resolved
+    continue-on-error: true
     defaults:
       run:
         shell: bash -l {0}
