@@ -7,7 +7,6 @@ handy utilities.
 """
 __all__ = [
     "get_resource_path",
-    "get_anatomical",
     "set_algorithm",
     "attempt_to_import",
     "all_same",
@@ -21,7 +20,6 @@ __license__ = "MIT"
 from os.path import dirname, join, sep as pathsep
 import nibabel as nib
 import importlib
-import os
 from sklearn.pipeline import Pipeline
 from sklearn.utils import check_random_state
 from scipy.spatial.distance import squareform
@@ -30,6 +28,8 @@ import pandas as pd
 import collections
 from types import GeneratorType
 from h5py import File as h5File
+from nltools.prefs import MNI_Template
+import re
 
 
 def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
@@ -70,13 +70,6 @@ def get_resource_path():
     return join(dirname(__file__), "resources") + pathsep
 
 
-def get_anatomical():
-    """Get nltools default anatomical image.
-    DEPRECATED. See MNI_Template and resolve_mni_path from nltools.prefs
-    """
-    return nib.load(os.path.join(get_resource_path(), "MNI152_T1_2mm.nii.gz"))
-
-
 def get_mni_from_img_resolution(brain, img_type="plot"):
     """
     Get the path to the resolution MNI anatomical image that matches the resolution of a Brain_Data instance. Used by Brain_Data.plot() and .iplot() to set backgrounds appropriately.
@@ -98,12 +91,11 @@ def get_mni_from_img_resolution(brain, img_type="plot"):
             "Voxels are not isometric and cannot be visualized in standard space"
         )
     else:
-        dim = str(int(voxel_dims[0])) + "mm"
+        dim = f"_{str(int(voxel_dims[0]))}mm_"
         if img_type == "brain":
-            mni = f"MNI152_T1_{dim}_brain.nii.gz"
+            return re.sub(r"_[0-9]+mm_", dim, MNI_Template.brain)
         else:
-            mni = f"MNI152_T1_{dim}.nii.gz"
-        return os.path.join(get_resource_path(), mni)
+            return re.sub(r"_[0-9]+mm_", dim, MNI_Template.plot)
 
 
 def set_algorithm(algorithm, *args, **kwargs):

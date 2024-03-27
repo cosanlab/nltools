@@ -68,7 +68,7 @@ from nltools.stats import (
 )
 from nltools.stats import regress as regression
 from .adjacency import Adjacency
-from nltools.prefs import MNI_Template, resolve_mni_path
+from nltools.prefs import MNI_Template
 from nilearn.decoding import SearchLight
 from pathlib import Path
 import warnings
@@ -82,7 +82,6 @@ MAX_INT = np.iinfo(np.int32).max
 
 
 class Brain_Data(object):
-
     """
     Brain_Data is a class to represent neuroimaging data in python as a vector
     rather than a 3-dimensional matrix.This makes it easier to perform data
@@ -106,7 +105,7 @@ class Brain_Data(object):
         # Setup default or specified nifti masker
         if mask is None:
             # Load default mask
-            self.mask = nib.load(resolve_mni_path(MNI_Template)["mask"])
+            self.mask = nib.load(MNI_Template.mask)
         elif isinstance(mask, (str, Path)):
             self.mask = nib.load(str(mask))
         elif isinstance(mask, nib.Nifti1Image):
@@ -653,9 +652,8 @@ class Brain_Data(object):
                     else:
                         raise ValueError("anatomical is not a nibabel instance")
             else:
-                # anatomical = nib.load(resolve_mni_path(MNI_Template)['plot'])
-                anatomical = get_mni_from_img_resolution(self, img_type="plot")
 
+                anatomical = get_mni_from_img_resolution(self, img_type="plot")
             if self.data.ndim == 1:
                 if axes is None:
                     _, axes = plt.subplots(nrows=1, figsize=figsize)
@@ -728,7 +726,6 @@ class Brain_Data(object):
                 else:
                     raise ValueError("anatomical is not a nibabel instance")
         else:
-            # anatomical = nib.load(resolve_mni_path(MNI_Template)['brain'])
             anatomical = get_mni_from_img_resolution(self, img_type="brain")
         return plot_interactive_brain(
             self, threshold=threshold, surface=surface, anatomical=anatomical, **kwargs
@@ -1269,9 +1266,9 @@ class Brain_Data(object):
                             self.data[test]
                         )
                     else:
-                        output["dist_from_hyperplane_xval"][
-                            test
-                        ] = predictor_cv.decision_function(self.data[test])
+                        output["dist_from_hyperplane_xval"][test] = (
+                            predictor_cv.decision_function(self.data[test])
+                        )
                         if (
                             predictor_settings["algorithm"] == "svm"
                             and predictor_cv.probability

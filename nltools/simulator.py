@@ -20,7 +20,7 @@ from nilearn.maskers import NiftiMasker
 from scipy.stats import multivariate_normal, binom, ttest_1samp
 from nltools.data import Brain_Data
 from nltools.stats import fdr, one_sample_permutation
-from nltools.prefs import MNI_Template, resolve_mni_path
+from nltools.prefs import MNI_Template
 import csv
 from copy import deepcopy
 from sklearn.utils import check_random_state
@@ -39,7 +39,7 @@ class Simulator:
         if isinstance(brain_mask, str):
             brain_mask = nib.load(brain_mask)
         elif brain_mask is None:
-            brain_mask = nib.load(resolve_mni_path(MNI_Template)["mask"])
+            brain_mask = nib.load(MNI_Template.mask)
         elif ~isinstance(brain_mask, nib.nifti1.Nifti1Image):
             raise ValueError("brain_mask is not a string or a nibabel instance")
         self.brain_mask = brain_mask
