@@ -50,7 +50,6 @@ jobs:
   deploy:
     name: Build & deploy package
     runs-on: ubuntu-latest
-    needs: docs
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
