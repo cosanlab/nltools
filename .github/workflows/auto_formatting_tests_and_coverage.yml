@@ -70,7 +70,7 @@ jobs:
     steps:
       # Step up miniconda
       - name: Download and setup Miniconda
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v3
         with:
           miniconda-version: "latest"
           python-version: ${{ matrix.python-version }}
@@ -80,7 +80,6 @@ jobs:
         uses: actions/checkout@v2
 
       # Install common sci-py packages via conda as well as testing packages and requirements
-      # TODO: unpin pandas version when deepdish adds support for 1.2: https://github.com/uchicago-cs/deepdish/issues/45
       - name: Install Dependencies
         run: |
           conda activate test
@@ -136,7 +135,7 @@ jobs:
         shell: bash -l {0}
     steps:
       - name: Download and setup Miniconda
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v3
         with:
           miniconda-version: "latest"
           python-version: 3.8
