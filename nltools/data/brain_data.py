@@ -1273,9 +1273,9 @@ class Brain_Data(object):
                             self.data[test]
                         )
                     else:
-                        output["dist_from_hyperplane_xval"][test] = (
-                            predictor_cv.decision_function(self.data[test])
-                        )
+                        output["dist_from_hyperplane_xval"][
+                            test
+                        ] = predictor_cv.decision_function(self.data[test])
                         if (
                             predictor_settings["algorithm"] == "svm"
                             and predictor_cv.probability
