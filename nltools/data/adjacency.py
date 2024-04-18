@@ -53,7 +53,6 @@ MAX_INT = np.iinfo(np.int32).max
 
 
 class Adjacency(object):
-
     """
     Adjacency is a class to represent Adjacency matrices as a vector rather
     than a 2-dimensional matrix. This makes it easier to perform data
@@ -84,8 +83,7 @@ class Adjacency(object):
                 "'similarity_flat','directed_flat']"
             )
 
-        # Flag to support hdf5 files saved using nltools <= 0.4.8
-        legacy_h5 = kwargs.pop("legacy_h5", False)
+        verbose = kwargs.pop("verbose", False)
 
         # Setup data
         if data is None:
@@ -137,7 +135,33 @@ class Adjacency(object):
 
             # HDF5
             if (".h5" in to_load) or (".hdf5" in to_load):
-                if legacy_h5:
+                try:
+                    # Load X and Y attributes
+                    with pd.HDFStore(to_load, "r") as f:
+                        self.Y = f["Y"]
+
+                    # Load other attributes
+                    with h5File(to_load, "r") as f:
+                        self.data = np.array(f["data"])
+                        self.matrix_type = f["matrix_type"][()].decode()
+                        self.is_single_matrix = f["is_single_matrix"][()]
+                        self.issymmetric = f["issymmetric"][()]
+                        # Deepdish saved empty label lists as np arrays of length 1
+                        if len(f["labels"]) == 1:
+                            self.labels = list(f["labels"])
+                        elif len(f["labels"]) > 1:
+                            self.labels = list(f["labels"].asstr())
+                        else:
+                            self.labels = []
+
+                    # Done initializing
+                    return
+                except Exception as e:
+                    if verbose:
+                        warnings.warn(
+                            f"Falling back to legacy h5 loading due to error: {e}"
+                        )
+
                     with tables.open_file(to_load, mode="r") as f:
                         # Setup data
                         self.data = np.array(f.root["data"])
@@ -183,28 +207,6 @@ class Adjacency(object):
                         )
 
                         return
-
-                else:
-                    # Load X and Y attributes
-                    with pd.HDFStore(to_load, "r") as f:
-                        self.Y = f["Y"]
-
-                    # Load other attributes
-                    with h5File(to_load, "r") as f:
-                        self.data = np.array(f["data"])
-                        self.matrix_type = f["matrix_type"][()].decode()
-                        self.is_single_matrix = f["is_single_matrix"][()]
-                        self.issymmetric = f["issymmetric"][()]
-                        # Deepdish saved empty label lists as np arrays of length 1
-                        if len(f["labels"]) == 1:
-                            self.labels = list(f["labels"])
-                        elif len(f["labels"]) > 1:
-                            self.labels = list(f["labels"].asstr())
-                        else:
-                            self.labels = []
-
-                    # Done initializing
-                    return
 
             # CSV or array/dateframe
             else:

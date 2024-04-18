@@ -1,4 +1,5 @@
 import os
+import pytest
 import numpy as np
 import pandas as pd
 from nltools.data import Adjacency, Design_Matrix
@@ -448,7 +449,9 @@ def test_cluster_summary():
 def test_load_legacy_h5(
     old_h5_adj_single, new_h5_adj_single, old_h5_adj_double, new_h5_adj_double, tmpdir
 ):
-    b_old = Adjacency(old_h5_adj_single, legacy_h5=True)
+    with pytest.warns(UserWarning):
+        # With verbosity on we should see a warning about the old h5 file format
+        b_old = Adjacency(old_h5_adj_single, verbose=True)
     b_new = Adjacency(new_h5_adj_single)
     assert b_old.shape() == b_new.shape()
     assert np.allclose(b_old.data, b_new.data)
