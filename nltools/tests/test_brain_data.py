@@ -715,7 +715,9 @@ def test_fisher_r_to_z(sim_brain_data):
 
 
 def test_load_legacy_h5(old_h5_brain, new_h5_brain, tmpdir):
-    b_old = Brain_Data(old_h5_brain, legacy_h5=True)
+    with pytest.warns(UserWarning):
+        # With verbosity on we should see a warning about the old h5 file format
+        b_old = Brain_Data(old_h5_brain, verbose=True)
     b_new = Brain_Data(new_h5_brain)
     assert b_old.shape() == b_new.shape()
     assert np.allclose(b_old.data, b_new.data)
