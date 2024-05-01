@@ -22,7 +22,13 @@ __license__ = "MIT"
 import os
 import pandas as pd
 from nltools.data import Brain_Data
-from nilearn.datasets.utils import _get_dataset_dir, _fetch_file
+import pkg_resources
+
+if pkg_resources.get_distribution("nilearn").version >= "0.10.4":
+    from nilearn.datasets import fetch_neurovault_ids
+    from nilearn.datasets.utils import get_data_dirs
+else:
+    from nilearn.datasets.utils import _get_dataset_dir, _fetch_file
 from pynv import Client
 
 # Optional dependencies
@@ -128,10 +134,18 @@ def fetch_pain(data_dir=None, resume=True, verbose=1):
 
     collection = 504
     dataset_name = "chang2015_pain"
-    data_dir = _get_dataset_dir(dataset_name, data_dir=data_dir, verbose=verbose)
-    metadata, files = download_collection(
-        collection=collection, data_dir=data_dir, resume=resume, verbose=verbose
-    )
+
+    if pkg_resources.get_distribution("nilearn").version >= "0.10.4":
+        nv_data = fetch_neurovault_ids(
+            collection_ids=[collection], data_dir=data_dir, verbose=verbose
+        )
+        files = nv_data["images"]
+        metadata = pd.DataFrame(nv_data["images_meta"])
+    else:
+        data_dir = _get_dataset_dir(dataset_name, data_dir=data_dir, verbose=verbose)
+        metadata, files = download_collection(
+            collection=collection, data_dir=data_dir, resume=resume, verbose=verbose
+        )
     return Brain_Data(data=files, X=metadata)
 
 
@@ -148,8 +162,16 @@ def fetch_emotion_ratings(data_dir=None, resume=True, verbose=1):
 
     collection = 1964
     dataset_name = "chang2015_emotion_ratings"
-    data_dir = _get_dataset_dir(dataset_name, data_dir=data_dir, verbose=verbose)
-    metadata, files = download_collection(
-        collection=collection, data_dir=data_dir, resume=resume, verbose=verbose
-    )
+
+    if pkg_resources.get_distribution("nilearn").version >= "0.10.4":
+        nv_data = fetch_neurovault_ids(
+            collection_ids=[collection], data_dir=data_dir, verbose=verbose
+        )
+        files = nv_data["images"]
+        metadata = pd.DataFrame(nv_data["images_meta"])
+    else:
+        data_dir = _get_dataset_dir(dataset_name, data_dir=data_dir, verbose=verbose)
+        metadata, files = download_collection(
+            collection=collection, data_dir=data_dir, resume=resume, verbose=verbose
+        )
     return Brain_Data(data=files, X=metadata)
