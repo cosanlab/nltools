@@ -21,8 +21,15 @@ __license__ = "MIT"
 
 import os
 import pandas as pd
+import warnings
 from nltools.data import Brain_Data
-from nilearn.datasets.utils import _get_dataset_dir, _fetch_file
+import pkg_resources
+
+if pkg_resources.get_distribution("nilearn").version >= "0.10.4":
+    from nilearn.datasets import fetch_neurovault_ids
+    from nilearn.datasets.utils import get_data_dirs
+else:
+    from nilearn.datasets.utils import _get_dataset_dir, _fetch_file
 from pynv import Client
 
 # Optional dependencies
@@ -59,7 +66,9 @@ def get_collection_image_metadata(collection=None, data_dir=None, limit=10):
     Returns:
         pd.DataFrame: Dataframe with full image metadata from collection
     """
-
+    warnings.warn(
+        "This function is deprecated and will be removed in a future version. Please use fetch_neurovault_ids instead."
+    )
     if os.path.isfile(os.path.join(data_dir, "metadata.csv")):
         dat = pd.read_csv(os.path.join(data_dir, "metadata.csv"))
     else:
@@ -96,6 +105,9 @@ def download_collection(
     Returns:
         (pd.DataFrame, list): (DataFrame of image metadata, list of files from downloaded collection)
     """
+    warnings.warn(
+        "This function is deprecated and will be removed in a future version. Please use fetch_neurovault_ids instead."
+    )
 
     if data_dir is None:
         data_dir = _get_dataset_dir(str(collection), data_dir=data_dir, verbose=verbose)
@@ -128,10 +140,18 @@ def fetch_pain(data_dir=None, resume=True, verbose=1):
 
     collection = 504
     dataset_name = "chang2015_pain"
-    data_dir = _get_dataset_dir(dataset_name, data_dir=data_dir, verbose=verbose)
-    metadata, files = download_collection(
-        collection=collection, data_dir=data_dir, resume=resume, verbose=verbose
-    )
+
+    if pkg_resources.get_distribution("nilearn").version >= "0.10.4":
+        nv_data = fetch_neurovault_ids(
+            collection_ids=[collection], data_dir=data_dir, verbose=verbose
+        )
+        files = nv_data["images"]
+        metadata = pd.DataFrame(nv_data["images_meta"])
+    else:
+        data_dir = _get_dataset_dir(dataset_name, data_dir=data_dir, verbose=verbose)
+        metadata, files = download_collection(
+            collection=collection, data_dir=data_dir, resume=resume, verbose=verbose
+        )
     return Brain_Data(data=files, X=metadata)
 
 
@@ -148,8 +168,16 @@ def fetch_emotion_ratings(data_dir=None, resume=True, verbose=1):
 
     collection = 1964
     dataset_name = "chang2015_emotion_ratings"
-    data_dir = _get_dataset_dir(dataset_name, data_dir=data_dir, verbose=verbose)
-    metadata, files = download_collection(
-        collection=collection, data_dir=data_dir, resume=resume, verbose=verbose
-    )
+
+    if pkg_resources.get_distribution("nilearn").version >= "0.10.4":
+        nv_data = fetch_neurovault_ids(
+            collection_ids=[collection], data_dir=data_dir, verbose=verbose
+        )
+        files = nv_data["images"]
+        metadata = pd.DataFrame(nv_data["images_meta"])
+    else:
+        data_dir = _get_dataset_dir(dataset_name, data_dir=data_dir, verbose=verbose)
+        metadata, files = download_collection(
+            collection=collection, data_dir=data_dir, resume=resume, verbose=verbose
+        )
     return Brain_Data(data=files, X=metadata)
