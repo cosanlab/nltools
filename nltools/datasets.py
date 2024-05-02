@@ -21,6 +21,7 @@ __license__ = "MIT"
 
 import os
 import pandas as pd
+import warnings
 from nltools.data import Brain_Data
 import pkg_resources
 
@@ -65,7 +66,9 @@ def get_collection_image_metadata(collection=None, data_dir=None, limit=10):
     Returns:
         pd.DataFrame: Dataframe with full image metadata from collection
     """
-
+    warnings.warn(
+        "This function is deprecated and will be removed in a future version. Please use fetch_neurovault_ids instead."
+    )
     if os.path.isfile(os.path.join(data_dir, "metadata.csv")):
         dat = pd.read_csv(os.path.join(data_dir, "metadata.csv"))
     else:
@@ -102,6 +105,9 @@ def download_collection(
     Returns:
         (pd.DataFrame, list): (DataFrame of image metadata, list of files from downloaded collection)
     """
+    warnings.warn(
+        "This function is deprecated and will be removed in a future version. Please use fetch_neurovault_ids instead."
+    )
 
     if data_dir is None:
         data_dir = _get_dataset_dir(str(collection), data_dir=data_dir, verbose=verbose)
