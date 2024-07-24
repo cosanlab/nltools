@@ -1943,6 +1943,7 @@ def isc(
     tail=2,
     n_jobs=-1,
     random_state=None,
+    sim_metric = "correlation"
 ):
     """Compute pairwise intersubject correlation from observations by subjects array.
 
@@ -2000,7 +2001,7 @@ def isc(
     stats = {"isc": _compute_isc(data, metric=metric)}
 
     similarity = Adjacency(
-        1 - pairwise_distances(data.T, metric="correlation"), matrix_type="similarity"
+        1 - pairwise_distances(data.T, metric=sim_metric), matrix_type="similarity"
     )
 
     if method == "bootstrap":
