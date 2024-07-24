@@ -1982,6 +1982,7 @@ def isc(
         tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
         n_jobs: (int) The number of CPUs to use to do the computation. -1 means all CPUs.
         return_null: (bool) Return the permutation distribution along with the p-value; default False
+        sim_metric: (str) pairwise distance metric. See sklearn's pairwise_distances for valid inputs (default: correlation)
 
     Returns:
         stats: (dict) dictionary of permutation results ['correlation','p']
