@@ -1943,7 +1943,7 @@ def isc(
     tail=2,
     n_jobs=-1,
     random_state=None,
-    sim_metric = "correlation"
+    sim_metric="correlation",
 ):
     """Compute pairwise intersubject correlation from observations by subjects array.
 
