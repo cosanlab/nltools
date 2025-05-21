@@ -3,7 +3,7 @@ author: Luke J. Chang, Eshin Jolly
 logo: logo.png
 
 execute:
-  execute_notebooks: 'auto'
+  execute_notebooks: false
 
 # Information about where the book exists on the web
 repository:
