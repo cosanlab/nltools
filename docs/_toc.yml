@@ -1,0 +1,18 @@
+format: jb-book
+root: index
+parts:
+- caption: Examples
+  chapters:
+  - file: examples/01_DataOperations/plot_adjacency
+  - file: examples/02_DesignMatrix/design_matrix
+- caption: API Reference
+  chapters:
+  - file: api/analysis
+  - file: api/crossval
+  - file: api/data
+  - file: api/dataset
+  - file: api/filereader
+  - file: api/mask
+  - file: api/prefs
+  - file: api/stats
+  - file: api/utils

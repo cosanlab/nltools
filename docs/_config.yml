@@ -1,0 +1,34 @@
+title: NL-Tools
+author: Luke J. Chang, Eshin Jolly
+logo: logo.png
+
+execute:
+  execute_notebooks: 'auto'
+
+# Information about where the book exists on the web
+repository:
+  url: https://github.com/cosanlab/nltools
+  path_to_book: docs  
+  branch: master
+
+html:
+  use_issues_button: true
+  use_repository_button: true
+
+sphinx:
+  extra_extensions:  
+  - 'sphinx_design'
+  - 'sphinx.ext.autodoc'
+  - 'sphinx.ext.autosummary'
+  - 'sphinx.ext.napoleon'
+  - 'sphinx.ext.viewcode'
+
+  config:
+    add_function_parentheses: true
+    add_module_names: true
+    autosummary_generate: true
+    autosummary_generate_overwrite: true
+    viewcode_line_numbers: true
+    viewcode_follow_imported_members: true
+    templates_path: templates
+    suppress_warnings: ["etoc.toctree"]
