@@ -60,3 +60,4 @@ env
 .vscode/bookmarks.json
 dev.py
 dev.ipynb
+.venv

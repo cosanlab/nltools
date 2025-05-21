@@ -38,3 +38,20 @@ Documentation and tutorials are available at https://nltools.org
 ## Preprocessing
 
 Nltools has minimal routines for pre-processing data. For more complete pre-processing pipelines please see our [cosanlab_preproc](https://github.com/cosanlab/cosanlab_preproc) library built with `nipype`.
+
+---
+## Development
+
+Project management is handled by `uv` which will automatically install development dependencies along side core dependencies, configure a virtual environment, and install `nltools` into that environment in editable mode.
+
+Run tests: `uv run pytest`
+
+Run linting: `uv run ruff --check`
+
+Build docs locally: `uv run jupyter-book build docs/` 
+
+Add or remove dependencies: `uv add/remove packagename`
+
+Add or remove development dependencies: `uv add/remove --dev packagename`
+
+Build package locally: `uv build`
