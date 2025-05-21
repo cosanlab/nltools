@@ -1,0 +1,55 @@
+[project]
+name = "nltools"
+dynamic = ["version"]
+requires-python = ">=3.10"
+description = "A Python package to analyze neuroimaging data"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name="Luke J. Chang", email="luke.j.chang@dartmouth.edu"},
+    {name="Eshin Jolly", email="eshin.jolly@gmail.com"},
+]
+classifiers = [
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+]
+keywords=["neuroimaging", "preprocessing", "analysis", "machine-learning"]
+dependencies = [
+    "h5py>=3.13.0",
+    "nilearn>=0.11.1",
+    "pynv>=0.3",
+    "seaborn>=0.13.2",
+]
+
+# Installed by default when using uv install
+[dependency-groups]
+dev = [
+    "jupyter-book>=1.0.4.post1",
+    "networkx>=3.4.2",
+    "pytest>=8.3.5",
+    "ruff==0.11.10",
+    "tables>=3.10.1",
+]
+
+[project.urls]
+Homepage = "https://nltools.org"
+
+[build-system]
+requires = ["setuptools>=61.0.0", "setuptools-scm", "hatchling"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+exclude = ["nltools/tests"]
+
+[tool.setuptools]
+package-data = {"nltools" = ["resources/*"]}
+
+[tool.setuptools.dynamic]
+version = {attr = "nltools.version.__version__"}
+
+[tool.ruff.lint]
+ignore = ["W292","E501", "E731", "E741"]
