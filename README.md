@@ -34,7 +34,9 @@ Project management is handled by `uv` which will automatically install developme
 
 Run tests: `uv run pytest`
 
-Run linting: `uv run ruff --check`
+Run linting: `uv run ruff check`
+
+Fix linting: `uv run ruff check --fix`
 
 Build docs locally: `uv run jupyter-book build docs/` 
 

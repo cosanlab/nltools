@@ -27,7 +27,7 @@ import pandas as pd
 import tempfile
 from copy import deepcopy
 from sklearn.metrics import balanced_accuracy_score
-from sklearn.metrics.pairwise import pairwise_distances, cosine_similarity
+from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.utils import check_random_state
 from sklearn.preprocessing import scale
 from pynv import Client
@@ -54,7 +54,6 @@ from nltools.utils import (
 from nltools.cross_validation import set_cv
 from nltools.plotting import scatterplot, plot_interactive_brain, plot_brain
 from nltools.stats import (
-    pearson,
     fdr,
     holm_bonf,
     threshold,

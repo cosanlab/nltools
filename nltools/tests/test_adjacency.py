@@ -3,7 +3,6 @@ import pytest
 import numpy as np
 import pandas as pd
 from nltools.data import Adjacency, Design_Matrix
-from nltools.stats import isc_group
 import networkx as nx
 from scipy.stats import pearsonr
 from scipy.linalg import block_diag
