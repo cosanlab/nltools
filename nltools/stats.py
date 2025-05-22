@@ -480,8 +480,7 @@ def fisher_r_to_z(r):
         Clips r values to (-1, 1) range to avoid invalid arctanh inputs
     """
     # Clip r to valid range for arctanh to avoid invalid value warnings
-    r_clipped = np.clip(r, -0.9999999, 0.9999999)
-    return np.arctanh(r_clipped)
+    return np.arctanh(r)
 
 
 def fisher_z_to_r(z):
