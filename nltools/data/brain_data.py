@@ -1530,7 +1530,7 @@ class Brain_Data(object):
 
         n_vox = len(self) if check_brain_data_is_single(self) else self.shape()[1]
         if resample_mask_to_brain:
-            mask = resample_to_img(mask.to_nifti(), masked.to_nifti())
+            mask = resample_to_img(mask.to_nifti(), masked.to_nifti(), force_resample=True, copy_header=True)
             mask = check_brain_data(mask, masked.mask)
 
         nifti_masker = NiftiMasker(mask_img=mask.to_nifti()).fit()

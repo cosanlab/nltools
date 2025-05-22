@@ -319,8 +319,19 @@ def _transform_outliers(data, cutoff, replace_with_cutoff, method):
             data[data > q.iloc[1]] = np.nan
         elif method == "winsorize":
             if isinstance(q, pd.Series) and len(q) == 2:
-                data[data < q.iloc[0]] = q.iloc[0]
-                data[data > q.iloc[1]] = q.iloc[1]
+                # Cast quantile values to match data dtype to avoid pandas compatibility warnings
+                lower_val = (
+                    data.dtype.type(q.iloc[0])
+                    if hasattr(data.dtype, "type")
+                    else q.iloc[0]
+                )
+                upper_val = (
+                    data.dtype.type(q.iloc[1])
+                    if hasattr(data.dtype, "type")
+                    else q.iloc[1]
+                )
+                data[data < q.iloc[0]] = lower_val
+                data[data > q.iloc[1]] = upper_val
         return data
 
     # transform each column if a dataframe, if series just transform data
@@ -386,7 +397,7 @@ def downsample(
     elif target_type == "hz":
         n_samples = sampling_freq / target
     else:
-        raise ValueError('Make sure target_type is "samples", "seconds", ' ' or "hz".')
+        raise ValueError('Make sure target_type is "samples", "seconds",  or "hz".')
 
     idx = np.sort(np.repeat(np.arange(1, data.shape[0] / n_samples, 1), n_samples))
     # if data.shape[0] % n_samples:
@@ -1018,7 +1029,7 @@ def _arma_func(X, Y, idx=None, **kwargs):
             maxiter=maxiter,
             disp=disp,
             start_ar_lags=start_ar_lags,
-            **kwargs
+            **kwargs,
         )
     except Exception:
         res = model.fit(
@@ -1442,7 +1453,7 @@ def procrustes(data1, data2):
     - Both sets of points are centered around the origin.
     Procrustes ([1]_, [2]_) then applies the optimal transform to the second
     matrix (including scaling/dilation, rotations, and reflections) to minimize
-    :math:`M^{2}=\sum(data1-data2)^{2}`, or the sum of the squares of the
+    :math:`M^{2}=\\sum(data1-data2)^{2}`, or the sum of the squares of the
     pointwise differences between the two input datasets.
     This function was not designed to handle datasets with different numbers of
     datapoints (rows).  If two data sets have different dimensionality
