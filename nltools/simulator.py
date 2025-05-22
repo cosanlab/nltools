@@ -123,7 +123,7 @@ class Simulator:
         Args:
             m: the 3D numpy matrix we wish to convert to .nii
         """
-        if not (type(m) == np.ndarray and len(m.shape) >= 3):  # try 4D
+        if not (isinstance(m, np.ndarray) and len(m.shape) >= 3):  # try 4D
             # if not (type(m) == np.ndarray and len(m.shape) == 3):
             raise ValueError(
                 "ERROR: need 3D np.ndarray matrix to create the nifti file"
@@ -152,7 +152,7 @@ class Simulator:
         elif (
             isinstance(center, list) and isinstance(center[0], int) and len(radius) == 1
         ):
-            centers = [center]
+            center = [center]
         if (
             (type(radius)) is list
             and (type(center) is list)

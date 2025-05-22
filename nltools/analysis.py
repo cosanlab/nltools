@@ -290,7 +290,7 @@ class Roc(object):
                 var_true = np.var(self.input_values[self.binary_outcome])
                 var_false = np.var(self.input_values[~self.binary_outcome])
                 pooled_sd = np.sqrt(
-                    (var_true * (self.n_true - 1)) / (self.n_true + self.n_false - 2)
+                    (var_true * (self.n_true - 1) + var_false * (self.n_false - 1)) / (self.n_true + self.n_false - 2)
                 )
                 d = (mn_true - mn_false) / pooled_sd
                 z_true = mn_true / pooled_sd

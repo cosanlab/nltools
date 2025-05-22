@@ -10,8 +10,22 @@ __all__ = [
     "mask",
     "prefs",
     "external",
-    "prefs",
     "__version__",
+    "Roc",
+    "set_cv",
+    "Brain_Data",
+    "Adjacency",
+    "Groupby",
+    "Design_Matrix",
+    "Design_Matrix_Series",
+    "Simulator",
+    "MNI_Template",
+    "resolve_mni_path",
+    "expand_mask",
+    "collapse_mask",
+    "create_sphere",
+    "SRM",
+    "DetSRM",
 ]
 
 from .analysis import Roc

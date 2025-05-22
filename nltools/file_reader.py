@@ -72,8 +72,6 @@ def onsets_to_dm(
             df = f.copy()
         else:
             raise TypeError("Input needs to be file path or pandas dataframe!")
-        # Keep an unaltered copy of the original dataframe for checking purposes below
-        data = df.copy()
 
         if df.shape[1] == 2:
             warnings.warn(

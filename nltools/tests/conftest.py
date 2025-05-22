@@ -13,7 +13,6 @@ def sim_brain_data():
     np.random.seed(0)
     # MNI_Template["resolution"] = request.params
     sim = Simulator()
-    r = 10
     sigma = 1
     y = [0, 1]
     n_reps = 3

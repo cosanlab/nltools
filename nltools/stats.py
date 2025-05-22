@@ -1020,7 +1020,7 @@ def _arma_func(X, Y, idx=None, **kwargs):
             start_ar_lags=start_ar_lags,
             **kwargs
         )
-    except:
+    except Exception:
         res = model.fit(
             trend=trend,
             method=method,
