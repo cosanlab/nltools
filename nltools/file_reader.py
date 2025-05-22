@@ -25,6 +25,7 @@ def onsets_to_dm(
     add_poly=None,
     unique_cols=None,
     fill_na=None,
+    verbose=True,
     **kwargs,
 ):
     """
@@ -73,9 +74,12 @@ def onsets_to_dm(
         else:
             raise TypeError("Input needs to be file path or pandas dataframe!")
 
-        if df.shape[1] == 2:
+        if verbose and df.shape[1]:
             warnings.warn(
-                "Only 2 columns in file, assuming all stimuli are the same duration"
+                "Only 2 columns detected in onset file (onset, stimulus). "
+                "Assuming all stimuli have the same duration. "
+                "Use 3 columns (onset, duration, stimulus) for variable durations.",
+                UserWarning,
             )
         elif df.shape[1] == 1 or df.shape[1] > 3:
             raise ValueError("Can only handle files with 2 or 3 columns!")

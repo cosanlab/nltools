@@ -29,7 +29,9 @@ from scipy.spatial.distance import squareform
 
 
 def test_permutation():
-    dat = np.random.multivariate_normal([2, 6], [[0.5, 2], [0.5, 3]], 1000)
+    # Create a positive definite covariance matrix
+    cov_matrix = np.array([[1.0, 0.7], [0.7, 1.0]])
+    dat = np.random.multivariate_normal([2, 6], cov_matrix, 1000)
     x = dat[:, 0]
     y = dat[:, 1]
     stats = two_sample_permutation(x, y, tail=1, n_permute=1000)
@@ -60,7 +62,9 @@ def test_permutation():
 
 
 def test_matrix_permutation():
-    dat = np.random.multivariate_normal([2, 6], [[0.5, 2], [0.5, 3]], 190)
+    # Create a positive definite covariance matrix
+    cov_matrix = np.array([[1.0, 0.7], [0.7, 1.0]])
+    dat = np.random.multivariate_normal([2, 6], cov_matrix, 190)
     x = squareform(dat[:, 0])
     y = squareform(dat[:, 1])
     stats = matrix_permutation(x, y, n_permute=1000, random_state=111)

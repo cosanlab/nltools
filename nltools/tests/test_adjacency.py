@@ -185,7 +185,9 @@ def test_similarity(sim_adjacency_multiple):
 
 
 def test_similarity_matrix_permutation():
-    dat = np.random.multivariate_normal([2, 6], [[0.5, 2], [0.5, 3]], 190)
+    # Create a positive definite covariance matrix
+    cov_matrix = np.array([[1.0, 0.7], [0.7, 1.0]])
+    dat = np.random.multivariate_normal([2, 6], cov_matrix, 190)
     x = Adjacency(dat[:, 0])
     y = Adjacency(dat[:, 1])
     stats = x.similarity(y, perm_type="2d", n_permute=1000)
@@ -199,7 +201,9 @@ def test_similarity_matrix_permutation():
 
 
 def test_directed_similarity():
-    dat = np.random.multivariate_normal([2, 6], [[0.5, 2], [0.5, 3]], 400)
+    # Create a positive definite covariance matrix
+    cov_matrix = np.array([[1.0, 0.7], [0.7, 1.0]])
+    dat = np.random.multivariate_normal([2, 6], cov_matrix, 400)
     x = Adjacency(dat[:, 0].reshape(20, 20), matrix_type="directed")
     y = Adjacency(dat[:, 1].reshape(20, 20), matrix_type="directed")
     # Ignore diagonal
