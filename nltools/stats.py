@@ -468,10 +468,20 @@ def upsample(
 
 
 def fisher_r_to_z(r):
-    """Use Fisher transformation to convert correlation to z score"""
+    """Use Fisher transformation to convert correlation to z score
 
-    # return .5*np.log((1 + r)/(1 - r))
-    return np.arctanh(r)
+    Args:
+        r: correlation coefficient(s)
+
+    Returns:
+        z: Fisher z-transformed correlation(s)
+
+    Note:
+        Clips r values to (-1, 1) range to avoid invalid arctanh inputs
+    """
+    # Clip r to valid range for arctanh to avoid invalid value warnings
+    r_clipped = np.clip(r, -0.9999999, 0.9999999)
+    return np.arctanh(r_clipped)
 
 
 def fisher_z_to_r(z):

@@ -74,7 +74,7 @@ def onsets_to_dm(
         else:
             raise TypeError("Input needs to be file path or pandas dataframe!")
 
-        if verbose and df.shape[1]:
+        if verbose and df.shape[1] == 2:
             warnings.warn(
                 "Only 2 columns detected in onset file (onset, stimulus). "
                 "Assuming all stimuli have the same duration. "
