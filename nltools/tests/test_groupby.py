@@ -14,7 +14,7 @@ def test_apply(sim_groupby):
     mn = sim_groupby.apply("mean")
     assert len(sim_groupby) == len(mn)
     assert mn[1].shape() == np.sum(sim_groupby.mask[1].data == 1)
-    reg = sim_groupby.apply("regress")
+    sim_groupby.apply("regress")
     assert len(sim_groupby) == len(mn)
 
 

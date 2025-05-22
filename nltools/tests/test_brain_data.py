@@ -197,19 +197,19 @@ def test_regress(sim_brain_data):
     )
     # OLS
     out = sim_brain_data.regress()
-    assert type(out["beta"].data) == np.ndarray
-    assert type(out["t"].data) == np.ndarray
-    assert type(out["p"].data) == np.ndarray
-    assert type(out["residual"].data) == np.ndarray
+    assert isinstance(out["beta"].data, np.ndarray)
+    assert isinstance(out["t"].data, np.ndarray)
+    assert isinstance(out["p"].data, np.ndarray)
+    assert isinstance(out["residual"].data, np.ndarray)
     assert out["beta"].shape() == (2, shape_2d[1])
     assert out["t"][1].shape()[0] == shape_2d[1]
 
     # Robust OLS
     out = sim_brain_data.regress(mode="robust")
-    assert type(out["beta"].data) == np.ndarray
-    assert type(out["t"].data) == np.ndarray
-    assert type(out["p"].data) == np.ndarray
-    assert type(out["residual"].data) == np.ndarray
+    assert isinstance(out["beta"].data, np.ndarray)
+    assert isinstance(out["t"].data, np.ndarray)
+    assert isinstance(out["p"].data, np.ndarray)
+    assert isinstance(out["residual"].data, np.ndarray)
     assert out["beta"].shape() == (2, shape_2d[1])
     assert out["t"][1].shape()[0] == shape_2d[1]
 
@@ -223,9 +223,9 @@ def test_randomise(sim_brain_data):
     sim_brain_data.X = pd.DataFrame({"Intercept": np.ones(len(sim_brain_data.Y))})
 
     out = sim_brain_data.randomise(n_permute=10)
-    assert type(out["beta"].data) == np.ndarray
-    assert type(out["t"].data) == np.ndarray
-    assert type(out["p"].data) == np.ndarray
+    assert isinstance(out["beta"].data, np.ndarray)
+    assert isinstance(out["t"].data, np.ndarray)
+    assert isinstance(out["p"].data, np.ndarray)
     assert out["beta"].shape() == (shape_2d[1],)
     assert out["t"].shape() == (shape_2d[1],)
 
@@ -237,9 +237,9 @@ def test_randomise(sim_brain_data):
     )
 
     out = sim_brain_data.randomise(n_permute=10)
-    assert type(out["beta"].data) == np.ndarray
-    assert type(out["t"].data) == np.ndarray
-    assert type(out["p"].data) == np.ndarray
+    assert isinstance(out["beta"].data, np.ndarray)
+    assert isinstance(out["t"].data, np.ndarray)
+    assert isinstance(out["p"].data, np.ndarray)
     assert out["beta"].shape() == (
         2,
         shape_2d[1],
@@ -629,12 +629,6 @@ def test_hyperalignment():
     # Test procrustes brain_data
     out = align(data, method="procrustes")
     centered = data[0].data - np.mean(data[0].data, 0)
-    transformed = (
-        np.dot(
-            centered / np.linalg.norm(centered), out["transformation_matrix"][0].data
-        )
-        * out["scale"][0]
-    )
 
     bout = d1.align(out["common_model"], method="procrustes")
     assert d1.shape() == bout["transformed"].shape()
