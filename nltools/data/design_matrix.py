@@ -794,7 +794,11 @@ class Design_Matrix(DataFrame):
         for i, c in out.items():
             for j, c2 in out.items():
                 if i != j:
-                    r = np.abs(pearsonr(c, c2)[0])
+                    # Check for constant arrays to avoid correlation warning
+                    if np.var(c) == 0 or np.var(c2) == 0:
+                        r = 0.0  # Constant arrays have zero correlation with anything
+                    else:
+                        r = np.abs(pearsonr(c, c2)[0])
                     if (r >= thresh) and (j not in keep) and (j not in remove):
                         if verbose:
                             print(

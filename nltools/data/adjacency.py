@@ -187,7 +187,9 @@ class Adjacency(object):
                             self.matrix_type = list(f.root["matrix_type"])[0]
                         else:
                             warnings.warn(
-                                "unknown matrix_type, key was missing in h5 file, assuming 'distance'"
+                                "Loading legacy h5 file: matrix_type field missing, assuming 'distance'. "
+                                "Consider re-saving the file to update to current format.",
+                                UserWarning
                             )
                             self.matrix_type = "distance_flat"
 
@@ -1577,11 +1579,11 @@ class Adjacency(object):
     def social_relations_model(self, summarize_results=True, nan_replace=True):
         """Estimate the social relations model from a matrix for a round-robin design.
 
-        X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \epsilon_{ijl}
+        X_{ij} = m + \\alpha_i + \\beta_j + g_{ij} + \\epsilon_{ijl}
 
         where X_{ij} is the score for person i rating person j, m is the group mean,
-        \alpha_i  is person i's actor effect, \beta_j is person j's partner effect, g_{ij}
-        is the relationship  effect and \epsilon_{ijl} is the error in measure l  for actor i and partner j.
+        \\alpha_i  is person i's actor effect, \\beta_j is person j's partner effect, g_{ij}
+        is the relationship  effect and \\epsilon_{ijl} is the error in measure l  for actor i and partner j.
 
         This model is primarily concerned with partioning the variance of the various effects.
 

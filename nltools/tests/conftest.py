@@ -39,16 +39,14 @@ def sim_design_matrix():
 @pytest.fixture(scope="module")
 def sim_adjacency_single():
     np.random.seed(0)
-    sim = np.random.multivariate_normal(
-        [0, 0, 0, 0],
-        [
-            [1, 0.8, 0.1, 0.4],
-            [0.8, 1, 0.6, 0.1],
-            [0.1, 0.6, 1, 0.3],
-            [0.4, 0.1, 0.3, 1],
-        ],
-        100,
-    )
+    # Create a positive definite covariance matrix
+    cov_matrix = np.array([
+        [1.0, 0.5, 0.1, 0.2],
+        [0.5, 1.0, 0.3, 0.1],
+        [0.1, 0.3, 1.0, 0.2],
+        [0.2, 0.1, 0.2, 1.0],
+    ])
+    sim = np.random.multivariate_normal([0, 0, 0, 0], cov_matrix, 100)
     data = pairwise_distances(sim.T, metric="correlation")
     labels = ["v_%s" % (x + 1) for x in range(sim.shape[1])]
     return Adjacency(data, labels=labels)
@@ -58,16 +56,14 @@ def sim_adjacency_single():
 def sim_adjacency_multiple():
     np.random.seed(0)
     n = 10
-    sim = np.random.multivariate_normal(
-        [0, 0, 0, 0],
-        [
-            [1, 0.8, 0.1, 0.4],
-            [0.8, 1, 0.6, 0.1],
-            [0.1, 0.6, 1, 0.3],
-            [0.4, 0.1, 0.3, 1],
-        ],
-        100,
-    )
+    # Create a positive definite covariance matrix
+    cov_matrix = np.array([
+        [1.0, 0.5, 0.1, 0.2],
+        [0.5, 1.0, 0.3, 0.1],
+        [0.1, 0.3, 1.0, 0.2],
+        [0.2, 0.1, 0.2, 1.0],
+    ])
+    sim = np.random.multivariate_normal([0, 0, 0, 0], cov_matrix, 100)
     data = pairwise_distances(sim.T, metric="correlation")
     dat_all = []
     for t in range(n):
