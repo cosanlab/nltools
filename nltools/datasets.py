@@ -27,7 +27,6 @@ import pkg_resources
 
 if pkg_resources.get_distribution("nilearn").version >= "0.10.4":
     from nilearn.datasets import fetch_neurovault_ids
-    from nilearn.datasets.utils import get_data_dirs
 else:
     from nilearn.datasets.utils import _get_dataset_dir, _fetch_file
 from pynv import Client

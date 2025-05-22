@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - main
+      - uv-refactor
 
   pull_request:
     branches:
@@ -16,144 +17,58 @@ on:
     - cron: "0 0 * * 0"
 
 jobs:
-  # Job (1): Run testing in parallel against multiples OSs and Python versions
   test:
-    name: Test
     runs-on: ${{ matrix.os }}
-    # Determines whether the entire workflow should pass/fail based on parallel jobs
     continue-on-error: ${{ matrix.experimental }}
     defaults:
-      # This ensures each step gets properly configured bash shell for conda commands to work
       run:
         shell: bash -l {0}
     strategy:
       fail-fast: false
       matrix:
-        # OSs to test
         os: [ubuntu-latest, macos-latest]
-        # Python versions to test
-        python-version: [3.8, 3.9, '3.10']
-        # By default everything should pass for the workflow to pass
+        python-version: ['3.10', 3.11, 3.12]
         experimental: [false]
         include:
-          # Windows sometimes fails to install due to dependency changes, but eventually sort themselves out. So let these tests fail. Also issue on macos 3.11 with joblib so let that fail
-          - os: windows-latest
-            python-version: 3.8
-            experimental: true
-          - os: windows-latest
-            python-version: 3.9
-            experimental: true
           - os: windows-latest
             python-version: '3.10'
             experimental: true
           - os: windows-latest
-            python-version: 3.11
+            python-version: '3.11'
             experimental: true
-          - os: macos-latest
-            python-version: 3.11
+          - os: windows-latest
+            python-version: '3.12'
             experimental: true
-          - os: ubuntu-latest
-            python-version: 3.11
-            experimental: false
-          - os: macos-14
-            python-version: 3.8
-            experimental: true
-          - os: macos-14
-            python-version: 3.9
-            experimental: true
-          - os: macos-14
-            python-version: '3.10'
-            experimental: true
-          - os: macos-14
-            python-version: 3.11
-            experimental: true
+
     steps:
-      # Step up miniconda
-      - name: Download and setup Miniconda
-        uses: conda-incubator/setup-miniconda@v3
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          miniconda-version: "latest"
+          version: "0.7.6"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
           python-version: ${{ matrix.python-version }}
 
-      # Check out latest code on github
-      - name: Checkout Code
-        uses: actions/checkout@v2
-
-      # Install common sci-py packages via conda as well as testing packages and requirements
-      - name: Install Dependencies
+      - name: Run tests
         run: |
-          conda activate test
-          conda env list
-          pip install -r requirements-dev.txt
-          pip install -r optional-dependencies.txt
-
-      # Check code formatting
-      - name: Check code formatting
-        run: |
-          conda activate test
-          black --version
-          black --check --diff --verbose nltools
-
-      # Actually run the tests with coverage
-      - name: Run Tests
-        run: |
-          conda activate test
-          coverage run --source=nltools -m pytest -rs
-
-      # Send coverage to coveralls.io but waiting on parallelization to finish
-      # Not using the official github action in the marketplace to upload because it requires a .lcov file, which pytest doesn't generate. It's just easier to use the coveralls python library which does the same thing, but works with pytest.
-      - name: Upload Coverage
-        # The coveralls python package has some 422 server issues with uploads from github-actions so try both service providers, for more see:
-        # https://github.com/TheKevJames/coveralls-python/issues/252
-        run: coveralls --service=github || coveralls --service=github-actions
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COVERALLS_FLAG_NAME: $${{ matrix}}
-          COVERALLS_PARALLEL: true
-
-  # Job (2): Send a finish notification to coveralls.io to integrate coverage across parallel tests
-  coveralls:
-    name: Coveralls.io Upload
-    needs: test
-    runs-on: ubuntu-latest
-    container: python:3-slim
-    continue-on-error: true
-    steps:
-      - name: Finished
-        run: |
-          pip3 install --upgrade coveralls
-          coveralls --service=github --finish || coveralls --service=github-actions --finish
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # Job (3): Build docs, but don't deploy. This is effectively another layer of testing because of our sphinx-gallery auto-examples
-  docs:
-    name: Build docs and auto-examples
-    runs-on: ubuntu-latest
-    #TODO: Remove when upstream doc building issues are resolved
-    continue-on-error: true
-    defaults:
-      run:
-        shell: bash -l {0}
-    steps:
-      - name: Download and setup Miniconda
-        uses: conda-incubator/setup-miniconda@v3
-        with:
-          miniconda-version: "latest"
-          python-version: 3.8
-
-      - name: Checkout Code
-        uses: actions/checkout@v2
-
-      - name: Install Dependencies
-        run: |
-          conda activate test
-          conda env list
-          pip install -r requirements-dev.txt
-          pip install -r optional-dependencies.txt
-
+          # uv run ruff check
+          uv run pytest
+      
       - name: Build docs
         run: |
-          cd docs
-          make clean
-          make html
+          uv run jupyter-book build docs
+
+      # TODO: Uncomment when we have a way to deploy to github pages
+      # - name: upload artifact
+      #   if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      #   uses: actions/upload-pages-artifact@v3
+      #   with:
+      #     path: "./docs/_build/html"
+
+      # - name: Deploy to GitHub Pages
+      #   if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      #   id: deployment
+      #   uses: actions/deploy-pages@v4

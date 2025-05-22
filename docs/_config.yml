@@ -1,6 +1,7 @@
 title: NL-Tools
 author: Luke J. Chang, Eshin Jolly
-logo: logo.png
+logo: "" #TODO
+
 
 execute:
   execute_notebooks: false
@@ -14,6 +15,7 @@ repository:
 html:
   use_issues_button: true
   use_repository_button: true
+  home_page_in_navbar: true
 
 sphinx:
   extra_extensions:  

@@ -200,7 +200,6 @@ def roi_to_brain(data, mask_x):
         out: (Brain_Data) Brain_Data instance where each ROI is now populated
              with a value
     """
-    from nltools.data import Brain_Data
 
     if not isinstance(data, (pd.Series, pd.DataFrame)):
         if isinstance(data, list):

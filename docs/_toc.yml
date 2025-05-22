@@ -1,28 +1,18 @@
 format: jb-book
 root: index
 parts:
-- caption: Tutorials
-  chapters:
-  - file: tutorials/01_DataOperations/plot_adjacency
-  - file: tutorials/01_DataOperations/plot_design_matrix
-  - file: tutorials/01_DataOperations/plot_download
-  - file: tutorials/01_DataOperations/plot_mask
-  - file: tutorials/01_DataOperations/plot_mni_prefs
-  - file: tutorials/01_DataOperations/plot_neurovault_io
-  - file: tutorials/02_Analysis/plot_decomposition
-  - file: tutorials/02_Analysis/plot_hyperalignment
-  - file: tutorials/02_Analysis/plot_multivariate_classification
-  - file: tutorials/02_Analysis/plot_multivariate_prediction
-  - file: tutorials/02_Analysis/plot_similarity_example
-  - file: tutorials/02_Analysis/plot_univariate_regression
-- caption: API Reference
-  chapters:
-  - file: api/analysis
-  - file: api/crossval
-  - file: api/data
-  - file: api/dataset
-  - file: api/filereader
-  - file: api/mask
-  - file: api/prefs
-  - file: api/stats
-  - file: api/utils
+  - caption: Overview
+    chapters: 
+    - file: tutorials/index
+    - file: contributing
+  - caption: API Reference
+    chapters:
+    - file: api/analysis
+    - file: api/crossval
+    - file: api/data
+    - file: api/dataset
+    - file: api/filereader
+    - file: api/mask
+    - file: api/prefs
+    - file: api/stats
+    - file: api/utils

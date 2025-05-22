@@ -24,7 +24,6 @@ from nltools.stats import (
 from nltools.simulator import Simulator
 from nltools.mask import create_sphere
 from scipy.spatial.distance import squareform
-from sklearn.metrics import pairwise_distances
 
 # import pytest
 
