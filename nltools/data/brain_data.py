@@ -111,9 +111,11 @@ class Brain_Data(object):
         elif isinstance(mask, nib.Nifti1Image):
             self.mask = mask
         else:
-            raise TypeError("mask is not a nibabel instance or a " "valid file name")
+            raise TypeError("mask is not a nibabel instance or a valid file name")
 
         # Learn transformation on mask
+        # TODO: figure out how to supprese "Resampling images" from NiftiMasker
+        # when .fit_transform() is called
         self.nifti_masker = NiftiMasker(mask_img=self.mask, **kwargs)
 
         # Setup data
@@ -262,6 +264,7 @@ class Brain_Data(object):
                         # Filepath
                         if isinstance(i, (str, Path)):
                             to_load = str(i)
+                            print("hi")
                             self.data.append(
                                 self.nifti_masker.fit_transform(nib.load(to_load))
                             )
@@ -351,15 +354,14 @@ class Brain_Data(object):
     def __setitem__(self, index, value):
         if not isinstance(value, Brain_Data):
             raise ValueError(
-                "Make sure the value you are trying to set is a "
-                "Brain_Data() instance."
+                "Make sure the value you are trying to set is a Brain_Data() instance."
             )
         self.data[index, :] = value.data
         if not value.Y.empty:
             self.Y.values[index] = value.Y
         if not value.X.empty:
             if self.X.shape[1] != value.X.shape[1]:
-                raise ValueError("Make sure self.X is the same size as " "value.X.")
+                raise ValueError("Make sure self.X is the same size as value.X.")
             self.X.values[index] = value.X
 
     def __len__(self):
@@ -372,7 +374,7 @@ class Brain_Data(object):
         elif isinstance(y, Brain_Data):
             if self.shape() != y.shape():
                 raise ValueError(
-                    "Both Brain_Data() instances need to be the " "same shape."
+                    "Both Brain_Data() instances need to be the same shape."
                 )
             new.data = new.data + y.data
         else:
@@ -386,7 +388,7 @@ class Brain_Data(object):
         elif isinstance(y, Brain_Data):
             if self.shape() != y.shape():
                 raise ValueError(
-                    "Both Brain_Data() instances need to be the " "same shape."
+                    "Both Brain_Data() instances need to be the same shape."
                 )
             new.data = y.data + new.data
         else:
@@ -400,7 +402,7 @@ class Brain_Data(object):
         elif isinstance(y, Brain_Data):
             if self.shape() != y.shape():
                 raise ValueError(
-                    "Both Brain_Data() instances need to be the " "same shape."
+                    "Both Brain_Data() instances need to be the same shape."
                 )
             new.data = new.data - y.data
         else:
@@ -414,7 +416,7 @@ class Brain_Data(object):
         elif isinstance(y, Brain_Data):
             if self.shape() != y.shape():
                 raise ValueError(
-                    "Both Brain_Data() instances need to be the " "same shape."
+                    "Both Brain_Data() instances need to be the same shape."
                 )
             new.data = y.data - new.data
         else:
@@ -428,7 +430,7 @@ class Brain_Data(object):
         elif isinstance(y, Brain_Data):
             if self.shape() != y.shape():
                 raise ValueError(
-                    "Both Brain_Data() instances need to be the " "same shape."
+                    "Both Brain_Data() instances need to be the same shape."
                 )
             new.data = np.multiply(new.data, y.data)
         elif isinstance(y, (list, np.ndarray)):
@@ -451,7 +453,7 @@ class Brain_Data(object):
         elif isinstance(y, Brain_Data):
             if self.shape() != y.shape():
                 raise ValueError(
-                    "Both Brain_Data() instances need to be the " "same shape."
+                    "Both Brain_Data() instances need to be the same shape."
                 )
             new.data = np.multiply(y.data, new.data)
         else:
@@ -465,7 +467,7 @@ class Brain_Data(object):
         elif isinstance(y, Brain_Data):
             if self.shape() != y.shape():
                 raise ValueError(
-                    "Both Brain_Data() instances need to be the " "same shape."
+                    "Both Brain_Data() instances need to be the same shape."
                 )
             new.data = np.divide(new.data, y.data)
         else:
@@ -765,7 +767,7 @@ class Brain_Data(object):
             raise ValueError("Make sure self.X is not empty.")
 
         if self.data.shape[0] != self.X.shape[0]:
-            raise ValueError("self.X does not match the correct size of " "self.data")
+            raise ValueError("self.X does not match the correct size of self.data")
 
         b, se, t, p, df, res = regression(self.X, self.data, mode=mode, **kwargs)
 
@@ -829,7 +831,7 @@ class Brain_Data(object):
             raise ValueError("Make sure self.X is not empty.")
 
         if self.data.shape[0] != self.X.shape[0]:
-            raise ValueError("self.X does not match the correct size of " "self.data")
+            raise ValueError("self.X does not match the correct size of self.data")
 
         b, t, p = regress_permutation(self.X, self.data, n_permute=n_permute, **kwargs)
 
@@ -1076,7 +1078,7 @@ class Brain_Data(object):
         # Notes:  Should add ridge, and lasso, elastic net options options
 
         if len(self.shape()) > 1:
-            raise ValueError("This method can only decompose a single brain " "image.")
+            raise ValueError("This method can only decompose a single brain image.")
 
         images = check_brain_data(images)
 
@@ -1272,9 +1274,9 @@ class Brain_Data(object):
                             self.data[test]
                         )
                     else:
-                        output["dist_from_hyperplane_xval"][
-                            test
-                        ] = predictor_cv.decision_function(self.data[test])
+                        output["dist_from_hyperplane_xval"][test] = (
+                            predictor_cv.decision_function(self.data[test])
+                        )
                         if (
                             predictor_settings["algorithm"] == "svm"
                             and predictor_cv.probability
@@ -1530,7 +1532,12 @@ class Brain_Data(object):
 
         n_vox = len(self) if check_brain_data_is_single(self) else self.shape()[1]
         if resample_mask_to_brain:
-            mask = resample_to_img(mask.to_nifti(), masked.to_nifti(), force_resample=True, copy_header=True)
+            mask = resample_to_img(
+                mask.to_nifti(),
+                masked.to_nifti(),
+                force_resample=True,
+                copy_header=True,
+            )
             mask = check_brain_data(mask, masked.mask)
 
         nifti_masker = NiftiMasker(mask_img=mask.to_nifti()).fit()
@@ -1710,7 +1717,7 @@ class Brain_Data(object):
 
         if len(self.shape()) == 1:
             raise ValueError(
-                "Make sure there is more than one image in order " "to detrend."
+                "Make sure there is more than one image in order to detrend."
             )
 
         out = deepcopy(self)
@@ -1842,7 +1849,7 @@ class Brain_Data(object):
         if sampling_freq is None:
             raise ValueError("Need to provide sampling rate (TR)!")
         if high_pass is None and low_pass is None:
-            raise ValueError("high_pass and/or low_pass cutoff must be" "provided!")
+            raise ValueError("high_pass and/or low_pass cutoff must beprovided!")
         standardize = kwargs.get("standardize", False)
         detrend = kwargs.get("detrend", False)
         out = self.copy()
@@ -2317,7 +2324,7 @@ class Groupby(object):
                 if value_dict[i].shape()[0] == np.sum(self.mask[i].data):
                     out.data[i, out.data[i, :] == 1] = value_dict[i].data
                 else:
-                    raise ValueError("Brain_Data instances are different " "shapes.")
+                    raise ValueError("Brain_Data instances are different shapes.")
             elif isinstance(value_dict[i], (float, int, bool, np.number)):
                 out.data[i, :] = out.data[i, :] * value_dict[i]
             else:
