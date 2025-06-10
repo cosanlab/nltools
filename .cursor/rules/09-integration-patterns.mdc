@@ -1,0 +1,350 @@
+---
+description: Integration patterns with external libraries (nilearn, sklearn, pandas)
+globs:
+  - "nltools/**/*.py"
+alwaysApply: false
+---
+
+# Integration Patterns with External Libraries
+
+## Nilearn Integration
+
+```python
+from nilearn import image, masking, datasets
+from nilearn.maskers import NiftiMasker
+
+# Creating and using NiftiMasker
+def setup_masker(mask_img=None, **kwargs):
+    """Setup NiftiMasker with nltools conventions."""
+    default_params = {
+        'standardize': False,  # We handle this in nltools
+        'detrend': False,      # We handle this in nltools
+        'smoothing_fwhm': None,
+        'memory': 'nilearn_cache',
+        'memory_level': 1,
+        'verbose': 0
+    }
+    default_params.update(kwargs)
+    
+    if mask_img is None:
+        # Use MNI template
+        mask_img = datasets.load_mni152_brain_mask()
+    
+    masker = NiftiMasker(mask_img=mask_img, **default_params)
+    return masker
+
+# Resampling images
+def resample_to_mask(img, mask):
+    """Resample image to match mask resolution."""
+    return image.resample_to_img(
+        img, 
+        mask,
+        interpolation='continuous'
+    )
+
+# Atlas integration
+def extract_atlas_rois(brain_data, atlas_name='harvard_oxford'):
+    """Extract ROI data using nilearn atlases."""
+    if atlas_name == 'harvard_oxford':
+        atlas = datasets.fetch_atlas_harvard_oxford('cort-maxprob-thr25-2mm')
+    elif atlas_name == 'aal':
+        atlas = datasets.fetch_atlas_aal()
+    
+    # Extract signals
+    masker = NiftiMasker(mask_img=atlas.maps)
+    roi_data = masker.fit_transform(brain_data)
+    
+    return roi_data, atlas.labels
+```
+
+## Scikit-learn Integration
+
+```python
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import cross_val_score, GridSearchCV
+from sklearn.pipeline import Pipeline
+
+# Custom transformer for Brain_Data
+class BrainDataTransformer(BaseEstimator, TransformerMixin):
+    """Scikit-learn compatible transformer for Brain_Data."""
+    
+    def __init__(self, method='mean'):
+        self.method = method
+    
+    def fit(self, X, y=None):
+        """Fit does nothing for stateless transformers."""
+        return self
+    
+    def transform(self, X):
+        """Transform Brain_Data to features."""
+        if self.method == 'mean':
+            return X.mean().data
+        elif self.method == 'std':
+            return X.std().data
+        else:
+            return X.data
+
+# Pipeline pattern
+def create_ml_pipeline(brain_data):
+    """Create sklearn pipeline with Brain_Data."""
+    pipeline = Pipeline([
+        ('brain_transform', BrainDataTransformer()),
+        ('scaler', StandardScaler()),
+        ('classifier', SVC())
+    ])
+    
+    # Grid search
+    param_grid = {
+        'classifier__C': [0.1, 1, 10],
+        'classifier__kernel': ['linear', 'rbf']
+    }
+    
+    grid_search = GridSearchCV(
+        pipeline,
+        param_grid,
+        cv=5,
+        n_jobs=-1
+    )
+    
+    return grid_search
+
+# Cross-validation wrapper
+def cross_validate_brain(brain_data, estimator, cv=5):
+    """Cross-validation with Brain_Data."""
+    X = brain_data.data
+    y = brain_data.Y
+    
+    scores = cross_val_score(
+        estimator,
+        X,
+        y,
+        cv=cv,
+        scoring='r2' if y.dtype == float else 'accuracy'
+    )
+    
+    return {
+        'scores': scores,
+        'mean': scores.mean(),
+        'std': scores.std()
+    }
+```
+
+## Pandas Integration
+
+```python
+import pandas as pd
+
+# Brain_Data to DataFrame
+def brain_to_dataframe(brain_data, include_metadata=True):
+    """Convert Brain_Data to pandas DataFrame."""
+    df = pd.DataFrame(
+        brain_data.data,
+        columns=[f'voxel_{i}' for i in range(brain_data.shape()[1])]
+    )
+    
+    if include_metadata and brain_data.Y is not None:
+        df['Y'] = brain_data.Y
+    
+    if include_metadata and brain_data.X is not None:
+        # Add design matrix columns
+        for col in brain_data.X.columns:
+            df[col] = brain_data.X[col].values
+    
+    return df
+
+# Time series operations
+def create_lagged_features(design_matrix, n_lags=3):
+    """Create lagged features using pandas."""
+    df = design_matrix.copy()
+    
+    for col in design_matrix.columns:
+        if col not in design_matrix.polys:  # Skip polynomial terms
+            for lag in range(1, n_lags + 1):
+                df[f'{col}_lag{lag}'] = df[col].shift(lag)
+    
+    # Drop NaN rows from lagging
+    df = df.dropna()
+    
+    return Design_Matrix(df, sampling_freq=design_matrix.sampling_freq)
+
+# Event file handling
+def read_event_file(filename, sampling_freq):
+    """Read event file and create design matrix."""
+    events = pd.read_csv(filename, sep='\t')
+    
+    # Standard BIDS format
+    if {'onset', 'duration', 'trial_type'}.issubset(events.columns):
+        n_volumes = int(events['onset'].max() / sampling_freq) + 100
+        dm = Design_Matrix(sampling_freq=sampling_freq)
+        
+        for trial_type in events['trial_type'].unique():
+            trial_events = events[events['trial_type'] == trial_type]
+            
+            # Create binary vector
+            vector = np.zeros(n_volumes)
+            for _, event in trial_events.iterrows():
+                start = int(event['onset'] / sampling_freq)
+                duration = int(event['duration'] / sampling_freq)
+                vector[start:start+duration] = 1
+            
+            dm[trial_type] = vector[:n_volumes]
+    
+    return dm
+```
+
+## Joblib Integration
+
+```python
+from joblib import Parallel, delayed, Memory
+
+# Setup caching
+memory = Memory(location='./cache', verbose=0)
+
+@memory.cache
+def expensive_computation(brain_data, param):
+    """Cache expensive computations."""
+    # This will be cached
+    return brain_data.smooth(fwhm=param).mean()
+
+# Parallel patterns with progress
+def parallel_analysis(brain_list, function, n_jobs=-1, verbose=True):
+    """Run analysis in parallel with progress."""
+    if verbose:
+        from tqdm import tqdm
+        
+        # Create progress bar
+        results = Parallel(n_jobs=n_jobs)(
+            delayed(function)(brain) 
+            for brain in tqdm(brain_list, desc='Processing')
+        )
+    else:
+        results = Parallel(n_jobs=n_jobs)(
+            delayed(function)(brain) for brain in brain_list
+        )
+    
+    return results
+```
+
+## HDF5 Integration
+
+```python
+import h5py
+
+def save_analysis_results(filename, **results):
+    """Save complex analysis results to HDF5."""
+    with h5py.File(filename, 'w') as f:
+        for key, value in results.items():
+            if isinstance(value, Brain_Data):
+                # Save Brain_Data
+                grp = f.create_group(key)
+                grp.create_dataset('data', data=value.data)
+                grp.attrs['mask_file'] = str(value.mask)
+                if value.Y is not None:
+                    grp.create_dataset('Y', data=value.Y)
+            
+            elif isinstance(value, pd.DataFrame):
+                # Save DataFrame
+                grp = f.create_group(key)
+                for col in value.columns:
+                    grp.create_dataset(col, data=value[col].values)
+                grp.attrs['columns'] = list(value.columns)
+            
+            elif isinstance(value, dict):
+                # Save nested dict
+                grp = f.create_group(key)
+                for k, v in value.items():
+                    if np.isscalar(v) or isinstance(v, np.ndarray):
+                        grp.create_dataset(k, data=v)
+            
+            else:
+                # Save array or scalar
+                f.create_dataset(key, data=value)
+
+def load_analysis_results(filename):
+    """Load complex analysis results from HDF5."""
+    results = {}
+    
+    with h5py.File(filename, 'r') as f:
+        for key in f.keys():
+            if isinstance(f[key], h5py.Group):
+                if 'mask_file' in f[key].attrs:
+                    # Load Brain_Data
+                    brain = Brain_Data(
+                        data=f[key]['data'][:],
+                        mask=f[key].attrs['mask_file']
+                    )
+                    if 'Y' in f[key]:
+                        brain.Y = f[key]['Y'][:]
+                    results[key] = brain
+                
+                elif 'columns' in f[key].attrs:
+                    # Load DataFrame
+                    data = {}
+                    for col in f[key].attrs['columns']:
+                        data[col] = f[key][col][:]
+                    results[key] = pd.DataFrame(data)
+                
+                else:
+                    # Load dict
+                    results[key] = {k: v[:] for k, v in f[key].items()}
+            else:
+                # Load array or scalar
+                results[key] = f[key][:]
+    
+    return results
+```
+
+## Statsmodels Integration
+
+```python
+import statsmodels.api as sm
+from statsmodels.stats.multitest import multipletests
+
+def mixed_effects_analysis(brain_data, formula, groups):
+    """Run mixed effects analysis on Brain_Data."""
+    results = []
+    
+    for voxel in range(brain_data.shape()[1]):
+        # Create DataFrame for this voxel
+        df = pd.DataFrame({
+            'y': brain_data.data[:, voxel],
+            'group': groups
+        })
+        
+        # Add covariates from X
+        if brain_data.X is not None:
+            for col in brain_data.X.columns:
+                df[col] = brain_data.X[col]
+        
+        # Fit mixed model
+        model = sm.MixedLM.from_formula(
+            formula,
+            data=df,
+            groups=df['group']
+        )
+        
+        result = model.fit()
+        results.append({
+            'beta': result.params,
+            't': result.tvalues,
+            'p': result.pvalues
+        })
+    
+    return results
+
+# Multiple comparisons correction
+def correct_multiple_comparisons(p_values, method='fdr_bh', alpha=0.05):
+    """Apply multiple comparisons correction."""
+    rejected, p_corrected, alpha_c, alpha_b = multipletests(
+        p_values.flatten(),
+        alpha=alpha,
+        method=method
+    )
+    
+    return {
+        'p_corrected': p_corrected.reshape(p_values.shape),
+        'rejected': rejected.reshape(p_values.shape),
+        'alpha_corrected': alpha_c
+    }
+```

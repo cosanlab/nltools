@@ -1,0 +1,193 @@
+---
+description: Patterns for working with Design_Matrix class
+globs:
+  - "nltools/data/design_matrix.py"
+  - "nltools/tests/test_design_matrix.py"
+  - "**/*design*.py"
+alwaysApply: false
+---
+
+# Design_Matrix Class Patterns
+
+## Creating Design Matrices
+
+```python
+from nltools.data import Design_Matrix
+
+# Empty matrix with sampling frequency
+dm = Design_Matrix(sampling_freq=0.5)
+
+# From pandas DataFrame
+dm = Design_Matrix(dataframe, sampling_freq=0.5)
+
+# From numpy array with column names
+dm = Design_Matrix(
+    data=array,
+    columns=['col1', 'col2'],
+    sampling_freq=0.5
+)
+
+# Loading from file
+dm = Design_Matrix(file='design.csv', sampling_freq=0.5)
+```
+
+## Key Attributes
+
+Design matrices track temporal information:
+
+```python
+# Sampling frequency (required)
+dm.sampling_freq = 0.5  # TR in seconds
+
+# Polynomial terms (tracked automatically)
+dm.polys  # List of polynomial column names
+
+# Convolved regressors (tracked automatically)
+dm.convolved  # List of convolved column names
+```
+
+## Common Operations
+
+### Adding Regressors
+
+```python
+# Add polynomial terms
+dm_poly = dm.add_poly(order=2, include_lower=True)
+
+# Add intercept
+dm_with_intercept = dm.add_intercept()
+
+# Add custom columns
+dm['new_regressor'] = values
+```
+
+### HRF Convolution
+
+```python
+# Convolve specific columns with HRF
+dm_conv = dm.convolve(columns=['stim1', 'stim2'])
+
+# Convolve all non-polynomial columns
+dm_conv = dm.convolve()
+
+# Custom HRF function
+from nltools.external.hrf import glover_hrf
+custom_hrf = glover_hrf(tr=dm.sampling_freq, oversampling=1)
+dm_conv = dm.convolve(conv_func=custom_hrf)
+```
+
+### Temporal Operations
+
+```python
+# Resampling
+dm_resampled = dm.resample(target_hz=1.0)
+
+# Z-scoring
+dm_zscore = dm.zscore(columns=['regressor1', 'regressor2'])
+
+# Replace NaN values
+dm_clean = dm.replace_na(value=0)
+```
+
+### Diagnostics
+
+```python
+# Check multicollinearity
+vif_results = dm.vif()
+# Returns DataFrame with VIF scores
+
+# Clean high VIF columns
+dm_clean = dm.clean(thresh=10.0)
+
+# Correlation matrix
+corr_matrix = dm.corr()
+```
+
+## Integration with Brain_Data
+
+```python
+# Design matrix and Brain_Data must have same length
+assert brain.shape()[0] == dm.shape[0]
+
+# Regression
+results = brain.regress(dm)
+
+# Or using X attribute
+brain.X = dm
+results = brain.regress()
+```
+
+## Plotting
+
+```python
+# Heatmap visualization
+dm.plot(plot_savename='design_matrix.png')
+
+# Specific columns
+dm.plot(columns=['stim1', 'stim2'])
+```
+
+## File I/O
+
+```python
+# Save to file
+dm.to_csv('design.csv')
+
+# Load preserving metadata
+dm = Design_Matrix('design.csv', sampling_freq=0.5)
+
+# Convert to numpy
+X = dm.values  # or dm.to_numpy()
+```
+
+## Example Workflow
+
+```python
+# Complete preprocessing pipeline
+dm = Design_Matrix(data, sampling_freq=2.0)
+dm = dm.add_poly(order=2)  # Add polynomials
+dm = dm.convolve()          # Convolve with HRF
+dm = dm.zscore()           # Z-score
+dm = dm.clean(thresh=10)    # Remove high VIF
+
+# Check result
+print(f"Shape: {dm.shape}")
+print(f"Columns: {dm.columns.tolist()}")
+print(f"Convolved: {dm.convolved}")
+print(f"Polynomials: {dm.polys}")
+```
+
+## Testing Patterns
+
+```python
+def test_design_matrix_operations(sim_design_matrix):
+    """Test using fixture."""
+    # Test convolution preserves shape
+    dm_conv = sim_design_matrix.convolve()
+    assert dm_conv.shape == sim_design_matrix.shape
+    
+    # Test polynomial addition
+    dm_poly = sim_design_matrix.add_poly(2)
+    expected_cols = len(sim_design_matrix.columns) + 2
+    assert len(dm_poly.columns) == expected_cols
+    
+    # Test VIF calculation
+    vif = sim_design_matrix.vif()
+    assert isinstance(vif, pd.DataFrame)
+```
+
+## Common Pitfalls to Avoid
+
+```python
+# Don't forget sampling_freq
+# Bad: dm = Design_Matrix(data)
+# Good: dm = Design_Matrix(data, sampling_freq=2.0)
+
+# Don't convolve polynomial terms
+# The convolve() method automatically skips them
+
+# Check for multicollinearity after adding polynomials
+dm_poly = dm.add_poly(3)
+if dm_poly.vif()['VIF'].max() > 10:
+    dm_poly = dm_poly.clean()
+```
