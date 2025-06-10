@@ -1,0 +1,243 @@
+---
+description: NumPy and SciPy patterns for neuroimaging data
+globs:
+  - "nltools/**/*.py"
+alwaysApply: false
+---
+
+# NumPy and SciPy Patterns for nltools
+
+## Array Creation and Manipulation
+
+```python
+import numpy as np
+from scipy import stats, ndimage, signal
+
+# Creating arrays with proper dtype
+data = np.array(data, dtype=np.float32)  # Save memory for large data
+mask_data = np.array(mask, dtype=bool)   # Boolean for masks
+
+# Efficient array operations
+# Use in-place operations when possible
+data *= scale_factor  # Instead of data = data * scale_factor
+data += offset       # Instead of data = data + offset
+
+# Vectorized operations
+z_scores = (data - np.mean(data, axis=0)) / np.std(data, axis=0)
+
+# Handle NaN values
+clean_data = np.nan_to_num(data, nan=0.0)
+# Or preserve shape
+mask = ~np.isnan(data)
+valid_data = data[mask]
+```
+
+## Statistical Operations
+
+```python
+# One-sample t-test pattern
+def ttest_1sample(data, popmean=0):
+    """Vectorized one-sample t-test."""
+    n = data.shape[0]
+    mean = np.mean(data, axis=0)
+    std = np.std(data, axis=0, ddof=1)
+    se = std / np.sqrt(n)
+    
+    t = (mean - popmean) / se
+    df = n - 1
+    p = 2 * stats.t.sf(np.abs(t), df)
+    
+    return mean, t, p, df
+
+# Correlation patterns
+def correlation_matrix(data):
+    """Efficient correlation computation."""
+    # Standardize first
+    data_std = stats.zscore(data, axis=0)
+    # Use dot product
+    corr = np.dot(data_std.T, data_std) / (data.shape[0] - 1)
+    return corr
+
+# Permutation test pattern
+def permutation_test(data1, data2, n_perms=1000):
+    """Two-sample permutation test."""
+    combined = np.vstack([data1, data2])
+    n1 = len(data1)
+    observed = np.mean(data1) - np.mean(data2)
+    
+    null_dist = []
+    for _ in range(n_perms):
+        np.random.shuffle(combined)
+        perm_diff = np.mean(combined[:n1]) - np.mean(combined[n1:])
+        null_dist.append(perm_diff)
+    
+    p_value = np.mean(np.abs(null_dist) >= np.abs(observed))
+    return observed, p_value
+```
+
+## Spatial Operations
+
+```python
+# Smoothing patterns
+from scipy.ndimage import gaussian_filter
+
+def smooth_volume(data, fwhm, voxel_size):
+    """Apply Gaussian smoothing to 3D/4D data."""
+    # Convert FWHM to sigma
+    sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
+    sigma_vox = sigma / voxel_size
+    
+    if data.ndim == 3:
+        return gaussian_filter(data, sigma_vox)
+    elif data.ndim == 4:
+        # Smooth each volume
+        smoothed = np.zeros_like(data)
+        for t in range(data.shape[-1]):
+            smoothed[..., t] = gaussian_filter(data[..., t], sigma_vox)
+        return smoothed
+```
+
+## Matrix Operations
+
+```python
+# Efficient distance computation
+from scipy.spatial.distance import pdist, squareform
+
+def compute_distances(data, metric='euclidean'):
+    """Compute pairwise distances efficiently."""
+    # pdist returns condensed distance matrix
+    distances_condensed = pdist(data, metric=metric)
+    
+    # Convert to square form if needed
+    distances_square = squareform(distances_condensed)
+    
+    return distances_condensed  # More memory efficient
+
+# SVD for dimensionality reduction
+def reduce_dimensions(data, n_components):
+    """PCA via SVD."""
+    # Center data
+    data_centered = data - np.mean(data, axis=0)
+    
+    # SVD
+    U, s, Vt = np.linalg.svd(data_centered, full_matrices=False)
+    
+    # Project data
+    components = Vt[:n_components]
+    reduced = np.dot(data_centered, components.T)
+    
+    # Explained variance
+    explained_var = (s ** 2) / (data.shape[0] - 1)
+    explained_var_ratio = explained_var / explained_var.sum()
+    
+    return reduced, components, explained_var_ratio[:n_components]
+```
+
+## Signal Processing
+
+```python
+from scipy import signal
+
+# Temporal filtering
+def bandpass_filter(data, low_freq, high_freq, sampling_freq):
+    """Apply bandpass filter to time series."""
+    nyquist = sampling_freq / 2
+    low = low_freq / nyquist
+    high = high_freq / nyquist
+    
+    # Design filter
+    b, a = signal.butter(5, [low, high], btype='band')
+    
+    # Apply filter (forward-backward to preserve phase)
+    filtered = signal.filtfilt(b, a, data, axis=0)
+    
+    return filtered
+
+# HRF convolution
+def convolve_hrf(stimulus, hrf, mode='same'):
+    """Convolve stimulus with HRF."""
+    # Ensure 1D
+    stimulus = np.asarray(stimulus).ravel()
+    hrf = np.asarray(hrf).ravel()
+    
+    # Convolve
+    convolved = np.convolve(stimulus, hrf, mode=mode)
+    
+    return convolved
+```
+
+## Memory-Efficient Patterns
+
+```python
+# Use generators for large datasets
+def process_chunks(data, chunk_size=1000):
+    """Process data in chunks to save memory."""
+    n_samples = data.shape[0]
+    for start in range(0, n_samples, chunk_size):
+        end = min(start + chunk_size, n_samples)
+        yield data[start:end]
+
+# Memory mapping for large files
+def load_large_array(filename):
+    """Load large array using memory mapping."""
+    return np.load(filename, mmap_mode='r')
+
+# In-place operations
+def standardize_inplace(data):
+    """Standardize data in place."""
+    data -= np.mean(data, axis=0)
+    data /= np.std(data, axis=0)
+    return data  # Returns same array, modified
+```
+
+## Numerical Stability
+
+```python
+# Stable computation patterns
+def stable_softmax(x):
+    """Numerically stable softmax."""
+    # Subtract max for stability
+    x_shifted = x - np.max(x, axis=-1, keepdims=True)
+    exp_x = np.exp(x_shifted)
+    return exp_x / np.sum(exp_x, axis=-1, keepdims=True)
+
+def stable_log_sum_exp(x):
+    """Stable log-sum-exp computation."""
+    x_max = np.max(x)
+    return x_max + np.log(np.sum(np.exp(x - x_max)))
+
+# Regularization for matrix inversion
+def ridge_regression(X, y, alpha=1.0):
+    """Ridge regression with numerical stability."""
+    # Add regularization to diagonal
+    XtX = np.dot(X.T, X)
+    XtX_reg = XtX + alpha * np.eye(X.shape[1])
+    
+    # Solve using Cholesky decomposition (more stable)
+    L = np.linalg.cholesky(XtX_reg)
+    z = np.linalg.solve(L, np.dot(X.T, y))
+    beta = np.linalg.solve(L.T, z)
+    
+    return beta
+```
+
+## Parallel Computation Patterns
+
+```python
+from joblib import Parallel, delayed
+
+# Parallel bootstrap
+def parallel_bootstrap(data, func, n_samples=1000, n_jobs=-1):
+    """Parallel bootstrap computation."""
+    n = len(data)
+    
+    def single_bootstrap():
+        indices = np.random.choice(n, size=n, replace=True)
+        return func(data[indices])
+    
+    results = Parallel(n_jobs=n_jobs)(
+        delayed(single_bootstrap)() for _ in range(n_samples)
+    )
+    
+    return np.array(results)
+```
