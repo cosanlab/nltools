@@ -263,10 +263,8 @@ class Brain_Data(object):
                     for i in data:
                         # Filepath
                         if isinstance(i, (str, Path)):
-                            to_load = str(i)
-                            print("hi")
                             self.data.append(
-                                self.nifti_masker.fit_transform(nib.load(to_load))
+                                self.nifti_masker.fit_transform(nib.load(str(i)))
                             )
                         # Loaded nifti object
                         elif isinstance(i, nib.Nifti1Image):
