@@ -152,6 +152,79 @@ def test_divide(sim_brain_data):
     np.testing.assert_almost_equal(((new2 * value) - new2).mean().mean(), 0, decimal=2)
 
 
+def test_inplace_add(sim_brain_data):
+    # Test in-place add with scalar
+    bd = sim_brain_data[0].copy()
+    original_data = bd.data.copy()
+    bd += 5
+    assert np.allclose(bd.data, original_data + 5)
+    
+    # Test in-place add with Brain_Data
+    bd1 = sim_brain_data[0].copy()
+    bd2 = sim_brain_data[0].copy()
+    original_data = bd1.data.copy()
+    bd1 += bd2
+    assert np.allclose(bd1.data, original_data + bd2.data)
+
+
+def test_inplace_subtract(sim_brain_data):
+    # Test in-place subtract with scalar
+    bd = sim_brain_data[0].copy()
+    original_data = bd.data.copy()
+    bd -= 3
+    assert np.allclose(bd.data, original_data - 3)
+    
+    # Test in-place subtract with Brain_Data
+    bd1 = sim_brain_data[0].copy()
+    bd2 = sim_brain_data[0].copy()
+    original_data = bd1.data.copy()
+    bd1 -= bd2
+    assert np.allclose(bd1.data, original_data - bd2.data)
+
+
+def test_inplace_multiply(sim_brain_data):
+    # Test in-place multiply with scalar
+    bd = sim_brain_data[0].copy()
+    original_data = bd.data.copy()
+    bd *= 2
+    assert np.allclose(bd.data, original_data * 2)
+    
+    # Test in-place multiply with Brain_Data
+    bd1 = sim_brain_data[0].copy()
+    bd2 = sim_brain_data[0].copy()
+    original_data = bd1.data.copy()
+    bd1 *= bd2
+    assert np.allclose(bd1.data, original_data * bd2.data)
+    
+    # Test in-place multiply with array
+    bd = sim_brain_data[0:4].copy()
+    c1 = [0.5, 0.5, -0.5, -0.5]
+    bd *= c1
+    expected = (
+        sim_brain_data[0] * 0.5
+        + sim_brain_data[1] * 0.5
+        - sim_brain_data[2] * 0.5
+        - sim_brain_data[3] * 0.5
+    )
+    np.testing.assert_almost_equal((bd - expected).sum(), 0, decimal=4)
+
+
+def test_inplace_divide(sim_brain_data):
+    # Test in-place divide with scalar
+    bd = sim_brain_data[0].copy()
+    original_data = bd.data.copy()
+    bd /= 2
+    assert np.allclose(bd.data, original_data / 2)
+    
+    # Test in-place divide with Brain_Data
+    bd1 = sim_brain_data[0].copy()
+    bd2 = sim_brain_data[0].copy()
+    bd2.data = bd2.data + 1  # Avoid division by zero
+    original_data = bd1.data.copy()
+    bd1 /= bd2
+    assert np.allclose(bd1.data, original_data / bd2.data)
+
+
 def test_indexing(sim_brain_data):
     index = [0, 3, 1]
     assert len(sim_brain_data[index]) == len(index)

@@ -245,7 +245,15 @@ def plot_t_brain(
     return
 
 
-def plot_brain(objIn, how="full", thr_upper=None, thr_lower=None, save=False, **kwargs):
+def plot_brain(
+    objIn,
+    how="full",
+    thr_upper=None,
+    thr_lower=None,
+    save=False,
+    verbose=False,
+    **kwargs,
+):
     """
     More complete brain plotting of a Brain_Data instance
 
@@ -272,16 +280,18 @@ def plot_brain(objIn, how="full", thr_upper=None, thr_lower=None, save=False, **
     cmap = "RdBu_r"
 
     if thr_upper is None and thr_lower is None:
-        print("Plotting unthresholded image")
+        msg = "Plotting unthresholded image"
     else:
         if isinstance(thr_upper, str):
-            print("Plotting top %s of voxels" % thr_upper)
+            msg = "Plotting top %s of voxels" % thr_upper
         elif isinstance(thr_upper, (float, int)):
-            print("Plotting voxels with stat value >= %s" % thr_upper)
+            msg = "Plotting voxels with stat value >= %s" % thr_upper
         if isinstance(thr_lower, str):
-            print("Plotting lower %s of voxels" % thr_lower)
+            msg = "Plotting lower %s of voxels" % thr_lower
         elif isinstance(thr_lower, (float, int)):
-            print("Plotting voxels with stat value <= %s" % thr_lower)
+            msg = "Plotting voxels with stat value <= %s" % thr_lower
+    if verbose:
+        print(msg)
 
     if save:
         path, filename = os.path.split(save)
