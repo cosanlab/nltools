@@ -1739,7 +1739,8 @@ class Adjacency(object):
                 estimate = results[var_name].mean()
                 standardized = (results[var_name] / results["total_variance"]).mean()
                 se = results[var_name].std() / np.sqrt(len(results[var_name]))
-                t = estimate / se
+                with np.errstate(invalid="ignore", divide="ignore"):
+                    t = estimate / se
                 if tailed == 1:
                     p = 1 - stats.t.cdf(t, len(results[var_name]) - 1)
                 elif tailed == 2:

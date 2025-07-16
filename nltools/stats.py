@@ -480,7 +480,8 @@ def fisher_r_to_z(r):
         Clips r values to (-1, 1) range to avoid invalid arctanh inputs
     """
     # Clip r to valid range for arctanh to avoid invalid value warnings
-    return np.arctanh(r)
+    with np.errstate(invalid="ignore"):
+        return np.arctanh(r)
 
 
 def fisher_z_to_r(z):
@@ -1003,7 +1004,8 @@ def summarize_bootstrap(data, save_weights=False):
     wstd = data.std()
     wmean = data.mean()
     wz = deepcopy(wmean)
-    wz.data = wmean.data / wstd.data
+    with np.errstate(invalid="ignore", divide="ignore"):
+        wz.data = wmean.data / wstd.data
     wp = deepcopy(wmean)
     wp.data = 2 * (1 - norm.cdf(np.abs(wz.data)))
     # Create outputs
