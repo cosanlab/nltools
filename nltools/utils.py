@@ -8,19 +8,18 @@ handy utilities.
 
 __all__ = [
     "get_resource_path",
-    "get_anatomical",
     "set_algorithm",
     "attempt_to_import",
     "all_same",
     "concatenate",
     "_bootstrap_apply_func",
     "set_decomposition_algorithm",
+    "get_mni_from_img_resolution",
 ]
 
 from os.path import dirname, join, sep as pathsep
 import nibabel as nib
 import importlib
-import os
 from sklearn.pipeline import Pipeline
 from sklearn.utils import check_random_state
 from scipy.spatial.distance import squareform
@@ -29,6 +28,7 @@ import pandas as pd
 import collections
 from types import GeneratorType
 from h5py import File as h5File
+from nltools.prefs import MNI_Template
 
 
 def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
@@ -71,38 +71,60 @@ def get_resource_path():
 
 def get_anatomical():
     """Get nltools default anatomical image.
-    DEPRECATED. See MNI_Template and resolve_mni_path from nltools.prefs
+    DEPRECATED. Use MNI_Template.plot from nltools.prefs instead.
     """
-    return nib.load(os.path.join(get_resource_path(), "MNI152_T1_2mm.nii.gz"))
+    from nltools.prefs import MNI_Template
+    return nib.load(MNI_Template.plot)
 
 
 def get_mni_from_img_resolution(brain, img_type="plot"):
     """
-    Get the path to the resolution MNI anatomical image that matches the resolution of a Brain_Data instance. Used by Brain_Data.plot() and .iplot() to set backgrounds appropriately.
+    Get the path to the MNI anatomical image that matches the resolution of a Brain_Data instance.
+    
+    This function determines the resolution of the input Brain_Data and returns the appropriate
+    MNI template image path from the current MNI_Template settings, adjusting only the resolution
+    while keeping the same template variant.
 
     Args:
         brain: Brain_Data instance
+        img_type: 'plot' for T1 image or 'brain' for brain-extracted image
 
     Returns:
-        file_path: path to MNI image
+        file_path: path to MNI image with matching resolution
     """
 
     if img_type not in ["plot", "brain"]:
         raise ValueError("img_type must be 'plot' or 'brain' ")
 
+    # Get resolution from the brain data
     res_array = np.abs(np.diag(brain.nifti_masker.affine_)[:3])
     voxel_dims = np.unique(abs(res_array))
     if len(voxel_dims) != 1:
         raise ValueError(
             "Voxels are not isometric and cannot be visualized in standard space"
         )
-    else:
-        dim = str(int(voxel_dims[0])) + "mm"
+    
+    # Determine resolution in mm
+    resolution = int(voxel_dims[0])
+    
+    # Check if this resolution is supported for the current template
+    if resolution not in MNI_Template._supported_combinations.get(MNI_Template.template, []):
+        # If not supported, return the current template's image
+        # This handles cases where data resolution doesn't match available templates
         if img_type == "brain":
-            mni = f"MNI152_T1_{dim}_brain.nii.gz"
+            return MNI_Template.brain
         else:
-            mni = f"MNI152_T1_{dim}.nii.gz"
-        return os.path.join(get_resource_path(), mni)
+            return MNI_Template.plot
+    
+    # Build path with matching resolution
+    from os.path import join, dirname
+    base_path = join(dirname(MNI_Template.mask).rsplit('/niftis/', 1)[0], "niftis", MNI_Template.template)
+    res_str = f"{resolution}mm"
+    
+    if img_type == "brain":
+        return join(base_path, f"MNI152_{res_str}_brain.nii.gz")
+    else:
+        return join(base_path, f"MNI152_{res_str}_T1.nii.gz")
 
 
 def set_algorithm(algorithm, *args, **kwargs):

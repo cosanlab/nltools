@@ -10,7 +10,7 @@ __all__ = ["create_sphere", "expand_mask", "collapse_mask", "roi_to_brain"]
 
 import os
 import nibabel as nib
-from nltools.prefs import MNI_Template, resolve_mni_path
+from nltools.prefs import MNI_Template
 import pandas as pd
 import numpy as np
 import warnings
@@ -38,7 +38,7 @@ def create_sphere(coordinates, radius=5, mask=None):
                 raise ValueError("mask is not a nibabel instance or a valid file name")
 
     else:
-        mask = nib.load(resolve_mni_path(MNI_Template)["mask"])
+        mask = nib.load(MNI_Template.mask)
 
     def sphere(r, p, mask):
         """create a sphere of given radius at some point p in the brain mask
