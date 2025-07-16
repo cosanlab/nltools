@@ -147,7 +147,6 @@ class TestDeprecatedFunctions:
             assert len(result) == 1
 
 
-@pytest.mark.slow
 class TestIntegration:
     """Integration tests that require network access"""
 
