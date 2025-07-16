@@ -8,8 +8,6 @@ types of cross-validation
 """
 
 __all__ = ["KFoldStratified", "set_cv"]
-__author__ = ["Luke Chang"]
-__license__ = "MIT"
 
 from sklearn.model_selection._split import _BaseKFold
 from sklearn.utils.validation import check_array

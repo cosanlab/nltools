@@ -9,9 +9,6 @@ Classes to represent brain image data.
 # Notes:
 # Need to figure out how to speed up loading and resampling of data
 
-__author__ = ["Luke Chang"]
-__license__ = "MIT"
-
 from nilearn.signal import clean
 from scipy.stats import ttest_1samp, pearsonr, spearmanr
 from scipy.spatial.distance import cdist
@@ -403,11 +400,23 @@ class Brain_Data(object):
         if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = new.data + y
         elif isinstance(y, Brain_Data):
-            if self.shape() != y.shape():
-                raise ValueError(
-                    "Both Brain_Data() instances need to be the same shape."
-                )
-            new.data = new.data + y.data
+            self_shape, y_shape = self.shape(), y.shape()
+            self_is_single = len(self_shape) == 1
+            y_is_single = len(y_shape) == 1
+
+            if self_is_single and y_is_single:
+                if self_shape[0] != y_shape[0]:
+                    raise ValueError("Both images must have the same number of voxels")
+            elif self_is_single and not y_is_single:
+                raise ValueError("Cannot add multiple images to a single image")
+            elif not self_is_single and y_is_single:
+                if self_shape[1] != y_shape[0]:
+                    raise ValueError("Both images must have the same number of voxels")
+            elif not self_is_single and not y_is_single:
+                if self_shape[0] != y_shape[0] or self_shape[1] != y_shape[1]:
+                    raise ValueError("Cannot add multiple images of a different shape")
+            else:
+                raise ValueError(f"Data shape mismatch {self_shape} and {y_shape}")
         else:
             raise ValueError("Can only add int, float, or Brain_Data")
         return new
@@ -417,13 +426,26 @@ class Brain_Data(object):
         if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = y + new.data
         elif isinstance(y, Brain_Data):
-            if self.shape() != y.shape():
-                raise ValueError(
-                    "Both Brain_Data() instances need to be the same shape."
-                )
-            new.data = y.data + new.data
+            self_shape, y_shape = self.shape(), y.shape()
+            self_is_single = len(self_shape) == 1
+            y_is_single = len(y_shape) == 1
+
+            if self_is_single and y_is_single:
+                if self_shape[0] != y_shape[0]:
+                    raise ValueError("Both images must have the same number of voxels")
+            elif self_is_single and not y_is_single:
+                raise ValueError("Cannot add multiple images to a single image")
+            elif not self_is_single and y_is_single:
+                if self_shape[1] != y_shape[0]:
+                    raise ValueError("Both images must have the same number of voxels")
+            elif not self_is_single and not y_is_single:
+                if self_shape[0] != y_shape[0] or self_shape[1] != y_shape[1]:
+                    raise ValueError("Cannot add multiple images of a different shape")
+            else:
+                raise ValueError(f"Data shape mismatch {self_shape} and {y_shape}")
         else:
             raise ValueError("Can only add int, float, or Brain_Data")
+        new.data = y + new.data
         return new
 
     def __sub__(self, y):
@@ -431,13 +453,28 @@ class Brain_Data(object):
         if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = new.data - y
         elif isinstance(y, Brain_Data):
-            if self.shape() != y.shape():
-                raise ValueError(
-                    "Both Brain_Data() instances need to be the same shape."
-                )
-            new.data = new.data - y.data
+            self_shape, y_shape = self.shape(), y.shape()
+            self_is_single = len(self_shape) == 1
+            y_is_single = len(y_shape) == 1
+
+            if self_is_single and y_is_single:
+                if self_shape[0] != y_shape[0]:
+                    raise ValueError("Both images must have the same number of voxels")
+            elif self_is_single and not y_is_single:
+                raise ValueError("Cannot subtract multiple images from a single image")
+            elif not self_is_single and y_is_single:
+                if self_shape[1] != y_shape[0]:
+                    raise ValueError("Both images must have the same number of voxels")
+            elif not self_is_single and not y_is_single:
+                if self_shape[0] != y_shape[0] or self_shape[1] != y_shape[1]:
+                    raise ValueError(
+                        "Cannot subtract multiple images from multiple images of a different shape"
+                    )
+            else:
+                raise ValueError(f"Data shape mismatch {self_shape} and {y_shape}")
         else:
             raise ValueError("Can only add int, float, or Brain_Data")
+        new.data = new.data - y.data
         return new
 
     def __rsub__(self, y):
@@ -459,10 +496,25 @@ class Brain_Data(object):
         if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = new.data * y
         elif isinstance(y, Brain_Data):
-            if self.shape() != y.shape():
-                raise ValueError(
-                    "Both Brain_Data() instances need to be the same shape."
-                )
+            self_shape, y_shape = self.shape(), y.shape()
+            self_is_single = len(self_shape) == 1
+            y_is_single = len(y_shape) == 1
+
+            if self_is_single and y_is_single:
+                if self_shape[0] != y_shape[0]:
+                    raise ValueError("Both images must have the same number of voxels")
+            elif self_is_single and not y_is_single:
+                raise ValueError("Cannot multiply multiple images by a single image")
+            elif not self_is_single and y_is_single:
+                if self_shape[1] != y_shape[0]:
+                    raise ValueError("Both images must have the same number of voxels")
+            elif not self_is_single and not y_is_single:
+                if self_shape[0] != y_shape[0] or self_shape[1] != y_shape[1]:
+                    raise ValueError(
+                        "Cannot multiply multiple images by multiple images of a different shape"
+                    )
+            else:
+                raise ValueError(f"Data shape mismatch {self_shape} and {y_shape}")
             new.data = np.multiply(new.data, y.data)
         elif isinstance(y, (list, np.ndarray)):
             if len(y) != len(self):
@@ -494,13 +546,30 @@ class Brain_Data(object):
     def __truediv__(self, y):
         new = deepcopy(self)
         if isinstance(y, (int, np.integer, float, np.floating)):
-            new.data = new.data / y
+            with np.errstate(invalid="ignore", divide="ignore"):
+                new.data = new.data / y
         elif isinstance(y, Brain_Data):
-            if self.shape() != y.shape():
-                raise ValueError(
-                    "Both Brain_Data() instances need to be the same shape."
-                )
-            new.data = np.divide(new.data, y.data)
+            self_shape, y_shape = self.shape(), y.shape()
+            self_is_single = len(self_shape) == 1
+            y_is_single = len(y_shape) == 1
+
+            if self_is_single and y_is_single:
+                if self_shape[0] != y_shape[0]:
+                    raise ValueError("Both images must have the same number of voxels")
+            elif self_is_single and not y_is_single:
+                raise ValueError("Cannot divide a single image by multiple images")
+            elif not self_is_single and y_is_single:
+                if self_shape[1] != y_shape[0]:
+                    raise ValueError("Both images must have the same number of voxels")
+            elif not self_is_single and not y_is_single:
+                if self_shape[0] != y_shape[0] or self_shape[1] != y_shape[1]:
+                    raise ValueError(
+                        "Cannot divide multiple images by multiple images of a different shape"
+                    )
+            else:
+                raise ValueError(f"Data shape mismatch {self_shape} and {y_shape}")
+            with np.errstate(invalid="ignore", divide="ignore"):
+                new.data = np.divide(new.data, y.data)
         else:
             raise ValueError("Can only divide int, float, list, or Brain_Data")
         return new
@@ -2159,7 +2228,7 @@ class Brain_Data(object):
             - Align using shared response model:
                 >>> out = data.align(target, method='probabilistic_srm', n_features=None)
             - Project aligned data into original data:
-                >>> original_data = np.dot(out[‘transformed’].data,out[‘transformation_matrix’].T)
+                >>> original_data = np.dot(out['transformed'].data,out['transformation_matrix'].T)
         """
 
         if method not in ["probabilistic_srm", "deterministic_srm", "procrustes"]:

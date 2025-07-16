@@ -2,9 +2,6 @@
 This data class is for working with similarity/dissimilarity matrices
 """
 
-__author__ = ["Luke Chang"]
-__license__ = "MIT"
-
 import os
 import pandas as pd
 import numpy as np
@@ -118,11 +115,9 @@ class Adjacency(object):
                     matrix_type_all.append(matrix_type_tmp)
 
                 if not all_same(symmetric_all):
-                    raise ValueError(
-                        "Not all matrices are of the same " "symmetric type."
-                    )
+                    raise ValueError("Not all matrices are of the same symmetric type.")
                 if not all_same(matrix_type_all):
-                    raise ValueError("Not all matrices are of the same matrix " "type.")
+                    raise ValueError("Not all matrices are of the same matrix type.")
 
                 self.data = np.array(d_all)
                 self.issymmetric = symmetric_all[0]
@@ -189,7 +184,7 @@ class Adjacency(object):
                             warnings.warn(
                                 "Loading legacy h5 file: matrix_type field missing, assuming 'distance'. "
                                 "Consider re-saving the file to update to current format.",
-                                UserWarning
+                                UserWarning,
                             )
                             self.matrix_type = "distance_flat"
 
@@ -280,7 +275,7 @@ class Adjacency(object):
 
     def __repr__(self):
         return (
-            "%s.%s(shape=%s, square_shape=%s, Y=%s, is_symmetric=%s," "matrix_type=%s)"
+            "%s.%s(shape=%s, square_shape=%s, Y=%s, is_symmetric=%s,matrix_type=%s)"
         ) % (
             self.__class__.__module__,
             self.__class__.__name__,
@@ -320,7 +315,7 @@ class Adjacency(object):
         elif isinstance(y, Adjacency):
             if self.shape() != y.shape():
                 raise ValueError(
-                    "Both Adjacency() instances need to be the " "same shape."
+                    "Both Adjacency() instances need to be the same shape."
                 )
             new.data = new.data + y.data
         else:
@@ -334,7 +329,7 @@ class Adjacency(object):
         elif isinstance(y, Adjacency):
             if self.shape() != y.shape():
                 raise ValueError(
-                    "Both Adjacency() instances need to be the " "same shape."
+                    "Both Adjacency() instances need to be the same shape."
                 )
             new.data = y.data + new.data
         else:
@@ -348,7 +343,7 @@ class Adjacency(object):
         elif isinstance(y, Adjacency):
             if self.shape() != y.shape():
                 raise ValueError(
-                    "Both Adjacency() instances need to be the " "same shape."
+                    "Both Adjacency() instances need to be the same shape."
                 )
             new.data = new.data - y.data
         else:
@@ -362,7 +357,7 @@ class Adjacency(object):
         elif isinstance(y, Adjacency):
             if self.shape() != y.shape():
                 raise ValueError(
-                    "Both Adjacency() instances need to be the " "same shape."
+                    "Both Adjacency() instances need to be the same shape."
                 )
             new.data = y.data - new.data
         else:
@@ -376,7 +371,7 @@ class Adjacency(object):
         elif isinstance(y, Adjacency):
             if self.shape() != y.shape():
                 raise ValueError(
-                    "Both Adjacency() instances need to be the " "same shape."
+                    "Both Adjacency() instances need to be the same shape."
                 )
             new.data = np.multiply(new.data, y.data)
         else:
@@ -390,7 +385,7 @@ class Adjacency(object):
         elif isinstance(y, Adjacency):
             if self.shape() != y.shape():
                 raise ValueError(
-                    "Both Adjacency() instances need to be the " "same shape."
+                    "Both Adjacency() instances need to be the same shape."
                 )
             new.data = np.multiply(y.data, new.data)
         else:
@@ -404,7 +399,7 @@ class Adjacency(object):
         elif isinstance(y, Adjacency):
             if self.shape() != y.shape():
                 raise ValueError(
-                    "Both Adjacency() instances need to be the " "same shape."
+                    "Both Adjacency() instances need to be the same shape."
                 )
             new.data = np.divide(new.data, y.data)
         else:
@@ -423,7 +418,7 @@ class Adjacency(object):
             if os.path.isfile(data):
                 data = pd.read_csv(data)
             else:
-                raise ValueError("Make sure you have specified a valid file " "path.")
+                raise ValueError("Make sure you have specified a valid file path.")
 
         if matrix_type is not None:
             if matrix_type.lower() == "distance_flat":
@@ -710,7 +705,7 @@ class Adjacency(object):
         else:
             out = self.copy()
             if self.square_shape() != data.square_shape():
-                raise ValueError("Data is not the same shape as Adjacency " "instance.")
+                raise ValueError("Data is not the same shape as Adjacency instance.")
 
             out.data = np.vstack([self.data, data.data])
             out.is_single_matrix = False
@@ -918,7 +913,7 @@ class Adjacency(object):
             return G
         else:
             raise NotImplementedError(
-                "This function currently only works on " "single matrices."
+                "This function currently only works on single matrices."
             )
 
     def ttest(self, permutation=False, **kwargs):
@@ -963,9 +958,7 @@ class Adjacency(object):
         """
 
         if not self.is_single_matrix:
-            raise ValueError(
-                "This function only works on single adjacency " "matrices."
-            )
+            raise ValueError("This function only works on single adjacency matrices.")
 
         distance = pd.DataFrame(self.squareform())
 
@@ -1018,9 +1011,7 @@ class Adjacency(object):
         """
 
         if not self.is_single_matrix:
-            raise ValueError(
-                "This function only works on single adjacency " "matrices."
-            )
+            raise ValueError("This function only works on single adjacency matrices.")
 
         distance = pd.DataFrame(self.squareform())
 

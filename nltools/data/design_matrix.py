@@ -6,9 +6,6 @@ Class for working with design matrices.
 
 """
 
-__author__ = ["Eshin Jolly"]
-__license__ = "MIT"
-
 from pandas import DataFrame, Series
 import pandas as pd
 import numpy as np
@@ -22,7 +19,6 @@ from nltools.utils import AmbiguityError
 
 
 class Design_Matrix_Series(Series):
-
     """
     This is a sub-class of pandas series. While not having additional methods
     of it's own required to retain normal slicing functionality for the
@@ -40,7 +36,6 @@ class Design_Matrix_Series(Series):
 
 
 class Design_Matrix(DataFrame):
-
     """Design_Matrix is a class to represent design matrices with special methods for data processing (e.g. convolution, upsampling, downsampling) and also intelligent and flexible and intelligent appending (e.g. auto-matically keep certain columns or polynomial terms separated during concatentation). It plays nicely with Brain_Data and can be used to build an experimental design to pass to Brain_Data's X attribute. It is essentially an enhanced pandas df, with extra attributes and methods. Methods always return a new design matrix instance (copy). Column names are always string types.
 
     Args:
