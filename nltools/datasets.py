@@ -15,8 +15,6 @@ __all__ = [
     "get_collection_image_metadata",
     "download_collection",
 ]
-__author__ = ["Luke Chang"]
-__license__ = "MIT"
 
 import pandas as pd
 import warnings

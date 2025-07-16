@@ -62,3 +62,4 @@ dev.py
 dev.ipynb
 .venv
 docs/**/*.nii.gz
+.ruff_cache/

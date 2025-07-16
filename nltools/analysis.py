@@ -1,13 +1,11 @@
 """
-    NeuroLearn Analysis Tools
-    =========================
-    These tools provide the ability to quickly run
-    machine-learning analyses on imaging data
+NeuroLearn Analysis Tools
+=========================
+These tools provide the ability to quickly run
+machine-learning analyses on imaging data
 """
 
 __all__ = ["Roc"]
-__author__ = ["Luke Chang"]
-__license__ = "MIT"
 
 import pandas as pd
 import numpy as np
@@ -41,11 +39,11 @@ class Roc(object):
         binary_outcome=None,
         threshold_type="optimal_overall",
         forced_choice=None,
-        **kwargs
+        **kwargs,
     ):
         if len(input_values) != len(binary_outcome):
             raise ValueError(
-                "Data Problem: input_value and binary_outcome" "are different lengths."
+                "Data Problem: input_value and binary_outcomeare different lengths."
             )
 
         if not any(binary_outcome):
@@ -290,7 +288,8 @@ class Roc(object):
                 var_true = np.var(self.input_values[self.binary_outcome])
                 var_false = np.var(self.input_values[~self.binary_outcome])
                 pooled_sd = np.sqrt(
-                    (var_true * (self.n_true - 1) + var_false * (self.n_false - 1)) / (self.n_true + self.n_false - 2)
+                    (var_true * (self.n_true - 1) + var_false * (self.n_false - 1))
+                    / (self.n_true + self.n_false - 2)
                 )
                 d = (mn_true - mn_false) / pooled_sd
                 z_true = mn_true / pooled_sd

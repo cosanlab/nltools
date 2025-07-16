@@ -5,6 +5,7 @@ NeuroLearn Utilities
 handy utilities.
 
 """
+
 __all__ = [
     "get_resource_path",
     "get_anatomical",
@@ -15,8 +16,6 @@ __all__ = [
     "_bootstrap_apply_func",
     "set_decomposition_algorithm",
 ]
-__author__ = ["Luke Chang"]
-__license__ = "MIT"
 
 from os.path import dirname, join, sep as pathsep
 import nibabel as nib

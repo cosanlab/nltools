@@ -7,8 +7,6 @@ Tools to simulate multivariate data.
 """
 
 __all__ = ["Simulator", "SimulateGrid"]
-__author__ = ["Sam Greydanus", "Luke Chang"]
-__license__ = "MIT"
 
 
 import os

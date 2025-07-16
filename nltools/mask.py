@@ -7,8 +7,6 @@ Classes to represent masks
 """
 
 __all__ = ["create_sphere", "expand_mask", "collapse_mask", "roi_to_brain"]
-__author__ = ["Luke Chang", "Sam Greydanus"]
-__license__ = "MIT"
 
 import os
 import nibabel as nib
@@ -37,9 +35,7 @@ def create_sphere(coordinates, radius=5, mask=None):
                 if os.path.isfile(mask):
                     mask = nib.load(mask)
             else:
-                raise ValueError(
-                    "mask is not a nibabel instance or a valid " "file name"
-                )
+                raise ValueError("mask is not a nibabel instance or a valid file name")
 
     else:
         mask = nib.load(resolve_mni_path(MNI_Template)["mask"])
@@ -77,8 +73,7 @@ def create_sphere(coordinates, radius=5, mask=None):
         if isinstance(radius, list):
             if len(radius) != len(coordinates):
                 raise ValueError(
-                    "Make sure length of radius list matches"
-                    "length of coordinate list."
+                    "Make sure length of radius list matcheslength of coordinate list."
                 )
         elif isinstance(radius, int):
             radius = [radius] * len(coordinates)
@@ -143,7 +138,7 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
         if isinstance(mask, nib.Nifti1Image):
             mask = Brain_Data(mask, mask=custom_mask)
         else:
-            raise ValueError("Make sure mask is a nibabel or Brain_Data " "instance.")
+            raise ValueError("Make sure mask is a nibabel or Brain_Data instance.")
 
     if len(mask.shape()) > 1:
         if len(mask) > 1:

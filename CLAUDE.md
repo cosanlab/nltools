@@ -1,32 +1,31 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## ALWAYS Remember the Following
 
-## Development Commands
+- Remember the User's Broad Goals which set the bigger picture for all of their queries:
+  - We are re developing a Python library called `nltools` which provides an intuitive way to work and analyze fMRI data
+  - `nltools` builds upon many Python libraries (see @pyproject.toml) and aims to to offer a more user-friendly user experience by providing utilities and classes that operate as a more accessible level of abstraction and thus require less boilerplate code for common operations
+  - The library loosely follows a "functional core, imperative shell" design pattern where imperative classes are defined in nltools/data/ and most other .py files contain utility functions
+  - The library should be a robust and reliable while also minimizing maintenance overhead
+- Always answer user queries using the following process:
+  1. Understand what the query is requesting and use your context7 mcp tool to gather additional information about relevant Python libraries such as those listed in @pyproject.toml. Say "RESEARCHING" when you start this step, however, you can skip step if you have performed it before in the current session and you feel like you have enough context, in which case say "PREVIOUS RESEARCH SUFFICIENT". 
+  2. Use that information along with relevant code-base files to make plan for what exact changes needed to be made
+  3. Present the plan to the user for review along with any additional questions you have that would help further clarify the plan. Do not write/change any code yet. Say "PLANNING" when you start this step.
+  4. Wait for the user's feedback and update the plan. This may take several iteration cycles
+  5. Once you have the user's explicit approval, say "EXECUTING" and implement the plan following the [execution guidelines](#execution-guidelines) section below
+  6. Provide the user with a succinct summary of what you did and ask them if there are any modifications they would like made
+  7. Apply the requested modifications from the user. This may take several iteration cycles.
+  
+## Execution guidelines
+- Always write code that following best Pythonic practices
+- Always add types if they improve reliability and understability
+- Always write/edit docstrings in google docstring format
+- Always run `uv run ruff check` and `uv run ruff check --fix` to lint and check your code for errors
+- Always test your code by adding/updating test(s) in ntools/tests using the current tests as examples and running `uv run pytest -k nameoftest`
+  - You should use/update pytest fixtures in nltools/tests/conftest.py to avoid re-writing test boilerplate
+- When editing or modifying Notebooks make sure they build successfully using `uv run jupyter-book build docs/`
 
-This project uses `uv` for dependency and environment management:
-
-**Testing**:
-- Run all tests: `uv run pytest`
-- Run specific test file: `uv run pytest nltools/tests/test_brain_data.py`
-- Run specific test: `uv run pytest nltools/tests/test_brain_data.py::test_method_name`
-
-**Linting**:
-- Check code: `uv run ruff check`
-- Fix issues: `uv run ruff check --fix`
-- Ignored rules: W292, E501, E731, E741
-
-**Documentation**:
-- Build docs: `uv run jupyter-book build docs/`
-
-**Package Management**:
-- Add dependency: `uv add packagename`
-- Add dev dependency: `uv add --dev packagename`
-- Build package: `uv build`
-
-## Core Architecture
-
-nltools is a neuroimaging analysis package built around three main data classes that work together:
+## Imperative Classes
 
 **Brain_Data** (`nltools/data/brain_data.py`):
 - Primary class for 3D/4D neuroimaging data stored as vectorized arrays (images × voxels)
@@ -45,25 +44,16 @@ nltools is a neuroimaging analysis package built around three main data classes 
 - Supports multiple matrix types (distance, similarity, directed)
 - Provides network analysis tools and statistical testing methods
 
-## Key Integration Patterns
-
-- **GLM Workflow**: Brain_Data + Design_Matrix → `regress()` → statistical maps
-- **ML Workflow**: Brain_Data → `predict()` → cross-validation via `cross_validation.py`
-- **Connectivity**: Brain_Data → similarity methods → Adjacency → network analysis
-- **I/O Consistency**: All classes support NIfTI, HDF5, and text formats with similar APIs
-
-## Testing Structure
-
-Tests use pytest with fixtures in `conftest.py` that create simulated data:
-- `sim_brain_data`: Brain_Data with synthetic signal
-- `sim_design_matrix`: Design matrix with experimental conditions
-- `sim_adjacency_*`: Various adjacency matrix configurations
-- HDF5 fixtures for backwards compatibility testing
-
-## Important Dependencies
-
-- **nilearn**: Core neuroimaging operations and NiftiMasker
-- **scikit-learn**: Machine learning algorithms and cross-validation
+## Important Run-time Dependencies
 - **h5py**: HDF5 file format support
+- **nilearn**: Core neuroimaging operations and NiftiMasker
 - **seaborn**: Statistical plotting
-- Development uses **jupyter-book** for documentation and **tables** for HDF5
+- **pynv**: for interacting with the [Neurovault](https://neurovault.org/) API
+- **scikit-learn**: Machine learning algorithms and cross-validation (dependency of `nilearn`)
+
+## Development Dependencies
+-**jupyter-book** for documentation and **tables** for HDF5
+-**networkx** for visualizing graphs
+-**pytest** for testing
+-**ruff** for linting and syntax checking
+-**tables** for tables

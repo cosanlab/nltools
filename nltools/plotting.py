@@ -19,8 +19,6 @@ __all__ = [
     "plot_brain",
     "plot_interactive_brain",
 ]
-__author__ = ["Luke Chang"]
-__license__ = "MIT"
 
 import pandas as pd
 import seaborn as sns
