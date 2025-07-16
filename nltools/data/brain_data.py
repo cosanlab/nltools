@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import tempfile
+import warnings  # noqa: F401
 from copy import deepcopy
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.metrics.pairwise import pairwise_distances
@@ -70,8 +71,8 @@ from .adjacency import Adjacency
 from nltools.prefs import MNI_Template, resolve_mni_path
 from nilearn.decoding import SearchLight
 from pathlib import Path
-import warnings
 from h5py import File as h5File
+from contextlib import redirect_stdout
 
 
 # Optional dependencies
@@ -114,9 +115,11 @@ class Brain_Data(object):
             raise TypeError("mask is not a nibabel instance or a valid file name")
 
         # Learn transformation on mask
-        # TODO: figure out how to supprese "Resampling images" from NiftiMasker
-        # when .fit_transform() is called
-        self.nifti_masker = NiftiMasker(mask_img=self.mask, **kwargs)
+        # Set verbose=0 by default to suppress nilearn's logging messages
+        masker_kwargs = kwargs.copy()
+        if "verbose" not in masker_kwargs:
+            masker_kwargs["verbose"] = 0
+        self.nifti_masker = NiftiMasker(mask_img=self.mask, **masker_kwargs)
 
         # Setup data
         if data is None:
@@ -241,11 +244,24 @@ class Brain_Data(object):
             # .nii/.nii.gz file
             else:
                 data = nib.load(data)
-            self.data = self.nifti_masker.fit_transform(data)
+            # Suppress nilearn output if verbose=0
+            # NOTE: we have to do this because nilearn uses a custom print
+            # statement when resampling that we can't disable any other way
+            if verbose == 0:
+                with open(os.devnull, "w") as devnull:
+                    with redirect_stdout(devnull):
+                        self.data = self.nifti_masker.fit_transform(data)
+            else:
+                self.data = self.nifti_masker.fit_transform(data)
 
         # Nibabel/Nilearn object
         elif isinstance(data, nib.Nifti1Image):
-            self.data = np.array(self.nifti_masker.fit_transform(data))
+            if verbose == 0:
+                with open(os.devnull, "w") as devnull:
+                    with redirect_stdout(devnull):
+                        self.data = np.array(self.nifti_masker.fit_transform(data))
+            else:
+                self.data = np.array(self.nifti_masker.fit_transform(data))
 
         # List of brain data objects or string filenames
         elif isinstance(data, list):
@@ -260,15 +276,32 @@ class Brain_Data(object):
             else:
                 if all(isinstance(x, data[0].__class__) for x in data):
                     self.data = []
-                    for i in data:
-                        # Filepath
-                        if isinstance(i, (str, Path)):
-                            self.data.append(
-                                self.nifti_masker.fit_transform(nib.load(str(i)))
-                            )
-                        # Loaded nifti object
-                        elif isinstance(i, nib.Nifti1Image):
-                            self.data.append(self.nifti_masker.fit_transform(i))
+                    if verbose == 0:
+                        with open(os.devnull, "w") as devnull:
+                            with redirect_stdout(devnull):
+                                for i in data:
+                                    # Filepath
+                                    if isinstance(i, (str, Path)):
+                                        self.data.append(
+                                            self.nifti_masker.fit_transform(
+                                                nib.load(str(i))
+                                            )
+                                        )
+                                    # Loaded nifti object
+                                    elif isinstance(i, nib.Nifti1Image):
+                                        self.data.append(
+                                            self.nifti_masker.fit_transform(i)
+                                        )
+                    else:
+                        for i in data:
+                            # Filepath
+                            if isinstance(i, (str, Path)):
+                                self.data.append(
+                                    self.nifti_masker.fit_transform(nib.load(str(i)))
+                                )
+                            # Loaded nifti object
+                            elif isinstance(i, nib.Nifti1Image):
+                                self.data.append(self.nifti_masker.fit_transform(i))
                     self.data = np.concatenate(self.data)
                 else:
                     raise ValueError(
