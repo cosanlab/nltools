@@ -1,25 +1,133 @@
 from nltools.prefs import MNI_Template
 from nltools.data import Brain_Data
+import matplotlib.pyplot as plt
 import pytest
 
 
-def test_change_mni_resolution():
+def setup_function():
+    """Reset MNI_Template to defaults before each test."""
+    # Reset in a safe order to avoid validation errors
+    object.__setattr__(MNI_Template, 'template', "default")
+    object.__setattr__(MNI_Template, 'resolution', 2)
+    # Re-resolve paths after direct attribute setting
+    MNI_Template._validate_and_resolve()
+
+
+def test_change_resolution():
     # Defaults
+    assert MNI_Template.template == "default"
+    assert MNI_Template.resolution == 2
     brain = Brain_Data()
     assert brain.mask.affine[1, 1] == 2.0
-    assert MNI_Template["resolution"] == "2mm"
+    assert "2mm" in MNI_Template.brain
 
-    # -> 3mm
-    MNI_Template["resolution"] = "3mm"
+    # Change resolution -> 3mm
+    MNI_Template.resolution = 3
     new_brain = Brain_Data()
     assert new_brain.mask.affine[1, 1] == 3.0
+    assert "3mm" in MNI_Template.brain
 
-    # switch back and test attribute setting
-    MNI_Template.resolution = 2.0  # floats are cool
-    assert MNI_Template["resolution"] == "2mm"
+    # Switch back
+    MNI_Template.resolution = 2
+    assert MNI_Template.resolution == 2
+    assert "2mm" in MNI_Template.brain
 
-    newer_brain = Brain_Data()
-    assert newer_brain.mask.affine[1, 1] == 2.0
-
-    with pytest.raises(NotImplementedError):
+    # Test invalid resolution for default template
+    with pytest.raises(ValueError, match="Resolution 1mm is not supported"):
         MNI_Template.resolution = 1
+
+
+def test_change_template():
+    # Test default template
+    assert MNI_Template.template == "default"
+    assert "default" in MNI_Template.mask
+    
+    # Switch to fmriprep
+    MNI_Template.template = "fmriprep"
+    assert MNI_Template.template == "fmriprep"
+    assert "fmriprep" in MNI_Template.mask
+    
+    # Switch to nilearn
+    MNI_Template.template = "nilearn"
+    assert MNI_Template.template == "nilearn"
+    assert "nilearn" in MNI_Template.mask
+    
+    # Reset
+    MNI_Template.template = "default"
+
+
+def test_template_resolution_combinations():
+    # Test valid combinations
+    valid_combos = [
+        ("default", 2),
+        ("default", 3),
+        ("nilearn", 1),
+        ("nilearn", 2),
+        ("nilearn", 3),
+        ("fmriprep", 1),
+        ("fmriprep", 2),
+    ]
+    
+    for template, resolution in valid_combos:
+        # Reset to default first to avoid validation errors
+        object.__setattr__(MNI_Template, 'template', template)
+        object.__setattr__(MNI_Template, 'resolution', resolution)
+        MNI_Template._validate_and_resolve()
+        
+        assert MNI_Template.template == template
+        assert MNI_Template.resolution == resolution
+        assert f"{resolution}mm" in MNI_Template.mask
+    
+    # Test invalid combinations
+    invalid_combos = [
+        ("default", 1),
+        ("fmriprep", 3),
+    ]
+    
+    for template, resolution in invalid_combos:
+        MNI_Template.template = template
+        with pytest.raises(ValueError):
+            MNI_Template.resolution = resolution
+
+
+def test_file_paths():
+    # Test that all paths follow the expected pattern
+    MNI_Template.template = "default"
+    MNI_Template.resolution = 2
+    
+    assert MNI_Template.mask.endswith("MNI152_2mm_mask.nii.gz")
+    assert MNI_Template.brain.endswith("MNI152_2mm_brain.nii.gz")
+    assert MNI_Template.plot.endswith("MNI152_2mm_T1.nii.gz")
+    
+    # Test different template
+    MNI_Template.template = "fmriprep"
+    MNI_Template.resolution = 1
+    
+    assert MNI_Template.mask.endswith("MNI152_1mm_mask.nii.gz")
+    assert MNI_Template.brain.endswith("MNI152_1mm_brain.nii.gz")
+    assert MNI_Template.plot.endswith("MNI152_1mm_T1.nii.gz")
+
+
+def test_repr():
+    # Test string representation
+    repr_str = repr(MNI_Template)
+    assert "template='default'" in repr_str
+    assert "resolution=2mm" in repr_str
+    assert "mask: MNI152_2mm_mask.nii.gz" in repr_str
+    assert "brain: MNI152_2mm_brain.nii.gz" in repr_str
+    assert "plot: MNI152_2mm_T1.nii.gz" in repr_str
+
+
+def test_pref_and_plotting(sim_brain_data):
+    # Smoke tests to make sure updating templates doesn't cause plotting issues
+    # plot methods always refer to the resolution of the Brain_Data
+    # instance *itself*
+
+    # Should have no effect as simulated data is in 2mm space
+    MNI_Template.resolution = 3
+    sim_brain_data.plot()
+
+    MNI_Template.resolution = 2
+    sim_brain_data.plot()
+
+    plt.close("all")

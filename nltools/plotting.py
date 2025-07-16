@@ -27,8 +27,7 @@ import numpy as np
 from numpy.fft import fft, fftfreq
 from nltools.stats import two_sample_permutation, one_sample_permutation
 from nilearn.plotting import plot_glass_brain, plot_stat_map, view_img, view_img_on_surf
-from nltools.prefs import MNI_Template, resolve_mni_path
-from nltools.utils import attempt_to_import
+from nltools.utils import attempt_to_import, get_mni_from_img_resolution
 import warnings
 import sklearn
 import os
@@ -218,7 +217,7 @@ def plot_t_brain(
                 cut_coords=c,
                 display_mode=v,
                 cmap=cmap,
-                bg_img=resolve_mni_path(MNI_Template)["brain"],
+                bg_img=get_mni_from_img_resolution(obj, img_type="brain"),
                 **kwargs,
             )
     elif how == "glass":
@@ -237,7 +236,7 @@ def plot_t_brain(
                 cut_coords=c,
                 display_mode=v,
                 cmap=cmap,
-                bg_img=resolve_mni_path(MNI_Template)["brain"],
+                bg_img=get_mni_from_img_resolution(obj, img_type="brain"),
                 **kwargs,
             )
     del obj
@@ -322,7 +321,7 @@ def plot_brain(
                 cut_coords=c,
                 display_mode=v,
                 cmap=cmap,
-                bg_img=resolve_mni_path(MNI_Template)["brain"],
+                bg_img=get_mni_from_img_resolution(obj, img_type="brain"),
                 **kwargs,
             )
             if save:
@@ -345,7 +344,7 @@ def plot_brain(
                 cut_coords=c,
                 display_mode=v,
                 cmap=cmap,
-                bg_img=resolve_mni_path(MNI_Template)["brain"],
+                bg_img=get_mni_from_img_resolution(obj, img_type="brain"),
                 **kwargs,
             )
             if save:

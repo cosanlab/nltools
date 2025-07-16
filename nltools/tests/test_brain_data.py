@@ -24,12 +24,9 @@ def test_load(tmpdir):
     output_dir = str(tmpdir)
     dat = sim.create_data(y, sigma, reps=n_reps, output_dir=output_dir)
 
-    # if MNI_Template["resolution"] == '2mm':
-    #     shape_3d = (91, 109, 91)
-    #     shape_2d = (6, 238955)
-    # elif MNI_Template["resolution"] == '3mm':
-    #     shape_3d = (60, 72, 60)
-    #     shape_2d = (6, 71020)
+    # Shape depends on MNI_Template.resolution
+    # 2mm: shape_3d = (91, 109, 91), shape_2d = (6, 238955)
+    # 3mm: shape_3d = (60, 72, 60), shape_2d = (6, 71020)
 
     y = pd.read_csv(
         os.path.join(str(tmpdir.join("y.csv"))), header=None, index_col=None
@@ -73,10 +70,10 @@ def test_load(tmpdir):
     # case the mask argument takes precedence so we warn the user
     with pytest.warns(UserWarning):
         bb = Brain_Data(
-            os.path.join(tmpdir.join("test_write.h5")), mask=MNI_Template["mask"]
+            os.path.join(tmpdir.join("test_write.h5")), mask=MNI_Template.mask
         )
         assert os.path.abspath(bb.mask.get_filename()) == os.path.abspath(
-            MNI_Template["mask"]
+            MNI_Template.mask
         )
 
 

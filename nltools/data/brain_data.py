@@ -65,7 +65,7 @@ from nltools.stats import (
 )
 from nltools.stats import regress as regression
 from .adjacency import Adjacency
-from nltools.prefs import MNI_Template, resolve_mni_path
+from nltools.prefs import MNI_Template
 from nilearn.decoding import SearchLight
 from pathlib import Path
 from h5py import File as h5File
@@ -103,7 +103,7 @@ class Brain_Data(object):
         # Setup default or specified nifti masker
         if mask is None:
             # Load default mask
-            self.mask = nib.load(resolve_mni_path(MNI_Template)["mask"])
+            self.mask = nib.load(MNI_Template.mask)
         elif isinstance(mask, (str, Path)):
             self.mask = nib.load(str(mask))
         elif isinstance(mask, nib.Nifti1Image):

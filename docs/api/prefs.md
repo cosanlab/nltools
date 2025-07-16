@@ -2,7 +2,12 @@
 
 **Preferences**
 
-This module can be used to adjust the default MNI template settings that are used internally by all `Brain_Data` operations. By default all operations are performed in **MNI152 2mm space**. Thus any files loaded with be resampled to this space by default. You can control this on a per-file loading basis using the `mask` argument of `Brain_Data`, e.g.
+This module can be used to adjust the default MNI template settings that are used internally by all `Brain_Data` operations. For historic reasons, the default MNI template is in the same **[MNI152 2mm space as FSL](https://nist.mni.mcgill.ca/mni-icbm152-non-linear-6th-generation-symmetric-average-brain-stereotaxic-registration-model/)**. Different software use [different versions](https://nist.mni.mcgill.ca/icbm-152-nonlinear-atlases-2009/) `nltools` supports the following additional verisons:
+
+- [`nilearn` MNI152 2009a](https://nilearn.github.io/stable/modules/generated/nilearn.datasets.fetch_icbm152_2009.html#nilearn.datasets.fetch_icbm152_2009)
+- [`fmriprep` MNI52 2009c](https://nilearn.github.io/stable/modules/generated/nilearn.datasets.fetch_icbm152_2009.html#nilearn.datasets.fetch_icbm152_2009)
+
+Switching the MNI template uses will affect **all** subsequent operations by resampling data to the chosen space You can control this on a per-file loading basis using the `mask` argument of `Brain_Data`, e.g.
 
 ```python
 from nltools.data import Brain_Data
