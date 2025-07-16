@@ -32,7 +32,9 @@ Method 2 (bleeding edge)
 
 Project management is handled by `uv` which will automatically install development dependencies along side core dependencies, configure a virtual environment, and install `nltools` into that environment in editable mode.
 
-Run tests: `uv run pytest`
+Run all tests: `uv run pytest`
+
+Run specific test: `uv run pytest -k test_name`
 
 Run linting: `uv run ruff check`
 
