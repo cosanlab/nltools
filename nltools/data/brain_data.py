@@ -395,184 +395,224 @@ class Brain_Data(object):
     def __len__(self):
         return self.shape()[0]
 
+    def _validate_arithmetic_operands(self, other, operation_name):
+        """Validate operand types for arithmetic operations.
+
+        Args:
+            other: The other operand
+            operation_name: Name of the operation (e.g., 'add', 'multiply')
+
+        Returns:
+            str: Type of operand ('scalar', 'brain_data', or 'array')
+
+        Raises:
+            ValueError: If operand type is not supported
+        """
+        if isinstance(other, (int, np.integer, float, np.floating)):
+            return "scalar"
+        elif isinstance(other, Brain_Data):
+            return "brain_data"
+        elif isinstance(other, (list, np.ndarray)) and operation_name == "multiply":
+            return "array"
+        else:
+            valid_types = "int, float, or Brain_Data"
+            if operation_name == "multiply":
+                valid_types = "int, float, list, np.ndarray, or Brain_Data"
+            raise ValueError(
+                f"Can only {operation_name} {valid_types}. Provided {type(other)}"
+            )
+
+    def _check_shape_compatibility(self, other, operation_name):
+        """Check shape compatibility between two Brain_Data objects.
+
+        Args:
+            other: The other Brain_Data object
+            operation_name: Name of the operation for error messages
+
+        Raises:
+            ValueError: If shapes are incompatible
+        """
+        self_shape, other_shape = self.shape(), other.shape()
+        self_is_single = len(self_shape) == 1
+        other_is_single = len(other_shape) == 1
+
+        if self_is_single and other_is_single:
+            if self_shape[0] != other_shape[0]:
+                raise ValueError("Both images must have the same number of voxels")
+        elif self_is_single and not other_is_single:
+            raise ValueError(
+                f"Cannot {operation_name} multiple images to a single image"
+            )
+        elif not self_is_single and other_is_single:
+            if self_shape[1] != other_shape[0]:
+                raise ValueError("Both images must have the same number of voxels")
+        elif not self_is_single and not other_is_single:
+            if self_shape[0] != other_shape[0] or self_shape[1] != other_shape[1]:
+                raise ValueError(
+                    f"Cannot {operation_name} multiple images of a different shape"
+                )
+
     def __add__(self, y):
         new = deepcopy(self)
-        if isinstance(y, (int, np.integer, float, np.floating)):
-            new.data = new.data + y
-        elif isinstance(y, Brain_Data):
-            self_shape, y_shape = self.shape(), y.shape()
-            self_is_single = len(self_shape) == 1
-            y_is_single = len(y_shape) == 1
+        operand_type = self._validate_arithmetic_operands(y, "add")
 
-            if self_is_single and y_is_single:
-                if self_shape[0] != y_shape[0]:
-                    raise ValueError("Both images must have the same number of voxels")
-            elif self_is_single and not y_is_single:
-                raise ValueError("Cannot add multiple images to a single image")
-            elif not self_is_single and y_is_single:
-                if self_shape[1] != y_shape[0]:
-                    raise ValueError("Both images must have the same number of voxels")
-            elif not self_is_single and not y_is_single:
-                if self_shape[0] != y_shape[0] or self_shape[1] != y_shape[1]:
-                    raise ValueError("Cannot add multiple images of a different shape")
-            else:
-                raise ValueError(f"Data shape mismatch {self_shape} and {y_shape}")
-        else:
-            raise ValueError("Can only add int, float, or Brain_Data")
+        if operand_type == "scalar":
+            new.data = new.data + y
+        elif operand_type == "brain_data":
+            self._check_shape_compatibility(y, "add")
+            new.data = new.data + y.data
+
         return new
 
     def __radd__(self, y):
         new = deepcopy(self)
-        if isinstance(y, (int, np.integer, float, np.floating)):
-            new.data = y + new.data
-        elif isinstance(y, Brain_Data):
-            self_shape, y_shape = self.shape(), y.shape()
-            self_is_single = len(self_shape) == 1
-            y_is_single = len(y_shape) == 1
+        operand_type = self._validate_arithmetic_operands(y, "add")
 
-            if self_is_single and y_is_single:
-                if self_shape[0] != y_shape[0]:
-                    raise ValueError("Both images must have the same number of voxels")
-            elif self_is_single and not y_is_single:
-                raise ValueError("Cannot add multiple images to a single image")
-            elif not self_is_single and y_is_single:
-                if self_shape[1] != y_shape[0]:
-                    raise ValueError("Both images must have the same number of voxels")
-            elif not self_is_single and not y_is_single:
-                if self_shape[0] != y_shape[0] or self_shape[1] != y_shape[1]:
-                    raise ValueError("Cannot add multiple images of a different shape")
-            else:
-                raise ValueError(f"Data shape mismatch {self_shape} and {y_shape}")
-        else:
-            raise ValueError("Can only add int, float, or Brain_Data")
-        new.data = y + new.data
+        if operand_type == "scalar":
+            new.data = y + new.data
+        elif operand_type == "brain_data":
+            self._check_shape_compatibility(y, "add")
+            new.data = y.data + new.data
+
         return new
 
     def __sub__(self, y):
         new = deepcopy(self)
-        if isinstance(y, (int, np.integer, float, np.floating)):
-            new.data = new.data - y
-        elif isinstance(y, Brain_Data):
-            self_shape, y_shape = self.shape(), y.shape()
-            self_is_single = len(self_shape) == 1
-            y_is_single = len(y_shape) == 1
+        operand_type = self._validate_arithmetic_operands(y, "subtract")
 
-            if self_is_single and y_is_single:
-                if self_shape[0] != y_shape[0]:
-                    raise ValueError("Both images must have the same number of voxels")
-            elif self_is_single and not y_is_single:
-                raise ValueError("Cannot subtract multiple images from a single image")
-            elif not self_is_single and y_is_single:
-                if self_shape[1] != y_shape[0]:
-                    raise ValueError("Both images must have the same number of voxels")
-            elif not self_is_single and not y_is_single:
-                if self_shape[0] != y_shape[0] or self_shape[1] != y_shape[1]:
-                    raise ValueError(
-                        "Cannot subtract multiple images from multiple images of a different shape"
-                    )
-            else:
-                raise ValueError(f"Data shape mismatch {self_shape} and {y_shape}")
-        else:
-            raise ValueError("Can only add int, float, or Brain_Data")
-        new.data = new.data - y.data
+        if operand_type == "scalar":
+            new.data = new.data - y
+        elif operand_type == "brain_data":
+            self._check_shape_compatibility(y, "subtract")
+            new.data = new.data - y.data
+
         return new
 
     def __rsub__(self, y):
         new = deepcopy(self)
-        if isinstance(y, (int, np.integer, float, np.floating)):
+        operand_type = self._validate_arithmetic_operands(y, "subtract")
+
+        if operand_type == "scalar":
             new.data = y - new.data
-        elif isinstance(y, Brain_Data):
-            if self.shape() != y.shape():
-                raise ValueError(
-                    "Both Brain_Data() instances need to be the same shape."
-                )
+        elif operand_type == "brain_data":
+            self._check_shape_compatibility(y, "subtract")
             new.data = y.data - new.data
-        else:
-            raise ValueError("Can only add int, float, or Brain_Data")
+
         return new
 
     def __mul__(self, y):
         new = deepcopy(self)
-        if isinstance(y, (int, np.integer, float, np.floating)):
-            new.data = new.data * y
-        elif isinstance(y, Brain_Data):
-            self_shape, y_shape = self.shape(), y.shape()
-            self_is_single = len(self_shape) == 1
-            y_is_single = len(y_shape) == 1
+        operand_type = self._validate_arithmetic_operands(y, "multiply")
 
-            if self_is_single and y_is_single:
-                if self_shape[0] != y_shape[0]:
-                    raise ValueError("Both images must have the same number of voxels")
-            elif self_is_single and not y_is_single:
-                raise ValueError("Cannot multiply multiple images by a single image")
-            elif not self_is_single and y_is_single:
-                if self_shape[1] != y_shape[0]:
-                    raise ValueError("Both images must have the same number of voxels")
-            elif not self_is_single and not y_is_single:
-                if self_shape[0] != y_shape[0] or self_shape[1] != y_shape[1]:
-                    raise ValueError(
-                        "Cannot multiply multiple images by multiple images of a different shape"
-                    )
-            else:
-                raise ValueError(f"Data shape mismatch {self_shape} and {y_shape}")
+        if operand_type == "scalar":
+            new.data = new.data * y
+        elif operand_type == "brain_data":
+            self._check_shape_compatibility(y, "multiply")
             new.data = np.multiply(new.data, y.data)
-        elif isinstance(y, (list, np.ndarray)):
+        elif operand_type == "array":
             if len(y) != len(self):
                 raise ValueError(
                     "Vector multiplication requires that the "
                     "length of the vector match the number of "
                     "images in Brain_Data instance."
                 )
-            else:
-                new.data = np.dot(new.data.T, y).T
-        else:
-            raise ValueError("Can only multiply int, float, list, or Brain_Data")
+            new.data = np.dot(new.data.T, y).T
+
         return new
 
     def __rmul__(self, y):
         new = deepcopy(self)
-        if isinstance(y, (int, np.integer, float, np.floating)):
+        operand_type = self._validate_arithmetic_operands(y, "multiply")
+
+        if operand_type == "scalar":
             new.data = y * new.data
-        elif isinstance(y, Brain_Data):
-            if self.shape() != y.shape():
-                raise ValueError(
-                    "Both Brain_Data() instances need to be the same shape."
-                )
+        elif operand_type == "brain_data":
+            self._check_shape_compatibility(y, "multiply")
             new.data = np.multiply(y.data, new.data)
-        else:
-            raise ValueError("Can only multiply int, float, or Brain_Data")
+        elif operand_type == "array":
+            # For right multiplication with array, it's typically not supported
+            # but we'll keep consistent behavior
+            if len(y) != len(self):
+                raise ValueError(
+                    "Vector multiplication requires that the "
+                    "length of the vector match the number of "
+                    "images in Brain_Data instance."
+                )
+            new.data = np.dot(new.data.T, y).T
+
         return new
 
     def __truediv__(self, y):
         new = deepcopy(self)
-        if isinstance(y, (int, np.integer, float, np.floating)):
+        operand_type = self._validate_arithmetic_operands(y, "divide")
+
+        if operand_type == "scalar":
             with np.errstate(invalid="ignore", divide="ignore"):
                 new.data = new.data / y
-        elif isinstance(y, Brain_Data):
-            self_shape, y_shape = self.shape(), y.shape()
-            self_is_single = len(self_shape) == 1
-            y_is_single = len(y_shape) == 1
-
-            if self_is_single and y_is_single:
-                if self_shape[0] != y_shape[0]:
-                    raise ValueError("Both images must have the same number of voxels")
-            elif self_is_single and not y_is_single:
-                raise ValueError("Cannot divide a single image by multiple images")
-            elif not self_is_single and y_is_single:
-                if self_shape[1] != y_shape[0]:
-                    raise ValueError("Both images must have the same number of voxels")
-            elif not self_is_single and not y_is_single:
-                if self_shape[0] != y_shape[0] or self_shape[1] != y_shape[1]:
-                    raise ValueError(
-                        "Cannot divide multiple images by multiple images of a different shape"
-                    )
-            else:
-                raise ValueError(f"Data shape mismatch {self_shape} and {y_shape}")
+        elif operand_type == "brain_data":
+            self._check_shape_compatibility(y, "divide")
             with np.errstate(invalid="ignore", divide="ignore"):
                 new.data = np.divide(new.data, y.data)
-        else:
-            raise ValueError("Can only divide int, float, list, or Brain_Data")
+
         return new
+
+    def __iadd__(self, y):
+        """In-place addition (+=)."""
+        operand_type = self._validate_arithmetic_operands(y, "add")
+
+        if operand_type == "scalar":
+            self.data = self.data + y
+        elif operand_type == "brain_data":
+            self._check_shape_compatibility(y, "add")
+            self.data = self.data + y.data
+
+        return self
+
+    def __isub__(self, y):
+        """In-place subtraction (-=)."""
+        operand_type = self._validate_arithmetic_operands(y, "subtract")
+
+        if operand_type == "scalar":
+            self.data = self.data - y
+        elif operand_type == "brain_data":
+            self._check_shape_compatibility(y, "subtract")
+            self.data = self.data - y.data
+
+        return self
+
+    def __imul__(self, y):
+        """In-place multiplication (*=)."""
+        operand_type = self._validate_arithmetic_operands(y, "multiply")
+
+        if operand_type == "scalar":
+            self.data = self.data * y
+        elif operand_type == "brain_data":
+            self._check_shape_compatibility(y, "multiply")
+            self.data = np.multiply(self.data, y.data)
+        elif operand_type == "array":
+            if len(y) != len(self):
+                raise ValueError(
+                    "Vector multiplication requires that the "
+                    "length of the vector match the number of "
+                    "images in Brain_Data instance."
+                )
+            self.data = np.dot(self.data.T, y).T
+
+        return self
+
+    def __itruediv__(self, y):
+        """In-place true division (/=)."""
+        operand_type = self._validate_arithmetic_operands(y, "divide")
+
+        if operand_type == "scalar":
+            with np.errstate(invalid="ignore", divide="ignore"):
+                self.data = self.data / y
+        elif operand_type == "brain_data":
+            self._check_shape_compatibility(y, "divide")
+            with np.errstate(invalid="ignore", divide="ignore"):
+                self.data = np.divide(self.data, y.data)
+
+        return self
 
     def __iter__(self):
         for x in range(len(self)):
