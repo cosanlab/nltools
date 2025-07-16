@@ -132,7 +132,7 @@ def fetch_pain(data_dir=None, verbose=1):
         metadata, files = fetch_neurovault_collection(
             collection_id=collection_id, data_dir=data_dir, verbose=verbose
         )
-        return Brain_Data(data=files, X=metadata)
+        return Brain_Data(data=files, X=metadata, verbose=0)
 
     except Exception as e:
         raise RuntimeError(f"Failed to fetch pain dataset: {e}")
@@ -163,7 +163,7 @@ def fetch_emotion_ratings(data_dir=None, verbose=1):
         metadata, files = fetch_neurovault_collection(
             collection_id=collection_id, data_dir=data_dir, verbose=verbose
         )
-        return Brain_Data(data=files, X=metadata)
+        return Brain_Data(data=files, X=metadata, verbose=0)
 
     except Exception as e:
         raise RuntimeError(f"Failed to fetch emotion ratings dataset: {e}")
