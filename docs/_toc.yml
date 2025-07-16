@@ -1,10 +1,28 @@
 format: jb-book
 root: index
 parts:
-  - caption: Overview
-    chapters: 
-    - file: tutorials/index
-    - file: contributing
+  - caption: Basic Tutorials
+    chapters:
+    - file: tutorials/basic/01_brain_data_basics
+    - file: tutorials/basic/02_design_matrix_basics
+    - file: tutorials/basic/03_adjacency_basics
+    - file: tutorials/basic/04_basic_analysis_workflow
+  - caption: Data Operations
+    chapters:
+    - file: tutorials/01_DataOperations/plot_neurovault_io
+    - file: tutorials/01_DataOperations/plot_download
+    - file: tutorials/01_DataOperations/plot_mni_prefs
+    - file: tutorials/01_DataOperations/plot_adjacency
+    - file: tutorials/01_DataOperations/plot_mask
+    - file: tutorials/01_DataOperations/plot_design_matrix
+  - caption: Analysis Examples
+    chapters:
+    - file: tutorials/02_Analysis/plot_similarity_example
+    - file: tutorials/02_Analysis/plot_univariate_regression
+    - file: tutorials/02_Analysis/plot_decomposition
+    - file: tutorials/02_Analysis/plot_multivariate_classification
+    - file: tutorials/02_Analysis/plot_multivariate_prediction
+    - file: tutorials/02_Analysis/plot_hyperalignment
   - caption: API Reference
     chapters:
     - file: api/analysis
@@ -16,3 +34,6 @@ parts:
     - file: api/prefs
     - file: api/stats
     - file: api/utils
+  - caption: Development
+    chapters: 
+    - file: contributing
