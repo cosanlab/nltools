@@ -7,8 +7,8 @@ import pytest
 def setup_function():
     """Reset MNI_Template to defaults before each test."""
     # Reset in a safe order to avoid validation errors
-    object.__setattr__(MNI_Template, 'template', "default")
-    object.__setattr__(MNI_Template, 'resolution', 2)
+    object.__setattr__(MNI_Template, "template", "default")
+    object.__setattr__(MNI_Template, "resolution", 2)
     # Re-resolve paths after direct attribute setting
     MNI_Template._validate_and_resolve()
 
@@ -41,17 +41,17 @@ def test_change_template():
     # Test default template
     assert MNI_Template.template == "default"
     assert "default" in MNI_Template.mask
-    
+
     # Switch to fmriprep
     MNI_Template.template = "fmriprep"
     assert MNI_Template.template == "fmriprep"
     assert "fmriprep" in MNI_Template.mask
-    
+
     # Switch to nilearn
     MNI_Template.template = "nilearn"
     assert MNI_Template.template == "nilearn"
     assert "nilearn" in MNI_Template.mask
-    
+
     # Reset
     MNI_Template.template = "default"
 
@@ -67,23 +67,23 @@ def test_template_resolution_combinations():
         ("fmriprep", 1),
         ("fmriprep", 2),
     ]
-    
+
     for template, resolution in valid_combos:
         # Reset to default first to avoid validation errors
-        object.__setattr__(MNI_Template, 'template', template)
-        object.__setattr__(MNI_Template, 'resolution', resolution)
+        object.__setattr__(MNI_Template, "template", template)
+        object.__setattr__(MNI_Template, "resolution", resolution)
         MNI_Template._validate_and_resolve()
-        
+
         assert MNI_Template.template == template
         assert MNI_Template.resolution == resolution
         assert f"{resolution}mm" in MNI_Template.mask
-    
+
     # Test invalid combinations
     invalid_combos = [
         ("default", 1),
         ("fmriprep", 3),
     ]
-    
+
     for template, resolution in invalid_combos:
         MNI_Template.template = template
         with pytest.raises(ValueError):
@@ -94,15 +94,15 @@ def test_file_paths():
     # Test that all paths follow the expected pattern
     MNI_Template.template = "default"
     MNI_Template.resolution = 2
-    
+
     assert MNI_Template.mask.endswith("MNI152_2mm_mask.nii.gz")
     assert MNI_Template.brain.endswith("MNI152_2mm_brain.nii.gz")
     assert MNI_Template.plot.endswith("MNI152_2mm_T1.nii.gz")
-    
+
     # Test different template
     MNI_Template.template = "fmriprep"
     MNI_Template.resolution = 1
-    
+
     assert MNI_Template.mask.endswith("MNI152_1mm_mask.nii.gz")
     assert MNI_Template.brain.endswith("MNI152_1mm_brain.nii.gz")
     assert MNI_Template.plot.endswith("MNI152_1mm_T1.nii.gz")
