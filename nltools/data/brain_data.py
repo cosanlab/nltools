@@ -10,6 +10,7 @@ Classes to represent brain image data.
 # Need to figure out how to speed up loading and resampling of data
 
 from nilearn.signal import clean
+from nilearn.glm.first_level import FirstLevelModel
 from scipy.stats import ttest_1samp, pearsonr, spearmanr
 from scipy.spatial.distance import cdist
 from scipy.stats import t as t_dist
@@ -63,7 +64,6 @@ from nltools.stats import (
     find_spikes,
     regress_permutation,
 )
-from nltools.stats import regress as regression
 from .adjacency import Adjacency
 from nltools.prefs import MNI_Template
 from nilearn.decoding import SearchLight
@@ -71,6 +71,9 @@ from pathlib import Path
 from h5py import File as h5File
 from contextlib import redirect_stdout
 
+
+warnings.filterwarnings("ignore", category=UserWarning, module="nilearn")
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="nilearn")
 
 # Optional dependencies
 nx = attempt_to_import("networkx", "nx")
@@ -879,26 +882,26 @@ class Brain_Data(object):
             self, threshold=threshold, surface=surface, anatomical=anatomical, **kwargs
         )
 
-    def regress(self, mode="ols", **kwargs):
-        """Run a mass-univariate regression across voxels. Three types of regressions can be run:
-        1) Standard OLS (default)
-        2) Robust OLS (heteroscedasticty and/or auto-correlation robust errors), i.e. OLS with "sandwich estimators"
-        3) ARMA (auto-regressive and moving-average lags = 1 by default; experimental)
+    def regress(self, noise_model="ols", **kwargs):
+        """Runs a mass-univariate GLM analyses using the `Design_Matrix` supplied to `.X`
 
-        For more information see the help for nltools.stats.regress
+        This is a wrapper around [`nilearn.glm.first_level.FirstLevelModel`](https://nilearn.github.io/stable/modules/generated/nilearn.glm.first_level.FirstLevelModel.html#nilearn.glm.first_level.FirstLevelModel) which you can reference for additional information about what `**kwargs` are supported.
 
-        ARMA notes: This experimental mode is similar to AFNI's 3dREMLFit but without spatial smoothing of voxel auto-correlation estimates. It can be **very computationally intensive** so parallelization is used by default to try to speed things up. Speed is limited because a unique ARMA model is fit to *each voxel* (like AFNI/FSL), but unlike SPM, which assumes the same AR parameters (~0.2) at each voxel. While coefficient results are typically very similar to OLS, std-errors and so t-stats, dfs and and p-vals can differ greatly depending on how much auto-correlation is explaining the response in a voxel
-        relative to other regressors in the design matrix.
+        However, we override some defaults:
+        - no smoothing (use `.smooth()`)
+        - no scaling (use `.scale()`
+        - no drift model (should already be in the `Design_Matrix` set to `.X`)
+        - OLS noise model (use `noise_model = 'ar1'` to switch but takes more time)
 
         Args:
-            mode (str): kind of model to fit; must be one of 'ols' (default), 'robust', or 'arma'
-            kwargs (dict): keyword arguments to nltools.stats.regress
+            noise_model (str, optional): temporal variance model. Defaults to "ols"
+
 
         Returns:
-            out: dictionary of regression statistics in Brain_Data instances
-                {'beta','t','p','df','residual'}
-
+            ResultsContainer: with keys for each convolved column of `.X` and values as `Brain_Data` objects of the GLM statistics
         """
+        # Avoid circular import
+        from .results import ResultsContainer
 
         if not isinstance(self.X, pd.DataFrame):
             raise ValueError("Make sure self.X is a pandas DataFrame.")
@@ -909,43 +912,34 @@ class Brain_Data(object):
         if self.data.shape[0] != self.X.shape[0]:
             raise ValueError("self.X does not match the correct size of self.data")
 
-        b, se, t, p, df, res = regression(self.X, self.data, mode=mode, **kwargs)
+        # Nilearn FirstLevelModel default overrides
+        smoothing_fwhm = kwargs.get("smoothing_fwhm", None)
+        drift_model = kwargs.get("drift_model", None)
+        signal_scaling = kwargs.get("signal_scaling", False)
+        stat_type = kwargs.get("stat_type", "t")
+        output_type = kwargs.get("output_type", "all")
 
-        # Prevent copy of all data in self multiple times; instead start with an empty instance and copy only needed attributes from self, and use this as a template for other outputs
-        b_out = self.__class__()
-        b_out.mask = deepcopy(self.mask)
-        b_out.nifti_masker = deepcopy(self.nifti_masker)
-
-        # Use this as template for other outputs before setting data
-        se_out = b_out.copy()
-        t_out = b_out.copy()
-        p_out = b_out.copy()
-        df_out = b_out.copy()
-        res_out = b_out.copy()
-        (
-            b_out.data,
-            se_out.data,
-            t_out.data,
-            p_out.data,
-            df_out.data,
-            res_out.data,
-        ) = (
-            b,
-            se,
-            t,
-            p,
-            df,
-            res,
+        # Run GLM
+        glm = FirstLevelModel(
+            t_r=1 / self.X.sampling_freq,
+            mask_img=self.mask,
+            smoothing_fwhm=smoothing_fwhm,
+            drift_model=drift_model,
+            signal_scaling=signal_scaling,
+            noise_model=noise_model,
         )
+        glm.fit(self.to_nifti(), design_matrices=self.X)
+        self.glm = glm
 
-        return {
-            "beta": b_out,
-            "t": t_out,
-            "p": p_out,
-            "df": df_out,
-            "sigma": se_out,
-            "residual": res_out,
+        # Assemble results
+        regressors_of_interest = self.X.convolved
+        results = {
+            r: ResultsContainer(
+                glm.compute_contrast(r, stat_type=stat_type, output_type=output_type)
+            )
+            for r in regressors_of_interest
         }
+        return results
 
     def randomise(
         self, n_permute=5000, threshold_dict=None, return_mask=False, **kwargs
