@@ -86,7 +86,9 @@ def onsets_to_dm(
             polys = [c for c in dm.columns if "drift" in c or "constant" in c]
         else:
             convolved, polys = [], []
-        dm = Design_Matrix(dm, convolved=convolved, sampling_freq=1 / TR, polys=polys)
+        dm = Design_Matrix(
+            dm, convolved=convolved, sampling_freq=1 / TR, polys=polys
+        ).reset_index(drop=True)
         out.append(dm)
 
     return out if len(out) > 1 else out[0]
