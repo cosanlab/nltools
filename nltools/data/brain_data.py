@@ -901,7 +901,7 @@ class Brain_Data(object):
             ResultsContainer: with keys for each convolved column of `.X` and values as `Brain_Data` objects of the GLM statistics
         """
         # Avoid circular import
-        from .results import ResultsContainer
+        from .results import Brain_Collection
 
         if not isinstance(self.X, pd.DataFrame):
             raise ValueError("Make sure self.X is a pandas DataFrame.")
@@ -927,19 +927,45 @@ class Brain_Data(object):
             drift_model=drift_model,
             signal_scaling=signal_scaling,
             noise_model=noise_model,
+            minimize_memory=False,
         )
         glm.fit(self.to_nifti(), design_matrices=self.X)
         self.glm = glm
 
         # Assemble results
         regressors_of_interest = self.X.convolved
-        results = {
-            r: ResultsContainer(
-                glm.compute_contrast(r, stat_type=stat_type, output_type=output_type)
-            )
-            for r in regressors_of_interest
+        nltools2nilearn = {
+            "t": "stat",
+            "p": "p_value",
+            "beta": "effect_size",
+            "se": "effect_variance",
+            "z_score": "z_score",
         }
-        return results
+        all_results = dict(
+            z_score=Brain_Data(),
+            t=Brain_Data(),
+            p=Brain_Data(),
+            beta=Brain_Data(),
+            se=Brain_Data(),
+        )
+        for r in regressors_of_interest:
+            # This a dictionary of niftis of different statistics
+            result = glm.compute_contrast(
+                r, stat_type=stat_type, output_type=output_type
+            )
+            # Which we convert to our naming format for backwards compatibility
+            for k in all_results.keys():
+                all_results[k] = all_results[k].append(
+                    Brain_Data(result[nltools2nilearn[k]])
+                )
+
+        # These are single-item lists
+        all_results["rsquared"] = Brain_Data(glm.r_square[0])
+        all_results["predicted"] = Brain_Data(glm.predicted[0])
+        all_results["residual"] = Brain_Data(glm.residuals[0])
+        all_results["regressors"] = regressors_of_interest
+
+        return Brain_Collection(all_results)
 
     def randomise(
         self, n_permute=5000, threshold_dict=None, return_mask=False, **kwargs
@@ -2053,6 +2079,7 @@ class Brain_Data(object):
         values = dat.apply(func)
         return dat.combine(values)
 
+    # TODO: replace with nilearn.glm.threshold_stats_img
     def threshold(self, upper=None, lower=None, binarize=False, coerce_nan=True):
         """Threshold Brain_Data instance. Provide upper and lower values or
            percentages to perform two-sided thresholding. Binarize will return
