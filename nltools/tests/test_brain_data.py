@@ -4,7 +4,7 @@ import numpy as np
 import nibabel as nb
 import pandas as pd
 from nltools.simulator import Simulator
-from nltools.data import Brain_Data, Adjacency, Groupby
+from nltools.data import Brain_Data, Adjacency
 from nltools.stats import threshold, align
 from nltools.mask import create_sphere, roi_to_brain
 from pathlib import Path
@@ -155,7 +155,7 @@ def test_inplace_add(sim_brain_data):
     original_data = bd.data.copy()
     bd += 5
     assert np.allclose(bd.data, original_data + 5)
-    
+
     # Test in-place add with Brain_Data
     bd1 = sim_brain_data[0].copy()
     bd2 = sim_brain_data[0].copy()
@@ -170,7 +170,7 @@ def test_inplace_subtract(sim_brain_data):
     original_data = bd.data.copy()
     bd -= 3
     assert np.allclose(bd.data, original_data - 3)
-    
+
     # Test in-place subtract with Brain_Data
     bd1 = sim_brain_data[0].copy()
     bd2 = sim_brain_data[0].copy()
@@ -185,14 +185,14 @@ def test_inplace_multiply(sim_brain_data):
     original_data = bd.data.copy()
     bd *= 2
     assert np.allclose(bd.data, original_data * 2)
-    
+
     # Test in-place multiply with Brain_Data
     bd1 = sim_brain_data[0].copy()
     bd2 = sim_brain_data[0].copy()
     original_data = bd1.data.copy()
     bd1 *= bd2
     assert np.allclose(bd1.data, original_data * bd2.data)
-    
+
     # Test in-place multiply with array
     bd = sim_brain_data[0:4].copy()
     c1 = [0.5, 0.5, -0.5, -0.5]
@@ -212,7 +212,7 @@ def test_inplace_divide(sim_brain_data):
     original_data = bd.data.copy()
     bd /= 2
     assert np.allclose(bd.data, original_data / 2)
-    
+
     # Test in-place divide with Brain_Data
     bd1 = sim_brain_data[0].copy()
     bd2 = sim_brain_data[0].copy()
@@ -403,17 +403,6 @@ def test_smooth(sim_brain_data):
     assert len(smoothed.shape()) == 1
 
 
-def test_groupby_aggregate(sim_brain_data):
-    s1 = create_sphere([12, 10, -8], radius=10)
-    s2 = create_sphere([22, -2, -22], radius=10)
-    mask = Brain_Data([s1, s2])
-    d = sim_brain_data.groupby(mask)
-    assert isinstance(d, Groupby)
-    mn = sim_brain_data.aggregate(mask, "mean")
-    assert isinstance(mn, Brain_Data)
-    assert len(mn.shape()) == 1
-
-
 def test_threshold():
     s1 = create_sphere([12, 10, -8], radius=10)
     s2 = create_sphere([22, -2, -22], radius=10)
@@ -472,7 +461,7 @@ def test_predict(sim_brain_data):
         algorithm="svm",
         cv_dict=cv_dict,
         plot=False,
-        **{"kernel": "linear", "probability": True}
+        **{"kernel": "linear", "probability": True},
     )
     assert isinstance(stats["weight_map"], Brain_Data)
 
@@ -491,7 +480,7 @@ def test_predict(sim_brain_data):
         algorithm="ridge",
         cv_dict={"type": "kfolds", "n_folds": 2, "subject_id": holdout},
         plot=False,
-        **{"alpha": 0.1}
+        **{"alpha": 0.1},
     )
 
     # Lasso
@@ -499,7 +488,7 @@ def test_predict(sim_brain_data):
         algorithm="lasso",
         cv_dict={"type": "kfolds", "n_folds": 2, "stratified": sim_brain_data.Y},
         plot=False,
-        **{"alpha": 0.1}
+        **{"alpha": 0.1},
     )
 
     # PCR
@@ -511,7 +500,7 @@ def test_predict(sim_brain_data):
         algorithm="lassopcr",
         cv_dict={"type": "kfolds", "n_folds": 2},
         plot=False,
-        **{"kernel": "linear"}
+        **{"kernel": "linear"},
     )
     assert not np.allclose(
         [1.0, 1.0], stats["weight_map"].similarity(stats["weight_map_xval"])

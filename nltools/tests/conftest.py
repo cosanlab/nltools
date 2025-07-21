@@ -3,8 +3,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import pairwise_distances
 from nltools.simulator import Simulator
-from nltools.data import Brain_Data, Adjacency, Groupby, Design_Matrix
-from nltools.mask import create_sphere
+from nltools.data import Adjacency, Design_Matrix
 import os
 
 
@@ -40,12 +39,14 @@ def sim_design_matrix():
 def sim_adjacency_single():
     np.random.seed(0)
     # Create a positive definite covariance matrix
-    cov_matrix = np.array([
-        [1.0, 0.5, 0.1, 0.2],
-        [0.5, 1.0, 0.3, 0.1],
-        [0.1, 0.3, 1.0, 0.2],
-        [0.2, 0.1, 0.2, 1.0],
-    ])
+    cov_matrix = np.array(
+        [
+            [1.0, 0.5, 0.1, 0.2],
+            [0.5, 1.0, 0.3, 0.1],
+            [0.1, 0.3, 1.0, 0.2],
+            [0.2, 0.1, 0.2, 1.0],
+        ]
+    )
     sim = np.random.multivariate_normal([0, 0, 0, 0], cov_matrix, 100)
     data = pairwise_distances(sim.T, metric="correlation")
     labels = ["v_%s" % (x + 1) for x in range(sim.shape[1])]
@@ -57,12 +58,14 @@ def sim_adjacency_multiple():
     np.random.seed(0)
     n = 10
     # Create a positive definite covariance matrix
-    cov_matrix = np.array([
-        [1.0, 0.5, 0.1, 0.2],
-        [0.5, 1.0, 0.3, 0.1],
-        [0.1, 0.3, 1.0, 0.2],
-        [0.2, 0.1, 0.2, 1.0],
-    ])
+    cov_matrix = np.array(
+        [
+            [1.0, 0.5, 0.1, 0.2],
+            [0.5, 1.0, 0.3, 0.1],
+            [0.1, 0.3, 1.0, 0.2],
+            [0.2, 0.1, 0.2, 1.0],
+        ]
+    )
     sim = np.random.multivariate_normal([0, 0, 0, 0], cov_matrix, 100)
     data = pairwise_distances(sim.T, metric="correlation")
     dat_all = []
@@ -85,15 +88,6 @@ def sim_adjacency_directed():
     )
     labels = ["v_%s" % (x + 1) for x in range(sim_directed.shape[1])]
     return Adjacency(sim_directed, matrix_type="directed", labels=labels)
-
-
-@pytest.fixture(scope="module")
-def sim_groupby(sim_brain_data):
-    r = 10
-    s1 = create_sphere([12, 10, -8], radius=r)
-    s2 = create_sphere([22, -2, -22], radius=r)
-    mask = Brain_Data([s1, s2])
-    return Groupby(sim_brain_data, mask)
 
 
 @pytest.fixture(scope="module")

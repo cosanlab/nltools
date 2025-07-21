@@ -882,7 +882,7 @@ class Brain_Data(object):
             self, threshold=threshold, surface=surface, anatomical=anatomical, **kwargs
         )
 
-    def regress(self, noise_model="ols", **kwargs):
+    def regress(self, noise_model="ols", as_collection=False, **kwargs):
         """Runs a mass-univariate GLM analyses using the `Design_Matrix` supplied to `.X`
 
         This is a wrapper around [`nilearn.glm.first_level.FirstLevelModel`](https://nilearn.github.io/stable/modules/generated/nilearn.glm.first_level.FirstLevelModel.html#nilearn.glm.first_level.FirstLevelModel) which you can reference for additional information about what `**kwargs` are supported.
@@ -901,7 +901,7 @@ class Brain_Data(object):
             ResultsContainer: with keys for each convolved column of `.X` and values as `Brain_Data` objects of the GLM statistics
         """
         # Avoid circular import
-        from .results import Brain_Collection
+        from .brain_collection import Brain_Collection
 
         if not isinstance(self.X, pd.DataFrame):
             raise ValueError("Make sure self.X is a pandas DataFrame.")
@@ -963,9 +963,12 @@ class Brain_Data(object):
         all_results["rsquared"] = Brain_Data(glm.r_square[0])
         all_results["predicted"] = Brain_Data(glm.predicted[0])
         all_results["residual"] = Brain_Data(glm.residuals[0])
-        all_results["regressors"] = regressors_of_interest
+        all_results["labels"] = regressors_of_interest
 
-        return Brain_Collection(all_results)
+        if as_collection:
+            return Brain_Collection(all_results)
+        else:
+            return all_results
 
     def randomise(
         self, n_permute=5000, threshold_dict=None, return_mask=False, **kwargs
@@ -2069,16 +2072,6 @@ class Brain_Data(object):
         out.data = scale(out.data, axis=axis, with_std=with_std)
         return out
 
-    def groupby(self, mask):
-        """Create groupby instance"""
-        return Groupby(self, mask)
-
-    def aggregate(self, mask, func):
-        """Create new Brain_Data instance that aggregages func over mask"""
-        dat = self.groupby(mask)
-        values = dat.apply(func)
-        return dat.combine(values)
-
     # TODO: replace with nilearn.glm.threshold_stats_img
     def threshold(self, upper=None, lower=None, binarize=False, coerce_nan=True):
         """Threshold Brain_Data instance. Provide upper and lower values or
@@ -2425,72 +2418,3 @@ class Brain_Data(object):
             interpolate = pchip(orig_spacing, self.data[:, i])
             out.data[:, i] = interpolate(new_spacing)
         return out
-
-
-class Groupby(object):
-    def __init__(self, data, mask):
-        data = check_brain_data(data)
-        mask = check_brain_data(mask)
-
-        mask.data = np.round(mask.data).astype(int)
-        if len(mask.shape()) <= 1:
-            if len(np.unique(mask.data)) > 2:
-                mask = expand_mask(mask)
-            else:
-                raise ValueError("mask does not have enough groups.")
-
-        self.mask = mask
-        self.split(data, mask)
-
-    def __repr__(self):
-        return "%s.%s(len=%s)" % (
-            self.__class__.__module__,
-            self.__class__.__name__,
-            len(self),
-        )
-
-    def __len__(self):
-        return len(self.data)
-
-    def __iter__(self):
-        for x in self.data:
-            yield (x, self.data[x])
-
-    def __getitem__(self, index):
-        if isinstance(index, int):
-            return self.data[index]
-        else:
-            raise ValueError("Groupby currently only supports integer indexing")
-
-    def split(self, data, mask):
-        """Split Brain_Data instance into separate masks and store as a
-        dictionary.
-        """
-
-        self.data = {}
-        for i, m in enumerate(mask):
-            self.data[i] = data.apply_mask(m)
-
-    def apply(self, method):
-        """Apply Brain_Data instance methods to each element of Groupby
-        object.
-        """
-        return dict([(i, getattr(x, method)()) for i, x in self])
-
-    def combine(self, value_dict):
-        """Combine value dictionary back into masks"""
-        out = self.mask.copy().astype(float)
-        for i in iter(value_dict.keys()):
-            if isinstance(value_dict[i], Brain_Data):
-                if value_dict[i].shape()[0] == np.sum(self.mask[i].data):
-                    out.data[i, out.data[i, :] == 1] = value_dict[i].data
-                else:
-                    raise ValueError("Brain_Data instances are different shapes.")
-            elif isinstance(value_dict[i], (float, int, bool, np.number)):
-                out.data[i, :] = out.data[i, :] * value_dict[i]
-            else:
-                raise ValueError(
-                    "No method for aggregation implented for %s "
-                    "yet." % type(value_dict[i])
-                )
-        return out.sum()

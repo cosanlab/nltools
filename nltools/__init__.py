@@ -15,9 +15,9 @@ __all__ = [
     "set_cv",
     "Brain_Data",
     "Adjacency",
-    "Groupby",
     "Design_Matrix",
     "Design_Matrix_Series",
+    "Brain_Collection",
     "Simulator",
     "MNI_Template",
     "expand_mask",
@@ -29,7 +29,13 @@ __all__ = [
 
 from .analysis import Roc
 from .cross_validation import set_cv
-from .data import Brain_Data, Adjacency, Groupby, Design_Matrix, Design_Matrix_Series
+from .data import (
+    Brain_Data,
+    Adjacency,
+    Design_Matrix,
+    Design_Matrix_Series,
+    Brain_Collection,
+)
 from .simulator import Simulator
 from .prefs import MNI_Template
 from .version import __version__

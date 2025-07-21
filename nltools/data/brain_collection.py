@@ -1,17 +1,58 @@
-from __future__ import annotations
-
-
 class Brain_Collection:
-    """A 2D container for neuroimaging results, similar to a DataFrame.
+    """A container for neuroimaging results with slicing semantics to manage collections of Brain_Data objects.
 
-    Stores a collection of dictionaries where each dictionary represents a collection of Brain_Data objects with the same set of keys. Supports intuitive indexing:
-    - collection['key'] or collection.key returns all values for that key across all items
-    - collection[index, 'key'] returns the value for a specific item
-    - collection[index] returns the entire dictionary for that item
-    - collection[start:end] returns a new Brain_Collection with sliced items
-    - collection['regressor_name', 'field'] returns sliced Brain_Data for specific regressor
-    - collection[['reg1', 'reg2'], 'field'] returns dict of Brain_Data for multiple regressors
-    - collection[['reg1', 'reg2'], ['field1', 'field2']] returns dict for multiple regressors and fields
+    Internally represents data as a list of dictionaries. Each dictionary represents a collection of Brain_Data objects with the same set of keys. This makes it easy to work with the output of multiple calls to methods like `Brain_Data.regress()` together.
+
+    # Given data like this:
+    results = [
+        {
+            "z_score": sim_brain_data, # 8 x num_voxels
+            "t": sim_brain_data.copy(), # 8 x num_voxels
+            "p": sim_brain_data.copy(), # 8 x num_voxels
+            "beta": sim_brain_data.copy(), # 8 x num_voxels
+            "se": sim_brain_data.copy(), # 8 x num_voxels
+            "rsquared": sim_brain_data.copy()[0],  # 1 x num_voxels
+            "labels": [  # 8 regressors
+                "bottle",
+                "cat",
+                "chair",
+                "face",
+                "house",
+                "scissors",
+                "shoe",
+                "scrambledpix",
+            ],
+        },
+        {
+            "z_score": sim_brain_data, # 8 x num_voxels
+            "t": sim_brain_data.copy(), # 8 x num_voxels
+            "p": sim_brain_data.copy(), # 8 x num_voxels
+            "beta": sim_brain_data.copy(), # 8 x num_voxels
+            "se": sim_brain_data.copy(), # 8 x num_voxels
+            "rsquared": sim_brain_data.copy()[0],  # 1 x num_voxels
+            "labels": [  # 8 regressors
+                "bottle",
+                "cat",
+                "chair",
+                "face",
+                "house",
+                "scissors",
+                "shoe",
+                "scrambledpix",
+            ],
+        },
+    ]
+
+    Supports a variety of indexing:
+    - results['key'] # gets dict-key across all list items
+    - results[numeric-index] # get nth list item
+    - results[numeric-index, 'key'] # get nth list item's dict-key
+    - results[numeric-index, :, 'label'] # get nth list item's dict-key, sliced into by label
+    - results[numeric-index, :, numeric-index] # get nth list item's dict-key, sliced into by numeric-index
+    - results[numeric-index, 'key', 'label'] # get nth list item's dict-key, sliced into by label
+    - results[numeric-index, 'key', numeric-index] # get nth list item's dict-key, sliced into by numeric-index
+    - results[start:stop:step, ['key1', 'key2'...], ['label1', 'label2', 'label3'...]] # full possibilities using labels for last dimension
+    - results[start:stop:step, ['key1', 'key2'...], start:stop:step] # full possibilities using numeric-index for last dimension
 
     Args:
         data (dict | list[dict] | None): A dictionary or list of dictionaries
@@ -22,25 +63,6 @@ class Brain_Collection:
         >>> all_results = Brain_Collection()
         >>> all_results.append(brain_data.regress())
         >>>
-        >>> # Access all z-scores across subjects
-        >>> all_z_scores = results['z_score']
-        >>>
-        >>> # Access specific subject's beta
-        >>> subject1_beta = results[0, 'beta']
-        >>>
-        >>> # Access z-scores for 'face' regressor across all subjects
-        >>> face_z_scores = results['face', 'z_score']
-        >>>
-        >>> # Access beta values for multiple regressors
-        >>> face_house_betas = results[['face', 'house'], 'beta']
-        >>>
-        >>> # Access multiple statistics for multiple regressors
-        >>> stats = results[['face', 'house'], ['beta', 't']]
-        >>> # Returns dict with keys like ('face', 'beta'), ('face', 't'), etc.
-        >>>
-        >>> # Access multiple fields for specific subjects
-        >>> subject_stats = results[:2, ['beta', 't']]  # First 2 subjects
-        >>> subject_stats = results[[0, 2], ['beta', 't']]  # Subjects 0 and 2
     """
 
     def __init__(self, data: dict | list | None = None):
@@ -177,7 +199,9 @@ class Brain_Collection:
                         # Multiple keys with multiple indices
                         return self._get_multi_index_multi_key_values(item_idx, key)
                     else:
-                        raise TypeError(f"With list of indices, key must be str or list, not {type(key)}")
+                        raise TypeError(
+                            f"With list of indices, key must be str or list, not {type(key)}"
+                        )
                 elif all(isinstance(idx, str) for idx in item_idx):
                     # Multi-label indexing: (['face', 'house'], 'beta') or (['face', 'house'], ['beta', 't'])
                     if isinstance(key, str):
@@ -207,7 +231,9 @@ class Brain_Collection:
                     indices = list(range(len(self.data)))[item_idx]
                     return self._get_multi_index_multi_key_values(indices, key)
                 else:
-                    raise TypeError(f"With slice, key must be str or list, not {type(key)}")
+                    raise TypeError(
+                        f"With slice, key must be str or list, not {type(key)}"
+                    )
 
             else:
                 raise TypeError(
@@ -340,22 +366,24 @@ class Brain_Collection:
             return all_results[0]
         else:
             return all_results
-    
+
     def _get_multi_index_multi_key_values(self, indices, keys):
         """Get values for multiple indices and multiple keys.
-        
+
         Args:
             indices (list[int]): List of integer indices
             keys (list[str]): List of field names
-            
+
         Returns:
             list[dict]: List of dictionaries, one per index, with requested keys
         """
         # Check if all requested keys exist
         for key in keys:
             if key not in self._keys:
-                raise KeyError(f"Key '{key}' not found. Available keys: {list(self._keys)}")
-        
+                raise KeyError(
+                    f"Key '{key}' not found. Available keys: {list(self._keys)}"
+                )
+
         # Build result for each index
         results = []
         for idx in indices:
@@ -363,38 +391,46 @@ class Brain_Collection:
             for key in keys:
                 item_result[key] = self.data[idx][key]
             results.append(item_result)
-        
+
         return results
-    
+
     def _maybe_concatenate_brain_data(self, result):
         """Check if result is a list of Brain_Data singletons and concatenate if so.
-        
+
         Args:
             result: The result from a slicing operation
-            
+
         Returns:
             Either the original result or a concatenated Brain_Data object
         """
         # Import here to avoid circular imports
         from .brain_data import Brain_Data
-        
+
         # Only process lists
         if not isinstance(result, list):
             return result
-        
+
         # Check if all items are Brain_Data objects
-        if not all(hasattr(item, '__class__') and item.__class__.__name__ == 'Brain_Data' for item in result):
+        if not all(
+            hasattr(item, "__class__") and item.__class__.__name__ == "Brain_Data"
+            for item in result
+        ):
             return result
-        
+
         # Check if all Brain_Data objects are singletons (1D data)
         try:
-            if all(hasattr(item, 'data') and hasattr(item.data, 'ndim') and item.data.ndim == 1 for item in result):
+            if all(
+                hasattr(item, "data")
+                and hasattr(item.data, "ndim")
+                and item.data.ndim == 1
+                for item in result
+            ):
                 # Concatenate into a single Brain_Data object
                 return Brain_Data(result)
         except Exception:
             # If anything goes wrong, return original result
             pass
-        
+
         return result
 
     def __len__(self):

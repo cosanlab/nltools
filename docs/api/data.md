@@ -9,9 +9,9 @@
 .. autoclass:: nltools.data.Adjacency
     :members:
 
-.. autoclass:: nltools.data.Groupby
+.. autoclass:: nltools.data.Design_Matrix
     :members:
 
-.. autoclass:: nltools.data.Design_Matrix
+.. autoclass:: nltools.data.Brain_Collection
     :members:
 ```
