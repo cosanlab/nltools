@@ -50,6 +50,8 @@ def download_nifti(url, data_dir=None):
 
     if not url:
         raise ValueError("URL cannot be empty")
+    if isinstance(url, Path):
+        url = str(url)
 
     local_filename = url.split("/")[-1]
     if data_dir is not None:

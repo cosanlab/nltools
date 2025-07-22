@@ -97,153 +97,48 @@ class Brain_Data(object):
 
     """
 
-    def __init__(self, data=None, Y=None, X=None, mask=None, **kwargs):
+    def __init__(self, data=None, Y=None, X=None, mask=None, TR=None, **kwargs):
+        # Supported data types
+        if data is not None and not isinstance(
+            data, (str, Path, nib.Nifti1Image, list)
+        ):
+            raise TypeError(
+                f"data must be a single or list of: Brain_Data, filepath, or nib.Nifti1Image received {type(data)}"
+            )
+
+        # HDF5 compression
         self._h5_compression = kwargs.pop("h5_compression", "gzip")
 
         # Logging during init only
         verbose = kwargs.pop("verbose", False)
 
-        # Setup default or specified nifti masker
-        self.mask = MNI_Template.mask if mask is None else mask
+        # Set TR
+        self.TR = TR
+
+        # Load default or specified mask
+        if mask is None:
+            # Load default mask
+            self.mask = nib.load(MNI_Template.mask)
+        elif isinstance(mask, (str, Path)):
+            self.mask = nib.load(str(mask))
+        elif isinstance(mask, nib.Nifti1Image):
+            self.mask = mask
+        else:
+            raise TypeError(
+                f"mask must be a nibabel instance or a valid file name. Received {type(mask)}"
+            )
+
+        # Learn 3d/4d -> 1d/2d transform on template/mask
         self.nifti_masker = NiftiMasker(
             mask_img=self.mask, verbose=kwargs.get("verbose", 0), **kwargs
         )
-
-        # Learn 3d/4d -> 1d/2d transform on template/mask
         _ = self.nifti_masker.fit()
 
-        # Setup data
-        if data is None:
-            self.data = np.array([])
+        # Handle data
+        self.data = None
 
-        # Filepath or URL
-        elif isinstance(data, (str, Path)):
-            # Convert Path objects to string; converting string is a no-op so this won't affect real strings
-            to_load = str(data)
-
-            # Web download
-            if "http://" in to_load or "https://" in to_load:
-                from nltools.datasets import download_nifti
-
-                tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
-                os.makedirs(tmp_dir)
-                data = nib.load(download_nifti(to_load, data_dir=tmp_dir))
-
-            # HDF5
-            elif (".h5" in to_load) or (".hdf5" in to_load):
-                try:
-                    # Load X and Y dataframes
-                    with pd.HDFStore(to_load, "r") as f:
-                        self.X = f["X"]
-                        self.Y = f["Y"]
-
-                    # Load data and masker stuffs
-                    with h5File(to_load, "r") as f:
-                        self.data = np.array(f["data"])
-                        if mask is None:
-                            # User didn't request a mask so try to load it from the h5 file,
-                            # i.e. overwrite the default mask loaded above
-                            self.mask = nib.Nifti1Image(
-                                np.array(f["mask_data"]),
-                                affine=np.array(f["mask_affine"]),
-                                file_map={
-                                    "image": nib.FileHolder(
-                                        filename=f["mask_file_name"][()].decode()
-                                    )
-                                },
-                            )
-                            nifti_masker = NiftiMasker(self.mask)
-                            self.nifti_masker = nifti_masker.fit(self.mask)
-                        else:
-                            # Mask is already set above so use the default or user requested
-                            # mask rather than the one in h5 (if it exists)
-                            if "mask_data" in f:
-                                warnings.warn(
-                                    "Existing mask found in HDF5 file but is being ignored because you passed a value for mask. Set mask=None to use existing mask in the HDF5 file"
-                                )
-                    # We're done initializing
-                    return
-                except Exception as e:
-                    if verbose:
-                        warnings.warn(
-                            f"Falling back to legacy h5 loading due to error: {e}"
-                        )
-                    # <= 0.4.8 compatibility
-                    with tables.open_file(to_load, mode="r") as f:
-                        # Setup data
-                        self.data = np.array(f.root["data"])
-
-                        # Setup X
-                        if len(list(f.root["X_columns"])):
-                            self.X = pd.DataFrame(
-                                np.array(f.root["X"]).squeeze(),
-                                columns=[
-                                    e.decode("utf-8") if isinstance(e, bytes) else e
-                                    for e in np.array(f.root["X_columns"])
-                                ],
-                                index=[
-                                    e.decode("utf-8") if isinstance(e, bytes) else e
-                                    for e in np.array(f.root["X_index"])
-                                ],
-                            )
-                        else:
-                            self.X = pd.DataFrame()
-
-                        # Setup Y
-                        if len(list(f.root["Y_columns"])):
-                            self.Y = pd.DataFrame(
-                                np.array(f.root["Y"]).squeeze(),
-                                columns=[
-                                    e.decode("utf-8") if isinstance(e, bytes) else e
-                                    for e in np.array(f.root["Y_columns"])
-                                ],
-                                index=[
-                                    e.decode("utf-8") if isinstance(e, bytes) else e
-                                    for e in np.array(f.root["Y_index"])
-                                ],
-                            )
-                        else:
-                            self.Y = pd.DataFrame()
-
-                        # Setup mask
-                        if mask is None:
-                            # User didn't request a mask so try to load it from the h5 file,
-                            # i.e. overwrite the default mask loaded above
-                            filename = (
-                                f.root["mask_file_name"]
-                                if "mask_file_name" in f.root
-                                else self.mask.get_filename()
-                            )
-                            self.mask = nib.Nifti1Image(
-                                np.array(f.root["mask_data"]),
-                                affine=np.array(f.root["mask_affine"]),
-                                file_map={"image": nib.FileHolder(filename=filename)},
-                            )
-                            nifti_masker = NiftiMasker(self.mask)
-                            self.nifti_masker = nifti_masker.fit(self.mask)
-                        else:
-                            # Mask is already set above so use the default or user requested
-                            # mask rather than the one in h5 (if it exists)
-                            if "mask_data" in f.root:
-                                warnings.warn(
-                                    "Existing mask found in HDF5 file but is being ignored because you passed a value for mask. Set mask=None to use existing mask in the HDF5 file"
-                                )
-
-                        # We're done initializing
-                        return
-
-            # Suppress nilearn output if verbose=0
-            # NOTE: we have to do this because nilearn uses a custom print
-            # statement when resampling that we can't disable any other way
-            if not verbose:
-                with open(os.devnull, "w") as devnull:
-                    with redirect_stdout(devnull):
-                        self.data = self.nifti_masker.transform(data)
-            else:
-                self.data = self.nifti_masker.transform(data)
-
-        # List of brain data objects or string filenames
-        elif isinstance(data, list):
+        # List of Brain_Data or list of files
+        if isinstance(data, list):
             # Brain datas
             if isinstance(data[0], Brain_Data):
                 tmp = concatenate(data)
@@ -269,49 +164,141 @@ class Brain_Data(object):
                         "Make sure all objects in the list are the same type."
                     )
 
-        else:
-            raise TypeError(
-                "data must be a single or list of: Brain_Data, filepath, or nib.Nifti1Image"
-            )
+        # HDF5 file-path; returns early
+        elif isinstance(data, (str, Path)) and (
+            ".h5" in str(data) or ".hdf5" in str(data)
+        ):
+            # Pandas/h5py loading mode
+            try:
+                with pd.HDFStore(data, "r") as f:
+                    self.X = f["X"]
+                    self.Y = f["Y"]
+
+                # Load data and masker stuffs
+                with h5File(data, "r") as f:
+                    self.data = np.array(f["data"])
+                    if mask is None:
+                        # User didn't request a mask so try to load it from the h5 file,
+                        # i.e. overwrite the default mask loaded above
+                        self.mask = nib.Nifti1Image(
+                            np.array(f["mask_data"]),
+                            affine=np.array(f["mask_affine"]),
+                            file_map={
+                                "image": nib.FileHolder(
+                                    filename=f["mask_file_name"][()].decode()
+                                )
+                            },
+                        )
+                        nifti_masker = NiftiMasker(self.mask)
+                        self.nifti_masker = nifti_masker.fit(self.mask)
+                    else:
+                        # Mask is already set above so use the default or user requested
+                        # mask rather than the one in h5 (if it exists)
+                        if "mask_data" in f:
+                            warnings.warn(
+                                "Existing mask found in HDF5 file but is being ignored because you passed a value for mask. Set mask=None to use existing mask in the HDF5 file"
+                            )
+            # Legacy loading mode
+            except Exception as e:
+                if verbose:
+                    warnings.warn(
+                        f"Falling back to legacy h5 loading due to error: {e}"
+                    )
+                # <= 0.4.8 compatibility
+                with tables.open_file(data, mode="r") as f:
+                    # Setup data
+                    self.data = np.array(f.root["data"])
+
+                    # Setup X
+                    if len(list(f.root["X_columns"])):
+                        self.X = pd.DataFrame(
+                            np.array(f.root["X"]).squeeze(),
+                            columns=[
+                                e.decode("utf-8") if isinstance(e, bytes) else e
+                                for e in np.array(f.root["X_columns"])
+                            ],
+                            index=[
+                                e.decode("utf-8") if isinstance(e, bytes) else e
+                                for e in np.array(f.root["X_index"])
+                            ],
+                        )
+                    else:
+                        self.X = pd.DataFrame()
+
+                    # Setup Y
+                    if len(list(f.root["Y_columns"])):
+                        self.Y = pd.DataFrame(
+                            np.array(f.root["Y"]).squeeze(),
+                            columns=[
+                                e.decode("utf-8") if isinstance(e, bytes) else e
+                                for e in np.array(f.root["Y_columns"])
+                            ],
+                            index=[
+                                e.decode("utf-8") if isinstance(e, bytes) else e
+                                for e in np.array(f.root["Y_index"])
+                            ],
+                        )
+                    else:
+                        self.Y = pd.DataFrame()
+
+                    # Setup mask
+                    if mask is None:
+                        # User didn't request a mask so try to load it from the h5 file,
+                        # i.e. overwrite the default mask loaded above
+                        filename = (
+                            f.root["mask_file_name"]
+                            if "mask_file_name" in f.root
+                            else self.mask.get_filename()
+                        )
+                        self.mask = nib.Nifti1Image(
+                            np.array(f.root["mask_data"]),
+                            affine=np.array(f.root["mask_affine"]),
+                            file_map={"image": nib.FileHolder(filename=filename)},
+                        )
+                        nifti_masker = NiftiMasker(self.mask)
+                        self.nifti_masker = nifti_masker.fit(self.mask)
+                    else:
+                        # Mask is already set above so use the default or user requested
+                        # mask rather than the one in h5 (if it exists)
+                        if "mask_data" in f.root:
+                            warnings.warn(
+                                "Existing mask found in HDF5 file but is being ignored because you passed a value for mask. Set mask=None to use existing mask in the HDF5 file"
+                            )
+            # We're done initializing
+            return
+
+        # No data
+        if data is None:
+            self.data = np.array([])
+
+        # Web-url
+        elif isinstance(data, (str, Path)) and "://" in str(data):
+            # Web download
+            from nltools.datasets import download_nifti
+
+            tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
+            os.makedirs(tmp_dir)
+            data = nib.load(download_nifti(data, data_dir=tmp_dir))
+
+        # Everything else, i.e. (nnon-h5 file-paths, strings, and ndimage)
+        if self.data is None:
+            # Suppress nilearn output if verbose=0
+            # NOTE: we have to do this because nilearn uses a custom print
+            # statement when resampling that we can't disable any other way
+            if not verbose:
+                with open(os.devnull, "w") as devnull:
+                    with redirect_stdout(devnull):
+                        self.data = self.nifti_masker.transform(data)
+            else:
+                self.data = self.nifti_masker.transform(data)
 
         # Collapse any extra data dimension
         if 1 in self.data.shape:
             self.data = self.data.squeeze()
 
-        # Setup Y dataframe
-        if Y is None:
-            self.Y = pd.DataFrame()
-
-        elif isinstance(Y, (str, Path)):
-            self.Y = pd.read_csv(Y, header=None, index_col=None)
-
-        elif isinstance(Y, pd.DataFrame):
-            self.Y = Y
-        else:
-            raise TypeError("Make sure Y filepath or pandas data frame.")
-
-        # Setup X dataframe
-        if X is None:
-            self.X = pd.DataFrame()
-
-        elif isinstance(X, (str, Path)):
-            self.X = pd.read_csv(X, header=None, index_col=None)
-
-        elif isinstance(X, pd.DataFrame):
-            self.X = X
-        else:
-            raise TypeError("Make sure X filepath or pandas data frame.")
-
-        # Ensure consistency
-        if not self.Y.empty and self.data.shape[0] != self.Y.shape[0]:
-            raise ValueError(
-                f"Y rows ({self.Y.shape[0]}) do not match data rows ({self.data.shape[0]})"
-            )
-
-        if not self.X.empty and self.data.shape[0] != self.X.shape[0]:
-            raise ValueError(
-                f"X rows ({self.X.shape[0]}) do not match data rows ({self.data.shape[0]})"
-            )
+        # Setup Y and X dataframes
+        self.Y = self._validate_frame(Y)
+        self.X = self._validate_frame(X)
 
     def __repr__(self):
         return "%s.%s(data=%s, Y=%s, X=%s, mask=%s)" % (
@@ -415,6 +402,37 @@ class Brain_Data(object):
                 raise ValueError(
                     f"Cannot {operation_name} multiple images of a different shape"
                 )
+
+    def _validate_frame(self, frame):
+        """Validate X and Y dataframes.
+
+        Args:
+            frame: (str, Path, pd.DataFrame, or None)
+
+        Returns:
+            pd.DataFrame: Validated dataframe
+
+        Raises:
+            TypeError: If frame is not a valid type
+            ValueError: If frame does not match data shape
+        """
+        if frame is not None and not isinstance(frame, (str, Path, pd.DataFrame)):
+            raise TypeError(
+                f"Make sure X and Y are a filepath or pandas dataframe. Received {type(frame)}"
+            )
+
+        if isinstance(frame, (str, Path)):
+            frame = pd.read_csv(frame, header=None, index_col=None)
+        elif frame is None:
+            frame = pd.DataFrame()
+
+        # Ensure consistency with data
+        if not frame.empty and frame.shape[0] != self.data.shape[0]:
+            raise ValueError(
+                f"X and Y rows ({frame.shape[0]}) do not match data rows ({self.data.shape[0]})"
+            )
+
+        return frame
 
     def __add__(self, y):
         new = deepcopy(self)
@@ -882,7 +900,9 @@ class Brain_Data(object):
 
         # Run GLM
         glm = FirstLevelModel(
-            t_r=1 / self.X.sampling_freq,
+            t_r=1 / self.X.sampling_freq
+            if hasattr(self.X, "sampling_freq")
+            else self.TR,
             mask_img=self.mask,
             smoothing_fwhm=smoothing_fwhm,
             drift_model=drift_model,
@@ -894,7 +914,7 @@ class Brain_Data(object):
         self.glm = glm
 
         # Assemble results
-        regressors_of_interest = self.X.convolved
+        regressors_of_interest = getattr(self.X, "convolved", self.X.columns)
         nltools2nilearn = {
             "t": "stat",
             "p": "p_value",
@@ -1828,6 +1848,7 @@ class Brain_Data(object):
 
         return ICC
 
+    # NOTE: scipy
     def detrend(self, method="linear"):
         """Remove linear trend from each voxel
 
@@ -1852,6 +1873,7 @@ class Brain_Data(object):
         """Create a copy of a Brain_Data instance."""
         return deepcopy(self)
 
+    # NOTE: utils
     def upload_neurovault(
         self,
         access_token=None,
@@ -1940,6 +1962,7 @@ class Brain_Data(object):
         shutil.rmtree(tmp_dir, ignore_errors=True)
         return collection
 
+    # NOTE: stats
     def r_to_z(self):
         """Apply Fisher's r to z transformation to each element of the data
         object."""
@@ -1948,6 +1971,7 @@ class Brain_Data(object):
         out.data = fisher_r_to_z(out.data)
         return out
 
+    # NOTE: stats
     def z_to_r(self):
         """Convert z score back into r value for each element of data object"""
 
@@ -1955,6 +1979,7 @@ class Brain_Data(object):
         out.data = fisher_z_to_r(out.data)
         return out
 
+    # NOTE: nilearn
     def filter(self, sampling_freq=None, high_pass=None, low_pass=None, **kwargs):
         """Apply 5th order butterworth filter to data. Wraps nilearn
         functionality. Does not default to detrending and standardizing like
@@ -2007,6 +2032,7 @@ class Brain_Data(object):
         out.data = out.data.astype(dtype)
         return out
 
+    # NOTE: sklearn
     def standardize(self, axis=0, method="center"):
         """Standardize Brain_Data() instance.
 
@@ -2034,6 +2060,7 @@ class Brain_Data(object):
         return out
 
     # TODO: replace with nilearn.glm.threshold_stats_img
+    # NOTE: nilearn
     def threshold(self, upper=None, lower=None, binarize=False, coerce_nan=True):
         """Threshold Brain_Data instance. Provide upper and lower values or
            percentages to perform two-sided thresholding. Binarize will return
@@ -2079,6 +2106,7 @@ class Brain_Data(object):
             b.data[b.data != 0] = 1
         return b
 
+    # NOTE: nilearn
     def regions(
         self,
         min_region_size=1350,
@@ -2122,6 +2150,7 @@ class Brain_Data(object):
 
         return Brain_Data(regions, mask=self.mask)
 
+    # NOTE: stats
     def transform_pairwise(self):
         """Extract brain connected regions into separate regions.
 
@@ -2136,6 +2165,7 @@ class Brain_Data(object):
         out.Y.replace(-1, 0, inplace=True)
         return out
 
+    # NOTE: stats
     def bootstrap(
         self,
         function,
@@ -2181,6 +2211,7 @@ class Brain_Data(object):
         bootstrapped = Brain_Data(bootstrapped, mask=self.mask)
         return summarize_bootstrap(bootstrapped, save_weights=save_weights)
 
+    # NOTE: utils,
     def decompose(
         self, algorithm="pca", axis="voxels", n_components=None, *args, **kwargs
     ):
@@ -2216,6 +2247,7 @@ class Brain_Data(object):
             out["components"].data = out["decomposition_object"].components_
         return out
 
+    # NOTE: stats
     def align(self, target, method="procrustes", axis=0, *args, **kwargs):
         """Align Brain_Data instance to target object using functional alignment
 
@@ -2311,6 +2343,7 @@ class Brain_Data(object):
 
         return out
 
+    # NOTE: nilearn
     def smooth(self, fwhm):
         """Apply spatial smoothing using nilearn smooth_img()
 
@@ -2326,6 +2359,7 @@ class Brain_Data(object):
             out.data = out.data.squeeze()
         return out
 
+    # NOTE: stats
     def find_spikes(self, global_spike_cutoff=3, diff_spike_cutoff=3):
         """Function to identify spikes from Time Series Data
 
@@ -2343,6 +2377,7 @@ class Brain_Data(object):
             diff_spike_cutoff=diff_spike_cutoff,
         )
 
+    # NOTE:
     def temporal_resample(self, sampling_freq=None, target=None, target_type="hz"):
         """
         Resample Brain_Data timeseries to a new target frequency or number of samples
