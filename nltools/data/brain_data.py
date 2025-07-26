@@ -68,7 +68,6 @@ from .adjacency import Adjacency
 from nltools.prefs import MNI_Template
 from nilearn.decoding import SearchLight
 from pathlib import Path
-from h5py import File as h5File
 from contextlib import redirect_stdout
 
 
@@ -98,26 +97,66 @@ class Brain_Data(object):
     """
 
     def __init__(self, data=None, Y=None, X=None, mask=None, TR=None, **kwargs):
-        # Supported data types
-        if data is not None and not isinstance(
-            data, (str, Path, nib.Nifti1Image, list)
-        ):
-            raise TypeError(
-                f"data must be a single or list of: Brain_Data, filepath, or nib.Nifti1Image received {type(data)}"
-            )
+        """Initialize Brain_Data object.
 
-        # HDF5 compression
+        Args:
+            data: Neuroimaging data. Can be:
+                - None (empty Brain_Data)
+                - Brain_Data object
+                - List of Brain_Data objects or file paths
+                - File path (str/Path) to .nii/.nii.gz/.h5/.hdf5
+                - nibabel Nifti1Image object
+                - URL to download data from
+            Y: Labels/targets as DataFrame, file path, or None.
+            X: Design matrix as DataFrame, file path, or None.
+            mask: Brain mask as nibabel object, file path, or None (uses MNI template).
+            TR: Repetition time in seconds.
+            **kwargs: Additional arguments passed to NiftiMasker.
+        """
+        # Import validation functions
+        from ._validation import validate_data_type, validate_frame
+
+        # Initialize attributes
         self._h5_compression = kwargs.pop("h5_compression", "gzip")
-
-        # Logging during init only
-        verbose = kwargs.pop("verbose", False)
-
-        # Set TR
+        self.verbose = kwargs.pop("verbose", False)
         self.TR = TR
 
-        # Load default or specified mask
+        # Initialize mask
+        self._initialize_mask(mask, **kwargs)
+
+        # Initialize data based on type
+        data_type = validate_data_type(data)
+
+        if data_type == "none":
+            self.data = np.array([])
+        elif data_type == "h5":
+            self._load_from_h5(data, mask)
+            # H5 loading sets X and Y, so we're done
+            return
+        elif data_type == "list":
+            self._load_from_list(data)
+        elif data_type == "url":
+            self._load_from_url(data)
+        elif data_type in ["file", "nibabel"]:
+            self._load_from_file(data)
+
+        # Collapse any extra data dimension
+        if self.data is not None and 1 in self.data.shape:
+            self.data = self.data.squeeze()
+
+        # Setup Y and X dataframes
+        data_shape = self.data.shape if self.data is not None else None
+        self.Y = validate_frame(Y, data_shape, "Y")
+        self.X = validate_frame(X, data_shape, "X")
+
+    def _initialize_mask(self, mask, **kwargs):
+        """Initialize the mask and NiftiMasker.
+
+        Args:
+            mask: Brain mask as nibabel object, file path, or None.
+            **kwargs: Additional arguments passed to NiftiMasker.
+        """
         if mask is None:
-            # Load default mask
             self.mask = nib.load(MNI_Template.mask)
         elif isinstance(mask, (str, Path)):
             self.mask = nib.load(str(mask))
@@ -125,180 +164,102 @@ class Brain_Data(object):
             self.mask = mask
         else:
             raise TypeError(
-                f"mask must be a nibabel instance or a valid file name. Received {type(mask)}"
+                f"mask must be a nibabel instance or a valid file name. "
+                f"Received {type(mask).__name__}"
             )
 
         # Learn 3d/4d -> 1d/2d transform on template/mask
         self.nifti_masker = NiftiMasker(
             mask_img=self.mask, verbose=kwargs.get("verbose", 0), **kwargs
         )
-        _ = self.nifti_masker.fit()
+        self.nifti_masker.fit()
 
-        # Handle data
-        self.data = None
+    def _load_from_list(self, data_list):
+        """Load data from a list of Brain_Data objects or file paths.
 
-        # List of Brain_Data or list of files
-        if isinstance(data, list):
-            # Brain datas
-            if isinstance(data[0], Brain_Data):
-                tmp = concatenate(data)
-                for item in ["data", "Y", "X", "mask", "nifti_masker"]:
-                    setattr(self, item, getattr(tmp, item))
+        Args:
+            data_list: List of Brain_Data objects or file paths.
+        """
+        from ._validation import validate_list_data
 
-            # File paths or niftis
-            # NOTE: We don't support list of hdf5 filepaths! Only .nii/.nii.gz
-            else:
-                if all(isinstance(x, data[0].__class__) for x in data):
-                    self.data = []
-                    if not verbose:
-                        with open(os.devnull, "w") as devnull:
-                            with redirect_stdout(devnull):
-                                for i in data:
-                                    self.data.append(self.nifti_masker.transform(i))
-                    else:
-                        for i in data:
-                            self.data.append(self.nifti_masker.transform(i))
-                    self.data = np.concatenate(self.data)
-                else:
-                    raise ValueError(
-                        "Make sure all objects in the list are the same type."
-                    )
+        list_type = validate_list_data(data_list)
 
-        # HDF5 file-path; returns early
-        elif isinstance(data, (str, Path)) and (
-            ".h5" in str(data) or ".hdf5" in str(data)
-        ):
-            # Pandas/h5py loading mode
-            try:
-                with pd.HDFStore(data, "r") as f:
-                    self.X = f["X"]
-                    self.Y = f["Y"]
-
-                # Load data and masker stuffs
-                with h5File(data, "r") as f:
-                    self.data = np.array(f["data"])
-                    if mask is None:
-                        # User didn't request a mask so try to load it from the h5 file,
-                        # i.e. overwrite the default mask loaded above
-                        self.mask = nib.Nifti1Image(
-                            np.array(f["mask_data"]),
-                            affine=np.array(f["mask_affine"]),
-                            file_map={
-                                "image": nib.FileHolder(
-                                    filename=f["mask_file_name"][()].decode()
-                                )
-                            },
-                        )
-                        nifti_masker = NiftiMasker(self.mask)
-                        self.nifti_masker = nifti_masker.fit(self.mask)
-                    else:
-                        # Mask is already set above so use the default or user requested
-                        # mask rather than the one in h5 (if it exists)
-                        if "mask_data" in f:
-                            warnings.warn(
-                                "Existing mask found in HDF5 file but is being ignored because you passed a value for mask. Set mask=None to use existing mask in the HDF5 file"
-                            )
-            # Legacy loading mode
-            except Exception as e:
-                if verbose:
-                    warnings.warn(
-                        f"Falling back to legacy h5 loading due to error: {e}"
-                    )
-                # <= 0.4.8 compatibility
-                with tables.open_file(data, mode="r") as f:
-                    # Setup data
-                    self.data = np.array(f.root["data"])
-
-                    # Setup X
-                    if len(list(f.root["X_columns"])):
-                        self.X = pd.DataFrame(
-                            np.array(f.root["X"]).squeeze(),
-                            columns=[
-                                e.decode("utf-8") if isinstance(e, bytes) else e
-                                for e in np.array(f.root["X_columns"])
-                            ],
-                            index=[
-                                e.decode("utf-8") if isinstance(e, bytes) else e
-                                for e in np.array(f.root["X_index"])
-                            ],
-                        )
-                    else:
-                        self.X = pd.DataFrame()
-
-                    # Setup Y
-                    if len(list(f.root["Y_columns"])):
-                        self.Y = pd.DataFrame(
-                            np.array(f.root["Y"]).squeeze(),
-                            columns=[
-                                e.decode("utf-8") if isinstance(e, bytes) else e
-                                for e in np.array(f.root["Y_columns"])
-                            ],
-                            index=[
-                                e.decode("utf-8") if isinstance(e, bytes) else e
-                                for e in np.array(f.root["Y_index"])
-                            ],
-                        )
-                    else:
-                        self.Y = pd.DataFrame()
-
-                    # Setup mask
-                    if mask is None:
-                        # User didn't request a mask so try to load it from the h5 file,
-                        # i.e. overwrite the default mask loaded above
-                        filename = (
-                            f.root["mask_file_name"]
-                            if "mask_file_name" in f.root
-                            else self.mask.get_filename()
-                        )
-                        self.mask = nib.Nifti1Image(
-                            np.array(f.root["mask_data"]),
-                            affine=np.array(f.root["mask_affine"]),
-                            file_map={"image": nib.FileHolder(filename=filename)},
-                        )
-                        nifti_masker = NiftiMasker(self.mask)
-                        self.nifti_masker = nifti_masker.fit(self.mask)
-                    else:
-                        # Mask is already set above so use the default or user requested
-                        # mask rather than the one in h5 (if it exists)
-                        if "mask_data" in f.root:
-                            warnings.warn(
-                                "Existing mask found in HDF5 file but is being ignored because you passed a value for mask. Set mask=None to use existing mask in the HDF5 file"
-                            )
-            # We're done initializing
-            return
-
-        # No data
-        if data is None:
-            self.data = np.array([])
-
-        # Web-url
-        elif isinstance(data, (str, Path)) and "://" in str(data):
-            # Web download
-            from nltools.datasets import download_nifti
-
-            tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
-            os.makedirs(tmp_dir)
-            data = nib.load(download_nifti(data, data_dir=tmp_dir))
-
-        # Everything else, i.e. (nnon-h5 file-paths, strings, and ndimage)
-        if self.data is None:
-            # Suppress nilearn output if verbose=0
-            # NOTE: we have to do this because nilearn uses a custom print
-            # statement when resampling that we can't disable any other way
-            if not verbose:
+        if list_type == "brain_data":
+            # Concatenate Brain_Data objects
+            tmp = concatenate(data_list)
+            for item in ["data", "Y", "X", "mask", "nifti_masker"]:
+                setattr(self, item, getattr(tmp, item))
+        else:
+            # Load files
+            self.data = []
+            if not self.verbose:
                 with open(os.devnull, "w") as devnull:
                     with redirect_stdout(devnull):
-                        self.data = self.nifti_masker.transform(data)
+                        for item in data_list:
+                            self.data.append(self.nifti_masker.transform(item))
             else:
-                self.data = self.nifti_masker.transform(data)
+                for item in data_list:
+                    self.data.append(self.nifti_masker.transform(item))
+            self.data = np.concatenate(self.data)
 
-        # Collapse any extra data dimension
-        if 1 in self.data.shape:
-            self.data = self.data.squeeze()
+    def _load_from_h5(self, file_path, mask):
+        """Load data from HDF5 file.
 
-        # Setup Y and X dataframes
-        self.Y = self._validate_frame(Y)
-        self.X = self._validate_frame(X)
+        Args:
+            file_path: Path to HDF5 file.
+            mask: User-specified mask (to determine if we should load mask from file).
+        """
+        from nltools.utils import load_brain_data_h5
+
+        # Load data using utility function
+        h5_data = load_brain_data_h5(file_path, mask)
+
+        # Set attributes from loaded data
+        self.data = h5_data["data"]
+        self.X = h5_data["X"]
+        self.Y = h5_data["Y"]
+
+        # Handle mask if loaded from file
+        if h5_data.get("load_mask", False):
+            self.mask = h5_data["mask"]
+            self.nifti_masker = NiftiMasker(self.mask).fit(self.mask)
+        elif mask is not None and not h5_data.get("load_mask", True):
+            warnings.warn(
+                "Existing mask found in HDF5 file but is being ignored because "
+                "you passed a value for mask. Set mask=None to use existing "
+                "mask in the HDF5 file"
+            )
+
+        # Log if we used legacy format
+        if h5_data.get("legacy_format", False) and self.verbose:
+            warnings.warn("Loaded data using legacy HDF5 format")
+
+    def _load_from_url(self, url):
+        """Load data from URL.
+
+        Args:
+            url: URL to download data from.
+        """
+        from nltools.datasets import download_nifti
+
+        tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
+        os.makedirs(tmp_dir)
+        downloaded_file = nib.load(download_nifti(url, data_dir=tmp_dir))
+        self._load_from_file(downloaded_file)
+
+    def _load_from_file(self, data):
+        """Load data from file path or nibabel object.
+
+        Args:
+            data: File path or nibabel object.
+        """
+        # Transform data using masker
+        if not self.verbose:
+            with open(os.devnull, "w") as devnull:
+                with redirect_stdout(devnull):
+                    self.data = self.nifti_masker.transform(data)
+        else:
+            self.data = self.nifti_masker.transform(data)
 
     def __repr__(self):
         return "%s.%s(data=%s, Y=%s, X=%s, mask=%s)" % (
@@ -346,252 +307,144 @@ class Brain_Data(object):
     def __len__(self):
         return self.shape()[0]
 
-    def _validate_arithmetic_operands(self, other, operation_name):
-        """Validate operand types for arithmetic operations.
+    def _perform_arithmetic(self, other, operation, operation_name):
+        """Perform arithmetic operation with validation.
 
         Args:
-            other: The other operand
-            operation_name: Name of the operation (e.g., 'add', 'multiply')
+            other: The other operand.
+            operation: The operation function (e.g., np.add, np.subtract).
+            operation_name: Name of the operation for error messages.
 
         Returns:
-            str: Type of operand ('scalar', 'brain_data', or 'array')
-
-        Raises:
-            ValueError: If operand type is not supported
+            Brain_Data: Result of the operation.
         """
-        if isinstance(other, (int, np.integer, float, np.floating)):
-            return "scalar"
-        elif isinstance(other, Brain_Data):
-            return "brain_data"
-        elif isinstance(other, (list, np.ndarray)) and operation_name == "multiply":
-            return "array"
-        else:
-            valid_types = "int, float, or Brain_Data"
-            if operation_name == "multiply":
-                valid_types = "int, float, list, np.ndarray, or Brain_Data"
-            raise ValueError(
-                f"Can only {operation_name} {valid_types}. Provided {type(other)}"
-            )
+        from ._validation import validate_arithmetic_operand, validate_brain_data_shapes
 
-    def _check_shape_compatibility(self, other, operation_name):
-        """Check shape compatibility between two Brain_Data objects.
+        new = deepcopy(self)
+        operand_type = validate_arithmetic_operand(other, operation_name)
 
-        Args:
-            other: The other Brain_Data object
-            operation_name: Name of the operation for error messages
-
-        Raises:
-            ValueError: If shapes are incompatible
-        """
-        self_shape, other_shape = self.shape(), other.shape()
-        self_is_single = len(self_shape) == 1
-        other_is_single = len(other_shape) == 1
-
-        if self_is_single and other_is_single:
-            if self_shape[0] != other_shape[0]:
-                raise ValueError("Both images must have the same number of voxels")
-        elif self_is_single and not other_is_single:
-            raise ValueError(
-                f"Cannot {operation_name} multiple images to a single image"
-            )
-        elif not self_is_single and other_is_single:
-            if self_shape[1] != other_shape[0]:
-                raise ValueError("Both images must have the same number of voxels")
-        elif not self_is_single and not other_is_single:
-            if self_shape[0] != other_shape[0] or self_shape[1] != other_shape[1]:
+        if operand_type == "scalar":
+            new.data = operation(new.data, other)
+        elif operand_type == "brain_data":
+            validate_brain_data_shapes(self, other, operation_name)
+            new.data = operation(new.data, other.data)
+        elif operand_type == "array":
+            # Only for multiplication
+            if len(other) != len(self):
                 raise ValueError(
-                    f"Cannot {operation_name} multiple images of a different shape"
+                    f"Vector {operation_name} requires that the length of the vector "
+                    f"({len(other)}) match the number of images ({len(self)})"
                 )
+            new.data = np.dot(new.data.T, other).T
 
-    def _validate_frame(self, frame):
-        """Validate X and Y dataframes.
+        return new
+
+    def _perform_inplace_arithmetic(self, other, operation, operation_name):
+        """Perform in-place arithmetic operation with validation.
 
         Args:
-            frame: (str, Path, pd.DataFrame, or None)
+            other: The other operand.
+            operation: The operation function (e.g., np.add, np.subtract).
+            operation_name: Name of the operation for error messages.
 
         Returns:
-            pd.DataFrame: Validated dataframe
-
-        Raises:
-            TypeError: If frame is not a valid type
-            ValueError: If frame does not match data shape
+            Brain_Data: Self after modification.
         """
-        if frame is not None and not isinstance(frame, (str, Path, pd.DataFrame)):
-            raise TypeError(
-                f"Make sure X and Y are a filepath or pandas dataframe. Received {type(frame)}"
-            )
+        from ._validation import validate_arithmetic_operand, validate_brain_data_shapes
 
-        if isinstance(frame, (str, Path)):
-            frame = pd.read_csv(frame, header=None, index_col=None)
-        elif frame is None:
-            frame = pd.DataFrame()
+        operand_type = validate_arithmetic_operand(other, operation_name)
 
-        # Ensure consistency with data
-        if not frame.empty and frame.shape[0] != self.data.shape[0]:
-            raise ValueError(
-                f"X and Y rows ({frame.shape[0]}) do not match data rows ({self.data.shape[0]})"
-            )
+        if operand_type == "scalar":
+            self.data = operation(self.data, other)
+        elif operand_type == "brain_data":
+            validate_brain_data_shapes(self, other, operation_name)
+            self.data = operation(self.data, other.data)
+        elif operand_type == "array":
+            # Only for multiplication
+            if len(other) != len(self):
+                raise ValueError(
+                    f"Vector {operation_name} requires that the length of the vector "
+                    f"({len(other)}) match the number of images ({len(self)})"
+                )
+            self.data = np.dot(self.data.T, other).T
 
-        return frame
+        return self
 
     def __add__(self, y):
-        new = deepcopy(self)
-        operand_type = self._validate_arithmetic_operands(y, "add")
-
-        if operand_type == "scalar":
-            new.data = new.data + y
-        elif operand_type == "brain_data":
-            self._check_shape_compatibility(y, "add")
-            new.data = new.data + y.data
-
-        return new
+        """Add to Brain_Data."""
+        return self._perform_arithmetic(y, np.add, "add")
 
     def __radd__(self, y):
-        new = deepcopy(self)
-        operand_type = self._validate_arithmetic_operands(y, "add")
-
-        if operand_type == "scalar":
-            new.data = y + new.data
-        elif operand_type == "brain_data":
-            self._check_shape_compatibility(y, "add")
-            new.data = y.data + new.data
-
-        return new
+        """Right add to Brain_Data."""
+        return self._perform_arithmetic(y, np.add, "add")
 
     def __sub__(self, y):
-        new = deepcopy(self)
-        operand_type = self._validate_arithmetic_operands(y, "subtract")
-
-        if operand_type == "scalar":
-            new.data = new.data - y
-        elif operand_type == "brain_data":
-            self._check_shape_compatibility(y, "subtract")
-            new.data = new.data - y.data
-
-        return new
+        """Subtract from Brain_Data."""
+        return self._perform_arithmetic(y, np.subtract, "subtract")
 
     def __rsub__(self, y):
+        """Right subtract from Brain_Data."""
+        # For right subtraction, we need to reverse the operands
         new = deepcopy(self)
-        operand_type = self._validate_arithmetic_operands(y, "subtract")
+        from ._validation import validate_arithmetic_operand, validate_brain_data_shapes
 
+        operand_type = validate_arithmetic_operand(y, "subtract")
         if operand_type == "scalar":
             new.data = y - new.data
         elif operand_type == "brain_data":
-            self._check_shape_compatibility(y, "subtract")
+            validate_brain_data_shapes(self, y, "subtract")
             new.data = y.data - new.data
-
         return new
 
     def __mul__(self, y):
-        new = deepcopy(self)
-        operand_type = self._validate_arithmetic_operands(y, "multiply")
-
-        if operand_type == "scalar":
-            new.data = new.data * y
-        elif operand_type == "brain_data":
-            self._check_shape_compatibility(y, "multiply")
-            new.data = np.multiply(new.data, y.data)
-        elif operand_type == "array":
-            if len(y) != len(self):
-                raise ValueError(
-                    "Vector multiplication requires that the "
-                    "length of the vector match the number of "
-                    "images in Brain_Data instance."
-                )
-            new.data = np.dot(new.data.T, y).T
-
-        return new
+        """Multiply Brain_Data."""
+        return self._perform_arithmetic(y, np.multiply, "multiply")
 
     def __rmul__(self, y):
-        new = deepcopy(self)
-        operand_type = self._validate_arithmetic_operands(y, "multiply")
-
-        if operand_type == "scalar":
-            new.data = y * new.data
-        elif operand_type == "brain_data":
-            self._check_shape_compatibility(y, "multiply")
-            new.data = np.multiply(y.data, new.data)
-        elif operand_type == "array":
-            # For right multiplication with array, it's typically not supported
-            # but we'll keep consistent behavior
-            if len(y) != len(self):
-                raise ValueError(
-                    "Vector multiplication requires that the "
-                    "length of the vector match the number of "
-                    "images in Brain_Data instance."
-                )
-            new.data = np.dot(new.data.T, y).T
-
-        return new
+        """Right multiply Brain_Data."""
+        return self._perform_arithmetic(y, np.multiply, "multiply")
 
     def __truediv__(self, y):
-        new = deepcopy(self)
-        operand_type = self._validate_arithmetic_operands(y, "divide")
+        """Divide Brain_Data."""
+        # Division needs special handling for divide-by-zero warnings
+        from ._validation import validate_arithmetic_operand, validate_brain_data_shapes
 
-        if operand_type == "scalar":
-            with np.errstate(invalid="ignore", divide="ignore"):
+        new = deepcopy(self)
+        operand_type = validate_arithmetic_operand(y, "divide")
+
+        with np.errstate(invalid="ignore", divide="ignore"):
+            if operand_type == "scalar":
                 new.data = new.data / y
-        elif operand_type == "brain_data":
-            self._check_shape_compatibility(y, "divide")
-            with np.errstate(invalid="ignore", divide="ignore"):
+            elif operand_type == "brain_data":
+                validate_brain_data_shapes(self, y, "divide")
                 new.data = np.divide(new.data, y.data)
 
         return new
 
     def __iadd__(self, y):
         """In-place addition (+=)."""
-        operand_type = self._validate_arithmetic_operands(y, "add")
-
-        if operand_type == "scalar":
-            self.data = self.data + y
-        elif operand_type == "brain_data":
-            self._check_shape_compatibility(y, "add")
-            self.data = self.data + y.data
-
-        return self
+        return self._perform_inplace_arithmetic(y, np.add, "add")
 
     def __isub__(self, y):
         """In-place subtraction (-=)."""
-        operand_type = self._validate_arithmetic_operands(y, "subtract")
-
-        if operand_type == "scalar":
-            self.data = self.data - y
-        elif operand_type == "brain_data":
-            self._check_shape_compatibility(y, "subtract")
-            self.data = self.data - y.data
-
-        return self
+        return self._perform_inplace_arithmetic(y, np.subtract, "subtract")
 
     def __imul__(self, y):
         """In-place multiplication (*=)."""
-        operand_type = self._validate_arithmetic_operands(y, "multiply")
-
-        if operand_type == "scalar":
-            self.data = self.data * y
-        elif operand_type == "brain_data":
-            self._check_shape_compatibility(y, "multiply")
-            self.data = np.multiply(self.data, y.data)
-        elif operand_type == "array":
-            if len(y) != len(self):
-                raise ValueError(
-                    "Vector multiplication requires that the "
-                    "length of the vector match the number of "
-                    "images in Brain_Data instance."
-                )
-            self.data = np.dot(self.data.T, y).T
-
-        return self
+        return self._perform_inplace_arithmetic(y, np.multiply, "multiply")
 
     def __itruediv__(self, y):
         """In-place true division (/=)."""
-        operand_type = self._validate_arithmetic_operands(y, "divide")
+        # Division needs special handling for divide-by-zero warnings
+        from ._validation import validate_arithmetic_operand, validate_brain_data_shapes
 
-        if operand_type == "scalar":
-            with np.errstate(invalid="ignore", divide="ignore"):
+        operand_type = validate_arithmetic_operand(y, "divide")
+
+        with np.errstate(invalid="ignore", divide="ignore"):
+            if operand_type == "scalar":
                 self.data = self.data / y
-        elif operand_type == "brain_data":
-            self._check_shape_compatibility(y, "divide")
-            with np.errstate(invalid="ignore", divide="ignore"):
+            elif operand_type == "brain_data":
+                validate_brain_data_shapes(self, y, "divide")
                 self.data = np.divide(self.data, y.data)
 
         return self
@@ -600,84 +453,81 @@ class Brain_Data(object):
         for x in range(len(self)):
             yield self[x]
 
+    # TODO: using @property but this would be backward in-compatible
     def shape(self):
         """Get images by voxels shape."""
 
         return self.data.shape
 
-    def mean(self, axis=0):
-        """Get mean of each voxel or image
+    def _compute_statistic(self, stat_func, axis=0, stat_name="statistic"):
+        """Generic helper for computing statistics.
 
         Args:
-            axis: (int) across images=0 (default), within images=1
+            stat_func: Statistical function to apply (e.g., np.mean, np.std).
+            axis: Axis along which to compute (0=across images, 1=within images).
+            stat_name: Name of statistic for error messages.
 
         Returns:
-            out: (float/np.array/Brain_Data)
-
+            float/np.array/Brain_Data: Result of statistical operation.
         """
+        from ._validation import validate_axis_parameter
 
-        out = deepcopy(self)
+        # Single image case
         if check_brain_data_is_single(self):
-            out = np.mean(self.data)
+            return stat_func(self.data)
+
+        # Multiple images case
+        validate_axis_parameter(axis, self.shape(), stat_name)
+
+        if axis == 0:
+            # Return Brain_Data with statistic across images
+            out = deepcopy(self)
+            out.data = stat_func(self.data, axis=0)
+            out.X = pd.DataFrame()
+            out.Y = pd.DataFrame()
+            return out
         else:
-            if axis == 0:
-                out.data = np.mean(self.data, axis=0)
-                out.X = pd.DataFrame()
-                out.Y = pd.DataFrame()
-            elif axis == 1:
-                out = np.mean(self.data, axis=1)
-            else:
-                raise ValueError("axis must be 0 or 1")
-        return out
+            # Return array with statistic within each image
+            return stat_func(self.data, axis=1)
+
+    def mean(self, axis=0):
+        """Get mean of each voxel or image.
+
+        Args:
+            axis: Axis along which to compute mean.
+                0 = across images (default), returns Brain_Data
+                1 = within images, returns array
+
+        Returns:
+            float/np.array/Brain_Data: Mean values.
+        """
+        return self._compute_statistic(np.mean, axis, "mean")
 
     def median(self, axis=0):
-        """Get median of each voxel or image
+        """Get median of each voxel or image.
 
         Args:
-            axis: (int) across images=0 (default), within images=1
+            axis: Axis along which to compute median.
+                0 = across images (default), returns Brain_Data
+                1 = within images, returns array
 
         Returns:
-            out: (float/np.array/Brain_Data)
-
+            float/np.array/Brain_Data: Median values.
         """
-
-        out = deepcopy(self)
-        if check_brain_data_is_single(self):
-            out = np.median(self.data)
-        else:
-            if axis == 0:
-                out.data = np.median(self.data, axis=0)
-                out.X = pd.DataFrame()
-                out.Y = pd.DataFrame()
-            elif axis == 1:
-                out = np.median(self.data, axis=1)
-            else:
-                raise ValueError("axis must be 0 or 1")
-        return out
+        return self._compute_statistic(np.median, axis, "median")
 
     def std(self, axis=0):
         """Get standard deviation of each voxel or image.
 
         Args:
-            axis: (int) across images=0 (default), within images=1
+            axis: Axis along which to compute standard deviation.
+                0 = across images (default), returns Brain_Data
+                1 = within images, returns array
 
         Returns:
-            out: (float/np.array/Brain_Data)
+            float/np.array/Brain_Data: Standard deviation values.
         """
-
-        out = deepcopy(self)
-        if check_brain_data_is_single(self):
-            out = np.std(self.data)
-        else:
-            if axis == 0:
-                out.data = np.std(self.data, axis=0)
-                out.X = pd.DataFrame()
-                out.Y = pd.DataFrame()
-            elif axis == 1:
-                out = np.std(self.data, axis=1)
-            else:
-                raise ValueError("axis must be 0 or 1")
-        return out
+        return self._compute_statistic(np.std, axis, "std")
 
     def sum(self):
         """Sum over voxels."""
@@ -1068,45 +918,39 @@ class Brain_Data(object):
         return out
 
     def append(self, data, **kwargs):
-        """Append data to Brain_Data instance
+        """Append data to Brain_Data instance.
 
         Args:
-            data: (Brain_Data) Brain_Data instance to append
-            kwargs: optional inputs to Design_Matrix append
+            data: Brain_Data instance to append.
+            kwargs: Optional arguments passed to pandas concat.
 
         Returns:
-            out: (Brain_Data) new appended Brain_Data instance
+            Brain_Data: New appended Brain_Data instance.
         """
+        from ._validation import validate_append_shapes
 
         data = check_brain_data(data)
 
         if self.isempty():
             out = deepcopy(data)
         else:
-            error_string = (
-                "Data to append has different number of voxels "
-                "then Brain_Data instance."
-            )
-            if len(self.shape()) == 1 & len(data.shape()) == 1:
-                if self.shape()[0] != data.shape()[0]:
-                    raise ValueError(error_string)
-            elif len(self.shape()) == 1 & len(data.shape()) > 1:
-                if self.shape()[0] != data.shape()[1]:
-                    raise ValueError(error_string)
-            elif len(self.shape()) > 1 & len(data.shape()) == 1:
-                if self.shape()[1] != data.shape()[0]:
-                    raise ValueError(error_string)
-            elif self.shape()[1] != data.shape()[1]:
-                raise ValueError(error_string)
+            # Validate shapes are compatible
+            validate_append_shapes(self.shape(), data.shape())
+
             out = deepcopy(self)
             out.data = np.vstack([self.data, data.data])
+
+            # Append Y labels if they exist
             if out.Y.size:
                 out.Y = pd.concat([self.Y, data.Y])
+
+            # Append X design matrix if it exists
             if self.X.size:
                 if isinstance(self.X, pd.DataFrame):
                     out.X = pd.concat([self.X, data.X], **kwargs)
                 else:
                     out.X = np.vstack([self.X, data.X])
+
         return out
 
     def empty(self, data=True, Y=True, X=True):

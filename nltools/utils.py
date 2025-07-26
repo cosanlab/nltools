@@ -15,6 +15,8 @@ __all__ = [
     "_bootstrap_apply_func",
     "set_decomposition_algorithm",
     "get_mni_from_img_resolution",
+    "to_h5",
+    "load_brain_data_h5",
 ]
 
 from os.path import dirname, join, sep as pathsep
@@ -32,9 +34,16 @@ from nltools.prefs import MNI_Template
 
 
 def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
-    """User a combination of pandas and h5py to save objects to h5 files. Replaces
-    deepdish. File loading is handled by class-specific methods"""
+    """Save Brain_Data or Adjacency objects to HDF5 files.
 
+    Uses a combination of pandas and h5py to save objects to h5 files.
+
+    Args:
+        obj: Object to save (Brain_Data or Adjacency).
+        file_name: Path to save file to.
+        obj_type: Type of object ('brain_data' or 'adjacency').
+        h5_compression: Compression type for h5py datasets.
+    """
     if obj_type not in ["brain_data", "adjacency"]:
         raise TypeError("obj_type must be one of 'brain_data' or 'adjacency'")
 
@@ -62,6 +71,127 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
             f.create_dataset("issymmetric", data=obj.issymmetric)
             f.create_dataset("labels", data=obj.labels)
             f.create_dataset("is_single_matrix", data=obj.is_single_matrix)
+
+
+def load_brain_data_h5(file_path, mask=None):
+    """Load Brain_Data from HDF5 file.
+
+    Handles both modern and legacy (pre-0.4.8) HDF5 formats.
+
+    Args:
+        file_path: Path to HDF5 file.
+        mask: Optional mask to use. If None, loads mask from file if available.
+
+    Returns:
+        dict: Dictionary containing loaded data, X, Y, and optionally mask info.
+    """
+    import warnings
+    
+    result = {}
+    
+    try:
+        # Try modern format first
+        with pd.HDFStore(file_path, "r") as f:
+            result["X"] = f["X"]
+            result["Y"] = f["Y"]
+        
+        with h5File(file_path, "r") as f:
+            result["data"] = np.array(f["data"])
+            
+            # Handle mask loading
+            if mask is None and "mask_data" in f:
+                # Load mask from file
+                result["mask"] = nib.Nifti1Image(
+                    np.array(f["mask_data"]),
+                    affine=np.array(f["mask_affine"]),
+                    file_map={
+                        "image": nib.FileHolder(
+                            filename=f["mask_file_name"][()].decode()
+                        )
+                    },
+                )
+                result["load_mask"] = True
+            else:
+                result["load_mask"] = False
+    
+    except Exception as e:
+        # Fall back to legacy format
+        result = _load_legacy_brain_data_h5(file_path, mask)
+        result["legacy_format"] = True
+    
+    return result
+
+
+def _load_legacy_brain_data_h5(file_path, mask=None):
+    """Load Brain_Data from legacy HDF5 format (pre-0.4.8).
+
+    Args:
+        file_path: Path to HDF5 file.
+        mask: Optional mask to use.
+
+    Returns:
+        dict: Dictionary containing loaded data, X, Y, and optionally mask info.
+    """
+    # Import here to avoid circular import
+    tables_mod = attempt_to_import("tables")
+    if tables_mod is None:
+        raise ImportError("tables package required for legacy h5 format")
+    
+    result = {}
+    
+    with tables_mod.open_file(file_path, mode="r") as f:
+        # Load data
+        result["data"] = np.array(f.root["data"])
+        
+        # Load X DataFrame
+        if len(list(f.root["X_columns"])):
+            result["X"] = pd.DataFrame(
+                np.array(f.root["X"]).squeeze(),
+                columns=[
+                    e.decode("utf-8") if isinstance(e, bytes) else e
+                    for e in np.array(f.root["X_columns"])
+                ],
+                index=[
+                    e.decode("utf-8") if isinstance(e, bytes) else e
+                    for e in np.array(f.root["X_index"])
+                ],
+            )
+        else:
+            result["X"] = pd.DataFrame()
+        
+        # Load Y DataFrame
+        if len(list(f.root["Y_columns"])):
+            result["Y"] = pd.DataFrame(
+                np.array(f.root["Y"]).squeeze(),
+                columns=[
+                    e.decode("utf-8") if isinstance(e, bytes) else e
+                    for e in np.array(f.root["Y_columns"])
+                ],
+                index=[
+                    e.decode("utf-8") if isinstance(e, bytes) else e
+                    for e in np.array(f.root["Y_index"])
+                ],
+            )
+        else:
+            result["Y"] = pd.DataFrame()
+        
+        # Handle mask loading
+        if mask is None and "mask_data" in f.root:
+            filename = (
+                f.root["mask_file_name"]
+                if "mask_file_name" in f.root
+                else "mask.nii.gz"  # Default filename
+            )
+            result["mask"] = nib.Nifti1Image(
+                np.array(f.root["mask_data"]),
+                affine=np.array(f.root["mask_affine"]),
+                file_map={"image": nib.FileHolder(filename=filename)},
+            )
+            result["load_mask"] = True
+        else:
+            result["load_mask"] = False
+    
+    return result
 
 
 def get_resource_path():
