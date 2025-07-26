@@ -1,4 +1,5 @@
 from nltools.data import Brain_Collection, Brain_Data
+from pytest import raises
 
 
 def test_collection_basics(sim_brain_data):
@@ -88,6 +89,9 @@ def test_collection_basics(sim_brain_data):
     # otherwise it will return a Brain_Collection with strictly the same or fewer
     # numbers of positions, keys, and/or lanels
 
+    # a dict or list of length 1 containing a dict should always return a Brain_Collection singleton
+    assert isinstance(col[0], Brain_Collection)
+
     # We can always flatten a single position + single key to a Brain_Data
     assert isinstance(col[0, "beta"], Brain_Data)
     # This is equivalent to:
@@ -136,42 +140,106 @@ def test_collection_basics(sim_brain_data):
     assert len(b.shape()) == 1  # 1D array when slicing with single index
     assert b.shape()[0] == sim_brain_data.shape()[1]  # num_voxels
 
+    # Additional edge case tests for singleton/non-singleton combinations
 
-def test_regress_collection(sim_brain_data):
-    # Setup data-structure that would be returned by Brain_Data.regress()
-    # Create labels based on actual data shape
-    n_conditions = sim_brain_data.shape()[0]
-    labels = ["condition_" + str(i) for i in range(n_conditions)]
+    # Case 1: List with single element is NOT singleton (position dimension)
+    s = col[[0], "beta", 0]  # 2 singletons (key + label), should return Brain_Data
+    assert isinstance(s, Brain_Data)
+    assert len(s.shape()) == 1  # 1D array when slicing with single integer label
+    assert s.shape()[0] == sim_brain_data.shape()[1]  # num_voxels
 
-    # Make face and house special indices for testing
-    if n_conditions >= 4:
-        labels[3] = "face"
-    if n_conditions >= 5:
-        labels[4] = "house"
+    # Case 2: List with single element is NOT singleton (key dimension)
+    s = col[0, ["beta"], 0]  # 2 singletons (position + label), BUT multiple keys
+    assert isinstance(s, Brain_Collection)  # Never concatenate across keys!
+    assert len(s) == 1
+    assert s.keys() == ["beta"]
+    # When we get the beta from this collection, it's already sliced to single label
+    b = s[0, "beta"]
+    assert isinstance(b, Brain_Data)
+    assert len(b.shape()) == 1  # 1D array from single label index
 
-    result = {
-        "z_score": sim_brain_data,
-        "t": sim_brain_data.copy(),
-        "p": sim_brain_data.copy(),
-        "beta": sim_brain_data.copy(),
-        "se": sim_brain_data.copy(),
-        "rsquared": sim_brain_data.copy()[0],  # 1 value per voxel
-        "labels": labels,
-        # ommitting residual and predicted
-    }
+    # Case 3: Multiple positions, single key, multiple labels (the previously failing test case)
+    s = col_with_labels[:, "beta", ["condition_0", "condition_1"]]
+    assert isinstance(s, Brain_Collection)  # Only 1 singleton (key)
+    assert len(s) == 2  # Should preserve 2 positions
+    assert s.labels == ["condition_0", "condition_1"]
+    assert s[0, "beta"].shape()[0] == 2
+    assert s[1, "beta"].shape()[0] == 2
 
-    # TODO: write these
-    # SINGLETON TESTS
-    # Create a Brain_Collection from the result
-    singleton = Brain_Collection(result)
+    # Case 4: Test order preservation - position order
+    s = col_with_labels[[1, 0], "beta", 0]  # 2 singletons (key + label)
+    assert isinstance(s, Brain_Data)
+    assert s.shape()[0] == 2  # Should concatenate in order [1, 0]
+    # Verify order by checking data values if they differ
 
-    # TODO: expand these
-    # Test appending
-    singleton.append(result)
-    assert len(singleton) == 2
-    assert set(singleton.keys()) == {"z_score", "t", "p", "beta", "se", "rsquared"}
-    assert singleton.labels == labels
+    # Case 5: Multiple keys - NEVER concatenate across keys
+    s = col_with_labels[
+        0, ["t", "beta"], 0
+    ]  # 2 singletons (position + label), BUT multiple keys
+    assert isinstance(s, Brain_Collection)  # Never concatenate across keys!
+    assert len(s) == 1
+    assert s.keys() == ["beta", "t"]  # Keys should be in sorted order
+    assert s.labels == ["condition_0"]
 
-    # TODO: write these
-    # MULTIPLE TESTS
-    collection = Brain_Collection([result, result, result, result])
+    # Case 6: Test order preservation - label order with names
+    s = col_with_labels[
+        0, "beta", ["condition_1", "condition_0"]
+    ]  # 2 singletons (position + key)
+    assert isinstance(s, Brain_Data)
+    assert s.shape()[0] == 2
+
+    # Case 7: Slice positions, single key, single label
+    s = col[:1, "beta", 0]  # 2 singletons (key + label)
+    assert isinstance(s, Brain_Data)
+    assert len(s.shape()) == 1  # 1D array when using integer label
+    assert s.shape()[0] == sim_brain_data.shape()[1]  # num_voxels
+
+    # Case 8: List positions, single key, single label
+    s = col[[0, 1], "beta", 0]  # 2 singletons (key + label)
+    assert isinstance(s, Brain_Data)
+    assert s.shape() == (
+        2,
+        sim_brain_data.shape()[1],
+    )  # 2D: concatenated from both positions
+
+    # Case 9: Multiple everything - should return Brain_Collection
+    s = col_with_labels[[0, 1], ["beta", "t"], ["condition_0", "condition_1"]]
+    assert isinstance(s, Brain_Collection)  # No dimension is singleton
+    assert len(s) == 2
+    assert s.keys() == ["beta", "t"]
+    assert s.labels == ["condition_0", "condition_1"]
+
+    # Case 10: Single position, multiple keys, single label - Brain_Collection (never concat across keys)
+    s = col_with_labels[0, ["beta", "t"], "condition_0"]
+    assert isinstance(s, Brain_Collection)
+    assert len(s) == 1
+    assert s.keys() == ["beta", "t"]
+    assert s.labels == ["condition_0"]
+
+
+def test_regress_collection(regress_result):
+    # Create a Brain_Collection from the result like .regress(as_collection=True)
+    collection = Brain_Collection(regress_result)
+
+    # Test appending, which works like lists *NOT* like Brain_Data
+    # we don't need to do: collection = collection.append(new)
+    collection.append(regress_result)  # in-place
+    assert len(collection) == 2
+
+    # Appending doesn't work with new items that are missing .labels
+    results_no_labels = {k: v for k, v in regress_result.items() if k != "labels"}
+    with raises(
+        ValueError, match="New item must have labels to match existing collection"
+    ):
+        collection.append(results_no_labels)
+
+    # Because of the failure above
+    assert len(collection) == 2
+
+    # Make sure slicing by string label works after the append
+    # We're getting *all items*, *one key*, *two labels*
+    s = collection[:, "beta", ["face", "house"]]
+    assert len(s) == 2
+    assert s.labels == ["face", "house"]
+    assert s.keys() == ["beta"]
+    assert isinstance(s[0, "beta"], Brain_Data) and s[1, "beta"].shape()[0] == 2

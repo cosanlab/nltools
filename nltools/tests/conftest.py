@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import pairwise_distances
 from nltools.simulator import Simulator
-from nltools.data import Adjacency, Design_Matrix
+from nltools.data import Adjacency, Design_Matrix, Brain_Data
 import os
 
 
@@ -124,3 +124,30 @@ def old_h5_adj_double(request):
 def new_h5_adj_double(request):
     test_dir = os.path.dirname(request.module.__file__)
     return os.path.join(test_dir, "new_double.h5")
+
+
+@pytest.fixture(scope="module")
+def regress_result(sim_brain_data):
+    # Create labels based on actual data shape
+    n_conditions = sim_brain_data.shape()[0]
+    labels = ["condition_" + str(i) for i in range(n_conditions)]
+    # Make face and house special indices for testing
+    if n_conditions >= 4:
+        labels[3] = "face"
+    if n_conditions >= 5:
+        labels[4] = "house"
+
+    # 64 "TRs"
+    fake_timeseries = Brain_Data([sim_brain_data] * 8)
+
+    return {
+        "z_score": sim_brain_data,
+        "t": sim_brain_data.copy(),
+        "p": sim_brain_data.copy(),
+        "beta": sim_brain_data.copy(),
+        "se": sim_brain_data.copy(),
+        "rsquared": sim_brain_data.copy()[0],  # 1 value per voxel
+        "residual": fake_timeseries - fake_timeseries.mean(),
+        "predicted": fake_timeseries,
+        "labels": labels,
+    }

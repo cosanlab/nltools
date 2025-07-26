@@ -1,73 +1,21 @@
 class Brain_Collection:
-    """A container for neuroimaging results with 3D slicing semantics to manage collections of Brain_Data objects.
+    """A container for neuroimaging results with 3D slicing semantics.
 
-    Internally represents data as a list of dictionaries. Each dictionary represents a collection of Brain_Data objects with the same set of keys. This makes it easy to work with the output of multiple calls to methods like `Brain_Data.regress()` together.
+    Stores data as a list of dictionaries where each dictionary contains Brain_Data 
+    objects with identical keys. Supports intelligent flattening to Brain_Data when 
+    appropriate.
 
-    # Given data like this:
-    results = [
-        {
-            "z_score": sim_brain_data, # 8 x num_voxels
-            "t": sim_brain_data.copy(), # 8 x num_voxels
-            "p": sim_brain_data.copy(), # 8 x num_voxels
-            "beta": sim_brain_data.copy(), # 8 x num_voxels
-            "se": sim_brain_data.copy(), # 8 x num_voxels
-            "rsquared": sim_brain_data.copy()[0],  # 1 x num_voxels
-            "labels": [  # 8 regressors
-                "bottle",
-                "cat",
-                "chair",
-                "face",
-                "house",
-                "scissors",
-                "shoe",
-                "scrambledpix",
-            ],
-        },
-        {
-            "z_score": sim_brain_data, # 8 x num_voxels
-            "t": sim_brain_data.copy(), # 8 x num_voxels
-            "p": sim_brain_data.copy(), # 8 x num_voxels
-            "beta": sim_brain_data.copy(), # 8 x num_voxels
-            "se": sim_brain_data.copy(), # 8 x num_voxels
-            "rsquared": sim_brain_data.copy()[0],  # 1 x num_voxels
-            "labels": [  # 8 regressors
-                "bottle",
-                "cat",
-                "chair",
-                "face",
-                "house",
-                "scissors",
-                "shoe",
-                "scrambledpix",
-            ],
-        },
-    ]
-
-    Supports 3D indexing with the pattern: collection[position, key, label]
-    - position: item index (int, slice, list of ints, or ':')
-    - key: dictionary key (str, list of strs, or ':')
-    - label: label name (str, int, slice, list, or ':')
-
-    Examples:
-    - results['beta'] # All items, single key, all labels
-    - results[0] # Single item (full dict)
-    - results[0, 'beta'] # Single item, single key, all labels
-    - results[:, 'beta', 'face'] # All items, single key, single label
-    - results[:, :, 'face'] # All items, all keys, single label
-    - results[0, 'beta', 'face'] # Single item, single key, single label
-    - results[:2, ['beta', 't']] # Slice items, multiple keys, all labels
-    - results[:, ['beta', 't'], ['face', 'house']] # All items, multiple keys, multiple labels
+    Supports 3D indexing: collection[position, key, label]
+    - position: item index (int, slice, list, or ':')
+    - key: dictionary key (str, list of strs, or ':') 
+    - label: label index (str, int, slice, list, or ':')
 
     Args:
-        data (dict | list[dict] | None): A dictionary or list of dictionaries
-            with identical keys. If a single dict is provided, it's wrapped in a list.
-            The 'labels' key is extracted and stored separately if present.
+        data: Dictionary or list of dictionaries with identical keys.
+            The special 'labels' key is extracted if present.
 
-    Examples:
-        >>> # Create from GLM results
-        >>> all_results = Brain_Collection()
-        >>> all_results.append(brain_data.regress())
-        >>>
+    See the Brain_Collection tutorial in the documentation for detailed examples
+    and explanation of intelligent flattening behavior.
     """
 
     def __init__(self, data: dict | list | None = None):
@@ -269,8 +217,12 @@ class Brain_Collection:
             and isinstance(label, slice)
             and label == slice(None)
         ):
+            # Always return a Brain_Collection, even for single position
             if isinstance(position, int):
-                return items  # Single dict
+                # Wrap single dict in Brain_Collection singleton
+                collection = Brain_Collection(items)
+                collection._labels = self._labels
+                return collection
             else:
                 collection = Brain_Collection(items)
                 collection._labels = self._labels
@@ -296,11 +248,14 @@ class Brain_Collection:
         )
 
     def _is_single_label(self, label):
-        """Check if label index represents a single label."""
+        """Check if label index represents a single label.
+        
+        Note: Lists are NEVER treated as singleton, even if they contain only one element.
+        This allows users to explicitly avoid concatenation behavior.
+        """
         if isinstance(label, (int, str)):
             return True
-        if isinstance(label, list) and len(label) == 1:
-            return True
+        # Lists are never singleton, regardless of length
         return False
 
     def _normalize_index(self, index):
@@ -395,7 +350,18 @@ class Brain_Collection:
             raise TypeError(f"Invalid key type: {type(key)}")
 
     def _apply_label_slicing(self, data, label):
-        """Apply label-based slicing to Brain_Data objects."""
+        """Apply label-based slicing to Brain_Data objects.
+        
+        This method handles both position-based and label-based indexing for the third dimension.
+        If labels exist, string indices are converted to positions. Integer indices work regardless.
+        
+        Args:
+            data: Can be a dict, list of dicts, list of Brain_Data, or single Brain_Data
+            label: The label index (int, str, slice, or list)
+            
+        Returns:
+            Sliced data in the same structure as input (preserves dict/list structure)
+        """
         # Handle integer-based slicing when no labels
         if self._labels is None and isinstance(label, (int, slice, list)):
             # Just apply the slicing directly
@@ -518,7 +484,9 @@ class Brain_Collection:
 
             if len(result) == 1:
                 return result[0]
-            return self._maybe_concatenate_brain_data(result)
+            # Don't concatenate multiple Brain_Data objects from different positions
+            # Let _format_output decide whether to concatenate based on singleton dimensions
+            return result
 
     def _format_output(
         self,
@@ -532,8 +500,17 @@ class Brain_Collection:
         """Format the output based on intelligent flattening rules.
 
         Rules:
-        - If exactly 2 out of 3 dimensions are singleton, return Brain_Data
+        - If at least 2 out of 3 dimensions are singleton, return Brain_Data
+        - EXCEPT: Never concatenate across keys - if multiple keys selected, return Brain_Collection
         - Otherwise return Brain_Collection
+        
+        Args:
+            data: The sliced data (can be dict, list, or Brain_Data)
+            is_single_position: Whether position dimension is singleton
+            is_single_key: Whether key dimension is singleton
+            is_single_label: Whether label dimension is singleton
+            actual_key: The actual key name if is_single_key (for wrapping)
+            label: The label(s) that were selected (for updating collection labels)
         """
         singleton_count = sum([is_single_position, is_single_key, is_single_label])
 
@@ -569,7 +546,22 @@ class Brain_Collection:
                         wrapped_data.append({"result": item})
 
             collection = Brain_Collection(wrapped_data)
-            if hasattr(self, "_labels"):
+            # Update labels based on what was sliced
+            if hasattr(self, "_labels") and self._labels is not None and label is not None:
+                if isinstance(label, list):
+                    # Get the label names for the indices
+                    label_names = []
+                    for l in label:
+                        if isinstance(l, str):
+                            label_names.append(l)
+                        elif isinstance(l, int):
+                            label_names.append(self._labels[l])
+                    collection._labels = label_names
+                elif isinstance(label, slice) and label != slice(None):
+                    collection._labels = self._labels[label]
+                else:
+                    collection._labels = self._labels
+            elif hasattr(self, "_labels"):
                 collection._labels = self._labels
             return collection
 
