@@ -84,6 +84,36 @@ class Brain_Collection:
         label_info = f", labels={self._labels}" if self._labels is not None else ""
         return f"Brain_Collection(n_items={len(self.data)}, keys={list(self._keys)}{label_info})"
 
+    def __eq__(self, other):
+        """Check equality between Brain_Collections."""
+        if not isinstance(other, Brain_Collection):
+            return False
+
+        # Compare basic attributes
+        if len(self.data) != len(other.data):
+            return False
+        if self._keys != other._keys:
+            return False
+        if self._labels != other._labels:
+            return False
+
+        # Compare data contents
+        for i, (self_item, other_item) in enumerate(zip(self.data, other.data)):
+            for key in self._keys:
+                if key not in self_item or key not in other_item:
+                    return False
+                # Use Brain_Data's equality if available
+                self_val = self_item[key]
+                other_val = other_item[key]
+                try:
+                    if self_val != other_val:
+                        return False
+                except Exception:
+                    # If comparison fails, they're not equal
+                    return False
+
+        return True
+
     def _validate_input(self, data):
         """Validate and normalize input data.
 
@@ -224,6 +254,11 @@ class Brain_Collection:
         # Normalize the index to a 3-tuple
         position, key, label = self._normalize_index(index)
 
+        # Count singleton dimensions (for intelligent flattening)
+        is_single_position = isinstance(position, int)
+        is_single_key = isinstance(key, str)
+        is_single_label = self._is_single_label(label)
+
         # Get items based on position
         items = self._get_items_by_position(position)
 
@@ -248,8 +283,25 @@ class Brain_Collection:
         if not (isinstance(label, slice) and label == slice(None)):
             data_dict = self._apply_label_slicing(data_dict, label)
 
-        # Determine return type based on what we have
-        return self._format_output(data_dict, position, key, label)
+        # Apply intelligent flattening
+        # Special handling for the case where key is passed to format_output
+        actual_key = key if is_single_key else None
+        return self._format_output(
+            data_dict,
+            is_single_position,
+            is_single_key,
+            is_single_label,
+            actual_key,
+            label,
+        )
+
+    def _is_single_label(self, label):
+        """Check if label index represents a single label."""
+        if isinstance(label, (int, str)):
+            return True
+        if isinstance(label, list) and len(label) == 1:
+            return True
+        return False
 
     def _normalize_index(self, index):
         """Normalize index to a 3-tuple (position, key, label)."""
@@ -344,6 +396,11 @@ class Brain_Collection:
 
     def _apply_label_slicing(self, data, label):
         """Apply label-based slicing to Brain_Data objects."""
+        # Handle integer-based slicing when no labels
+        if self._labels is None and isinstance(label, (int, slice, list)):
+            # Just apply the slicing directly
+            return self._apply_direct_slicing(data, label)
+
         if self._labels is None:
             raise ValueError(
                 "No labels found in collection. Cannot perform label-based indexing."
@@ -378,21 +435,28 @@ class Brain_Collection:
         else:
             raise TypeError(f"Invalid label type: {type(label)}")
 
-        # Apply slicing
+        return self._apply_direct_slicing(data, label_indices)
+
+    def _apply_direct_slicing(self, data, indices):
+        """Apply direct index-based slicing to Brain_Data objects."""
         if isinstance(data, dict):
             # Single item with multiple keys
             result = {}
             for k, v in data.items():
                 if hasattr(v, "__getitem__") and hasattr(v, "shape"):
-                    # Check if this Brain_Data can be sliced by label
+                    # Check if this Brain_Data can be sliced
                     shape = v.shape()
-                    if len(shape) > 1 and shape[0] > 1:
-                        # Multi-dimensional, can be sliced by label
-                        if len(label_indices) == 1:
-                            result[k] = v[label_indices[0]]
+                    if len(shape) > 0 and shape[0] > 1:
+                        # Multi-dimensional, can be sliced
+                        if isinstance(indices, int):
+                            result[k] = v[indices]
+                        elif isinstance(indices, list) and len(indices) == 1:
+                            result[k] = v[indices[0]]
+                        elif isinstance(indices, slice):
+                            result[k] = v[indices]
                         else:
-                            sliced_items = [v[i] for i in label_indices]
-                            # Try to concatenate
+                            # Multiple indices
+                            sliced_items = [v[i] for i in indices]
                             result[k] = self._maybe_concatenate_brain_data(sliced_items)
                     else:
                         # 1D or single row, return as-is
@@ -400,27 +464,27 @@ class Brain_Collection:
                 else:
                     result[k] = v
             return result
-        elif isinstance(data, list) and isinstance(data[0], dict):
+        elif isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
             # Multiple items
             result = []
             for item in data:
                 item_result = {}
                 for k, v in item.items():
                     if hasattr(v, "__getitem__") and hasattr(v, "shape"):
-                        # Check if this Brain_Data can be sliced by label
                         shape = v.shape()
-                        if len(shape) > 1 and shape[0] > 1:
-                            # Multi-dimensional, can be sliced by label
-                            if len(label_indices) == 1:
-                                item_result[k] = v[label_indices[0]]
+                        if len(shape) > 0 and shape[0] > 1:
+                            if isinstance(indices, int):
+                                item_result[k] = v[indices]
+                            elif isinstance(indices, list) and len(indices) == 1:
+                                item_result[k] = v[indices[0]]
+                            elif isinstance(indices, slice):
+                                item_result[k] = v[indices]
                             else:
-                                sliced_items = [v[i] for i in label_indices]
-                                # Try to concatenate
+                                sliced_items = [v[i] for i in indices]
                                 item_result[k] = self._maybe_concatenate_brain_data(
                                     sliced_items
                                 )
                         else:
-                            # 1D or single row, return as-is
                             item_result[k] = v
                     else:
                         item_result[k] = v
@@ -435,16 +499,19 @@ class Brain_Collection:
             for brain_data in data:
                 if hasattr(brain_data, "__getitem__") and hasattr(brain_data, "shape"):
                     shape = brain_data.shape()
-                    if len(shape) > 1 and shape[0] > 1:
-                        if len(label_indices) == 1:
-                            result.append(brain_data[label_indices[0]])
+                    if len(shape) > 0 and shape[0] > 1:
+                        if isinstance(indices, int):
+                            result.append(brain_data[indices])
+                        elif isinstance(indices, list) and len(indices) == 1:
+                            result.append(brain_data[indices[0]])
+                        elif isinstance(indices, slice):
+                            result.append(brain_data[indices])
                         else:
-                            sliced_items = [brain_data[i] for i in label_indices]
+                            sliced_items = [brain_data[i] for i in indices]
                             result.append(
                                 self._maybe_concatenate_brain_data(sliced_items)
                             )
                     else:
-                        # Can't slice 1D data by label
                         result.append(brain_data)
                 else:
                     result.append(brain_data)
@@ -453,43 +520,111 @@ class Brain_Collection:
                 return result[0]
             return self._maybe_concatenate_brain_data(result)
 
-    def _format_output(self, data, position, key, label):
-        """Format the output based on what was requested."""
-        # Determine if we should return a Brain_Collection
-        should_be_collection = False
+    def _format_output(
+        self,
+        data,
+        is_single_position,
+        is_single_key,
+        is_single_label,
+        actual_key=None,
+        label=None,
+    ):
+        """Format the output based on intelligent flattening rules.
 
-        # Multiple positions always returns collection
-        if isinstance(position, (slice, list)) or position == ":":
-            should_be_collection = True
+        Rules:
+        - If exactly 2 out of 3 dimensions are singleton, return Brain_Data
+        - Otherwise return Brain_Collection
+        """
+        singleton_count = sum([is_single_position, is_single_key, is_single_label])
 
-        # Multiple keys always returns collection
-        if isinstance(key, list) or (isinstance(key, slice) and key == slice(None)):
-            should_be_collection = True
+        # If all 3 dimensions are singleton, or 2 out of 3 are singleton, return Brain_Data
+        if singleton_count >= 2:
+            # Intelligently flatten to Brain_Data
+            if isinstance(data, list):
+                # Concatenate all Brain_Data objects
+                return self._maybe_concatenate_brain_data(data)
+            elif isinstance(data, dict):
+                # Single dict with multiple keys - can't flatten
+                # This shouldn't happen with singleton_count >= 2
+                pass
+            else:
+                # Already a Brain_Data
+                return data
 
-        # If we have a dict or list of dicts, wrap in Brain_Collection
-        if should_be_collection and isinstance(data, (dict, list)):
-            if isinstance(data, dict):
-                data = [data]
-            # Need to reconstruct with labels
-            reconstructed = []
+        # Return as Brain_Collection
+        # Special case: when we have multiple positions but single key,
+        # we get a list of Brain_Data objects that need to be wrapped
+        if isinstance(data, list) and not is_single_position and is_single_key:
+            # We have a list of Brain_Data objects from different positions
+            # Need to wrap each in a dict with the appropriate key
+            wrapped_data = []
             for item in data:
-                if self._labels is not None and not isinstance(item, dict):
-                    # Single Brain_Data, wrap it
-                    reconstructed.append({key: item})
+                if isinstance(item, dict):
+                    wrapped_data.append(item)
                 else:
-                    reconstructed.append(item)
-            collection = Brain_Collection(reconstructed)
-            collection._labels = self._labels
+                    # It's a Brain_Data object, wrap with the actual key
+                    if actual_key:
+                        wrapped_data.append({actual_key: item})
+                    else:
+                        wrapped_data.append({"result": item})
+
+            collection = Brain_Collection(wrapped_data)
+            if hasattr(self, "_labels"):
+                collection._labels = self._labels
             return collection
 
-        # Try to concatenate if we have a list of Brain_Data singletons
-        if isinstance(data, list):
-            return self._maybe_concatenate_brain_data(data)
+        # General case
+        if not isinstance(data, list):
+            if isinstance(data, dict):
+                data = [data]
+            else:
+                # Single Brain_Data, need to wrap in dict
+                if actual_key:
+                    data = [{actual_key: data}]
+                else:
+                    data = [{"result": data}]
 
-        return data
+        # If data contains Brain_Data objects directly, wrap them
+        wrapped_data = []
+        for item in data:
+            if isinstance(item, dict):
+                wrapped_data.append(item)
+            else:
+                # It's a Brain_Data object, need to wrap it
+                if actual_key:
+                    wrapped_data.append({actual_key: item})
+                else:
+                    wrapped_data.append({"result": item})
+
+        collection = Brain_Collection(wrapped_data)
+        # If we sliced by specific labels, update the collection's labels
+        if hasattr(self, "_labels") and self._labels is not None and label is not None:
+            # Check if we sliced labels
+            if is_single_label and isinstance(label, str):
+                collection._labels = [label]
+            elif is_single_label and isinstance(label, int):
+                collection._labels = [self._labels[label]]
+            elif isinstance(label, list):
+                # Get the label names for the indices
+                label_names = []
+                for l in label:
+                    if isinstance(l, str):
+                        label_names.append(l)
+                    elif isinstance(l, int):
+                        label_names.append(self._labels[l])
+                collection._labels = label_names
+            elif isinstance(label, slice) and label != slice(None):
+                # Handle slice case
+                collection._labels = self._labels[label]
+            else:
+                # Keep all labels
+                collection._labels = self._labels
+        elif hasattr(self, "_labels"):
+            collection._labels = self._labels
+        return collection
 
     def _maybe_concatenate_brain_data(self, result):
-        """Check if result is a list of Brain_Data singletons and concatenate if so.
+        """Check if result is a list of Brain_Data objects and concatenate if so.
 
         Args:
             result: The result from a slicing operation
@@ -505,10 +640,7 @@ class Brain_Collection:
             return result
 
         # Check if all items are Brain_Data objects
-        if not all(
-            hasattr(item, "__class__") and item.__class__.__name__ == "Brain_Data"
-            for item in result
-        ):
+        if not all(isinstance(item, Brain_Data) for item in result):
             return result
 
         # Always try to concatenate Brain_Data objects
@@ -576,7 +708,7 @@ class Brain_Collection:
                 brain_data = item[key]
                 if hasattr(brain_data, "shape"):
                     shape = brain_data.shape()
-                    expected_len = shape[0] if len(shape) > 1 else 1
+                    expected_len = shape[0] if len(shape) > 0 else 1
                     if len(labels) != expected_len:
                         raise ValueError(
                             f"Labels length {len(labels)} doesn't match "

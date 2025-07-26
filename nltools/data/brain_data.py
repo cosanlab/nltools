@@ -428,6 +428,17 @@ class Brain_Data(object):
         for x in range(len(self)):
             yield self[x]
 
+    def __eq__(self, other):
+        """Check equality between Brain_Data."""
+        if not isinstance(other, Brain_Data):
+            return False
+        eq_data = np.all(self.data == other.data)
+        eq_X = self.X.equals(other.X) if self.X is not None else True
+        eq_Y = self.Y.equals(other.Y) if self.Y is not None else True
+        eq_mask = self.mask == other.mask if self.mask is not None else True
+        # We don't check nifti masker
+        return eq_data and eq_X and eq_Y and eq_mask
+
     # TODO: using @property but this would be backward in-compatible
     def shape(self):
         """Get images by voxels shape."""

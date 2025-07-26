@@ -2,10 +2,16 @@ from nltools.data import Brain_Collection, Brain_Data
 
 
 def test_collection_basics(sim_brain_data):
+    # Setup
     # sim_brain_data is a Brain_Data fixture with shape determined by the test data
     # 8 x num_vox (~240k)
     # Check the actual shape to set up labels correctly
     n = sim_brain_data.shape()[0]
+
+    # Overview
+    # Brain_Collection is a collection of Brain_Data objects
+    # that's internally represented as a list of dictionaries who's values
+    # are 1d or 2d Brain_Data objects
 
     # Check valid initializations
     # 1. Empty
@@ -72,11 +78,38 @@ def test_collection_basics(sim_brain_data):
     # key(s) only supports string/name based indexing or list-of-strings based indexing similar to slicing multiple polars dataframe columns
     # label(s) by default behabes like position(s), but if labels attribute exists, also supporst behaving like key(s)
 
-    # dict with single key is always "flattened" to Brain_Data
-    assert isinstance(col[0, "beta"], Brain_Data)
+    # Slicing always tries to *intelligently flatten* the result
+    # to a 2d Brain_Data if any 2 out of 3 slicing dimensions are singletons:
 
-    # Sinced we only have 1 key, they are equivalent
-    assert col[:, "beta"] == col
+    # single position + single key = 2d Brain_Data with .shape()[0] == len(labels)
+    # single position + single label = 2d Brain_Data with .shape()[0] == len(keys)
+    # single key + single label = 2d Brain_Data with .shape()[0] == len(collection)
+
+    # otherwise it will return a Brain_Collection with strictly the same or fewer
+    # numbers of positions, keys, and/or lanels
+
+    # We can always flatten a single position + single key to a Brain_Data
+    assert isinstance(col[0, "beta"], Brain_Data)
+    # This is equivalent to:
+    assert isinstance(col[0, "beta", :], Brain_Data)
+
+    # Slicing along the *last* dimension determines the shape of Brain_Data
+    assert len(col[0, "beta", 0].shape()) == 1  # 1D
+    assert col[0, "beta", :3].shape() == (
+        3,
+        sim_brain_data.shape()[1],
+    )  # 2D with 3 x voxels
+
+    # Slicing by position will always return a Brain_Collection
+    assert isinstance(col[:, "beta"], Brain_Collection)
+
+    # like before, indexing/slicing along the *last* dimension determines the shape
+    # of each Brain_Data inside of the collection
+    s = col[:, "beta", :]  # explicit version of previous
+    assert isinstance(s, Brain_Collection)
+    assert len(s) == len(col)
+    assert s[0, "beta"].shape()[0] == n
+    assert s[0, "beta"].shape()[1] == sim_brain_data.shape()[1]
 
     # More explicit verison
     assert col[:, "beta", :] == col[:, "beta"]
@@ -93,14 +126,15 @@ def test_collection_basics(sim_brain_data):
     assert col_with_labels[:, "beta", "condition_0"] == col[:, "beta", 0]
 
     # More complex slicing operation but result should be clear = collection because we have more than 1 key or label
-    s = col[0, ["beta", "t"], ["condition_0", "condition_1"]]
+    s = col_with_labels[0, ["beta", "t"], ["condition_0", "condition_1"]]
     assert isinstance(s, Brain_Collection)
     assert len(s) == 1
     assert s.keys() == ["beta", "t"]
     assert s.labels == ["condition_0", "condition_1"]
     b = s[0, "beta", "condition_0"]
     assert isinstance(b, Brain_Data)
-    assert b.shape()[0] == 1
+    assert len(b.shape()) == 1  # 1D array when slicing with single index
+    assert b.shape()[0] == sim_brain_data.shape()[1]  # num_voxels
 
 
 def test_regress_collection(sim_brain_data):
@@ -135,7 +169,7 @@ def test_regress_collection(sim_brain_data):
     # Test appending
     singleton.append(result)
     assert len(singleton) == 2
-    assert singleton.keys() == ["z_score", "t", "p", "beta", "se", "rsquared"]
+    assert set(singleton.keys()) == {"z_score", "t", "p", "beta", "se", "rsquared"}
     assert singleton.labels == labels
 
     # TODO: write these
