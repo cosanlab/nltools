@@ -93,29 +93,29 @@ class Brain_Collection:
         Returns:
             tuple: (normalized_data, keys, labels)
         """
+        if not data:
+            return [], tuple(), None
+
         # Wrap single dict in a list
         if isinstance(data, dict):
             data = [data]
-        elif not isinstance(data, list):
+        elif isinstance(data, list):
+            if not all(isinstance(d, dict) for d in data):
+                raise TypeError("All list elements must be dicts")
+        else:
             raise TypeError(f"Data must be a dict or list of dicts, not {type(data)}")
-
-        if not data:
-            return [], tuple(), None
 
         # Extract labels if present
         labels = None
         processed_data = []
-        
+
         for i, d in enumerate(data):
-            if not isinstance(d, dict):
-                raise TypeError(f"Item {i} must be a dict, not {type(d)}")
-            
             # Create a copy to avoid modifying the original
             d_copy = d.copy()
-            
+
             # Extract labels if present
-            if 'labels' in d_copy:
-                item_labels = d_copy.pop('labels')
+            if "labels" in d_copy:
+                item_labels = d_copy.pop("labels")
                 if labels is None:
                     labels = item_labels
                 elif labels != item_labels:
@@ -123,9 +123,9 @@ class Brain_Collection:
                         f"All items must have the same labels. "
                         f"Item {i} has labels {item_labels} but expected {labels}"
                     )
-            
+
             processed_data.append(d_copy)
-        
+
         # Validate all dicts have the same keys (after removing labels)
         if processed_data:
             first_keys = set(processed_data[0].keys())
@@ -135,22 +135,23 @@ class Brain_Collection:
                         f"All dictionaries must have the same keys. "
                         f"Item {i} has keys {set(d.keys())} but expected {first_keys}"
                     )
-        
-        return processed_data, tuple(sorted(first_keys)) if processed_data else tuple(), labels
+
+        keys = tuple(sorted(first_keys)) if processed_data else tuple()
+        return processed_data, keys, labels
 
     def append(self, other):
         """Append another Brain_Collection or dict to this collection.
 
         Args:
             other (Brain_Collection | dict): Data to append. If a dict, must have
-                the same keys as existing data (excluding 'labels'). If a Brain_Collection, 
+                the same keys as existing data (excluding 'labels'). If a Brain_Collection,
                 must have the same keys and labels.
         """
         if isinstance(other, dict):
             # Process the dict to extract labels
             other_copy = other.copy()
-            other_labels = other_copy.pop('labels', None)
-            
+            other_labels = other_copy.pop("labels", None)
+
             # Validate labels match if we have them
             if self._labels is not None and other_labels is not None:
                 if self._labels != other_labels:
@@ -161,8 +162,10 @@ class Brain_Collection:
             elif self._labels is None and other_labels is not None:
                 self._labels = other_labels
             elif self._labels is not None and other_labels is None:
-                raise ValueError("New item must have labels to match existing collection")
-            
+                raise ValueError(
+                    "New item must have labels to match existing collection"
+                )
+
             # Validate keys match (excluding labels)
             other_keys = set(other_copy.keys())
             if self._keys and other_keys != set(self._keys):
@@ -170,7 +173,7 @@ class Brain_Collection:
                     f"Dictionary keys {other_keys} don't match "
                     f"collection keys {set(self._keys)}"
                 )
-            
+
             self.data.append(other_copy)
             if not self._keys:
                 self._keys = tuple(sorted(other_keys))
@@ -185,7 +188,7 @@ class Brain_Collection:
                     f"Brain_Collection keys {other._keys} don't match "
                     f"this collection's keys {self._keys}"
                 )
-            
+
             if self._labels is not None and other._labels != self._labels:
                 raise ValueError(
                     f"Brain_Collection labels {other._labels} don't match "
@@ -212,34 +215,39 @@ class Brain_Collection:
                 - int: Shorthand for [position, :, :]
                 - slice: Shorthand for [slice, :, :]
                 - tuple with 2 or 3 elements representing (position, key, label)
-                
+
         Each dimension can be:
             - position: int, slice, list of ints, or ':' (all)
-            - key: str, list of strs, or ':' (all)  
+            - key: str, list of strs, or ':' (all)
             - label: str, int, slice, list, or ':' (all)
         """
         # Normalize the index to a 3-tuple
         position, key, label = self._normalize_index(index)
-        
+
         # Get items based on position
         items = self._get_items_by_position(position)
-        
+
         # If just getting raw items (no key/label filtering)
-        if isinstance(key, slice) and key == slice(None) and isinstance(label, slice) and label == slice(None):
+        if (
+            isinstance(key, slice)
+            and key == slice(None)
+            and isinstance(label, slice)
+            and label == slice(None)
+        ):
             if isinstance(position, int):
                 return items  # Single dict
             else:
                 collection = Brain_Collection(items)
                 collection._labels = self._labels
                 return collection
-        
+
         # Get data for specified keys
         data_dict = self._get_keys_from_items(items, key)
-        
+
         # Apply label slicing if needed
         if not (isinstance(label, slice) and label == slice(None)):
             data_dict = self._apply_label_slicing(data_dict, label)
-        
+
         # Determine return type based on what we have
         return self._format_output(data_dict, position, key, label)
 
@@ -261,26 +269,28 @@ class Brain_Collection:
                 # collection[position, key] -> collection[position, key, :]
                 pos, key = index
                 # Normalize each component
-                if pos == ':':
+                if pos == ":":
                     pos = slice(None)
-                if key == ':':
+                if key == ":":
                     key = slice(None)
                 return pos, key, slice(None)
             elif len(index) == 3:
                 pos, key, label = index
                 # Normalize each component
-                if pos == ':':
+                if pos == ":":
                     pos = slice(None)
-                if key == ':':
+                if key == ":":
                     key = slice(None)
-                if label == ':':
+                if label == ":":
                     label = slice(None)
                 return pos, key, label
             else:
-                raise ValueError("Too many indices. Expected at most 3 (position, key, label)")
+                raise ValueError(
+                    "Too many indices. Expected at most 3 (position, key, label)"
+                )
         else:
             raise TypeError(f"Invalid index type: {type(index)}")
-    
+
     def _get_items_by_position(self, position):
         """Get items based on position index."""
         if isinstance(position, slice) and position == slice(None):
@@ -295,13 +305,13 @@ class Brain_Collection:
             return [self.data[i] for i in position]
         else:
             raise TypeError(f"Invalid position type: {type(position)}")
-    
+
     def _get_keys_from_items(self, items, key):
         """Extract specified keys from items."""
         # Handle single item case
         if isinstance(items, dict):
             items = [items]
-        
+
         if isinstance(key, slice) and key == slice(None):
             # Return all data
             if len(items) == 1:
@@ -310,7 +320,9 @@ class Brain_Collection:
         elif isinstance(key, str):
             # Single key
             if key not in self._keys:
-                raise KeyError(f"Key '{key}' not found. Available keys: {list(self._keys)}")
+                raise KeyError(
+                    f"Key '{key}' not found. Available keys: {list(self._keys)}"
+                )
             if len(items) == 1:
                 return items[0][key]
             return [item[key] for item in items]
@@ -318,7 +330,9 @@ class Brain_Collection:
             # Multiple keys
             for k in key:
                 if k not in self._keys:
-                    raise KeyError(f"Key '{k}' not found. Available keys: {list(self._keys)}")
+                    raise KeyError(
+                        f"Key '{k}' not found. Available keys: {list(self._keys)}"
+                    )
             result = []
             for item in items:
                 result.append({k: item[k] for k in key})
@@ -327,16 +341,20 @@ class Brain_Collection:
             return result
         else:
             raise TypeError(f"Invalid key type: {type(key)}")
-    
+
     def _apply_label_slicing(self, data, label):
         """Apply label-based slicing to Brain_Data objects."""
         if self._labels is None:
-            raise ValueError("No labels found in collection. Cannot perform label-based indexing.")
-        
+            raise ValueError(
+                "No labels found in collection. Cannot perform label-based indexing."
+            )
+
         # Determine label indices
         if isinstance(label, str):
             if label not in self._labels:
-                raise ValueError(f"Label '{label}' not found. Available labels: {self._labels}")
+                raise ValueError(
+                    f"Label '{label}' not found. Available labels: {self._labels}"
+                )
             label_indices = [self._labels.index(label)]
         elif isinstance(label, int):
             label_indices = [label]
@@ -347,21 +365,25 @@ class Brain_Collection:
             for l in label:
                 if isinstance(l, str):
                     if l not in self._labels:
-                        raise ValueError(f"Label '{l}' not found. Available labels: {self._labels}")
+                        raise ValueError(
+                            f"Label '{l}' not found. Available labels: {self._labels}"
+                        )
                     label_indices.append(self._labels.index(l))
                 elif isinstance(l, int):
                     label_indices.append(l)
                 else:
-                    raise TypeError(f"Label list items must be str or int, not {type(l)}")
+                    raise TypeError(
+                        f"Label list items must be str or int, not {type(l)}"
+                    )
         else:
             raise TypeError(f"Invalid label type: {type(label)}")
-        
+
         # Apply slicing
         if isinstance(data, dict):
             # Single item with multiple keys
             result = {}
             for k, v in data.items():
-                if hasattr(v, '__getitem__') and hasattr(v, 'shape'):
+                if hasattr(v, "__getitem__") and hasattr(v, "shape"):
                     # Check if this Brain_Data can be sliced by label
                     shape = v.shape()
                     if len(shape) > 1 and shape[0] > 1:
@@ -384,7 +406,7 @@ class Brain_Collection:
             for item in data:
                 item_result = {}
                 for k, v in item.items():
-                    if hasattr(v, '__getitem__') and hasattr(v, 'shape'):
+                    if hasattr(v, "__getitem__") and hasattr(v, "shape"):
                         # Check if this Brain_Data can be sliced by label
                         shape = v.shape()
                         if len(shape) > 1 and shape[0] > 1:
@@ -394,7 +416,9 @@ class Brain_Collection:
                             else:
                                 sliced_items = [v[i] for i in label_indices]
                                 # Try to concatenate
-                                item_result[k] = self._maybe_concatenate_brain_data(sliced_items)
+                                item_result[k] = self._maybe_concatenate_brain_data(
+                                    sliced_items
+                                )
                         else:
                             # 1D or single row, return as-is
                             item_result[k] = v
@@ -406,40 +430,42 @@ class Brain_Collection:
             # Direct Brain_Data object or list of them
             if not isinstance(data, list):
                 data = [data]
-            
+
             result = []
             for brain_data in data:
-                if hasattr(brain_data, '__getitem__') and hasattr(brain_data, 'shape'):
+                if hasattr(brain_data, "__getitem__") and hasattr(brain_data, "shape"):
                     shape = brain_data.shape()
                     if len(shape) > 1 and shape[0] > 1:
                         if len(label_indices) == 1:
                             result.append(brain_data[label_indices[0]])
                         else:
                             sliced_items = [brain_data[i] for i in label_indices]
-                            result.append(self._maybe_concatenate_brain_data(sliced_items))
+                            result.append(
+                                self._maybe_concatenate_brain_data(sliced_items)
+                            )
                     else:
                         # Can't slice 1D data by label
                         result.append(brain_data)
                 else:
                     result.append(brain_data)
-            
+
             if len(result) == 1:
                 return result[0]
             return self._maybe_concatenate_brain_data(result)
-    
+
     def _format_output(self, data, position, key, label):
         """Format the output based on what was requested."""
         # Determine if we should return a Brain_Collection
         should_be_collection = False
-        
+
         # Multiple positions always returns collection
-        if isinstance(position, (slice, list)) or position == ':':
+        if isinstance(position, (slice, list)) or position == ":":
             should_be_collection = True
-        
-        # Multiple keys always returns collection  
+
+        # Multiple keys always returns collection
         if isinstance(key, list) or (isinstance(key, slice) and key == slice(None)):
             should_be_collection = True
-        
+
         # If we have a dict or list of dicts, wrap in Brain_Collection
         if should_be_collection and isinstance(data, (dict, list)):
             if isinstance(data, dict):
@@ -455,11 +481,11 @@ class Brain_Collection:
             collection = Brain_Collection(reconstructed)
             collection._labels = self._labels
             return collection
-        
+
         # Try to concatenate if we have a list of Brain_Data singletons
         if isinstance(data, list):
             return self._maybe_concatenate_brain_data(data)
-        
+
         return data
 
     def _maybe_concatenate_brain_data(self, result):
@@ -515,20 +541,20 @@ class Brain_Collection:
     def labels(self):
         """Return the labels for this collection."""
         return self._labels
-    
+
     def set_labels(self, labels, for_keys=None):
         """Set labels for this collection with validation.
-        
+
         Args:
             labels: List of label names
             for_keys: None (validate all keys), string (single key), or list of strings (multiple keys)
-        
+
         Raises:
             ValueError: If labels don't match the shape of specified Brain_Data objects
         """
         if not isinstance(labels, list):
             raise TypeError("Labels must be a list")
-        
+
         # Determine which keys to validate
         if for_keys is None:
             keys_to_check = self._keys
@@ -538,17 +564,17 @@ class Brain_Collection:
             keys_to_check = for_keys
         else:
             raise TypeError("for_keys must be None, str, or list of str")
-        
+
         # Validate keys exist
         for key in keys_to_check:
             if key not in self._keys:
                 raise ValueError(f"Key '{key}' not found in collection")
-        
+
         # Validate labels match Brain_Data shapes
         for item in self.data:
             for key in keys_to_check:
                 brain_data = item[key]
-                if hasattr(brain_data, 'shape'):
+                if hasattr(brain_data, "shape"):
                     shape = brain_data.shape()
                     expected_len = shape[0] if len(shape) > 1 else 1
                     if len(labels) != expected_len:
@@ -556,7 +582,7 @@ class Brain_Collection:
                             f"Labels length {len(labels)} doesn't match "
                             f"Brain_Data shape {shape} for key '{key}'"
                         )
-        
+
         self._labels = labels
 
     @property

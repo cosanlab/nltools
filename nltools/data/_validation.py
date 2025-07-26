@@ -272,32 +272,3 @@ def validate_append_shapes(data1_shape, data2_shape):
             raise ValueError(error_msg)
     elif data1_shape[1] != data2_shape[1]:
         raise ValueError(error_msg)
-
-
-def validate_axis_parameter(axis, data_shape, method_name="method"):
-    """Validate axis parameter for statistical operations.
-
-    Args:
-        axis: Axis parameter to validate.
-        data_shape: Shape of the data.
-        method_name: Name of method for error messages.
-
-    Returns:
-        int: Validated axis value.
-
-    Raises:
-        ValueError: If axis is invalid.
-    """
-    if axis not in [0, 1]:
-        raise ValueError(
-            f"{method_name}: axis must be 0 (across images) or 1 (within images). "
-            f"Received axis={axis}"
-        )
-
-    # Check if operation makes sense for the data shape
-    if len(data_shape) == 1 and axis == 0:
-        raise ValueError(
-            f"{method_name}: cannot compute across images (axis=0) for single image data"
-        )
-
-    return axis

@@ -261,6 +261,67 @@ class Brain_Data(object):
         else:
             self.data = self.nifti_masker.transform(data)
 
+    def _perform_arithmetic(self, other, operation, operation_name, inplace=False):
+        """Perform arithmetic operation with validation.
+
+        Args:
+            other: The other operand.
+            operation: The operation function (e.g., np.add, np.subtract).
+            operation_name: Name of the operation for error messages.
+
+        Returns:
+            Brain_Data: Result of the operation.
+        """
+        from ._validation import validate_arithmetic_operand, validate_brain_data_shapes
+
+        new = deepcopy(self) if not inplace else self
+        operand_type = validate_arithmetic_operand(other, operation_name)
+
+        if operand_type == "scalar":
+            new.data = operation(new.data, other)
+        elif operand_type == "brain_data":
+            validate_brain_data_shapes(self, other, operation_name)
+            new.data = operation(new.data, other.data)
+        elif operand_type == "array":
+            # Only for multiplication
+            if len(other) != len(self):
+                raise ValueError(
+                    f"Vector {operation_name} requires that the length of the vector "
+                    f"({len(other)}) match the number of images ({len(self)})"
+                )
+            new.data = np.dot(new.data.T, other).T
+
+        return new
+
+    def _apply_func(self, stat_func, axis=0):
+        """
+        Apply a function to the `.data` attribute. If axis=0, returns a `Brain_Data` object with the statistic calculated over samples (e.g. within a voxel over time). If axis=1, returns a numpy array with the statistic calculated over features (e.g. across voxels within a specific time-point)
+
+        Args:
+            stat_func: Statistical function to apply (e.g., np.mean, np.std).
+            axis: Axis along which to compute (0=across images, 1=within images).
+
+        Returns:
+            float/np.array/Brain_Data: Result of statistical operation.
+        """
+
+        # Single image case
+        if check_brain_data_is_single(self):
+            return stat_func(self.data)
+
+        if axis == 1:
+            # Return array with statistic within each image
+            return stat_func(self.data, axis=1)
+        elif axis == 0:
+            # Return Brain_Data with statistic across images
+            out = deepcopy(self)
+            out.data = stat_func(self.data, axis=0)
+            out.X = pd.DataFrame()
+            out.Y = pd.DataFrame()
+            return out
+        else:
+            raise ValueError("axis must be 0 or 1")
+
     def __repr__(self):
         return "%s.%s(data=%s, Y=%s, X=%s, mask=%s)" % (
             self.__class__.__module__,
@@ -307,69 +368,6 @@ class Brain_Data(object):
     def __len__(self):
         return self.shape()[0]
 
-    def _perform_arithmetic(self, other, operation, operation_name):
-        """Perform arithmetic operation with validation.
-
-        Args:
-            other: The other operand.
-            operation: The operation function (e.g., np.add, np.subtract).
-            operation_name: Name of the operation for error messages.
-
-        Returns:
-            Brain_Data: Result of the operation.
-        """
-        from ._validation import validate_arithmetic_operand, validate_brain_data_shapes
-
-        new = deepcopy(self)
-        operand_type = validate_arithmetic_operand(other, operation_name)
-
-        if operand_type == "scalar":
-            new.data = operation(new.data, other)
-        elif operand_type == "brain_data":
-            validate_brain_data_shapes(self, other, operation_name)
-            new.data = operation(new.data, other.data)
-        elif operand_type == "array":
-            # Only for multiplication
-            if len(other) != len(self):
-                raise ValueError(
-                    f"Vector {operation_name} requires that the length of the vector "
-                    f"({len(other)}) match the number of images ({len(self)})"
-                )
-            new.data = np.dot(new.data.T, other).T
-
-        return new
-
-    def _perform_inplace_arithmetic(self, other, operation, operation_name):
-        """Perform in-place arithmetic operation with validation.
-
-        Args:
-            other: The other operand.
-            operation: The operation function (e.g., np.add, np.subtract).
-            operation_name: Name of the operation for error messages.
-
-        Returns:
-            Brain_Data: Self after modification.
-        """
-        from ._validation import validate_arithmetic_operand, validate_brain_data_shapes
-
-        operand_type = validate_arithmetic_operand(other, operation_name)
-
-        if operand_type == "scalar":
-            self.data = operation(self.data, other)
-        elif operand_type == "brain_data":
-            validate_brain_data_shapes(self, other, operation_name)
-            self.data = operation(self.data, other.data)
-        elif operand_type == "array":
-            # Only for multiplication
-            if len(other) != len(self):
-                raise ValueError(
-                    f"Vector {operation_name} requires that the length of the vector "
-                    f"({len(other)}) match the number of images ({len(self)})"
-                )
-            self.data = np.dot(self.data.T, other).T
-
-        return self
-
     def __add__(self, y):
         """Add to Brain_Data."""
         return self._perform_arithmetic(y, np.add, "add")
@@ -406,48 +404,25 @@ class Brain_Data(object):
 
     def __truediv__(self, y):
         """Divide Brain_Data."""
-        # Division needs special handling for divide-by-zero warnings
-        from ._validation import validate_arithmetic_operand, validate_brain_data_shapes
-
-        new = deepcopy(self)
-        operand_type = validate_arithmetic_operand(y, "divide")
-
         with np.errstate(invalid="ignore", divide="ignore"):
-            if operand_type == "scalar":
-                new.data = new.data / y
-            elif operand_type == "brain_data":
-                validate_brain_data_shapes(self, y, "divide")
-                new.data = np.divide(new.data, y.data)
-
-        return new
+            return self._perform_arithmetic(y, np.divide, "divide")
 
     def __iadd__(self, y):
         """In-place addition (+=)."""
-        return self._perform_inplace_arithmetic(y, np.add, "add")
+        return self._perform_arithmetic(y, np.add, "add", inplace=True)
 
     def __isub__(self, y):
         """In-place subtraction (-=)."""
-        return self._perform_inplace_arithmetic(y, np.subtract, "subtract")
+        return self._perform_arithmetic(y, np.subtract, "subtract", inplace=True)
 
     def __imul__(self, y):
         """In-place multiplication (*=)."""
-        return self._perform_inplace_arithmetic(y, np.multiply, "multiply")
+        return self._perform_arithmetic(y, np.multiply, "multiply", inplace=True)
 
     def __itruediv__(self, y):
         """In-place true division (/=)."""
-        # Division needs special handling for divide-by-zero warnings
-        from ._validation import validate_arithmetic_operand, validate_brain_data_shapes
-
-        operand_type = validate_arithmetic_operand(y, "divide")
-
         with np.errstate(invalid="ignore", divide="ignore"):
-            if operand_type == "scalar":
-                self.data = self.data / y
-            elif operand_type == "brain_data":
-                validate_brain_data_shapes(self, y, "divide")
-                self.data = np.divide(self.data, y.data)
-
-        return self
+            return self._perform_arithmetic(y, np.divide, "divide", inplace=True)
 
     def __iter__(self):
         for x in range(len(self)):
@@ -458,37 +433,6 @@ class Brain_Data(object):
         """Get images by voxels shape."""
 
         return self.data.shape
-
-    def _compute_statistic(self, stat_func, axis=0, stat_name="statistic"):
-        """Generic helper for computing statistics.
-
-        Args:
-            stat_func: Statistical function to apply (e.g., np.mean, np.std).
-            axis: Axis along which to compute (0=across images, 1=within images).
-            stat_name: Name of statistic for error messages.
-
-        Returns:
-            float/np.array/Brain_Data: Result of statistical operation.
-        """
-        from ._validation import validate_axis_parameter
-
-        # Single image case
-        if check_brain_data_is_single(self):
-            return stat_func(self.data)
-
-        # Multiple images case
-        validate_axis_parameter(axis, self.shape(), stat_name)
-
-        if axis == 0:
-            # Return Brain_Data with statistic across images
-            out = deepcopy(self)
-            out.data = stat_func(self.data, axis=0)
-            out.X = pd.DataFrame()
-            out.Y = pd.DataFrame()
-            return out
-        else:
-            # Return array with statistic within each image
-            return stat_func(self.data, axis=1)
 
     def mean(self, axis=0):
         """Get mean of each voxel or image.
@@ -501,7 +445,7 @@ class Brain_Data(object):
         Returns:
             float/np.array/Brain_Data: Mean values.
         """
-        return self._compute_statistic(np.mean, axis, "mean")
+        return self._apply_func(np.mean, axis)
 
     def median(self, axis=0):
         """Get median of each voxel or image.
@@ -514,7 +458,7 @@ class Brain_Data(object):
         Returns:
             float/np.array/Brain_Data: Median values.
         """
-        return self._compute_statistic(np.median, axis, "median")
+        return self._apply_func(np.median, axis)
 
     def std(self, axis=0):
         """Get standard deviation of each voxel or image.
@@ -527,19 +471,20 @@ class Brain_Data(object):
         Returns:
             float/np.array/Brain_Data: Standard deviation values.
         """
-        return self._compute_statistic(np.std, axis, "std")
+        return self._apply_func(np.std, axis)
 
-    def sum(self):
-        """Sum over voxels."""
+    def sum(self, axis=0):
+        """Get sum of each voxel or image.
 
-        out = deepcopy(self)
-        if len(self.shape()) > 1:
-            out.data = np.sum(out.data, axis=0)
-            out.X = pd.DataFrame()
-            out.Y = pd.DataFrame()
-        else:
-            out = np.sum(self.data)
-        return out
+        Args:
+            axis: Axis along which to compute sum.
+                0 = across images (default), returns Brain_Data
+                1 = within images, returns array
+
+        Returns:
+            float/np.array/Brain_Data: Sum values.
+        """
+        return self._apply_func(np.sum, axis)
 
     def to_nifti(self):
         """Convert Brain_Data Instance into Nifti Object"""
@@ -568,14 +513,8 @@ class Brain_Data(object):
             self.to_nifti().to_filename(file_name)
 
     def scale(self, scale_val=100.0):
-        """Scale all values such that they are on the range [0, scale_val],
-            via grand-mean scaling. This is NOT global-scaling/intensity
-            normalization. This is useful for ensuring that data is on a
-            common scale (e.g. good for multiple runs, participants, etc)
-            and if the default value of 100 is used, can be interpreted as
-            something akin to (but not exactly) "percent signal change."
-            This is consistent with default behavior in AFNI and SPM.
-            Change this value to 10000 to make consistent with FSL.
+        """
+        Scale all values such that they are on the range [0, scale_val], via grand-mean scaling. This is NOT global-scaling/intensity normalization. It rescales each voxel to be a proportion of the global average * `scale_val`. This is useful for ensuring that data is on a common scale (e.g. good for multiple runs, participants, etc) and if the default value of 100 is used, can be interpreted as something akin to (but not exactly) "percent signal change." This is consistent with default behavior in AFNI and SPM.Change this value to 10000 to make consistent with FSL.
 
         Args:
             scale_val: (int/float) what value to send the grand-mean to;
@@ -711,7 +650,9 @@ class Brain_Data(object):
             self, threshold=threshold, surface=surface, anatomical=anatomical, **kwargs
         )
 
-    def regress(self, noise_model="ols", as_collection=False, **kwargs):
+    def regress(
+        self, noise_model="ols", as_collection=False, all_regressors=True, **kwargs
+    ):
         """Runs a mass-univariate GLM analyses using the `Design_Matrix` supplied to `.X`
 
         This is a wrapper around [`nilearn.glm.first_level.FirstLevelModel`](https://nilearn.github.io/stable/modules/generated/nilearn.glm.first_level.FirstLevelModel.html#nilearn.glm.first_level.FirstLevelModel) which you can reference for additional information about what `**kwargs` are supported.
@@ -724,7 +665,9 @@ class Brain_Data(object):
 
         Args:
             noise_model (str, optional): temporal variance model. Defaults to "ols"
-
+            as_collection (bool, optional): whether to return a `Brain_Collection` object. Defaults to False
+            all_regressors (bool, optional): whether to return all regressors or just the ones specified in `regressors_of_interest`. Defaults to True
+            **kwargs: additional arguments to pass to `nilearn.glm.first_level.FirstLevelModel`
 
         Returns:
             ResultsContainer: with keys for each convolved column of `.X` and values as `Brain_Data` objects of the GLM statistics
@@ -747,12 +690,12 @@ class Brain_Data(object):
         signal_scaling = kwargs.get("signal_scaling", False)
         stat_type = kwargs.get("stat_type", "t")
         output_type = kwargs.get("output_type", "all")
+        # Overwrite brain-data TR with Design_Matrix TR
+        TR = 1 / self.X.sampling_freq if hasattr(self.X, "sampling_freq") else self.TR
 
-        # Run GLM
+        # Initialize GLM estimator
         glm = FirstLevelModel(
-            t_r=1 / self.X.sampling_freq
-            if hasattr(self.X, "sampling_freq")
-            else self.TR,
+            t_r=TR,
             mask_img=self.mask,
             smoothing_fwhm=smoothing_fwhm,
             drift_model=drift_model,
@@ -760,11 +703,20 @@ class Brain_Data(object):
             noise_model=noise_model,
             minimize_memory=False,
         )
+
+        # Fit GLM
         glm.fit(self.to_nifti(), design_matrices=self.X)
+
+        # Store fitted estimator
         self.glm = glm
 
-        # Assemble results
-        regressors_of_interest = getattr(self.X, "convolved", self.X.columns)
+        # Select what design-matrix columns we need stats for
+        regressors_of_interest = (
+            self.X.columns
+            if all_regressors
+            else getattr(self.X, "convolved", self.X.columns)
+        )
+
         nltools2nilearn = {
             "t": "stat",
             "p": "p_value",
@@ -779,12 +731,14 @@ class Brain_Data(object):
             beta=Brain_Data(),
             se=Brain_Data(),
         )
+
+        # After fitting a GLM we use .compute_contrast() to get
+        # statistics per column of design matrix (i.e. beta, t, etc)
         for r in regressors_of_interest:
-            # This a dictionary of niftis of different statistics
             result = glm.compute_contrast(
                 r, stat_type=stat_type, output_type=output_type
             )
-            # Which we convert to our naming format for backwards compatibility
+            # Convert to our naming format for backwards compatibility
             for k in all_results.keys():
                 all_results[k] = all_results[k].append(
                     Brain_Data(result[nltools2nilearn[k]])
@@ -794,8 +748,9 @@ class Brain_Data(object):
         all_results["rsquared"] = Brain_Data(glm.r_square[0])
         all_results["predicted"] = Brain_Data(glm.predicted[0])
         all_results["residual"] = Brain_Data(glm.residuals[0])
-        all_results["labels"] = regressors_of_interest
+        all_results["labels"] = list(regressors_of_interest)
 
+        # Experimental
         if as_collection:
             return Brain_Collection(all_results)
         else:
