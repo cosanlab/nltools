@@ -64,3 +64,4 @@ dev.ipynb
 docs/**/*.nii.gz
 .ruff_cache/
 **/haxbydata/
+**Haxby*.ipynb

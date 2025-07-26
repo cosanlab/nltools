@@ -85,7 +85,6 @@ def load_brain_data_h5(file_path, mask=None):
     Returns:
         dict: Dictionary containing loaded data, X, Y, and optionally mask info.
     """
-    import warnings
     
     result = {}
     
@@ -114,7 +113,7 @@ def load_brain_data_h5(file_path, mask=None):
             else:
                 result["load_mask"] = False
     
-    except Exception as e:
+    except Exception:
         # Fall back to legacy format
         result = _load_legacy_brain_data_h5(file_path, mask)
         result["legacy_format"] = True

@@ -432,10 +432,38 @@ class Brain_Data(object):
         """Check equality between Brain_Data."""
         if not isinstance(other, Brain_Data):
             return False
+        
+        # Compare data arrays
         eq_data = np.all(self.data == other.data)
-        eq_X = self.X.equals(other.X) if self.X is not None else True
-        eq_Y = self.Y.equals(other.Y) if self.Y is not None else True
-        eq_mask = self.mask == other.mask if self.mask is not None else True
+        
+        # Compare X DataFrames - handle None cases properly
+        if self.X is None and other.X is None:
+            eq_X = True
+        elif self.X is None or other.X is None:
+            eq_X = False
+        else:
+            eq_X = self.X.equals(other.X)
+        
+        # Compare Y DataFrames - handle None cases properly
+        if self.Y is None and other.Y is None:
+            eq_Y = True
+        elif self.Y is None or other.Y is None:
+            eq_Y = False
+        else:
+            eq_Y = self.Y.equals(other.Y)
+        
+        # Compare masks - handle Nifti images by comparing file paths
+        if self.mask is None and other.mask is None:
+            eq_mask = True
+        elif self.mask is None or other.mask is None:
+            eq_mask = False
+        elif hasattr(self.mask, 'get_filename') and hasattr(other.mask, 'get_filename'):
+            # Both are Nifti images - compare file paths
+            eq_mask = self.mask.get_filename() == other.mask.get_filename()
+        else:
+            # Fallback to direct comparison
+            eq_mask = self.mask == other.mask
+        
         # We don't check nifti masker
         return eq_data and eq_X and eq_Y and eq_mask
 
