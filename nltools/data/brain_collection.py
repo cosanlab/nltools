@@ -260,27 +260,71 @@ class Brain_Collection:
 
     def _normalize_index(self, index):
         """Normalize index to a 3-tuple (position, key, label)."""
+        # Special handling for singleton collections (no position dimension)
+        is_singleton = len(self.data) == 1
+        
         if isinstance(index, str):
             # Shorthand: collection['key'] -> collection[:, 'key', :]
-            return slice(None), index, slice(None)
+            if is_singleton:
+                # For singleton, use position=0
+                return 0, index, slice(None)
+            else:
+                return slice(None), index, slice(None)
         elif isinstance(index, int):
-            # Shorthand: collection[0] -> collection[0, :, :]
-            return index, slice(None), slice(None)
+            if is_singleton:
+                # For singleton, integer is label index: collection[0] -> collection[0, :, 0]
+                return 0, slice(None), index
+            else:
+                # For non-singleton, integer is position: collection[0] -> collection[0, :, :]
+                return index, slice(None), slice(None)
         elif isinstance(index, slice):
-            # Shorthand: collection[1:3] -> collection[1:3, :, :]
-            return index, slice(None), slice(None)
+            if is_singleton:
+                # For singleton, slice is label slice: collection[:3] -> collection[0, :, :3]
+                return 0, slice(None), index
+            else:
+                # For non-singleton, slice is position slice: collection[1:3] -> collection[1:3, :, :]
+                return index, slice(None), slice(None)
+        elif isinstance(index, list):
+            # Check if it's a list of strings (keys)
+            if all(isinstance(item, str) for item in index):
+                # List of keys: collection[['beta', 't']] -> collection[:, ['beta', 't'], :]
+                if is_singleton:
+                    return 0, index, slice(None)
+                else:
+                    return slice(None), index, slice(None)
+            elif is_singleton and all(isinstance(item, int) for item in index):
+                # For singleton, list of ints is label indices
+                return 0, slice(None), index
+            else:
+                # For non-singleton, could be position indices
+                return index, slice(None), slice(None)
         elif isinstance(index, tuple):
             if len(index) == 1:
                 return self._normalize_index(index[0])
             elif len(index) == 2:
-                # collection[position, key] -> collection[position, key, :]
                 pos, key = index
-                # Normalize each component
-                if pos == ":":
-                    pos = slice(None)
-                if key == ":":
-                    key = slice(None)
-                return pos, key, slice(None)
+                
+                # For singleton collections, handle special cases
+                if is_singleton:
+                    # Check if first element is a key (string or list of strings)
+                    if isinstance(pos, str) or (isinstance(pos, list) and all(isinstance(k, str) for k in pos)):
+                        # It's actually (key, label) for singleton
+                        return 0, pos, key
+                    elif isinstance(pos, int) and pos == 0:
+                        # Normal (position=0, key) for singleton
+                        if key == ":":
+                            key = slice(None)
+                        return pos, key, slice(None)
+                    else:
+                        # For singleton, assume (key, label) pattern
+                        return 0, pos, key
+                else:
+                    # Normal collection[position, key] -> collection[position, key, :]
+                    if pos == ":":
+                        pos = slice(None)
+                    if key == ":":
+                        key = slice(None)
+                    return pos, key, slice(None)
             elif len(index) == 3:
                 pos, key, label = index
                 # Normalize each component

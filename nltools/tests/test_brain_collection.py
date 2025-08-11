@@ -24,10 +24,21 @@ def test_collection_basics(sim_brain_data):
     # Otherwise col.data is always internally represented a **list of dictionaries**
 
     # 2. Single dict; -> internally list of length 1
-    col = Brain_Collection({"beta": sim_brain_data})
+    col = Brain_Collection({"beta": sim_brain_data, "t": sim_brain_data})
     assert len(col) == 1
     assert col.labels is None
-    assert col.keys() == ["beta"]
+    assert col.keys() == ["beta", "t"]
+
+    # a singleton has no position index (see more below), but does have a key and label index
+    assert len(col["beta", 0].shape()) == 1
+    assert col["beta", :2].shape() == (2, sim_brain_data.shape()[1])
+    s = col[["beta", "t"]]
+    assert isinstance(s, Brain_Collection)
+    assert len(s) == 1
+    assert s.keys() == ["beta", "t"]
+    assert s.labels is None
+    assert isinstance(s[0, "beta"], Brain_Data)
+    assert isinstance(s[0, "t"], Brain_Data)
 
     # 3. List of dicts; no labels
     col = Brain_Collection(
@@ -215,6 +226,88 @@ def test_collection_basics(sim_brain_data):
     assert len(s) == 1
     assert s.keys() == ["beta", "t"]
     assert s.labels == ["condition_0"]
+
+
+def test_singleton_collection_indexing(sim_brain_data):
+    """Test special indexing behavior for singleton collections."""
+    n = sim_brain_data.shape()[0]
+    labels = [f"condition_{i}" for i in range(n)]
+    
+    # Create a singleton collection
+    singleton = Brain_Collection({
+        "beta": sim_brain_data,
+        "t": sim_brain_data,
+        "labels": labels
+    })
+    
+    # Test that singleton has no position dimension
+    assert len(singleton) == 1
+    
+    # Test direct integer indexing -> label index
+    # With multiple keys, returns a collection
+    result = singleton[0]
+    assert isinstance(result, Brain_Collection)
+    assert len(result) == 1
+    assert result.labels == ["condition_0"]
+    
+    # Test slice indexing -> label slice
+    # With multiple keys, returns a collection
+    result = singleton[:3]
+    assert isinstance(result, Brain_Collection)
+    assert len(result) == 1
+    assert result.labels == ["condition_0", "condition_1", "condition_2"]
+    
+    # Test list of integers -> label indices
+    # With multiple keys, returns a collection
+    result = singleton[[0, 2, 4]]
+    assert isinstance(result, Brain_Collection)
+    assert len(result) == 1
+    assert result.labels == ["condition_0", "condition_2", "condition_4"]
+    
+    # Test string indexing -> key
+    result = singleton["beta"]
+    assert isinstance(result, Brain_Data)
+    assert result.shape()[0] == n
+    
+    # Test (key, label) indexing
+    result = singleton["beta", 0]
+    assert isinstance(result, Brain_Data)
+    assert len(result.shape()) == 1
+    
+    result = singleton["beta", :2]
+    assert isinstance(result, Brain_Data)
+    assert result.shape()[0] == 2
+    
+    # Test list of keys
+    result = singleton[["beta", "t"]]
+    assert isinstance(result, Brain_Collection)
+    assert len(result) == 1
+    assert result.keys() == ["beta", "t"]
+    
+    # Test explicit position=0 indexing should still work
+    result = singleton[0, "beta"]
+    assert isinstance(result, Brain_Data)
+    assert result.shape()[0] == n
+    
+    result = singleton[0, "beta", 0]
+    assert isinstance(result, Brain_Data)
+    assert len(result.shape()) == 1
+    
+    # Test label-based indexing
+    result = singleton["beta", "condition_0"]
+    assert isinstance(result, Brain_Data)
+    assert len(result.shape()) == 1
+    
+    result = singleton["beta", ["condition_0", "condition_1"]]
+    assert isinstance(result, Brain_Data)
+    assert result.shape()[0] == 2
+    
+    # Test that multiple keys never concatenate
+    result = singleton[["beta", "t"], 0]
+    assert isinstance(result, Brain_Collection)
+    assert len(result) == 1
+    assert result.keys() == ["beta", "t"]
+    assert result.labels == ["condition_0"]
 
 
 def test_regress_collection(regress_result):

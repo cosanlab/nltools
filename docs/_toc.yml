@@ -7,6 +7,7 @@ parts:
     - file: tutorials/basic/02_design_matrix_basics
     - file: tutorials/basic/03_adjacency_basics
     - file: tutorials/basic/04_basic_analysis_workflow
+    - file: tutorials/basic/05_brain_collection_basics
   - caption: Data Operations
     chapters:
     - file: tutorials/01_DataOperations/plot_neurovault_io
