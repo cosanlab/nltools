@@ -10,8 +10,11 @@
 - **Branch**: `uv-cleanup` (active development)
 - **Reference**: `uv-refactor` branch has historical changes we can learn from
 - **Version Target**: v0.6.0 (breaking release, API changes allowed)
-- **Test Status**: 27/38 passing (71%) - see REFACTORING_PLAN.md for failing tests
-- **Last Work**: Implemented `.regress()`, `.compute_contrasts()`, refactored `.extract_roi()`
+- **Test Status**: 38/38 passing (100%) - all tests now pass properly
+- **Last Work**: Refactored tests to use pytest.raises for deprecated methods
+
+### Important Git Tags
+- **`v0.6.0-test-refactor`** (2025-10-28): Marks where we simplified test code to properly test deprecated methods with pytest.raises. Reference this tag if you need to see the test implementations we removed for methods that will move to Model class.
 
 ### What We're Building
 **nltools** is a Python neuroimaging library that makes fMRI analysis more accessible by wrapping lower-level tools (primarily nilearn) with intuitive APIs. Think of it as "the requests library for neuroimaging" - we don't reinvent the wheel, we make the wheel easier to use.

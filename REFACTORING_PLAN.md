@@ -3,6 +3,9 @@
 ## 📊 Progress Tracker
 **Last Updated:** 2025-10-28
 
+### Key Milestones
+- **Git Tag `v0.6.0-test-refactor`**: Marks the commit where test code was simplified to properly handle deprecated methods with pytest.raises. Reference this tag to see the original test implementations for predict, ttest, randomise, etc.
+
 ### Priority 1: Library Refactoring ✅ COMPLETE (100%)
 - ✅ Deleted Priority 3 files (brain_collection, model, specs)
 - ✅ Added deprecation stubs for removed methods
