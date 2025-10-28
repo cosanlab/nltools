@@ -49,11 +49,10 @@ def test_load(tmpdir):
     # Test i/o for hdf5
     dat.write(os.path.join(str(tmpdir.join("test_write.h5"))))
     b = Brain_Data(os.path.join(tmpdir.join("test_write.h5")))
-    for k in ["X", "Y", "mask", "nifti_masker", "data"]:
+    # Note: X and Y attributes removed in v0.6.0, skip checking them
+    for k in ["mask", "nifti_masker", "data"]:
         if k == "data":
             assert np.allclose(b.__dict__[k], dat.__dict__[k])
-        elif k in ["X", "Y"]:
-            assert all(b.__dict__[k].eq(dat.__dict__[k]).values)
         elif k == "mask":
             assert np.allclose(b.__dict__[k].affine, dat.__dict__[k].affine)
             assert np.allclose(b.__dict__[k].get_fdata(), dat.__dict__[k].get_fdata())

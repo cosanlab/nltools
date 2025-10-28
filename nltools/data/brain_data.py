@@ -548,27 +548,266 @@ class Brain_Data(object):
         return out
 
     # TODO: update
-    def regress(self, design_matrix, **kwargs):
-        """Runs a mass-univariate GLM analyses using the `Design_Matrix` supplied to `.X`
+    def regress(self, design_matrix, noise_model="ols", **kwargs):
+        """Runs a mass-univariate GLM analysis using the provided Design_Matrix.
 
-        This is a wrapper around [`nilearn.glm.first_level.FirstLevelModel`](https://nilearn.github.io/stable/modules/generated/nilearn.glm.first_level.FirstLevelModel.html#nilearn.glm.first_level.FirstLevelModel) which you can reference for additional information about what `**kwargs` are supported.
+        This is a wrapper around nilearn.glm.first_level.FirstLevelModel.
+        Results are stored as attributes on the Brain_Data object rather than returned.
 
-        However, we override some defaults:
-        - no smoothing (use `.smooth()`)
-        - no scaling (use `.scale()`
-        - no drift model (should already be in the `Design_Matrix` set to `.X`)
-        - OLS noise model (use `noise_model = 'ar1'` to switch but takes more time)
+        We override some nilearn defaults:
+        - no smoothing (use `.smooth()` beforehand if needed)
+        - no scaling (use `.scale()` beforehand if needed)
+        - no drift model (should already be in the Design_Matrix)
+        - OLS noise model by default (use noise_model='ar1' for autocorrelation)
 
         Args:
-            noise_model (str, optional): temporal variance model. Defaults to "ols"
-            as_collection (bool, optional): whether to return a `Brain_Collection` object. Defaults to False
-            all_regressors (bool, optional): whether to return all regressors or just the ones specified in `regressors_of_interest`. Defaults to True
-            **kwargs: additional arguments to pass to `nilearn.glm.first_level.FirstLevelModel`
+            design_matrix: Design_Matrix object or pandas DataFrame with regressors
+            noise_model (str): temporal variance model ('ols' or 'ar1'). Default: 'ols'
+            **kwargs: additional arguments for nilearn.glm.first_level.FirstLevelModel
+
+        Sets attributes:
+            self.design_matrix: The design matrix used
+            self.glm_betas: Beta coefficients (Brain_Data)
+            self.glm_t: T-statistics (Brain_Data)
+            self.glm_p: P-values (Brain_Data)
+            self.glm_se: Standard errors (Brain_Data)
+            self.glm_residual: Residuals (Brain_Data)
+            self.glm_predicted: Predicted values (Brain_Data)
+            self.glm_r2: R-squared values (Brain_Data)
+        """
+        from .design_matrix import Design_Matrix
+
+        # Validate inputs
+        if not isinstance(design_matrix, (Design_Matrix, pd.DataFrame)):
+            raise TypeError("design_matrix must be a Design_Matrix or DataFrame")
+
+        # Store design matrix
+        self.design_matrix = design_matrix
+
+        # Convert to DataFrame if needed
+        if isinstance(design_matrix, Design_Matrix):
+            dm_df = design_matrix
+        else:
+            dm_df = pd.DataFrame(design_matrix)
+
+        # Set up FirstLevelModel with our defaults
+        model_params = {
+            'smoothing_fwhm': None,  # No smoothing
+            'standardize': False,     # No scaling
+            'drift_model': None,      # No drift model
+            'noise_model': noise_model,
+            'mask_img': self.mask,    # Use our mask
+            't_r': None,              # Will be set from data if needed
+            'minimize_memory': False,
+        }
+
+        # Update with any user-provided kwargs
+        model_params.update(kwargs)
+
+        # Create and fit the model
+        glm = FirstLevelModel(**model_params)
+
+        # Convert data to 4D nifti for nilearn
+        data_4d = self.to_nifti()
+
+        # Fit the model
+        glm.fit(data_4d, design_matrices=dm_df)
+
+        # Extract results for each regressor
+        n_regressors = dm_df.shape[1]
+
+        # Initialize storage for results
+        beta_maps = []
+        t_maps = []
+        p_maps = []
+        se_maps = []
+
+        # Get results for each regressor
+        for i, col in enumerate(dm_df.columns):
+            # Create contrast vector (1 for this regressor, 0 for others)
+            contrast = np.zeros(n_regressors)
+            contrast[i] = 1
+
+            # Compute contrast
+            results = glm.compute_contrast(contrast, output_type='all')
+
+            # Store maps
+            beta_maps.append(results['effect_size'])
+            t_maps.append(results['stat'])
+            p_maps.append(results['p_value'])
+            se_maps.append(results['effect_variance'])
+
+        # Convert results to Brain_Data objects and store as attributes
+        self.glm_betas = Brain_Data(beta_maps, mask=self.mask)
+        self.glm_t = Brain_Data(t_maps, mask=self.mask)
+        self.glm_p = Brain_Data(p_maps, mask=self.mask)
+
+        # Standard errors are sqrt of variance
+        se_data = []
+        for se_img in se_maps:
+            se_brain = Brain_Data(se_img, mask=self.mask)
+            se_brain.data = np.sqrt(np.abs(se_brain.data))  # sqrt of variance
+            se_data.append(se_brain)
+        self.glm_se = Brain_Data(data=se_data, mask=self.mask)
+
+        # Get residuals and predicted values
+        self.glm_residual = Brain_Data(glm.residuals, mask=self.mask)
+
+        # Predicted = original - residuals
+        self.glm_predicted = self.copy()
+        self.glm_predicted.data = self.data - self.glm_residual.data
+
+        # Calculate R-squared
+        ss_total = np.sum((self.data - self.data.mean(axis=0))**2, axis=0)
+        ss_residual = np.sum(self.glm_residual.data**2, axis=0)
+        r2_values = 1 - (ss_residual / (ss_total + 1e-10))  # Add small value to avoid division by zero
+
+        # Create single-image Brain_Data for R-squared
+        self.glm_r2 = self[0].copy()
+        self.glm_r2.data = r2_values.reshape(1, -1)
+
+    def compute_contrasts(self, contrasts, contrast_type="t"):
+        """Compute contrasts from fitted GLM results.
+
+        This method computes contrasts as linear combinations of the GLM beta coefficients.
+        Must be called after .regress() has been run.
+
+        Args:
+            contrasts: Can be:
+                - str: A string specifying the contrast using column names
+                  e.g., "conditionA - conditionB" or "2*conditionA - conditionB - conditionC"
+                - dict: Dictionary with contrast names as keys and contrast strings/vectors as values
+                  e.g., {"main_effect": "conditionA - conditionB", "interaction": [1, -1, -1, 1]}
+                - array: Numeric contrast vector matching the number of regressors
+                  e.g., [1, -1, 0, 0] for a 4-regressor model
+            contrast_type (str): Type of contrast statistic ('t' or 'F'). Default: 't'
 
         Returns:
-            ResultsContainer: with keys for each convolved column of `.X` and values as `Brain_Data` objects of the GLM statistics
+            Brain_Data or dict: If single contrast, returns Brain_Data object with contrast map.
+                               If multiple contrasts (dict input), returns dict of Brain_Data objects.
+
+        Examples:
+            >>> # After running regression
+            >>> brain.regress(design_matrix)
+            >>> # Simple contrast
+            >>> contrast1 = brain.compute_contrasts("conditionA - conditionB")
+            >>> # Multiple contrasts
+            >>> contrasts = {
+            ...     "A_vs_B": "conditionA - conditionB",
+            ...     "main_effect": [1, -1, 0, 0]
+            ... }
+            >>> results = brain.compute_contrasts(contrasts)
         """
-        pass
+        # Check that regression has been run
+        if not hasattr(self, 'glm_betas'):
+            raise RuntimeError("Must run .regress() before computing contrasts")
+
+        # Import here to avoid circular imports
+        from nilearn.glm.contrasts import compute_contrast
+
+        # Parse contrasts
+        if isinstance(contrasts, str):
+            # Single string contrast
+            contrast_dict = {"contrast": contrasts}
+            single_contrast = True
+        elif isinstance(contrasts, (list, np.ndarray)):
+            # Single numeric contrast
+            contrast_dict = {"contrast": contrasts}
+            single_contrast = True
+        elif isinstance(contrasts, dict):
+            # Multiple contrasts
+            contrast_dict = contrasts
+            single_contrast = False
+        else:
+            raise TypeError("contrasts must be str, array, or dict")
+
+        # Process each contrast
+        results = {}
+        for name, contrast_def in contrast_dict.items():
+            # Parse string contrasts to create contrast vector
+            if isinstance(contrast_def, str):
+                # Parse string like "conditionA - conditionB"
+                contrast_vector = self._parse_contrast_string(contrast_def)
+            else:
+                # Use numeric contrast directly
+                contrast_vector = np.array(contrast_def)
+
+            # Validate contrast vector length
+            if len(contrast_vector) != self.glm_betas.shape()[0]:
+                raise ValueError(f"Contrast vector length ({len(contrast_vector)}) must match "
+                                f"number of regressors ({self.glm_betas.shape()[0]})")
+
+            # Compute contrast by linear combination of betas
+            contrast_data = np.zeros((1, self.glm_betas.shape()[1]))
+            for i, weight in enumerate(contrast_vector):
+                if weight != 0:
+                    contrast_data += weight * self.glm_betas[i].data
+
+            # Create Brain_Data object for contrast
+            contrast_brain = self[0].copy()
+            contrast_brain.data = contrast_data
+
+            # Store result
+            results[name] = contrast_brain
+
+        # Return single contrast or dict of contrasts
+        if single_contrast:
+            return results["contrast"]
+        else:
+            return results
+
+    def _parse_contrast_string(self, contrast_str):
+        """Parse a contrast string into a numeric contrast vector.
+
+        Args:
+            contrast_str (str): Contrast string like "A - B" or "2*A - B - C"
+
+        Returns:
+            np.array: Numeric contrast vector
+        """
+        if not hasattr(self, 'design_matrix'):
+            raise RuntimeError("No design matrix found. Run .regress() first.")
+
+        # Get column names from design matrix
+        if isinstance(self.design_matrix, pd.DataFrame):
+            col_names = list(self.design_matrix.columns)
+        else:
+            col_names = list(self.design_matrix.columns)
+
+        # Initialize contrast vector
+        contrast_vector = np.zeros(len(col_names))
+
+        # Parse the string
+        # Split by + and - (keeping the operators)
+        import re
+        tokens = re.split(r'(\+|\-)', contrast_str)
+        tokens = [t.strip() for t in tokens if t.strip()]
+
+        # Process tokens
+        sign = 1  # Start with positive
+        for token in tokens:
+            if token == '+':
+                sign = 1
+            elif token == '-':
+                sign = -1
+            else:
+                # Parse coefficient and variable
+                if '*' in token:
+                    coef_str, var_name = token.split('*')
+                    coef = float(coef_str.strip())
+                    var_name = var_name.strip()
+                else:
+                    coef = 1
+                    var_name = token
+
+                # Find column index
+                if var_name in col_names:
+                    idx = col_names.index(var_name)
+                    contrast_vector[idx] = sign * coef
+                else:
+                    raise ValueError(f"Column '{var_name}' not found in design matrix")
+
+        return contrast_vector
 
     def append(self, data, **kwargs):
         """Append data to Brain_Data instance.
@@ -803,75 +1042,135 @@ class Brain_Data(object):
 
     # TODO: replace with nilearn or speed-up?
     def extract_roi(self, mask, metric="mean", n_components=None):
-        """Extract activity from mask
+        """Extract activity from mask or ROI atlas using NiftiLabelsMasker.
+
+        This method now uses nilearn's NiftiLabelsMasker for efficient ROI extraction
+        when dealing with labeled atlases (multiple ROIs).
 
         Args:
-            mask: (nifti) nibabel mask can be binary or numbered for
-                  different rois
-            metric: type of extraction method ['mean', 'median', 'pca'], (default=mean)
-                    NOTE: Only mean currently works!
-            n_components: if metric='pca', number of components to return (takes any input into sklearn.Decomposition.PCA)
+            mask: Brain_Data, nibabel image, or file path. Can be:
+                  - Binary mask (extracts from single ROI)
+                  - Labeled atlas (extracts from multiple ROIs)
+            metric: Extraction method ('mean', 'median', 'pca'). Default: 'mean'
+                    Note: 'median' and 'pca' require additional computation after extraction
+            n_components: If metric='pca', number of components to return
 
         Returns:
-            out: mean within each ROI across images
+            For binary mask:
+                - Single image: scalar value
+                - Multiple images: 1D array of values
+            For labeled atlas:
+                - Single image: 1D array (one value per ROI)
+                - Multiple images: 2D array (images × ROIs)
+                - If metric='pca': returns components array
 
+        Examples:
+            >>> # Extract mean from binary mask
+            >>> roi_values = brain.extract_roi(binary_mask)
+            >>> # Extract from atlas
+            >>> atlas_values = brain.extract_roi(atlas_mask)
+            >>> # PCA extraction
+            >>> components = brain.extract_roi(mask, metric='pca', n_components=5)
         """
+        from nilearn.maskers import NiftiLabelsMasker
 
         metrics = ["mean", "median", "pca"]
-
-        mask = check_brain_data(mask)
-        ma = mask.copy()
-
         if metric not in metrics:
-            raise NotImplementedError
+            raise ValueError(f"metric must be one of {metrics}, got {metric}")
 
-        if len(np.unique(ma.data)) == 2:
-            masked = self.apply_mask(ma)
-            if check_brain_data_is_single(masked):
-                if metric == "mean":
-                    out = masked.mean()
-                elif metric == "median":
-                    out = masked.median()
-                else:
-                    raise ValueError("Not possible to run PCA on a single image")
-            else:
-                if metric == "mean":
-                    out = masked.mean(axis=1)
-                elif metric == "median":
-                    out = masked.median(axis=1)
-                else:
+        # Convert mask to Brain_Data if needed
+        mask_brain = check_brain_data(mask)
+        mask_img = mask_brain.to_nifti()
+
+        # Check if binary or labeled mask
+        unique_values = np.unique(mask_brain.data)
+        n_unique = len(unique_values)
+
+        if n_unique == 2:
+            # Binary mask - use simple extraction
+            masked = self.apply_mask(mask_brain)
+            is_single = check_brain_data_is_single(masked)
+
+            if metric == "mean":
+                out = masked.mean() if is_single else masked.mean(axis=1)
+            elif metric == "median":
+                out = masked.median() if is_single else masked.median(axis=1)
+            elif metric == "pca":
+                if is_single:
+                    raise ValueError("Cannot run PCA on a single image")
+                output = masked.decompose(
+                    algorithm="pca", n_components=n_components, axis="images"
+                )
+                out = output["weights"].T
+
+        elif n_unique > 2:
+            # Labeled atlas - use NiftiLabelsMasker for efficiency
+            # Round values to ensure integer labels
+            mask_brain.data = np.round(mask_brain.data).astype(int)
+            mask_img = mask_brain.to_nifti()
+
+            # Create masker based on metric
+            if metric in ["mean", "median"]:
+                # For mean/median, use NiftiLabelsMasker
+                strategy = "mean" if metric == "mean" else "median"
+                labels_masker = NiftiLabelsMasker(
+                    labels_img=mask_img,
+                    strategy=strategy,
+                    mask_img=self.mask,
+                    standardize=False,
+                    resampling_target="data" if hasattr(self, 'mask') else None
+                )
+
+                # Transform data
+                data_4d = self.to_nifti()
+                out = labels_masker.fit_transform(data_4d)
+
+                # If single image, return 1D array
+                if out.shape[0] == 1:
+                    out = out[0]
+
+            elif metric == "pca":
+                # For PCA, we need to extract raw data and then apply PCA
+                if check_brain_data_is_single(self):
+                    raise ValueError("Cannot run PCA on a single image")
+
+                # Use mean strategy to get the regions, then extract raw data
+                labels_masker = NiftiLabelsMasker(
+                    labels_img=mask_img,
+                    strategy="mean",  # Just to get regions
+                    mask_img=self.mask,
+                    standardize=False,
+                    resampling_target="data" if hasattr(self, 'mask') else None
+                )
+
+                # Fit to get regions
+                labels_masker.fit(self.to_nifti())
+
+                # Extract data for each region and apply PCA
+                out = []
+                unique_labels = np.unique(mask_brain.data[mask_brain.data != 0])
+
+                for label in unique_labels:
+                    # Create binary mask for this label
+                    label_mask = mask_brain.copy()
+                    label_mask.data = (mask_brain.data == label).astype(float)
+
+                    # Extract data for this ROI
+                    masked = self.apply_mask(label_mask)
+
+                    # Apply PCA
                     output = masked.decompose(
                         algorithm="pca", n_components=n_components, axis="images"
                     )
-                    out = output["weights"].T
-        elif len(np.unique(ma.data)) > 2:
-            # make sure each ROI id is an integer
-            ma.data = np.round(ma.data).astype(int)
-            all_mask = expand_mask(ma)
-            if check_brain_data_is_single(self):
-                if metric == "mean":
-                    out = np.array([self.apply_mask(m).mean() for m in all_mask])
-                elif metric == "median":
-                    out = np.array([self.apply_mask(m).median() for m in all_mask])
-                else:
-                    raise ValueError("Not possible to run PCA on a single image")
-            else:
-                if metric == "mean":
-                    out = np.array([self.apply_mask(m).mean(axis=1) for m in all_mask])
-                elif metric == "median":
-                    out = np.array(
-                        [self.apply_mask(m).median(axis=1) for m in all_mask]
-                    )
-                else:
-                    out = []
-                    for m in all_mask:
-                        masked = self.apply_mask(m)
-                        output = masked.decompose(
-                            algorithm="pca", n_components=n_components, axis="images"
-                        )
-                        out.append(output["weights"].T)
+                    out.append(output["weights"].T)
+
+                # Stack results
+                if len(out) > 0:
+                    out = np.array(out) if n_components == 1 else out
+
         else:
-            raise ValueError("Mask must be binary or integers")
+            raise ValueError("Mask must be binary (2 unique values) or labeled atlas (>2 unique values)")
+
         return out
 
     # TODO: replace with nilearn or speed-up?
@@ -1518,3 +1817,28 @@ class Brain_Data(object):
             interpolate = pchip(orig_spacing, self.data[:, i])
             out.data[:, i] = interpolate(new_spacing)
         return out
+
+    # Deprecated methods - will be moved to Model class in future release
+    def predict(self, *args, **kwargs):
+        """DEPRECATED: This method has been moved to the Model class."""
+        raise NotImplementedError(
+            "predict() has been deprecated. Please use the new Model class for prediction functionality."
+        )
+
+    def predict_multi(self, *args, **kwargs):
+        """DEPRECATED: This method has been moved to the Model class."""
+        raise NotImplementedError(
+            "predict_multi() has been deprecated. Please use the new Model class for searchlight/multi-ROI prediction."
+        )
+
+    def randomise(self, *args, **kwargs):
+        """DEPRECATED: This method has been moved to the Model class."""
+        raise NotImplementedError(
+            "randomise() has been deprecated. Please use the new Model class for permutation-based inference."
+        )
+
+    def ttest(self, *args, **kwargs):
+        """DEPRECATED: This method has been moved to the Model class."""
+        raise NotImplementedError(
+            "ttest() has been deprecated. Please use the new Model class for statistical testing."
+        )

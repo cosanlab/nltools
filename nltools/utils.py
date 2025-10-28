@@ -48,9 +48,18 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
         raise TypeError("obj_type must be one of 'brain_data' or 'adjacency'")
 
     if obj_type == "brain_data":
+        # Note: X and Y attributes removed in v0.6.0
+        # Store empty DataFrames for backward compatibility
         with pd.HDFStore(file_name, "w") as f:
-            f["X"] = obj.X
-            f["Y"] = obj.Y
+            # Check if obj has these deprecated attributes for backward compatibility
+            if hasattr(obj, 'X'):
+                f["X"] = obj.X
+            else:
+                f["X"] = pd.DataFrame()
+            if hasattr(obj, 'Y'):
+                f["Y"] = obj.Y
+            else:
+                f["Y"] = pd.DataFrame()
 
         with h5File(file_name, "a") as f:
             f.create_dataset("data", data=obj.data, compression=h5_compression)

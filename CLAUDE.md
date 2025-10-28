@@ -11,6 +11,11 @@ We are developing `nltools` - a Python library that provides an intuitive way to
   - **Functional core** (all other modules): Pure functions for computations, statistics, and utilities
 - **User-centered design**: Prioritize ease of use and clear APIs over complex optimizations
 - **Leverage existing tools**: Build upon nilearn, scikit-learn, and other established libraries rather than reimplementing functionality
+- **Never reproduce nilearn**: We should NEVER unnecessarily reproduce functionality available in nilearn. Instead, focus on making it more useable and automating common operations
+
+### Version Strategy
+- **Current target**: v0.6.0 - Breaking release with API changes for future stability and maintainability
+- **Compatibility**: This will be a backwards-incompatible release in service of long-term library health
 
 ## Architecture & Codebase Structure
 
@@ -96,17 +101,23 @@ We are developing `nltools` - a Python library that provides an intuitive way to
 
 ### Before Starting Work
 
-1. **Check existing research**:
+1. **ALWAYS check and update research knowledge base**:
 ```bash
 ls claude-research/
-# Review relevant research docs for your task
+# Review ALL relevant research docs for your task
+# If research is insufficient or outdated:
+# - Use sub-agents to gather new research
+# - Have them create/update markdown files in claude-research/
+# - This is your working knowledge base - keep it current!
 ```
 
 2. **Verify nilearn capabilities**:
 ```python
-# Always check if nilearn already has the functionality
+# CRITICAL: Always check if nilearn already has the functionality
+# We NEVER reimplement what nilearn provides
 from nilearn import plotting, maskers, image
 # Check their latest docs: https://nilearn.github.io/stable/
+# If nilearn has it, we wrap it for better usability, not replace it
 ```
 
 3. **Set up environment**:
@@ -200,6 +211,106 @@ def compute_similarity(self, other, metric="correlation"):
 
 ### Testing Strategy
 
+#### Efficient pytest Usage
+
+**Core pytest Options for Development:**
+```bash
+# TARGETED TESTING - Don't run all tests every time!
+uv run pytest path/to/test_file.py::test_name  # Run single test
+uv run pytest -k "test_pattern"                 # Run tests matching pattern
+uv run pytest -m "not slow"                     # Skip slow tests (if marked)
+
+# FAILURE HANDLING
+uv run pytest -x                    # Stop on first failure
+uv run pytest --lf                  # Run only last failed tests
+uv run pytest --ff                  # Run failed tests first, then others
+uv run pytest --tb=short            # Shorter traceback format
+uv run pytest --tb=line             # One-line tracebacks
+uv run pytest --tb=no               # No tracebacks (just pass/fail)
+
+# DEBUGGING
+uv run pytest --pdb                 # Drop into debugger on failure
+uv run pytest --pdbcls=IPython.terminal.debugger:TerminalPdb  # Use IPython debugger
+uv run pytest -s                    # Show print statements
+uv run pytest -vv                   # Very verbose output
+uv run pytest --capture=no          # Disable output capturing
+
+# PARALLEL EXECUTION (requires pytest-xdist)
+uv run pytest -n auto               # Run tests in parallel
+uv run pytest -n 4                  # Use 4 parallel workers
+
+# OUTPUT AND REPORTING
+uv run pytest --co -q               # Collect tests without running (quick check)
+uv run pytest --durations=10        # Show 10 slowest tests
+uv run pytest --junitxml=report.xml # Generate XML report
+uv run pytest --cov=nltools         # Coverage report (requires pytest-cov)
+uv run pytest -v --log-cli-level=DEBUG  # Show debug logs during test
+
+# COMBINING OPTIONS (Most useful patterns)
+uv run pytest -xvs path/to/test.py::specific_test  # Debug single test
+uv run pytest --lf -x                              # Re-run failures, stop on first
+uv run pytest -k "regress" --tb=short              # Run pattern with short traceback
+```
+
+**Inspecting Test Logs:**
+```bash
+# Capture output to file for analysis
+uv run pytest > test_results.txt 2>&1
+uv run pytest --tb=long > detailed_failures.txt 2>&1
+
+# Filter results
+uv run pytest -v | grep -E "PASSED|FAILED"
+uv run pytest --tb=no | grep FAILED
+
+# Generate HTML report (requires pytest-html)
+uv run pytest --html=report.html --self-contained-html
+```
+
+**Test Markers for Organization:**
+```python
+# Mark tests in code
+@pytest.mark.slow
+def test_expensive_operation():
+    pass
+
+@pytest.mark.skip(reason="Not implemented yet")
+def test_future_feature():
+    pass
+
+@pytest.mark.xfail(reason="Known bug #123")
+def test_known_issue():
+    pass
+
+# Run based on markers
+uv run pytest -m "not slow"        # Skip slow tests
+uv run pytest -m "slow"            # Only slow tests
+```
+
+**Fixture Scoping for Performance:**
+```python
+# In conftest.py - use appropriate scope
+@pytest.fixture(scope="session")  # Once per test session
+def expensive_setup():
+    return load_large_dataset()
+
+@pytest.fixture(scope="module")   # Once per test module
+def module_data():
+    return prepare_data()
+```
+
+#### Version 0.5.1 Compatibility Testing
+```bash
+# CRITICAL: Ensure v0.5.1 functionality remains intact
+# Check git history for v0.5.1 release to identify public API
+git checkout v0.5.1  # Review what was released
+git diff v0.5.1..HEAD  # See what changed
+
+# Test coverage priorities:
+# 1. All public methods from v0.5.1 must have tests
+# 2. Common workflows from tutorials must work
+# 3. Only remove tests that duplicate nilearn's coverage
+```
+
 #### Test-Driven Development Workflow
 ```python
 # 1. Write test first (nltools/tests/test_feature.py)
@@ -216,10 +327,29 @@ def test_new_smoothing_method(sim_brain_data):
     assert smoothed.data.std() < data.data.std()  # Smoothing reduces variance
 
 # 2. Run test to see it fail
-uv run pytest -k test_new_smoothing_method -v
+uv run pytest -k test_new_smoothing_method -xvs  # Stop on failure, verbose, show output
 
 # 3. Implement minimal code to pass
 # 4. Refactor while keeping tests green
+```
+
+#### Debugging Test Failures Efficiently
+```bash
+# Step 1: Run single failing test with maximum info
+uv run pytest path/to/test.py::test_name -xvs --tb=long
+
+# Step 2: If unclear, use debugger
+uv run pytest path/to/test.py::test_name --pdb
+
+# Step 3: Check what changed
+git diff HEAD~1 path/to/module.py
+
+# Step 4: Run related tests to find patterns
+uv run pytest -k "similar_test_pattern" -v
+
+# Step 5: After fix, verify no regression
+uv run pytest --lf  # Just the previously failed tests
+uv run pytest path/to/test.py  # Full module
 ```
 
 #### Using Test Fixtures
@@ -247,6 +377,58 @@ def test_large_data_operation():
     # But subsample for speed
     brain_subset = brain[::10]  # Every 10th volume
     result = expensive_operation(brain_subset)
+```
+
+#### nltools-Specific Testing Patterns
+```bash
+# When working on Brain_Data methods
+uv run pytest nltools/tests/test_brain_data_old.py -x  # Stop on first failure
+uv run pytest nltools/tests/test_brain_data_old.py -k "not predict" -x  # Skip prediction tests
+
+# When working on statistical methods
+uv run pytest nltools/tests/test_stats.py -xvs
+
+# Check for test parametrization (tests run with multiple inputs)
+uv run pytest nltools/tests/ --co -q | grep "\["
+
+# Find tests using specific fixtures
+grep -r "sim_brain_data" nltools/tests/
+
+# Quick sanity check after changes
+uv run pytest nltools/tests/test_adjacency.py -x  # Usually fast
+uv run pytest nltools/tests/test_design_matrix.py -x  # Also fast
+
+# When tests hang or are slow
+uv run pytest --timeout=60  # Timeout after 60 seconds (requires pytest-timeout)
+uv run pytest -o log_cli=true --log-cli-level=INFO  # Show logs during execution
+```
+
+#### Common Test Failure Patterns in nltools
+```python
+# 1. Shape mismatches (common with neuroimaging data)
+# Debug: Print shapes before assertion
+print(f"Expected shape: {expected.shape}, Got: {result.shape}")
+assert result.shape == expected.shape
+
+# 2. NiftiMasker compatibility issues
+# Debug: Check mask dimensions
+print(f"Mask shape: {brain.mask.shape}, Data shape: {brain.data.shape}")
+
+# 3. Missing attributes after refactoring
+# Debug: Use hasattr() checks
+if not hasattr(brain, 'glm_betas'):
+    pytest.skip("GLM not run yet")
+
+# 4. File I/O issues with test data
+# Debug: Use tmpdir fixture
+def test_io(tmpdir):
+    filepath = tmpdir.join("test.h5")
+    brain.write(str(filepath))
+    loaded = Brain_Data(str(filepath))
+
+# 5. Floating point comparison issues
+# Use np.allclose() instead of ==
+assert np.allclose(result, expected, rtol=1e-5)
 ```
 
 ## Common Operations Guide
@@ -442,23 +624,47 @@ tracemalloc.stop()
 ## Contributing Guidelines
 
 ### Git Workflow
+
+#### IMPORTANT: Staging Protocol for Review
 ```bash
-# Create feature branch from master
-git checkout -b feature/your-feature
+# We work directly in the uv-cleanup branch
+# Can reference uv-refactor branch for guidance on past changes
+
+# When changes are READY FOR REVIEW:
+git add -A  # Stage ALL changes to signal they're ready
+git status  # Show staged changes
+# Then tell Eshin: "Changes staged and ready for review"
+
+# If changes are NOT ready or you're stuck:
+# DON'T stage anything
+# Tell Eshin: "I'm stuck on X, changes not staged because..."
+
+# NEVER commit without explicit permission
+# Eshin will say something like "go ahead and commit" or "commit these changes"
+```
+
+#### Working in uv-cleanup Branch
+```bash
+# We're always in uv-cleanup
+git status  # Check current state
 
 # Make changes following TDD
 # Write test -> Run test -> Implement -> Refactor
 
-# Commit with clear messages
-git add -p  # Stage selectively
-git commit -m "Add ROI extraction using NiftiLabelsMasker
+# Stage for review (see protocol above)
+git add -p  # Stage selectively for review
+git add -A  # Or stage everything when ready
+git status  # Verify what's staged
 
-- Replace custom implementation with nilearn masker
-- Add tests for multiple atlas types
-- Update docstrings with examples"
+# Only commit when Eshin gives permission
+git commit -m "Clear, descriptive commit message
 
-# Push and create PR
-git push origin feature/your-feature
+- Bullet point changes
+- Reference issues if applicable"
+
+# Reference past work if needed
+git log uv-refactor  # See what was done before
+git diff uv-refactor..HEAD  # Compare branches
 ```
 
 ### PR Guidelines
@@ -468,30 +674,80 @@ git push origin feature/your-feature
 - Note any breaking changes
 - Update documentation if needed
 
-## Current Refactoring Priorities
+## Current Development Priorities (v0.6.0)
 
-Based on `refactor.md`, ongoing work focuses on:
+### Priority 1: Library Refactoring ⚡ ACTIVE
+1. **Get to stable, deployable state**
+   - Ensure all tests pass
+   - Ensure v0.5.1 functionality is tested and working
+   - Fix any critical bugs blocking deployment
+
+2. **Functional-core, imperative-shell refactor**
+   - Clean separation between stateful classes (data/) and pure functions
+   - Reduce coupling between modules
+   - Improve testability of individual components
+
+3. **Replace custom code with nilearn features**
+   - Audit all custom implementations
+   - Identify nilearn equivalents
+   - Replace with nilearn + usability wrapper
+   - Remove redundant tests (those covered by nilearn)
+
+4. **Improve test coverage**
+   - Ensure all v0.5.1 public API is tested
+   - Add tests for common workflows
+   - Prune tests that duplicate nilearn's test coverage
+
+### Priority 2: Documentation Refactoring (After Library Stable)
+- Migrate from sphinx to jupyter-book
+- Port all tutorials ensuring they execute without errors
+- Use tutorials as integration tests for workflows
+
+### Specific Refactoring Tasks (from refactor.md)
 
 1. **Reducing code surface**: Leveraging nilearn instead of custom implementations
 2. **Brain_Data simplification**:
-   - Removing redundant prediction methods
-   - Standardizing attribute names (.design_matrix instead of .X)
-   - Storing GLM results as attributes instead of returning dictionaries
-3. **Improved masker support**: Enabling alternative maskers (ROI, searchlight, etc.)
-4. **Memory efficiency**: Better handling of large datasets
+   - Remove `.predict()`, `.randomise()`, `.ttest()` methods
+   - Remove `.predict_multi()` method
+   - Rename `.X` → `.design_matrix` (only when `.regress()` is called)
+   - Remove `.Y` attribute
+   - Store GLM results as attributes instead of returning dictionaries
+3. **New functionality**:
+   - Add `.compute_contrasts()` method using nilearn's compute_contrasts
+   - Support alternative maskers (LabelsMasker, MapsMasker, SpheresMasker)
+4. **Method refactoring**:
+   - Clean up `__init__()` to accept masker kwarg
+   - Refactor `.apply_mask()` to use nilearn or clean numpy ops
+   - Update `.extract_roi()` to use `NiftiLabelsMasker`
+   - Require Design_Matrix for `.regress()`
 
 ## Quick Command Reference
 
+### Testing Commands (Most Used)
+```bash
+# QUICK TESTING PATTERNS
+uv run pytest --lf -x                        # Re-run last failures, stop on first
+uv run pytest -k "test_regress" -xvs         # Debug specific test pattern
+uv run pytest nltools/tests/test_brain_data_old.py::test_regress  # Single test
+uv run pytest --co -q | wc -l                # Count total tests
+uv run pytest --tb=no | grep FAILED          # List failures only
+uv run pytest --durations=5                   # Find slow tests
+
+# NEUROIMAGING-SPECIFIC TEST PATTERNS
+uv run pytest -k "brain_data" -x             # All Brain_Data tests
+uv run pytest -k "not slow" -x                # Skip slow neuroimaging tests
+uv run pytest -m "not requires_data"          # Skip tests needing large files
+
+# AFTER MAKING CHANGES
+uv run pytest --lf                           # Test your fixes
+uv run pytest nltools/tests/ --tb=line       # Quick pass/fail overview
+```
+
+### Environment & Code Quality
 ```bash
 # Environment setup
 uv sync                           # Install/update dependencies
 uv run python                     # Run Python in environment
-
-# Testing
-uv run pytest                     # Run all tests
-uv run pytest -k test_name        # Run specific test
-uv run pytest -v                  # Verbose output
-uv run pytest --pdb              # Debug on failure
 
 # Code quality
 uv run ruff check                 # Check for issues
@@ -501,10 +757,19 @@ uv run ruff format               # Format code (if configured)
 # Documentation
 uv run jupyter-book build docs/  # Build documentation
 uv run jupyter notebook          # Launch notebook for testing
+```
 
-# Research
+### Research & Debugging
+```bash
+# Find code patterns
 grep -r "pattern" .              # Search codebase
 find . -name "*.py" | xargs grep "function"  # Search Python files
+git grep "method_name"           # Search in git history
+
+# Check what changed
+git diff HEAD~1                  # Recent changes
+git log -p path/to/file.py      # File history with diffs
+git blame path/to/file.py       # Who changed what
 ```
 
 ## Additional Resources
@@ -516,5 +781,6 @@ find . -name "*.py" | xargs grep "function"  # Search Python files
 
 ---
 
-*Last updated: 2024-10-28*
+*Last updated: 2025-10-28*
 *This is a living document - update it as patterns evolve*
+*See priorities.md for current development focus*
