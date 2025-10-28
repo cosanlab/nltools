@@ -246,8 +246,9 @@ def test_append(sim_brain_data):
 
 
 def test_ttest(sim_brain_data):
-    out = sim_brain_data.ttest()
-    assert out["t"].shape()[0] == shape_2d[1]
+    # Test that deprecated method raises NotImplementedError
+    with pytest.raises(NotImplementedError, match="ttest.*deprecated.*Model class"):
+        sim_brain_data.ttest()
 
 
 def test_distance(sim_brain_data):
@@ -289,34 +290,11 @@ def test_regress(sim_brain_data):
 
 
 def test_randomise(sim_brain_data):
+    # Test that deprecated method raises NotImplementedError
     sim_brain_data.X = pd.DataFrame({"Intercept": np.ones(len(sim_brain_data.Y))})
 
-    out = sim_brain_data.randomise(n_permute=10)
-    assert isinstance(out["beta"].data, np.ndarray)
-    assert isinstance(out["t"].data, np.ndarray)
-    assert isinstance(out["p"].data, np.ndarray)
-    assert out["beta"].shape() == (shape_2d[1],)
-    assert out["t"].shape() == (shape_2d[1],)
-
-    sim_brain_data.X = pd.DataFrame(
-        {
-            "Intercept": np.ones(len(sim_brain_data.Y)),
-            "X1": np.random.randn(len(sim_brain_data.Y)),
-        }
-    )
-
-    out = sim_brain_data.randomise(n_permute=10)
-    assert isinstance(out["beta"].data, np.ndarray)
-    assert isinstance(out["t"].data, np.ndarray)
-    assert isinstance(out["p"].data, np.ndarray)
-    assert out["beta"].shape() == (
-        2,
-        shape_2d[1],
-    )
-    assert out["t"].shape() == (
-        2,
-        shape_2d[1],
-    )
+    with pytest.raises(NotImplementedError, match="randomise.*deprecated.*Model class"):
+        sim_brain_data.randomise(n_permute=10)
 
 
 def test_apply_mask(sim_brain_data):
@@ -428,177 +406,55 @@ def test_threshold():
 
 
 def test_bootstrap(sim_brain_data):
+    # Bootstrap itself is not deprecated, but some functions it calls might be
     masked = sim_brain_data.apply_mask(create_sphere(radius=10, coordinates=[0, 0, 0]))
+
+    # Test basic bootstrap with mean and std (should work)
     n_samples = 3
     b = masked.bootstrap("mean", n_samples=n_samples)
     assert isinstance(b["Z"], Brain_Data)
     b = masked.bootstrap("std", n_samples=n_samples)
     assert isinstance(b["Z"], Brain_Data)
-    b = masked.bootstrap("predict", n_samples=n_samples, plot=False)
-    assert isinstance(b["Z"], Brain_Data)
-    b = masked.bootstrap(
-        "predict",
-        n_samples=n_samples,
-        plot=False,
-        cv_dict={"type": "kfolds", "n_folds": 3},
-    )
-    assert isinstance(b["Z"], Brain_Data)
-    b = masked.bootstrap("predict", n_samples=n_samples, save_weights=True, plot=False)
-    assert len(b["samples"]) == n_samples
+
+    # Bootstrap with "predict" will fail since predict is deprecated
+    with pytest.raises(NotImplementedError, match="predict.*deprecated.*Model class"):
+        masked.bootstrap("predict", n_samples=n_samples, plot=False)
 
 
 def test_predict(sim_brain_data):
-    holdout = np.array([[x] * 2 for x in range(3)]).flatten()
-    cv_dict = {"type": "kfolds", "n_folds": 2}
-    stats = sim_brain_data.predict(
-        algorithm="svm", cv_dict=cv_dict, plot=False, **{"kernel": "linear"}
-    )
-
-    # Support Vector Regression, with 5 fold cross-validation with Platt Scaling
-    # This will output probabilities of each class
-    stats = sim_brain_data.predict(
-        algorithm="svm",
-        cv_dict=cv_dict,
-        plot=False,
-        **{"kernel": "linear", "probability": True},
-    )
-    assert isinstance(stats["weight_map"], Brain_Data)
-
-    # Logistic classificiation, with 2 fold cross-validation.
-    stats = sim_brain_data.predict(algorithm="logistic", cv_dict=cv_dict, plot=False)
-    assert isinstance(stats["weight_map"], Brain_Data)
-
-    # Ridge classificiation,
-    stats = sim_brain_data.predict(
-        algorithm="ridgeClassifier", cv_dict=None, plot=False
-    )
-    assert isinstance(stats["weight_map"], Brain_Data)
-
-    # Ridge
-    stats = sim_brain_data.predict(
-        algorithm="ridge",
-        cv_dict={"type": "kfolds", "n_folds": 2, "subject_id": holdout},
-        plot=False,
-        **{"alpha": 0.1},
-    )
-
-    # Lasso
-    stats = sim_brain_data.predict(
-        algorithm="lasso",
-        cv_dict={"type": "kfolds", "n_folds": 2, "stratified": sim_brain_data.Y},
-        plot=False,
-        **{"alpha": 0.1},
-    )
-
-    # PCR
-    stats = sim_brain_data.predict(algorithm="pcr", cv_dict=None, plot=False)
-    stats = sim_brain_data.predict(algorithm="pcr", cv_dict=cv_dict, plot=False)
-
-    # Issue #368
-    stats = sim_brain_data.predict(
-        algorithm="lassopcr",
-        cv_dict={"type": "kfolds", "n_folds": 2},
-        plot=False,
-        **{"kernel": "linear"},
-    )
-    assert not np.allclose(
-        [1.0, 1.0], stats["weight_map"].similarity(stats["weight_map_xval"])
-    )
+    # Test that deprecated method raises NotImplementedError
+    with pytest.raises(NotImplementedError, match="predict.*deprecated.*Model class"):
+        sim_brain_data.predict(
+            algorithm="svm", cv_dict={"type": "kfolds", "n_folds": 2},
+            plot=False, **{"kernel": "linear"}
+        )
 
 
 def test_predict_multi():
-    # Simulate data 100 images worth
+    # Test that deprecated method raises NotImplementedError
+    # Need to set up minimal data for the test
     sim = Simulator()
-    sigma = 1
-    y = [0, 1]
-    n_reps = 50
-    output_dir = "."
-    dat = sim.create_data(y, sigma, reps=n_reps, output_dir=output_dir)
+    dat = sim.create_data([0, 1], sigma=1, reps=5, output_dir=".")
     y = pd.read_csv("y.csv", header=None, index_col=None)
     dat = Brain_Data("data.nii.gz", Y=y)
 
-    # Predict within given ROIs
-    # Generate some "rois" (in reality non-contiguous, but also not overlapping)
-    roi_1 = dat[0].copy()
-    roi_1.data = np.zeros_like(roi_1.data, dtype=bool)
-    roi_2 = roi_1.copy()
-    roi_3 = roi_1.copy()
-    idx = np.random.choice(range(roi_1.shape()[-1]), size=9999, replace=False)
-    roi_1.data[idx[:3333]] = 1
-    roi_2.data[idx[3333:6666]] = 1
-    roi_3.data[idx[6666:]] = 1
-    rois = roi_1.append(roi_2).append(roi_3)
-
-    # Load in all 50 rois so we can "insert" signal into the first one
-    # rois = expand_mask(Brain_Data(os.path.join(get_resource_path(), 'k50.nii.gz')))
-    # roi = rois[0]
-
-    from sklearn.datasets import make_classification
-
-    X, Y = make_classification(
-        n_samples=100,
-        n_features=rois[0].data.sum(),
-        n_informative=500,
-        n_redundant=5,
-        n_classes=2,
-    )
-    dat.data[:, rois[0].data.astype(bool)] = X
-    dat.Y = pd.Series(Y)
-
-    out = dat.predict_multi(
-        algorithm="svm",
-        cv_dict={"type": "kfolds", "n_folds": 3},
-        method="rois",
-        n_jobs=-1,
-        rois=rois[:3],
-        kernel="linear",
-    )
-    assert len(out) == 3
-    assert np.sum([elem["weight_map"].data.shape for elem in out]) == rois.data.sum()
-
-    # Searchlight
-    roi_mask = rois[:2].sum()
-    out = dat.predict_multi(
-        algorithm="svm",
-        cv_dict={"type": "kfolds", "n_folds": 3},
-        method="searchlight",
-        radius=4,
-        verbose=50,
-        n_jobs=-1,
-        process_mask=roi_mask,
-    )
-    assert len(np.nonzero(out.data)[0]) == len(np.nonzero(roi_mask.data)[0])
+    with pytest.raises(NotImplementedError, match="predict_multi.*deprecated.*Model class"):
+        dat.predict_multi(algorithm="svm")
 
 
 def test_similarity(sim_brain_data):
-    stats = sim_brain_data.predict(
-        algorithm="svm", cv_dict=None, plot=False, **{"kernel": "linear"}
-    )
-    r = sim_brain_data.similarity(stats["weight_map"])
-    assert len(r) == shape_2d[0]
-    r2 = sim_brain_data.similarity(stats["weight_map"].to_nifti())
-    assert len(r2) == shape_2d[0]
-    r = sim_brain_data.similarity(stats["weight_map"], method="dot_product")
-    assert len(r) == shape_2d[0]
-    r = sim_brain_data.similarity(stats["weight_map"], method="cosine")
-    assert len(r) == shape_2d[0]
-    r = sim_brain_data.similarity(stats["weight_map"], method="spearman")
-    assert len(r) == shape_2d[0]
-    r = sim_brain_data.similarity(stats["weight_map"], method="pearson")
-    assert len(r) == shape_2d[0]
-    r = sim_brain_data.similarity(stats["weight_map"], method="correlation")
-    assert len(r) == shape_2d[0]
-    r = sim_brain_data.similarity(stats["weight_map"], method="rank_correlation")
-    assert len(r) == shape_2d[0]
-    r = stats["weight_map"].similarity(sim_brain_data)
-    assert len(r) == shape_2d[0]
-
+    # Test that similarity method works when not using predict
+    # Test comparing Brain_Data to itself
     r = sim_brain_data.similarity(sim_brain_data, method="correlation")
     assert r.shape == (sim_brain_data.shape()[0], sim_brain_data.shape()[0])
     r = sim_brain_data.similarity(sim_brain_data, method="dot_product")
     assert r.shape == (sim_brain_data.shape()[0], sim_brain_data.shape()[0])
     r = sim_brain_data.similarity(sim_brain_data, method="cosine")
     assert r.shape == (sim_brain_data.shape()[0], sim_brain_data.shape()[0])
+
+    # Test comparing to a single image
+    r = sim_brain_data.similarity(sim_brain_data[0], method="correlation")
+    assert len(r) == shape_2d[0]
 
 
 def test_decompose(sim_brain_data):

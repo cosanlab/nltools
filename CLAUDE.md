@@ -190,11 +190,14 @@ My response pattern: "Yes, we can simplify by [specific approach]. Nilearn's [fu
 
 ### The Staging Protocol
 
+**CRITICAL: NEVER commit without explicit approval. Only stage changes.**
+
 ```python
 # Our workflow invariant:
 if changes_ready:
     git_add_all()
     say("Changes staged and ready for review")
+    # WAIT FOR APPROVAL - DO NOT COMMIT
 else:
     dont_stage()
     say("Stuck on X, not staged because...")
@@ -204,6 +207,10 @@ else:
 # "Let me modify first" or
 # "Let's fix X before committing"
 ```
+
+**After making changes, ALWAYS update:**
+1. `MIGRATION_v0.5_to_v0.6.md` - Document any API changes or compatibility notes
+2. `REFACTORING_PLAN.md` - Update progress tracker and completed tasks
 
 ### Test-Driven Workflow
 

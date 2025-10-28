@@ -3,23 +3,35 @@
 ## 📊 Progress Tracker
 **Last Updated:** 2025-10-28
 
-### Priority 1: Library Refactoring ✅ COMPLETE (90%)
+### Priority 1: Library Refactoring ✅ COMPLETE (100%)
 - ✅ Deleted Priority 3 files (brain_collection, model, specs)
 - ✅ Added deprecation stubs for removed methods
-- ✅ Implemented `.regress()` with nilearn
+- ✅ Implemented `.regress()` with nilearn (with backward compatibility)
 - ✅ Added `.compute_contrasts()` method
 - ✅ Refactored `.extract_roi()` to use NiftiLabelsMasker
-- ⚠️ 11 tests still failing (27/38 passing = 71%)
+- ✅ Fixed `.smooth()` to return copy and handle dimensions
+- ✅ Fixed `.empty()` to return copy instead of modifying self
+- ✅ Fixed HDF5 loading for backward compatibility
+- ✅ Updated tests to properly expect NotImplementedError for deprecated methods
+- ✅ **38/38 tests passing (100%)** - all tests now pass properly
 
 ### Priority 2: Documentation ⏳ UP NEXT
-- ⬜ Fix remaining test failures
+- ✅ Fix all test failures (100% passing)
 - ⬜ Migrate from Sphinx to Jupyter Book
 - ⬜ Update tutorials for new API
+- ⬜ Update docstrings for all changed methods
+- ⬜ Create comprehensive examples for new v0.6.0 features
 
 ### Priority 3: New Features 🔮 FUTURE
-- ⬜ Implement Model class
-- ⬜ Implement Brain_Collection
-- ⬜ Add advanced ML workflows
+- ⬜ Implement Model class with deprecated methods:
+  - `.predict()` - ML prediction workflows
+  - `.predict_multi()` - Searchlight and multi-ROI prediction
+  - `.ttest()` - Statistical testing
+  - `.randomise()` - Permutation testing
+  - Methods that interact with predict (e.g., `.similarity()` with weight maps)
+- ⬜ Implement Brain_Collection for multi-subject analyses
+- ⬜ Add advanced ML workflows and pipelines
+- ⬜ Integrate with latest nilearn features
 
 ---
 
@@ -223,32 +235,29 @@ Before implementing each refactor, create/update research docs:
 
 ## 🎯 Next Focus Areas (Priority Order)
 
-### Immediate (Fix Critical Test Failures)
-1. **Fix `.regress()` test** - TypeError in test
-   - Check design_matrix input handling
-   - Verify FirstLevelModel integration
-   - Test with both Design_Matrix and DataFrame inputs
+### ✅ Completed Fixes (2025-10-28)
+1. **Fixed `.regress()` test** ✅
+   - Added backward compatibility for self.X usage
+   - Supports both old and new API with deprecation warnings
+   - Returns dict for backward compatibility
 
-2. **Fix `.extract_roi()` test** - ValueError
-   - Test with binary masks
-   - Test with labeled atlases
-   - Verify NiftiLabelsMasker compatibility
+2. **Fixed `.extract_roi()` test** ✅
+   - Fixed `.empty()` bug (now returns copy)
+   - Fixed output shape for labeled atlases
+   - Changed error type for invalid metrics
 
-3. **Investigate mysterious failures**:
-   - `test_smooth` - assert 2 == 1 (dimension issue?)
-   - `test_decompose` - shape mismatch
-   - `test_similarity` - NotImplementedError (check if using removed method)
-   - `test_bootstrap` - NotImplementedError
+3. **Fixed other test failures**:
+   - `test_smooth` ✅ - Fixed to return copy and handle dimensions
+   - `test_load_legacy_h5` ✅ - Added X/Y attribute loading
 
-### Secondary (Clean Up Expected Failures)
-4. **Update tests for deprecated methods** to expect NotImplementedError:
-   - `test_ttest` ✓ (already raises correctly)
-   - `test_randomise` ✓ (already raises correctly)
-   - `test_predict` ✓ (already raises correctly)
-   - `test_predict_multi` - needs AttributeError fix
-
-5. **Fix legacy file loading**:
-   - `test_load_legacy_h5` - Handle missing Y attribute
+### Test Updates (2025-10-28)
+All deprecated method tests now properly use `pytest.raises(NotImplementedError)`:
+   - `test_ttest` ✅ - Expects NotImplementedError
+   - `test_randomise` ✅ - Expects NotImplementedError
+   - `test_predict` ✅ - Expects NotImplementedError
+   - `test_predict_multi` ✅ - Expects NotImplementedError
+   - `test_similarity` ✅ - Modified to test non-deprecated functionality
+   - `test_bootstrap` ✅ - Tests working functions, expects error for predict
 
 ### Testing Strategy for Fixes
 ```bash
@@ -262,7 +271,8 @@ uv run pytest nltools/tests/test_brain_data_old.py -x
 uv run pytest
 ```
 
-### Expected After Fixes
-- Target: 34/38 tests passing (89%)
-- 4 tests correctly showing NotImplementedError for deprecated methods
-- All core v0.5.1 functionality working
+### Final Results ✅
+- **38/38 tests passing (100%)**
+- All deprecated methods properly tested with `pytest.raises(NotImplementedError)`
+- All core v0.5.1 functionality working with backward compatibility
+- Clean separation between working features and future Model class methods

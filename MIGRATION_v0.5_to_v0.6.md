@@ -61,25 +61,25 @@ results = brain_data.predict_multi(method='searchlight')
 
 **New:** Will be available in Model class. Use nilearn's SearchLight directly for now.
 
-### 3. Removed Attributes
-- `.X` - No longer stored on Brain_Data
-- `.Y` - No longer stored on Brain_Data
+### 3. Deprecated Attributes
+- `.X` - Deprecated, still works for backward compatibility but will be removed in v0.7.0
+- `.Y` - Deprecated, still works for backward compatibility but will be removed in v0.7.0
 
-Labels and design matrices should now be managed separately or passed as arguments.
+Labels and design matrices should now be managed separately or passed as arguments. The `.X` attribute is still used internally by `.regress()` for backward compatibility when no design_matrix is provided.
 
 ## Updated Methods
 
 ### `.regress()`
-Now requires a Design_Matrix as input and stores results as attributes instead of returning a dictionary.
+Now stores results as attributes and prefers passing design_matrix directly. Old API still works with deprecation warnings.
 
-**Old:**
+**Old (still works with deprecation warning):**
 ```python
 brain_data.X = design_matrix
-results = brain_data.regress()
-# Returns dict with 'beta', 't', 'p', etc.
+results = brain_data.regress()  # DeprecationWarning: Use regress(design_matrix)
+# Returns dict with 'beta', 't', 'p', 'residual' for backward compatibility
 ```
 
-**New:**
+**New (recommended):**
 ```python
 brain_data.regress(design_matrix)
 # Results stored as attributes:
@@ -90,14 +90,35 @@ brain_data.regress(design_matrix)
 # brain_data.glm_residual
 # brain_data.glm_predicted
 # brain_data.glm_r2
+
+# Note: Currently still returns dict for backward compatibility (deprecated)
 ```
 
+**Note on robust mode:**
+The `mode='robust'` parameter is deprecated and ignored. Robust regression will be reimplemented in the future Model class.
+
 ### `.extract_roi()`
-Now uses nilearn's NiftiLabelsMasker for better performance.
+Now uses nilearn's NiftiLabelsMasker for better performance with labeled atlases.
 
 **Old & New:** Interface remains the same
 ```python
 roi_values = brain_data.extract_roi(atlas_mask)
+```
+
+**Note:** Invalid metrics now raise `NotImplementedError` instead of `ValueError` for consistency with other deprecated methods.
+
+### `.smooth()`
+Now returns a copy instead of modifying the object in-place.
+
+**Old behavior (modified in-place):**
+```python
+brain_data.smooth(5.0)  # Modified brain_data directly
+```
+
+**New behavior (returns copy):**
+```python
+smoothed = brain_data.smooth(5.0)  # Returns new Brain_Data object
+# Original brain_data is unchanged
 ```
 
 ## New Methods
@@ -121,8 +142,9 @@ contrasts = brain_data.compute_contrasts({
 
 ## HDF5 File Compatibility
 - Files saved with v0.5.1 can still be loaded
-- `.X` and `.Y` fields in old files are ignored
-- New saves will store empty DataFrames for backward compatibility
+- `.X` and `.Y` fields in old files are loaded as attributes for backward compatibility
+- Legacy HDF5 format (pre-0.4.8) is still supported with automatic detection
+- New saves will store X and Y for backward compatibility if they exist
 
 ## Code Examples
 
