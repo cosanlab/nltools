@@ -194,6 +194,12 @@ class Brain_Data(object):
         h5_data = load_brain_data_h5(file_path, mask)
         self.data = h5_data["data"]
 
+        # Load X and Y if present (for backward compatibility)
+        if "X" in h5_data:
+            self.X = h5_data["X"]
+        if "Y" in h5_data:
+            self.Y = h5_data["Y"]
+
         # Handle mask if loaded from file
         if h5_data.get("load_mask", False):
             self.mask = h5_data["mask"]
@@ -321,11 +327,11 @@ class Brain_Data(object):
             else:
                 index = np.array(index).flatten()
                 new.data = np.array(self.data[index, :]).squeeze()
-        if not self.Y.empty:
+        if hasattr(self, 'Y') and self.Y is not None and not self.Y.empty:
             new.Y = self.Y.iloc[index]
             if isinstance(new.Y, pd.Series):
                 new.Y.reset_index(inplace=True, drop=True)
-        if not self.X.empty:
+        if hasattr(self, 'X') and self.X is not None and not self.X.empty:
             new.X = self.X.iloc[index]
             if len(new.X) > 1:
                 new.X.reset_index(inplace=True, drop=True)
@@ -548,7 +554,7 @@ class Brain_Data(object):
         return out
 
     # TODO: update
-    def regress(self, design_matrix, noise_model="ols", **kwargs):
+    def regress(self, design_matrix=None, noise_model="ols", mode=None, **kwargs):
         """Runs a mass-univariate GLM analysis using the provided Design_Matrix.
 
         This is a wrapper around nilearn.glm.first_level.FirstLevelModel.
@@ -562,8 +568,14 @@ class Brain_Data(object):
 
         Args:
             design_matrix: Design_Matrix object or pandas DataFrame with regressors
+                          If None, will use self.X (deprecated, for backward compatibility)
             noise_model (str): temporal variance model ('ols' or 'ar1'). Default: 'ols'
+            mode (str): deprecated parameter for backward compatibility ('robust' is ignored)
             **kwargs: additional arguments for nilearn.glm.first_level.FirstLevelModel
+
+        Returns:
+            dict: For backward compatibility, returns dict with 'beta', 't', 'p', 'residual' keys
+                  (deprecated - in future versions will return None)
 
         Sets attributes:
             self.design_matrix: The design matrix used
@@ -576,6 +588,29 @@ class Brain_Data(object):
             self.glm_r2: R-squared values (Brain_Data)
         """
         from .design_matrix import Design_Matrix
+        import warnings
+
+        # Handle backward compatibility - use self.X if no design_matrix provided
+        if design_matrix is None:
+            if hasattr(self, 'X') and self.X is not None:
+                warnings.warn(
+                    "Using self.X as design matrix is deprecated. "
+                    "Pass design_matrix explicitly to regress().",
+                    DeprecationWarning,
+                    stacklevel=2
+                )
+                design_matrix = self.X
+            else:
+                raise TypeError("design_matrix must be provided or set as self.X")
+
+        # Handle deprecated 'mode' parameter
+        if mode == 'robust':
+            warnings.warn(
+                "mode='robust' is deprecated and ignored. "
+                "Robust regression will be implemented in future Model class.",
+                DeprecationWarning,
+                stacklevel=2
+            )
 
         # Validate inputs
         if not isinstance(design_matrix, (Design_Matrix, pd.DataFrame)):
@@ -665,6 +700,21 @@ class Brain_Data(object):
         # Create single-image Brain_Data for R-squared
         self.glm_r2 = self[0].copy()
         self.glm_r2.data = r2_values.reshape(1, -1)
+
+        # Return dictionary for backward compatibility (deprecated)
+        warnings.warn(
+            "Returning a dictionary from regress() is deprecated. "
+            "In future versions, results will only be stored as attributes.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
+        return {
+            'beta': self.glm_betas,
+            't': self.glm_t,
+            'p': self.glm_p,
+            'residual': self.glm_residual
+        }
 
     def compute_contrasts(self, contrasts, contrast_type="t"):
         """Compute contrasts from fitted GLM results.
@@ -837,10 +887,12 @@ class Brain_Data(object):
         return out
 
     def empty(self):
-        """Initalize Brain_Data.data as empty"""
+        """Create a copy of Brain_Data with empty data array"""
+        from copy import deepcopy
 
-        self.data = np.array([])
-        return self
+        out = deepcopy(self)
+        out.data = np.array([])
+        return out
 
     # TODO: convert to property
     def isempty(self):
@@ -1076,7 +1128,7 @@ class Brain_Data(object):
 
         metrics = ["mean", "median", "pca"]
         if metric not in metrics:
-            raise ValueError(f"metric must be one of {metrics}, got {metric}")
+            raise NotImplementedError(f"metric must be one of {metrics}, got {metric}")
 
         # Convert mask to Brain_Data if needed
         mask_brain = check_brain_data(mask)
@@ -1098,6 +1150,9 @@ class Brain_Data(object):
             elif metric == "pca":
                 if is_single:
                     raise ValueError("Cannot run PCA on a single image")
+                # Check if masked has any data
+                if masked.data.size == 0 or masked.data.shape[1] == 0:
+                    raise ValueError("No voxels remain after masking - mask may not overlap with data")
                 output = masked.decompose(
                     algorithm="pca", n_components=n_components, axis="images"
                 )
@@ -1128,6 +1183,9 @@ class Brain_Data(object):
                 # If single image, return 1D array
                 if out.shape[0] == 1:
                     out = out[0]
+                else:
+                    # For multiple images, transpose to (n_labels, n_images)
+                    out = out.T
 
             elif metric == "pca":
                 # For PCA, we need to extract raw data and then apply PCA
@@ -1757,11 +1815,20 @@ class Brain_Data(object):
         Args:
             fwhm: (float) full width half maximum of gaussian spatial filter
         Returns:
-            Brain_Data instance
+            Brain_Data instance (copy with smoothed data)
         """
+        from copy import deepcopy
 
-        self.data = self.nifti_masker.transform(smooth_img(self.to_nifti(), fwhm))
-        return self
+        out = deepcopy(self)
+        smoothed_data = out.nifti_masker.transform(smooth_img(out.to_nifti(), fwhm))
+
+        # Ensure single images remain 1D
+        if check_brain_data_is_single(out):
+            out.data = smoothed_data.flatten()
+        else:
+            out.data = smoothed_data
+
+        return out
 
     # NOTE: stats
     def find_spikes(self, global_spike_cutoff=3, diff_spike_cutoff=3):
