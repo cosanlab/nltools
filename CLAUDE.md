@@ -225,6 +225,54 @@ Our TDD cycle for nltools:
 4. **Verify**: `uv run pytest --lf`
 5. **Check for regressions**: `uv run pytest path/to/module`
 
+### 📝 Efficient Debugging with Logging
+
+**CRITICAL: Always capture verbose output to searchable log files instead of re-running commands repeatedly**
+
+#### For pytest debugging:
+```bash
+# Capture full test output with maximum verbosity
+uv run pytest nltools/tests/ -xvs --tb=long 2>&1 | tee pytest_full.log
+uv run pytest nltools/tests/ --tb=long --capture=no > test_output.log 2>&1
+
+# For specific test investigations
+uv run pytest path/to/test.py::TestClass::test_method -xvs --tb=long 2>&1 | tee specific_test.log
+
+# Then search efficiently instead of re-running:
+grep -n "FAILED\|ERROR" pytest_full.log
+grep -A10 -B5 "AttributeError\|ImportError\|TypeError" test_output.log
+grep -n "test_.*FAILED" pytest_full.log | head -20  # Quick failure summary
+```
+
+#### For Jupyter Book builds:
+```bash
+# Capture all build output and warnings
+jupyter-book build docs/ -v 2>&1 | tee jb_build.log
+jupyter-book build docs/ --builder html -W --keep-going 2>&1 | tee jb_strict.log
+
+# For clean rebuilds
+jupyter-book clean docs/ && jupyter-book build docs/ -v 2>&1 | tee jb_clean_build.log
+
+# Search for specific issues:
+grep -n "WARNING\|ERROR" jb_build.log
+grep -B5 "MyST\|Sphinx" jb_build.log  # Parser/build system errors
+grep "missing\|not found" jb_build.log  # Missing dependencies
+```
+
+#### Why this logging strategy matters:
+- ✅ **Avoids re-running slow commands** - Tests and builds can take minutes
+- ✅ **Preserves full stack traces** - Complete error context for debugging
+- ✅ **Enables pattern analysis** - Search across all failures at once
+- ✅ **Maintains command history** - Compare outputs between runs
+- ✅ **Speeds up iteration** - Grep is instant, re-running is not
+
+#### Best practices:
+1. **Always use `tee`** for real-time viewing + log capture
+2. **Include `2>&1`** to capture both stdout and stderr
+3. **Use descriptive log names** with timestamps if needed
+4. **Keep recent logs** for comparison (e.g., `pytest_before_fix.log`, `pytest_after_fix.log`)
+5. **Use grep context flags** (`-A`, `-B`, `-C`) to see surrounding lines
+
 ### Research Before Implementation
 
 **Always check before coding**:
