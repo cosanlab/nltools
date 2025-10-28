@@ -4,7 +4,7 @@ logo: "" #TODO
 
 
 execute:
-  execute_notebooks: false
+  execute_notebooks: off
 
 # Information about where the book exists on the web
 repository:

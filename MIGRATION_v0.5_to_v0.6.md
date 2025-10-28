@@ -206,6 +206,29 @@ except NotImplementedError as e:
     # Update your code to use alternatives
 ```
 
+## Documentation Status
+
+### Tutorial Updates
+All tutorials have been updated for v0.6.0 with the following approach:
+- Tutorials remain pedagogically complete with explanatory text
+- Code using deprecated methods (`.predict()`, `.ttest()`, etc.) has been commented with TODO markers
+- Documentation builds successfully (`jupyter-book build docs/`) for internal tracking
+- See `docs/TODO_TRACKER.md` for a complete list of tutorials awaiting Priority 3 features
+
+### Working Tutorials
+The following tutorials work fully with v0.6.0:
+- All Brain_Data, Design_Matrix, and Adjacency basic tutorials
+- All data operation tutorials
+- Decomposition, similarity, and hyperalignment analysis tutorials
+
+### Commented Tutorials
+Tutorials with commented code blocks waiting for Model class implementation:
+- Multivariate classification and prediction tutorials (awaiting `.predict()`)
+- Univariate regression and statistical testing tutorials (awaiting `.ttest()`)
+- Brain_Collection tutorial (awaiting class implementation)
+
+These will be uncommented and updated as Priority 3 features are implemented.
+
 ## Questions or Issues?
 Please report any migration issues at: https://github.com/cosanlab/nltools/issues
 
