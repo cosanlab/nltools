@@ -5,6 +5,7 @@
 
 ### Key Milestones
 - **Git Tag `v0.6.0-test-refactor`**: Marks the commit where test code was simplified to properly handle deprecated methods with pytest.raises. Reference this tag to see the original test implementations for predict, ttest, randomise, etc.
+- **Git Tag `v0.6.0-docs-removal`**: Reference point for documentation code removed during v0.6.0 migration. Contains Sphinx config, auto-generated API docs, legacy build scripts, and documentation-specific tests that were removed.
 
 ### Priority 1: Library Refactoring ✅ COMPLETE (100%)
 - ✅ Deleted Priority 3 files (brain_collection, model, specs)

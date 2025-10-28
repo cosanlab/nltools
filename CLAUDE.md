@@ -15,6 +15,7 @@
 
 ### Important Git Tags
 - **`v0.6.0-test-refactor`** (2025-10-28): Marks where we simplified test code to properly test deprecated methods with pytest.raises. Reference this tag if you need to see the test implementations we removed for methods that will move to Model class.
+- **`v0.6.0-docs-removal`** (2025-10-28): Reference point for documentation code removed during v0.6.0 migration. Contains Sphinx config, auto-generated API docs, build scripts, and documentation-specific tests that were removed.
 
 ### What We're Building
 **nltools** is a Python neuroimaging library that makes fMRI analysis more accessible by wrapping lower-level tools (primarily nilearn) with intuitive APIs. Think of it as "the requests library for neuroimaging" - we don't reinvent the wheel, we make the wheel easier to use.
