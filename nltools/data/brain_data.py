@@ -127,7 +127,7 @@ class Brain_Data(object):
         if self.data is not None and 1 in self.data.shape:
             self.data = self.data.squeeze()
 
-    # TODO: update to respect new masker kwarg
+    # TODO: update to respect new masker kwarg Check if complete and delete or update comment accordingly
     def _initialize_mask(self, mask, **kwargs):
         """Initialize the mask and NiftiMasker.
 
@@ -255,15 +255,18 @@ class Brain_Data(object):
         """
         from ._validation import validate_arithmetic_operand, validate_brain_data_shapes
 
-        # TODO: remove copy
-        new = deepcopy(self) if not inplace else self
+        if not inplace:
+            new = self._shallow_copy_with_data()
+        else:
+            new = self
+
         operand_type = validate_arithmetic_operand(other, operation_name)
 
         if operand_type == "scalar":
-            new.data = operation(new.data, other)
+            new.data = operation(self.data, other)
         elif operand_type == "brain_data":
             validate_brain_data_shapes(self, other, operation_name)
-            new.data = operation(new.data, other.data)
+            new.data = operation(self.data, other.data)
         elif operand_type == "array":
             # Only for multiplication
             if len(other) != len(self):
@@ -271,7 +274,7 @@ class Brain_Data(object):
                     f"Vector {operation_name} requires that the length of the vector "
                     f"({len(other)}) match the number of images ({len(self)})"
                 )
-            new.data = np.dot(new.data.T, other).T
+            new.data = np.dot(self.data.T, other).T
 
         return new
 
@@ -296,8 +299,7 @@ class Brain_Data(object):
             return stat_func(self.data, axis=1)
         elif axis == 0:
             # Return Brain_Data with statistic across images
-            # TODO: remove copy
-            out = deepcopy(self)
+            out = self._shallow_copy_with_data()
             out.data = stat_func(self.data, axis=0)
             out.X = pd.DataFrame()
             out.Y = pd.DataFrame()
@@ -305,7 +307,7 @@ class Brain_Data(object):
         else:
             raise ValueError("axis must be 0 or 1")
 
-    # TODO: Handle cases where .get_filename() returns None
+    # TODO: Handle cases where .get_filename() returns None Check if complete and delete or update comment accordingly
     def __repr__(self):
         return "%s.%s(data=%s, Y=%s, X=%s, mask=%s)" % (
             self.__class__.__module__,
@@ -317,8 +319,7 @@ class Brain_Data(object):
         )
 
     def __getitem__(self, index):
-        # TODO: remove copy
-        new = deepcopy(self)
+        new = self._shallow_copy_with_data()
         if isinstance(index, (int, np.integer)):
             new.data = np.array(self.data[index, :]).squeeze()
         else:
@@ -327,11 +328,11 @@ class Brain_Data(object):
             else:
                 index = np.array(index).flatten()
                 new.data = np.array(self.data[index, :]).squeeze()
-        if hasattr(self, 'Y') and self.Y is not None and not self.Y.empty:
+        if hasattr(self, "Y") and self.Y is not None and not self.Y.empty:
             new.Y = self.Y.iloc[index]
             if isinstance(new.Y, pd.Series):
                 new.Y.reset_index(inplace=True, drop=True)
-        if hasattr(self, 'X') and self.X is not None and not self.X.empty:
+        if hasattr(self, "X") and self.X is not None and not self.X.empty:
             new.X = self.X.iloc[index]
             if len(new.X) > 1:
                 new.X.reset_index(inplace=True, drop=True)
@@ -368,16 +369,15 @@ class Brain_Data(object):
     def __rsub__(self, y):
         """Right subtract from Brain_Data."""
         # For right subtraction, we need to reverse the operands
-        # TODO: remove copy
-        new = deepcopy(self)
+        new = self._shallow_copy_with_data()
         from ._validation import validate_arithmetic_operand, validate_brain_data_shapes
 
         operand_type = validate_arithmetic_operand(y, "subtract")
         if operand_type == "scalar":
-            new.data = y - new.data
+            new.data = y - self.data
         elif operand_type == "brain_data":
             validate_brain_data_shapes(self, y, "subtract")
-            new.data = y.data - new.data
+            new.data = y.data - self.data
         return new
 
     def __mul__(self, y):
@@ -547,13 +547,14 @@ class Brain_Data(object):
 
         """
 
-        # TODO: remove copy
-        out = deepcopy(self)
+        out = self._shallow_copy_with_data()
+        # Copy data array and modify in-place
+        out.data = self.data.copy()
         out.data = out.data / out.data.mean() * scale_val
 
         return out
 
-    # TODO: update
+    # TODO: update Check if complete and delete or update comment accordingly
     def regress(self, design_matrix=None, noise_model="ols", mode=None, **kwargs):
         """Runs a mass-univariate GLM analysis using the provided Design_Matrix.
 
@@ -592,24 +593,24 @@ class Brain_Data(object):
 
         # Handle backward compatibility - use self.X if no design_matrix provided
         if design_matrix is None:
-            if hasattr(self, 'X') and self.X is not None:
+            if hasattr(self, "X") and self.X is not None:
                 warnings.warn(
                     "Using self.X as design matrix is deprecated. "
                     "Pass design_matrix explicitly to regress().",
                     DeprecationWarning,
-                    stacklevel=2
+                    stacklevel=2,
                 )
                 design_matrix = self.X
             else:
                 raise TypeError("design_matrix must be provided or set as self.X")
 
         # Handle deprecated 'mode' parameter
-        if mode == 'robust':
+        if mode == "robust":
             warnings.warn(
                 "mode='robust' is deprecated and ignored. "
                 "Robust regression will be implemented in future Model class.",
                 DeprecationWarning,
-                stacklevel=2
+                stacklevel=2,
             )
 
         # Validate inputs
@@ -627,13 +628,13 @@ class Brain_Data(object):
 
         # Set up FirstLevelModel with our defaults
         model_params = {
-            'smoothing_fwhm': None,  # No smoothing
-            'standardize': False,     # No scaling
-            'drift_model': None,      # No drift model
-            'noise_model': noise_model,
-            'mask_img': self.mask,    # Use our mask
-            't_r': None,              # Will be set from data if needed
-            'minimize_memory': False,
+            "smoothing_fwhm": None,  # No smoothing
+            "standardize": False,  # No scaling
+            "drift_model": None,  # No drift model
+            "noise_model": noise_model,
+            "mask_img": self.mask,  # Use our mask
+            "t_r": None,  # Will be set from data if needed
+            "minimize_memory": False,
         }
 
         # Update with any user-provided kwargs
@@ -664,19 +665,20 @@ class Brain_Data(object):
             contrast[i] = 1
 
             # Compute contrast
-            results = glm.compute_contrast(contrast, output_type='all')
+            results = glm.compute_contrast(contrast, output_type="all")
 
             # Store maps
-            beta_maps.append(results['effect_size'])
-            t_maps.append(results['stat'])
-            p_maps.append(results['p_value'])
-            se_maps.append(results['effect_variance'])
+            beta_maps.append(results["effect_size"])
+            t_maps.append(results["stat"])
+            p_maps.append(results["p_value"])
+            se_maps.append(results["effect_variance"])
 
         # Convert results to Brain_Data objects and store as attributes
         self.glm_betas = Brain_Data(beta_maps, mask=self.mask)
         self.glm_t = Brain_Data(t_maps, mask=self.mask)
         self.glm_p = Brain_Data(p_maps, mask=self.mask)
 
+        # TODO: check if we need to transform 'effect_variance' from nilearn or whether this is *already* a standard-error
         # Standard errors are sqrt of variance
         se_data = []
         for se_img in se_maps:
@@ -692,10 +694,13 @@ class Brain_Data(object):
         self.glm_predicted = self.copy()
         self.glm_predicted.data = self.data - self.glm_residual.data
 
+        # TODO: check this might also already be provided by nilearn; or maybe some pre-computations we can use
         # Calculate R-squared
-        ss_total = np.sum((self.data - self.data.mean(axis=0))**2, axis=0)
+        ss_total = np.sum((self.data - self.data.mean(axis=0)) ** 2, axis=0)
         ss_residual = np.sum(self.glm_residual.data**2, axis=0)
-        r2_values = 1 - (ss_residual / (ss_total + 1e-10))  # Add small value to avoid division by zero
+        r2_values = 1 - (
+            ss_residual / (ss_total + 1e-10)
+        )  # Add small value to avoid division by zero
 
         # Create single-image Brain_Data for R-squared
         self.glm_r2 = self[0].copy()
@@ -706,14 +711,14 @@ class Brain_Data(object):
             "Returning a dictionary from regress() is deprecated. "
             "In future versions, results will only be stored as attributes.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
 
         return {
-            'beta': self.glm_betas,
-            't': self.glm_t,
-            'p': self.glm_p,
-            'residual': self.glm_residual
+            "beta": self.glm_betas,
+            "t": self.glm_t,
+            "p": self.glm_p,
+            "residual": self.glm_residual,
         }
 
     def compute_contrasts(self, contrasts, contrast_type="t"):
@@ -749,9 +754,11 @@ class Brain_Data(object):
             >>> results = brain.compute_contrasts(contrasts)
         """
         # Check that regression has been run
-        if not hasattr(self, 'glm_betas'):
+        if not hasattr(self, "glm_betas"):
             raise RuntimeError("Must run .regress() before computing contrasts")
 
+        # TODO: we need to fix this and import it as a different name avoid name conflicts with the method itself.
+        # TODO: it also doesn't look like we're actually using this function. why or why not?
         # Import here to avoid circular imports
         from nilearn.glm.contrasts import compute_contrast
 
@@ -784,8 +791,10 @@ class Brain_Data(object):
 
             # Validate contrast vector length
             if len(contrast_vector) != self.glm_betas.shape()[0]:
-                raise ValueError(f"Contrast vector length ({len(contrast_vector)}) must match "
-                                f"number of regressors ({self.glm_betas.shape()[0]})")
+                raise ValueError(
+                    f"Contrast vector length ({len(contrast_vector)}) must match "
+                    f"number of regressors ({self.glm_betas.shape()[0]})"
+                )
 
             # Compute contrast by linear combination of betas
             contrast_data = np.zeros((1, self.glm_betas.shape()[1]))
@@ -815,7 +824,7 @@ class Brain_Data(object):
         Returns:
             np.array: Numeric contrast vector
         """
-        if not hasattr(self, 'design_matrix'):
+        if not hasattr(self, "design_matrix"):
             raise RuntimeError("No design matrix found. Run .regress() first.")
 
         # Get column names from design matrix
@@ -830,20 +839,21 @@ class Brain_Data(object):
         # Parse the string
         # Split by + and - (keeping the operators)
         import re
-        tokens = re.split(r'(\+|\-)', contrast_str)
+
+        tokens = re.split(r"(\+|\-)", contrast_str)
         tokens = [t.strip() for t in tokens if t.strip()]
 
         # Process tokens
         sign = 1  # Start with positive
         for token in tokens:
-            if token == '+':
+            if token == "+":
                 sign = 1
-            elif token == '-':
+            elif token == "-":
                 sign = -1
             else:
                 # Parse coefficient and variable
-                if '*' in token:
-                    coef_str, var_name = token.split('*')
+                if "*" in token:
+                    coef_str, var_name = token.split("*")
                     coef = float(coef_str.strip())
                     var_name = var_name.strip()
                 else:
@@ -874,14 +884,14 @@ class Brain_Data(object):
         data = check_brain_data(data)
 
         if self.isempty():
-            # TODO: remove copy
-            out = deepcopy(data)
+            # If self is empty, return copy of the data to append
+            out = data._shallow_copy_with_data()
+            out.data = data.data.copy()
         else:
             # Validate shapes are compatible
             validate_append_shapes(self.shape(), data.shape())
 
-            # TODO: remove copy
-            out = deepcopy(self)
+            out = self._shallow_copy_with_data()
             out.data = np.vstack([self.data, data.data])
 
         return out
@@ -1001,7 +1011,7 @@ class Brain_Data(object):
         images = check_brain_data(images)
 
         # Check to make sure masks are the same for each dataset and if not create a union mask
-        # This might be handy code for a new Brain_Data method
+        # TODO: This might be handy code for a new Brain_Data method
         if np.sum(self.nifti_masker.mask_img.get_fdata() == 1) != np.sum(
             images.nifti_masker.mask_img.get_fdata() == 1
         ):
@@ -1046,7 +1056,7 @@ class Brain_Data(object):
             "residual": res,
         }
 
-    # TODO: replace with nilearn or speed-up?
+    # TODO: replace with nilearn or speed-up? Check if complete and delete or update comment accordingly
     def apply_mask(self, mask, resample_mask_to_brain=False):
         """Mask Brain_Data instance
 
@@ -1062,8 +1072,7 @@ class Brain_Data(object):
 
         """
 
-        # TODO: remove copy
-        masked = deepcopy(self)
+        masked = self._shallow_copy_with_data()
         mask = check_brain_data(mask)
         if not check_brain_data_is_single(mask):
             raise ValueError("Mask must be a single image")
@@ -1082,9 +1091,9 @@ class Brain_Data(object):
 
         if n_vox == len(mask):
             if check_brain_data_is_single(masked):
-                masked.data = masked.data[mask.data.astype(bool)]
+                masked.data = self.data[mask.data.astype(bool)]
             else:
-                masked.data = masked.data[:, mask.data.astype(bool)]
+                masked.data = self.data[:, mask.data.astype(bool)]
         else:
             masked.data = nifti_masker.fit_transform(masked.to_nifti())
         masked.nifti_masker = nifti_masker
@@ -1092,7 +1101,7 @@ class Brain_Data(object):
             masked.data = masked.data.flatten()
         return masked
 
-    # TODO: replace with nilearn or speed-up?
+    # TODO: replace with nilearn or speed-up? Check if complete and delete or update comment accordingly
     def extract_roi(self, mask, metric="mean", n_components=None):
         """Extract activity from mask or ROI atlas using NiftiLabelsMasker.
 
@@ -1152,7 +1161,9 @@ class Brain_Data(object):
                     raise ValueError("Cannot run PCA on a single image")
                 # Check if masked has any data
                 if masked.data.size == 0 or masked.data.shape[1] == 0:
-                    raise ValueError("No voxels remain after masking - mask may not overlap with data")
+                    raise ValueError(
+                        "No voxels remain after masking - mask may not overlap with data"
+                    )
                 output = masked.decompose(
                     algorithm="pca", n_components=n_components, axis="images"
                 )
@@ -1173,7 +1184,7 @@ class Brain_Data(object):
                     strategy=strategy,
                     mask_img=self.mask,
                     standardize=False,
-                    resampling_target="data" if hasattr(self, 'mask') else None
+                    resampling_target="data" if hasattr(self, "mask") else None,
                 )
 
                 # Transform data
@@ -1198,7 +1209,7 @@ class Brain_Data(object):
                     strategy="mean",  # Just to get regions
                     mask_img=self.mask,
                     standardize=False,
-                    resampling_target="data" if hasattr(self, 'mask') else None
+                    resampling_target="data" if hasattr(self, "mask") else None,
                 )
 
                 # Fit to get regions
@@ -1227,11 +1238,13 @@ class Brain_Data(object):
                     out = np.array(out) if n_components == 1 else out
 
         else:
-            raise ValueError("Mask must be binary (2 unique values) or labeled atlas (>2 unique values)")
+            raise ValueError(
+                "Mask must be binary (2 unique values) or labeled atlas (>2 unique values)"
+            )
 
         return out
 
-    # TODO: replace with nilearn or speed-up?
+    # TODO: replace with nilearn or speed-up? Check if complete and delete or update comment accordingly
     def icc(self, icc_type="icc2"):
         """Calculate intraclass correlation coefficient for data within
             Brain_Data class
@@ -1310,7 +1323,7 @@ class Brain_Data(object):
 
         return ICC
 
-    # TODO: replace with nilearn or speed-up? currently scipy
+    # TODO: replace with nilearn or speed-up; currently scipy. Check if complete and delete or update comment accordingly
     def detrend(self, method="linear"):
         """Remove linear trend from each voxel
 
@@ -1327,13 +1340,52 @@ class Brain_Data(object):
                 "Make sure there is more than one image in order to detrend."
             )
 
-        # TODO: remove copy
-        out = deepcopy(self)
-        out.data = detrend(out.data, type=method, axis=0)
+        out = self._shallow_copy_with_data()
+        # Copy data and detrend
+        out.data = detrend(self.data.copy(), type=method, axis=0)
         return out
 
+    def _shallow_copy_with_data(self):
+        """Create a shallow copy for efficient method chaining.
+
+        This method creates a new Brain_Data instance that shares immutable objects
+        (mask, nifti_masker) but copies mutable attributes. The data array is NOT
+        copied - methods should handle data copying as needed.
+
+        Returns:
+            Brain_Data: New instance with shared/copied attributes
+        """
+        # Create new instance without calling __init__
+        new = Brain_Data.__new__(Brain_Data)
+
+        # Copy all attributes with appropriate strategy
+        for key, value in self.__dict__.items():
+            if key == 'data':
+                # Don't copy data array - let methods handle this
+                new.data = self.data  # Just reference for now
+            elif key in ['mask', 'nifti_masker', 'masker']:
+                # Share immutable/expensive objects
+                setattr(new, key, value)
+            elif key in ['X', 'Y', 'design_matrix']:
+                # Deep copy DataFrames (they're small and mutable)
+                if value is not None:
+                    if hasattr(value, 'copy'):  # DataFrame has .copy()
+                        setattr(new, key, value.copy())
+                    else:
+                        setattr(new, key, deepcopy(value))
+                else:
+                    setattr(new, key, None)
+            elif key.startswith('glm_'):
+                # GLM results - share for now (they're typically read-only)
+                setattr(new, key, value)
+            else:
+                # Small attributes - deep copy to be safe
+                setattr(new, key, deepcopy(value))
+
+        return new
+
     def copy(self):
-        """Create a copy of a Brain_Data instance."""
+        """Create a deep copy of a Brain_Data instance."""
         return deepcopy(self)
 
     # NOTE: utils
@@ -1430,20 +1482,21 @@ class Brain_Data(object):
         """Apply Fisher's r to z transformation to each element of the data
         object."""
 
-        out = self.copy()
-        out.data = fisher_r_to_z(out.data)
+        out = self._shallow_copy_with_data()
+        # fisher_r_to_z creates a new array
+        out.data = fisher_r_to_z(self.data)
         return out
 
     # NOTE: stats
     def z_to_r(self):
         """Convert z score back into r value for each element of data object"""
 
-        # TODO: remove copy
-        out = self.copy()
-        out.data = fisher_z_to_r(out.data)
+        out = self._shallow_copy_with_data()
+        # fisher_z_to_r creates a new array
+        out.data = fisher_z_to_r(self.data)
         return out
 
-    # TODO: generalize to support other nilearn ops?
+    # TODO: generalize to support other nilearn ops? Check if complete and delete or update comment accordingly
     def filter(self, sampling_freq=None, high_pass=None, low_pass=None, **kwargs):
         """Apply 5th order butterworth filter to data. Wraps nilearn
         functionality. Does not default to detrending and standardizing like
@@ -1497,7 +1550,7 @@ class Brain_Data(object):
         out.data = out.data.astype(dtype)
         return out
 
-    # TODO: switch to nilearn?
+    # TODO: switch to nilearn? Check if complete and delete or update comment accordingly
     def standardize(self, axis=0, method="center"):
         """Standardize Brain_Data() instance.
 
@@ -1524,7 +1577,7 @@ class Brain_Data(object):
         out.data = scale(out.data, axis=axis, with_std=with_std)
         return out
 
-    # TODO: switch to nilearn?
+    # TODO: switch to nilearn? Check if complete and delete or update comment accordingly
     def threshold(self, upper=None, lower=None, binarize=False, coerce_nan=True):
         """Threshold Brain_Data instance. Provide upper and lower values or
            percentages to perform two-sided thresholding. Binarize will return
@@ -1570,7 +1623,7 @@ class Brain_Data(object):
             b.data[b.data != 0] = 1
         return b
 
-    # TODO: refactor with updated nilearn
+    # TODO: refactor with updated nilearn Check if complete and delete or update comment accordingly
     def regions(
         self,
         min_region_size=1350,
@@ -1808,7 +1861,7 @@ class Brain_Data(object):
         return out
 
     # NOTE: nilearn
-    # TODO: generalize with nilearn?
+    # TODO: generalize with nilearn? Check if complete and delete or update comment accordingly
     def smooth(self, fwhm):
         """Apply spatial smoothing using nilearn smooth_img()
 
