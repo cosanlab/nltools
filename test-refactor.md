@@ -103,32 +103,51 @@ uv run pytest nltools/tests/ -v
 
 ---
 
-## Reorganized Test Structure
+## ✅ IMPLEMENTED Test Structure
+
+**Organized into subdirectories following "imperative shell, functional core" pattern:**
 
 ```
 nltools/tests/
-├── conftest.py                    # Shared fixtures
-├── pytest.ini (in pyproject.toml) # Logging config
+├── conftest.py                    # Shared fixtures (updated for data/ paths)
 │
-# IMPERATIVE SHELL - Test class usage, not internals
-├── test_brain_data.py             # NEW: Single TestBrainData class
-├── test_adjacency.py              # REFACTOR: Single TestAdjacency class
-├── test_design_matrix.py          # REFACTOR: Single TestDesignMatrix class
+├── shell/                         # IMPERATIVE SHELL - Test class usage
+│   ├── __init__.py
+│   ├── test_brain_data.py        # TestBrainData class (38 tests)
+│   ├── test_adjacency.py         # TestAdjacency class (30 tests)
+│   ├── test_design_matrix.py     # TestDesignMatrix class (10 tests)
+│   └── test_analysis.py          # ROC/analysis functions (1 test)
 │
-# FUNCTIONAL CORE - Test pure functions/algorithms
-├── test_stats.py                  # Keep simple (already mostly good)
-├── test_utils.py                  # Keep simple
-├── test_algorithms.py             # If needed
-├── test_plotting.py               # If we add plotting function tests
+├── core/                          # FUNCTIONAL CORE - Test pure functions
+│   ├── __init__.py
+│   ├── test_stats.py             # Statistical algorithms (13 tests, 1 skipped)
+│   ├── test_utils.py             # Utility functions (2 tests)
+│   ├── test_mask.py              # Mask operations (2 tests)
+│   ├── test_file_reader.py       # File I/O (1 test)
+│   └── test_cross_validation.py  # CV functions (2 tests)
 │
-# INTEGRATION & SUPPORT
-├── test_datasets.py               # Already well-organized with classes
-├── test_simulator.py              # Keep as-is or single TestSimulator class
-├── test_file_reader.py            # Keep simple
-├── test_mask.py                   # Keep simple
-├── test_prefs.py                  # Keep simple or TestMNITemplate class
-└── test_efficient_copy.py         # Keep (performance tests)
+├── support/                       # INTEGRATION & SUPPORT TESTS
+│   ├── __init__.py
+│   ├── test_datasets.py          # Dataset download/fetch (9 tests)
+│   ├── test_efficient_copy.py    # Performance tests (14 tests)
+│   ├── test_prefs.py             # Preferences/templates (5 tests)
+│   └── test_simulator.py         # Simulator integration (3 tests)
+│
+└── data/                          # TEST DATA FILES
+    ├── __init__.py
+    ├── old_brain.h5              # Legacy HDF5 format
+    ├── new_brain.h5              # Current HDF5 format
+    ├── old_single.h5             # Legacy adjacency (single)
+    ├── new_single.h5             # Current adjacency (single)
+    ├── old_double.h5             # Legacy adjacency (multiple)
+    ├── new_double.h5             # Current adjacency (multiple)
+    ├── data.nii.gz               # Example NIfTI data
+    ├── rep_id.csv                # Test CSV data
+    ├── y.csv                     # Test labels
+    └── matplotlibrc              # Matplotlib config for tests
 ```
+
+**Test Count**: 130 passed, 1 skipped (100% working) ✅
 
 ---
 

@@ -88,36 +88,56 @@ uv run pytest nltools/tests/ -xvs --tb=long 2>&1 | tee pytest_full.log
 
 ### Test Suite Organization
 
-**Test files follow "imperative shell, functional core" pattern:**
+**Test files organized into subdirectories following "imperative shell, functional core" pattern:**
 
-**Imperative Shell (Class-based tests)**:
-```bash
-# test_brain_data.py - 38 tests organized in TestBrainData class
-uv run pytest nltools/tests/test_brain_data.py::TestBrainData::test_regress
-
-# test_adjacency.py - 30 tests organized in TestAdjacency class
-uv run pytest nltools/tests/test_adjacency.py::TestAdjacency::test_similarity
-
-# test_design_matrix.py - 10 tests organized in TestDesignMatrix class
-uv run pytest nltools/tests/test_design_matrix.py::TestDesignMatrix::test_convolve
+**Structure**:
+```
+nltools/tests/
+├── conftest.py           # Shared fixtures
+├── shell/                # Imperative shell (class-based tests)
+│   ├── test_brain_data.py        # 38 tests
+│   ├── test_adjacency.py         # 30 tests
+│   ├── test_design_matrix.py     # 10 tests
+│   └── test_analysis.py          # 1 test
+├── core/                 # Functional core (function-based tests)
+│   ├── test_stats.py             # 13 tests
+│   ├── test_utils.py             # 2 tests
+│   ├── test_mask.py              # 2 tests
+│   ├── test_file_reader.py       # 1 test
+│   └── test_cross_validation.py  # 2 tests
+├── support/              # Integration & support tests
+│   ├── test_datasets.py          # 9 tests
+│   ├── test_efficient_copy.py    # 14 tests
+│   ├── test_prefs.py             # 5 tests
+│   └── test_simulator.py         # 3 tests
+└── data/                 # Test data files (h5, nii.gz, csv)
 ```
 
-**Functional Core (Function-based tests)**:
+**Running tests by directory**:
 ```bash
-# test_stats.py - 13 tests as simple functions (tests pure statistical algorithms)
-uv run pytest nltools/tests/test_stats.py::test_isc
-uv run pytest nltools/tests/test_stats.py::test_permutation
+# Run all imperative shell tests
+uv run pytest nltools/tests/shell/ -v
+
+# Run all functional core tests
+uv run pytest nltools/tests/core/ -v
+
+# Run all support/integration tests
+uv run pytest nltools/tests/support/ -v
+
+# Run specific test class
+uv run pytest nltools/tests/shell/test_brain_data.py::TestBrainData::test_regress
+
+# Run specific test function
+uv run pytest nltools/tests/core/test_stats.py::test_isc
 ```
 
 **Why this organization?**
-- **Class-based**: Tests that validate object usage patterns and method interactions
-- **Function-based**: Tests that validate computational correctness of pure functions
-- **Selective running**: Easy to run specific classes or sections with pytest's `-k` flag
-
-**Sections in each file**:
-- Each test file has logical sections marked with comment headers
-- Sections group related functionality (e.g., I/O, Arithmetic, Statistical Methods)
-- Makes it easy to navigate and understand test coverage
+- **shell/**: Tests object usage patterns and method interactions (class-based)
+- **core/**: Tests computational correctness of pure functions (function-based)
+- **support/**: Integration tests, performance tests, and utilities
+- **data/**: Centralized test data following pytest best practices
+- **Selective running**: Easy to run entire categories or specific tests
+- **Clear separation**: Directory structure matches architectural patterns
 
 ### Git Workflow
 ```bash

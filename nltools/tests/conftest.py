@@ -92,38 +92,50 @@ def sim_adjacency_directed():
 
 @pytest.fixture(scope="module")
 def old_h5_brain(request):
-    test_dir = os.path.dirname(request.module.__file__)
-    return os.path.join(test_dir, "old_brain.h5")
+    # Navigate from test file location to data directory
+    test_file_dir = os.path.dirname(request.module.__file__)
+    tests_dir = os.path.dirname(test_file_dir)
+    return os.path.join(tests_dir, "data", "old_brain.h5")
 
 
 @pytest.fixture(scope="module")
 def new_h5_brain(request):
-    test_dir = os.path.dirname(request.module.__file__)
-    return os.path.join(test_dir, "new_brain.h5")
+    # Navigate from test file location to data directory
+    test_file_dir = os.path.dirname(request.module.__file__)
+    tests_dir = os.path.dirname(test_file_dir)
+    return os.path.join(tests_dir, "data", "new_brain.h5")
 
 
 @pytest.fixture(scope="module")
 def old_h5_adj_single(request):
-    test_dir = os.path.dirname(request.module.__file__)
-    return os.path.join(test_dir, "old_single.h5")
+    # Navigate from test file location to data directory
+    test_file_dir = os.path.dirname(request.module.__file__)
+    tests_dir = os.path.dirname(test_file_dir)
+    return os.path.join(tests_dir, "data", "old_single.h5")
 
 
 @pytest.fixture(scope="module")
 def new_h5_adj_single(request):
-    test_dir = os.path.dirname(request.module.__file__)
-    return os.path.join(test_dir, "new_single.h5")
+    # Navigate from test file location to data directory
+    test_file_dir = os.path.dirname(request.module.__file__)
+    tests_dir = os.path.dirname(test_file_dir)
+    return os.path.join(tests_dir, "data", "new_single.h5")
 
 
 @pytest.fixture(scope="module")
 def old_h5_adj_double(request):
-    test_dir = os.path.dirname(request.module.__file__)
-    return os.path.join(test_dir, "old_double.h5")
+    # Navigate from test file location to data directory
+    test_file_dir = os.path.dirname(request.module.__file__)
+    tests_dir = os.path.dirname(test_file_dir)
+    return os.path.join(tests_dir, "data", "old_double.h5")
 
 
 @pytest.fixture(scope="module")
 def new_h5_adj_double(request):
-    test_dir = os.path.dirname(request.module.__file__)
-    return os.path.join(test_dir, "new_double.h5")
+    # Navigate from test file location to data directory
+    test_file_dir = os.path.dirname(request.module.__file__)
+    tests_dir = os.path.dirname(test_file_dir)
+    return os.path.join(tests_dir, "data", "new_double.h5")
 
 
 @pytest.fixture(scope="module")
