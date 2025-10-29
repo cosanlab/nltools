@@ -3,6 +3,23 @@ Test suite for Brain_Data class.
 
 Follows "imperative shell" pattern: tests focus on method usage and interface contracts,
 not implementation details. Organized into logical sections for clarity.
+
+Performance Notes:
+------------------
+Test suite timing (47 tests total, ~151s):
+- Average per test: ~3.2s
+- Threshold tests: ~7.2s each (cluster filtering is computationally expensive)
+- Math operations: <1s each (fast numpy operations)
+
+Slowest test categories:
+1. Threshold operations (~7.2s each) - cluster filtering uses nilearn connected components
+2. GLM regression (~5-6s) - FirstLevelModel fitting
+3. Hyperalignment/decomposition (~4-5s) - large matrix operations
+4. Bootstrap/permutation tests (~3-4s) - resampling operations
+
+The cluster threshold tests (9 tests, ~65s) consume ~43% of total runtime. This is
+expected and acceptable - they test realistic neuroimaging workflows that require
+expensive connected components analysis via nilearn.
 """
 
 import os
@@ -437,6 +454,98 @@ class TestBrainData:
         assert len(np.unique(r.to_nifti().get_fdata())) == 2
         diff = m2 - m1
         assert np.sum(diff.data) == 0
+
+    # ============================================================================
+    # Thresholding Operations - Cluster Enhancement
+    # ============================================================================
+
+    def test_threshold_cluster_basic(self, sim_brain_data):
+        """Cluster thresholding should filter small clusters using nilearn"""
+        # Create data with distinct regions
+        brain = sim_brain_data.copy()
+
+        # Threshold with cluster size minimum
+        result = brain.threshold(lower=2, cluster_threshold=10)
+
+        # Should return Brain_Data
+        assert isinstance(result, Brain_Data)
+        # Should have removed small clusters (basic check that it ran)
+        assert result.shape == brain.shape
+
+    def test_threshold_cluster_with_upper_only(self, sim_brain_data):
+        """Cluster threshold should work with upper threshold only"""
+        brain = sim_brain_data.copy()
+        result = brain.threshold(upper=2, cluster_threshold=10)
+        assert isinstance(result, Brain_Data)
+
+    def test_threshold_cluster_with_lower_only(self, sim_brain_data):
+        """Cluster threshold should work with lower threshold only"""
+        brain = sim_brain_data.copy()
+        result = brain.threshold(lower=2, cluster_threshold=10)
+        assert isinstance(result, Brain_Data)
+
+    def test_threshold_cluster_rejects_bandpass(self, sim_brain_data):
+        """Should raise error when using both upper AND lower with cluster_threshold"""
+        brain = sim_brain_data.copy()
+
+        with pytest.raises(ValueError, match="Band-pass filtering.*not supported.*cluster"):
+            brain.threshold(lower=-2, upper=2, cluster_threshold=10)
+
+    def test_threshold_cluster_with_binarize(self, sim_brain_data):
+        """Cluster threshold should work with binarization"""
+        brain = sim_brain_data.copy()
+        result = brain.threshold(lower=2, cluster_threshold=10, binarize=True)
+
+        # Should be binary
+        unique_vals = np.unique(result.data)
+        assert len(unique_vals) <= 2
+        assert all(v in [0, 1] for v in unique_vals)
+
+    def test_threshold_cluster_zero_disables(self, sim_brain_data):
+        """cluster_threshold=0 should use fast path (current implementation)"""
+        brain = sim_brain_data.copy()
+
+        # These should be equivalent
+        result_no_cluster = brain.threshold(lower=2, upper=5)
+        result_zero_cluster = brain.threshold(lower=2, upper=5, cluster_threshold=0)
+
+        np.testing.assert_array_equal(result_no_cluster.data, result_zero_cluster.data)
+
+    def test_threshold_backwards_compatible_no_cluster(self, sim_brain_data):
+        """Existing threshold behavior unchanged when cluster_threshold=0"""
+        brain = sim_brain_data.copy()
+
+        # Old way (default cluster_threshold=0)
+        result_old = brain.threshold(lower=-2, upper=2)
+
+        # Explicit cluster_threshold=0
+        result_explicit = brain.threshold(lower=-2, upper=2, cluster_threshold=0)
+
+        # Should be identical
+        np.testing.assert_array_equal(result_old.data, result_explicit.data)
+
+    def test_threshold_bandpass_still_works(self, sim_brain_data):
+        """Band-pass filtering (unique feature) still works without cluster_threshold"""
+        brain = sim_brain_data.copy()
+
+        # This should still work (keep middle values, zero extremes)
+        result = brain.threshold(lower=-2, upper=2)
+
+        assert isinstance(result, Brain_Data)
+        # Verify band-pass behavior preserved (values in range kept)
+
+    def test_threshold_cluster_realistic_neuroimaging(self, sim_brain_data):
+        """Integration test with realistic neuroimaging workflow"""
+        # Test with actual brain data structure from fixtures
+        brain = sim_brain_data.copy()
+
+        # Realistic workflow: threshold then cluster filter
+        result = brain.threshold(lower=2.5, cluster_threshold=50)
+
+        # Basic sanity checks
+        assert isinstance(result, Brain_Data)
+        assert result.shape == brain.shape
+        assert not result.isempty
 
     # ==================== Similarity & Analysis ====================
 

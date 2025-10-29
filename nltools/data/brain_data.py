@@ -1588,11 +1588,12 @@ class Brain_Data(object):
         return out
 
     # TODO: switch to nilearn? Check if complete and delete or update comment accordingly
-    def threshold(self, upper=None, lower=None, binarize=False, coerce_nan=True):
-        """Threshold Brain_Data instance. Provide upper and lower values or
-           percentages to perform two-sided thresholding. Binarize will return
-           a mask image respecting thresholds if provided, otherwise respecting
-           every non-zero value.
+    def threshold(self, upper=None, lower=None, binarize=False, coerce_nan=True, cluster_threshold=0):
+        """Threshold Brain_Data instance with optional cluster filtering.
+
+        Provide upper and lower values or percentages to perform two-sided
+        thresholding. Binarize will return a mask image respecting thresholds
+        if provided, otherwise respecting every non-zero value.
 
         Args:
             upper: (float or str) Upper cutoff for thresholding. If string
@@ -1605,33 +1606,87 @@ class Brain_Data(object):
                     provided, otherwise binarize on every non-zero value;
                     default False
             coerce_nan (bool): coerce nan values to 0s; default True
+            cluster_threshold (int): Minimum cluster size in voxels. If > 0, uses
+                    nilearn.image.threshold_img with cluster filtering.
+                    Band-pass filtering (both upper AND lower) not supported
+                    with cluster thresholding. Default 0 (disabled).
 
         Returns:
             Thresholded Brain_Data object.
 
+        Note:
+            When cluster_threshold=0 (default), uses fast path for basic thresholding.
+            When cluster_threshold>0, uses nilearn for cluster filtering.
+            Band-pass filtering (unique nltools feature) preserved when cluster_threshold=0.
+
         """
 
-        b = self.copy()
+        if cluster_threshold > 0:
+            # Use nilearn for cluster thresholding
+            from nilearn.image import threshold_img
+            from nilearn.masking import apply_mask
 
-        if coerce_nan:
-            b.data = np.nan_to_num(b.data)
+            # Band-pass filtering not supported with cluster thresholding
+            if upper is not None and lower is not None:
+                raise ValueError(
+                    "Band-pass filtering (both upper and lower) not supported "
+                    "with cluster thresholding. Use one threshold only."
+                )
 
-        if isinstance(upper, str) and upper[-1] == "%":
-            upper = np.percentile(b.data, float(upper[:-1]))
+            # Determine threshold value (from whichever is provided)
+            threshold_val = upper if upper is not None else lower
+            if threshold_val is None:
+                raise ValueError("Must provide either upper or lower threshold")
 
-        if isinstance(lower, str) and lower[-1] == "%":
-            lower = np.percentile(b.data, float(lower[:-1]))
+            # Handle percentile strings
+            b = self.copy()
+            if coerce_nan:
+                b.data = np.nan_to_num(b.data)
 
-        if upper and lower:
-            b.data[(b.data < upper) & (b.data > lower)] = 0
-        elif upper:
-            b.data[b.data < upper] = 0
-        elif lower:
-            b.data[b.data > lower] = 0
+            if isinstance(threshold_val, str) and threshold_val[-1] == "%":
+                threshold_val = np.percentile(b.data, float(threshold_val[:-1]))
 
-        if binarize:
-            b.data[b.data != 0] = 1
-        return b
+            # Use nilearn's cluster thresholding
+            out = self._shallow_copy_with_data()
+            thresholded_img = threshold_img(
+                b.to_nifti(),
+                threshold=threshold_val,
+                cluster_threshold=cluster_threshold,
+                two_sided=(upper is not None),
+                copy_header=True
+            )
+
+            # Convert back to data array
+            out.data = apply_mask(thresholded_img, self.nifti_masker.mask_img_)
+
+            if binarize:
+                out.data = (out.data != 0).astype(float)
+
+            return out
+
+        else:
+            # Use current efficient implementation (fast path)
+            b = self.copy()
+
+            if coerce_nan:
+                b.data = np.nan_to_num(b.data)
+
+            if isinstance(upper, str) and upper[-1] == "%":
+                upper = np.percentile(b.data, float(upper[:-1]))
+
+            if isinstance(lower, str) and lower[-1] == "%":
+                lower = np.percentile(b.data, float(lower[:-1]))
+
+            if upper and lower:
+                b.data[(b.data < upper) & (b.data > lower)] = 0
+            elif upper:
+                b.data[b.data < upper] = 0
+            elif lower:
+                b.data[b.data > lower] = 0
+
+            if binarize:
+                b.data[b.data != 0] = 1
+            return b
 
     # TODO: refactor with updated nilearn Check if complete and delete or update comment accordingly
     def regions(
