@@ -67,27 +67,102 @@ results = brain_data.predict_multi(method='searchlight')
 
 Labels and design matrices should now be managed separately or passed as arguments. The `.X` attribute is still used internally by `.regress()` for backward compatibility when no design_matrix is provided.
 
+## New Methods
+
+### `.fit()` and `.predict()` - Sklearn-style API for Brain_Data
+
+Brain_Data now supports sklearn-style `fit()` and `predict()` methods for Ridge and GLM models. This is the **recommended API** going forward.
+
+**Ridge regression workflow:**
+```python
+from nltools import Brain_Data
+import numpy as np
+
+# Load brain data
+brain = Brain_Data('task_fmri.nii.gz')  # 100 samples × 50000 voxels
+
+# Create feature matrix
+features = np.random.randn(100, 10)  # 100 samples × 10 features
+
+# Fit Ridge model with automatic alpha selection
+brain.fit(model='ridge', alpha='auto', cv=5, X=features)
+
+# Access results as attributes
+print(brain.ridge_weights.shape)  # (10, 50000) - feature weights per voxel
+print(brain.ridge_scores.shape)   # (1, 50000) - R² per voxel
+
+# Predict on new data
+new_features = np.random.randn(20, 10)
+predictions = brain.predict(X=new_features)  # Returns Brain_Data (20, 50000)
+
+# Or predict on training data (X=None)
+fitted_values = brain.predict()  # Returns Brain_Data (100, 50000)
+```
+
+**GLM regression workflow:**
+```python
+import pandas as pd
+
+# Create design matrix
+design_matrix = pd.DataFrame({
+    'Intercept': np.ones(100),
+    'ConditionA': condition_a,
+    'ConditionB': condition_b
+})
+
+# Fit GLM model
+brain.fit(model='glm', noise_model='ar1', X=design_matrix)
+
+# Access results as attributes
+print(brain.glm_betas.shape)  # (3, 50000) - beta per regressor × voxel
+print(brain.glm_t.shape)      # (3, 50000) - t-stat per regressor × voxel
+
+# Predict fitted values
+fitted = brain.predict()  # Returns Brain_Data with fitted values
+```
+
+**Available models:**
+- `'ridge'`: Ridge regression with optional cross-validation and GPU acceleration
+- `'glm'`: General Linear Model wrapping nilearn's FirstLevelModel
+
+**Set attributes:**
+
+For `model='ridge'`:
+- `model_`: Fitted Ridge model instance
+- `X_`: Training data (for predict() default)
+- `ridge_weights`: Brain_Data of coefficients (n_features, n_voxels)
+- `ridge_fitted_values`: Brain_Data of fitted values
+- `ridge_scores`: Brain_Data of R² scores
+
+For `model='glm'`:
+- `model_`: Fitted Glm model instance
+- `X_`: Training design matrix
+- `glm_betas`: Brain_Data of beta coefficients
+- `glm_t`: Brain_Data of t-statistics
+- `glm_p`: Brain_Data of p-values
+- `glm_se`: Brain_Data of standard errors
+- `glm_residual`: Brain_Data of residuals
+- `glm_predicted`: Brain_Data of fitted values
+- `glm_r2`: Brain_Data of R² values
+
 ## Updated Methods
 
-### `.regress()`
-Now stores results as attributes and prefers passing design_matrix directly. Old API still works with deprecation warnings.
+### `.regress()` - DEPRECATED
 
-**Internal changes (transparent to users):**
-- `.regress()` now uses the new `Glm` model class internally (instead of directly using nilearn's FirstLevelModel)
-- A `glm_model` attribute is now stored after calling `.regress()`, providing access to the fitted Glm instance
-- Results are identical to previous versions
-- For advanced users: Access underlying nilearn FirstLevelModel via `brain_data.glm_model.glm_`
+**⚠️ IMPORTANT:** `.regress()` is deprecated and will raise an error in v0.7.0. Use `fit(model='glm', X=design_matrix)` instead.
 
-**Old (still works with deprecation warning):**
+**Old (deprecated, emits FutureWarning):**
 ```python
 brain_data.X = design_matrix
-results = brain_data.regress()  # DeprecationWarning: Use regress(design_matrix)
+results = brain_data.regress()  # FutureWarning
 # Returns dict with 'beta', 't', 'p', 'residual' for backward compatibility
 ```
 
 **New (recommended):**
 ```python
-brain_data.regress(design_matrix)
+# Use fit/predict API
+brain_data.fit(model='glm', noise_model='ar1', X=design_matrix)
+
 # Results stored as attributes:
 # brain_data.glm_betas
 # brain_data.glm_t
@@ -96,25 +171,17 @@ brain_data.regress(design_matrix)
 # brain_data.glm_residual
 # brain_data.glm_predicted
 # brain_data.glm_r2
-# brain_data.glm_model  # NEW: Access to fitted Glm instance
 
-# Note: Currently still returns dict for backward compatibility (deprecated)
+# Predict fitted values or new timepoints
+fitted = brain_data.predict()  # X=None uses training data
+new_pred = brain_data.predict(X=new_design_matrix)
 ```
 
-**Advanced usage - accessing the Glm model:**
-```python
-brain_data.regress(design_matrix, noise_model='ar1')
-
-# Access the Glm model instance
-glm = brain_data.glm_model
-assert glm.is_fitted_
-
-# Access underlying nilearn FirstLevelModel for advanced features
-glm.glm_.generate_report()  # Use any nilearn method
-```
-
-**Note on robust mode:**
-The `mode='robust'` parameter is deprecated and ignored. Robust regression will be reimplemented in the future Model class.
+**Migration note:**
+- `.regress()` now calls `fit(model='glm', ...)` internally
+- Returns dict for backward compatibility (deprecated)
+- Sets `glm_model` attribute as alias for `model_`
+- `mode='robust'` parameter is silently ignored
 
 ### `.extract_roi()`
 Now uses nilearn's NiftiLabelsMasker for better performance with labeled atlases.

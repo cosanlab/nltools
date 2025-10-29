@@ -126,7 +126,83 @@ nltools/tests/
 - **Time:** 3.5 hours (under 5-7 hour estimate)
 - **Documentation:** See nilearn-log.md for complete TDD log
 
-### Priority 2.6: Extract HyperAlignment as Separate Class ✅ COMPLETE (2025-10-28)
+### Priority 2.6: Brain_Data fit/predict API ✅ COMPLETE (2025-10-29)
+**Sklearn-style fit/predict interface for Ridge and GLM models integrated into Brain_Data.**
+
+#### Implementation ✅
+- ✅ Created `Brain_Data.fit(model='ridge'|'glm', X, **kwargs)` method
+  - Creates model from string specification
+  - Fits to brain data (self.data always the target)
+  - Stores fitted model in `model_` attribute
+  - Stores training data in `X_` for predict() default
+  - Extracts model-specific results to attributes (`ridge_*`, `glm_*`)
+- ✅ Implemented `Brain_Data.predict(X=None)` method
+  - Uses stored fitted model for predictions
+  - X=None uses training data from fit()
+  - Returns Brain_Data with predictions
+  - Works with both Ridge and GLM models
+- ✅ Refactored `Brain_Data.regress()` as deprecated wrapper
+  - ❌ Before: 170 lines duplicating entire GLM implementation
+  - ✅ After: 59 lines calling `fit(model='glm', ...)` internally
+  - Single `FutureWarning` about deprecation and v0.7.0 removal
+  - Sets backward compatibility aliases (`glm_model`, `design_matrix`)
+  - Returns dict for old code
+  - Silently ignores deprecated `mode='robust'` parameter
+
+#### Testing ✅
+- ✅ Created 11 comprehensive fit/predict tests (`test_brain_data.py:526-682`)
+  - Ridge fit/predict workflow tests (3)
+  - GLM fit/predict workflow tests (3)
+  - Input validation tests (3)
+  - Numerical equivalence tests (2)
+- ✅ Created 5 backward-compatibility tests (`test_brain_data.py:686-763`)
+  - FutureWarning emission test
+  - fit() internal call verification
+  - self.X pattern support
+  - mode='robust' silent ignore
+  - Dict return structure validation
+- ✅ Updated 2 existing regress() tests to use FutureWarning
+- ✅ **All 12 regress() tests passing** (7 existing + 5 new)
+- ✅ **All 11 fit/predict tests passing**
+
+#### Documentation ✅
+- ✅ Updated `MIGRATION_v0.5_to_v0.6.md` with comprehensive fit/predict guide
+  - Ridge regression workflow examples
+  - GLM regression workflow examples
+  - Model-specific attributes documentation
+  - Updated regress() section with strong deprecation notice
+- ✅ Updated `braindata-model-integration.md` status to Phase 4 complete
+- ✅ Code reduction: ~111 lines removed from regress()
+
+#### Design Decisions ✅
+- ✅ Used `model_` attribute for fitted model (sklearn convention)
+- ✅ Used `X_` attribute for training data storage
+- ✅ Model-specific prefixes: `ridge_*`, `glm_*` for attributes
+- ✅ predict() returns Brain_Data (consistent with data class pattern)
+- ✅ Brain data always the target (y=self.data in fit())
+- ✅ Unified interface for multiple model types (extensible)
+- ✅ Strong deprecation via FutureWarning (not DeprecationWarning)
+
+#### Results ✅
+- **Modified files:**
+  - `nltools/data/brain_data.py` (fit(), predict(), _fit_ridge(), _fit_glm(), regress() refactor)
+  - `nltools/tests/shell/test_brain_data.py` (16 new/updated tests)
+  - `MIGRATION_v0.5_to_v0.6.md` (new fit/predict section, updated regress section)
+  - `braindata-model-integration.md` (status updated)
+- **Test coverage:** 95/95 tests passing (16 new fit/predict/regress tests)
+- **Code reduction:** ~111 lines (regress: 170 → 59 lines)
+- **Time:** ~3 hours (TDD approach from existing plan)
+- **Documentation:** Complete migration guide with examples
+
+**Benefits:**
+- **Unified interface:** Single API for Ridge and GLM models
+- **Extensibility:** Easy to add new model types (SVM, PCA, etc.)
+- **Sklearn compatibility:** Familiar fit/predict pattern
+- **Backward compatibility:** regress() still works with clear migration path
+- **Code quality:** Eliminated 111 lines of duplicated GLM logic
+- **User clarity:** Strong FutureWarning guides users to new API
+
+### Priority 2.7: Extract HyperAlignment as Separate Class ✅ COMPLETE (2025-10-28)
 **Extracted Procrustes-based hyperalignment from `align()` into reusable class following SRM pattern.**
 
 #### Implementation ✅

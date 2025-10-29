@@ -728,33 +728,24 @@ class Brain_Data(object):
         self.glm_r2 = self[0].copy()
         self.glm_r2.data = r2_values.reshape(1, -1)
 
-    # TODO: update Check if complete and delete or update comment accordingly
     def regress(self, design_matrix=None, noise_model="ols", mode=None, **kwargs):
-        """Runs a mass-univariate GLM analysis using the provided Design_Matrix.
+        """
+        DEPRECATED: Use fit(model='glm', X=design_matrix) instead.
 
-        This is a wrapper around nltools.models.Glm, which wraps nilearn.glm.first_level.FirstLevelModel.
-        Results are stored as attributes on the Brain_Data object rather than returned.
-
-        We override some nilearn defaults:
-        - no smoothing (use `.smooth()` beforehand if needed)
-        - no scaling (use `.scale()` beforehand if needed)
-        - no drift model (should already be in the Design_Matrix)
-        - OLS noise model by default (use noise_model='ar1' for autocorrelation)
+        This method is deprecated and will raise an error in v0.7.0.
+        Please update your code to use the new fit/predict API.
 
         Args:
             design_matrix: Design_Matrix object or pandas DataFrame with regressors
-                          If None, will use self.X (deprecated, for backward compatibility)
+                          If None, will use self.X (deprecated)
             noise_model (str): temporal variance model ('ols' or 'ar1'). Default: 'ols'
-            mode (str): deprecated parameter for backward compatibility ('robust' is ignored)
+            mode (str): deprecated parameter (ignored)
             **kwargs: additional arguments for nltools.models.Glm
 
         Returns:
             dict: For backward compatibility, returns dict with 'beta', 't', 'p', 'residual' keys
-                  (deprecated - in future versions will return None)
 
         Sets attributes:
-            self.design_matrix: The design matrix used
-            self.glm_model: The fitted Glm model instance
             self.glm_betas: Beta coefficients (Brain_Data)
             self.glm_t: T-statistics (Brain_Data)
             self.glm_p: P-values (Brain_Data)
@@ -763,135 +754,33 @@ class Brain_Data(object):
             self.glm_predicted: Predicted values (Brain_Data)
             self.glm_r2: R-squared values (Brain_Data)
         """
-        from .design_matrix import Design_Matrix
-        from ..models import Glm
         import warnings
 
-        # Handle backward compatibility - use self.X if no design_matrix provided
-        if design_matrix is None:
-            if hasattr(self, "X") and self.X is not None:
-                warnings.warn(
-                    "Using self.X as design matrix is deprecated. "
-                    "Pass design_matrix explicitly to regress().",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                design_matrix = self.X
-            else:
-                raise TypeError("design_matrix must be provided or set as self.X")
-
-        # Handle deprecated 'mode' parameter
-        if mode == "robust":
-            warnings.warn(
-                "mode='robust' is deprecated and ignored. "
-                "Robust regression will be implemented in future Model class.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
-        # Validate inputs
-        if not isinstance(design_matrix, (Design_Matrix, pd.DataFrame)):
-            raise TypeError("design_matrix must be a Design_Matrix or DataFrame")
-
-        # Store design matrix
-        self.design_matrix = design_matrix
-
-        # Convert to DataFrame if needed
-        if isinstance(design_matrix, Design_Matrix):
-            dm_df = design_matrix
-        else:
-            dm_df = pd.DataFrame(design_matrix)
-
-        # Set up Glm model with same defaults as before
-        # Note: Glm handles smoothing_fwhm, standardize, drift_model, mask internally
-        glm_params = {
-            "smoothing_fwhm": kwargs.pop("smoothing_fwhm", None),  # No smoothing by default
-            "noise_model": noise_model,
-            "mask": self.mask,  # Use our mask
-            "t_r": kwargs.pop("t_r", None),  # Will be set from data if needed
-        }
-
-        # Pass any remaining kwargs to Glm (they'll be passed to FirstLevelModel)
-        glm_params.update(kwargs)
-
-        # Create Glm model instance
-        self.glm_model = Glm(**glm_params)
-
-        # Convert data to 4D nifti for nilearn
-        data_4d = self.to_nifti()
-
-        # Fit the model
-        self.glm_model.fit(data_4d, design_matrices=dm_df)
-
-        # Extract results for each regressor
-        n_regressors = dm_df.shape[1]
-
-        # Initialize storage for results
-        beta_maps = []
-        t_maps = []
-        p_maps = []
-        se_maps = []
-
-        # Get results for each regressor
-        for i, col in enumerate(dm_df.columns):
-            # Create contrast vector (1 for this regressor, 0 for others)
-            contrast = np.zeros(n_regressors)
-            contrast[i] = 1
-
-            # Compute contrast using Glm's compute_contrast method
-            results = self.glm_model.compute_contrast(contrast, output_type="all")
-
-            # Store maps
-            beta_maps.append(results["effect_size"])
-            t_maps.append(results["stat"])
-            p_maps.append(results["p_value"])
-            se_maps.append(results["effect_variance"])
-
-        # Convert results to Brain_Data objects and store as attributes
-        self.glm_betas = Brain_Data(beta_maps, mask=self.mask)
-        self.glm_t = Brain_Data(t_maps, mask=self.mask)
-        self.glm_p = Brain_Data(p_maps, mask=self.mask)
-
-        # Convert effect variance to standard error: SE(β) = √Var(β)
-        # nilearn provides Var(beta) = sigma^2 * (X'X)^-1
-        # We need SE(beta) = sqrt(Var(beta)) for interpretability
-        # np.abs() handles numerical precision issues (variance should be >= 0)
-        se_data = []
-        for se_img in se_maps:
-            se_brain = Brain_Data(se_img, mask=self.mask)
-            se_brain.data = np.sqrt(np.abs(se_brain.data))
-            se_data.append(se_brain)
-        self.glm_se = Brain_Data(data=se_data, mask=self.mask)
-
-        # Get residuals using Glm's residuals property
-        self.glm_residual = Brain_Data(self.glm_model.residuals, mask=self.mask)
-
-        # Predicted = original - residuals
-        self.glm_predicted = self.copy()
-        self.glm_predicted.data = self.data - self.glm_residual.data
-
-        # R-squared calculation (nilearn doesn't provide this for whole-brain maps)
-        # Standard formula: R² = 1 - (SS_residual / SS_total)
-        # Current numpy implementation is optimal for voxel-wise operations
-        # nilearn.glm focuses on inference (t-stats, contrasts) not model quality metrics
-        ss_total = np.sum((self.data - self.data.mean(axis=0)) ** 2, axis=0)
-        ss_residual = np.sum(self.glm_residual.data**2, axis=0)
-        r2_values = 1 - (
-            ss_residual / (ss_total + 1e-10)
-        )  # Add small value to avoid division by zero
-
-        # Create single-image Brain_Data for R-squared
-        self.glm_r2 = self[0].copy()
-        self.glm_r2.data = r2_values.reshape(1, -1)
-
-        # Return dictionary for backward compatibility (deprecated)
+        # Single strong deprecation warning
         warnings.warn(
-            "Returning a dictionary from regress() is deprecated. "
-            "In future versions, results will only be stored as attributes.",
-            DeprecationWarning,
+            "regress() is deprecated and will raise an error in v0.7.0. "
+            "Please use fit(model='glm', X=design_matrix) instead. "
+            "Example: brain_data.fit(model='glm', noise_model='ols', X=design_matrix)",
+            FutureWarning,
             stacklevel=2,
         )
 
+        # Handle self.X backward compatibility
+        if design_matrix is None:
+            if hasattr(self, "X") and self.X is not None:
+                design_matrix = self.X
+            else:
+                raise TypeError("design_matrix must be provided")
+
+        # Ignore deprecated mode parameter silently
+        # Call new fit() API
+        self.fit(model='glm', noise_model=noise_model, X=design_matrix, **kwargs)
+
+        # Set backward compatibility attributes
+        self.glm_model = self.model_  # Alias for old code expecting glm_model
+        self.design_matrix = design_matrix  # Store design matrix for old code
+
+        # Return dict for backward compatibility
         return {
             "beta": self.glm_betas,
             "t": self.glm_t,

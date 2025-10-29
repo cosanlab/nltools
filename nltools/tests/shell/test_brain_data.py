@@ -445,7 +445,7 @@ class TestBrainData:
         )
 
         # Run regression and capture returned dict
-        with pytest.warns(DeprecationWarning, match="Returning a dictionary"):
+        with pytest.warns(FutureWarning):
             out = sim_brain_data.regress(design_matrix)
 
         # Check dict structure
@@ -642,7 +642,7 @@ class TestBrainData:
 
         # Old API
         bd_old = sim_brain_data.copy()
-        with pytest.warns(DeprecationWarning):
+        with pytest.warns(FutureWarning):
             bd_old.regress(design_matrix, noise_model='ols')
 
         # Should be numerically identical
@@ -680,6 +680,87 @@ class TestBrainData:
 
         # Should match training data shape
         assert predictions_implicit.shape == sim_brain_data.shape
+
+    # ==================== regress() Backward Compatibility ====================
+
+    def test_regress_emits_future_warning(self, sim_brain_data):
+        """Test regress() emits FutureWarning telling users to switch to fit()."""
+        design_matrix = pd.DataFrame({
+            "Intercept": np.ones(len(sim_brain_data)),
+            "X1": np.random.randn(len(sim_brain_data)),
+        })
+
+        # Should emit FutureWarning with clear migration message
+        with pytest.warns(FutureWarning, match="regress.*deprecated.*will raise an error in v0.7.0"):
+            result = sim_brain_data.regress(design_matrix, noise_model='ols')
+
+        # Should still work and return dict
+        assert isinstance(result, dict)
+        assert "beta" in result
+
+    def test_regress_calls_fit_internally(self, sim_brain_data):
+        """Test regress() calls fit(model='glm') internally for backward compatibility."""
+        design_matrix = pd.DataFrame({
+            "Intercept": np.ones(len(sim_brain_data)),
+        })
+
+        with pytest.warns(FutureWarning):
+            result = sim_brain_data.regress(design_matrix, noise_model='ols')
+
+        # Should have set model_ and glm_* attributes via fit()
+        assert hasattr(sim_brain_data, 'model_')
+        assert hasattr(sim_brain_data, 'glm_betas')
+        assert hasattr(sim_brain_data, 'glm_model')  # Backward compat alias
+
+    def test_regress_supports_self_X_pattern(self, sim_brain_data):
+        """Test regress() still works with deprecated self.X pattern."""
+        design_matrix = pd.DataFrame({
+            "Intercept": np.ones(len(sim_brain_data)),
+        })
+
+        # Old pattern: setting self.X then calling regress() with no args
+        sim_brain_data.X = design_matrix
+
+        with pytest.warns(FutureWarning):
+            result = sim_brain_data.regress()
+
+        # Should still work
+        assert "beta" in result
+        assert hasattr(sim_brain_data, 'glm_betas')
+
+    def test_regress_ignores_mode_robust_silently(self, sim_brain_data):
+        """Test regress() silently ignores deprecated mode='robust' parameter."""
+        design_matrix = pd.DataFrame({
+            "Intercept": np.ones(len(sim_brain_data)),
+        })
+
+        # mode='robust' should be silently ignored (only one FutureWarning, not multiple)
+        with pytest.warns(FutureWarning, match="regress.*deprecated"):
+            result = sim_brain_data.regress(design_matrix, mode='robust')
+
+        # Should still work
+        assert isinstance(result, dict)
+        assert "beta" in result
+
+    def test_regress_returns_backward_compatible_dict(self, sim_brain_data):
+        """Test regress() returns dict with expected keys for backward compatibility."""
+        design_matrix = pd.DataFrame({
+            "Intercept": np.ones(len(sim_brain_data)),
+        })
+
+        with pytest.warns(FutureWarning):
+            result = sim_brain_data.regress(design_matrix, noise_model='ols')
+
+        # Check dict has expected structure for old code
+        assert isinstance(result, dict)
+        assert "beta" in result
+        assert "t" in result
+        assert "p" in result
+        assert "residual" in result
+
+        # Check dict values match the new attributes
+        assert result["beta"] is sim_brain_data.glm_betas
+        assert result["t"] is sim_brain_data.glm_t
 
     # ==================== Masking & ROI Extraction ====================
 
