@@ -554,7 +554,7 @@ class Brain_Data(object):
 
         return out
 
-    def fit(self, model=None, X=None, **kwargs):
+    def fit(self, model=None, X=None, cv=None, **kwargs):
         """
         Fit a model to brain imaging data.
 
@@ -570,9 +570,15 @@ class Brain_Data(object):
             Design matrix or feature matrix
             - For GLM: Design matrix with regressors (n_samples must match self.data)
             - For Ridge: Feature matrix for prediction (n_samples must match self.data)
+        cv : int, 'auto', or sklearn CV splitter, optional
+            Cross-validation specification (Ridge only):
+            - int: Number of folds for k-fold CV (returns CV scores)
+            - 'auto': Triggers alpha selection via CV (implies alpha='auto')
+            - sklearn CV object: Custom CV splitter (e.g., KFold(3, shuffle=True))
+            - None: No CV (default, backward compatible)
         **kwargs : dict
             Additional arguments passed to model constructor
-            - Ridge: alpha, cv, alphas, backend, random_state
+            - Ridge: alpha, alphas, backend, random_state
             - Glm: noise_model, minimize_memory, etc.
 
         Returns
@@ -586,6 +592,14 @@ class Brain_Data(object):
             Fitted model instance (Ridge, Glm, etc.)
         X_ : ndarray
             Training data X, stored for predict() default
+        cv_results_ : dict, optional
+            Cross-validation results (if cv is not None). Contains:
+            - 'scores': (n_folds, n_voxels) array of R² per fold
+            - 'mean_score': (n_voxels,) array of mean R² across folds
+            - 'predictions': Brain_Data of out-of-fold predictions
+            - 'folds': (n_samples,) array of fold indices
+            - 'best_alpha': Selected alpha (if alpha selection performed)
+            - 'alpha_scores': (n_folds, n_alphas, n_voxels) array (if alpha selection)
 
         For model='glm':
             glm_betas : Brain_Data of beta coefficients
@@ -603,11 +617,22 @@ class Brain_Data(object):
 
         Examples
         --------
-        >>> # Ridge prediction
-        >>> brain_data.fit(model='ridge', alpha=1.0, X=features)
+        >>> # Ridge prediction with CV for reporting performance
+        >>> brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features)
+        >>> print(f"CV R²: {brain_data.cv_results_['mean_score'].mean():.3f}")
         >>> predictions = brain_data.predict(X=new_features)
         >>>
-        >>> # GLM regression
+        >>> # Ridge with automatic alpha selection
+        >>> brain_data.fit(model='ridge', cv='auto', X=features)
+        >>> print(f"Selected alpha: {brain_data.cv_results_['best_alpha']}")
+        >>>
+        >>> # OLS (unregularized) regression with CV
+        >>> # Set alpha to small value (more stable than alpha=0)
+        >>> brain_data.fit(model='ridge', alpha=1e-6, cv=5, X=features)
+        >>> weights = brain_data.ridge_weights  # OLS coefficients
+        >>> cv_r2 = brain_data.cv_results_['mean_score']  # Per-voxel CV R²
+        >>>
+        >>> # GLM regression (CV not supported yet)
         >>> brain_data.fit(model='glm', noise_model='ar1', X=design_matrix)
         >>> new_predictions = brain_data.predict(X=new_design_matrix)
         """
@@ -630,22 +655,38 @@ class Brain_Data(object):
         self.X_ = X
 
         # Create model based on string
-        if model == 'ridge':
+        if model == "ridge":
             self.model_ = Ridge(**kwargs)
-            self._fit_ridge(X)
-        elif model == 'glm':
+            self._fit_ridge(X, cv=cv, **kwargs)
+        elif model == "glm":
+            if cv is not None:
+                raise NotImplementedError(
+                    "Cross-validation not yet supported for GLM models"
+                )
             self.model_ = Glm(**kwargs)
             self._fit_glm(X)
         else:
-            raise ValueError(
-                f"Unknown model '{model}'. Must be one of: 'ridge', 'glm'"
-            )
+            raise ValueError(f"Unknown model '{model}'. Must be one of: 'ridge', 'glm'")
 
         return self
 
-    def _fit_ridge(self, X):
-        """Fit Ridge model and extract results."""
-        # Fit to (X, brain_data) - multi-target
+    def _fit_ridge(self, X, cv=None, **kwargs):
+        """Fit Ridge model and extract results.
+
+        Parameters
+        ----------
+        X : ndarray
+            Training features
+        cv : int, 'auto', or sklearn CV splitter, optional
+            Cross-validation specification
+        **kwargs : dict
+            Additional arguments for CV (alpha, alphas, backend, etc.)
+        """
+        # Perform cross-validation if requested
+        if cv is not None:
+            self.cv_results_ = self._compute_ridge_cv(X, cv, **kwargs)
+
+        # Always fit full model on all training data
         self.model_.fit(X, self.data)
 
         # Extract weights as Brain_Data
@@ -662,6 +703,133 @@ class Brain_Data(object):
         scores = self.model_.score(X, self.data)
         self.ridge_scores = self._shallow_copy_with_data()
         self.ridge_scores.data = scores.reshape(1, -1)  # (1, n_voxels)
+
+    def _compute_ridge_cv(
+        self, X, cv, alpha=None, alphas=None, backend="auto", **kwargs
+    ):
+        """Compute cross-validation results for Ridge regression.
+
+        Parameters
+        ----------
+        X : ndarray, shape (n_samples, n_features)
+            Training features
+        cv : int, 'auto', or sklearn CV splitter
+            Cross-validation specification
+        alpha : float or 'auto', optional
+            Regularization strength (extracted from model if not provided)
+        alphas : array-like, optional
+            Alpha values to try for alpha selection
+        backend : str, default='auto'
+            Computational backend ('numpy', 'torch', 'auto')
+        **kwargs : dict
+            Additional arguments (currently unused, for future extensibility)
+
+        Returns
+        -------
+        cv_results : dict
+            Dictionary containing:
+            - 'scores': (n_folds, n_voxels) array of R² per fold
+            - 'mean_score': (n_voxels,) array of mean R² across folds
+            - 'predictions': Brain_Data of out-of-fold predictions
+            - 'folds': (n_samples,) array of fold indices
+            - 'best_alpha': Selected alpha (if alpha selection performed)
+            - 'alpha_scores': (n_folds, n_alphas, n_voxels) array (if alpha selection)
+        """
+        from sklearn.model_selection import check_cv
+        from sklearn.metrics import r2_score
+        from nltools.algorithms.ridge import ridge_cv, ridge_svd
+
+        # Get alpha from model if not explicitly provided
+        if alpha is None:
+            alpha = self.model_.alpha if hasattr(self.model_, "alpha") else 1.0
+
+        # Normalize cv parameter
+        if cv == "auto":
+            # cv='auto' implies alpha selection with default 5 folds
+            cv_splitter = check_cv(5)
+            perform_alpha_selection = True
+        elif isinstance(cv, int):
+            cv_splitter = check_cv(cv)
+            perform_alpha_selection = alpha == "auto"
+        else:
+            # Assume sklearn CV object
+            cv_splitter = cv
+            perform_alpha_selection = alpha == "auto"
+
+        n_samples, n_features = X.shape
+        n_voxels = self.data.shape[1]
+
+        # Initialize results
+        cv_predictions = np.zeros_like(self.data)
+        fold_indices = np.zeros(n_samples, dtype=int)
+
+        # Perform alpha selection if requested
+        if perform_alpha_selection:
+            # Use efficient ridge_cv for alpha selection
+            if alphas is None:
+                alphas = np.logspace(-2, 4, 20)  # Default alpha grid
+
+            result = ridge_cv(
+                X, self.data, alphas=alphas, cv=cv_splitter.n_splits, backend=backend
+            )
+
+            best_alpha = result["alpha"]
+            alpha_scores = result["cv_scores"]  # (n_folds, n_alphas, n_targets)
+
+            # Update model's alpha to best_alpha
+            self.model_.alpha = best_alpha
+            alpha = best_alpha
+
+            cv_results = {
+                "best_alpha": best_alpha,
+                "alpha_scores": alpha_scores,
+            }
+        else:
+            cv_results = {}
+
+        # Perform CV with fixed alpha to get predictions and per-fold scores
+        fold_scores = []
+        for fold_idx, (train_idx, test_idx) in enumerate(cv_splitter.split(X)):
+            X_train, X_test = X[train_idx], X[test_idx]
+            y_train, y_test = self.data[train_idx], self.data[test_idx]
+
+            # Fit Ridge on training fold
+            coef = ridge_svd(X_train, y_train, alpha=alpha, backend=backend)
+
+            # Predict on test fold
+            y_pred = X_test @ coef
+
+            # Store out-of-fold predictions
+            cv_predictions[test_idx] = y_pred
+
+            # Store fold indices
+            fold_indices[test_idx] = fold_idx
+
+            # Compute R² for this fold (per-voxel)
+            fold_r2 = np.array(
+                [r2_score(y_test[:, j], y_pred[:, j]) for j in range(n_voxels)]
+            )
+            fold_scores.append(fold_r2)
+
+        # Aggregate results
+        fold_scores = np.array(fold_scores)  # (n_folds, n_voxels)
+        mean_scores = fold_scores.mean(axis=0)  # (n_voxels,)
+
+        # Store predictions as Brain_Data
+        cv_predictions_brain = self._shallow_copy_with_data()
+        cv_predictions_brain.data = cv_predictions
+
+        # Package results
+        cv_results.update(
+            {
+                "scores": fold_scores,
+                "mean_score": mean_scores,
+                "predictions": cv_predictions_brain,
+                "folds": fold_indices,
+            }
+        )
+
+        return cv_results
 
     def _fit_glm(self, X):
         """Fit GLM model and extract results (same logic as current regress())."""
@@ -774,7 +942,7 @@ class Brain_Data(object):
 
         # Ignore deprecated mode parameter silently
         # Call new fit() API
-        self.fit(model='glm', noise_model=noise_model, X=design_matrix, **kwargs)
+        self.fit(model="glm", noise_model=noise_model, X=design_matrix, **kwargs)
 
         # Set backward compatibility attributes
         self.glm_model = self.model_  # Alias for old code expecting glm_model
@@ -1425,25 +1593,25 @@ class Brain_Data(object):
 
         # Copy all attributes with appropriate strategy
         for key, value in self.__dict__.items():
-            if key == 'data':
+            if key == "data":
                 # Don't copy data array - let methods handle this
                 new.data = self.data  # Just reference for now
-            elif key in ['mask', 'nifti_masker', 'masker']:
+            elif key in ["mask", "nifti_masker", "masker"]:
                 # Share immutable/expensive objects
                 setattr(new, key, value)
-            elif key in ['X', 'Y', 'design_matrix']:
+            elif key in ["X", "Y", "design_matrix"]:
                 # Deep copy DataFrames (they're small and mutable)
                 if value is not None:
-                    if hasattr(value, 'copy'):  # DataFrame has .copy()
+                    if hasattr(value, "copy"):  # DataFrame has .copy()
                         setattr(new, key, value.copy())
                     else:
                         setattr(new, key, deepcopy(value))
                 else:
                     setattr(new, key, None)
-            elif key.startswith('glm_') or key.startswith('ridge_'):
+            elif key.startswith("glm_") or key.startswith("ridge_"):
                 # GLM/Ridge results - share for now (they're typically read-only)
                 setattr(new, key, value)
-            elif key in ['model_', 'X_']:
+            elif key in ["model_", "X_"]:
                 # Fitted model and training data - share (shouldn't be copied)
                 setattr(new, key, value)
             else:
@@ -1473,13 +1641,13 @@ class Brain_Data(object):
 
         # Copy all attributes with appropriate strategy
         for key, value in self.__dict__.items():
-            if key in ['mask', 'nifti_masker', 'masker']:
+            if key in ["mask", "nifti_masker", "masker"]:
                 # Share immutable/expensive objects
                 setattr(new, key, value)
-            elif key in ['model_', 'X_']:
+            elif key in ["model_", "X_"]:
                 # Share fitted model and training data (unpicklable)
                 setattr(new, key, value)
-            elif key.startswith('glm_') or key.startswith('ridge_'):
+            elif key.startswith("glm_") or key.startswith("ridge_"):
                 # Share model results (often contain Brain_Data objects)
                 setattr(new, key, value)
             else:
@@ -1700,7 +1868,14 @@ class Brain_Data(object):
         return out
 
     # TODO: switch to nilearn? Check if complete and delete or update comment accordingly
-    def threshold(self, upper=None, lower=None, binarize=False, coerce_nan=True, cluster_threshold=0):
+    def threshold(
+        self,
+        upper=None,
+        lower=None,
+        binarize=False,
+        coerce_nan=True,
+        cluster_threshold=0,
+    ):
         """Threshold Brain_Data instance with optional cluster filtering.
 
         Provide upper and lower values or percentages to perform two-sided
@@ -1765,7 +1940,7 @@ class Brain_Data(object):
                 threshold=threshold_val,
                 cluster_threshold=cluster_threshold,
                 two_sided=(upper is not None),
-                copy_header=True
+                copy_header=True,
             )
 
             # Convert back to data array
@@ -1859,6 +2034,7 @@ class Brain_Data(object):
         out.Y.replace(-1, 0, inplace=True)
         return out
 
+    # TODO: update this to only support mean, median, std, sum, min, max, weights (if fit already only, predict (if fit already only))
     # NOTE: stats
     def bootstrap(
         self,
@@ -2155,7 +2331,7 @@ class Brain_Data(object):
         from nltools.data import Brain_Data
 
         # Check model is fitted
-        if not hasattr(self, 'model_'):
+        if not hasattr(self, "model_"):
             raise ValueError(
                 "Must call fit() before predict(). "
                 "Example: brain_data.fit(model='ridge', X=features)"
@@ -2166,7 +2342,7 @@ class Brain_Data(object):
 
         # Use training data if X not provided
         if X is None:
-            if not hasattr(self, 'X_'):
+            if not hasattr(self, "X_"):
                 raise ValueError(
                     "No training data stored. This should not happen - "
                     "please report this as a bug."
@@ -2179,7 +2355,7 @@ class Brain_Data(object):
             raise ValueError(f"X must be 2D, got {X.ndim}D")
 
         # Validate number of features (handle Ridge and Glm differently)
-        if hasattr(self.model_, 'n_features_in_'):
+        if hasattr(self.model_, "n_features_in_"):
             # Ridge model has n_features_in_
             if X.shape[1] != self.model_.n_features_in_:
                 raise ValueError(
@@ -2188,7 +2364,10 @@ class Brain_Data(object):
                 )
         else:
             # Glm model - check against design matrices
-            if hasattr(self.model_, 'design_matrices_') and self.model_.design_matrices_:
+            if (
+                hasattr(self.model_, "design_matrices_")
+                and self.model_.design_matrices_
+            ):
                 expected_features = self.model_.design_matrices_[0].shape[1]
                 if X.shape[1] != expected_features:
                     raise ValueError(
@@ -2198,6 +2377,7 @@ class Brain_Data(object):
 
         # Generate predictions
         from nltools.models import Glm
+
         if isinstance(self.model_, Glm):
             # For GLM, check if using training data or new data
             if X is self.X_:

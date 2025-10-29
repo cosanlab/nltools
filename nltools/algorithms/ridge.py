@@ -75,7 +75,8 @@ def ridge_svd(
     -----
     - Time complexity: O(n_samples * n_features * min(n_samples, n_features))
     - Space complexity: O(n_samples * n_features)
-    - For alpha=0, this reduces to ordinary least squares (OLS)
+    - For alpha→0, this reduces to ordinary least squares (OLS). Use alpha=1e-6
+      for OLS in practice (more numerically stable than alpha=0)
     - Supports both CPU (NumPy) and GPU (PyTorch) backends
     """
     # Input validation

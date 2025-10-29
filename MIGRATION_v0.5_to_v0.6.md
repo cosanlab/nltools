@@ -145,6 +145,77 @@ For `model='glm'`:
 - `glm_predicted`: Brain_Data of fitted values
 - `glm_r2`: Brain_Data of R² values
 
+### Cross-Validation Support (Ridge only)
+
+**NEW in v0.6.0:** The `fit()` method now supports cross-validation for Ridge regression via the `cv` parameter. This is useful for:
+1. Reporting cross-validated performance on training data
+2. Automatic alpha selection via grid search
+
+**Basic CV for reporting performance:**
+```python
+# Fit Ridge with 5-fold CV
+brain.fit(model='ridge', alpha=1.0, cv=5, X=features)
+
+# Access CV results
+print(f"Mean CV R²: {brain.cv_results_['mean_score'].mean():.3f}")
+print(f"CV scores shape: {brain.cv_results_['scores'].shape}")  # (5, n_voxels)
+
+# CV predictions are out-of-fold predictions
+cv_predictions = brain.cv_results_['predictions']  # Brain_Data object
+print(cv_predictions.shape)  # (n_samples, n_voxels)
+
+# Fold indices for each sample
+fold_ids = brain.cv_results_['folds']  # (n_samples,)
+```
+
+**Automatic alpha selection:**
+```python
+# cv='auto' triggers alpha selection (default: 5 folds)
+brain.fit(model='ridge', cv='auto', alphas=[0.1, 1.0, 10.0, 100.0], X=features)
+
+# Access best alpha
+best_alpha = brain.cv_results_['best_alpha']
+print(f"Selected alpha: {best_alpha}")
+
+# Alpha selection scores: (n_folds, n_alphas, n_voxels)
+alpha_scores = brain.cv_results_['alpha_scores']
+print(f"Tested {alpha_scores.shape[1]} alphas across {alpha_scores.shape[0]} folds")
+```
+
+**Combining both:**
+```python
+# Alpha selection + CV scoring with explicit fold count
+brain.fit(model='ridge', alpha='auto', cv=3, alphas=[0.1, 1.0, 10.0], X=features)
+
+# Results contain both alpha selection and final CV scores
+print(f"Best alpha: {brain.cv_results_['best_alpha']}")
+print(f"CV R² with best alpha: {brain.cv_results_['mean_score'].mean():.3f}")
+```
+
+**Using sklearn CV splitters:**
+```python
+from sklearn.model_selection import KFold
+
+# Custom CV strategy
+cv_splitter = KFold(n_splits=5, shuffle=True, random_state=42)
+brain.fit(model='ridge', alpha=1.0, cv=cv_splitter, X=features)
+```
+
+**CV results dictionary (`cv_results_`):**
+When `cv` is provided, a `cv_results_` dict is created with:
+- `'scores'`: (n_folds, n_voxels) R² per fold and voxel
+- `'mean_score'`: (n_voxels,) mean R² across folds
+- `'predictions'`: Brain_Data with out-of-fold predictions
+- `'folds'`: (n_samples,) fold index for each sample
+- `'best_alpha'`: Selected alpha (if alpha selection performed)
+- `'alpha_scores'`: (n_folds, n_alphas, n_voxels) R² grid (if alpha selection)
+
+**Important notes:**
+- The full model is always fitted on *all* training data after CV
+- `predict()` returns predictions from the full model, not CV predictions
+- CV predictions are out-of-fold and available in `cv_results_['predictions']`
+- CV is currently only supported for Ridge models (not GLM)
+
 ## Updated Methods
 
 ### `.regress()` - DEPRECATED

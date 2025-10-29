@@ -53,6 +53,11 @@ class Ridge(BaseModel):
     >>> model.fit(X, y)
     Ridge(alpha=1.0, backend='numpy')
     >>> y_pred = model.predict(X)
+    >>>
+    >>> # OLS (unregularized) regression: use small alpha
+    >>> model_ols = Ridge(alpha=1e-6)
+    >>> model_ols.fit(X, y)
+    >>> # Coefficients are effectively OLS estimates
     """
 
     def __init__(self, alpha=1.0, cv=None, alphas=None, backend='numpy', random_state=None):
