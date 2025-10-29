@@ -38,4 +38,4 @@ from .simulator import Simulator
 from .prefs import MNI_Template
 from .version import __version__
 from .mask import expand_mask, collapse_mask, create_sphere
-from .external import SRM, DetSRM
+from .algorithms import SRM, DetSRM

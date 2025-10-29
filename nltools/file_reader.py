@@ -9,7 +9,7 @@ __all__ = ["onsets_to_dm"]
 import numpy as np
 from typing import Callable
 from nilearn.glm.first_level import make_first_level_design_matrix as make_dm
-from .external import glover_hrf
+from .algorithms import glover_hrf
 from .data import Design_Matrix
 
 

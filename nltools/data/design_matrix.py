@@ -13,7 +13,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy.stats import pearsonr
 from scipy.special import legendre
-from ..external.hrf import glover_hrf
+from ..algorithms.hrf import glover_hrf
 from nltools.stats import downsample, upsample, zscore, make_cosine_basis
 from nltools.utils import AmbiguityError
 

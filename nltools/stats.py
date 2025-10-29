@@ -68,7 +68,7 @@ import warnings
 import itertools
 from joblib import Parallel, delayed
 from .utils import attempt_to_import, check_square_numpy_matrix
-from .external.srm import SRM, DetSRM
+from .algorithms.srm import SRM, DetSRM
 from sklearn.utils import check_random_state
 from sklearn.metrics import pairwise_distances
 

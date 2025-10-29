@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from nltools.data import Design_Matrix
-from nltools.external.hrf import glover_hrf
+from nltools.algorithms.hrf import glover_hrf
 import pytest
 
 
