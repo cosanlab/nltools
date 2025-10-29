@@ -48,8 +48,8 @@ uv run pytest nltools/tests/ -xvs --tb=long 2>&1 | tee pytest.log
 
 **Branch**: `uv-cleanup` (active development)
 **Version Target**: v0.6.0 (breaking release, API changes allowed)
-**Test Status**: 91/91 passing ✅ (test suite refactored to class-based structure)
-**Last Work**: Completed test suite refactoring with section organization
+**Test Status**: 266 passing, 3 skipped ✅
+**Last Work**: Cross-validation support for Brain_Data.fit() (commit 187c210)
 
 **Important Git Tags**:
 - `v0.6.0-test-refactor`: Test implementations for deprecated methods
@@ -94,24 +94,27 @@ uv run pytest nltools/tests/ -xvs --tb=long 2>&1 | tee pytest_full.log
 ```
 nltools/tests/
 ├── conftest.py           # Shared fixtures
-├── shell/                # Imperative shell (class-based tests)
-│   ├── test_brain_data.py        # 38 tests
+├── shell/                # Imperative shell (93 tests)
+│   ├── test_brain_data.py        # 60 tests (includes CV tests)
 │   ├── test_adjacency.py         # 30 tests
 │   ├── test_design_matrix.py     # 10 tests
 │   └── test_analysis.py          # 1 test
-├── core/                 # Functional core (function-based tests)
-│   ├── test_stats.py             # 13 tests
-│   ├── test_utils.py             # 2 tests
-│   ├── test_mask.py              # 2 tests
-│   ├── test_file_reader.py       # 1 test
-│   └── test_cross_validation.py  # 2 tests
-├── support/              # Integration & support tests
+├── core/                 # Functional core (115 tests)
+│   ├── test_backends.py          # 16 tests
+│   ├── test_models.py            # 37 tests
+│   ├── test_ridge.py             # 16 tests
+│   ├── test_hyperalignment.py    # 27 tests
+│   ├── test_stats.py             # 15 tests (1 skipped)
+│   ├── test_utils.py, test_mask.py, etc.
+├── support/              # Integration & utilities (31 tests)
 │   ├── test_datasets.py          # 9 tests
-│   ├── test_efficient_copy.py    # 14 tests
+│   ├── test_efficient_copy.py    # 14 tests (1 skipped)
 │   ├── test_prefs.py             # 5 tests
 │   └── test_simulator.py         # 3 tests
-└── data/                 # Test data files (h5, nii.gz, csv)
+└── data/                 # Centralized test data (10 files)
 ```
+
+**Total: 266 passing, 3 skipped**
 
 **Running tests by directory**:
 ```bash
@@ -366,7 +369,7 @@ git log -p -S "code_pattern"
 
 ---
 
-*Last updated: 2025-10-28*
+*Last updated: 2025-10-29*
 *Branch: uv-cleanup*
 *Version target: v0.6.0*
-*Lines: ~200 (per Anthropic best practices)*
+*Lines: ~375 (comprehensive quick reference)*

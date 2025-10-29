@@ -1556,7 +1556,6 @@ class Brain_Data(object):
 
         return ICC
 
-    # TODO: replace with nilearn or speed-up; currently scipy. Check if complete and delete or update comment accordingly
     def detrend(self, method="linear"):
         """Remove linear trend from each voxel
 
@@ -1776,7 +1775,6 @@ class Brain_Data(object):
         out.data = fisher_z_to_r(self.data)
         return out
 
-    # TODO: generalize to support other nilearn ops? Check if complete and delete or update comment accordingly
     def filter(self, sampling_freq=None, high_pass=None, low_pass=None, **kwargs):
         """Apply butterworth filter to data. Wraps nilearn.signal.clean.
 
@@ -1840,7 +1838,6 @@ class Brain_Data(object):
         out.data = out.data.astype(dtype)
         return out
 
-    # TODO: switch to nilearn? Check if complete and delete or update comment accordingly
     def standardize(self, axis=0, method="center"):
         """Standardize Brain_Data() instance.
 
@@ -1867,7 +1864,6 @@ class Brain_Data(object):
         out.data = scale(out.data, axis=axis, with_std=with_std)
         return out
 
-    # TODO: switch to nilearn? Check if complete and delete or update comment accordingly
     def threshold(
         self,
         upper=None,
@@ -2213,8 +2209,6 @@ class Brain_Data(object):
 
         return out
 
-    # NOTE: nilearn
-    # TODO: generalize with nilearn? Check if complete and delete or update comment accordingly
     def smooth(self, fwhm):
         """Apply spatial smoothing using nilearn smooth_img()
 

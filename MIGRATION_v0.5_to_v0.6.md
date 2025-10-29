@@ -1,7 +1,11 @@
 # Migration Guide: nltools v0.5.1 to v0.6.0
 
+**Last Updated:** 2025-10-29
+
 ## Overview
 Version 0.6.0 is a **breaking release** that refactors nltools to better leverage nilearn functionality and establish a cleaner architecture. This guide helps you migrate your code.
+
+---
 
 ## Breaking Changes
 
@@ -13,67 +17,53 @@ The following classes have been removed from this release and will be reimplemen
 ### 2. Removed Brain_Data Methods
 The following methods have been deprecated and moved to the future Model class:
 
-#### `.predict()`
+#### `.predict()` - Use scikit-learn directly
 **Old:**
 ```python
 results = brain_data.predict(algorithm='svm', cv_dict={'type': 'kfolds', 'n_folds': 5})
 ```
 
-**New:** Will be available in Model class (Priority 3). For now, use scikit-learn directly:
+**New:** Use scikit-learn directly:
 ```python
 from sklearn.svm import SVC
 from sklearn.model_selection import cross_validate
 
-# Extract data
 X = brain_data.data
 y = your_labels  # Manage labels separately
 
-# Use scikit-learn directly
 clf = SVC(kernel='linear')
 cv_results = cross_validate(clf, X, y, cv=5)
 ```
 
-#### `.ttest()`
+#### `.ttest()` - Use scipy.stats
 **Old:**
 ```python
 t_map = brain_data.ttest(threshold_dict={'unc': 0.05})
 ```
 
-**New:** Will be available in Model class. For now, use scipy:
+**New:** Use scipy:
 ```python
 from scipy import stats
 t_stat, p_values = stats.ttest_1samp(brain_data.data, 0, axis=0)
 ```
 
-#### `.randomise()`
-**Old:**
-```python
-results = brain_data.randomise(n_permute=5000)
-```
-
-**New:** Will be available in Model class. Consider using nilearn's permutation testing.
-
-#### `.predict_multi()`
-**Old:**
-```python
-results = brain_data.predict_multi(method='searchlight')
-```
-
-**New:** Will be available in Model class. Use nilearn's SearchLight directly for now.
+#### `.randomise()` and `.predict_multi()`
+These methods will be available in the future Model class. Consider using nilearn's permutation testing or SearchLight for now.
 
 ### 3. Deprecated Attributes
 - `.X` - Deprecated, still works for backward compatibility but will be removed in v0.7.0
 - `.Y` - Deprecated, still works for backward compatibility but will be removed in v0.7.0
 
-Labels and design matrices should now be managed separately or passed as arguments. The `.X` attribute is still used internally by `.regress()` for backward compatibility when no design_matrix is provided.
+Labels and design matrices should now be managed separately or passed as arguments.
 
-## New Methods
+---
 
-### `.fit()` and `.predict()` - Sklearn-style API for Brain_Data
+## New Feature: Brain_Data.fit() and .predict()
 
 Brain_Data now supports sklearn-style `fit()` and `predict()` methods for Ridge and GLM models. This is the **recommended API** going forward.
 
-**Ridge regression workflow:**
+### Ridge Regression Workflow
+
 ```python
 from nltools import Brain_Data
 import numpy as np
@@ -99,7 +89,8 @@ predictions = brain.predict(X=new_features)  # Returns Brain_Data (20, 50000)
 fitted_values = brain.predict()  # Returns Brain_Data (100, 50000)
 ```
 
-**GLM regression workflow:**
+### GLM Regression Workflow
+
 ```python
 import pandas as pd
 
@@ -121,20 +112,20 @@ print(brain.glm_t.shape)      # (3, 50000) - t-stat per regressor × voxel
 fitted = brain.predict()  # Returns Brain_Data with fitted values
 ```
 
-**Available models:**
+### Available Models
 - `'ridge'`: Ridge regression with optional cross-validation and GPU acceleration
 - `'glm'`: General Linear Model wrapping nilearn's FirstLevelModel
 
-**Set attributes:**
+### Attributes Set by fit()
 
-For `model='ridge'`:
+**For Ridge models** (`model='ridge'`):
 - `model_`: Fitted Ridge model instance
 - `X_`: Training data (for predict() default)
 - `ridge_weights`: Brain_Data of coefficients (n_features, n_voxels)
 - `ridge_fitted_values`: Brain_Data of fitted values
 - `ridge_scores`: Brain_Data of R² scores
 
-For `model='glm'`:
+**For GLM models** (`model='glm'`):
 - `model_`: Fitted Glm model instance
 - `X_`: Training design matrix
 - `glm_betas`: Brain_Data of beta coefficients
@@ -145,13 +136,14 @@ For `model='glm'`:
 - `glm_predicted`: Brain_Data of fitted values
 - `glm_r2`: Brain_Data of R² values
 
-### Cross-Validation Support (Ridge only)
+---
 
-**NEW in v0.6.0:** The `fit()` method now supports cross-validation for Ridge regression via the `cv` parameter. This is useful for:
-1. Reporting cross-validated performance on training data
-2. Automatic alpha selection via grid search
+## New Feature: Cross-Validation Support
 
-**Basic CV for reporting performance:**
+**NEW in v0.6.0:** The `fit()` method supports cross-validation for Ridge regression via the `cv` parameter.
+
+### Basic CV for Performance Reporting
+
 ```python
 # Fit Ridge with 5-fold CV
 brain.fit(model='ridge', alpha=1.0, cv=5, X=features)
@@ -162,13 +154,11 @@ print(f"CV scores shape: {brain.cv_results_['scores'].shape}")  # (5, n_voxels)
 
 # CV predictions are out-of-fold predictions
 cv_predictions = brain.cv_results_['predictions']  # Brain_Data object
-print(cv_predictions.shape)  # (n_samples, n_voxels)
-
-# Fold indices for each sample
 fold_ids = brain.cv_results_['folds']  # (n_samples,)
 ```
 
-**Automatic alpha selection:**
+### Automatic Alpha Selection
+
 ```python
 # cv='auto' triggers alpha selection (default: 5 folds)
 brain.fit(model='ridge', cv='auto', alphas=[0.1, 1.0, 10.0, 100.0], X=features)
@@ -179,10 +169,10 @@ print(f"Selected alpha: {best_alpha}")
 
 # Alpha selection scores: (n_folds, n_alphas, n_voxels)
 alpha_scores = brain.cv_results_['alpha_scores']
-print(f"Tested {alpha_scores.shape[1]} alphas across {alpha_scores.shape[0]} folds")
 ```
 
-**Combining both:**
+### Combining Alpha Selection + CV Scoring
+
 ```python
 # Alpha selection + CV scoring with explicit fold count
 brain.fit(model='ridge', alpha='auto', cv=3, alphas=[0.1, 1.0, 10.0], X=features)
@@ -192,7 +182,8 @@ print(f"Best alpha: {brain.cv_results_['best_alpha']}")
 print(f"CV R² with best alpha: {brain.cv_results_['mean_score'].mean():.3f}")
 ```
 
-**Using sklearn CV splitters:**
+### Custom CV Strategies
+
 ```python
 from sklearn.model_selection import KFold
 
@@ -201,7 +192,8 @@ cv_splitter = KFold(n_splits=5, shuffle=True, random_state=42)
 brain.fit(model='ridge', alpha=1.0, cv=cv_splitter, X=features)
 ```
 
-**CV results dictionary (`cv_results_`):**
+### CV Results Dictionary
+
 When `cv` is provided, a `cv_results_` dict is created with:
 - `'scores'`: (n_folds, n_voxels) R² per fold and voxel
 - `'mean_score'`: (n_voxels,) mean R² across folds
@@ -216,9 +208,11 @@ When `cv` is provided, a `cv_results_` dict is created with:
 - CV predictions are out-of-fold and available in `cv_results_['predictions']`
 - CV is currently only supported for Ridge models (not GLM)
 
+---
+
 ## Updated Methods
 
-### `.regress()` - DEPRECATED
+### .regress() - DEPRECATED
 
 **⚠️ IMPORTANT:** `.regress()` is deprecated and will raise an error in v0.7.0. Use `fit(model='glm', X=design_matrix)` instead.
 
@@ -235,13 +229,8 @@ results = brain_data.regress()  # FutureWarning
 brain_data.fit(model='glm', noise_model='ar1', X=design_matrix)
 
 # Results stored as attributes:
-# brain_data.glm_betas
-# brain_data.glm_t
-# brain_data.glm_p
-# brain_data.glm_se
-# brain_data.glm_residual
-# brain_data.glm_predicted
-# brain_data.glm_r2
+# brain_data.glm_betas, glm_t, glm_p, glm_se,
+# glm_residual, glm_predicted, glm_r2
 
 # Predict fitted values or new timepoints
 fitted = brain_data.predict()  # X=None uses training data
@@ -254,17 +243,12 @@ new_pred = brain_data.predict(X=new_design_matrix)
 - Sets `glm_model` attribute as alias for `model_`
 - `mode='robust'` parameter is silently ignored
 
-### `.extract_roi()`
-Now uses nilearn's NiftiLabelsMasker for better performance with labeled atlases.
-
-**Old & New:** Interface remains the same
-```python
-roi_values = brain_data.extract_roi(atlas_mask)
-```
+### .extract_roi()
+Now uses nilearn's NiftiLabelsMasker for better performance with labeled atlases. Interface remains the same.
 
 **Note:** Invalid metrics now raise `NotImplementedError` instead of `ValueError` for consistency with other deprecated methods.
 
-### `.smooth()`
+### .smooth()
 Now returns a copy instead of modifying the object in-place.
 
 **Old behavior (modified in-place):**
@@ -278,14 +262,12 @@ smoothed = brain_data.smooth(5.0)  # Returns new Brain_Data object
 # Original brain_data is unchanged
 ```
 
-## New Methods
-
-### `.compute_contrasts()`
+### .compute_contrasts()
 Compute contrasts from GLM results using string specifications or numeric vectors.
 
 ```python
-# First run regression
-brain_data.regress(design_matrix)
+# First fit GLM
+brain_data.fit(model='glm', X=design_matrix)
 
 # Compute contrasts
 contrast1 = brain_data.compute_contrasts("conditionA - conditionB")
@@ -297,11 +279,67 @@ contrasts = brain_data.compute_contrasts({
 })
 ```
 
+---
+
+## New Feature: HyperAlignment Class
+
+A new `HyperAlignment` class has been extracted from the `align()` function, providing direct access to Procrustes-based hyperalignment with a clean sklearn-style API.
+
+### Basic Usage
+
+```python
+from nltools.algorithms import HyperAlignment
+import numpy as np
+
+# Create sample multi-subject data (list of [features x samples] matrices)
+data = [subject1_data, subject2_data, subject3_data]
+
+# Fit hyperalignment model
+hyper = HyperAlignment(n_iter=2, auto_pad=True)
+hyper.fit(data)
+
+# Transform data to common space
+aligned_data = hyper.transform(data)
+
+# Access common template
+common_template = hyper.s_  # or hyper.common_model_
+
+# Access transformation matrices
+transformations = hyper.w_
+
+# Align a new subject to the common space
+new_subject_data = ...  # [features x samples]
+transformed, R, disparity, scale = hyper.transform_subject(new_subject_data)
+```
+
+### Parameters
+- `n_iter` (int, default=2): Number of template refinement iterations
+- `auto_pad` (bool, default=True): Automatically zero-pad matrices to handle different feature counts
+
+### Attributes
+- `w_`: List of transformation matrices (one per subject)
+- `s_`: Common template in aligned space
+- `common_model_`: Alias for `s_` (backward compatibility)
+- `disparity_`: Alignment quality metrics (sum of squared differences)
+- `scale_`: Scale factors for each subject
+
+### Why Use HyperAlignment Directly?
+- More control over alignment parameters (`n_iter`, `auto_pad`)
+- Access to intermediate outputs (transformation matrices, quality metrics)
+- Reusable model for aligning new subjects
+- Clean sklearn-compatible API
+
+**Backward compatibility:** The `align(method='procrustes')` function continues to work identically, now using `HyperAlignment` internally.
+
+---
+
 ## HDF5 File Compatibility
 - Files saved with v0.5.1 can still be loaded
 - `.X` and `.Y` fields in old files are loaded as attributes for backward compatibility
 - Legacy HDF5 format (pre-0.4.8) is still supported with automatic detection
 - New saves will store X and Y for backward compatibility if they exist
+
+---
 
 ## Code Examples
 
@@ -342,7 +380,7 @@ clf = SVC(kernel='linear')
 cv_results = cross_validate(clf, X, y, cv=5)
 
 # Run GLM - new interface
-brain.regress(design_matrix)
+brain.fit(model='glm', X=design_matrix)
 betas = brain.glm_betas  # Access as attributes
 
 # Compute contrasts - new feature
@@ -351,6 +389,8 @@ contrast = brain.compute_contrasts("conditionA - conditionB")
 # Extract ROIs - same interface, better performance
 roi_data = brain.extract_roi(atlas)
 ```
+
+---
 
 ## Testing Your Code
 
@@ -363,362 +403,38 @@ except NotImplementedError as e:
     # Update your code to use alternatives
 ```
 
-## Documentation Status
-
-### Tutorial Updates
-All tutorials have been updated for v0.6.0 with the following approach:
-- Tutorials remain pedagogically complete with explanatory text
-- Code using deprecated methods (`.predict()`, `.ttest()`, etc.) has been commented with TODO markers
-- Documentation builds successfully (`jupyter-book build docs/`) for internal tracking
-- See `docs/TODO_TRACKER.md` for a complete list of tutorials awaiting Priority 3 features
-
-### Working Tutorials
-The following tutorials work fully with v0.6.0:
-- All Brain_Data, Design_Matrix, and Adjacency basic tutorials
-- All data operation tutorials
-- Decomposition, similarity, and hyperalignment analysis tutorials
-
-### Commented Tutorials
-Tutorials with commented code blocks waiting for Model class implementation:
-- Multivariate classification and prediction tutorials (awaiting `.predict()`)
-- Univariate regression and statistical testing tutorials (awaiting `.ttest()`)
-- Brain_Collection tutorial (awaiting class implementation)
-
-These will be uncommented and updated as Priority 3 features are implemented.
-
-## New Feature: Ridge Model Class (v0.6.0)
-
-### Overview
-nltools v0.6.0 introduces sklearn-compatible model classes, starting with Ridge regression:
-
-```python
-from nltools.models import Ridge
-import numpy as np
-
-# Basic usage
-X = np.random.randn(100, 50)  # samples × features (e.g., voxels)
-y = np.random.randn(100)       # target values
-
-model = Ridge(alpha=1.0)
-model.fit(X, y)
-y_pred = model.predict(X)
-r2_score = model.score(X, y)
-```
-
-### Ridge Regression Features
-
-**Fixed alpha:**
-```python
-# Single target
-model = Ridge(alpha=1.0)
-model.fit(X_train, y_train)
-predictions = model.predict(X_test)
-
-# Multi-target (e.g., predict multiple ROIs)
-Y_train = np.random.randn(100, 5)  # 5 targets
-model = Ridge(alpha=1.0)
-model.fit(X_train, Y_train)
-predictions = model.predict(X_test)  # shape: (n_samples, 5)
-```
-
-**Automatic alpha selection via cross-validation:**
-```python
-model = Ridge(alpha='auto', cv=5)
-model.fit(X_train, y_train)
-print(f"Selected alpha: {model.alpha_}")
-print(f"CV scores shape: {model.cv_scores_.shape}")  # (n_folds, n_alphas, n_targets)
-```
-
-**Custom alpha range:**
-```python
-alphas = [0.01, 0.1, 1.0, 10.0, 100.0]
-model = Ridge(alpha='auto', cv=5, alphas=alphas)
-model.fit(X_train, y_train)
-```
-
-**GPU acceleration:**
-```python
-# Automatic GPU detection
-model = Ridge(alpha=1.0, backend='auto')
-model.fit(X_train, y_train)
-
-# Force GPU (if available)
-model = Ridge(alpha=1.0, backend='torch')
-
-# Force CPU
-model = Ridge(alpha=1.0, backend='numpy')
-```
-
-### Migration from Deprecated Methods
-
-**Before (v0.5.1):**
-```python
-from nltools import Brain_Data
-
-brain = Brain_Data('data.nii.gz')
-brain.X = design_matrix
-brain.Y = target_values
-
-# This is now deprecated
-results = brain.predict(algorithm='ridge', cv_dict={'type': 'kfolds', 'n_folds': 5})
-```
-
-**After (v0.6.0):**
-```python
-from nltools import Brain_Data
-from nltools.models import Ridge
-
-brain = Brain_Data('data.nii.gz')
-
-# Use Ridge model directly
-model = Ridge(alpha='auto', cv=5)
-model.fit(brain.data, target_values)  # brain.data = samples × voxels
-predictions = model.predict(brain.data)
-
-# Or with GPU acceleration
-model = Ridge(alpha='auto', cv=5, backend='auto')
-model.fit(brain.data, target_values)
-```
-
-### Practical Example: Encoding Model
-
-```python
-from nltools import Brain_Data
-from nltools.models import Ridge
-import numpy as np
-
-# Load brain data
-brain = Brain_Data('task_fmri.nii.gz')  # 200 samples × 50000 voxels
-
-# Create feature matrix (e.g., stimulus attributes)
-features = np.random.randn(200, 10)  # 200 timepoints × 10 features
-
-# Fit encoding model with automatic alpha selection
-model = Ridge(alpha='auto', cv=5, backend='auto')
-model.fit(features, brain.data)  # Predict all 50k voxels
-
-# Coefficients show feature weights for each voxel
-print(f"Coefficients shape: {model.coef_.shape}")  # (10, 50000)
-print(f"Selected alpha: {model.alpha_}")
-
-# Predict brain activity from new features
-new_features = np.random.randn(50, 10)
-predicted_activity = model.predict(new_features)  # shape: (50, 50000)
-```
-
-### Performance Notes
-
-- **Small datasets** (< 10M elements): NumPy backend is faster
-- **Large datasets** (> 30M elements): GPU backend provides speedup
-- **Cross-validation**: GPU often faster even for medium datasets
-- On Apple Silicon (MPS): 1.4-2.2x speedup (SVD falls back to CPU)
-- On NVIDIA CUDA: Expected 10-30x speedup
-
-See `docs/performance.md` for detailed benchmarks.
-
 ---
 
-## New Feature: Glm Class (v0.6.0)
+## Advanced Usage: Direct Model Access
 
-### Overview
-nltools v0.6.0 introduces a sklearn-compatible GLM (General Linear Model) class that wraps nilearn's FirstLevelModel while providing a familiar interface:
+For advanced users who need direct access to the underlying Ridge and Glm model classes (not typical usage):
 
 ```python
-from nltools.models import Glm
-from nilearn.glm.first_level import make_first_level_design_matrix
-import pandas as pd
-import numpy as np
+from nltools.models import Ridge, Glm
 
-# Create design matrix
-frame_times = np.arange(100) * 2.0  # TR = 2s
-events = pd.DataFrame({
-    'onset': [10, 30, 50, 70],
-    'duration': [2, 2, 2, 2],
-    'trial_type': ['task', 'task', 'task', 'task']
-})
-design_matrix = make_first_level_design_matrix(frame_times, events)
+# Ridge model (standalone)
+model = Ridge(alpha=1.0, backend='auto')
+model.fit(X, y)
+predictions = model.predict(X_test)
 
-# Fit GLM
+# Glm model (standalone)
 model = Glm(t_r=2.0, noise_model='ar1')
 model.fit(fmri_img, design_matrices=design_matrix)
-
-# Compute contrast
-task_effect = model.compute_contrast('task', output_type='stat')
-```
-
-### Glm Features
-
-**Basic GLM analysis:**
-```python
-from nltools.models import Glm
-
-# Initialize with parameters (mask defaults to MNI template)
-model = Glm(
-    t_r=2.0,
-    noise_model='ar1',  # or 'ols'
-    smoothing_fwhm=5.0
-)
-
-# Fit to fMRI data
-model.fit(fmri_img, design_matrices=design_matrix)
-
-# Compute different contrast types
-t_map = model.compute_contrast('task', output_type='stat')
-z_map = model.compute_contrast('task', output_type='z_score')
-p_map = model.compute_contrast('task', output_type='p_value')
-beta_map = model.compute_contrast('task', output_type='effect_size')
-
-# Or get all at once
-results = model.compute_contrast('task', output_type='all')
-```
-
-**Multiple runs:**
-```python
-# Fit GLM with multiple runs
-model = Glm(t_r=2.0)
-model.fit(
-    [run1_img, run2_img, run3_img],
-    design_matrices=[dm1, dm2, dm3]
-)
-
-# Contrast is computed across all runs
 contrast_map = model.compute_contrast('task')
 ```
 
-**Access advanced features:**
-```python
-# Get fitted values
-fitted_values = model.predict()  # Returns predicted brain activity
-
-# Access residuals
-residuals = model.residuals  # List of Nifti images
-
-# Access design matrices
-design_mats = model.design_matrices_  # List of DataFrames
-
-# Access internal FirstLevelModel for nilearn-specific features
-model.glm_.generate_report()  # Use any nilearn method
-```
-
-### Integration with Brain_Data
-
-Glm works seamlessly with Brain_Data's `.regress()` method:
-
-**Using Brain_Data.regress() (existing workflow):**
-```python
-from nltools import Brain_Data, Design_Matrix
-
-brain = Brain_Data('task_fmri.nii.gz')
-dm = Design_Matrix(design_matrix_df)
-
-# This continues to work (uses nilearn internally)
-brain.regress(design_matrix=dm, noise_model='ar1')
-results = brain.compute_contrasts('conditionA - conditionB')
-```
-
-**Using Glm directly (new sklearn-style API):**
-```python
-from nltools import Brain_Data
-from nltools.models import Glm
-
-brain = Brain_Data('task_fmri.nii.gz')
-
-# Convert to 4D Nifti
-fmri_img = brain.to_nifti()
-
-# Fit GLM
-model = Glm(t_r=2.0, noise_model='ar1')
-model.fit(fmri_img, design_matrices=design_matrix)
-
-# Compute contrasts
-contrast_map = model.compute_contrast('conditionA - conditionB')
-```
-
-### Design Patterns
-
-**Glm uses composition, not inheritance:**
-- Wraps nilearn's FirstLevelModel internally
-- Similar to how Brain_Data composes NiftiMasker
-- Provides clean sklearn API while exposing nilearn functionality
-- Access internal FirstLevelModel via `model.glm_` for advanced use
-
-**Default mask behavior (like Brain_Data):**
-- If `mask=None`, automatically uses MNI template mask
-- Provides explicit mask for custom regions
-- Consistent with Brain_Data API
-
-### When to Use Glm vs Brain_Data.regress()
-
-**Use Glm when:**
-- You want sklearn-style model objects
-- Building ML pipelines with other sklearn tools
-- Need explicit control over contrast computation
-- Working directly with Nifti images (not Brain_Data)
-
-**Use Brain_Data.regress() when:**
-- You're already working with Brain_Data objects
-- You want automatic storage of results as Brain_Data attributes
-- You prefer the existing familiar API
-- Backward compatibility is important
-
-Both approaches use the same underlying nilearn FirstLevelModel, so results are identical.
+**Note:** Most users should use `Brain_Data.fit(model='ridge'|'glm')` instead, which provides a more convenient interface with automatic result storage as Brain_Data attributes.
 
 ---
 
-## New Features
+## Documentation Status
 
-### HyperAlignment Class
-
-A new `HyperAlignment` class has been extracted from the `align()` function, providing direct access to Procrustes-based hyperalignment with a clean sklearn-style API.
-
-**Basic usage:**
-```python
-from nltools.algorithms import HyperAlignment
-import numpy as np
-
-# Create sample multi-subject data (list of [features x samples] matrices)
-data = [subject1_data, subject2_data, subject3_data]
-
-# Fit hyperalignment model
-hyper = HyperAlignment(n_iter=2, auto_pad=True)
-hyper.fit(data)
-
-# Transform data to common space
-aligned_data = hyper.transform(data)
-
-# Access common template
-common_template = hyper.s_  # or hyper.common_model_
-
-# Access transformation matrices
-transformations = hyper.w_
-
-# Align a new subject to the common space
-new_subject_data = ...  # [features x samples]
-transformed, R, disparity, scale = hyper.transform_subject(new_subject_data)
-```
-
-**Parameters:**
-- `n_iter` (int, default=2): Number of template refinement iterations
-- `auto_pad` (bool, default=True): Automatically zero-pad matrices to handle different feature counts
-
-**Attributes:**
-- `w_`: List of transformation matrices (one per subject)
-- `s_`: Common template in aligned space
-- `common_model_`: Alias for `s_` (backward compatibility)
-- `disparity_`: Alignment quality metrics (sum of squared differences)
-- `scale_`: Scale factors for each subject
-
-**Why use HyperAlignment directly?**
-- More control over alignment parameters (`n_iter`, `auto_pad`)
-- Access to intermediate outputs (transformation matrices, quality metrics)
-- Reusable model for aligning new subjects
-- Clean sklearn-compatible API
-
-**Backward compatibility:**
-The `align(method='procrustes')` function continues to work identically, now using `HyperAlignment` internally.
-
-## Questions or Issues?
-Please report any migration issues at: https://github.com/cosanlab/nltools/issues
+### Tutorial Require Updating
+All tutorials are consistent with previous version not new changes
 
 ---
+
 *Note: The Model class and Brain_Collection will be reimplemented in a future release (Priority 3) with enhanced functionality.*
+
+*Last updated: 2025-10-29*
+*Lines: ~450 (condensed from 724)*
