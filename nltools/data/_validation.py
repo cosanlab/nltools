@@ -69,7 +69,7 @@ def validate_brain_data_shapes(brain1, brain2, operation="operation"):
     Raises:
         ValueError: If shapes are incompatible for the operation.
     """
-    shape1, shape2 = brain1.shape(), brain2.shape()
+    shape1, shape2 = brain1.shape, brain2.shape
     brain1_is_single = len(shape1) == 1
     brain2_is_single = len(shape2) == 1
 

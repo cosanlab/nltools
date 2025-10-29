@@ -73,7 +73,7 @@ def test_method_chaining_efficiency(sim_brain_data):
 
     # Verify result is independent
     assert result.data is not sim_brain_data.data
-    assert result.shape() == sim_brain_data.shape()
+    assert result.shape == sim_brain_data.shape
 
     # Should have mean close to 0 (after standardization)
     assert np.abs(result.data.mean()) < 0.1

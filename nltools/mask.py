@@ -140,7 +140,7 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
         else:
             raise ValueError("Make sure mask is a nibabel or Brain_Data instance.")
 
-    if len(mask.shape()) > 1:
+    if len(mask.shape) > 1:
         if len(mask) > 1:
             out = mask.empty()
 

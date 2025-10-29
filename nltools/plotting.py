@@ -76,10 +76,10 @@ def plot_interactive_brain(
         )
         threshold = int(threshold[:-1])
 
-    if len(brain.shape()) == 2:
+    if len(brain.shape) == 2:
         time_slider = True
-        max_idx = brain.shape()[0] - 1
-    elif len(brain.shape()) == 1:
+        max_idx = brain.shape[0] - 1
+    elif len(brain.shape) == 1:
         time_slider = False
     else:
         raise ValueError("Brain_Data object is not 1d or 2d")

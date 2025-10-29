@@ -10,7 +10,7 @@ def test_check_brain_data(sim_brain_data):
     assert isinstance(a, Brain_Data)
     b = check_brain_data(sim_brain_data, mask=mask)
     assert isinstance(b, Brain_Data)
-    assert b.shape()[1] == np.sum(mask.data == 1)
+    assert b.shape[1] == np.sum(mask.data == 1)
 
 
 def test_check_brain_data_is_single(sim_brain_data):

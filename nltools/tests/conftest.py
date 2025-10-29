@@ -129,7 +129,7 @@ def new_h5_adj_double(request):
 @pytest.fixture(scope="module")
 def regress_result(sim_brain_data):
     # Create labels based on actual data shape
-    n_conditions = sim_brain_data.shape()[0]
+    n_conditions = sim_brain_data.shape[0]
     labels = ["condition_" + str(i) for i in range(n_conditions)]
     # Make face and house special indices for testing
     if n_conditions >= 4:

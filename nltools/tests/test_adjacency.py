@@ -234,13 +234,13 @@ def test_ttest(sim_adjacency_multiple):
     out = sim_adjacency_multiple.ttest()
     assert len(out["t"]) == 1
     assert len(out["p"]) == 1
-    assert out["t"].shape()[0] == sim_adjacency_multiple.shape()[1]
-    assert out["p"].shape()[0] == sim_adjacency_multiple.shape()[1]
+    assert out["t"].shape[0] == sim_adjacency_multiple.shape[1]
+    assert out["p"].shape[0] == sim_adjacency_multiple.shape[1]
     out = sim_adjacency_multiple.ttest(permutation=True, n_permute=1000)
     assert len(out["t"]) == 1
     assert len(out["p"]) == 1
-    assert out["t"].shape()[0] == sim_adjacency_multiple.shape()[1]
-    assert out["p"].shape()[0] == sim_adjacency_multiple.shape()[1]
+    assert out["t"].shape[0] == sim_adjacency_multiple.shape[1]
+    assert out["p"].shape[0] == sim_adjacency_multiple.shape[1]
 
 
 def test_threshold(sim_adjacency_directed):
@@ -263,9 +263,9 @@ def test_graph_single(sim_adjacency_single):
 def test_append(sim_adjacency_single):
     a = Adjacency()
     a = a.append(sim_adjacency_single)
-    assert a.shape() == sim_adjacency_single.shape()
+    assert a.shape == sim_adjacency_single.shape
     a = a.append(a)
-    assert a.shape() == (2, 6)
+    assert a.shape == (2, 6)
 
 
 def test_bootstrap(sim_adjacency_multiple):
@@ -456,7 +456,7 @@ def test_load_legacy_h5(
         # With verbosity on we should see a warning about the old h5 file format
         b_old = Adjacency(old_h5_adj_single, verbose=True)
     b_new = Adjacency(new_h5_adj_single)
-    assert b_old.shape() == b_new.shape()
+    assert b_old.shape == b_new.shape
     assert np.allclose(b_old.data, b_new.data)
     # NOTE: We lose pandas column dtype information between old and new h5 files
     # so we can't use .equals()
@@ -468,7 +468,7 @@ def test_load_legacy_h5(
 
     b_old = Adjacency(old_h5_adj_double, legacy_h5=True)
     b_new = Adjacency(new_h5_adj_double)
-    assert b_old.shape() == b_new.shape()
+    assert b_old.shape == b_new.shape
     assert np.allclose(b_old.data, b_new.data)
     # NOTE: We lose pandas column dtype information between old and new h5 files
     # so we can't use .equals()
@@ -481,6 +481,6 @@ def test_load_legacy_h5(
     new_file = Path(tmpdir) / "tmp.h5"
     b_new.write(new_file)
     b_new_written = Adjacency(new_file)
-    assert b_new.shape() == b_new_written.shape()
+    assert b_new.shape == b_new_written.shape
     assert np.allclose(b_new.data, b_new_written.data)
     new_file.unlink()

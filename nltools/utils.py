@@ -448,7 +448,7 @@ def concatenate(data):
 def _bootstrap_apply_func(data, function, random_state=None, *args, **kwargs):
     """Bootstrap helper function. Sample with replacement and apply function"""
     random_state = check_random_state(random_state)
-    data_row_id = range(data.shape()[0])
+    data_row_id = range(data.shape[0])
     new_dat = data[
         random_state.choice(data_row_id, size=len(data_row_id), replace=True)
     ]
@@ -503,7 +503,7 @@ def check_brain_data_is_single(data):
 
     """
     data = check_brain_data(data)
-    if len(data.shape()) > 1:
+    if len(data.shape) > 1:
         return False
     else:
         return True

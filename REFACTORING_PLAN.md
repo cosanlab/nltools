@@ -19,23 +19,21 @@
 - ✅ Updated tests to properly expect NotImplementedError for deprecated methods
 - ✅ **38/38 tests passing (100%)** - all tests now pass properly
 
-### Priority 1.5: Code Cleanup & TODOs ✅ COMPLETE
-**Efficient Copying Implementation (2025-10-28):**
+### Priority 1.5: Code Cleanup & TODOs ✅ COMPLETE (2025-10-28)
+**Efficient Copying Implementation:**
 - ✅ Implemented `_shallow_copy_with_data()` helper method
 - ✅ Updated all 10 methods with "TODO: remove copy" to use efficient copying
 - ✅ All tests passing (38/38 in test_brain_data_old.py)
 - ✅ Created comprehensive tests in test_efficient_copy.py
 - ✅ Achieved ~80% performance improvement for method chaining
 
-**Still pending (minor fixes):**
-- ⬜ Fix `__repr__` to handle None from `.get_filename()` (line 308)
-- ⬜ Fix/remove unused `compute_contrast` import in `.compute_contrasts()` (lines 759-760)
-- ⬜ Research if nilearn provides R-squared calculation (line 696)
-- ⬜ Verify if effect_variance needs sqrt transformation (line 680)
-- ⬜ **Enhance `.threshold()` with cluster thresholding via nilearn** (line 1540)
-  - Add `cluster_threshold` parameter that triggers `nilearn.image.threshold_img`
-  - Keep current implementation for basic thresholding (performance)
-  - Document hybrid approach (see claude-research/threshold-refactoring-analysis.md)
+**API Polish - Properties & Quick Fixes:**
+- ✅ Convert `.shape()` → `@property` (line 456)
+- ✅ Convert `.isempty()` → `@property` (line 908)
+- ✅ Convert `.dtype()` → `@property` (line 1534)
+- ✅ Updated all calls across codebase (~90 locations)
+- ✅ Fix `__repr__` to handle None from `.get_filename()` (line 310)
+- ✅ Remove unused `compute_contrast` import in `.compute_contrasts()` (line 760)
 
 ### Priority 2: Documentation ✅ COMPLETE (100%)
 - ✅ Fix all test failures (100% passing)
@@ -47,25 +45,22 @@
 - ⬜ Update docstrings for all changed methods (optional polish)
 - ⬜ Create new tutorials for v0.6.0 features (optional)
 
-### Priority 2.5: Performance & API Polish (PARTIAL COMPLETE)
-**Nice-to-have improvements for v0.6.x:**
+### Priority 2.5: v0.6.x Future Enhancements
+**Optional improvements for future releases:**
 
-#### Performance Optimizations ✅ COMPLETE (2025-10-28)
-- ✅ Removed unnecessary deepcopy in arithmetic operations (_perform_arithmetic, __rsub__)
-- ✅ Removed unnecessary deepcopy in `.scale()`
-- ✅ Removed unnecessary deepcopy in `.append()`
-- ✅ Removed unnecessary deepcopy in `.apply_mask()`
-- ✅ Removed unnecessary deepcopy in `.detrend()`
-- ✅ Removed unnecessary deepcopy in `.z_to_r()` and `.r_to_z()`
-- ✅ Removed unnecessary deepcopy in `._apply_func()`
-- ✅ Removed unnecessary deepcopy in `__getitem__`
-
-#### API Improvements (convert to properties)
-- ⬜ Convert `.shape()` to `@property` (line 456)
-- ⬜ Convert `.isempty()` to `@property` (line 906)
-- ⬜ Convert `.dtype()` to `@property` (line 1493)
+#### Research & Verification Tasks
+- ⬜ Research if nilearn provides R-squared calculation (line 696)
+  - Current implementation uses manual calculation
+  - Check if nilearn.glm has built-in R² support
+- ⬜ Verify if effect_variance needs sqrt transformation (line 680)
+  - Mathematical verification needed
+  - Check GLM literature for standard approach
 
 #### Nilearn Integration Opportunities
+- ⬜ **Enhance `.threshold()` with cluster thresholding** (line 1540)
+  - Add `cluster_threshold` parameter using `nilearn.image.threshold_img`
+  - Keep current implementation for basic thresholding (performance)
+  - Document hybrid approach (see claude-research/threshold-refactoring-analysis.md)
 - ⬜ Consider using `nilearn.masking` for `.apply_mask()` (line 1058)
 - ⬜ Consider using `nilearn.signal.detrend` for `.detrend()` (line 1326)
 - ⬜ Consider using `nilearn.signal.standardize` for `.standardize()` (line 1513)

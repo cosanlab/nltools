@@ -700,7 +700,7 @@ class Adjacency(object):
         if not isinstance(data, Adjacency):
             raise ValueError("Make sure data is a Adjacency instance.")
 
-        if self.isempty():
+        if self.isempty:
             out = data.copy()
         else:
             out = self.copy()

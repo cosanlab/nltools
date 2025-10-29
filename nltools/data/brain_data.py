@@ -307,15 +307,16 @@ class Brain_Data(object):
         else:
             raise ValueError("axis must be 0 or 1")
 
-    # TODO: Handle cases where .get_filename() returns None Check if complete and delete or update comment accordingly
     def __repr__(self):
+        mask_filename = self.mask.get_filename()
+        mask_display = os.path.basename(mask_filename) if mask_filename else "None"
         return "%s.%s(data=%s, Y=%s, X=%s, mask=%s)" % (
             self.__class__.__module__,
             self.__class__.__name__,
-            self.shape(),
+            self.shape,
             self.Y.shape,
             self.X.shape,
-            os.path.basename(self.mask.get_filename()),
+            mask_display,
         )
 
     def __getitem__(self, index):
@@ -352,7 +353,7 @@ class Brain_Data(object):
             self.X.values[index] = value.X
 
     def __len__(self):
-        return self.shape()[0]
+        return self.shape[0]
 
     def __add__(self, y):
         """Add to Brain_Data."""
@@ -453,7 +454,7 @@ class Brain_Data(object):
         # We don't check nifti masker
         return eq_data and eq_X and eq_Y and eq_mask
 
-    # TODO: switch to @property
+    @property
     def shape(self):
         """Get images by voxels shape."""
 
@@ -757,11 +758,6 @@ class Brain_Data(object):
         if not hasattr(self, "glm_betas"):
             raise RuntimeError("Must run .regress() before computing contrasts")
 
-        # TODO: we need to fix this and import it as a different name avoid name conflicts with the method itself.
-        # TODO: it also doesn't look like we're actually using this function. why or why not?
-        # Import here to avoid circular imports
-        from nilearn.glm.contrasts import compute_contrast
-
         # Parse contrasts
         if isinstance(contrasts, str):
             # Single string contrast
@@ -790,14 +786,14 @@ class Brain_Data(object):
                 contrast_vector = np.array(contrast_def)
 
             # Validate contrast vector length
-            if len(contrast_vector) != self.glm_betas.shape()[0]:
+            if len(contrast_vector) != self.glm_betas.shape[0]:
                 raise ValueError(
                     f"Contrast vector length ({len(contrast_vector)}) must match "
-                    f"number of regressors ({self.glm_betas.shape()[0]})"
+                    f"number of regressors ({self.glm_betas.shape[0]})"
                 )
 
             # Compute contrast by linear combination of betas
-            contrast_data = np.zeros((1, self.glm_betas.shape()[1]))
+            contrast_data = np.zeros((1, self.glm_betas.shape[1]))
             for i, weight in enumerate(contrast_vector):
                 if weight != 0:
                     contrast_data += weight * self.glm_betas[i].data
@@ -883,13 +879,13 @@ class Brain_Data(object):
 
         data = check_brain_data(data)
 
-        if self.isempty():
+        if self.isempty:
             # If self is empty, return copy of the data to append
             out = data._shallow_copy_with_data()
             out.data = data.data.copy()
         else:
             # Validate shapes are compatible
-            validate_append_shapes(self.shape(), data.shape())
+            validate_append_shapes(self.shape, data.shape)
 
             out = self._shallow_copy_with_data()
             out.data = np.vstack([self.data, data.data])
@@ -904,7 +900,7 @@ class Brain_Data(object):
         out.data = np.array([])
         return out
 
-    # TODO: convert to property
+    @property
     def isempty(self):
         """Check if Brain_Data.data is empty"""
 
@@ -1005,7 +1001,7 @@ class Brain_Data(object):
         """
         # Notes:  Should add ridge, and lasso, elastic net options options
 
-        if len(self.shape()) > 1:
+        if len(self.shape) > 1:
             raise ValueError("This method can only decompose a single brain image.")
 
         images = check_brain_data(images)
@@ -1077,7 +1073,7 @@ class Brain_Data(object):
         if not check_brain_data_is_single(mask):
             raise ValueError("Mask must be a single image")
 
-        n_vox = len(self) if check_brain_data_is_single(self) else self.shape()[1]
+        n_vox = len(self) if check_brain_data_is_single(self) else self.shape[1]
         if resample_mask_to_brain:
             mask = resample_to_img(
                 mask.to_nifti(),
@@ -1097,7 +1093,7 @@ class Brain_Data(object):
         else:
             masked.data = nifti_masker.fit_transform(masked.to_nifti())
         masked.nifti_masker = nifti_masker
-        if (len(masked.shape()) > 1) & (masked.shape()[0] == 1):
+        if (len(masked.shape) > 1) & (masked.shape[0] == 1):
             masked.data = masked.data.flatten()
         return masked
 
@@ -1335,7 +1331,7 @@ class Brain_Data(object):
 
         """
 
-        if len(self.shape()) == 1:
+        if len(self.shape) == 1:
             raise ValueError(
                 "Make sure there is more than one image in order to detrend."
             )
@@ -1445,7 +1441,7 @@ class Brain_Data(object):
                 tmp_dir: temporary directory
                 index_id: (int) index for file naming
             """
-            if (len(dat.shape()) > 1) & (dat.shape()[0] > 1):
+            if (len(dat.shape) > 1) & (dat.shape[0] > 1):
                 raise ValueError('"dat" must be a single image.')
             if not dat.X.empty and isinstance(dat.X.name, str):
                 img_name = dat.X.name
@@ -1464,7 +1460,7 @@ class Brain_Data(object):
                 **kwargs,
             )
 
-        if len(self.shape()) == 1:
+        if len(self.shape) == 1:
             add_image_to_collection(
                 api, collection, self, tmp_dir, index_id=0, **kwargs
             )
@@ -1530,7 +1526,7 @@ class Brain_Data(object):
         )
         return out
 
-    # TODO: make @property
+    @property
     def dtype(self):
         """Get data type of Brain_Data.data."""
         return self.data.dtype
@@ -1563,7 +1559,7 @@ class Brain_Data(object):
 
         """
 
-        if axis == 1 and len(self.shape()) == 1:
+        if axis == 1 and len(self.shape) == 1:
             raise IndexError(
                 "Brain_Data is only 3d but standardization was requested over observations"
             )
@@ -1929,11 +1925,11 @@ class Brain_Data(object):
         else:
             raise ValueError('Make sure target_type is "samples", "seconds", or "hz".')
 
-        orig_spacing = np.arange(0, self.shape()[0], 1)
-        new_spacing = np.arange(0, self.shape()[0], n_samples)
+        orig_spacing = np.arange(0, self.shape[0], 1)
+        new_spacing = np.arange(0, self.shape[0], n_samples)
 
-        out.data = np.zeros([len(new_spacing), self.shape()[1]])
-        for i in range(self.shape()[1]):
+        out.data = np.zeros([len(new_spacing), self.shape[1]])
+        for i in range(self.shape[1]):
             interpolate = pchip(orig_spacing, self.data[:, i])
             out.data[:, i] = interpolate(new_spacing)
         return out
