@@ -229,6 +229,136 @@ Tutorials with commented code blocks waiting for Model class implementation:
 
 These will be uncommented and updated as Priority 3 features are implemented.
 
+## New Feature: Ridge Model Class (v0.6.0)
+
+### Overview
+nltools v0.6.0 introduces sklearn-compatible model classes, starting with Ridge regression:
+
+```python
+from nltools.models import Ridge
+import numpy as np
+
+# Basic usage
+X = np.random.randn(100, 50)  # samples × features (e.g., voxels)
+y = np.random.randn(100)       # target values
+
+model = Ridge(alpha=1.0)
+model.fit(X, y)
+y_pred = model.predict(X)
+r2_score = model.score(X, y)
+```
+
+### Ridge Regression Features
+
+**Fixed alpha:**
+```python
+# Single target
+model = Ridge(alpha=1.0)
+model.fit(X_train, y_train)
+predictions = model.predict(X_test)
+
+# Multi-target (e.g., predict multiple ROIs)
+Y_train = np.random.randn(100, 5)  # 5 targets
+model = Ridge(alpha=1.0)
+model.fit(X_train, Y_train)
+predictions = model.predict(X_test)  # shape: (n_samples, 5)
+```
+
+**Automatic alpha selection via cross-validation:**
+```python
+model = Ridge(alpha='auto', cv=5)
+model.fit(X_train, y_train)
+print(f"Selected alpha: {model.alpha_}")
+print(f"CV scores shape: {model.cv_scores_.shape}")  # (n_folds, n_alphas, n_targets)
+```
+
+**Custom alpha range:**
+```python
+alphas = [0.01, 0.1, 1.0, 10.0, 100.0]
+model = Ridge(alpha='auto', cv=5, alphas=alphas)
+model.fit(X_train, y_train)
+```
+
+**GPU acceleration:**
+```python
+# Automatic GPU detection
+model = Ridge(alpha=1.0, backend='auto')
+model.fit(X_train, y_train)
+
+# Force GPU (if available)
+model = Ridge(alpha=1.0, backend='torch')
+
+# Force CPU
+model = Ridge(alpha=1.0, backend='numpy')
+```
+
+### Migration from Deprecated Methods
+
+**Before (v0.5.1):**
+```python
+from nltools import Brain_Data
+
+brain = Brain_Data('data.nii.gz')
+brain.X = design_matrix
+brain.Y = target_values
+
+# This is now deprecated
+results = brain.predict(algorithm='ridge', cv_dict={'type': 'kfolds', 'n_folds': 5})
+```
+
+**After (v0.6.0):**
+```python
+from nltools import Brain_Data
+from nltools.models import Ridge
+
+brain = Brain_Data('data.nii.gz')
+
+# Use Ridge model directly
+model = Ridge(alpha='auto', cv=5)
+model.fit(brain.data, target_values)  # brain.data = samples × voxels
+predictions = model.predict(brain.data)
+
+# Or with GPU acceleration
+model = Ridge(alpha='auto', cv=5, backend='auto')
+model.fit(brain.data, target_values)
+```
+
+### Practical Example: Encoding Model
+
+```python
+from nltools import Brain_Data
+from nltools.models import Ridge
+import numpy as np
+
+# Load brain data
+brain = Brain_Data('task_fmri.nii.gz')  # 200 samples × 50000 voxels
+
+# Create feature matrix (e.g., stimulus attributes)
+features = np.random.randn(200, 10)  # 200 timepoints × 10 features
+
+# Fit encoding model with automatic alpha selection
+model = Ridge(alpha='auto', cv=5, backend='auto')
+model.fit(features, brain.data)  # Predict all 50k voxels
+
+# Coefficients show feature weights for each voxel
+print(f"Coefficients shape: {model.coef_.shape}")  # (10, 50000)
+print(f"Selected alpha: {model.alpha_}")
+
+# Predict brain activity from new features
+new_features = np.random.randn(50, 10)
+predicted_activity = model.predict(new_features)  # shape: (50, 50000)
+```
+
+### Performance Notes
+
+- **Small datasets** (< 10M elements): NumPy backend is faster
+- **Large datasets** (> 30M elements): GPU backend provides speedup
+- **Cross-validation**: GPU often faster even for medium datasets
+- On Apple Silicon (MPS): 1.4-2.2x speedup (SVD falls back to CPU)
+- On NVIDIA CUDA: Expected 10-30x speedup
+
+See `docs/performance.md` for detailed benchmarks.
+
 ## Questions or Issues?
 Please report any migration issues at: https://github.com/cosanlab/nltools/issues
 

@@ -156,12 +156,13 @@ Backend('auto')    # Smart selection based on problem size
 
 ## Next Steps: Sprint 2 - Model Classes
 
-### Sprint 2: Model Classes (2-3 days)
-- [ ] Implement `BaseModel` (abstract base with sklearn interface)
-- [ ] Implement `RegressionModel` (uses ridge.py algorithms)
-- [ ] Implement `GLMModel` (wraps nilearn)
-- [ ] Implement `InferenceModel` (t-tests, permutation)
-- [ ] Unit tests for each class
+### Sprint 2: Model Classes (2-3 days) - IN PROGRESS
+- [x] Implement `BaseModel` (abstract base with sklearn interface) ✅
+- [x] Implement `Ridge` (uses ridge.py algorithms, renamed from RegressionModel) ✅
+- [x] Unit tests for BaseModel (11 tests) ✅
+- [x] Unit tests for Ridge (17 tests: basic, CV, backends) ✅
+- [ ] Implement `GLMModel` (wraps nilearn) - FUTURE
+- [ ] Implement `InferenceModel` (t-tests, permutation) - FUTURE
 
 ### Sprint 3: Integration (1-2 days)
 - [ ] Update Brain_Data methods to use Model classes
@@ -265,10 +266,17 @@ pip install nltools[gpu]  # installs pytorch
 
 See `model-spec-log.md` for detailed TDD implementation log and progress tracking.
 
-**Latest:** Sprint 1 Complete (2025-10-28)
+**Latest:** Sprint 2 Partial Complete - BaseModel + Ridge (2025-10-28)
+- BaseModel abstract class with sklearn interface ✅
+- Ridge model with CV and GPU support ✅
+- 28 comprehensive tests (11 BaseModel + 17 Ridge) ✅
+- Wraps existing ridge.py algorithms ✅
+- Full backend integration (numpy/torch/auto) ✅
+
+**Previous:** Sprint 1 Complete (2025-10-28)
 - Backend abstraction ✅
 - Ridge regression algorithms ✅
 - Comprehensive benchmarking ✅
 - Complete API documentation ✅
 
-**Next:** Sprint 2 - Model Classes
+**Next:** Sprint 3 - Brain_Data Integration (or GLMModel/InferenceModel)
