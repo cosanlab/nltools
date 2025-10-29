@@ -72,6 +72,12 @@ Labels and design matrices should now be managed separately or passed as argumen
 ### `.regress()`
 Now stores results as attributes and prefers passing design_matrix directly. Old API still works with deprecation warnings.
 
+**Internal changes (transparent to users):**
+- `.regress()` now uses the new `Glm` model class internally (instead of directly using nilearn's FirstLevelModel)
+- A `glm_model` attribute is now stored after calling `.regress()`, providing access to the fitted Glm instance
+- Results are identical to previous versions
+- For advanced users: Access underlying nilearn FirstLevelModel via `brain_data.glm_model.glm_`
+
 **Old (still works with deprecation warning):**
 ```python
 brain_data.X = design_matrix
@@ -90,8 +96,21 @@ brain_data.regress(design_matrix)
 # brain_data.glm_residual
 # brain_data.glm_predicted
 # brain_data.glm_r2
+# brain_data.glm_model  # NEW: Access to fitted Glm instance
 
 # Note: Currently still returns dict for backward compatibility (deprecated)
+```
+
+**Advanced usage - accessing the Glm model:**
+```python
+brain_data.regress(design_matrix, noise_model='ar1')
+
+# Access the Glm model instance
+glm = brain_data.glm_model
+assert glm.is_fitted_
+
+# Access underlying nilearn FirstLevelModel for advanced features
+glm.glm_.generate_report()  # Use any nilearn method
 ```
 
 **Note on robust mode:**

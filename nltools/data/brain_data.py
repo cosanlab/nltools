@@ -7,7 +7,6 @@ Classes to represent brain image data.
 """
 
 from nilearn.signal import clean
-from nilearn.glm.first_level import FirstLevelModel
 from scipy.stats import pearsonr, spearmanr
 from scipy.spatial.distance import cdist
 from scipy.stats import t as t_dist
@@ -559,7 +558,7 @@ class Brain_Data(object):
     def regress(self, design_matrix=None, noise_model="ols", mode=None, **kwargs):
         """Runs a mass-univariate GLM analysis using the provided Design_Matrix.
 
-        This is a wrapper around nilearn.glm.first_level.FirstLevelModel.
+        This is a wrapper around nltools.models.Glm, which wraps nilearn.glm.first_level.FirstLevelModel.
         Results are stored as attributes on the Brain_Data object rather than returned.
 
         We override some nilearn defaults:
@@ -573,7 +572,7 @@ class Brain_Data(object):
                           If None, will use self.X (deprecated, for backward compatibility)
             noise_model (str): temporal variance model ('ols' or 'ar1'). Default: 'ols'
             mode (str): deprecated parameter for backward compatibility ('robust' is ignored)
-            **kwargs: additional arguments for nilearn.glm.first_level.FirstLevelModel
+            **kwargs: additional arguments for nltools.models.Glm
 
         Returns:
             dict: For backward compatibility, returns dict with 'beta', 't', 'p', 'residual' keys
@@ -581,6 +580,7 @@ class Brain_Data(object):
 
         Sets attributes:
             self.design_matrix: The design matrix used
+            self.glm_model: The fitted Glm model instance
             self.glm_betas: Beta coefficients (Brain_Data)
             self.glm_t: T-statistics (Brain_Data)
             self.glm_p: P-values (Brain_Data)
@@ -590,6 +590,7 @@ class Brain_Data(object):
             self.glm_r2: R-squared values (Brain_Data)
         """
         from .design_matrix import Design_Matrix
+        from ..models import Glm
         import warnings
 
         # Handle backward compatibility - use self.X if no design_matrix provided
@@ -627,28 +628,26 @@ class Brain_Data(object):
         else:
             dm_df = pd.DataFrame(design_matrix)
 
-        # Set up FirstLevelModel with our defaults
-        model_params = {
-            "smoothing_fwhm": None,  # No smoothing
-            "standardize": False,  # No scaling
-            "drift_model": None,  # No drift model
+        # Set up Glm model with same defaults as before
+        # Note: Glm handles smoothing_fwhm, standardize, drift_model, mask internally
+        glm_params = {
+            "smoothing_fwhm": kwargs.pop("smoothing_fwhm", None),  # No smoothing by default
             "noise_model": noise_model,
-            "mask_img": self.mask,  # Use our mask
-            "t_r": None,  # Will be set from data if needed
-            "minimize_memory": False,
+            "mask": self.mask,  # Use our mask
+            "t_r": kwargs.pop("t_r", None),  # Will be set from data if needed
         }
 
-        # Update with any user-provided kwargs
-        model_params.update(kwargs)
+        # Pass any remaining kwargs to Glm (they'll be passed to FirstLevelModel)
+        glm_params.update(kwargs)
 
-        # Create and fit the model
-        glm = FirstLevelModel(**model_params)
+        # Create Glm model instance
+        self.glm_model = Glm(**glm_params)
 
         # Convert data to 4D nifti for nilearn
         data_4d = self.to_nifti()
 
         # Fit the model
-        glm.fit(data_4d, design_matrices=dm_df)
+        self.glm_model.fit(data_4d, design_matrices=dm_df)
 
         # Extract results for each regressor
         n_regressors = dm_df.shape[1]
@@ -665,8 +664,8 @@ class Brain_Data(object):
             contrast = np.zeros(n_regressors)
             contrast[i] = 1
 
-            # Compute contrast
-            results = glm.compute_contrast(contrast, output_type="all")
+            # Compute contrast using Glm's compute_contrast method
+            results = self.glm_model.compute_contrast(contrast, output_type="all")
 
             # Store maps
             beta_maps.append(results["effect_size"])
@@ -690,8 +689,8 @@ class Brain_Data(object):
             se_data.append(se_brain)
         self.glm_se = Brain_Data(data=se_data, mask=self.mask)
 
-        # Get residuals and predicted values
-        self.glm_residual = Brain_Data(glm.residuals, mask=self.mask)
+        # Get residuals using Glm's residuals property
+        self.glm_residual = Brain_Data(self.glm_model.residuals, mask=self.mask)
 
         # Predicted = original - residuals
         self.glm_predicted = self.copy()

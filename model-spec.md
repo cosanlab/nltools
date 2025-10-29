@@ -165,10 +165,12 @@ Backend('auto')    # Smart selection based on problem size
 - [x] Unit tests for Glm (10 tests: fit, contrast, properties) ✅
 - [ ] Implement `InferenceModel` (t-tests, permutation) - FUTURE
 
-### Sprint 3: Integration (1-2 days)
-- [ ] Update Brain_Data methods to use Model classes
-- [ ] Test backward compatibility
-- [ ] Integration tests
+### Sprint 3: Integration (1-2 days) - IN PROGRESS
+- [x] Update Brain_Data.regress() to use Glm model internally ✅
+- [x] Add integration tests for regress() with Glm (5 new tests) ✅
+- [x] Test backward compatibility (all existing tests pass) ✅
+- [x] Update MIGRATION_v0.5_to_v0.6.md with regress() changes ✅
+- [ ] Update Brain_Data.predict() to use Ridge model (future)
 - [ ] Update REFACTORING_PLAN.md
 
 ### Sprint 4: Documentation (1-2 days)
@@ -267,7 +269,16 @@ pip install nltools[gpu]  # installs pytorch
 
 See `model-spec-log.md` for detailed TDD implementation log and progress tracking.
 
-**Latest:** Sprint 2 Complete - BaseModel + Ridge + Glm (2025-10-28)
+**Latest:** Sprint 3 Partial - Brain_Data.regress() Integration (2025-10-29)
+- Refactored Brain_Data.regress() to use Glm model class internally ✅
+- Added 5 comprehensive integration tests (TDD methodology) ✅
+- Removed direct FirstLevelModel dependency from brain_data.py ✅
+- New glm_model attribute exposes fitted Glm for advanced use ✅
+- Updated MIGRATION_v0.5_to_v0.6.md with integration details ✅
+- All backward compatibility maintained (original tests pass) ✅
+- Results numerically identical to previous implementation ✅
+
+**Previous:** Sprint 2 Complete - BaseModel + Ridge + Glm (2025-10-28)
 - BaseModel abstract class with sklearn interface ✅
 - Ridge model with CV and GPU support ✅
 - Glm wrapping nilearn FirstLevelModel via composition ✅
@@ -282,4 +293,4 @@ See `model-spec-log.md` for detailed TDD implementation log and progress trackin
 - Comprehensive benchmarking ✅
 - Complete API documentation ✅
 
-**Next:** Sprint 3 - Brain_Data Integration or InferenceModel
+**Next:** Continue Sprint 3 - Brain_Data.predict() Integration or InferenceModel

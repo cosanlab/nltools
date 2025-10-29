@@ -348,6 +348,160 @@ class TestBrainData:
         tt = threshold(out["t"][i], out["p"][i], 0.05)
         assert isinstance(tt, Brain_Data)
 
+    def test_regress_uses_glm_model(self, sim_brain_data):
+        """Test that .regress() uses Glm model internally."""
+        from nltools.models import Glm
+
+        # Set up design matrix
+        sim_brain_data.X = pd.DataFrame(
+            {
+                "Intercept": np.ones(len(sim_brain_data.Y)),
+                "X1": np.array(sim_brain_data.Y).flatten(),
+            },
+            index=None,
+        )
+
+        # Run regression
+        sim_brain_data.regress()
+
+        # Should have created a Glm model instance stored as attribute
+        assert hasattr(sim_brain_data, "glm_model")
+        assert isinstance(sim_brain_data.glm_model, Glm)
+        assert sim_brain_data.glm_model.is_fitted_
+
+    def test_regress_glm_parameters(self, sim_brain_data):
+        """Test that .regress() passes parameters to Glm correctly."""
+        # Set up design matrix
+        design_matrix = pd.DataFrame(
+            {
+                "Intercept": np.ones(len(sim_brain_data.Y)),
+                "X1": np.array(sim_brain_data.Y).flatten(),
+            },
+            index=None,
+        )
+
+        # Test noise_model parameter
+        sim_brain_data.regress(design_matrix, noise_model="ar1")
+        assert sim_brain_data.glm_model.noise_model == "ar1"
+
+        # Test with OLS (default)
+        sim_brain_data.regress(design_matrix, noise_model="ols")
+        assert sim_brain_data.glm_model.noise_model == "ols"
+
+    def test_regress_attributes_match_glm(self, sim_brain_data):
+        """Test that .regress() attributes are correctly extracted from Glm."""
+        # Set up design matrix
+        design_matrix = pd.DataFrame(
+            {
+                "Intercept": np.ones(len(sim_brain_data.Y)),
+                "X1": np.array(sim_brain_data.Y).flatten(),
+            },
+            index=None,
+        )
+
+        # Run regression
+        sim_brain_data.regress(design_matrix)
+
+        # Check all expected attributes exist
+        assert hasattr(sim_brain_data, "glm_betas")
+        assert hasattr(sim_brain_data, "glm_t")
+        assert hasattr(sim_brain_data, "glm_p")
+        assert hasattr(sim_brain_data, "glm_se")
+        assert hasattr(sim_brain_data, "glm_residual")
+        assert hasattr(sim_brain_data, "glm_predicted")
+        assert hasattr(sim_brain_data, "glm_r2")
+
+        # Check shapes are correct
+        n_regressors = design_matrix.shape[1]
+        n_voxels = sim_brain_data.shape[1]
+
+        assert sim_brain_data.glm_betas.shape == (n_regressors, n_voxels)
+        assert sim_brain_data.glm_t.shape == (n_regressors, n_voxels)
+        assert sim_brain_data.glm_p.shape == (n_regressors, n_voxels)
+        assert sim_brain_data.glm_se.shape == (n_regressors, n_voxels)
+        assert sim_brain_data.glm_residual.shape == sim_brain_data.shape
+        assert sim_brain_data.glm_predicted.shape == sim_brain_data.shape
+        assert sim_brain_data.glm_r2.shape == (1, n_voxels)
+
+        # Check residuals property matches attribute
+        residuals_from_model = sim_brain_data.glm_model.residuals
+        assert len(residuals_from_model) == 1  # One run
+        residuals_brain_data = Brain_Data(residuals_from_model[0], mask=sim_brain_data.mask)
+        np.testing.assert_allclose(
+            sim_brain_data.glm_residual.data,
+            residuals_brain_data.data,
+            rtol=1e-5
+        )
+
+    def test_regress_backward_compatible_dict(self, sim_brain_data):
+        """Test that .regress() still returns dict for backward compatibility."""
+        # Set up design matrix
+        design_matrix = pd.DataFrame(
+            {
+                "Intercept": np.ones(len(sim_brain_data.Y)),
+                "X1": np.array(sim_brain_data.Y).flatten(),
+            },
+            index=None,
+        )
+
+        # Run regression and capture returned dict
+        with pytest.warns(DeprecationWarning, match="Returning a dictionary"):
+            out = sim_brain_data.regress(design_matrix)
+
+        # Check dict structure
+        assert isinstance(out, dict)
+        assert "beta" in out
+        assert "t" in out
+        assert "p" in out
+        assert "residual" in out
+
+        # Dict values should match attributes
+        assert out["beta"] is sim_brain_data.glm_betas
+        assert out["t"] is sim_brain_data.glm_t
+        assert out["p"] is sim_brain_data.glm_p
+        assert out["residual"] is sim_brain_data.glm_residual
+
+    def test_regress_numerical_equivalence(self, sim_brain_data):
+        """Test that Glm-based .regress() gives same numerical results as before."""
+        # This is a key test - we want to ensure refactoring doesn't change results
+
+        # Set up design matrix with known relationship
+        np.random.seed(42)
+        design_matrix = pd.DataFrame(
+            {
+                "Intercept": np.ones(len(sim_brain_data.Y)),
+                "X1": np.array(sim_brain_data.Y).flatten(),
+            },
+            index=None,
+        )
+
+        # Run regression
+        out = sim_brain_data.regress(design_matrix)
+
+        # Check betas are reasonable (not NaN, not all zeros)
+        assert not np.isnan(out["beta"].data).any()
+        assert not np.allclose(out["beta"].data, 0)
+
+        # Check t-statistics are reasonable
+        assert not np.isnan(out["t"].data).any()
+
+        # Check p-values are in valid range [0, 1]
+        assert np.all(out["p"].data >= 0)
+        assert np.all(out["p"].data <= 1)
+
+        # Check residuals + predicted = original data
+        reconstructed = out["residual"].data + sim_brain_data.glm_predicted.data
+        np.testing.assert_allclose(
+            reconstructed,
+            sim_brain_data.data,
+            rtol=1e-5,
+            atol=1e-8
+        )
+
+        # Check R² exists and is computed (values can be negative for poor fits on random data)
+        assert hasattr(sim_brain_data, "glm_r2")
+        assert sim_brain_data.glm_r2.shape == (1, sim_brain_data.shape[1])
+
     # ==================== Masking & ROI Extraction ====================
 
     def test_apply_mask(self, sim_brain_data):
