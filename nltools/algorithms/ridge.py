@@ -252,7 +252,8 @@ def ridge_cv(
             coef = ridge_svd(X_train, y_train, alpha=alpha, backend=backend)
 
             # Predict and score
-            if single_target:
+            # Note: y_train is already 2D (n, 1) for single target, so coef is (n_features, 1)
+            if coef.ndim == 1:
                 coef = coef[:, np.newaxis]
 
             y_pred = X_test @ coef

@@ -127,11 +127,182 @@ def test_ridge_cpu_gpu_equivalence():
 # ============================================================================
 
 
+def test_ridge_cv_basic():
+    """Ridge CV should select alpha and return results"""
+    from nltools.algorithms.ridge import ridge_cv
+
+    np.random.seed(42)
+    X = np.random.randn(100, 50).astype(np.float32)
+    y = np.random.randn(100).astype(np.float32)
+
+    result = ridge_cv(X, y, alphas=[0.1, 1.0, 10.0], cv=3, backend='numpy')
+
+    # Check result structure
+    assert 'alpha' in result
+    assert 'coef' in result
+    assert 'cv_scores' in result
+    assert 'backend' in result
+
+    # Check selected alpha
+    assert result['alpha'] in [0.1, 1.0, 10.0]
+
+    # Check coefficients shape
+    assert result['coef'].shape == (50,)
+
+    # Check CV scores shape: (n_folds, n_alphas, n_targets)
+    assert result['cv_scores'].shape == (3, 3, 1)
+
+
+def test_ridge_cv_multi_target():
+    """Ridge CV should handle multiple targets"""
+    from nltools.algorithms.ridge import ridge_cv
+
+    np.random.seed(42)
+    X = np.random.randn(100, 50).astype(np.float32)
+    Y = np.random.randn(100, 5).astype(np.float32)
+
+    result = ridge_cv(X, Y, alphas=[0.1, 1.0, 10.0], cv=3, backend='numpy')
+
+    # Check coefficients shape
+    assert result['coef'].shape == (50, 5)
+
+    # Check CV scores shape
+    assert result['cv_scores'].shape == (3, 3, 5)
+
+
+def test_ridge_cv_default_alphas():
+    """Ridge CV should use default alphas if not provided"""
+    from nltools.algorithms.ridge import ridge_cv
+
+    np.random.seed(42)
+    X = np.random.randn(100, 50).astype(np.float32)
+    y = np.random.randn(100).astype(np.float32)
+
+    result = ridge_cv(X, y, cv=3, backend='numpy')
+
+    # Should have selected some alpha
+    assert result['alpha'] > 0
+    assert result['coef'].shape == (50,)
+
+
+def test_ridge_cv_reproducibility():
+    """Ridge CV should give reproducible results with same seed"""
+    from nltools.algorithms.ridge import ridge_cv
+
+    np.random.seed(42)
+    X = np.random.randn(100, 50).astype(np.float32)
+    y = np.random.randn(100).astype(np.float32)
+
+    result1 = ridge_cv(X, y, alphas=[0.1, 1.0], cv=3, backend='numpy')
+
+    np.random.seed(42)
+    X2 = np.random.randn(100, 50).astype(np.float32)
+    y2 = np.random.randn(100).astype(np.float32)
+    result2 = ridge_cv(X2, y2, alphas=[0.1, 1.0], cv=3, backend='numpy')
+
+    assert result1['alpha'] == result2['alpha']
+    np.testing.assert_allclose(result1['coef'], result2['coef'], rtol=1e-5)
+
+
+@pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+def test_ridge_cv_cpu_gpu_equivalence():
+    """CPU and GPU CV should give same results"""
+    from nltools.algorithms.ridge import ridge_cv
+
+    np.random.seed(42)
+    X = np.random.randn(100, 50).astype(np.float32)
+    y = np.random.randn(100).astype(np.float32)
+    alphas = [0.1, 1.0, 10.0]
+
+    result_cpu = ridge_cv(X, y, alphas=alphas, cv=3, backend='numpy')
+    result_gpu = ridge_cv(X, y, alphas=alphas, cv=3, backend='torch')
+
+    assert result_cpu['alpha'] == result_gpu['alpha']
+    np.testing.assert_allclose(result_cpu['coef'], result_gpu['coef'], rtol=1e-4)
+
+
 # ============================================================================
 # Performance & Large Datasets
 # ============================================================================
 
 
+def test_large_dataset_completion():
+    """Ridge CV should complete on neuroimaging-sized datasets"""
+    from nltools.algorithms.ridge import ridge_cv
+
+    np.random.seed(42)
+    # Neuroimaging-sized problem
+    X = np.random.randn(300, 10000).astype(np.float32)
+    y = np.random.randn(300).astype(np.float32)
+
+    result = ridge_cv(X, y, alphas=[0.1, 1.0, 10.0], cv=3, backend='auto')
+
+    assert result['coef'].shape == (10000,)
+    assert result['alpha'] > 0
+
+
+def test_auto_backend_selection():
+    """Auto backend should select appropriately based on problem size"""
+    from nltools.algorithms.ridge import ridge_cv
+
+    np.random.seed(42)
+
+    # Small problem
+    X_small = np.random.randn(100, 1000).astype(np.float32)
+    y_small = np.random.randn(100).astype(np.float32)
+    result_small = ridge_cv(X_small, y_small, cv=3, backend='auto')
+    assert result_small['coef'].shape == (1000,)
+
+    # Large problem
+    X_large = np.random.randn(300, 50000).astype(np.float32)
+    y_large = np.random.randn(300).astype(np.float32)
+    result_large = ridge_cv(X_large, y_large, alphas=[1.0, 10.0], cv=3, backend='auto')
+    assert result_large['coef'].shape == (50000,)
+    assert result_large['backend'] in ['numpy', 'torch-cpu', 'torch-cuda', 'torch-mps']
+
+
 # ============================================================================
 # Edge Cases
 # ============================================================================
+
+
+def test_single_alpha():
+    """Should work with single alpha value"""
+    from nltools.algorithms.ridge import ridge_cv
+
+    np.random.seed(42)
+    X = np.random.randn(100, 50).astype(np.float32)
+    y = np.random.randn(100).astype(np.float32)
+
+    result = ridge_cv(X, y, alphas=[1.0], cv=3, backend='numpy')
+    assert result['alpha'] == 1.0
+
+
+def test_perfect_fit_case():
+    """Should handle perfect fit scenarios"""
+    from nltools.algorithms.ridge import ridge_cv
+
+    np.random.seed(42)
+    X = np.random.randn(100, 50).astype(np.float32)
+    beta_true = np.random.randn(50).astype(np.float32)
+    y = X @ beta_true  # Perfect linear relationship
+
+    result = ridge_cv(X, y, alphas=[1e-6, 0.1, 1.0], cv=3, backend='numpy')
+
+    # Should prefer small alpha for perfect fit
+    assert result['alpha'] <= 0.1
+
+
+def test_noisy_data():
+    """Should handle noisy data appropriately"""
+    from nltools.algorithms.ridge import ridge_cv
+
+    np.random.seed(42)
+    X = np.random.randn(100, 50).astype(np.float32)
+    beta_true = np.random.randn(50).astype(np.float32)
+    y = X @ beta_true + 0.5 * np.random.randn(100).astype(np.float32)
+
+    result = ridge_cv(X, y, alphas=[0.01, 0.1, 1.0, 10.0], cv=3, backend='numpy')
+
+    # Should select some regularization
+    assert 0.01 <= result['alpha'] <= 10.0
