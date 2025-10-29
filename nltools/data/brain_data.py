@@ -679,12 +679,14 @@ class Brain_Data(object):
         self.glm_t = Brain_Data(t_maps, mask=self.mask)
         self.glm_p = Brain_Data(p_maps, mask=self.mask)
 
-        # TODO: check if we need to transform 'effect_variance' from nilearn or whether this is *already* a standard-error
-        # Standard errors are sqrt of variance
+        # Convert effect variance to standard error: SE(β) = √Var(β)
+        # nilearn provides Var(beta) = sigma^2 * (X'X)^-1
+        # We need SE(beta) = sqrt(Var(beta)) for interpretability
+        # np.abs() handles numerical precision issues (variance should be >= 0)
         se_data = []
         for se_img in se_maps:
             se_brain = Brain_Data(se_img, mask=self.mask)
-            se_brain.data = np.sqrt(np.abs(se_brain.data))  # sqrt of variance
+            se_brain.data = np.sqrt(np.abs(se_brain.data))
             se_data.append(se_brain)
         self.glm_se = Brain_Data(data=se_data, mask=self.mask)
 
@@ -695,8 +697,10 @@ class Brain_Data(object):
         self.glm_predicted = self.copy()
         self.glm_predicted.data = self.data - self.glm_residual.data
 
-        # TODO: check this might also already be provided by nilearn; or maybe some pre-computations we can use
-        # Calculate R-squared
+        # R-squared calculation (nilearn doesn't provide this for whole-brain maps)
+        # Standard formula: R² = 1 - (SS_residual / SS_total)
+        # Current numpy implementation is optimal for voxel-wise operations
+        # nilearn.glm focuses on inference (t-stats, contrasts) not model quality metrics
         ss_total = np.sum((self.data - self.data.mean(axis=0)) ** 2, axis=0)
         ss_residual = np.sum(self.glm_residual.data**2, axis=0)
         r2_values = 1 - (
@@ -1494,18 +1498,28 @@ class Brain_Data(object):
 
     # TODO: generalize to support other nilearn ops? Check if complete and delete or update comment accordingly
     def filter(self, sampling_freq=None, high_pass=None, low_pass=None, **kwargs):
-        """Apply 5th order butterworth filter to data. Wraps nilearn
-        functionality. Does not default to detrending and standardizing like
-        nilearn implementation, but this can be overridden using kwargs.
+        """Apply butterworth filter to data. Wraps nilearn.signal.clean.
+
+        Does not default to detrending and standardizing like nilearn
+        implementation, but this can be overridden using kwargs.
 
         Args:
-            sampling_freq: sampling freq in hertz (i.e. 1 / TR)
-            high_pass: high pass cutoff frequency
-            low_pass: low pass cutoff frequency
-            kwargs: other keyword arguments to nilearn.signal.clean
+            sampling_freq: Sampling freq in hertz (i.e. 1 / TR)
+            high_pass: High pass cutoff frequency
+            low_pass: Low pass cutoff frequency
+            **kwargs: Additional arguments passed to nilearn.signal.clean
+                      Common options:
+                      - confounds: Confound timeseries to remove
+                      - sample_mask: Volumes to exclude (scrubbing)
+                      - detrend: Enable detrending (default False)
+                      - standardize: Enable standardization (default False)
+                      - ensure_finite: Replace NaN/inf (default False)
 
         Returns:
             Brain_Data: Filtered Brain_Data instance
+
+        See Also:
+            nilearn.signal.clean documentation for all available options
         """
 
         if sampling_freq is None:
