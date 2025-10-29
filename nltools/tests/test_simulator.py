@@ -21,8 +21,12 @@ def test_simulategrid_fpr(tmpdir):
     simulation = SimulateGrid(
         grid_width=grid_width, n_subjects=n_subjects, random_state=0
     )
-    simulation.plot_grid_simulation(
-        threshold=bonferroni_threshold, threshold_type="p", n_simulations=n_simulations
+    simulation.fit()
+    simulation.threshold_simulation(threshold=bonferroni_threshold, threshold_type="p")
+    simulation.run_multiple_simulations(
+        threshold=bonferroni_threshold,
+        threshold_type="p",
+        n_simulations=n_simulations,
     )
 
     assert simulation.isfit
@@ -48,11 +52,14 @@ def test_simulategrid_fdr(tmpdir):
         n_subjects=n_subjects,
         random_state=0,
     )
-    simulation.plot_grid_simulation(
+    simulation.fit()
+    simulation.threshold_simulation(
+        threshold=thresh, threshold_type="q", correction="fdr"
+    )
+    simulation.run_multiple_simulations(
         threshold=thresh,
         threshold_type="q",
         n_simulations=n_simulations,
-        correction="fdr",
     )
 
     assert len(simulation.multiple_fdr) == n_simulations

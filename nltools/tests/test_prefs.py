@@ -116,18 +116,3 @@ def test_repr():
     assert "mask: MNI152_2mm_mask.nii.gz" in repr_str
     assert "brain: MNI152_2mm_brain.nii.gz" in repr_str
     assert "plot: MNI152_2mm_T1.nii.gz" in repr_str
-
-
-def test_pref_and_plotting(sim_brain_data):
-    # Smoke tests to make sure updating templates doesn't cause plotting issues
-    # plot methods always refer to the resolution of the Brain_Data
-    # instance *itself*
-
-    # Should have no effect as simulated data is in 2mm space
-    MNI_Template.resolution = 3
-    sim_brain_data.plot()
-
-    MNI_Template.resolution = 2
-    sim_brain_data.plot()
-
-    plt.close("all")

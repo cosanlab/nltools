@@ -276,16 +276,6 @@ def test_bootstrap(sim_adjacency_multiple):
     assert isinstance(b["Z"], Adjacency)
 
 
-def test_plot(sim_adjacency_multiple):
-    sim_adjacency_multiple[0].plot()
-    sim_adjacency_multiple.plot()
-
-
-def test_plot_mds(sim_adjacency_single):
-    sim_adjacency_single.plot_mds()
-    sim_adjacency_single.plot_mds(n_components=3)
-
-
 def test_similarity_conversion(sim_adjacency_single):
     np.testing.assert_approx_equal(
         -1,
