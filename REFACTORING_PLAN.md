@@ -31,7 +31,9 @@
 | **2.6** fit/predict API | ✅ Complete | `fit(model='ridge'|'glm')`, `predict()`, regress() deprecation | 21 | 472259b |
 | **2.6.1** Cross-Validation | ✅ Complete | CV support for Ridge, alpha selection, out-of-fold predictions | 10 | 187c210 |
 | **2.7** HyperAlignment Class | ✅ Complete | Extracted from `align()`, sklearn-compatible API | 27 | Multiple |
-| **3.0** Future Features | 🔮 Planned | Model class, Brain_Collection, advanced ML workflows | TBD | Future |
+| **2.8-2.12** Pre-Release Polish | 📋 Planned | predict() updates, BrainData rename, codebase audit, docs overhaul | TBD | Pending |
+| **3.1-3.5** Medium Priority | 🔧 Planned | Polars migration, fit() inplace, Adjacency, plotting | TBD | v0.6.0/0.6.1 |
+| **4.0** Future Features | 🔮 Planning | BrainCollection class design, advanced ML workflows | TBD | v0.7.0+ |
 
 **Total Test Coverage:** 266 passing, 3 skipped
 - **Core tests:** 115 (backends, hyperalignment, models, ridge, stats, utils, mask, cv, file_reader)
@@ -191,6 +193,182 @@ nltools/tests/
 
 ---
 
+## Remaining Tasks for v0.6.0
+
+### High Priority (Pre-Release Blockers)
+
+#### 2.8: Brain_Data.predict() Updates 🔧
+**Status:** Planned
+**Description:** Update `Brain_Data.predict()` based on code comments and associated tests
+**Scope:** TBD (review comments and test coverage)
+**Estimated effort:** 1-2 hours
+
+#### 2.9: Class Naming - Brain_Data → BrainData 🔧
+**Status:** Planned
+**Description:** Rename `Brain_Data` to `BrainData` for PEP 8 compliance and modern Python conventions
+**Scope:**
+- Rename class definition
+- Update all imports across codebase
+- Add deprecation alias for backward compatibility
+- Update all documentation and examples
+- Update migration guide
+**Estimated effort:** 2-3 hours
+**Migration:** Provide `Brain_Data = BrainData` alias with DeprecationWarning
+
+#### 2.10: Efficient Copy Test Debugging 🐛
+**Status:** Planned
+**Description:** Debug intermittent failures in efficient copy tests
+**Context:** May need updates after copy/deepcopy strategy changes
+**Investigation steps:**
+- Reproduce failure conditions
+- Review copy strategy changes
+- Update test assumptions if needed
+**Estimated effort:** 1-2 hours
+
+#### 2.11: Round 1 Codebase Audit 📋
+**Status:** Planned
+**Description:** Systematic review of all classes, methods, and functions
+**Checklist per component:**
+- [ ] Docstrings accurate and complete (NumPy style)
+- [ ] Source code matches intended functionality
+- [ ] Tests cover functionality AND edge cases (not just smoke tests)
+- [ ] Test coverage matches v0.5.1 baseline (no regressions)
+- [ ] Legacy code identified for deprecation or improvement
+**Scope:**
+- `Brain_Data` / `BrainData` class (~60 methods)
+- `Adjacency` class (~30 methods)
+- `Design_Matrix` class (~15 methods)
+- Core functions in `stats.py`, `utils.py`, `mask.py`
+- External algorithms
+**Estimated effort:** 8-12 hours (can parallelize by module)
+
+#### 2.12: Documentation & Tutorials Overhaul 📚
+**Status:** Planned
+**Description:** Complete documentation restructure for v0.6.0
+**API Documentation:**
+- [ ] Organize by category (Data Objects, Models, Stats, Utilities)
+- [ ] Remove usage examples from API reference (move to tutorials)
+- [ ] Clean, navigable structure (sphinx/jupyter-book)
+**Tutorials:**
+- [ ] Systematic pedagogical progression
+- [ ] Cover all functionality from previous tutorials
+- [ ] Include new fit/predict API, CV support
+- [ ] Follow pymer4 tutorial quality standard (https://eshinjolly.com/pymer4/)
+- [ ] Show-case functionality with real-world examples
+**Estimated effort:** 12-16 hours
+
+### Medium Priority (v0.6.0 or v0.6.1)
+
+#### 3.1: Design_Matrix Polars Migration 🚀
+**Status:** Planned
+**Description:** Replace pandas with Polars for Design_Matrix
+**Prerequisites:**
+- [ ] Review existing markdown plan
+- [ ] Audit Design_Matrix API surface
+- [ ] Design Polars-compatible API
+**Implementation:**
+- [ ] Rewrite Design_Matrix with Polars backend
+- [ ] Maintain backward compatibility where possible
+- [ ] Update tests (10 existing + edge cases)
+- [ ] Performance benchmarking
+**Estimated effort:** 6-8 hours
+**Risk:** API breaking changes may require careful migration
+
+#### 3.2: Polars GPU Support 🎮
+**Status:** Planned (experimental)
+**Description:** Leverage Polars GPU support with existing GPU infrastructure
+**Prerequisites:**
+- [ ] Complete Design_Matrix Polars migration (3.1)
+- [ ] Review current GPU backend implementation
+- [ ] Assess Polars GPU API compatibility
+**Scope:**
+- [ ] Investigate Polars GPU capabilities
+- [ ] Integrate with existing `use_*_backend` pattern
+- [ ] Test on GPU hardware
+- [ ] Document GPU requirements and setup
+**Estimated effort:** 4-6 hours
+**Risk:** May be blocked by Polars GPU maturity
+
+#### 3.3: Brain_Data.fit() Inplace & Fit Dataclass 🔧
+**Status:** Planned
+**Description:** Add `inplace=True` default and create `Fit` dataclass for results
+**Rationale:** Since we save results as attributes, inplace makes sense as default
+**Design:**
+- [ ] Add `inplace` parameter to `fit()` (default=True)
+- [ ] Create `Fit` dataclass to abstract model attributes
+- [ ] Support `inplace=False` returning Fit instance
+- [ ] Update all model-specific attributes (ridge_*, glm_*)
+**API Impact:**
+```python
+# Current (inplace only)
+brain.fit(model='ridge', X=X)  # Modifies brain
+brain.ridge_coef_  # Access results
+
+# Proposed
+brain.fit(model='ridge', X=X, inplace=True)  # Default
+fit_results = brain.fit(model='ridge', X=X, inplace=False)  # Returns Fit
+fit_results.coef_, fit_results.intercept_, etc.
+```
+**Testing:**
+- [ ] Update existing fit tests for inplace=True
+- [ ] Add tests for inplace=False + Fit dataclass
+- [ ] Verify attribute consistency
+**Estimated effort:** 3-4 hours
+
+#### 3.4: Adjacency Refactoring 🔧
+**Status:** Planned
+**Description:** Update and refactor Adjacency class code
+**Scope:** TBD (review current implementation, identify pain points)
+**Potential areas:**
+- [ ] API consistency with BrainData
+- [ ] Efficient copying pattern application
+- [ ] Documentation completeness
+- [ ] Test coverage (30 existing tests)
+**Estimated effort:** 4-6 hours
+
+#### 3.5: Plotting Integration with Nilearn 📊
+**Status:** Planned
+**Description:** Minimize and refactor plotting tools to better integrate with nilearn
+**Strategy:**
+- [ ] Audit current plotting functionality
+- [ ] Identify overlap with nilearn.plotting
+- [ ] Remove redundant plotting code
+- [ ] Keep only value-add plotting utilities
+- [ ] Enhance integration with nilearn plotting
+- [ ] Update documentation to show nilearn plotting examples
+**Estimated effort:** 3-5 hours
+**Philosophy:** "Wrap nilearn, don't reimplement" applies to plotting too
+
+### Future Planning (Post v0.6.0)
+
+#### 4.0: BrainCollection Class Design 🔮
+**Status:** Planning phase
+**Description:** Design class for parallelizable operations across multiple BrainData instances
+**Requirements:**
+- [ ] CPU/GPU support for parallel operations
+- [ ] Smart disk caching for memory-intensive operations
+- [ ] Optimized for multi-brain analyses (ISC, SRM, etc.)
+- [ ] Long timeseries support
+**Use Cases:**
+- Multi-subject ISC analysis
+- Multi-subject SRM alignment
+- Group-level statistics
+- Batch preprocessing pipelines
+**Design Questions:**
+- Storage backend (HDF5, Zarr, custom?)
+- Lazy evaluation strategy
+- Memory management policy
+- API surface (list-like? dict-like? custom?)
+**Next Steps:**
+- [ ] Write design proposal document
+- [ ] Prototype memory caching strategy
+- [ ] Benchmark parallelization approaches
+- [ ] Define API with usage examples
+**Estimated effort:** Research/design phase, implementation 20+ hours
+**Target:** v0.7.0 or later
+
+---
+
 ## Deferred Items
 
 ### ISC Dimension Bug (test_align)
@@ -245,14 +423,21 @@ nltools/tests/
 **Unstaged Changes:**
 - `docs/_config.yml`: Removed TODO comment (line 3)
 - `nltools/data/brain_data.py`: Removed resolved TODO comments
+- `REFACTORING_PLAN.md`: Added remaining v0.6.0 tasks
 
-**Next Steps:**
-- Finalize documentation polish
-- Review deprecation warnings for clarity
-- Prepare release notes (consider CHANGELOG.md)
-- Stage changes and await approval for v0.6.0 release
+**Next Steps (Priority Order):**
+1. **2.8:** Update `Brain_Data.predict()` based on comments (1-2 hrs)
+2. **2.10:** Debug efficient copy test intermittent failures (1-2 hrs)
+3. **2.11:** Begin Round 1 Codebase Audit - systematic review (8-12 hrs)
+   - Can parallelize by module (Brain_Data, Adjacency, Design_Matrix, core functions)
+4. **2.9:** Rename Brain_Data → BrainData with deprecation alias (2-3 hrs)
+5. **2.12:** Documentation & Tutorials Overhaul (12-16 hrs)
+6. **Medium Priority:** Evaluate tasks 3.1-3.5 for v0.6.0 vs v0.6.1
+7. **Future:** Design BrainCollection class (4.0) for v0.7.0+
+
+**Total Estimated Effort for High Priority Tasks:** ~26-37 hours
 
 ---
 
 *Last updated: 2025-10-29*
-*Lines: ~300 (condensed from 604)*
+*Lines: ~450 (added remaining v0.6.0 tasks)*
