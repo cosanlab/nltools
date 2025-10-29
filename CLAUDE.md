@@ -48,8 +48,8 @@ uv run pytest nltools/tests/ -xvs --tb=long 2>&1 | tee pytest.log
 
 **Branch**: `uv-cleanup` (active development)
 **Version Target**: v0.6.0 (breaking release, API changes allowed)
-**Test Status**: 38/38 passing ✅
-**Last Work**: Implemented efficient copying (~80% performance improvement)
+**Test Status**: 91/91 passing ✅ (test suite refactored to class-based structure)
+**Last Work**: Completed test suite refactoring with section organization
 
 **Important Git Tags**:
 - `v0.6.0-test-refactor`: Test implementations for deprecated methods
@@ -85,6 +85,39 @@ uv run pytest -k "regress or extract" -x
 # Capture output to log file (recommended for debugging)
 uv run pytest nltools/tests/ -xvs --tb=long 2>&1 | tee pytest_full.log
 ```
+
+### Test Suite Organization
+
+**Test files follow "imperative shell, functional core" pattern:**
+
+**Imperative Shell (Class-based tests)**:
+```bash
+# test_brain_data.py - 38 tests organized in TestBrainData class
+uv run pytest nltools/tests/test_brain_data.py::TestBrainData::test_regress
+
+# test_adjacency.py - 30 tests organized in TestAdjacency class
+uv run pytest nltools/tests/test_adjacency.py::TestAdjacency::test_similarity
+
+# test_design_matrix.py - 10 tests organized in TestDesignMatrix class
+uv run pytest nltools/tests/test_design_matrix.py::TestDesignMatrix::test_convolve
+```
+
+**Functional Core (Function-based tests)**:
+```bash
+# test_stats.py - 13 tests as simple functions (tests pure statistical algorithms)
+uv run pytest nltools/tests/test_stats.py::test_isc
+uv run pytest nltools/tests/test_stats.py::test_permutation
+```
+
+**Why this organization?**
+- **Class-based**: Tests that validate object usage patterns and method interactions
+- **Function-based**: Tests that validate computational correctness of pure functions
+- **Selective running**: Easy to run specific classes or sections with pytest's `-k` flag
+
+**Sections in each file**:
+- Each test file has logical sections marked with comment headers
+- Sections group related functionality (e.g., I/O, Arithmetic, Statistical Methods)
+- Makes it easy to navigate and understand test coverage
 
 ### Git Workflow
 ```bash

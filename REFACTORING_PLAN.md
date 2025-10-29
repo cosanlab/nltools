@@ -45,6 +45,28 @@
 - ⬜ Update docstrings for all changed methods (optional polish)
 - ⬜ Create new tutorials for v0.6.0 features (optional)
 
+### Priority 2.1: Test Suite Organization ✅ COMPLETE (2025-10-28)
+**Refactored test suite to follow "imperative shell, functional core" pattern:**
+
+**Implementation completed in 4 commits:**
+- ✅ test_brain_data.py → TestBrainData class (38 tests organized in 12 sections)
+- ✅ test_adjacency.py → TestAdjacency class (30 tests organized in 11 sections)
+- ✅ test_design_matrix.py → TestDesignMatrix class (10 tests organized in 3 sections)
+- ✅ test_stats.py → Added section headers and docstrings (13 tests in 6 sections, kept as functions)
+
+**Benefits:**
+- ✅ Selective test running: `pytest test_brain_data.py::TestBrainData::test_regress`
+- ✅ Pattern-based selection: `pytest -k "BrainData and regress"`
+- ✅ Clear organization with section headers in each file
+- ✅ Improved maintainability and navigation
+- ✅ Updated CLAUDE.md with test structure documentation
+
+**Final Test Status**: 91/91 passing (100%) ✅
+
+**Documentation:**
+- See test-refactor.md for full implementation plan
+- See CLAUDE.md § Test Suite Organization for usage examples
+
 ### Priority 2.5: v0.6.x Future Enhancements
 **Optional improvements for future releases:**
 
