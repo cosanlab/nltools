@@ -279,7 +279,7 @@ class Adjacency(object):
         ) % (
             self.__class__.__module__,
             self.__class__.__name__,
-            self.shape(),
+            self.shape,
             self.square_shape(),
             self.Y.shape,
             self.issymmetric,
@@ -313,7 +313,7 @@ class Adjacency(object):
         if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = new.data + y
         elif isinstance(y, Adjacency):
-            if self.shape() != y.shape():
+            if self.shape != y.shape:
                 raise ValueError(
                     "Both Adjacency() instances need to be the same shape."
                 )
@@ -327,7 +327,7 @@ class Adjacency(object):
         if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = y + new.data
         elif isinstance(y, Adjacency):
-            if self.shape() != y.shape():
+            if self.shape != y.shape:
                 raise ValueError(
                     "Both Adjacency() instances need to be the same shape."
                 )
@@ -341,7 +341,7 @@ class Adjacency(object):
         if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = new.data - y
         elif isinstance(y, Adjacency):
-            if self.shape() != y.shape():
+            if self.shape != y.shape:
                 raise ValueError(
                     "Both Adjacency() instances need to be the same shape."
                 )
@@ -355,7 +355,7 @@ class Adjacency(object):
         if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = y - new.data
         elif isinstance(y, Adjacency):
-            if self.shape() != y.shape():
+            if self.shape != y.shape:
                 raise ValueError(
                     "Both Adjacency() instances need to be the same shape."
                 )
@@ -369,7 +369,7 @@ class Adjacency(object):
         if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = new.data * y
         elif isinstance(y, Adjacency):
-            if self.shape() != y.shape():
+            if self.shape != y.shape:
                 raise ValueError(
                     "Both Adjacency() instances need to be the same shape."
                 )
@@ -383,7 +383,7 @@ class Adjacency(object):
         if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = y * new.data
         elif isinstance(y, Adjacency):
-            if self.shape() != y.shape():
+            if self.shape != y.shape:
                 raise ValueError(
                     "Both Adjacency() instances need to be the same shape."
                 )
@@ -397,7 +397,7 @@ class Adjacency(object):
         if isinstance(y, (int, np.integer, float, np.floating)):
             new.data = new.data / y
         elif isinstance(y, Adjacency):
-            if self.shape() != y.shape():
+            if self.shape != y.shape:
                 raise ValueError(
                     "Both Adjacency() instances need to be the same shape."
                 )
@@ -501,6 +501,7 @@ class Adjacency(object):
 
         return (data, issymmetric, matrix_type, is_single_matrix)
 
+    @property
     def isempty(self):
         """Check if Adjacency object is empty"""
         return bool(self.matrix_type == "empty")
@@ -668,6 +669,7 @@ class Adjacency(object):
             elif axis == 1:
                 return np.nanmedian(self.data, axis=axis)
 
+    @property
     def shape(self):
         """Calculate shape of data."""
         return self.data.shape
