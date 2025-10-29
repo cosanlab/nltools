@@ -354,6 +354,51 @@ class TestBrainData:
         masked_dat = sim_brain_data.apply_mask(s1, resample_mask_to_brain=True)
         assert masked_dat.shape[1] == np.sum(s1.get_fdata() != 0)
 
+    def test_apply_mask_nilearn_validation(self, sim_brain_data):
+        """Nilearn should provide better error messages for invalid inputs"""
+        # Test that multi-volume mask raises clear error
+        # Create invalid 4D mask (should be 3D)
+        s1 = create_sphere([12, 10, -8], radius=10)
+
+        # Stack to create 4D (invalid for masking)
+        from nilearn.image import concat_imgs
+        invalid_mask = concat_imgs([s1, s1])
+
+        # Create Brain_Data from invalid mask
+        mask_bd = Brain_Data(invalid_mask, mask=sim_brain_data.mask)
+
+        # Should raise ValueError for non-single image
+        with pytest.raises(ValueError, match="Mask must be a single image"):
+            sim_brain_data.apply_mask(mask_bd)
+
+    def test_apply_mask_dimension_compatibility(self, sim_brain_data):
+        """Nilearn should handle dimension compatibility automatically"""
+        # Create a compatible mask
+        s1 = create_sphere([12, 10, -8], radius=10)
+        mask_bd = Brain_Data(s1, mask=sim_brain_data.mask)
+
+        # This should work (nilearn handles dimension matching)
+        result = sim_brain_data.apply_mask(mask_bd)
+
+        assert isinstance(result, Brain_Data)
+        # Verify output shape matches number of non-zero mask voxels
+        assert result.shape[1] == mask_bd.data.astype(bool).sum()
+
+    def test_apply_mask_resampling(self, sim_brain_data):
+        """Test resample_mask_to_brain parameter works correctly"""
+        s1 = create_sphere([12, 10, -8], radius=10)
+        mask_bd = Brain_Data(s1, mask=sim_brain_data.mask)
+
+        # With resampling
+        result_resample = sim_brain_data.apply_mask(mask_bd, resample_mask_to_brain=True)
+        assert isinstance(result_resample, Brain_Data)
+        assert result_resample.shape[1] == np.sum(s1.get_fdata() != 0)
+
+        # Without resampling (default)
+        result_no_resample = sim_brain_data.apply_mask(mask_bd, resample_mask_to_brain=False)
+        assert isinstance(result_no_resample, Brain_Data)
+        assert result_no_resample.shape[1] == mask_bd.data.astype(bool).sum()
+
     def test_extract_roi(self, sim_brain_data):
         """Test ROI extraction with different metrics and labeled atlases."""
         mask = create_sphere([12, 10, -8], radius=10)
