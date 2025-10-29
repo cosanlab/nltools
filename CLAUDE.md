@@ -1,467 +1,319 @@
-# CLAUDE.md - nltools Development Knowledge Base
+# CLAUDE.md - nltools Development Guide
 
-*This document captures the shared context, decisions, and working patterns for the nltools library. It enables efficient collaboration by documenting both what we're building and how we work together.*
-
----
-
-## 🎯 Current State & Context (October 2025)
-
-### Where We Are
-- **Branch**: `uv-cleanup` (active development)
-- **Reference**: `uv-refactor` branch has historical changes we can learn from
-- **Version Target**: v0.6.0 (breaking release, API changes allowed)
-- **Test Status**: 38/38 passing (100%) - all tests now pass properly
-- **Last Work**: Implemented efficient copying throughout Brain_Data (~80% performance improvement)
-
-### Important Git Tags
-- **`v0.6.0-test-refactor`** (2025-10-28): Marks where we simplified test code to properly test deprecated methods with pytest.raises. Reference this tag if you need to see the test implementations we removed for methods that will move to Model class.
-- **`v0.6.0-docs-removal`** (2025-10-28): Reference point for documentation code removed during v0.6.0 migration. Contains Sphinx config, auto-generated API docs, build scripts, and documentation-specific tests that were removed.
-
-### What We're Building
-**nltools** is a Python neuroimaging library that makes fMRI analysis more accessible by wrapping lower-level tools (primarily nilearn) with intuitive APIs. Think of it as "the requests library for neuroimaging" - we don't reinvent the wheel, we make the wheel easier to use.
-
-### Core Architecture Decision
-**"Functional-core, imperative shell"** pattern:
-- **Imperative shell** (`nltools/data/`): Stateful classes (Brain_Data, Adjacency, Design_Matrix) that hold data and coordinate operations
-- **Functional core**: Pure functions for computations (stats.py, utils.py, etc.)
-- **v0.5.1 = Baseline**: This is our compatibility target - everything from v0.5.1 must work or deprecate gracefully
-- **Post-v0.5.1 features**: Deferred to Priority 3 (Model class, Brain_Collection)
+*Quick reference for working on nltools. For detailed context, see `claude-guidelines/` directory.*
 
 ---
 
-## 🧠 Key Design Decisions & Rationale
+## ⚠️ CRITICAL REQUIREMENTS
 
-### Why We Implemented `.regress()` This Way
-
-**Context**: "Why did you implement regress in this way?"
-
-We chose to wrap `nilearn.glm.first_level.FirstLevelModel` because:
-1. **Don't reinvent**: nilearn already has robust, tested GLM implementation
-2. **Store as attributes**: Changed from returning dict to storing `.glm_betas`, `.glm_t`, etc. as attributes for easier access and consistency
-3. **Override defaults**: We disable smoothing/scaling/drift (user should control these explicitly)
-4. **Design_Matrix required**: Forces explicit experimental design specification
-
-```python
-# Old pattern (v0.5.1)
-brain.X = design_matrix
-results_dict = brain.regress()
-betas = results_dict['beta']
-
-# New pattern (v0.6.0)
-brain.regress(design_matrix)  # Stores results as attributes
-betas = brain.glm_betas  # Direct attribute access
+**ALWAYS use `uv run` for ALL Python/pytest commands:**
+```bash
+✅ uv run pytest nltools/tests/
+✅ uv run python script.py
+❌ NEVER: pytest nltools/tests/  # Will use wrong environment
+❌ NEVER: python script.py        # Will use wrong environment
 ```
 
-**Trade-offs**:
-- ✅ Cleaner API, leverages nilearn
-- ❌ Breaking change from v0.5.1
-- Decision: Worth it for long-term maintainability
-
-### The nilearn Integration Philosophy
-
-**Context**: "Can we do this more easily in nilearn?"
-
-**ALWAYS check nilearn first**. Our integration rules:
-1. If nilearn has it → wrap it for better UX
-2. If nilearn doesn't have it → consider if we really need it
-3. If we must implement → follow nilearn patterns for consistency
-
-**Current nilearn dependencies we leverage**:
-- `NiftiMasker`: Core data loading and masking
-- `FirstLevelModel`: GLM implementation
-- `NiftiLabelsMasker`: ROI extraction (new in our refactor)
-- Image functions: `smooth_img`, `resample_to_img`
-- Plotting: Most visualization functions
-
-**When to push back**: If I suggest reimplementing something nilearn provides, challenge me. The correct response is to find the nilearn function and wrap it.
-
-### The Efficient Copying Implementation
-
-**Context**: "How do we support method chaining without deep copy overhead?"
-
-We implemented a hybrid shallow copy approach (2025-10-28):
-1. **`_shallow_copy_with_data()` method**: Creates new Brain_Data instance that shares immutable objects
-2. **Smart attribute handling**:
-   - **Share**: mask, nifti_masker (immutable, expensive to copy)
-   - **Copy**: X, Y DataFrames (small, mutable)
-   - **Defer**: data array (methods handle as needed)
-3. **Performance gain**: ~80% reduction in copy overhead for method chains
-
-**Example of the pattern**:
-```python
-def scale(self, scale_val=100.0):
-    out = self._shallow_copy_with_data()  # Fast object creation
-    out.data = self.data.copy()  # Only copy data when needed
-    out.data = out.data / out.data.mean() * scale_val
-    return out
-```
-
-This enables efficient chains like `brain.scale(100).standardize().threshold()` without 3x deep copy overhead.
-
-### The Deprecation Strategy
-
-**Context**: Methods moved to future Model class
-
-We deprecated rather than removed these methods:
-- `.predict()` → Model class (ML workflows)
-- `.ttest()` → Model class (statistical testing)
-- `.randomise()` → Model class (permutation testing)
-- `.predict_multi()` → Model class (searchlight/multi-ROI)
-
-They now raise `NotImplementedError` with a message pointing to the Model class. This:
-1. Prevents silent failures
-2. Gives clear migration path
-3. Documents what Model class needs to implement
-
----
-
-## 💭 Implicit Context Dictionary
-
-### "Where did we leave off?"
-Check in order:
-1. `git log -1` - Last commit message has comprehensive summary
-2. REFACTORING_PLAN.md - "Next Focus Areas" section
-3. Test failures: `uv run pytest nltools/tests/test_brain_data_old.py --tb=no | grep FAILED`
-4. This file's "Current State" section
-
-### "It would be easier for the user if..."
-I should interpret this as a UX/API design suggestion and:
-1. Consider the user's workflow perspective
-2. Propose API changes that reduce boilerplate
-3. Check if nilearn has a relevant pattern to follow
-4. Document trade-offs of the easier approach
-
-### "Why did we make this decision?"
-Check:
-1. This file's "Key Design Decisions" section
-2. Git commit messages (very detailed)
-3. `claude-research/` folder for technical investigations
-4. `refactor.md` for original requirements
-
-### "Can we simplify this?"
-Usually means:
-1. Can nilearn do this for us?
-2. Is there unnecessary complexity we can remove?
-3. Can we reduce the API surface?
-
-My response pattern: "Yes, we can simplify by [specific approach]. Nilearn's [function] handles this. Trade-off: [what we lose]. Shall I proceed?"
-
----
-
-## 🔬 Technical Expertise & Knowledge Boundaries
-
-### Where I Can Speak Confidently
-
-**nilearn patterns** - I understand:
-- Masker types and when to use each (NiftiMasker vs LabelsMasker vs MapsMasker)
-- GLM implementation details and parameters
-- Image manipulation functions and their trade-offs
-- Common pitfalls (dimension mismatches, affine problems)
-
-**pytest best practices** - I know:
-- Efficient test selection patterns (`--lf`, `-k`, `-x`)
-- Fixture scoping for performance
-- Debugging strategies (`--pdb`, `-vv`)
-- neuroimaging-specific test patterns
-
-**Refactoring strategies** - I can:
-- Identify code duplication patterns
-- Suggest appropriate abstraction levels
-- Plan incremental migrations
-- Maintain backward compatibility
-
-### Where I Need to Research
-
-**Latest API changes** - I always verify:
-- nilearn functions (check their docs, version 0.11.1+)
-- scikit-learn API changes
-- New Python features (3.10+)
-
-**Domain-specific statistics** - I research before suggesting:
-- Advanced GLM contrasts
-- Permutation testing specifics
-- Multiple comparison corrections
-
-**Performance optimizations** - I investigate:
-- Memory usage patterns for large datasets
-- Parallelization opportunities
-- Caching strategies
-
-### How I Research
-
-1. **Check existing knowledge**: `ls claude-research/`
-2. **Use sub-agents** for deep research: Create/update markdown files
-3. **Verify with source**: Check official docs, not blog posts
-4. **Test empirically**: Write small test to verify behavior
-
----
-
-## 🤝 Our Working Patterns
-
-### Communication Patterns That Work
-
-**When I should be direct**:
-- "This is already in nilearn as `function_name`"
-- "That would break backward compatibility"
-- "The test is failing because [specific reason]"
-
-**When I should offer options**:
-- "We could use approach A (faster) or B (more flexible)"
-- "nilearn has X, or we could implement Y"
-- "Trade-off: simplicity vs performance"
-
-**When I should ask for clarification**:
-- Ambiguous requirements
-- Multiple valid interpretations
-- Breaking changes without clear benefit
-
-### The Staging Protocol
-
-**CRITICAL: NEVER commit without explicit approval. Only stage changes.**
-
+**NEVER commit without explicit approval - only stage changes:**
 ```python
 # Our workflow invariant:
 if changes_ready:
-    git_add_all()
+    git add .
     say("Changes staged and ready for review")
     # WAIT FOR APPROVAL - DO NOT COMMIT
-else:
-    dont_stage()
-    say("Stuck on X, not staged because...")
 
-# You'll respond with either:
-# "Go ahead and commit" or
-# "Let me modify first" or
-# "Let's fix X before committing"
+# Eshin responds: "Go ahead and commit" → Then commit
 ```
 
-**After making changes, ALWAYS update:**
-1. `MIGRATION_v0.5_to_v0.6.md` - Document any API changes or compatibility notes
-2. `REFACTORING_PLAN.md` - Update progress tracker and completed tasks
+**ALWAYS update after making changes:**
+- `MIGRATION_v0.5_to_v0.6.md` - Document API changes
+- `REFACTORING_PLAN.md` - Update progress tracker
 
-### Test-Driven Workflow
-
-Our TDD cycle for nltools:
-1. **Identify test**: `uv run pytest -k pattern --co`
-2. **Run failing test**: `uv run pytest path::test -xvs`
-3. **Implement minimal fix**
-4. **Verify**: `uv run pytest --lf`
-5. **Check for regressions**: `uv run pytest path/to/module`
-
-### 📝 Efficient Debugging with Logging
-
-**CRITICAL: Always capture verbose output to searchable log files instead of re-running commands repeatedly**
-
-#### For pytest debugging:
+**Be TOKEN-EFFICIENT with pytest output:**
 ```bash
-# Capture full test output with maximum verbosity
+# ✅ FIRST RUN: Always capture to log file
+uv run pytest nltools/tests/ -xvs --tb=long 2>&1 | tee pytest.log
+
+# ✅ THEN: Use Read/Grep TOOLS on log file (cheap tokens)
+# Each pytest run = 1,000-5,000 tokens
+# Each Grep tool search = ~50 tokens
+# Searching 5 patterns: 25,000 tokens (wasteful) vs 5,250 tokens (efficient)
+
+# ❌ NEVER: Re-run pytest just to search for different patterns
+```
+
+---
+
+## 🎯 Current State (October 2025)
+
+**Branch**: `uv-cleanup` (active development)
+**Version Target**: v0.6.0 (breaking release, API changes allowed)
+**Test Status**: 38/38 passing ✅
+**Last Work**: Implemented efficient copying (~80% performance improvement)
+
+**Important Git Tags**:
+- `v0.6.0-test-refactor`: Test implementations for deprecated methods
+- `v0.6.0-docs-removal`: Reference for removed Sphinx docs
+
+**What We're Building**: Python neuroimaging library that wraps nilearn with intuitive APIs. Think "requests library for neuroimaging" - we don't reinvent, we simplify.
+
+**Architecture**: "Functional-core, imperative shell"
+- Imperative shell: `nltools/data/` (Brain_Data, Adjacency, Design_Matrix)
+- Functional core: `stats.py`, `utils.py`, `external/algorithms.py`
+- **v0.5.1 = baseline**: Must work or deprecate gracefully
+
+---
+
+## 📋 Quick Command Reference
+
+**All commands must use `uv run` prefix**
+
+### Running Tests
+```bash
+# Run all tests
+uv run pytest nltools/tests/ -x
+
+# Run with verbose output and stop on first failure
+uv run pytest nltools/tests/test_brain_data_old.py -xvs
+
+# Run last failed tests
+uv run pytest --lf -x
+
+# Run tests matching pattern
+uv run pytest -k "regress or extract" -x
+
+# Capture output to log file (recommended for debugging)
 uv run pytest nltools/tests/ -xvs --tb=long 2>&1 | tee pytest_full.log
-uv run pytest nltools/tests/ --tb=long --capture=no > test_output.log 2>&1
-
-# For specific test investigations
-uv run pytest path/to/test.py::TestClass::test_method -xvs --tb=long 2>&1 | tee specific_test.log
-
-# Then search efficiently instead of re-running:
-grep -n "FAILED\|ERROR" pytest_full.log
-grep -A10 -B5 "AttributeError\|ImportError\|TypeError" test_output.log
-grep -n "test_.*FAILED" pytest_full.log | head -20  # Quick failure summary
 ```
 
-#### For Jupyter Book builds:
+### Git Workflow
 ```bash
-# Capture all build output and warnings
-jupyter-book build docs/ -v 2>&1 | tee jb_build.log
-jupyter-book build docs/ --builder html -W --keep-going 2>&1 | tee jb_strict.log
+# Check status and recent changes
+git status
+git log -1  # Last commit (detailed summary)
+git log --grep="keyword"  # Search commits
 
-# For clean rebuilds
-jupyter-book clean docs/ && jupyter-book build docs/ -v 2>&1 | tee jb_clean_build.log
+# Stage changes (WAIT for approval before committing)
+git add .
+git status  # Verify staged changes
 
-# Search for specific issues:
-grep -n "WARNING\|ERROR" jb_build.log
-grep -B5 "MyST\|Sphinx" jb_build.log  # Parser/build system errors
-grep "missing\|not found" jb_build.log  # Missing dependencies
+# Only after approval:
+git commit -m "Detailed message"
 ```
 
-#### Why this logging strategy matters:
-- ✅ **Avoids re-running slow commands** - Tests and builds can take minutes
-- ✅ **Preserves full stack traces** - Complete error context for debugging
-- ✅ **Enables pattern analysis** - Search across all failures at once
-- ✅ **Maintains command history** - Compare outputs between runs
-- ✅ **Speeds up iteration** - Grep is instant, re-running is not
+### Debugging
+```bash
+# Search log files instead of re-running tests
+grep -n "FAILED\|ERROR" pytest_full.log
+grep -A10 -B5 "AttributeError" pytest_full.log
 
-#### Best practices:
-1. **Always use `tee`** for real-time viewing + log capture
-2. **Include `2>&1`** to capture both stdout and stderr
-3. **Use descriptive log names** with timestamps if needed
-4. **Keep recent logs** for comparison (e.g., `pytest_before_fix.log`, `pytest_after_fix.log`)
-5. **Use grep context flags** (`-A`, `-B`, `-C`) to see surrounding lines
+# Interactive debugging
+uv run pytest path/to/test.py::test_name --pdb
+
+# See print statements
+uv run pytest path/to/test.py::test_name -s
+```
+
+---
+
+## 🤝 Working Patterns
+
+### Test-Driven Development Cycle
+
+**Standard TDD workflow**:
+```bash
+# 1. Identify relevant tests
+uv run pytest -k pattern --co
+
+# 2. Run failing test with verbose output
+uv run pytest path/to/test.py::test_name -xvs --tb=long
+
+# 3. Implement minimal fix
+
+# 4. Verify fix
+uv run pytest --lf
+
+# 5. Check for regressions
+uv run pytest path/to/module/
+```
+
+### Capture Output to Log Files
+
+**CRITICAL: Save pytest output to avoid token waste and time waste**
+
+**Token impact:**
+- Running pytest: 1,000-5,000 tokens per run
+- Grep tool on log: ~50 tokens per search
+- Read tool on log: ~200 tokens per section
+- Example: Searching 5 patterns = 25,000 tokens (wasteful) vs. 5,250 tokens (efficient) = **80% token savings**
+
+**Decision criteria:**
+
+| Save to log file FIRST | Run directly (no log) |
+|------------------------|------------------------|
+| First diagnostic run | Quick fix verification (<50 lines expected) |
+| Unknown failure scope | Interactive debugging (--pdb) |
+| Need 2+ pattern searches | Single specific test (likely to pass) |
+| Expected >500 lines output | Real-time interaction needed |
+| Analyzing test suite patterns | |
+
+**Efficient workflow:**
+```bash
+# STEP 1: Capture full output ONCE
+uv run pytest nltools/tests/ -xvs --tb=long 2>&1 | tee pytest_full.log
+
+# STEP 2: Analyze with Read/Grep TOOLS (not re-running pytest!)
+# Use Grep tool to search patterns in pytest_full.log
+# Use Read tool to view specific sections of pytest_full.log
+
+# STEP 3: Make fixes based on analysis
+
+# STEP 4: Verify with targeted re-run (much smaller output)
+uv run pytest --lf -x
+
+# STEP 5: If still failures, update log and repeat
+uv run pytest --lf -xvs --tb=long 2>&1 | tee pytest_remaining.log
+```
+
+**Why this matters:**
+- **Token efficiency**: 5x-10x reduction in token usage
+- **Speed**: Grep is instant; re-running tests takes minutes
+- **Completeness**: Preserves full stack traces for analysis
+
+### The Staging Protocol
+
+**Never commit without explicit approval**:
+
+1. Make changes
+2. Run tests: `uv run pytest --lf`
+3. Stage: `git add .`
+4. Say: "Changes staged and ready for review"
+5. **WAIT** for Eshin to approve
+6. Only then: Commit with detailed message
 
 ### Research Before Implementation
 
-**Always check before coding**:
-```python
-research_sources = [
-    "claude-research/",      # Our research docs
-    "git log uv-refactor",   # Historical decisions
-    "nilearn docs",          # Current APIs
-    "pytest docs"            # Testing patterns
-]
+**Check these sources BEFORE coding**:
+```bash
+# 1. Guidelines & research archive
+ls claude-guidelines/
+grep -r "keyword" claude-guidelines/
+
+# 2. Git history
+git log --grep="keyword"
+git log uv-refactor  # Reference branch
+
+# 3. Check nilearn docs (we wrap nilearn, don't reimplement)
+# Use context7 MCP for current APIs
 ```
 
 ---
 
-## 📚 Knowledge Base Structure
+## 📚 Knowledge Base & Guidelines
 
-### Active Documents
-- **REFACTORING_PLAN.md**: Current tasks, progress tracker, next steps
-- **MIGRATION_v0.5_to_v0.6.md**: User-facing upgrade guide
-- **priorities.md**: High-level roadmap from Eshin
-- **refactor.md**: Original refactoring requirements
+**Quick Reference** (this file):
+- Critical requirements (above)
+- Common commands
+- Working patterns
+- Quick debugging tips
 
-### Research Archive (`claude-research/`)
-Research docs that inform our decisions:
-- `nilearn_features_analysis.md`: What nilearn can do for us
-- `research-nilearn-maskers.md`: Masker types and usage
-- `apply_mask_analysis.md`: Masking optimization strategies
-- `braindata-refactor.md`: Brain_Data simplification plan
+**Detailed Guidelines** (`claude-guidelines/`):
+- **`design-philosophy.md`**: Why we made key architectural decisions (nilearn integration, regress() design, efficient copying, deprecation strategy)
+- **`knowledge-base.md`**: Technical patterns, testing workflows, research methodology, code quality standards
+- **`refactoring-context.md`**: Project priorities, implicit context dictionary, workflow patterns, understanding architecture
 
-**Important**: Always check these before implementing. Update them when discovering new patterns.
+**Active Documents**:
+- **`REFACTORING_PLAN.md`**: Current tasks, progress tracker, next steps
+- **`MIGRATION_v0.5_to_v0.6.md`**: User-facing upgrade guide
+- **`priorities.md`**: High-level roadmap
+- **`refactor.md`**: Original requirements
 
-### Code Patterns to Follow
-
-**Input validation**:
-```python
-# Use validation module, don't inline
-from nltools.data._validation import validate_data_type
-data = validate_data_type(data)
-```
-
-**Leveraging nilearn**:
-```python
-# GOOD: Use nilearn
-from nilearn.image import smooth_img
-smoothed = Brain_Data(smooth_img(brain.to_nifti(), fwhm=6))
-
-# BAD: Reimplement
-def custom_smooth(data, kernel):  # Don't do this
-```
-
-**Memory management**:
-```python
-# Process large data in chunks
-for chunk in np.array_split(indices, n_chunks):
-    process(brain_data[chunk])
-```
-
----
-
-## 🎯 Current Priorities & Status
-
-### Priority 1: Core Refactoring ✅ 90% Complete
-**What we've done**:
-- Removed post-v0.5.1 features (Brain_Collection, Model)
-- Implemented nilearn-based methods
-- Added deprecation stubs
-- Fixed major compatibility issues
-
-**What remains** (7 test failures):
-1. `.regress()` test - TypeError with design matrix
-2. `.extract_roi()` test - ValueError
-3. Mystery failures - smooth, decompose, similarity, bootstrap
-4. Legacy h5 loading - handle missing Y attribute
-
-### Priority 2: Documentation (Next)
-- Fix remaining test failures
-- Migrate Sphinx → Jupyter Book
-- Update tutorials for v0.6.0 API
-
-### Priority 3: New Features (Future)
-- Implement Model class (holds deprecated methods)
-- Implement Brain_Collection
-- Add advanced ML workflows
+**When to reference what**:
+- "Why did we implement X this way?" → `design-philosophy.md`
+- "How should I test/code this?" → `knowledge-base.md`
+- "Where did we leave off?" → `refactoring-context.md` + `git log -1`
+- "What's the current priority?" → `refactoring-context.md`
 
 ---
 
 ## 🔍 Quick Debugging Reference
 
-### Common Issues & Solutions
-
-**"Why is this test failing?"**
+### "Why is this test failing?"
 ```bash
-# 1. Run with maximum verbosity
-uv run pytest path::test -xvs --tb=long
+# 1. Run with maximum verbosity (capture to log)
+uv run pytest path::test -xvs --tb=long 2>&1 | tee test_debug.log
 
 # 2. Check what changed
 git diff HEAD~1 path/to/file.py
 
 # 3. Look for patterns
-uv run pytest -k similar_pattern
+uv run pytest -k similar_pattern -x
 ```
 
-**"Is this in nilearn?"**
+### "Is this in nilearn?"
 ```python
-# Check nilearn's modules
+# Check nilearn modules
 from nilearn import maskers, image, glm, plotting
 dir(module)  # List available functions
 
-# Check research docs
-grep -r "function_name" claude-research/
+# Search our guidelines docs
+grep -r "function_name" claude-guidelines/
 ```
 
-**"What did we decide about X?"**
+### "What did we decide about X?"
 ```bash
-# Search commit messages
+# 1. Check design philosophy
+cat claude-guidelines/design-philosophy.md
+
+# 2. Search commit messages
 git log --grep="keyword"
 
-# Search code changes
+# 3. Search code changes
 git log -p -S "code_pattern"
-
-# Check research
-ls claude-research/*keyword*
 ```
 
 ---
 
 ## 🚀 Starting a Fresh Session
 
-When you say **"Where did we leave off?"**, I'll:
-1. Check git log for last commit
-2. Review REFACTORING_PLAN.md progress
-3. Run tests to see current failures
-4. Summarize status and suggest next steps
+**When asked "Where did we leave off?"**:
+1. Check `git log -1` for last commit
+2. Review `REFACTORING_PLAN.md` progress
+3. Run `uv run pytest --lf` to see test status
+4. Check `refactoring-context.md` for priorities
+5. Summarize and suggest next steps
 
-When you say **"Continue working on X"**, I'll:
-1. Check this file for context on X
-2. Review relevant research docs
-3. Set up appropriate todo list
+**When asked "Continue working on X"**:
+1. Check `claude-guidelines/` for context on X
+2. Review relevant docs (design-philosophy, knowledge-base)
+3. Set up todo list with TodoWrite tool
 4. Start with targeted tests
 
-When you say **"Why did we..."**, I'll:
-1. Check this file's decision log
-2. Review git history
-3. Explain rationale and trade-offs
-4. Suggest alternatives if you want to reconsider
+**When asked "Why did we..."**:
+1. Check `design-philosophy.md` for decision rationale
+2. Review git history for context
+3. Explain reasoning and trade-offs
+4. Offer alternatives if reconsidering
 
 ---
 
 ## 📝 Meta Notes
 
-**This document is living** - Update it when:
-- We make significant design decisions
-- We discover useful patterns
-- We change our workflow
-- We learn something important about the libraries
+**Update this file when**:
+- Critical requirements change
+- Common commands evolve
+- Workflow patterns improve
 
-**Confidence calibration**:
-- I speak confidently about: nilearn patterns, pytest, refactoring strategies
-- I research before claiming: latest APIs, performance optimizations, statistical methods
-- I always verify: specific function signatures, version compatibility
+**Update reference files when**:
+- Making significant design decisions → `design-philosophy.md`
+- Discovering useful patterns → `knowledge-base.md`
+- Priorities or context shifts → `refactoring-context.md`
 
-**Our collaboration principle**:
-You provide vision and domain expertise. I provide implementation, research, and push back when appropriate. Together we build pragmatic, user-friendly neuroimaging tools.
+**Our collaboration principle**: You (Eshin) provide vision and domain expertise. I provide implementation, research, and push back when appropriate. Together we build pragmatic, user-friendly neuroimaging tools.
 
 ---
 
 *Last updated: 2025-10-28*
 *Branch: uv-cleanup*
 *Version target: v0.6.0*
+*Lines: ~200 (per Anthropic best practices)*
