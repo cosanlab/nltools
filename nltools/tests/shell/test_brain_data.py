@@ -502,6 +502,185 @@ class TestBrainData:
         assert hasattr(sim_brain_data, "glm_r2")
         assert sim_brain_data.glm_r2.shape == (1, sim_brain_data.shape[1])
 
+    # ==================== Unified fit/predict API ====================
+
+    def test_fit_predict_ridge_workflow(self, sim_brain_data):
+        """Test complete Ridge fit/predict workflow."""
+        from nltools.data import Brain_Data
+        from nltools.models import Ridge
+
+        # Fit Ridge model
+        X_train = np.random.randn(len(sim_brain_data), 10)
+        sim_brain_data.fit(model='ridge', alpha=1.0, X=X_train)
+
+        # Check model stored
+        assert hasattr(sim_brain_data, 'model_')
+        assert isinstance(sim_brain_data.model_, Ridge)
+        assert sim_brain_data.model_.is_fitted_
+
+        # Check attributes set
+        assert hasattr(sim_brain_data, 'ridge_weights')
+        assert hasattr(sim_brain_data, 'ridge_fitted_values')
+        assert hasattr(sim_brain_data, 'ridge_scores')
+
+        # Predict on new data
+        X_test = np.random.randn(20, 10)  # Different n_samples
+        predictions = sim_brain_data.predict(X=X_test)
+
+        # Check predictions
+        assert isinstance(predictions, Brain_Data)
+        assert predictions.shape == (20, sim_brain_data.shape[1])
+
+        # Predict on training data (X=None)
+        train_predictions = sim_brain_data.predict()
+        assert train_predictions.shape == sim_brain_data.shape
+
+    def test_fit_predict_glm_workflow(self, sim_brain_data):
+        """Test complete GLM fit/predict workflow."""
+        from nltools.models import Glm
+
+        # Fit GLM model
+        design_matrix = pd.DataFrame({
+            "Intercept": np.ones(len(sim_brain_data)),
+            "X1": np.random.randn(len(sim_brain_data)),
+        })
+        sim_brain_data.fit(model='glm', noise_model='ols', X=design_matrix)
+
+        # Check model stored
+        assert hasattr(sim_brain_data, 'model_')
+        assert isinstance(sim_brain_data.model_, Glm)
+
+        # Check GLM attributes set
+        assert hasattr(sim_brain_data, 'glm_betas')
+        assert hasattr(sim_brain_data, 'glm_t')
+
+        # Predict on training data (fitted values)
+        # Note: GLM doesn't support prediction with new design matrices yet
+        predictions = sim_brain_data.predict()
+
+        # Check predictions match training data shape
+        assert predictions.shape == sim_brain_data.shape
+
+    def test_fit_uses_brain_data_as_target(self, sim_brain_data):
+        """Test fit() always uses self.data as y target."""
+        X = np.random.randn(len(sim_brain_data), 10)
+
+        # Fit Ridge
+        sim_brain_data.fit(model='ridge', alpha=1.0, X=X)
+
+        # Model should be fitted to (X, sim_brain_data.data)
+        # Check by predicting and comparing shapes
+        predictions = sim_brain_data.predict(X=X)
+        assert predictions.shape == sim_brain_data.shape
+
+    def test_fit_passes_kwargs_to_model(self, sim_brain_data):
+        """Test fit() passes additional kwargs to model constructor."""
+        X = np.random.randn(len(sim_brain_data), 10)
+
+        # Ridge with backend kwarg
+        sim_brain_data.fit(model='ridge', alpha=1.0, backend='numpy', X=X)
+        assert sim_brain_data.model_.backend == 'numpy'
+
+        # GLM with noise_model kwarg
+        design_matrix = pd.DataFrame({"Intercept": np.ones(len(sim_brain_data))})
+        sim_brain_data.fit(model='glm', noise_model='ar1', X=design_matrix)
+        assert sim_brain_data.model_.noise_model == 'ar1'
+
+    def test_predict_requires_fitted_model(self, sim_brain_data):
+        """Test predict() raises error if fit() not called first."""
+        # Get a fresh copy (fixture may be contaminated by previous tests)
+        bd = sim_brain_data.copy()
+
+        # Explicitly remove model attributes to test the error case
+        # (copy shares model_ from fitted instances due to pickle handling)
+        for attr in ['model_', 'X_']:
+            if hasattr(bd, attr):
+                delattr(bd, attr)
+
+        with pytest.raises(ValueError, match="Must call fit"):
+            bd.predict()
+
+    def test_predict_validates_X_dimensions(self, sim_brain_data):
+        """Test predict() validates X has correct n_features."""
+        # Fit with 10 features
+        X_train = np.random.randn(len(sim_brain_data), 10)
+        sim_brain_data.fit(model='ridge', alpha=1.0, X=X_train)
+
+        # Try to predict with 5 features - should fail
+        X_wrong = np.random.randn(15, 5)
+        with pytest.raises(ValueError, match="features"):
+            sim_brain_data.predict(X=X_wrong)
+
+    def test_ridge_weights_structure(self, sim_brain_data):
+        """Test Ridge weights stored correctly as Brain_Data."""
+        from nltools.data import Brain_Data
+
+        X = np.random.randn(len(sim_brain_data), 10)
+        sim_brain_data.fit(model='ridge', alpha=1.0, X=X)
+
+        # Weights should be Brain_Data
+        assert isinstance(sim_brain_data.ridge_weights, Brain_Data)
+
+        # Shape: (n_features, n_voxels)
+        assert sim_brain_data.ridge_weights.shape == (10, sim_brain_data.shape[1])
+
+        # Should have same mask
+        assert sim_brain_data.ridge_weights.mask is sim_brain_data.mask
+
+    def test_glm_fit_matches_current_regress(self, sim_brain_data):
+        """Test new fit(model='glm') matches current regress() numerically."""
+        from nltools.models import Glm
+
+        design_matrix = pd.DataFrame({
+            "Intercept": np.ones(len(sim_brain_data)),
+            "X1": np.random.randn(len(sim_brain_data)),
+        })
+
+        # New API
+        bd_new = sim_brain_data.copy()
+        bd_new.fit(model='glm', noise_model='ols', X=design_matrix)
+
+        # Old API
+        bd_old = sim_brain_data.copy()
+        with pytest.warns(DeprecationWarning):
+            bd_old.regress(design_matrix, noise_model='ols')
+
+        # Should be numerically identical
+        np.testing.assert_allclose(bd_new.glm_betas.data, bd_old.glm_betas.data)
+        np.testing.assert_allclose(bd_new.glm_t.data, bd_old.glm_t.data)
+
+    def test_fit_validates_model_name(self, sim_brain_data):
+        """Test fit() raises error for unknown model names."""
+        X = np.random.randn(len(sim_brain_data), 10)
+
+        with pytest.raises(ValueError, match="Unknown model"):
+            sim_brain_data.fit(model='unknown_model', X=X)
+
+    def test_fit_validates_X_shape(self, sim_brain_data):
+        """Test fit() validates X has correct n_samples."""
+        # X has wrong number of samples
+        X_wrong = np.random.randn(len(sim_brain_data) + 5, 10)
+
+        with pytest.raises(ValueError, match="number of samples"):
+            sim_brain_data.fit(model='ridge', alpha=1.0, X=X_wrong)
+
+    def test_predict_with_no_X_uses_training_data(self, sim_brain_data):
+        """Test predict() with no X returns predictions on training data."""
+        X_train = np.random.randn(len(sim_brain_data), 10)
+        sim_brain_data.fit(model='ridge', alpha=1.0, X=X_train)
+
+        # Predict with explicit X
+        predictions_explicit = sim_brain_data.predict(X=X_train)
+
+        # Predict with no X (should use training data)
+        predictions_implicit = sim_brain_data.predict()
+
+        # Should be identical
+        np.testing.assert_allclose(predictions_explicit.data, predictions_implicit.data)
+
+        # Should match training data shape
+        assert predictions_implicit.shape == sim_brain_data.shape
+
     # ==================== Masking & ROI Extraction ====================
 
     def test_apply_mask(self, sim_brain_data):

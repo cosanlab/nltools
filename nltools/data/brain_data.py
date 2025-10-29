@@ -554,6 +554,180 @@ class Brain_Data(object):
 
         return out
 
+    def fit(self, model=None, X=None, **kwargs):
+        """
+        Fit a model to brain imaging data.
+
+        Creates and fits a model from string specification. The brain data
+        (self.data) is always used as the target variable. Model and results
+        are stored for later use with predict().
+
+        Parameters
+        ----------
+        model : str
+            Model type: 'ridge', 'glm', or future model names
+        X : array-like or DataFrame, shape (n_samples, n_features)
+            Design matrix or feature matrix
+            - For GLM: Design matrix with regressors (n_samples must match self.data)
+            - For Ridge: Feature matrix for prediction (n_samples must match self.data)
+        **kwargs : dict
+            Additional arguments passed to model constructor
+            - Ridge: alpha, cv, alphas, backend, random_state
+            - Glm: noise_model, minimize_memory, etc.
+
+        Returns
+        -------
+        self : Brain_Data
+            Fitted Brain_Data instance
+
+        Sets Attributes
+        ---------------
+        model_ : BaseModel
+            Fitted model instance (Ridge, Glm, etc.)
+        X_ : ndarray
+            Training data X, stored for predict() default
+
+        For model='glm':
+            glm_betas : Brain_Data of beta coefficients
+            glm_t : Brain_Data of t-statistics
+            glm_p : Brain_Data of p-values
+            glm_se : Brain_Data of standard errors
+            glm_residual : Brain_Data of residuals
+            glm_predicted : Brain_Data of fitted values
+            glm_r2 : Brain_Data of R² values
+
+        For model='ridge':
+            ridge_weights : Brain_Data of model coefficients
+            ridge_fitted_values : Brain_Data of fitted values
+            ridge_scores : Brain_Data of R² scores
+
+        Examples
+        --------
+        >>> # Ridge prediction
+        >>> brain_data.fit(model='ridge', alpha=1.0, X=features)
+        >>> predictions = brain_data.predict(X=new_features)
+        >>>
+        >>> # GLM regression
+        >>> brain_data.fit(model='glm', noise_model='ar1', X=design_matrix)
+        >>> new_predictions = brain_data.predict(X=new_design_matrix)
+        """
+        from nltools.models import Ridge, Glm
+
+        # Validate inputs
+        if model is None:
+            raise TypeError("model must be provided")
+        if X is None:
+            raise TypeError("X must be provided")
+
+        X = np.asarray(X)
+        if X.shape[0] != self.shape[0]:
+            raise ValueError(
+                f"X has {X.shape[0]} samples, but brain data has {self.shape[0]} samples. "
+                f"number of samples must match."
+            )
+
+        # Store training data for predict() default
+        self.X_ = X
+
+        # Create model based on string
+        if model == 'ridge':
+            self.model_ = Ridge(**kwargs)
+            self._fit_ridge(X)
+        elif model == 'glm':
+            self.model_ = Glm(**kwargs)
+            self._fit_glm(X)
+        else:
+            raise ValueError(
+                f"Unknown model '{model}'. Must be one of: 'ridge', 'glm'"
+            )
+
+        return self
+
+    def _fit_ridge(self, X):
+        """Fit Ridge model and extract results."""
+        # Fit to (X, brain_data) - multi-target
+        self.model_.fit(X, self.data)
+
+        # Extract weights as Brain_Data
+        # Ridge.coef_ is already (n_features, n_voxels) - no transpose needed
+        self.ridge_weights = self._shallow_copy_with_data()
+        self.ridge_weights.data = self.model_.coef_
+
+        # Compute fitted values
+        fitted = self.model_.predict(X)
+        self.ridge_fitted_values = self._shallow_copy_with_data()
+        self.ridge_fitted_values.data = fitted
+
+        # Compute R² scores
+        scores = self.model_.score(X, self.data)
+        self.ridge_scores = self._shallow_copy_with_data()
+        self.ridge_scores.data = scores.reshape(1, -1)  # (1, n_voxels)
+
+    def _fit_glm(self, X):
+        """Fit GLM model and extract results (same logic as current regress())."""
+        from .design_matrix import Design_Matrix
+        from nltools.data import Brain_Data
+
+        # Ensure X is Design_Matrix
+        if not isinstance(X, Design_Matrix):
+            X = Design_Matrix(X)
+
+        # Convert data to 4D nifti for nilearn
+        data_4d = self.to_nifti()
+
+        # Fit Glm model
+        self.model_.fit(data_4d, design_matrices=[X])
+
+        # Extract results for each regressor (same as regress() lines 802-815)
+        n_regressors = X.shape[1]
+        beta_maps = []
+        t_maps = []
+        p_maps = []
+        se_maps = []
+
+        for i, col in enumerate(X.columns):
+            # Create contrast vector (1 for this regressor, 0 for others)
+            contrast = np.zeros(n_regressors)
+            contrast[i] = 1
+
+            # Compute contrast using Glm's compute_contrast method
+            results = self.model_.compute_contrast(contrast, output_type="all")
+
+            # Store maps
+            beta_maps.append(results["effect_size"])
+            t_maps.append(results["stat"])
+            p_maps.append(results["p_value"])
+            se_maps.append(results["effect_variance"])
+
+        # Convert results to Brain_Data objects
+        self.glm_betas = Brain_Data(beta_maps, mask=self.mask)
+        self.glm_t = Brain_Data(t_maps, mask=self.mask)
+        self.glm_p = Brain_Data(p_maps, mask=self.mask)
+
+        # Convert effect variance to standard error (same as regress() lines 826-831)
+        se_data = []
+        for se_img in se_maps:
+            se_brain = Brain_Data(se_img, mask=self.mask)
+            se_brain.data = np.sqrt(np.abs(se_brain.data))
+            se_data.append(se_brain)
+        self.glm_se = Brain_Data(data=se_data, mask=self.mask)
+
+        # Get residuals
+        self.glm_residual = Brain_Data(self.model_.residuals, mask=self.mask)
+
+        # Predicted = original - residuals
+        self.glm_predicted = self.copy()
+        self.glm_predicted.data = self.data - self.glm_residual.data
+
+        # R-squared calculation
+        ss_total = np.sum((self.data - self.data.mean(axis=0)) ** 2, axis=0)
+        ss_residual = np.sum(self.glm_residual.data**2, axis=0)
+        r2_values = 1 - (ss_residual / (ss_total + 1e-10))
+
+        # Create single-image Brain_Data for R-squared
+        self.glm_r2 = self[0].copy()
+        self.glm_r2.data = r2_values.reshape(1, -1)
+
     # TODO: update Check if complete and delete or update comment accordingly
     def regress(self, design_matrix=None, noise_model="ols", mode=None, **kwargs):
         """Runs a mass-univariate GLM analysis using the provided Design_Matrix.
@@ -1377,8 +1551,11 @@ class Brain_Data(object):
                         setattr(new, key, deepcopy(value))
                 else:
                     setattr(new, key, None)
-            elif key.startswith('glm_'):
-                # GLM results - share for now (they're typically read-only)
+            elif key.startswith('glm_') or key.startswith('ridge_'):
+                # GLM/Ridge results - share for now (they're typically read-only)
+                setattr(new, key, value)
+            elif key in ['model_', 'X_']:
+                # Fitted model and training data - share (shouldn't be copied)
                 setattr(new, key, value)
             else:
                 # Small attributes - deep copy to be safe
@@ -1386,8 +1563,52 @@ class Brain_Data(object):
 
         return new
 
+    def __deepcopy__(self, memo):
+        """Custom deepcopy that handles model attributes.
+
+        Model-related attributes (model_, X_, glm_*, ridge_*) are shared
+        (not copied) to avoid pickle errors with unpicklable Backend objects.
+        All other attributes are deep copied.
+
+        Args:
+            memo: Dictionary to track already copied objects
+
+        Returns:
+            Brain_Data: New instance with copied/shared attributes
+        """
+        from copy import deepcopy
+
+        # Create new instance without calling __init__
+        new = Brain_Data.__new__(Brain_Data)
+        memo[id(self)] = new
+
+        # Copy all attributes with appropriate strategy
+        for key, value in self.__dict__.items():
+            if key in ['mask', 'nifti_masker', 'masker']:
+                # Share immutable/expensive objects
+                setattr(new, key, value)
+            elif key in ['model_', 'X_']:
+                # Share fitted model and training data (unpicklable)
+                setattr(new, key, value)
+            elif key.startswith('glm_') or key.startswith('ridge_'):
+                # Share model results (often contain Brain_Data objects)
+                setattr(new, key, value)
+            else:
+                # Deep copy everything else (data, X, Y, etc.)
+                setattr(new, key, deepcopy(value, memo))
+
+        return new
+
     def copy(self):
-        """Create a deep copy of a Brain_Data instance."""
+        """Create a copy of a Brain_Data instance.
+
+        Note: Fitted models (model_, X_) and model results (glm_*, ridge_*)
+        are shared (not copied) to avoid pickle errors with unpicklable objects.
+        All other attributes including the data array are deep copied.
+
+        Returns:
+            Brain_Data: Copied instance with shared model attributes
+        """
         return deepcopy(self)
 
     # NOTE: utils
@@ -2006,11 +2227,110 @@ class Brain_Data(object):
         return out
 
     # Deprecated methods - will be moved to Model class in future release
-    def predict(self, *args, **kwargs):
-        """DEPRECATED: This method has been moved to the Model class."""
-        raise NotImplementedError(
-            "predict() has been deprecated. Please use the new Model class for prediction functionality."
-        )
+    def predict(self, X=None):
+        """
+        Generate predictions using fitted model.
+
+        Uses the model fitted during fit() to generate predictions for new data.
+        Works with both Ridge and GLM models. If X is not provided, returns
+        predictions on the training data used in fit().
+
+        Parameters
+        ----------
+        X : array-like or DataFrame, shape (n_samples, n_features), optional
+            Data to predict on. Must have same n_features as training data.
+            If None, uses training data from fit() (stored in self.X_).
+
+        Returns
+        -------
+        predictions : Brain_Data
+            Predicted brain data with shape (n_samples, n_voxels)
+
+        Raises
+        ------
+        ValueError
+            If fit() has not been called yet
+        ValueError
+            If X has wrong number of features
+
+        Examples
+        --------
+        >>> brain_data.fit(model='ridge', alpha=1.0, X=features)
+        >>> predictions = brain_data.predict(X=new_features)
+        >>> print(predictions.shape)
+        >>>
+        >>> # Predict on training data
+        >>> train_predictions = brain_data.predict()
+        >>> print(train_predictions.shape)
+        """
+        from nltools.data import Brain_Data
+
+        # Check model is fitted
+        if not hasattr(self, 'model_'):
+            raise ValueError(
+                "Must call fit() before predict(). "
+                "Example: brain_data.fit(model='ridge', X=features)"
+            )
+
+        if not self.model_.is_fitted_:
+            raise ValueError("Model is not fitted")
+
+        # Use training data if X not provided
+        if X is None:
+            if not hasattr(self, 'X_'):
+                raise ValueError(
+                    "No training data stored. This should not happen - "
+                    "please report this as a bug."
+                )
+            X = self.X_
+
+        # Validate X
+        X = np.asarray(X)
+        if X.ndim != 2:
+            raise ValueError(f"X must be 2D, got {X.ndim}D")
+
+        # Validate number of features (handle Ridge and Glm differently)
+        if hasattr(self.model_, 'n_features_in_'):
+            # Ridge model has n_features_in_
+            if X.shape[1] != self.model_.n_features_in_:
+                raise ValueError(
+                    f"X has {X.shape[1]} features, but model was fitted with "
+                    f"{self.model_.n_features_in_} features"
+                )
+        else:
+            # Glm model - check against design matrices
+            if hasattr(self.model_, 'design_matrices_') and self.model_.design_matrices_:
+                expected_features = self.model_.design_matrices_[0].shape[1]
+                if X.shape[1] != expected_features:
+                    raise ValueError(
+                        f"X has {X.shape[1]} features, but model was fitted with "
+                        f"{expected_features} features"
+                    )
+
+        # Generate predictions
+        from nltools.models import Glm
+        if isinstance(self.model_, Glm):
+            # For GLM, check if using training data or new data
+            if X is self.X_:
+                # Using training data - get fitted values
+                y_pred_list = self.model_.predict()  # Returns list of nifti images
+                # Convert to array
+                y_pred = Brain_Data(y_pred_list, mask=self.mask).data
+            else:
+                # New design matrix - not yet implemented in Glm
+                raise NotImplementedError(
+                    "Prediction with new design matrix not yet implemented for GLM. "
+                    "Use predict() without arguments to get fitted values."
+                )
+        else:
+            # Ridge and other models
+            y_pred = self.model_.predict(X)
+
+        # Wrap in Brain_Data
+        predictions = self._shallow_copy_with_data()
+        predictions.data = y_pred
+
+        return predictions
 
     def predict_multi(self, *args, **kwargs):
         """DEPRECATED: This method has been moved to the Model class."""
