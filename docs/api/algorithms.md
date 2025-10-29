@@ -165,6 +165,121 @@ Enabling factor analysis on thousand-subject neuroimaging datasets. *IEEE Big Da
 
 ---
 
+## HyperAlignment
+
+Procrustes-based hyperalignment for aligning multi-subject neuroimaging data through iterative template refinement.
+
+```{eval-rst}
+.. automodule:: nltools.algorithms.hyperalignment
+    :members:
+    :undoc-members:
+    :show-inheritance:
+```
+
+### Quick Start
+
+```python
+from nltools.algorithms import HyperAlignment
+import numpy as np
+
+# Multi-subject data: list of arrays [features × timepoints]
+data = [
+    np.random.randn(1000, 200),  # Subject 1
+    np.random.randn(1000, 200),  # Subject 2
+    np.random.randn(1000, 200),  # Subject 3
+]
+
+# Fit hyperalignment model
+hyper = HyperAlignment(n_iter=2, auto_pad=True)
+hyper.fit(data)
+
+# Transform subjects to common space
+aligned_data = hyper.transform(data)
+
+# Access common template and transformations
+common_template = hyper.s_  # or hyper.common_model_
+transformations = hyper.w_  # Orthogonal transformation matrices
+quality_metrics = hyper.disparity_  # Alignment quality per subject
+
+# Align a new subject to the common space
+new_subject = np.random.randn(1000, 200)
+transformed, R, disparity, scale = hyper.transform_subject(new_subject)
+```
+
+### Key Features
+
+- **Three-stage iterative refinement**: Initial template → refined template → final alignment
+- **Orthogonal Procrustes**: Minimizes sum of squared differences using optimal rotation/reflection
+- **Template refinement**: `n_iter` parameter controls iterative improvement
+- **Automatic padding**: Handles different-sized matrices with `auto_pad=True`
+- **Sklearn-compatible**: Follows `BaseEstimator`/`TransformerMixin` pattern
+- **Quality metrics**: Provides disparity and scale factors for each subject
+
+### Parameters
+
+- **`n_iter`** (int, default=2): Number of template refinement iterations. Higher values improve alignment but increase computation time.
+- **`auto_pad`** (bool, default=True): Automatically zero-pad matrices to handle different feature counts across subjects. Set to `False` for validation when all matrices have identical shapes.
+
+### Attributes
+
+After fitting:
+- **`w_`**: List of orthogonal transformation matrices (one per subject)
+- **`s_`**: Common template in aligned space `[features × timepoints]`
+- **`common_model_`**: Alias for `s_` (backward compatibility)
+- **`disparity_`**: Alignment quality (sum of squared differences per subject)
+- **`scale_`**: Scale factors applied to each subject
+
+### Applications
+
+- **Multi-subject fMRI analysis**: Align functional responses across subjects
+- **Inter-subject correlation**: Improve ISC by first aligning representational spaces
+- **Transfer learning**: Align a new subject to existing group template
+- **Functional connectivity**: Compare connectivity patterns across aligned subjects
+- **ROI-based analysis**: Hyperalign ROI data for cross-subject comparisons
+
+### Algorithm Details
+
+HyperAlignment uses a three-stage iterative process:
+
+1. **Stage 1**: Create initial template by iteratively aligning subjects
+2. **Stage 2**: Refine template through `n_iter` iterations of alignment and averaging
+3. **Stage 3**: Final alignment of all subjects to refined template
+
+Each alignment step solves the orthogonal Procrustes problem using SVD:
+- Center and normalize data matrices
+- Compute optimal rotation/reflection via `scipy.linalg.orthogonal_procrustes`
+- Apply transformation to minimize Frobenius norm of differences
+
+### Comparison with SRM
+
+| Feature | HyperAlignment | SRM |
+|---------|---------------|-----|
+| Method | Procrustes (orthogonal) | Probabilistic/Deterministic |
+| Dimensionality | Preserves features | Reduces to k features |
+| Iterations | Template refinement | Feature learning |
+| Use Case | Full-resolution alignment | Dimensionality reduction + alignment |
+
+**When to use:**
+- **HyperAlignment**: When preserving full feature space (e.g., ROI-level alignment)
+- **SRM**: When dimensionality reduction is desired (e.g., whole-brain alignment to shared low-dimensional space)
+
+### References
+
+**Hyperalignment:**
+Haxby, J. V., Guntupalli, J. S., Connolly, A. C., Halchenko, Y. O., Conroy, B. R., Gobbini, M. I., ... & Ramadge, P. J. (2011).
+A common, high-dimensional model of the representational space in human ventral temporal cortex. *Neuron*, 72(2), 404-416.
+
+**Procrustes Analysis:**
+Gower, J. C., & Dijksterhuis, G. B. (2004). *Procrustes problems* (Vol. 30). Oxford University Press.
+
+### See Also
+
+- **`nltools.stats.align()`** - High-level interface supporting multiple alignment methods
+- **`nltools.algorithms.SRM`** - Shared Response Model for dimensionality reduction + alignment
+- **`scipy.linalg.orthogonal_procrustes`** - Underlying Procrustes solver
+
+---
+
 ## See Also
 
 - [Backend API](backends.md) - CPU/GPU backend abstraction

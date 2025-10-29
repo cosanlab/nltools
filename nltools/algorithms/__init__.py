@@ -5,6 +5,7 @@ External functions
 __all__ = [
     "DetSRM",
     "SRM",
+    "HyperAlignment",
     "spm_hrf",
     "glover_hrf",
     "spm_time_derivative",
@@ -15,6 +16,7 @@ __all__ = [
 ]
 
 from .srm import DetSRM, SRM
+from .hyperalignment import HyperAlignment
 from .hrf import (
     spm_hrf,
     glover_hrf,

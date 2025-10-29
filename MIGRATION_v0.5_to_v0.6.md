@@ -359,6 +359,58 @@ predicted_activity = model.predict(new_features)  # shape: (50, 50000)
 
 See `docs/performance.md` for detailed benchmarks.
 
+## New Features
+
+### HyperAlignment Class
+
+A new `HyperAlignment` class has been extracted from the `align()` function, providing direct access to Procrustes-based hyperalignment with a clean sklearn-style API.
+
+**Basic usage:**
+```python
+from nltools.algorithms import HyperAlignment
+import numpy as np
+
+# Create sample multi-subject data (list of [features x samples] matrices)
+data = [subject1_data, subject2_data, subject3_data]
+
+# Fit hyperalignment model
+hyper = HyperAlignment(n_iter=2, auto_pad=True)
+hyper.fit(data)
+
+# Transform data to common space
+aligned_data = hyper.transform(data)
+
+# Access common template
+common_template = hyper.s_  # or hyper.common_model_
+
+# Access transformation matrices
+transformations = hyper.w_
+
+# Align a new subject to the common space
+new_subject_data = ...  # [features x samples]
+transformed, R, disparity, scale = hyper.transform_subject(new_subject_data)
+```
+
+**Parameters:**
+- `n_iter` (int, default=2): Number of template refinement iterations
+- `auto_pad` (bool, default=True): Automatically zero-pad matrices to handle different feature counts
+
+**Attributes:**
+- `w_`: List of transformation matrices (one per subject)
+- `s_`: Common template in aligned space
+- `common_model_`: Alias for `s_` (backward compatibility)
+- `disparity_`: Alignment quality metrics (sum of squared differences)
+- `scale_`: Scale factors for each subject
+
+**Why use HyperAlignment directly?**
+- More control over alignment parameters (`n_iter`, `auto_pad`)
+- Access to intermediate outputs (transformation matrices, quality metrics)
+- Reusable model for aligning new subjects
+- Clean sklearn-compatible API
+
+**Backward compatibility:**
+The `align(method='procrustes')` function continues to work identically, now using `HyperAlignment` internally.
+
 ## Questions or Issues?
 Please report any migration issues at: https://github.com/cosanlab/nltools/issues
 

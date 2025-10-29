@@ -126,6 +126,84 @@ nltools/tests/
 - **Time:** 3.5 hours (under 5-7 hour estimate)
 - **Documentation:** See nilearn-log.md for complete TDD log
 
+### Priority 2.6: Extract HyperAlignment as Separate Class ✅ COMPLETE (2025-10-28)
+**Extracted Procrustes-based hyperalignment from `align()` into reusable class following SRM pattern.**
+
+#### Implementation ✅
+- ✅ Created `nltools/algorithms/hyperalignment.py` with `HyperAlignment` class
+  - Follows sklearn `BaseEstimator`/`TransformerMixin` pattern
+  - Implements `fit()`, `transform()`, `transform_subject()` methods
+  - Three-stage iterative refinement: initial template → refined → final alignment
+  - Stores `w_`, `s_`, `disparity_`, `scale_` attributes
+  - Exposes `n_iter` parameter (default=2) for template refinement control
+  - Exposes `auto_pad` parameter (default=True) for handling different-sized matrices
+  - Uses `s_` as primary attribute, `common_model_` as property alias
+
+#### Testing ✅
+- ✅ Created `nltools/tests/core/test_hyperalignment.py` with 27 comprehensive tests
+  - Initialization tests (4): Parameters and defaults
+  - fit() method tests (11): Basic API, edge cases, padding, orthogonality
+  - transform() method tests (3): Training data transformation, consistency
+  - transform_subject() method tests (3): New subject alignment
+  - Numerical correctness tests (2): Exact match with `align()`, sklearn API compliance
+  - Edge case tests (4): Error handling, input validation
+  - **All 27 tests passing** ✅
+
+#### Integration ✅
+- ✅ Modified `align(method='procrustes')` to use `HyperAlignment` internally
+  - Replaced ~60 lines of inline code with 12 lines using class
+  - Maintains exact backward compatibility (n_iter=1 to match original)
+  - Returns identical output structure
+  - All existing `align()` tests continue to pass
+
+#### Documentation ✅
+- ✅ Updated `MIGRATION_v0.5_to_v0.6.md` with new "HyperAlignment Class" section
+  - Usage examples with detailed API documentation
+  - Parameter descriptions and use cases
+  - Backward compatibility note
+- ✅ Comprehensive class docstring with:
+  - Algorithm description (3-stage refinement process)
+  - Parameter documentation
+  - Attribute descriptions
+  - Usage examples
+  - Academic reference (Haxby et al., 2011)
+
+#### Design Decisions ✅
+- ✅ Exposed `n_iter` parameter (default=2) for template refinement iterations
+  - Original `align()` used n_iter=1 implicitly
+  - New default (n_iter=2) provides better alignment quality
+  - Backward compatibility maintained by using n_iter=1 in `align()` integration
+- ✅ Used `s_` as primary attribute, `common_model_` as property alias
+  - Follows SRM naming convention (`s_` for shared response)
+  - Provides `common_model_` alias for backward compatibility
+- ✅ Exposed `auto_pad` parameter (default=True) for padding control
+  - Handles different-sized matrices automatically
+  - Can be disabled for validation if caller ensures uniform sizes
+- ✅ Input/output orientation: `[features, samples]` throughout
+  - Consistent with SRM classes
+  - More intuitive than `align()`'s mixed orientations
+  - `align()` handles transposition for backward compatibility
+
+#### Results ✅
+- **New files:**
+  - `nltools/algorithms/hyperalignment.py` (349 lines)
+  - `nltools/tests/core/test_hyperalignment.py` (457 lines)
+- **Modified files:**
+  - `nltools/stats.py` (~60 lines inline code → 12 lines using class)
+  - `nltools/algorithms/__init__.py` (added HyperAlignment export)
+  - `MIGRATION_v0.5_to_v0.6.md` (added new features section)
+- **Test coverage:** 27/27 tests passing (100%)
+- **Time:** ~4 hours (TDD approach)
+- **Documentation:** See `extract-hyperalignment.md` for complete TDD plan
+
+**Benefits:**
+- **Modularity:** Reusable class vs. inline code
+- **Discoverability:** Users can find and use `HyperAlignment` directly
+- **Extensibility:** Easy to add features (PCA preprocessing, different metrics)
+- **Testability:** Comprehensive isolated tests (27 tests vs. 0 before)
+- **Maintainability:** Single source of truth, no code duplication
+- **API clarity:** Clean sklearn-style API with consistent orientations
+
 ### Priority 3: New Features 🔮 FUTURE
 - ⬜ Implement Model class with deprecated methods:
   - `.predict()` - ML prediction workflows

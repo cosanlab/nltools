@@ -1351,65 +1351,32 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
         out["transformation_matrix"] = srm.w_
 
     elif method == "procrustes":
+        from nltools.algorithms import HyperAlignment
+
         if n_features is not None:
             raise NotImplementedError(
                 "Currently must use all voxels."
                 "Eventually will add a PCA reduction,"
                 "must do this manually for now."
             )
-        ## STEP 0: STANDARDIZE SIZE AND SHAPE##
-        sizes_0 = [x.shape[0] for x in data]
-        sizes_1 = [x.shape[1] for x in data]
 
-        # find the smallest number of rows
-        R = min(sizes_0)
-        C = max(sizes_1)
+        # Use HyperAlignment class for procrustes-based hyperalignment
+        # Note: data is already transposed to [features, samples] format by line 1330/1327
+        # n_iter=1 maintains backward compatibility with original implementation
+        hyper = HyperAlignment(n_iter=1, auto_pad=True)
+        hyper.fit(data)
 
-        m = [np.empty((R, C), dtype=np.ndarray)] * len(data)
+        # Transform data to common space
+        aligned = hyper.transform(data)
 
-        # Pad rows with different sizes with zeros
-        for i, x in enumerate(data):
-            y = x[0:R, :]
-            missing = C - y.shape[1]
-            add = np.zeros((y.shape[0], missing))
-            y = np.append(y, add, axis=1)
-            m[i] = y
-
-        ## STEP 1: CREATE INITIAL AVERAGE TEMPLATE##
-        for i, x in enumerate(m):
-            if i == 0:
-                # use first data as template
-                template = np.copy(x.T)
-            else:
-                _, trans, _, _, _ = procrustes(template / i, x.T)
-                template += trans
-        template /= len(m)
-
-        ## STEP 2: CREATE NEW COMMON TEMPLATE##
-        # align each subj to the template from STEP 1
-        # and create a new common template based on avg
-        common = np.zeros(template.shape)
-        for i, x in enumerate(m):
-            _, trans, _, _, _ = procrustes(template, x.T)
-            common += trans
-        common /= len(m)
-
-        ## STEP 3 (below): ALIGN TO NEW TEMPLATE
-        aligned = []
-        transformation_matrix = []
-        disparity = []
-        scale = []
-        for i, x in enumerate(m):
-            _, transformed, d, t, s = procrustes(common, x.T)
-            aligned.append(transformed.T)
-            transformation_matrix.append(t)
-            disparity.append(d)
-            scale.append(s)
+        # Extract attributes for output
+        # Note: align() returns common_model in [samples, features] format (transposed)
+        # but transformed in [features, samples] format (not transposed)
         out["transformed"] = aligned
-        out["common_model"] = common
-        out["transformation_matrix"] = transformation_matrix
-        out["disparity"] = disparity
-        out["scale"] = scale
+        out["common_model"] = hyper.s_.T  # Transpose to [samples, features]
+        out["transformation_matrix"] = hyper.w_
+        out["disparity"] = hyper.disparity_
+        out["scale"] = hyper.scale_
 
     if axis == 1:
         out["transformed"] = [x.T for x in out["transformed"]]
