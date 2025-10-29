@@ -461,7 +461,10 @@ Create `MIGRATION_v0.5_to_v0.6.md`:
 - Full analysis and implementation plan documented for future fix
 - Not a blocker for v0.6.0 release (axis=1 likely has low usage)
 
-**Current Test Status**: 132/132 passing (100%) with 1 skip
+**Current Test Status**: 260/261 passing (99.6%) with 1 skip
+
+**Workaround**: Created `test_align_without_isc()` to verify SRM and Procrustes
+alignment work correctly. Only ISC calculation remains skipped pending fix.
 
 **What was discovered**:
 - Initial assumption of "one-line fix" was incorrect

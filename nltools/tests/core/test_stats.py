@@ -302,7 +302,7 @@ def test_transform_pairwise():
 # ==================== Alignment & ISC Functions ====================
 
 
-@pytest.mark.skip(reason="ISC calculation has known bugs for axis=1 and Brain_Data axis=0. See claude-research/align-isc-fix-plan.md for implementation plan.")
+@pytest.mark.skip(reason="ISC calculation has known bugs. Alignment functionality tested in test_align_without_isc() and test_hyperalignment.py (27 tests). ISC fix plan: claude-research/align-isc-fix-plan.md")
 def test_align():
     """Test hyperalignment algorithms (SRM, Procrustes) on matrices and Brain_Data."""
     # Test hyperalignment matrix
@@ -667,3 +667,75 @@ def test_align_states():
     assert np.array_equal(
         states.shape, align_states(scrambled_states, states, return_index=False).shape
     )
+
+
+def test_align_without_isc():
+    """Test alignment methods without ISC calculation.
+
+    Verifies that SRM and Procrustes alignment algorithms work correctly
+    without testing the buggy ISC calculation. This test extracts the working
+    portions from test_align() which is currently skipped.
+
+    Coverage:
+    - deterministic_srm: Transformation correctness for numpy arrays
+    - probabilistic_srm: Transformation correctness for numpy arrays
+    - procrustes: Basic functionality (comprehensive tests in test_hyperalignment.py)
+
+    Not tested here:
+    - ISC calculation (has known bugs, see claude-research/align-isc-fix-plan.md)
+    - Brain_Data input (focus on core alignment logic with numpy arrays)
+
+    See also:
+    - test_align (skipped): Full integration test including ISC
+    - test_hyperalignment.py: 27 comprehensive tests for Procrustes/HyperAlignment
+    """
+    # Setup test data
+    sim = Simulator()
+    y = [0, 1]
+    n_reps = 10
+    s1 = create_sphere([0, 0, 0], radius=3)
+    d1 = sim.create_data(y, 1, reps=n_reps, output_dir=None).apply_mask(s1)
+    d2 = sim.create_data(y, 2, reps=n_reps, output_dir=None).apply_mask(s1)
+    d3 = sim.create_data(y, 3, reps=n_reps, output_dir=None).apply_mask(s1)
+    data = [d1.data, d2.data, d3.data]
+
+    # Test 1: Deterministic SRM
+    out = align(data, method="deterministic_srm")
+    assert len(data) == len(out["transformed"])
+    assert len(data) == len(out["transformation_matrix"])
+    assert data[0].shape == out["common_model"].shape
+    # Verify transformation correctness
+    transformed = np.dot(data[0], out["transformation_matrix"][0])
+    np.testing.assert_almost_equal(
+        np.sum(out["transformed"][0] - transformed.T), 0, decimal=3
+    )
+    # SKIP ISC: assert len(out["isc"]) == out["transformed"][0].shape[0]
+
+    # Test 2: Probabilistic SRM
+    out = align(data, method="probabilistic_srm")
+    assert len(data) == len(out["transformed"])
+    assert len(data) == len(out["transformation_matrix"])
+    assert data[0].shape == out["common_model"].shape
+    # Verify transformation correctness
+    transformed = np.dot(data[0], out["transformation_matrix"][0])
+    np.testing.assert_almost_equal(
+        np.sum(out["transformed"][0] - transformed.T), 0, decimal=3
+    )
+    # SKIP ISC: assert len(out["isc"]) == out["transformed"][0].shape[0]
+
+    # Test 3: Procrustes (minimal - comprehensive tests in test_hyperalignment.py)
+    out2 = align(data, method="procrustes")
+    assert len(data) == len(out2["transformed"])
+    assert data[0].shape == out2["common_model"].shape
+    assert len(data) == len(out2["transformation_matrix"])
+    assert len(data) == len(out2["disparity"])
+    # Verify transformation correctness
+    centered = data[0] - np.mean(data[0], 0)
+    transformed = (
+        np.dot(centered / np.linalg.norm(centered), out2["transformation_matrix"][0])
+        * out2["scale"][0]
+    )
+    np.testing.assert_almost_equal(
+        np.sum(out2["transformed"][0] - transformed.T), 0, decimal=3
+    )
+    # SKIP ISC: assert len(out2["isc"]) == out["transformed"][0].shape[0]
