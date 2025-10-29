@@ -156,12 +156,13 @@ Backend('auto')    # Smart selection based on problem size
 
 ## Next Steps: Sprint 2 - Model Classes
 
-### Sprint 2: Model Classes (2-3 days) - IN PROGRESS
+### Sprint 2: Model Classes (2-3 days) - COMPLETE
 - [x] Implement `BaseModel` (abstract base with sklearn interface) ✅
 - [x] Implement `Ridge` (uses ridge.py algorithms, renamed from RegressionModel) ✅
 - [x] Unit tests for BaseModel (11 tests) ✅
 - [x] Unit tests for Ridge (17 tests: basic, CV, backends) ✅
-- [ ] Implement `GLMModel` (wraps nilearn) - FUTURE
+- [x] Implement `Glm` (wraps nilearn FirstLevelModel via composition) ✅
+- [x] Unit tests for Glm (10 tests: fit, contrast, properties) ✅
 - [ ] Implement `InferenceModel` (t-tests, permutation) - FUTURE
 
 ### Sprint 3: Integration (1-2 days)
@@ -266,12 +267,14 @@ pip install nltools[gpu]  # installs pytorch
 
 See `model-spec-log.md` for detailed TDD implementation log and progress tracking.
 
-**Latest:** Sprint 2 Partial Complete - BaseModel + Ridge (2025-10-28)
+**Latest:** Sprint 2 Complete - BaseModel + Ridge + Glm (2025-10-28)
 - BaseModel abstract class with sklearn interface ✅
 - Ridge model with CV and GPU support ✅
-- 28 comprehensive tests (11 BaseModel + 17 Ridge) ✅
-- Wraps existing ridge.py algorithms ✅
-- Full backend integration (numpy/torch/auto) ✅
+- Glm wrapping nilearn FirstLevelModel via composition ✅
+- 38 comprehensive tests (11 BaseModel + 17 Ridge + 10 Glm) ✅
+- Full backend integration for Ridge (numpy/torch/auto) ✅
+- Glm uses composition pattern (like Brain_Data + maskers) ✅
+- Accurate contrast statistics via nilearn.compute_contrast() ✅
 
 **Previous:** Sprint 1 Complete (2025-10-28)
 - Backend abstraction ✅
@@ -279,4 +282,4 @@ See `model-spec-log.md` for detailed TDD implementation log and progress trackin
 - Comprehensive benchmarking ✅
 - Complete API documentation ✅
 
-**Next:** Sprint 3 - Brain_Data Integration (or GLMModel/InferenceModel)
+**Next:** Sprint 3 - Brain_Data Integration or InferenceModel

@@ -359,6 +359,155 @@ predicted_activity = model.predict(new_features)  # shape: (50, 50000)
 
 See `docs/performance.md` for detailed benchmarks.
 
+---
+
+## New Feature: Glm Class (v0.6.0)
+
+### Overview
+nltools v0.6.0 introduces a sklearn-compatible GLM (General Linear Model) class that wraps nilearn's FirstLevelModel while providing a familiar interface:
+
+```python
+from nltools.models import Glm
+from nilearn.glm.first_level import make_first_level_design_matrix
+import pandas as pd
+import numpy as np
+
+# Create design matrix
+frame_times = np.arange(100) * 2.0  # TR = 2s
+events = pd.DataFrame({
+    'onset': [10, 30, 50, 70],
+    'duration': [2, 2, 2, 2],
+    'trial_type': ['task', 'task', 'task', 'task']
+})
+design_matrix = make_first_level_design_matrix(frame_times, events)
+
+# Fit GLM
+model = Glm(t_r=2.0, noise_model='ar1')
+model.fit(fmri_img, design_matrices=design_matrix)
+
+# Compute contrast
+task_effect = model.compute_contrast('task', output_type='stat')
+```
+
+### Glm Features
+
+**Basic GLM analysis:**
+```python
+from nltools.models import Glm
+
+# Initialize with parameters (mask defaults to MNI template)
+model = Glm(
+    t_r=2.0,
+    noise_model='ar1',  # or 'ols'
+    smoothing_fwhm=5.0
+)
+
+# Fit to fMRI data
+model.fit(fmri_img, design_matrices=design_matrix)
+
+# Compute different contrast types
+t_map = model.compute_contrast('task', output_type='stat')
+z_map = model.compute_contrast('task', output_type='z_score')
+p_map = model.compute_contrast('task', output_type='p_value')
+beta_map = model.compute_contrast('task', output_type='effect_size')
+
+# Or get all at once
+results = model.compute_contrast('task', output_type='all')
+```
+
+**Multiple runs:**
+```python
+# Fit GLM with multiple runs
+model = Glm(t_r=2.0)
+model.fit(
+    [run1_img, run2_img, run3_img],
+    design_matrices=[dm1, dm2, dm3]
+)
+
+# Contrast is computed across all runs
+contrast_map = model.compute_contrast('task')
+```
+
+**Access advanced features:**
+```python
+# Get fitted values
+fitted_values = model.predict()  # Returns predicted brain activity
+
+# Access residuals
+residuals = model.residuals  # List of Nifti images
+
+# Access design matrices
+design_mats = model.design_matrices_  # List of DataFrames
+
+# Access internal FirstLevelModel for nilearn-specific features
+model.glm_.generate_report()  # Use any nilearn method
+```
+
+### Integration with Brain_Data
+
+Glm works seamlessly with Brain_Data's `.regress()` method:
+
+**Using Brain_Data.regress() (existing workflow):**
+```python
+from nltools import Brain_Data, Design_Matrix
+
+brain = Brain_Data('task_fmri.nii.gz')
+dm = Design_Matrix(design_matrix_df)
+
+# This continues to work (uses nilearn internally)
+brain.regress(design_matrix=dm, noise_model='ar1')
+results = brain.compute_contrasts('conditionA - conditionB')
+```
+
+**Using Glm directly (new sklearn-style API):**
+```python
+from nltools import Brain_Data
+from nltools.models import Glm
+
+brain = Brain_Data('task_fmri.nii.gz')
+
+# Convert to 4D Nifti
+fmri_img = brain.to_nifti()
+
+# Fit GLM
+model = Glm(t_r=2.0, noise_model='ar1')
+model.fit(fmri_img, design_matrices=design_matrix)
+
+# Compute contrasts
+contrast_map = model.compute_contrast('conditionA - conditionB')
+```
+
+### Design Patterns
+
+**Glm uses composition, not inheritance:**
+- Wraps nilearn's FirstLevelModel internally
+- Similar to how Brain_Data composes NiftiMasker
+- Provides clean sklearn API while exposing nilearn functionality
+- Access internal FirstLevelModel via `model.glm_` for advanced use
+
+**Default mask behavior (like Brain_Data):**
+- If `mask=None`, automatically uses MNI template mask
+- Provides explicit mask for custom regions
+- Consistent with Brain_Data API
+
+### When to Use Glm vs Brain_Data.regress()
+
+**Use Glm when:**
+- You want sklearn-style model objects
+- Building ML pipelines with other sklearn tools
+- Need explicit control over contrast computation
+- Working directly with Nifti images (not Brain_Data)
+
+**Use Brain_Data.regress() when:**
+- You're already working with Brain_Data objects
+- You want automatic storage of results as Brain_Data attributes
+- You prefer the existing familiar API
+- Backward compatibility is important
+
+Both approaches use the same underlying nilearn FirstLevelModel, so results are identical.
+
+---
+
 ## New Features
 
 ### HyperAlignment Class

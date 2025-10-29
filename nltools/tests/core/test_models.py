@@ -526,3 +526,282 @@ def test_ridge_auto_backend():
     assert y_pred.shape == (100,)
     assert hasattr(model, 'backend_')
     assert model.backend_.name in ['numpy', 'torch-cpu', 'torch-cuda', 'torch-mps']
+
+
+# ============================================================================
+# GLMModel - Basic Interface
+# ============================================================================
+
+def test_glm_instantiation():
+    """Glm should instantiate with optional parameters"""
+    from nltools.models import Glm
+
+    # Default instantiation
+    model = Glm()
+    assert not model.is_fitted_
+
+    # With parameters
+    model = Glm(t_r=2.0, noise_model='ar1', smoothing_fwhm=5.0)
+    assert model.t_r == 2.0
+    assert model.noise_model == 'ar1'
+    assert model.smoothing_fwhm == 5.0
+
+
+def test_glm_requires_nilearn():
+    """Glm should fail gracefully if nilearn is not available"""
+    # Note: In practice, nilearn is always available in our tests
+    # This test documents the expected behavior
+    from nltools.models import Glm
+    model = Glm()
+    assert hasattr(model, 'fit')
+
+
+def test_glm_fit_with_design_matrix():
+    """Glm should fit with images and design matrices"""
+    from nltools.models import Glm
+    from nilearn.glm.first_level import make_first_level_design_matrix
+    import pandas as pd
+    from nibabel import Nifti1Image
+
+    # Create synthetic fMRI data (small)
+    np.random.seed(42)
+    n_scans = 20
+    img_shape = (10, 10, 10)  # Small for speed
+    fmri_data = np.random.randn(n_scans, *img_shape).astype(np.float32)
+    affine = np.eye(4)
+    img = Nifti1Image(fmri_data.T, affine)  # Note: nibabel uses (x,y,z,t) order
+
+    # Create a simple mask (all ones)
+    mask_data = np.ones(img_shape, dtype=np.int8)
+    mask_img = Nifti1Image(mask_data, affine)
+
+    # Create design matrix
+    frame_times = np.arange(n_scans) * 2.0  # TR = 2s
+    events = pd.DataFrame({
+        'onset': [0, 10, 20, 30],
+        'duration': [1, 1, 1, 1],
+        'trial_type': ['task', 'task', 'rest', 'rest']
+    })
+    design_matrix = make_first_level_design_matrix(
+        frame_times,
+        events=events,
+        hrf_model='spm'
+    )
+
+    # Fit GLM with explicit mask
+    model = Glm(t_r=2.0, mask=mask_img)
+    result = model.fit(img, design_matrices=design_matrix)
+
+    # Should return self
+    assert result is model
+    assert model.is_fitted_
+
+
+def test_glm_fit_tracks_state():
+    """Glm should track fitted state like BaseModel"""
+    from nltools.models import Glm
+
+    model = Glm()
+    assert not model.is_fitted_
+
+    # Fitting should be tested with actual data in other tests
+    # This just checks the attribute exists
+
+
+def test_glm_compute_contrast_after_fit():
+    """Glm should compute contrasts after fitting"""
+    from nltools.models import Glm
+    from nilearn.glm.first_level import make_first_level_design_matrix
+    import pandas as pd
+    from nibabel import Nifti1Image
+
+    # Create synthetic data
+    np.random.seed(42)
+    n_scans = 20
+    img_shape = (10, 10, 10)
+    fmri_data = np.random.randn(n_scans, *img_shape).astype(np.float32)
+    affine = np.eye(4)
+    img = Nifti1Image(fmri_data.T, affine)
+
+    # Create mask
+    mask_data = np.ones(img_shape, dtype=np.int8)
+    mask_img = Nifti1Image(mask_data, affine)
+
+    # Create design matrix
+    frame_times = np.arange(n_scans) * 2.0
+    events = pd.DataFrame({
+        'onset': [0, 10],
+        'duration': [1, 1],
+        'trial_type': ['task', 'task']
+    })
+    design_matrix = make_first_level_design_matrix(
+        frame_times,
+        events=events,
+        hrf_model='spm'
+    )
+
+    # Fit and compute contrast
+    model = Glm(t_r=2.0, mask=mask_img)
+    model.fit(img, design_matrices=design_matrix)
+
+    # Compute simple contrast (effect of task)
+    contrast_map = model.compute_contrast('task')
+
+    # Should return a Nifti image
+    assert hasattr(contrast_map, 'get_fdata')
+    assert contrast_map.shape == img_shape
+
+
+def test_glm_compute_contrast_before_fit_raises():
+    """Glm should raise error if compute_contrast called before fit"""
+    from nltools.models import Glm
+
+    model = Glm()
+
+    with pytest.raises(ValueError, match="not fitted"):
+        model.compute_contrast('task')
+
+
+def test_glm_multiple_runs():
+    """Glm should handle multiple runs"""
+    from nltools.models import Glm
+    from nilearn.glm.first_level import make_first_level_design_matrix
+    import pandas as pd
+    from nibabel import Nifti1Image
+
+    # Create synthetic data for 2 runs
+    np.random.seed(42)
+    n_scans = 20
+    img_shape = (10, 10, 10)
+
+    # Create mask
+    affine = np.eye(4)
+    mask_data = np.ones(img_shape, dtype=np.int8)
+    mask_img = Nifti1Image(mask_data, affine)
+
+    images = []
+    design_matrices = []
+
+    for run in range(2):
+        fmri_data = np.random.randn(n_scans, *img_shape).astype(np.float32)
+        img = Nifti1Image(fmri_data.T, affine)
+        images.append(img)
+
+        frame_times = np.arange(n_scans) * 2.0
+        events = pd.DataFrame({
+            'onset': [0, 10],
+            'duration': [1, 1],
+            'trial_type': ['task', 'task']
+        })
+        design_matrix = make_first_level_design_matrix(
+            frame_times,
+            events=events,
+            hrf_model='spm'
+        )
+        design_matrices.append(design_matrix)
+
+    # Fit GLM with multiple runs
+    model = Glm(t_r=2.0, mask=mask_img)
+    model.fit(images, design_matrices=design_matrices)
+
+    assert model.is_fitted_
+
+    # Compute contrast across runs
+    contrast_map = model.compute_contrast('task')
+    assert hasattr(contrast_map, 'get_fdata')
+
+
+# ============================================================================
+# Glm - Property Access (Advanced Features)
+# ============================================================================
+
+def test_glm_residuals_property():
+    """Glm should expose residuals via property"""
+    from nltools.models import Glm
+    from nilearn.glm.first_level import make_first_level_design_matrix
+    import pandas as pd
+    from nibabel import Nifti1Image
+
+    # Create synthetic data
+    np.random.seed(42)
+    n_scans = 20
+    img_shape = (10, 10, 10)
+    fmri_data = np.random.randn(n_scans, *img_shape).astype(np.float32)
+    affine = np.eye(4)
+    img = Nifti1Image(fmri_data.T, affine)
+    mask_data = np.ones(img_shape, dtype=np.int8)
+    mask_img = Nifti1Image(mask_data, affine)
+
+    # Create design matrix
+    frame_times = np.arange(n_scans) * 2.0
+    events = pd.DataFrame({
+        'onset': [0, 10],
+        'duration': [1, 1],
+        'trial_type': ['task', 'task']
+    })
+    design_matrix = make_first_level_design_matrix(
+        frame_times,
+        events=events,
+        hrf_model='spm'
+    )
+
+    # Fit and access residuals
+    model = Glm(t_r=2.0, mask=mask_img)
+    model.fit(img, design_matrices=design_matrix)
+
+    residuals = model.residuals
+    assert isinstance(residuals, list)
+    assert len(residuals) == 1  # One run
+    assert hasattr(residuals[0], 'get_fdata')
+
+
+def test_glm_design_matrices_property():
+    """Glm should expose design_matrices_ via property"""
+    from nltools.models import Glm
+    from nilearn.glm.first_level import make_first_level_design_matrix
+    import pandas as pd
+    from nibabel import Nifti1Image
+
+    # Create synthetic data
+    np.random.seed(42)
+    n_scans = 20
+    img_shape = (10, 10, 10)
+    fmri_data = np.random.randn(n_scans, *img_shape).astype(np.float32)
+    affine = np.eye(4)
+    img = Nifti1Image(fmri_data.T, affine)
+    mask_data = np.ones(img_shape, dtype=np.int8)
+    mask_img = Nifti1Image(mask_data, affine)
+
+    # Create design matrix
+    frame_times = np.arange(n_scans) * 2.0
+    events = pd.DataFrame({
+        'onset': [0, 10],
+        'duration': [1, 1],
+        'trial_type': ['task', 'task']
+    })
+    design_matrix = make_first_level_design_matrix(
+        frame_times,
+        events=events,
+        hrf_model='spm'
+    )
+
+    # Fit and access design matrices
+    model = Glm(t_r=2.0, mask=mask_img)
+    model.fit(img, design_matrices=design_matrix)
+
+    design_mats = model.design_matrices_
+    assert isinstance(design_mats, list)
+    assert len(design_mats) == 1  # One run
+    assert 'task' in design_mats[0].columns
+
+
+def test_glm_glm_property_advanced_access():
+    """Glm should expose internal FirstLevelModel for advanced use"""
+    from nltools.models import Glm
+    from nilearn.glm.first_level import FirstLevelModel
+
+    model = Glm(t_r=2.0)
+
+    # glm_ property should return FirstLevelModel instance
+    assert isinstance(model.glm_, FirstLevelModel)
+    assert model.glm_ is model._glm  # Same object

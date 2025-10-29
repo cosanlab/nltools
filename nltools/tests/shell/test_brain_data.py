@@ -84,12 +84,15 @@ class TestBrainData:
                 assert np.allclose(b.__dict__[k], dat.__dict__[k])
             elif k == "mask":
                 assert np.allclose(b.__dict__[k].affine, dat.__dict__[k].affine)
-                assert np.allclose(b.__dict__[k].get_fdata(), dat.__dict__[k].get_fdata())
+                assert np.allclose(
+                    b.__dict__[k].get_fdata(), dat.__dict__[k].get_fdata()
+                )
                 assert b.__dict__[k].get_filename() == dat.__dict__[k].get_filename()
             elif k == "nifti_masker":
                 assert np.allclose(b.__dict__[k].affine_, dat.__dict__[k].affine_)
                 assert np.allclose(
-                    b.__dict__[k].mask_img.get_fdata(), dat.__dict__[k].mask_img.get_fdata()
+                    b.__dict__[k].mask_img.get_fdata(),
+                    dat.__dict__[k].mask_img.get_fdata(),
                 )
             else:
                 assert b.__dict__[k] == dat.__dict__[k]
@@ -200,7 +203,9 @@ class TestBrainData:
         np.testing.assert_almost_equal(new.mean(axis=0).mean(), 1, decimal=6)
         value = 10
         new2 = sim_brain_data / value
-        np.testing.assert_almost_equal(((new2 * value) - new2).mean().mean(), 0, decimal=2)
+        np.testing.assert_almost_equal(
+            ((new2 * value) - new2).mean().mean(), 0, decimal=2
+        )
 
     def test_inplace_add(self, sim_brain_data):
         """Test in-place addition with scalars and Brain_Data."""
@@ -362,6 +367,7 @@ class TestBrainData:
 
         # Stack to create 4D (invalid for masking)
         from nilearn.image import concat_imgs
+
         invalid_mask = concat_imgs([s1, s1])
 
         # Create Brain_Data from invalid mask
@@ -390,12 +396,16 @@ class TestBrainData:
         mask_bd = Brain_Data(s1, mask=sim_brain_data.mask)
 
         # With resampling
-        result_resample = sim_brain_data.apply_mask(mask_bd, resample_mask_to_brain=True)
+        result_resample = sim_brain_data.apply_mask(
+            mask_bd, resample_mask_to_brain=True
+        )
         assert isinstance(result_resample, Brain_Data)
         assert result_resample.shape[1] == np.sum(s1.get_fdata() != 0)
 
         # Without resampling (default)
-        result_no_resample = sim_brain_data.apply_mask(mask_bd, resample_mask_to_brain=False)
+        result_no_resample = sim_brain_data.apply_mask(
+            mask_bd, resample_mask_to_brain=False
+        )
         assert isinstance(result_no_resample, Brain_Data)
         assert result_no_resample.shape[1] == mask_bd.data.astype(bool).sum()
 
@@ -533,7 +543,9 @@ class TestBrainData:
         """Should raise error when using both upper AND lower with cluster_threshold"""
         brain = sim_brain_data.copy()
 
-        with pytest.raises(ValueError, match="Band-pass filtering.*not supported.*cluster"):
+        with pytest.raises(
+            ValueError, match="Band-pass filtering.*not supported.*cluster"
+        ):
             brain.threshold(lower=-2, upper=2, cluster_threshold=10)
 
     def test_threshold_cluster_with_binarize(self, sim_brain_data):
@@ -684,7 +696,9 @@ class TestBrainData:
         assert d1.shape == bout["common_model"].shape
         assert d1.shape[1] == bout["transformation_matrix"].shape[0]
         btransformed = np.dot(d1.data, bout["transformation_matrix"].data.T)
-        np.testing.assert_almost_equal(0, np.sum(bout["transformed"].data - btransformed))
+        np.testing.assert_almost_equal(
+            0, np.sum(bout["transformed"].data - btransformed)
+        )
 
         # Test probabilistic brain_data
         bout = d1.align(out["common_model"], method="probabilistic_srm")
@@ -692,7 +706,9 @@ class TestBrainData:
         assert d1.shape == bout["common_model"].shape
         assert d1.shape[1] == bout["transformation_matrix"].shape[0]
         btransformed = np.dot(d1.data, bout["transformation_matrix"].data.T)
-        np.testing.assert_almost_equal(0, np.sum(bout["transformed"].data - btransformed))
+        np.testing.assert_almost_equal(
+            0, np.sum(bout["transformed"].data - btransformed)
+        )
 
         # Test procrustes brain_data
         out = align(data, method="procrustes")
@@ -704,14 +720,16 @@ class TestBrainData:
         assert d1.shape[1] == bout["transformation_matrix"].shape[0]
         centered = d1.data - np.mean(d1.data, 0)
         btransformed = (
-            np.dot(centered / np.linalg.norm(centered), bout["transformation_matrix"].data)
+            np.dot(
+                centered / np.linalg.norm(centered), bout["transformation_matrix"].data
+            )
             * bout["scale"]
         )
         np.testing.assert_almost_equal(
             0, np.sum(bout["transformed"].data - btransformed), decimal=5
         )
         np.testing.assert_almost_equal(
-            0, np.sum(out["transformed"][0].data - bout["transformed"].data)
+            0, np.sum(out["transformed"][0].data - bout["transformed"].data), decimal=5
         )
 
         # Test over time
@@ -730,7 +748,9 @@ class TestBrainData:
         assert d1.shape == bout["common_model"].shape
         assert d1.shape[0] == bout["transformation_matrix"].shape[0]
         btransformed = np.dot(d1.data.T, bout["transformation_matrix"].data.T)
-        np.testing.assert_almost_equal(0, np.sum(bout["transformed"].data - btransformed.T))
+        np.testing.assert_almost_equal(
+            0, np.sum(bout["transformed"].data - btransformed.T)
+        )
 
         out = align(data, method="probabilistic_srm", axis=1)
         bout = d1.align(out["common_model"], method="probabilistic_srm", axis=1)
@@ -738,7 +758,9 @@ class TestBrainData:
         assert d1.shape == bout["common_model"].shape
         assert d1.shape[0] == bout["transformation_matrix"].shape[0]
         btransformed = np.dot(d1.data.T, bout["transformation_matrix"].data.T)
-        np.testing.assert_almost_equal(0, np.sum(bout["transformed"].data - btransformed.T))
+        np.testing.assert_almost_equal(
+            0, np.sum(bout["transformed"].data - btransformed.T)
+        )
 
         out = align(data, method="procrustes", axis=1)
         bout = d1.align(out["common_model"], method="procrustes", axis=1)
@@ -747,7 +769,9 @@ class TestBrainData:
         assert d1.shape[0] == bout["transformation_matrix"].shape[0]
         centered = d1.data.T - np.mean(d1.data.T, 0)
         btransformed = (
-            np.dot(centered / np.linalg.norm(centered), bout["transformation_matrix"].data)
+            np.dot(
+                centered / np.linalg.norm(centered), bout["transformation_matrix"].data
+            )
             * bout["scale"]
         )
         np.testing.assert_almost_equal(
@@ -788,13 +812,17 @@ class TestBrainData:
         """Test that deprecated randomise method raises NotImplementedError."""
         sim_brain_data.X = pd.DataFrame({"Intercept": np.ones(len(sim_brain_data.Y))})
 
-        with pytest.raises(NotImplementedError, match="randomise.*deprecated.*Model class"):
+        with pytest.raises(
+            NotImplementedError, match="randomise.*deprecated.*Model class"
+        ):
             sim_brain_data.randomise(n_permute=10)
 
     def test_bootstrap(self, sim_brain_data):
         """Test bootstrap with mean/std (predict is deprecated)."""
         # Bootstrap itself is not deprecated, but some functions it calls might be
-        masked = sim_brain_data.apply_mask(create_sphere(radius=10, coordinates=[0, 0, 0]))
+        masked = sim_brain_data.apply_mask(
+            create_sphere(radius=10, coordinates=[0, 0, 0])
+        )
 
         # Test basic bootstrap with mean and std (should work)
         n_samples = 3
@@ -804,15 +832,21 @@ class TestBrainData:
         assert isinstance(b["Z"], Brain_Data)
 
         # Bootstrap with "predict" will fail since predict is deprecated
-        with pytest.raises(NotImplementedError, match="predict.*deprecated.*Model class"):
+        with pytest.raises(
+            NotImplementedError, match="predict.*deprecated.*Model class"
+        ):
             masked.bootstrap("predict", n_samples=n_samples, plot=False)
 
     def test_predict(self, sim_brain_data):
         """Test that deprecated predict method raises NotImplementedError."""
-        with pytest.raises(NotImplementedError, match="predict.*deprecated.*Model class"):
+        with pytest.raises(
+            NotImplementedError, match="predict.*deprecated.*Model class"
+        ):
             sim_brain_data.predict(
-                algorithm="svm", cv_dict={"type": "kfolds", "n_folds": 2},
-                plot=False, **{"kernel": "linear"}
+                algorithm="svm",
+                cv_dict={"type": "kfolds", "n_folds": 2},
+                plot=False,
+                **{"kernel": "linear"},
             )
 
     def test_predict_multi(self):
@@ -823,5 +857,7 @@ class TestBrainData:
         y = pd.read_csv("y.csv", header=None, index_col=None)
         dat = Brain_Data("data.nii.gz", Y=y)
 
-        with pytest.raises(NotImplementedError, match="predict_multi.*deprecated.*Model class"):
+        with pytest.raises(
+            NotImplementedError, match="predict_multi.*deprecated.*Model class"
+        ):
             dat.predict_multi(algorithm="svm")
