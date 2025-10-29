@@ -6,18 +6,17 @@ This directory contains systematic benchmarks for ridge regression performance a
 
 ---
 
-## Benchmark Scripts
+## Benchmark Script
 
-### 1. `benchmark_ridge.py` (Original - Completed)
-**Purpose:** Exploratory benchmarks across various problem sizes
-**Status:** ✅ Completed
-**Results:** `results_ridge_performance.csv`
-**Documentation:** Results integrated into `docs/performance.md`
-
-### 2. `benchmark_ridge_systematic.py` (Current - Ready to run)
-**Purpose:** Systematic grid covering realistic neuroimaging scenarios
+### `benchmarking.py`
+**Purpose:** Systematic ridge regression benchmarks with flexible CLI interface
 **Status:** Ready to run
-**Results:** Will generate `results_ridge_systematic.csv`
+**Features:**
+- Configurable problem sizes and CV parameters
+- Dry-run mode for time estimation
+- Live progress tracking with tqdm
+- CPU and GPU backend comparison
+**Results:** Generates `results_ridge_systematic.csv`
 
 ---
 
@@ -84,7 +83,13 @@ This directory contains systematic benchmarks for ridge regression performance a
 ### Run Systematic Benchmarks
 ```bash
 # From project root
-uv run python benchmarks/benchmark_ridge_systematic.py
+uv run python benchmarks/benchmarking.py
+
+# Or with custom configuration
+uv run python benchmarks/benchmarking.py -n 500 -v 50000 -e estimates
+
+# Dry-run to see time estimates
+uv run python benchmarks/benchmarking.py --dry-run
 ```
 
 **Output files:**
@@ -97,21 +102,22 @@ uv run python benchmarks/benchmark_ridge_systematic.py
 3. Summary table with speedups
 4. Full results table
 
-### Optional: Faster Version
+### Faster Versions
 
-If you want to run a quicker version (~20 minutes), you could modify the script to:
+Use CLI arguments to run quicker benchmarks:
 
-```python
-# In benchmark_ridge_systematic.py
+```bash
+# Fast: Estimates only (~2 minutes)
+uv run python benchmarks/benchmarking.py -e estimates
 
-# Option 1: Reduce CV folds (5 → 3)
-time_torch, mem_torch = benchmark_fit_only(X, y, backend_torch, cv=3)
+# Medium: Reduce CV complexity (~20 minutes)
+uv run python benchmarks/benchmarking.py --cv-folds 3 --cv-alphas 5
 
-# Option 2: Reduce alpha grid (10 → 5 values)
-result = ridge_cv(X, y, alphas=np.logspace(-2, 2, 5), cv=5, backend=backend)
+# Test single problem size
+uv run python benchmarks/benchmarking.py -n 500 -v 50000
 
-# Option 3: Test only one resolution
-n_voxels_options = [(50000, "3mm_resolution")]  # Skip 230k
+# See all options
+uv run python benchmarks/benchmarking.py --help
 ```
 
 ---

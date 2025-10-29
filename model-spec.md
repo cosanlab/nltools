@@ -147,10 +147,8 @@ Backend('auto')    # Smart selection based on problem size
 - Documentation builds successfully with jupyter-book
 
 **Key Files:**
-- `benchmarks/benchmark_ridge.py` - Initial benchmark suite
-- `benchmarks/benchmark_ridge_systematic.py` - Systematic grid (ready to run)
+- `benchmarks/benchmarking.py` - Systematic benchmarking with CLI interface
 - `benchmarks/benchmarking-guide.md` - Methodology documentation
-- `benchmarks/results_ridge_performance.csv` - Benchmark data
 
 ---
 
