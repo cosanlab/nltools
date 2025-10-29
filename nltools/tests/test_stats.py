@@ -1,3 +1,12 @@
+"""
+Tests for nltools.stats module - pure function tests.
+
+These test the computational correctness of statistical algorithms,
+not how they're called from Brain_Data/Adjacency methods.
+
+Follows "functional core" pattern: simple function tests focused on algorithmic correctness.
+"""
+
 import numpy as np
 from numpy import sin, pi, arange
 import pandas as pd
@@ -28,7 +37,11 @@ from scipy.spatial.distance import squareform
 import pytest
 
 
+# ==================== Permutation Functions ====================
+
+
 def test_permutation():
+    """Test one-sample, two-sample, and correlation permutation tests."""
     # Create a positive definite covariance matrix
     cov_matrix = np.array([[1.0, 0.7], [0.7, 1.0]])
     dat = np.random.multivariate_normal([2, 6], cov_matrix, 1000)
@@ -62,6 +75,7 @@ def test_permutation():
 
 
 def test_matrix_permutation():
+    """Test matrix-aware permutation for pairwise distance matrices."""
     # Create a positive definite covariance matrix
     cov_matrix = np.array([[1.0, 0.7], [0.7, 1.0]])
     dat = np.random.multivariate_normal([2, 6], cov_matrix, 190)
@@ -96,7 +110,11 @@ def test_matrix_permutation():
     assert stats_full_diag["correlation"] > stats_full["correlation"]
 
 
+# ==================== Transform Functions ====================
+
+
 def test_downsample():
+    """Test downsampling algorithm with different aggregation methods."""
     dat = pd.DataFrame()
     dat["x"] = range(0, 100)
     dat["y"] = np.repeat(range(1, 11), 10)
@@ -121,6 +139,7 @@ def test_downsample():
 
 
 def test_upsample():
+    """Test upsampling algorithm."""
     dat = pd.DataFrame()
     dat["x"] = range(0, 100)
     dat["y"] = np.repeat(range(1, 11), 10)
@@ -137,6 +156,7 @@ def test_upsample():
 
 
 def test_winsorize():
+    """Test winsorizing outlier handling with quantile and std methods."""
     outlier_test = pd.DataFrame(
         [
             92,
@@ -250,8 +270,41 @@ def test_winsorize():
     assert np.round(np.mean(out)) == np.round(np.mean(correct_result))
 
 
+def test_transform_pairwise():
+    """Test pairwise distance transformations with and without groups."""
+    n_features = 50
+    n_samples = 100
+    # Test without groups
+    new_n_samples = int(n_samples * (n_samples - 1) / 2)
+    X = np.random.rand(n_samples, n_features)
+    y = np.random.rand(
+        n_samples,
+    )
+    x_new, y_new = transform_pairwise(X, y)
+    assert x_new.shape == (new_n_samples, n_features)
+    assert y_new.shape == (new_n_samples,)
+    assert y_new.ndim == 1
+    # Test with groups
+    n_subs = 4
+    new_n_samples = int(n_subs * ((n_samples / n_subs) * (n_samples / n_subs - 1)) / 2)
+    groups = np.repeat(np.arange(1, 1 + n_subs), n_samples / n_subs)
+    y = np.vstack((y, groups)).T
+    x_new, y_new = transform_pairwise(X, y)
+    assert x_new.shape == (new_n_samples, n_features)
+    assert y_new.shape == (new_n_samples, 2)
+    assert y_new.ndim == 2
+    a = y_new[:, 1] == np.repeat(
+        np.arange(1, 1 + n_subs), ((n_samples / n_subs) * (n_samples / n_subs - 1)) / 2
+    )
+    assert a.all()
+
+
+# ==================== Alignment & ISC Functions ====================
+
+
 @pytest.mark.skip(reason="ISC calculation has known bugs for axis=1 and Brain_Data axis=0. See claude-research/align-isc-fix-plan.md for implementation plan.")
 def test_align():
+    """Test hyperalignment algorithms (SRM, Procrustes) on matrices and Brain_Data."""
     # Test hyperalignment matrix
     sim = Simulator()
     y = [0, 1]
@@ -440,51 +493,8 @@ def test_align():
     assert len(out2["isc"]) == out2["transformed"][0].shape[1]
 
 
-def test_transform_pairwise():
-    n_features = 50
-    n_samples = 100
-    # Test without groups
-    new_n_samples = int(n_samples * (n_samples - 1) / 2)
-    X = np.random.rand(n_samples, n_features)
-    y = np.random.rand(
-        n_samples,
-    )
-    x_new, y_new = transform_pairwise(X, y)
-    assert x_new.shape == (new_n_samples, n_features)
-    assert y_new.shape == (new_n_samples,)
-    assert y_new.ndim == 1
-    # Test with groups
-    n_subs = 4
-    new_n_samples = int(n_subs * ((n_samples / n_subs) * (n_samples / n_subs - 1)) / 2)
-    groups = np.repeat(np.arange(1, 1 + n_subs), n_samples / n_subs)
-    y = np.vstack((y, groups)).T
-    x_new, y_new = transform_pairwise(X, y)
-    assert x_new.shape == (new_n_samples, n_features)
-    assert y_new.shape == (new_n_samples, 2)
-    assert y_new.ndim == 2
-    a = y_new[:, 1] == np.repeat(
-        np.arange(1, 1 + n_subs), ((n_samples / n_subs) * (n_samples / n_subs - 1)) / 2
-    )
-    assert a.all()
-
-
-def test_find_spikes():
-    sim = Simulator()
-    y = [0, 1]
-    n_reps = 50
-    s1 = create_sphere([0, 0, 0], radius=3)
-    d1 = sim.create_data(y, 1, reps=n_reps, output_dir=None).apply_mask(s1)
-
-    spikes = find_spikes(d1)
-    assert isinstance(spikes, pd.DataFrame)
-    assert spikes.shape[0] == len(d1)
-
-    spikes = find_spikes(d1.to_nifti())
-    assert isinstance(spikes, pd.DataFrame)
-    assert spikes.shape[0] == len(d1)
-
-
 def test_isc():
+    """Test intersubject correlation calculation."""
     n_boot = 100
     dat = np.random.multivariate_normal(
         [0, 0, 0, 0, 0],
@@ -513,6 +523,7 @@ def test_isc():
 
 
 def test_isc_group():
+    """Test group-level ISC comparison."""
     n_samples = 100
     diff = 0.2
     data = np.random.multivariate_normal(
@@ -553,6 +564,7 @@ def test_isc_group():
 
 
 def test_isfc():
+    """Test intersubject functional correlation."""
     def simulate_sub_roi_data(n_sub, n_tr):
         sub_dat = []
         for _ in range(n_sub):
@@ -581,6 +593,7 @@ def test_isfc():
 
 
 def test_isps():
+    """Test intersubject pattern similarity."""
     sampling_freq = 0.5
     time = arange(0, 200, 1)
     amplitude = 5
@@ -606,12 +619,37 @@ def test_isps():
     )
 
 
+# ==================== Statistical Transforms ====================
+
+
 def test_fisher_r_to_z():
+    """Test Fisher r-to-z transformation and its inverse."""
     for r in np.arange(0, 1, 0.05):
         np.testing.assert_almost_equal(r, fisher_z_to_r(fisher_r_to_z(r)), decimal=3)
 
 
+# ==================== Utility Functions ====================
+
+
+def test_find_spikes():
+    """Test spike detection in neuroimaging data."""
+    sim = Simulator()
+    y = [0, 1]
+    n_reps = 50
+    s1 = create_sphere([0, 0, 0], radius=3)
+    d1 = sim.create_data(y, 1, reps=n_reps, output_dir=None).apply_mask(s1)
+
+    spikes = find_spikes(d1)
+    assert isinstance(spikes, pd.DataFrame)
+    assert spikes.shape[0] == len(d1)
+
+    spikes = find_spikes(d1.to_nifti())
+    assert isinstance(spikes, pd.DataFrame)
+    assert spikes.shape[0] == len(d1)
+
+
 def test_align_states():
+    """Test state alignment algorithm for reordering state columns."""
     n = 20
     states = pd.DataFrame(
         {
