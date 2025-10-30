@@ -1881,10 +1881,12 @@ class Adjacency(object):
         random_state = check_random_state(random_state)
 
         for _ in range(n_perm):
-            dat = pd.DataFrame(self.squareform())
-            row_idx = range(dat.shape[0])
+            # Get squareform as numpy array (no pandas conversion needed)
+            dat = self.squareform()
+            # Generate random permutation indices
             permuted_idx = random_state.choice(
-                row_idx, size=len(row_idx), replace=False
+                dat.shape[0], size=dat.shape[0], replace=False
             )
-            dat = dat.iloc[permuted_idx, permuted_idx].to_numpy()
+            # Permute rows and columns using numpy advanced indexing (faster than pandas)
+            dat = dat[np.ix_(permuted_idx, permuted_idx)]
             yield Adjacency(dat)

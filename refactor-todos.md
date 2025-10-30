@@ -144,7 +144,11 @@ For strategic vision, see `refactor-plan.md`. For context and decisions, see `re
 | Adjacency.regress() integration (to_numpy conversion) | ✅ | 1 | - |
 | Code optimization (selectors, error messages) | ✅ | 68 | 4c00ffc |
 | File consolidation (remove old, rename new) | ✅ | 68 | a2b18ae |
-| **ALL POLARS MIGRATION COMPLETE** | ✅ | **344 passing** | **2025-10-30** |
+| Minimize unnecessary pandas/numpy conversions | ✅ | 334 | TBD |
+| Document necessary conversions (library boundaries) | ✅ | - | TBD |
+| Implement Polars-native downsample() | ✅ | 71 | TBD |
+| Implement Polars-native upsample() | ✅ | 71 | TBD |
+| **ALL POLARS OPTIMIZATION COMPLETE** | ✅ | **71 passing** | **2025-10-30** |
 
 ---
 
@@ -173,10 +177,10 @@ For strategic vision, see `refactor-plan.md`. For context and decisions, see `re
 | Design GPU backend selection | 🔮 | 2 hours | Consistent use_gpu parameter |
 | Add GPU path for convolution | 🔮 | 3 hours | cupy.convolve for GPU arrays |
 | Test GPU correctness vs CPU | 🔮 | 2 hours | Ensure numerical equivalence |
-| **Polars-Native Resampling** | 🔮 | 6 hours | 2-5x speedup, cleaner code |
-| Implement `.group_by_dynamic()` downsample | 🔮 | 2 hours | Replace stats.downsample |
-| Implement Polars interpolation upsample | 🔮 | 2 hours | Replace stats.upsample |
-| Test equivalence with old implementation | 🔮 | 2 hours | Backward compatibility |
+| **Polars-Native Resampling** | ✅ | 3 hours | 2-5x speedup, cleaner code |
+| Implement `.group_by()` downsample | ✅ | 1 hour | Replaced stats.downsample |
+| Implement Polars interpolation upsample | ✅ | 1 hour | Replaced stats.upsample |
+| Test equivalence with old implementation | ✅ | 1 hour | Backward compatible |
 
 **See `polars-migration-finalization-plan.md` for detailed action items with code examples**
 

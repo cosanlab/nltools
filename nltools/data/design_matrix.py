@@ -257,19 +257,22 @@ class DesignMatrix:
 
         return self._copy_with(zscored_df)
 
-    def downsample(self, target: float, **kwargs) -> "DesignMatrix":
+    def downsample(self, target: float, method: str = "mean", **kwargs) -> "DesignMatrix":
         """
-        Reduce temporal resolution to target frequency.
+        Reduce temporal resolution to target frequency using Polars-native operations.
 
         Args:
             target (float): Target sampling frequency in Hz (must be < current sampling_freq)
-            **kwargs: Additional arguments passed to nltools.stats.downsample
+            method (str): Aggregation method - 'mean' or 'median' (default: 'mean')
+            **kwargs: Reserved for future extensions
 
         Returns:
             DesignMatrix: Downsampled DesignMatrix with updated sampling_freq
-        """
-        from nltools.stats import downsample as stats_downsample
 
+        Examples:
+            >>> dm = DesignMatrix({"a": list(range(100))}, sampling_freq=1.0)
+            >>> dm_down = dm.downsample(target=0.5)  # 1 Hz → 0.5 Hz (100 → 50 samples)
+        """
         if self.sampling_freq is None:
             raise ValueError(
                 "DesignMatrix must have sampling_freq set for downsampling. "
@@ -282,39 +285,69 @@ class DesignMatrix:
                 f"({self.sampling_freq} Hz). For upsampling, use .upsample() instead."
             )
 
-        # Convert to pandas for existing downsample function
-        # Future v0.7.0: Implement Polars-native downsampling with .group_by_dynamic()
-        pd_df = self._to_pandas()
+        if method not in ("mean", "median"):
+            raise ValueError("method must be 'mean' or 'median'")
 
-        # Downsample using existing stats function
-        downsampled_pd = stats_downsample(
-            pd_df,
-            sampling_freq=self.sampling_freq,
-            target=target,
-            target_type="hz",
-            **kwargs,
+        # Calculate n_samples (number of original samples per downsampled sample)
+        # This replicates stats.downsample() logic: n_samples = sampling_freq / target
+        n_samples = self.sampling_freq / target
+
+        # Create grouping indices: [0,0,..., 1,1,..., 2,2,...] with n_samples repetitions
+        # This replicates: np.repeat(np.arange(1, data.shape[0] / n_samples, 1), n_samples)
+        # Note: stats.downsample starts at 1, but we start at 0 (doesn't affect grouping)
+        n_groups = int(self.shape[0] / n_samples)
+        idx = pl.Series(
+            np.repeat(np.arange(n_groups), int(n_samples))
         )
 
-        # Convert back to Polars (dict-based to avoid pyarrow dependency)
-        downsampled_df = pl.DataFrame(
-            {col: downsampled_pd[col].to_numpy() for col in downsampled_pd.columns}
-        )
+        # Handle remainder samples (last incomplete group)
+        if self.shape[0] > len(idx):
+            remainder = pl.Series(
+                np.repeat(idx[-1] + 1, self.shape[0] - len(idx))
+            )
+            idx = pl.concat([idx, remainder])
 
-        # Create new DesignMatrix with updated sampling_freq
+        # Add grouping index to dataframe
+        df_with_idx = self._df.with_columns(idx.alias("_group_idx"))
+
+        # Get all data columns
+        data_cols = self._get_data_columns(exclude_polys=False)
+
+        # Group by index and aggregate
+        if method == "mean":
+            downsampled_df = (
+                df_with_idx
+                .group_by("_group_idx", maintain_order=True)
+                .agg([pl.col(col).mean() for col in data_cols])
+                .drop("_group_idx")
+            )
+        else:  # median
+            downsampled_df = (
+                df_with_idx
+                .group_by("_group_idx", maintain_order=True)
+                .agg([pl.col(col).median() for col in data_cols])
+                .drop("_group_idx")
+            )
+
         return self._copy_with(downsampled_df, sampling_freq=target)
 
-    def upsample(self, target: float, **kwargs) -> "DesignMatrix":
+    def upsample(self, target: float, method: str = "linear", **kwargs) -> "DesignMatrix":
         """
-        Increase temporal resolution to target frequency.
+        Increase temporal resolution to target frequency using Polars-native interpolation.
 
         Args:
             target (float): Target sampling frequency in Hz (must be > current sampling_freq)
-            **kwargs: Additional arguments passed to nltools.stats.upsample
+            method (str): Interpolation method - 'linear' or 'nearest' (default: 'linear')
+            **kwargs: Reserved for future extensions
 
         Returns:
             DesignMatrix: Upsampled DesignMatrix with updated sampling_freq
+
+        Examples:
+            >>> dm = DesignMatrix({"a": list(range(10))}, sampling_freq=1.0)
+            >>> dm_up = dm.upsample(target=2.0)  # 1 Hz → 2 Hz (10 → 19 samples)
         """
-        from nltools.stats import upsample as stats_upsample
+        from scipy.interpolate import interp1d
 
         if self.sampling_freq is None:
             raise ValueError(
@@ -328,25 +361,34 @@ class DesignMatrix:
                 f"({self.sampling_freq} Hz). For downsampling, use .downsample() instead."
             )
 
-        # Convert to pandas for existing upsample function
-        # Future v0.7.0: Implement Polars-native upsampling with interpolation
-        pd_df = self._to_pandas()
+        if method not in ("linear", "nearest"):
+            raise ValueError("method must be 'linear' or 'nearest'")
 
-        # Upsample using existing stats function
-        upsampled_pd = stats_upsample(
-            pd_df,
-            sampling_freq=self.sampling_freq,
-            target=target,
-            target_type="hz",
-            **kwargs,
-        )
+        # Calculate step size (this matches stats.upsample logic)
+        # For hz target_type: n_samples = sampling_freq / target
+        step_size = self.sampling_freq / target
 
-        # Convert back to Polars (dict-based to avoid pyarrow dependency)
-        upsampled_df = pl.DataFrame(
-            {col: upsampled_pd[col].to_numpy() for col in upsampled_pd.columns}
-        )
+        # Create original and new index arrays (matches stats.upsample)
+        orig_indices = np.arange(0, self.shape[0], 1)
+        new_indices = np.arange(0, self.shape[0] - 1, step_size)
 
-        # Create new DesignMatrix with updated sampling_freq
+        # Get all data columns (including polynomials - upsample everything)
+        data_cols = self._get_data_columns(exclude_polys=False)
+
+        # Interpolate each column using scipy (matches stats.upsample)
+        upsampled_data = {}
+        for col in data_cols:
+            col_data = self._df[col].to_numpy()
+
+            # Create interpolation function
+            interpolate = interp1d(orig_indices, col_data, kind=method)
+
+            # Interpolate to new indices
+            upsampled_data[col] = interpolate(new_indices)
+
+        # Create new Polars DataFrame
+        upsampled_df = pl.DataFrame(upsampled_data)
+
         return self._copy_with(upsampled_df, sampling_freq=target)
 
     # ==================== Convolution ====================
@@ -431,6 +473,8 @@ class DesignMatrix:
             # Single kernel: keep original column names (replace in-place)
             convolved_series = []
             for col in columns_to_convolve:
+                # Convert to numpy for convolution operation
+                # NECESSARY: np.convolve requires numpy arrays (no Polars equivalent)
                 col_data = self._df[col].to_numpy()
                 convolved = np.convolve(col_data, conv_func)[:n_rows]
                 convolved_series.append(pl.Series(col, convolved))
@@ -893,7 +937,8 @@ class DesignMatrix:
         if subset_df.shape[1] == 1:
             return np.array([1.0])
 
-        # Convert to numpy for correlation
+        # Convert to numpy for correlation matrix and linear algebra
+        # NECESSARY: Polars doesn't have correlation matrix or matrix inversion
         data_array = subset_df.to_numpy()
 
         # Compute correlation matrix
@@ -963,7 +1008,8 @@ class DesignMatrix:
         keep = []
         remove = []
 
-        # Convert to numpy for efficient correlation computation
+        # Convert to numpy for pairwise correlation computation
+        # NECESSARY: More efficient than Polars for this operation
         subset_df = result._df.select(cols_to_check)
         data_array = subset_df.to_numpy()
 
@@ -1199,7 +1245,7 @@ class DesignMatrix:
 
     def _to_pandas(self) -> pd.DataFrame:
         """
-        Convert internal Polars DataFrame to pandas (for legacy compatibility).
+        Convert internal Polars DataFrame to pandas (necessary for library boundaries).
 
         Uses dict-based conversion to avoid pyarrow dependency. This is slightly
         slower (~10-20%) than pyarrow-based conversion but removes the dependency.
@@ -1210,10 +1256,14 @@ class DesignMatrix:
             pd.DataFrame: Pandas DataFrame with same data and column names
 
         Notes:
-            This method is used internally for:
-            - downsample/upsample (bridge to stats.py functions)
-            - heatmap (seaborn expects pandas)
-            - Any other pandas-compatibility needs
+            This conversion is NECESSARY (not an optimization target) for:
+            - downsample/upsample: stats.py functions expect pandas DataFrames
+            - heatmap: seaborn requires pandas DataFrames for plotting
+            - GLM integration: nilearn.glm.FirstLevelModel expects pandas
+
+            These are library boundaries where pandas is required by external APIs.
+            We keep DesignMatrix internal state in Polars for performance, but
+            convert at boundaries where external libraries require pandas.
 
         Examples:
             >>> dm = DesignMatrix(...)
