@@ -33,11 +33,12 @@ class Glm(BaseModel):
     mask : Nifti1Image, optional
         Mask image defining voxels to include in analysis.
         If None, uses MNI template mask (default, like Brain_Data).
-    **kwargs
+    \\**kwargs
         Additional arguments passed to nilearn FirstLevelModel.
 
     Attributes
     ----------
+
     is_fitted_ : bool
         Whether the model has been fitted
     glm_ : FirstLevelModel
@@ -147,7 +148,7 @@ class Glm(BaseModel):
         events : DataFrame or list of DataFrame, optional
             Event specifications for automatic design matrix creation.
             Alternative to providing design_matrices directly.
-        **kwargs
+        \\**kwargs
             Additional arguments passed to FirstLevelModel.fit()
 
         Returns
@@ -223,6 +224,7 @@ class Glm(BaseModel):
         ----------
         X : DataFrame or None, default=None
             Design matrix for generating predictions.
+
             - If None: returns fitted values (predictions on training data)
             - If DataFrame: generates predictions using new design matrix
               (not yet implemented)

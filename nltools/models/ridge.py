@@ -34,6 +34,7 @@ class Ridge(BaseModel):
 
     Attributes
     ----------
+
     coef_ : ndarray of shape (n_features,) or (n_features, n_targets)
         Ridge coefficients
     alpha_ : float

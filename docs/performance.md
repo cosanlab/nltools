@@ -338,9 +338,9 @@ y = np.random.randn(n_samples).astype(np.float32)
 
 ## See Also
 
-- [Backend API](api/backends.md) - CPU/GPU backend documentation
-- [Ridge Regression](api/algorithms.md#ridge-regression) - Algorithm details
-- [nltools Algorithms](api/algorithms.md) - Complete algorithm reference
+- {doc}`api/backends` - CPU/GPU backend documentation
+- {ref}`Ridge Regression <ridge-regression>` - Algorithm details
+- {doc}`api/algorithms` - Complete algorithm reference
 
 ---
 

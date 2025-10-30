@@ -178,6 +178,7 @@ def ridge_cv(
     -------
     result : dict
         Dictionary containing:
+
         - 'alpha' : float
             Best alpha value selected by CV
         - 'coef' : np.ndarray

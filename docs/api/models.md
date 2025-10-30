@@ -331,4 +331,4 @@ See the full API documentation above for details on:
 - [Performance Guide](../performance.md) - Benchmarks and optimization tips
 - [Backends API](backends.md) - GPU acceleration details
 - [Algorithms API](algorithms.md) - Lower-level ridge regression functions
-- [Migration Guide](../../MIGRATION_v0.5_to_v0.6.md) - Upgrading from v0.5.1
+- [Migration Guide](../migration-guide.md) - Upgrading from v0.5.1

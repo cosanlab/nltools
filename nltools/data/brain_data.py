@@ -572,12 +572,14 @@ class Brain_Data(object):
             - For Ridge: Feature matrix for prediction (n_samples must match self.data)
         cv : int, 'auto', or sklearn CV splitter, optional
             Cross-validation specification (Ridge only):
+
             - int: Number of folds for k-fold CV (returns CV scores)
             - 'auto': Triggers alpha selection via CV (implies alpha='auto')
             - sklearn CV object: Custom CV splitter (e.g., KFold(3, shuffle=True))
             - None: No CV (default, backward compatible)
-        **kwargs : dict
+        \\**kwargs : dict
             Additional arguments passed to model constructor
+
             - Ridge: alpha, alphas, backend, random_state
             - Glm: noise_model, minimize_memory, etc.
 
@@ -588,12 +590,14 @@ class Brain_Data(object):
 
         Sets Attributes
         ---------------
+
         model_ : BaseModel
             Fitted model instance (Ridge, Glm, etc.)
         X_ : ndarray
             Training data X, stored for predict() default
         cv_results_ : dict, optional
             Cross-validation results (if cv is not None). Contains:
+
             - 'scores': (n_folds, n_voxels) array of R² per fold
             - 'mean_score': (n_voxels,) array of mean R² across folds
             - 'predictions': Brain_Data of out-of-fold predictions
@@ -964,6 +968,7 @@ class Brain_Data(object):
 
         Args:
             contrasts: Can be:
+
                 - str: A string specifying the contrast using column names
                   e.g., "conditionA - conditionB" or "2*conditionA - conditionB - conditionC"
                 - dict: Dictionary with contrast names as keys and contrast strings/vectors as values
@@ -1343,6 +1348,7 @@ class Brain_Data(object):
 
         Args:
             mask: Brain_Data, nibabel image, or file path. Can be:
+
                   - Binary mask (extracts from single ROI)
                   - Labeled atlas (extracts from multiple ROIs)
             metric: Extraction method ('mean', 'median', 'pca'). Default: 'mean'
@@ -1351,9 +1357,12 @@ class Brain_Data(object):
 
         Returns:
             For binary mask:
+
                 - Single image: scalar value
                 - Multiple images: 1D array of values
+
             For labeled atlas:
+
                 - Single image: 1D array (one value per ROI)
                 - Multiple images: 2D array (images × ROIs)
                 - If metric='pca': returns components array
@@ -1658,7 +1667,7 @@ class Brain_Data(object):
     def copy(self):
         """Create a copy of a Brain_Data instance.
 
-        Note: Fitted models (model_, X_) and model results (glm_*, ridge_*)
+        Note: Fitted models (model\\_, X\\_) and model results (glm_*, ridge_*)
         are shared (not copied) to avoid pickle errors with unpicklable objects.
         All other attributes including the data array are deep copied.
 
@@ -2298,7 +2307,7 @@ class Brain_Data(object):
         ----------
         X : array-like or DataFrame, shape (n_samples, n_features), optional
             Data to predict on. Must have same n_features as training data.
-            If None, uses training data from fit() (stored in self.X_).
+            If None, uses training data from fit() (stored in self.X\\_).
 
         Returns
         -------

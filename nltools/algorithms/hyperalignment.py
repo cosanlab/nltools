@@ -112,6 +112,7 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
 
     Attributes
     ----------
+
     w_ : list of ndarray, element i has shape=[features_i, features]
         The transformation matrices (rotation + reflection) for each subject.
     s_ : ndarray, shape=[features, samples]

@@ -141,5 +141,5 @@ See the full API documentation above for details on:
 ## See Also
 
 - [Performance Guide](../performance.md) - Detailed benchmarks and recommendations
-- [Ridge Regression](algorithms.md#ridge-regression) - Usage in algorithms
-- [Algorithms API](algorithms.md) - Complete algorithms documentation
+- {ref}`Ridge Regression <ridge-regression>` - Usage in algorithms
+- {doc}`algorithms` - Complete algorithms documentation

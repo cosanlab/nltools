@@ -129,23 +129,17 @@ class SRM(BaseEstimator, TransformerMixin):
 
     Attributes
     ----------
-
     w_ : list of array, element i has shape=[voxels_i, features]
         The orthogonal transforms (mappings) for each subject.
-
     s_ : array, shape=[features, samples]
         The shared response.
-
     sigma_s_ : array, shape=[features, features]
         The covariance of the shared response Normal distribution.
-
     mu_ : list of array, element i has shape=[voxels_i]
         The voxel means over the samples for each subject.
-
     rho2_ : array, shape=[subjects]
         The estimated noise variance :math:`\\rho_i^2` for each subject
-
-    random_state_: `RandomState`
+    random_state_ : `RandomState`
         Random number generator initialized using rand_seed
 
     Note
@@ -218,8 +212,8 @@ class SRM(BaseEstimator, TransformerMixin):
         Parameters
         ----------
         X : list of 2D arrays, element i has shape=[voxels_i, samples_i]
-            Each element in the list contains the fMRI data of one subject
-            note that number of voxels and samples can vary across subjects
+            Each element in the list contains the fMRI data of one subject.
+            Note that number of voxels and samples can vary across subjects.
         y : not used (as it is unsupervised learning)
 
         Returns
@@ -558,14 +552,11 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
     Attributes
     ----------
-
     w_ : list of array, element i has shape=[voxels_i, features]
         The orthogonal transforms (mappings) for each subject.
-
     s_ : array, shape=[features, samples]
         The shared response.
-
-    random_state_: `RandomState`
+    random_state_ : `RandomState`
         Random number generator initialized using rand_seed
 
     Note

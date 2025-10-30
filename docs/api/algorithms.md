@@ -6,6 +6,7 @@ High-performance implementations of core algorithms with optional GPU accelerati
 
 ---
 
+(ridge-regression)=
 ## Ridge Regression
 
 Efficient ridge regression implementation using SVD decomposition with support for CPU and GPU backends.
@@ -56,6 +57,7 @@ For detailed benchmarks and backend selection guidance, see the [Performance Gui
 
 ---
 
+(hrf)=
 ## HRF Functions
 
 Hemodynamic Response Functions for fMRI analysis, implemented by NiPy.

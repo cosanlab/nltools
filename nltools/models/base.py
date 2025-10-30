@@ -19,6 +19,7 @@ class BaseModel(ABC):
 
     Attributes
     ----------
+
     n_features_in_ : int
         Number of features seen during fit
     n_samples_ : int
