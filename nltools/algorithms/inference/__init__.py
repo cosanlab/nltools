@@ -46,6 +46,7 @@ Notes:
 # Import public API functions
 from .one_sample import one_sample_permutation_test
 from .two_sample import two_sample_permutation_test
+from .correlation import correlation_permutation_test
 
 # Import utility functions (for testing and internal use)
 from .utils import _generate_sign_flips, _compute_pvalue, _auto_batch_size
@@ -54,6 +55,7 @@ from .utils import _generate_sign_flips, _compute_pvalue, _auto_batch_size
 __all__ = [
     "one_sample_permutation_test",
     "two_sample_permutation_test",
+    "correlation_permutation_test",
     # Private functions (exported for testing)
     "_generate_sign_flips",
     "_compute_pvalue",
