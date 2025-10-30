@@ -74,5 +74,19 @@ sphinx:
     # Templates
     templates_path: ['_templates']
 
+    # Exclude planning docs and old tutorials from build
+    exclude_patterns:
+      - 'API_DOCUMENTATION_PLAN.md'
+      - 'TODO_TRACKER.md'
+      - 'api/data.md'
+      - 'tutorials/basic/**'
+      - 'tutorials/01_DataOperations/**'
+      - 'tutorials/02_Analysis/**'
+      - 'tutorials/README.md'
+      - 'tutorials/data/README.md'
+
     # Warnings
-    suppress_warnings: ["etoc.toctree"]
+    suppress_warnings:
+      - "etoc.toctree"
+      - "autodoc.import_object"
+      - "toc.not_readable"
