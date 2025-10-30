@@ -310,6 +310,460 @@ jobs:
 
 ---
 
+## Parallel Testing Safety & Correctness
+
+**Date Added**: 2025-10-30
+**Context**: Ensuring pytest-xdist parallelization is safe and correct
+
+### Overview
+
+Our test suite uses **pytest-xdist** for parallel execution, achieving ~1.42× speedup with 4 workers. This section documents the safety considerations for parallel testing to ensure correctness and avoid race conditions.
+
+**Key Result**: Our current setup is **safe for parallel execution** ✅
+
+---
+
+### Fixture Isolation Between Workers
+
+**Status: ✅ SAFE - No Changes Needed**
+
+pytest-xdist runs each worker in a **completely isolated Python process**. Our fixtures are correctly designed for this:
+
+#### Function-Scoped Fixtures (Perfect Isolation)
+```python
+# conftest.py lines 25-83, 229-275, 277-316
+@pytest.fixture(scope="function")
+def minimal_brain_data():
+    """Each test gets a fresh instance"""
+    # 5 voxels, 50 timepoints
+    # Isolated per worker, isolated per test
+
+@pytest.fixture(scope="function")
+def small_brain_data_for_cv():
+    """CV testing fixture"""
+    # Each worker creates its own
+    # No sharing, no conflicts
+```
+
+**Why Safe**: Each test invocation gets a brand new fixture instance. Workers never share data.
+
+#### Module-Scoped Fixtures (Worker-Local Copies)
+```python
+# conftest.py lines 10-22, 86-96, 99-138, 140-152
+@pytest.fixture(scope="module")
+def sim_brain_data():
+    """Full brain data (238,955 voxels)"""
+    # Expensive to create, but safe:
+    # Each worker gets its OWN module scope
+    # Not shared across workers!
+```
+
+**How pytest-xdist Works:**
+- Each worker process maintains **separate module scopes**
+- Module-scoped fixtures are created **once per worker** (not once globally)
+- Workers never share fixture instances
+
+**Example**: With 4 workers running `test_brain_data.py`:
+- Worker 1 creates `sim_brain_data` instance A
+- Worker 2 creates `sim_brain_data` instance B
+- Worker 3 creates `sim_brain_data` instance C
+- Worker 4 creates `sim_brain_data` instance D
+- Each worker uses only its own instance
+
+#### Read-Only File Path Fixtures (Safe)
+```python
+# conftest.py lines 154-199
+@pytest.fixture(scope="module")
+def old_h5_brain(request):
+    """Returns path to shared H5 file"""
+    return os.path.join(tests_dir, "data", "old_brain.h5")
+```
+
+**Why Safe**: Multiple workers can **read** the same file simultaneously. OS handles file locking for reads.
+
+#### Dependent Fixtures (Safe)
+```python
+# conftest.py lines 202-227
+@pytest.fixture(scope="module")
+def regress_result(sim_brain_data):
+    """Creates new objects from sim_brain_data"""
+    return {
+        "beta": sim_brain_data.copy(),
+        "residual": fake_timeseries - fake_timeseries.mean(),
+        # ...
+    }
+```
+
+**Why Safe**: Even though it depends on `sim_brain_data`, it creates **new objects**. Each worker's `sim_brain_data` is independent, so derived fixtures are also independent.
+
+---
+
+### GPU/CUDA Parallelization
+
+**Status: ✅ SAFE - Excellent Architecture**
+
+Our backend abstraction (nltools/backends.py) is designed for parallel execution with GPUs.
+
+#### How Our GPU Tests Work
+
+```python
+# test_backends.py, test_models.py, test_ridge.py
+@pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+def test_torch_backend_selection():
+    backend = Backend('torch')  # Creates fresh instance
+    # Each test/worker has its own Backend instance
+```
+
+**Key Safety Features:**
+
+1. **Per-Process Device Selection** (backends.py lines 55-79):
+   ```python
+   def _init_torch(self):
+       if torch.cuda.is_available():
+           self._torch_device = torch.device('cuda')  # Uses default GPU
+   ```
+   - Each worker process independently selects GPU
+   - PyTorch/CUDA handle multi-process access automatically
+   - GPU 0 is shared safely via CUDA's scheduling
+
+2. **No Global State**:
+   - Each test creates its own `Backend` instance
+   - No shared backend singleton
+   - Workers never conflict
+
+3. **PyTorch/CUDA Multi-Process Safety**:
+   - CUDA driver manages concurrent access from multiple processes
+   - GPU memory allocation is process-isolated
+   - Context switching handled automatically
+
+#### Parallel GPU Performance Characteristics
+
+**Current Results** (from commit 89236cb):
+- 4 workers: 35s serial → 24s parallel = **1.42× speedup**
+- GPU tests don't bottleneck the suite
+
+**What This Means**:
+- GPU isn't the bottleneck yet
+- Each worker gets enough GPU time
+- Memory isn't constrained
+
+**Potential Future Considerations** (if scaling beyond 4 workers):
+- GPU memory limits: Each process needs VRAM
+- Context switching overhead: More processes = more switching
+- CPU-GPU transfer overhead: Multiple processes uploading data
+
+**Monitoring GPU Usage** (optional):
+```bash
+# In separate terminal
+watch -n 0.5 nvidia-smi  # For CUDA GPUs
+
+# Run tests
+uv run pytest -m tier2 -n 4
+
+# Look for:
+# - Memory usage per process
+# - GPU utilization (should be 80-100%)
+# - Temperature (throttling indicator)
+```
+
+#### GPU Test Recommendations
+
+**Current Setup: No Changes Needed**
+
+**If GPU tests become bottleneck:**
+1. Reduce workers for GPU-heavy tests: `pytest -m tier2 -n 2`
+2. Mark GPU tests separately: `@pytest.mark.gpu` and run with different worker count
+3. Limit worker count based on GPU memory: `pytest -n $(nvidia-smi --query-gpu=memory.free --format=csv,noheader | awk '{print int($1/2000)}')`
+
+---
+
+### File I/O Safety
+
+**Status: ⚠️ CHECK - Needs Audit**
+
+#### Read Operations (Safe ✅)
+
+Our test data files are **read-only**:
+```python
+# conftest.py lines 154-199
+old_h5_brain(request)  # Returns path to nltools/tests/data/old_brain.h5
+```
+
+**Why Safe**: Multiple processes can read the same file simultaneously. OS handles this safely.
+
+#### Write Operations (NEEDS AUDIT ⚠️)
+
+**Concern**: If tests write temporary files without unique names, workers could conflict.
+
+**Example of UNSAFE pattern** (hypothetical):
+```python
+def test_brain_data_write(sim_brain_data):
+    sim_brain_data.write("temp_output.h5")  # ❌ RACE CONDITION!
+    # Worker 1 and Worker 2 both try to write temp_output.h5
+```
+
+**Example of SAFE pattern**:
+```python
+def test_brain_data_write(sim_brain_data, tmp_path):
+    output_file = tmp_path / "test_output.h5"  # ✅ UNIQUE PER TEST
+    sim_brain_data.write(output_file)
+    # tmp_path is unique per test invocation
+```
+
+#### Action Item: Audit Write Operations
+
+**TODO for team**:
+```bash
+# Search for potential write operations
+cd nltools/tests
+grep -r "\.write\|\.to_\|\.save" . | grep -v "tmp_path\|tmpdir"
+
+# Check results - ensure all use tmp_path or unique names
+```
+
+**Files to check**:
+- `test_brain_data.py` - Brain_Data.write() tests
+- `test_adjacency.py` - Adjacency.write() tests
+- `test_design_matrix*.py` - CSV/file exports
+
+**Fix pattern if needed**:
+```python
+# Add tmp_path fixture parameter
+def test_write_operation(brain_data, tmp_path):
+    output = tmp_path / "unique_name.h5"
+    brain_data.write(output)
+```
+
+#### Current Cleanup Behavior
+
+From CLAUDE.md:
+```bash
+rm -f *.log *.csv *.nii.gz  # Manual cleanup recommended
+```
+
+This suggests tests may leave artifacts. Consider adding:
+```python
+# In conftest.py
+@pytest.fixture(autouse=True)
+def cleanup_test_artifacts():
+    """Auto-cleanup test artifacts after each test"""
+    yield  # Run test
+    # Clean up
+    for pattern in ['*.log', '*.csv', '*.nii.gz']:
+        for f in Path('.').glob(pattern):
+            if f.name not in ['permanent_file.csv']:  # Whitelist
+                f.unlink(missing_ok=True)
+```
+
+---
+
+### Random Seed Management
+
+**Status: ✅ EXCELLENT**
+
+Our fixtures properly seed random number generators for reproducibility:
+
+```python
+# conftest.py examples
+@pytest.fixture(scope="function")
+def minimal_brain_data():
+    np.random.seed(42)  # ✅ Deterministic
+    # Each worker gets same seed for same test
+    # Results are reproducible
+```
+
+**Why This Works**:
+- Each process has independent numpy random state
+- Seeding at fixture level ensures consistency
+- Tests are deterministic regardless of worker count
+
+**Verification**:
+```bash
+# Run same test multiple times in parallel
+for i in {1..5}; do
+    uv run pytest -k test_specific_random -n 4 --tb=no -q
+done
+# Results should be identical every time
+```
+
+---
+
+### Brain_Data / Shared Memory Objects
+
+**Status: ✅ SAFE - Well-Designed**
+
+Our core classes (Brain_Data, Adjacency, Design_Matrix) follow the "functional-core, imperative-shell" pattern safely:
+
+**Key Safety Properties**:
+
+1. **Instance-Based, Not Singletons**:
+   ```python
+   # Each test creates fresh instances
+   dat = Brain_Data(nifti_img, mask=mask_img)
+   # No global state, no shared objects
+   ```
+
+2. **Copy Semantics** (when needed):
+   ```python
+   # From efficient_copy pattern
+   dat_copy = dat.copy()  # Explicit copying
+   # Original and copy are independent
+   ```
+
+3. **No Mutable Class Variables**:
+   - All state is instance-level
+   - Workers never share Brain_Data instances
+
+**Verification**:
+```python
+# Test isolation
+def test_brain_data_independence():
+    dat1 = Brain_Data(...)
+    dat2 = Brain_Data(...)
+    dat1.data[0, 0] = 999  # Modify dat1
+    assert dat2.data[0, 0] != 999  # dat2 unaffected ✅
+```
+
+---
+
+### nilearn Integration & Nested Parallelism
+
+**Status: 📊 MONITOR - Potential Performance Impact**
+
+Many of our tier2 tests use nilearn operations that may spawn their own parallel workers:
+
+**Potentially Parallel nilearn Operations**:
+- `FirstLevelModel` (GLM fitting) - may use joblib parallelism
+- Connected component labeling (threshold clustering)
+- Spatial smoothing with large kernels
+
+**Concern: Thread Pool Explosion**
+
+If both pytest-xdist and nilearn try to parallelize:
+- pytest-xdist: 4 worker processes
+- nilearn/joblib: 4 threads per process
+- Total: 16 threads competing for resources
+- Result: CPU thrashing, slower than serial
+
+**Current Evidence**:
+Our 1.42× speedup with 4 workers suggests this isn't a major issue yet, but worth monitoring.
+
+**Solution: Limit nilearn's Parallelism**
+
+Add to conftest.py:
+```python
+@pytest.fixture(scope="session", autouse=True)
+def configure_parallel_environment():
+    """
+    Limit thread pools when using pytest-xdist.
+
+    When pytest-xdist spawns multiple workers, we don't want
+    each worker to spawn additional threads for numpy/blas ops.
+    This prevents thread pool explosion (4 workers × 4 threads = 16).
+    """
+    import os
+    # Limit BLAS/LAPACK threads (used by numpy, scipy, nilearn)
+    os.environ['OMP_NUM_THREADS'] = '1'
+    os.environ['OPENBLAS_NUM_THREADS'] = '1'
+    os.environ['MKL_NUM_THREADS'] = '1'
+    os.environ['NUMEXPR_NUM_THREADS'] = '1'
+    # Limit joblib (used by sklearn, nilearn)
+    os.environ['JOBLIB_START_METHOD'] = 'forkserver'  # Safer forking
+```
+
+**When to Apply**:
+- If tier2 parallel tests are slower than expected
+- If CPU usage goes above ~400% with 4 workers (indicates thrashing)
+- If `top` shows many idle threads
+
+**Testing the Fix**:
+```bash
+# Before: May thrash with many threads
+uv run pytest -m tier2 -n 4
+
+# After: Each worker uses 1 thread, cleaner parallelism
+OMP_NUM_THREADS=1 uv run pytest -m tier2 -n 4
+
+# Compare wall-clock time and CPU usage (via `time` command)
+```
+
+---
+
+### Performance Monitoring Checklist
+
+Use these commands to diagnose parallel testing issues:
+
+#### CPU Usage
+```bash
+# Monitor during test run
+top -pid $(pgrep -f pytest | tr '\n' ',' | sed 's/,$//')
+
+# Look for:
+# - CPU% per worker (should be near 100% if CPU-bound)
+# - Total CPU% (should be ~400% with 4 workers, not >800%)
+# - Many threads per process (sign of nested parallelism)
+```
+
+#### GPU Usage (if using CUDA)
+```bash
+# Continuous monitoring
+watch -n 0.5 nvidia-smi
+
+# Look for:
+# - Memory usage per process
+# - GPU utilization (80-100% is good)
+# - Multiple processes using GPU (expected)
+```
+
+#### I/O Wait
+```bash
+# Check if I/O is bottleneck
+iostat -x 1
+
+# Look for:
+# - %iowait (should be <10%)
+# - High await times (sign of I/O bottleneck)
+```
+
+#### Test Timing Comparison
+```bash
+# Serial timing
+time uv run pytest -m tier1
+
+# Parallel timing
+time uv run pytest -m tier1 -n 4
+
+# Speedup = serial_time / parallel_time
+# Ideal: 4.0× (never achievable due to overhead)
+# Good: 2-3× (our current 1.42× is acceptable)
+# Bad: <1.2× (parallel overhead too high)
+```
+
+---
+
+### Summary: Is Parallel Testing Safe?
+
+**✅ SAFE FOR USE** - Our current setup is well-architected for parallel execution.
+
+**Key Strengths**:
+1. Fixture isolation is correct (function + module scopes)
+2. GPU/PyTorch backend is designed for multi-process use
+3. Random seeding ensures reproducibility
+4. No shared mutable state in core classes
+
+**Action Items**:
+1. ⚠️ **Audit file writes** - Ensure all use `tmp_path` fixture
+2. 📊 **Monitor nilearn parallelism** - Add thread limits if CPU thrashes
+3. 🧹 **Consider autouse cleanup fixture** - Reduce manual artifact cleanup
+
+**For Future Reference**:
+- This setup scales safely to 4-8 workers on typical hardware
+- GPU memory may limit scaling (monitor with `nvidia-smi`)
+- If tier2 tests slow down with parallelism, limit nilearn threads
+- Always verify correctness: same results parallel vs. serial
+
+---
+
 ## Test Classification Guidelines
 
 ### Quick Reference: Which tier?

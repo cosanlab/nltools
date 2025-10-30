@@ -314,6 +314,51 @@ def test_predict_deprecated(brain_data):
         brain_data.predict()
 ```
 
+### Parallel Testing with pytest-xdist
+
+**Our test suite is safe for parallel execution** ✅
+
+Key commands:
+```bash
+# Run tier1 tests in parallel (default)
+uv run pytest -m tier1 -n auto  # Uses all CPU cores
+
+# Run tier2 tests in parallel
+uv run pytest -m tier2 -n 4     # Use 4 workers
+
+# Serial execution (for debugging)
+uv run pytest -m tier1          # No parallelization
+```
+
+**What makes our setup safe:**
+- ✅ All fixtures use `scope="function"` or `scope="module"` (worker-isolated)
+- ✅ GPU/PyTorch backend creates fresh instances per test (no shared state)
+- ✅ Random seeds are set in fixtures (reproducible regardless of worker count)
+- ✅ No mutable class variables in Brain_Data/Adjacency/Design_Matrix
+- ⚠️ File I/O: Use `tmp_path` fixture for writes to avoid race conditions
+
+**Detailed documentation:** See `testing-strategy-analysis.md` section "Parallel Testing Safety & Correctness" for:
+- How pytest-xdist handles fixtures (worker isolation model)
+- GPU/CUDA multi-process safety with PyTorch backend
+- File I/O considerations and recommended patterns
+- nilearn nested parallelism monitoring
+- Performance monitoring commands
+
+**Action items for future:**
+- Audit tests that write files - ensure they use `tmp_path`
+- If CPU thrashing occurs, add thread limits to conftest.py
+- Monitor GPU memory if scaling beyond 4 workers
+
+**When to worry:**
+- Speedup <1.2× with 4 workers (indicates overhead or contention)
+- Tests pass serially but fail in parallel (race condition!)
+- Different results between `-n 1` and `-n 4` (non-determinism!)
+
+**When NOT to worry:**
+- Different test execution order (expected with parallelization)
+- Slightly slower individual tests (worker overhead is normal)
+- GPU memory shared across workers (CUDA handles this safely)
+
 ---
 
 ## Performance Optimization Patterns

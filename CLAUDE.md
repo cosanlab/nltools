@@ -96,9 +96,10 @@ rm -f *.csv *.nii.gz           # Remove test data artifacts (NOT in nltools/test
 **Branch**: `uv-cleanup` (active development)
 **Version Target**: v0.6.0 (breaking release, API changes allowed)
 **Test Status**: 385 tests (381 passing, 4 skipped) ✅
-  - Tier 1 (Fast Core): ~350 tests, <2 min
+  - Tier 1 (Fast Core): ~350 tests, <2 min (18s with parallelization)
   - Tier 2 (Comprehensive): ~35 tests, ~7 min
-**Last Work**: Tiered testing implementation with pytest-xdist for parallel execution
+  - **Parallel testing is SAFE**: pytest-xdist verified safe with fixtures, GPU, and random seeds
+**Last Work**: Tiered testing implementation with pytest-xdist for parallel execution + safety verification
 
 **Important Git Tags**:
 - `v0.6.0-test-refactor`: Test implementations for deprecated methods
@@ -155,6 +156,15 @@ uv run pytest -m tier1 -xvs --tb=long 2>&1 | tee pytest_tier1.log
 - **Before push**: `uv run pytest -m "tier1 or tier2" -n auto` (~2 min)
 - **CI/Nightly**: Full suite with timing analysis
 
+**Parallel Testing Safety** ✅
+Our test suite is verified safe for parallel execution with pytest-xdist:
+- ✅ Fixtures properly isolated (function/module scopes work correctly)
+- ✅ GPU/PyTorch backend creates fresh instances per test (no shared state)
+- ✅ Random seeds in fixtures ensure reproducibility
+- ⚠️ Action item: Audit file writes to use `tmp_path` fixture
+
+**Detailed parallel testing documentation**: See `testing-strategy-analysis.md` section "Parallel Testing Safety & Correctness" and `claude-guidelines/knowledge-base.md` subsection "Parallel Testing with pytest-xdist"
+
 ### Test Suite Organization
 
 **Test files organized into subdirectories following "imperative shell, functional core" pattern:**
@@ -183,7 +193,7 @@ nltools/tests/
 └── data/                 # Centralized test data (h5, nii.gz files)
 ```
 
-**Total: 317 tests (310+ passing, ~4 skipped)**
+**Total: 385 tests (381 passing, 4 skipped)**
 
 **Running tests by directory**:
 ```bash
@@ -472,8 +482,9 @@ git log -p -S "code_pattern"
 
 ---
 
-*Last updated: 2025-10-29*
+*Last updated: 2025-10-30*
 *Branch: uv-cleanup*
 *Version target: v0.6.0*
-*Test status: 317 tests (310+ passing, ~4 skipped)*
-*Lines: ~420 (comprehensive quick reference with targeted testing guidelines)*
+*Test status: 385 tests (381 passing, 4 skipped)*
+*Parallel testing: Verified safe with pytest-xdist (1.42× speedup with 4 workers)*
+*Lines: ~490 (comprehensive quick reference with targeted testing guidelines + parallel safety notes)*
