@@ -22,6 +22,67 @@ def sim_brain_data():
     return dat
 
 
+@pytest.fixture(scope="function")
+def minimal_brain_data():
+    """Minimal Brain_Data for fast API contract testing.
+
+    Creates Brain_Data with:
+    - 5 active voxels (minimal spatial structure)
+    - 50 timepoints (sufficient for most operations including filtering)
+    - Random data (seeded for reproducibility)
+
+    Use this fixture for testing API contracts (parameters, return types,
+    shape preservation) where computational correctness is handled by
+    dependencies (nilearn, sklearn, etc.).
+
+    Performance: ~1-2s per test vs ~16s with full brain data (238,955 voxels).
+
+    Examples:
+        - Parameter validation tests
+        - Error handling tests
+        - Return type checks
+        - Shape preservation tests
+        - Fast smoke tests
+
+    For tests requiring realistic brain structure or specific voxel counts,
+    use `sim_brain_data` or create custom fixtures.
+    """
+    import nibabel as nib
+
+    np.random.seed(42)
+
+    # Minimal 3D volume: 5 active voxels
+    spatial_shape = (3, 2, 1)
+    n_samples = 50
+    n_voxels = 5
+
+    # Create mask
+    mask_data = np.zeros(spatial_shape, dtype=bool)
+    mask_data.flat[:n_voxels] = True
+
+    # Create random timeseries data
+    y_data_1d = np.random.randn(n_samples, n_voxels)
+
+    # Build 4D volume
+    volume_4d = np.zeros(spatial_shape + (n_samples,))
+    for t in range(n_samples):
+        volume_t = np.zeros(spatial_shape)
+        volume_t.flat[:n_voxels] = y_data_1d[t]
+        volume_4d[..., t] = volume_t
+
+    # Create nibabel images
+    affine = np.eye(4)
+    nifti_img = nib.Nifti1Image(volume_4d, affine)
+    mask_img = nib.Nifti1Image(mask_data.astype(np.float32), affine)
+
+    # Create Brain_Data
+    dat = Brain_Data(nifti_img, mask=mask_img)
+    dat.X = pd.DataFrame(
+        {"Intercept": np.ones(n_samples), "X1": np.random.randn(n_samples)}, index=None
+    )
+    return dat
+
+
 @pytest.fixture(scope="module")
 def sim_design_matrix():
     np.random.seed(0)

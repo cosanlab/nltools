@@ -65,4 +65,6 @@ docs/**/*.nii.gz
 .ruff_cache/
 **/haxbydata/
 **Haxby*.ipynb
+audit/
 claude-research/
+

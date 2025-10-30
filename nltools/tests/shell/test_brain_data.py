@@ -499,6 +499,91 @@ class TestBrainData:
         assert hasattr(sim_brain_data, "glm_r2")
         assert sim_brain_data.glm_r2.shape == (1, sim_brain_data.shape[1])
 
+    def test_compute_contrasts_error_not_fitted(self, minimal_brain_data):
+        """Test error when compute_contrasts() called before regress()."""
+        # Should raise RuntimeError if regress() not called first
+        with pytest.raises(RuntimeError, match="Must run .regress"):
+            minimal_brain_data.compute_contrasts([1, -1, 0])
+
+    def test_compute_contrasts_numeric_vector(self, minimal_brain_data):
+        """Test numeric contrast vector (unique nltools API)."""
+        # Set up and run regression
+        design_matrix = pd.DataFrame({
+            "Intercept": np.ones(len(minimal_brain_data)),
+            "condA": np.random.randn(len(minimal_brain_data)),
+            "condB": np.random.randn(len(minimal_brain_data)),
+        })
+
+        with pytest.warns(FutureWarning):
+            minimal_brain_data.regress(design_matrix)
+
+        # Compute contrast: A - B (unique nltools logic)
+        contrast = minimal_brain_data.compute_contrasts([0, 1, -1])
+
+        # Test nltools-specific API contract
+        assert isinstance(contrast, Brain_Data)
+        assert contrast.shape == (1, minimal_brain_data.shape[1])
+
+    def test_compute_contrasts_string_parsing(self, minimal_brain_data):
+        """Test string contrast parsing (unique nltools feature)."""
+        # Set up and run regression
+        design_matrix = pd.DataFrame({
+            "Intercept": np.ones(len(minimal_brain_data)),
+            "condA": np.random.randn(len(minimal_brain_data)),
+            "condB": np.random.randn(len(minimal_brain_data)),
+        })
+
+        with pytest.warns(FutureWarning):
+            minimal_brain_data.regress(design_matrix)
+
+        # Test string parsing (unique nltools feature)
+        contrast = minimal_brain_data.compute_contrasts("condA - condB")
+
+        assert isinstance(contrast, Brain_Data)
+        assert contrast.shape == (1, minimal_brain_data.shape[1])
+
+    def test_compute_contrasts_multiple_dict(self, minimal_brain_data):
+        """Test multiple contrasts via dict (unique nltools API)."""
+        # Set up and run regression
+        design_matrix = pd.DataFrame({
+            "Intercept": np.ones(len(minimal_brain_data)),
+            "condA": np.random.randn(len(minimal_brain_data)),
+            "condB": np.random.randn(len(minimal_brain_data)),
+        })
+
+        with pytest.warns(FutureWarning):
+            minimal_brain_data.regress(design_matrix)
+
+        # Test dict of contrasts (unique nltools API)
+        contrasts = {
+            "A_vs_B": "condA - condB",
+            "avg_effect": [0, 0.5, 0.5]
+        }
+        results = minimal_brain_data.compute_contrasts(contrasts)
+
+        # Should return dict of Brain_Data objects
+        assert isinstance(results, dict)
+        assert "A_vs_B" in results
+        assert "avg_effect" in results
+        assert isinstance(results["A_vs_B"], Brain_Data)
+        assert isinstance(results["avg_effect"], Brain_Data)
+
+    def test_compute_contrasts_invalid_length(self, minimal_brain_data):
+        """Test error for invalid contrast vector length (nltools validation)."""
+        # Set up and run regression with 3 regressors
+        design_matrix = pd.DataFrame({
+            "Intercept": np.ones(len(minimal_brain_data)),
+            "condA": np.random.randn(len(minimal_brain_data)),
+            "condB": np.random.randn(len(minimal_brain_data)),
+        })
+
+        with pytest.warns(FutureWarning):
+            minimal_brain_data.regress(design_matrix)
+
+        # Provide wrong length contrast (2 instead of 3)
+        with pytest.raises(ValueError, match="Contrast vector length.*must match"):
+            minimal_brain_data.compute_contrasts([1, -1])
+
     # ==================== Unified fit/predict API ====================
 
     def test_fit_predict_ridge_workflow(self, sim_brain_data):
@@ -1131,6 +1216,58 @@ class TestBrainData:
         s = sim_brain_data.standardize(method="zscore")
         assert s.shape == sim_brain_data.shape
         assert np.isclose(np.sum(s.mean().data), 0, atol=0.1)
+
+    def test_filter_high_pass(self, minimal_brain_data):
+        """Test high-pass filtering returns Brain_Data with correct shape."""
+        # Test basic API: sampling_freq + high_pass
+        filtered = minimal_brain_data.filter(sampling_freq=0.5, high_pass=0.01)
+
+        assert isinstance(filtered, Brain_Data)
+        assert filtered.shape == minimal_brain_data.shape
+        # Original data should be unchanged (immutability)
+        assert not np.array_equal(id(filtered.data), id(minimal_brain_data.data))
+
+    def test_filter_low_pass(self, minimal_brain_data):
+        """Test low-pass filtering returns Brain_Data with correct shape."""
+        filtered = minimal_brain_data.filter(sampling_freq=0.5, low_pass=0.1)
+
+        assert isinstance(filtered, Brain_Data)
+        assert filtered.shape == minimal_brain_data.shape
+
+    def test_filter_band_pass(self, minimal_brain_data):
+        """Test band-pass filtering (both high and low pass)."""
+        filtered = minimal_brain_data.filter(
+            sampling_freq=0.5,
+            high_pass=0.01,
+            low_pass=0.1
+        )
+
+        assert isinstance(filtered, Brain_Data)
+        assert filtered.shape == minimal_brain_data.shape
+
+    def test_filter_error_no_sampling_freq(self, minimal_brain_data):
+        """Test error when sampling_freq not provided."""
+        with pytest.raises(ValueError, match="sampling rate"):
+            minimal_brain_data.filter(high_pass=0.01)
+
+    def test_filter_error_no_cutoff(self, minimal_brain_data):
+        """Test error when neither high_pass nor low_pass specified."""
+        # Note: current error message has typo "beprovided"
+        with pytest.raises(ValueError, match="must.*provided"):
+            minimal_brain_data.filter(sampling_freq=0.5)
+
+    def test_filter_kwargs_passed_through(self, minimal_brain_data):
+        """Test that additional kwargs reach nilearn.signal.clean."""
+        # Test with ensure_finite kwarg (nilearn.signal.clean parameter)
+        # This is a smoke test - we don't validate parameter effect,
+        # just that the method runs without error when kwargs provided
+        filtered = minimal_brain_data.filter(
+            sampling_freq=0.5,
+            high_pass=0.01,
+            ensure_finite=True  # nilearn parameter not extracted by filter()
+        )
+
+        assert isinstance(filtered, Brain_Data)
 
     def test_smooth(self, sim_brain_data):
         """Test spatial smoothing."""
