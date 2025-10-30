@@ -11,11 +11,35 @@ For task checklist, see `refactor-todos.md`. For strategic vision, see `refactor
 **Branch**: `uv-cleanup`
 **Version Target**: v0.6.0 (breaking release)
 **Test Status**: 317 tests (310+ passing, ~4 skipped) + 68 new DesignMatrix tests (TDD)
-**Last Work**: Polars migration scaffolding - TDD approach with comprehensive test suite
+**Last Work**: DesignMatrix Phases 1-2 complete (27/68 tests passing, 40%)
 
 ---
 
 ## Recent Accomplishments
+
+### DesignMatrix Phase 2: Statistical Operations (2025-10-29)
+- **Achievement**: Complete statistical transformation methods (5 tests)
+- **Methods implemented**:
+  - `zscore()`: Polars-native standardization with polynomial exclusion
+  - `downsample()`: Temporal downsampling via stats bridge
+  - `upsample()`: Temporal upsampling via stats bridge
+- **Key decisions**:
+  - Dict-based pandas conversion (avoids pyarrow dependency)
+  - Polars-native zscore using expression API (efficient vectorization)
+  - Reuse existing stats.py functions for resampling (pragmatic bridge)
+  - Document future optimization path (pyarrow, native Polars resampling)
+- **Progress**: 27/68 tests passing (40% complete)
+
+### DesignMatrix Phase 1: Foundation (2025-10-29)
+- **Achievement**: Complete construction and basic operations (22 tests)
+- **Implemented**:
+  - Construction from all input types (numpy, dict, Polars/pandas DataFrame)
+  - Properties: shape, columns, empty, len
+  - Data access: __getitem__, __setitem__ with metadata preservation
+  - Simple transformations: fillna, drop
+  - Internal helper: _copy_with for immutable transformations
+- **Composition pattern**: Wrap `pl.DataFrame` internally, maintain metadata
+- **Test coverage**: 8 construction, 10 data access, 4 transformations
 
 ### Polars Migration Scaffolding (2025-10-29)
 - **Achievement**: Complete TDD infrastructure for Design_Matrix → Polars migration
@@ -100,6 +124,51 @@ For task checklist, see `refactor-todos.md`. For strategic vision, see `refactor
 ---
 
 ## Key Decisions & Rationale
+
+### Polars-Pandas Interop for Resampling (2025-10-29)
+
+**Decision**: Use dict-based pandas conversion for downsample/upsample
+**Context**: Phase 2 statistical operations implementation
+
+**Current Implementation**:
+```python
+# Convert Polars → pandas via dict (avoids pyarrow dependency)
+pd_df = pd.DataFrame(self._df.to_dict(as_series=False))
+
+# Use existing nltools.stats functions
+downsampled_pd = stats_downsample(pd_df, ...)
+
+# Convert back: pandas → Polars
+downsampled_df = pl.from_pandas(downsampled_pd)
+```
+
+**Why dict conversion instead of `.to_pandas()`?**
+- `.to_pandas()` requires pyarrow dependency (not currently in nltools deps)
+- Dict conversion works with base Polars installation
+- Temporary bridge until we implement Polars-native resampling
+
+**Future optimization path (v0.7.0+)**:
+1. **Add pyarrow dependency**: Enables zero-copy Polars ↔ pandas conversion
+   - Benefits: 10-100x faster conversion for large DataFrames
+   - Use Arrow memory format for efficient interop
+   - Example: `.to_pandas(use_pyarrow_extension_array=True)`
+
+2. **Implement Polars-native resampling**:
+   - Downsample: Use `.group_by_dynamic()` with temporal windows
+   - Upsample: Implement interpolation with Polars expressions
+   - Benefit: Avoid conversion overhead entirely, 2-5x faster
+
+3. **Consider pyarrow for all I/O**:
+   - Parquet files (already Arrow-native, very fast)
+   - Replace HDF5 with Parquet for DataFrame storage
+   - Consistent with polars-migration.md recommendations
+
+**Trade-offs**:
+- Current: Simple, no new dependencies, ~10-20% slower on large data
+- With pyarrow: Fast conversions, adds 50MB dependency
+- Polars-native: Fastest, more implementation work
+
+**Decision**: Prioritize working code now, optimize later when profiling shows need
 
 ### Polars Migration Approach (2025-10-29)
 

@@ -216,20 +216,140 @@ class DesignMatrix:
         """
         Z-score standardize columns (mean=0, std=1).
 
-        Excludes polynomial columns by default.
+        Parameters
+        ----------
+        columns : list of str, optional
+            Columns to standardize. If None, standardize all non-polynomial columns.
+
+        Returns
+        -------
+        DesignMatrix
+            New DesignMatrix with standardized columns
         """
-        # TODO: Implement using Polars expressions
-        raise NotImplementedError("zscore not yet implemented")
+        # Determine which columns to z-score
+        if columns is None:
+            # Default: all columns except polynomials
+            columns_to_zscore = [col for col in self.columns if col not in self.polys]
+        else:
+            columns_to_zscore = columns
+
+        # Build Polars expressions for z-scoring
+        # For each column: (col - mean) / std
+        zscore_exprs = [
+            ((pl.col(col) - pl.col(col).mean()) / pl.col(col).std()).alias(col)
+            for col in columns_to_zscore
+        ]
+
+        # Keep non-zscored columns as-is
+        unchanged_cols = [col for col in self.columns if col not in columns_to_zscore]
+        keep_exprs = [pl.col(col) for col in unchanged_cols]
+
+        # Combine expressions (preserving original column order)
+        all_exprs = []
+        for col in self.columns:
+            if col in columns_to_zscore:
+                all_exprs.append(
+                    ((pl.col(col) - pl.col(col).mean()) / pl.col(col).std()).alias(col)
+                )
+            else:
+                all_exprs.append(pl.col(col))
+
+        # Apply transformations
+        zscored_df = self._df.select(all_exprs)
+
+        return self._copy_with(zscored_df)
 
     def downsample(self, target: float, **kwargs) -> "DesignMatrix":
-        """Reduce temporal resolution to target frequency."""
-        # TODO: Implement
-        raise NotImplementedError("downsample not yet implemented")
+        """
+        Reduce temporal resolution to target frequency.
+
+        Parameters
+        ----------
+        target : float
+            Target sampling frequency in Hz (must be < current sampling_freq)
+        **kwargs
+            Additional arguments passed to nltools.stats.downsample
+
+        Returns
+        -------
+        DesignMatrix
+            Downsampled DesignMatrix with updated sampling_freq
+        """
+        from nltools.stats import downsample as stats_downsample
+
+        if self.sampling_freq is None:
+            raise ValueError("DesignMatrix must have sampling_freq set for downsampling")
+
+        if target >= self.sampling_freq:
+            raise ValueError(
+                f"Target ({target} Hz) must be less than current sampling_freq ({self.sampling_freq} Hz)"
+            )
+
+        # Convert to pandas for existing downsample function
+        # TODO: Implement Polars-native downsampling in future optimization
+        # Use dict conversion to avoid pyarrow dependency
+        pd_df = pd.DataFrame(self._df.to_dict(as_series=False))
+
+        # Downsample using existing stats function
+        downsampled_pd = stats_downsample(
+            pd_df,
+            sampling_freq=self.sampling_freq,
+            target=target,
+            target_type="hz",
+            **kwargs,
+        )
+
+        # Convert back to Polars
+        downsampled_df = pl.from_pandas(downsampled_pd)
+
+        # Create new DesignMatrix with updated sampling_freq
+        return self._copy_with(downsampled_df, sampling_freq=target)
 
     def upsample(self, target: float, **kwargs) -> "DesignMatrix":
-        """Increase temporal resolution to target frequency."""
-        # TODO: Implement
-        raise NotImplementedError("upsample not yet implemented")
+        """
+        Increase temporal resolution to target frequency.
+
+        Parameters
+        ----------
+        target : float
+            Target sampling frequency in Hz (must be > current sampling_freq)
+        **kwargs
+            Additional arguments passed to nltools.stats.upsample
+
+        Returns
+        -------
+        DesignMatrix
+            Upsampled DesignMatrix with updated sampling_freq
+        """
+        from nltools.stats import upsample as stats_upsample
+
+        if self.sampling_freq is None:
+            raise ValueError("DesignMatrix must have sampling_freq set for upsampling")
+
+        if target <= self.sampling_freq:
+            raise ValueError(
+                f"Target ({target} Hz) must be greater than current sampling_freq ({self.sampling_freq} Hz)"
+            )
+
+        # Convert to pandas for existing upsample function
+        # TODO: Implement Polars-native upsampling in future optimization
+        # Use dict conversion to avoid pyarrow dependency
+        pd_df = pd.DataFrame(self._df.to_dict(as_series=False))
+
+        # Upsample using existing stats function
+        upsampled_pd = stats_upsample(
+            pd_df,
+            sampling_freq=self.sampling_freq,
+            target=target,
+            target_type="hz",
+            **kwargs,
+        )
+
+        # Convert back to Polars
+        upsampled_df = pl.from_pandas(upsampled_pd)
+
+        # Create new DesignMatrix with updated sampling_freq
+        return self._copy_with(upsampled_df, sampling_freq=target)
 
     # ==================== Convolution ====================
 
