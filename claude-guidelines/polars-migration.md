@@ -10,7 +10,7 @@
 ## Executive Summary
 
 **Scope**: Complete pandas removal (CPU-only, defer GPU to v0.7.0)
-**Target**: All 4 classes (Brain_Data, Design_Matrix, Adjacency, stats modules)
+**Target**: All 4 classes (Brain_Data, DesignMatrix, Adjacency, stats modules)
 **Approach**: Parallel with Model class work, coordinated at integration points
 **Timeline**: ~5-7 days of focused work
 
@@ -47,10 +47,10 @@
    - **Risk**: If we change internal data structures before Model integration
    - **Mitigation**: Keep `brain_data.data` as numpy array (both plans need this)
 
-3. **Design_Matrix in regression**
-   - Model spec may use Design_Matrix in ridge regression
-   - **Risk**: Breaking Design_Matrix API during Model implementation
-   - **Mitigation**: Prioritize Design_Matrix migration early, freeze API
+3. **DesignMatrix in regression**
+   - Model spec may use DesignMatrix in ridge regression
+   - **Risk**: Breaking DesignMatrix API during Model implementation
+   - **Mitigation**: Prioritize DesignMatrix migration early, freeze API
 
 ### Division of Labor
 
@@ -61,7 +61,7 @@
 | `stats/ridge.py` | - | ✅ New file | Model team |
 | Brain_Data.X, Y | ✅ Polars conversion layer | Uses if present | Polars team |
 | Brain_Data.predict() | - | ✅ Implements | Model team |
-| Design_Matrix | ✅ Full rewrite | May consume | Polars team |
+| DesignMatrix | ✅ Full rewrite | May consume | Polars team |
 | HDF5 utilities | ✅ Migrate | May use | Shared |
 
 ---
@@ -71,11 +71,11 @@
 ### Complete Inventory
 
 **Files with pandas usage**: 15+ files
-**Core classes using pandas**: 4 (Brain_Data, Design_Matrix, Adjacency, Validation)
+**Core classes using pandas**: 4 (Brain_Data, DesignMatrix, Adjacency, Validation)
 **DataFrame attributes**:
 - Brain_Data: `X`, `Y` (deprecated in v0.6.0)
 - Adjacency: `Y`
-- Design_Matrix: IS a DataFrame (subclasses pd.DataFrame)
+- DesignMatrix: IS a DataFrame (subclasses pd.DataFrame)
 
 ### Critical Patterns Found
 
@@ -83,7 +83,7 @@
    - Lines 715, 987, 1038
    - Must replace with `pl.concat()`
 
-2. **Design_Matrix subclassing**
+2. **DesignMatrix subclassing**
    - Inherits ALL pandas methods
    - Has `_constructor` properties for slicing behavior
    - Most complex migration challenge
@@ -109,7 +109,7 @@
 - GroupBy: `.groupby().agg()` (similar but better syntax)
 
 **Complex** (8-10 hours):
-- Design_Matrix: Full class restructure needed
+- DesignMatrix: Full class restructure needed
 - Adjacency statistics: Optimize with lazy evaluation
 - HDF5 I/O: Migrate from pandas HDFStore
 
@@ -253,20 +253,20 @@ class Brain_Data:
 
 ---
 
-### Phase 4: Design_Matrix (Days 4-5, ~10 hours) **MOST COMPLEX**
+### Phase 4: DesignMatrix (Days 4-5, ~10 hours) **MOST COMPLEX**
 **Goal**: Composition pattern to replace pandas subclassing
 
 **4.1 Research Finding: Polars Discourages Subclassing**
 - Polars operations return base DataFrame, not subclass
 - Recommended: Namespace registration OR composition
-- **Decision**: Composition pattern (Design_Matrix needs to be a DataFrame-like object)
+- **Decision**: Composition pattern (DesignMatrix needs to be a DataFrame-like object)
 
 **Why Polars doesn't support subclassing**:
 > "Methods that produce new objects will 'lose' the sub-class, meaning any DataFrame operations return base DataFrame objects, not your subclass." - Polars Issue #2846
 
-**4.2 New Design_Matrix Structure** (~5 hours)
+**4.2 New DesignMatrix Structure** (~5 hours)
 ```python
-class Design_Matrix:
+class DesignMatrix:
     """
     Polars-based design matrix with neuroimaging-specific methods.
 
@@ -315,7 +315,7 @@ class Design_Matrix:
 
         attr = getattr(self._df, name)
         if callable(attr):
-            # Wrap methods to return Design_Matrix instead of DataFrame
+            # Wrap methods to return DesignMatrix instead of DataFrame
             def wrapper(*args, **kwargs):
                 result = attr(*args, **kwargs)
                 if isinstance(result, pl.DataFrame):
@@ -335,7 +335,7 @@ class Design_Matrix:
 
     @classmethod
     def _from_polars(cls, df, metadata=None):
-        """Create Design_Matrix from Polars DataFrame, preserving metadata"""
+        """Create DesignMatrix from Polars DataFrame, preserving metadata"""
         dm = cls.__new__(cls)
         dm._df = df
         if metadata:
@@ -374,12 +374,12 @@ class Design_Matrix:
 
         Parameters
         ----------
-        other : Design_Matrix or DataFrame
+        other : DesignMatrix or DataFrame
             Data to append
         axis : int, default=1
             0 for rows (vertical), 1 for columns (horizontal)
         """
-        if isinstance(other, Design_Matrix):
+        if isinstance(other, DesignMatrix):
             other_df = other._df
         else:
             other_df = ensure_polars(other)
@@ -401,7 +401,7 @@ class Design_Matrix:
 ```
 
 **4.3 Migration Strategy** (~3 hours)
-- Test each Design_Matrix method with Polars
+- Test each DesignMatrix method with Polars
 - Critical operations to validate:
   - `.convolve()` - Creates convolved regressors
   - `.add_poly()` - Polynomial detrending
@@ -414,7 +414,7 @@ class Design_Matrix:
 - Accept pandas inputs with deprecation warnings
 - Ensure nilearn compatibility (may need pandas conversion)
 
-**Deliverable**: Design_Matrix fully Polars-based, all methods working, tests green
+**Deliverable**: DesignMatrix fully Polars-based, all methods working, tests green
 
 ---
 
@@ -491,7 +491,7 @@ def test_pandas_polars_conversion():
     pd_df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
 
     # Should accept pandas and convert internally
-    dm = Design_Matrix(pd_df, sampling_freq=2.0)
+    dm = DesignMatrix(pd_df, sampling_freq=2.0)
 
     # Internal storage is Polars
     assert isinstance(dm._df, pl.DataFrame)
@@ -518,7 +518,7 @@ def test_pandas_polars_conversion():
 
 ## 🔧 Technical Decisions
 
-### Design_Matrix: Why Composition Over Subclassing?
+### DesignMatrix: Why Composition Over Subclassing?
 
 **Polars position**: "Subclassing is not supported. Methods that produce new objects will lose the sub-class."
 
@@ -530,10 +530,10 @@ def test_pandas_polars_conversion():
 | Namespace registration | Official Polars pattern | Can't be a DataFrame-like object | ❌ Wrong use case |
 | **Composition + delegation** | **Full control, metadata preserved** | **Need to wrap methods** | ✅ **Best fit** |
 
-**Why composition works for Design_Matrix**:
+**Why composition works for DesignMatrix**:
 1. Wrap Polars DataFrame internally (`self._df`)
 2. Delegate methods via `__getattr__` (automatic forwarding)
-3. Return new Design_Matrix instances (not raw DataFrames)
+3. Return new DesignMatrix instances (not raw DataFrames)
 4. Preserve metadata (sampling_freq, convolved, polys)
 5. Similar UX to pandas subclassing, but robust
 
@@ -626,7 +626,7 @@ df = df.with_columns((pl.col("old") * 2).alias("new"))
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Design_Matrix breaks user code | HIGH | Extensive testing, `.to_pandas()` escape hatch |
+| DesignMatrix breaks user code | HIGH | Extensive testing, `.to_pandas()` escape hatch |
 | Nilearn expects pandas | MEDIUM | Conversion layer at boundaries |
 | Model spec conflicts | MEDIUM | Coordinate via shared Brain_Data.data (numpy) |
 | Performance regression | LOW | Polars is faster, but benchmark to verify |
@@ -639,7 +639,7 @@ df = df.with_columns((pl.col("old") * 2).alias("new"))
 
 - ✅ Pandas removed from direct dependencies
 - ✅ All 38 tests passing with Polars
-- ✅ Design_Matrix works identically to v0.5.1 (user perspective)
+- ✅ DesignMatrix works identically to v0.5.1 (user perspective)
 - ✅ 2-5x speedup on Adjacency statistics (lazy evaluation)
 - ✅ Zero import errors (polars vs pandas)
 - ✅ Model spec's work unaffected (both tests pass together)
@@ -651,7 +651,7 @@ df = df.with_columns((pl.col("old") * 2).alias("new"))
 
 **Before Phase 2**: Confirm stats.py signatures stable
 **Before Phase 3**: Verify Brain_Data.data stays numpy (both need it)
-**After Phase 4**: Test Design_Matrix with model-spec ridge regression
+**After Phase 4**: Test DesignMatrix with model-spec ridge regression
 **After Phase 6**: Run both test suites together (Polars + Models)
 
 ---
@@ -681,7 +681,7 @@ polars = { version = ">=0.20.0", extras = ["gpu"] }  # GPU engine
 - **Day 1**: Bridge module, fix deprecated patterns (~4 hrs)
 - **Day 2**: Stats, validation, file I/O (~6 hrs)
 - **Day 3**: Brain_Data compatibility layer (~5 hrs)
-- **Days 4-5**: Design_Matrix composition pattern (~10 hrs)
+- **Days 4-5**: DesignMatrix composition pattern (~10 hrs)
 - **Day 6**: Adjacency lazy evaluation (~6 hrs)
 - **Day 7**: Integration testing (~5 hrs)
 
@@ -693,7 +693,7 @@ polars = { version = ">=0.20.0", extras = ["gpu"] }  # GPU engine
 
 1. **Polars is NOT pandas** - Don't do naive 1:1 replacement, use expression API
 2. **Lazy evaluation is powerful** - Especially for Adjacency statistics (5-10x speedup)
-3. **Composition beats subclassing** - For Design_Matrix metadata needs
+3. **Composition beats subclassing** - For DesignMatrix metadata needs
 4. **Bridge layers enable migration** - Accept both, convert internally, deprecate pandas
 5. **Coordinate at interfaces** - Brain_Data.data (numpy) is shared contract with Model spec
 6. **GPU deferral is wise** - CPU Polars already gives 2-5x, GPU in v0.7.0 gives another 10x

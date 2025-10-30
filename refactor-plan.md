@@ -18,7 +18,7 @@ For task progress, see `refactor-todos.md`. For session context, see `refactor-p
 
 **"Functional-core, imperative shell" pattern:**
 
-- **Imperative shell** (`nltools/data/`): Brain_Data, Adjacency, Design_Matrix
+- **Imperative shell** (`nltools/data/`): Brain_Data, Adjacency, DesignMatrix
   - User-facing classes with stateful APIs
   - Manage nifti images, masks, metadata
   - Provide convenient method chaining
@@ -82,7 +82,7 @@ For task progress, see `refactor-todos.md`. For session context, see `refactor-p
 - Codebase audit and cleanup
 
 ### Priority 3: Medium Priority (v0.6.0 or v0.6.1)
-- Polars migration for Design_Matrix
+- Polars migration for DesignMatrix
 - fit() inplace parameter + Fit dataclass
 - Adjacency refactoring
 - Plotting integration minimization

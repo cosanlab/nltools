@@ -11,7 +11,7 @@
 We don't reinvent the wheel, we make the wheel easier to use. Our mission is to wrap lower-level tools (primarily nilearn) with intuitive APIs that make fMRI analysis more accessible.
 
 **Architecture Pattern: "Functional-core, imperative shell"**
-- **Imperative shell** (`nltools/data/`): Stateful classes (Brain_Data, Adjacency, Design_Matrix) that hold data and coordinate operations
+- **Imperative shell** (`nltools/data/`): Stateful classes (Brain_Data, Adjacency, DesignMatrix) that hold data and coordinate operations
 - **Functional core**: Pure functions for computations (stats.py, utils.py, etc.)
 - **v0.5.1 = Baseline**: This is our compatibility target - everything from v0.5.1 must work or deprecate gracefully
 - **Post-v0.5.1 features**: Deferred to Priority 3 (Model class, Brain_Collection)
@@ -69,7 +69,7 @@ smoothed = Brain_Data(smooth_img(brain.to_nifti(), fwhm=6))
 1. **Don't reinvent the wheel**: nilearn already has robust, tested GLM implementation
 2. **Store as attributes**: Changed from returning dict to storing `.glm_betas`, `.glm_t`, etc. as attributes for easier access and consistency with other methods
 3. **Override defaults**: We disable smoothing/scaling/drift because users should control these preprocessing steps explicitly
-4. **Design_Matrix required**: Forces explicit experimental design specification rather than implicit assumptions
+4. **DesignMatrix required**: Forces explicit experimental design specification rather than implicit assumptions
 
 ### API Evolution
 

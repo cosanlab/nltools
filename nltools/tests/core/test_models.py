@@ -15,6 +15,7 @@ from nltools.models import BaseModel, Ridge
 # ============================================================================
 
 
+# TODO: See associated comment/issue in nltools/backends:80
 def _torch_available():
     """Check if PyTorch is installed"""
     try:

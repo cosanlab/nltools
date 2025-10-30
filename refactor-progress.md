@@ -116,7 +116,7 @@ Fixed `Adjacency.regress()` to work with Polars DesignMatrix by adding `.to_nump
 
 **1. Cutover Complete**
 - ✅ Switched `design_matrix.py` to import Polars implementation
-- ✅ Added backward compatibility aliases (`Design_Matrix`, `Design_Matrix_Series`)
+- ✅ Added backward compatibility aliases (`DesignMatrix`, `DesignMatrix_Series`)
 - ✅ All 78 DesignMatrix tests passing (68 new Polars + 10 legacy updated)
 - ✅ Updated test syntax for Polars compatibility
 
@@ -299,7 +299,7 @@ Fixed `Adjacency.regress()` to work with Polars DesignMatrix by adding `.to_nump
 - **Test coverage**: 8 construction, 10 data access, 4 transformations
 
 ### Polars Migration Scaffolding (2025-10-29, commit 839f355)
-- **Achievement**: Complete TDD infrastructure for Design_Matrix → Polars migration
+- **Achievement**: Complete TDD infrastructure for DesignMatrix → Polars migration
 - **Test Suite**: 68 comprehensive behavior-focused tests (all categories)
 - **Scaffold**: `design_matrix_new.py` with all method signatures as NotImplementedError
 - **Dependencies**: Added `polars>=0.20.0` to pyproject.toml
@@ -529,7 +529,7 @@ downsampled_df = pl.from_pandas(downsampled_pd)
 ### Planning Documents (claude-guidelines/)
 - `bootstrap-refactor.md`: Comprehensive bootstrap refactoring plan (~14-18 hrs)
 - `fastsrm-tdd-plan.md`: FastSRM implementation TDD plan
-- `polars-migration.md`: Design_Matrix Polars migration strategy
+- `polars-migration.md`: DesignMatrix Polars migration strategy
 - `banded-ridge-plan.md`: Banded ridge regression implementation
 - `srm-hyperalignment-testing-strategy.md`: SRM testing research
 - `design-philosophy.md`: Key architectural decisions and rationale
@@ -554,7 +554,7 @@ downsampled_df = pl.from_pandas(downsampled_pd)
 ### Round 1 Codebase Audit (Priority 2.11)
 - **Status**: Partially complete (4 bugs fixed in ce3662d)
 - **Next**: Systematic review of all classes and methods
-- **Approach**: Can parallelize by module (Brain_Data, Adjacency, Design_Matrix, core)
+- **Approach**: Can parallelize by module (Brain_Data, Adjacency, DesignMatrix, core)
 - **Estimate**: 8-12 hours remaining
 
 ### Documentation & Tutorials (Priority 2.12)

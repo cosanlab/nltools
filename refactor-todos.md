@@ -133,8 +133,8 @@ For strategic vision, see `refactor-plan.md`. For context and decisions, see `re
 
 | Task | Status | Tests | Commit |
 |------|--------|-------|--------|
-| Design_Matrix Polars TDD scaffolding | ✅ | 68 | 839f355 |
-| Design_Matrix Polars implementation | ✅ | 68 | Multiple |
+| DesignMatrix Polars TDD scaffolding | ✅ | 68 | 839f355 |
+| DesignMatrix Polars implementation | ✅ | 68 | Multiple |
 | Review Polars code for holistic cleanup | ✅ | 68 | efb83c5 |
 | Switch design_matrix.py to Polars version | ✅ | 78 | - |
 | Fix GLM integration (nilearn boundary) | ✅ | 18 | - |
@@ -206,8 +206,8 @@ For strategic vision, see `refactor-plan.md`. For context and decisions, see `re
 ## Test Count Summary
 
 **Total**: 385 tests (378+ passing, ~4 skipped)
-- **Shell**: 131 tests (Brain_Data: 71+, Adjacency: 54+, Design_Matrix: 10+ old)
-- **Shell (New)**: 68 tests (Design_Matrix Polars: 68 passing, 100% complete)
+- **Shell**: 131 tests (Brain_Data: 71+, Adjacency: 54+, DesignMatrix: 10+ old)
+- **Shell (New)**: 68 tests (DesignMatrix Polars: 68 passing, 100% complete)
 - **Core**: 155 tests (including SRM: 34, HyperAlignment: 27, Ridge: 16, Models: 37)
 - **Support**: 31 tests (datasets: 9, efficient_copy: 14, prefs: 5, simulator: 3)
 

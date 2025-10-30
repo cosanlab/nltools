@@ -808,12 +808,12 @@ class Brain_Data(object):
 
     def _fit_glm(self, X):
         """Fit GLM model and extract results (same logic as current regress())."""
-        from .design_matrix import Design_Matrix
+        from .design_matrix import DesignMatrix
         from nltools.data import Brain_Data
 
-        # Ensure X is Design_Matrix
-        if not isinstance(X, Design_Matrix):
-            X = Design_Matrix(X)
+        # Ensure X is DesignMatrix
+        if not isinstance(X, DesignMatrix):
+            X = DesignMatrix(X)
 
         # Convert data to 4D nifti for nilearn
         data_4d = self.to_nifti()
@@ -879,7 +879,7 @@ class Brain_Data(object):
         Please update your code to use the new fit/predict API.
 
         Args:
-            design_matrix: Design_Matrix object or pandas DataFrame with regressors
+            design_matrix: DesignMatrix object or pandas DataFrame with regressors
                           If None, will use self.X (deprecated)
             noise_model (str): temporal variance model ('ols' or 'ar1'). Default: 'ols'
             mode (str): deprecated parameter (ignored)

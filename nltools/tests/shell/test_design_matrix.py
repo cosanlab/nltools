@@ -587,7 +587,7 @@ class TestDesignMatrixConvolution:
             "HRF convolution should delay peak response"
         )
 
-    # NOTE: Design_Matrix may not currently have this feature, but we've always wanted to support multiple kernels as well passed in a list of inputs that automatically creates columns * kernels new convovled columns. See if it's easy to support this
+    # NOTE: DesignMatrix may not currently have this feature, but we've always wanted to support multiple kernels as well passed in a list of inputs that automatically creates columns * kernels new convovled columns. See if it's easy to support this
     def test_convolve_with_custom_kernel(self):
         """
         Convolution with custom kernel should use provided function.
@@ -1409,7 +1409,7 @@ class TestDesignMatrixUtilities:
         new_data = np.array([[10], [20]])  # Only 2 rows, original has 3
 
         with pytest.raises(ValueError):
-            dm_replaced = dm.replace_data(new_data, column_names=["x"])
+            _ = dm.replace_data(new_data, column_names=["x"])
 
     # NOTE: since polars dataframes don't have comprehensive plotting abilities like pandas and we don't want additional dependencies, the method should use seaborn heatmap + matplotlib under-the-hood
     def test_heatmap_visualization(self):

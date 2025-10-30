@@ -77,6 +77,7 @@ class Backend:
     def _init_auto(self):
         """Automatically select best backend"""
         try:
+            # TODO: consider this ruff suggestion: F401 `torch` imported but unused; consider using `importlib.util.find_spec` to test for availability
             import torch
 
             # PyTorch available, use it

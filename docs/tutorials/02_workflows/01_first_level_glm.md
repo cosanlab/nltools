@@ -35,7 +35,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from nltools.data import Brain_Data, Design_Matrix
+from nltools.data import Brain_Data, DesignMatrix
 from nltools.datasets import fetch_pain
 
 # Load single-subject timeseries
@@ -73,7 +73,7 @@ print(events)
 sampling_freq = 1 / 2.0  # TR = 2.0 seconds
 n_volumes = len(data)
 
-dm = Design_Matrix(
+dm = DesignMatrix(
     sampling_freq=sampling_freq,
     n_samples=n_volumes
 )

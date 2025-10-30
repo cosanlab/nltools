@@ -9,7 +9,7 @@
 .. autoclass:: nltools.data.Adjacency
     :members:
 
-.. autoclass:: nltools.data.Design_Matrix
+.. autoclass:: nltools.data.DesignMatrix
     :members:
 
 .. Note: Brain_Collection coming in v0.7.0

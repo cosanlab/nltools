@@ -335,7 +335,7 @@ uv run pytest -m tier1          # No parallelization
 - ✅ All fixtures use `scope="function"` or `scope="module"` (worker-isolated)
 - ✅ GPU/PyTorch backend creates fresh instances per test (no shared state)
 - ✅ Random seeds are set in fixtures (reproducible regardless of worker count)
-- ✅ No mutable class variables in Brain_Data/Adjacency/Design_Matrix
+- ✅ No mutable class variables in Brain_Data/Adjacency/DesignMatrix
 - ⚠️ File I/O: Use `tmp_path` fixture for writes to avoid race conditions
 
 **Detailed documentation:** See `testing-strategy-analysis.md` section "Parallel Testing Safety & Correctness" for:

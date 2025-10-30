@@ -404,7 +404,7 @@ In this tutorial, you learned:
 
 ## Next Steps
 
-- **Tutorial 02**: Learn about `Design_Matrix` for creating experimental designs
+- **Tutorial 02**: Learn about `DesignMatrix` for creating experimental designs
 - **Tutorial 03**: Explore `Adjacency` for connectivity analyses
 - **Workflow Tutorials**: Apply these concepts to complete analyses (GLM, MVPA, etc.)
 - **API Reference**: Deep dive into all `Brain_Data` methods

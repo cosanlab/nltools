@@ -221,7 +221,7 @@ def test_transform_methods_efficient():
 
     # Time transform chain
     start = time.time()
-    result = brain.scale(100.0).standardize()
+    _ = brain.scale(100.0).standardize()
     transform_time = time.time() - start
 
     # Time equivalent deep copy operations

@@ -7,6 +7,8 @@ Provides HRF convolution, resampling, polynomial regressors, and diagnostic tool
 Uses composition pattern (wrapping pl.DataFrame) for clean metadata preservation.
 """
 
+__all__ = ["DesignMatrix"]
+
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -392,6 +394,7 @@ class DesignMatrix:
         else:
             columns_to_convolve = columns
 
+        # TODO: why is this variable unused? Or is this stale code?
         # Columns that should NOT be convolved
         non_convolved_cols = [
             col for col in self.columns if col not in columns_to_convolve
@@ -1363,14 +1366,3 @@ class DesignMatrix:
             In Polars, there are no row indexes, so this is unnecessary.
         """
         return self
-
-
-# Backward compatibility alias
-# Design_Matrix (with underscore) is still used throughout the codebase:
-# - file_reader.py, adjacency.py, brain_data.py
-# - tests (conftest.py, test_file_reader.py, test_adjacency.py)
-# Keep this alias for v0.6.0. Consider deprecation warning in v0.7.0.
-Design_Matrix = DesignMatrix
-
-
-__all__ = ["DesignMatrix", "Design_Matrix"]

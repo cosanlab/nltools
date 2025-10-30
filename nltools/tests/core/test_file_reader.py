@@ -1,4 +1,4 @@
-from nltools.data import Design_Matrix
+from nltools.data import DesignMatrix
 from nltools.file_reader import onsets_to_dm
 from nltools.utils import get_resource_path
 import numpy as np
@@ -14,7 +14,7 @@ def test_onsets_to_dm():
 
     # Auto-convolves with glover, disable for first checks
     dm = onsets_to_dm(fpath, run_length, TR, hrf_model=None)
-    assert isinstance(dm, Design_Matrix)
+    assert isinstance(dm, DesignMatrix)
 
     # Check it has run_length rows and nStim columns + intercept
     assert dm.shape == (run_length, data.trial_type.nunique() + 1)

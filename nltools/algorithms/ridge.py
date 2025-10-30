@@ -103,6 +103,7 @@ def ridge_svd(
         y = y[:, np.newaxis]  # Convert to 2D for uniform processing
 
     n_samples, n_features = X.shape
+    # TODO: why aren't we using this variable? Is this just stale code?
     n_targets = y.shape[1]
 
     # Transfer to device

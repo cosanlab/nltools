@@ -1,9 +1,9 @@
-# Design_Matrix Basics
+# DesignMatrix Basics
 
 ## Learning Objectives
 
 By the end of this tutorial, you will be able to:
-- Create `Design_Matrix` objects for fMRI analysis
+- Create `DesignMatrix` objects for fMRI analysis
 - Add task regressors with HRF convolution
 - Include nuisance covariates (motion, drift, etc.)
 - Visualize and diagnose design matrices
@@ -12,7 +12,7 @@ By the end of this tutorial, you will be able to:
 
 ## Introduction
 
-The `Design_Matrix` class represents the design matrix (X) in the General Linear Model: **Y = Xβ + ε**
+The `DesignMatrix` class represents the design matrix (X) in the General Linear Model: **Y = Xβ + ε**
 
 Key components:
 - **Task regressors**: Experimental conditions convolved with HRF
@@ -28,13 +28,13 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from nltools.data import Design_Matrix
+from nltools.data import DesignMatrix
 
 # Create design matrix from sampling parameters
 sampling_freq = 0.5  # TR = 2.0 seconds → sampling_freq = 1/TR
 n_samples = 150      # Number of volumes
 
-dm = Design_Matrix(
+dm = DesignMatrix(
     sampling_freq=sampling_freq,
     n_samples=n_samples
 )
@@ -75,7 +75,7 @@ onsets = [20, 40, 60, 80, 100, 120]  # Event times in seconds
 durations = [2] * len(onsets)         # Event durations in seconds
 
 # Create fresh design matrix for this example
-dm_hrf = Design_Matrix(sampling_freq=0.5, n_samples=150)
+dm_hrf = DesignMatrix(sampling_freq=0.5, n_samples=150)
 
 # Add event regressor (automatically convolved)
 dm_hrf = dm_hrf.add_event_regressor(
@@ -110,7 +110,7 @@ onsets = [20, 40, 60, 80, 100]
 durations = [1] * len(onsets)
 reaction_times = [0.5, 0.7, 0.6, 0.9, 0.55]  # Seconds
 
-dm_param = Design_Matrix(sampling_freq=0.5, n_samples=150)
+dm_param = DesignMatrix(sampling_freq=0.5, n_samples=150)
 
 # Add main effect
 dm_param = dm_param.add_event_regressor(
@@ -151,7 +151,7 @@ fMRI data contains low-frequency drift that must be modeled.
 
 ```python
 # Add polynomial drift terms (linear, quadratic, cubic)
-dm_drift = Design_Matrix(sampling_freq=0.5, n_samples=150)
+dm_drift = DesignMatrix(sampling_freq=0.5, n_samples=150)
 
 # Add drift regressors
 dm_drift = dm_drift.add_poly(order=3, include_lower=True)
@@ -170,7 +170,7 @@ Alternative to polynomial drift, used in SPM.
 
 ```python
 # Add DCT basis set for drift modeling
-dm_dct = Design_Matrix(sampling_freq=0.5, n_samples=150)
+dm_dct = DesignMatrix(sampling_freq=0.5, n_samples=150)
 
 # DCT with 128-second high-pass filter (SPM default)
 dm_dct = dm_dct.add_dct_basis(duration=128)
@@ -200,7 +200,7 @@ motion_params = {
     'rot_z': np.random.randn(n_vols) * 0.01
 }
 
-dm_motion = Design_Matrix(pd.DataFrame(motion_params), sampling_freq=0.5)
+dm_motion = DesignMatrix(pd.DataFrame(motion_params), sampling_freq=0.5)
 
 print(f"Motion design matrix: {dm_motion.shape}")
 
@@ -261,7 +261,7 @@ Putting it all together: task + motion + drift + intercept
 
 ```python
 # Create comprehensive design matrix
-dm_full = Design_Matrix(sampling_freq=0.5, n_samples=150)
+dm_full = DesignMatrix(sampling_freq=0.5, n_samples=150)
 
 # 1. Task regressors
 task_onsets = [20, 40, 60, 80, 100, 120, 140]
@@ -353,7 +353,7 @@ for i in range(n_blocks):
     onsets.append(onset)
     durations.append(block_duration)
 
-dm_block = Design_Matrix(sampling_freq=0.5, n_samples=200)
+dm_block = DesignMatrix(sampling_freq=0.5, n_samples=200)
 dm_block = dm_block.add_event_regressor(
     onsets=onsets,
     durations=durations,
@@ -382,7 +382,7 @@ for _ in range(n_trials - 1):
     iti = np.random.uniform(min_iti, max_iti)
     onsets.append(onsets[-1] + iti)
 
-dm_event = Design_Matrix(sampling_freq=0.5, n_samples=300)
+dm_event = DesignMatrix(sampling_freq=0.5, n_samples=300)
 dm_event = dm_event.add_event_regressor(
     onsets=onsets,
     durations=[1] * n_trials,  # Brief 1s events
@@ -400,7 +400,7 @@ plt.show()
 ```python
 # Combination of sustained blocks and brief events
 
-dm_mixed = Design_Matrix(sampling_freq=0.5, n_samples=200)
+dm_mixed = DesignMatrix(sampling_freq=0.5, n_samples=200)
 
 # Blocks
 block_onsets = [20, 100]
@@ -460,7 +460,7 @@ print("Note: Custom HRF convolution to be implemented")
 dm_full.to_csv('design_matrix.csv', index=False)
 
 # Load design matrix
-dm_loaded = Design_Matrix(pd.read_csv('design_matrix.csv'), sampling_freq=0.5)
+dm_loaded = DesignMatrix(pd.read_csv('design_matrix.csv'), sampling_freq=0.5)
 
 print(f"Loaded design matrix: {dm_loaded.shape}")
 assert dm_loaded.shape == dm_full.shape, "Loaded matrix should match original"
@@ -490,7 +490,7 @@ print("✓ All sanity checks passed!")
 ## Summary
 
 In this tutorial, you learned how to:
-- ✓ Create `Design_Matrix` objects with appropriate sampling parameters
+- ✓ Create `DesignMatrix` objects with appropriate sampling parameters
 - ✓ Add task regressors with automatic HRF convolution
 - ✓ Include parametric modulators for trial-level effects
 - ✓ Model low-frequency drift with polynomials or DCT
@@ -503,7 +503,7 @@ In this tutorial, you learned how to:
 
 - **Tutorial: First-Level GLM** - Use design matrices in regression analyses
 - **Tutorial: Advanced Design Matrices** - Interactions, basis sets, FIR models
-- **API Reference**: Deep dive into all `Design_Matrix` methods
+- **API Reference**: Deep dive into all `DesignMatrix` methods
 
 ## Clean Up
 

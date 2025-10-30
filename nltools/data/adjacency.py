@@ -36,7 +36,7 @@ from nltools.utils import (
     _bootstrap_apply_func,
     to_h5,
 )
-from .design_matrix import Design_Matrix
+from .design_matrix import DesignMatrix
 from joblib import Parallel, delayed
 from pathlib import Path
 from h5py import File as h5File
@@ -1529,7 +1529,7 @@ class Adjacency(object):
         You can also decompose each pixel by passing a design_matrix instance.
 
         Args:
-            X: Design matrix can be an Adjacency or Design_Matrix instance
+            X: Design matrix can be an Adjacency or DesignMatrix instance
             method: type of regression (default: ols)
 
         Returns:
@@ -1548,13 +1548,15 @@ class Adjacency(object):
                 stats["df"],
                 stats["residual"],
             ) = regression(X.data.T, self.data, mode=mode, **kwargs)
-        elif isinstance(X, Design_Matrix):
+        elif isinstance(X, DesignMatrix):
             if X.shape[0] != len(self):
                 raise ValueError(
                     "Design matrix must have same number of observations as Adjacency"
                 )
             # Convert Polars DesignMatrix to numpy for stats.regress()
-            (b, se, t, p, df, res) = regression(X.to_numpy(), self.data, mode=mode, **kwargs)
+            (b, se, t, p, df, res) = regression(
+                X.to_numpy(), self.data, mode=mode, **kwargs
+            )
 
             stats["beta"], stats["sigma"], stats["t"] = [x for x in self[:3]]
             stats["p"], stats["df"], stats["residual"] = [x for x in self[:3]]
@@ -1566,7 +1568,7 @@ class Adjacency(object):
             stats["df"].data = df.squeeze()
             stats["residual"].data = res.squeeze()
         else:
-            raise ValueError("X must be a Design_Matrix or Adjacency Instance.")
+            raise ValueError("X must be a DesignMatrix or Adjacency Instance.")
 
         return stats
 

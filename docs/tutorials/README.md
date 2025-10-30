@@ -11,7 +11,7 @@ Tutorials are organized by complexity and use case:
 Learn the core data structures and basic operations:
 
 1. **Brain_Data Basics** - Loading, manipulating, and visualizing neuroimaging data
-2. **Design_Matrix Basics** - Creating experimental designs with HRF convolution
+2. **DesignMatrix Basics** - Creating experimental designs with HRF convolution
 3. **Adjacency Basics** - Working with connectivity and similarity matrices
 
 **Target audience**: New users, basic Python knowledge assumed
@@ -94,7 +94,7 @@ See `docs/contributing.md` for guidelines on:
 
 ### Phase 1: Core Workflows ✅ (In Progress)
 - [x] Brain_Data fundamentals
-- [x] Design_Matrix fundamentals
+- [x] DesignMatrix fundamentals
 - [x] Adjacency fundamentals
 - [x] First-level GLM workflow
 - [x] Group-level analysis
@@ -131,7 +131,7 @@ See `docs/contributing.md` for guidelines on:
 
 **Fundamentals**:
 - Brain_Data (Fundamentals #1)
-- Design_Matrix (Fundamentals #2)
+- DesignMatrix (Fundamentals #2)
 - Adjacency (Fundamentals #3)
 
 ### By Difficulty

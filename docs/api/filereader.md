@@ -11,7 +11,7 @@ The `nltools.file_reader` module provides functions for reading various file for
 **onsets_to_dm** - Convert onset files to design matrices
 - Read stimulus timing files (e.g., from E-Prime, PsychoPy)
 - Support for multiple file formats (CSV, TSV, text)
-- Automatic creation of Design_Matrix objects
+- Automatic creation of DesignMatrix objects
 - Handle event durations and amplitudes
 
 ## Quick Start
@@ -45,6 +45,6 @@ data.fit(model='glm', X=dm_convolved)
 
 ## See Also
 
-- {doc}`data/design_matrix` - Design_Matrix class
+- {doc}`data/design_matrix` - DesignMatrix class
 - {doc}`algorithms` - HRF models for convolution
 - {doc}`data/brain_data` - Brain_Data.fit() for GLM

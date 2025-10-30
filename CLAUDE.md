@@ -130,7 +130,7 @@ rm -f *.csv *.nii.gz           # Remove test data artifacts (NOT in nltools/test
 **What We're Building**: Python neuroimaging library that wraps nilearn with intuitive APIs. Think "requests library for neuroimaging" - we don't reinvent, we simplify.
 
 **Architecture**: "Functional-core, imperative shell"
-- Imperative shell: `nltools/data/` (Brain_Data, Adjacency, Design_Matrix)
+- Imperative shell: `nltools/data/` (Brain_Data, Adjacency, DesignMatrix)
 - Functional core: `stats.py`, `utils.py`, `external/algorithms.py`
 - **v0.5.1 = baseline**: Must work or deprecate gracefully
 
@@ -394,7 +394,7 @@ git log uv-refactor  # Reference branch
 - **`refactoring-context.md`**: Project priorities, implicit context dictionary, workflow patterns, understanding architecture
 - **`bootstrap-refactor.md`**: Comprehensive bootstrap refactoring plan
 - **`fastsrm-tdd-plan.md`**: FastSRM implementation TDD plan
-- **`polars-migration.md`**: Design_Matrix Polars migration strategy
+- **`polars-migration.md`**: DesignMatrix Polars migration strategy
 - **`banded-ridge-plan.md`**: Banded ridge regression implementation
 - **`srm-hyperalignment-testing-strategy.md`**: SRM/hyperalignment testing research
 - **`hypertools-hyperalignment-research.md`**: Hypertools implementation analysis

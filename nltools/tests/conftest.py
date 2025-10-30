@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import pairwise_distances
 from nltools.simulator import Simulator
-from nltools.data import Adjacency, Design_Matrix, Brain_Data
+from nltools.data import Adjacency, DesignMatrix, Brain_Data
 import os
 import importlib.util
 
@@ -99,7 +99,7 @@ def sim_design_matrix():
     # Design matrices are specified in terms of sampling frequency
     TR = 2.0
     sampling_freq = 1.0 / TR
-    return Design_Matrix(
+    return DesignMatrix(
         np.random.randint(2, size=(500, 4)),
         columns=["face_A", "face_B", "house_A", "house_B"],
         sampling_freq=sampling_freq,

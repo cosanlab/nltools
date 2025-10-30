@@ -1,10 +1,10 @@
-# Design_Matrix
+# DesignMatrix
 
 Class for creating and manipulating design matrices for GLM analyses.
 
 ## Overview
 
-`Design_Matrix` extends pandas DataFrame with neuroimaging-specific functionality for building and manipulating design matrices. It provides convenient methods for convolution with HRF, adding polynomial trends, discrete cosine transforms, and visualizing design matrices.
+`DesignMatrix` extends pandas DataFrame with neuroimaging-specific functionality for building and manipulating design matrices. It provides convenient methods for convolution with HRF, adding polynomial trends, discrete cosine transforms, and visualizing design matrices.
 
 ## Key Features
 
@@ -18,11 +18,11 @@ Class for creating and manipulating design matrices for GLM analyses.
 ## Quick Start
 
 ```python
-from nltools.data import Design_Matrix
+from nltools.data import DesignMatrix
 import numpy as np
 
 # Create from pandas DataFrame
-dm = Design_Matrix(data=df)
+dm = DesignMatrix(data=df)
 
 # Add polynomial trends
 dm = dm.add_poly(order=2, include_lower=True)
@@ -40,7 +40,7 @@ dm.heatmap()
 ## Full API Reference
 
 ```{eval-rst}
-.. autoclass:: nltools.data.Design_Matrix
+.. autoclass:: nltools.data.DesignMatrix
     :members:
     :undoc-members:
     :show-inheritance:

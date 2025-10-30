@@ -85,7 +85,7 @@
    - Spike detection for outliers
 
 2. **First-Level GLM**:
-   - Design_Matrix creation with convolution
+   - DesignMatrix creation with convolution
    - Adding motion covariates
    - Running regression with `regress()`
    - Extracting beta maps and t-statistics
@@ -253,11 +253,11 @@ docs/tutorials/
 
 2. **First-Level GLM Workflow**
    - Load fMRI timeseries
-   - Create Design_Matrix with HRF convolution
+   - Create DesignMatrix with HRF convolution
    - Add motion covariates
    - Run regression with `regress()`
    - Extract and visualize beta maps
-   - **Validates**: Design_Matrix, regress(), convolution, masking
+   - **Validates**: DesignMatrix, regress(), convolution, masking
 
 3. **Group-Level Analysis Workflow**
    - Load first-level betas for multiple subjects
@@ -281,12 +281,12 @@ docs/tutorials/
    - Visualize weight maps and accuracy
    - **Validates**: predict(), cross-validation, algorithms
 
-6. **Design_Matrix Basics** (already exists, needs update)
+6. **DesignMatrix Basics** (already exists, needs update)
    - Creating design matrices
    - Adding columns (nuisance regressors)
    - Convolution with HRF
    - Visualization and diagnostics
-   - **Validates**: Design_Matrix class functionality
+   - **Validates**: DesignMatrix class functionality
 
 ### Phase 2: Advanced Workflows (v0.6.1) - MEDIUM PRIORITY
 
@@ -691,7 +691,7 @@ jobs:
 3. Group-Level Analysis Workflow (NEW)
 4. ROI Analysis Workflow (NEW)
 5. MVPA Prediction Workflow (enhance existing)
-6. Design_Matrix Basics (enhance existing)
+6. DesignMatrix Basics (enhance existing)
 
 **For each tutorial**:
 - [ ] Write learning objectives
@@ -816,7 +816,7 @@ jobs:
 - [ ] Tutorial 03: Group-Level Analysis Workflow (NEW)
 - [ ] Tutorial 04: ROI Analysis Workflow (NEW)
 - [ ] Tutorial 05: MVPA Prediction Workflow (enhance existing)
-- [ ] Tutorial 06: Design_Matrix Basics (enhance existing)
+- [ ] Tutorial 06: DesignMatrix Basics (enhance existing)
 
 ### Advanced Workflow Development (Priority 2)
 

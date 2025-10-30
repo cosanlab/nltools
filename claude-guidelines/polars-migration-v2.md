@@ -9,7 +9,7 @@
 
 **Goal**: Complete pandas removal while preserving user-facing API
 **Strategy**: Composition pattern with compatibility layer for pandas idioms
-**Scope**: Design_Matrix (primary), Brain_Data.X/Y, Adjacency.Y, stats.py utilities
+**Scope**: DesignMatrix (primary), Brain_Data.X/Y, Adjacency.Y, stats.py utilities
 **Timeline**: ~20-24 hours of focused work
 
 ---
@@ -21,13 +21,13 @@
 **1. DataFrame-like construction:**
 ```python
 # From numpy array
-dm = Design_Matrix(np.zeros((100, 1)), sampling_freq=2, columns=['a'])
+dm = DesignMatrix(np.zeros((100, 1)), sampling_freq=2, columns=['a'])
 
 # From pandas DataFrame (backward compat)
-dm = Design_Matrix(pd.read_csv('file.csv'), sampling_freq=2)
+dm = DesignMatrix(pd.read_csv('file.csv'), sampling_freq=2)
 
 # Empty initialization
-dm = Design_Matrix(sampling_freq=2)
+dm = DesignMatrix(sampling_freq=2)
 ```
 
 **2. Column access and assignment:**
@@ -52,7 +52,7 @@ dm.columns                        # Column names
 dm.shape                          # Shape tuple
 ```
 
-**5. Custom Design_Matrix methods:**
+**5. Custom DesignMatrix methods:**
 ```python
 dm.convolve()                     # HRF convolution
 dm.add_poly(order=2)              # Add polynomial regressors
@@ -93,7 +93,7 @@ import numpy as np
 from typing import Union, List, Optional
 
 class _LocIndexer:
-    """Pandas-style .loc[] indexer for Polars-backed Design_Matrix"""
+    """Pandas-style .loc[] indexer for Polars-backed DesignMatrix"""
 
     def __init__(self, dm):
         self._dm = dm
@@ -130,7 +130,7 @@ class _LocIndexer:
         else:
             raise NotImplementedError(f"Column indexing type {type(col_key)} not supported")
 
-        # Return Design_Matrix if multiple columns, Series-like if single column
+        # Return DesignMatrix if multiple columns, Series-like if single column
         if result_df.width == 1:
             return result_df.to_series()
         else:
@@ -172,7 +172,7 @@ class _LocIndexer:
             self._dm._df = self._dm._df.with_columns(col_expr.alias(col_key))
 
 
-class Design_Matrix:
+class DesignMatrix:
     """
     Polars-based design matrix with neuroimaging-specific methods.
 
@@ -204,7 +204,7 @@ class Design_Matrix:
 
         # Create internal Polars DataFrame
         if data is None:
-            # Empty initialization: Design_Matrix(sampling_freq=2)
+            # Empty initialization: DesignMatrix(sampling_freq=2)
             self._df = pl.DataFrame()
         elif isinstance(data, pl.DataFrame):
             self._df = data
@@ -238,13 +238,13 @@ class Design_Matrix:
         """
         Support patterns:
         - dm['col']           # Single column (returns Series-like)
-        - dm[['col1', 'col2']] # Multiple columns (returns Design_Matrix)
+        - dm[['col1', 'col2']] # Multiple columns (returns DesignMatrix)
         """
         if isinstance(key, str):
             # Single column - return Polars Series
             return self._df[key]
         elif isinstance(key, list):
-            # Multiple columns - return Design_Matrix
+            # Multiple columns - return DesignMatrix
             return self._from_polars(self._df.select(key), self._get_metadata())
         else:
             raise KeyError(f"Unsupported key type: {type(key)}")
@@ -288,7 +288,7 @@ class Design_Matrix:
 
     @property
     def empty(self):
-        """Check if Design_Matrix is empty"""
+        """Check if DesignMatrix is empty"""
         return self._df.is_empty()
 
     def __len__(self):
@@ -341,7 +341,7 @@ class Design_Matrix:
 
     @classmethod
     def _from_polars(cls, df, metadata=None):
-        """Create Design_Matrix from Polars DataFrame, preserving metadata"""
+        """Create DesignMatrix from Polars DataFrame, preserving metadata"""
         dm = cls.__new__(cls)
         dm._df = df
         if metadata:
@@ -380,7 +380,7 @@ class Design_Matrix:
 
 1. **`.loc[]` compatibility**: Critical pattern from tutorials. Implemented via `_LocIndexer` class
 2. **Column assignment**: `dm['col'] = value` works via `__setitem__`
-3. **Metadata preservation**: All methods return new Design_Matrix with copied metadata
+3. **Metadata preservation**: All methods return new DesignMatrix with copied metadata
 4. **Polars expressions**: Use `pl.when().then().otherwise()` for conditional updates
 5. **Backward compat**: Accept pandas DataFrame in constructor, convert to Polars internally
 
@@ -388,7 +388,7 @@ class Design_Matrix:
 
 ## Part 3: Implementation Plan
 
-### Phase 1: Core Design_Matrix Implementation (~8 hours)
+### Phase 1: Core DesignMatrix Implementation (~8 hours)
 
 **1.1 Create new file structure:**
 ```bash
@@ -512,7 +512,7 @@ class Adjacency:
 ### Phase 4: File I/O and Utilities (~2 hours)
 
 **4.1 File reader:**
-- [ ] `onsets_to_dm()` - Return Design_Matrix with Polars
+- [ ] `onsets_to_dm()` - Return DesignMatrix with Polars
 - [ ] CSV reading - Use `pl.read_csv()` instead of `pd.read_csv()`
 
 **4.2 Validation:**
@@ -534,16 +534,16 @@ def design_matrix():
         'stim_A': [0, 1, 1, 0],
         'stim_B': [1, 0, 0, 1]
     })
-    return Design_Matrix(df, sampling_freq=2.0)
+    return DesignMatrix(df, sampling_freq=2.0)
 ```
 
-**5.2 Update Design_Matrix tests:**
+**5.2 Update DesignMatrix tests:**
 - [ ] `test_design_matrix.py` - All 10+ tests
 - [ ] Update to use Polars patterns
 - [ ] Add new tests for `.loc[]` compatibility
 
 **5.3 Update integration tests:**
-- [ ] Brain_Data tests that use Design_Matrix
+- [ ] Brain_Data tests that use DesignMatrix
 - [ ] Adjacency tests
 - [ ] Stats tests
 
@@ -621,7 +621,7 @@ plt.plot(df['a'])  # Should work
 
 ### Validation Criteria
 
-1. **All existing tests pass**: 10+ Design_Matrix tests
+1. **All existing tests pass**: 10+ DesignMatrix tests
 2. **Tutorial code works unchanged**: Both tutorial notebooks run without modification
 3. **Performance improvement**: Measure on `downsample()`, `append()`, `zscore()`
 4. **Memory efficiency**: Check with large design matrices (10k rows, 100 cols)
@@ -631,7 +631,7 @@ plt.plot(df['a'])  # Should work
 ```python
 def test_loc_indexer():
     """Test pandas-style .loc[] syntax"""
-    dm = Design_Matrix(np.zeros((100, 2)), sampling_freq=2, columns=['a', 'b'])
+    dm = DesignMatrix(np.zeros((100, 2)), sampling_freq=2, columns=['a', 'b'])
 
     # Assignment
     dm.loc[10:15, 'a'] = 1
@@ -646,7 +646,7 @@ def test_loc_indexer():
 def test_polars_pandas_roundtrip():
     """Test backward compatibility with pandas"""
     pd_df = pd.DataFrame({'a': [1, 2, 3]})
-    dm = Design_Matrix(pd_df, sampling_freq=2)
+    dm = DesignMatrix(pd_df, sampling_freq=2)
     assert isinstance(dm._df, pl.DataFrame)
 
     # Can export to pandas if needed
@@ -655,7 +655,7 @@ def test_polars_pandas_roundtrip():
 
 def test_matplotlib_integration():
     """Test plotting works"""
-    dm = Design_Matrix(np.array([[1], [2], [3]]), sampling_freq=1, columns=['a'])
+    dm = DesignMatrix(np.array([[1], [2], [3]]), sampling_freq=1, columns=['a'])
 
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots()
@@ -681,14 +681,14 @@ def test_matplotlib_integration():
 
 **Total**: ~24 hours (aggressive), ~30 hours (comfortable)
 
-- **Phase 1**: Core Design_Matrix - 8 hours
+- **Phase 1**: Core DesignMatrix - 8 hours
 - **Phase 2**: Stats utilities - 3 hours
 - **Phase 3**: Integration - 4 hours
 - **Phase 4**: File I/O - 2 hours
 - **Phase 5**: Tests - 5 hours
 - **Phase 6**: Cleanup - 2 hours
 
-**Parallelization opportunities**: None significant (Design_Matrix is central)
+**Parallelization opportunities**: None significant (DesignMatrix is central)
 
 ---
 
@@ -716,4 +716,4 @@ def test_matplotlib_integration():
 
 **Last Updated**: 2025-10-29
 **Status**: Ready for implementation
-**Next Step**: Begin Phase 1 (Core Design_Matrix implementation)
+**Next Step**: Begin Phase 1 (Core DesignMatrix implementation)

@@ -15,7 +15,7 @@ __all__ = [
     "set_cv",
     "Brain_Data",
     "Adjacency",
-    "Design_Matrix",
+    "DesignMatrix",
     "Simulator",
     "MNI_Template",
     "expand_mask",
@@ -30,7 +30,7 @@ from .cross_validation import set_cv
 from .data import (
     Brain_Data,
     Adjacency,
-    Design_Matrix,
+    DesignMatrix,
 )
 from .simulator import Simulator
 from .prefs import MNI_Template

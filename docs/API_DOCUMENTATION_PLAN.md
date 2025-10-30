@@ -111,7 +111,7 @@ Transform nltools API documentation from inconsistent stubs into deployment-qual
 1. **Critical** (high-usage, core functionality):
    - `Brain_Data` class: `__init__`, `fit`, `predict`, `apply_mask`, `regress`, `smooth`, `threshold`, `filter`, `standardize`, `extract_roi`, `compute_contrasts`
    - `Adjacency` class: `__init__`, `distance`, `similarity`, `plot`
-   - `Design_Matrix` class: `__init__`, `append`, `convolve`, `add_poly`, `add_dct_basis`
+   - `DesignMatrix` class: `__init__`, `append`, `convolve`, `add_poly`, `add_dct_basis`
    - `stats.py`: `regress`, `align`, `one_sample_permutation`, `correlation_permutation`, `isc`, `isc_group`
    - `utils.py`: `get_resource_path`, `check_brain_data`
 
@@ -155,7 +155,7 @@ def regress(self, X, mode='ols'):
         Use `fit(model='glm')` instead.
 
     Args:
-        X (array-like or Design_Matrix): Design matrix with shape
+        X (array-like or DesignMatrix): Design matrix with shape
             (n_samples, n_predictors).
         mode ({'ols', 'gls'}, optional): Type of regression. 'ols' for
             ordinary least squares, 'gls' for generalized least squares.
@@ -253,7 +253,7 @@ API Reference
 ├── Core Data Objects
 │   ├── Brain_Data
 │   ├── Adjacency
-│   └── Design_Matrix
+│   └── DesignMatrix
 │
 ├── Statistical Models
 │   ├── Ridge
@@ -730,7 +730,7 @@ uv run jupyter-book build docs/ --builder linkcheck
 **Week 1: Foundation (6-9 hours)**
 - **Phase 4 FIRST:** Enable Google style in config (30 min) - DO THIS FIRST!
 - **Phase 1:** Convert docstrings to Google style for critical classes
-  - `Brain_Data`, `Adjacency`, `Design_Matrix`
+  - `Brain_Data`, `Adjacency`, `DesignMatrix`
   - Core `stats.py` functions
 
 **Week 2: Structure & Content (6-8 hours)**
@@ -754,7 +754,7 @@ uv run jupyter-book build docs/ --builder linkcheck
 - [ ] **All docstrings converted to Google style** (critical!)
 - [ ] Configuration updated to enable Google style docstrings
 - [ ] All 12 API modules have enhanced content (> 50 lines each)
-- [ ] All public methods in `Brain_Data`, `Adjacency`, `Design_Matrix` have Examples sections
+- [ ] All public methods in `Brain_Data`, `Adjacency`, `DesignMatrix` have Examples sections
 - [ ] API organized into 6 simple categories (no landing pages)
 - [ ] Documentation builds with zero errors and < 5 warnings
 - [ ] Navigation is intuitive and consistent

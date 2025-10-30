@@ -10,7 +10,7 @@ import numpy as np
 from typing import Callable
 from nilearn.glm.first_level import make_first_level_design_matrix as make_dm
 from .algorithms import glover_hrf
-from .data import Design_Matrix
+from .data import DesignMatrix
 
 
 def onsets_to_dm(
@@ -86,7 +86,7 @@ def onsets_to_dm(
             polys = [c for c in dm.columns if "drift" in c or "constant" in c]
         else:
             convolved, polys = [], []
-        dm = Design_Matrix(
+        dm = DesignMatrix(
             dm, convolved=convolved, sampling_freq=1 / TR, polys=polys
         ).reset_index(drop=True)
         out.append(dm)

@@ -9,7 +9,7 @@ import os
 import pytest
 import numpy as np
 import pandas as pd
-from nltools.data import Adjacency, Design_Matrix
+from nltools.data import Adjacency, DesignMatrix
 import networkx as nx
 from scipy.stats import pearsonr
 from scipy.linalg import block_diag
@@ -445,7 +445,7 @@ class TestAdjacency:
     # ==================== Regression & Analysis ====================
 
     def test_regression(self):
-        """Test regression with Adjacency and Design_Matrix predictors."""
+        """Test regression with Adjacency and DesignMatrix predictors."""
         # Test Adjacency Regression
         m1 = block_diag(np.ones((4, 4)), np.zeros((4, 4)), np.zeros((4, 4)))
         m2 = block_diag(np.zeros((4, 4)), np.ones((4, 4)), np.zeros((4, 4)))
@@ -456,7 +456,7 @@ class TestAdjacency:
         stats = Y.regress(X)
         assert np.allclose(stats["beta"], np.array([1, 2, 3]))
 
-        # Test Design_Matrix Regression
+        # Test DesignMatrix Regression
         n = 10
         d = Adjacency(
             [
@@ -467,7 +467,7 @@ class TestAdjacency:
             ],
             matrix_type="similarity",
         )
-        X = Design_Matrix(np.ones(n))
+        X = DesignMatrix(np.ones(n))
         stats = d.regress(X)
         out = stats["beta"].cluster_summary(
             clusters=["Group1"] * 4 + ["Group2"] * 8, summary="within"

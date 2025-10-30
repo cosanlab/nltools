@@ -68,11 +68,11 @@ if result.ndim == 1:
 
 ## Breaking Changes
 
-### Design_Matrix: Pandas → Polars
+### DesignMatrix: Pandas → Polars
 
 **Status**: ✅ COMPLETE (v0.6.0)
 
-Design_Matrix now uses Polars DataFrames internally instead of pandas. This provides:
+DesignMatrix now uses Polars DataFrames internally instead of pandas. This provides:
 - **2-5x faster** operations (especially statistics and concatenation)
 - **Lower memory usage** (Apache Arrow format)
 - **Better type safety** and error messages

@@ -72,7 +72,7 @@ def benchmark_estimates_only(
     mem_start = get_memory_mb()
 
     start = time.perf_counter()
-    coef = ridge_svd(X, y, alpha=alpha, backend=backend)
+    _ = ridge_svd(X, y, alpha=alpha, backend=backend)
     end = time.perf_counter()
 
     mem_end = get_memory_mb()
@@ -111,7 +111,7 @@ def benchmark_fit_only(
     mem_start = get_memory_mb()
 
     start = time.perf_counter()
-    result = ridge_cv(X, y, alphas=np.logspace(-2, 2, n_alphas), cv=cv, backend=backend)
+    _ = ridge_cv(X, y, alphas=np.logspace(-2, 2, n_alphas), cv=cv, backend=backend)
     end = time.perf_counter()
 
     mem_end = get_memory_mb()
