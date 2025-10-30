@@ -279,31 +279,70 @@ def test_getitem_efficiency(sim_brain_data):
         )
 
 
-# TODO: why does this fail sometimes
-@pytest.mark.skip(reason="under investigation")
-def test_append_efficiency():
-    """Test that append is efficient"""
+def test_append_correctness():
+    """Test that append works correctly with efficient copying"""
 
-    # Create test data
+    # Create test data with multiple images for clearer testing
     s1 = create_sphere([12, 10, -8], radius=10)
-    brain1 = Brain_Data(s1)
-    brain2 = Brain_Data(s1)
+    brain1 = Brain_Data([s1] * 3)  # 3 images
+    brain2 = Brain_Data([s1] * 2)  # 2 images
 
-    # Time append operation
-    start = time.time()
+    # Store original data for verification
+    brain1_data_copy = brain1.data.copy()
+    brain2_data_copy = brain2.data.copy()
+    n_images_1 = len(brain1)
+    n_images_2 = len(brain2)
+
+    # Perform append
     appended = brain1.append(brain2)
-    append_time = time.time() - start
 
-    # Time deep copy equivalent
-    start = time.time()
-    copy1 = deepcopy(brain1)
-    copy2 = deepcopy(brain2)
-    deep_copy_time = time.time() - start
+    # Verify correctness: should have combined number of images
+    assert len(appended) == n_images_1 + n_images_2, (
+        f"Appended should have {n_images_1 + n_images_2} images, got {len(appended)}"
+    )
+    assert appended.shape[0] == brain1.shape[0] + brain2.shape[0], (
+        "Appended data should have combined number of images"
+    )
+    assert appended.shape[1] == brain1.shape[1], (
+        "Appended data should preserve number of voxels"
+    )
 
-    # Append should be faster than two deep copies
-    assert append_time < deep_copy_time * 0.8, (
-        f"Append ({append_time:.4f}s) should be faster than "
-        f"deep copies ({deep_copy_time:.4f}s)"
+    # Verify data values are preserved
+    assert np.array_equal(appended.data[0], brain1_data_copy[0]), (
+        "First image should match brain1 first image"
+    )
+    assert np.array_equal(appended.data[n_images_1 - 1], brain1_data_copy[-1]), (
+        "Last brain1 image should be preserved"
+    )
+    assert np.array_equal(appended.data[n_images_1], brain2_data_copy[0]), (
+        "First brain2 image should follow brain1 data"
+    )
+    assert np.array_equal(appended.data[-1], brain2_data_copy[-1]), (
+        "Last image should match brain2 last image"
+    )
+
+    # Verify efficient copying: should share mask and nifti_masker
+    assert id(appended.mask) == id(brain1.mask), (
+        "Append should share mask object (efficient)"
+    )
+    assert id(appended.nifti_masker) == id(brain1.nifti_masker), (
+        "Append should share nifti_masker (efficient)"
+    )
+
+    # Verify data independence: new data array
+    assert id(appended.data) != id(brain1.data), (
+        "Appended data should be independent from brain1"
+    )
+    assert id(appended.data) != id(brain2.data), (
+        "Appended data should be independent from brain2"
+    )
+
+    # Verify originals are unchanged
+    assert np.array_equal(brain1.data, brain1_data_copy), (
+        "Original brain1 should be unchanged"
+    )
+    assert np.array_equal(brain2.data, brain2_data_copy), (
+        "Original brain2 should be unchanged"
     )
 
 

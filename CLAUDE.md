@@ -281,8 +281,6 @@ git log uv-refactor  # Reference branch
 **Active Documents**:
 - **`REFACTORING_PLAN.md`**: Current tasks, progress tracker, next steps
 - **`MIGRATION_v0.5_to_v0.6.md`**: User-facing upgrade guide
-- **`priorities.md`**: High-level roadmap
-- **`refactor.md`**: Original requirements
 
 **When to reference what**:
 - "Why did we implement X this way?" → `design-philosophy.md`
