@@ -1,44 +1,73 @@
 format: jb-book
 root: index
+
 parts:
-  # - caption: Basic Tutorials
-  #   chapters:
-  #   - file: tutorials/basic/01_brain_data_basics
-  #   - file: tutorials/basic/02_design_matrix_basics
-  #   - file: tutorials/basic/03_adjacency_basics
-  #   - file: tutorials/basic/04_basic_analysis_workflow
-  #   - file: tutorials/basic/05_brain_collection_basics
-  # - caption: Data Operations
-  #   chapters:
-  #   - file: tutorials/01_DataOperations/plot_neurovault_io
-  #   - file: tutorials/01_DataOperations/plot_download
-  #   - file: tutorials/01_DataOperations/plot_mni_prefs
-  #   - file: tutorials/01_DataOperations/plot_adjacency
-  #   - file: tutorials/01_DataOperations/plot_mask
-  #   - file: tutorials/01_DataOperations/plot_design_matrix
-  # - caption: Analysis Examples
-  #   chapters:
-  #   - file: tutorials/02_Analysis/plot_similarity_example
-  #   - file: tutorials/02_Analysis/plot_univariate_regression
-  #   - file: tutorials/02_Analysis/plot_decomposition
-  #   - file: tutorials/02_Analysis/plot_multivariate_classification
-  #   - file: tutorials/02_Analysis/plot_multivariate_prediction
-  #   - file: tutorials/02_Analysis/plot_hyperalignment
-  - caption: API Reference
+  # ========================================
+  # API REFERENCE (Simple & Modular)
+  # ========================================
+  - caption: Core Data Objects
     chapters:
-    - file: api/algorithms
-    - file: api/analysis
-    - file: api/backends
-    - file: api/crossval
-    - file: api/data
-    - file: api/dataset
-    - file: api/filereader
-    - file: api/mask
-    - file: api/models
-    - file: api/prefs
-    - file: api/stats
-    - file: api/utils
+      - file: api/data/brain_data
+      - file: api/data/adjacency
+      - file: api/data/design_matrix
+
+  - caption: Statistical Models
+    chapters:
+      - file: api/models
+      - file: api/algorithms
+
+  - caption: Statistical Functions
+    chapters:
+      - file: api/stats
+      - file: api/analysis
+
+  - caption: Data Operations
+    chapters:
+      - file: api/mask
+      - file: api/filereader
+      - file: api/dataset
+      - file: api/crossval
+
+  - caption: Computation
+    chapters:
+      - file: api/backends
+
+  - caption: Utilities
+    chapters:
+      - file: api/utils
+      - file: api/prefs
+
+  # ========================================
+  # DEVELOPMENT
+  # ========================================
   - caption: Development
     chapters:
-    - file: contributing
-    - file: performance
+      - file: contributing
+      - file: performance
+
+# ========================================
+# TUTORIALS (Disabled - to be rewritten)
+# ========================================
+# - caption: Basic Tutorials
+#   chapters:
+#   - file: tutorials/basic/01_brain_data_basics
+#   - file: tutorials/basic/02_design_matrix_basics
+#   - file: tutorials/basic/03_adjacency_basics
+#   - file: tutorials/basic/04_basic_analysis_workflow
+#   - file: tutorials/basic/05_brain_collection_basics
+# - caption: Data Operations
+#   chapters:
+#   - file: tutorials/01_DataOperations/plot_neurovault_io
+#   - file: tutorials/01_DataOperations/plot_download
+#   - file: tutorials/01_DataOperations/plot_mni_prefs
+#   - file: tutorials/01_DataOperations/plot_adjacency
+#   - file: tutorials/01_DataOperations/plot_mask
+#   - file: tutorials/01_DataOperations/plot_design_matrix
+# - caption: Analysis Examples
+#   chapters:
+#   - file: tutorials/02_Analysis/plot_similarity_example
+#   - file: tutorials/02_Analysis/plot_univariate_regression
+#   - file: tutorials/02_Analysis/plot_decomposition
+#   - file: tutorials/02_Analysis/plot_multivariate_classification
+#   - file: tutorials/02_Analysis/plot_multivariate_prediction
+#   - file: tutorials/02_Analysis/plot_hyperalignment

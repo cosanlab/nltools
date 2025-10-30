@@ -18,19 +18,61 @@ html:
   home_page_in_navbar: false
 
 sphinx:
-  extra_extensions:  
+  extra_extensions:
   - 'sphinx_design'
   - 'sphinx.ext.autodoc'
   - 'sphinx.ext.autosummary'
   - 'sphinx.ext.napoleon'
   - 'sphinx.ext.viewcode'
+  - 'sphinx.ext.intersphinx'
 
   config:
-    add_function_parentheses: true
-    add_module_names: true
+    # Autosummary
     autosummary_generate: true
     autosummary_generate_overwrite: true
+    autosummary_imported_members: false
+
+    # Autodoc
+    autodoc_default_options:
+      members: true
+      member-order: 'bysource'
+      special-members: '__init__'
+      undoc-members: true
+      exclude-members: '__weakref__'
+
+    # Napoleon - Google Style Docstrings
+    napoleon_google_docstring: true
+    napoleon_numpy_docstring: false
+    napoleon_include_init_with_doc: true
+    napoleon_include_private_with_doc: false
+    napoleon_include_special_with_doc: false
+    napoleon_use_admonition_for_examples: true
+    napoleon_use_admonition_for_notes: true
+    napoleon_use_admonition_for_references: true
+    napoleon_use_ivar: false
+    napoleon_use_param: true
+    napoleon_use_rtype: true
+    napoleon_preprocess_types: true
+
+    # Display
+    add_function_parentheses: true
+    add_module_names: false
+
+    # Viewcode
     viewcode_line_numbers: true
-    viewcode_follow_imported_members: true
-    templates_path: templates
+    viewcode_follow_imported_members: false
+
+    # Intersphinx - Cross-references to external docs
+    intersphinx_mapping:
+      python: ['https://docs.python.org/3', null]
+      numpy: ['https://numpy.org/doc/stable', null]
+      scipy: ['https://docs.scipy.org/doc/scipy', null]
+      pandas: ['https://pandas.pydata.org/docs', null]
+      sklearn: ['https://scikit-learn.org/stable', null]
+      nilearn: ['https://nilearn.github.io/stable', null]
+
+    # Templates
+    templates_path: ['_templates']
+
+    # Warnings
     suppress_warnings: ["etoc.toctree"]
