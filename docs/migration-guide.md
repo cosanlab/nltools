@@ -23,33 +23,72 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 
 ### Design_Matrix: Pandas → Polars
 
-**Status**: In progress (TDD implementation phase)
+**Status**: ✅ COMPLETE (v0.6.0)
 
 Design_Matrix now uses Polars DataFrames internally instead of pandas. This provides:
-- **5-10x faster** operations on large datasets
+- **2-5x faster** operations (especially statistics and concatenation)
 - **Lower memory usage** (Apache Arrow format)
 - **Better type safety** and error messages
 - **Idiomatic Polars patterns** (no pandas anti-patterns)
 
 **What's removed:**
-- `.loc[]` indexer - Use Polars idioms instead (see examples below)
-- Pandas-specific methods that don't align with Polars
+- `.loc[]` and `.iloc[]` indexers - Use column/row access instead
+- `.reset_index()` - Not needed (Polars doesn't have row indexes)
+- `.assign()` - Use direct column assignment instead
 
 **What's changed:**
 - Internal storage is Polars (`._df` attribute)
 - Faster operations via Polars vectorization
-- Cleaner API following Polars patterns
+- Column access returns Polars Series (not pandas Series)
 
-**Migration examples** (TBD - will be added during implementation):
+**What's the same:**
+- `.shape`, `.columns`, `.empty` properties work identically
+- `.fillna()`, `.drop()`, `.zscore()` methods work identically
+- `.append()`, `.convolve()`, `.upsample()`, `.downsample()` work identically
+- `.vif()`, `.clean()` methods work identically
+
+**Migration examples:**
 ```python
 # OLD (pandas-style)
 dm.loc[10:15, 'ConditionA'] = 1
 
-# NEW (Polars-style) - examples coming soon
-# Will use .with_columns() and conditional expressions
+# NEW (Polars-style) - use direct column assignment
+dm['ConditionA'] = pl.when(pl.arange(0, len(dm)).is_between(10, 15))
+                     .then(1)
+                     .otherwise(dm['ConditionA'])
+
+# Or for simple cases, convert to numpy and back
+arr = dm.to_numpy()
+arr[10:15, dm.columns.index('ConditionA')] = 1
+dm = DesignMatrix(arr, columns=dm.columns, sampling_freq=dm.sampling_freq)
 ```
 
-**Timeline**: Implementation in progress, tutorials will be updated after completion.
+```python
+# OLD (pandas .assign())
+new_dm = dm.assign(new_col=lambda df: df['col1'] * 2)
+
+# NEW (direct assignment)
+new_dm = dm.copy()
+new_dm['new_col'] = dm['col1'] * 2
+```
+
+**GLM workflows unchanged:**
+```python
+# Both DesignMatrix and pandas DataFrames work seamlessly
+dm = DesignMatrix({'stim': [1, 2, 3, 4]}, sampling_freq=0.5)
+brain_data.fit(model='glm', X=dm)  # Automatic conversion to pandas for nilearn
+```
+
+**For pandas compatibility:**
+```python
+# Convert to pandas when needed
+pd_df = dm._to_pandas()
+
+# Use with legacy code expecting pandas
+nilearn_glm.fit(fmri_img, design_matrices=[pd_df])
+```
+
+**Timeline**: Complete in v0.6.0. Tutorials and examples updated.
 
 ## Breaking Changes
 
