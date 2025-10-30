@@ -92,40 +92,69 @@ class DesignMatrix:
         self.polys = polys if polys is not None else []
         self.multi = False
 
-        # Create internal Polars DataFrame
-        # TODO: Implement construction logic
-        self._df = pl.DataFrame()
+        # Create internal Polars DataFrame based on input type
+        if data is None:
+            # Empty initialization
+            self._df = pl.DataFrame()
+
+        elif isinstance(data, pl.DataFrame):
+            # Polars DataFrame - zero copy, just ensure string column names
+            self._df = data.rename({col: str(col) for col in data.columns})
+
+        elif isinstance(data, pd.DataFrame):
+            # pandas DataFrame - convert to Polars, ensure string column names
+            self._df = pl.from_pandas(data)
+            self._df = self._df.rename({col: str(col) for col in self._df.columns})
+
+        elif isinstance(data, dict):
+            # Dictionary - let Polars handle it, ensure string column names
+            self._df = pl.DataFrame(data)
+            self._df = self._df.rename({col: str(col) for col in self._df.columns})
+
+        elif isinstance(data, np.ndarray):
+            # Numpy array - handle column names
+            if columns is not None:
+                # Use provided column names
+                self._df = pl.DataFrame(data, schema=[str(c) for c in columns])
+            else:
+                # Auto-generate column names as strings: '0', '1', '2', ...
+                n_cols = data.shape[1] if data.ndim > 1 else 1
+                auto_columns = [str(i) for i in range(n_cols)]
+                self._df = pl.DataFrame(data, schema=auto_columns)
+
+        else:
+            raise TypeError(
+                f"Unsupported data type: {type(data)}. "
+                f"Expected Polars/pandas DataFrame, numpy array, dict, or None."
+            )
 
     # ==================== Properties ====================
 
     @property
     def shape(self) -> tuple:
         """Return (n_rows, n_cols) tuple."""
-        # TODO: Implement
-        return (0, 0)
+        return self._df.shape
 
     @property
     def columns(self) -> List[str]:
         """Return list of column names."""
-        # TODO: Implement
-        return []
+        return self._df.columns
 
     @columns.setter
     def columns(self, new_names: List[str]):
         """Set column names."""
-        # TODO: Implement
-        pass
+        # Ensure all names are strings
+        str_names = [str(name) for name in new_names]
+        self._df = self._df.rename(dict(zip(self._df.columns, str_names)))
 
     @property
     def empty(self) -> bool:
         """Return True if DesignMatrix has no data."""
-        # TODO: Implement
-        return True
+        return self._df.is_empty()
 
     def __len__(self) -> int:
         """Return number of rows."""
-        # TODO: Implement
-        return 0
+        return len(self._df)
 
     # ==================== Data Access ====================
 
@@ -136,8 +165,15 @@ class DesignMatrix:
         dm['col'] returns Series
         dm[['col1', 'col2']] returns DesignMatrix
         """
-        # TODO: Implement
-        raise NotImplementedError("__getitem__ not yet implemented")
+        if isinstance(key, str):
+            # Single column - return Series
+            return self._df[key]
+        elif isinstance(key, list):
+            # Multiple columns - return DesignMatrix with metadata
+            subset_df = self._df.select(key)
+            return self._copy_with(subset_df)
+        else:
+            raise TypeError(f"Column key must be str or list of str, got {type(key)}")
 
     def __setitem__(self, key: str, value: Union[int, float, list, np.ndarray, pl.Series]):
         """
@@ -146,20 +182,33 @@ class DesignMatrix:
         dm['col'] = 0  # Broadcast scalar
         dm['col'] = [1, 2, 3]  # Array assignment
         """
-        # TODO: Implement
-        raise NotImplementedError("__setitem__ not yet implemented")
+        # Polars with_columns handles broadcasting and type conversion automatically
+        # Use .with_columns() for immutable pattern, then reassign
+        if isinstance(value, (int, float)):
+            # Scalar - Polars will broadcast
+            self._df = self._df.with_columns(pl.lit(value).alias(key))
+        elif isinstance(value, (list, np.ndarray)):
+            # Array-like - convert to Series
+            self._df = self._df.with_columns(pl.Series(key, value))
+        elif isinstance(value, pl.Series):
+            # Polars Series - rename and add
+            self._df = self._df.with_columns(value.alias(key))
+        else:
+            raise TypeError(f"Cannot set column from type {type(value)}")
 
     # ==================== Simple Transformations ====================
 
     def fillna(self, value: Union[int, float]) -> "DesignMatrix":
         """Fill NaN/null values with specified value."""
-        # TODO: Implement using .fill_null() and .fill_nan()
-        raise NotImplementedError("fillna not yet implemented")
+        # Polars distinguishes between null (None) and NaN
+        # Fill both to match pandas/user expectations
+        filled_df = self._df.fill_null(value).fill_nan(value)
+        return self._copy_with(filled_df)
 
     def drop(self, columns: List[str]) -> "DesignMatrix":
         """Drop specified columns."""
-        # TODO: Implement
-        raise NotImplementedError("drop not yet implemented")
+        dropped_df = self._df.drop(columns)
+        return self._copy_with(dropped_df)
 
     # ==================== Statistical Operations ====================
 
@@ -354,8 +403,22 @@ class DesignMatrix:
         **metadata_updates
             Metadata attributes to override (e.g., convolved=['stim'])
         """
-        # TODO: Implement
-        raise NotImplementedError("_copy_with not yet implemented")
+        # Start with current metadata
+        metadata = self._get_metadata()
+
+        # Apply updates
+        metadata.update(metadata_updates)
+
+        # Create new DesignMatrix
+        new_dm = DesignMatrix(
+            new_df,
+            sampling_freq=metadata["sampling_freq"],
+            convolved=metadata["convolved"],
+            polys=metadata["polys"],
+        )
+        new_dm.multi = metadata["multi"]
+
+        return new_dm
 
     def _get_metadata(self) -> dict:
         """Extract metadata as dict (for copying)."""
