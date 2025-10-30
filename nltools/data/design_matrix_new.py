@@ -892,10 +892,52 @@ class DesignMatrix:
         """
         Compute variance inflation factor for each column.
 
-        Returns array of VIF values. VIF > 10 indicates problematic collinearity.
+        Uses diagonal elements of inverted correlation matrix
+        (same method as Matlab and R).
+
+        Parameters
+        ----------
+        exclude_polys : bool
+            Skip polynomial columns (default True)
+
+        Returns
+        -------
+        np.ndarray
+            VIF values for each non-polynomial column
         """
-        # TODO: Implement using correlation matrix
-        raise NotImplementedError("vif not yet implemented")
+        if self.shape[1] <= 1:
+            raise ValueError("Can't compute VIF with only 1 column!")
+
+        # Determine which columns to include
+        if exclude_polys and self.polys:
+            cols_to_use = [c for c in self.columns if c not in self.polys]
+        else:
+            # Always exclude intercept (poly_0) columns
+            cols_to_use = [c for c in self.columns if "poly_0" not in c]
+
+        # Edge case: single column has VIF = 1 (no multicollinearity)
+        if len(cols_to_use) == 1:
+            return np.array([1.0])
+
+        # Select columns and convert to numpy for correlation
+        subset_df = self._df.select(cols_to_use)
+        data_array = subset_df.to_numpy()
+
+        # Compute correlation matrix
+        corr_matrix = np.corrcoef(data_array, rowvar=False)
+
+        # Compute VIF = diagonal of inverse correlation matrix
+        try:
+            inv_corr = np.linalg.inv(corr_matrix)
+            return np.diag(inv_corr)
+        except np.linalg.LinAlgError:
+            # Matrix is singular - perfect collinearity detected
+            # Return None and warn user (matches old behavior)
+            print(
+                "ERROR: Cannot compute VIF! Design Matrix is singular because it has "
+                "some perfectly correlated or duplicated columns. Using .clean() may help."
+            )
+            return None
 
     def clean(
         self,
@@ -907,19 +949,102 @@ class DesignMatrix:
         """
         Remove highly correlated columns.
 
+        Removes columns with correlation >= threshold. Keeps first instance
+        of correlated pair, drops duplicates.
+
         Parameters
         ----------
         fill_na : int, float, or None
-            Fill NaNs before checking correlation
+            Fill NaN values before checking correlations (default 0)
         exclude_polys : bool
-            Skip polynomials in collinearity check
+            Skip polynomial columns from correlation check
         thresh : float
-            Correlation threshold (drop if r >= thresh)
+            Correlation threshold (drop if |r| >= thresh, default 0.95)
         verbose : bool
-            Print dropped columns
+            Print dropped column names
+
+        Returns
+        -------
+        DesignMatrix
+            Cleaned matrix with highly correlated columns removed
         """
-        # TODO: Implement
-        raise NotImplementedError("clean not yet implemented")
+        # Check for duplicate column names
+        if len(self.columns) != len(set(self.columns)):
+            raise ValueError(
+                "Duplicate column names detected. Using .clean() with duplicate "
+                "columns is not supported as it can produce unexpected results."
+            )
+
+        # Start with a copy
+        result = self
+
+        # Fill NaN if requested
+        if fill_na is not None:
+            result = result.fillna(fill_na)
+
+        # Determine which columns to check for correlation
+        if exclude_polys and self.polys:
+            cols_to_check = [c for c in result.columns if c not in result.polys]
+        else:
+            cols_to_check = list(result.columns)
+
+        if len(cols_to_check) <= 1:
+            if verbose:
+                print("Only 1 column to check...skipping")
+            return result
+
+        # Compute pairwise correlations and identify columns to drop
+        keep = []
+        remove = []
+
+        # Convert to numpy for efficient correlation computation
+        subset_df = result._df.select(cols_to_check)
+        data_array = subset_df.to_numpy()
+
+        # Check each pair of columns
+        for i in range(len(cols_to_check)):
+            col_i = cols_to_check[i]
+            col_i_data = data_array[:, i]
+
+            for j in range(i + 1, len(cols_to_check)):
+                col_j = cols_to_check[j]
+                col_j_data = data_array[:, j]
+
+                # Skip if already marked for removal or keeping
+                if col_j in keep or col_j in remove:
+                    continue
+
+                # Check for constant arrays (avoid correlation warnings)
+                if np.var(col_i_data) == 0 or np.var(col_j_data) == 0:
+                    r = 0.0
+                else:
+                    # Compute correlation
+                    r = np.abs(np.corrcoef(col_i_data, col_j_data)[0, 1])
+
+                # Mark for removal if correlation exceeds threshold
+                if r >= thresh and col_i not in keep and col_i not in remove:
+                    if verbose:
+                        print(
+                            f"{col_i} and {col_j} correlated at {r:.2f} which is >= "
+                            f"threshold of {thresh}. Dropping {col_j}"
+                        )
+                    keep.append(col_i)
+                    remove.append(col_j)
+
+        # Drop correlated columns
+        if remove:
+            # Drop from DataFrame
+            new_df = result._df.drop(remove)
+
+            # Update polys metadata
+            new_polys = [p for p in result.polys if p not in remove]
+
+            # Return cleaned matrix
+            return result._copy_with(new_df, polys=new_polys)
+        else:
+            if verbose:
+                print("Dropping columns not needed...skipping")
+            return result
 
     # ==================== Utilities ====================
 

@@ -1175,12 +1175,12 @@ class TestDesignMatrixDiagnostics:
 
         Expected behavior:
         - Returns array of VIF values (one per column)
-        - Perfectly correlated columns have very high VIF
+        - With perfect collinearity, returns None and prints error
 
         Use case: Detect multicollinearity before regression
         """
-        # Create intentionally collinear columns
-        dm = DesignMatrix(
+        # Create intentionally collinear columns (perfect collinearity)
+        dm_perfect = DesignMatrix(
             {
                 "a": [1, 2, 3, 4, 5],
                 "b": [2, 4, 6, 8, 10],  # b = 2*a, perfect collinearity
@@ -1189,11 +1189,25 @@ class TestDesignMatrixDiagnostics:
             sampling_freq=1,
         )
 
-        vifs = dm.vif(exclude_polys=True)
+        # Perfect collinearity should return None with error message
+        vifs_perfect = dm_perfect.vif(exclude_polys=True)
+        assert vifs_perfect is None, "Perfect collinearity should return None"
 
-        # VIF should be very high for 'b' (perfect correlation with 'a')
-        # Index 1 corresponds to column 'b'
-        assert vifs[1] > 10, "Perfectly correlated column should have VIF > 10"
+        # Create data with high but not perfect correlation
+        dm_high = DesignMatrix(
+            {
+                "a": [1, 2, 3, 4, 5],
+                "b": [1.9, 4.1, 5.8, 8.2, 9.9],  # High but not perfect correlation
+                "c": [1, 1, 2, 2, 3],
+            },
+            sampling_freq=1,
+        )
+
+        vifs_high = dm_high.vif(exclude_polys=True)
+        assert vifs_high is not None, "Should return VIF values for non-perfect correlation"
+        assert len(vifs_high) == 3, "Should have VIF for each column"
+        # VIF should be elevated for highly correlated columns
+        assert any(v > 5 for v in vifs_high), "Should detect high collinearity"
 
     def test_vif_excludes_polynomial_columns_by_default(self):
         """
