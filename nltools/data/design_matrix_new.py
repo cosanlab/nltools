@@ -368,9 +368,112 @@ class DesignMatrix:
             Can be 1D array (single kernel) or 2D (samples x kernels)
         columns : list of str, optional
             Columns to convolve (default: all non-polynomial columns)
+
+        Returns
+        -------
+        DesignMatrix
+            New DesignMatrix with convolved columns
+
+        Examples
+        --------
+        >>> # Default HRF convolution
+        >>> dm_conv = dm.convolve()
+
+        >>> # Custom kernel
+        >>> kernel = np.array([0.5, 1.0, 0.5])
+        >>> dm_conv = dm.convolve(conv_func=kernel)
+
+        >>> # Multiple kernels (FIR model)
+        >>> kernels = np.array([[1.0, 0.5], [0.5, 1.0]]).T  # 2 kernels
+        >>> dm_conv = dm.convolve(conv_func=kernels)  # Creates col_c0, col_c1
         """
-        # TODO: Implement
-        raise NotImplementedError("convolve not yet implemented")
+        from ..algorithms.hrf import glover_hrf
+
+        if self.sampling_freq is None:
+            raise ValueError("DesignMatrix must have sampling_freq set for convolution")
+
+        # Determine which columns to convolve
+        if columns is None:
+            # Default: all columns except polynomials
+            columns_to_convolve = [col for col in self.columns if col not in self.polys]
+        else:
+            columns_to_convolve = columns
+
+        # Columns that should NOT be convolved
+        non_convolved_cols = [col for col in self.columns if col not in columns_to_convolve]
+
+        # Get the convolution kernel
+        if isinstance(conv_func, str):
+            if conv_func != "hrf":
+                raise ValueError(
+                    "conv_func must be 'hrf' or a numpy array. "
+                    "Did you mean 'hrf'?"
+                )
+            # Generate Glover HRF at this sampling frequency
+            # TR = 1 / sampling_freq
+            conv_func = glover_hrf(1.0 / self.sampling_freq, oversampling=1.0)
+        elif isinstance(conv_func, np.ndarray):
+            if len(conv_func.shape) > 2:
+                raise ValueError(
+                    "conv_func must be 1D or 2D array (samples x kernels)"
+                )
+        else:
+            raise TypeError(
+                "conv_func must be 'hrf' string or numpy array, "
+                f"got {type(conv_func)}"
+            )
+
+        # Perform convolution
+        n_rows = self.shape[0]
+
+        if len(conv_func.shape) == 1:
+            # Single kernel: keep original column names (replace in-place)
+            convolved_data = {}
+            for col in columns_to_convolve:
+                col_data = self._df[col].to_numpy()
+                convolved = np.convolve(col_data, conv_func)[:n_rows]
+                convolved_data[col] = convolved  # Keep original name
+
+            # Build new DataFrame preserving original column order
+            # Start with convolved columns
+            convolved_df = pl.DataFrame(convolved_data)
+            # Add non-convolved columns
+            non_convolved_df = self._df.select(non_convolved_cols) if non_convolved_cols else pl.DataFrame()
+
+            # Rebuild with original column order
+            all_cols_data = {}
+            for col in self.columns:
+                if col in columns_to_convolve:
+                    all_cols_data[col] = convolved_data[col]
+                else:
+                    all_cols_data[col] = self._df[col].to_numpy()
+
+            new_df = pl.DataFrame(all_cols_data)
+
+        else:
+            # Multiple kernels: shape is (samples, n_kernels)
+            n_kernels = conv_func.shape[1]
+            all_convolved_data = {}
+
+            for col in columns_to_convolve:
+                col_data = self._df[col].to_numpy()
+                for k_idx in range(n_kernels):
+                    kernel = conv_func[:, k_idx]
+                    convolved = np.convolve(col_data, kernel)[:n_rows]
+                    all_convolved_data[f"{col}_c{k_idx}"] = convolved
+
+            # Create new DataFrame with all convolved columns + non-convolved
+            convolved_df = pl.DataFrame(all_convolved_data)
+            non_convolved_df = self._df.select(non_convolved_cols) if non_convolved_cols else pl.DataFrame()
+
+            # Concatenate horizontally
+            if non_convolved_cols:
+                new_df = pl.concat([convolved_df, non_convolved_df], how="horizontal")
+            else:
+                new_df = convolved_df
+
+        # Update metadata
+        return self._copy_with(new_df, convolved=columns_to_convolve)
 
     # ==================== Polynomial/Basis Functions ====================
 
