@@ -842,8 +842,9 @@ Args:
 
 ## Related Documents
 
-- **`REFACTORING_PLAN.md`**: Overall v0.6.0 priorities (this is Priority 2.12)
-- **`MIGRATION_v0.5_to_v0.6.md`**: User-facing migration guide
+- **`refactor-plan.md`**: Overall v0.6.0 strategic vision
+- **`refactor-todos.md`**: Task tracking (this is Priority 2.12)
+- **`docs/migration-guide.md`**: User-facing migration guide
 - **`TODO_TRACKER.md`**: Tutorial tracking (tutorials out of scope)
 - **`contributing.md`**: Build and test commands
 

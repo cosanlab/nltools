@@ -508,7 +508,7 @@ def test_pandas_polars_conversion():
 - Verify nilearn integration (may need pandas conversion layer)
 
 **6.3 Documentation Updates** (~1 hour)
-- Update MIGRATION_v0.5_to_v0.6.md
+- Update docs/migration-guide.md
 - Add Polars migration notes
 - Document `.to_pandas()` escape hatches
 
@@ -715,8 +715,9 @@ polars = { version = ">=0.20.0", extras = ["gpu"] }  # GPU engine
 
 ### Internal Documents
 - `model-spec.md` - Model class implementation plan (parallel work)
-- `REFACTORING_PLAN.md` - Overall v0.6.0 roadmap
-- `MIGRATION_v0.5_to_v0.6.md` - User-facing migration guide
+- `refactor-plan.md` - Overall v0.6.0 strategic vision
+- `refactor-todos.md` - Task tracking
+- `docs/migration-guide.md` - User-facing migration guide
 - `CLAUDE.md` - Development knowledge base
 
 ---

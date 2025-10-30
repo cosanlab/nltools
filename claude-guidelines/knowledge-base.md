@@ -8,8 +8,9 @@
 
 ### Primary Documents
 - **CLAUDE.md**: Current status, critical requirements, quick commands
-- **REFACTORING_PLAN.md**: Current tasks, progress tracker, next steps
-- **MIGRATION_v0.5_to_v0.6.md**: User-facing upgrade guide
+- **refactor-todos.md**: Task checklist with progress tracking
+- **refactor-progress.md**: Session context and decisions
+- **docs/migration-guide.md**: User-facing upgrade guide
 - **priorities.md**: High-level roadmap from Eshin
 - **refactor.md**: Original refactoring requirements
 

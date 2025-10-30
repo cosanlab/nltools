@@ -14,20 +14,24 @@
 ❌ NEVER: python script.py        # Will use wrong environment
 ```
 
-**NEVER commit without explicit approval - only stage changes:**
+**NEVER stage or commit without explicit approval:**
 ```python
 # Our workflow invariant:
 if changes_ready:
-    git add .
-    say("Changes staged and ready for review")
-    # WAIT FOR APPROVAL - DO NOT COMMIT
+    say("Changes ready for review")
+    # WAIT - Do NOT stage automatically!
+    # Eshin will either:
+    # 1. Stage manually, OR
+    # 2. Say "stage the changes", THEN you run: git add .
 
-# Eshin responds: "Go ahead and commit" → Then commit
+# After staging, WAIT for commit approval
+# Eshin says: "Go ahead and commit" → Then commit
 ```
 
 **ALWAYS update after making changes:**
-- `MIGRATION_v0.5_to_v0.6.md` - Document API changes
-- `REFACTORING_PLAN.md` - Update progress tracker
+- `docs/migration-guide.md` - User-facing migration guide
+- `refactor-todos.md` - Task checklist with progress
+- `refactor-progress.md` - Session context and decisions
 
 **Be TOKEN-EFFICIENT with pytest output:**
 ```bash
@@ -42,14 +46,52 @@ uv run pytest nltools/tests/ -xvs --tb=long 2>&1 | tee pytest.log
 # ❌ NEVER: Re-run pytest just to search for different patterns
 ```
 
+**Use TARGETED TEST-DRIVEN DEVELOPMENT (TDD):**
+```bash
+# Our proven TDD strategy:
+# 1. Write/identify the specific test first
+# 2. Run ONLY that test (or small subset)
+# 3. Implement minimal code to pass
+# 4. Run same targeted test to verify
+# 5. Run related tests for regressions
+# 6. NEVER run full suite during development
+
+# ✅ DO: Run targeted test subsets (fast, focused, TDD-friendly)
+uv run pytest nltools/tests/shell/test_brain_data.py::TestBrainData::test_fit -xvs
+uv run pytest nltools/tests/core/test_srm.py::test_srm_fit_transform -x
+uv run pytest -k "ridge and cv" -x
+
+# ✅ DO: Run by directory for regression checks
+uv run pytest nltools/tests/shell/ -x
+uv run pytest nltools/tests/core/ -x
+
+# ❌ AVOID: Running full test suite during development (slow, wasteful)
+# Full suite only before final commits to verify no regressions
+uv run pytest nltools/tests/ -x  # Use sparingly!
+```
+
+**CLEAN UP after tests:**
+```bash
+# Regularly delete stale artifacts to keep repo clean
+rm -f *.log                    # Remove old log files
+rm -f nltools/tests/*.log      # Remove test log files
+rm -f *.csv *.nii.gz           # Remove test data artifacts (NOT in nltools/tests/data/!)
+```
+
+**When deploying SUB-AGENTS:**
+- Always instruct them to use targeted TDD strategy
+- Never have sub-agents run full test suite unless specifically required
+- Remind them to use `uv run` prefix for all commands
+- Tell them NOT to stage changes automatically - wait for instructions
+
 ---
 
 ## 🎯 Current State (October 2025)
 
 **Branch**: `uv-cleanup` (active development)
 **Version Target**: v0.6.0 (breaking release, API changes allowed)
-**Test Status**: 266 passing, 3 skipped ✅
-**Last Work**: Cross-validation support for Brain_Data.fit() (commit 187c210)
+**Test Status**: 317 tests (310+ passing, ~4 skipped) ✅
+**Last Work**: SRM/DetSRM comprehensive tests + API documentation improvements (commits f134854, 1a4b1d9)
 
 **Important Git Tags**:
 - `v0.6.0-test-refactor`: Test implementations for deprecated methods
@@ -94,27 +136,27 @@ uv run pytest nltools/tests/ -xvs --tb=long 2>&1 | tee pytest_full.log
 ```
 nltools/tests/
 ├── conftest.py           # Shared fixtures
-├── shell/                # Imperative shell (93 tests)
-│   ├── test_brain_data.py        # 60 tests (includes CV tests)
-│   ├── test_adjacency.py         # 30 tests
+├── shell/                # Imperative shell (131 tests)
+│   ├── test_brain_data.py        # 71 tests (includes CV, fit/predict tests)
+│   ├── test_adjacency.py         # 54 tests
 │   ├── test_design_matrix.py     # 10 tests
-│   └── test_analysis.py          # 1 test
-├── core/                 # Functional core (115 tests)
+├── core/                 # Functional core (155 tests)
 │   ├── test_backends.py          # 16 tests
 │   ├── test_models.py            # 37 tests
 │   ├── test_ridge.py             # 16 tests
 │   ├── test_hyperalignment.py    # 27 tests
+│   ├── test_srm.py               # 34 tests (NEW!)
 │   ├── test_stats.py             # 15 tests (1 skipped)
-│   ├── test_utils.py, test_mask.py, etc.
+│   ├── test_cross_validation.py, test_utils.py, test_mask.py, etc.
 ├── support/              # Integration & utilities (31 tests)
 │   ├── test_datasets.py          # 9 tests
-│   ├── test_efficient_copy.py    # 14 tests (1 skipped)
+│   ├── test_efficient_copy.py    # 14 tests
 │   ├── test_prefs.py             # 5 tests
 │   └── test_simulator.py         # 3 tests
-└── data/                 # Centralized test data (10 files)
+└── data/                 # Centralized test data (h5, nii.gz files)
 ```
 
-**Total: 266 passing, 3 skipped**
+**Total: 317 tests (310+ passing, ~4 skipped)**
 
 **Running tests by directory**:
 ```bash
@@ -238,14 +280,16 @@ uv run pytest --lf -xvs --tb=long 2>&1 | tee pytest_remaining.log
 
 ### The Staging Protocol
 
-**Never commit without explicit approval**:
+**Never stage or commit without explicit approval**:
 
 1. Make changes
-2. Run tests: `uv run pytest --lf`
-3. Stage: `git add .`
-4. Say: "Changes staged and ready for review"
-5. **WAIT** for Eshin to approve
+2. Run targeted tests: `uv run pytest <specific-test> -x`
+3. Say: "Changes ready for review"
+4. **WAIT** - Eshin will stage manually or say "stage the changes"
+5. **WAIT** for Eshin to approve commit
 6. Only then: Commit with detailed message
+
+**Note**: Eshin manages staging manually. Do NOT run `git add` automatically.
 
 ### Research Before Implementation
 
@@ -273,20 +317,31 @@ git log uv-refactor  # Reference branch
 - Working patterns
 - Quick debugging tips
 
-**Detailed Guidelines** (`claude-guidelines/`):
+**Research & Planning Docs** (`claude-guidelines/`):
 - **`design-philosophy.md`**: Why we made key architectural decisions (nilearn integration, regress() design, efficient copying, deprecation strategy)
 - **`knowledge-base.md`**: Technical patterns, testing workflows, research methodology, code quality standards
 - **`refactoring-context.md`**: Project priorities, implicit context dictionary, workflow patterns, understanding architecture
+- **`bootstrap-refactor.md`**: Comprehensive bootstrap refactoring plan
+- **`fastsrm-tdd-plan.md`**: FastSRM implementation TDD plan
+- **`polars-migration.md`**: Design_Matrix Polars migration strategy
+- **`banded-ridge-plan.md`**: Banded ridge regression implementation
+- **`srm-hyperalignment-testing-strategy.md`**: SRM/hyperalignment testing research
+- **`hypertools-hyperalignment-research.md`**: Hypertools implementation analysis
+- **`pymvpa-hyperalignment-research.md`**: PyMVPA implementation analysis
 
-**Active Documents**:
-- **`REFACTORING_PLAN.md`**: Current tasks, progress tracker, next steps
-- **`MIGRATION_v0.5_to_v0.6.md`**: User-facing upgrade guide
+**Active Documents** (root):
+- **`refactor-plan.md`**: Strategic vision (stable, rarely changes)
+- **`refactor-todos.md`**: Task checklist with progress (updated as tasks complete)
+- **`refactor-progress.md`**: Session context and decisions (updated each session)
+- **`docs/migration-guide.md`**: User-facing upgrade guide (updated as API changes)
 
 **When to reference what**:
-- "Why did we implement X this way?" → `design-philosophy.md`
-- "How should I test/code this?" → `knowledge-base.md`
-- "Where did we leave off?" → `refactoring-context.md` + `git log -1`
-- "What's the current priority?" → `refactoring-context.md`
+- "Why did we implement X this way?" → `claude-guidelines/design-philosophy.md`
+- "How should I test/code this?" → `claude-guidelines/knowledge-base.md`
+- "Where did we leave off?" → `refactor-progress.md` + `git log -1`
+- "What's the current priority?" → `refactor-todos.md`
+- "How to implement X?" → Check `claude-guidelines/` for implementation plans
+- "What's the overall plan?" → `refactor-plan.md`
 
 ---
 
@@ -332,22 +387,33 @@ git log -p -S "code_pattern"
 
 **When asked "Where did we leave off?"**:
 1. Check `git log -1` for last commit
-2. Review `REFACTORING_PLAN.md` progress
-3. Run `uv run pytest --lf` to see test status
-4. Check `refactoring-context.md` for priorities
+2. Review `refactor-progress.md` for recent context
+3. Check `refactor-todos.md` for next tasks
+4. Run `uv run pytest --lf` to see test status (if relevant)
 5. Summarize and suggest next steps
 
 **When asked "Continue working on X"**:
-1. Check `claude-guidelines/` for context on X
-2. Review relevant docs (design-philosophy, knowledge-base)
+1. Check `claude-guidelines/` for existing implementation plans
+2. Review relevant docs (design-philosophy, knowledge-base, specific plans)
 3. Set up todo list with TodoWrite tool
-4. Start with targeted tests
+4. Start with targeted tests (NOT full suite!)
 
 **When asked "Why did we..."**:
-1. Check `design-philosophy.md` for decision rationale
+1. Check `claude-guidelines/design-philosophy.md` for decision rationale
 2. Review git history for context
 3. Explain reasoning and trade-offs
 4. Offer alternatives if reconsidering
+
+**Best Practices for Every Session**:
+- Start by reading `refactor-progress.md` for context
+- Use targeted TDD strategy (write test → run specific test → implement → verify)
+- Never run full test suite during development (only before final commits)
+- Clean up log files and test artifacts regularly
+- Deploy sub-agents with explicit instructions about targeted TDD
+- Do NOT stage changes automatically - wait for explicit instructions
+- Update `refactor-todos.md` as tasks complete
+- Update `refactor-progress.md` with learnings and decisions
+- Update `docs/migration-guide.md` if API changes
 
 ---
 
@@ -359,9 +425,21 @@ git log -p -S "code_pattern"
 - Workflow patterns improve
 
 **Update reference files when**:
-- Making significant design decisions → `design-philosophy.md`
-- Discovering useful patterns → `knowledge-base.md`
-- Priorities or context shifts → `refactoring-context.md`
+- Making significant design decisions → `claude-guidelines/design-philosophy.md`
+- Discovering useful patterns → `claude-guidelines/knowledge-base.md`
+- Priorities or context shifts → `claude-guidelines/refactoring-context.md`
+- Planning new features → Create new plan in `claude-guidelines/`
+- Completing tasks → `refactor-todos.md` (mark complete)
+- Session learnings → `refactor-progress.md` (add context/decisions)
+- API changes → `docs/migration-guide.md` (user-facing guide)
+
+**File organization**:
+- `CLAUDE.md` (this file): Quick reference and critical workflows
+- `claude-guidelines/`: All research, planning docs, and design decisions
+- `refactor-plan.md`: Strategic vision (stable)
+- `refactor-todos.md`: Task checklist (tactical)
+- `refactor-progress.md`: Session context (working memory)
+- `docs/migration-guide.md`: User-facing upgrade guide
 
 **Our collaboration principle**: You (Eshin) provide vision and domain expertise. I provide implementation, research, and push back when appropriate. Together we build pragmatic, user-friendly neuroimaging tools.
 
@@ -370,4 +448,5 @@ git log -p -S "code_pattern"
 *Last updated: 2025-10-29*
 *Branch: uv-cleanup*
 *Version target: v0.6.0*
-*Lines: ~375 (comprehensive quick reference)*
+*Test status: 317 tests (310+ passing, ~4 skipped)*
+*Lines: ~420 (comprehensive quick reference with targeted testing guidelines)*

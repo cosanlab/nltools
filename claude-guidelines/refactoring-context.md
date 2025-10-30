@@ -67,7 +67,7 @@
 
 **Check in this order:**
 1. `git log -1` - Last commit message (comprehensive summaries)
-2. REFACTORING_PLAN.md - "Next Focus Areas" section
+2. refactor-todos.md - Task checklist
 3. Run tests to see current status: `uv run pytest nltools/tests/test_brain_data_old.py --tb=no`
 4. CLAUDE.md - "Current State" section
 
@@ -176,7 +176,7 @@ uv run pytest nltools/tests/test_brain_data_old.py -xvs
    - Test status: [X/38 passing]
    - Active priority: [Priority 1/2/3]
 
-3. **Next steps** (from REFACTORING_PLAN.md):
+3. **Next steps** (from refactor-todos.md):
    - [List 2-3 next focus areas]
    - [Any blockers or decisions needed]
 
@@ -202,8 +202,8 @@ uv run pytest nltools/tests/test_brain_data_old.py -xvs
    - Fix or implement as needed
 
 4. **Update docs**:
-   - REFACTORING_PLAN.md progress
-   - MIGRATION_v0.5_to_v0.6.md if API changes
+   - refactor-todos.md progress
+   - docs/migration-guide.md if API changes
 
 ### When Asked: "Why did we..."
 
@@ -237,7 +237,8 @@ research_sources = [
     "git log uv-refactor",   # Historical decisions
     "nilearn docs",          # Current APIs
     "pytest docs",           # Testing patterns
-    "REFACTORING_PLAN.md",   # Current priorities
+    "refactor-todos.md",   # Task checklist
+    "refactor-progress.md",  # Session context
 ]
 ```
 
@@ -264,8 +265,9 @@ else:
 ### Documentation Updates
 
 **After making changes, ALWAYS update**:
-1. `MIGRATION_v0.5_to_v0.6.md` - If any API changes
-2. `REFACTORING_PLAN.md` - Update progress tracker
+1. `docs/migration-guide.md` - If any API changes
+2. `refactor-todos.md` - Mark tasks complete
+3. `refactor-progress.md` - Document session learnings
 3. Relevant `claude-guidelines/*.md` - If discovered new patterns
 
 ### Test-Driven Development Cycle
@@ -276,7 +278,7 @@ else:
 3. **Implement minimal fix**: Change just enough to pass
 4. **Verify**: `uv run pytest --lf`
 5. **Check for regressions**: `uv run pytest path/to/module`
-6. **Update docs**: REFACTORING_PLAN.md, MIGRATION guide
+6. **Update docs**: refactor-todos.md, refactor-progress.md, docs/migration-guide.md
 
 ---
 

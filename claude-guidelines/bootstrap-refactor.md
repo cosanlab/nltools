@@ -1155,8 +1155,9 @@ def test_bootstrap_batching(self, sim_brain_data):
 
 ### Step 6: Update documentation ✓
 **Files**:
-- `REFACTORING_PLAN.md`: Mark task 2.8 complete, update test counts
-- `MIGRATION_v0.5_to_v0.6.md`: Document new bootstrap functionality
+- `refactor-todos.md`: Mark task 2.8 complete
+- `refactor-progress.md`: Document implementation decisions and learnings
+- `docs/migration-guide.md`: Document new bootstrap functionality
 - **Estimated time**: 1 hour
 
 ---

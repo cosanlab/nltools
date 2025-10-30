@@ -38,8 +38,12 @@ parts:
       - file: api/prefs
 
   # ========================================
-  # DEVELOPMENT
+  # MIGRATION & DEVELOPMENT
   # ========================================
+  - caption: Migration & Upgrading
+    chapters:
+      - file: migration-guide
+
   - caption: Development
     chapters:
       - file: contributing
