@@ -1640,7 +1640,7 @@ class TestBrainData:
         ):
             sim_brain_data.randomise(n_permute=10)
 
-    @pytest.mark.skip(reason="metho needs refactoring")
+    @pytest.mark.skip(reason="method needs refactoring")
     def test_bootstrap(self, sim_brain_data):
         """Test bootstrap with mean/std (predict is deprecated)."""
         # Bootstrap itself is not deprecated, but some functions it calls might be

@@ -46,6 +46,24 @@ uv run pytest nltools/tests/ -xvs --tb=long 2>&1 | tee pytest.log
 # ❌ NEVER: Re-run pytest just to search for different patterns
 ```
 
+**ALWAYS use PARALLEL testing and require PERMISSION for tier2:**
+```bash
+# ✅ ALWAYS: Default to -n auto for tier1 (6-7× faster)
+uv run pytest -m tier1 -n auto 2>&1 | tee pytest_tier1.log
+
+# ⚠️ TIER 2: NEVER run without explicit permission
+# Always ask first: "Should I run tier2 tests (~7 min)?"
+# Only after approval: uv run pytest -m tier2 -xvs --tb=long 2>&1 | tee pytest_tier2.log
+
+# ❌ NEVER: Run tier2 without asking permission first
+uv run pytest -m tier2  # DON'T DO THIS!
+
+# Why this matters:
+# - Parallel tier1: 18s vs 2min = 6-7× speedup
+# - Log files: Run once, analyze many times = 10× token savings
+# - Tier2 cost: ~7 min should be intentional, not automatic
+```
+
 **Use TARGETED TEST-DRIVEN DEVELOPMENT (TDD):**
 ```bash
 # Our proven TDD strategy:
@@ -61,18 +79,19 @@ uv run pytest nltools/tests/shell/test_brain_data.py::TestBrainData::test_fit -x
 uv run pytest nltools/tests/core/test_srm.py::test_srm_fit_transform -x
 uv run pytest -k "ridge and cv" -x
 
-# ✅ DO: Run tier1 for quick regression checks (fast!)
-uv run pytest -m tier1 -n auto  # ~18s with parallelization!
+# ✅ DO: Run tier1 for quick regression checks (ALWAYS use -n auto!)
+uv run pytest -m tier1 -n auto  # ~18s (not 2min!)
 
-# ✅ DO: Run by directory for regression checks
-uv run pytest nltools/tests/shell/ -x
-uv run pytest nltools/tests/core/ -x
+# ✅ DO: Run by directory for regression checks (use -n auto when possible)
+uv run pytest nltools/tests/shell/ -n auto -x
+uv run pytest nltools/tests/core/ -n auto -x
 
-# ⚠️  TIER 2: Run comprehensive tests before commits
-uv run pytest -m tier2 -x  # Only when needed (~7 min)
+# ⚠️  TIER 2: ASK PERMISSION FIRST, then run (~7 min)
+# After getting approval:
+uv run pytest -m tier2 -xvs --tb=long 2>&1 | tee pytest_tier2.log
 
-# ❌ AVOID: Running full suite during rapid iteration
-# Use tier1 for fast feedback, tier2 before commits
+# ❌ AVOID: Running full suite OR tier2 without permission during rapid iteration
+# Use tier1 for fast feedback; ask about tier2 before running
 ```
 
 **CLEAN UP after tests:**
@@ -84,6 +103,9 @@ rm -f *.csv *.nii.gz           # Remove test data artifacts (NOT in nltools/test
 ```
 
 **When deploying SUB-AGENTS:**
+- Always instruct them to use `-n auto` for tier1 tests (parallel by default)
+- Tell them tier2 requires explicit permission (must ask before running)
+- Instruct them to create log files for any diagnostic work
 - Always instruct them to use targeted TDD strategy
 - Never have sub-agents run full test suite unless specifically required
 - Remind them to use `uv run` prefix for all commands
@@ -120,40 +142,39 @@ rm -f *.csv *.nii.gz           # Remove test data artifacts (NOT in nltools/test
 
 ### Running Tests (Tiered Strategy)
 
-**Tier 1 (Fast Core)**: ~350 tests, <2 min - Run on every iteration
-**Tier 2 (Comprehensive)**: ~35 tests, ~7 min - Run before commits
+**Tier 1 (Fast Core)**: ~350 tests, ~18s - Run on every iteration (ALWAYS use `-n auto`)
+**Tier 2 (Comprehensive)**: ~35 tests, ~7 min - REQUIRES PERMISSION (ask first!)
 
 ```bash
-# TIER 1: Fast development loop (DEFAULT - runs automatically!)
-uv run pytest  # Runs tier1 only due to default config
+# TIER 1: Fast development loop (DEFAULT - ALWAYS use -n auto!)
+uv run pytest -m tier1 -n auto  # ~18s (not 2min!)
 
-# TIER 1: Explicit (with parallelization for speed)
-uv run pytest -m tier1 -n auto  # ~18s with 4 cores!
+# TIER 1: With log file for diagnostic work (PREFERRED)
+uv run pytest -m tier1 -n auto -xvs --tb=long 2>&1 | tee pytest_tier1.log
 
-# TIER 2: Comprehensive tests (run before commits)
-uv run pytest -m tier2 -x
+# TIER 2: ⚠️ ASK PERMISSION FIRST! (~7 min)
+# After getting approval:
+uv run pytest -m tier2 -xvs --tb=long 2>&1 | tee pytest_tier2.log
 
-# BOTH TIERS: Full suite (before releases)
-uv run pytest -m "tier1 or tier2" -x
-uv run pytest -m "tier1 or tier2" -n auto  # ~2 min with parallelization
+# BOTH TIERS: ⚠️ ONLY before releases with explicit permission
+# After getting approval:
+uv run pytest -m "tier1 or tier2" -n auto 2>&1 | tee pytest_full.log
 
-# Run specific file or test
+# Run specific file or test (for targeted fixes)
 uv run pytest nltools/tests/shell/test_brain_data.py::TestBrainData::test_fit -xvs
 
-# Run last failed tests
+# Run last failed tests (quick verification after fix)
 uv run pytest --lf -x
 
-# Run tests matching pattern (respects tier filtering)
-uv run pytest -k "regress or extract" -x
-
-# Capture output to log file (recommended for debugging)
-uv run pytest -m tier1 -xvs --tb=long 2>&1 | tee pytest_tier1.log
+# Run tests matching pattern (respects tier filtering, use -n auto)
+uv run pytest -k "regress or extract" -n auto -x
 ```
 
 **When to run what**:
-- **Every save**: `uv run pytest -m tier1 -n auto` (~18s)
-- **Before commit**: `uv run pytest -m tier1 -n auto` (verify tier1) + affected tier2 tests
-- **Before push**: `uv run pytest -m "tier1 or tier2" -n auto` (~2 min)
+- **Every iteration**: `uv run pytest -m tier1 -n auto` (~18s)
+- **Before commit**: `uv run pytest -m tier1 -n auto` → Then ASK about tier2
+- **Before push**: ASK "Should I run tier2 or full suite?" → Only if approved
+- **Tier2 tests**: NEVER run without asking permission first (~7 min cost)
 - **CI/Nightly**: Full suite with timing analysis
 
 **Parallel Testing Safety** ✅
@@ -255,65 +276,78 @@ uv run pytest path/to/test.py::test_name -s
 
 ### Test-Driven Development Cycle
 
-**Standard TDD workflow**:
+**Log-first TDD workflow** (preferred for diagnostic work):
 ```bash
-# 1. Identify relevant tests
-uv run pytest -k pattern --co
+# 1. Capture initial state to log file
+uv run pytest -m tier1 -n auto -xvs --tb=long 2>&1 | tee pytest_initial.log
 
-# 2. Run failing test with verbose output
-uv run pytest path/to/test.py::test_name -xvs --tb=long
+# 2. Identify failures with Grep/Read tools (cheap!)
+# Use Grep tool to search pytest_initial.log for patterns
 
 # 3. Implement minimal fix
 
-# 4. Verify fix
-uv run pytest --lf
+# 4. Verify fix with targeted test (quick, no log needed)
+uv run pytest path/to/test.py::test_name -x
 
-# 5. Check for regressions
-uv run pytest path/to/module/
+# 5. Regression check with parallel tier1
+uv run pytest -m tier1 -n auto
+
+# 6. Update log only if more analysis needed
+uv run pytest --lf -xvs --tb=long 2>&1 | tee pytest_updated.log
 ```
 
-### Capture Output to Log Files
-
-**CRITICAL: Save pytest output to avoid token waste and time waste**
-
-**Token impact:**
-- Running pytest: 1,000-5,000 tokens per run
-- Grep tool on log: ~50 tokens per search
-- Read tool on log: ~200 tokens per section
-- Example: Searching 5 patterns = 25,000 tokens (wasteful) vs. 5,250 tokens (efficient) = **80% token savings**
-
-**Decision criteria:**
-
-| Save to log file FIRST | Run directly (no log) |
-|------------------------|------------------------|
-| First diagnostic run | Quick fix verification (<50 lines expected) |
-| Unknown failure scope | Interactive debugging (--pdb) |
-| Need 2+ pattern searches | Single specific test (likely to pass) |
-| Expected >500 lines output | Real-time interaction needed |
-| Analyzing test suite patterns | |
-
-**Efficient workflow:**
+**Quick-fix TDD workflow** (for single obvious failures):
 ```bash
-# STEP 1: Capture full output ONCE
-uv run pytest nltools/tests/ -xvs --tb=long 2>&1 | tee pytest_full.log
+# 1. Run specific failing test
+uv run pytest path/to/test.py::test_name -xvs
 
-# STEP 2: Analyze with Read/Grep TOOLS (not re-running pytest!)
-# Use Grep tool to search patterns in pytest_full.log
-# Use Read tool to view specific sections of pytest_full.log
+# 2. Implement fix
 
-# STEP 3: Make fixes based on analysis
-
-# STEP 4: Verify with targeted re-run (much smaller output)
+# 3. Verify
 uv run pytest --lf -x
 
-# STEP 5: If still failures, update log and repeat
-uv run pytest --lf -xvs --tb=long 2>&1 | tee pytest_remaining.log
+# 4. Regression check
+uv run pytest -m tier1 -n auto
 ```
 
-**Why this matters:**
-- **Token efficiency**: 5x-10x reduction in token usage
-- **Speed**: Grep is instant; re-running tests takes minutes
-- **Completeness**: Preserves full stack traces for analysis
+### Primary Workflow: Log Files First
+
+**DEFAULT PATTERN: Always create log files for any diagnostic work**
+
+**Why logs are primary, not optional:**
+- **Token efficiency**: 1 test run (5K tokens) + 10 searches (500 tokens) vs 10 test runs (50K tokens) = **90% savings**
+- **Speed**: Grep is instant; re-running tests takes 18s-7min
+- **Completeness**: Preserves full context for analysis
+- **Cost**: Test runs are expensive; log analysis is cheap
+
+**Standard workflow:**
+```bash
+# STEP 1: Create log file on first run (ALWAYS for diagnostics)
+uv run pytest -m tier1 -n auto -xvs --tb=long 2>&1 | tee pytest.log
+
+# STEP 2: Analyze with Grep/Read tools (NOT re-running tests!)
+# Use Grep tool: pattern matching in pytest.log (~50 tokens/search)
+# Use Read tool: view sections of pytest.log (~200 tokens)
+
+# STEP 3: Make fixes based on log analysis
+
+# STEP 4: Quick verification (targeted, no log needed)
+uv run pytest --lf -x
+
+# STEP 5: Only if more analysis needed, update log
+uv run pytest --lf -xvs --tb=long 2>&1 | tee pytest_updated.log
+```
+
+**When to skip logs** (rare exceptions):
+- Single test verification after fix (expect pass, <50 lines output)
+- Interactive debugging with --pdb
+- Real-time test development (watching output evolve)
+
+**When to ALWAYS use logs** (default):
+- First diagnostic run (don't know what will fail)
+- Any run expecting >100 lines output
+- Any situation where you might search multiple patterns
+- Tier2 test runs (always capture these!)
 
 ### The Staging Protocol
 
@@ -443,10 +477,13 @@ git log -p -S "code_pattern"
 
 **Best Practices for Every Session**:
 - Start by reading `refactor-progress.md` for context
+- ALWAYS use `-n auto` for tier1 tests (parallel by default, 6-7× faster)
+- Create log files for diagnostic work (log-first, not log-as-optimization)
+- ASK permission before running tier2 tests (~7 min cost, be intentional)
 - Use targeted TDD strategy (write test → run specific test → implement → verify)
-- Never run full test suite during development (only before final commits)
+- Never run full test suite during development (tier1 only, unless approved)
 - Clean up log files and test artifacts regularly
-- Deploy sub-agents with explicit instructions about targeted TDD
+- Deploy sub-agents with explicit instructions: `-n auto`, tier2 permission, log-first
 - Do NOT stage changes automatically - wait for explicit instructions
 - Update `refactor-todos.md` as tasks complete
 - Update `refactor-progress.md` with learnings and decisions
@@ -486,5 +523,6 @@ git log -p -S "code_pattern"
 *Branch: uv-cleanup*
 *Version target: v0.6.0*
 *Test status: 385 tests (381 passing, 4 skipped)*
-*Parallel testing: Verified safe with pytest-xdist (1.42× speedup with 4 workers)*
-*Lines: ~490 (comprehensive quick reference with targeted testing guidelines + parallel safety notes)*
+*Testing defaults: Parallel tier1 (~18s), tier2 requires permission (~7 min)*
+*Workflow: Log-first pattern (primary), -n auto (always), ask before tier2*
+*Lines: ~530 (comprehensive quick reference + enforced parallel/log-first/permission patterns)*

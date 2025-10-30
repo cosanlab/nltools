@@ -320,13 +320,14 @@ def test_predict_deprecated(brain_data):
 
 Key commands:
 ```bash
-# Run tier1 tests in parallel (default)
-uv run pytest -m tier1 -n auto  # Uses all CPU cores
+# Run tier1 tests in parallel (DEFAULT - ALWAYS use this!)
+uv run pytest -m tier1 -n auto  # ~18s with 4 cores
 
-# Run tier2 tests in parallel
-uv run pytest -m tier2 -n 4     # Use 4 workers
+# Run tier2 tests (⚠️ REQUIRES PERMISSION - ask first!)
+# After getting approval:
+uv run pytest -m tier2 -xvs --tb=long 2>&1 | tee pytest_tier2.log  # ~7 min
 
-# Serial execution (for debugging)
+# Serial execution (for debugging only)
 uv run pytest -m tier1          # No parallelization
 ```
 
@@ -733,12 +734,15 @@ uv run pytest -xvs 2>&1 | tee test.log
 
 **Capture output to logs** (avoid re-running and token waste):
 ```bash
-# Capture full test run
-uv run pytest nltools/tests/ -xvs --tb=long 2>&1 | tee pytest_full.log
+# Capture tier1 test run (DEFAULT)
+uv run pytest -m tier1 -n auto -xvs --tb=long 2>&1 | tee pytest_tier1.log
 
 # Search logs with Grep tool instead of re-running
-# Use Grep tool: pattern="FAILED|ERROR" in pytest_full.log
+# Use Grep tool: pattern="FAILED|ERROR" in pytest_tier1.log
 # Use Grep tool: pattern="AttributeError" with -A 10 -B 5
+
+# For tier2 (only after getting permission):
+uv run pytest -m tier2 -xvs --tb=long 2>&1 | tee pytest_tier2.log
 ```
 
 ### Interactive Debugging
