@@ -805,3 +805,122 @@ def test_glm_glm_property_advanced_access():
     # glm_ property should return FirstLevelModel instance
     assert isinstance(model.glm_, FirstLevelModel)
     assert model.glm_ is model._glm  # Same object
+
+
+def test_glm_score_returns_valid_r_squared():
+    """Glm.score() should return mean R² across voxels and runs"""
+    from nltools.models import Glm
+    from nilearn.glm.first_level import make_first_level_design_matrix
+    import pandas as pd
+    from nibabel import Nifti1Image
+
+    # Create synthetic fMRI data with signal
+    np.random.seed(42)
+    n_scans = 30
+    img_shape = (8, 8, 8)  # Small for speed
+
+    # Create data with actual signal for meaningful R²
+    # Generate a signal that correlates with task timing
+    task_signal = np.zeros(n_scans)
+    task_signal[5:10] = 1.0  # Task block 1
+    task_signal[20:25] = 1.0  # Task block 2
+
+    # Create fMRI data: signal + noise
+    fmri_data = np.zeros((n_scans, *img_shape), dtype=np.float32)
+    for t in range(n_scans):
+        # Add task signal to some voxels (not all, for realistic R²)
+        signal_voxels = fmri_data[t, :4, :4, :4]  # Subset of voxels
+        signal_voxels += task_signal[t] * 2.0  # Signal
+        # Add noise everywhere
+        fmri_data[t] += np.random.randn(*img_shape).astype(np.float32) * 0.5
+
+    affine = np.eye(4)
+    img = Nifti1Image(fmri_data.T, affine)  # nibabel uses (x,y,z,t) order
+
+    # Create mask
+    mask_data = np.ones(img_shape, dtype=np.int8)
+    mask_img = Nifti1Image(mask_data, affine)
+
+    # Create design matrix with task regressor
+    frame_times = np.arange(n_scans) * 2.0  # TR = 2s
+    events = pd.DataFrame({
+        'onset': [10, 40],  # Match task blocks
+        'duration': [10, 10],
+        'trial_type': ['task', 'task']
+    })
+    design_matrix = make_first_level_design_matrix(
+        frame_times,
+        events=events,
+        hrf_model='spm'
+    )
+
+    # Fit GLM
+    model = Glm(t_r=2.0, mask=mask_img)
+    model.fit(img, design_matrices=design_matrix)
+
+    # Test score() method
+    r2 = model.score()
+
+    # Assertions
+    assert isinstance(r2, float), "score() should return float"
+    assert 0.0 <= r2 <= 1.0, f"R² should be in [0, 1], got {r2}"
+    assert r2 > 0.0, "R² should be positive with signal present"
+    assert r2 < 1.0, "R² should not be perfect (noise present)"
+
+    # With actual signal, R² should be meaningful (>0.01 at minimum)
+    assert r2 > 0.01, f"R² should be >0.01 with clear signal, got {r2}"
+
+
+def test_glm_score_before_fit_raises():
+    """Glm.score() should raise error if called before fitting"""
+    from nltools.models import Glm
+
+    model = Glm(t_r=2.0)
+
+    with pytest.raises(ValueError, match="not fitted yet"):
+        model.score()
+
+
+def test_glm_score_sklearn_api_compatibility():
+    """Glm.score() should accept X and y for sklearn compatibility"""
+    from nltools.models import Glm
+    from nilearn.glm.first_level import make_first_level_design_matrix
+    import pandas as pd
+    from nibabel import Nifti1Image
+
+    # Create minimal fMRI data
+    np.random.seed(42)
+    n_scans = 20
+    img_shape = (6, 6, 6)
+    fmri_data = np.random.randn(n_scans, *img_shape).astype(np.float32)
+    affine = np.eye(4)
+    img = Nifti1Image(fmri_data.T, affine)
+
+    mask_data = np.ones(img_shape, dtype=np.int8)
+    mask_img = Nifti1Image(mask_data, affine)
+
+    # Create design matrix
+    frame_times = np.arange(n_scans) * 2.0
+    events = pd.DataFrame({
+        'onset': [0, 20],
+        'duration': [5, 5],
+        'trial_type': ['task', 'task']
+    })
+    design_matrix = make_first_level_design_matrix(
+        frame_times,
+        events=events,
+        hrf_model='spm'
+    )
+
+    # Fit and score
+    model = Glm(t_r=2.0, mask=mask_img)
+    model.fit(img, design_matrices=design_matrix)
+
+    # score() should work with no arguments
+    r2_no_args = model.score()
+
+    # score() should also accept X and y (sklearn API) but ignore them
+    r2_with_args = model.score(X=None, y=None)
+
+    # Both should return same value
+    assert r2_no_args == r2_with_args

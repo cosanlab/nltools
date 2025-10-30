@@ -210,7 +210,10 @@ class Glm(BaseModel):
 
     def score(self, X=None, y=None):
         """
-        Return model performance metric.
+        Return mean R² across voxels and runs.
+
+        Computes average coefficient of determination (R²) from the fitted GLM.
+        Higher values indicate better model fit.
 
         Parameters
         ----------
@@ -222,22 +225,52 @@ class Glm(BaseModel):
         Returns
         -------
         score : float
-            Model performance score (currently returns 0.0)
+            Mean R² across all voxels and runs. Range: [0, 1], higher is better.
 
         Notes
         -----
-        Future enhancement will compute R² from residuals or return
-        log-likelihood. For now, returns placeholder value.
+        Extracts R² values from nilearn's FirstLevelModel.r_square attribute,
+        which returns a list of Nifti1Image objects (one per run).
+        Computes the mean across all non-NaN voxels and all runs.
 
-        For model quality assessment, access residuals directly via
-        the residuals property and compute custom metrics.
+        For voxel-wise R² maps, access `glm_.r_square` directly.
+
+        Examples
+        --------
+        >>> brain.fit(model='glm', X=design_matrix)
+        >>> r2 = brain.model_.score()
+        >>> print(f"Mean R²: {r2:.3f}")
         """
         self._check_is_fitted()
 
-        # TODO: Implement proper scoring
-        # Could compute R² from residuals vs original data
-        # Or extract from self._glm.r_square if available
-        return 0.0
+        # Get R² maps from nilearn (list of Nifti1Image objects, one per run)
+        r_square_maps = self._glm.r_square
+
+        if r_square_maps is None or len(r_square_maps) == 0:
+            raise ValueError(
+                "R² maps not available. Ensure the model has been fitted successfully."
+            )
+
+        # Extract data arrays and compute mean across voxels and runs
+        r_square_values = []
+        for r2_img in r_square_maps:
+            r2_data = r2_img.get_fdata()
+            # Only include non-NaN voxels (voxels outside mask will be NaN)
+            valid_voxels = r2_data[~np.isnan(r2_data)]
+            if len(valid_voxels) > 0:
+                r_square_values.append(valid_voxels)
+
+        if len(r_square_values) == 0:
+            raise ValueError(
+                "No valid R² values found. All voxels are NaN. "
+                "Check that the GLM fit completed successfully."
+            )
+
+        # Concatenate all runs and compute overall mean
+        all_r_square = np.concatenate(r_square_values)
+        mean_r_square = np.mean(all_r_square)
+
+        return float(mean_r_square)
 
     def compute_contrast(self, contrast_def, output_type="stat"):
         """

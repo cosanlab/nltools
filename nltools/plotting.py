@@ -365,7 +365,7 @@ def dist_from_hyperplane_plot(stats_output):
     """
 
     if "dist_from_hyperplane_xval" in stats_output.columns:
-        sns.factorplot(
+        sns.catplot(
             "subject_id",
             "dist_from_hyperplane_xval",
             hue="Y",
@@ -373,7 +373,7 @@ def dist_from_hyperplane_plot(stats_output):
             kind="point",
         )
     else:
-        sns.factorplot(
+        sns.catplot(
             "subject_id",
             "dist_from_hyperplane_all",
             hue="Y",

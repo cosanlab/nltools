@@ -327,13 +327,13 @@ class Simulator:
                         + ".nii.gz",
                     )
                 )
-                y_file = open(os.path.join(output_dir, "y.csv"), "wb")
-                wr = csv.writer(y_file, quoting=csv.QUOTE_ALL)
-                wr.writerow(self.y)
+                with open(os.path.join(output_dir, "y.csv"), "w", newline="") as y_file:
+                    wr = csv.writer(y_file, quoting=csv.QUOTE_ALL)
+                    wr.writerow(self.y)
 
-                rep_id_file = open(os.path.join(output_dir, "rep_id.csv"), "wb")
-                wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
-                wr.writerow(self.rep_id)
+                with open(os.path.join(output_dir, "rep_id.csv"), "w", newline="") as rep_id_file:
+                    wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
+                    wr.writerow(self.rep_id)
 
     def create_ncov_data(
         self, cor, cov, sigma, masks=None, reps=1, n_sub=1, output_dir=None
@@ -468,13 +468,13 @@ class Simulator:
                         + "subj.nii.gz",
                     )
                 )
-                y_file = open(os.path.join(output_dir, "y.csv"), "wb")
-                wr = csv.writer(y_file, quoting=csv.QUOTE_ALL)
-                wr.writerow(self.y)
+                with open(os.path.join(output_dir, "y.csv"), "w", newline="") as y_file:
+                    wr = csv.writer(y_file, quoting=csv.QUOTE_ALL)
+                    wr.writerow(self.y)
 
-                rep_id_file = open(os.path.join(output_dir, "rep_id.csv"), "wb")
-                wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
-                wr.writerow(self.rep_id)
+                with open(os.path.join(output_dir, "rep_id.csv"), "w", newline="") as rep_id_file:
+                    wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
+                    wr.writerow(self.rep_id)
 
 
 class SimulateGrid(object):

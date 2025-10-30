@@ -1017,7 +1017,7 @@ class Adjacency(object):
 
         distance = pd.DataFrame(self.squareform())
 
-        if labels is not None:
+        if labels is None:
             labels = deepcopy(self.labels)
         else:
             if len(labels) != distance.shape[0]:
