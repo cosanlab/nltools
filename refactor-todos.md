@@ -140,7 +140,7 @@ For strategic vision, see `refactor-plan.md`. For context and decisions, see `re
 | Fix GLM integration (nilearn boundary) | ✅ | 18 | - |
 | Test with real workflows (GLM tests) | ✅ | 18 | - |
 | Document integration status | ✅ | - | - |
-| Skip file_reader/adjacency tests | ✅ | 2 | - |
+| file_reader integration (sum, __eq__, reset_index) | ✅ | 1 | - |
 | Consider pyarrow dependency | 📋 | - | v0.7.0+ |
 | Profile and benchmark Polars performance | 📋 | - | v0.6.1+ |
 

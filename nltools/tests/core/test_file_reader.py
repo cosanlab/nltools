@@ -7,11 +7,6 @@ import os
 import pytest
 
 
-@pytest.mark.skip(
-    reason="file_reader module needs refactoring for Polars DesignMatrix. "
-    "Requires: .reset_index(), .sum(), .equals() methods. "
-    "Defer to v0.6.1+ - thoughtful integration, not monkey-patching."
-)
 def test_onsets_to_dm():
     fpath = os.path.join(get_resource_path(), "onsets_example.csv")
     data = pd.read_csv(os.path.join(get_resource_path(), "onsets_example.csv"))
@@ -32,7 +27,12 @@ def test_onsets_to_dm():
     stim_counts = data.trial_type.value_counts(sort=False)[dm.columns]
 
     # Check there are only as many onsets as occurences of each trial_type
-    np.allclose(stim_counts.values, dm.sum().values)
+    # Each event has duration=10s, with TR=2s that's 5 TRs per event
+    # So sum should equal count × (duration/TR)
+    # Use Polars Series .to_numpy() to convert to numpy array for comparison
+    duration = 10.0  # From onsets_example.csv
+    expected_sum = stim_counts.values * (duration / TR)
+    assert np.allclose(expected_sum, dm.sum().to_numpy())
 
     # Three-column with loading from dataframe
     dm = onsets_to_dm([data, data], [run_length, run_length], TR)
@@ -40,4 +40,5 @@ def test_onsets_to_dm():
     # Check it has run_length rows and nStim columns
     assert isinstance(dm, list)
     assert len(dm) == 2
-    assert dm[0].equals(dm[0])
+    # Use Pythonic equality operator (calls __eq__)
+    assert dm[0] == dm[0]

@@ -33,8 +33,12 @@ Design_Matrix now uses Polars DataFrames internally instead of pandas. This prov
 
 **What's removed:**
 - `.loc[]` and `.iloc[]` indexers - Use column/row access instead
-- `.reset_index()` - Not needed (Polars doesn't have row indexes)
 - `.assign()` - Use direct column assignment instead
+
+**What's added:**
+- `.sum(axis=0)` - Sum along axis (useful for validating onset counts)
+- `__eq__()` operator - Pythonic equality: `dm1 == dm2`
+- `.reset_index(drop=True)` - No-op for pandas compatibility (Polars has no row indexes)
 
 **What's changed:**
 - Internal storage is Polars (`._df` attribute)
@@ -70,6 +74,22 @@ new_dm = dm.assign(new_col=lambda df: df['col1'] * 2)
 # NEW (direct assignment)
 new_dm = dm.copy()
 new_dm['new_col'] = dm['col1'] * 2
+```
+
+**New utility methods:**
+```python
+# Check sum of design matrix columns (useful for onset validation)
+dm = DesignMatrix({'stim_a': [1, 0, 1, 0], 'stim_b': [0, 1, 0, 1]})
+column_sums = dm.sum()  # Returns Polars Series with sums
+column_sums.to_numpy()  # Convert to numpy array: [2, 2]
+
+# Pythonic equality checking
+dm1 = DesignMatrix({'a': [1, 2, 3]})
+dm2 = DesignMatrix({'a': [1, 2, 3]})
+dm1 == dm2  # True
+
+# reset_index() is a no-op (for pandas compatibility)
+dm_reset = dm.reset_index(drop=True)  # Returns self (no change)
 ```
 
 **GLM workflows unchanged:**

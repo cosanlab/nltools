@@ -6,12 +6,70 @@ For task checklist, see `refactor-todos.md`. For strategic vision, see `refactor
 
 ---
 
-## Current State (2025-10-29)
+## Current State (2025-10-30)
 
 **Branch**: `uv-cleanup`
 **Version Target**: v0.6.0 (breaking release)
-**Test Status**: 385 tests (381 passing, 4 skipped) ✅
-**Last Work**: Polars refactoring polish COMPLETE - GLM integration fixed
+**Test Status**: 385 tests (382 passing, 3 skipped) ✅
+**Last Work**: file_reader integration COMPLETE - Added sum(), __eq__(), reset_index() to DesignMatrix
+
+---
+
+## file_reader Integration - COMPLETE ✅
+
+### What Was Accomplished (2025-10-30)
+
+**1. Research: Nilearn GLM API Review**
+- ✅ Confirmed `onsets_to_dm()` already uses modern nilearn `make_first_level_design_matrix()`
+- ✅ No rewrite needed - implementation follows perfect functional-core/imperative-shell pattern
+- ✅ Nilearn GLM module (absorbed nistats) provides comprehensive design matrix functionality
+
+**2. Added Three Methods to DesignMatrix**
+- ✅ `.sum(axis=0)` - Returns Polars Series with column sums
+  - Genuinely useful for validating onset counts in design matrices
+  - Idiomatic Polars: returns `pl.Series`, not DataFrame
+  - Example: `dm.sum().to_numpy()` for numpy array of column sums
+
+- ✅ `__eq__()` operator - Pythonic equality (`dm1 == dm2`)
+  - Uses Polars' native `.equals()` for fast comparison
+  - Only compares data, ignores metadata (sampling_freq, convolved, polys, multi)
+  - Returns `NotImplemented` for non-DesignMatrix comparisons (proper protocol)
+
+- ✅ `.reset_index(drop=True)` - No-op for pandas compatibility
+  - Returns `self` unchanged (Polars has no row indexes)
+  - Maintains compatibility with existing `file_reader.py` code
+  - Documents why it's a no-op in docstring
+
+**3. Fixed Test Issues**
+- ✅ Unskipped `test_onsets_to_dm()` in `test_file_reader.py`
+- ✅ Fixed missing `assert` statement (original test was never actually validating!)
+- ✅ Corrected logic to account for event duration (10s events span 5 TRs with TR=2s)
+- ✅ Updated to use `.sum().to_numpy()` and `==` operator
+- ✅ Test now passing
+
+**4. Documentation Updates**
+- ✅ Updated `docs/migration-guide.md` with new DesignMatrix methods
+- ✅ Added usage examples for sum(), ==, and reset_index()
+- ✅ Updated `polars-integration-status.md` - marked file_reader as complete
+- ✅ Updated `refactor-todos.md` - marked file_reader integration complete
+
+**Test Results**: 382 passed, 3 skipped (out of 385 total) ✅
+- **Before**: 381 passed, 4 skipped (file_reader test skipped)
+- **After**: 382 passed, 3 skipped (file_reader test passing)
+
+**Files Modified**:
+- `nltools/data/design_matrix_new.py` (+120 lines) - Added 3 methods
+- `nltools/tests/core/test_file_reader.py` (+15/-10 lines) - Fixed and unskipped test
+- `docs/migration-guide.md` (+22 lines) - Documented new methods
+- `polars-integration-status.md` (+46/-28 lines) - Updated status
+
+**Design Principles Followed**:
+- ✅ No monkey-patching or pandas-isms
+- ✅ Methods are genuinely useful, not just compatibility hacks
+- ✅ Idiomatic Polars patterns throughout (returns `pl.Series`, uses `.equals()`)
+- ✅ No changes to `file_reader.py` itself (implementation was perfect as-is)
+
+**Next Module**: GLM integration refinement (if needed) or other module integrations
 
 ---
 

@@ -1329,6 +1329,126 @@ class DesignMatrix:
             return arr.astype(dtype)
         return arr
 
+    def sum(self, axis: int = 0) -> pl.Series:
+        """
+        Compute sum along axis.
+
+        For design matrices, typically used to count onsets (sum down columns).
+        This is useful for validating that the number of events in each column
+        matches expected onset counts.
+
+        Parameters
+        ----------
+        axis : int, default=0
+            0: sum down columns (returns Series with column sums)
+            1: sum across rows (returns Series with row sums)
+
+        Returns
+        -------
+        pl.Series
+            Sums along specified axis with appropriate names
+
+        Examples
+        --------
+        >>> dm = DesignMatrix({"stim_a": [1, 0, 1, 0], "stim_b": [0, 1, 0, 1]})
+        >>> dm.sum()  # Count total events per condition
+        shape: (2,)
+        Series: '' [i64]
+        [
+            2
+            2
+        ]
+        >>> dm.sum(axis=1)  # Sum across conditions per timepoint
+        shape: (4,)
+        Series: '' [i64]
+        [
+            1
+            1
+            1
+            1
+        ]
+        """
+        if axis == 0:
+            # Sum down columns: collect sums into a Series
+            # Polars df.sum() returns a DataFrame with 1 row, we need a Series
+            sums = [self._df[col].sum() for col in self._df.columns]
+            return pl.Series(values=sums, name="")
+        elif axis == 1:
+            # Sum across columns for each row
+            return self._df.select(pl.sum_horizontal(pl.all())).to_series()
+        else:
+            raise ValueError(f"axis must be 0 or 1, got {axis}")
+
+    def __eq__(self, other) -> bool:
+        """
+        Check equality with another DesignMatrix.
+
+        Compares data frames only (ignores metadata like sampling_freq, convolved,
+        polys, and multi). Uses Polars' native equals() for fast comparison.
+
+        Parameters
+        ----------
+        other : DesignMatrix
+            Design matrix to compare with
+
+        Returns
+        -------
+        bool
+            True if data frames are equal (same shape, column names, and values)
+
+        Examples
+        --------
+        >>> dm1 = DesignMatrix({"a": [1, 2, 3]})
+        >>> dm2 = DesignMatrix({"a": [1, 2, 3]})
+        >>> dm1 == dm2
+        True
+        >>> dm3 = DesignMatrix({"a": [1, 2, 4]})
+        >>> dm1 == dm3
+        False
+
+        Notes
+        -----
+        This implements Python's equality protocol. It only compares data,
+        not metadata. Use this for verifying that two design matrices have
+        identical structure and values.
+        """
+        if not isinstance(other, DesignMatrix):
+            return NotImplemented
+        return self._df.equals(other._df)
+
+    def reset_index(self, drop: bool = True) -> "DesignMatrix":
+        """
+        Reset index (pandas compatibility method).
+
+        Polars DataFrames don't have row indexes like pandas, so this is a no-op
+        that returns self. Included for backward compatibility with pandas-based
+        code (e.g., file_reader.py).
+
+        Parameters
+        ----------
+        drop : bool, default=True
+            Ignored (Polars has no index to drop). Kept for API compatibility.
+
+        Returns
+        -------
+        DesignMatrix
+            Returns self unchanged
+
+        Examples
+        --------
+        >>> dm = DesignMatrix({"a": [1, 2, 3]})
+        >>> dm_reset = dm.reset_index(drop=True)
+        >>> dm_reset is dm  # Same object
+        True
+
+        Notes
+        -----
+        This method exists solely for compatibility with pandas-based code.
+        In pandas, reset_index() resets row indexes to default (0, 1, 2, ...).
+        In Polars, there are no row indexes, so this is unnecessary.
+        """
+        return self
+
 
 # Backward compatibility aliases (deprecated in v0.6.0)
 # TODO: Add deprecation warning in v0.6.1, remove in v0.7.0
