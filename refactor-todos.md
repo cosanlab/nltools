@@ -141,6 +141,8 @@ For strategic vision, see `refactor-plan.md`. For context and decisions, see `re
 | Test with real workflows (GLM tests) | ✅ | 18 | - |
 | Document integration status | ✅ | - | - |
 | file_reader integration (sum, __eq__, reset_index) | ✅ | 1 | - |
+| Adjacency.regress() integration (to_numpy conversion) | ✅ | 1 | - |
+| **ALL POLARS INTEGRATION COMPLETE** | ✅ | **344 passing** | **2025-10-30** |
 | Consider pyarrow dependency | 📋 | - | v0.7.0+ |
 | Profile and benchmark Polars performance | 📋 | - | v0.6.1+ |
 

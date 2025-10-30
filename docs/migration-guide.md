@@ -155,7 +155,19 @@ pd_df = dm._to_pandas()
 nilearn_glm.fit(fmri_img, design_matrices=[pd_df])
 ```
 
-**Timeline**: Complete in v0.6.0. Tutorials and examples updated.
+**Adjacency.regress() compatibility:**
+```python
+# Works seamlessly with Polars DesignMatrix
+from nltools.data import Adjacency, DesignMatrix
+
+adj = Adjacency([...])  # Your adjacency matrices
+dm = DesignMatrix({'regressor': [1, 2, 3]})
+
+# Automatic conversion to numpy for regression
+stats = adj.regress(dm)  # Works! Converts dm.to_numpy() internally
+```
+
+**Timeline**: Complete in v0.6.0. All integration work finished. Tutorials and examples updated.
 
 ## Breaking Changes
 

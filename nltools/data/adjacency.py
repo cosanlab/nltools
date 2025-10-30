@@ -1553,7 +1553,8 @@ class Adjacency(object):
                 raise ValueError(
                     "Design matrix must have same number of observations as Adjacency"
                 )
-            (b, se, t, p, df, res) = regression(X, self.data, mode=mode, **kwargs)
+            # Convert Polars DesignMatrix to numpy for stats.regress()
+            (b, se, t, p, df, res) = regression(X.to_numpy(), self.data, mode=mode, **kwargs)
 
             stats["beta"], stats["sigma"], stats["t"] = [x for x in self[:3]]
             stats["p"], stats["df"], stats["residual"] = [x for x in self[:3]]
