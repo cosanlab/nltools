@@ -1,0 +1,176 @@
+"""
+Utility functions for permutation testing.
+
+This module contains shared helper functions used across different
+permutation test implementations.
+"""
+
+import numpy as np
+from typing import Optional
+from sklearn.utils import check_random_state
+
+
+def _generate_sign_flips(
+    n_permute: int,
+    n_samples: int,
+    random_state: Optional[int] = None,
+) -> np.ndarray:
+    """
+    Generate random sign-flip matrix for one-sample permutation tests.
+
+    Creates a matrix of random +1/-1 values for sign-flipping permutation tests.
+    Each row represents one permutation, where each sample is randomly multiplied
+    by +1 or -1 to create the null distribution.
+
+    Args:
+        n_permute (int): Number of permutations to generate
+        n_samples (int): Number of samples in the dataset
+        random_state (int, optional): Random seed for reproducibility
+
+    Returns:
+        np.ndarray: Sign-flip matrix of shape (n_permute, n_samples)
+            containing only +1 and -1 values
+
+    Examples:
+        >>> sign_flips = _generate_sign_flips(n_permute=100, n_samples=30, random_state=42)
+        >>> sign_flips.shape
+        (100, 30)
+        >>> np.all(np.isin(sign_flips, [-1, 1]))
+        True
+
+    Notes:
+        - Each permutation is independent
+        - Values are uniformly sampled from {-1, +1}
+        - Returns NumPy array (device transfer handled by caller)
+    """
+    rng = check_random_state(random_state)
+    # Generate random binary values (0 or 1), then map to {-1, +1}
+    sign_flips = rng.choice([-1, 1], size=(n_permute, n_samples))
+    return sign_flips
+
+
+def _compute_pvalue(
+    obs_stat: np.ndarray,
+    null_dist: np.ndarray,
+    tail: int = 2,
+) -> np.ndarray:
+    """
+    Calculate p-values from observed statistic and null distribution.
+
+    Computes the proportion of null distribution values as extreme or more
+    extreme than the observed statistic, using the correction factor approach
+    from nltools.stats._calc_pvalue.
+
+    Args:
+        obs_stat (np.ndarray): Observed statistic(s)
+            - shape () for scalar
+            - shape (n_features,) for multi-feature
+        null_dist (np.ndarray): Null distribution from permutations
+            - shape (n_permute,) for single feature
+            - shape (n_permute, n_features) for multi-feature
+        tail (int): Test type
+            - 1: One-tailed test (obs > null)
+            - 2: Two-tailed test (|obs| > |null|)
+
+    Returns:
+        np.ndarray: P-value(s) with same shape as obs_stat
+
+    Examples:
+        >>> obs_stat = np.array([2.5])
+        >>> null_dist = np.random.randn(1000, 1)
+        >>> p = _compute_pvalue(obs_stat, null_dist, tail=2)
+        >>> 0 < p <= 1
+        True
+
+    Notes:
+        - Uses correction factor: (count + 1) / (n_permute + 1)
+        - This prevents p-value = 0 and accounts for observed value
+        - Minimum p-value is 1/(n_permute + 1)
+        - For two-tailed tests, uses absolute values
+    """
+    if tail not in [1, 2]:
+        raise ValueError(f"tail must be 1 or 2, got {tail}")
+
+    # Handle shape differences
+    if null_dist.ndim == 1:
+        null_dist = null_dist[:, np.newaxis]
+    if obs_stat.ndim == 0:
+        obs_stat = obs_stat.reshape(1)
+    elif obs_stat.ndim == 1:
+        obs_stat = obs_stat.reshape(1, -1)
+
+    n_permute = null_dist.shape[0]
+    denom = float(n_permute) + 1.0
+
+    if tail == 1:
+        # One-tailed: count how many null >= observed (or <= for negative)
+        # Apply correction: +1 to numerator
+        numer = np.sum(null_dist >= obs_stat, axis=0) + 1.0
+    else:
+        # Two-tailed: count how many |null| >= |observed|
+        # Apply correction: +1 to numerator
+        numer = np.sum(np.abs(null_dist) >= np.abs(obs_stat), axis=0) + 1.0
+
+    p_values = numer / denom
+
+    return p_values
+
+
+def _auto_batch_size(
+    n_permute: int,
+    n_samples: int,
+    n_features: int,
+    max_memory_gb: float = 4.0,
+) -> tuple[int, int]:
+    """
+    Automatically determine batch size to avoid GPU OOM.
+
+    Calculates how many permutations can be processed simultaneously
+    without exceeding the memory budget. The bottleneck is the
+    data_perm tensor: (batch_size, n_samples, n_features).
+
+    Args:
+        n_permute (int): Total number of permutations to compute
+        n_samples (int): Number of samples in dataset
+        n_features (int): Number of features/voxels
+        max_memory_gb (float): Maximum GPU memory to use in GB (default: 4.0)
+
+    Returns:
+        tuple[int, int]: (batch_size, n_batches)
+            - batch_size: Number of permutations per batch
+            - n_batches: Total number of batches needed
+
+    Examples:
+        >>> # Small problem: All permutations fit in one batch
+        >>> batch_size, n_batches = _auto_batch_size(1000, 30, 1000, max_memory_gb=4.0)
+        >>> n_batches
+        1
+
+        >>> # Large problem: Need multiple batches
+        >>> batch_size, n_batches = _auto_batch_size(10000, 30, 50000, max_memory_gb=4.0)
+        >>> n_batches > 1
+        True
+
+    Notes:
+        - Uses float32 (4 bytes per element) for memory calculation
+        - Minimum batch size is 100 permutations
+        - Maximum batch size is n_permute (all at once)
+        - Conservative estimates ensure we stay under budget
+    """
+    bytes_per_element = 4  # float32
+
+    # Memory per permutation (bottleneck: data_perm tensor)
+    # Shape: (1, n_samples, n_features)
+    memory_per_perm = n_samples * n_features * bytes_per_element
+
+    # How many permutations fit in memory budget?
+    max_memory_bytes = max_memory_gb * 1e9
+    batch_size = int(max_memory_bytes / memory_per_perm)
+
+    # Clamp to reasonable range
+    batch_size = max(100, min(batch_size, n_permute))  # At least 100, at most all
+
+    # Calculate number of batches needed
+    n_batches = int(np.ceil(n_permute / batch_size))
+
+    return batch_size, n_batches

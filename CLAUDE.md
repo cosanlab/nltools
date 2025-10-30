@@ -131,7 +131,11 @@ rm -f *.csv *.nii.gz           # Remove test data artifacts (NOT in nltools/test
 
 **Architecture**: "Functional-core, imperative shell"
 - Imperative shell: `nltools/data/` (Brain_Data, Adjacency, DesignMatrix)
-- Functional core: `stats.py`, `utils.py`, `external/algorithms.py`
+- Functional core: `stats.py`, `utils.py`, `algorithms/` (ridge, srm, hyperalignment, inference)
+- **New**: `algorithms/inference/` - GPU-accelerated permutation testing module
+  - `one_sample.py` - One-sample permutation tests (CPU parallel + GPU batched)
+  - `two_sample.py` - Two-sample permutation tests (CPU parallel + GPU batched)
+  - `utils.py` - Shared helper functions
 - **v0.5.1 = baseline**: Must work or deprecate gracefully
 
 ---
