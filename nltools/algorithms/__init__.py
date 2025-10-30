@@ -13,6 +13,7 @@ __all__ = [
     "spm_dispersion_derivative",
     "ridge_svd",
     "ridge_cv",
+    "one_sample_permutation_test",
 ]
 
 from .srm import DetSRM, SRM
@@ -25,3 +26,4 @@ from .hrf import (
     spm_dispersion_derivative,
 )
 from .ridge import ridge_svd, ridge_cv
+from .inference import one_sample_permutation_test
