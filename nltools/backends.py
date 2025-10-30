@@ -17,22 +17,16 @@ class Backend:
     Provides a unified interface for NumPy and PyTorch operations,
     enabling transparent GPU acceleration when available.
 
-    Parameters
-    ----------
-    backend : str
-        Backend type: 'numpy', 'torch', or 'auto'
-        - 'numpy': CPU-only using NumPy
-        - 'torch': PyTorch with automatic device detection (cuda/mps/cpu)
-        - 'auto': Automatically select best available backend
+    Args:
+        backend (str): Backend type: 'numpy', 'torch', or 'auto'
+            - 'numpy': CPU-only using NumPy
+            - 'torch': PyTorch with automatic device detection (cuda/mps/cpu)
+            - 'auto': Automatically select best available backend
 
-    Attributes
-    ----------
-    name : str
-        Backend identifier (e.g., 'numpy', 'torch-cuda', 'torch-mps')
-    device : str
-        Device type ('cpu', 'cuda', or 'mps')
-    xp : module
-        Array library module (numpy or torch)
+    Attributes:
+        name (str): Backend identifier (e.g., 'numpy', 'torch-cuda', 'torch-mps')
+        device (str): Device type ('cpu', 'cuda', or 'mps')
+        xp (module): Array library module (numpy or torch)
     """
 
     def __init__(self, backend: str = "numpy"):
@@ -95,15 +89,11 @@ class Backend:
         """
         Transfer array to backend device.
 
-        Parameters
-        ----------
-        arr : np.ndarray
-            Input numpy array
+        Args:
+            arr (np.ndarray): Input numpy array
 
-        Returns
-        -------
-        array
-            Array on device (numpy array or torch tensor)
+        Returns:
+            array: Array on device (numpy array or torch tensor)
         """
         if self.name == "numpy":
             # NumPy backend: ensure float32
@@ -119,15 +109,11 @@ class Backend:
         """
         Convert array back to NumPy.
 
-        Parameters
-        ----------
-        arr : np.ndarray or torch.Tensor
-            Array to convert
+        Args:
+            arr (np.ndarray or torch.Tensor): Array to convert
 
-        Returns
-        -------
-        np.ndarray
-            NumPy array
+        Returns:
+            np.ndarray: NumPy array
         """
         if self.name == "numpy":
             # NumPy backend: identity operation
@@ -145,21 +131,15 @@ class Backend:
         """
         Compute Singular Value Decomposition.
 
-        Parameters
-        ----------
-        X : array
-            Input matrix (n_samples, n_features)
-        full_matrices : bool, default=False
-            If False, returns reduced SVD
+        Args:
+            X (array): Input matrix (n_samples, n_features)
+            full_matrices (bool, default=False): If False, returns reduced SVD
 
-        Returns
-        -------
-        U : array
-            Left singular vectors
-        s : array
-            Singular values
-        Vt : array
-            Right singular vectors (transposed)
+        Returns:
+            tuple: (U, s, Vt) where:
+                - U (array): Left singular vectors
+                - s (array): Singular values
+                - Vt (array): Right singular vectors (transposed)
         """
         if self.name == "numpy":
             # NumPy backend
@@ -175,17 +155,12 @@ class Backend:
         """
         Matrix multiplication.
 
-        Parameters
-        ----------
-        A : array
-            First matrix
-        B : array
-            Second matrix
+        Args:
+            A (array): First matrix
+            B (array): Second matrix
 
-        Returns
-        -------
-        array
-            Result of A @ B
+        Returns:
+            array: Result of A @ B
         """
         if self.name == "numpy":
             # NumPy backend
@@ -201,15 +176,13 @@ def check_gpu_available() -> Tuple[bool, Dict[str, Any]]:
     """
     Check if GPU acceleration is available.
 
-    Returns
-    -------
-    available : bool
-        True if GPU (CUDA or MPS) is available
-    info : dict
-        Dictionary with keys:
-        - 'backend': 'torch' or 'numpy'
-        - 'device': 'cpu', 'cuda', or 'mps'
-        - 'device_name': Human-readable device name
+    Returns:
+        tuple: (available, info) where:
+            - available (bool): True if GPU (CUDA or MPS) is available
+            - info (dict): Dictionary with keys:
+                - 'backend': 'torch' or 'numpy'
+                - 'device': 'cpu', 'cuda', or 'mps'
+                - 'device_name': Human-readable device name
     """
     try:
         import torch
@@ -249,26 +222,19 @@ def auto_select_backend(n_samples: int, n_features: int, cv: int = 1) -> Backend
     to avoid GPU transfer overhead. Large problems prefer GPU when
     available.
 
-    Parameters
-    ----------
-    n_samples : int
-        Number of samples in dataset
-    n_features : int
-        Number of features in dataset
-    cv : int, default=1
-        Number of cross-validation folds (multiplies effective size)
+    Args:
+        n_samples (int): Number of samples in dataset
+        n_features (int): Number of features in dataset
+        cv (int, default=1): Number of cross-validation folds (multiplies effective size)
 
-    Returns
-    -------
-    Backend
-        Selected backend instance
+    Returns:
+        Backend: Selected backend instance
 
-    Notes
-    -----
-    Selection criteria:
-    - Small problems (< 10M elements): Use NumPy
-    - Large problems (> 30M elements): Use GPU if available
-    - Cross-validation: Prefer GPU even for medium problems
+    Notes:
+        Selection criteria:
+        - Small problems (< 10M elements): Use NumPy
+        - Large problems (> 30M elements): Use GPU if available
+        - Cross-validation: Prefer GPU even for medium problems
     """
     # Compute effective problem size
     problem_size = n_samples * n_features * cv

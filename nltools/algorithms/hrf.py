@@ -1,8 +1,5 @@
 """
-HRF Functions
-=============
-
-Various Hemodynamic Response Functions (HRFs) implemented by NiPy
+Hemodynamic Response Functions (HRFs) for fMRI analysis, implemented by NiPy.
 
 Copyright (c) 2006-2017, NIPY Developers
 All rights reserved.
@@ -60,16 +57,21 @@ def _gamma_difference_hrf(
     ratio=0.167,
 ):
     """Compute an hrf as the difference of two gamma functions
-    Parameters
-    ----------
-    tr: float, scan repeat time, in seconds
-    oversampling: int, temporal oversampling factor, optional
-    time_length: int, hrf kernel length, in seconds
-    onset: float, onset of the hrf
-    Returns
-    -------
-    hrf: array of shape(length / tr * oversampling, float),
-         hrf sampling on the oversampled time grid
+
+    Args:
+        tr (float): scan repeat time, in seconds
+        oversampling (int, optional): temporal oversampling factor
+        time_length (int): hrf kernel length, in seconds
+        onset (float): onset of the hrf
+        delay (float): delay parameter for gamma function
+        undershoot (float): undershoot parameter for gamma function
+        dispersion (float): dispersion parameter for gamma function
+        u_dispersion (float): undershoot dispersion parameter
+        ratio (float): ratio between the two gamma functions
+
+    Returns:
+        numpy.ndarray: hrf sampling on the oversampled time grid, shape (length / tr * oversampling,)
+
     """
     dt = tr / oversampling
     time_stamps = np.linspace(0, time_length, int(time_length / dt))

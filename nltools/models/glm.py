@@ -19,82 +19,72 @@ class Glm(BaseModel):
     similar to how Brain_Data holds masker objects. Provides sklearn-style
     interface (fit/predict/score) while exposing full nilearn GLM functionality.
 
-    Parameters
-    ----------
-    t_r : float, optional
-        Repetition time (TR) in seconds. If None, will be inferred from data.
-    noise_model : str, default='ols'
-        Noise model for temporal autocorrelation ('ols' or 'ar1').
-        - 'ols': Ordinary Least Squares (assumes independent errors)
-        - 'ar1': Autoregressive AR(1) model (accounts for temporal correlation)
-    smoothing_fwhm : float, optional
-        Full-Width at Half Maximum (FWHM) in mm for spatial smoothing.
-        If None, no smoothing is applied.
-    mask : Nifti1Image, optional
-        Mask image defining voxels to include in analysis.
-        If None, uses MNI template mask (default, like Brain_Data).
-    \\**kwargs
-        Additional arguments passed to nilearn FirstLevelModel.
+    Args:
+        t_r (float, optional): Repetition time (TR) in seconds. If None, will be
+            inferred from data.
+        noise_model (str, default='ols'): Noise model for temporal autocorrelation
+            ('ols' or 'ar1').
 
-    Attributes
-    ----------
+            - 'ols': Ordinary Least Squares (assumes independent errors)
+            - 'ar1': Autoregressive AR(1) model (accounts for temporal correlation)
 
-    is_fitted_ : bool
-        Whether the model has been fitted
-    glm_ : FirstLevelModel
-        Internal nilearn FirstLevelModel instance (for advanced use)
-    residuals : list of Nifti1Image
-        Residuals from fitted model (available after fitting)
-    design_matrices_ : list of DataFrame
-        Design matrices used in fitting (available after fitting)
+        smoothing_fwhm (float, optional): Full-Width at Half Maximum (FWHM) in mm
+            for spatial smoothing. If None, no smoothing is applied.
+        mask (Nifti1Image, optional): Mask image defining voxels to include in
+            analysis. If None, uses MNI template mask (default, like Brain_Data).
+        **kwargs: Additional arguments passed to nilearn FirstLevelModel.
 
-    Examples
-    --------
-    >>> from nltools.models import GLMModel
-    >>> from nilearn.glm.first_level import make_first_level_design_matrix
-    >>> import pandas as pd
-    >>> import numpy as np
-    >>> from nibabel import Nifti1Image
-    >>>
-    >>> # Create synthetic fMRI data
-    >>> n_scans = 100
-    >>> fmri_data = np.random.randn(n_scans, 20, 20, 20)
-    >>> img = Nifti1Image(fmri_data.T, np.eye(4))
-    >>>
-    >>> # Create design matrix
-    >>> frame_times = np.arange(n_scans) * 2.0
-    >>> events = pd.DataFrame({
-    ...     'onset': [10, 30, 50, 70],
-    ...     'duration': [1, 1, 1, 1],
-    ...     'trial_type': ['task', 'task', 'task', 'task']
-    ... })
-    >>> design_matrix = make_first_level_design_matrix(frame_times, events)
-    >>>
-    >>> # Fit GLM
-    >>> model = GLMModel(t_r=2.0, noise_model='ar1')
-    >>> model.fit(img, design_matrices=design_matrix)
-    >>>
-    >>> # Compute contrast
-    >>> task_effect = model.compute_contrast('task', output_type='stat')
-    >>>
-    >>> # Get fitted values
-    >>> fitted_values = model.predict()
-    >>>
-    >>> # Access residuals
-    >>> residuals = model.residuals
+    Attributes:
+        is_fitted_ (bool): Whether the model has been fitted
 
-    Notes
-    -----
-    Unlike Ridge which works with 2D arrays (samples × features), GLMModel
-    works with 4D neuroimaging data (x × y × z × time) and design matrices.
-    Therefore, it does not use BaseModel's input validation methods.
+    Note:
+        Access fitted results via properties: ``glm_``, ``residuals``, ``design_matrices_``
 
-    The predict() method follows sklearn's LinearRegression semantics:
-    - predict() returns fitted values (predictions on training data)
-    - predict(X) would generate predictions with new design matrix (future feature)
+    Examples:
+        >>> from nltools.models import GLMModel
+        >>> from nilearn.glm.first_level import make_first_level_design_matrix
+        >>> import pandas as pd
+        >>> import numpy as np
+        >>> from nibabel import Nifti1Image
+        >>>
+        >>> # Create synthetic fMRI data
+        >>> n_scans = 100
+        >>> fmri_data = np.random.randn(n_scans, 20, 20, 20)
+        >>> img = Nifti1Image(fmri_data.T, np.eye(4))
+        >>>
+        >>> # Create design matrix
+        >>> frame_times = np.arange(n_scans) * 2.0
+        >>> events = pd.DataFrame({
+        ...     'onset': [10, 30, 50, 70],
+        ...     'duration': [1, 1, 1, 1],
+        ...     'trial_type': ['task', 'task', 'task', 'task']
+        ... })
+        >>> design_matrix = make_first_level_design_matrix(frame_times, events)
+        >>>
+        >>> # Fit GLM
+        >>> model = GLMModel(t_r=2.0, noise_model='ar1')
+        >>> model.fit(img, design_matrices=design_matrix)
+        >>>
+        >>> # Compute contrast
+        >>> task_effect = model.compute_contrast('task', output_type='stat')
+        >>>
+        >>> # Get fitted values
+        >>> fitted_values = model.predict()
+        >>>
+        >>> # Access residuals
+        >>> residuals = model.residuals
 
-    For advanced use cases, access the internal FirstLevelModel via the
-    glm_ property to use any nilearn-specific functionality.
+    Notes:
+        Unlike Ridge which works with 2D arrays (samples × features), GLMModel
+        works with 4D neuroimaging data (x × y × z × time) and design matrices.
+        Therefore, it does not use BaseModel's input validation methods.
+
+        The predict() method follows sklearn's LinearRegression semantics:
+        - predict() returns fitted values (predictions on training data)
+        - predict(X) would generate predictions with new design matrix (future feature)
+
+        For advanced use cases, access the internal FirstLevelModel via the
+        ``glm_`` property to use any nilearn-specific functionality.
     """
 
     def __init__(
@@ -130,36 +120,30 @@ class Glm(BaseModel):
         """
         Fit GLM to fMRI data.
 
-        Parameters
-        ----------
-        X : Nifti1Image or list of Nifti1Image
-            4D fMRI image(s) to fit. Can be single run or list of runs.
-        y : None
-            Not used, present for sklearn API compatibility.
-        design_matrices : DataFrame, DesignMatrix, or list of DataFrame/DesignMatrix
-            Design matrix or list of design matrices (one per run).
-            Each should have shape (n_scans, n_regressors).
-            Accepts both pandas DataFrames and nltools DesignMatrix objects.
-        events : DataFrame or list of DataFrame, optional
-            Event specifications for automatic design matrix creation.
-            Alternative to providing design_matrices directly.
-        \\**kwargs
-            Additional arguments passed to FirstLevelModel.fit()
+        Args:
+            X (Nifti1Image or list of Nifti1Image): 4D fMRI image(s) to fit.
+                Can be single run or list of runs.
+            y (None): Not used, present for sklearn API compatibility.
+            design_matrices (DataFrame, DesignMatrix, or list of DataFrame/DesignMatrix):
+                Design matrix or list of design matrices (one per run). Each should
+                have shape (n_scans, n_regressors). Accepts both pandas DataFrames
+                and nltools DesignMatrix objects.
+            events (DataFrame or list of DataFrame, optional): Event specifications
+                for automatic design matrix creation. Alternative to providing
+                design_matrices directly.
+            **kwargs: Additional arguments passed to FirstLevelModel.fit()
 
-        Returns
-        -------
-        self : GLMModel
-            Fitted model instance (for method chaining)
+        Returns:
+            GLMModel: Fitted model instance (for method chaining)
 
-        Notes
-        -----
-        Unlike BaseModel's fit(), this method does not validate X as a 2D array
-        because GLM works with 4D neuroimaging data. Input validation is
-        delegated to nilearn's FirstLevelModel.
+        Notes:
+            Unlike BaseModel's fit(), this method does not validate X as a 2D array
+            because GLM works with 4D neuroimaging data. Input validation is
+            delegated to nilearn's FirstLevelModel.
 
-        DesignMatrix objects are automatically converted to pandas DataFrames
-        for nilearn compatibility. The conversion is done at this boundary to
-        keep DesignMatrix Polars-native while maintaining nilearn integration.
+            DesignMatrix objects are automatically converted to pandas DataFrames
+            for nilearn compatibility. The conversion is done at this boundary to
+            keep DesignMatrix Polars-native while maintaining nilearn integration.
         """
         # Convert DesignMatrix to pandas for nilearn compatibility
         if design_matrices is not None:
@@ -179,15 +163,12 @@ class Glm(BaseModel):
         """
         Convert DesignMatrix objects to pandas DataFrames for nilearn.
 
-        Parameters
-        ----------
-        design_matrices : DesignMatrix, DataFrame, or list of either
-            Design matrix/matrices to convert
+        Args:
+            design_matrices (DesignMatrix, DataFrame, or list of either): Design
+                matrix/matrices to convert
 
-        Returns
-        -------
-        converted : DataFrame or list of DataFrame
-            Pandas DataFrames for nilearn consumption
+        Returns:
+            DataFrame or list of DataFrame: Pandas DataFrames for nilearn consumption
         """
         # Import here to avoid circular dependency
         from nltools.data import DesignMatrix
@@ -213,27 +194,23 @@ class Glm(BaseModel):
         """
         Generate predictions from fitted GLM.
 
-        Parameters
-        ----------
-        X : DataFrame or None, default=None
-            Design matrix for generating predictions.
+        Args:
+            X (DataFrame or None, default=None): Design matrix for generating
+                predictions.
 
-            - If None: returns fitted values (predictions on training data)
-            - If DataFrame: generates predictions using new design matrix
-              (not yet implemented)
+                - If None: returns fitted values (predictions on training data)
+                - If DataFrame: generates predictions using new design matrix
+                  (not yet implemented)
 
-        Returns
-        -------
-        predicted : list of Nifti1Image
-            Predicted brain activity for each run
+        Returns:
+            list of Nifti1Image: Predicted brain activity for each run
 
-        Notes
-        -----
-        Follows sklearn's LinearRegression semantics where predict() without
-        arguments returns fitted values (like calling predict(X_train)).
+        Notes:
+            Follows sklearn's LinearRegression semantics where predict() without
+            arguments returns fitted values (like calling predict(X_train)).
 
-        Future enhancement will support predict(X=new_design_matrix) to
-        generate predictions with different experimental designs.
+            Future enhancement will support predict(X=new_design_matrix) to
+            generate predictions with different experimental designs.
         """
         self._check_is_fitted()
 
@@ -255,31 +232,24 @@ class Glm(BaseModel):
         Computes average coefficient of determination (R²) from the fitted GLM.
         Higher values indicate better model fit.
 
-        Parameters
-        ----------
-        X : None
-            Not used, present for sklearn API compatibility.
-        y : None
-            Not used, present for sklearn API compatibility.
+        Args:
+            X (None): Not used, present for sklearn API compatibility.
+            y (None): Not used, present for sklearn API compatibility.
 
-        Returns
-        -------
-        score : float
-            Mean R² across all voxels and runs. Range: [0, 1], higher is better.
+        Returns:
+            float: Mean R² across all voxels and runs. Range: [0, 1], higher is better.
 
-        Notes
-        -----
-        Extracts R² values from nilearn's FirstLevelModel.r_square attribute,
-        which returns a list of Nifti1Image objects (one per run).
-        Computes the mean across all non-NaN voxels and all runs.
+        Notes:
+            Extracts R² values from nilearn's FirstLevelModel.r_square attribute,
+            which returns a list of Nifti1Image objects (one per run).
+            Computes the mean across all non-NaN voxels and all runs.
 
-        For voxel-wise R² maps, access `glm_.r_square` directly.
+            For voxel-wise R² maps, access `glm_.r_square` directly.
 
-        Examples
-        --------
-        >>> brain.fit(model='glm', X=design_matrix)
-        >>> r2 = brain.model_.score()
-        >>> print(f"Mean R²: {r2:.3f}")
+        Examples:
+            >>> brain.fit(model='glm', X=design_matrix)
+            >>> r2 = brain.model_.score()
+            >>> print(f"Mean R²: {r2:.3f}")
         """
         self._check_is_fitted()
 
@@ -320,43 +290,37 @@ class Glm(BaseModel):
         Delegates to nilearn's FirstLevelModel.compute_contrast() for proper
         statistical inference with correct degrees of freedom, etc.
 
-        Parameters
-        ----------
-        contrast_def : str, array-like, or dict
-            Contrast specification:
-            - str: Regressor name (e.g., 'task')
-            - array-like: Contrast vector (e.g., [1, -1, 0, 0])
-            - dict: Multiple contrasts with names as keys
+        Args:
+            contrast_def (str, array-like, or dict): Contrast specification:
+                - str: Regressor name (e.g., 'task')
+                - array-like: Contrast vector (e.g., [1, -1, 0, 0])
+                - dict: Multiple contrasts with names as keys
+            output_type (str, default='stat'): Type of output to return:
+                - 'stat': T-statistic map (default)
+                - 'z_score': Z-score map
+                - 'p_value': P-value map
+                - 'effect_size': Effect size (beta) map
+                - 'effect_variance': Variance of effect size
+                - 'all': Dictionary with all output types
 
-        output_type : str, default='stat'
-            Type of output to return:
-            - 'stat': T-statistic map (default)
-            - 'z_score': Z-score map
-            - 'p_value': P-value map
-            - 'effect_size': Effect size (beta) map
-            - 'effect_variance': Variance of effect size
-            - 'all': Dictionary with all output types
+        Returns:
+            Nifti1Image or dict: Contrast map(s). If output_type='all', returns dict
+                with all maps.
 
-        Returns
-        -------
-        result : Nifti1Image or dict
-            Contrast map(s). If output_type='all', returns dict with all maps.
-
-        Examples
-        --------
-        >>> # After fitting model
-        >>> model.fit(img, design_matrices=design_matrix)
-        >>>
-        >>> # Simple contrast by name
-        >>> t_map = model.compute_contrast('task')
-        >>>
-        >>> # Contrast vector
-        >>> contrast_map = model.compute_contrast([1, -1, 0])
-        >>>
-        >>> # Get all outputs
-        >>> results = model.compute_contrast('task', output_type='all')
-        >>> t_map = results['stat']
-        >>> p_map = results['p_value']
+        Examples:
+            >>> # After fitting model
+            >>> model.fit(img, design_matrices=design_matrix)
+            >>>
+            >>> # Simple contrast by name
+            >>> t_map = model.compute_contrast('task')
+            >>>
+            >>> # Contrast vector
+            >>> contrast_map = model.compute_contrast([1, -1, 0])
+            >>>
+            >>> # Get all outputs
+            >>> results = model.compute_contrast('task', output_type='all')
+            >>> t_map = results['stat']
+            >>> p_map = results['p_value']
         """
         self._check_is_fitted()
         return self._glm.compute_contrast(contrast_def, output_type=output_type)
@@ -368,15 +332,11 @@ class Glm(BaseModel):
         """
         Residuals from fitted GLM.
 
-        Returns
-        -------
-        residuals : list of Nifti1Image
-            Residual images for each run (observed - predicted)
+        Returns:
+            list of Nifti1Image: Residual images for each run (observed - predicted)
 
-        Raises
-        ------
-        ValueError
-            If model has not been fitted yet
+        Raises:
+            ValueError: If model has not been fitted yet
         """
         self._check_is_fitted()
         return self._glm.residuals
@@ -386,15 +346,11 @@ class Glm(BaseModel):
         """
         Design matrices used in fitting.
 
-        Returns
-        -------
-        design_matrices : list of DataFrame
-            Design matrices for each run
+        Returns:
+            list of DataFrame: Design matrices for each run
 
-        Raises
-        ------
-        ValueError
-            If model has not been fitted yet
+        Raises:
+            ValueError: If model has not been fitted yet
         """
         self._check_is_fitted()
         return self._glm.design_matrices_
@@ -408,18 +364,15 @@ class Glm(BaseModel):
         instance for advanced users who need functionality not exposed
         by the sklearn-compatible interface.
 
-        Returns
-        -------
-        glm : FirstLevelModel
-            Internal nilearn FirstLevelModel instance
+        Returns:
+            FirstLevelModel: Internal nilearn FirstLevelModel instance
 
-        Examples
-        --------
-        >>> # Access nilearn-specific attributes
-        >>> model.glm_.labels_
-        >>> model.glm_.results_
-        >>>
-        >>> # Use nilearn-specific methods
-        >>> model.glm_.generate_report()
+        Examples:
+            >>> # Access nilearn-specific attributes
+            >>> model.glm_.labels_
+            >>> model.glm_.results_
+            >>>
+            >>> # Use nilearn-specific methods
+            >>> model.glm_.generate_report()
         """
         return self._glm

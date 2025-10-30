@@ -18,47 +18,38 @@ class Ridge(BaseModel):
     scikit-learn compatible API. Supports single and multi-target
     regression with optional GPU acceleration via PyTorch.
 
-    Parameters
-    ----------
-    alpha : float or 'auto', default=1.0
-        Regularization strength. If 'auto', uses cross-validation
-        to select optimal alpha from alphas parameter.
-    cv : int or None, default=None
-        Number of cross-validation folds (only used if alpha='auto')
-    alphas : array-like or None, default=None
-        Alpha values to try during cross-validation
-    backend : str or Backend, default='numpy'
-        Computational backend ('numpy', 'torch', or 'auto')
-    random_state : int or None, default=None
-        Random seed for reproducibility
+    Args:
+        alpha (float or 'auto', default=1.0): Regularization strength. If 'auto',
+            uses cross-validation to select optimal alpha from alphas parameter.
+        cv (int or None, default=None): Number of cross-validation folds (only used
+            if alpha='auto')
+        alphas (array-like or None, default=None): Alpha values to try during
+            cross-validation
+        backend (str or Backend, default='numpy'): Computational backend ('numpy',
+            'torch', or 'auto')
+        random_state (int or None, default=None): Random seed for reproducibility
 
-    Attributes
-    ----------
+    Attributes:
+        coef_ (ndarray of shape (n_features,) or (n_features, n_targets)): Ridge
+            coefficients
+        alpha_ (float): Alpha value used (selected via CV if alpha='auto')
+        cv_scores_ (ndarray): Cross-validation scores (only if alpha='auto')
+        backend_ (Backend): Backend instance used for computation
 
-    coef_ : ndarray of shape (n_features,) or (n_features, n_targets)
-        Ridge coefficients
-    alpha_ : float
-        Alpha value used (selected via CV if alpha='auto')
-    cv_scores_ : ndarray
-        Cross-validation scores (only if alpha='auto')
-    backend_ : Backend
-        Backend instance used for computation
-
-    Examples
-    --------
-    >>> from nltools.models import Ridge
-    >>> import numpy as np
-    >>> X = np.random.randn(100, 50)
-    >>> y = np.random.randn(100)
-    >>> model = Ridge(alpha=1.0)
-    >>> model.fit(X, y)
-    Ridge(alpha=1.0, backend='numpy')
-    >>> y_pred = model.predict(X)
-    >>>
-    >>> # OLS (unregularized) regression: use small alpha
-    >>> model_ols = Ridge(alpha=1e-6)
-    >>> model_ols.fit(X, y)
-    >>> # Coefficients are effectively OLS estimates
+    Examples:
+        >>> from nltools.models import Ridge
+        >>> import numpy as np
+        >>> X = np.random.randn(100, 50)
+        >>> y = np.random.randn(100)
+        >>> model = Ridge(alpha=1.0)
+        >>> model.fit(X, y)
+        Ridge(alpha=1.0, backend='numpy')
+        >>> y_pred = model.predict(X)
+        >>>
+        >>> # OLS (unregularized) regression: use small alpha
+        >>> model_ols = Ridge(alpha=1e-6)
+        >>> model_ols.fit(X, y)
+        >>> # Coefficients are effectively OLS estimates
     """
 
     def __init__(
@@ -75,17 +66,12 @@ class Ridge(BaseModel):
         """
         Fit ridge regression model.
 
-        Parameters
-        ----------
-        X : ndarray of shape (n_samples, n_features)
-            Training data
-        y : ndarray of shape (n_samples,) or (n_samples, n_targets)
-            Target values
+        Args:
+            X (ndarray of shape (n_samples, n_features)): Training data
+            y (ndarray of shape (n_samples,) or (n_samples, n_targets)): Target values
 
-        Returns
-        -------
-        self : Ridge
-            Fitted model instance
+        Returns:
+            Ridge: Fitted model instance
         """
         # Validate inputs
         X, y = self._validate_X_y(X, y)
@@ -122,15 +108,11 @@ class Ridge(BaseModel):
         """
         Predict using the ridge model.
 
-        Parameters
-        ----------
-        X : ndarray of shape (n_samples, n_features)
-            Samples to predict
+        Args:
+            X (ndarray of shape (n_samples, n_features)): Samples to predict
 
-        Returns
-        -------
-        y_pred : ndarray of shape (n_samples,) or (n_samples, n_targets)
-            Predicted values
+        Returns:
+            ndarray of shape (n_samples,) or (n_samples, n_targets): Predicted values
         """
         self._check_is_fitted()
         X = self._validate_X(X, reset=False)
@@ -144,17 +126,13 @@ class Ridge(BaseModel):
         """
         Return the coefficient of determination R^2 of the prediction.
 
-        Parameters
-        ----------
-        X : ndarray of shape (n_samples, n_features)
-            Test samples
-        y : ndarray of shape (n_samples,) or (n_samples, n_targets)
-            True values for X
+        Args:
+            X (ndarray of shape (n_samples, n_features)): Test samples
+            y (ndarray of shape (n_samples,) or (n_samples, n_targets)): True values
+                for X
 
-        Returns
-        -------
-        score : float
-            R^2 of self.predict(X) vs y
+        Returns:
+            float: R^2 of self.predict(X) vs y
         """
         self._check_is_fitted()
         X, y = self._validate_X_y(X, y)

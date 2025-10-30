@@ -40,8 +40,7 @@ predictions = data.predict(X=test_data)
     :members:
     :undoc-members:
     :show-inheritance:
-
-.. automethod:: __init__
+    :special-members: __init__
 ```
 
 ## See Also

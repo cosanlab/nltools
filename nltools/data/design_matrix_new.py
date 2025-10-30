@@ -20,59 +20,44 @@ class DesignMatrix:
     Wraps a Polars DataFrame with neuroimaging-specific metadata and methods.
     Uses composition pattern (not subclassing) for clean metadata preservation.
 
-    Parameters
-    ----------
-    data : DataFrame, ndarray, dict, or None
-        Input data. Accepts:
-        - Polars DataFrame (zero-copy)
-        - pandas DataFrame (converted to Polars)
-        - numpy ndarray
-        - dict (keys=columns, values=data)
-        - None (empty initialization)
-    sampling_freq : float, optional
-        Sampling frequency in Hz (1/TR for fMRI data)
-    columns : list of str, optional
-        Column names (used with ndarray input)
-    convolved : list of str, optional
-        Names of convolved columns (tracked internally)
-    polys : list of str, optional
-        Names of polynomial columns (tracked internally)
+    Args:
+        data (DataFrame, ndarray, dict, or None): Input data. Accepts:
+            - Polars DataFrame (zero-copy)
+            - pandas DataFrame (converted to Polars)
+            - numpy ndarray
+            - dict (keys=columns, values=data)
+            - None (empty initialization)
+        sampling_freq (float, optional): Sampling frequency in Hz (1/TR for fMRI data)
+        columns (list of str, optional): Column names (used with ndarray input)
+        convolved (list of str, optional): Names of convolved columns (tracked internally)
+        polys (list of str, optional): Names of polynomial columns (tracked internally)
 
-    Attributes
-    ----------
-    sampling_freq : float or None
-        Sampling frequency in Hz
-    convolved : list of str
-        Columns that have been convolved
-    polys : list of str
-        Polynomial/nuisance columns (intercept, trends, DCT bases)
-    multi : bool
-        True if created from multi-run concatenation
-    shape : tuple
-        (n_rows, n_cols)
-    columns : list of str
-        Column names
-    empty : bool
-        True if no data
+    Attributes:
+        sampling_freq (float or None): Sampling frequency in Hz
+        convolved (list of str): Columns that have been convolved
+        polys (list of str): Polynomial/nuisance columns (intercept, trends, DCT bases)
+        multi (bool): True if created from multi-run concatenation
+        shape (tuple): (n_rows, n_cols)
+        columns (list of str): Column names
+        empty (bool): True if no data
 
-    Examples
-    --------
-    >>> # Create from numpy array
-    >>> dm = DesignMatrix(np.zeros((100, 2)), sampling_freq=0.5, columns=['a', 'b'])
+    Examples:
+        >>> # Create from numpy array
+        >>> dm = DesignMatrix(np.zeros((100, 2)), sampling_freq=0.5, columns=['a', 'b'])
 
-    >>> # Add columns
-    >>> dm['stim'] = [0, 1, 1, 0] * 25
+        >>> # Add columns
+        >>> dm['stim'] = [0, 1, 1, 0] * 25
 
-    >>> # Convolve with HRF
-    >>> dm_conv = dm.convolve()
+        >>> # Convolve with HRF
+        >>> dm_conv = dm.convolve()
 
-    >>> # Add polynomial drift terms
-    >>> dm_conv = dm_conv.add_poly(order=2)
+        >>> # Add polynomial drift terms
+        >>> dm_conv = dm_conv.add_poly(order=2)
 
-    >>> # Multi-run concatenation (auto-separates polynomials)
-    >>> dm_run1 = DesignMatrix(...).add_poly(0)
-    >>> dm_run2 = DesignMatrix(...).add_poly(0)
-    >>> dm_multi = dm_run1.append(dm_run2, axis=0)  # Creates 0_poly_0, 1_poly_0
+        >>> # Multi-run concatenation (auto-separates polynomials)
+        >>> dm_run1 = DesignMatrix(...).add_poly(0)
+        >>> dm_run2 = DesignMatrix(...).add_poly(0)
+        >>> dm_multi = dm_run1.append(dm_run2, axis=0)  # Creates 0_poly_0, 1_poly_0
     """
 
     _metadata = ["sampling_freq", "convolved", "polys", "multi"]
@@ -221,18 +206,15 @@ class DesignMatrix:
 
         Returns a new DesignMatrix with cloned data and metadata.
 
-        Returns
-        -------
-        DesignMatrix
-            Copy of the current DesignMatrix
+        Returns:
+            DesignMatrix: Copy of the current DesignMatrix
 
-        Examples
-        --------
-        >>> dm = DesignMatrix({"a": [1, 2, 3]}, sampling_freq=1)
-        >>> dm_copy = dm.copy()
-        >>> dm_copy["a"] = [4, 5, 6]  # Modifying copy doesn't affect original
-        >>> dm["a"].to_list()
-        [1, 2, 3]
+        Examples:
+            >>> dm = DesignMatrix({"a": [1, 2, 3]}, sampling_freq=1)
+            >>> dm_copy = dm.copy()
+            >>> dm_copy["a"] = [4, 5, 6]  # Modifying copy doesn't affect original
+            >>> dm["a"].to_list()
+            [1, 2, 3]
         """
         # Clone the Polars DataFrame (creates deep copy)
         cloned_df = self._df.clone()
@@ -244,15 +226,11 @@ class DesignMatrix:
         """
         Z-score standardize columns (mean=0, std=1).
 
-        Parameters
-        ----------
-        columns : list of str, optional
-            Columns to standardize. If None, standardize all non-polynomial columns.
+        Args:
+            columns (list of str, optional): Columns to standardize. If None, standardize all non-polynomial columns.
 
-        Returns
-        -------
-        DesignMatrix
-            New DesignMatrix with standardized columns
+        Returns:
+            DesignMatrix: New DesignMatrix with standardized columns
         """
         # Determine which columns to z-score
         if columns is None:
@@ -278,17 +256,12 @@ class DesignMatrix:
         """
         Reduce temporal resolution to target frequency.
 
-        Parameters
-        ----------
-        target : float
-            Target sampling frequency in Hz (must be < current sampling_freq)
-        **kwargs
-            Additional arguments passed to nltools.stats.downsample
+        Args:
+            target (float): Target sampling frequency in Hz (must be < current sampling_freq)
+            **kwargs: Additional arguments passed to nltools.stats.downsample
 
-        Returns
-        -------
-        DesignMatrix
-            Downsampled DesignMatrix with updated sampling_freq
+        Returns:
+            DesignMatrix: Downsampled DesignMatrix with updated sampling_freq
         """
         from nltools.stats import downsample as stats_downsample
 
@@ -327,17 +300,12 @@ class DesignMatrix:
         """
         Increase temporal resolution to target frequency.
 
-        Parameters
-        ----------
-        target : float
-            Target sampling frequency in Hz (must be > current sampling_freq)
-        **kwargs
-            Additional arguments passed to nltools.stats.upsample
+        Args:
+            target (float): Target sampling frequency in Hz (must be > current sampling_freq)
+            **kwargs: Additional arguments passed to nltools.stats.upsample
 
-        Returns
-        -------
-        DesignMatrix
-            Upsampled DesignMatrix with updated sampling_freq
+        Returns:
+            DesignMatrix: Upsampled DesignMatrix with updated sampling_freq
         """
         from nltools.stats import upsample as stats_upsample
 
@@ -380,31 +348,25 @@ class DesignMatrix:
         """
         Convolve columns with HRF or custom kernel.
 
-        Parameters
-        ----------
-        conv_func : str or ndarray
-            'hrf' for canonical Glover HRF, or custom kernel(s)
-            Can be 1D array (single kernel) or 2D (samples x kernels)
-        columns : list of str, optional
-            Columns to convolve (default: all non-polynomial columns)
+        Args:
+            conv_func (str or ndarray): 'hrf' for canonical Glover HRF, or custom kernel(s).
+                Can be 1D array (single kernel) or 2D (samples x kernels)
+            columns (list of str, optional): Columns to convolve (default: all non-polynomial columns)
 
-        Returns
-        -------
-        DesignMatrix
-            New DesignMatrix with convolved columns
+        Returns:
+            DesignMatrix: New DesignMatrix with convolved columns
 
-        Examples
-        --------
-        >>> # Default HRF convolution
-        >>> dm_conv = dm.convolve()
+        Examples:
+            >>> # Default HRF convolution
+            >>> dm_conv = dm.convolve()
 
-        >>> # Custom kernel
-        >>> kernel = np.array([0.5, 1.0, 0.5])
-        >>> dm_conv = dm.convolve(conv_func=kernel)
+            >>> # Custom kernel
+            >>> kernel = np.array([0.5, 1.0, 0.5])
+            >>> dm_conv = dm.convolve(conv_func=kernel)
 
-        >>> # Multiple kernels (FIR model)
-        >>> kernels = np.array([[1.0, 0.5], [0.5, 1.0]]).T  # 2 kernels
-        >>> dm_conv = dm.convolve(conv_func=kernels)  # Creates col_c0, col_c1
+            >>> # Multiple kernels (FIR model)
+            >>> kernels = np.array([[1.0, 0.5], [0.5, 1.0]]).T  # 2 kernels
+            >>> dm_conv = dm.convolve(conv_func=kernels)  # Creates col_c0, col_c1
         """
         from ..algorithms.hrf import glover_hrf
 
@@ -490,12 +452,9 @@ class DesignMatrix:
         """
         Add Legendre polynomial drift terms.
 
-        Parameters
-        ----------
-        order : int
-            Polynomial order (0=intercept, 1=linear, 2=quadratic, ...)
-        include_lower : bool
-            If True, include all orders from 0 to order
+        Args:
+            order (int): Polynomial order (0=intercept, 1=linear, 2=quadratic, ...)
+            include_lower (bool): If True, include all orders from 0 to order
         """
         if order < 0:
             raise ValueError("Order must be 0 or greater")
@@ -547,12 +506,9 @@ class DesignMatrix:
         """
         Add discrete cosine transform basis functions (high-pass filter).
 
-        Parameters
-        ----------
-        duration : float
-            Filter duration in seconds
-        drop : int
-            Number of low-frequency bases to drop
+        Args:
+            duration (float): Filter duration in seconds
+            drop (int): Number of low-frequency bases to drop
         """
         if self.sampling_freq is None:
             raise ValueError("Design_Matrix has no sampling_freq set!")
@@ -625,20 +581,13 @@ class DesignMatrix:
         """
         Concatenate design matrices.
 
-        Parameters
-        ----------
-        dm : DesignMatrix or list of DesignMatrix
-            Design matrix/matrices to append
-        axis : int
-            0 for row-wise (vertical), 1 for column-wise (horizontal)
-        keep_separate : bool
-            Whether to separate polynomial columns across runs (only axis=0)
-        unique_cols : list of str, optional
-            Additional columns to keep separated (supports wildcards)
-        fill_na : int or float
-            Value to fill NaN values during vertical concatenation
-        verbose : bool
-            Print messages about polynomial separation
+        Args:
+            dm (DesignMatrix or list of DesignMatrix): Design matrix/matrices to append
+            axis (int): 0 for row-wise (vertical), 1 for column-wise (horizontal)
+            keep_separate (bool): Whether to separate polynomial columns across runs (only axis=0)
+            unique_cols (list of str, optional): Additional columns to keep separated (supports wildcards)
+            fill_na (int or float): Value to fill NaN values during vertical concatenation
+            verbose (bool): Print messages about polynomial separation
         """
         # Normalize to list
         to_append = [dm] if not isinstance(dm, list) else dm
@@ -735,15 +684,12 @@ class DesignMatrix:
         """
         Match columns against pattern with wildcard support.
 
-        Parameters
-        ----------
-        columns : list of str
-            Column names to search
-        pattern : str
-            Pattern to match (supports '*' as wildcard)
-            - 'motion*' matches motion_x, motion_y
-            - '*_motion' matches x_motion, y_motion
-            - 'exact' matches only 'exact'
+        Args:
+            columns (list of str): Column names to search
+            pattern (str): Pattern to match (supports '*' as wildcard)
+                - 'motion*' matches motion_x, motion_y
+                - '*_motion' matches x_motion, y_motion
+                - 'exact' matches only 'exact'
         """
         if pattern.endswith("*"):
             prefix = pattern[:-1]
@@ -758,10 +704,8 @@ class DesignMatrix:
         """
         Determine next run index for multi-run appending.
 
-        Returns
-        -------
-        int
-            Next run index (0 if not multi-run, max_existing_idx + 1 otherwise)
+        Returns:
+            int: Next run index (0 if not multi-run, max_existing_idx + 1 otherwise)
         """
         if not self.multi:
             return 0
@@ -783,17 +727,12 @@ class DesignMatrix:
         """
         Identify which columns need run-specific separation.
 
-        Parameters
-        ----------
-        all_dms : list of DesignMatrix
-            All matrices being concatenated
-        unique_cols : list of str, optional
-            User-specified columns to separate (supports wildcards)
+        Args:
+            all_dms (list of DesignMatrix): All matrices being concatenated
+            unique_cols (list of str, optional): User-specified columns to separate (supports wildcards)
 
-        Returns
-        -------
-        set
-            Column names that should be separated with run prefixes
+        Returns:
+            set: Column names that should be separated with run prefixes
         """
         cols_to_sep = set()
 
@@ -908,15 +847,11 @@ class DesignMatrix:
         Uses diagonal elements of inverted correlation matrix
         (same method as Matlab and R).
 
-        Parameters
-        ----------
-        exclude_polys : bool
-            Skip polynomial columns (default True)
+        Args:
+            exclude_polys (bool): Skip polynomial columns (default True)
 
-        Returns
-        -------
-        np.ndarray
-            VIF values for each non-polynomial column
+        Returns:
+            np.ndarray: VIF values for each non-polynomial column
         """
         if self.shape[1] <= 1:
             raise ValueError("Can't compute VIF with only 1 column!")
@@ -965,21 +900,14 @@ class DesignMatrix:
         Removes columns with correlation >= threshold. Keeps first instance
         of correlated pair, drops duplicates.
 
-        Parameters
-        ----------
-        fill_na : int, float, or None
-            Fill NaN values before checking correlations (default 0)
-        exclude_polys : bool
-            Skip polynomial columns from correlation check
-        thresh : float
-            Correlation threshold (drop if |r| >= thresh, default 0.95)
-        verbose : bool
-            Print dropped column names
+        Args:
+            fill_na (int, float, or None): Fill NaN values before checking correlations (default 0)
+            exclude_polys (bool): Skip polynomial columns from correlation check
+            thresh (float): Correlation threshold (drop if |r| >= thresh, default 0.95)
+            verbose (bool): Print dropped column names
 
-        Returns
-        -------
-        DesignMatrix
-            Cleaned matrix with highly correlated columns removed
+        Returns:
+            DesignMatrix: Cleaned matrix with highly correlated columns removed
         """
         # Check for duplicate column names
         if len(self.columns) != len(set(self.columns)):
@@ -1065,11 +993,9 @@ class DesignMatrix:
         """
         Return human-readable metadata summary.
 
-        Returns
-        -------
-        str
-            Formatted string showing sampling_freq, shape, convolved columns,
-            and polynomial columns
+        Returns:
+            str: Formatted string showing sampling_freq, shape, convolved columns,
+                and polynomial columns
         """
         lines = [
             f"DesignMatrix(sampling_freq={self.sampling_freq}, shape={self.shape})",
@@ -1094,22 +1020,15 @@ class DesignMatrix:
         This is useful when you want to substitute stimulus regressors
         while keeping nuisance regressors (polynomials, drift terms) intact.
 
-        Parameters
-        ----------
-        data : ndarray
-            New data array (must match number of rows in current DesignMatrix)
-        column_names : list of str, optional
-            Names for new data columns. If not provided, uses numeric names.
+        Args:
+            data (ndarray): New data array (must match number of rows in current DesignMatrix)
+            column_names (list of str, optional): Names for new data columns. If not provided, uses numeric names.
 
-        Returns
-        -------
-        DesignMatrix
-            New DesignMatrix with replaced data columns, preserved polynomials
+        Returns:
+            DesignMatrix: New DesignMatrix with replaced data columns, preserved polynomials
 
-        Raises
-        ------
-        ValueError
-            If row count doesn't match existing data
+        Raises:
+            ValueError: If row count doesn't match existing data
         """
         # Validate row count
         if data.shape[0] != self.shape[0]:
@@ -1147,22 +1066,16 @@ class DesignMatrix:
         Creates a heatmap visualization of the design matrix columns.
         Uses seaborn + matplotlib under the hood.
 
-        Parameters
-        ----------
-        figsize : tuple, default=(8, 6)
-            Figure size (width, height) in inches
-        **kwargs
-            Additional keyword arguments passed to seaborn.heatmap()
+        Args:
+            figsize (tuple, default=(8, 6)): Figure size (width, height) in inches
+            **kwargs: Additional keyword arguments passed to seaborn.heatmap()
 
-        Returns
-        -------
-        matplotlib.axes.Axes
-            The axes object containing the heatmap
+        Returns:
+            matplotlib.axes.Axes: The axes object containing the heatmap
 
-        Examples
-        --------
-        >>> dm = DesignMatrix(np.random.randn(100, 3), columns=['a', 'b', 'c'])
-        >>> dm.heatmap()
+        Examples:
+            >>> dm = DesignMatrix(np.random.randn(100, 3), columns=['a', 'b', 'c'])
+            >>> dm.heatmap()
         """
         import matplotlib.pyplot as plt
         import seaborn as sns
@@ -1204,12 +1117,9 @@ class DesignMatrix:
         This is the core pattern for immutable transformations.
         All methods that transform data should use this helper.
 
-        Parameters
-        ----------
-        new_df : pl.DataFrame
-            New underlying data
-        **metadata_updates
-            Metadata attributes to override (e.g., convolved=['stim'])
+        Args:
+            new_df (pl.DataFrame): New underlying data
+            **metadata_updates: Metadata attributes to override (e.g., convolved=['stim'])
         """
         # Start with current metadata
         metadata = self._get_metadata()
@@ -1244,24 +1154,19 @@ class DesignMatrix:
         This helper reduces code duplication across methods that need to
         distinguish between data columns and polynomial/nuisance columns.
 
-        Parameters
-        ----------
-        exclude_polys : bool, default=True
-            If True, exclude polynomial/nuisance columns from the result
+        Args:
+            exclude_polys (bool, default=True): If True, exclude polynomial/nuisance columns from the result
 
-        Returns
-        -------
-        list of str
-            Column names (excluding polys if requested)
+        Returns:
+            list of str: Column names (excluding polys if requested)
 
-        Examples
-        --------
-        >>> dm = DesignMatrix(...)
-        >>> dm.add_poly(2)
-        >>> dm._get_data_columns(exclude_polys=True)
-        ['stim_1', 'stim_2']  # poly_0, poly_1, poly_2 excluded
-        >>> dm._get_data_columns(exclude_polys=False)
-        ['stim_1', 'stim_2', 'poly_0', 'poly_1', 'poly_2']
+        Examples:
+            >>> dm = DesignMatrix(...)
+            >>> dm.add_poly(2)
+            >>> dm._get_data_columns(exclude_polys=True)
+            ['stim_1', 'stim_2']  # poly_0, poly_1, poly_2 excluded
+            >>> dm._get_data_columns(exclude_polys=False)
+            ['stim_1', 'stim_2', 'poly_0', 'poly_1', 'poly_2']
         """
         if exclude_polys and self.polys:
             return [col for col in self.columns if col not in self.polys]
@@ -1276,22 +1181,18 @@ class DesignMatrix:
 
         Future v0.7.0: Consider adding pyarrow for 10-100x faster conversion.
 
-        Returns
-        -------
-        pd.DataFrame
-            Pandas DataFrame with same data and column names
+        Returns:
+            pd.DataFrame: Pandas DataFrame with same data and column names
 
-        Notes
-        -----
-        This method is used internally for:
-        - downsample/upsample (bridge to stats.py functions)
-        - heatmap (seaborn expects pandas)
-        - Any other pandas-compatibility needs
+        Notes:
+            This method is used internally for:
+            - downsample/upsample (bridge to stats.py functions)
+            - heatmap (seaborn expects pandas)
+            - Any other pandas-compatibility needs
 
-        Examples
-        --------
-        >>> dm = DesignMatrix(...)
-        >>> pd_df = dm._to_pandas()  # For seaborn/matplotlib plotting
+        Examples:
+            >>> dm = DesignMatrix(...)
+            >>> pd_df = dm._to_pandas()  # For seaborn/matplotlib plotting
         """
         return pd.DataFrame(self._df.to_dict(as_series=False))
 
@@ -1302,17 +1203,14 @@ class DesignMatrix:
         Returns data columns as 2D numpy array (rows × columns).
         Column order is preserved from DataFrame.
 
-        Returns
-        -------
-        np.ndarray
-            2D array with shape (n_samples, n_columns)
+        Returns:
+            np.ndarray: 2D array with shape (n_samples, n_columns)
 
-        Examples
-        --------
-        >>> dm = DesignMatrix({"a": [1, 2, 3], "b": [4, 5, 6]}, sampling_freq=1)
-        >>> arr = dm.to_numpy()
-        >>> arr.shape
-        (3, 2)
+        Examples:
+            >>> dm = DesignMatrix({"a": [1, 2, 3], "b": [4, 5, 6]}, sampling_freq=1)
+            >>> arr = dm.to_numpy()
+            >>> arr.shape
+            (3, 2)
         """
         return self._df.to_numpy()
 
@@ -1323,23 +1221,18 @@ class DesignMatrix:
         This is the standard numpy protocol for converting objects to arrays.
         It's what numpy.asarray() calls internally.
 
-        Parameters
-        ----------
-        dtype : numpy dtype, optional
-            Desired data type for the array
+        Args:
+            dtype (numpy dtype, optional): Desired data type for the array
 
-        Returns
-        -------
-        np.ndarray
-            2D numpy array representation
+        Returns:
+            np.ndarray: 2D numpy array representation
 
-        Examples
-        --------
-        >>> dm = DesignMatrix({"a": [1, 2, 3]}, sampling_freq=1)
-        >>> np.array(dm)  # Uses __array__()
-        array([[1], [2], [3]])
-        >>> np.asarray(dm)  # Also uses __array__()
-        array([[1], [2], [3]])
+        Examples:
+            >>> dm = DesignMatrix({"a": [1, 2, 3]}, sampling_freq=1)
+            >>> np.array(dm)  # Uses __array__()
+            array([[1], [2], [3]])
+            >>> np.asarray(dm)  # Also uses __array__()
+            array([[1], [2], [3]])
         """
         arr = self._df.to_numpy()
         if dtype is not None:
@@ -1354,36 +1247,31 @@ class DesignMatrix:
         This is useful for validating that the number of events in each column
         matches expected onset counts.
 
-        Parameters
-        ----------
-        axis : int, default=0
-            0: sum down columns (returns Series with column sums)
-            1: sum across rows (returns Series with row sums)
+        Args:
+            axis (int, default=0): 0: sum down columns (returns Series with column sums)
+                1: sum across rows (returns Series with row sums)
 
-        Returns
-        -------
-        pl.Series
-            Sums along specified axis with appropriate names
+        Returns:
+            pl.Series: Sums along specified axis with appropriate names
 
-        Examples
-        --------
-        >>> dm = DesignMatrix({"stim_a": [1, 0, 1, 0], "stim_b": [0, 1, 0, 1]})
-        >>> dm.sum()  # Count total events per condition
-        shape: (2,)
-        Series: '' [i64]
-        [
-            2
-            2
-        ]
-        >>> dm.sum(axis=1)  # Sum across conditions per timepoint
-        shape: (4,)
-        Series: '' [i64]
-        [
-            1
-            1
-            1
-            1
-        ]
+        Examples:
+            >>> dm = DesignMatrix({"stim_a": [1, 0, 1, 0], "stim_b": [0, 1, 0, 1]})
+            >>> dm.sum()  # Count total events per condition
+            shape: (2,)
+            Series: '' [i64]
+            [
+                2
+                2
+            ]
+            >>> dm.sum(axis=1)  # Sum across conditions per timepoint
+            shape: (4,)
+            Series: '' [i64]
+            [
+                1
+                1
+                1
+                1
+            ]
         """
         if axis == 0:
             # Sum down columns: collect sums into a Series
@@ -1403,31 +1291,25 @@ class DesignMatrix:
         Compares data frames only (ignores metadata like sampling_freq, convolved,
         polys, and multi). Uses Polars' native equals() for fast comparison.
 
-        Parameters
-        ----------
-        other : DesignMatrix
-            Design matrix to compare with
+        Args:
+            other (DesignMatrix): Design matrix to compare with
 
-        Returns
-        -------
-        bool
-            True if data frames are equal (same shape, column names, and values)
+        Returns:
+            bool: True if data frames are equal (same shape, column names, and values)
 
-        Examples
-        --------
-        >>> dm1 = DesignMatrix({"a": [1, 2, 3]})
-        >>> dm2 = DesignMatrix({"a": [1, 2, 3]})
-        >>> dm1 == dm2
-        True
-        >>> dm3 = DesignMatrix({"a": [1, 2, 4]})
-        >>> dm1 == dm3
-        False
+        Examples:
+            >>> dm1 = DesignMatrix({"a": [1, 2, 3]})
+            >>> dm2 = DesignMatrix({"a": [1, 2, 3]})
+            >>> dm1 == dm2
+            True
+            >>> dm3 = DesignMatrix({"a": [1, 2, 4]})
+            >>> dm1 == dm3
+            False
 
-        Notes
-        -----
-        This implements Python's equality protocol. It only compares data,
-        not metadata. Use this for verifying that two design matrices have
-        identical structure and values.
+        Notes:
+            This implements Python's equality protocol. It only compares data,
+            not metadata. Use this for verifying that two design matrices have
+            identical structure and values.
         """
         if not isinstance(other, DesignMatrix):
             return NotImplemented
@@ -1441,28 +1323,22 @@ class DesignMatrix:
         that returns self. Included for backward compatibility with pandas-based
         code (e.g., file_reader.py).
 
-        Parameters
-        ----------
-        drop : bool, default=True
-            Ignored (Polars has no index to drop). Kept for API compatibility.
+        Args:
+            drop (bool, default=True): Ignored (Polars has no index to drop). Kept for API compatibility.
 
-        Returns
-        -------
-        DesignMatrix
-            Returns self unchanged
+        Returns:
+            DesignMatrix: Returns self unchanged
 
-        Examples
-        --------
-        >>> dm = DesignMatrix({"a": [1, 2, 3]})
-        >>> dm_reset = dm.reset_index(drop=True)
-        >>> dm_reset is dm  # Same object
-        True
+        Examples:
+            >>> dm = DesignMatrix({"a": [1, 2, 3]})
+            >>> dm_reset = dm.reset_index(drop=True)
+            >>> dm_reset is dm  # Same object
+            True
 
-        Notes
-        -----
-        This method exists solely for compatibility with pandas-based code.
-        In pandas, reset_index() resets row indexes to default (0, 1, 2, ...).
-        In Polars, there are no row indexes, so this is unnecessary.
+        Notes:
+            This method exists solely for compatibility with pandas-based code.
+            In pandas, reset_index() resets row indexes to default (0, 1, 2, ...).
+            In Polars, there are no row indexes, so this is unnecessary.
         """
         return self
 

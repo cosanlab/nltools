@@ -39,8 +39,7 @@ stats = similarity.ttest(permutation=True, n_permutations=5000)
     :members:
     :undoc-members:
     :show-inheritance:
-
-.. automethod:: __init__
+    :special-members: __init__
 ```
 
 ## See Also

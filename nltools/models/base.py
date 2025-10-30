@@ -17,15 +17,10 @@ class BaseModel(ABC):
     - predict(X) generates predictions
     - score(X, y) evaluates model performance
 
-    Attributes
-    ----------
-
-    n_features_in_ : int
-        Number of features seen during fit
-    n_samples_ : int
-        Number of samples seen during fit
-    is_fitted_ : bool
-        Whether the model has been fitted
+    Attributes:
+        n_features_in_ (int): Number of features seen during fit
+        n_samples_ (int): Number of samples seen during fit
+        is_fitted_ (bool): Whether the model has been fitted
     """
 
     def __init__(self):
@@ -36,17 +31,12 @@ class BaseModel(ABC):
         """
         Fit the model to training data.
 
-        Parameters
-        ----------
-        X : ndarray of shape (n_samples, n_features)
-            Training data
-        y : ndarray of shape (n_samples,) or (n_samples, n_targets)
-            Target values
+        Args:
+            X (ndarray of shape (n_samples, n_features)): Training data
+            y (ndarray of shape (n_samples,) or (n_samples, n_targets)): Target values
 
-        Returns
-        -------
-        self : BaseModel
-            Fitted model instance
+        Returns:
+            BaseModel: Fitted model instance
         """
         # Store training dimensions
         self.n_samples_, self.n_features_in_ = X.shape
@@ -58,15 +48,11 @@ class BaseModel(ABC):
         """
         Generate predictions for new data.
 
-        Parameters
-        ----------
-        X : ndarray of shape (n_samples, n_features)
-            Data to predict on
+        Args:
+            X (ndarray of shape (n_samples, n_features)): Data to predict on
 
-        Returns
-        -------
-        y_pred : ndarray
-            Predicted values
+        Returns:
+            ndarray: Predicted values
         """
         pass
 
@@ -75,17 +61,12 @@ class BaseModel(ABC):
         """
         Evaluate model performance.
 
-        Parameters
-        ----------
-        X : ndarray of shape (n_samples, n_features)
-            Test data
-        y : ndarray of shape (n_samples,) or (n_samples, n_targets)
-            True values
+        Args:
+            X (ndarray of shape (n_samples, n_features)): Test data
+            y (ndarray of shape (n_samples,) or (n_samples, n_targets)): True values
 
-        Returns
-        -------
-        score : float
-            Model performance metric
+        Returns:
+            float: Model performance metric
         """
         pass
 
@@ -93,10 +74,8 @@ class BaseModel(ABC):
         """
         Check if model has been fitted.
 
-        Raises
-        ------
-        ValueError
-            If model has not been fitted yet
+        Raises:
+            ValueError: If model has not been fitted yet
         """
         if not self.is_fitted_:
             raise ValueError(
@@ -108,23 +87,16 @@ class BaseModel(ABC):
         """
         Validate input data X.
 
-        Parameters
-        ----------
-        X : array-like
-            Input data to validate
-        reset : bool, default=True
-            If True, allows fitting (new n_features_in_).
-            If False, validates that n_features matches training.
+        Args:
+            X (array-like): Input data to validate
+            reset (bool, default=True): If True, allows fitting (new n_features_in_).
+                If False, validates that n_features matches training.
 
-        Returns
-        -------
-        X : ndarray
-            Validated and converted input array
+        Returns:
+            ndarray: Validated and converted input array
 
-        Raises
-        ------
-        ValueError
-            If X is not 2D or features don't match training
+        Raises:
+            ValueError: If X is not 2D or features don't match training
         """
         X = np.asarray(X)
 
@@ -147,24 +119,15 @@ class BaseModel(ABC):
         """
         Validate input data X and target y.
 
-        Parameters
-        ----------
-        X : array-like
-            Input data
-        y : array-like
-            Target values
+        Args:
+            X (array-like): Input data
+            y (array-like): Target values
 
-        Returns
-        -------
-        X : ndarray
-            Validated input array
-        y : ndarray
-            Validated target array
+        Returns:
+            tuple: (X, y) as validated ndarrays
 
-        Raises
-        ------
-        ValueError
-            If X/y shapes are invalid or inconsistent
+        Raises:
+            ValueError: If X/y shapes are invalid or inconsistent
         """
         X = self._validate_X(X)
         y = np.asarray(y)

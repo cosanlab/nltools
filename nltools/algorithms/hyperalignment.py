@@ -26,25 +26,18 @@ def _procrustes_pairwise(data1, data2):
     Internal helper function that performs pairwise Procrustes alignment.
     This is adapted from nltools.stats.procrustes() for internal use.
 
-    Parameters
-    ----------
-    data1 : array_like, shape (n_samples, n_features)
-        Reference matrix (target for alignment)
-    data2 : array_like, shape (n_samples, n_features)
-        Matrix to be aligned to data1
+    Args:
+        data1 (array_like, shape (n_samples, n_features)): Reference matrix
+            (target for alignment)
+        data2 (array_like, shape (n_samples, n_features)): Matrix to be aligned
+            to data1
 
-    Returns
-    -------
-    mtx1 : ndarray
-        Standardized version of data1
-    mtx2 : ndarray
-        Aligned version of data2
-    disparity : float
-        Sum of squared differences between aligned matrices
-    R : ndarray
-        Orthogonal transformation matrix
-    scale : float
-        Scale factor from singular values
+    Returns:
+        mtx1 (ndarray): Standardized version of data1
+        mtx2 (ndarray): Aligned version of data2
+        disparity (float): Sum of squared differences between aligned matrices
+        R (ndarray): Orthogonal transformation matrix
+        scale (float): Scale factor from singular values
     """
     mtx1 = np.array(data1, dtype=np.double, copy=True)
     mtx2 = np.array(data2, dtype=np.double, copy=True)
@@ -102,69 +95,62 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
     This implements the Procrustes-based hyperalignment method commonly
     used in multi-subject neuroimaging analysis.
 
-    Parameters
-    ----------
-    n_iter : int, default=2
-        Number of template refinement iterations (stages 1-2).
-    auto_pad : bool, default=True
-        If True, automatically zero-pad matrices to standardize sizes.
-        If False, caller must ensure all matrices have same dimensions.
+    Args:
+        n_iter (int, default=2): Number of template refinement iterations
+            (stages 1-2).
+        auto_pad (bool, default=True): If True, automatically zero-pad matrices
+            to standardize sizes. If False, caller must ensure all matrices have
+            same dimensions.
 
-    Attributes
-    ----------
+    Attributes:
+        w_ (list of ndarray, element i has shape=[features_i, features]): The
+            transformation matrices (rotation + reflection) for each subject.
+        s_ (ndarray, shape=[features, samples]): The aligned common template
+            (shared response).
+        disparity_ (list of float): Disparity (sum of squared differences) for
+            each subject.
+        scale_ (list of float): Scale factors for each subject.
 
-    w_ : list of ndarray, element i has shape=[features_i, features]
-        The transformation matrices (rotation + reflection) for each subject.
-    s_ : ndarray, shape=[features, samples]
-        The aligned common template (shared response).
-    common_model_ : ndarray, shape=[features, samples]
-        Alias for ``s_`` (for backward compatibility with align() output).
-    disparity_ : list of float
-        Disparity (sum of squared differences) for each subject.
-    scale_ : list of float
-        Scale factors for each subject.
+    Note:
+        ``common_model_`` property provides alias for ``s_`` (backward compatibility).
 
-    Examples
-    --------
-    Basic multi-subject alignment:
+    Examples:
+        Basic multi-subject alignment:
 
-    >>> from nltools.algorithms import HyperAlignment
-    >>> import numpy as np
-    >>>
-    >>> # Create sample data (3 subjects)
-    >>> data = [np.random.randn(100, 50) for _ in range(3)]
-    >>>
-    >>> # Fit hyperalignment
-    >>> hyper = HyperAlignment(n_iter=2)
-    >>> hyper.fit(data)
-    >>>
-    >>> # Transform to common space
-    >>> aligned = hyper.transform(data)
-    >>>
-    >>> # Access common template
-    >>> template = hyper.s_  # or hyper.common_model_
-    >>>
-    >>> # Align a new subject
-    >>> new_subject = np.random.randn(100, 50)
-    >>> new_transform = hyper.transform_subject(new_subject)
+        >>> from nltools.algorithms import HyperAlignment
+        >>> import numpy as np
+        >>>
+        >>> # Create sample data (3 subjects)
+        >>> data = [np.random.randn(100, 50) for _ in range(3)]
+        >>>
+        >>> # Fit hyperalignment
+        >>> hyper = HyperAlignment(n_iter=2)
+        >>> hyper.fit(data)
+        >>>
+        >>> # Transform to common space
+        >>> aligned = hyper.transform(data)
+        >>>
+        >>> # Access common template
+        >>> template = hyper.s_  # or hyper.common_model_
+        >>>
+        >>> # Align a new subject
+        >>> new_subject = np.random.randn(100, 50)
+        >>> new_transform = hyper.transform_subject(new_subject)
 
-    References
-    ----------
-    Haxby, J. V., Guntupalli, J. S., Connolly, A. C., Halchenko, Y. O.,
-    Conroy, B. R., Gobbini, M. I., ... & Ramadge, P. J. (2011).
-    A common, high-dimensional model of the representational space in
-    human ventral temporal cortex. Neuron, 72(2), 404-416.
+    References:
+        Haxby, J. V., Guntupalli, J. S., Connolly, A. C., Halchenko, Y. O.,
+        Conroy, B. R., Gobbini, M. I., ... & Ramadge, P. J. (2011).
+        A common, high-dimensional model of the representational space in
+        human ventral temporal cortex. Neuron, 72(2), 404-416.
     """
 
     def __init__(self, n_iter=2, auto_pad=True):
         """Initialize HyperAlignment.
 
-        Parameters
-        ----------
-        n_iter : int, default=2
-            Number of template refinement iterations
-        auto_pad : bool, default=True
-            Whether to automatically pad matrices to same size
+        Args:
+            n_iter (int, default=2): Number of template refinement iterations
+            auto_pad (bool, default=True): Whether to automatically pad matrices
+                to same size
         """
         self.n_iter = n_iter
         self.auto_pad = auto_pad
@@ -172,17 +158,13 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
     def fit(self, data):
         """Fit hyperalignment model to data.
 
-        Parameters
-        ----------
-        data : list of ndarray
-            List of data matrices, each with shape (n_features, n_samples).
-            Different subjects can have different numbers of features if
-            auto_pad=True.
+        Args:
+            data (list of ndarray): List of data matrices, each with shape
+                (n_features, n_samples). Different subjects can have different
+                numbers of features if auto_pad=True.
 
-        Returns
-        -------
-        self : HyperAlignment
-            Fitted model
+        Returns:
+            self (HyperAlignment): Fitted model
         """
         if not isinstance(data, list):
             raise TypeError("Data must be a list of arrays")
@@ -286,16 +268,13 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
     def transform(self, data):
         """Transform data to common space using fitted transformations.
 
-        Parameters
-        ----------
-        data : list of ndarray
-            List of data matrices to transform. Should be the same data
-            used for fitting (or have compatible dimensions).
+        Args:
+            data (list of ndarray): List of data matrices to transform. Should be
+                the same data used for fitting (or have compatible dimensions).
 
-        Returns
-        -------
-        transformed : list of ndarray
-            List of transformed data matrices in common space
+        Returns:
+            transformed (list of ndarray): List of transformed data matrices in
+                common space
         """
         if not hasattr(self, "w_"):
             raise ValueError("Model must be fit before transform")
@@ -321,21 +300,15 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
     def transform_subject(self, subject_data):
         """Align a new subject to the common space.
 
-        Parameters
-        ----------
-        subject_data : ndarray, shape (n_features, n_samples)
-            Data from a new subject to align to the common template
+        Args:
+            subject_data (ndarray, shape (n_features, n_samples)): Data from a new
+                subject to align to the common template
 
-        Returns
-        -------
-        transformed : ndarray
-            Aligned data in common space
-        R : ndarray
-            Transformation matrix used
-        disparity : float
-            Alignment quality (sum of squared differences)
-        scale : float
-            Scale factor used
+        Returns:
+            transformed (ndarray): Aligned data in common space
+            R (ndarray): Transformation matrix used
+            disparity (float): Alignment quality (sum of squared differences)
+            scale (float): Scale factor used
         """
         if not hasattr(self, "s_"):
             raise ValueError("Model must be fit before transform_subject")

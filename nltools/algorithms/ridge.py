@@ -4,11 +4,10 @@ Ridge regression algorithms using SVD decomposition.
 Inspired by the himalaya library's efficient SVD-based ridge regression approach.
 himalaya is licensed under BSD-3-Clause: https://github.com/gallantlab/himalaya
 
-References
-----------
-- Huth, A. G., et al. (2016). "Natural speech reveals the semantic maps that tile
-  human cerebral cortex." Nature, 532(7600), 453-458.
-- himalaya documentation: https://gallantlab.github.io/himalaya/
+References:
+    - Huth, A. G., et al. (2016). "Natural speech reveals the semantic maps that tile
+      human cerebral cortex." Nature, 532(7600), 453-458.
+    - himalaya documentation: https://gallantlab.github.io/himalaya/
 """
 
 import numpy as np
@@ -37,47 +36,39 @@ def ridge_svd(
 
     This formulation avoids explicit matrix inversion and is numerically stable.
 
-    Parameters
-    ----------
-    X : np.ndarray, shape (n_samples, n_features)
-        Training data features
-    y : np.ndarray, shape (n_samples,) or (n_samples, n_targets)
-        Target values. Can be 1D for single-target or 2D for multi-target
-    alpha : float, default=1.0
-        Regularization strength. Must be positive. Higher values
-        increase regularization (shrink coefficients toward zero)
-    backend : Backend or str, optional
-        Backend for computation ('numpy', 'torch', 'auto', or Backend instance).
-        If None, uses NumPy. If 'auto', selects based on problem size.
+    Args:
+        X (np.ndarray): Training data features with shape (n_samples, n_features)
+        y (np.ndarray): Target values with shape (n_samples,) or (n_samples, n_targets).
+            Can be 1D for single-target or 2D for multi-target
+        alpha (float, optional): Regularization strength. Must be positive. Higher values
+            increase regularization (shrink coefficients toward zero). Defaults to 1.0.
+        backend (Backend or str, optional): Backend for computation ('numpy', 'torch', 'auto', or Backend instance).
+            If None, uses NumPy. If 'auto', selects based on problem size.
 
-    Returns
-    -------
-    coef : np.ndarray
-        Ridge regression coefficients
-        - shape (n_features,) for single-target regression
-        - shape (n_features, n_targets) for multi-target regression
+    Returns:
+        np.ndarray: Ridge regression coefficients
+            - shape (n_features,) for single-target regression
+            - shape (n_features, n_targets) for multi-target regression
 
-    Examples
-    --------
-    >>> X = np.random.randn(100, 50)
-    >>> y = np.random.randn(100)
-    >>> beta = ridge_svd(X, y, alpha=1.0)
-    >>> beta.shape
-    (50,)
+    Examples:
+        >>> X = np.random.randn(100, 50)
+        >>> y = np.random.randn(100)
+        >>> beta = ridge_svd(X, y, alpha=1.0)
+        >>> beta.shape
+        (50,)
 
-    >>> # Multi-target regression
-    >>> Y = np.random.randn(100, 5)
-    >>> beta = ridge_svd(X, Y, alpha=1.0)
-    >>> beta.shape
-    (50, 5)
+        >>> # Multi-target regression
+        >>> Y = np.random.randn(100, 5)
+        >>> beta = ridge_svd(X, Y, alpha=1.0)
+        >>> beta.shape
+        (50, 5)
 
-    Notes
-    -----
-    - Time complexity: O(n_samples * n_features * min(n_samples, n_features))
-    - Space complexity: O(n_samples * n_features)
-    - For alpha→0, this reduces to ordinary least squares (OLS). Use alpha=1e-6
-      for OLS in practice (more numerically stable than alpha=0)
-    - Supports both CPU (NumPy) and GPU (PyTorch) backends
+    Notes:
+        - Time complexity: O(n_samples * n_features * min(n_samples, n_features))
+        - Space complexity: O(n_samples * n_features)
+        - For alpha→0, this reduces to ordinary least squares (OLS). Use alpha=1e-6
+          for OLS in practice (more numerically stable than alpha=0)
+        - Supports both CPU (NumPy) and GPU (PyTorch) backends
     """
     # Input validation
     if alpha < 0:
@@ -159,49 +150,37 @@ def ridge_cv(
     Performs k-fold cross-validation to select the best alpha parameter,
     then fits a final model on all data using the selected alpha.
 
-    Parameters
-    ----------
-    X : np.ndarray, shape (n_samples, n_features)
-        Training data features
-    y : np.ndarray, shape (n_samples,) or (n_samples, n_targets)
-        Target values
-    alphas : np.ndarray, optional
-        Array of alpha values to try. If None, uses default range:
-        np.logspace(-2, 4, 20) = [0.01, 0.015, ..., 10000]
-    cv : int, default=5
-        Number of cross-validation folds
-    backend : str or Backend, default='auto'
-        Backend for computation. 'auto' selects based on problem size.
+    Args:
+        X (np.ndarray): Training data features with shape (n_samples, n_features)
+        y (np.ndarray): Target values with shape (n_samples,) or (n_samples, n_targets)
+        alphas (np.ndarray, optional): Array of alpha values to try. If None, uses default range:
+            np.logspace(-2, 4, 20) = [0.01, 0.015, ..., 10000]
+        cv (int, optional): Number of cross-validation folds. Defaults to 5.
+        backend (str or Backend, optional): Backend for computation. 'auto' selects based on problem size.
+            Defaults to 'auto'.
 
-    Returns
-    -------
-    result : dict
-        Dictionary containing:
+    Returns:
+        dict: Dictionary containing:
 
-        - 'alpha' : float
-            Best alpha value selected by CV
-        - 'coef' : np.ndarray
-            Coefficients using best alpha on full dataset
-        - 'cv_scores' : np.ndarray, shape (n_folds, n_alphas, n_targets)
-            Cross-validation R**2 scores for each fold, alpha, and target
-        - 'backend' : str
-            Backend used for computation
+            - 'alpha' (float): Best alpha value selected by CV
+            - 'coef' (np.ndarray): Coefficients using best alpha on full dataset
+            - 'cv_scores' (np.ndarray): Cross-validation R**2 scores for each fold, alpha, and target
+                with shape (n_folds, n_alphas, n_targets)
+            - 'backend' (str): Backend used for computation
 
-    Examples
-    --------
-    >>> X = np.random.randn(100, 50)
-    >>> y = np.random.randn(100)
-    >>> result = ridge_cv(X, y, cv=3)
-    >>> result['alpha']  # Best alpha selected
-    1.0
-    >>> result['coef'].shape
-    (50,)
+    Examples:
+        >>> X = np.random.randn(100, 50)
+        >>> y = np.random.randn(100)
+        >>> result = ridge_cv(X, y, cv=3)
+        >>> result['alpha']  # Best alpha selected
+        1.0
+        >>> result['coef'].shape
+        (50,)
 
-    Notes
-    -----
-    - Uses R**2 (coefficient of determination) as the scoring metric
-    - For multi-target regression, selects alpha that maximizes mean R**2 across targets
-    - Automatically uses GPU backend for large problems when available
+    Notes:
+        - Uses R**2 (coefficient of determination) as the scoring metric
+        - For multi-target regression, selects alpha that maximizes mean R**2 across targets
+        - Automatically uses GPU backend for large problems when available
     """
     # Default alphas: logarithmic range from 0.01 to 10000
     if alphas is None:
