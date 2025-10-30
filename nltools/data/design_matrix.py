@@ -436,12 +436,6 @@ class DesignMatrix:
         else:
             columns_to_convolve = columns
 
-        # TODO: why is this variable unused? Or is this stale code?
-        # Columns that should NOT be convolved
-        non_convolved_cols = [
-            col for col in self.columns if col not in columns_to_convolve
-        ]
-
         # Get the convolution kernel
         if isinstance(conv_func, str):
             if conv_func != "hrf":
