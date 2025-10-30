@@ -8,6 +8,7 @@ Focus: Idiomatic Polars patterns, efficient vectorization, clean composition.
 import numpy as np
 import pandas as pd
 import polars as pl
+from polars import selectors as cs
 from typing import Union, List, Optional
 from scipy.special import legendre
 from ..stats import make_cosine_basis
@@ -267,12 +268,14 @@ class DesignMatrix:
 
         if self.sampling_freq is None:
             raise ValueError(
-                "DesignMatrix must have sampling_freq set for downsampling"
+                "DesignMatrix must have sampling_freq set for downsampling. "
+                "Specify sampling_freq when creating: DesignMatrix(..., sampling_freq=0.5)"
             )
 
         if target >= self.sampling_freq:
             raise ValueError(
-                f"Target ({target} Hz) must be less than current sampling_freq ({self.sampling_freq} Hz)"
+                f"Downsampling target ({target} Hz) must be less than current sampling_freq "
+                f"({self.sampling_freq} Hz). For upsampling, use .upsample() instead."
             )
 
         # Convert to pandas for existing downsample function
@@ -310,11 +313,15 @@ class DesignMatrix:
         from nltools.stats import upsample as stats_upsample
 
         if self.sampling_freq is None:
-            raise ValueError("DesignMatrix must have sampling_freq set for upsampling")
+            raise ValueError(
+                "DesignMatrix must have sampling_freq set for upsampling. "
+                "Specify sampling_freq when creating: DesignMatrix(..., sampling_freq=0.5)"
+            )
 
         if target <= self.sampling_freq:
             raise ValueError(
-                f"Target ({target} Hz) must be greater than current sampling_freq ({self.sampling_freq} Hz)"
+                f"Upsampling target ({target} Hz) must be greater than current sampling_freq "
+                f"({self.sampling_freq} Hz). For downsampling, use .downsample() instead."
             )
 
         # Convert to pandas for existing upsample function
@@ -371,7 +378,10 @@ class DesignMatrix:
         from ..algorithms.hrf import glover_hrf
 
         if self.sampling_freq is None:
-            raise ValueError("DesignMatrix must have sampling_freq set for convolution")
+            raise ValueError(
+                "DesignMatrix must have sampling_freq set for convolution. "
+                "Specify sampling_freq when creating: DesignMatrix(..., sampling_freq=0.5)"
+            )
 
         # Determine which columns to convolve
         if columns is None:
@@ -389,17 +399,24 @@ class DesignMatrix:
         if isinstance(conv_func, str):
             if conv_func != "hrf":
                 raise ValueError(
-                    "conv_func must be 'hrf' or a numpy array. Did you mean 'hrf'?"
+                    f"String conv_func must be 'hrf', got '{conv_func}'. "
+                    "Use conv_func='hrf' or provide a numpy array. "
+                    "Tip: Use nltools.utils.glover_hrf() to generate custom HRFs."
                 )
             # Generate Glover HRF at this sampling frequency
             # TR = 1 / sampling_freq
             conv_func = glover_hrf(1.0 / self.sampling_freq, oversampling=1.0)
         elif isinstance(conv_func, np.ndarray):
             if len(conv_func.shape) > 2:
-                raise ValueError("conv_func must be 1D or 2D array (samples x kernels)")
+                raise ValueError(
+                    f"HRF function must be 1D (shape: (samples,)) or 2D (shape: (samples, n_kernels)). "
+                    f"Got shape: {conv_func.shape}. "
+                    "Tip: Use nltools.utils.glover_hrf() to generate HRFs."
+                )
         else:
             raise TypeError(
-                f"conv_func must be 'hrf' string or numpy array, got {type(conv_func)}"
+                f"conv_func must be 'hrf' (str) or numpy array, got {type(conv_func).__name__}. "
+                "Tip: Use conv_func='hrf' for canonical HRF."
             )
 
         # Perform convolution
@@ -420,28 +437,17 @@ class DesignMatrix:
         else:
             # Multiple kernels: shape is (samples, n_kernels)
             n_kernels = conv_func.shape[1]
-            all_convolved_data = {}
+            convolved_series = []
 
             for col in columns_to_convolve:
                 col_data = self._df[col].to_numpy()
                 for k_idx in range(n_kernels):
                     kernel = conv_func[:, k_idx]
                     convolved = np.convolve(col_data, kernel)[:n_rows]
-                    all_convolved_data[f"{col}_c{k_idx}"] = convolved
+                    convolved_series.append(pl.Series(f"{col}_c{k_idx}", convolved))
 
-            # Create new DataFrame with all convolved columns + non-convolved
-            convolved_df = pl.DataFrame(all_convolved_data)
-            non_convolved_df = (
-                self._df.select(non_convolved_cols)
-                if non_convolved_cols
-                else pl.DataFrame()
-            )
-
-            # Concatenate horizontally
-            if non_convolved_cols:
-                new_df = pl.concat([convolved_df, non_convolved_df], how="horizontal")
-            else:
-                new_df = convolved_df
+            # Drop original columns, add convolved variants (idiomatic Polars pattern)
+            new_df = self._df.drop(columns_to_convolve).with_columns(convolved_series)
 
         # Update metadata
         return self._copy_with(new_df, convolved=columns_to_convolve)
@@ -457,7 +463,10 @@ class DesignMatrix:
             include_lower (bool): If True, include all orders from 0 to order
         """
         if order < 0:
-            raise ValueError("Order must be 0 or greater")
+            raise ValueError(
+                f"Polynomial order must be >= 0, got {order}. "
+                "Common orders: 0 (intercept only), 1 (linear trend), 2 (quadratic), 3 (cubic)."
+            )
 
         # Check for ambiguous polynomials from previous append operations
         if self.polys and any(elem.count("_") == 2 for elem in self.polys):
@@ -511,7 +520,10 @@ class DesignMatrix:
             drop (int): Number of low-frequency bases to drop
         """
         if self.sampling_freq is None:
-            raise ValueError("Design_Matrix has no sampling_freq set!")
+            raise ValueError(
+                "DesignMatrix must have sampling_freq set for DCT basis functions. "
+                "Specify sampling_freq when creating: DesignMatrix(..., sampling_freq=0.5)"
+            )
 
         # Check for ambiguous cosine bases from previous append operations
         if self.polys and any(
@@ -854,21 +866,29 @@ class DesignMatrix:
             np.ndarray: VIF values for each non-polynomial column
         """
         if self.shape[1] <= 1:
-            raise ValueError("Can't compute VIF with only 1 column!")
+            raise ValueError(
+                "Can't compute VIF with only 1 column! "
+                "VIF measures multicollinearity and requires at least 2 columns. "
+                f"Your DesignMatrix has shape {self.shape}."
+            )
 
-        # Determine which columns to include
-        if exclude_polys:
-            cols_to_use = self._get_data_columns(exclude_polys=True)
+        # Determine which columns to include (using polars selectors for declarative filtering)
+        if exclude_polys and self.polys:
+            # Use polars selector: "select all columns except polynomial terms"
+            subset_df = self._df.select(cs.exclude(self.polys))
+        elif exclude_polys:
+            # No polys to exclude, use all columns
+            subset_df = self._df
         else:
             # Always exclude intercept (poly_0) columns even when exclude_polys=False
             cols_to_use = [c for c in self.columns if "poly_0" not in c]
+            subset_df = self._df.select(cols_to_use)
 
         # Edge case: single column has VIF = 1 (no multicollinearity)
-        if len(cols_to_use) == 1:
+        if subset_df.shape[1] == 1:
             return np.array([1.0])
 
-        # Select columns and convert to numpy for correlation
-        subset_df = self._df.select(cols_to_use)
+        # Convert to numpy for correlation
         data_array = subset_df.to_numpy()
 
         # Compute correlation matrix
