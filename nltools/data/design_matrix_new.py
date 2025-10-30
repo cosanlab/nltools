@@ -716,8 +716,175 @@ class DesignMatrix:
             return self._copy_with(new_df, polys=all_polys)
 
         # Complex case: keep_separate=True - separate polynomial columns across runs
-        # TODO: Implement multi-run polynomial separation
-        raise NotImplementedError("Polynomial separation not yet implemented")
+        return self._append_vertical_with_separation(
+            to_append, unique_cols, fill_na, verbose
+        )
+
+    def _match_column_pattern(self, columns: List[str], pattern: str) -> List[str]:
+        """
+        Match columns against pattern with wildcard support.
+
+        Parameters
+        ----------
+        columns : list of str
+            Column names to search
+        pattern : str
+            Pattern to match (supports '*' as wildcard)
+            - 'motion*' matches motion_x, motion_y
+            - '*_motion' matches x_motion, y_motion
+            - 'exact' matches only 'exact'
+        """
+        if pattern.endswith('*'):
+            prefix = pattern[:-1]
+            return [c for c in columns if c.startswith(prefix)]
+        elif pattern.startswith('*'):
+            suffix = pattern[1:]
+            return [c for c in columns if c.endswith(suffix)]
+        else:
+            return [c for c in columns if c == pattern]
+
+    def _get_starting_run_idx(self) -> int:
+        """
+        Determine next run index for multi-run appending.
+
+        Returns
+        -------
+        int
+            Next run index (0 if not multi-run, max_existing_idx + 1 otherwise)
+        """
+        if not self.multi:
+            return 0
+
+        # Find max run index from column names like "0_poly_0", "1_motion_x"
+        max_idx = -1
+        for col in self.columns:
+            if '_' in col:
+                first_part = col.split('_')[0]
+                if first_part.isdigit():
+                    idx = int(first_part)
+                    max_idx = max(max_idx, idx)
+
+        return max_idx + 1 if max_idx >= 0 else 0
+
+    def _identify_columns_to_separate(
+        self,
+        all_dms: List["DesignMatrix"],
+        unique_cols: Optional[List[str]]
+    ) -> set:
+        """
+        Identify which columns need run-specific separation.
+
+        Parameters
+        ----------
+        all_dms : list of DesignMatrix
+            All matrices being concatenated
+        unique_cols : list of str, optional
+            User-specified columns to separate (supports wildcards)
+
+        Returns
+        -------
+        set
+            Column names that should be separated with run prefixes
+        """
+        cols_to_sep = set()
+
+        # Add polynomial columns from non-multi DMs only
+        # (Multi-run DMs already have separated polynomials)
+        for dm in all_dms:
+            if dm.polys and not dm.multi:
+                cols_to_sep.update(dm.polys)
+
+        # Add unique_cols with wildcard matching
+        if unique_cols:
+            # Collect all column names across all DMs
+            all_column_names = set()
+            for dm in all_dms:
+                all_column_names.update(dm.columns)
+
+            # Match each pattern
+            for pattern in unique_cols:
+                matched = self._match_column_pattern(list(all_column_names), pattern)
+                cols_to_sep.update(matched)
+
+        return cols_to_sep
+
+    def _append_vertical_with_separation(
+        self,
+        to_append: List["DesignMatrix"],
+        unique_cols: Optional[List[str]],
+        fill_na: Union[int, float],
+        verbose: bool,
+    ) -> "DesignMatrix":
+        """
+        Vertical concatenation with automatic polynomial separation.
+
+        This creates run-specific columns (e.g., 0_poly_0, 1_poly_0) that are
+        active only in their respective runs (sparse representation).
+        """
+        # Handle two cases differently:
+        # 1. Self is NOT multi: process all DMs with sequential numbering
+        # 2. Self IS multi: keep self unchanged, only process to_append DMs
+
+        if not self.multi:
+            # Case 1: Standard multi-run creation
+            all_dms = [self] + to_append
+            cols_to_sep = self._identify_columns_to_separate(all_dms, unique_cols)
+
+            if verbose and cols_to_sep:
+                print(f"Separating columns across runs: {sorted(cols_to_sep)}")
+
+            processed_dfs = []
+            all_new_polys = []
+
+            for i, dm in enumerate(all_dms):
+                # Build rename mapping for separated columns
+                rename_map = {col: f"{i}_{col}" for col in dm.columns if col in cols_to_sep}
+
+                # Rename and collect
+                processed_df = dm._df.rename(rename_map) if rename_map else dm._df
+                processed_dfs.append(processed_df)
+
+                # Track renamed polys
+                for poly in dm.polys:
+                    if poly in rename_map:
+                        all_new_polys.append(rename_map[poly])
+
+        else:
+            # Case 2: Appending to existing multi-run DM
+            start_idx = self._get_starting_run_idx()
+            cols_to_sep = self._identify_columns_to_separate(to_append, unique_cols)
+
+            if verbose and cols_to_sep:
+                print(f"Separating columns across runs: {sorted(cols_to_sep)}")
+
+            # Keep self's DataFrame unchanged
+            processed_dfs = [self._df]
+            all_new_polys = self.polys.copy() if self.polys else []
+
+            # Process only the DMs being appended
+            for i, dm in enumerate(to_append):
+                run_idx = start_idx + i
+
+                # Build rename mapping for separated columns
+                rename_map = {col: f"{run_idx}_{col}" for col in dm.columns if col in cols_to_sep}
+
+                # Rename and collect
+                processed_df = dm._df.rename(rename_map) if rename_map else dm._df
+                processed_dfs.append(processed_df)
+
+                # Track renamed polys
+                for poly in dm.polys:
+                    if poly in rename_map:
+                        all_new_polys.append(rename_map[poly])
+
+        # Concatenate with diagonal (auto-fills missing columns with null)
+        result_df = pl.concat(processed_dfs, how="diagonal")
+
+        # Fill nulls with fill_na value (creates sparse separation)
+        result_df = result_df.fill_null(fill_na)
+
+        # Return with updated metadata
+        return self._copy_with(result_df, polys=all_new_polys, multi=True)
 
     # ==================== Diagnostics ====================
 
