@@ -45,6 +45,7 @@ class TestBrainData:
 
     # ==================== Initialization & I/O ====================
 
+    @pytest.mark.tier2
     def test_load(self, tmpdir):
         """Test loading Brain_Data from various sources and formats."""
         sim = Simulator()
@@ -316,6 +317,7 @@ class TestBrainData:
 
     # ==================== Regression & GLM ====================
 
+    @pytest.mark.tier2
     def test_regress(self, sim_brain_data):
         """Test regression with OLS and robust methods."""
         sim_brain_data.X = pd.DataFrame(
@@ -348,6 +350,7 @@ class TestBrainData:
         tt = threshold(out["t"][i], out["p"][i], 0.05)
         assert isinstance(tt, Brain_Data)
 
+    @pytest.mark.tier2
     def test_regress_uses_glm_model(self, sim_brain_data):
         """Test that .regress() uses Glm model internally."""
         from nltools.models import Glm
@@ -369,6 +372,7 @@ class TestBrainData:
         assert isinstance(sim_brain_data.glm_model, Glm)
         assert sim_brain_data.glm_model.is_fitted_
 
+    @pytest.mark.tier2
     def test_regress_glm_parameters(self, sim_brain_data):
         """Test that .regress() passes parameters to Glm correctly."""
         # Set up design matrix
@@ -388,6 +392,7 @@ class TestBrainData:
         sim_brain_data.regress(design_matrix, noise_model="ols")
         assert sim_brain_data.glm_model.noise_model == "ols"
 
+    @pytest.mark.tier2
     def test_regress_attributes_match_glm(self, sim_brain_data):
         """Test that .regress() attributes are correctly extracted from Glm."""
         # Set up design matrix
@@ -433,6 +438,7 @@ class TestBrainData:
             sim_brain_data.glm_residual.data, residuals_brain_data.data, rtol=1e-5
         )
 
+    @pytest.mark.tier2
     def test_regress_backward_compatible_dict(self, sim_brain_data):
         """Test that .regress() still returns dict for backward compatibility."""
         # Set up design matrix
@@ -461,6 +467,7 @@ class TestBrainData:
         assert out["p"] is sim_brain_data.glm_p
         assert out["residual"] is sim_brain_data.glm_residual
 
+    @pytest.mark.tier2
     def test_regress_numerical_equivalence(self, sim_brain_data):
         """Test that Glm-based .regress() gives same numerical results as before."""
         # This is a key test - we want to ensure refactoring doesn't change results
@@ -505,6 +512,7 @@ class TestBrainData:
         with pytest.raises(RuntimeError, match="Must run .regress"):
             minimal_brain_data.compute_contrasts([1, -1, 0])
 
+    @pytest.mark.tier2
     def test_compute_contrasts_numeric_vector(self, minimal_brain_data):
         """Test numeric contrast vector (unique nltools API)."""
         # Set up and run regression
@@ -524,6 +532,7 @@ class TestBrainData:
         assert isinstance(contrast, Brain_Data)
         assert contrast.shape == (1, minimal_brain_data.shape[1])
 
+    @pytest.mark.tier2
     def test_compute_contrasts_string_parsing(self, minimal_brain_data):
         """Test string contrast parsing (unique nltools feature)."""
         # Set up and run regression
@@ -542,6 +551,7 @@ class TestBrainData:
         assert isinstance(contrast, Brain_Data)
         assert contrast.shape == (1, minimal_brain_data.shape[1])
 
+    @pytest.mark.tier2
     def test_compute_contrasts_multiple_dict(self, minimal_brain_data):
         """Test multiple contrasts via dict (unique nltools API)."""
         # Set up and run regression
@@ -568,6 +578,7 @@ class TestBrainData:
         assert isinstance(results["A_vs_B"], Brain_Data)
         assert isinstance(results["avg_effect"], Brain_Data)
 
+    @pytest.mark.tier2
     def test_compute_contrasts_invalid_length(self, minimal_brain_data):
         """Test error for invalid contrast vector length (nltools validation)."""
         # Set up and run regression with 3 regressors
@@ -617,6 +628,7 @@ class TestBrainData:
         train_predictions = sim_brain_data.predict()
         assert train_predictions.shape == sim_brain_data.shape
 
+    @pytest.mark.tier2
     def test_fit_predict_glm_workflow(self, sim_brain_data):
         """Test complete GLM fit/predict workflow."""
         from nltools.models import Glm
@@ -657,6 +669,7 @@ class TestBrainData:
         predictions = sim_brain_data.predict(X=X)
         assert predictions.shape == sim_brain_data.shape
 
+    @pytest.mark.tier2
     def test_fit_passes_kwargs_to_model(self, sim_brain_data):
         """Test fit() passes additional kwargs to model constructor."""
         X = np.random.randn(len(sim_brain_data), 10)
@@ -711,6 +724,7 @@ class TestBrainData:
         # Should have same mask
         assert sim_brain_data.ridge_weights.mask is sim_brain_data.mask
 
+    @pytest.mark.tier2
     def test_glm_fit_matches_current_regress(self, sim_brain_data):
         """Test new fit(model='glm') matches current regress() numerically."""
         from nltools.models import Glm
@@ -997,6 +1011,7 @@ class TestBrainData:
 
     # ==================== regress() Backward Compatibility ====================
 
+    @pytest.mark.tier2
     def test_regress_emits_future_warning(self, sim_brain_data):
         """Test regress() emits FutureWarning telling users to switch to fit()."""
         design_matrix = pd.DataFrame(
@@ -1149,6 +1164,7 @@ class TestBrainData:
         assert isinstance(result_no_resample, Brain_Data)
         assert result_no_resample.shape[1] == mask_bd.data.astype(bool).sum()
 
+    @pytest.mark.tier2
     def test_extract_roi(self, sim_brain_data):
         """Test ROI extraction with different metrics and labeled atlases."""
         mask = create_sphere([12, 10, -8], radius=10)
@@ -1277,6 +1293,7 @@ class TestBrainData:
         smoothed = sim_brain_data[0].smooth(5.0)
         assert len(smoothed.shape) == 1
 
+    @pytest.mark.tier2
     def test_threshold(self):
         """Test thresholding and region extraction."""
         s1 = create_sphere([12, 10, -8], radius=10)
@@ -1306,6 +1323,7 @@ class TestBrainData:
     # Thresholding Operations - Cluster Enhancement
     # ============================================================================
 
+    @pytest.mark.tier2
     def test_threshold_cluster_basic(self, sim_brain_data):
         """Cluster thresholding should filter small clusters using nilearn"""
         # Create data with distinct regions
@@ -1319,12 +1337,14 @@ class TestBrainData:
         # Should have removed small clusters (basic check that it ran)
         assert result.shape == brain.shape
 
+    @pytest.mark.tier2
     def test_threshold_cluster_with_upper_only(self, sim_brain_data):
         """Cluster threshold should work with upper threshold only"""
         brain = sim_brain_data.copy()
         result = brain.threshold(upper=2, cluster_threshold=10)
         assert isinstance(result, Brain_Data)
 
+    @pytest.mark.tier2
     def test_threshold_cluster_with_lower_only(self, sim_brain_data):
         """Cluster threshold should work with lower threshold only"""
         brain = sim_brain_data.copy()
@@ -1340,6 +1360,7 @@ class TestBrainData:
         ):
             brain.threshold(lower=-2, upper=2, cluster_threshold=10)
 
+    @pytest.mark.tier2
     def test_threshold_cluster_with_binarize(self, sim_brain_data):
         """Cluster threshold should work with binarization"""
         brain = sim_brain_data.copy()
@@ -1383,6 +1404,7 @@ class TestBrainData:
         assert isinstance(result, Brain_Data)
         # Verify band-pass behavior preserved (values in range kept)
 
+    @pytest.mark.tier2
     def test_threshold_cluster_realistic_neuroimaging(self, sim_brain_data):
         """Integration test with realistic neuroimaging workflow"""
         # Test with actual brain data structure from fixtures
@@ -1412,6 +1434,7 @@ class TestBrainData:
         r = sim_brain_data.similarity(sim_brain_data[0], method="correlation")
         assert len(r) == shape_2d[0]
 
+    @pytest.mark.tier2
     def test_decompose(self, sim_brain_data):
         """Test decomposition with PCA, ICA, NMF, and Factor Analysis."""
         n_components = 3
@@ -1469,6 +1492,7 @@ class TestBrainData:
 
     # ==================== Alignment ====================
 
+    @pytest.mark.tier2
     def test_hyperalignment(self):
         """Test hyperalignment with SRM and Procrustes methods."""
         sim = Simulator()
@@ -1575,6 +1599,7 @@ class TestBrainData:
 
     # ==================== Temporal Methods ====================
 
+    @pytest.mark.tier2
     def test_temporal_resample(self, sim_brain_data):
         """Test temporal resampling (upsampling and downsampling)."""
         up = sim_brain_data.temporal_resample(
@@ -1630,6 +1655,7 @@ class TestBrainData:
         ):
             masked.bootstrap("predict", n_samples=n_samples)
 
+    @pytest.mark.tier2
     def test_predict_multi(self):
         """Test that deprecated predict_multi method raises NotImplementedError."""
         # Need to set up minimal data for the test

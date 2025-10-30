@@ -40,6 +40,7 @@ import pytest
 # ==================== Permutation Functions ====================
 
 
+@pytest.mark.tier2
 def test_permutation():
     """Test one-sample, two-sample, and correlation permutation tests."""
     # Create a positive definite covariance matrix
@@ -631,6 +632,7 @@ def test_fisher_r_to_z():
 # ==================== Utility Functions ====================
 
 
+@pytest.mark.tier2
 def test_find_spikes():
     """Test spike detection in neuroimaging data."""
     sim = Simulator()
@@ -669,6 +671,7 @@ def test_align_states():
     )
 
 
+@pytest.mark.tier2
 def test_align_without_isc():
     """Test alignment methods without ISC calculation.
 

@@ -61,13 +61,18 @@ uv run pytest nltools/tests/shell/test_brain_data.py::TestBrainData::test_fit -x
 uv run pytest nltools/tests/core/test_srm.py::test_srm_fit_transform -x
 uv run pytest -k "ridge and cv" -x
 
+# ✅ DO: Run tier1 for quick regression checks (fast!)
+uv run pytest -m tier1 -n auto  # ~18s with parallelization!
+
 # ✅ DO: Run by directory for regression checks
 uv run pytest nltools/tests/shell/ -x
 uv run pytest nltools/tests/core/ -x
 
-# ❌ AVOID: Running full test suite during development (slow, wasteful)
-# Full suite only before final commits to verify no regressions
-uv run pytest nltools/tests/ -x  # Use sparingly!
+# ⚠️  TIER 2: Run comprehensive tests before commits
+uv run pytest -m tier2 -x  # Only when needed (~7 min)
+
+# ❌ AVOID: Running full suite during rapid iteration
+# Use tier1 for fast feedback, tier2 before commits
 ```
 
 **CLEAN UP after tests:**
@@ -90,8 +95,10 @@ rm -f *.csv *.nii.gz           # Remove test data artifacts (NOT in nltools/test
 
 **Branch**: `uv-cleanup` (active development)
 **Version Target**: v0.6.0 (breaking release, API changes allowed)
-**Test Status**: 317 tests (310+ passing, ~4 skipped) ✅
-**Last Work**: SRM/DetSRM comprehensive tests + API documentation improvements (commits f134854, 1a4b1d9)
+**Test Status**: 385 tests (381 passing, 4 skipped) ✅
+  - Tier 1 (Fast Core): ~350 tests, <2 min
+  - Tier 2 (Comprehensive): ~35 tests, ~7 min
+**Last Work**: Tiered testing implementation with pytest-xdist for parallel execution
 
 **Important Git Tags**:
 - `v0.6.0-test-refactor`: Test implementations for deprecated methods
@@ -110,23 +117,43 @@ rm -f *.csv *.nii.gz           # Remove test data artifacts (NOT in nltools/test
 
 **All commands must use `uv run` prefix**
 
-### Running Tests
-```bash
-# Run all tests
-uv run pytest nltools/tests/ -x
+### Running Tests (Tiered Strategy)
 
-# Run with verbose output and stop on first failure
-uv run pytest nltools/tests/test_brain_data_old.py -xvs
+**Tier 1 (Fast Core)**: ~350 tests, <2 min - Run on every iteration
+**Tier 2 (Comprehensive)**: ~35 tests, ~7 min - Run before commits
+
+```bash
+# TIER 1: Fast development loop (DEFAULT - runs automatically!)
+uv run pytest  # Runs tier1 only due to default config
+
+# TIER 1: Explicit (with parallelization for speed)
+uv run pytest -m tier1 -n auto  # ~18s with 4 cores!
+
+# TIER 2: Comprehensive tests (run before commits)
+uv run pytest -m tier2 -x
+
+# BOTH TIERS: Full suite (before releases)
+uv run pytest -m "tier1 or tier2" -x
+uv run pytest -m "tier1 or tier2" -n auto  # ~2 min with parallelization
+
+# Run specific file or test
+uv run pytest nltools/tests/shell/test_brain_data.py::TestBrainData::test_fit -xvs
 
 # Run last failed tests
 uv run pytest --lf -x
 
-# Run tests matching pattern
+# Run tests matching pattern (respects tier filtering)
 uv run pytest -k "regress or extract" -x
 
 # Capture output to log file (recommended for debugging)
-uv run pytest nltools/tests/ -xvs --tb=long 2>&1 | tee pytest_full.log
+uv run pytest -m tier1 -xvs --tb=long 2>&1 | tee pytest_tier1.log
 ```
+
+**When to run what**:
+- **Every save**: `uv run pytest -m tier1 -n auto` (~18s)
+- **Before commit**: `uv run pytest -m tier1 -n auto` (verify tier1) + affected tier2 tests
+- **Before push**: `uv run pytest -m "tier1 or tier2" -n auto` (~2 min)
+- **CI/Nightly**: Full suite with timing analysis
 
 ### Test Suite Organization
 

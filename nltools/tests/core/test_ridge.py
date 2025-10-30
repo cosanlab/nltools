@@ -241,6 +241,7 @@ def test_large_dataset_completion():
     assert result['alpha'] > 0
 
 
+@pytest.mark.tier2
 def test_auto_backend_selection():
     """Auto backend should select appropriately based on problem size"""
     from nltools.algorithms.ridge import ridge_cv

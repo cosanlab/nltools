@@ -33,6 +33,7 @@ dev = [
     "jupyter-book>=1.0.4.post1",
     "networkx>=3.4.2",
     "pytest>=8.3.5",
+    "pytest-xdist>=3.0.0",
     "ruff==0.11.10",
     "tables>=3.10.1",
     "torch>=2.0.0",
@@ -57,3 +58,11 @@ version = {attr = "nltools.version.__version__"}
 
 [tool.ruff.lint]
 ignore = ["W292","E501", "E731", "E741"]
+
+[tool.pytest.ini_options]
+markers = [
+    "tier1: Fast core tests (<3s, run on every iteration)",
+    "tier2: Comprehensive tests (>3s, run before commits)",
+]
+# Default: run tier1 only for fast feedback during development
+addopts = "-m 'not tier2'"
