@@ -1049,9 +1049,26 @@ class DesignMatrix:
     # ==================== Utilities ====================
 
     def details(self) -> str:
-        """Return human-readable metadata summary."""
-        # TODO: Implement
-        return f"DesignMatrix(sampling_freq={self.sampling_freq}, shape={self.shape})"
+        """
+        Return human-readable metadata summary.
+
+        Returns
+        -------
+        str
+            Formatted string showing sampling_freq, shape, convolved columns,
+            and polynomial columns
+        """
+        lines = [
+            f"DesignMatrix(sampling_freq={self.sampling_freq}, shape={self.shape})",
+        ]
+
+        if self.convolved:
+            lines.append(f"  convolved: {self.convolved}")
+
+        if self.polys:
+            lines.append(f"  polys: {self.polys}")
+
+        return "\n".join(lines)
 
     def replace_data(
         self,
@@ -1061,24 +1078,106 @@ class DesignMatrix:
         """
         Replace data columns while preserving polynomials and metadata.
 
+        This is useful when you want to substitute stimulus regressors
+        while keeping nuisance regressors (polynomials, drift terms) intact.
+
         Parameters
         ----------
         data : ndarray
-            New data (must match number of rows)
+            New data array (must match number of rows in current DesignMatrix)
         column_names : list of str, optional
-            Names for new columns
+            Names for new data columns. If not provided, uses numeric names.
+
+        Returns
+        -------
+        DesignMatrix
+            New DesignMatrix with replaced data columns, preserved polynomials
+
+        Raises
+        ------
+        ValueError
+            If row count doesn't match existing data
         """
-        # TODO: Implement
-        raise NotImplementedError("replace_data not yet implemented")
+        # Validate row count
+        if data.shape[0] != self.shape[0]:
+            raise ValueError(
+                f"Row count mismatch: new data has {data.shape[0]} rows, "
+                f"but DesignMatrix has {self.shape[0]} rows"
+            )
+
+        # Generate column names if not provided
+        if column_names is None:
+            n_cols = data.shape[1] if data.ndim > 1 else 1
+            column_names = [f"col_{i}" for i in range(n_cols)]
+
+        # Create Polars DataFrame from new data
+        if data.ndim == 1:
+            data = data.reshape(-1, 1)
+        new_data_df = pl.DataFrame(data, schema=column_names, orient="row")
+
+        # Extract polynomial columns from current data
+        poly_df = self._df.select(self.polys) if self.polys else pl.DataFrame()
+
+        # Combine: new data + existing polynomials
+        if poly_df.shape[1] > 0:
+            combined_df = pl.concat([new_data_df, poly_df], how="horizontal")
+        else:
+            combined_df = new_data_df
+
+        # Return new DesignMatrix with preserved metadata
+        return self._copy_with(combined_df)
 
     def heatmap(self, figsize: tuple = (8, 6), **kwargs):
         """
         Visualize design matrix as heatmap (SPM-style).
 
+        Creates a heatmap visualization of the design matrix columns.
         Uses seaborn + matplotlib under the hood.
+
+        Parameters
+        ----------
+        figsize : tuple, default=(8, 6)
+            Figure size (width, height) in inches
+        **kwargs
+            Additional keyword arguments passed to seaborn.heatmap()
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The axes object containing the heatmap
+
+        Examples
+        --------
+        >>> dm = DesignMatrix(np.random.randn(100, 3), columns=['a', 'b', 'c'])
+        >>> dm.heatmap()
         """
-        # TODO: Implement using seaborn.heatmap
-        raise NotImplementedError("heatmap not yet implemented")
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+
+        # Convert to pandas for seaborn (which expects pandas DataFrames)
+        # Use dict conversion to avoid pyarrow dependency
+        df_for_plot = pd.DataFrame(self._df.to_dict(as_series=False))
+
+        # Create figure and axis
+        fig, ax = plt.subplots(figsize=figsize)
+
+        # Set default heatmap parameters
+        heatmap_kwargs = {
+            "cmap": "RdBu_r",
+            "center": 0,
+            "cbar_kws": {"label": "Value"},
+            "yticklabels": False,  # Too many rows for labels typically
+        }
+        heatmap_kwargs.update(kwargs)
+
+        # Create heatmap
+        sns.heatmap(df_for_plot, ax=ax, **heatmap_kwargs)
+
+        # Set labels
+        ax.set_xlabel("Regressors")
+        ax.set_ylabel("Time (TRs)")
+
+        return ax
 
     # ==================== Internal Helpers ====================
 

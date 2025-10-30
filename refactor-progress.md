@@ -10,14 +10,157 @@ For task checklist, see `refactor-todos.md`. For strategic vision, see `refactor
 
 **Branch**: `uv-cleanup`
 **Version Target**: v0.6.0 (breaking release)
-**Test Status**: 317 tests (310+ passing, ~4 skipped) + 68 new DesignMatrix tests (TDD)
-**Last Work**: DesignMatrix Phases 1-2 complete (27/68 tests passing, 40%)
+**Test Status**: 317 tests (310+ passing, ~4 skipped) + 68 DesignMatrix tests (100% passing) ✅
+**Last Work**: DesignMatrix Polars migration COMPLETE (68/68 tests, all phases done)
+
+---
+
+## Next Action Items - Polars Migration Follow-up
+
+### HIGH PRIORITY: Integration & Cutover
+
+1. **Review Polars code for holistic cleanup and refactoring opportunities**
+   - Current: All 68 tests passing, but implemented iteratively over multiple phases
+   - Action: Comprehensive review of design_matrix_new.py for:
+     - Code duplication or redundant patterns
+     - Opportunities for helper functions/abstractions
+     - Consistent error handling across methods
+     - Docstring completeness and accuracy
+     - Type hints and annotations
+     - Performance optimization opportunities (e.g., unnecessary conversions)
+     - TODOs or commented-out code to remove
+   - Focus areas:
+     - Polars conversion patterns (numpy → Polars, pandas → Polars)
+     - Metadata preservation logic (is `_copy_with()` used consistently?)
+     - Column selection patterns (polys vs data columns)
+     - Error messages (clear and helpful?)
+   - Deliverable: Cleaner, more maintainable code before cutover
+
+2. **Switch design_matrix.py to use design_matrix_new.py**
+   - Current: `design_matrix.py` is temporary shim file
+   - Action: Replace shim with actual Polars implementation
+   - Steps:
+     - Backup `design_matrix_old.py` (keep as reference)
+     - Replace `design_matrix.py` with `design_matrix_new.py` content
+     - Update all imports in codebase if needed
+     - Run full test suite to verify no regressions
+   - Risk: May break existing code that depends on pandas-specific behavior
+   - Mitigation: Comprehensive testing, migration guide updates
+
+3. **Test with real workflows**
+   - Run actual analysis scripts (not just unit tests)
+   - Verify nilearn integration works (may need pandas conversion at boundaries)
+   - Test Brain_Data.regress() with new DesignMatrix
+   - Profile performance improvements (expect 2-5x on stats operations)
+
+4. **Update migration guide**
+   - Document DesignMatrix Polars API changes
+   - Add examples of Polars idioms (vs pandas patterns)
+   - Note `.to_pandas()` escape hatch for compatibility
+   - List breaking changes (if any beyond .loc[] removal)
+
+### MEDIUM PRIORITY: Performance Optimization
+
+5. **Consider pyarrow dependency (v0.7.0)**
+   - **Current**: Dict-based pandas conversion (works but ~10-20% slower on large data)
+   - **Decision needed**: Add pyarrow as optional dependency or core?
+   - **Benefits**: 10-100x faster Polars ↔ pandas conversion (zero-copy via Arrow)
+   - **Cost**: ~50MB dependency
+   - **Use cases**: downsample, upsample, heatmap (all do Polars→pandas conversions)
+   - **Recommendation**: Add as optional for now, benchmark actual impact
+
+6. **Implement Polars-native resampling (v0.7.0+)**
+   - **Current**: downsample/upsample use pandas bridge via stats.py
+   - **Goal**: Pure Polars implementation for 2-5x speedup
+   - **Approach**:
+     - Downsample: Use `.group_by_dynamic()` with temporal windows
+     - Upsample: Implement interpolation with Polars expressions
+   - **Benefit**: Eliminate pandas conversion overhead entirely
+   - **Effort**: ~4-6 hours implementation + tests
+
+7. **Profile and benchmark**
+   - Compare DesignMatrix performance: pandas (old) vs Polars (new)
+   - Focus on: concatenation (append), statistics (zscore), diagnostics (VIF)
+   - Expected improvements: 2-5x on Adjacency-like operations (lazy evaluation)
+   - Document performance characteristics for users
+
+### LOW PRIORITY: Code Quality
+
+8. **Remove unused _from_polars() method**
+   - Currently NotImplementedError in design_matrix_new.py:1137
+   - Replaced by `_copy_with()` pattern everywhere
+   - Action: Delete method or implement if future use case emerges
+
+9. **Add Polars-specific examples to documentation**
+   - Show idiomatic Polars patterns for DesignMatrix
+   - Contrast with pandas patterns (migration learning)
+   - Examples: .filter(), .select(), .with_columns() usage
+
+### DEFERRED TO v0.7.0+
+
+10. **Polars GPU Engine**
+   - Not needed for v0.6.0 (CPU Polars already fast)
+   - Requires: `polars = { version = ">=0.20.0", extras = ["gpu"] }`
+   - Expected benefit: Another 10x speedup on large datasets
+   - Prerequisites: Benchmark CPU performance first, validate GPU use cases
+
+11. **Lazy evaluation by default**
+    - Current: Eager mode (matches pandas UX, simpler)
+    - Future: Optional lazy API for advanced users
+    - Pattern: `.lazy()` → operations → `.collect()`
+    - Benefit: Query optimization, memory efficiency on very large data
+
+12. **Replace HDF5 with Parquet for DataFrames**
+    - Coordinate with any remaining pandas HDFStore usage
+    - Parquet is Arrow-native, very fast with Polars
+    - Note: Keep h5py for numpy arrays (both Brain_Data and model-spec need this)
 
 ---
 
 ## Recent Accomplishments
 
-### DesignMatrix Phase 2: Statistical Operations (2025-10-29)
+### DesignMatrix Polars Migration COMPLETE (2025-10-29)
+- **Achievement**: Full pandas → Polars migration (68/68 tests passing, 100% complete)
+- **Phases completed**: All 7 phases (Construction → Utilities)
+- **Methods implemented**: 30+ methods with full Polars-native implementations
+- **Key patterns**:
+  - Composition pattern (wrap pl.DataFrame, not subclass)
+  - Dict-based pandas conversion (no pyarrow dependency)
+  - Immutable transformations via `_copy_with()` helper
+  - Metadata preservation across all operations
+- **Test coverage**: 68 comprehensive behavior-driven tests
+- **Performance**: Expected 2-5x improvements on statistics and concatenation
+- **Next step**: Integration testing and cutover from shim file
+
+### DesignMatrix Phase 7: Utilities (2025-10-29)
+- **Achievement**: Complete final utility methods (4 tests)
+- **Methods implemented**:
+  - `details()`: Human-readable metadata summary
+  - `replace_data()`: Swap data columns while preserving polynomials
+  - `heatmap()`: SPM-style visualization using seaborn/matplotlib
+- **Key decision**: Dict-based pandas conversion for plotting (consistent across all phases)
+
+### DesignMatrix Phase 6: Diagnostics (2025-10-29, commit e33bfe9)
+- **Achievement**: VIF and collinearity checking (6 tests)
+- **Methods implemented**:
+  - `vif()`: Variance inflation factor calculation
+  - `clean()`: Remove highly correlated columns
+- **Polars optimization**: Efficient correlation matrix computation
+
+### DesignMatrix Phase 5: Polynomials & Concatenation (2025-10-29, commits ddac47a, 501d6bf)
+- **Achievement**: Polynomial creation and multi-run concatenation (18 tests)
+- **Methods implemented**:
+  - `add_poly()`: Legendre polynomials for detrending
+  - `add_dct_basis()`: DCT basis for high-pass filtering
+  - `append()`: Horizontal and vertical concatenation with automatic polynomial separation
+- **Complex feature**: Multi-run support with unique column naming
+
+### DesignMatrix Phase 4 & Phase 3: HRF Convolution (2025-10-29, commit 3760fc2)
+- **Achievement**: Complete HRF convolution system (6 tests)
+- **Method implemented**: `convolve()` with default HRF and custom kernels
+- **Metadata tracking**: Convolved columns tracked automatically
+
+### DesignMatrix Phase 2: Statistical Operations (2025-10-29, commit 218d240)
 - **Achievement**: Complete statistical transformation methods (5 tests)
 - **Methods implemented**:
   - `zscore()`: Polars-native standardization with polynomial exclusion
@@ -30,7 +173,7 @@ For task checklist, see `refactor-todos.md`. For strategic vision, see `refactor
   - Document future optimization path (pyarrow, native Polars resampling)
 - **Progress**: 27/68 tests passing (40% complete)
 
-### DesignMatrix Phase 1: Foundation (2025-10-29)
+### DesignMatrix Phase 1: Foundation (2025-10-29, commit f997a2b)
 - **Achievement**: Complete construction and basic operations (22 tests)
 - **Implemented**:
   - Construction from all input types (numpy, dict, Polars/pandas DataFrame)
@@ -41,7 +184,7 @@ For task checklist, see `refactor-todos.md`. For strategic vision, see `refactor
 - **Composition pattern**: Wrap `pl.DataFrame` internally, maintain metadata
 - **Test coverage**: 8 construction, 10 data access, 4 transformations
 
-### Polars Migration Scaffolding (2025-10-29)
+### Polars Migration Scaffolding (2025-10-29, commit 839f355)
 - **Achievement**: Complete TDD infrastructure for Design_Matrix → Polars migration
 - **Test Suite**: 68 comprehensive behavior-focused tests (all categories)
 - **Scaffold**: `design_matrix_new.py` with all method signatures as NotImplementedError
@@ -59,9 +202,7 @@ For task checklist, see `refactor-todos.md`. For strategic vision, see `refactor
   - `design_matrix.py` - Temporary shim for imports
   - `test_design_matrix_new.py` - 68 comprehensive tests
 
-## Recent Accomplishments
-
-### Documentation & Organization (2025-10-29)
+### Documentation & Organization (2025-10-29, commit 74099ca)
 - Reorganized all planning docs into `claude-guidelines/` directory
 - Created focused documentation structure:
   - `refactor-plan.md` - Strategic vision (stable)
@@ -312,17 +453,12 @@ downsampled_df = pl.from_pandas(downsampled_pd)
 
 ## Next Steps (Priority Order)
 
-1. **DesignMatrix Polars implementation** (current priority)
-   - Phase 1: Construction + basic properties (2-3 hours)
-   - Phase 2: Data access (`__getitem__`, `__setitem__`) (1-2 hours)
-   - Phase 3: Simple transformations (fillna, drop, _copy_with) (2 hours)
-   - Phase 4: Statistical operations (zscore, downsample, upsample) (3 hours)
-   - Phase 5: Convolution (HRF, custom kernels) (2-3 hours)
-   - Phase 6: Polynomials (Legendre, DCT) (2 hours)
-   - Phase 7: Append logic (multi-run concatenation) (4-5 hours)
-   - Phase 8: Diagnostics (VIF, clean) (2 hours)
-   - Phase 9: Utilities (details, replace_data, heatmap) (1-2 hours)
-   - **Total estimate**: ~20 hours focused TDD work
+1. **DesignMatrix integration & cutover** (IMMEDIATE PRIORITY)
+   - Replace shim file with Polars implementation
+   - Test with real workflows
+   - Update migration guide
+   - Verify nilearn integration
+   - See "Next Action Items" section above for details
 
 2. **Bootstrap refactoring** (Priority 2.8, after Polars migration)
    - Follow TDD plan in `claude-guidelines/bootstrap-refactor.md`

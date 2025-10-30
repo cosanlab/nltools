@@ -129,13 +129,26 @@ For strategic vision, see `refactor-plan.md`. For context and decisions, see `re
 
 ---
 
+## Priority 2.13: Polars Migration Follow-up (IMMEDIATE)
+
+| Task | Status | Tests | Commit |
+|------|--------|-------|--------|
+| Design_Matrix Polars TDD scaffolding | ✅ | 68 | 839f355 |
+| Design_Matrix Polars implementation | ✅ | 68 | Pending commit |
+| Review Polars code for holistic cleanup | 📋 | - | - |
+| Switch design_matrix.py to Polars version | 📋 | - | - |
+| Test with real workflows | 📋 | - | - |
+| Update migration guide (Polars section) | 📋 | - | - |
+| Consider pyarrow dependency | 📋 | - | - |
+| Profile and benchmark Polars performance | 📋 | - | - |
+| Remove unused _from_polars() method | 📋 | - | - |
+
+---
+
 ## Priority 3: Medium Priority (v0.6.0 or v0.6.1)
 
 | Task | Status | Tests | Commit |
 |------|--------|-------|--------|
-| Design_Matrix Polars migration - TDD scaffolding | ✅ | 68 | Pending |
-| Design_Matrix Polars implementation | 🔧 | 68 | - |
-| Polars GPU support | 📋 | TBD | - |
 | `fit()` inplace parameter + Fit dataclass | 📋 | TBD | - |
 | Adjacency refactoring | 📋 | 30+ | - |
 | Plotting integration minimization | 📋 | TBD | - |
@@ -146,6 +159,10 @@ For strategic vision, see `refactor-plan.md`. For context and decisions, see `re
 
 | Task | Status | Tests | Commit |
 |------|--------|-------|--------|
+| Polars GPU Engine | 🔮 | - | - |
+| Polars-native resampling (downsample/upsample) | 🔮 | - | - |
+| Polars lazy evaluation by default | 🔮 | - | - |
+| Replace HDF5 with Parquet for DataFrames | 🔮 | - | - |
 | BrainCollection class design | 🔮 | - | - |
 | Advanced ML workflows | 🔮 | - | - |
 | Model class reimplementation | 🔮 | - | - |
@@ -165,8 +182,9 @@ For strategic vision, see `refactor-plan.md`. For context and decisions, see `re
 
 ## Test Count Summary
 
-**Total**: 317 tests (310+ passing, ~4 skipped)
-- **Shell**: 131 tests (Brain_Data: 71+, Adjacency: 54+, Design_Matrix: 10+)
+**Total**: 385 tests (378+ passing, ~4 skipped)
+- **Shell**: 131 tests (Brain_Data: 71+, Adjacency: 54+, Design_Matrix: 10+ old)
+- **Shell (New)**: 68 tests (Design_Matrix Polars: 68 passing, 100% complete)
 - **Core**: 155 tests (including SRM: 34, HyperAlignment: 27, Ridge: 16, Models: 37)
 - **Support**: 31 tests (datasets: 9, efficient_copy: 14, prefs: 5, simulator: 3)
 
