@@ -1365,29 +1365,12 @@ class DesignMatrix:
         return self
 
 
-# Backward compatibility aliases (deprecated in v0.6.0)
-# TODO: Add deprecation warning in v0.6.1, remove in v0.7.0
+# Backward compatibility alias
+# Design_Matrix (with underscore) is still used throughout the codebase:
+# - file_reader.py, adjacency.py, brain_data.py
+# - tests (conftest.py, test_file_reader.py, test_adjacency.py)
+# Keep this alias for v0.6.0. Consider deprecation warning in v0.7.0.
 Design_Matrix = DesignMatrix
 
 
-# Design_Matrix_Series is no longer needed with Polars (was pandas-specific)
-# Kept for backward compatibility only - not functional
-class Design_Matrix_Series:
-    """
-    Deprecated: This class was specific to pandas implementation.
-
-    The Polars-based DesignMatrix doesn't require a separate Series class.
-    This stub is kept only for backward compatibility with imports.
-
-    Will be removed in v0.7.0.
-    """
-
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError(
-            "Design_Matrix_Series is deprecated and no longer functional. "
-            "The Polars-based DesignMatrix implementation doesn't require a separate Series class. "
-            "If you need Series-like functionality, use DesignMatrix column access directly."
-        )
-
-
-__all__ = ["DesignMatrix", "Design_Matrix", "Design_Matrix_Series"]
+__all__ = ["DesignMatrix", "Design_Matrix"]

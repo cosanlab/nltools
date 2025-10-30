@@ -16,7 +16,6 @@ __all__ = [
     "Brain_Data",
     "Adjacency",
     "Design_Matrix",
-    "Design_Matrix_Series",
     "Simulator",
     "MNI_Template",
     "expand_mask",
@@ -32,7 +31,6 @@ from .data import (
     Brain_Data,
     Adjacency,
     Design_Matrix,
-    Design_Matrix_Series,
 )
 from .simulator import Simulator
 from .prefs import MNI_Template
