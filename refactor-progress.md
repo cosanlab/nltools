@@ -648,3 +648,52 @@ find . -name "*.csv" -o -name "*.nii.gz" | grep -v "nltools/tests/data"
 *This file should be updated each session with new learnings, decisions, and context. It's the "working memory" for the refactoring effort.*
 
 *Last updated: 2025-10-29*
+
+---
+
+## Polars Migration Finalization - COMPLETE ✅ (2025-10-30)
+
+### What Was Completed
+
+**Phase 1: Code Optimization (3 hours)**
+- ✅ Added polars selectors (`cs.exclude`) in vif() for declarative filtering
+- ✅ Simplified convolve() multi-kernel case (50% code reduction, 22→9 lines)
+- ✅ Enhanced 10+ error messages with actionable suggestions
+- ✅ All 68 DesignMatrix tests passing
+
+**Phase 2-3: File Consolidation (1 hour)**
+- ✅ Removed `design_matrix_old.py` (37KB pandas reference)
+- ✅ Removed `test_design_matrix.py` (old 175-line tests)
+- ✅ Renamed `design_matrix_new.py` → `design_matrix.py` (canonical implementation)
+- ✅ Renamed `test_design_matrix_new.py` → `test_design_matrix.py` (canonical tests)
+- ✅ Updated all imports and references
+- ✅ All 159 shell tests passing
+
+**Phase 4-5: Documentation (30 min)**
+- ✅ Updated `refactor-todos.md` with v0.7.0 optimization paths
+- ✅ Added detailed PyArrow, GPU, and Polars-native resampling tasks
+- ✅ Updated `refactor-progress.md` with completion notes
+- ✅ Archived completed research files to `claude-research/`
+
+**Files Archived** (to `claude-research/`):
+- `polars-migration-finalization-plan.md` (detailed finalization guide)
+- `glm-integration-summary.md` (GLM fix details)
+- `claude-guidelines/polars-migration-v3-tdd.md` (TDD implementation plan)
+
+**Test Results**: 68 DesignMatrix tests passing, 159 shell tests passing
+
+**Time**: ~4.5 hours (optimization, cleanup, consolidation, documentation)
+
+**Commits**:
+- `4c00ffc` - Phase 1: Code optimization with selectors and error messages
+- `a2b18ae` - Phases 2-3: File consolidation and cleanup
+
+**Impact**:
+- ✅ Cleaner, more maintainable codebase
+- ✅ Better error messages for users  
+- ✅ Single canonical implementation (no "old" vs "new")
+- ✅ Clear path forward for v0.7.0 optimizations
+- ✅ All Polars work complete and ready for release
+
+**Next Steps**: v0.7.0 optimizations (pyarrow, GPU, Polars-native resampling) - see `refactor-todos.md`
+

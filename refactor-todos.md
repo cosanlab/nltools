@@ -142,9 +142,9 @@ For strategic vision, see `refactor-plan.md`. For context and decisions, see `re
 | Document integration status | ✅ | - | - |
 | file_reader integration (sum, __eq__, reset_index) | ✅ | 1 | - |
 | Adjacency.regress() integration (to_numpy conversion) | ✅ | 1 | - |
-| **ALL POLARS INTEGRATION COMPLETE** | ✅ | **344 passing** | **2025-10-30** |
-| Consider pyarrow dependency | 📋 | - | v0.7.0+ |
-| Profile and benchmark Polars performance | 📋 | - | v0.6.1+ |
+| Code optimization (selectors, error messages) | ✅ | 68 | 4c00ffc |
+| File consolidation (remove old, rename new) | ✅ | 68 | a2b18ae |
+| **ALL POLARS MIGRATION COMPLETE** | ✅ | **344 passing** | **2025-10-30** |
 
 ---
 
@@ -160,10 +160,30 @@ For strategic vision, see `refactor-plan.md`. For context and decisions, see `re
 
 ## Priority 4: Future (v0.7.0+)
 
+### Polars Optimizations
+
+| Task | Status | Effort | Benefits |
+|------|--------|--------|----------|
+| **PyArrow Integration** | 🔮 | 1 hour | 10-100x faster Polars↔pandas conversions |
+| Add pyarrow as optional dependency | 🔮 | 30 min | Enable zero-copy via Arrow |
+| Update `_to_pandas()` with pyarrow path | 🔮 | 15 min | Affects downsample, upsample, heatmap |
+| Benchmark performance improvements | 🔮 | 30 min | Quantify actual speedup |
+| **GPU Support Integration** | 🔮 | 8 hours | 5-10x faster operations |
+| Research current GPU integration patterns | 🔮 | 1 hour | Align with Brain_Data GPU usage |
+| Design GPU backend selection | 🔮 | 2 hours | Consistent use_gpu parameter |
+| Add GPU path for convolution | 🔮 | 3 hours | cupy.convolve for GPU arrays |
+| Test GPU correctness vs CPU | 🔮 | 2 hours | Ensure numerical equivalence |
+| **Polars-Native Resampling** | 🔮 | 6 hours | 2-5x speedup, cleaner code |
+| Implement `.group_by_dynamic()` downsample | 🔮 | 2 hours | Replace stats.downsample |
+| Implement Polars interpolation upsample | 🔮 | 2 hours | Replace stats.upsample |
+| Test equivalence with old implementation | 🔮 | 2 hours | Backward compatibility |
+
+**See `polars-migration-finalization-plan.md` for detailed action items with code examples**
+
+### Other v0.7.0 Tasks
+
 | Task | Status | Tests | Commit |
 |------|--------|-------|--------|
-| Polars GPU Engine | 🔮 | - | - |
-| Polars-native resampling (downsample/upsample) | 🔮 | - | - |
 | Polars lazy evaluation by default | 🔮 | - | - |
 | Replace HDF5 with Parquet for DataFrames | 🔮 | - | - |
 | BrainCollection class design | 🔮 | - | - |
