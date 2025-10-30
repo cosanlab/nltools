@@ -21,6 +21,38 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 
 ## Breaking Changes
 
+### Design_Matrix: Pandas → Polars
+
+**Status**: In progress (TDD implementation phase)
+
+Design_Matrix now uses Polars DataFrames internally instead of pandas. This provides:
+- **5-10x faster** operations on large datasets
+- **Lower memory usage** (Apache Arrow format)
+- **Better type safety** and error messages
+- **Idiomatic Polars patterns** (no pandas anti-patterns)
+
+**What's removed:**
+- `.loc[]` indexer - Use Polars idioms instead (see examples below)
+- Pandas-specific methods that don't align with Polars
+
+**What's changed:**
+- Internal storage is Polars (`._df` attribute)
+- Faster operations via Polars vectorization
+- Cleaner API following Polars patterns
+
+**Migration examples** (TBD - will be added during implementation):
+```python
+# OLD (pandas-style)
+dm.loc[10:15, 'ConditionA'] = 1
+
+# NEW (Polars-style) - examples coming soon
+# Will use .with_columns() and conditional expressions
+```
+
+**Timeline**: Implementation in progress, tutorials will be updated after completion.
+
+## Breaking Changes
+
 ### 1. Removed Methods
 
 | Method | Alternative | Migration Effort |

@@ -133,7 +133,8 @@ For strategic vision, see `refactor-plan.md`. For context and decisions, see `re
 
 | Task | Status | Tests | Commit |
 |------|--------|-------|--------|
-| Design_Matrix Polars migration | 📋 | ~10 | - |
+| Design_Matrix Polars migration - TDD scaffolding | ✅ | 68 | Pending |
+| Design_Matrix Polars implementation | 🔧 | 68 | - |
 | Polars GPU support | 📋 | TBD | - |
 | `fit()` inplace parameter + Fit dataclass | 📋 | TBD | - |
 | Adjacency refactoring | 📋 | 30+ | - |

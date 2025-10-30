@@ -21,6 +21,7 @@ keywords=["neuroimaging", "preprocessing", "analysis", "machine-learning"]
 dependencies = [
     "h5py>=3.13.0",
     "nilearn>=0.11.1",
+    "polars>=0.20.0",
     "pynv>=0.3",
     "seaborn>=0.13.2",
 ]

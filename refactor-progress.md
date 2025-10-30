@@ -10,10 +10,30 @@ For task checklist, see `refactor-todos.md`. For strategic vision, see `refactor
 
 **Branch**: `uv-cleanup`
 **Version Target**: v0.6.0 (breaking release)
-**Test Status**: 317 tests (310+ passing, ~4 skipped)
-**Last Work**: SRM/DetSRM comprehensive tests + API documentation improvements (commits f134854, 1a4b1d9)
+**Test Status**: 317 tests (310+ passing, ~4 skipped) + 68 new DesignMatrix tests (TDD)
+**Last Work**: Polars migration scaffolding - TDD approach with comprehensive test suite
 
 ---
+
+## Recent Accomplishments
+
+### Polars Migration Scaffolding (2025-10-29)
+- **Achievement**: Complete TDD infrastructure for Design_Matrix → Polars migration
+- **Test Suite**: 68 comprehensive behavior-focused tests (all categories)
+- **Scaffold**: `design_matrix_new.py` with all method signatures as NotImplementedError
+- **Dependencies**: Added `polars>=0.20.0` to pyproject.toml
+- **Backward compat**: Shim file maintains imports during development
+- **Key decisions**:
+  - No `.loc[]` compatibility layer (use idiomatic Polars instead)
+  - Composition pattern (wrap `pl.DataFrame`, not subclass)
+  - Behavior-driven tests (specify WHAT, not HOW)
+  - Eager mode (defer lazy evaluation optimization)
+  - Liberal test comments for clarity
+- **File organization**:
+  - `design_matrix_old.py` - Original pandas implementation (reference)
+  - `design_matrix_new.py` - New Polars implementation (TDD target)
+  - `design_matrix.py` - Temporary shim for imports
+  - `test_design_matrix_new.py` - 68 comprehensive tests
 
 ## Recent Accomplishments
 
@@ -78,6 +98,35 @@ For task checklist, see `refactor-todos.md`. For strategic vision, see `refactor
 - **Pattern**: Shell tests object usage, core tests computational correctness
 
 ---
+
+## Key Decisions & Rationale
+
+### Polars Migration Approach (2025-10-29)
+
+**Why no `.loc[]` compatibility?**
+- `.loc[]` is pandas-specific, not idiomatic Polars
+- Adds complexity without teaching good Polars habits
+- Users will learn better patterns (`.filter()`, `.select()`, `.with_columns()`)
+- Tutorials will be updated later to demonstrate Polars idioms
+
+**Why TDD (tests-first) approach?**
+- Defines behavioral contracts before implementation
+- 68 tests specify WHAT DesignMatrix should do, not HOW
+- Enables implementation flexibility (optimize without breaking contracts)
+- Catches misunderstandings early (tests smoke out gaps)
+- "Slow is smooth, smooth is fast" - systematic = faster overall
+
+**Why composition over subclassing?**
+- Polars doesn't support subclassing (methods return base DataFrame)
+- Composition with `._df` internal storage gives full control
+- Metadata preservation is explicit and clear
+- Aligns with Polars best practices
+
+**Why eager mode (not lazy)?**
+- Simpler implementation (99% of users want eager)
+- Lazy evaluation can be added later as optimization
+- Matches user expectations from pandas
+- Sufficient performance gains from Polars vectorization alone
 
 ## Key Decisions & Rationale
 
@@ -194,12 +243,19 @@ For task checklist, see `refactor-todos.md`. For strategic vision, see `refactor
 
 ## Next Steps (Priority Order)
 
-1. **Complete migration guide refactoring** (current session)
-   - Create tabular user-facing guide in `docs/migration-guide.md`
-   - Update `docs/_toc.yml` to include migration guide
-   - Update all references in CLAUDE.md
+1. **DesignMatrix Polars implementation** (current priority)
+   - Phase 1: Construction + basic properties (2-3 hours)
+   - Phase 2: Data access (`__getitem__`, `__setitem__`) (1-2 hours)
+   - Phase 3: Simple transformations (fillna, drop, _copy_with) (2 hours)
+   - Phase 4: Statistical operations (zscore, downsample, upsample) (3 hours)
+   - Phase 5: Convolution (HRF, custom kernels) (2-3 hours)
+   - Phase 6: Polynomials (Legendre, DCT) (2 hours)
+   - Phase 7: Append logic (multi-run concatenation) (4-5 hours)
+   - Phase 8: Diagnostics (VIF, clean) (2 hours)
+   - Phase 9: Utilities (details, replace_data, heatmap) (1-2 hours)
+   - **Total estimate**: ~20 hours focused TDD work
 
-2. **Bootstrap refactoring** (Priority 2.8)
+2. **Bootstrap refactoring** (Priority 2.8, after Polars migration)
    - Follow TDD plan in `claude-guidelines/bootstrap-refactor.md`
    - 6 phases, 26 tests
    - Memory-efficient online statistics
