@@ -212,6 +212,29 @@ class DesignMatrix:
         dropped_df = self._df.drop(columns)
         return self._copy_with(dropped_df)
 
+    def copy(self) -> "DesignMatrix":
+        """
+        Create a deep copy of the DesignMatrix.
+
+        Returns a new DesignMatrix with cloned data and metadata.
+
+        Returns
+        -------
+        DesignMatrix
+            Copy of the current DesignMatrix
+
+        Examples
+        --------
+        >>> dm = DesignMatrix({"a": [1, 2, 3]}, sampling_freq=1)
+        >>> dm_copy = dm.copy()
+        >>> dm_copy["a"] = [4, 5, 6]  # Modifying copy doesn't affect original
+        >>> dm["a"].to_list()
+        [1, 2, 3]
+        """
+        # Clone the Polars DataFrame (creates deep copy)
+        cloned_df = self._df.clone()
+        return self._copy_with(cloned_df)
+
     # ==================== Statistical Operations ====================
 
     def zscore(self, columns: Optional[List[str]] = None) -> "DesignMatrix":
@@ -287,8 +310,8 @@ class DesignMatrix:
             **kwargs,
         )
 
-        # Convert back to Polars
-        downsampled_df = pl.from_pandas(downsampled_pd)
+        # Convert back to Polars (dict-based to avoid pyarrow dependency)
+        downsampled_df = pl.DataFrame({col: downsampled_pd[col].to_numpy() for col in downsampled_pd.columns})
 
         # Create new DesignMatrix with updated sampling_freq
         return self._copy_with(downsampled_df, sampling_freq=target)
@@ -332,8 +355,8 @@ class DesignMatrix:
             **kwargs,
         )
 
-        # Convert back to Polars
-        upsampled_df = pl.from_pandas(upsampled_pd)
+        # Convert back to Polars (dict-based to avoid pyarrow dependency)
+        upsampled_df = pl.DataFrame({col: upsampled_pd[col].to_numpy() for col in upsampled_pd.columns})
 
         # Create new DesignMatrix with updated sampling_freq
         return self._copy_with(upsampled_df, sampling_freq=target)
@@ -1254,3 +1277,82 @@ class DesignMatrix:
         >>> pd_df = dm._to_pandas()  # For seaborn/matplotlib plotting
         """
         return pd.DataFrame(self._df.to_dict(as_series=False))
+
+    def to_numpy(self) -> np.ndarray:
+        """
+        Convert DesignMatrix to numpy array.
+
+        Returns data columns as 2D numpy array (rows × columns).
+        Column order is preserved from DataFrame.
+
+        Returns
+        -------
+        np.ndarray
+            2D array with shape (n_samples, n_columns)
+
+        Examples
+        --------
+        >>> dm = DesignMatrix({"a": [1, 2, 3], "b": [4, 5, 6]}, sampling_freq=1)
+        >>> arr = dm.to_numpy()
+        >>> arr.shape
+        (3, 2)
+        """
+        return self._df.to_numpy()
+
+    def __array__(self, dtype=None) -> np.ndarray:
+        """
+        Numpy array interface - enables np.array(design_matrix) and np.asarray().
+
+        This is the standard numpy protocol for converting objects to arrays.
+        It's what numpy.asarray() calls internally.
+
+        Parameters
+        ----------
+        dtype : numpy dtype, optional
+            Desired data type for the array
+
+        Returns
+        -------
+        np.ndarray
+            2D numpy array representation
+
+        Examples
+        --------
+        >>> dm = DesignMatrix({"a": [1, 2, 3]}, sampling_freq=1)
+        >>> np.array(dm)  # Uses __array__()
+        array([[1], [2], [3]])
+        >>> np.asarray(dm)  # Also uses __array__()
+        array([[1], [2], [3]])
+        """
+        arr = self._df.to_numpy()
+        if dtype is not None:
+            return arr.astype(dtype)
+        return arr
+
+
+# Backward compatibility aliases (deprecated in v0.6.0)
+# TODO: Add deprecation warning in v0.6.1, remove in v0.7.0
+Design_Matrix = DesignMatrix
+
+
+# Design_Matrix_Series is no longer needed with Polars (was pandas-specific)
+# Kept for backward compatibility only - not functional
+class Design_Matrix_Series:
+    """
+    Deprecated: This class was specific to pandas implementation.
+
+    The Polars-based DesignMatrix doesn't require a separate Series class.
+    This stub is kept only for backward compatibility with imports.
+
+    Will be removed in v0.7.0.
+    """
+
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError(
+            "Design_Matrix_Series is deprecated and no longer functional. "
+            "The Polars-based DesignMatrix implementation doesn't require a separate Series class. "
+            "If you need Series-like functionality, use DesignMatrix column access directly."
+        )
+
+
+__all__ = ["DesignMatrix", "Design_Matrix", "Design_Matrix_Series"]

@@ -15,6 +15,17 @@
     thousand-subject neuroimaging datasets. In Big Data (Big Data),
     2016 IEEE International Conference on (pp. 1151-1160). IEEE.
 
+    References
+    ----------
+    .. [Chen2015] Chen, P. H. C., Chen, J., Yeshurun, Y., Hasson, U., Haxby, J.,
+       & Ramadge, P. J. (2015). A reduced-dimension fMRI shared response model.
+       In Advances in Neural Information Processing Systems (pp. 460-468).
+
+    .. [Anderson2016] Anderson, M. J., Capota, M., Turek, J. S., Zhu, X.,
+       Willke, T. L., Wang, Y., & Norman, K. A. (2016, December). Enabling
+       factor analysis on thousand-subject neuroimaging datasets. In Big Data
+       (Big Data), 2016 IEEE International Conference on (pp. 1151-1160). IEEE.
+
     Copyright 2016 Intel Corporation
 
     Licensed under the Apache License, Version 2.0 (the "License");

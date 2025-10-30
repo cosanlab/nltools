@@ -1429,7 +1429,7 @@ def procrustes(data1, data2):
     two identically sized matrices, procrustes standardizes both such that:
     - :math:`tr(AA^{T}) = 1`.
     - Both sets of points are centered around the origin.
-    Procrustes ([1]_, [2]_) then applies the optimal transform to the second
+    Procrustes then applies the optimal transform to the second
     matrix (including scaling/dilation, rotations, and reflections) to minimize
     :math:`M^{2}=\\sum(data1-data2)^{2}`, or the sum of the squares of the
     pointwise differences between the two input datasets.

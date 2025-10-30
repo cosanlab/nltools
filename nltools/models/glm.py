@@ -140,9 +140,10 @@ class Glm(BaseModel):
             4D fMRI image(s) to fit. Can be single run or list of runs.
         y : None
             Not used, present for sklearn API compatibility.
-        design_matrices : DataFrame or list of DataFrame
+        design_matrices : DataFrame, DesignMatrix, or list of DataFrame/DesignMatrix
             Design matrix or list of design matrices (one per run).
             Each should have shape (n_scans, n_regressors).
+            Accepts both pandas DataFrames and nltools DesignMatrix objects.
         events : DataFrame or list of DataFrame, optional
             Event specifications for automatic design matrix creation.
             Alternative to providing design_matrices directly.
@@ -159,16 +160,60 @@ class Glm(BaseModel):
         Unlike BaseModel's fit(), this method does not validate X as a 2D array
         because GLM works with 4D neuroimaging data. Input validation is
         delegated to nilearn's FirstLevelModel.
+
+        DesignMatrix objects are automatically converted to pandas DataFrames
+        for nilearn compatibility. The conversion is done at this boundary to
+        keep DesignMatrix Polars-native while maintaining nilearn integration.
         """
+        # Convert DesignMatrix to pandas for nilearn compatibility
+        if design_matrices is not None:
+            design_matrices_pd = self._convert_design_matrices(design_matrices)
+        else:
+            design_matrices_pd = None
+
         # Delegate to composed FirstLevelModel
         self._glm.fit(
-            X, design_matrices=design_matrices, events=events, **kwargs
+            X, design_matrices=design_matrices_pd, events=events, **kwargs
         )
 
         # Set BaseModel fitted state
         self.is_fitted_ = True
 
         return self
+
+    def _convert_design_matrices(self, design_matrices):
+        """
+        Convert DesignMatrix objects to pandas DataFrames for nilearn.
+
+        Parameters
+        ----------
+        design_matrices : DesignMatrix, DataFrame, or list of either
+            Design matrix/matrices to convert
+
+        Returns
+        -------
+        converted : DataFrame or list of DataFrame
+            Pandas DataFrames for nilearn consumption
+        """
+        # Import here to avoid circular dependency
+        from nltools.data import DesignMatrix
+
+        # Handle single design matrix
+        if not isinstance(design_matrices, list):
+            if isinstance(design_matrices, DesignMatrix):
+                return design_matrices._to_pandas()
+            else:
+                return design_matrices
+
+        # Handle list of design matrices
+        converted = []
+        for dm in design_matrices:
+            if isinstance(dm, DesignMatrix):
+                converted.append(dm._to_pandas())
+            else:
+                converted.append(dm)
+
+        return converted
 
     def predict(self, X=None):
         """

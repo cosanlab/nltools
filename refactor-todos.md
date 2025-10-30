@@ -129,19 +129,20 @@ For strategic vision, see `refactor-plan.md`. For context and decisions, see `re
 
 ---
 
-## Priority 2.13: Polars Migration Follow-up (IMMEDIATE)
+## Priority 2.13: Polars Migration Follow-up (COMPLETE ✅)
 
 | Task | Status | Tests | Commit |
 |------|--------|-------|--------|
 | Design_Matrix Polars TDD scaffolding | ✅ | 68 | 839f355 |
-| Design_Matrix Polars implementation | ✅ | 68 | Pending commit |
-| Review Polars code for holistic cleanup | 📋 | - | - |
-| Switch design_matrix.py to Polars version | 📋 | - | - |
-| Test with real workflows | 📋 | - | - |
-| Update migration guide (Polars section) | 📋 | - | - |
-| Consider pyarrow dependency | 📋 | - | - |
-| Profile and benchmark Polars performance | 📋 | - | - |
-| Remove unused _from_polars() method | 📋 | - | - |
+| Design_Matrix Polars implementation | ✅ | 68 | Multiple |
+| Review Polars code for holistic cleanup | ✅ | 68 | efb83c5 |
+| Switch design_matrix.py to Polars version | ✅ | 78 | - |
+| Fix GLM integration (nilearn boundary) | ✅ | 18 | - |
+| Test with real workflows (GLM tests) | ✅ | 18 | - |
+| Document integration status | ✅ | - | - |
+| Skip file_reader/adjacency tests | ✅ | 2 | - |
+| Consider pyarrow dependency | 📋 | - | v0.7.0+ |
+| Profile and benchmark Polars performance | 📋 | - | v0.6.1+ |
 
 ---
 

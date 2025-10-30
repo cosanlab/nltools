@@ -40,11 +40,13 @@ class TestDesignMatrix:
 
     def test_zscore(self, sim_design_matrix):
         """Test selective z-scoring of columns."""
+        import numpy as np
+
         matz = sim_design_matrix.zscore(columns=["face_A", "face_B"])
-        assert (
-            (matz[["house_A", "house_B"]] == sim_design_matrix[["house_A", "house_B"]])
-            .all()
-            .all()
+        # Check unchanged columns are identical (Polars-compatible)
+        assert np.allclose(
+            matz[["house_A", "house_B"]].to_numpy(),
+            sim_design_matrix[["house_A", "house_B"]].to_numpy(),
         )
 
     def test_replace(self, sim_design_matrix):
@@ -85,8 +87,15 @@ class TestDesignMatrix:
 
     def test_clean(self, sim_design_matrix):
         """Test automatic collinearity removal."""
-        # Drop correlated column
-        corr_cols = sim_design_matrix.assign(new_col=lambda df: df.iloc[:, 0])
+        # Drop correlated column (Polars-compatible)
+        # Create a copy and add a duplicate of the first column
+        first_col_name = sim_design_matrix.columns[0]
+        first_col_data = sim_design_matrix[first_col_name]
+
+        # Create new DesignMatrix with added correlated column
+        corr_cols = sim_design_matrix.copy()
+        corr_cols["new_col"] = first_col_data
+
         out = corr_cols.clean(verbose=True)
         assert out.shape[1] < corr_cols.shape[1]
 
@@ -94,10 +103,10 @@ class TestDesignMatrix:
         out = corr_cols.clean(fill_na=None, exclude_polys=True, verbose=True)
         assert out.shape[1] < corr_cols.shape[1]
 
-        # Raise an error if try to clean with an input matrix that has duplicate column names
-        dup_cols = pd.concat([sim_design_matrix, sim_design_matrix], axis=1)
-        with pytest.raises(ValueError):
-            _ = dup_cols.clean()
+        # Note: Testing duplicate column names is not applicable with Polars
+        # Polars doesn't allow duplicate column names (raises DuplicateError on concat)
+        # This is actually a feature - prevents accidental duplicate columns
+        # Skip this test case for Polars implementation
 
     def test_append(self, sim_design_matrix):
         """Test appending design matrices with various column handling options."""

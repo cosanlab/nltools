@@ -1,10 +1,20 @@
 """
-Temporary shim to maintain backward compatibility during Polars migration.
+Design Matrix module - Polars-based implementation.
 
-This imports the OLD Design_Matrix class so existing code doesn't break.
-Once migration is complete, this will be replaced with design_matrix_new.py
+DesignMatrix is a class for representing design matrices with methods for data
+processing (convolution, upsampling, downsampling) and intelligent concatenation
+(automatically handling polynomial terms across runs).
+
+Uses Polars for efficient DataFrame operations while maintaining compatibility
+with pandas-based workflows.
+
+For backward compatibility:
+- Design_Matrix (with underscore) is an alias for DesignMatrix
+- Design_Matrix_Series is deprecated (was pandas-specific, not needed with Polars)
+
+Note: design_matrix_old.py contains the original pandas implementation for reference.
 """
 
-from .design_matrix_old import Design_Matrix, Design_Matrix_Series
+from .design_matrix_new import DesignMatrix, Design_Matrix, Design_Matrix_Series
 
-__all__ = ["Design_Matrix", "Design_Matrix_Series"]
+__all__ = ["DesignMatrix", "Design_Matrix", "Design_Matrix_Series"]
