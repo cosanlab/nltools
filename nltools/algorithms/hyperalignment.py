@@ -17,7 +17,7 @@ import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
 from scipy.linalg import orthogonal_procrustes
 
-__all__ = ['HyperAlignment']
+__all__ = ["HyperAlignment"]
 
 
 def _procrustes_pairwise(data1, data2):
@@ -297,7 +297,7 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
         transformed : list of ndarray
             List of transformed data matrices in common space
         """
-        if not hasattr(self, 'w_'):
+        if not hasattr(self, "w_"):
             raise ValueError("Model must be fit before transform")
 
         # Apply stored transformations
@@ -337,7 +337,7 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
         scale : float
             Scale factor used
         """
-        if not hasattr(self, 's_'):
+        if not hasattr(self, "s_"):
             raise ValueError("Model must be fit before transform_subject")
 
         # Align new subject to common template

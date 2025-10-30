@@ -61,7 +61,9 @@ class Ridge(BaseModel):
     >>> # Coefficients are effectively OLS estimates
     """
 
-    def __init__(self, alpha=1.0, cv=None, alphas=None, backend='numpy', random_state=None):
+    def __init__(
+        self, alpha=1.0, cv=None, alphas=None, backend="numpy", random_state=None
+    ):
         super().__init__()
         self.alpha = alpha
         self.cv = cv
@@ -95,20 +97,17 @@ class Ridge(BaseModel):
             self.backend_ = self.backend
 
         # Use CV if alpha='auto'
-        if self.alpha == 'auto':
+        if self.alpha == "auto":
             if self.cv is None:
                 raise ValueError("cv must be specified when alpha='auto'")
 
             result = ridge_cv(
-                X, y,
-                alphas=self.alphas,
-                cv=self.cv,
-                backend=self.backend_
+                X, y, alphas=self.alphas, cv=self.cv, backend=self.backend_
             )
 
-            self.alpha_ = result['alpha']
-            self.coef_ = result['coef']
-            self.cv_scores_ = result['cv_scores']
+            self.alpha_ = result["alpha"]
+            self.coef_ = result["coef"]
+            self.cv_scores_ = result["cv_scores"]
         else:
             # Fixed alpha
             self.alpha_ = self.alpha

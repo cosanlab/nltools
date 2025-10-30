@@ -4,7 +4,6 @@ from nltools.utils import get_resource_path
 import numpy as np
 import pandas as pd
 import os
-import pytest
 
 
 def test_onsets_to_dm():

@@ -52,11 +52,11 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
         # Store empty DataFrames for backward compatibility
         with pd.HDFStore(file_name, "w") as f:
             # Check if obj has these deprecated attributes for backward compatibility
-            if hasattr(obj, 'X'):
+            if hasattr(obj, "X"):
                 f["X"] = obj.X
             else:
                 f["X"] = pd.DataFrame()
-            if hasattr(obj, 'Y'):
+            if hasattr(obj, "Y"):
                 f["Y"] = obj.Y
             else:
                 f["Y"] = pd.DataFrame()
@@ -94,18 +94,18 @@ def load_brain_data_h5(file_path, mask=None):
     Returns:
         dict: Dictionary containing loaded data, X, Y, and optionally mask info.
     """
-    
+
     result = {}
-    
+
     try:
         # Try modern format first
         with pd.HDFStore(file_path, "r") as f:
             result["X"] = f["X"]
             result["Y"] = f["Y"]
-        
+
         with h5File(file_path, "r") as f:
             result["data"] = np.array(f["data"])
-            
+
             # Handle mask loading
             if mask is None and "mask_data" in f:
                 # Load mask from file
@@ -121,12 +121,12 @@ def load_brain_data_h5(file_path, mask=None):
                 result["load_mask"] = True
             else:
                 result["load_mask"] = False
-    
+
     except Exception:
         # Fall back to legacy format
         result = _load_legacy_brain_data_h5(file_path, mask)
         result["legacy_format"] = True
-    
+
     return result
 
 
@@ -144,13 +144,13 @@ def _load_legacy_brain_data_h5(file_path, mask=None):
     tables_mod = attempt_to_import("tables")
     if tables_mod is None:
         raise ImportError("tables package required for legacy h5 format")
-    
+
     result = {}
-    
+
     with tables_mod.open_file(file_path, mode="r") as f:
         # Load data
         result["data"] = np.array(f.root["data"])
-        
+
         # Load X DataFrame
         if len(list(f.root["X_columns"])):
             result["X"] = pd.DataFrame(
@@ -166,7 +166,7 @@ def _load_legacy_brain_data_h5(file_path, mask=None):
             )
         else:
             result["X"] = pd.DataFrame()
-        
+
         # Load Y DataFrame
         if len(list(f.root["Y_columns"])):
             result["Y"] = pd.DataFrame(
@@ -182,7 +182,7 @@ def _load_legacy_brain_data_h5(file_path, mask=None):
             )
         else:
             result["Y"] = pd.DataFrame()
-        
+
         # Handle mask loading
         if mask is None and "mask_data" in f.root:
             filename = (
@@ -198,7 +198,7 @@ def _load_legacy_brain_data_h5(file_path, mask=None):
             result["load_mask"] = True
         else:
             result["load_mask"] = False
-    
+
     return result
 
 
@@ -212,13 +212,14 @@ def get_anatomical():
     DEPRECATED. Use MNI_Template.plot from nltools.prefs instead.
     """
     from nltools.prefs import MNI_Template
+
     return nib.load(MNI_Template.plot)
 
 
 def get_mni_from_img_resolution(brain, img_type="plot"):
     """
     Get the path to the MNI anatomical image that matches the resolution of a Brain_Data instance.
-    
+
     This function determines the resolution of the input Brain_Data and returns the appropriate
     MNI template image path from the current MNI_Template settings, adjusting only the resolution
     while keeping the same template variant.
@@ -241,24 +242,31 @@ def get_mni_from_img_resolution(brain, img_type="plot"):
         raise ValueError(
             "Voxels are not isometric and cannot be visualized in standard space"
         )
-    
+
     # Determine resolution in mm
     resolution = int(voxel_dims[0])
-    
+
     # Check if this resolution is supported for the current template
-    if resolution not in MNI_Template._supported_combinations.get(MNI_Template.template, []):
+    if resolution not in MNI_Template._supported_combinations.get(
+        MNI_Template.template, []
+    ):
         # If not supported, return the current template's image
         # This handles cases where data resolution doesn't match available templates
         if img_type == "brain":
             return MNI_Template.brain
         else:
             return MNI_Template.plot
-    
+
     # Build path with matching resolution
     from os.path import join, dirname
-    base_path = join(dirname(MNI_Template.mask).rsplit('/niftis/', 1)[0], "niftis", MNI_Template.template)
+
+    base_path = join(
+        dirname(MNI_Template.mask).rsplit("/niftis/", 1)[0],
+        "niftis",
+        MNI_Template.template,
+    )
     res_str = f"{resolution}mm"
-    
+
     if img_type == "brain":
         return join(base_path, f"MNI152_{res_str}_brain.nii.gz")
     else:

@@ -15,6 +15,7 @@ from scipy.stats import pearsonr
 from scipy.linalg import block_diag
 from pathlib import Path
 from sklearn.metrics import pairwise_distances
+from nltools.tests.conftest import _tables_available
 
 
 class TestAdjacency:
@@ -50,11 +51,15 @@ class TestAdjacency:
 
     def test_arithmetic(self, sim_adjacency_directed):
         """Test arithmetic operations on adjacency matrices."""
-        assert (sim_adjacency_directed + 5).data[0] == sim_adjacency_directed.data[0] + 5
+        assert (sim_adjacency_directed + 5).data[0] == sim_adjacency_directed.data[
+            0
+        ] + 5
         assert (sim_adjacency_directed - 0.5).data[0] == sim_adjacency_directed.data[
             0
         ] - 0.5
-        assert (sim_adjacency_directed * 5).data[0] == sim_adjacency_directed.data[0] * 5
+        assert (sim_adjacency_directed * 5).data[0] == sim_adjacency_directed.data[
+            0
+        ] * 5
         assert np.all(
             np.isclose(
                 (sim_adjacency_directed + sim_adjacency_directed).data,
@@ -68,7 +73,9 @@ class TestAdjacency:
             )
         )
         np.testing.assert_almost_equal(
-            ((2 * sim_adjacency_directed / 2) / sim_adjacency_directed).mean(), 1, decimal=4
+            ((2 * sim_adjacency_directed / 2) / sim_adjacency_directed).mean(),
+            1,
+            decimal=4,
         )
 
     def test_copy(self, sim_adjacency_multiple):
@@ -105,7 +112,10 @@ class TestAdjacency:
         )
         assert np.all(np.isclose(sim_adjacency_multiple.data, dat_multiple2.data))
 
-        # Test i/o for hdf5
+        # Test i/o for hdf5 (deprecated - requires PyTables)
+        pytest.importorskip(
+            "tables", reason="HDF5 support deprecated, requires PyTables"
+        )
         sim_adjacency_multiple.write(os.path.join(str(tmpdir.join("test_write.h5"))))
         b = Adjacency(os.path.join(tmpdir.join("test_write.h5")))
         for k in ["Y", "matrix_type", "is_single_matrix", "issymmetric", "data"]:
@@ -132,8 +142,16 @@ class TestAdjacency:
         )
         assert np.all(np.isclose(sim_adjacency_directed.data, dat_directed2.data))
 
+    @pytest.mark.skipif(
+        not _tables_available(), reason="HDF5 support deprecated, requires PyTables"
+    )
     def test_load_legacy_h5(
-        self, old_h5_adj_single, new_h5_adj_single, old_h5_adj_double, new_h5_adj_double, tmpdir
+        self,
+        old_h5_adj_single,
+        new_h5_adj_single,
+        old_h5_adj_double,
+        new_h5_adj_double,
+        tmpdir,
     ):
         """Test loading old HDF5 format (backward compatibility)."""
         with pytest.warns(UserWarning):
@@ -213,7 +231,9 @@ class TestAdjacency:
         n_permute = 1000
         assert len(
             sim_adjacency_multiple.similarity(
-                sim_adjacency_multiple[0].squareform(), perm_type="1d", n_permute=n_permute
+                sim_adjacency_multiple[0].squareform(),
+                perm_type="1d",
+                n_permute=n_permute,
             )
         ) == len(sim_adjacency_multiple)
         assert len(
@@ -369,7 +389,8 @@ class TestAdjacency:
         group = np.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
 
         similarity = Adjacency(
-            1 - pairwise_distances(data.T, metric="correlation"), matrix_type="similarity"
+            1 - pairwise_distances(data.T, metric="correlation"),
+            matrix_type="similarity",
         )
 
         for method in ["permute", "bootstrap"]:
@@ -394,9 +415,12 @@ class TestAdjacency:
         assert np.sum(sim_adjacency_directed.threshold(upper=0.8).data == 0) == 10
         assert sim_adjacency_directed.threshold(upper=0.8, binarize=True).data[0]
         assert (
-            np.sum(sim_adjacency_directed.threshold(upper="70%", binarize=True).data) == 5
+            np.sum(sim_adjacency_directed.threshold(upper="70%", binarize=True).data)
+            == 5
         )
-        assert np.sum(sim_adjacency_directed.threshold(lower=0.4, binarize=True).data) == 6
+        assert (
+            np.sum(sim_adjacency_directed.threshold(lower=0.4, binarize=True).data) == 6
+        )
 
     def test_fisher_r_to_z(self, sim_adjacency_single):
         """Test Fisher r-to-z transformation."""
@@ -441,7 +465,9 @@ class TestAdjacency:
         n = 10
         d = Adjacency(
             [
-                block_diag(np.ones((4, 4)) + np.random.randn(4, 4) * 0.1, np.zeros((8, 8)))
+                block_diag(
+                    np.ones((4, 4)) + np.random.randn(4, 4) * 0.1, np.zeros((8, 8))
+                )
                 for _ in range(n)
             ],
             matrix_type="similarity",
@@ -475,7 +501,9 @@ class TestAdjacency:
         assert len(results1["actor_effect"]) == data.square_shape()[0]
         assert results1["relationship_effect"].shape == data.square_shape()
         np.testing.assert_approx_equal(results1["actor_variance"], 3.33, significant=2)
-        np.testing.assert_approx_equal(results1["partner_variance"], 0.66, significant=2)
+        np.testing.assert_approx_equal(
+            results1["partner_variance"], 0.66, significant=2
+        )
         np.testing.assert_approx_equal(
             results1["relationship_variance"], 3.33, significant=2
         )

@@ -14,10 +14,12 @@ from nltools.models import BaseModel, Ridge
 # Helper Functions
 # ============================================================================
 
+
 def _torch_available():
     """Check if PyTorch is installed"""
     try:
         import torch
+
         return True
     except ImportError:
         return False
@@ -27,6 +29,7 @@ def _torch_available():
 # BaseModel Abstract Interface
 # ============================================================================
 
+
 def test_basemodel_is_abstract():
     """BaseModel cannot be instantiated directly"""
     with pytest.raises(TypeError, match="abstract"):
@@ -35,6 +38,7 @@ def test_basemodel_is_abstract():
 
 def test_basemodel_defines_fit():
     """BaseModel requires fit() implementation"""
+
     # Create minimal concrete subclass missing fit()
     class Incomplete(BaseModel):
         def predict(self, X):
@@ -49,6 +53,7 @@ def test_basemodel_defines_fit():
 
 def test_basemodel_defines_predict():
     """BaseModel requires predict() implementation"""
+
     class Incomplete(BaseModel):
         def fit(self, X, y):
             pass
@@ -62,6 +67,7 @@ def test_basemodel_defines_predict():
 
 def test_basemodel_defines_score():
     """BaseModel requires score() implementation"""
+
     class Incomplete(BaseModel):
         def fit(self, X, y):
             pass
@@ -75,6 +81,7 @@ def test_basemodel_defines_score():
 
 def test_basemodel_concrete_subclass():
     """Concrete subclass with all methods should instantiate"""
+
     class Concrete(BaseModel):
         def fit(self, X, y):
             return self
@@ -93,8 +100,10 @@ def test_basemodel_concrete_subclass():
 # BaseModel Shared Functionality
 # ============================================================================
 
+
 def test_basemodel_fit_returns_self():
     """fit() should return self for method chaining"""
+
     class Concrete(BaseModel):
         def fit(self, X, y):
             return self
@@ -115,6 +124,7 @@ def test_basemodel_fit_returns_self():
 
 def test_basemodel_tracks_fitted_state():
     """BaseModel should track whether fit() has been called"""
+
     class Concrete(BaseModel):
         def fit(self, X, y):
             super().fit(X, y)  # Calls BaseModel.fit() to set state
@@ -143,6 +153,7 @@ def test_basemodel_tracks_fitted_state():
 
 def test_basemodel_stores_training_shape():
     """BaseModel should store X and y shapes from training"""
+
     class Concrete(BaseModel):
         def fit(self, X, y):
             super().fit(X, y)
@@ -161,9 +172,9 @@ def test_basemodel_stores_training_shape():
 
     model.fit(X, y)
 
-    assert hasattr(model, 'n_features_in_')
+    assert hasattr(model, "n_features_in_")
     assert model.n_features_in_ == 50
-    assert hasattr(model, 'n_samples_')
+    assert hasattr(model, "n_samples_")
     assert model.n_samples_ == 100
 
 
@@ -171,8 +182,10 @@ def test_basemodel_stores_training_shape():
 # BaseModel Input Validation
 # ============================================================================
 
+
 def test_basemodel_validates_X_shape():
     """BaseModel should validate X is 2D array"""
+
     class Concrete(BaseModel):
         def fit(self, X, y):
             X = self._validate_X(X)
@@ -206,6 +219,7 @@ def test_basemodel_validates_X_shape():
 
 def test_basemodel_validates_y_shape():
     """BaseModel should validate y shape matches X"""
+
     class Concrete(BaseModel):
         def fit(self, X, y):
             X, y = self._validate_X_y(X, y)
@@ -237,6 +251,7 @@ def test_basemodel_validates_y_shape():
 
 def test_basemodel_validates_predict_features():
     """predict() should validate feature count matches training"""
+
     class Concrete(BaseModel):
         def fit(self, X, y):
             X, y = self._validate_X_y(X, y)
@@ -270,6 +285,7 @@ def test_basemodel_validates_predict_features():
 # Ridge Model - Basic Fit/Predict
 # ============================================================================
 
+
 def test_ridge_instantiation():
     """Ridge should instantiate with alpha parameter"""
     model = Ridge(alpha=1.0)
@@ -299,7 +315,7 @@ def test_ridge_fit_single_target():
     assert model.is_fitted_
 
     # Should store coefficients
-    assert hasattr(model, 'coef_')
+    assert hasattr(model, "coef_")
     assert model.coef_.shape == (50,)
 
 
@@ -374,7 +390,7 @@ def test_ridge_vs_sklearn():
     pred_ours = model_ours.predict(X)
 
     # sklearn
-    model_sklearn = SklearnRidge(alpha=alpha, fit_intercept=False, solver='svd')
+    model_sklearn = SklearnRidge(alpha=alpha, fit_intercept=False, solver="svd")
     model_sklearn.fit(X, y)
     pred_sklearn = model_sklearn.predict(X)
 
@@ -387,10 +403,11 @@ def test_ridge_vs_sklearn():
 # Ridge Model - Cross-Validation
 # ============================================================================
 
+
 def test_ridge_cv_instantiation():
     """Ridge with cv should instantiate properly"""
-    model = Ridge(alpha='auto', cv=5)
-    assert model.alpha == 'auto'
+    model = Ridge(alpha="auto", cv=5)
+    assert model.alpha == "auto"
     assert model.cv == 5
 
 
@@ -400,16 +417,16 @@ def test_ridge_cv_fits_and_selects_alpha():
     X = np.random.randn(100, 50).astype(np.float32)
     y = np.random.randn(100).astype(np.float32)
 
-    model = Ridge(alpha='auto', cv=3)
+    model = Ridge(alpha="auto", cv=3)
     model.fit(X, y)
 
     # Should have selected an alpha
-    assert hasattr(model, 'alpha_')
+    assert hasattr(model, "alpha_")
     assert isinstance(model.alpha_, float)
     assert model.alpha_ > 0
 
     # Should have CV scores
-    assert hasattr(model, 'cv_scores_')
+    assert hasattr(model, "cv_scores_")
     assert model.cv_scores_.shape[0] == 3  # n_folds
 
 
@@ -420,7 +437,7 @@ def test_ridge_cv_alphas_parameter():
     y = np.random.randn(100).astype(np.float32)
 
     alphas = [0.1, 1.0, 10.0]
-    model = Ridge(alpha='auto', cv=3, alphas=alphas)
+    model = Ridge(alpha="auto", cv=3, alphas=alphas)
     model.fit(X, y)
 
     # Selected alpha should be from our list
@@ -433,7 +450,7 @@ def test_ridge_cv_multi_target():
     X = np.random.randn(100, 50).astype(np.float32)
     Y = np.random.randn(100, 5).astype(np.float32)
 
-    model = Ridge(alpha='auto', cv=3)
+    model = Ridge(alpha="auto", cv=3)
     model.fit(X, Y)
 
     # Should fit all targets
@@ -450,10 +467,10 @@ def test_ridge_cv_reproducibility():
     y = np.random.randn(100).astype(np.float32)
 
     # CV is deterministic, so same data should give same results
-    model1 = Ridge(alpha='auto', cv=3)
+    model1 = Ridge(alpha="auto", cv=3)
     model1.fit(X, y)
 
-    model2 = Ridge(alpha='auto', cv=3)
+    model2 = Ridge(alpha="auto", cv=3)
     model2.fit(X, y)
 
     assert model1.alpha_ == model2.alpha_
@@ -464,18 +481,19 @@ def test_ridge_cv_reproducibility():
 # Ridge Model - Backend Integration
 # ============================================================================
 
+
 def test_ridge_numpy_backend():
     """Ridge should work with NumPy backend"""
     np.random.seed(42)
     X = np.random.randn(100, 50).astype(np.float32)
     y = np.random.randn(100).astype(np.float32)
 
-    model = Ridge(alpha=1.0, backend='numpy')
+    model = Ridge(alpha=1.0, backend="numpy")
     model.fit(X, y)
     y_pred = model.predict(X)
 
     assert y_pred.shape == (100,)
-    assert model.backend_.name == 'numpy'
+    assert model.backend_.name == "numpy"
 
 
 @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
@@ -485,12 +503,12 @@ def test_ridge_torch_backend():
     X = np.random.randn(100, 50).astype(np.float32)
     y = np.random.randn(100).astype(np.float32)
 
-    model = Ridge(alpha=1.0, backend='torch')
+    model = Ridge(alpha=1.0, backend="torch")
     model.fit(X, y)
     y_pred = model.predict(X)
 
     assert y_pred.shape == (100,)
-    assert model.backend_.name.startswith('torch')
+    assert model.backend_.name.startswith("torch")
 
 
 @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
@@ -501,12 +519,12 @@ def test_ridge_cpu_gpu_equivalence():
     y = np.random.randn(100).astype(np.float32)
 
     # CPU
-    model_cpu = Ridge(alpha=1.0, backend='numpy')
+    model_cpu = Ridge(alpha=1.0, backend="numpy")
     model_cpu.fit(X, y)
     pred_cpu = model_cpu.predict(X)
 
     # GPU
-    model_gpu = Ridge(alpha=1.0, backend='torch')
+    model_gpu = Ridge(alpha=1.0, backend="torch")
     model_gpu.fit(X, y)
     pred_gpu = model_gpu.predict(X)
 
@@ -519,18 +537,19 @@ def test_ridge_auto_backend():
     X = np.random.randn(100, 50).astype(np.float32)
     y = np.random.randn(100).astype(np.float32)
 
-    model = Ridge(alpha=1.0, backend='auto')
+    model = Ridge(alpha=1.0, backend="auto")
     model.fit(X, y)
     y_pred = model.predict(X)
 
     assert y_pred.shape == (100,)
-    assert hasattr(model, 'backend_')
-    assert model.backend_.name in ['numpy', 'torch-cpu', 'torch-cuda', 'torch-mps']
+    assert hasattr(model, "backend_")
+    assert model.backend_.name in ["numpy", "torch-cpu", "torch-cuda", "torch-mps"]
 
 
 # ============================================================================
 # GLMModel - Basic Interface
 # ============================================================================
+
 
 def test_glm_instantiation():
     """Glm should instantiate with optional parameters"""
@@ -541,9 +560,9 @@ def test_glm_instantiation():
     assert not model.is_fitted_
 
     # With parameters
-    model = Glm(t_r=2.0, noise_model='ar1', smoothing_fwhm=5.0)
+    model = Glm(t_r=2.0, noise_model="ar1", smoothing_fwhm=5.0)
     assert model.t_r == 2.0
-    assert model.noise_model == 'ar1'
+    assert model.noise_model == "ar1"
     assert model.smoothing_fwhm == 5.0
 
 
@@ -552,8 +571,9 @@ def test_glm_requires_nilearn():
     # Note: In practice, nilearn is always available in our tests
     # This test documents the expected behavior
     from nltools.models import Glm
+
     model = Glm()
-    assert hasattr(model, 'fit')
+    assert hasattr(model, "fit")
 
 
 def test_glm_fit_with_design_matrix():
@@ -577,15 +597,15 @@ def test_glm_fit_with_design_matrix():
 
     # Create design matrix
     frame_times = np.arange(n_scans) * 2.0  # TR = 2s
-    events = pd.DataFrame({
-        'onset': [0, 10, 20, 30],
-        'duration': [1, 1, 1, 1],
-        'trial_type': ['task', 'task', 'rest', 'rest']
-    })
+    events = pd.DataFrame(
+        {
+            "onset": [0, 10, 20, 30],
+            "duration": [1, 1, 1, 1],
+            "trial_type": ["task", "task", "rest", "rest"],
+        }
+    )
     design_matrix = make_first_level_design_matrix(
-        frame_times,
-        events=events,
-        hrf_model='spm'
+        frame_times, events=events, hrf_model="spm"
     )
 
     # Fit GLM with explicit mask
@@ -629,15 +649,11 @@ def test_glm_compute_contrast_after_fit():
 
     # Create design matrix
     frame_times = np.arange(n_scans) * 2.0
-    events = pd.DataFrame({
-        'onset': [0, 10],
-        'duration': [1, 1],
-        'trial_type': ['task', 'task']
-    })
+    events = pd.DataFrame(
+        {"onset": [0, 10], "duration": [1, 1], "trial_type": ["task", "task"]}
+    )
     design_matrix = make_first_level_design_matrix(
-        frame_times,
-        events=events,
-        hrf_model='spm'
+        frame_times, events=events, hrf_model="spm"
     )
 
     # Fit and compute contrast
@@ -645,10 +661,10 @@ def test_glm_compute_contrast_after_fit():
     model.fit(img, design_matrices=design_matrix)
 
     # Compute simple contrast (effect of task)
-    contrast_map = model.compute_contrast('task')
+    contrast_map = model.compute_contrast("task")
 
     # Should return a Nifti image
-    assert hasattr(contrast_map, 'get_fdata')
+    assert hasattr(contrast_map, "get_fdata")
     assert contrast_map.shape == img_shape
 
 
@@ -659,7 +675,7 @@ def test_glm_compute_contrast_before_fit_raises():
     model = Glm()
 
     with pytest.raises(ValueError, match="not fitted"):
-        model.compute_contrast('task')
+        model.compute_contrast("task")
 
 
 def test_glm_multiple_runs():
@@ -688,15 +704,11 @@ def test_glm_multiple_runs():
         images.append(img)
 
         frame_times = np.arange(n_scans) * 2.0
-        events = pd.DataFrame({
-            'onset': [0, 10],
-            'duration': [1, 1],
-            'trial_type': ['task', 'task']
-        })
+        events = pd.DataFrame(
+            {"onset": [0, 10], "duration": [1, 1], "trial_type": ["task", "task"]}
+        )
         design_matrix = make_first_level_design_matrix(
-            frame_times,
-            events=events,
-            hrf_model='spm'
+            frame_times, events=events, hrf_model="spm"
         )
         design_matrices.append(design_matrix)
 
@@ -707,13 +719,14 @@ def test_glm_multiple_runs():
     assert model.is_fitted_
 
     # Compute contrast across runs
-    contrast_map = model.compute_contrast('task')
-    assert hasattr(contrast_map, 'get_fdata')
+    contrast_map = model.compute_contrast("task")
+    assert hasattr(contrast_map, "get_fdata")
 
 
 # ============================================================================
 # Glm - Property Access (Advanced Features)
 # ============================================================================
+
 
 def test_glm_residuals_property():
     """Glm should expose residuals via property"""
@@ -734,15 +747,11 @@ def test_glm_residuals_property():
 
     # Create design matrix
     frame_times = np.arange(n_scans) * 2.0
-    events = pd.DataFrame({
-        'onset': [0, 10],
-        'duration': [1, 1],
-        'trial_type': ['task', 'task']
-    })
+    events = pd.DataFrame(
+        {"onset": [0, 10], "duration": [1, 1], "trial_type": ["task", "task"]}
+    )
     design_matrix = make_first_level_design_matrix(
-        frame_times,
-        events=events,
-        hrf_model='spm'
+        frame_times, events=events, hrf_model="spm"
     )
 
     # Fit and access residuals
@@ -752,7 +761,7 @@ def test_glm_residuals_property():
     residuals = model.residuals
     assert isinstance(residuals, list)
     assert len(residuals) == 1  # One run
-    assert hasattr(residuals[0], 'get_fdata')
+    assert hasattr(residuals[0], "get_fdata")
 
 
 def test_glm_design_matrices_property():
@@ -774,15 +783,11 @@ def test_glm_design_matrices_property():
 
     # Create design matrix
     frame_times = np.arange(n_scans) * 2.0
-    events = pd.DataFrame({
-        'onset': [0, 10],
-        'duration': [1, 1],
-        'trial_type': ['task', 'task']
-    })
+    events = pd.DataFrame(
+        {"onset": [0, 10], "duration": [1, 1], "trial_type": ["task", "task"]}
+    )
     design_matrix = make_first_level_design_matrix(
-        frame_times,
-        events=events,
-        hrf_model='spm'
+        frame_times, events=events, hrf_model="spm"
     )
 
     # Fit and access design matrices
@@ -792,7 +797,7 @@ def test_glm_design_matrices_property():
     design_mats = model.design_matrices_
     assert isinstance(design_mats, list)
     assert len(design_mats) == 1  # One run
-    assert 'task' in design_mats[0].columns
+    assert "task" in design_mats[0].columns
 
 
 def test_glm_glm_property_advanced_access():
@@ -843,15 +848,15 @@ def test_glm_score_returns_valid_r_squared():
 
     # Create design matrix with task regressor
     frame_times = np.arange(n_scans) * 2.0  # TR = 2s
-    events = pd.DataFrame({
-        'onset': [10, 40],  # Match task blocks
-        'duration': [10, 10],
-        'trial_type': ['task', 'task']
-    })
+    events = pd.DataFrame(
+        {
+            "onset": [10, 40],  # Match task blocks
+            "duration": [10, 10],
+            "trial_type": ["task", "task"],
+        }
+    )
     design_matrix = make_first_level_design_matrix(
-        frame_times,
-        events=events,
-        hrf_model='spm'
+        frame_times, events=events, hrf_model="spm"
     )
 
     # Fit GLM
@@ -901,15 +906,11 @@ def test_glm_score_sklearn_api_compatibility():
 
     # Create design matrix
     frame_times = np.arange(n_scans) * 2.0
-    events = pd.DataFrame({
-        'onset': [0, 20],
-        'duration': [5, 5],
-        'trial_type': ['task', 'task']
-    })
+    events = pd.DataFrame(
+        {"onset": [0, 20], "duration": [5, 5], "trial_type": ["task", "task"]}
+    )
     design_matrix = make_first_level_design_matrix(
-        frame_times,
-        events=events,
-        hrf_model='spm'
+        frame_times, events=events, hrf_model="spm"
     )
 
     # Fit and score

@@ -6,10 +6,8 @@ and resampling functionality. Organized into logical sections for clarity.
 """
 
 import numpy as np
-import pandas as pd
 from nltools.data import Design_Matrix
 from nltools.algorithms.hrf import glover_hrf
-import pytest
 
 
 class TestDesignMatrix:
@@ -72,7 +70,8 @@ class TestDesignMatrix:
         newTR = 4.0
         target = 1.0 / newTR
         assert (
-            sim_design_matrix.downsample(target).shape[0] == sim_design_matrix.shape[0] / 2
+            sim_design_matrix.downsample(target).shape[0]
+            == sim_design_matrix.shape[0] / 2
         )
 
     # ==================== Utilities ====================
@@ -128,7 +127,8 @@ class TestDesignMatrix:
 
         # Keep a common stimulus class separate
         assert (
-            sim_design_matrix.append(sim_design_matrix, unique_cols=["face*"]).shape[1] == 6
+            sim_design_matrix.append(sim_design_matrix, unique_cols=["face*"]).shape[1]
+            == 6
         )
 
         # Keep a common stimulus class and a different single stim separate

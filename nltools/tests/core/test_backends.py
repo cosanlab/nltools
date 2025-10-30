@@ -18,6 +18,7 @@ def _torch_available():
     """Check if PyTorch is installed"""
     try:
         import torch
+
         return True
     except ImportError:
         return False
@@ -32,9 +33,9 @@ def test_numpy_backend_default():
     """NumPy backend should work without PyTorch"""
     from nltools.backends import Backend
 
-    backend = Backend('numpy')
-    assert backend.name == 'numpy'
-    assert backend.device == 'cpu'
+    backend = Backend("numpy")
+    assert backend.name == "numpy"
+    assert backend.device == "cpu"
     assert backend.xp is np
 
 
@@ -44,10 +45,10 @@ def test_auto_backend_without_torch(monkeypatch):
     import sys
 
     # Mock torch unavailable
-    monkeypatch.setitem(sys.modules, 'torch', None)
+    monkeypatch.setitem(sys.modules, "torch", None)
 
-    backend = Backend('auto')
-    assert backend.name == 'numpy'
+    backend = Backend("auto")
+    assert backend.name == "numpy"
 
 
 @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
@@ -55,9 +56,9 @@ def test_torch_backend_selection():
     """Torch backend should detect available device"""
     from nltools.backends import Backend
 
-    backend = Backend('torch')
-    assert backend.name.startswith('torch-')
-    assert backend.device in ['cpu', 'cuda', 'mps']
+    backend = Backend("torch")
+    assert backend.name.startswith("torch-")
+    assert backend.device in ["cpu", "cuda", "mps"]
 
 
 def test_check_gpu_available():
@@ -66,9 +67,9 @@ def test_check_gpu_available():
 
     available, info = check_gpu_available()
     assert isinstance(available, bool)
-    assert 'backend' in info
-    assert 'device' in info
-    assert 'device_name' in info
+    assert "backend" in info
+    assert "device" in info
+    assert "device_name" in info
 
 
 # ============================================================================
@@ -80,7 +81,7 @@ def test_numpy_to_device():
     """NumPy backend should handle array conversion"""
     from nltools.backends import Backend
 
-    backend = Backend('numpy')
+    backend = Backend("numpy")
     arr = np.random.randn(10, 5)
     result = backend.to_device(arr)
 
@@ -93,7 +94,7 @@ def test_numpy_to_numpy():
     """NumPy backend to_numpy should be identity"""
     from nltools.backends import Backend
 
-    backend = Backend('numpy')
+    backend = Backend("numpy")
     arr = np.random.randn(10, 5).astype(np.float32)
     result = backend.to_numpy(arr)
 
@@ -106,7 +107,7 @@ def test_torch_to_device():
     import torch
     from nltools.backends import Backend
 
-    backend = Backend('torch')
+    backend = Backend("torch")
     arr = np.random.randn(10, 5)
     result = backend.to_device(arr)
 
@@ -118,10 +119,9 @@ def test_torch_to_device():
 @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
 def test_torch_to_numpy():
     """Torch backend should convert tensor back to numpy"""
-    import torch
     from nltools.backends import Backend
 
-    backend = Backend('torch')
+    backend = Backend("torch")
     arr = np.random.randn(10, 5)
     tensor = backend.to_device(arr)
     result = backend.to_numpy(tensor)
@@ -139,7 +139,7 @@ def test_numpy_svd():
     """NumPy SVD should work correctly"""
     from nltools.backends import Backend
 
-    backend = Backend('numpy')
+    backend = Backend("numpy")
     X = np.random.randn(20, 10).astype(np.float32)
 
     U, s, Vt = backend.svd(X)
@@ -158,7 +158,7 @@ def test_numpy_matmul():
     """NumPy matmul should work correctly"""
     from nltools.backends import Backend
 
-    backend = Backend('numpy')
+    backend = Backend("numpy")
     A = np.random.randn(10, 5).astype(np.float32)
     B = np.random.randn(5, 3).astype(np.float32)
 
@@ -177,11 +177,11 @@ def test_torch_svd_equivalence():
     X = np.random.randn(20, 10).astype(np.float32)
 
     # NumPy
-    backend_np = Backend('numpy')
+    backend_np = Backend("numpy")
     U_np, s_np, Vt_np = backend_np.svd(X)
 
     # Torch
-    backend_torch = Backend('torch')
+    backend_torch = Backend("torch")
     X_torch = backend_torch.to_device(X)
     U_torch, s_torch, Vt_torch = backend_torch.svd(X_torch)
     U_torch = backend_torch.to_numpy(U_torch)
@@ -207,11 +207,11 @@ def test_torch_matmul_equivalence():
     B = np.random.randn(5, 3).astype(np.float32)
 
     # NumPy
-    backend_np = Backend('numpy')
+    backend_np = Backend("numpy")
     result_np = backend_np.matmul(A, B)
 
     # Torch
-    backend_torch = Backend('torch')
+    backend_torch = Backend("torch")
     A_torch = backend_torch.to_device(A)
     B_torch = backend_torch.to_device(B)
     result_torch = backend_torch.matmul(A_torch, B_torch)
@@ -232,7 +232,7 @@ def test_small_dataset_uses_numpy():
     # Small problem
     backend = auto_select_backend(n_samples=100, n_features=1000)
     # Should use numpy (or torch-cpu) to avoid transfer overhead
-    assert backend.name in ['numpy', 'torch-cpu']
+    assert backend.name in ["numpy", "torch-cpu"]
 
 
 def test_large_dataset_considers_gpu():
@@ -242,7 +242,7 @@ def test_large_dataset_considers_gpu():
     backend = auto_select_backend(n_samples=300, n_features=100000)
 
     # If GPU available, should use torch; otherwise numpy
-    assert backend.name in ['numpy', 'torch-cuda', 'torch-mps', 'torch-cpu']
+    assert backend.name in ["numpy", "torch-cuda", "torch-mps", "torch-cpu"]
 
 
 def test_cv_enables_gpu():
@@ -252,7 +252,7 @@ def test_cv_enables_gpu():
     backend = auto_select_backend(n_samples=200, n_features=30000, cv=5)
 
     # With CV, should prefer GPU if available
-    assert backend.name in ['numpy', 'torch-cuda', 'torch-mps', 'torch-cpu']
+    assert backend.name in ["numpy", "torch-cuda", "torch-mps", "torch-cpu"]
 
 
 def test_auto_selection_without_gpu():
@@ -261,4 +261,4 @@ def test_auto_selection_without_gpu():
 
     # This should always work
     backend = auto_select_backend(n_samples=1000, n_features=100000)
-    assert backend.name in ['numpy', 'torch-cpu', 'torch-cuda', 'torch-mps']
+    assert backend.name in ["numpy", "torch-cpu", "torch-cuda", "torch-mps"]

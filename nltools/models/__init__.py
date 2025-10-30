@@ -8,4 +8,4 @@ from .base import BaseModel
 from .ridge import Ridge
 from .glm import Glm
 
-__all__ = ['BaseModel', 'Ridge', 'Glm']
+__all__ = ["BaseModel", "Ridge", "Glm"]

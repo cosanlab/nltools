@@ -19,6 +19,53 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 
 ---
 
+## Dependency Updates
+
+### nilearn 0.12+ Compatibility
+
+**Status**: ✅ FIXED (v0.6.0)
+
+nltools v0.6.0 now requires **nilearn >= 0.12**, which introduced a breaking change in `NiftiMasker.transform()`:
+
+**What changed in nilearn 0.12:**
+- **3D images** now transform to **1D arrays** `(n_voxels,)` instead of 2D arrays `(1, n_voxels)`
+- **4D images** still transform to **2D arrays** `(n_timepoints, n_voxels)` (unchanged)
+
+**How nltools adapted:**
+- Updated `Brain_Data._load_from_list()` to use `np.vstack()` instead of `np.concatenate()`
+- This ensures correct shape when loading lists of 3D nifti files
+- **No user code changes needed** - Brain_Data API remains identical
+
+**If you're using nilearn directly**, be aware:
+```python
+from nilearn.maskers import NiftiMasker
+import nibabel as nib
+
+masker = NiftiMasker(mask_img=mask)
+masker.fit()
+
+# nilearn 0.11 (old)
+result = masker.transform(nib.load('image_3d.nii.gz'))
+print(result.shape)  # (1, 238955) - 2D array
+
+# nilearn 0.12+ (new)
+result = masker.transform(nib.load('image_3d.nii.gz'))
+print(result.shape)  # (238955,) - 1D array ⚠️ Breaking change!
+
+# If you need consistent 2D output:
+result = masker.transform(nib.load('image_3d.nii.gz'))
+if result.ndim == 1:
+    result = result.reshape(1, -1)  # Force 2D: (1, n_voxels)
+```
+
+**Other dependency updates in v0.6.0:**
+- Python >= 3.11 (dropped 3.10 support)
+- polars >= 1.35 (from 0.20)
+- h5py >= 3.15 (from 3.13)
+- pytest >= 8.4 (from 8.3)
+
+---
+
 ## Breaking Changes
 
 ### Design_Matrix: Pandas → Polars

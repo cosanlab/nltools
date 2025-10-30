@@ -35,20 +35,22 @@ class Backend:
         Array library module (numpy or torch)
     """
 
-    def __init__(self, backend: str = 'numpy'):
-        if backend == 'numpy':
+    def __init__(self, backend: str = "numpy"):
+        if backend == "numpy":
             self._init_numpy()
-        elif backend == 'torch':
+        elif backend == "torch":
             self._init_torch()
-        elif backend == 'auto':
+        elif backend == "auto":
             self._init_auto()
         else:
-            raise ValueError(f"Unknown backend: {backend}. Use 'numpy', 'torch', or 'auto'")
+            raise ValueError(
+                f"Unknown backend: {backend}. Use 'numpy', 'torch', or 'auto'"
+            )
 
     def _init_numpy(self):
         """Initialize NumPy backend"""
-        self.name = 'numpy'
-        self.device = 'cpu'
+        self.name = "numpy"
+        self.device = "cpu"
         self.xp = np
         self._torch_device = None
 
@@ -66,22 +68,23 @@ class Backend:
 
         # Detect best available device
         if torch.cuda.is_available():
-            self.device = 'cuda'
-            self._torch_device = torch.device('cuda')
-            self.name = 'torch-cuda'
-        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-            self.device = 'mps'
-            self._torch_device = torch.device('mps')
-            self.name = 'torch-mps'
+            self.device = "cuda"
+            self._torch_device = torch.device("cuda")
+            self.name = "torch-cuda"
+        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            self.device = "mps"
+            self._torch_device = torch.device("mps")
+            self.name = "torch-mps"
         else:
-            self.device = 'cpu'
-            self._torch_device = torch.device('cpu')
-            self.name = 'torch-cpu'
+            self.device = "cpu"
+            self._torch_device = torch.device("cpu")
+            self.name = "torch-cpu"
 
     def _init_auto(self):
         """Automatically select best backend"""
         try:
             import torch
+
             # PyTorch available, use it
             self._init_torch()
         except ImportError:
@@ -102,12 +105,13 @@ class Backend:
         array
             Array on device (numpy array or torch tensor)
         """
-        if self.name == 'numpy':
+        if self.name == "numpy":
             # NumPy backend: ensure float32
             return arr.astype(np.float32)
         else:
             # PyTorch backend: convert to tensor and move to device
             import torch
+
             tensor = torch.from_numpy(arr.astype(np.float32))
             return tensor.to(self._torch_device)
 
@@ -125,12 +129,13 @@ class Backend:
         np.ndarray
             NumPy array
         """
-        if self.name == 'numpy':
+        if self.name == "numpy":
             # NumPy backend: identity operation
             return arr
         else:
             # PyTorch backend: move to CPU and convert
             import torch
+
             if isinstance(arr, torch.Tensor):
                 return arr.cpu().numpy()
             else:
@@ -156,12 +161,13 @@ class Backend:
         Vt : array
             Right singular vectors (transposed)
         """
-        if self.name == 'numpy':
+        if self.name == "numpy":
             # NumPy backend
             return np.linalg.svd(X, full_matrices=full_matrices)
         else:
             # PyTorch backend
             import torch
+
             U, s, Vt = torch.linalg.svd(X, full_matrices=full_matrices)
             return U, s, Vt
 
@@ -181,12 +187,13 @@ class Backend:
         array
             Result of A @ B
         """
-        if self.name == 'numpy':
+        if self.name == "numpy":
             # NumPy backend
             return A @ B
         else:
             # PyTorch backend
             import torch
+
             return torch.matmul(A, B)
 
 
@@ -209,27 +216,27 @@ def check_gpu_available() -> Tuple[bool, Dict[str, Any]]:
 
         if torch.cuda.is_available():
             return True, {
-                'backend': 'torch',
-                'device': 'cuda',
-                'device_name': torch.cuda.get_device_name(0)
+                "backend": "torch",
+                "device": "cuda",
+                "device_name": torch.cuda.get_device_name(0),
             }
-        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
             return True, {
-                'backend': 'torch',
-                'device': 'mps',
-                'device_name': 'Apple Metal Performance Shaders'
+                "backend": "torch",
+                "device": "mps",
+                "device_name": "Apple Metal Performance Shaders",
             }
         else:
             return False, {
-                'backend': 'torch',
-                'device': 'cpu',
-                'device_name': 'CPU (PyTorch available)'
+                "backend": "torch",
+                "device": "cpu",
+                "device_name": "CPU (PyTorch available)",
             }
     except ImportError:
         return False, {
-            'backend': 'numpy',
-            'device': 'cpu',
-            'device_name': 'CPU (NumPy only)'
+            "backend": "numpy",
+            "device": "cpu",
+            "device_name": "CPU (NumPy only)",
         }
 
 
@@ -276,13 +283,13 @@ def auto_select_backend(n_samples: int, n_features: int, cv: int = 1) -> Backend
     # Decision logic
     if problem_size < SMALL_THRESHOLD:
         # Small problem: NumPy is efficient enough
-        return Backend('numpy')
+        return Backend("numpy")
     elif problem_size > LARGE_THRESHOLD and gpu_available:
         # Large problem with GPU: Use PyTorch
-        return Backend('torch')
+        return Backend("torch")
     elif cv > 1 and gpu_available:
         # Cross-validation with GPU: Prefer PyTorch
-        return Backend('torch')
+        return Backend("torch")
     else:
         # Default: Try auto-selection (falls back to NumPy if no GPU)
-        return Backend('auto')
+        return Backend("auto")

@@ -20,7 +20,7 @@ def ridge_svd(
     X: np.ndarray,
     y: np.ndarray,
     alpha: float = 1.0,
-    backend: Optional[Union[Backend, str]] = None
+    backend: Optional[Union[Backend, str]] = None,
 ) -> np.ndarray:
     """
     Solve ridge regression using Singular Value Decomposition.
@@ -88,9 +88,9 @@ def ridge_svd(
 
     # Handle backend
     if backend is None:
-        backend = Backend('numpy')
+        backend = Backend("numpy")
     elif isinstance(backend, str):
-        if backend == 'auto':
+        if backend == "auto":
             n_samples, n_features = X.shape
             backend = auto_select_backend(n_samples, n_features)
         else:
@@ -107,7 +107,7 @@ def ridge_svd(
         )
 
     # Determine if single or multi-target
-    single_target = (y.ndim == 1)
+    single_target = y.ndim == 1
     if single_target:
         y = y[:, np.newaxis]  # Convert to 2D for uniform processing
 
@@ -124,7 +124,7 @@ def ridge_svd(
 
     # Compute ridge shrinkage: s / (s**2 + alpha)
     # This is the key step that regularizes the solution
-    if backend.name == 'numpy':
+    if backend.name == "numpy":
         shrinkage = s / (s**2 + alpha)
         # Compute: beta = V @ diag(shrinkage) @ U.T @ y
         # V is Vt.T, so: beta = Vt.T @ diag(shrinkage) @ U.T @ y
@@ -132,7 +132,6 @@ def ridge_svd(
         coef = Vt.T @ (shrinkage[:, np.newaxis] * Uty)  # Broadcasting
     else:
         # PyTorch backend
-        import torch
         shrinkage = s / (s**2 + alpha)
         Uty = backend.matmul(U.T, y_device)
         coef = backend.matmul(Vt.T, shrinkage[:, None] * Uty)
@@ -152,7 +151,7 @@ def ridge_cv(
     y: np.ndarray,
     alphas: Optional[np.ndarray] = None,
     cv: int = 5,
-    backend: Union[str, Backend] = 'auto'
+    backend: Union[str, Backend] = "auto",
 ) -> dict:
     """
     Ridge regression with cross-validation for hyperparameter selection.
@@ -215,14 +214,14 @@ def ridge_cv(
 
     # Setup backend
     if isinstance(backend, str):
-        if backend == 'auto':
+        if backend == "auto":
             n_samples, n_features = X.shape
             backend = auto_select_backend(n_samples, n_features, cv=cv)
         else:
             backend = Backend(backend)
 
     # Determine if single or multi-target
-    single_target = (y.ndim == 1)
+    single_target = y.ndim == 1
     if single_target:
         y = y[:, np.newaxis]
 
@@ -280,8 +279,8 @@ def ridge_cv(
         coef_final = coef_final.squeeze()
 
     return {
-        'alpha': float(best_alpha),
-        'coef': coef_final,
-        'cv_scores': cv_scores,
-        'backend': backend.name
+        "alpha": float(best_alpha),
+        "coef": coef_final,
+        "cv_scores": cv_scores,
+        "backend": backend.name,
     }

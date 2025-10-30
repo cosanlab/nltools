@@ -134,7 +134,7 @@ class BaseModel(ABC):
                 f"Reshape your data using array.reshape(-1, 1) for single feature."
             )
 
-        if not reset and hasattr(self, 'n_features_in_'):
+        if not reset and hasattr(self, "n_features_in_"):
             if X.shape[1] != self.n_features_in_:
                 raise ValueError(
                     f"X has {X.shape[1]} features, but {self.__class__.__name__} "

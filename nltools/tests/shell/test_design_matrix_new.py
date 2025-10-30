@@ -1204,7 +1204,9 @@ class TestDesignMatrixDiagnostics:
         )
 
         vifs_high = dm_high.vif(exclude_polys=True)
-        assert vifs_high is not None, "Should return VIF values for non-perfect correlation"
+        assert vifs_high is not None, (
+            "Should return VIF values for non-perfect correlation"
+        )
         assert len(vifs_high) == 3, "Should have VIF for each column"
         # VIF should be elevated for highly correlated columns
         assert any(v > 5 for v in vifs_high), "Should detect high collinearity"

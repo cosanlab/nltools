@@ -5,11 +5,10 @@ This is a clean reimplementation using Polars instead of pandas.
 Focus: Idiomatic Polars patterns, efficient vectorization, clean composition.
 """
 
-import warnings
 import numpy as np
 import pandas as pd
 import polars as pl
-from typing import Union, List, Optional, Any
+from typing import Union, List, Optional
 from scipy.special import legendre
 from ..stats import make_cosine_basis
 
@@ -160,7 +159,9 @@ class DesignMatrix:
 
     # ==================== Data Access ====================
 
-    def __getitem__(self, key: Union[str, List[str]]) -> Union[pl.Series, "DesignMatrix"]:
+    def __getitem__(
+        self, key: Union[str, List[str]]
+    ) -> Union[pl.Series, "DesignMatrix"]:
         """
         Access columns.
 
@@ -177,7 +178,9 @@ class DesignMatrix:
         else:
             raise TypeError(f"Column key must be str or list of str, got {type(key)}")
 
-    def __setitem__(self, key: str, value: Union[int, float, list, np.ndarray, pl.Series]):
+    def __setitem__(
+        self, key: str, value: Union[int, float, list, np.ndarray, pl.Series]
+    ):
         """
         Set column values.
 
@@ -290,7 +293,9 @@ class DesignMatrix:
         from nltools.stats import downsample as stats_downsample
 
         if self.sampling_freq is None:
-            raise ValueError("DesignMatrix must have sampling_freq set for downsampling")
+            raise ValueError(
+                "DesignMatrix must have sampling_freq set for downsampling"
+            )
 
         if target >= self.sampling_freq:
             raise ValueError(
@@ -311,7 +316,9 @@ class DesignMatrix:
         )
 
         # Convert back to Polars (dict-based to avoid pyarrow dependency)
-        downsampled_df = pl.DataFrame({col: downsampled_pd[col].to_numpy() for col in downsampled_pd.columns})
+        downsampled_df = pl.DataFrame(
+            {col: downsampled_pd[col].to_numpy() for col in downsampled_pd.columns}
+        )
 
         # Create new DesignMatrix with updated sampling_freq
         return self._copy_with(downsampled_df, sampling_freq=target)
@@ -356,7 +363,9 @@ class DesignMatrix:
         )
 
         # Convert back to Polars (dict-based to avoid pyarrow dependency)
-        upsampled_df = pl.DataFrame({col: upsampled_pd[col].to_numpy() for col in upsampled_pd.columns})
+        upsampled_df = pl.DataFrame(
+            {col: upsampled_pd[col].to_numpy() for col in upsampled_pd.columns}
+        )
 
         # Create new DesignMatrix with updated sampling_freq
         return self._copy_with(upsampled_df, sampling_freq=target)
@@ -410,27 +419,25 @@ class DesignMatrix:
             columns_to_convolve = columns
 
         # Columns that should NOT be convolved
-        non_convolved_cols = [col for col in self.columns if col not in columns_to_convolve]
+        non_convolved_cols = [
+            col for col in self.columns if col not in columns_to_convolve
+        ]
 
         # Get the convolution kernel
         if isinstance(conv_func, str):
             if conv_func != "hrf":
                 raise ValueError(
-                    "conv_func must be 'hrf' or a numpy array. "
-                    "Did you mean 'hrf'?"
+                    "conv_func must be 'hrf' or a numpy array. Did you mean 'hrf'?"
                 )
             # Generate Glover HRF at this sampling frequency
             # TR = 1 / sampling_freq
             conv_func = glover_hrf(1.0 / self.sampling_freq, oversampling=1.0)
         elif isinstance(conv_func, np.ndarray):
             if len(conv_func.shape) > 2:
-                raise ValueError(
-                    "conv_func must be 1D or 2D array (samples x kernels)"
-                )
+                raise ValueError("conv_func must be 1D or 2D array (samples x kernels)")
         else:
             raise TypeError(
-                "conv_func must be 'hrf' string or numpy array, "
-                f"got {type(conv_func)}"
+                f"conv_func must be 'hrf' string or numpy array, got {type(conv_func)}"
             )
 
         # Perform convolution
@@ -462,7 +469,11 @@ class DesignMatrix:
 
             # Create new DataFrame with all convolved columns + non-convolved
             convolved_df = pl.DataFrame(all_convolved_data)
-            non_convolved_df = self._df.select(non_convolved_cols) if non_convolved_cols else pl.DataFrame()
+            non_convolved_df = (
+                self._df.select(non_convolved_cols)
+                if non_convolved_cols
+                else pl.DataFrame()
+            )
 
             # Concatenate horizontally
             if non_convolved_cols:
@@ -521,9 +532,9 @@ class DesignMatrix:
             return self
 
         # Add new polynomial columns using Polars .with_columns()
-        new_df = self._df.with_columns([
-            pl.Series(name, values) for name, values in new_poly_cols.items()
-        ])
+        new_df = self._df.with_columns(
+            [pl.Series(name, values) for name, values in new_poly_cols.items()]
+        )
 
         # Update polys metadata
         new_polys = self.polys.copy() if self.polys else []
@@ -589,9 +600,9 @@ class DesignMatrix:
             if name in basis_to_add:
                 new_basis_cols[name] = basis_mat[:, i]
 
-        new_df = self._df.with_columns([
-            pl.Series(name, values) for name, values in new_basis_cols.items()
-        ])
+        new_df = self._df.with_columns(
+            [pl.Series(name, values) for name, values in new_basis_cols.items()]
+        )
 
         # Update polys metadata
         new_polys = self.polys.copy() if self.polys else []
@@ -636,12 +647,16 @@ class DesignMatrix:
         if not all(isinstance(elem, DesignMatrix) for elem in to_append):
             raise TypeError("All items to append must be DesignMatrix objects")
         if not all(elem.sampling_freq == self.sampling_freq for elem in to_append):
-            raise ValueError("All Design Matrices must have the same sampling frequency!")
+            raise ValueError(
+                "All Design Matrices must have the same sampling frequency!"
+            )
 
         if axis == 1:
             return self._append_horizontal(to_append, fill_na)
         elif axis == 0:
-            return self._append_vertical(to_append, keep_separate, unique_cols, fill_na, verbose)
+            return self._append_vertical(
+                to_append, keep_separate, unique_cols, fill_na, verbose
+            )
         else:
             raise ValueError("axis must be 0 (vertical) or 1 (horizontal)")
 
@@ -730,10 +745,10 @@ class DesignMatrix:
             - '*_motion' matches x_motion, y_motion
             - 'exact' matches only 'exact'
         """
-        if pattern.endswith('*'):
+        if pattern.endswith("*"):
             prefix = pattern[:-1]
             return [c for c in columns if c.startswith(prefix)]
-        elif pattern.startswith('*'):
+        elif pattern.startswith("*"):
             suffix = pattern[1:]
             return [c for c in columns if c.endswith(suffix)]
         else:
@@ -754,8 +769,8 @@ class DesignMatrix:
         # Find max run index from column names like "0_poly_0", "1_motion_x"
         max_idx = -1
         for col in self.columns:
-            if '_' in col:
-                first_part = col.split('_')[0]
+            if "_" in col:
+                first_part = col.split("_")[0]
                 if first_part.isdigit():
                     idx = int(first_part)
                     max_idx = max(max_idx, idx)
@@ -763,9 +778,7 @@ class DesignMatrix:
         return max_idx + 1 if max_idx >= 0 else 0
 
     def _identify_columns_to_separate(
-        self,
-        all_dms: List["DesignMatrix"],
-        unique_cols: Optional[List[str]]
+        self, all_dms: List["DesignMatrix"], unique_cols: Optional[List[str]]
     ) -> set:
         """
         Identify which columns need run-specific separation.
@@ -834,7 +847,9 @@ class DesignMatrix:
 
             for i, dm in enumerate(all_dms):
                 # Build rename mapping for separated columns
-                rename_map = {col: f"{i}_{col}" for col in dm.columns if col in cols_to_sep}
+                rename_map = {
+                    col: f"{i}_{col}" for col in dm.columns if col in cols_to_sep
+                }
 
                 # Rename and collect
                 processed_df = dm._df.rename(rename_map) if rename_map else dm._df
@@ -862,7 +877,9 @@ class DesignMatrix:
                 run_idx = start_idx + i
 
                 # Build rename mapping for separated columns
-                rename_map = {col: f"{run_idx}_{col}" for col in dm.columns if col in cols_to_sep}
+                rename_map = {
+                    col: f"{run_idx}_{col}" for col in dm.columns if col in cols_to_sep
+                }
 
                 # Rename and collect
                 processed_df = dm._df.rename(rename_map) if rename_map else dm._df

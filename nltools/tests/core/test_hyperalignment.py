@@ -22,11 +22,13 @@ class TestHyperAlignmentInitialization:
     def test_import(self):
         """Test that HyperAlignment can be imported from algorithms module."""
         from nltools.algorithms import HyperAlignment
+
         assert HyperAlignment is not None
 
     def test_init_default_params(self):
         """Test initialization with default parameters."""
         from nltools.algorithms import HyperAlignment
+
         hyper = HyperAlignment()
         assert hyper.n_iter == 2
         assert hyper.auto_pad is True
@@ -34,12 +36,14 @@ class TestHyperAlignmentInitialization:
     def test_init_custom_n_iter(self):
         """Test initialization with custom n_iter parameter."""
         from nltools.algorithms import HyperAlignment
+
         hyper = HyperAlignment(n_iter=5)
         assert hyper.n_iter == 5
 
     def test_init_custom_auto_pad(self):
         """Test initialization with custom auto_pad parameter."""
         from nltools.algorithms import HyperAlignment
+
         hyper = HyperAlignment(auto_pad=False)
         assert hyper.auto_pad is False
 
@@ -80,6 +84,7 @@ class TestHyperAlignmentFit:
     def test_fit_basic(self, sample_data_equal_size):
         """Test basic fit with equal-sized matrices."""
         from nltools.algorithms import HyperAlignment
+
         hyper = HyperAlignment()
         hyper.fit(sample_data_equal_size)
 
@@ -89,14 +94,15 @@ class TestHyperAlignmentFit:
     def test_fit_stores_attributes(self, sample_data_equal_size):
         """Test that fit() stores required attributes."""
         from nltools.algorithms import HyperAlignment
+
         hyper = HyperAlignment()
         hyper.fit(sample_data_equal_size)
 
         # Check all required attributes exist
-        assert hasattr(hyper, 'w_')
-        assert hasattr(hyper, 's_')
-        assert hasattr(hyper, 'disparity_')
-        assert hasattr(hyper, 'scale_')
+        assert hasattr(hyper, "w_")
+        assert hasattr(hyper, "s_")
+        assert hasattr(hyper, "disparity_")
+        assert hasattr(hyper, "scale_")
 
         # Check attribute types and lengths
         assert isinstance(hyper.w_, list)
@@ -110,11 +116,12 @@ class TestHyperAlignmentFit:
     def test_fit_common_model_property(self, sample_data_equal_size):
         """Test that common_model_ property alias exists and matches s_."""
         from nltools.algorithms import HyperAlignment
+
         hyper = HyperAlignment()
         hyper.fit(sample_data_equal_size)
 
         # Check property exists
-        assert hasattr(hyper, 'common_model_')
+        assert hasattr(hyper, "common_model_")
 
         # Check it's an alias for s_
         np.testing.assert_array_equal(hyper.common_model_, hyper.s_)
@@ -122,6 +129,7 @@ class TestHyperAlignmentFit:
     def test_fit_transformation_matrix_shapes(self, sample_data_equal_size):
         """Test that transformation matrices have correct shapes."""
         from nltools.algorithms import HyperAlignment
+
         hyper = HyperAlignment()
         hyper.fit(sample_data_equal_size)
 
@@ -129,24 +137,28 @@ class TestHyperAlignmentFit:
 
         for i, w in enumerate(hyper.w_):
             # Each transformation should be square and match feature dimensions
-            assert w.shape[0] == w.shape[1] == n_features, \
+            assert w.shape[0] == w.shape[1] == n_features, (
                 f"Subject {i} transformation shape {w.shape} doesn't match features {n_features}"
+            )
 
     def test_fit_common_template_shape(self, sample_data_equal_size):
         """Test that common template has correct shape."""
         from nltools.algorithms import HyperAlignment
+
         hyper = HyperAlignment()
         hyper.fit(sample_data_equal_size)
 
         n_features = sample_data_equal_size[0].shape[0]
         n_samples = sample_data_equal_size[0].shape[1]
 
-        assert hyper.s_.shape == (n_features, n_samples), \
+        assert hyper.s_.shape == (n_features, n_samples), (
             f"Common template shape {hyper.s_.shape} doesn't match expected ({n_features}, {n_samples})"
+        )
 
     def test_fit_orthogonality(self, sample_data_equal_size):
         """Test that transformation matrices are orthogonal (W @ W.T ≈ I)."""
         from nltools.algorithms import HyperAlignment
+
         hyper = HyperAlignment()
         hyper.fit(sample_data_equal_size)
 
@@ -155,8 +167,10 @@ class TestHyperAlignmentFit:
             orthogonal_check = np.dot(w, w.T)
             identity = np.eye(w.shape[0])
             np.testing.assert_almost_equal(
-                orthogonal_check, identity, decimal=5,
-                err_msg=f"Subject {i} transformation is not orthogonal"
+                orthogonal_check,
+                identity,
+                decimal=5,
+                err_msg=f"Subject {i} transformation is not orthogonal",
             )
 
     def test_fit_with_different_n_iter(self, sample_data_equal_size):
@@ -173,12 +187,14 @@ class TestHyperAlignmentFit:
 
         # Results should differ (more refinement = different template)
         # Note: Not checking for specific improvements, just that n_iter has effect
-        assert not np.allclose(hyper1.s_, hyper5.s_), \
+        assert not np.allclose(hyper1.s_, hyper5.s_), (
             "n_iter parameter should affect template refinement"
+        )
 
     def test_fit_auto_pad_true(self, sample_data_different_sizes):
         """Test fit with auto_pad=True handles different-sized matrices."""
         from nltools.algorithms import HyperAlignment
+
         hyper = HyperAlignment(auto_pad=True)
 
         # Should not raise error
@@ -186,12 +202,14 @@ class TestHyperAlignmentFit:
 
         # All transformations should be same size (padded to common dimensions)
         w_shapes = [w.shape for w in hyper.w_]
-        assert all(shape == w_shapes[0] for shape in w_shapes), \
+        assert all(shape == w_shapes[0] for shape in w_shapes), (
             "With auto_pad=True, all transformation matrices should have same shape"
+        )
 
     def test_fit_auto_pad_false_raises_error(self, sample_data_different_sizes):
         """Test fit with auto_pad=False raises error for different-sized matrices."""
         from nltools.algorithms import HyperAlignment
+
         hyper = HyperAlignment(auto_pad=False)
 
         # Should raise ValueError for mismatched sizes
@@ -201,6 +219,7 @@ class TestHyperAlignmentFit:
     def test_fit_single_subject_edge_case(self):
         """Test fit with single subject (edge case)."""
         from nltools.algorithms import HyperAlignment
+
         np.random.seed(42)
         data = [np.random.randn(50, 20)]
 
@@ -214,6 +233,7 @@ class TestHyperAlignmentFit:
     def test_fit_identical_subjects_edge_case(self):
         """Test fit with identical subjects (edge case)."""
         from nltools.algorithms import HyperAlignment
+
         np.random.seed(42)
         base_data = np.random.randn(50, 20)
         data = [base_data.copy() for _ in range(3)]
@@ -222,8 +242,9 @@ class TestHyperAlignmentFit:
         hyper.fit(data)
 
         # Should have low disparity (subjects already aligned)
-        assert all(d < 0.1 for d in hyper.disparity_), \
+        assert all(d < 0.1 for d in hyper.disparity_), (
             "Identical subjects should have very low disparity"
+        )
 
 
 class TestHyperAlignmentTransform:
@@ -233,6 +254,7 @@ class TestHyperAlignmentTransform:
     def fitted_hyperalignment(self):
         """Create fitted HyperAlignment instance with sample data."""
         from nltools.algorithms import HyperAlignment
+
         np.random.seed(42)
         data = [np.random.randn(50, 20) for _ in range(3)]
         hyper = HyperAlignment()
@@ -250,8 +272,9 @@ class TestHyperAlignmentTransform:
 
         # Check shapes
         for i, t in enumerate(transformed):
-            assert t.shape == data[i].shape, \
+            assert t.shape == data[i].shape, (
                 f"Transformed data {i} shape {t.shape} doesn't match input {data[i].shape}"
+            )
 
     def test_transform_consistency(self, fitted_hyperalignment):
         """Test that transformed data is consistent across subjects (aligned)."""
@@ -269,8 +292,9 @@ class TestHyperAlignmentTransform:
         trans_corr = correlation(transformed[0].flatten(), transformed[1].flatten())
 
         # After alignment, correlation should be higher (distance lower)
-        assert trans_corr <= orig_corr, \
+        assert trans_corr <= orig_corr, (
             "Transformed data should have higher correlation (lower distance) than original"
+        )
 
     def test_transform_new_data_raises_error(self, fitted_hyperalignment):
         """Test that transform with new data (different size) raises appropriate error."""
@@ -295,6 +319,7 @@ class TestHyperAlignmentTransformSubject:
     def fitted_hyperalignment(self):
         """Create fitted HyperAlignment instance with sample data."""
         from nltools.algorithms import HyperAlignment
+
         np.random.seed(42)
         data = [np.random.randn(50, 20) for _ in range(3)]
         hyper = HyperAlignment()
@@ -313,8 +338,9 @@ class TestHyperAlignmentTransformSubject:
         transformed, R, disparity, scale = hyper.transform_subject(new_subject)
 
         # Check output shape matches common template
-        assert transformed.shape == hyper.s_.shape, \
+        assert transformed.shape == hyper.s_.shape, (
             f"Transformed subject shape {transformed.shape} doesn't match template {hyper.s_.shape}"
+        )
 
     def test_transform_subject_returns_tuple(self, fitted_hyperalignment):
         """Test that transform_subject returns (transformed_data, transformation_matrix, disparity, scale)."""
@@ -350,8 +376,9 @@ class TestHyperAlignmentTransformSubject:
         orig_dist = correlation(new_subject.flatten(), hyper.s_.flatten())
         trans_dist = correlation(transformed.flatten(), hyper.s_.flatten())
 
-        assert trans_dist <= orig_dist, \
+        assert trans_dist <= orig_dist, (
             "Transformed subject should be closer to common template than original"
+        )
 
 
 class TestHyperAlignmentNumericalCorrectness:
@@ -386,16 +413,19 @@ class TestHyperAlignmentNumericalCorrectness:
         hyper_transformed = hyper.transform(transposed_data)
 
         # Use align() function with original data (it will transpose internally)
-        align_out = align(sample_data, method='procrustes')
+        align_out = align(sample_data, method="procrustes")
 
         # Compare transformed data (accounting for align's output transposition)
         # align() returns transformed in [features, observations] format
         # HyperAlignment returns in [features, samples] format
         # They should match!
-        for i, (ht, at) in enumerate(zip(hyper_transformed, align_out['transformed'])):
+        for i, (ht, at) in enumerate(zip(hyper_transformed, align_out["transformed"])):
             np.testing.assert_allclose(
-                ht, at, rtol=1e-5, atol=1e-8,
-                err_msg=f"Subject {i} transformed data doesn't match align() output"
+                ht,
+                at,
+                rtol=1e-5,
+                atol=1e-8,
+                err_msg=f"Subject {i} transformed data doesn't match align() output",
             )
 
         # Compare common template
@@ -404,29 +434,41 @@ class TestHyperAlignmentNumericalCorrectness:
         # HyperAlignment keeps both in [features, samples] format (consistent)
         # So we need to transpose hyper.s_ for comparison
         np.testing.assert_allclose(
-            hyper.s_.T, align_out['common_model'], rtol=1e-5, atol=1e-8,
-            err_msg="Common template doesn't match align() output"
+            hyper.s_.T,
+            align_out["common_model"],
+            rtol=1e-5,
+            atol=1e-8,
+            err_msg="Common template doesn't match align() output",
         )
 
         # Compare transformation matrices
-        for i, (hw, aw) in enumerate(zip(hyper.w_, align_out['transformation_matrix'])):
+        for i, (hw, aw) in enumerate(zip(hyper.w_, align_out["transformation_matrix"])):
             np.testing.assert_allclose(
-                hw, aw, rtol=1e-5, atol=1e-8,
-                err_msg=f"Subject {i} transformation matrix doesn't match align() output"
+                hw,
+                aw,
+                rtol=1e-5,
+                atol=1e-8,
+                err_msg=f"Subject {i} transformation matrix doesn't match align() output",
             )
 
         # Compare disparity
-        for i, (hd, ad) in enumerate(zip(hyper.disparity_, align_out['disparity'])):
+        for i, (hd, ad) in enumerate(zip(hyper.disparity_, align_out["disparity"])):
             np.testing.assert_allclose(
-                hd, ad, rtol=1e-5, atol=1e-8,
-                err_msg=f"Subject {i} disparity doesn't match align() output"
+                hd,
+                ad,
+                rtol=1e-5,
+                atol=1e-8,
+                err_msg=f"Subject {i} disparity doesn't match align() output",
             )
 
         # Compare scale
-        for i, (hs, as_val) in enumerate(zip(hyper.scale_, align_out['scale'])):
+        for i, (hs, as_val) in enumerate(zip(hyper.scale_, align_out["scale"])):
             np.testing.assert_allclose(
-                hs, as_val, rtol=1e-5, atol=1e-8,
-                err_msg=f"Subject {i} scale doesn't match align() output"
+                hs,
+                as_val,
+                rtol=1e-5,
+                atol=1e-8,
+                err_msg=f"Subject {i} scale doesn't match align() output",
             )
 
     def test_sklearn_api_compliance(self, sample_data):
@@ -441,13 +483,13 @@ class TestHyperAlignmentNumericalCorrectness:
         assert isinstance(hyper, TransformerMixin)
 
         # Should have get_params and set_params
-        assert hasattr(hyper, 'get_params')
-        assert hasattr(hyper, 'set_params')
+        assert hasattr(hyper, "get_params")
+        assert hasattr(hyper, "set_params")
 
         # Test get_params
         params = hyper.get_params()
-        assert 'n_iter' in params
-        assert 'auto_pad' in params
+        assert "n_iter" in params
+        assert "auto_pad" in params
 
         # Test set_params
         hyper.set_params(n_iter=5)
@@ -460,6 +502,7 @@ class TestHyperAlignmentEdgeCases:
     def test_fit_before_transform_error(self):
         """Test that transform before fit raises appropriate error."""
         from nltools.algorithms import HyperAlignment
+
         hyper = HyperAlignment()
 
         data = [np.random.randn(50, 20)]
@@ -471,6 +514,7 @@ class TestHyperAlignmentEdgeCases:
     def test_fit_with_empty_list(self):
         """Test fit with empty list raises error."""
         from nltools.algorithms import HyperAlignment
+
         hyper = HyperAlignment()
 
         with pytest.raises((ValueError, IndexError)):
@@ -479,6 +523,7 @@ class TestHyperAlignmentEdgeCases:
     def test_fit_with_2d_array_not_list(self):
         """Test fit with single array (not list) raises error."""
         from nltools.algorithms import HyperAlignment
+
         hyper = HyperAlignment()
 
         data = np.random.randn(50, 20)
@@ -490,6 +535,7 @@ class TestHyperAlignmentEdgeCases:
     def test_fit_with_mismatched_samples(self):
         """Test fit with mismatched number of samples raises error."""
         from nltools.algorithms import HyperAlignment
+
         hyper = HyperAlignment(auto_pad=False)
 
         data = [

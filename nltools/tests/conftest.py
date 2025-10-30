@@ -5,6 +5,16 @@ from sklearn.metrics import pairwise_distances
 from nltools.simulator import Simulator
 from nltools.data import Adjacency, Design_Matrix, Brain_Data
 import os
+import importlib.util
+
+
+def _tables_available():
+    """Check if PyTables is installed (for HDF5 support via pandas).
+
+    Note: HDF5 support is being deprecated in favor of more modern formats.
+    Tests requiring PyTables will be skipped when it's not available.
+    """
+    return importlib.util.find_spec("tables") is not None
 
 
 @pytest.fixture(scope="module", params=["2mm"])

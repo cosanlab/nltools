@@ -25,7 +25,6 @@ from sklearn.utils import check_random_state
 from sklearn.preprocessing import scale
 from pynv import Client
 from joblib import Parallel, delayed
-from nltools.mask import expand_mask
 from nilearn.maskers import NiftiMasker
 from nilearn.image import smooth_img, resample_to_img
 from nilearn.masking import intersect_masks
@@ -94,7 +93,7 @@ class Brain_Data(object):
             **kwargs: Additional arguments passed to NiftiMasker.
         """
         # Import validation functions
-        from ._validation import validate_data_type, validate_frame
+        from ._validation import validate_data_type
 
         # Initialize attributes
         self._h5_compression = kwargs.pop("h5_compression", "gzip")
@@ -178,7 +177,8 @@ class Brain_Data(object):
             else:
                 for item in data_list:
                     self.data.append(self.nifti_masker.transform(item))
-            self.data = np.concatenate(self.data)
+            # Use vstack for nilearn 0.12+ compatibility (transforms 3D → 1D instead of 3D → 2D)
+            self.data = np.vstack(self.data)
 
     def _load_from_h5(self, file_path, mask):
         """Load data from HDF5 file.

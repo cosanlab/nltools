@@ -98,12 +98,7 @@ class Glm(BaseModel):
     """
 
     def __init__(
-        self,
-        t_r=None,
-        noise_model="ols",
-        smoothing_fwhm=None,
-        mask=None,
-        **kwargs
+        self, t_r=None, noise_model="ols", smoothing_fwhm=None, mask=None, **kwargs
     ):
         # Initialize BaseModel
         super().__init__()
@@ -128,7 +123,7 @@ class Glm(BaseModel):
             minimize_memory=False,  # Need this to access predictions
             standardize=False,  # User should standardize beforehand if needed
             drift_model=None,  # Should be in design matrix if needed
-            **kwargs
+            **kwargs,
         )
 
     def fit(self, X, y=None, design_matrices=None, events=None, **kwargs):
@@ -173,9 +168,7 @@ class Glm(BaseModel):
             design_matrices_pd = None
 
         # Delegate to composed FirstLevelModel
-        self._glm.fit(
-            X, design_matrices=design_matrices_pd, events=events, **kwargs
-        )
+        self._glm.fit(X, design_matrices=design_matrices_pd, events=events, **kwargs)
 
         # Set BaseModel fitted state
         self.is_fitted_ = True

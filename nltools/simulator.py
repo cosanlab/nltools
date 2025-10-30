@@ -331,7 +331,9 @@ class Simulator:
                     wr = csv.writer(y_file, quoting=csv.QUOTE_ALL)
                     wr.writerow(self.y)
 
-                with open(os.path.join(output_dir, "rep_id.csv"), "w", newline="") as rep_id_file:
+                with open(
+                    os.path.join(output_dir, "rep_id.csv"), "w", newline=""
+                ) as rep_id_file:
                     wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
                     wr.writerow(self.rep_id)
 
@@ -472,7 +474,9 @@ class Simulator:
                     wr = csv.writer(y_file, quoting=csv.QUOTE_ALL)
                     wr.writerow(self.y)
 
-                with open(os.path.join(output_dir, "rep_id.csv"), "w", newline="") as rep_id_file:
+                with open(
+                    os.path.join(output_dir, "rep_id.csv"), "w", newline=""
+                ) as rep_id_file:
                     wr = csv.writer(rep_id_file, quoting=csv.QUOTE_ALL)
                     wr.writerow(self.rep_id)
 

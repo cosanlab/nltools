@@ -361,10 +361,9 @@ class TestSRMEdgeCases:
         np.random.seed(999)
         new_voxels = 150
         new_w = np.linalg.qr(np.random.randn(new_voxels, 10))[0]
-        new_subject_data = (
-            new_w @ multi_subject_data["shared"]
-            + 0.01 * np.random.randn(new_voxels, multi_subject_data["timepoints"])
-        )
+        new_subject_data = new_w @ multi_subject_data[
+            "shared"
+        ] + 0.01 * np.random.randn(new_voxels, multi_subject_data["timepoints"])
 
         # Transform new subject
         new_w_learned = srm.transform_subject(new_subject_data)
@@ -374,9 +373,9 @@ class TestSRMEdgeCases:
         identity = np.eye(new_w_learned.shape[1])  # features x features
         ortho_error = np.linalg.norm(gram - identity, "fro")
 
-        assert (
-            ortho_error < 1e-5
-        ), f"New subject transform not orthogonal (error={ortho_error:.2e})"
+        assert ortho_error < 1e-5, (
+            f"New subject transform not orthogonal (error={ortho_error:.2e})"
+        )
 
     def test_minimal_features(self, minimal_brain_data):
         """Test SRM with very small number of features."""
@@ -421,9 +420,7 @@ class TestDetSRMMathematicalProperties:
             identity = np.eye(w.shape[1])  # features x features
             ortho_error = np.linalg.norm(gram - identity, "fro")
 
-            assert (
-                ortho_error < 1e-5
-            ), f"DetSRM Subject {i}: W.T @ W not orthogonal"
+            assert ortho_error < 1e-5, f"DetSRM Subject {i}: W.T @ W not orthogonal"
 
     def test_detsrm_reconstruction(self, multi_subject_data):
         """Test DetSRM reconstruction quality."""
@@ -479,9 +476,7 @@ class TestDetSRMMathematicalProperties:
             corr = np.corrcoef(s1.flatten(), s2.flatten())[0, 1]
 
             # Allow for sign flips (take absolute correlation)
-            assert (
-                abs(corr) > 0.8
-            ), "SRM and DetSRM should produce similar alignments"
+            assert abs(corr) > 0.8, "SRM and DetSRM should produce similar alignments"
 
     def test_detsrm_deterministic_with_seed(self, multi_subject_data):
         """Test DetSRM reproducibility with same random seed."""
@@ -506,10 +501,9 @@ class TestDetSRMMathematicalProperties:
         np.random.seed(888)
         new_voxels = 175
         new_w = np.linalg.qr(np.random.randn(new_voxels, 10))[0]
-        new_subject_data = (
-            new_w @ multi_subject_data["shared"]
-            + 0.01 * np.random.randn(new_voxels, multi_subject_data["timepoints"])
-        )
+        new_subject_data = new_w @ multi_subject_data[
+            "shared"
+        ] + 0.01 * np.random.randn(new_voxels, multi_subject_data["timepoints"])
 
         # Transform new subject
         new_w_learned = detsrm.transform_subject(new_subject_data)

@@ -1,6 +1,5 @@
 from nltools.prefs import MNI_Template
 from nltools.data import Brain_Data
-import matplotlib.pyplot as plt
 import pytest
 
 

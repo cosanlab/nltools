@@ -1,44 +1,44 @@
 #!/usr/bin/env python
 # coding: latin-1
 
-""" Shared Response Model (SRM)
-    ===========================
+"""Shared Response Model (SRM)
+===========================
 
-    The implementations are based on the following publications:
+The implementations are based on the following publications:
 
-    Chen, P. H. C., Chen, J., Yeshurun, Y., Hasson, U., Haxby, J., & Ramadge,
-    P. J. (2015). A reduced-dimension fMRI shared response model. In Advances
-    in Neural Information Processing Systems (pp. 460-468).
+Chen, P. H. C., Chen, J., Yeshurun, Y., Hasson, U., Haxby, J., & Ramadge,
+P. J. (2015). A reduced-dimension fMRI shared response model. In Advances
+in Neural Information Processing Systems (pp. 460-468).
 
-    Anderson, M. J., Capota, M., Turek, J. S., Zhu, X., Willke, T. L., Wang,
-    Y., & Norman, K. A. (2016, December). Enabling factor analysis on
-    thousand-subject neuroimaging datasets. In Big Data (Big Data),
-    2016 IEEE International Conference on (pp. 1151-1160). IEEE.
+Anderson, M. J., Capota, M., Turek, J. S., Zhu, X., Willke, T. L., Wang,
+Y., & Norman, K. A. (2016, December). Enabling factor analysis on
+thousand-subject neuroimaging datasets. In Big Data (Big Data),
+2016 IEEE International Conference on (pp. 1151-1160). IEEE.
 
-    References
-    ----------
-    .. [Chen2015] Chen, P. H. C., Chen, J., Yeshurun, Y., Hasson, U., Haxby, J.,
-       & Ramadge, P. J. (2015). A reduced-dimension fMRI shared response model.
-       In Advances in Neural Information Processing Systems (pp. 460-468).
+References
+----------
+.. [Chen2015] Chen, P. H. C., Chen, J., Yeshurun, Y., Hasson, U., Haxby, J.,
+   & Ramadge, P. J. (2015). A reduced-dimension fMRI shared response model.
+   In Advances in Neural Information Processing Systems (pp. 460-468).
 
-    .. [Anderson2016] Anderson, M. J., Capota, M., Turek, J. S., Zhu, X.,
-       Willke, T. L., Wang, Y., & Norman, K. A. (2016, December). Enabling
-       factor analysis on thousand-subject neuroimaging datasets. In Big Data
-       (Big Data), 2016 IEEE International Conference on (pp. 1151-1160). IEEE.
+.. [Anderson2016] Anderson, M. J., Capota, M., Turek, J. S., Zhu, X.,
+   Willke, T. L., Wang, Y., & Norman, K. A. (2016, December). Enabling
+   factor analysis on thousand-subject neuroimaging datasets. In Big Data
+   (Big Data), 2016 IEEE International Conference on (pp. 1151-1160). IEEE.
 
-    Copyright 2016 Intel Corporation
+Copyright 2016 Intel Corporation
 
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-        http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 
 """
 
@@ -181,8 +181,9 @@ class SRM(BaseEstimator, TransformerMixin):
         # Check the number of subjects
         if len(X) <= 1:
             raise ValueError(
-                "There are not enough subjects "
-                "({0:d}) to train the model.".format(len(X))
+                "There are not enough subjects ({0:d}) to train the model.".format(
+                    len(X)
+                )
             )
 
         # Check for input data sizes
@@ -199,7 +200,7 @@ class SRM(BaseEstimator, TransformerMixin):
             if X[subject] is not None:
                 assert_all_finite(X[subject])
             if X[subject].shape[1] != number_trs:
-                raise ValueError("Different number of samples between subjects" ".")
+                raise ValueError("Different number of samples between subjects.")
 
         # Run SRM
         self.sigma_s_, self.w_, self.mu_, self.rho2_, self.s_ = self._srm(X)
@@ -229,7 +230,7 @@ class SRM(BaseEstimator, TransformerMixin):
         # Check the number of subjects
         if len(X) != len(self.w_):
             raise ValueError(
-                "The number of subjects does not match the one" " in the model."
+                "The number of subjects does not match the one in the model."
             )
 
         s = [None] * len(X)
@@ -387,7 +388,7 @@ class SRM(BaseEstimator, TransformerMixin):
         # Check the number of TRs in the subject
         if X.shape[1] != self.s_.shape[1]:
             raise ValueError(
-                "The number of timepoints(TRs) does not match the" "one in the model."
+                "The number of timepoints(TRs) does not match theone in the model."
             )
 
         w = self._update_transform_subject(X, self.s_)
@@ -428,9 +429,7 @@ class SRM(BaseEstimator, TransformerMixin):
         subjects = len(data)
         self.random_state_ = np.random.RandomState(self.rand_seed)
         random_states = [
-            np.random.RandomState(
-                self.random_state_.randint(2**32 - 1, dtype=np.int64)
-            )
+            np.random.RandomState(self.random_state_.randint(2**32 - 1, dtype=np.int64))
             for i in range(len(data))
         ]
 
@@ -598,8 +597,9 @@ class DetSRM(BaseEstimator, TransformerMixin):
         # Check the number of subjects
         if len(X) <= 1:
             raise ValueError(
-                "There are not enough subjects "
-                "({0:d}) to train the model.".format(len(X))
+                "There are not enough subjects ({0:d}) to train the model.".format(
+                    len(X)
+                )
             )
 
         # Check for input data sizes
@@ -615,7 +615,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
         for subject in range(number_subjects):
             assert_all_finite(X[subject])
             if X[subject].shape[1] != number_trs:
-                raise ValueError("Different number of samples between subjects" ".")
+                raise ValueError("Different number of samples between subjects.")
 
         # Run SRM
         self.w_, self.s_ = self._srm(X)
@@ -646,7 +646,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
         # Check the number of subjects
         if len(X) != len(self.w_):
             raise ValueError(
-                "The number of subjects does not match the one" " in the model."
+                "The number of subjects does not match the one in the model."
             )
 
         s = [None] * len(X)
@@ -755,7 +755,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
         # Check the number of TRs in the subject
         if X.shape[1] != self.s_.shape[1]:
             raise ValueError(
-                "The number of timepoints(TRs) does not match the" "one in the model."
+                "The number of timepoints(TRs) does not match theone in the model."
             )
 
         w = self._update_transform_subject(X, self.s_)
@@ -785,9 +785,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         self.random_state_ = np.random.RandomState(self.rand_seed)
         random_states = [
-            np.random.RandomState(
-                self.random_state_.randint(2**32 - 1, dtype=np.int64)
-            )
+            np.random.RandomState(self.random_state_.randint(2**32 - 1, dtype=np.int64))
             for i in range(len(data))
         ]
 

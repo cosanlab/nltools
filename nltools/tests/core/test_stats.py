@@ -303,7 +303,9 @@ def test_transform_pairwise():
 # ==================== Alignment & ISC Functions ====================
 
 
-@pytest.mark.skip(reason="ISC calculation has known bugs. Alignment functionality tested in test_align_without_isc() and test_hyperalignment.py (27 tests). ISC fix plan: claude-research/align-isc-fix-plan.md")
+@pytest.mark.skip(
+    reason="ISC calculation has known bugs. Alignment functionality tested in test_align_without_isc() and test_hyperalignment.py (27 tests). ISC fix plan: claude-research/align-isc-fix-plan.md"
+)
 def test_align():
     """Test hyperalignment algorithms (SRM, Procrustes) on matrices and Brain_Data."""
     # Test hyperalignment matrix
@@ -566,6 +568,7 @@ def test_isc_group():
 
 def test_isfc():
     """Test intersubject functional correlation."""
+
     def simulate_sub_roi_data(n_sub, n_tr):
         sub_dat = []
         for _ in range(n_sub):

@@ -34,6 +34,7 @@ from nltools.mask import create_sphere, roi_to_brain
 from pathlib import Path
 
 from nltools.prefs import MNI_Template
+from nltools.tests.conftest import _tables_available
 
 
 shape_3d = (91, 109, 91)
@@ -108,6 +109,9 @@ class TestBrainData:
                 MNI_Template.mask
             )
 
+    @pytest.mark.skipif(
+        not _tables_available(), reason="HDF5 support deprecated, requires PyTables"
+    )
     def test_load_legacy_h5(self, old_h5_brain, new_h5_brain, tmpdir):
         """Test loading old HDF5 format (backward compatibility)."""
         with pytest.warns(UserWarning):
@@ -516,11 +520,13 @@ class TestBrainData:
     def test_compute_contrasts_numeric_vector(self, minimal_brain_data):
         """Test numeric contrast vector (unique nltools API)."""
         # Set up and run regression
-        design_matrix = pd.DataFrame({
-            "Intercept": np.ones(len(minimal_brain_data)),
-            "condA": np.random.randn(len(minimal_brain_data)),
-            "condB": np.random.randn(len(minimal_brain_data)),
-        })
+        design_matrix = pd.DataFrame(
+            {
+                "Intercept": np.ones(len(minimal_brain_data)),
+                "condA": np.random.randn(len(minimal_brain_data)),
+                "condB": np.random.randn(len(minimal_brain_data)),
+            }
+        )
 
         with pytest.warns(FutureWarning):
             minimal_brain_data.regress(design_matrix)
@@ -536,11 +542,13 @@ class TestBrainData:
     def test_compute_contrasts_string_parsing(self, minimal_brain_data):
         """Test string contrast parsing (unique nltools feature)."""
         # Set up and run regression
-        design_matrix = pd.DataFrame({
-            "Intercept": np.ones(len(minimal_brain_data)),
-            "condA": np.random.randn(len(minimal_brain_data)),
-            "condB": np.random.randn(len(minimal_brain_data)),
-        })
+        design_matrix = pd.DataFrame(
+            {
+                "Intercept": np.ones(len(minimal_brain_data)),
+                "condA": np.random.randn(len(minimal_brain_data)),
+                "condB": np.random.randn(len(minimal_brain_data)),
+            }
+        )
 
         with pytest.warns(FutureWarning):
             minimal_brain_data.regress(design_matrix)
@@ -555,20 +563,19 @@ class TestBrainData:
     def test_compute_contrasts_multiple_dict(self, minimal_brain_data):
         """Test multiple contrasts via dict (unique nltools API)."""
         # Set up and run regression
-        design_matrix = pd.DataFrame({
-            "Intercept": np.ones(len(minimal_brain_data)),
-            "condA": np.random.randn(len(minimal_brain_data)),
-            "condB": np.random.randn(len(minimal_brain_data)),
-        })
+        design_matrix = pd.DataFrame(
+            {
+                "Intercept": np.ones(len(minimal_brain_data)),
+                "condA": np.random.randn(len(minimal_brain_data)),
+                "condB": np.random.randn(len(minimal_brain_data)),
+            }
+        )
 
         with pytest.warns(FutureWarning):
             minimal_brain_data.regress(design_matrix)
 
         # Test dict of contrasts (unique nltools API)
-        contrasts = {
-            "A_vs_B": "condA - condB",
-            "avg_effect": [0, 0.5, 0.5]
-        }
+        contrasts = {"A_vs_B": "condA - condB", "avg_effect": [0, 0.5, 0.5]}
         results = minimal_brain_data.compute_contrasts(contrasts)
 
         # Should return dict of Brain_Data objects
@@ -582,11 +589,13 @@ class TestBrainData:
     def test_compute_contrasts_invalid_length(self, minimal_brain_data):
         """Test error for invalid contrast vector length (nltools validation)."""
         # Set up and run regression with 3 regressors
-        design_matrix = pd.DataFrame({
-            "Intercept": np.ones(len(minimal_brain_data)),
-            "condA": np.random.randn(len(minimal_brain_data)),
-            "condB": np.random.randn(len(minimal_brain_data)),
-        })
+        design_matrix = pd.DataFrame(
+            {
+                "Intercept": np.ones(len(minimal_brain_data)),
+                "condA": np.random.randn(len(minimal_brain_data)),
+                "condB": np.random.randn(len(minimal_brain_data)),
+            }
+        )
 
         with pytest.warns(FutureWarning):
             minimal_brain_data.regress(design_matrix)
@@ -727,7 +736,6 @@ class TestBrainData:
     @pytest.mark.tier2
     def test_glm_fit_matches_current_regress(self, sim_brain_data):
         """Test new fit(model='glm') matches current regress() numerically."""
-        from nltools.models import Glm
 
         design_matrix = pd.DataFrame(
             {
@@ -1040,7 +1048,7 @@ class TestBrainData:
         )
 
         with pytest.warns(FutureWarning):
-            result = sim_brain_data.regress(design_matrix, noise_model="ols")
+            sim_brain_data.regress(design_matrix, noise_model="ols")
 
         # Should have set model_ and glm_* attributes via fit()
         assert hasattr(sim_brain_data, "model_")
@@ -1253,9 +1261,7 @@ class TestBrainData:
     def test_filter_band_pass(self, minimal_brain_data):
         """Test band-pass filtering (both high and low pass)."""
         filtered = minimal_brain_data.filter(
-            sampling_freq=0.5,
-            high_pass=0.01,
-            low_pass=0.1
+            sampling_freq=0.5, high_pass=0.01, low_pass=0.1
         )
 
         assert isinstance(filtered, Brain_Data)
@@ -1280,7 +1286,7 @@ class TestBrainData:
         filtered = minimal_brain_data.filter(
             sampling_freq=0.5,
             high_pass=0.01,
-            ensure_finite=True  # nilearn parameter not extracted by filter()
+            ensure_finite=True,  # nilearn parameter not extracted by filter()
         )
 
         assert isinstance(filtered, Brain_Data)

@@ -1,7 +1,7 @@
 [project]
 name = "nltools"
 dynamic = ["version"]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 description = "A Python package to analyze neuroimaging data"
 readme = "README.md"
 license = {text = "MIT"}
@@ -10,18 +10,18 @@ authors = [
     {name="Eshin Jolly", email="eshin.jolly@gmail.com"},
 ]
 classifiers = [
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Operating System :: OS Independent",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
 ]
 keywords=["neuroimaging", "preprocessing", "analysis", "machine-learning"]
 dependencies = [
-    "h5py>=3.13.0",
-    "nilearn>=0.11.1",
-    "polars>=0.20.0",
+    "h5py>=3.15",
+    "nilearn>=0.12",
+    "polars>=1.35",
     "pynv>=0.3",
     "seaborn>=0.13.2",
 ]
@@ -31,12 +31,11 @@ dependencies = [
 dev = [
     "ipywidgets>=8.1.7",
     "jupyter-book>=1.0.4.post1",
-    "networkx>=3.4.2",
-    "pytest>=8.3.5",
-    "pytest-xdist>=3.0.0",
-    "ruff==0.11.10",
-    "tables>=3.10.1",
-    "torch>=2.0.0",
+    "networkx>=3.5",
+    "pytest>=8.4",
+    "pytest-xdist>=3.8.0",
+    "ruff==0.14.2",
+    "torch>=2.9.0",
     "tqdm>=4.67.1",
 ]
 
