@@ -10,6 +10,8 @@ import numpy as np
 import pandas as pd
 import polars as pl
 from typing import Union, List, Optional, Any
+from scipy.special import legendre
+from ..stats import make_cosine_basis
 
 
 class DesignMatrix:
@@ -488,8 +490,51 @@ class DesignMatrix:
         include_lower : bool
             If True, include all orders from 0 to order
         """
-        # TODO: Implement
-        raise NotImplementedError("add_poly not yet implemented")
+        if order < 0:
+            raise ValueError("Order must be 0 or greater")
+
+        # Check for ambiguous polynomials from previous append operations
+        if self.polys and any(elem.count("_") == 2 for elem in self.polys):
+            raise ValueError(
+                "This Design Matrix contains polynomial terms that were kept "
+                "separate from a previous append operation. This makes it ambiguous "
+                "for adding polynomial terms. Try calling .add_poly() on each "
+                "separate Design Matrix before appending them instead."
+            )
+
+        # Determine which polynomials to add
+        if include_lower:
+            orders_to_add = range(order + 1)
+        else:
+            orders_to_add = [order]
+
+        # Check if we already have these polynomials (idempotent)
+        new_poly_cols = {}
+        for i in orders_to_add:
+            poly_name = f"poly_{i}"
+            if poly_name in self.polys:
+                print(f"Design Matrix already has {i}th order polynomial...skipping")
+            else:
+                # Create normalized Legendre polynomial over [-1, 1]
+                norm_order = np.linspace(-1, 1, self.shape[0])
+                poly_values = legendre(i)(norm_order)
+                new_poly_cols[poly_name] = poly_values
+
+        # If no new polynomials to add, return self unchanged
+        if not new_poly_cols:
+            return self
+
+        # Add new polynomial columns using Polars .with_columns()
+        new_df = self._df.with_columns([
+            pl.Series(name, values) for name, values in new_poly_cols.items()
+        ])
+
+        # Update polys metadata
+        new_polys = self.polys.copy() if self.polys else []
+        new_polys.extend(new_poly_cols.keys())
+
+        # Return new DesignMatrix with updated data and metadata
+        return self._copy_with(new_df, polys=new_polys)
 
     def add_dct_basis(self, duration: float = 180, drop: int = 0) -> "DesignMatrix":
         """
@@ -502,8 +547,62 @@ class DesignMatrix:
         drop : int
             Number of low-frequency bases to drop
         """
-        # TODO: Implement
-        raise NotImplementedError("add_dct_basis not yet implemented")
+        if self.sampling_freq is None:
+            raise ValueError("Design_Matrix has no sampling_freq set!")
+
+        # Check for ambiguous cosine bases from previous append operations
+        if self.polys and any(
+            elem.count("_") == 2 and "cosine" in elem for elem in self.polys
+        ):
+            raise ValueError(
+                "This Design Matrix contains cosine bases that were kept "
+                "separate from a previous append operation. This makes it ambiguous "
+                "for adding polynomial terms. Try calling .add_dct_basis() on each "
+                "separate Design Matrix before appending them instead."
+            )
+
+        # Create DCT basis matrix using stats function
+        basis_mat = make_cosine_basis(
+            self.shape[0], 1.0 / self.sampling_freq, duration, drop=drop
+        )
+
+        # Generate column names (cosine_1, cosine_2, ...)
+        # Note: If drop > 0, numbering starts from drop+1 to reflect original indices
+        # e.g., drop=2 -> cosine_3, cosine_4, ... (skipped cosine_1, cosine_2)
+        basis_col_names = [f"cosine_{drop + i + 1}" for i in range(basis_mat.shape[1])]
+
+        # Check which bases we don't already have (idempotent)
+        if self.polys:
+            basis_to_add = [name for name in basis_col_names if name not in self.polys]
+        else:
+            basis_to_add = basis_col_names
+
+        # If no new bases to add, return self unchanged
+        if not basis_to_add:
+            print("All basis functions already exist...skipping")
+            return self
+
+        # Print message if only adding some bases
+        if len(basis_to_add) < len(basis_col_names):
+            print("Some basis functions already exist...skipping")
+
+        # Add new cosine basis columns
+        # Only add the columns we don't already have
+        new_basis_cols = {}
+        for i, name in enumerate(basis_col_names):
+            if name in basis_to_add:
+                new_basis_cols[name] = basis_mat[:, i]
+
+        new_df = self._df.with_columns([
+            pl.Series(name, values) for name, values in new_basis_cols.items()
+        ])
+
+        # Update polys metadata
+        new_polys = self.polys.copy() if self.polys else []
+        new_polys.extend(new_basis_cols.keys())
+
+        # Return new DesignMatrix with updated data and metadata
+        return self._copy_with(new_df, polys=new_polys)
 
     # ==================== Concatenation ====================
 
@@ -524,18 +623,101 @@ class DesignMatrix:
         dm : DesignMatrix or list of DesignMatrix
             Design matrix/matrices to append
         axis : int
-            0 for vertical (row-wise), 1 for horizontal (column-wise)
+            0 for row-wise (vertical), 1 for column-wise (horizontal)
         keep_separate : bool
-            Auto-separate polynomial columns across runs (axis=0 only)
+            Whether to separate polynomial columns across runs (only axis=0)
         unique_cols : list of str, optional
-            Additional columns to separate (supports wildcards: 'house*', '*_motion')
+            Additional columns to keep separated (supports wildcards)
         fill_na : int or float
-            Fill value for missing columns
+            Value to fill NaN values during vertical concatenation
         verbose : bool
-            Print separation details
+            Print messages about polynomial separation
         """
-        # TODO: Implement complex append logic
-        raise NotImplementedError("append not yet implemented")
+        # Normalize to list
+        to_append = [dm] if not isinstance(dm, list) else dm
+
+        # Validate all are DesignMatrix with same sampling_freq
+        if not all(isinstance(elem, DesignMatrix) for elem in to_append):
+            raise TypeError("All items to append must be DesignMatrix objects")
+        if not all(elem.sampling_freq == self.sampling_freq for elem in to_append):
+            raise ValueError("All Design Matrices must have the same sampling frequency!")
+
+        if axis == 1:
+            return self._append_horizontal(to_append, fill_na)
+        elif axis == 0:
+            return self._append_vertical(to_append, keep_separate, unique_cols, fill_na, verbose)
+        else:
+            raise ValueError("axis must be 0 (vertical) or 1 (horizontal)")
+
+    def _append_horizontal(
+        self,
+        to_append: List["DesignMatrix"],
+        fill_na: Union[int, float],
+    ) -> "DesignMatrix":
+        """
+        Horizontal concatenation (axis=1) - add columns from other matrices.
+        """
+        # Check all have same number of rows
+        if not all(elem.shape[0] == self.shape[0] for elem in to_append):
+            raise ValueError("All Design Matrices must have the same number of rows!")
+
+        # Warn about duplicate column names
+        all_columns = set(self.columns)
+        for elem in to_append:
+            if not all_columns.isdisjoint(elem.columns):
+                print("Duplicate column names detected. Will be repeated.")
+            all_columns.update(elem.columns)
+
+        # Use Polars hstack to concatenate DataFrames horizontally
+        dfs_to_stack = [self._df] + [elem._df for elem in to_append]
+        new_df = pl.concat(dfs_to_stack, how="horizontal")
+
+        # Fill NaN if requested
+        if fill_na is not None:
+            new_df = new_df.fill_null(fill_na)
+
+        # Combine polys metadata from all matrices
+        all_polys = self.polys.copy() if self.polys else []
+        for elem in to_append:
+            if elem.polys:
+                all_polys.extend(elem.polys)
+
+        return self._copy_with(new_df, polys=all_polys)
+
+    def _append_vertical(
+        self,
+        to_append: List["DesignMatrix"],
+        keep_separate: bool,
+        unique_cols: Optional[List[str]],
+        fill_na: Union[int, float],
+        verbose: bool,
+    ) -> "DesignMatrix":
+        """
+        Vertical concatenation (axis=0) - stack rows, with optional polynomial separation.
+        """
+        # Simple case: keep_separate=False - just stack rows
+        if not keep_separate:
+            dfs_to_stack = [self._df] + [elem._df for elem in to_append]
+            new_df = pl.concat(dfs_to_stack, how="vertical")
+
+            # Fill NaN if requested
+            if fill_na is not None:
+                new_df = new_df.fill_null(fill_na)
+
+            # Combine polys metadata (no separation)
+            all_polys = self.polys.copy() if self.polys else []
+            for elem in to_append:
+                if elem.polys:
+                    # Add new polys we don't already have
+                    for p in elem.polys:
+                        if p not in all_polys:
+                            all_polys.append(p)
+
+            return self._copy_with(new_df, polys=all_polys)
+
+        # Complex case: keep_separate=True - separate polynomial columns across runs
+        # TODO: Implement multi-run polynomial separation
+        raise NotImplementedError("Polynomial separation not yet implemented")
 
     # ==================== Diagnostics ====================
 
