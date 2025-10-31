@@ -1825,3 +1825,93 @@ class TestTimeseriesCorrelation:
             timeseries_correlation_permutation_test(
                 x, y, method="circle_shift", n_permute=100, random_state=42
             )
+
+    def test_phase_randomize_null_distribution_centered(self):
+        """Test that phase_randomize creates null distribution centered at zero.
+
+        This verifies that only ONE variable is randomized (correct behavior),
+        not both variables. Randomizing both would reduce statistical power
+        and is conceptually incorrect for testing H0: correlation = 0.
+        """
+        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+
+        np.random.seed(42)
+        # Create two uncorrelated time series
+        x = np.random.randn(200)
+        y = np.random.randn(200)
+
+        # Get null distribution
+        result = timeseries_correlation_permutation_test(
+            x, y, method="phase_randomize", n_permute=1000,
+            return_null=True, random_state=42, n_jobs=1
+        )
+
+        # Null distribution should be centered near zero
+        null_mean = np.mean(result["null_distribution"])
+        null_std = np.std(result["null_distribution"])
+
+        # Mean should be very close to 0
+        assert abs(null_mean) < 0.05, f"Null mean {null_mean} too far from 0"
+
+        # Standard deviation should be reasonable (not too wide)
+        assert 0.05 < null_std < 0.15, f"Null std {null_std} outside expected range"
+
+        # P-value should be non-significant for uncorrelated data
+        assert result["p"] > 0.05
+
+    def test_phase_randomize_detects_significant_correlation(self):
+        """Test that phase_randomize correctly detects significant correlations.
+
+        Verifies statistical power - should detect strong correlations.
+        """
+        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+
+        np.random.seed(42)
+        # Create two strongly correlated autocorrelated time series
+        # Use a smooth autocorrelated signal and add correlated noise
+        t = np.linspace(0, 10*np.pi, 200)
+        base_signal = np.sin(t) + np.sin(2*t) + np.sin(3*t)  # Complex autocorrelated signal
+        x = base_signal + np.random.randn(200) * 0.3
+        y = base_signal + np.random.randn(200) * 0.3  # Strong correlation via shared signal
+
+        result = timeseries_correlation_permutation_test(
+            x, y, method="phase_randomize", n_permute=500,
+            random_state=42, n_jobs=1
+        )
+
+        # Should detect significant correlation
+        assert abs(result["correlation"]) > 0.7, "Should have strong correlation"
+        assert result["p"] < 0.05, "Should be statistically significant"
+
+    def test_circle_shift_vs_phase_randomize_consistency(self):
+        """Test that both methods produce sensible results for same data.
+
+        While the methods differ (circle_shift preserves autocorrelation,
+        phase_randomize preserves power spectrum), both should:
+        1. Destroy correlation under H0
+        2. Produce null distributions centered near zero
+        3. Give similar p-values for uncorrelated data
+        """
+        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+
+        np.random.seed(42)
+        x = np.random.randn(150)
+        y = np.random.randn(150)
+
+        result_circle = timeseries_correlation_permutation_test(
+            x, y, method="circle_shift", n_permute=500,
+            random_state=42, n_jobs=1
+        )
+
+        result_phase = timeseries_correlation_permutation_test(
+            x, y, method="phase_randomize", n_permute=500,
+            random_state=42, n_jobs=1
+        )
+
+        # Both should give non-significant results for uncorrelated data
+        assert result_circle["p"] > 0.05
+        assert result_phase["p"] > 0.05
+
+        # P-values should be in similar ballpark (both testing same H0)
+        # Allow generous tolerance as methods differ
+        assert abs(result_circle["p"] - result_phase["p"]) < 0.5

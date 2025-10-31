@@ -457,6 +457,10 @@ def correlation_permutation_test(
     Tests whether the correlation between data1 and data2 is significantly
     different from zero by randomly permuting data1 and computing correlations.
 
+    Assumption: Observations are independent (i.i.d.). For autocorrelated time
+    series, use timeseries_correlation_permutation_test with circle_shift or
+    phase_randomize methods instead.
+
     When backend='torch', uses GPU acceleration with automatic batching.
     When backend=None (default), uses efficient CPU parallelization via joblib.
 

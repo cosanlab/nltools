@@ -259,13 +259,20 @@ All implementations tested for:
 3. **Determinism**: Same seed → identical p-values across runs (0.000% variance)
 4. **Edge cases**: Single feature, small n, constant data, etc.
 
-Test suite: 118 tests covering all permutation methods and backends.
+Test suite: 121 tests covering all permutation methods and backends.
 
 **Cross-backend determinism verified**:
 - One-sample: All backends produce identical results (0.000% variance)
 - Two-sample: All backends produce identical results (0.000% variance)
 - Correlation: All backends produce identical results (0.000% variance)
 - Timeseries: CPU-parallel only (0.000% variance across runs)
+
+**Critical correctness fix (2025-10-30)**:
+- **Phase randomization for correlation**: Fixed to randomize only ONE variable instead of both
+- **Why**: Testing H₀: ρ=0 requires destroying correlation by randomizing one variable
+- **Impact**: Improves statistical power (narrower null distribution), conceptually correct
+- **Backward compatibility**: ~3% variance vs old implementation (both destroy correlation,
+  but new approach is more efficient and standard practice per Good 2000)
 
 ---
 

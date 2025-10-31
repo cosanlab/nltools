@@ -238,6 +238,9 @@ def one_sample_permutation_test(
     by randomly flipping the sign of each observation. This is the
     permutation test equivalent of a one-sample t-test.
 
+    Assumption: Symmetric error distribution around zero. For highly skewed
+    distributions, consider alternative methods (e.g., bootstrap resampling).
+
     When backend='torch', uses GPU acceleration with automatic batching.
     When backend=None (default), uses efficient CPU parallelization via joblib.
 

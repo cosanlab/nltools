@@ -274,6 +274,9 @@ def two_sample_permutation_test(
     permuting group labels. This is the permutation test equivalent of an
     independent samples t-test.
 
+    Assumption: Exchangeability under the null hypothesis (group assignments
+    are arbitrary). Valid for independent samples from similar distributions.
+
     When backend='torch', uses GPU acceleration with automatic batching.
     When backend=None (default), uses efficient CPU parallelization via joblib.
 
