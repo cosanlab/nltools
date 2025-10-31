@@ -146,6 +146,55 @@ def _compute_pvalue(
     return p_values
 
 
+def _generate_bootstrap_indices(
+    n_samples: int,
+    n_bootstrap: int,
+    random_state: Optional[int] = None,
+) -> np.ndarray:
+    """
+    Generate bootstrap indices deterministically for resampling.
+
+    Uses the same pattern as permutation tests: pre-generate seeds for
+    reproducible parallelization.
+
+    Parameters
+    ----------
+    n_samples : int
+        Number of samples in original dataset
+    n_bootstrap : int
+        Number of bootstrap iterations
+    random_state : int, optional
+        Random seed for reproducibility
+
+    Returns
+    -------
+    np.ndarray
+        Bootstrap indices with shape (n_bootstrap, n_samples)
+        Each row contains indices sampled with replacement from [0, n_samples)
+
+    Examples
+    --------
+    >>> indices = _generate_bootstrap_indices(100, 1000, random_state=42)
+    >>> indices.shape
+    (1000, 100)
+    >>> indices[0]  # First bootstrap sample indices
+    array([23, 45, 23, 67, ...])  # Some repeated (sampling with replacement)
+    """
+    rng = check_random_state(random_state)
+    MAX_INT = 2**31 - 1
+    seeds = rng.randint(MAX_INT, size=n_bootstrap)
+
+    # Each bootstrap gets independent RandomState
+    indices = np.array(
+        [
+            np.random.RandomState(seeds[i]).choice(n_samples, n_samples, replace=True)
+            for i in range(n_bootstrap)
+        ]
+    )
+
+    return indices
+
+
 def _auto_batch_size(
     n_permute: int,
     n_samples: int,

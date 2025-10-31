@@ -1367,10 +1367,8 @@ class TestBrainData:
         ):
             sim_brain_data.randomise(n_permute=10)
 
-    @pytest.mark.skip(reason="method needs refactoring")
     def test_bootstrap(self, sim_brain_data):
-        """Test bootstrap with mean/std (predict is deprecated)."""
-        # Bootstrap itself is not deprecated, but some functions it calls might be
+        """Test bootstrap with mean/std."""
         masked = sim_brain_data.apply_mask(
             create_sphere(radius=10, coordinates=[0, 0, 0])
         )
@@ -1382,11 +1380,15 @@ class TestBrainData:
         b = masked.bootstrap("std", n_samples=n_samples)
         assert isinstance(b["Z"], BrainData)
 
-        # Bootstrap with "predict" will fail since predict is deprecated
-        with pytest.raises(
-            NotImplementedError, match="predict.*deprecated.*Model class"
-        ):
+        # Bootstrap with "predict" requires fitted model
+        # This will be tested properly in Phase 4 of bootstrap refactor
+        with pytest.raises(ValueError, match="Must call fit"):
             masked.bootstrap("predict", n_samples=n_samples)
+
+    def test_bootstrap_invalid_method_error(self, brain_data_3d):
+        """Test error raised for unsupported method."""
+        with pytest.raises(ValueError, match="function must be one of"):
+            brain_data_3d.bootstrap("invalid_method_name", n_samples=10)
 
     @pytest.mark.tier2
     def test_predict_multi(self):

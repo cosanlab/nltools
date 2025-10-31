@@ -1,7 +1,10 @@
 """Tests for bootstrap inference utilities."""
 
 import numpy as np
-from nltools.algorithms.inference.bootstrap import OnlineBootstrapStats
+from nltools.algorithms.inference.bootstrap import (
+    OnlineBootstrapStats,
+    _bootstrap_simple_cpu_parallel,
+)
 
 
 class TestOnlineBootstrapStats:
@@ -148,3 +151,101 @@ class TestOnlineBootstrapStats:
         samples_array = np.array(samples_list)
         expected_std = np.std(samples_array, axis=0, ddof=1)  # Sample std
         assert np.allclose(result["std"], expected_std, rtol=1e-5)
+
+
+class TestBootstrapSimpleMethods:
+    """Test suite for simple bootstrap methods."""
+
+    def test_bootstrap_simple_methods_all(self):
+        """Test all simple aggregation methods work correctly."""
+        np.random.seed(42)
+        data = np.random.randn(50, 20)  # 50 samples, 20 features
+
+        methods = ["mean", "median", "std", "sum", "min", "max"]
+
+        for method in methods:
+            result = _bootstrap_simple_cpu_parallel(
+                data, method, n_samples=100, n_jobs=1, random_state=42
+            )
+
+            # Check dict structure
+            assert "mean" in result
+            assert "std" in result
+            assert "Z" in result
+            assert "p" in result
+            assert "ci_lower" in result
+            assert "ci_upper" in result
+            assert "backend" in result
+            assert "samples" not in result  # save_weights=False
+
+            # Check shapes
+            assert result["mean"].shape == (20,)
+            assert result["std"].shape == (20,)
+            assert result["Z"].shape == (20,)
+            assert result["p"].shape == (20,)
+
+            # Check values are reasonable
+            assert not np.any(np.isnan(result["mean"]))
+            assert not np.any(np.isnan(result["std"]))
+            assert np.all(result["std"] >= 0)
+
+    def test_bootstrap_simple_reproducibility(self):
+        """Test same random_state produces identical results."""
+        np.random.seed(42)
+        data = np.random.randn(50, 20)
+
+        result1 = _bootstrap_simple_cpu_parallel(
+            data, "mean", n_samples=100, n_jobs=1, random_state=42
+        )
+        result2 = _bootstrap_simple_cpu_parallel(
+            data, "mean", n_samples=100, n_jobs=1, random_state=42
+        )
+
+        # Results should be identical
+        np.testing.assert_array_almost_equal(result1["mean"], result2["mean"])
+        np.testing.assert_array_almost_equal(result1["std"], result2["std"])
+        np.testing.assert_array_almost_equal(result1["Z"], result2["Z"])
+        np.testing.assert_array_almost_equal(result1["p"], result2["p"])
+
+    def test_bootstrap_simple_save_weights(self):
+        """Test save_weights=True stores all samples."""
+        np.random.seed(42)
+        data = np.random.randn(50, 20)
+
+        n_samples = 100
+        result = _bootstrap_simple_cpu_parallel(
+            data,
+            "mean",
+            n_samples=n_samples,
+            save_weights=True,
+            n_jobs=1,
+            random_state=42,
+        )
+
+        # Samples should be stored
+        assert "samples" in result
+        assert result["samples"].shape == (n_samples, 20)
+
+        # Verify percentile CIs match samples
+        ci_lower_from_samples = np.percentile(result["samples"], 2.5, axis=0)
+        ci_upper_from_samples = np.percentile(result["samples"], 97.5, axis=0)
+
+        np.testing.assert_array_almost_equal(
+            result["ci_lower"], ci_lower_from_samples, decimal=5
+        )
+        np.testing.assert_array_almost_equal(
+            result["ci_upper"], ci_upper_from_samples, decimal=5
+        )
+
+    def test_bootstrap_simple_progress(self):
+        """Test progress bar works (basic smoke test)."""
+        np.random.seed(42)
+        data = np.random.randn(50, 20)
+
+        # Just run and verify no errors
+        result = _bootstrap_simple_cpu_parallel(
+            data, "mean", n_samples=50, n_jobs=1, random_state=42
+        )
+
+        assert result is not None
+        assert "mean" in result

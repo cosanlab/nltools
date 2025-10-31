@@ -1,7 +1,7 @@
 """Bootstrap inference utilities with CPU/GPU support."""
 
 import numpy as np
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 from scipy.stats import norm
 
 
@@ -148,3 +148,156 @@ class OnlineBootstrapStats:
             result["ci_upper"] = self.mean + z_crit * std
 
         return result
+
+
+def _bootstrap_simple_method_worker(
+    data: np.ndarray,
+    method: str,
+    indices: np.ndarray,
+) -> np.ndarray:
+    """
+    Worker function for bootstrapping simple aggregation methods.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Data to bootstrap (n_samples, n_features)
+    method : str
+        Aggregation method: 'mean', 'median', 'std', 'sum', 'min', 'max'
+    indices : np.ndarray
+        Bootstrap indices (n_samples,)
+
+    Returns
+    -------
+    np.ndarray
+        Aggregated result (n_features,) or scalar
+    """
+    # Resample data
+    data_boot = data[indices]
+
+    # Apply aggregation method
+    if method == "mean":
+        return np.mean(data_boot, axis=0)
+    elif method == "median":
+        return np.median(data_boot, axis=0)
+    elif method == "std":
+        return np.std(data_boot, axis=0, ddof=1)
+    elif method == "sum":
+        return np.sum(data_boot, axis=0)
+    elif method == "min":
+        return np.min(data_boot, axis=0)
+    elif method == "max":
+        return np.max(data_boot, axis=0)
+    else:
+        raise ValueError(f"Unsupported method: {method}")
+
+
+def _bootstrap_simple_cpu_parallel(
+    data: np.ndarray,
+    method: str,
+    n_samples: int = 5000,
+    save_weights: bool = False,
+    n_jobs: int = -1,
+    random_state: Optional[int] = None,
+    percentiles: Tuple[float, float] = (2.5, 97.5),
+) -> Dict[str, np.ndarray]:
+    """
+    Bootstrap simple aggregation methods using CPU parallelization.
+
+    Follows the same pattern as inference module: pre-generate indices,
+    parallelize computation, aggregate with OnlineBootstrapStats.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Data to bootstrap, shape (n_samples, n_features) or (n_samples,)
+    method : str
+        Aggregation method: 'mean', 'median', 'std', 'sum', 'min', 'max'
+    n_samples : int, default=5000
+        Number of bootstrap iterations
+    save_weights : bool, default=False
+        If True, store all bootstrap samples (memory intensive)
+    n_jobs : int, default=-1
+        Number of CPU cores for parallelization
+    random_state : int, optional
+        Random seed for reproducibility
+    percentiles : tuple, default=(2.5, 97.5)
+        Percentiles for confidence intervals
+
+    Returns
+    -------
+    dict
+        Dictionary containing:
+        - 'mean': Bootstrap mean
+        - 'std': Bootstrap standard deviation
+        - 'Z': Z-scores (mean/std)
+        - 'p': Two-tailed p-values
+        - 'ci_lower': Lower confidence bound
+        - 'ci_upper': Upper confidence bound
+        - 'samples': All samples (only if save_weights=True)
+        - 'backend': Backend used (e.g., 'cpu-parallel-8')
+
+    Examples
+    --------
+    >>> data = np.random.randn(100, 50)  # 100 samples, 50 features
+    >>> result = _bootstrap_simple_cpu_parallel(data, 'mean', n_samples=1000)
+    >>> result['mean'].shape
+    (50,)
+    >>> result.keys()
+    dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper', 'backend'])
+    """
+    from joblib import Parallel, delayed
+    from tqdm import tqdm
+    from .utils import _generate_bootstrap_indices
+
+    # Handle 1D input
+    data = np.asarray(data, dtype=np.float64)
+    single_feature = data.ndim == 1
+    if single_feature:
+        data = data[:, np.newaxis]
+
+    n_obs, n_features = data.shape
+    output_shape = (n_features,) if not single_feature else ()
+
+    # Pre-generate bootstrap indices (deterministic)
+    all_indices = _generate_bootstrap_indices(
+        n_obs, n_samples, random_state=random_state
+    )
+
+    # Initialize online statistics aggregator
+    stats = OnlineBootstrapStats(
+        shape=output_shape if output_shape else (1,),
+        save_samples=save_weights,
+        percentiles=percentiles,
+    )
+
+    # Define worker function
+    def _compute_one_bootstrap(idx):
+        return _bootstrap_simple_method_worker(data, method, all_indices[idx])
+
+    # Execute in parallel with progress bar
+    bootstrap_samples = Parallel(n_jobs=n_jobs)(
+        delayed(_compute_one_bootstrap)(i)
+        for i in tqdm(range(n_samples), desc="Bootstrap iterations", unit="iter")
+    )
+
+    # Aggregate results
+    for sample in bootstrap_samples:
+        if single_feature:
+            sample = sample.flatten()
+        stats.update(sample)
+
+    # Get final results
+    result = stats.get_results()
+
+    # Add backend info
+    import multiprocessing
+
+    actual_n_jobs = multiprocessing.cpu_count() if n_jobs == -1 else n_jobs
+    result["backend"] = f"cpu-parallel-{actual_n_jobs}"
+
+    # Remove samples if not requested
+    if not save_weights:
+        result.pop("samples", None)
+
+    return result
