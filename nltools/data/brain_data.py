@@ -741,27 +741,40 @@ class BrainData(object):
         if X is None:
             raise TypeError("X must be provided")
 
-        X = np.asarray(X)
-        if X.shape[0] != self.shape[0]:
-            raise ValueError(
-                f"X has {X.shape[0]} samples, but brain data has {self.shape[0]} samples. "
-                f"number of samples must match."
-            )
+        # For GLM: preserve DataFrame/DesignMatrix (don't convert to numpy)
+        # For Ridge: convert to numpy array for sklearn compatibility
+        if model == "glm":
+            X_model = X  # Keep as-is (DataFrame or DesignMatrix)
+            # Validate shape using underlying array
+            X_array = np.asarray(X)
+            if X_array.shape[0] != self.shape[0]:
+                raise ValueError(
+                    f"X has {X_array.shape[0]} samples, but brain data has {self.shape[0]} samples. "
+                    f"number of samples must match."
+                )
+        else:
+            # Ridge: convert to numpy
+            X_model = np.asarray(X)
+            if X_model.shape[0] != self.shape[0]:
+                raise ValueError(
+                    f"X has {X_model.shape[0]} samples, but brain data has {self.shape[0]} samples. "
+                    f"number of samples must match."
+                )
 
         # Store training data for predict() default
-        self.X_ = X
+        self.X_ = X_model
 
         # Create model based on string
         if model == "ridge":
             self.model_ = Ridge(**kwargs)
-            self._fit_ridge(X, cv=cv, **kwargs)
+            self._fit_ridge(X_model, cv=cv, **kwargs)
         elif model == "glm":
             if cv is not None:
                 raise NotImplementedError(
                     "Cross-validation not yet supported for GLM models"
                 )
             self.model_ = Glm(**kwargs)
-            self._fit_glm(X)
+            self._fit_glm(X_model)
         else:
             raise ValueError(f"Unknown model '{model}'. Must be one of: 'ridge', 'glm'")
 
@@ -924,6 +937,9 @@ class BrainData(object):
         if not isinstance(X, DesignMatrix):
             X = DesignMatrix(X)
 
+        # Store design matrix for compute_contrasts()
+        self.design_matrix = X
+
         # Convert data to 4D nifti for nilearn
         data_4d = self.to_nifti()
 
@@ -988,12 +1004,11 @@ class BrainData(object):
             "See migration guide for examples."
         )
 
-    # TODO: make this this works and decide compatibility with .ttest() method
     def compute_contrasts(self, contrasts, contrast_type="t"):
         """Compute contrasts from fitted GLM results.
 
         This method computes contrasts as linear combinations of the GLM beta coefficients.
-        Must be called after .regress() has been run.
+        Must be called after .fit(model='glm', X=design_matrix) has been run.
 
         Args:
             contrasts: Can be:
@@ -1005,26 +1020,51 @@ class BrainData(object):
                 - array: Numeric contrast vector matching the number of regressors
                   e.g., [1, -1, 0, 0] for a 4-regressor model
             contrast_type (str): Type of contrast statistic ('t' or 'F'). Default: 't'
+                Note: Currently only 't' contrasts are supported.
 
         Returns:
             BrainData or dict: If single contrast, returns BrainData object with contrast map.
                                If multiple contrasts (dict input), returns dict of BrainData objects.
 
+        Raises:
+            RuntimeError: If .fit(model='glm') hasn't been called yet
+            ValueError: If contrast vector length doesn't match number of regressors
+            ValueError: If column name in string contrast not found in design matrix
+
         Examples:
-            >>> # After running regression
-            >>> brain.regress(design_matrix)
-            >>> # Simple contrast
-            >>> contrast1 = brain.compute_contrasts("conditionA - conditionB")
-            >>> # Multiple contrasts
+            >>> # Fit GLM model
+            >>> design_matrix = pd.DataFrame({
+            ...     'intercept': np.ones(n_samples),
+            ...     'conditionA': signal_a,
+            ...     'conditionB': signal_b
+            ... })
+            >>> brain.fit(model='glm', X=design_matrix)
+            >>>
+            >>> # Simple numeric contrast: A - B
+            >>> contrast1 = brain.compute_contrasts([0, 1, -1])
+            >>>
+            >>> # String-based contrast (more readable)
+            >>> contrast2 = brain.compute_contrasts("conditionA - conditionB")
+            >>>
+            >>> # Multiple contrasts at once
             >>> contrasts = {
             ...     "A_vs_B": "conditionA - conditionB",
-            ...     "main_effect": [1, -1, 0, 0]
+            ...     "avg_effect": [0, 0.5, 0.5],
+            ...     "weighted": "2*conditionA - conditionB"
             ... }
             >>> results = brain.compute_contrasts(contrasts)
+            >>> # results is a dict: {"A_vs_B": BrainData, "avg_effect": BrainData, ...}
+
+        Notes:
+            - String contrasts support coefficients: "2*A - B" or "0.5*A + 0.5*B"
+            - Column names must match design matrix columns exactly (case-sensitive)
+            - Contrast weights should sum to zero for proper inference in most cases
         """
         # Check that regression has been run
         if not hasattr(self, "glm_betas"):
-            raise RuntimeError("Must run .regress() before computing contrasts")
+            raise RuntimeError(
+                "Must run .fit(model='glm', X=design_matrix) before computing contrasts"
+            )
 
         # Parse contrasts
         if isinstance(contrasts, str):
@@ -1087,9 +1127,15 @@ class BrainData(object):
 
         Returns:
             np.array: Numeric contrast vector
+
+        Raises:
+            RuntimeError: If design_matrix not found (fit() not called)
+            ValueError: If column name not found in design_matrix
         """
         if not hasattr(self, "design_matrix"):
-            raise RuntimeError("No design matrix found. Run .regress() first.")
+            raise RuntimeError(
+                "No design matrix found. Run .fit(model='glm', X=design_matrix) first."
+            )
 
         # Get column names from design matrix
         if isinstance(self.design_matrix, pd.DataFrame):

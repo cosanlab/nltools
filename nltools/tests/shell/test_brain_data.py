@@ -341,7 +341,7 @@ class TestBrainData:
     def test_compute_contrasts_error_not_fitted(self, minimal_brain_data):
         """Test error when compute_contrasts() called before fit()."""
         # Should raise RuntimeError if fit() not called first
-        with pytest.raises(RuntimeError, match="Must run .regress"):
+        with pytest.raises(RuntimeError, match="Must run .fit"):
             minimal_brain_data.compute_contrasts([1, -1, 0])
 
     @pytest.mark.tier2
