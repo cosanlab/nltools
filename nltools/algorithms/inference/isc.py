@@ -660,14 +660,10 @@ def isc_permutation_test(
         - 'median': Direct median (robust to outliers)
         - 'mean': Fisher z-transformed mean (unbiased averaging)
     summary_statistic : {'leave-one-out', 'pairwise'}, default='leave-one-out'
-        ISC computation method:
-        - 'leave-one-out': Correlate each subject with mean of others
-          (O(n_subjects), unbiased, recommended by Chen et al. 2016)
-        - 'pairwise': Average all pairwise correlations
-          (O(n_subjects²), captures full correlation structure)
-
-        Note: These methods are statistically different and monotonically
-        but non-linearly related (see Chen et al. 2016, Figure 3).
+        ISC computation method. Options:
+          - 'leave-one-out': Correlate each subject with mean of others. O(n_subjects), unbiased, recommended by Chen et al. 2016.
+          - 'pairwise': Average all pairwise correlations. O(n_subjects²), captures full correlation structure.
+        Note: These methods are statistically different and monotonically but non-linearly related (see Chen et al. 2016, Figure 3).
     method : {'bootstrap', 'circle_shift', 'phase_randomize'}, default='bootstrap'
         Resampling method for p-value computation:
         - 'bootstrap': Subject-wise bootstrap (default, Chen et al. 2016)

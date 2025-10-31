@@ -965,7 +965,7 @@ class DesignMatrix:
         Args:
             fill_na (int, float, or None): Fill NaN values before checking correlations (default 0)
             exclude_polys (bool): Skip polynomial columns from correlation check
-            thresh (float): Correlation threshold (drop if |r| >= thresh, default 0.95)
+            thresh (float): Correlation threshold (drop if abs(r) >= thresh, default 0.95)
             verbose (bool): Print dropped column names
 
         Returns:
