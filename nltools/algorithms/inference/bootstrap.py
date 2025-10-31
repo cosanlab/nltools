@@ -1,8 +1,142 @@
 """Bootstrap inference utilities with CPU/GPU support."""
 
 import numpy as np
+import warnings
 from typing import Tuple, Dict, Optional
 from scipy.stats import norm
+
+
+# Constants for supported methods
+SIMPLE_METHODS = ["mean", "median", "std", "sum", "min", "max"]
+FITTED_METHODS = ["weights", "predict"]  # For future use
+
+
+def _validate_bootstrap_method(method: str) -> None:
+    """
+    Validate bootstrap method name.
+
+    Parameters
+    ----------
+    method : str
+        Method name to validate
+
+    Raises
+    ------
+    ValueError
+        If method is not supported
+    """
+    supported = SIMPLE_METHODS + FITTED_METHODS
+    if method not in supported:
+        raise ValueError(
+            f"Unsupported method '{method}'. "
+            f"Supported methods: {SIMPLE_METHODS} (simple methods), "
+            f"{FITTED_METHODS} (fitted model methods). "
+            f"For fitted methods, you must call .fit() first."
+        )
+
+
+def _validate_bootstrap_data(data: np.ndarray, method: str) -> None:
+    """
+    Validate input data for bootstrapping.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Data to validate
+    method : str
+        Bootstrap method
+
+    Raises
+    ------
+    ValueError
+        If data is invalid (wrong shape, too few samples, etc.)
+    """
+    # Check dimensionality
+    if data.ndim not in [1, 2]:
+        raise ValueError(
+            f"Data must be 1D or 2D, got shape {data.shape}. "
+            f"For 3D+ data, you may need to reshape or select specific dimensions."
+        )
+
+    # Check number of samples
+    n_samples = data.shape[0] if data.ndim == 2 else len(data)
+    if n_samples < 2:
+        raise ValueError(
+            f"Need at least 2 samples for bootstrap, got {n_samples}. "
+            f"Bootstrap requires resampling, which needs multiple samples."
+        )
+
+    # Warn if very few samples
+    if n_samples < 10:
+        warnings.warn(
+            f"Only {n_samples} samples available. Bootstrap works best with n >= 30. "
+            f"Results may be unreliable with very small sample sizes.",
+            UserWarning,
+        )
+
+
+def _validate_n_samples(n_samples: int) -> None:
+    """
+    Validate number of bootstrap iterations.
+
+    Parameters
+    ----------
+    n_samples : int
+        Number of bootstrap iterations
+
+    Raises
+    ------
+    ValueError
+        If n_samples is invalid
+    """
+    if not isinstance(n_samples, (int, np.integer)):
+        raise TypeError(f"n_samples must be an integer, got {type(n_samples).__name__}")
+
+    if n_samples < 10:
+        raise ValueError(
+            f"n_samples must be at least 10, got {n_samples}. "
+            f"Bootstrap requires many iterations for stable estimates. "
+            f"Recommended: n_samples >= 1000 for confidence intervals."
+        )
+
+    # Warn if too few for reliable CIs
+    if n_samples < 1000:
+        warnings.warn(
+            f"n_samples={n_samples} is low. For reliable confidence intervals, "
+            f"use n_samples >= 1000. For hypothesis testing, use n_samples >= 5000.",
+            UserWarning,
+        )
+
+
+def _validate_percentiles(percentiles: tuple) -> None:
+    """
+    Validate percentile values for confidence intervals.
+
+    Parameters
+    ----------
+    percentiles : tuple
+        Percentile values (lower, upper)
+
+    Raises
+    ------
+    ValueError
+        If percentiles are invalid
+    """
+    if not isinstance(percentiles, (tuple, list)) or len(percentiles) != 2:
+        raise ValueError(f"percentiles must be a tuple of 2 values, got {percentiles}")
+
+    lower, upper = percentiles
+
+    if not (0 < lower < 50):
+        raise ValueError(f"Lower percentile must be between 0 and 50, got {lower}")
+
+    if not (50 < upper < 100):
+        raise ValueError(f"Upper percentile must be between 50 and 100, got {upper}")
+
+    if lower >= upper:
+        raise ValueError(
+            f"Lower percentile ({lower}) must be less than upper ({upper})"
+        )
 
 
 class OnlineBootstrapStats:
@@ -250,8 +384,16 @@ def _bootstrap_simple_cpu_parallel(
     from tqdm import tqdm
     from .utils import _generate_bootstrap_indices
 
-    # Handle 1D input
+    # Validate inputs
+    _validate_bootstrap_method(method)
+    _validate_n_samples(n_samples)
+    _validate_percentiles(percentiles)
+
+    # Convert to array and validate
     data = np.asarray(data, dtype=np.float64)
+    _validate_bootstrap_data(data, method)
+
+    # Handle 1D input
     single_feature = data.ndim == 1
     if single_feature:
         data = data[:, np.newaxis]

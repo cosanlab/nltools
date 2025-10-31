@@ -1,6 +1,7 @@
 """Tests for bootstrap inference utilities."""
 
 import numpy as np
+import pytest
 from nltools.algorithms.inference.bootstrap import (
     OnlineBootstrapStats,
     _bootstrap_simple_cpu_parallel,
@@ -519,3 +520,119 @@ class TestBootstrapRidgePredict:
         # Results should be identical
         np.testing.assert_array_almost_equal(result1["mean"], result2["mean"])
         np.testing.assert_array_almost_equal(result1["std"], result2["std"])
+
+
+class TestBootstrapErrorHandling:
+    """Test suite for bootstrap error handling and validation."""
+
+    def test_bootstrap_invalid_method(self):
+        """Test error for unsupported method."""
+        np.random.seed(42)
+        data = np.random.randn(100, 50)
+
+        # Invalid method name
+        with pytest.raises(ValueError, match="Unsupported method"):
+            _bootstrap_simple_cpu_parallel(data, "invalid_method", n_samples=10)
+
+        # Error message should list supported methods
+        with pytest.raises(ValueError, match="mean.*median.*std"):
+            _bootstrap_simple_cpu_parallel(data, "foobar", n_samples=10)
+
+    def test_bootstrap_too_few_samples_error(self):
+        """Test error for single sample data."""
+        # Single sample
+        data_single = np.array([1.0, 2.0, 3.0]).reshape(1, -1)
+
+        with pytest.raises(ValueError, match="at least 2 samples"):
+            _bootstrap_simple_cpu_parallel(data_single, "mean", n_samples=10)
+
+        # Empty data
+        data_empty = np.array([]).reshape(0, 3)
+
+        with pytest.raises(ValueError, match="at least 2 samples"):
+            _bootstrap_simple_cpu_parallel(data_empty, "mean", n_samples=10)
+
+    def test_bootstrap_too_few_bootstrap_iterations_error(self):
+        """Test error for too few bootstrap iterations."""
+        np.random.seed(42)
+        data = np.random.randn(100, 50)
+
+        # Too few iterations
+        with pytest.raises(ValueError, match="at least 10"):
+            _bootstrap_simple_cpu_parallel(data, "mean", n_samples=5)
+
+        # Warning for n_samples < 1000
+        with pytest.warns(UserWarning, match="reliable confidence intervals"):
+            _bootstrap_simple_cpu_parallel(data, "mean", n_samples=100)
+
+    def test_bootstrap_custom_percentiles(self):
+        """Test custom percentile configuration."""
+        np.random.seed(42)
+        data = np.random.randn(100, 50)
+
+        # 90% CI
+        result_90 = _bootstrap_simple_cpu_parallel(
+            data, "mean", n_samples=100, percentiles=(5, 95), random_state=42
+        )
+
+        # 95% CI (default)
+        result_95 = _bootstrap_simple_cpu_parallel(
+            data, "mean", n_samples=100, percentiles=(2.5, 97.5), random_state=42
+        )
+
+        # 90% CI should be narrower than 95% CI
+        ci_width_90 = result_90["ci_upper"] - result_90["ci_lower"]
+        ci_width_95 = result_95["ci_upper"] - result_95["ci_lower"]
+
+        assert np.all(ci_width_90 < ci_width_95)
+
+        # Invalid percentiles
+        with pytest.raises(ValueError, match="percentiles must be a tuple"):
+            _bootstrap_simple_cpu_parallel(
+                data, "mean", n_samples=10, percentiles=(2.5,)
+            )
+
+        with pytest.raises(ValueError, match="Lower percentile"):
+            _bootstrap_simple_cpu_parallel(
+                data, "mean", n_samples=10, percentiles=(-5, 95)
+            )
+
+        with pytest.raises(ValueError, match="Upper percentile"):
+            _bootstrap_simple_cpu_parallel(
+                data, "mean", n_samples=10, percentiles=(5, 105)
+            )
+
+    def test_bootstrap_parallel_deterministic(self):
+        """Test CPU parallel produces same results as sequential."""
+        np.random.seed(42)
+        data = np.random.randn(100, 50)
+
+        # Sequential (n_jobs=1)
+        result_seq = _bootstrap_simple_cpu_parallel(
+            data, "mean", n_samples=100, n_jobs=1, random_state=42
+        )
+
+        # Parallel (n_jobs=-1)
+        result_par = _bootstrap_simple_cpu_parallel(
+            data, "mean", n_samples=100, n_jobs=-1, random_state=42
+        )
+
+        # Results should be identical
+        np.testing.assert_array_almost_equal(result_seq["mean"], result_par["mean"])
+        np.testing.assert_array_almost_equal(result_seq["std"], result_par["std"])
+        np.testing.assert_array_almost_equal(result_seq["Z"], result_par["Z"])
+        np.testing.assert_array_almost_equal(result_seq["p"], result_par["p"])
+
+    def test_bootstrap_wrong_data_shape(self):
+        """Test error for wrong data dimensionality."""
+        # 3D data
+        data_3d = np.random.randn(10, 20, 30)
+
+        with pytest.raises(ValueError, match="must be 1D or 2D"):
+            _bootstrap_simple_cpu_parallel(data_3d, "mean", n_samples=10)
+
+        # Scalar (0D)
+        data_scalar = np.array(5.0)
+
+        with pytest.raises(ValueError, match="must be 1D or 2D"):
+            _bootstrap_simple_cpu_parallel(data_scalar, "mean", n_samples=10)
