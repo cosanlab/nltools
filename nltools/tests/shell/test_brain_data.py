@@ -29,7 +29,7 @@ import nibabel as nb
 import pandas as pd
 from nltools.simulator import Simulator
 from nltools.data import BrainData, Adjacency
-from nltools.stats import threshold, align
+from nltools.stats import align
 from nltools.mask import create_sphere, roi_to_brain
 from pathlib import Path
 
@@ -321,65 +321,8 @@ class TestBrainData:
 
     # ==================== Regression & GLM ====================
 
-    @pytest.mark.tier2
-    def test_regress(self, sim_brain_data):
-        """Test regression with OLS and robust methods."""
-        sim_brain_data.X = pd.DataFrame(
-            {
-                "Intercept": np.ones(len(sim_brain_data.Y)),
-                "X1": np.array(sim_brain_data.Y).flatten(),
-            },
-            index=None,
-        )
-        # OLS
-        out = sim_brain_data.regress()
-        assert isinstance(out["beta"].data, np.ndarray)
-        assert isinstance(out["t"].data, np.ndarray)
-        assert isinstance(out["p"].data, np.ndarray)
-        assert isinstance(out["residual"].data, np.ndarray)
-        assert out["beta"].shape == (2, shape_2d[1])
-        assert out["t"][1].shape[0] == shape_2d[1]
-
-        # Robust OLS
-        out = sim_brain_data.regress(mode="robust")
-        assert isinstance(out["beta"].data, np.ndarray)
-        assert isinstance(out["t"].data, np.ndarray)
-        assert isinstance(out["p"].data, np.ndarray)
-        assert isinstance(out["residual"].data, np.ndarray)
-        assert out["beta"].shape == (2, shape_2d[1])
-        assert out["t"][1].shape[0] == shape_2d[1]
-
-        # Test threshold
-        i = 1
-        tt = threshold(out["t"][i], out["p"][i], 0.05)
-        assert isinstance(tt, BrainData)
-
-    @pytest.mark.tier2
-    def test_regress_uses_glm_model(self, sim_brain_data):
-        """Test that .regress() uses Glm model internally."""
-        from nltools.models import Glm
-
-        # Set up design matrix
-        sim_brain_data.X = pd.DataFrame(
-            {
-                "Intercept": np.ones(len(sim_brain_data.Y)),
-                "X1": np.array(sim_brain_data.Y).flatten(),
-            },
-            index=None,
-        )
-
-        # Run regression
-        sim_brain_data.regress()
-
-        # Should have created a Glm model instance stored as attribute
-        assert hasattr(sim_brain_data, "glm_model")
-        assert isinstance(sim_brain_data.glm_model, Glm)
-        assert sim_brain_data.glm_model.is_fitted_
-
-    @pytest.mark.tier2
-    def test_regress_glm_parameters(self, sim_brain_data):
-        """Test that .regress() passes parameters to Glm correctly."""
-        # Set up design matrix
+    def test_regress_removed(self, sim_brain_data):
+        """Verify regress() has been removed with clear migration path."""
         design_matrix = pd.DataFrame(
             {
                 "Intercept": np.ones(len(sim_brain_data.Y)),
@@ -388,138 +331,23 @@ class TestBrainData:
             index=None,
         )
 
-        # Test noise_model parameter
-        sim_brain_data.regress(design_matrix, noise_model="ar1")
-        assert sim_brain_data.glm_model.noise_model == "ar1"
-
-        # Test with OLS (default)
-        sim_brain_data.regress(design_matrix, noise_model="ols")
-        assert sim_brain_data.glm_model.noise_model == "ols"
-
-    @pytest.mark.tier2
-    def test_regress_attributes_match_glm(self, sim_brain_data):
-        """Test that .regress() attributes are correctly extracted from Glm."""
-        # Set up design matrix
-        design_matrix = pd.DataFrame(
-            {
-                "Intercept": np.ones(len(sim_brain_data.Y)),
-                "X1": np.array(sim_brain_data.Y).flatten(),
-            },
-            index=None,
-        )
-
-        # Run regression
-        sim_brain_data.regress(design_matrix)
-
-        # Check all expected attributes exist
-        assert hasattr(sim_brain_data, "glm_betas")
-        assert hasattr(sim_brain_data, "glm_t")
-        assert hasattr(sim_brain_data, "glm_p")
-        assert hasattr(sim_brain_data, "glm_se")
-        assert hasattr(sim_brain_data, "glm_residual")
-        assert hasattr(sim_brain_data, "glm_predicted")
-        assert hasattr(sim_brain_data, "glm_r2")
-
-        # Check shapes are correct
-        n_regressors = design_matrix.shape[1]
-        n_voxels = sim_brain_data.shape[1]
-
-        assert sim_brain_data.glm_betas.shape == (n_regressors, n_voxels)
-        assert sim_brain_data.glm_t.shape == (n_regressors, n_voxels)
-        assert sim_brain_data.glm_p.shape == (n_regressors, n_voxels)
-        assert sim_brain_data.glm_se.shape == (n_regressors, n_voxels)
-        assert sim_brain_data.glm_residual.shape == sim_brain_data.shape
-        assert sim_brain_data.glm_predicted.shape == sim_brain_data.shape
-        assert sim_brain_data.glm_r2.shape == (1, n_voxels)
-
-        # Check residuals property matches attribute
-        residuals_from_model = sim_brain_data.glm_model.residuals
-        assert len(residuals_from_model) == 1  # One run
-        residuals_brain_data = BrainData(
-            residuals_from_model[0], mask=sim_brain_data.mask
-        )
-        np.testing.assert_allclose(
-            sim_brain_data.glm_residual.data, residuals_brain_data.data, rtol=1e-5
-        )
-
-    @pytest.mark.tier2
-    def test_regress_backward_compatible_dict(self, sim_brain_data):
-        """Test that .regress() still returns dict for backward compatibility."""
-        # Set up design matrix
-        design_matrix = pd.DataFrame(
-            {
-                "Intercept": np.ones(len(sim_brain_data.Y)),
-                "X1": np.array(sim_brain_data.Y).flatten(),
-            },
-            index=None,
-        )
-
-        # Run regression and capture returned dict
-        with pytest.warns(FutureWarning):
-            out = sim_brain_data.regress(design_matrix)
-
-        # Check dict structure
-        assert isinstance(out, dict)
-        assert "beta" in out
-        assert "t" in out
-        assert "p" in out
-        assert "residual" in out
-
-        # Dict values should match attributes
-        assert out["beta"] is sim_brain_data.glm_betas
-        assert out["t"] is sim_brain_data.glm_t
-        assert out["p"] is sim_brain_data.glm_p
-        assert out["residual"] is sim_brain_data.glm_residual
-
-    @pytest.mark.tier2
-    def test_regress_numerical_equivalence(self, sim_brain_data):
-        """Test that Glm-based .regress() gives same numerical results as before."""
-        # This is a key test - we want to ensure refactoring doesn't change results
-
-        # Set up design matrix with known relationship
-        np.random.seed(42)
-        design_matrix = pd.DataFrame(
-            {
-                "Intercept": np.ones(len(sim_brain_data.Y)),
-                "X1": np.array(sim_brain_data.Y).flatten(),
-            },
-            index=None,
-        )
-
-        # Run regression
-        out = sim_brain_data.regress(design_matrix)
-
-        # Check betas are reasonable (not NaN, not all zeros)
-        assert not np.isnan(out["beta"].data).any()
-        assert not np.allclose(out["beta"].data, 0)
-
-        # Check t-statistics are reasonable
-        assert not np.isnan(out["t"].data).any()
-
-        # Check p-values are in valid range [0, 1]
-        assert np.all(out["p"].data >= 0)
-        assert np.all(out["p"].data <= 1)
-
-        # Check residuals + predicted = original data
-        reconstructed = out["residual"].data + sim_brain_data.glm_predicted.data
-        np.testing.assert_allclose(
-            reconstructed, sim_brain_data.data, rtol=1e-5, atol=1e-8
-        )
-
-        # Check R² exists and is computed (values can be negative for poor fits on random data)
-        assert hasattr(sim_brain_data, "glm_r2")
-        assert sim_brain_data.glm_r2.shape == (1, sim_brain_data.shape[1])
+        # Should raise NotImplementedError with migration message
+        with pytest.raises(
+            NotImplementedError,
+            match="regress.*has been removed.*Use fit.*model='glm'",
+        ):
+            sim_brain_data.regress(design_matrix)
 
     def test_compute_contrasts_error_not_fitted(self, minimal_brain_data):
-        """Test error when compute_contrasts() called before regress()."""
-        # Should raise RuntimeError if regress() not called first
+        """Test error when compute_contrasts() called before fit()."""
+        # Should raise RuntimeError if fit() not called first
         with pytest.raises(RuntimeError, match="Must run .regress"):
             minimal_brain_data.compute_contrasts([1, -1, 0])
 
     @pytest.mark.tier2
     def test_compute_contrasts_numeric_vector(self, minimal_brain_data):
         """Test numeric contrast vector (unique nltools API)."""
-        # Set up and run regression
+        # Set up and run regression using fit()
         design_matrix = pd.DataFrame(
             {
                 "Intercept": np.ones(len(minimal_brain_data)),
@@ -528,8 +356,7 @@ class TestBrainData:
             }
         )
 
-        with pytest.warns(FutureWarning):
-            minimal_brain_data.regress(design_matrix)
+        minimal_brain_data.fit(model="glm", X=design_matrix)
 
         # Compute contrast: A - B (unique nltools logic)
         contrast = minimal_brain_data.compute_contrasts([0, 1, -1])
@@ -540,8 +367,8 @@ class TestBrainData:
 
     @pytest.mark.tier2
     def test_compute_contrasts_string_parsing(self, minimal_brain_data):
-        """Test string contrast parsing (unique nltools feature)."""
-        # Set up and run regression
+        """Test string parsing (unique nltools feature)."""
+        # Set up and run regression using fit()
         design_matrix = pd.DataFrame(
             {
                 "Intercept": np.ones(len(minimal_brain_data)),
@@ -550,8 +377,7 @@ class TestBrainData:
             }
         )
 
-        with pytest.warns(FutureWarning):
-            minimal_brain_data.regress(design_matrix)
+        minimal_brain_data.fit(model="glm", X=design_matrix)
 
         # Test string parsing (unique nltools feature)
         contrast = minimal_brain_data.compute_contrasts("condA - condB")
@@ -562,7 +388,7 @@ class TestBrainData:
     @pytest.mark.tier2
     def test_compute_contrasts_multiple_dict(self, minimal_brain_data):
         """Test multiple contrasts via dict (unique nltools API)."""
-        # Set up and run regression
+        # Set up and run regression using fit()
         design_matrix = pd.DataFrame(
             {
                 "Intercept": np.ones(len(minimal_brain_data)),
@@ -571,8 +397,7 @@ class TestBrainData:
             }
         )
 
-        with pytest.warns(FutureWarning):
-            minimal_brain_data.regress(design_matrix)
+        minimal_brain_data.fit(model="glm", X=design_matrix)
 
         # Test dict of contrasts (unique nltools API)
         contrasts = {"A_vs_B": "condA - condB", "avg_effect": [0, 0.5, 0.5]}
@@ -588,7 +413,7 @@ class TestBrainData:
     @pytest.mark.tier2
     def test_compute_contrasts_invalid_length(self, minimal_brain_data):
         """Test error for invalid contrast vector length (nltools validation)."""
-        # Set up and run regression with 3 regressors
+        # Set up and run regression with 3 regressors using fit()
         design_matrix = pd.DataFrame(
             {
                 "Intercept": np.ones(len(minimal_brain_data)),
@@ -597,8 +422,7 @@ class TestBrainData:
             }
         )
 
-        with pytest.warns(FutureWarning):
-            minimal_brain_data.regress(design_matrix)
+        minimal_brain_data.fit(model="glm", X=design_matrix)
 
         # Provide wrong length contrast (2 instead of 3)
         with pytest.raises(ValueError, match="Contrast vector length.*must match"):
@@ -734,8 +558,8 @@ class TestBrainData:
         assert sim_brain_data.ridge_weights.mask is sim_brain_data.mask
 
     @pytest.mark.tier2
-    def test_glm_fit_matches_current_regress(self, sim_brain_data):
-        """Test new fit(model='glm') matches current regress() numerically."""
+    def test_glm_fit_numerical_correctness(self, sim_brain_data):
+        """Test fit(model='glm') produces numerically correct results."""
 
         design_matrix = pd.DataFrame(
             {
@@ -744,18 +568,15 @@ class TestBrainData:
             }
         )
 
-        # New API
-        bd_new = sim_brain_data.copy()
-        bd_new.fit(model="glm", noise_model="ols", X=design_matrix)
+        # Fit GLM model
+        sim_brain_data.fit(model="glm", noise_model="ols", X=design_matrix)
 
-        # Old API
-        bd_old = sim_brain_data.copy()
-        with pytest.warns(FutureWarning):
-            bd_old.regress(design_matrix, noise_model="ols")
+        # Check betas are reasonable (not NaN, not all zeros)
+        assert not np.isnan(sim_brain_data.glm_betas.data).any()
+        assert not np.allclose(sim_brain_data.glm_betas.data, 0)
 
-        # Should be numerically identical
-        np.testing.assert_allclose(bd_new.glm_betas.data, bd_old.glm_betas.data)
-        np.testing.assert_allclose(bd_new.glm_t.data, bd_old.glm_t.data)
+        # Check t-statistics are reasonable
+        assert not np.isnan(sim_brain_data.glm_t.data).any()
 
     def test_fit_validates_model_name(self, sim_brain_data):
         """Test fit() raises error for unknown model names."""
@@ -1016,100 +837,6 @@ class TestBrainData:
         assert isinstance(brain_data.cv_results_["folds"], np.ndarray)
         assert isinstance(brain_data.cv_results_["best_alpha"], (int, float))
         assert isinstance(brain_data.cv_results_["alpha_scores"], np.ndarray)
-
-    # ==================== regress() Backward Compatibility ====================
-
-    @pytest.mark.tier2
-    def test_regress_emits_future_warning(self, sim_brain_data):
-        """Test regress() emits FutureWarning telling users to switch to fit()."""
-        design_matrix = pd.DataFrame(
-            {
-                "Intercept": np.ones(len(sim_brain_data)),
-                "X1": np.random.randn(len(sim_brain_data)),
-            }
-        )
-
-        # Should emit FutureWarning with clear migration message
-        with pytest.warns(
-            FutureWarning, match="regress.*deprecated.*will raise an error in v0.7.0"
-        ):
-            result = sim_brain_data.regress(design_matrix, noise_model="ols")
-
-        # Should still work and return dict
-        assert isinstance(result, dict)
-        assert "beta" in result
-
-    def test_regress_calls_fit_internally(self, sim_brain_data):
-        """Test regress() calls fit(model='glm') internally for backward compatibility."""
-        design_matrix = pd.DataFrame(
-            {
-                "Intercept": np.ones(len(sim_brain_data)),
-            }
-        )
-
-        with pytest.warns(FutureWarning):
-            sim_brain_data.regress(design_matrix, noise_model="ols")
-
-        # Should have set model_ and glm_* attributes via fit()
-        assert hasattr(sim_brain_data, "model_")
-        assert hasattr(sim_brain_data, "glm_betas")
-        assert hasattr(sim_brain_data, "glm_model")  # Backward compat alias
-
-    def test_regress_supports_self_X_pattern(self, sim_brain_data):
-        """Test regress() still works with deprecated self.X pattern."""
-        design_matrix = pd.DataFrame(
-            {
-                "Intercept": np.ones(len(sim_brain_data)),
-            }
-        )
-
-        # Old pattern: setting self.X then calling regress() with no args
-        sim_brain_data.X = design_matrix
-
-        with pytest.warns(FutureWarning):
-            result = sim_brain_data.regress()
-
-        # Should still work
-        assert "beta" in result
-        assert hasattr(sim_brain_data, "glm_betas")
-
-    def test_regress_ignores_mode_robust_silently(self, sim_brain_data):
-        """Test regress() silently ignores deprecated mode='robust' parameter."""
-        design_matrix = pd.DataFrame(
-            {
-                "Intercept": np.ones(len(sim_brain_data)),
-            }
-        )
-
-        # mode='robust' should be silently ignored (only one FutureWarning, not multiple)
-        with pytest.warns(FutureWarning, match="regress.*deprecated"):
-            result = sim_brain_data.regress(design_matrix, mode="robust")
-
-        # Should still work
-        assert isinstance(result, dict)
-        assert "beta" in result
-
-    def test_regress_returns_backward_compatible_dict(self, sim_brain_data):
-        """Test regress() returns dict with expected keys for backward compatibility."""
-        design_matrix = pd.DataFrame(
-            {
-                "Intercept": np.ones(len(sim_brain_data)),
-            }
-        )
-
-        with pytest.warns(FutureWarning):
-            result = sim_brain_data.regress(design_matrix, noise_model="ols")
-
-        # Check dict has expected structure for old code
-        assert isinstance(result, dict)
-        assert "beta" in result
-        assert "t" in result
-        assert "p" in result
-        assert "residual" in result
-
-        # Check dict values match the new attributes
-        assert result["beta"] is sim_brain_data.glm_betas
-        assert result["t"] is sim_brain_data.glm_t
 
     # ==================== Masking & ROI Extraction ====================
 

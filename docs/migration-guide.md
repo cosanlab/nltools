@@ -8,7 +8,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 
 | Category | v0.5.1 (Old) | v0.6.0 (New) | Status |
 |----------|--------------|--------------|--------|
-| **GLM regression** | `.regress()` | `.fit(model='glm')` | Deprecated |
+| **GLM regression** | `.regress()` | `.fit(model='glm')` | **Removed** |
 | **Ridge regression** | Manual | `.fit(model='ridge')` | New |
 | **ML prediction** | `.predict()` | Use sklearn directly | Removed |
 | **t-tests** | `.ttest()` | Use scipy.stats | Removed |
@@ -175,6 +175,7 @@ stats = adj.regress(dm)  # Works! Converts dm.to_numpy() internally
 
 | Method | Alternative | Migration Effort |
 |--------|-------------|------------------|
+| `.regress()` | `.fit(model='glm', X=design_matrix)` | **Low** |
 | `.predict(algorithm='svm')` | Use sklearn directly | Low |
 | `.ttest()` | Use `scipy.stats.ttest_1samp()` | Low |
 | `.randomise()` | Use nilearn permutation testing | Medium |
@@ -198,7 +199,11 @@ stats = adj.regress(dm)  # Works! Converts dm.to_numpy() internally
 
 ## Migration Patterns
 
-### Pattern 1: GLM Regression
+### Pattern 1: regress() Removed → Use fit(model='glm')
+
+**Status**: ⚠️ **BREAKING CHANGE** - `.regress()` has been removed in v0.6.0
+
+The `.regress()` method has been completely removed and replaced with the unified `.fit(model='glm')` API.
 
 **Before (v0.5.1):**
 ```python
@@ -206,6 +211,8 @@ brain_data.X = design_matrix
 results = brain_data.regress()  # Returns dict
 betas = results['beta']
 t_stats = results['t']
+p_vals = results['p']
+residuals = results['residual']
 ```
 
 **After (v0.6.0):**
@@ -213,6 +220,33 @@ t_stats = results['t']
 brain_data.fit(model='glm', X=design_matrix)  # Stores results as attributes
 betas = brain_data.glm_betas      # BrainData object
 t_stats = brain_data.glm_t        # BrainData object
+p_vals = brain_data.glm_p         # BrainData object
+residuals = brain_data.glm_residual  # BrainData object
+```
+
+**With noise model:**
+```python
+# OLD (removed)
+brain_data.X = design_matrix
+results = brain_data.regress(noise_model='ar1')
+
+# NEW (v0.6.0)
+brain_data.fit(model='glm', noise_model='ar1', X=design_matrix)
+```
+
+**All available GLM attributes:**
+```python
+brain_data.fit(model='glm', X=design_matrix)
+
+# Attributes set by fit():
+brain_data.glm_betas      # Beta coefficients (BrainData)
+brain_data.glm_t          # T-statistics (BrainData)
+brain_data.glm_p          # P-values (BrainData)
+brain_data.glm_se         # Standard errors (BrainData)
+brain_data.glm_residual   # Residuals (BrainData)
+brain_data.glm_predicted  # Predicted values (BrainData)
+brain_data.glm_r2         # R-squared (BrainData)
+brain_data.model_         # Fitted Glm model instance
 ```
 
 | Aspect | Old | New | Benefit |
@@ -220,6 +254,7 @@ t_stats = brain_data.glm_t        # BrainData object
 | API style | Dict return | Sklearn-style attributes | Composable, familiar |
 | Design matrix | Stored as `.X` | Passed as argument | Explicit, clearer |
 | Results | Dict with keys | BrainData attributes | Type-safe, chainable |
+| Error handling | Raises error in v0.6.0 | Use `.fit()` | Clear migration path |
 
 ---
 
@@ -438,7 +473,7 @@ alpha_scores = brain_data.cv_results_['alpha_scores']
 | Feature | Status | Action Required |
 |---------|--------|-----------------|
 | HDF5 files from v0.5.1 | ✅ Fully compatible | None |
-| `.regress()` | ⚠️ Works with `FutureWarning` | Update to `.fit(model='glm')` |
+| `.regress()` | ❌ **REMOVED** (raises error) | **Must** update to `.fit(model='glm')` |
 | `.X` and `.Y` attributes | ⚠️ Work but deprecated | Pass `X=` to `.fit()` |
 | `.smooth()` return value | ⚠️ Changed behavior | Assign to new variable |
 
@@ -446,7 +481,7 @@ alpha_scores = brain_data.cv_results_['alpha_scores']
 
 | Feature | v0.6.0 Status | v0.7.0 Status |
 |---------|---------------|---------------|
-| `.regress()` | Deprecated (works) | ❌ Removed (error) |
+| `.regress()` | ❌ **Removed** (NotImplementedError) | N/A |
 | `.X` and `.Y` | Deprecated (works) | ⚠️ May be removed |
 | In-place `.smooth()` | Changed | N/A |
 
@@ -456,21 +491,25 @@ alpha_scores = brain_data.cv_results_['alpha_scores']
 
 ### Step 1: Check for Removed Methods
 ```python
-import warnings
-warnings.filterwarnings('error', category=FutureWarning)
+try:
+    brain_data.regress()  # Will raise NotImplementedError in v0.6.0
+except NotImplementedError as e:
+    print(f"Method removed: {e}")
+    # Update to: brain_data.fit(model='glm', X=design_matrix)
 
 try:
-    brain_data.predict()  # Will error if removed
+    brain_data.predict(algorithm='svm')  # Also removed
 except NotImplementedError:
-    print("Method removed - update your code")
+    print("Use sklearn directly for ML")
 ```
 
 ### Step 2: Check for Deprecation Warnings
 ```python
+import warnings
 warnings.filterwarnings('default', category=FutureWarning)
 
-brain_data.X = design_matrix
-brain_data.regress()  # Will show FutureWarning
+brain_data.X = design_matrix  # Still works but deprecated
+# Better: Pass X= directly to fit()
 ```
 
 ### Step 3: Update Properties

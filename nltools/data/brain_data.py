@@ -980,66 +980,13 @@ class BrainData(object):
         self.glm_r2 = self[0].copy()
         self.glm_r2.data = r2_values.reshape(1, -1)
 
-    # TODO: remove entirely as .fit() is replacement
     def regress(self, design_matrix=None, noise_model="ols", mode=None, **kwargs):
-        """
-        DEPRECATED: Use fit(model='glm', X=design_matrix) instead.
-
-        This method is deprecated and will raise an error in v0.7.0.
-        Please update your code to use the new fit/predict API.
-
-        Args:
-            design_matrix: DesignMatrix object or pandas DataFrame with regressors
-                          If None, will use self.X (deprecated)
-            noise_model (str): temporal variance model ('ols' or 'ar1'). Default: 'ols'
-            mode (str): deprecated parameter (ignored)
-            **kwargs: additional arguments for nltools.models.Glm
-
-        Returns:
-            dict: For backward compatibility, returns dict with 'beta', 't', 'p', 'residual' keys
-
-        Sets attributes:
-            self.glm_betas: Beta coefficients (BrainData)
-            self.glm_t: T-statistics (BrainData)
-            self.glm_p: P-values (BrainData)
-            self.glm_se: Standard errors (BrainData)
-            self.glm_residual: Residuals (BrainData)
-            self.glm_predicted: Predicted values (BrainData)
-            self.glm_r2: R-squared values (BrainData)
-        """
-        import warnings
-
-        # Single strong deprecation warning
-        warnings.warn(
-            "regress() is deprecated and will raise an error in v0.7.0. "
-            "Please use fit(model='glm', X=design_matrix) instead. "
-            "Example: brain_data.fit(model='glm', noise_model='ols', X=design_matrix)",
-            FutureWarning,
-            stacklevel=2,
+        """Deprecated: Use fit(model='glm', X=design_matrix) instead."""
+        raise NotImplementedError(
+            "The regress() method has been removed in v0.6.0. "
+            "Use fit(model='glm', X=design_matrix) instead. "
+            "See migration guide for examples."
         )
-
-        # Handle self.X backward compatibility
-        if design_matrix is None:
-            if hasattr(self, "X") and self.X is not None:
-                design_matrix = self.X
-            else:
-                raise TypeError("design_matrix must be provided")
-
-        # Ignore deprecated mode parameter silently
-        # Call new fit() API
-        self.fit(model="glm", noise_model=noise_model, X=design_matrix, **kwargs)
-
-        # Set backward compatibility attributes
-        self.glm_model = self.model_  # Alias for old code expecting glm_model
-        self.design_matrix = design_matrix  # Store design matrix for old code
-
-        # Return dict for backward compatibility
-        return {
-            "beta": self.glm_betas,
-            "t": self.glm_t,
-            "p": self.glm_p,
-            "residual": self.glm_residual,
-        }
 
     # TODO: make this this works and decide compatibility with .ttest() method
     def compute_contrasts(self, contrasts, contrast_type="t"):
