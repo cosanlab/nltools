@@ -23,8 +23,6 @@ def multi_subject_data():
     Creates data where subjects share common latent structure but have
     different observation spaces (different voxel counts).
     """
-    # TODO: why is this variable unused, or is this stale code?
-    n_subjects = 5
     n_timepoints = 100
     n_features = 10  # True latent dimensionality
 
@@ -35,7 +33,7 @@ def multi_subject_data():
     # Generate subject-specific data with variable voxel counts
     subjects = []
     true_transforms = []
-    voxel_counts = [200, 180, 220, 190, 210]  # Variable sizes
+    voxel_counts = [200, 180, 220, 190, 210]  # 5 subjects with variable sizes
 
     for voxels in voxel_counts:
         # Random orthogonal projection (ground truth)

@@ -125,7 +125,6 @@ class BrainData(object):
         if self.data is not None and 1 in self.data.shape:
             self.data = self.data.squeeze()
 
-    # TODO: update to respect new masker kwarg Check if complete and delete or update comment accordingly
     def _initialize_mask(self, mask, **kwargs):
         """Initialize the mask and NiftiMasker.
 
@@ -1310,7 +1309,6 @@ class BrainData(object):
 
         return masked
 
-    # TODO: replace with nilearn or speed-up? Check if complete and delete or update comment accordingly
     def extract_roi(self, mask, metric="mean", n_components=None):
         """Extract activity from mask or ROI atlas using NiftiLabelsMasker.
 
