@@ -10,6 +10,19 @@ from typing import Optional
 from sklearn.utils import check_random_state
 
 
+# ============================================================================
+# Numerical Stability Constants
+# ============================================================================
+
+# Small constant added to denominators to prevent division by zero
+# Value: 1e-10 is standard in scientific computing for float64 precision
+# - Well above machine epsilon (2.22e-16 for float64)
+# - Small enough not to affect correlation values
+# - Also safe for float32 GPU operations (machine epsilon 1.19e-07)
+# - Matches established practice in neuroimaging libraries
+EPSILON = 1e-10
+
+
 def _generate_sign_flips(
     n_permute: int,
     n_samples: int,

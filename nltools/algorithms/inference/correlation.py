@@ -12,7 +12,7 @@ from sklearn.utils import check_random_state
 from scipy.stats import rankdata, kendalltau
 
 from nltools.backends import Backend, auto_select_backend
-from .utils import _compute_pvalue, _auto_batch_size
+from .utils import _compute_pvalue, _auto_batch_size, EPSILON
 
 
 def _pearson_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -47,8 +47,8 @@ def _pearson_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     numerator = (x_centered @ y_centered) / x.shape[1]
     denominator = x_centered.std(axis=1, ddof=0) * y_centered.std(ddof=0)
 
-    # Handle division by zero (constant data)
-    correlations = np.where(denominator != 0, numerator / denominator, 0.0)
+    # Handle division by zero (constant data) using EPSILON
+    correlations = numerator / (denominator + EPSILON)
 
     if squeeze_output:
         return float(correlations[0])
@@ -101,8 +101,8 @@ def _spearman_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     numerator = (x_centered @ y_centered) / n_samples
     denominator = x_centered.std(axis=1, ddof=0) * y_centered.std(ddof=0)
 
-    # Handle division by zero (constant data - all tied ranks)
-    correlations = np.where(denominator != 0, numerator / denominator, 0.0)
+    # Handle division by zero (constant data - all tied ranks) using EPSILON
+    correlations = numerator / (denominator + EPSILON)
 
     if squeeze_output:
         return float(correlations[0])
@@ -392,10 +392,8 @@ def _correlation_permutation_gpu_batched(
             numerator = (perm_data1_centered @ feat_data2_centered) / n_samples
             denominator = torch.std(perm_data1_centered, dim=1) * torch.std(feat_data2)
 
-            # Handle division by zero
-            correlations = torch.where(
-                denominator != 0, numerator / denominator, torch.zeros_like(numerator)
-            )
+            # Handle division by zero using EPSILON
+            correlations = numerator / (denominator + EPSILON)
 
             batch_corrs.append(correlations)
 

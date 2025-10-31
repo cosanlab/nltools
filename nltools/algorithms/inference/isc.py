@@ -30,7 +30,7 @@ import numpy as np
 from scipy.spatial.distance import squareform
 from sklearn.utils import check_random_state
 
-from .utils import _compute_pvalue
+from .utils import _compute_pvalue, EPSILON
 
 
 # ============================================================================
@@ -145,8 +145,8 @@ def _batch_correlation_gpu(x, y):
     numerator = (x_centered * y_centered).sum(dim=0)
     denominator = torch.sqrt((x_centered**2).sum(dim=0) * (y_centered**2).sum(dim=0))
 
-    # Handle zero variance case
-    correlations = numerator / (denominator + 1e-10)
+    # Handle zero variance case using EPSILON
+    correlations = numerator / (denominator + EPSILON)
 
     return correlations
 
@@ -294,8 +294,8 @@ def _batch_corrcoef_gpu(data_gpu):
     # Broadcasting: (n_voxels, n_subjects, 1) * (n_voxels, 1, n_subjects)
     std_outer = std_devs.unsqueeze(2) * std_devs.unsqueeze(1)
 
-    # Avoid division by zero
-    corr_matrices = cov_matrices / (std_outer + 1e-10)
+    # Avoid division by zero using EPSILON
+    corr_matrices = cov_matrices / (std_outer + EPSILON)
 
     return corr_matrices
 
