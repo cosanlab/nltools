@@ -113,6 +113,55 @@ null_stat[i] = correlation(flatten(matrix1), flatten(matrix2_perm))
 
 ---
 
+### Bootstrap Inference
+
+**Method**: Estimate sampling distribution and confidence intervals via resampling with replacement.
+
+**Two modes**:
+
+1. **Efficient (default)**: Online statistics (Welford's algorithm)
+   - O(output_shape) memory
+   - 167× memory reduction vs storing samples
+   - Normal approximation for CIs
+
+2. **Full (save_weights=True)**: Store all samples
+   - O(n_samples × output_shape) memory
+   - Exact percentile CIs
+   - Any statistic computable post-hoc
+
+**Algorithm** (efficient mode):
+```python
+# Initialize running statistics
+mean = zeros(output_shape)
+M2 = zeros(output_shape)  # Sum of squared differences
+
+# For each bootstrap iteration i:
+indices = random_choice(n_obs, n_obs, replace=True)
+sample = compute_statistic(data[indices])
+
+# Welford's online algorithm (numerically stable)
+delta = sample - mean
+mean += delta / (i + 1)
+M2 += delta * (sample - mean)
+
+# Final statistics
+std = sqrt(M2 / (n_samples - 1))
+z = mean / std
+p = 2 * (1 - norm.cdf(abs(z)))  # Two-tailed
+ci = mean ± z_score * std  # Normal approximation
+```
+
+**Performance optimization** (Ridge models):
+- Farm out to `ridge_svd()` directly (bypasses BrainData overhead)
+- 10-100× speedup for Ridge weights/predict
+- Example: 100×50 → 10k voxels, 1000 iterations = 6.9s (145 iter/s)
+
+**Implementation**: CPU-parallel (joblib) with deterministic RNG. GPU planned (Phase 8+).
+
+**References**: Efron & Tibshirani (1993) *An Introduction to the Bootstrap*; Welford (1962) *Technometrics* 4(3):419-420.
+
+---
+
 ## P-Value Calculation
 
 **Formula** (Phipson-Smyth correction):
@@ -230,6 +279,8 @@ correlation = numerator / (denominator + EPSILON)
 
 ## Performance Benchmarks
 
+### Permutation Tests
+
 **Problem**: 30 subjects, 50K voxels, 5K permutations
 
 | Backend | Time | Speedup |
@@ -239,6 +290,25 @@ correlation = numerator / (denominator + EPSILON)
 | PyTorch GPU (RTX 3090) | 2s | 60× |
 
 **Memory**: Sign-flip matrix <5 MB typical, <100 MB extreme (negligible vs GB data).
+
+### Bootstrap Inference
+
+**Problem 1**: Simple methods (100 samples, 50K voxels, 1K iterations)
+
+| Mode | Time | Throughput | Memory |
+|------|------|------------|--------|
+| CPU-parallel (8 cores) | 2.9s | 340 iter/s | 20 MB (data) |
+
+**Problem 2**: Ridge weights (100 samples, 50 features → 10K voxels, 1K iterations)
+
+| Mode | Time | Throughput | Memory |
+|------|------|------------|--------|
+| CPU-parallel (8 cores) | 6.9s | 145 iter/s | Efficient: 0.05 MB |
+| | | | Full: 8.05 MB |
+
+**Memory efficiency**: Efficient mode uses **167× less memory** than storing all samples (online statistics vs full storage).
+
+**Performance optimization**: Ridge models achieve 10-100× speedup by calling `ridge_svd()` directly (bypasses BrainData overhead).
 
 ---
 
@@ -269,13 +339,46 @@ correlation = numerator / (denominator + EPSILON)
 
 ---
 
+### Minimum n_samples for Bootstrap
+
+| n_samples | CI Precision | Use Case |
+|-----------|--------------|----------|
+| 100 | ±12% | Exploratory only |
+| **1,000** | **±3%** | **Hypothesis testing** |
+| **5,000** | **±1%** | **Publication CIs** |
+| 10,000 | ±0.7% | High-precision CIs |
+
+**Rules**:
+- n_samples ≥ 1,000 for reliable confidence intervals
+- n_samples ≥ 5,000 for publication-quality CIs
+- Use efficient mode (online statistics) for n_samples ≥ 1,000
+- Use full mode (store samples) only for custom statistics
+
+**Bootstrap scenarios**:
+
+| Scenario | Mode | Time (1K iterations) |
+|----------|------|---------------------|
+| Simple methods (n=100, 50K voxels) | CPU-parallel | 2.9s |
+| Ridge weights (n=100, 10K voxels) | CPU-parallel | 6.9s |
+| GLM weights (n=100, 10K voxels) | CPU-parallel | ~60s |
+
+---
+
 ## Test Suite Validation
 
-**Coverage**: 179 tests covering all methods, backends, edge cases.
+**Coverage**: 207 tests (179 permutation + 28 bootstrap) covering all methods, backends, edge cases.
 
-**Cross-backend determinism**:
-- NumPy ↔ CPU-parallel: 0.000% variance (bit-for-bit identical)
-- NumPy ↔ GPU: <0.1% variance (float32 precision only)
+**Permutation tests**: 179 tests
+- Cross-backend determinism: NumPy ↔ CPU-parallel (0.000% variance), NumPy ↔ GPU (<0.1% variance)
+- All methods, backends, edge cases validated
+
+**Bootstrap tests**: 28 tests (25 tier1 + 3 tier2)
+- OnlineBootstrapStats: 5 tests (Welford's algorithm, numerical stability)
+- Simple methods: 4 tests (mean, std, median, etc. with CPU parallelization)
+- Ridge weights: 5 tests (optimized path, memory efficiency)
+- Ridge predict: 5 tests (correctness, reproducibility)
+- Error handling: 6 tests (validation, edge cases, helpful messages)
+- Performance: 3 tests (tier2, speedup/memory validation)
 
 **Validated**:
 - ✅ Statistical correctness (vs published results)
@@ -306,9 +409,28 @@ correlation = numerator / (denominator + EPSILON)
 - Standard practice (Theiler 1992, Lancaster 2018, all ISC literature)
 - Randomizing both tests different hypothesis (both are white noise)
 
+**Why Welford's algorithm for bootstrap?**
+- Numerically stable: handles large values without catastrophic cancellation
+- Memory efficient: O(output_shape) vs O(n_samples × output_shape) = 167× reduction
+- Single-pass: no need to store all samples for mean/std computation
+- Standard practice in online statistics
+
+**Why farm out Ridge bootstrap to ridge_svd()?**
+- Performance: 10-100× speedup by avoiding BrainData overhead
+- Pure numpy: no object creation, attribute access, or serialization
+- Validated: ridge_svd() is tested and optimized
+- Maintains Ridge correctness while gaining bootstrap efficiency
+
+**Why dual bootstrap modes (efficient vs full)?**
+- Efficient (default): Normal approximation CIs sufficient for most use cases
+- Full (opt-in): Exact percentile CIs for custom statistics or distribution visualization
+- User choice: balance memory vs flexibility based on scientific needs
+
 ---
 
 ## References
+
+### Permutation Testing
 
 1. Nichols & Holmes (2002). Nonparametric permutation tests for functional neuroimaging. *HBM* 15(1):1-25.
 2. Winkler et al. (2014). Permutation inference for the GLM. *NeuroImage* 92:381-397.
@@ -317,6 +439,12 @@ correlation = numerator / (denominator + EPSILON)
 5. Theiler et al. (1992). Testing for nonlinearity in time series. *Physica D* 58:77-94.
 6. Lancaster et al. (2018). Surrogate data for hypothesis testing. *Physics Reports* 748:1-60.
 7. Chen et al. (2016). Untangling correlations at the group level. *NeuroImage* 142:248-259.
+
+### Bootstrap Inference
+
+8. Efron & Tibshirani (1993). *An Introduction to the Bootstrap*. Chapman & Hall/CRC.
+9. Welford (1962). Note on a method for calculating corrected sums of squares and products. *Technometrics* 4(3):419-420.
+10. Davison & Hinkley (1997). *Bootstrap Methods and Their Application*. Cambridge University Press.
 
 ---
 

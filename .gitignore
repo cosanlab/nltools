@@ -67,5 +67,6 @@ docs/**/*.nii.gz
 **Haxby*.ipynb
 audit/
 claude-research/
+claude-guidelines/
 .private-journal/
 
