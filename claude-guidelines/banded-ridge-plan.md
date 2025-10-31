@@ -907,7 +907,7 @@ def banded_ridge_cv(
 1. **Gradient-based optimization**: himalaya also implements gradient descent for hyperparameter search (faster than random search)
 2. **Kernel banded ridge**: Kernel version for n_samples < n_features case
 3. **Sparse group lasso**: Extension to L1 + group penalties
-4. **Integration with Brain_Data**: Add `.banded_ridge()` method
+4. **Integration with BrainData**: Add `.banded_ridge()` method
 5. **GPU optimization**: Custom Dirichlet sampler for torch backend
 
 **Lower priority**:

@@ -2,28 +2,28 @@
 
 **Preferences**
 
-This module can be used to adjust the default MNI template settings that are used internally by all `Brain_Data` operations. For historic reasons, the default MNI template is in the same **[MNI152 2mm space as FSL](https://nist.mni.mcgill.ca/mni-icbm152-non-linear-6th-generation-symmetric-average-brain-stereotaxic-registration-model/)**. Different software use [different versions](https://nist.mni.mcgill.ca/icbm-152-nonlinear-atlases-2009/) `nltools` supports the following additional verisons:
+This module can be used to adjust the default MNI template settings that are used internally by all `BrainData` operations. For historic reasons, the default MNI template is in the same **[MNI152 2mm space as FSL](https://nist.mni.mcgill.ca/mni-icbm152-non-linear-6th-generation-symmetric-average-brain-stereotaxic-registration-model/)**. Different software use [different versions](https://nist.mni.mcgill.ca/icbm-152-nonlinear-atlases-2009/) `nltools` supports the following additional verisons:
 
 - [`nilearn` MNI152 2009a](https://nilearn.github.io/stable/modules/generated/nilearn.datasets.fetch_icbm152_2009.html#nilearn.datasets.fetch_icbm152_2009)
 - [`fmriprep` MNI52 2009c](https://nilearn.github.io/stable/modules/generated/nilearn.datasets.fetch_icbm152_2009.html#nilearn.datasets.fetch_icbm152_2009)
 
-Switching the MNI template uses will affect **all** subsequent operations by resampling data to the chosen space You can control this on a per-file loading basis using the `mask` argument of `Brain_Data`, e.g.
+Switching the MNI template uses will affect **all** subsequent operations by resampling data to the chosen space You can control this on a per-file loading basis using the `mask` argument of `BrainData`, e.g.
 
 ```python
-from nltools.data import Brain_Data
+from nltools.data import BrainData
 
 # my_brain will be resampled to 2mm
-brain = Brain_Data('my_brain.nii.gz') 
+brain = BrainData('my_brain.nii.gz') 
 
 # my_brain will now be resampled to the same space as my_mask
-brain = Brain_Data('my_brain.nii.gz', mask='my_mask.nii.gz') # will be resampled 
+brain = BrainData('my_brain.nii.gz', mask='my_mask.nii.gz') # will be resampled 
 ```
 
 Alternatively this module can be used to switch between 2mm or 3mm MNI spaces with and without ventricles:
 
 ```python
 from nltools.prefs import MNI_Template, resolve_mni_path
-from nltools.data import Brain_Data
+from nltools.data import BrainData
 
 # Update the resolution globally
 MNI_Template['resolution'] = '3mm'
@@ -32,7 +32,7 @@ MNI_Template['resolution'] = '3mm'
 MNI_Template.resolution = 3
 
 # my_brain will be resampled to 3mm and future operation will be in 3mm space
-brain = Brain_Data('my_brain.nii.gz') 
+brain = BrainData('my_brain.nii.gz') 
 
 # get the template nifti files
 resolve_mni_path(MNI_Template)

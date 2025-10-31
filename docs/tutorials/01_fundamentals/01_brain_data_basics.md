@@ -1,9 +1,9 @@
-# Brain_Data Basics
+# BrainData Basics
 
 ## Learning Objectives
 
 By the end of this tutorial, you will be able to:
-- Load neuroimaging data into `Brain_Data` objects
+- Load neuroimaging data into `BrainData` objects
 - Perform basic operations (indexing, slicing, arithmetic)
 - Compute summary statistics across images and voxels
 - Apply common preprocessing steps (smoothing, standardization)
@@ -13,7 +13,7 @@ By the end of this tutorial, you will be able to:
 
 ## Introduction
 
-The `Brain_Data` class is the core data structure in nltools for working with neuroimaging data. It's designed to make common operations intuitive while providing access to powerful preprocessing and analysis tools.
+The `BrainData` class is the core data structure in nltools for working with neuroimaging data. It's designed to make common operations intuitive while providing access to powerful preprocessing and analysis tools.
 
 **Key features**:
 - Stores data as 2D arrays (images × voxels) for efficient computation
@@ -30,7 +30,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from nltools.data import Brain_Data
+from nltools.data import BrainData
 from nltools.datasets import fetch_pain
 
 # Load example dataset (pain perception study)
@@ -38,7 +38,7 @@ data = fetch_pain()
 print(data)
 ```
 
-The `Brain_Data` object shows:
+The `BrainData` object shows:
 - **Shape**: 84 images × 238,955 voxels (MNI 2mm space)
 - **Y**: Outcome variables (if any)
 - **X**: Design matrix/metadata
@@ -46,7 +46,7 @@ The `Brain_Data` object shows:
 
 ## Indexing and Slicing
 
-`Brain_Data` supports standard Python indexing:
+`BrainData` supports standard Python indexing:
 
 ```python
 # Get a single image
@@ -102,7 +102,7 @@ plt.show()
 
 ## Arithmetic Operations
 
-`Brain_Data` supports element-wise operations:
+`BrainData` supports element-wise operations:
 
 ```python
 # Operations with scalars
@@ -113,7 +113,7 @@ shifted = data + 100    # Add 100 to all voxels
 centered = data - data.mean()
 print(f"Mean of centered data: {centered.mean().mean():.10f}")  # Should be ~0
 
-# Operations between Brain_Data objects
+# Operations between BrainData objects
 difference = data[1] - data[0]
 difference.plot()
 ```
@@ -232,7 +232,7 @@ plt.show()
 
 ```python
 # Load atlas or ROI mask from file
-# roi_mask = Brain_Data('path/to/roi.nii.gz')
+# roi_mask = BrainData('path/to/roi.nii.gz')
 
 # Apply to your data
 # roi_data = data.apply_mask(roi_mask)
@@ -254,14 +254,14 @@ data.write('brain_data_with_metadata.h5')
 
 ```python
 # Load from NIfTI
-loaded_nifti = Brain_Data('mean_activation.nii.gz')
+loaded_nifti = BrainData('mean_activation.nii.gz')
 
 # Load from HDF5
-loaded_h5 = Brain_Data('brain_data_with_metadata.h5')
+loaded_h5 = BrainData('brain_data_with_metadata.h5')
 
 # Load from list of files
 # file_list = ['subj1.nii.gz', 'subj2.nii.gz', 'subj3.nii.gz']
-# multi_subject = Brain_Data(file_list)
+# multi_subject = BrainData(file_list)
 ```
 
 ## Converting Between Formats
@@ -274,8 +274,8 @@ nifti_img = mean_brain.to_nifti()
 print(f"Type: {type(nifti_img)}")
 print(f"Shape: {nifti_img.shape}")
 
-# Create Brain_Data from nibabel object
-from_nifti = Brain_Data(nifti_img)
+# Create BrainData from nibabel object
+from_nifti = BrainData(nifti_img)
 print(from_nifti)
 ```
 
@@ -291,9 +291,9 @@ print(f"Dtype: {raw_data.dtype}")
 # Perform custom operations on raw data
 custom_result = np.mean(raw_data, axis=0)
 
-# Create Brain_Data from numpy array
+# Create BrainData from numpy array
 # Note: Must specify the mask
-# from_array = Brain_Data(data=custom_result, mask=data.mask)
+# from_array = BrainData(data=custom_result, mask=data.mask)
 ```
 
 ## Working with Metadata
@@ -321,8 +321,8 @@ labels = pd.DataFrame({
     'subject_id': np.repeat(range(1, 29), 3)
 })
 
-# Create Brain_Data with metadata
-labeled_data = Brain_Data(data.to_nifti(), Y=labels)
+# Create BrainData with metadata
+labeled_data = BrainData(data.to_nifti(), Y=labels)
 print(f"Y shape: {labeled_data.Y.shape}")
 print(labeled_data.Y.head())
 ```
@@ -392,7 +392,7 @@ print("✓ All sanity checks passed!")
 ## Summary
 
 In this tutorial, you learned:
-- ✓ How to load data into `Brain_Data` objects
+- ✓ How to load data into `BrainData` objects
 - ✓ Indexing and slicing operations
 - ✓ Computing statistics across images and voxels
 - ✓ Arithmetic operations on brain data
@@ -407,7 +407,7 @@ In this tutorial, you learned:
 - **Tutorial 02**: Learn about `DesignMatrix` for creating experimental designs
 - **Tutorial 03**: Explore `Adjacency` for connectivity analyses
 - **Workflow Tutorials**: Apply these concepts to complete analyses (GLM, MVPA, etc.)
-- **API Reference**: Deep dive into all `Brain_Data` methods
+- **API Reference**: Deep dive into all `BrainData` methods
 
 ## Clean Up
 

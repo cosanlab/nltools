@@ -62,7 +62,7 @@ FastSRM (new) - inherits from SRM, adds atlas handling
 **Nilearn Integration**:
 - Use `nilearn.maskers.NiftiLabelsMasker` for atlas projection
 - Support common atlases (Harvard-Oxford, AAL, Schaefer, custom)
-- Leverage existing nltools Brain_Data integration
+- Leverage existing nltools BrainData integration
 
 ---
 
@@ -170,7 +170,7 @@ class FastSRM(SRM):
 12. `test_atlas_missing_labels_error()` - Error if atlas has no labeled regions
 13. `test_atlas_projection_reversibility()` - atlas.inverse_transform(atlas.transform(X)) ≈ X
 14. `test_different_atlas_sizes()` - Work with varying parcel counts (10, 100, 400 parcels)
-15. `test_atlas_with_brain_data_integration()` - Accept Brain_Data objects with atlas
+15. `test_atlas_with_brain_data_integration()` - Accept BrainData objects with atlas
 
 **Implementation Target**:
 ```python
@@ -235,7 +235,7 @@ def _project_to_atlas(self, data):
 #### **Phase 6: Integration & Workflow Tests (5 tests, ~2 hours)**
 
 **Tests**:
-38. `test_fastsrm_brain_data_input()` - Accept Brain_Data objects
+38. `test_fastsrm_brain_data_input()` - Accept BrainData objects
 39. `test_fastsrm_align_function_integration()` - Work via `align(method='fast_srm')`
 40. `test_fastsrm_fit_transform()` - Sklearn pipeline compatibility
 41. `test_fastsrm_common_atlases()` - Test with real atlases (Harvard-Oxford, AAL, Schaefer)
@@ -351,9 +351,9 @@ class FastSRM(SRM):
     >>> fastsrm = FastSRM(atlas=masker, features=30)
     >>> fastsrm.fit(multi_subject_data)
 
-    >>> # Integration with Brain_Data
-    >>> from nltools.data import Brain_Data
-    >>> brain_data = [Brain_Data(f'sub_{i}.nii.gz') for i in range(5)]
+    >>> # Integration with BrainData
+    >>> from nltools.data import BrainData
+    >>> brain_data = [BrainData(f'sub_{i}.nii.gz') for i in range(5)]
     >>> fastsrm = FastSRM(atlas='schaefer_100')
     >>> fastsrm.fit(brain_data)
 
@@ -404,7 +404,7 @@ class FastSRM(SRM):
 
         Parameters
         ----------
-        sample_data : array or Brain_Data
+        sample_data : array or BrainData
             Sample subject data for fitting masker
 
         Returns
@@ -413,14 +413,14 @@ class FastSRM(SRM):
             Fitted masker ready for transform operations
         """
         from nilearn.maskers import NiftiLabelsMasker
-        from nltools.data import Brain_Data
+        from nltools.data import BrainData
 
         # Case 1: Already a NiftiLabelsMasker
         if isinstance(self.atlas, NiftiLabelsMasker):
             masker = self.atlas
             if not hasattr(masker, 'labels_img_'):
                 # Not fitted yet, fit it
-                if isinstance(sample_data, Brain_Data):
+                if isinstance(sample_data, BrainData):
                     masker.fit(sample_data.to_nifti())
                 else:
                     masker.fit(sample_data)
@@ -438,7 +438,7 @@ class FastSRM(SRM):
                 )
 
             # Fit the masker
-            if isinstance(sample_data, Brain_Data):
+            if isinstance(sample_data, BrainData):
                 masker.fit(sample_data.to_nifti())
             else:
                 masker.fit(sample_data)
@@ -463,7 +463,7 @@ class FastSRM(SRM):
                 **self.atlas_kwargs
             )
 
-            if isinstance(sample_data, Brain_Data):
+            if isinstance(sample_data, BrainData):
                 masker.fit(sample_data.to_nifti())
             else:
                 masker.fit(sample_data)
@@ -522,7 +522,7 @@ class FastSRM(SRM):
 
         Parameters
         ----------
-        data : list of arrays or Brain_Data objects
+        data : list of arrays or BrainData objects
             Multi-subject data in full voxel space
 
         masker : NiftiLabelsMasker
@@ -533,12 +533,12 @@ class FastSRM(SRM):
         atlas_data : list of arrays, shape[i] = [parcels, timepoints]
             Data projected to atlas parcel space
         """
-        from nltools.data import Brain_Data
+        from nltools.data import BrainData
 
         atlas_data = []
         for subject_data in data:
-            if isinstance(subject_data, Brain_Data):
-                # Brain_Data: convert to Nifti, transform, extract array
+            if isinstance(subject_data, BrainData):
+                # BrainData: convert to Nifti, transform, extract array
                 nifti = subject_data.to_nifti()
                 projected = masker.transform(nifti)  # Shape: (timepoints, parcels)
                 atlas_data.append(projected.T)  # Transpose to (parcels, timepoints)
@@ -547,7 +547,7 @@ class FastSRM(SRM):
                 # For SRM, we need to reconstruct spatial structure for masker
                 # This is a limitation: without spatial info, can't use atlas!
                 raise NotImplementedError(
-                    "FastSRM requires Brain_Data objects or spatial information "
+                    "FastSRM requires BrainData objects or spatial information "
                     "to apply atlas projection. Raw numpy arrays not supported."
                 )
 
@@ -564,7 +564,7 @@ class FastSRM(SRM):
         masker : NiftiLabelsMasker
             Fitted atlas masker
 
-        original_data : list of Brain_Data
+        original_data : list of BrainData
             Original data (needed for voxel coordinates)
 
         Returns
@@ -572,13 +572,13 @@ class FastSRM(SRM):
         w_full : list of arrays, shape[i] = [voxels_i, features]
             Transforms in full voxel space
         """
-        from nltools.data import Brain_Data
+        from nltools.data import BrainData
 
         w_full = []
         for i, (w_atlas_i, orig_data_i) in enumerate(zip(w_atlas, original_data)):
-            if not isinstance(orig_data_i, Brain_Data):
+            if not isinstance(orig_data_i, BrainData):
                 raise ValueError(
-                    "FastSRM requires Brain_Data objects for inverse projection"
+                    "FastSRM requires BrainData objects for inverse projection"
                 )
 
             # Strategy: For each feature, create parcel-level map, inverse transform to voxels
@@ -595,7 +595,7 @@ class FastSRM(SRM):
                 # This assigns each voxel the value of its parcel
                 voxel_values = masker.inverse_transform(parcel_values.reshape(1, -1))
 
-                # Extract values within Brain_Data mask
+                # Extract values within BrainData mask
                 masked_values = orig_data_i.masker.transform(voxel_values)
                 w_full_i[:, feat] = masked_values.flatten()
 
@@ -608,8 +608,8 @@ class FastSRM(SRM):
 
         Parameters
         ----------
-        X : list of Brain_Data objects
-            Multi-subject fMRI data. Each element is a Brain_Data instance.
+        X : list of BrainData objects
+            Multi-subject fMRI data. Each element is a BrainData instance.
 
         y : ignored
             Not used, present for sklearn compatibility
@@ -619,7 +619,7 @@ class FastSRM(SRM):
         self : FastSRM
             Fitted model
         """
-        from nltools.data import Brain_Data
+        from nltools.data import BrainData
 
         logger.info("Starting FastSRM with atlas-based projection")
 
@@ -629,11 +629,11 @@ class FastSRM(SRM):
                 f"Not enough subjects ({len(X)}) to train FastSRM. Need at least 2."
             )
 
-        # All subjects must be Brain_Data
-        if not all(isinstance(x, Brain_Data) for x in X):
+        # All subjects must be BrainData
+        if not all(isinstance(x, BrainData) for x in X):
             raise ValueError(
-                "FastSRM requires Brain_Data objects (not raw arrays) "
-                "for atlas projection. Convert your data using Brain_Data()."
+                "FastSRM requires BrainData objects (not raw arrays) "
+                "for atlas projection. Convert your data using BrainData()."
             )
 
         # Step 1: Validate and prepare atlas masker
@@ -694,7 +694,7 @@ class FastSRM(SRM):
 
         Parameters
         ----------
-        X : list of Brain_Data objects
+        X : list of BrainData objects
             Multi-subject data to transform
 
         Returns
@@ -728,7 +728,7 @@ class FastSRM(SRM):
 
         Parameters
         ----------
-        X : Brain_Data
+        X : BrainData
             New subject data
 
         Returns
@@ -742,10 +742,10 @@ class FastSRM(SRM):
                 "FastSRM model has not been fitted yet. Call fit() first."
             )
 
-        from nltools.data import Brain_Data
+        from nltools.data import BrainData
 
-        if not isinstance(X, Brain_Data):
-            raise ValueError("transform_subject requires Brain_Data object")
+        if not isinstance(X, BrainData):
+            raise ValueError("transform_subject requires BrainData object")
 
         # Project to atlas space
         X_atlas = self._project_to_atlas([X], self.atlas_masker_)[0]
@@ -779,7 +779,7 @@ def align(data, method='probabilistic_srm', n_features=None, atlas=None, **kwarg
 
     Parameters
     ----------
-    data : list of Brain_Data or arrays
+    data : list of BrainData or arrays
         Multi-subject data to align
 
     method : str, default='probabilistic_srm'
@@ -882,7 +882,7 @@ Based on research in claude-guidelines/srm-hyperalignment-testing-strategy.md
 import pytest
 import numpy as np
 from nltools.algorithms.srm import FastSRM
-from nltools.data import Brain_Data
+from nltools.data import BrainData
 from sklearn.exceptions import NotFittedError
 from nilearn import datasets
 from nilearn.maskers import NiftiLabelsMasker
@@ -920,7 +920,7 @@ def sample_atlas_masker(sample_atlas_array):
 
 @pytest.fixture
 def atlas_brain_data(sample_atlas_array):
-    """Create multi-subject Brain_Data compatible with sample atlas.
+    """Create multi-subject BrainData compatible with sample atlas.
 
     Creates 5 subjects with shared latent structure + noise,
     spatially organized to match atlas parcels.
@@ -935,7 +935,7 @@ def atlas_brain_data(sample_atlas_array):
     # True shared response
     shared = np.random.randn(n_features, n_timepoints)
 
-    # Create Brain_Data objects
+    # Create BrainData objects
     subjects = []
 
     for subj in range(n_subjects):
@@ -959,9 +959,9 @@ def atlas_brain_data(sample_atlas_array):
                 parcel_data[p, :] + 0.001 * np.random.randn(voxels_per_parcel, n_timepoints)
             )
 
-        # Create Brain_Data
+        # Create BrainData
         # Note: This is simplified; in practice would need proper Nifti with coordinates
-        brain_data = Brain_Data(voxel_data, X=create_fake_coordinates(n_voxels))
+        brain_data = BrainData(voxel_data, X=create_fake_coordinates(n_voxels))
         subjects.append(brain_data)
 
     return {
@@ -975,7 +975,7 @@ def atlas_brain_data(sample_atlas_array):
 
 
 def create_fake_coordinates(n_voxels):
-    """Create fake MNI coordinates for Brain_Data."""
+    """Create fake MNI coordinates for BrainData."""
     # Generate grid of coordinates
     coords = []
     for i in range(n_voxels):
@@ -1158,7 +1158,7 @@ class TestFastSRMAtlasHandling:
             assert fastsrm.atlas is atlas
 
     def test_atlas_with_brain_data_integration(self, sample_atlas_masker):
-        """Test that FastSRM works with Brain_Data objects."""
+        """Test that FastSRM works with BrainData objects."""
         # This is tested implicitly in other tests
         # Just verify instantiation is okay
         fastsrm = FastSRM(atlas=sample_atlas_masker, features=10)
@@ -1295,7 +1295,7 @@ class TestFastSRMPerformance:
         from nltools.algorithms.srm import SRM
 
         # Fit standard SRM (on full voxel data)
-        # Note: This requires converting Brain_Data to arrays
+        # Note: This requires converting BrainData to arrays
         X_arrays = [bd.data for bd in atlas_brain_data['data']]
         srm = SRM(features=10, n_iter=10, rand_seed=42)
         srm.fit(X_arrays)
@@ -1377,7 +1377,7 @@ class TestFastSRMEdgeCases:
     def test_fastsrm_single_subject_error(self, sample_atlas_masker):
         """Test error with only 1 subject."""
         np.random.seed(111)
-        single_subject = [Brain_Data(np.random.randn(100, 50))]
+        single_subject = [BrainData(np.random.randn(100, 50))]
 
         fastsrm = FastSRM(atlas=sample_atlas_masker, features=10)
         with pytest.raises(ValueError, match="Not enough subjects"):
@@ -1387,8 +1387,8 @@ class TestFastSRMEdgeCases:
         """Test error when subjects have different timepoints."""
         np.random.seed(222)
         data = [
-            Brain_Data(np.random.randn(100, 50)),
-            Brain_Data(np.random.randn(100, 60)),  # Different TRs
+            BrainData(np.random.randn(100, 50)),
+            BrainData(np.random.randn(100, 60)),  # Different TRs
         ]
 
         fastsrm = FastSRM(atlas=sample_atlas_masker, features=10)
@@ -1399,8 +1399,8 @@ class TestFastSRMEdgeCases:
         """Test error when samples < features."""
         np.random.seed(333)
         data = [
-            Brain_Data(np.random.randn(100, 40)),  # 40 samples
-            Brain_Data(np.random.randn(100, 40)),
+            BrainData(np.random.randn(100, 40)),  # 40 samples
+            BrainData(np.random.randn(100, 40)),
         ]
 
         fastsrm = FastSRM(atlas=sample_atlas_masker, features=50)  # More features than samples
@@ -1442,7 +1442,7 @@ class TestFastSRMEdgeCases:
     def test_fastsrm_identical_subjects(self, sample_atlas_masker):
         """Test FastSRM with identical subjects."""
         np.random.seed(444)
-        base_data = Brain_Data(np.random.randn(100, 50))
+        base_data = BrainData(np.random.randn(100, 50))
         identical_subjects = [base_data] * 3
 
         fastsrm = FastSRM(atlas=sample_atlas_masker, features=10, n_iter=5)
@@ -1472,13 +1472,13 @@ class TestFastSRMEdgeCases:
 # ========== PHASE 6: INTEGRATION & WORKFLOW TESTS ==========
 
 class TestFastSRMIntegration:
-    """Integration tests with Brain_Data and align() function."""
+    """Integration tests with BrainData and align() function."""
 
     def test_fastsrm_brain_data_input(self, sample_atlas_masker, atlas_brain_data):
-        """Test that FastSRM works with Brain_Data objects."""
+        """Test that FastSRM works with BrainData objects."""
         fastsrm = FastSRM(atlas=sample_atlas_masker, features=10, n_iter=5)
 
-        # Should accept Brain_Data list
+        # Should accept BrainData list
         fastsrm.fit(atlas_brain_data['data'])
         transformed = fastsrm.transform(atlas_brain_data['data'])
 
@@ -1622,7 +1622,7 @@ Before marking FastSRM complete:
 - [ ] Docstrings complete (NumPy style)
 - [ ] Examples in docstrings tested
 - [ ] Integration with `align()` function works
-- [ ] Works with Brain_Data objects
+- [ ] Works with BrainData objects
 - [ ] Works with preset atlases ('harvard_oxford', 'aal', 'schaefer_100')
 - [ ] Works with custom atlas files
 - [ ] Works with numpy array atlases
@@ -1638,7 +1638,7 @@ Before marking FastSRM complete:
 ### 6.1 Functional Requirements
 
 ✅ **Must Have**:
-1. FastSRM fits on multi-subject Brain_Data with atlas
+1. FastSRM fits on multi-subject BrainData with atlas
 2. Produces orthogonal transforms in both atlas and voxel space
 3. Shared response has correct shape and properties
 4. Comparable results to standard SRM (correlation > 0.7)
@@ -1711,8 +1711,8 @@ Before marking FastSRM complete:
 
 ## 9. Risk Mitigation
 
-**Risk 1**: Brain_Data objects don't preserve spatial structure needed for atlas
-- **Mitigation**: Brain_Data has `to_nifti()` method; use it for atlas operations
+**Risk 1**: BrainData objects don't preserve spatial structure needed for atlas
+- **Mitigation**: BrainData has `to_nifti()` method; use it for atlas operations
 - **Tested in**: Phase 6 integration tests
 
 **Risk 2**: Atlas projection loses too much information

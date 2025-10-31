@@ -287,7 +287,7 @@ else:
 ### Functional-Core, Imperative Shell
 
 **Imperative Shell** (`nltools/data/`):
-- Classes: Brain_Data, Adjacency, DesignMatrix
+- Classes: BrainData, Adjacency, DesignMatrix
 - Hold state (data, masks, metadata)
 - Coordinate operations
 - User-facing API

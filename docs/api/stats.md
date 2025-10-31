@@ -72,7 +72,7 @@ z_values = fisher_r_to_z(r_values)
 
 ## See Also
 
-- {doc}`data/brain_data` - Brain_Data.fit() and Brain_Data.regress()
+- {doc}`data/brain_data` - BrainData.fit() and BrainData.regress()
 - {doc}`models` - Ridge and other model classes
 - {doc}`algorithms` - Optimized algorithms (HyperAlignment, SRM)
 - {doc}`analysis` - ROC analysis tools

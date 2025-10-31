@@ -48,6 +48,6 @@ print(f"p-value: {roc_perm.p_value}")
 
 ## See Also
 
-- {doc}`data/brain_data` - Brain_Data.predict() for generating predictions
+- {doc}`data/brain_data` - BrainData.predict() for generating predictions
 - {doc}`models` - Ridge and other models
 - {doc}`stats` - Statistical functions

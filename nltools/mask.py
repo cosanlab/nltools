@@ -27,7 +27,7 @@ def create_sphere(coordinates, radius=5, mask=None):
                 [[px1, py1, pz1], ..., [pxn, pyn, pzn]]
 
     """
-    from nltools.data import Brain_Data
+    from nltools.data import BrainData
 
     if mask is not None:
         if not isinstance(mask, nib.Nifti1Image):
@@ -77,14 +77,14 @@ def create_sphere(coordinates, radius=5, mask=None):
                 )
         elif isinstance(radius, int):
             radius = [radius] * len(coordinates)
-        out = Brain_Data(
+        out = BrainData(
             nib.Nifti1Image(np.zeros_like(mask.get_fdata()), affine=mask.affine),
             mask=mask,
         )
         for r, c in zip(radius, coordinates):
-            out = out + Brain_Data(sphere(r, c, mask), mask=mask)
+            out = out + BrainData(sphere(r, c, mask), mask=mask)
     else:
-        out = Brain_Data(sphere(radius, coordinates, mask), mask=mask)
+        out = BrainData(sphere(radius, coordinates, mask), mask=mask)
     out = out.to_nifti()
     out.get_fdata()[out.get_fdata() > 0.5] = 1
     out.get_fdata()[out.get_fdata() < 0.5] = 0
@@ -95,20 +95,20 @@ def expand_mask(mask, custom_mask=None):
     """expand a mask with multiple integers into separate binary masks
 
     Args:
-        mask: nibabel or Brain_Data instance
+        mask: nibabel or BrainData instance
         custom_mask: nibabel instance or string to file path; optional
 
     Returns:
-        out: Brain_Data instance of multiple binary masks
+        out: BrainData instance of multiple binary masks
 
     """
 
-    from nltools.data import Brain_Data
+    from nltools.data import BrainData
 
     if isinstance(mask, nib.Nifti1Image):
-        mask = Brain_Data(mask, mask=custom_mask)
-    if not isinstance(mask, Brain_Data):
-        raise ValueError("Make sure mask is a nibabel or Brain_Data instance.")
+        mask = BrainData(mask, mask=custom_mask)
+    if not isinstance(mask, BrainData):
+        raise ValueError("Make sure mask is a nibabel or BrainData instance.")
     mask.data = np.round(mask.data).astype(int)
     tmp = []
     for i in np.nonzero(np.unique(mask.data))[0]:
@@ -123,22 +123,22 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
         overlapping areas are ignored
 
     Args:
-        mask: nibabel or Brain_Data instance
+        mask: nibabel or BrainData instance
         custom_mask: nibabel instance or string to file path; optional
 
     Returns:
-        out: Brain_Data instance of a mask with different integers indicating
+        out: BrainData instance of a mask with different integers indicating
             different masks
 
     """
 
-    from nltools.data import Brain_Data
+    from nltools.data import BrainData
 
-    if not isinstance(mask, Brain_Data):
+    if not isinstance(mask, BrainData):
         if isinstance(mask, nib.Nifti1Image):
-            mask = Brain_Data(mask, mask=custom_mask)
+            mask = BrainData(mask, mask=custom_mask)
         else:
-            raise ValueError("Make sure mask is a nibabel or Brain_Data instance.")
+            raise ValueError("Make sure mask is a nibabel or BrainData instance.")
 
     if len(mask.shape) > 1:
         if len(mask) > 1:
@@ -149,7 +149,7 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
             for x in range(len(mask)):
                 m_list.append(mask[x].to_nifti())
             intersect = intersect_masks(m_list, threshold=1, connected=False)
-            intersect = Brain_Data(
+            intersect = BrainData(
                 nib.Nifti1Image(np.abs(intersect.get_fdata() - 1), intersect.affine),
                 mask=custom_mask,
             )
@@ -161,7 +161,7 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
                 for i in range(len(m_list)):
                     merge.append(
                         np.multiply(
-                            Brain_Data(m_list[i], mask=custom_mask).data, intersect.data
+                            BrainData(m_list[i], mask=custom_mask).data, intersect.data
                         )
                         * (i + 1)
                     )
@@ -171,7 +171,7 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
                 for i in range(len(m_list)):
                     merge.append(
                         np.multiply(
-                            Brain_Data(m_list[i], mask=custom_mask).data, intersect.data
+                            BrainData(m_list[i], mask=custom_mask).data, intersect.data
                         )
                     )
                 out.data = np.sum(np.array(merge).T, 1)
@@ -192,7 +192,7 @@ def roi_to_brain(data, mask_x):
         mask_x: an expanded binary mask
 
     Returns:
-        out: (Brain_Data) Brain_Data instance where each ROI is now populated
+        out: (BrainData) BrainData instance where each ROI is now populated
              with a value
     """
 

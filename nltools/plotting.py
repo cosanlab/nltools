@@ -52,7 +52,7 @@ def plot_interactive_brain(
     This function leverages nilearn's new javascript based brain viewer functions to create interactive plotting functionality.
 
     Args:
-        brain (nltools.Brain_Data): a Brain_Data instance of 1d or 2d shape (i.e. 3d or 4d volume)
+        brain (nltools.BrainData): a BrainData instance of 1d or 2d shape (i.e. 3d or 4d volume)
         threshold (float/str): threshold to initialize the visualization, maybe be a percentile string; default 0
         surface (bool): whether to create a surface-based plot; default False
         percentile_threshold (bool): whether to interpret threshold values as percentiles
@@ -82,7 +82,7 @@ def plot_interactive_brain(
     elif len(brain.shape) == 1:
         time_slider = False
     else:
-        raise ValueError("Brain_Data object is not 1d or 2d")
+        raise ValueError("BrainData object is not 1d or 2d")
 
     thresh_box = ipywidgets.widgets.FloatText(value=threshold, description="Threshold")
 
@@ -143,7 +143,7 @@ def plot_t_brain(
     """
     Takes a brain data object and computes a 1 sample t-test across it's first axis. If a list is provided will compute difference between brain data objects in list (i.e. paired samples t-test).
     Args:
-        objIn (list/Brain_Data): if list will compute difference map first
+        objIn (list/BrainData): if list will compute difference map first
         how (list): whether to plot a glass brain 'glass', 3 view-multi-slice mni 'mni', or both 'full'
         thr (str): what method to use for multiple comparisons correction unc, fdr, or tfce
         alpha (float): p-value threshold
@@ -254,13 +254,13 @@ def plot_brain(
     **kwargs,
 ):
     """
-    More complete brain plotting of a Brain_Data instance
+    More complete brain plotting of a BrainData instance
 
     Args:
-        obj (Brain_Data): object to plot
+        obj (BrainData): object to plot
         how (str): whether to plot a glass brain 'glass', 3 view-multi-slice mni 'mni', or both 'full'
-        thr_upper (str/float): thresholding of image. Can be string for percentage, or float for data units (see Brain_Data.threshold()
-        thr_lower (str/float): thresholding of image. Can be string for percentage, or float for data units (see Brain_Data.threshold()
+        thr_upper (str/float): thresholding of image. Can be string for percentage, or float for data units (see BrainData.threshold()
+        thr_lower (str/float): thresholding of image. Can be string for percentage, or float for data units (see BrainData.threshold()
         save (str): if a string file name or path is provided plots will be saved into this directory appended with the orientation they belong to
         kwargs: optionals args to nilearn plot functions (e.g. vmax)
 

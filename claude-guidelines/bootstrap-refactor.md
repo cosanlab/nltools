@@ -13,13 +13,13 @@
 
 **Key Achievements**:
 - **Memory efficiency**: 1,673× reduction (9.2TB → 5.5GB for worst-case scenario)
-- **Performance**: 10-100× faster for Ridge models (bypass Brain_Data overhead)
+- **Performance**: 10-100× faster for Ridge models (bypass BrainData overhead)
 - **Generality**: Support `weights` and `predict` for all fitted models (Ridge, GLM)
 - **Dual modes**: Efficient (default) vs. full sample storage (`save_weights=True`)
 
 **Design Principles**:
 1. **Memory efficiency**: Use online statistics (Welford's algorithm) to avoid O(n_bootstrap × data_size) arrays
-2. **Performance**: Farm out to `ridge_svd()` and pure functions instead of Brain_Data methods
+2. **Performance**: Farm out to `ridge_svd()` and pure functions instead of BrainData methods
 3. **Generality**: Support `.bootstrap('weights')` for all models, `.bootstrap('predict')`
 4. **Backward compatibility**: Keep existing simple methods working unchanged
 
@@ -69,7 +69,7 @@
 
 **Implementation**:
 - Use existing `_bootstrap_apply_func()` helper
-- Work with Brain_Data objects (overhead acceptable for simple ops)
+- Work with BrainData objects (overhead acceptable for simple ops)
 - Minimal changes needed
 
 **Performance**: Already efficient for these operations
@@ -79,23 +79,23 @@
 ### Tier 2: Ridge Model Methods (NEW, Farm Out to ridge_svd) 🚀
 **Methods**: `weights`, `predict`
 
-**Strategy**: **Bypass Brain_Data entirely**
+**Strategy**: **Bypass BrainData entirely**
 - Work directly with numpy arrays (`data.data`, `data.X_`)
 - Call `ridge_svd()` function directly (pure numpy/torch)
-- Only wrap final results in Brain_Data for return
+- Only wrap final results in BrainData for return
 
 **Performance gains**:
 - No mask/nifti_masker overhead
 - No X/Y/design_matrix DataFrame copying
 - No _shallow_copy_with_data overhead
-- Estimated: **10-100× faster** than Brain_Data-based approach
+- Estimated: **10-100× faster** than BrainData-based approach
 
 **Example workflow**:
 ```python
-# OLD (slow): Create Brain_Data, all overhead
+# OLD (slow): Create BrainData, all overhead
 new_dat = data[indices]  # Copies mask, masker, X, Y, etc.
 new_dat.fit(model='ridge', X=new_dat.X_)  # More copying
-weights = new_dat.ridge_weights  # Extract from Brain_Data
+weights = new_dat.ridge_weights  # Extract from BrainData
 
 # NEW (fast): Pure numpy, direct ridge_svd
 X_boot = data.X_[indices]  # Just index numpy array
@@ -105,12 +105,12 @@ weights = ridge_svd(X_boot, y_boot, alpha=alpha)  # Pure function call
 
 ---
 
-### Tier 3: GLM Model Methods (NEW, Use Brain_Data) 🔧
+### Tier 3: GLM Model Methods (NEW, Use BrainData) 🔧
 **Methods**: `weights`, `predict`
 
-**Strategy**: Must use Brain_Data (nilearn requirement)
+**Strategy**: Must use BrainData (nilearn requirement)
 - nilearn.glm.FirstLevelModel expects 4D nifti images
-- Cannot bypass Brain_Data without reimplementing nilearn
+- Cannot bypass BrainData without reimplementing nilearn
 - Still use efficient online statistics for aggregation
 
 **Performance**: Slower than Ridge, but unavoidable
@@ -206,7 +206,7 @@ class OnlineBootstrapStats:
 
         Returns
         -------
-        dict : Statistics (numpy arrays, not Brain_Data yet)
+        dict : Statistics (numpy arrays, not BrainData yet)
             - 'mean': Mean across bootstraps
             - 'std': Standard deviation
             - 'variance': Variance
@@ -275,11 +275,11 @@ def _bootstrap_fitted_weights(data, fit_params, indices):
     """
     Bootstrap model weights efficiently by farming out to underlying algorithms.
 
-    Avoids Brain_Data overhead for Ridge models.
+    Avoids BrainData overhead for Ridge models.
 
     Parameters
     ----------
-    data : Brain_Data
+    data : BrainData
         Original dataset
     fit_params : dict
         Fit parameters from data._fit_params_
@@ -306,10 +306,10 @@ def _bootstrap_fitted_weights(data, fit_params, indices):
         # Returns: (n_features, n_voxels)
 
     elif model_type == 'glm':
-        # GLM PATH: Need Brain_Data because nilearn expects nifti
-        from nltools.data import Brain_Data
+        # GLM PATH: Need BrainData because nilearn expects nifti
+        from nltools.data import BrainData
 
-        new_dat = data[indices]  # Creates Brain_Data (overhead unavoidable)
+        new_dat = data[indices]  # Creates BrainData (overhead unavoidable)
         new_dat.fit(
             model=model_type,
             X=new_dat.X_,  # Design matrix from bootstrap sample
@@ -334,7 +334,7 @@ def _bootstrap_fitted_predict(data, fit_params, indices):
 
     Parameters
     ----------
-    data : Brain_Data
+    data : BrainData
         Original dataset
     fit_params : dict
         Fit parameters from data._fit_params_
@@ -361,8 +361,8 @@ def _bootstrap_fitted_predict(data, fit_params, indices):
         predictions = X_boot @ weights  # (n_samples_boot, n_voxels)
 
     elif model_type == 'glm':
-        # GLM PATH: Need Brain_Data
-        from nltools.data import Brain_Data
+        # GLM PATH: Need BrainData
+        from nltools.data import BrainData
 
         new_dat = data[indices]
         new_dat.fit(model=model_type, X=new_dat.X_, **fit_params['kwargs'])
@@ -384,7 +384,7 @@ def _bootstrap_iteration(data, bootstrap_func, seed):
 
     Parameters
     ----------
-    data : Brain_Data
+    data : BrainData
         Original dataset
     bootstrap_func : callable
         Function to apply (_bootstrap_fitted_weights or _bootstrap_fitted_predict)
@@ -426,10 +426,10 @@ def bootstrap(
     **kwargs
 ):
     """
-    Bootstrap Brain_Data methods with memory-efficient online statistics.
+    Bootstrap BrainData methods with memory-efficient online statistics.
 
     Supports simple aggregations and fitted model methods. For fitted models,
-    uses efficient algorithms that bypass Brain_Data overhead when possible.
+    uses efficient algorithms that bypass BrainData overhead when possible.
 
     Parameters
     ----------
@@ -457,15 +457,15 @@ def bootstrap(
         Keys depend on save_weights parameter:
 
         Always included:
-        - 'mean': Mean across bootstraps (Brain_Data)
-        - 'std': Standard deviation (Brain_Data)
-        - 'Z': Z-scores (mean/std) (Brain_Data)
-        - 'p': Two-tailed p-values (Brain_Data)
-        - 'ci_lower': Lower confidence bound (Brain_Data)
-        - 'ci_upper': Upper confidence bound (Brain_Data)
+        - 'mean': Mean across bootstraps (BrainData)
+        - 'std': Standard deviation (BrainData)
+        - 'Z': Z-scores (mean/std) (BrainData)
+        - 'p': Two-tailed p-values (BrainData)
+        - 'ci_lower': Lower confidence bound (BrainData)
+        - 'ci_upper': Upper confidence bound (BrainData)
 
         If save_weights=True:
-        - 'samples': All bootstrap samples (Brain_Data)
+        - 'samples': All bootstrap samples (BrainData)
         - 'ci_lower'/'ci_upper': Exact percentile CIs (not normal approx)
 
     Raises
@@ -501,8 +501,8 @@ def bootstrap(
     - Fitted methods (save_weights=True): O(n_samples * output_shape) - can be huge!
 
     Performance optimization:
-    - Ridge models: Bypasses Brain_Data overhead, uses ridge_svd() directly
-    - GLM models: Uses Brain_Data (required by nilearn)
+    - Ridge models: Bypasses BrainData overhead, uses ridge_svd() directly
+    - GLM models: Uses BrainData (required by nilearn)
     """
     from nltools.utils import (
         _bootstrap_apply_func,
@@ -551,7 +551,7 @@ def bootstrap(
             )
             for i in range(n_samples)
         )
-        bootstrapped = Brain_Data(bootstrapped, mask=self.mask)
+        bootstrapped = BrainData(bootstrapped, mask=self.mask)
         return summarize_bootstrap(bootstrapped, save_weights=save_weights)
 
     else:
@@ -577,7 +577,7 @@ def bootstrap(
 def _bootstrap_online(self, bootstrap_func, n_samples, n_jobs, seeds, percentiles):
     """Memory-efficient bootstrap using online statistics (Welford's algorithm)."""
     from nltools.stats import OnlineBootstrapStats
-    from nltools.data import Brain_Data
+    from nltools.data import BrainData
     from nltools.utils import _bootstrap_iteration
     from joblib import Parallel, delayed
 
@@ -611,10 +611,10 @@ def _bootstrap_online(self, bootstrap_func, n_samples, n_jobs, seeds, percentile
     # Finalize statistics (returns dict of numpy arrays)
     result_dict = stats.finalize(percentiles=percentiles)
 
-    # Wrap in Brain_Data objects
+    # Wrap in BrainData objects
     wrapped_results = {}
     for key, value in result_dict.items():
-        wrapped_results[key] = Brain_Data(value, mask=self.mask)
+        wrapped_results[key] = BrainData(value, mask=self.mask)
 
     return wrapped_results
 ```
@@ -626,7 +626,7 @@ def _bootstrap_traditional(self, bootstrap_func, n_samples, n_jobs, seeds,
                           save_weights, percentiles):
     """Traditional bootstrap: collect all samples (memory intensive)."""
     from nltools.stats import OnlineBootstrapStats
-    from nltools.data import Brain_Data
+    from nltools.data import BrainData
     from nltools.utils import _bootstrap_iteration
     from joblib import Parallel, delayed
 
@@ -646,10 +646,10 @@ def _bootstrap_traditional(self, bootstrap_func, n_samples, n_jobs, seeds,
 
     result_dict = stats.finalize(percentiles=percentiles)
 
-    # Wrap in Brain_Data
+    # Wrap in BrainData
     wrapped_results = {}
     for key, value in result_dict.items():
-        wrapped_results[key] = Brain_Data(value, mask=self.mask)
+        wrapped_results[key] = BrainData(value, mask=self.mask)
 
     return wrapped_results
 ```
@@ -770,11 +770,11 @@ def test_bootstrap_mean_and_std(self, sim_brain_data):
     assert "Z" in result
     assert "p" in result
     assert "mean" in result
-    assert isinstance(result["Z"], Brain_Data)
+    assert isinstance(result["Z"], BrainData)
 
     # Test std as well
     result = masked.bootstrap("std", n_samples=n_samples)
-    assert isinstance(result["Z"], Brain_Data)
+    assert isinstance(result["Z"], BrainData)
 ```
 
 #### Test 2.2: All simple methods
@@ -785,7 +785,7 @@ def test_bootstrap_simple_methods(self, sim_brain_data, method):
     result = sim_brain_data.bootstrap(method, n_samples=5)
 
     assert isinstance(result, dict)
-    assert isinstance(result["Z"], Brain_Data)
+    assert isinstance(result["Z"], BrainData)
     assert "mean" in result
     assert "p" in result
     assert "ci_lower" in result
@@ -800,7 +800,7 @@ def test_bootstrap_simple_methods_save_weights(self, sim_brain_data):
     result = sim_brain_data.bootstrap("mean", n_samples=n_samples, save_weights=True)
 
     assert "samples" in result
-    assert isinstance(result["samples"], Brain_Data)
+    assert isinstance(result["samples"], BrainData)
     assert result["samples"].shape[0] == n_samples
 ```
 
@@ -839,7 +839,7 @@ def test_bootstrap_ridge_weights_efficient(self, sim_brain_data):
     n_features = 10
     n_voxels = sim_brain_data.shape[1]
     assert result["mean"].shape == (n_features, n_voxels)
-    assert isinstance(result["mean"], Brain_Data)
+    assert isinstance(result["mean"], BrainData)
 ```
 
 #### Test 3.3: Ridge weights - full mode
@@ -997,7 +997,7 @@ def test_bootstrap_invalid_method(self, sim_brain_data):
 ```python
 def test_bootstrap_single_image_raises_error(self):
     """Test bootstrap with single image fails."""
-    single = Brain_Data(nib.load(MNI_Template.MNI152_T1_1mm))
+    single = BrainData(nib.load(MNI_Template.MNI152_T1_1mm))
 
     with pytest.raises(ValueError, match="Cannot bootstrap.*single image"):
         single.bootstrap("mean", n_samples=10)
@@ -1179,7 +1179,7 @@ def test_bootstrap_batching(self, sim_brain_data):
 6. ✅ Reproducible bootstraps via `random_state` parameter
 
 ### Performance Improvements
-- **Ridge bootstrap**: ~10-100× faster (bypass Brain_Data overhead)
+- **Ridge bootstrap**: ~10-100× faster (bypass BrainData overhead)
 - **Memory**: ~1000-10000× reduction in efficient mode
 - **Parallelization**: Efficient batching for large n_samples
 

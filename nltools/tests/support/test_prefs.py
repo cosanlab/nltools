@@ -1,5 +1,5 @@
 from nltools.prefs import MNI_Template
-from nltools.data import Brain_Data
+from nltools.data import BrainData
 import pytest
 
 
@@ -16,13 +16,13 @@ def test_change_resolution():
     # Defaults
     assert MNI_Template.template == "default"
     assert MNI_Template.resolution == 2
-    brain = Brain_Data()
+    brain = BrainData()
     assert brain.mask.affine[1, 1] == 2.0
     assert "2mm" in MNI_Template.brain
 
     # Change resolution -> 3mm
     MNI_Template.resolution = 3
-    new_brain = Brain_Data()
+    new_brain = BrainData()
     assert new_brain.mask.affine[1, 1] == 3.0
     assert "3mm" in MNI_Template.brain
 

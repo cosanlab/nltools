@@ -32,9 +32,9 @@ nltools v0.6.0 now requires **nilearn >= 0.12**, which introduced a breaking cha
 - **4D images** still transform to **2D arrays** `(n_timepoints, n_voxels)` (unchanged)
 
 **How nltools adapted:**
-- Updated `Brain_Data._load_from_list()` to use `np.vstack()` instead of `np.concatenate()`
+- Updated `BrainData._load_from_list()` to use `np.vstack()` instead of `np.concatenate()`
 - This ensures correct shape when loading lists of 3D nifti files
-- **No user code changes needed** - Brain_Data API remains identical
+- **No user code changes needed** - BrainData API remains identical
 
 **If you're using nilearn directly**, be aware:
 ```python
@@ -211,15 +211,15 @@ t_stats = results['t']
 **After (v0.6.0):**
 ```python
 brain_data.fit(model='glm', X=design_matrix)  # Stores results as attributes
-betas = brain_data.glm_betas      # Brain_Data object
-t_stats = brain_data.glm_t        # Brain_Data object
+betas = brain_data.glm_betas      # BrainData object
+t_stats = brain_data.glm_t        # BrainData object
 ```
 
 | Aspect | Old | New | Benefit |
 |--------|-----|-----|---------|
 | API style | Dict return | Sklearn-style attributes | Composable, familiar |
 | Design matrix | Stored as `.X` | Passed as argument | Explicit, clearer |
-| Results | Dict with keys | Brain_Data attributes | Type-safe, chainable |
+| Results | Dict with keys | BrainData attributes | Type-safe, chainable |
 
 ---
 

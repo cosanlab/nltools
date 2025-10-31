@@ -1,10 +1,10 @@
-# `nltools.data.Brain_Data`
+# `nltools.data.BrainData`
 
 Main class for representing neuroimaging data as vectors.
 
 ## Overview
 
-`Brain_Data` is the core data structure in nltools for working with neuroimaging data. It stores brain images as 2D arrays (voxels × images) rather than 4D matrices, making data manipulation and analysis more intuitive. Think of it as a neuroimaging-specific pandas DataFrame.
+`BrainData` is the core data structure in nltools for working with neuroimaging data. It stores brain images as 2D arrays (voxels × images) rather than 4D matrices, making data manipulation and analysis more intuitive. Think of it as a neuroimaging-specific pandas DataFrame.
 
 ## Key Features
 
@@ -18,7 +18,7 @@ Main class for representing neuroimaging data as vectors.
 ## Quick Start
 
 ```python
-from nltools.data import Brain_Data
+from nltools.data import BrainData
 from nltools.datasets import fetch_pain
 
 # Load example data
@@ -36,7 +36,7 @@ predictions = data.predict(X=test_data)
 ## Full API Reference
 
 ```{eval-rst}
-.. autoclass:: nltools.data.Brain_Data
+.. autoclass:: nltools.data.BrainData
     :members:
     :undoc-members:
     :show-inheritance:

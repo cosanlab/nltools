@@ -61,9 +61,9 @@ tables = attempt_to_import("tables")
 MAX_INT = np.iinfo(np.int32).max
 
 
-class Brain_Data(object):
+class BrainData(object):
     """
-    Brain_Data is a class to represent neuroimaging data in python as a vector
+    BrainData is a class to represent neuroimaging data in python as a vector
     rather than a 3-dimensional matrix.This makes it easier to perform data
     manipulation and analyses.
 
@@ -78,13 +78,13 @@ class Brain_Data(object):
     """
 
     def __init__(self, data=None, Y=None, X=None, mask=None, masker=None, **kwargs):
-        """Initialize Brain_Data object.
+        """Initialize BrainData object.
 
         Args:
             data: Neuroimaging data. Can be:
-                - None (empty Brain_Data)
-                - Brain_Data object
-                - List of Brain_Data objects or file paths
+                - None (empty BrainData)
+                - BrainData object
+                - List of BrainData objects or file paths
                 - File path (str/Path) to .nii/.nii.gz/.h5/.hdf5
                 - nibabel Nifti1Image object
                 - URL to download data from
@@ -152,17 +152,17 @@ class Brain_Data(object):
         self.nifti_masker.fit()
 
     def _load_from_list(self, data_list):
-        """Load data from a list of Brain_Data objects or file paths.
+        """Load data from a list of BrainData objects or file paths.
 
         Args:
-            data_list: List of Brain_Data objects or file paths.
+            data_list: List of BrainData objects or file paths.
         """
         from ._validation import validate_list_data
 
         list_type = validate_list_data(data_list)
 
         if list_type == "brain_data":
-            # Concatenate Brain_Data objects
+            # Concatenate BrainData objects
             tmp = concatenate(data_list)
             for item in ["data", "mask", "nifti_masker"]:
                 setattr(self, item, getattr(tmp, item))
@@ -250,7 +250,7 @@ class Brain_Data(object):
             operation_name: Name of the operation for error messages.
 
         Returns:
-            Brain_Data: Result of the operation.
+            BrainData: Result of the operation.
         """
         from ._validation import validate_arithmetic_operand, validate_brain_data_shapes
 
@@ -279,14 +279,14 @@ class Brain_Data(object):
 
     def _apply_func(self, stat_func, axis=0):
         """
-        Apply a function to the `.data` attribute. If axis=0, returns a `Brain_Data` object with the statistic calculated over samples (e.g. within a voxel over time). If axis=1, returns a numpy array with the statistic calculated over features (e.g. across voxels within a specific time-point)
+        Apply a function to the `.data` attribute. If axis=0, returns a `BrainData` object with the statistic calculated over samples (e.g. within a voxel over time). If axis=1, returns a numpy array with the statistic calculated over features (e.g. across voxels within a specific time-point)
 
         Args:
             stat_func: Statistical function to apply (e.g., np.mean, np.std).
             axis: Axis along which to compute (0=across images, 1=within images).
 
         Returns:
-            float/np.array/Brain_Data: Result of statistical operation.
+            float/np.array/BrainData: Result of statistical operation.
         """
 
         # Single image case
@@ -297,7 +297,7 @@ class Brain_Data(object):
             # Return array with statistic within each image
             return stat_func(self.data, axis=1)
         elif axis == 0:
-            # Return Brain_Data with statistic across images
+            # Return BrainData with statistic across images
             out = self._shallow_copy_with_data()
             out.data = stat_func(self.data, axis=0)
             out.X = pd.DataFrame()
@@ -339,9 +339,9 @@ class Brain_Data(object):
         return new
 
     def __setitem__(self, index, value):
-        if not isinstance(value, Brain_Data):
+        if not isinstance(value, BrainData):
             raise ValueError(
-                "Make sure the value you are trying to set is a Brain_Data() instance."
+                "Make sure the value you are trying to set is a BrainData() instance."
             )
         self.data[index, :] = value.data
         if not value.Y.empty:
@@ -355,19 +355,19 @@ class Brain_Data(object):
         return self.shape[0]
 
     def __add__(self, y):
-        """Add to Brain_Data."""
+        """Add to BrainData."""
         return self._perform_arithmetic(y, np.add, "add")
 
     def __radd__(self, y):
-        """Right add to Brain_Data."""
+        """Right add to BrainData."""
         return self._perform_arithmetic(y, np.add, "add")
 
     def __sub__(self, y):
-        """Subtract from Brain_Data."""
+        """Subtract from BrainData."""
         return self._perform_arithmetic(y, np.subtract, "subtract")
 
     def __rsub__(self, y):
-        """Right subtract from Brain_Data."""
+        """Right subtract from BrainData."""
         # For right subtraction, we need to reverse the operands
         new = self._shallow_copy_with_data()
         from ._validation import validate_arithmetic_operand, validate_brain_data_shapes
@@ -381,15 +381,15 @@ class Brain_Data(object):
         return new
 
     def __mul__(self, y):
-        """Multiply Brain_Data."""
+        """Multiply BrainData."""
         return self._perform_arithmetic(y, np.multiply, "multiply")
 
     def __rmul__(self, y):
-        """Right multiply Brain_Data."""
+        """Right multiply BrainData."""
         return self._perform_arithmetic(y, np.multiply, "multiply")
 
     def __truediv__(self, y):
-        """Divide Brain_Data."""
+        """Divide BrainData."""
         with np.errstate(invalid="ignore", divide="ignore"):
             return self._perform_arithmetic(y, np.divide, "divide")
 
@@ -415,8 +415,8 @@ class Brain_Data(object):
             yield self[x]
 
     def __eq__(self, other):
-        """Check equality between Brain_Data."""
-        if not isinstance(other, Brain_Data):
+        """Check equality between BrainData."""
+        if not isinstance(other, BrainData):
             return False
 
         # Compare data arrays
@@ -464,11 +464,11 @@ class Brain_Data(object):
 
         Args:
             axis: Axis along which to compute mean.
-                0 = across images (default), returns Brain_Data
+                0 = across images (default), returns BrainData
                 1 = within images, returns array
 
         Returns:
-            float/np.array/Brain_Data: Mean values.
+            float/np.array/BrainData: Mean values.
         """
         return self._apply_func(np.mean, axis)
 
@@ -477,11 +477,11 @@ class Brain_Data(object):
 
         Args:
             axis: Axis along which to compute median.
-                0 = across images (default), returns Brain_Data
+                0 = across images (default), returns BrainData
                 1 = within images, returns array
 
         Returns:
-            float/np.array/Brain_Data: Median values.
+            float/np.array/BrainData: Median values.
         """
         return self._apply_func(np.median, axis)
 
@@ -490,11 +490,11 @@ class Brain_Data(object):
 
         Args:
             axis: Axis along which to compute standard deviation.
-                0 = across images (default), returns Brain_Data
+                0 = across images (default), returns BrainData
                 1 = within images, returns array
 
         Returns:
-            float/np.array/Brain_Data: Standard deviation values.
+            float/np.array/BrainData: Standard deviation values.
         """
         return self._apply_func(np.std, axis)
 
@@ -503,21 +503,21 @@ class Brain_Data(object):
 
         Args:
             axis: Axis along which to compute sum.
-                0 = across images (default), returns Brain_Data
+                0 = across images (default), returns BrainData
                 1 = within images, returns array
 
         Returns:
-            float/np.array/Brain_Data: Sum values.
+            float/np.array/BrainData: Sum values.
         """
         return self._apply_func(np.sum, axis)
 
     def to_nifti(self):
-        """Convert Brain_Data Instance into Nifti Object"""
+        """Convert BrainData Instance into Nifti Object"""
 
         return self.nifti_masker.inverse_transform(self.data)
 
     def write(self, file_name):
-        """Write out Brain_Data object to Nifti or HDF5 File.
+        """Write out BrainData object to Nifti or HDF5 File.
 
         Args:
             file_name: (str) name of nifti file including path
@@ -576,7 +576,7 @@ class Brain_Data(object):
                 - Glm: noise_model, minimize_memory, etc.
 
         Returns:
-            Brain_Data: Fitted Brain_Data instance (self)
+            BrainData: Fitted BrainData instance (self)
 
         Attributes:
 
@@ -585,24 +585,24 @@ class Brain_Data(object):
             cv_results_ (dict, optional): Cross-validation results (if cv is not None). Contains:
                 - 'scores': (n_folds, n_voxels) array of R² per fold
                 - 'mean_score': (n_voxels,) array of mean R² across folds
-                - 'predictions': Brain_Data of out-of-fold predictions
+                - 'predictions': BrainData of out-of-fold predictions
                 - 'folds': (n_samples,) array of fold indices
                 - 'best_alpha': Selected alpha (if alpha selection performed)
                 - 'alpha_scores': (n_folds, n_alphas, n_voxels) array (if alpha selection)
 
             For model='glm':
-                glm_betas (Brain_Data): Beta coefficients
-                glm_t (Brain_Data): T-statistics
-                glm_p (Brain_Data): P-values
-                glm_se (Brain_Data): Standard errors
-                glm_residual (Brain_Data): Residuals
-                glm_predicted (Brain_Data): Fitted values
-                glm_r2 (Brain_Data): R² values
+                glm_betas (BrainData): Beta coefficients
+                glm_t (BrainData): T-statistics
+                glm_p (BrainData): P-values
+                glm_se (BrainData): Standard errors
+                glm_residual (BrainData): Residuals
+                glm_predicted (BrainData): Fitted values
+                glm_r2 (BrainData): R² values
 
             For model='ridge':
-                ridge_weights (Brain_Data): Model coefficients
-                ridge_fitted_values (Brain_Data): Fitted values
-                ridge_scores (Brain_Data): R² scores
+                ridge_weights (BrainData): Model coefficients
+                ridge_fitted_values (BrainData): Fitted values
+                ridge_scores (BrainData): R² scores
 
         Examples:
             >>> # Ridge prediction with CV for reporting performance
@@ -673,7 +673,7 @@ class Brain_Data(object):
         # Always fit full model on all training data
         self.model_.fit(X, self.data)
 
-        # Extract weights as Brain_Data
+        # Extract weights as BrainData
         # Ridge.coef_ is already (n_features, n_voxels) - no transpose needed
         self.ridge_weights = self._shallow_copy_with_data()
         self.ridge_weights.data = self.model_.coef_
@@ -705,7 +705,7 @@ class Brain_Data(object):
             dict: Dictionary containing:
                 - 'scores': (n_folds, n_voxels) array of R² per fold
                 - 'mean_score': (n_voxels,) array of mean R² across folds
-                - 'predictions': Brain_Data of out-of-fold predictions
+                - 'predictions': BrainData of out-of-fold predictions
                 - 'folds': (n_samples,) array of fold indices
                 - 'best_alpha': Selected alpha (if alpha selection performed)
                 - 'alpha_scores': (n_folds, n_alphas, n_voxels) array (if alpha selection)
@@ -790,7 +790,7 @@ class Brain_Data(object):
         fold_scores = np.array(fold_scores)  # (n_folds, n_voxels)
         mean_scores = fold_scores.mean(axis=0)  # (n_voxels,)
 
-        # Store predictions as Brain_Data
+        # Store predictions as BrainData
         cv_predictions_brain = self._shallow_copy_with_data()
         cv_predictions_brain.data = cv_predictions
 
@@ -809,7 +809,7 @@ class Brain_Data(object):
     def _fit_glm(self, X):
         """Fit GLM model and extract results (same logic as current regress())."""
         from .design_matrix import DesignMatrix
-        from nltools.data import Brain_Data
+        from nltools.data import BrainData
 
         # Ensure X is DesignMatrix
         if not isinstance(X, DesignMatrix):
@@ -842,21 +842,21 @@ class Brain_Data(object):
             p_maps.append(results["p_value"])
             se_maps.append(results["effect_variance"])
 
-        # Convert results to Brain_Data objects
-        self.glm_betas = Brain_Data(beta_maps, mask=self.mask)
-        self.glm_t = Brain_Data(t_maps, mask=self.mask)
-        self.glm_p = Brain_Data(p_maps, mask=self.mask)
+        # Convert results to BrainData objects
+        self.glm_betas = BrainData(beta_maps, mask=self.mask)
+        self.glm_t = BrainData(t_maps, mask=self.mask)
+        self.glm_p = BrainData(p_maps, mask=self.mask)
 
         # Convert effect variance to standard error (same as regress() lines 826-831)
         se_data = []
         for se_img in se_maps:
-            se_brain = Brain_Data(se_img, mask=self.mask)
+            se_brain = BrainData(se_img, mask=self.mask)
             se_brain.data = np.sqrt(np.abs(se_brain.data))
             se_data.append(se_brain)
-        self.glm_se = Brain_Data(data=se_data, mask=self.mask)
+        self.glm_se = BrainData(data=se_data, mask=self.mask)
 
         # Get residuals
-        self.glm_residual = Brain_Data(self.model_.residuals, mask=self.mask)
+        self.glm_residual = BrainData(self.model_.residuals, mask=self.mask)
 
         # Predicted = original - residuals
         self.glm_predicted = self.copy()
@@ -867,7 +867,7 @@ class Brain_Data(object):
         ss_residual = np.sum(self.glm_residual.data**2, axis=0)
         r2_values = 1 - (ss_residual / (ss_total + 1e-10))
 
-        # Create single-image Brain_Data for R-squared
+        # Create single-image BrainData for R-squared
         self.glm_r2 = self[0].copy()
         self.glm_r2.data = r2_values.reshape(1, -1)
 
@@ -889,13 +889,13 @@ class Brain_Data(object):
             dict: For backward compatibility, returns dict with 'beta', 't', 'p', 'residual' keys
 
         Sets attributes:
-            self.glm_betas: Beta coefficients (Brain_Data)
-            self.glm_t: T-statistics (Brain_Data)
-            self.glm_p: P-values (Brain_Data)
-            self.glm_se: Standard errors (Brain_Data)
-            self.glm_residual: Residuals (Brain_Data)
-            self.glm_predicted: Predicted values (Brain_Data)
-            self.glm_r2: R-squared values (Brain_Data)
+            self.glm_betas: Beta coefficients (BrainData)
+            self.glm_t: T-statistics (BrainData)
+            self.glm_p: P-values (BrainData)
+            self.glm_se: Standard errors (BrainData)
+            self.glm_residual: Residuals (BrainData)
+            self.glm_predicted: Predicted values (BrainData)
+            self.glm_r2: R-squared values (BrainData)
         """
         import warnings
 
@@ -949,8 +949,8 @@ class Brain_Data(object):
             contrast_type (str): Type of contrast statistic ('t' or 'F'). Default: 't'
 
         Returns:
-            Brain_Data or dict: If single contrast, returns Brain_Data object with contrast map.
-                               If multiple contrasts (dict input), returns dict of Brain_Data objects.
+            BrainData or dict: If single contrast, returns BrainData object with contrast map.
+                               If multiple contrasts (dict input), returns dict of BrainData objects.
 
         Examples:
             >>> # After running regression
@@ -1008,7 +1008,7 @@ class Brain_Data(object):
                 if weight != 0:
                     contrast_data += weight * self.glm_betas[i].data
 
-            # Create Brain_Data object for contrast
+            # Create BrainData object for contrast
             contrast_brain = self[0].copy()
             contrast_brain.data = contrast_data
 
@@ -1076,14 +1076,14 @@ class Brain_Data(object):
         return contrast_vector
 
     def append(self, data, **kwargs):
-        """Append data to Brain_Data instance.
+        """Append data to BrainData instance.
 
         Args:
-            data: Brain_Data instance to append.
+            data: BrainData instance to append.
             kwargs: Optional arguments passed to pandas concat.
 
         Returns:
-            Brain_Data: New appended Brain_Data instance.
+            BrainData: New appended BrainData instance.
         """
         from ._validation import validate_append_shapes
 
@@ -1103,7 +1103,7 @@ class Brain_Data(object):
         return out
 
     def empty(self):
-        """Create a copy of Brain_Data with empty data array"""
+        """Create a copy of BrainData with empty data array"""
         from copy import deepcopy
 
         out = deepcopy(self)
@@ -1112,7 +1112,7 @@ class Brain_Data(object):
 
     @property
     def isempty(self):
-        """Check if Brain_Data.data is empty"""
+        """Check if BrainData.data is empty"""
 
         if isinstance(self.data, np.ndarray):
             boolean = False if self.data.size else True
@@ -1121,11 +1121,11 @@ class Brain_Data(object):
         return boolean
 
     def similarity(self, image, method="correlation"):
-        """Calculate similarity of Brain_Data() instance with single
-        Brain_Data or Nibabel image
+        """Calculate similarity of BrainData() instance with single
+        BrainData or Nibabel image
 
         Args:
-            image: (Brain_Data, nifti)  image to evaluate similarity
+            image: (BrainData, nifti)  image to evaluate similarity
             method: (str) Type of similarity
                     ['correlation','dot_product','cosine']
         Returns:
@@ -1148,7 +1148,7 @@ class Brain_Data(object):
 
         # Check to make sure masks are the same for each dataset and if not
         # create a union mask
-        # This might be handy code for a new Brain_Data method
+        # This might be handy code for a new BrainData method
         if np.sum(self.nifti_masker.mask_img.get_fdata() == 1) != np.sum(
             image.nifti_masker.mask_img.get_fdata() == 1
         ):
@@ -1180,7 +1180,7 @@ class Brain_Data(object):
         return out
 
     def distance(self, metric="euclidean", **kwargs):
-        """Calculate distance between images within a Brain_Data() instance.
+        """Calculate distance between images within a BrainData() instance.
 
         Args:
             metric: (str) type of distance metric (can use any scikit learn or
@@ -1197,15 +1197,15 @@ class Brain_Data(object):
         )
 
     def multivariate_similarity(self, images, method="ols"):
-        """Predict spatial distribution of Brain_Data() instance from linear
-        combination of other Brain_Data() instances or Nibabel images
+        """Predict spatial distribution of BrainData() instance from linear
+        combination of other BrainData() instances or Nibabel images
 
         Args:
-            self: Brain_Data instance of data to be applied
-            images: Brain_Data instance of weight map
+            self: BrainData instance of data to be applied
+            images: BrainData instance of weight map
 
         Returns:
-            out: dictionary of regression statistics in Brain_Data
+            out: dictionary of regression statistics in BrainData
                 instances {'beta','t','p','df','residual'}
 
         """
@@ -1217,7 +1217,7 @@ class Brain_Data(object):
         images = check_brain_data(images)
 
         # Check to make sure masks are the same for each dataset and if not create a union mask
-        # TODO: This might be handy code for a new Brain_Data method
+        # TODO: This might be handy code for a new BrainData method
         if np.sum(self.nifti_masker.mask_img.get_fdata() == 1) != np.sum(
             images.nifti_masker.mask_img.get_fdata() == 1
         ):
@@ -1263,17 +1263,17 @@ class Brain_Data(object):
         }
 
     def apply_mask(self, mask, resample_mask_to_brain=False):
-        """Mask Brain_Data instance using nilearn functionality.
+        """Mask BrainData instance using nilearn functionality.
 
         Note target data will be resampled into the same space as the mask. If you would like the mask
-        resampled into the Brain_Data space, then set resample_mask_to_brain=True.
+        resampled into the BrainData space, then set resample_mask_to_brain=True.
 
         Args:
-            mask: (Brain_Data or nifti object) mask to apply to Brain_Data object.
+            mask: (BrainData or nifti object) mask to apply to BrainData object.
             resample_mask_to_brain: (bool) Will resample mask to brain space before applying mask (default=False).
 
         Returns:
-            masked: (Brain_Data) masked Brain_Data object
+            masked: (BrainData) masked BrainData object
 
         Note:
             Uses nilearn.masking.apply_mask for efficient, validated masking.
@@ -1318,7 +1318,7 @@ class Brain_Data(object):
         when dealing with labeled atlases (multiple ROIs).
 
         Args:
-            mask: Brain_Data, nibabel image, or file path. Can be:
+            mask: BrainData, nibabel image, or file path. Can be:
 
                   - Binary mask (extracts from single ROI)
                   - Labeled atlas (extracts from multiple ROIs)
@@ -1352,7 +1352,7 @@ class Brain_Data(object):
         if metric not in metrics:
             raise NotImplementedError(f"metric must be one of {metrics}, got {metric}")
 
-        # Convert mask to Brain_Data if needed
+        # Convert mask to BrainData if needed
         mask_brain = check_brain_data(mask)
         mask_img = mask_brain.to_nifti()
 
@@ -1460,7 +1460,7 @@ class Brain_Data(object):
     # TODO: replace with nilearn or speed-up? Check if complete and delete or update comment accordingly
     def icc(self, icc_type="icc2"):
         """Calculate intraclass correlation coefficient for data within
-            Brain_Data class
+            BrainData class
 
         ICC Formulas are based on:
         Shrout, P. E., & Fleiss, J. L. (1979). Intraclass correlations: uses in
@@ -1543,7 +1543,7 @@ class Brain_Data(object):
             type: ('linear','constant', optional) type of detrending
 
         Returns:
-            out: (Brain_Data) detrended Brain_Data instance
+            out: (BrainData) detrended BrainData instance
 
         """
 
@@ -1560,15 +1560,15 @@ class Brain_Data(object):
     def _shallow_copy_with_data(self):
         """Create a shallow copy for efficient method chaining.
 
-        This method creates a new Brain_Data instance that shares immutable objects
+        This method creates a new BrainData instance that shares immutable objects
         (mask, nifti_masker) but copies mutable attributes. The data array is NOT
         copied - methods should handle data copying as needed.
 
         Returns:
-            Brain_Data: New instance with shared/copied attributes
+            BrainData: New instance with shared/copied attributes
         """
         # Create new instance without calling __init__
-        new = Brain_Data.__new__(Brain_Data)
+        new = BrainData.__new__(BrainData)
 
         # Copy all attributes with appropriate strategy
         for key, value in self.__dict__.items():
@@ -1610,12 +1610,12 @@ class Brain_Data(object):
             memo: Dictionary to track already copied objects
 
         Returns:
-            Brain_Data: New instance with copied/shared attributes
+            BrainData: New instance with copied/shared attributes
         """
         from copy import deepcopy
 
         # Create new instance without calling __init__
-        new = Brain_Data.__new__(Brain_Data)
+        new = BrainData.__new__(BrainData)
         memo[id(self)] = new
 
         # Copy all attributes with appropriate strategy
@@ -1627,7 +1627,7 @@ class Brain_Data(object):
                 # Share fitted model and training data (unpicklable)
                 setattr(new, key, value)
             elif key.startswith("glm_") or key.startswith("ridge_"):
-                # Share model results (often contain Brain_Data objects)
+                # Share model results (often contain BrainData objects)
                 setattr(new, key, value)
             else:
                 # Deep copy everything else (data, X, Y, etc.)
@@ -1636,14 +1636,14 @@ class Brain_Data(object):
         return new
 
     def copy(self):
-        """Create a copy of a Brain_Data instance.
+        """Create a copy of a BrainData instance.
 
         Note: Fitted models (model\\_, X\\_) and model results (glm_*, ridge_*)
         are shared (not copied) to avoid pickle errors with unpicklable objects.
         All other attributes including the data array are deep copied.
 
         Returns:
-            Brain_Data: Copied instance with shared model attributes
+            BrainData: Copied instance with shared model attributes
         """
         return deepcopy(self)
 
@@ -1700,7 +1700,7 @@ class Brain_Data(object):
             Args:
                 api: pynv Client instance
                 collection: collection information
-                dat: Brain_Data instance to upload
+                dat: BrainData instance to upload
                 tmp_dir: temporary directory
                 index_id: (int) index for file naming
             """
@@ -1774,7 +1774,7 @@ class Brain_Data(object):
                       - ensure_finite: Replace NaN/inf (default False)
 
         Returns:
-            Brain_Data: Filtered Brain_Data instance
+            BrainData: Filtered BrainData instance
 
         See Also:
             nilearn.signal.clean documentation for all available options
@@ -1800,17 +1800,17 @@ class Brain_Data(object):
 
     @property
     def dtype(self):
-        """Get data type of Brain_Data.data."""
+        """Get data type of BrainData.data."""
         return self.data.dtype
 
     def astype(self, dtype):
-        """Cast Brain_Data.data as type.
+        """Cast BrainData.data as type.
 
         Args:
             dtype: datatype to convert
 
         Returns:
-            Brain_Data: Brain_Data instance with new datatype
+            BrainData: BrainData instance with new datatype
 
         """
 
@@ -1819,20 +1819,20 @@ class Brain_Data(object):
         return out
 
     def standardize(self, axis=0, method="center"):
-        """Standardize Brain_Data() instance.
+        """Standardize BrainData() instance.
 
         Args:
             axis: 0 for observations 1 for voxels
             method: ['center','zscore']
 
         Returns:
-            Brain_Data Instance
+            BrainData Instance
 
         """
 
         if axis == 1 and len(self.shape) == 1:
             raise IndexError(
-                "Brain_Data is only 3d but standardization was requested over observations"
+                "BrainData is only 3d but standardization was requested over observations"
             )
         out = self.copy()
         if method == "zscore":
@@ -1852,7 +1852,7 @@ class Brain_Data(object):
         coerce_nan=True,
         cluster_threshold=0,
     ):
-        """Threshold Brain_Data instance with optional cluster filtering.
+        """Threshold BrainData instance with optional cluster filtering.
 
         Provide upper and lower values or percentages to perform two-sided
         thresholding. Binarize will return a mask image respecting thresholds
@@ -1875,7 +1875,7 @@ class Brain_Data(object):
                     with cluster thresholding. Default 0 (disabled).
 
         Returns:
-            Thresholded Brain_Data object.
+            Thresholded BrainData object.
 
         Note:
             When cluster_threshold=0 (default), uses fast path for basic thresholding.
@@ -1978,12 +1978,12 @@ class Brain_Data(object):
             smoothing_fwhm (scalar): Smooth an image to extract more sparser
                                 regions. Only works for extract_type
                                 'local_regions'.
-            is_mask (bool): Whether the Brain_Data instance should be treated
+            is_mask (bool): Whether the BrainData instance should be treated
                             as a boolean mask and if so, calls
                             connected_label_regions instead.
 
         Returns:
-            Brain_Data: Brain_Data instance with extracted ROIs as data.
+            BrainData: BrainData instance with extracted ROIs as data.
         """
 
         if is_mask:
@@ -1993,7 +1993,7 @@ class Brain_Data(object):
                 self.to_nifti(), min_region_size, extract_type, smoothing_fwhm
             )
 
-        return Brain_Data(regions, mask=self.mask)
+        return BrainData(regions, mask=self.mask)
 
     # NOTE: stats
     def transform_pairwise(self):
@@ -2002,7 +2002,7 @@ class Brain_Data(object):
         Args:
 
         Returns:
-            Brain_Data: Brain_Data instance tranformed into pairwise comparisons
+            BrainData: BrainData instance tranformed into pairwise comparisons
         """
         out = self.copy()
         out.data, new_Y = transform_pairwise(self.data, self.Y)
@@ -2022,7 +2022,7 @@ class Brain_Data(object):
         *args,
         **kwargs,
     ):
-        """Bootstrap a `Brain_Data` method.
+        """Bootstrap a `BrainData` method.
 
         Args:
             function: (str) method to apply to data for each bootstrap
@@ -2054,14 +2054,14 @@ class Brain_Data(object):
 
         if function == "predict":
             bootstrapped = [x["weight_map"] for x in bootstrapped]
-        bootstrapped = Brain_Data(bootstrapped, mask=self.mask)
+        bootstrapped = BrainData(bootstrapped, mask=self.mask)
         return summarize_bootstrap(bootstrapped, save_weights=save_weights)
 
     # NOTE: utils,
     def decompose(
         self, algorithm="pca", axis="voxels", n_components=None, *args, **kwargs
     ):
-        """Decompose Brain_Data object
+        """Decompose BrainData object
 
         Args:
             algorithm: (str) Algorithm to perform decomposition
@@ -2095,7 +2095,7 @@ class Brain_Data(object):
 
     # NOTE: stats
     def align(self, target, method="procrustes", axis=0, *args, **kwargs):
-        """Align Brain_Data instance to target object using functional alignment
+        """Align BrainData instance to target object using functional alignment
 
         Alignment type can be hyperalignment or Shared Response Model. When
         using hyperalignment, `target` image can be another subject or an
@@ -2103,10 +2103,10 @@ class Brain_Data(object):
         estimated common model stored as a numpy array. Transformed data can be back
         projected to original data using Tranformation matrix.
 
-        See nltools.stats.align for aligning multiple Brain_Data instances
+        See nltools.stats.align for aligning multiple BrainData instances
 
         Args:
-            target: (Brain_Data) object to align to.
+            target: (BrainData) object to align to.
             method: (str) alignment method to use
                 ['probabilistic_srm','deterministic_srm','procrustes']
             axis: (int) axis to align on
@@ -2195,7 +2195,7 @@ class Brain_Data(object):
         Args:
             fwhm: (float) full width half maximum of gaussian spatial filter
         Returns:
-            Brain_Data instance (copy with smoothed data)
+            BrainData instance (copy with smoothed data)
         """
         from copy import deepcopy
 
@@ -2230,7 +2230,7 @@ class Brain_Data(object):
 
     def temporal_resample(self, sampling_freq=None, target=None, target_type="hz"):
         """
-        Resample Brain_Data timeseries to a new target frequency or number of samples
+        Resample BrainData timeseries to a new target frequency or number of samples
         using Piecewise Cubic Hermite Interpolating Polynomial (PCHIP) interpolation.
         This function can up- or down-sample data.
 
@@ -2242,7 +2242,7 @@ class Brain_Data(object):
             target_type: (str) type of target can be [samples,seconds,hz]
 
         Returns:
-            upsampled Brain_Data instance
+            upsampled BrainData instance
         """
 
         out = self.copy()
@@ -2279,7 +2279,7 @@ class Brain_Data(object):
                 If None, uses training data from fit() (stored in ``self.X_``).
 
         Returns:
-            Brain_Data: Predicted brain data with shape (n_samples, n_voxels)
+            BrainData: Predicted brain data with shape (n_samples, n_voxels)
 
         Raises:
             ValueError: If fit() has not been called yet
@@ -2294,7 +2294,7 @@ class Brain_Data(object):
             >>> train_predictions = brain_data.predict()
             >>> print(train_predictions.shape)
         """
-        from nltools.data import Brain_Data
+        from nltools.data import BrainData
 
         # Check model is fitted
         if not hasattr(self, "model_"):
@@ -2350,7 +2350,7 @@ class Brain_Data(object):
                 # Using training data - get fitted values
                 y_pred_list = self.model_.predict()  # Returns list of nifti images
                 # Convert to array
-                y_pred = Brain_Data(y_pred_list, mask=self.mask).data
+                y_pred = BrainData(y_pred_list, mask=self.mask).data
             else:
                 # New design matrix - not yet implemented in Glm
                 raise NotImplementedError(
@@ -2361,7 +2361,7 @@ class Brain_Data(object):
             # Ridge and other models
             y_pred = self.model_.predict(X)
 
-        # Wrap in Brain_Data
+        # Wrap in BrainData
         predictions = self._shallow_copy_with_data()
         predictions.data = y_pred
 

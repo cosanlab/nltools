@@ -1,8 +1,8 @@
 """
-Validation utilities for Brain_Data class.
+Validation utilities for BrainData class.
 
 This module contains helper functions for validating inputs, shapes, and
-compatibility between Brain_Data objects and other data types.
+compatibility between BrainData objects and other data types.
 """
 
 import numpy as np
@@ -12,7 +12,7 @@ import nibabel as nib
 
 
 def validate_frame(frame, data_shape=None, frame_type="DataFrame"):
-    """Validate and process X or Y dataframes for Brain_Data.
+    """Validate and process X or Y dataframes for BrainData.
 
     Args:
         frame: Input to validate. Can be str, Path, pd.DataFrame, or None.
@@ -56,11 +56,11 @@ def validate_frame(frame, data_shape=None, frame_type="DataFrame"):
 
 
 def validate_brain_data_shapes(brain1, brain2, operation="operation"):
-    """Validate shape compatibility between two Brain_Data objects.
+    """Validate shape compatibility between two BrainData objects.
 
     Args:
-        brain1: First Brain_Data object.
-        brain2: Second Brain_Data object.
+        brain1: First BrainData object.
+        brain2: Second BrainData object.
         operation: Name of operation for error messages.
 
     Returns:
@@ -114,18 +114,18 @@ def validate_arithmetic_operand(other, operation_name):
         ValueError: If operand type is not supported.
     """
     # Import here to avoid circular imports
-    from nltools.data import Brain_Data
+    from nltools.data import BrainData
 
     if isinstance(other, (int, np.integer, float, np.floating)):
         return "scalar"
-    elif isinstance(other, Brain_Data):
+    elif isinstance(other, BrainData):
         return "brain_data"
     elif isinstance(other, (list, np.ndarray)) and operation_name == "multiply":
         return "array"
     else:
-        valid_types = "int, float, or Brain_Data"
+        valid_types = "int, float, or BrainData"
         if operation_name == "multiply":
-            valid_types = "int, float, list, np.ndarray, or Brain_Data"
+            valid_types = "int, float, list, np.ndarray, or BrainData"
         raise ValueError(
             f"Cannot {operation_name} with type {type(other).__name__}. "
             f"Operand must be {valid_types}."
@@ -133,7 +133,7 @@ def validate_arithmetic_operand(other, operation_name):
 
 
 def validate_data_type(data):
-    """Validate input data type for Brain_Data initialization.
+    """Validate input data type for BrainData initialization.
 
     Args:
         data: Input data to validate.
@@ -160,7 +160,7 @@ def validate_data_type(data):
         return "nibabel"
     else:
         raise TypeError(
-            f"Data must be a Brain_Data, filepath (str/Path), nibabel image, "
+            f"Data must be a BrainData, filepath (str/Path), nibabel image, "
             f"or list of these types. Received {type(data).__name__}"
         )
 
@@ -181,7 +181,7 @@ def validate_list_data(data_list):
         raise ValueError("List is empty")
 
     # Import here to avoid circular imports
-    from nltools.data import Brain_Data
+    from nltools.data import BrainData
 
     first_type = type(data_list[0])
 
@@ -193,19 +193,19 @@ def validate_list_data(data_list):
         )
 
     # Determine what type we're dealing with
-    if isinstance(data_list[0], Brain_Data):
+    if isinstance(data_list[0], BrainData):
         return "brain_data"
     elif isinstance(data_list[0], (str, Path, nib.Nifti1Image)):
         return "file"
     else:
         raise ValueError(
-            f"List items must be Brain_Data objects, file paths, or nibabel images. "
+            f"List items must be BrainData objects, file paths, or nibabel images. "
             f"Found {first_type.__name__}"
         )
 
 
 def validate_index_operations(data_shape, index):
-    """Validate indexing operations for Brain_Data.
+    """Validate indexing operations for BrainData.
 
     Args:
         data_shape: Shape of the data array.
@@ -244,11 +244,11 @@ def validate_index_operations(data_shape, index):
 
 
 def validate_append_shapes(data1_shape, data2_shape):
-    """Validate shape compatibility for appending Brain_Data objects.
+    """Validate shape compatibility for appending BrainData objects.
 
     Args:
-        data1_shape: Shape of first Brain_Data.
-        data2_shape: Shape of second Brain_Data to append.
+        data1_shape: Shape of first BrainData.
+        data2_shape: Shape of second BrainData to append.
 
     Raises:
         ValueError: If shapes are incompatible for appending.

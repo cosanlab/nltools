@@ -34,12 +34,12 @@ from nltools.prefs import MNI_Template
 
 
 def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
-    """Save Brain_Data or Adjacency objects to HDF5 files.
+    """Save BrainData or Adjacency objects to HDF5 files.
 
     Uses a combination of pandas and h5py to save objects to h5 files.
 
     Args:
-        obj: Object to save (Brain_Data or Adjacency).
+        obj: Object to save (BrainData or Adjacency).
         file_name: Path to save file to.
         obj_type: Type of object ('brain_data' or 'adjacency').
         h5_compression: Compression type for h5py datasets.
@@ -83,7 +83,7 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
 
 
 def load_brain_data_h5(file_path, mask=None):
-    """Load Brain_Data from HDF5 file.
+    """Load BrainData from HDF5 file.
 
     Handles both modern and legacy (pre-0.4.8) HDF5 formats.
 
@@ -131,7 +131,7 @@ def load_brain_data_h5(file_path, mask=None):
 
 
 def _load_legacy_brain_data_h5(file_path, mask=None):
-    """Load Brain_Data from legacy HDF5 format (pre-0.4.8).
+    """Load BrainData from legacy HDF5 format (pre-0.4.8).
 
     Args:
         file_path: Path to HDF5 file.
@@ -218,14 +218,14 @@ def get_anatomical():
 
 def get_mni_from_img_resolution(brain, img_type="plot"):
     """
-    Get the path to the MNI anatomical image that matches the resolution of a Brain_Data instance.
+    Get the path to the MNI anatomical image that matches the resolution of a BrainData instance.
 
-    This function determines the resolution of the input Brain_Data and returns the appropriate
+    This function determines the resolution of the input BrainData and returns the appropriate
     MNI template image path from the current MNI_Template settings, adjusting only the resolution
     while keeping the same template variant.
 
     Args:
-        brain: Brain_Data instance
+        brain: BrainData instance
         img_type: 'plot' for T1 image or 'brain' for brain-extracted image
 
     Returns:
@@ -434,15 +434,15 @@ def all_same(items):
 
 
 def concatenate(data):
-    """Concatenate a list of Brain_Data() or Adjacency() objects"""
+    """Concatenate a list of BrainData() or Adjacency() objects"""
 
     if not isinstance(data, list):
         raise ValueError("Make sure you are passing a list of objects.")
 
     if all([isinstance(x, data[0].__class__) for x in data]):
         # Temporarily Removing this for circular imports (LC)
-        # if not isinstance(data[0], (Brain_Data, Adjacency)):
-        #     raise ValueError('Make sure you are passing a list of Brain_Data'
+        # if not isinstance(data[0], (BrainData, Adjacency)):
+        #     raise ValueError('Make sure you are passing a list of BrainData'
         #                     ' or Adjacency objects.')
 
         out = data[0].__class__()
@@ -486,14 +486,14 @@ def check_square_numpy_matrix(data):
 
 
 def check_brain_data(data, mask=None):
-    """Check if data is a Brain_Data Instance."""
-    from nltools.data import Brain_Data
+    """Check if data is a BrainData Instance."""
+    from nltools.data import BrainData
 
-    if not isinstance(data, Brain_Data):
+    if not isinstance(data, BrainData):
         if isinstance(data, nib.Nifti1Image):
-            data = Brain_Data(data, mask=mask)
+            data = BrainData(data, mask=mask)
         else:
-            raise ValueError("Make sure data is a Brain_Data instance.")
+            raise ValueError("Make sure data is a BrainData instance.")
     else:
         if mask is not None:
             data = data.apply_mask(mask)
@@ -501,7 +501,7 @@ def check_brain_data(data, mask=None):
 
 
 def check_brain_data_is_single(data):
-    """Logical test if Brain_Data instance is a single image
+    """Logical test if BrainData instance is a single image
 
     Args:
         data: brain data
@@ -518,7 +518,7 @@ def check_brain_data_is_single(data):
 
 
 def _roi_func(brain, roi, algorithm, cv_dict, **kwargs):
-    """Brain_Data.predict_multi() helper function"""
+    """BrainData.predict_multi() helper function"""
     return brain.apply_mask(roi).predict(
         algorithm=algorithm, cv_dict=cv_dict, plot=False, **kwargs
     )

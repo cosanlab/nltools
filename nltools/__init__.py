@@ -13,7 +13,7 @@ __all__ = [
     "__version__",
     "Roc",
     "set_cv",
-    "Brain_Data",
+    "BrainData",
     "Adjacency",
     "DesignMatrix",
     "Simulator",
@@ -28,7 +28,7 @@ __all__ = [
 from .analysis import Roc
 from .cross_validation import set_cv
 from .data import (
-    Brain_Data,
+    BrainData,
     Adjacency,
     DesignMatrix,
 )

@@ -414,7 +414,7 @@ Test suite: 179 tests covering all permutation methods and backends (includes 25
 | Large (whole-brain) | 10,000 | 500 | 4.8 MB | ~800/batch | ~50 MB |
 | Very large | 100,000 | 1,000 | 95 MB | ~40/batch | ~300 MB |
 
-**Note**: Memory costs are negligible compared to typical neuroimaging data (Brain_Data with 100K voxels × 100 TRs ≈ 80 MB).
+**Note**: Memory costs are negligible compared to typical neuroimaging data (BrainData with 100K voxels × 100 TRs ≈ 80 MB).
 
 ---
 

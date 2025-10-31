@@ -47,4 +47,4 @@ data.fit(model='glm', X=dm_convolved)
 
 - {doc}`data/design_matrix` - DesignMatrix class
 - {doc}`algorithms` - HRF models for convolution
-- {doc}`data/brain_data` - Brain_Data.fit() for GLM
+- {doc}`data/brain_data` - BrainData.fit() for GLM

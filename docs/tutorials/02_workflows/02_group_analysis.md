@@ -35,16 +35,16 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from nltools.data import Brain_Data
+from nltools.data import BrainData
 from nltools.datasets import fetch_pain
 
 # In practice, load first-level beta images:
 # subjects = []
 # for sub_id in range(1, 29):
-#     beta = Brain_Data(f'sub-{sub_id:02d}_beta_pain-intensity.nii.gz')
+#     beta = BrainData(f'sub-{sub_id:02d}_beta_pain-intensity.nii.gz')
 #     subjects.append(beta)
 #
-# group_data = Brain_Data(subjects)
+# group_data = BrainData(subjects)
 
 # For this tutorial, use example data
 group_data = fetch_pain()
@@ -155,11 +155,11 @@ df = n_subjects - 1
 # Convert t-statistics to p-values (two-tailed)
 p_values = 2 * (1 - stats.t.cdf(np.abs(t_stat.data), df))
 
-# Create Brain_Data object for p-values
-p_map = Brain_Data(p_values, mask=t_stat.mask)
+# Create BrainData object for p-values
+p_map = BrainData(p_values, mask=t_stat.mask)
 
 # Negative log p-values for visualization
-neg_log_p = Brain_Data(-np.log10(p_values), mask=t_stat.mask)
+neg_log_p = BrainData(-np.log10(p_values), mask=t_stat.mask)
 neg_log_p.plot(title='-log10(p-value)')
 
 # Count voxels at different thresholds
@@ -190,7 +190,7 @@ reject, p_corrected, _, _ = multipletests(p_flat, alpha=q, method='fdr_bh')
 p_fdr = np.full_like(p_values, np.nan)
 p_fdr[~np.isnan(p_values)] = p_corrected
 
-fdr_map = Brain_Data(p_fdr < q, mask=t_stat.mask)
+fdr_map = BrainData(p_fdr < q, mask=t_stat.mask)
 n_sig_fdr = fdr_map.data.sum()
 
 print(f"Significant voxels (FDR q < {q}): {n_sig_fdr}")
@@ -207,7 +207,7 @@ fdr_map.plot(title=f'FDR Corrected (q < {q})')
 n_voxels = (~np.isnan(p_values)).sum()
 p_bonferroni = 0.05 / n_voxels
 
-bonf_map = Brain_Data(p_values < p_bonferroni, mask=t_stat.mask)
+bonf_map = BrainData(p_values < p_bonferroni, mask=t_stat.mask)
 n_sig_bonf = bonf_map.data.sum()
 
 print(f"Bonferroni threshold: p < {p_bonferroni:.2e}")
@@ -251,7 +251,7 @@ t_unc.plot(axes=axes[0, 0], title='Uncorrected p < 0.001 (t > 3.3)')
 
 # FDR q < 0.05
 if n_sig_fdr > 0:
-    t_fdr = Brain_Data(t_stat.data * fdr_map.data, mask=t_stat.mask)
+    t_fdr = BrainData(t_stat.data * fdr_map.data, mask=t_stat.mask)
     t_fdr.plot(axes=axes[0, 1], title='FDR q < 0.05')
 else:
     axes[0, 1].text(0.5, 0.5, 'No significant voxels',
@@ -293,7 +293,7 @@ print("Note: Full peak detection not yet implemented")
 # Extract mean values from anatomical ROI
 # In practice, load an atlas:
 # from nltools.mask import expand_mask
-# atlas = Brain_Data('atlas.nii.gz')
+# atlas = BrainData('atlas.nii.gz')
 
 # Create ROI from thresholded activation
 roi_mask = t_stat.threshold(upper='95%', binarize=True)
@@ -399,7 +399,7 @@ t_stat.write('group_tstat_pain-response.nii.gz')
 
 # Save thresholded maps
 if n_sig_fdr > 0:
-    t_fdr_masked = Brain_Data(t_stat.data * fdr_map.data, mask=t_stat.mask)
+    t_fdr_masked = BrainData(t_stat.data * fdr_map.data, mask=t_stat.mask)
     t_fdr_masked.write('group_tstat_pain-response_fdr-q05.nii.gz')
 
 print("✓ Group results saved")

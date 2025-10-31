@@ -9,7 +9,7 @@ The `nltools.utils` module provides utility functions that support the core func
 ## Key Functions
 
 **Data Validation**
-- `check_brain_data()` - Validate Brain_Data instances
+- `check_brain_data()` - Validate BrainData instances
 - `check_brain_data_is_single()` - Check for single image
 - `check_square_numpy_matrix()` - Validate square matrices
 
@@ -18,7 +18,7 @@ The `nltools.utils` module provides utility functions that support the core func
 - `attempt_to_import()` - Safe optional dependency import
 
 **Data Manipulation**
-- `concatenate()` - Concatenate Brain_Data objects
+- `concatenate()` - Concatenate BrainData objects
 - `set_decomposition_algorithm()` - Configure decomposition backend
 
 **Bootstrap Utilities**
@@ -37,10 +37,10 @@ from nltools.utils import (
     get_resource_path
 )
 
-# Validate Brain_Data
+# Validate BrainData
 check_brain_data(data)
 
-# Concatenate multiple Brain_Data objects
+# Concatenate multiple BrainData objects
 combined = concatenate([data1, data2, data3])
 
 # Get path to package resource

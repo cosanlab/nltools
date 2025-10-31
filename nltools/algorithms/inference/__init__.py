@@ -40,7 +40,7 @@ References:
 
 Notes:
     This module is part of the "functional core" of nltools. For integration
-    with Brain_Data objects, see nltools.data.brain_data.
+    with BrainData objects, see nltools.data.brain_data.
 """
 
 # Import public API functions

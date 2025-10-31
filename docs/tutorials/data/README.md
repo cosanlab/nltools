@@ -12,7 +12,7 @@ Currently, all tutorials use `nltools.datasets.fetch_*()` functions to download 
 - Pain perception study data
 - 84 subjects × 238,955 voxels (MNI 2mm space)
 - Downloaded to `~/.nltools/data/` on first use
-- Used in: Brain_Data basics, GLM tutorials, Group analysis
+- Used in: BrainData basics, GLM tutorials, Group analysis
 
 **Via `fetch_localizer()`**:
 - Event-related localizer data

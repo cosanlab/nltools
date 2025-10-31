@@ -16,7 +16,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from nilearn.maskers import NiftiMasker
 from scipy.stats import multivariate_normal, binom, ttest_1samp
-from nltools.data import Brain_Data
+from nltools.data import BrainData
 from nltools.stats import fdr, one_sample_permutation
 from nltools.prefs import MNI_Template
 import csv
@@ -207,7 +207,7 @@ class Simulator:
         NF_list = []
         for i in range(len(y)):
             NF_list.append(self.to_nifti(np.add(N_list[i], A_list[i])))
-        NF_list = Brain_Data(NF_list)
+        NF_list = BrainData(NF_list)
 
         # Assign variables to object
         self.data = NF_list

@@ -205,10 +205,10 @@ def test_regression_invariants(n_samples, n_features):
     Property: Regression should work for any valid data shape.
     Tests with randomly generated data dimensions.
     """
-    from nltools.data import Brain_Data
+    from nltools.data import BrainData
 
     # Generate random data with given shape
-    data = Brain_Data(np.random.randn(n_samples, n_features))
+    data = BrainData(np.random.randn(n_samples, n_features))
     data.Y = np.random.randn(n_samples)
 
     # Regression should not crash

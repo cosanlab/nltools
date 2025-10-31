@@ -35,12 +35,12 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from nltools.data import Brain_Data, DesignMatrix
+from nltools.data import BrainData, DesignMatrix
 from nltools.datasets import fetch_pain
 
 # Load single-subject timeseries
 # In practice, you'd load your own data:
-# data = Brain_Data('sub-01_task-pain_bold.nii.gz')
+# data = BrainData('sub-01_task-pain_bold.nii.gz')
 data = fetch_pain()[:60]  # Use first 60 volumes as example
 
 print(f"Data shape: {data.shape()}")

@@ -3,7 +3,7 @@
 **Data Types**
 
 ```{eval-rst}
-.. autoclass:: nltools.data.Brain_Data
+.. autoclass:: nltools.data.BrainData
     :members:
 
 .. autoclass:: nltools.data.Adjacency

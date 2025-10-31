@@ -19,7 +19,7 @@ __all__ = [
 import pandas as pd
 import warnings
 from pathlib import Path
-from nltools.data import Brain_Data
+from nltools.data import BrainData
 
 # Core dependencies
 from nilearn.datasets import fetch_neurovault_ids
@@ -119,7 +119,7 @@ def fetch_pain(data_dir=None, verbose=1):
         verbose (int, optional): Verbosity level. Default: 1
 
     Returns:
-        Brain_Data: Brain_Data object with downloaded data. X=metadata
+        BrainData: BrainData object with downloaded data. X=metadata
 
     References:
         Chang, L. J., Gianaros, P. J., Manuck, S. B., Krishnan, A., & Wager, T. D. (2015).
@@ -132,7 +132,7 @@ def fetch_pain(data_dir=None, verbose=1):
         metadata, files = fetch_neurovault_collection(
             collection_id=collection_id, data_dir=data_dir, verbose=verbose
         )
-        return Brain_Data(data=files, X=metadata, verbose=0)
+        return BrainData(data=files, X=metadata, verbose=0)
 
     except Exception as e:
         raise RuntimeError(f"Failed to fetch pain dataset: {e}")
@@ -150,7 +150,7 @@ def fetch_emotion_ratings(data_dir=None, verbose=1):
         verbose (int, optional): Verbosity level. Default: 1
 
     Returns:
-        Brain_Data: Brain_Data object with downloaded data. X=metadata
+        BrainData: BrainData object with downloaded data. X=metadata
 
     References:
         Chang, L. J., Gianaros, P. J., Manuck, S. B., Krishnan, A., & Wager, T. D. (2015).
@@ -163,7 +163,7 @@ def fetch_emotion_ratings(data_dir=None, verbose=1):
         metadata, files = fetch_neurovault_collection(
             collection_id=collection_id, data_dir=data_dir, verbose=verbose
         )
-        return Brain_Data(data=files, X=metadata, verbose=0)
+        return BrainData(data=files, X=metadata, verbose=0)
 
     except Exception as e:
         raise RuntimeError(f"Failed to fetch emotion ratings dataset: {e}")

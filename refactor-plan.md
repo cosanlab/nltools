@@ -18,7 +18,7 @@ For task progress, see `refactor-todos.md`. For session context, see `refactor-p
 
 **"Functional-core, imperative shell" pattern:**
 
-- **Imperative shell** (`nltools/data/`): Brain_Data, Adjacency, DesignMatrix
+- **Imperative shell** (`nltools/data/`): BrainData, Adjacency, DesignMatrix
   - User-facing classes with stateful APIs
   - Manage nifti images, masks, metadata
   - Provide convenient method chaining

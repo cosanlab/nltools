@@ -122,7 +122,7 @@ For strategic vision, see `refactor-plan.md`. For context and decisions, see `re
 | Task | Status | Tests | Commit |
 |------|--------|-------|--------|
 | Bootstrap refactoring | 📋 | 26 (planned) | - |
-| Brain_Data → BrainData rename | 📋 | - | - |
+| BrainData → BrainData rename | 📋 | - | - |
 | Round 1 codebase audit | 🔧 | - | ce3662d (partial) |
 | Documentation & tutorials overhaul | 📋 | - | - |
 | Migration guide in tabular format | 🔧 | - | - |
@@ -203,7 +203,7 @@ For strategic vision, see `refactor-plan.md`. For context and decisions, see `re
 | Update `_to_pandas()` with pyarrow path | 🔮 | 15 min | Affects downsample, upsample, heatmap |
 | Benchmark performance improvements | 🔮 | 30 min | Quantify actual speedup |
 | **GPU Support Integration** | 🔮 | 8 hours | 5-10x faster operations |
-| Research current GPU integration patterns | 🔮 | 1 hour | Align with Brain_Data GPU usage |
+| Research current GPU integration patterns | 🔮 | 1 hour | Align with BrainData GPU usage |
 | Design GPU backend selection | 🔮 | 2 hours | Consistent use_gpu parameter |
 | Add GPU path for convolution | 🔮 | 3 hours | cupy.convolve for GPU arrays |
 | Test GPU correctness vs CPU | 🔮 | 2 hours | Ensure numerical equivalence |
@@ -240,7 +240,7 @@ For strategic vision, see `refactor-plan.md`. For context and decisions, see `re
 ## Test Count Summary
 
 **Total**: 557 tests (512 active, 45 deselected)
-- **Shell**: 131 tests (Brain_Data: 71+, Adjacency: 54+, DesignMatrix: 10+ old)
+- **Shell**: 131 tests (BrainData: 71+, Adjacency: 54+, DesignMatrix: 10+ old)
 - **Shell (New)**: 71 tests (DesignMatrix Polars: 71 passing, 100% complete)
 - **Core**: 325+ tests (including:
   - Inference: 146 tests (tier1)

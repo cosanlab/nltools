@@ -1,4 +1,4 @@
-"""Tests for efficient copying in Brain_Data
+"""Tests for efficient copying in BrainData
 
 These tests verify that:
 1. Shallow copying is actually shallow (not deep)
@@ -11,7 +11,7 @@ import pytest
 import numpy as np
 import time
 from copy import deepcopy
-from nltools.data import Brain_Data
+from nltools.data import BrainData
 from nltools.mask import create_sphere
 import pandas as pd
 
@@ -111,9 +111,9 @@ def test_scale_with_different_values(sim_brain_data):
 def test_comparison_with_deepcopy():
     """Compare performance of shallow copy vs deep copy"""
 
-    # Create a larger Brain_Data for performance testing
+    # Create a larger BrainData for performance testing
     s1 = create_sphere([12, 10, -8], radius=10)
-    brain = Brain_Data([s1] * 10)  # 10 images
+    brain = BrainData([s1] * 10)  # 10 images
 
     # Measure deep copy time
     start = time.time()
@@ -217,7 +217,7 @@ def test_transform_methods_efficient():
 
     # Create a larger dataset for meaningful timing
     s1 = create_sphere([12, 10, -8], radius=10)
-    brain = Brain_Data([s1] * 20)  # 20 images
+    brain = BrainData([s1] * 20)  # 20 images
 
     # Time transform chain
     start = time.time()
@@ -286,8 +286,8 @@ def test_append_correctness():
 
     # Create test data with multiple images for clearer testing
     s1 = create_sphere([12, 10, -8], radius=10)
-    brain1 = Brain_Data([s1] * 3)  # 3 images
-    brain2 = Brain_Data([s1] * 2)  # 2 images
+    brain1 = BrainData([s1] * 3)  # 3 images
+    brain2 = BrainData([s1] * 2)  # 2 images
 
     # Store original data for verification
     brain1_data_copy = brain1.data.copy()
@@ -352,15 +352,15 @@ def test_append_correctness():
 def test_no_accidental_deep_copies():
     """Ensure methods aren't secretly doing deep copies internally"""
 
-    # Create a Brain_Data with a reasonable size
+    # Create a BrainData with a reasonable size
     s1 = create_sphere([12, 10, -8], radius=10)
-    brain = Brain_Data([s1] * 20)  # 20 images
+    brain = BrainData([s1] * 20)  # 20 images
 
     # Add a custom attribute to track if it gets deep copied
     brain._custom_tracking_attribute = "original"
     brain._custom_list = [1, 2, 3]
 
-    # Operations that should NOT deep copy the Brain_Data object
+    # Operations that should NOT deep copy the BrainData object
     scaled = brain.scale(100.0)
 
     # Verify object sharing behavior
@@ -396,7 +396,7 @@ def test_chained_operations_preserve_efficiency():
 
     # Create test data
     s1 = create_sphere([12, 10, -8], radius=10)
-    brain = Brain_Data([s1] * 10)  # 10 images
+    brain = BrainData([s1] * 10)  # 10 images
 
     # Test a long chain of operations
     result = brain.scale(100.0).r_to_z().z_to_r().scale(50.0)

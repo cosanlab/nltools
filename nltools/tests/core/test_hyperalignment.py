@@ -71,7 +71,7 @@ class TestHyperAlignmentFit:
 
     @pytest.fixture
     def brain_data_list(self):
-        """Create Brain_Data-like simulator data for integration tests."""
+        """Create BrainData-like simulator data for integration tests."""
         sim = Simulator()
         y = [0, 1]
         n_reps = 10

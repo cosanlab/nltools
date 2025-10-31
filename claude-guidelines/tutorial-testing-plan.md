@@ -79,7 +79,7 @@
 **Core neuroimaging workflows identified**:
 
 1. **Data Loading & Preprocessing**:
-   - Load Brain_Data from files
+   - Load BrainData from files
    - Smoothing operations
    - Motion covariate creation
    - Spike detection for outliers
@@ -190,7 +190,7 @@ docs/tutorials/
    ```markdown
    ## Learning Objectives
    By the end of this tutorial, you will be able to:
-   - Load neuroimaging data into Brain_Data
+   - Load neuroimaging data into BrainData
    - Perform basic operations (indexing, arithmetic)
    - Visualize brain images
    ```
@@ -244,12 +244,12 @@ docs/tutorials/
 
 **Target**: 5-6 essential tutorials that cover 80% of use cases
 
-1. **Brain_Data Fundamentals** (already exists, needs update)
+1. **BrainData Fundamentals** (already exists, needs update)
    - Loading data
    - Basic operations (indexing, arithmetic, statistics)
    - Visualization
    - File I/O
-   - **Validates**: Brain_Data class core functionality
+   - **Validates**: BrainData class core functionality
 
 2. **First-Level GLM Workflow**
    - Load fMRI timeseries
@@ -686,7 +686,7 @@ jobs:
 - Ensure comprehensive coverage of common use cases
 
 **Priority Order**:
-1. Brain_Data Fundamentals (enhance existing)
+1. BrainData Fundamentals (enhance existing)
 2. First-Level GLM Workflow (NEW)
 3. Group-Level Analysis Workflow (NEW)
 4. ROI Analysis Workflow (NEW)
@@ -811,7 +811,7 @@ jobs:
 
 ### Core Workflow Development (Priority 1)
 
-- [ ] Tutorial 01: Brain_Data Fundamentals (enhance existing)
+- [ ] Tutorial 01: BrainData Fundamentals (enhance existing)
 - [ ] Tutorial 02: First-Level GLM Workflow (NEW)
 - [ ] Tutorial 03: Group-Level Analysis Workflow (NEW)
 - [ ] Tutorial 04: ROI Analysis Workflow (NEW)

@@ -104,14 +104,14 @@ See [Performance Guide](../performance.md) for detailed benchmarks.
 
 ### Brain Data Integration
 
-Use Ridge with nltools Brain_Data:
+Use Ridge with nltools BrainData:
 
 ```python
-from nltools import Brain_Data
+from nltools import BrainData
 from nltools.models import Ridge
 
 # Load brain data
-brain = Brain_Data('task_fmri.nii.gz')
+brain = BrainData('task_fmri.nii.gz')
 
 # Create feature matrix (e.g., stimulus features)
 features = np.random.randn(brain.shape()[0], 10)
@@ -130,12 +130,12 @@ print(f"Coefficients shape: {model.coef_.shape}")
 Ridge is commonly used for encoding models in neuroimaging:
 
 ```python
-from nltools import Brain_Data
+from nltools import BrainData
 from nltools.models import Ridge
 import numpy as np
 
 # Load fMRI data
-brain = Brain_Data('movie_fmri.nii.gz')  # 1000 TRs × 50k voxels
+brain = BrainData('movie_fmri.nii.gz')  # 1000 TRs × 50k voxels
 
 # Create semantic features from movie annotations
 # (e.g., valence, arousal, social features)
@@ -199,7 +199,7 @@ np.testing.assert_allclose(predictions_nl, predictions_sk, rtol=1e-4)
 - GPU acceleration for large neuroimaging datasets
 - Automatic alpha selection via cross-validation
 - Multi-target vectorization optimized for voxel-wise analysis
-- Integrated with nltools Brain_Data workflow
+- Integrated with nltools BrainData workflow
 
 ## BaseModel
 
@@ -232,13 +232,13 @@ class CustomModel(BaseModel):
 
 ## Migration from v0.5.1
 
-If you used deprecated `Brain_Data.predict()`:
+If you used deprecated `BrainData.predict()`:
 
 **Before (v0.5.1):**
 ```python
-from nltools import Brain_Data
+from nltools import BrainData
 
-brain = Brain_Data('data.nii.gz')
+brain = BrainData('data.nii.gz')
 brain.X = design_matrix
 brain.Y = target_values
 
@@ -251,10 +251,10 @@ results = brain.predict(
 
 **After (v0.6.0):**
 ```python
-from nltools import Brain_Data
+from nltools import BrainData
 from nltools.models import Ridge
 
-brain = Brain_Data('data.nii.gz')
+brain = BrainData('data.nii.gz')
 
 # Use Ridge model directly
 model = Ridge(alpha='auto', cv=5, backend='auto')

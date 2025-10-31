@@ -192,7 +192,7 @@ Fixed `Adjacency.regress()` to work with Polars DesignMatrix by adding `.to_nump
 12. **Replace HDF5 with Parquet for DataFrames**
     - Coordinate with any remaining pandas HDFStore usage
     - Parquet is Arrow-native, very fast with Polars
-    - Note: Keep h5py for numpy arrays (both Brain_Data and model-spec need this)
+    - Note: Keep h5py for numpy arrays (both BrainData and model-spec need this)
 
 ---
 
@@ -344,10 +344,10 @@ Fixed `Adjacency.regress()` to work with Polars DesignMatrix by adding `.to_nump
 - Created `minimal_brain_data` fixture for efficient testing
 
 ### Cross-Validation Support (commit 187c210)
-- Added comprehensive CV support to `Brain_Data.fit()` for Ridge models
+- Added comprehensive CV support to `BrainData.fit()` for Ridge models
 - Features: `cv=int`, `cv='auto'`, custom sklearn splitters
 - Auto alpha selection with voxel-wise optimal alpha
-- Out-of-fold predictions returned as Brain_Data
+- Out-of-fold predictions returned as BrainData
 - 10 comprehensive tests
 
 ### HyperAlignment Class (Multiple commits)
@@ -545,7 +545,7 @@ downsampled_df = pl.from_pandas(downsampled_pd)
 - **Estimate**: 14-18 hours, 26 tests
 - **Decision**: Proceed after completing audit and BrainData rename
 
-### Brain_Data → BrainData Rename (Priority 2.9)
+### BrainData → BrainData Rename (Priority 2.9)
 - **Status**: Planned
 - **Scope**: Rename class, add deprecation alias, update docs
 - **Estimate**: 2-3 hours
@@ -554,7 +554,7 @@ downsampled_df = pl.from_pandas(downsampled_pd)
 ### Round 1 Codebase Audit (Priority 2.11)
 - **Status**: Partially complete (4 bugs fixed in ce3662d)
 - **Next**: Systematic review of all classes and methods
-- **Approach**: Can parallelize by module (Brain_Data, Adjacency, DesignMatrix, core)
+- **Approach**: Can parallelize by module (BrainData, Adjacency, DesignMatrix, core)
 - **Estimate**: 8-12 hours remaining
 
 ### Documentation & Tutorials (Priority 2.12)
@@ -583,7 +583,7 @@ downsampled_df = pl.from_pandas(downsampled_pd)
    - Can parallelize by module
    - Fix bugs as discovered
 
-4. **Brain_Data → BrainData rename** (Priority 2.9)
+4. **BrainData → BrainData rename** (Priority 2.9)
    - After audit to avoid conflicts
    - Add deprecation alias for backward compatibility
 

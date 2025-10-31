@@ -165,23 +165,23 @@ def threshold(stat, p, thr=0.05, return_mask=False):
     """Threshold test image by p-value from p image
 
     Args:
-        stat: (Brain_Data) Brain_Data instance of arbitrary statistic metric
+        stat: (BrainData) BrainData instance of arbitrary statistic metric
               (e.g., beta, t, etc)
-        p: (Brain_Data) Brain_data instance of p-values
+        p: (BrainData) Brain_data instance of p-values
         threshold: (float) p-value to threshold stat image
         return_mask: (bool) optionall return the thresholding mask; default False
 
     Returns:
-        out: Thresholded Brain_Data instance
+        out: Thresholded BrainData instance
 
     """
-    from nltools.data import Brain_Data
+    from nltools.data import BrainData
 
-    if not isinstance(stat, Brain_Data):
-        raise ValueError("Make sure stat is a Brain_Data instance")
+    if not isinstance(stat, BrainData):
+        raise ValueError("Make sure stat is a BrainData instance")
 
-    if not isinstance(p, Brain_Data):
-        raise ValueError("Make sure p is a Brain_Data instance")
+    if not isinstance(p, BrainData):
+        raise ValueError("Make sure p is a BrainData instance")
 
     # Create Mask
     mask = deepcopy(p)
@@ -208,22 +208,22 @@ def multi_threshold(t_map, p_map, thresh):
     """Threshold test image by multiple p-value from p image
 
     Args:
-        stat: (Brain_Data) Brain_Data instance of arbitrary statistic metric
+        stat: (BrainData) BrainData instance of arbitrary statistic metric
             (e.g., beta, t, etc)
-        p: (Brain_Data) Brain_data instance of p-values
+        p: (BrainData) Brain_data instance of p-values
         threshold: (list) list of p-values to threshold stat image
 
     Returns:
-        out: Thresholded Brain_Data instance
+        out: Thresholded BrainData instance
 
     """
-    from nltools.data import Brain_Data
+    from nltools.data import BrainData
 
-    if not isinstance(t_map, Brain_Data):
-        raise ValueError("Make sure stat is a Brain_Data instance")
+    if not isinstance(t_map, BrainData):
+        raise ValueError("Make sure stat is a BrainData instance")
 
-    if not isinstance(p_map, Brain_Data):
-        raise ValueError("Make sure p is a Brain_Data instance")
+    if not isinstance(p_map, BrainData):
+        raise ValueError("Make sure p is a BrainData instance")
 
     if not isinstance(thresh, list):
         raise ValueError("Make sure thresh is a list of p-values")
@@ -241,7 +241,7 @@ def multi_threshold(t_map, p_map, thresh):
         pos_out = pos_out + t_pos.to_nifti().get_fdata()
         neg_out = neg_out + t_neg.to_nifti().get_fdata()
     pos_out = pos_out + neg_out * -1
-    return Brain_Data(nib.Nifti1Image(pos_out, affine))
+    return BrainData(nib.Nifti1Image(pos_out, affine))
 
 
 def winsorize(data, cutoff=None, replace_with_cutoff=True):
@@ -942,7 +942,7 @@ def _robust_estimator(vals, X, robust_estimator="hc0", nlags=1):
 
     Args:
         vals (np.ndarray): 1d array of residuals
-        X (np.ndarray): design matrix used in OLS, e.g. Brain_Data().X
+        X (np.ndarray): design matrix used in OLS, e.g. BrainData().X
         robust_estimator (str): estimator type, 'hc0' (default), 'hc3', or 'hac'
         nlags (int): number of lags, only used with 'hac' estimator, default is 1
 
@@ -992,11 +992,11 @@ def summarize_bootstrap(data, save_weights=False):
     """Calculate summary of bootstrap samples
 
     Args:
-        sample: (Brain_Data) Brain_Data instance of samples
+        sample: (BrainData) BrainData instance of samples
         save_weights: (bool) save bootstrap weights
 
     Returns:
-        output: (dict) dictionary of Brain_Data summary images
+        output: (dict) dictionary of BrainData summary images
 
     """
 
@@ -1278,15 +1278,15 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
     Can be used to hyperalign source data to target data using
     Hyperalignment from Dartmouth (i.e., procrustes transformation; see
     nltools.stats.procrustes) or Shared Response Model from Princeton (see
-    nltools.external.srm). (see nltools.data.Brain_Data.align for aligning
+    nltools.external.srm). (see nltools.data.BrainData.align for aligning
     a single Brain object to another). Common Model is shared response
     model or centered target data. Transformed data can be back projected to
-    original data using Tranformation matrix. Inputs must be a list of Brain_Data
+    original data using Tranformation matrix. Inputs must be a list of BrainData
     instances or numpy arrays (observations by features).
 
 
     Args:
-        data: (list) A list of Brain_Data objects
+        data: (list) A list of BrainData objects
         method: (str) alignment method to use
             ['probabilistic_srm','deterministic_srm','procrustes']
         n_features: (int) number of features to align to common space.
@@ -1307,7 +1307,7 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
             >>> original_data = [np.dot(t.data,tm.T) for t,tm in zip(out['transformed'], out['transformation_matrix'])]
     """
 
-    from nltools.data import Brain_Data, Adjacency
+    from nltools.data import BrainData, Adjacency
 
     if not isinstance(data, list):
         raise ValueError("Make sure you are inputting data is a list.")
@@ -1320,8 +1320,8 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
 
     data = deepcopy(data)
 
-    if isinstance(data[0], Brain_Data):
-        data_type = "Brain_Data"
+    if isinstance(data[0], BrainData):
+        data_type = "BrainData"
         data_out = [x.copy() for x in data]
         transformation_out = [x.copy() for x in data]
         data = [x.data.T for x in data]
@@ -1382,7 +1382,7 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
         out["transformed"] = [x.T for x in out["transformed"]]
         out["common_model"] = out["common_model"].T
 
-        if data_type == "Brain_Data":
+        if data_type == "BrainData":
             out["transformation_matrix"] = [x.T for x in out["transformation_matrix"]]
 
     # Calculate Intersubject correlation on aligned components
@@ -1403,7 +1403,7 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
         )
     out["isc"] = dict(zip(np.arange(n_features), a.mean(axis=1)))
 
-    if data_type == "Brain_Data":
+    if data_type == "BrainData":
         if method == "procrustes":
             for i, x in enumerate(out["transformed"]):
                 data_out[i].data = x.T
@@ -1690,7 +1690,7 @@ def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
     """Function to identify spikes from fMRI Time Series Data
 
     Args:
-        data: Brain_Data or nibabel instance
+        data: BrainData or nibabel instance
         global_spike_cutoff: (int,None) cutoff to identify spikes in global signal
                              in standard deviations, None indicates do not calculate.
         diff_spike_cutoff: (int,None) cutoff to identify spikes in average frame difference
@@ -1699,12 +1699,12 @@ def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
         pandas dataframe with spikes as indicator variables
     """
 
-    from nltools.data import Brain_Data
+    from nltools.data import BrainData
 
     if (global_spike_cutoff is None) & (diff_spike_cutoff is None):
         raise ValueError("Did not input any cutoffs to identify spikes in this data.")
 
-    if isinstance(data, Brain_Data):
+    if isinstance(data, BrainData):
         data = deepcopy(data.data)
         global_mn = np.mean(data.data, axis=1)
         frame_diff = np.mean(np.abs(np.diff(data.data, axis=0)), axis=1)
@@ -1718,7 +1718,7 @@ def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
         frame_diff = np.mean(np.abs(np.diff(data, axis=3)), axis=(0, 1, 2))
     else:
         raise ValueError(
-            "Currently this function can only accomodate Brain_Data and nibabel instances"
+            "Currently this function can only accomodate BrainData and nibabel instances"
         )
 
     if global_spike_cutoff is not None:

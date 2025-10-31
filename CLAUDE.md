@@ -151,7 +151,7 @@ rm -f *.csv *.nii.gz           # Remove test data artifacts (NOT in nltools/test
 **What We're Building**: Python neuroimaging library that wraps nilearn with intuitive APIs. Think "requests library for neuroimaging" - we don't reinvent, we simplify.
 
 **Architecture**: "Functional-core, imperative shell"
-- Imperative shell: `nltools/data/` (Brain_Data, Adjacency, DesignMatrix)
+- Imperative shell: `nltools/data/` (BrainData, Adjacency, DesignMatrix)
 - Functional core: `stats.py`, `utils.py`, `algorithms/` (ridge, srm, hyperalignment, inference)
 - **New**: `algorithms/inference/` - GPU-accelerated permutation testing module
   - `one_sample.py` - One-sample permutation tests (CPU parallel + GPU batched)

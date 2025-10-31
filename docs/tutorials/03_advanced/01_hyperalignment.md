@@ -28,7 +28,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from nltools.data import Brain_Data
+from nltools.data import BrainData
 from nltools.datasets import fetch_pain
 from nltools.external import Hyperalignment
 
@@ -117,8 +117,8 @@ for i, subj in enumerate(subjects):
     # Transform to common space
     aligned = hyper.transform([subj.data])[0]
 
-    # Create Brain_Data object
-    aligned_bd = Brain_Data(
+    # Create BrainData object
+    aligned_bd = BrainData(
         data=aligned,
         mask=subj.mask
     )

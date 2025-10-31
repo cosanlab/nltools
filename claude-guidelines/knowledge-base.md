@@ -22,7 +22,7 @@ Documents that inform our decisions:
 - **nilearn_features_analysis.md**: What nilearn can do for us (in claude-research/)
 - **research-nilearn-maskers.md**: Masker types and usage (in claude-research/)
 - **apply_mask_analysis.md**: Masking optimization strategies (in claude-research/)
-- **braindata-refactor.md**: Brain_Data simplification plan (in claude-research/)
+- **braindata-refactor.md**: BrainData simplification plan (in claude-research/)
 
 **Important**: Always check guideline docs before implementing. Update them when discovering new patterns.
 
@@ -180,7 +180,7 @@ uv run pytest -k test_name -xvs
 **DO**: Use centralized validation module
 ```python
 from nltools.data._validation import validate_data_type
-data = validate_data_type(data)  # Handles Brain_Data, str paths, nifti, etc.
+data = validate_data_type(data)  # Handles BrainData, str paths, nifti, etc.
 ```
 
 **WHY**:
@@ -232,7 +232,7 @@ def method_name(self, param1, param2=None):
 
     Examples
     --------
-    >>> brain = Brain_Data('data.nii.gz')
+    >>> brain = BrainData('data.nii.gz')
     >>> result = brain.method_name(param1)
     """
 ```
@@ -271,7 +271,7 @@ def sample_nifti_file():
 
 @pytest.fixture(scope="function")  # Cheap, create fresh for each test
 def brain_data():
-    """Create Brain_Data instance for each test."""
+    """Create BrainData instance for each test."""
     ...
 ```
 
@@ -291,15 +291,15 @@ uv run pytest nltools/tests/test_brain_data_old.py::test_regress -xvs
 uv run pytest -n auto  # Requires pytest-xdist
 ```
 
-### Testing Brain_Data Methods
+### Testing BrainData Methods
 
-**Pattern for testing methods that return Brain_Data**:
+**Pattern for testing methods that return BrainData**:
 ```python
 def test_method_returns_brain_data(brain_data):
-    """Test method returns Brain_Data instance."""
+    """Test method returns BrainData instance."""
     result = brain_data.method()
 
-    assert isinstance(result, Brain_Data)
+    assert isinstance(result, BrainData)
     assert result.shape() == expected_shape
     assert not np.shares_memory(result.data, brain_data.data)  # Verify copy
 ```
@@ -335,7 +335,7 @@ uv run pytest -m tier1          # No parallelization
 - ✅ All fixtures use `scope="function"` or `scope="module"` (worker-isolated)
 - ✅ GPU/PyTorch backend creates fresh instances per test (no shared state)
 - ✅ Random seeds are set in fixtures (reproducible regardless of worker count)
-- ✅ No mutable class variables in Brain_Data/Adjacency/DesignMatrix
+- ✅ No mutable class variables in BrainData/Adjacency/DesignMatrix
 - ⚠️ File I/O: Use `tmp_path` fixture for writes to avoid race conditions
 
 **Detailed documentation:** See `testing-strategy-analysis.md` section "Parallel Testing Safety & Correctness" for:

@@ -11,7 +11,7 @@
 We don't reinvent the wheel, we make the wheel easier to use. Our mission is to wrap lower-level tools (primarily nilearn) with intuitive APIs that make fMRI analysis more accessible.
 
 **Architecture Pattern: "Functional-core, imperative shell"**
-- **Imperative shell** (`nltools/data/`): Stateful classes (Brain_Data, Adjacency, DesignMatrix) that hold data and coordinate operations
+- **Imperative shell** (`nltools/data/`): Stateful classes (BrainData, Adjacency, DesignMatrix) that hold data and coordinate operations
 - **Functional core**: Pure functions for computations (stats.py, utils.py, etc.)
 - **v0.5.1 = Baseline**: This is our compatibility target - everything from v0.5.1 must work or deprecate gracefully
 - **Post-v0.5.1 features**: Deferred to Priority 3 (Model class, Brain_Collection)
@@ -54,7 +54,7 @@ def custom_smooth(data, kernel):
 ```python
 # GOOD: Leverage nilearn
 from nilearn.image import smooth_img
-smoothed = Brain_Data(smooth_img(brain.to_nifti(), fwhm=6))
+smoothed = BrainData(smooth_img(brain.to_nifti(), fwhm=6))
 ```
 
 ---
@@ -83,7 +83,7 @@ t_stats = results_dict['t']
 # New pattern (v0.6.0)
 brain.regress(design_matrix)  # Stores results as attributes
 betas = brain.glm_betas      # Direct attribute access
-t_stats = brain.glm_t        # Consistent with other Brain_Data attributes
+t_stats = brain.glm_t        # Consistent with other BrainData attributes
 ```
 
 ### Trade-offs
@@ -108,7 +108,7 @@ t_stats = brain.glm_t        # Consistent with other Brain_Data attributes
 
 ### The Problem
 
-Many Brain_Data methods return modified copies to support method chaining:
+Many BrainData methods return modified copies to support method chaining:
 ```python
 result = brain.scale(100).standardize().threshold(3.0)
 ```
@@ -124,7 +124,7 @@ This created ~3x overhead for simple chains.
 ### The Solution: Hybrid Shallow Copy (2025-10-28)
 
 **Implementation:**
-1. **`_shallow_copy_with_data()` method**: Creates new Brain_Data instance that shares immutable objects
+1. **`_shallow_copy_with_data()` method**: Creates new BrainData instance that shares immutable objects
 2. **Smart attribute handling**:
    - **Share**: mask, nifti_masker (immutable, expensive to copy)
    - **Copy**: X, Y DataFrames (small, mutable, user might modify)
@@ -166,7 +166,7 @@ This pattern enables efficient method chaining without sacrificing safety or pre
 
 ### Methods Deprecated in v0.6.0
 
-These methods are removed from Brain_Data and will be implemented in a future Model class:
+These methods are removed from BrainData and will be implemented in a future Model class:
 - `.predict()` → Model class (ML workflows)
 - `.ttest()` → Model class (statistical testing)
 - `.randomise()` → Model class (permutation testing)
@@ -224,7 +224,7 @@ data = validate_data_type(data)
 
 **DON'T**: Inline validation everywhere
 ```python
-if not isinstance(data, Brain_Data):
+if not isinstance(data, BrainData):
     if isinstance(data, str):
         # ... lots of conversion logic
 ```
@@ -267,7 +267,7 @@ all_results = [process(brain_data[i]) for i in range(len(brain_data))]  # OOM ri
 - "Should we use nilearn for this?"
 
 **During development**: Review before:
-- Adding new Brain_Data methods
+- Adding new BrainData methods
 - Reimplementing functionality that might exist in nilearn
 - Making breaking API changes
 - Optimizing performance of copy-heavy operations

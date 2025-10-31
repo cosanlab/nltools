@@ -109,7 +109,7 @@ Transform nltools API documentation from inconsistent stubs into deployment-qual
 
 **Priority Order:**
 1. **Critical** (high-usage, core functionality):
-   - `Brain_Data` class: `__init__`, `fit`, `predict`, `apply_mask`, `regress`, `smooth`, `threshold`, `filter`, `standardize`, `extract_roi`, `compute_contrasts`
+   - `BrainData` class: `__init__`, `fit`, `predict`, `apply_mask`, `regress`, `smooth`, `threshold`, `filter`, `standardize`, `extract_roi`, `compute_contrasts`
    - `Adjacency` class: `__init__`, `distance`, `similarity`, `plot`
    - `DesignMatrix` class: `__init__`, `append`, `convolve`, `add_poly`, `add_dct_basis`
    - `stats.py`: `regress`, `align`, `one_sample_permutation`, `correlation_permutation`, `isc`, `isc_group`
@@ -130,7 +130,7 @@ Transform nltools API documentation from inconsistent stubs into deployment-qual
 ```python
 # BEFORE (NumPy style - WRONG)
 def regress(self, X, mode='ols'):
-    """Regress an X matrix on Brain_Data.
+    """Regress an X matrix on BrainData.
 
     Parameters
     ----------
@@ -148,7 +148,7 @@ def regress(self, X, mode='ols'):
 
 # AFTER (Google style - CORRECT with Examples)
 def regress(self, X, mode='ols'):
-    """Regress a design matrix on Brain_Data.
+    """Regress a design matrix on BrainData.
 
     .. deprecated:: 0.6.0
         `regress()` is deprecated and will be removed in v0.7.0.
@@ -163,11 +163,11 @@ def regress(self, X, mode='ols'):
 
     Returns:
         dict: Dictionary containing:
-            - 'beta': regression coefficients (Brain_Data)
-            - 't': t-statistics (Brain_Data)
-            - 'p': p-values (Brain_Data)
-            - 'sigma': residual standard deviation (Brain_Data)
-            - 'residual': residuals (Brain_Data)
+            - 'beta': regression coefficients (BrainData)
+            - 't': t-statistics (BrainData)
+            - 'p': p-values (BrainData)
+            - 'sigma': residual standard deviation (BrainData)
+            - 'residual': residuals (BrainData)
 
     Example:
         >>> from nltools.datasets import fetch_pain
@@ -192,7 +192,7 @@ def regress(self, X, mode='ols'):
 
 **Implementation Approach:**
 1. **Convert to Google style first** - This is the most time-consuming part
-2. Start with `Brain_Data.__init__` and core methods
+2. Start with `BrainData.__init__` and core methods
 3. Test build after each class: `uv run jupyter-book build docs/`
 4. Verify Examples render correctly in HTML output
 5. Use git commits to track progress by module
@@ -251,7 +251,7 @@ API Reference
 ```
 API Reference
 ├── Core Data Objects
-│   ├── Brain_Data
+│   ├── BrainData
 │   ├── Adjacency
 │   └── DesignMatrix
 │
@@ -446,7 +446,7 @@ mask = create_sphere([0, 0, 0], radius=10, mask=MNI_Template.mask)
 
 ## See Also
 
-- {doc}`data/brain_data` - Apply masks to Brain_Data objects
+- {doc}`data/brain_data` - Apply masks to BrainData objects
 - {doc}`prefs` - MNI template preferences
 ```
 
@@ -583,12 +583,12 @@ def align(data, method='procrustes', n_iter=2):
     """Align subjects using functional alignment.
 
     Args:
-        data (list of Brain_Data): Subject data to align.
+        data (list of BrainData): Subject data to align.
         method ({'procrustes', 'srm', 'deterministic_srm'}): Alignment method.
         n_iter (int): Number of iterations for Procrustes alignment.
 
     Returns:
-        list of Brain_Data: Aligned subject data.
+        list of BrainData: Aligned subject data.
 
     Note:
         For Procrustes alignment with n_iter > 1, internally uses
@@ -703,7 +703,7 @@ open docs/_build/html/index.html
 
 # Test navigation
 # - Click through all sections
-# - Test search with common terms: "Brain_Data", "Ridge", "regress"
+# - Test search with common terms: "BrainData", "Ridge", "regress"
 # - Verify external links (GitHub, nilearn docs)
 # - Check mobile responsiveness (browser dev tools)
 
@@ -730,7 +730,7 @@ uv run jupyter-book build docs/ --builder linkcheck
 **Week 1: Foundation (6-9 hours)**
 - **Phase 4 FIRST:** Enable Google style in config (30 min) - DO THIS FIRST!
 - **Phase 1:** Convert docstrings to Google style for critical classes
-  - `Brain_Data`, `Adjacency`, `DesignMatrix`
+  - `BrainData`, `Adjacency`, `DesignMatrix`
   - Core `stats.py` functions
 
 **Week 2: Structure & Content (6-8 hours)**
@@ -754,7 +754,7 @@ uv run jupyter-book build docs/ --builder linkcheck
 - [ ] **All docstrings converted to Google style** (critical!)
 - [ ] Configuration updated to enable Google style docstrings
 - [ ] All 12 API modules have enhanced content (> 50 lines each)
-- [ ] All public methods in `Brain_Data`, `Adjacency`, `DesignMatrix` have Examples sections
+- [ ] All public methods in `BrainData`, `Adjacency`, `DesignMatrix` have Examples sections
 - [ ] API organized into 6 simple categories (no landing pages)
 - [ ] Documentation builds with zero errors and < 5 warnings
 - [ ] Navigation is intuitive and consistent
@@ -854,7 +854,7 @@ Args:
 
 1. **Review and approve** this plan with Eshin
 2. **Create feature branch**: `git checkout -b api-docs-v0.6.0`
-3. **Phase 1**: Start with `Brain_Data` docstring enhancements
+3. **Phase 1**: Start with `BrainData` docstring enhancements
 4. **Iterate**: Build and test after each module
 5. **Commit frequently**: One commit per module or logical group
 6. **Final review**: Complete QA checklist before merge

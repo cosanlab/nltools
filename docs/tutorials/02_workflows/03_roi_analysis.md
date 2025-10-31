@@ -41,7 +41,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import pearsonr
 
-from nltools.data import Brain_Data
+from nltools.data import BrainData
 from nltools.datasets import fetch_pain
 
 # Load example data
@@ -59,13 +59,13 @@ print(f"Pain ratings: {pain_ratings[:10]}")
 # In practice, load an atlas ROI:
 # from nilearn import datasets
 # atlas = datasets.fetch_atlas_harvard_oxford('cort-maxprob-thr25-2mm')
-# insula_mask = Brain_Data(atlas.maps).threshold(label=XX, binarize=True)
+# insula_mask = BrainData(atlas.maps).threshold(label=XX, binarize=True)
 
 # For this tutorial, create a simple spherical ROI
 # Centered at MNI coordinates for right anterior insula [38, 20, -4]
 
 # TODO: Implement create_sphere() utility
-# insula_roi = Brain_Data.create_sphere(
+# insula_roi = BrainData.create_sphere(
 #     center=[38, 20, -4],
 #     radius=10,
 #     mask=data.mask
@@ -101,7 +101,7 @@ functional_roi.plot(title='Functional ROI (Top 5% Activation)')
 # Example: Insula peak from meta-analysis at [38, 20, -4]
 
 # TODO: Implement coordinate-to-ROI utility
-# literature_roi = Brain_Data.create_sphere_mni(
+# literature_roi = BrainData.create_sphere_mni(
 #     mni_coords=[38, 20, -4],
 #     radius_mm=8
 # )

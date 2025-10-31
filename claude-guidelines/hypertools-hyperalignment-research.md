@@ -414,7 +414,7 @@ template = np.copy(m[0])  # Use first subject
 | **Output** | Aligned data only | Dict with metadata |
 | **Transformation access** | Not returned | Stored in w_, s_ |
 | **Auto-padding** | Always on | Configurable |
-| **Integration** | Standalone | Part of Brain_Data |
+| **Integration** | Standalone | Part of BrainData |
 
 ### 5.2 Algorithm Equivalence
 
@@ -518,7 +518,7 @@ def test_numerical_match_with_align_procrustes():
 
 **Tier 3: Integration Tests** (Should have)
 - ✅ Numerical match with align() function
-- ✅ Brain_Data integration
+- ✅ BrainData integration
 - ✅ Realistic simulated data (Simulator)
 
 **Tier 4: Edge Case Tests** (Nice to have)
@@ -620,7 +620,7 @@ def test_align_geo():
    - More comprehensive edge case coverage
    - Stricter numerical tolerances
    - Better sklearn API compliance
-   - Integration with Brain_Data ecosystem
+   - Integration with BrainData ecosystem
 
 ### 8.2 Recommendations for nltools
 

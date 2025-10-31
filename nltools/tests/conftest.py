@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import pairwise_distances
 from nltools.simulator import Simulator
-from nltools.data import Adjacency, DesignMatrix, Brain_Data
+from nltools.data import Adjacency, DesignMatrix, BrainData
 import os
 import importlib.util
 
@@ -34,9 +34,9 @@ def sim_brain_data():
 
 @pytest.fixture(scope="function")
 def minimal_brain_data():
-    """Minimal Brain_Data for fast API contract testing.
+    """Minimal BrainData for fast API contract testing.
 
-    Creates Brain_Data with:
+    Creates BrainData with:
     - 5 active voxels (minimal spatial structure)
     - 50 timepoints (sufficient for most operations including filtering)
     - Random data (seeded for reproducibility)
@@ -85,8 +85,8 @@ def minimal_brain_data():
     nifti_img = nib.Nifti1Image(volume_4d, affine)
     mask_img = nib.Nifti1Image(mask_data.astype(np.float32), affine)
 
-    # Create Brain_Data
-    dat = Brain_Data(nifti_img, mask=mask_img)
+    # Create BrainData
+    dat = BrainData(nifti_img, mask=mask_img)
     dat.X = pd.DataFrame(
         {"Intercept": np.ones(n_samples), "X1": np.random.randn(n_samples)}, index=None
     )
@@ -221,7 +221,7 @@ def regress_result(sim_brain_data):
         labels[4] = "house"
 
     # 64 "TRs"
-    fake_timeseries = Brain_Data([sim_brain_data] * 8)
+    fake_timeseries = BrainData([sim_brain_data] * 8)
 
     return {
         "z_score": sim_brain_data,
@@ -275,8 +275,8 @@ def small_brain_data_for_cv():
     nifti_img = nib.Nifti1Image(volume_4d, affine)
     mask_img = nib.Nifti1Image(mask_data.astype(np.float32), affine)
 
-    # Create Brain_Data from nibabel image with mask
-    brain_data = Brain_Data(nifti_img, mask=mask_img)
+    # Create BrainData from nibabel image with mask
+    brain_data = BrainData(nifti_img, mask=mask_img)
 
     # Create corresponding features
     X = np.random.randn(n_samples, 10)
@@ -318,8 +318,8 @@ def tiny_brain_data_for_cv():
     nifti_img = nib.Nifti1Image(volume_4d, affine)
     mask_img = nib.Nifti1Image(mask_data.astype(np.float32), affine)
 
-    # Create Brain_Data
-    brain_data = Brain_Data(nifti_img, mask=mask_img)
+    # Create BrainData
+    brain_data = BrainData(nifti_img, mask=mask_img)
     X = np.random.randn(n_samples, 5)
 
     return brain_data, X

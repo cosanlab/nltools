@@ -16,7 +16,7 @@ class Glm(BaseModel):
     General Linear Model for fMRI data analysis with sklearn-compatible API.
 
     Wraps nilearn.glm.first_level.FirstLevelModel using composition pattern,
-    similar to how Brain_Data holds masker objects. Provides sklearn-style
+    similar to how BrainData holds masker objects. Provides sklearn-style
     interface (fit/predict/score) while exposing full nilearn GLM functionality.
 
     Args:
@@ -31,7 +31,7 @@ class Glm(BaseModel):
         smoothing_fwhm (float, optional): Full-Width at Half Maximum (FWHM) in mm
             for spatial smoothing. If None, no smoothing is applied.
         mask (Nifti1Image, optional): Mask image defining voxels to include in
-            analysis. If None, uses MNI template mask (default, like Brain_Data).
+            analysis. If None, uses MNI template mask (default, like BrainData).
         **kwargs: Additional arguments passed to nilearn FirstLevelModel.
 
     Attributes:
@@ -98,7 +98,7 @@ class Glm(BaseModel):
         self.noise_model = noise_model
         self.smoothing_fwhm = smoothing_fwhm
 
-        # Initialize mask (use MNI template if not provided, like Brain_Data)
+        # Initialize mask (use MNI template if not provided, like BrainData)
         if mask is None:
             self.mask = nib.load(MNI_Template.mask)
         else:

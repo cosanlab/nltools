@@ -2,7 +2,7 @@
 Tests for nltools.stats module - pure function tests.
 
 These test the computational correctness of statistical algorithms,
-not how they're called from Brain_Data/Adjacency methods.
+not how they're called from BrainData/Adjacency methods.
 
 Follows "functional core" pattern: simple function tests focused on algorithmic correctness.
 """
@@ -307,7 +307,7 @@ def test_transform_pairwise():
     reason="ISC calculation has known bugs. Alignment functionality tested in test_align_without_isc() and test_hyperalignment.py (27 tests). ISC fix plan: claude-research/align-isc-fix-plan.md"
 )
 def test_align():
-    """Test hyperalignment algorithms (SRM, Procrustes) on matrices and Brain_Data."""
+    """Test hyperalignment algorithms (SRM, Procrustes) on matrices and BrainData."""
     # Test hyperalignment matrix
     sim = Simulator()
     y = [0, 1]
@@ -357,7 +357,7 @@ def test_align():
     )
     assert len(out2["isc"]) == out["transformed"][0].shape[0]
 
-    # Test hyperalignment on Brain_Data
+    # Test hyperalignment on BrainData
     data = [d1, d2, d3]
     out = align(data, method="deterministic_srm")
     assert len(data) == len(out["transformed"])
@@ -452,7 +452,7 @@ def test_align():
     )
     assert len(out2["isc"]) == out2["transformed"][0].shape[0]
 
-    # Test hyperalignment on Brain_Data over time (axis=1)
+    # Test hyperalignment on BrainData over time (axis=1)
     data = [d1, d2, d3]
     out = align(data, method="deterministic_srm", axis=1)
     assert len(data) == len(out["transformed"])
@@ -689,7 +689,7 @@ def test_align_without_isc():
 
     Not tested here:
     - ISC calculation (has known bugs, see claude-research/align-isc-fix-plan.md)
-    - Brain_Data input (focus on core alignment logic with numpy arrays)
+    - BrainData input (focus on core alignment logic with numpy arrays)
 
     See also:
     - test_align (skipped): Full integration test including ISC

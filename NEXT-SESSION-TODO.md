@@ -99,10 +99,10 @@
 
 ---
 
-### Priority 4: Brain_Data → BrainData Rename (Priority 2.9)
+### Priority 4: BrainData → BrainData Rename (Priority 2.9)
 
 **Status**: Planned, deferred until after audit
-- [ ] Rename class Brain_Data → BrainData
+- [ ] Rename class BrainData → BrainData
 - [ ] Add deprecation alias for backward compatibility
 - [ ] Update all internal references
 - [ ] Update documentation
@@ -120,12 +120,12 @@
 
 **Status**: Partially complete (4 bugs fixed in ce3662d)
 - [ ] Systematic review of all classes and methods
-- [ ] Can parallelize by module (Brain_Data, Adjacency, DesignMatrix, core)
+- [ ] Can parallelize by module (BrainData, Adjacency, DesignMatrix, core)
 - [ ] Fix bugs as discovered
 - [ ] Estimate: 8-12 hours remaining
 
 **Modules to audit**:
-- [ ] Brain_Data (shell/test_brain_data.py)
+- [ ] BrainData (shell/test_brain_data.py)
 - [ ] Adjacency (shell/test_adjacency.py)
 - [ ] DesignMatrix (shell/test_design_matrix.py)
 - [ ] Core algorithms (core/)

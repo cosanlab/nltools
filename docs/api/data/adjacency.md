@@ -18,10 +18,10 @@ Class for representing similarity and distance matrices.
 ## Quick Start
 
 ```python
-from nltools.data import Adjacency, Brain_Data
+from nltools.data import Adjacency, BrainData
 
 # Create from pairwise distances
-data = Brain_Data('brain_images.nii.gz')
+data = BrainData('brain_images.nii.gz')
 similarity = data.distance(metric='correlation')
 
 # Threshold and visualize

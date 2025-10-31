@@ -9,7 +9,7 @@
 
 **Goal**: Complete pandas removal while preserving user-facing API
 **Strategy**: Composition pattern with compatibility layer for pandas idioms
-**Scope**: DesignMatrix (primary), Brain_Data.X/Y, Adjacency.Y, stats.py utilities
+**Scope**: DesignMatrix (primary), BrainData.X/Y, Adjacency.Y, stats.py utilities
 **Timeline**: ~20-24 hours of focused work
 
 ---
@@ -460,12 +460,12 @@ def zscore(df):
 
 ---
 
-### Phase 3: Brain_Data and Adjacency Integration (~4 hours)
+### Phase 3: BrainData and Adjacency Integration (~4 hours)
 
-**3.1 Brain_Data.X and Brain_Data.Y:**
+**3.1 BrainData.X and BrainData.Y:**
 
 Current usage (deprecated in v0.6.0 anyway):
-- `Brain_Data.X` stores pandas DataFrame
+- `BrainData.X` stores pandas DataFrame
 - Used in old `.regress()` method (now deprecated)
 
 **Action**: Remove X/Y attributes entirely OR keep as compatibility layer
@@ -543,7 +543,7 @@ def design_matrix():
 - [ ] Add new tests for `.loc[]` compatibility
 
 **5.3 Update integration tests:**
-- [ ] Brain_Data tests that use DesignMatrix
+- [ ] BrainData tests that use DesignMatrix
 - [ ] Adjacency tests
 - [ ] Stats tests
 

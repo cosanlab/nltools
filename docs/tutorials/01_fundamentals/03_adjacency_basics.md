@@ -27,7 +27,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from nltools.data import Adjacency, Brain_Data
+from nltools.data import Adjacency, BrainData
 from nltools.datasets import fetch_pain
 
 # Adjacency objects can be created from:

@@ -49,5 +49,5 @@ pain_data.fit(model='ridge', X=design_matrix)
 
 ## See Also
 
-- {doc}`data/brain_data` - Brain_Data class for loaded datasets
+- {doc}`data/brain_data` - BrainData class for loaded datasets
 - {doc}`prefs` - MNI template resources

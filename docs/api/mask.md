@@ -14,7 +14,7 @@ The `nltools.mask` module provides tools for working with brain masks and ROIs. 
 - `collapse_mask()` - Extract data from image using mask
 
 **Mask Manipulation**
-- `roi_to_brain()` - Convert ROI to Brain_Data object
+- `roi_to_brain()` - Convert ROI to BrainData object
 - `threshold()` - Threshold masks by intensity
 
 ## Quick Start
@@ -44,6 +44,6 @@ brain_image = expand_mask(data_vector, mask)
 
 ## See Also
 
-- {doc}`data/brain_data` - Brain_Data.apply_mask() and .extract_roi()
+- {doc}`data/brain_data` - BrainData.apply_mask() and .extract_roi()
 - {doc}`prefs` - MNI template resources
 - nilearn.masking - Underlying masking functions

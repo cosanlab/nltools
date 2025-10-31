@@ -10,7 +10,7 @@ The `nltools.cross_validation` module provides cross-validation tools designed f
 
 **KFoldStratified** - Stratified K-fold cross-validation
 - Ensures balanced class representation across folds
-- Compatible with Brain_Data and sklearn estimators
+- Compatible with BrainData and sklearn estimators
 - Supports both classification and regression
 
 **set_cv** - Configure cross-validation scheme
@@ -22,13 +22,13 @@ The `nltools.cross_validation` module provides cross-validation tools designed f
 
 ```python
 from nltools.cross_validation import KFoldStratified, set_cv
-from nltools.data import Brain_Data
+from nltools.data import BrainData
 
 # Create stratified K-fold CV
 cv = KFoldStratified(n_splits=5)
 
-# Use with Brain_Data.fit()
-data = Brain_Data('images.nii.gz')
+# Use with BrainData.fit()
+data = BrainData('images.nii.gz')
 data.fit(model='ridge', X=design_matrix, cv=5)
 
 # Or configure CV scheme
@@ -46,6 +46,6 @@ cv_splitter = set_cv(cv=5, y=labels)
 
 ## See Also
 
-- {doc}`data/brain_data` - Brain_Data.fit() with cv parameter
+- {doc}`data/brain_data` - BrainData.fit() with cv parameter
 - {doc}`models` - Ridge and other models
 - sklearn.model_selection - scikit-learn CV tools

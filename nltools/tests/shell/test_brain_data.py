@@ -1,5 +1,5 @@
 """
-Test suite for Brain_Data class.
+Test suite for BrainData class.
 
 Follows "imperative shell" pattern: tests focus on method usage and interface contracts,
 not implementation details. Organized into logical sections for clarity.
@@ -28,7 +28,7 @@ import numpy as np
 import nibabel as nb
 import pandas as pd
 from nltools.simulator import Simulator
-from nltools.data import Brain_Data, Adjacency
+from nltools.data import BrainData, Adjacency
 from nltools.stats import threshold, align
 from nltools.mask import create_sphere, roi_to_brain
 from pathlib import Path
@@ -42,13 +42,13 @@ shape_2d = (6, 238955)
 
 
 class TestBrainData:
-    """Test Brain_Data class - focus on method usage, not implementation."""
+    """Test BrainData class - focus on method usage, not implementation."""
 
     # ==================== Initialization & I/O ====================
 
     @pytest.mark.tier2
     def test_load(self, tmpdir):
-        """Test loading Brain_Data from various sources and formats."""
+        """Test loading BrainData from various sources and formats."""
         sim = Simulator()
         sigma = 1
         y = [0, 1]
@@ -66,20 +66,20 @@ class TestBrainData:
 
         # Test load list of 4D images
         file_list = [str(tmpdir.join("data.nii.gz")), str(tmpdir.join("data.nii.gz"))]
-        dat = Brain_Data(file_list)
-        dat = Brain_Data([nb.load(x) for x in file_list])
+        dat = BrainData(file_list)
+        dat = BrainData([nb.load(x) for x in file_list])
 
         # Test load string and path
-        dat = Brain_Data(data=str(tmpdir.join("data.nii.gz")), Y=y)
-        dat = Brain_Data(data=Path(tmpdir.join("data.nii.gz")), Y=y)
+        dat = BrainData(data=str(tmpdir.join("data.nii.gz")), Y=y)
+        dat = BrainData(data=Path(tmpdir.join("data.nii.gz")), Y=y)
 
         # Test Write
         dat.write(os.path.join(str(tmpdir.join("test_write.nii"))))
-        assert Brain_Data(os.path.join(str(tmpdir.join("test_write.nii"))))
+        assert BrainData(os.path.join(str(tmpdir.join("test_write.nii"))))
 
         # Test i/o for hdf5
         dat.write(os.path.join(str(tmpdir.join("test_write.h5"))))
-        b = Brain_Data(os.path.join(tmpdir.join("test_write.h5")))
+        b = BrainData(os.path.join(tmpdir.join("test_write.h5")))
         # Note: X and Y attributes removed in v0.6.0, skip checking them
         for k in ["mask", "nifti_masker", "data"]:
             if k == "data":
@@ -102,7 +102,7 @@ class TestBrainData:
         # file that includes a mask AND they pass in value for the mask argument. In this
         # case the mask argument takes precedence so we warn the user
         with pytest.warns(UserWarning):
-            bb = Brain_Data(
+            bb = BrainData(
                 os.path.join(tmpdir.join("test_write.h5")), mask=MNI_Template.mask
             )
             assert os.path.abspath(bb.mask.get_filename()) == os.path.abspath(
@@ -116,8 +116,8 @@ class TestBrainData:
         """Test loading old HDF5 format (backward compatibility)."""
         with pytest.warns(UserWarning):
             # With verbosity on we should see a warning about the old h5 file format
-            b_old = Brain_Data(old_h5_brain, verbose=True)
-        b_new = Brain_Data(new_h5_brain)
+            b_old = BrainData(old_h5_brain, verbose=True)
+        b_new = BrainData(new_h5_brain)
         assert b_old.shape == b_new.shape
         assert np.allclose(b_old.data, b_new.data)
         # NOTE: We lose pandas column dtype information between old and new h5 files
@@ -129,7 +129,7 @@ class TestBrainData:
 
         new_file = Path(tmpdir) / "tmp.h5"
         b_new.write(new_file)
-        b_new_written = Brain_Data(new_file)
+        b_new_written = BrainData(new_file)
         assert b_new.shape == b_new_written.shape
         assert np.allclose(b_new.data, b_new_written.data)
         new_file.unlink()
@@ -170,14 +170,14 @@ class TestBrainData:
     # ==================== Arithmetic Operations ====================
 
     def test_add(self, sim_brain_data):
-        """Test addition of Brain_Data objects and scalars."""
+        """Test addition of BrainData objects and scalars."""
         new = sim_brain_data + sim_brain_data
         assert new.shape == shape_2d
         value = 10
         assert (value + sim_brain_data[0]).mean() == (sim_brain_data[0] + value).mean()
 
     def test_subtract(self, sim_brain_data):
-        """Test subtraction of Brain_Data objects and scalars."""
+        """Test subtraction of BrainData objects and scalars."""
         new = sim_brain_data - sim_brain_data
         assert new.shape == shape_2d
         value = 10
@@ -186,7 +186,7 @@ class TestBrainData:
         ).mean()
 
     def test_multiply(self, sim_brain_data):
-        """Test multiplication of Brain_Data objects, scalars, and arrays."""
+        """Test multiplication of BrainData objects, scalars, and arrays."""
         new = sim_brain_data * sim_brain_data
         assert new.shape == shape_2d
         value = 10
@@ -202,7 +202,7 @@ class TestBrainData:
         np.testing.assert_almost_equal((new - new2).sum(), 0, decimal=4)
 
     def test_divide(self, sim_brain_data):
-        """Test division of Brain_Data objects and scalars."""
+        """Test division of BrainData objects and scalars."""
         new = sim_brain_data / sim_brain_data
         assert new.shape == shape_2d
         np.testing.assert_almost_equal(new.mean(axis=0).mean(), 1, decimal=6)
@@ -213,14 +213,14 @@ class TestBrainData:
         )
 
     def test_inplace_add(self, sim_brain_data):
-        """Test in-place addition with scalars and Brain_Data."""
+        """Test in-place addition with scalars and BrainData."""
         # Test in-place add with scalar
         bd = sim_brain_data[0].copy()
         original_data = bd.data.copy()
         bd += 5
         assert np.allclose(bd.data, original_data + 5)
 
-        # Test in-place add with Brain_Data
+        # Test in-place add with BrainData
         bd1 = sim_brain_data[0].copy()
         bd2 = sim_brain_data[0].copy()
         original_data = bd1.data.copy()
@@ -228,14 +228,14 @@ class TestBrainData:
         assert np.allclose(bd1.data, original_data + bd2.data)
 
     def test_inplace_subtract(self, sim_brain_data):
-        """Test in-place subtraction with scalars and Brain_Data."""
+        """Test in-place subtraction with scalars and BrainData."""
         # Test in-place subtract with scalar
         bd = sim_brain_data[0].copy()
         original_data = bd.data.copy()
         bd -= 3
         assert np.allclose(bd.data, original_data - 3)
 
-        # Test in-place subtract with Brain_Data
+        # Test in-place subtract with BrainData
         bd1 = sim_brain_data[0].copy()
         bd2 = sim_brain_data[0].copy()
         original_data = bd1.data.copy()
@@ -243,14 +243,14 @@ class TestBrainData:
         assert np.allclose(bd1.data, original_data - bd2.data)
 
     def test_inplace_multiply(self, sim_brain_data):
-        """Test in-place multiplication with scalars, Brain_Data, and arrays."""
+        """Test in-place multiplication with scalars, BrainData, and arrays."""
         # Test in-place multiply with scalar
         bd = sim_brain_data[0].copy()
         original_data = bd.data.copy()
         bd *= 2
         assert np.allclose(bd.data, original_data * 2)
 
-        # Test in-place multiply with Brain_Data
+        # Test in-place multiply with BrainData
         bd1 = sim_brain_data[0].copy()
         bd2 = sim_brain_data[0].copy()
         original_data = bd1.data.copy()
@@ -270,14 +270,14 @@ class TestBrainData:
         np.testing.assert_almost_equal((bd - expected).sum(), 0, decimal=4)
 
     def test_inplace_divide(self, sim_brain_data):
-        """Test in-place division with scalars and Brain_Data."""
+        """Test in-place division with scalars and BrainData."""
         # Test in-place divide with scalar
         bd = sim_brain_data[0].copy()
         original_data = bd.data.copy()
         bd /= 2
         assert np.allclose(bd.data, original_data / 2)
 
-        # Test in-place divide with Brain_Data
+        # Test in-place divide with BrainData
         bd1 = sim_brain_data[0].copy()
         bd2 = sim_brain_data[0].copy()
         bd2.data = bd2.data + 1  # Avoid division by zero
@@ -299,16 +299,16 @@ class TestBrainData:
         assert len(sim_brain_data[:3]) == 3
         d = sim_brain_data.to_nifti()
         assert d.shape[0:3] == shape_3d
-        assert Brain_Data(d)
+        assert BrainData(d)
 
     def test_concatenate(self, sim_brain_data):
-        """Test concatenating Brain_Data objects from list."""
-        out = Brain_Data([x for x in sim_brain_data])
-        assert isinstance(out, Brain_Data)
+        """Test concatenating BrainData objects from list."""
+        out = BrainData([x for x in sim_brain_data])
+        assert isinstance(out, BrainData)
         assert len(out) == len(sim_brain_data)
 
     def test_append(self, sim_brain_data):
-        """Test appending Brain_Data objects."""
+        """Test appending BrainData objects."""
         assert sim_brain_data.append(sim_brain_data).shape[0] == shape_2d[0] * 2
 
     # ==================== Statistical Methods ====================
@@ -352,7 +352,7 @@ class TestBrainData:
         # Test threshold
         i = 1
         tt = threshold(out["t"][i], out["p"][i], 0.05)
-        assert isinstance(tt, Brain_Data)
+        assert isinstance(tt, BrainData)
 
     @pytest.mark.tier2
     def test_regress_uses_glm_model(self, sim_brain_data):
@@ -435,7 +435,7 @@ class TestBrainData:
         # Check residuals property matches attribute
         residuals_from_model = sim_brain_data.glm_model.residuals
         assert len(residuals_from_model) == 1  # One run
-        residuals_brain_data = Brain_Data(
+        residuals_brain_data = BrainData(
             residuals_from_model[0], mask=sim_brain_data.mask
         )
         np.testing.assert_allclose(
@@ -535,7 +535,7 @@ class TestBrainData:
         contrast = minimal_brain_data.compute_contrasts([0, 1, -1])
 
         # Test nltools-specific API contract
-        assert isinstance(contrast, Brain_Data)
+        assert isinstance(contrast, BrainData)
         assert contrast.shape == (1, minimal_brain_data.shape[1])
 
     @pytest.mark.tier2
@@ -556,7 +556,7 @@ class TestBrainData:
         # Test string parsing (unique nltools feature)
         contrast = minimal_brain_data.compute_contrasts("condA - condB")
 
-        assert isinstance(contrast, Brain_Data)
+        assert isinstance(contrast, BrainData)
         assert contrast.shape == (1, minimal_brain_data.shape[1])
 
     @pytest.mark.tier2
@@ -578,12 +578,12 @@ class TestBrainData:
         contrasts = {"A_vs_B": "condA - condB", "avg_effect": [0, 0.5, 0.5]}
         results = minimal_brain_data.compute_contrasts(contrasts)
 
-        # Should return dict of Brain_Data objects
+        # Should return dict of BrainData objects
         assert isinstance(results, dict)
         assert "A_vs_B" in results
         assert "avg_effect" in results
-        assert isinstance(results["A_vs_B"], Brain_Data)
-        assert isinstance(results["avg_effect"], Brain_Data)
+        assert isinstance(results["A_vs_B"], BrainData)
+        assert isinstance(results["avg_effect"], BrainData)
 
     @pytest.mark.tier2
     def test_compute_contrasts_invalid_length(self, minimal_brain_data):
@@ -608,7 +608,7 @@ class TestBrainData:
 
     def test_fit_predict_ridge_workflow(self, sim_brain_data):
         """Test complete Ridge fit/predict workflow."""
-        from nltools.data import Brain_Data
+        from nltools.data import BrainData
         from nltools.models import Ridge
 
         # Fit Ridge model
@@ -630,7 +630,7 @@ class TestBrainData:
         predictions = sim_brain_data.predict(X=X_test)
 
         # Check predictions
-        assert isinstance(predictions, Brain_Data)
+        assert isinstance(predictions, BrainData)
         assert predictions.shape == (20, sim_brain_data.shape[1])
 
         # Predict on training data (X=None)
@@ -718,14 +718,14 @@ class TestBrainData:
             sim_brain_data.predict(X=X_wrong)
 
     def test_ridge_weights_structure(self, sim_brain_data):
-        """Test Ridge weights stored correctly as Brain_Data."""
-        from nltools.data import Brain_Data
+        """Test Ridge weights stored correctly as BrainData."""
+        from nltools.data import BrainData
 
         X = np.random.randn(len(sim_brain_data), 10)
         sim_brain_data.fit(model="ridge", alpha=1.0, X=X)
 
-        # Weights should be Brain_Data
-        assert isinstance(sim_brain_data.ridge_weights, Brain_Data)
+        # Weights should be BrainData
+        assert isinstance(sim_brain_data.ridge_weights, BrainData)
 
         # Shape: (n_features, n_voxels)
         assert sim_brain_data.ridge_weights.shape == (10, sim_brain_data.shape[1])
@@ -851,7 +851,7 @@ class TestBrainData:
         )
 
     def test_fit_ridge_cv_predictions(self, small_brain_data_for_cv):
-        """Test CV predictions are out-of-fold and stored as Brain_Data."""
+        """Test CV predictions are out-of-fold and stored as BrainData."""
         brain_data, X = small_brain_data_for_cv
 
         # Fit with CV
@@ -859,7 +859,7 @@ class TestBrainData:
 
         # Check predictions structure
         cv_preds = brain_data.cv_results_["predictions"]
-        assert isinstance(cv_preds, Brain_Data)
+        assert isinstance(cv_preds, BrainData)
         assert cv_preds.shape == (24, 5)  # (n_samples, n_voxels)
 
         # CV predictions should differ from full model predictions
@@ -1012,7 +1012,7 @@ class TestBrainData:
         # Check types
         assert isinstance(brain_data.cv_results_["scores"], np.ndarray)
         assert isinstance(brain_data.cv_results_["mean_score"], np.ndarray)
-        assert isinstance(brain_data.cv_results_["predictions"], Brain_Data)
+        assert isinstance(brain_data.cv_results_["predictions"], BrainData)
         assert isinstance(brain_data.cv_results_["folds"], np.ndarray)
         assert isinstance(brain_data.cv_results_["best_alpha"], (int, float))
         assert isinstance(brain_data.cv_results_["alpha_scores"], np.ndarray)
@@ -1114,7 +1114,7 @@ class TestBrainData:
     # ==================== Masking & ROI Extraction ====================
 
     def test_apply_mask(self, sim_brain_data):
-        """Test applying masks to Brain_Data."""
+        """Test applying masks to BrainData."""
         s1 = create_sphere([12, 10, -8], radius=10)
         assert isinstance(s1, nb.Nifti1Image)
         masked_dat = sim_brain_data.apply_mask(s1)
@@ -1133,8 +1133,8 @@ class TestBrainData:
 
         invalid_mask = concat_imgs([s1, s1])
 
-        # Create Brain_Data from invalid mask
-        mask_bd = Brain_Data(invalid_mask, mask=sim_brain_data.mask)
+        # Create BrainData from invalid mask
+        mask_bd = BrainData(invalid_mask, mask=sim_brain_data.mask)
 
         # Should raise ValueError for non-single image
         with pytest.raises(ValueError, match="Mask must be a single image"):
@@ -1144,32 +1144,32 @@ class TestBrainData:
         """Nilearn should handle dimension compatibility automatically"""
         # Create a compatible mask
         s1 = create_sphere([12, 10, -8], radius=10)
-        mask_bd = Brain_Data(s1, mask=sim_brain_data.mask)
+        mask_bd = BrainData(s1, mask=sim_brain_data.mask)
 
         # This should work (nilearn handles dimension matching)
         result = sim_brain_data.apply_mask(mask_bd)
 
-        assert isinstance(result, Brain_Data)
+        assert isinstance(result, BrainData)
         # Verify output shape matches number of non-zero mask voxels
         assert result.shape[1] == mask_bd.data.astype(bool).sum()
 
     def test_apply_mask_resampling(self, sim_brain_data):
         """Test resample_mask_to_brain parameter works correctly"""
         s1 = create_sphere([12, 10, -8], radius=10)
-        mask_bd = Brain_Data(s1, mask=sim_brain_data.mask)
+        mask_bd = BrainData(s1, mask=sim_brain_data.mask)
 
         # With resampling
         result_resample = sim_brain_data.apply_mask(
             mask_bd, resample_mask_to_brain=True
         )
-        assert isinstance(result_resample, Brain_Data)
+        assert isinstance(result_resample, BrainData)
         assert result_resample.shape[1] == np.sum(s1.get_fdata() != 0)
 
         # Without resampling (default)
         result_no_resample = sim_brain_data.apply_mask(
             mask_bd, resample_mask_to_brain=False
         )
-        assert isinstance(result_no_resample, Brain_Data)
+        assert isinstance(result_no_resample, BrainData)
         assert result_no_resample.shape[1] == mask_bd.data.astype(bool).sum()
 
     @pytest.mark.tier2
@@ -1199,7 +1199,7 @@ class TestBrainData:
         s1 = create_sphere([15, 10, -8], radius=10)
         s2 = create_sphere([-15, 10, -8], radius=10)
         s3 = create_sphere([0, -15, -8], radius=10)
-        masks = Brain_Data([s1, s2, s3])
+        masks = BrainData([s1, s2, s3])
         mask = roi_to_brain([1, 2, 3], masks)
         assert len(sim_brain_data[0].extract_roi(mask, metric="mean")) == len(masks)
         assert len(sim_brain_data[0].extract_roi(mask, metric="median")) == len(masks)
@@ -1223,7 +1223,7 @@ class TestBrainData:
         assert z.shape == sim_brain_data.shape
 
     def test_copy(self, sim_brain_data):
-        """Test copying Brain_Data objects."""
+        """Test copying BrainData objects."""
         d_copy = sim_brain_data.copy()
         assert d_copy.shape == sim_brain_data.shape
 
@@ -1242,20 +1242,20 @@ class TestBrainData:
         assert np.isclose(np.sum(s.mean().data), 0, atol=0.1)
 
     def test_filter_high_pass(self, minimal_brain_data):
-        """Test high-pass filtering returns Brain_Data with correct shape."""
+        """Test high-pass filtering returns BrainData with correct shape."""
         # Test basic API: sampling_freq + high_pass
         filtered = minimal_brain_data.filter(sampling_freq=0.5, high_pass=0.01)
 
-        assert isinstance(filtered, Brain_Data)
+        assert isinstance(filtered, BrainData)
         assert filtered.shape == minimal_brain_data.shape
         # Original data should be unchanged (immutability)
         assert not np.array_equal(id(filtered.data), id(minimal_brain_data.data))
 
     def test_filter_low_pass(self, minimal_brain_data):
-        """Test low-pass filtering returns Brain_Data with correct shape."""
+        """Test low-pass filtering returns BrainData with correct shape."""
         filtered = minimal_brain_data.filter(sampling_freq=0.5, low_pass=0.1)
 
-        assert isinstance(filtered, Brain_Data)
+        assert isinstance(filtered, BrainData)
         assert filtered.shape == minimal_brain_data.shape
 
     def test_filter_band_pass(self, minimal_brain_data):
@@ -1264,7 +1264,7 @@ class TestBrainData:
             sampling_freq=0.5, high_pass=0.01, low_pass=0.1
         )
 
-        assert isinstance(filtered, Brain_Data)
+        assert isinstance(filtered, BrainData)
         assert filtered.shape == minimal_brain_data.shape
 
     def test_filter_error_no_sampling_freq(self, minimal_brain_data):
@@ -1289,12 +1289,12 @@ class TestBrainData:
             ensure_finite=True,  # nilearn parameter not extracted by filter()
         )
 
-        assert isinstance(filtered, Brain_Data)
+        assert isinstance(filtered, BrainData)
 
     def test_smooth(self, sim_brain_data):
         """Test spatial smoothing."""
         smoothed = sim_brain_data.smooth(5.0)
-        assert isinstance(smoothed, Brain_Data)
+        assert isinstance(smoothed, BrainData)
         assert smoothed.shape == sim_brain_data.shape
         smoothed = sim_brain_data[0].smooth(5.0)
         assert len(smoothed.shape) == 1
@@ -1304,13 +1304,13 @@ class TestBrainData:
         """Test thresholding and region extraction."""
         s1 = create_sphere([12, 10, -8], radius=10)
         s2 = create_sphere([22, -2, -22], radius=10)
-        mask = Brain_Data(s1) * 5
-        mask = mask + Brain_Data(s2)
+        mask = BrainData(s1) * 5
+        mask = mask + BrainData(s2)
 
         m1 = mask.threshold(upper=0.5)
         m2 = mask.threshold(upper=3)
         m3 = mask.threshold(upper="98%")
-        m4 = Brain_Data(s1) * 5 + Brain_Data(s2) * -0.5
+        m4 = BrainData(s1) * 5 + BrainData(s2) * -0.5
         m4 = mask.threshold(upper=0.5, lower=-0.3)
         assert np.sum(m1.data > 0) > np.sum(m2.data > 0)
         assert np.sum(m1.data > 0) == np.sum(m3.data > 0)
@@ -1319,7 +1319,7 @@ class TestBrainData:
 
         # Test Regions
         r = mask.regions(min_region_size=10)
-        m1 = Brain_Data(s1)
+        m1 = BrainData(s1)
         m2 = r.threshold(1, binarize=True)
         assert len(np.unique(r.to_nifti().get_fdata())) == 2
         diff = m2 - m1
@@ -1338,8 +1338,8 @@ class TestBrainData:
         # Threshold with cluster size minimum
         result = brain.threshold(lower=2, cluster_threshold=10)
 
-        # Should return Brain_Data
-        assert isinstance(result, Brain_Data)
+        # Should return BrainData
+        assert isinstance(result, BrainData)
         # Should have removed small clusters (basic check that it ran)
         assert result.shape == brain.shape
 
@@ -1348,14 +1348,14 @@ class TestBrainData:
         """Cluster threshold should work with upper threshold only"""
         brain = sim_brain_data.copy()
         result = brain.threshold(upper=2, cluster_threshold=10)
-        assert isinstance(result, Brain_Data)
+        assert isinstance(result, BrainData)
 
     @pytest.mark.tier2
     def test_threshold_cluster_with_lower_only(self, sim_brain_data):
         """Cluster threshold should work with lower threshold only"""
         brain = sim_brain_data.copy()
         result = brain.threshold(lower=2, cluster_threshold=10)
-        assert isinstance(result, Brain_Data)
+        assert isinstance(result, BrainData)
 
     def test_threshold_cluster_rejects_bandpass(self, sim_brain_data):
         """Should raise error when using both upper AND lower with cluster_threshold"""
@@ -1407,7 +1407,7 @@ class TestBrainData:
         # This should still work (keep middle values, zero extremes)
         result = brain.threshold(lower=-2, upper=2)
 
-        assert isinstance(result, Brain_Data)
+        assert isinstance(result, BrainData)
         # Verify band-pass behavior preserved (values in range kept)
 
     @pytest.mark.tier2
@@ -1420,7 +1420,7 @@ class TestBrainData:
         result = brain.threshold(lower=2.5, cluster_threshold=50)
 
         # Basic sanity checks
-        assert isinstance(result, Brain_Data)
+        assert isinstance(result, BrainData)
         assert result.shape == brain.shape
         assert not result.isempty
 
@@ -1428,7 +1428,7 @@ class TestBrainData:
 
     def test_similarity(self, sim_brain_data):
         """Test similarity computation with different metrics."""
-        # Test comparing Brain_Data to itself
+        # Test comparing BrainData to itself
         r = sim_brain_data.similarity(sim_brain_data, method="correlation")
         assert r.shape == (sim_brain_data.shape[0], sim_brain_data.shape[0])
         r = sim_brain_data.similarity(sim_brain_data, method="dot_product")
@@ -1651,9 +1651,9 @@ class TestBrainData:
         # Test basic bootstrap with mean and std (should work)
         n_samples = 3
         b = masked.bootstrap("mean", n_samples=n_samples)
-        assert isinstance(b["Z"], Brain_Data)
+        assert isinstance(b["Z"], BrainData)
         b = masked.bootstrap("std", n_samples=n_samples)
-        assert isinstance(b["Z"], Brain_Data)
+        assert isinstance(b["Z"], BrainData)
 
         # Bootstrap with "predict" will fail since predict is deprecated
         with pytest.raises(
@@ -1668,7 +1668,7 @@ class TestBrainData:
         sim = Simulator()
         dat = sim.create_data([0, 1], sigma=1, reps=5, output_dir=".")
         y = pd.read_csv("y.csv", header=None, index_col=None)
-        dat = Brain_Data("data.nii.gz", Y=y)
+        dat = BrainData("data.nii.gz", Y=y)
 
         with pytest.raises(
             NotImplementedError, match="predict_multi.*deprecated.*Model class"

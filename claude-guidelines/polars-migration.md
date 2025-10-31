@@ -10,7 +10,7 @@
 ## Executive Summary
 
 **Scope**: Complete pandas removal (CPU-only, defer GPU to v0.7.0)
-**Target**: All 4 classes (Brain_Data, DesignMatrix, Adjacency, stats modules)
+**Target**: All 4 classes (BrainData, DesignMatrix, Adjacency, stats modules)
 **Approach**: Parallel with Model class work, coordinated at integration points
 **Timeline**: ~5-7 days of focused work
 
@@ -42,8 +42,8 @@
    - **Risk**: If we change stats.py signatures before Model work
    - **Mitigation**: Migrate stats.py LAST, or coordinate API changes
 
-2. **Brain_Data method signatures**
-   - Model spec adds `.predict()` back to Brain_Data
+2. **BrainData method signatures**
+   - Model spec adds `.predict()` back to BrainData
    - **Risk**: If we change internal data structures before Model integration
    - **Mitigation**: Keep `brain_data.data` as numpy array (both plans need this)
 
@@ -59,8 +59,8 @@
 | `backends.py` | - | ✅ Implements | Model team |
 | `stats.py` (resampling) | ✅ Migrates to Polars | - | Polars team |
 | `stats/ridge.py` | - | ✅ New file | Model team |
-| Brain_Data.X, Y | ✅ Polars conversion layer | Uses if present | Polars team |
-| Brain_Data.predict() | - | ✅ Implements | Model team |
+| BrainData.X, Y | ✅ Polars conversion layer | Uses if present | Polars team |
+| BrainData.predict() | - | ✅ Implements | Model team |
 | DesignMatrix | ✅ Full rewrite | May consume | Polars team |
 | HDF5 utilities | ✅ Migrate | May use | Shared |
 
@@ -71,9 +71,9 @@
 ### Complete Inventory
 
 **Files with pandas usage**: 15+ files
-**Core classes using pandas**: 4 (Brain_Data, DesignMatrix, Adjacency, Validation)
+**Core classes using pandas**: 4 (BrainData, DesignMatrix, Adjacency, Validation)
 **DataFrame attributes**:
-- Brain_Data: `X`, `Y` (deprecated in v0.6.0)
+- BrainData: `X`, `Y` (deprecated in v0.6.0)
 - Adjacency: `Y`
 - DesignMatrix: IS a DataFrame (subclasses pd.DataFrame)
 
@@ -204,12 +204,12 @@ def zscore(df):
 
 ---
 
-### Phase 3: Brain_Data (Day 3, ~5 hours)
+### Phase 3: BrainData (Day 3, ~5 hours)
 **Goal**: Compatibility layer for deprecated X/Y attributes
 
 **3.1 Internal Storage Migration** (~3 hours)
 ```python
-class Brain_Data:
+class BrainData:
     def __init__(self, ...):
         self._X_internal = None  # Stores as Polars
         self._Y_internal = None
@@ -218,7 +218,7 @@ class Brain_Data:
     def X(self):
         """DEPRECATED: Returns pandas for v0.6.0 compatibility"""
         warnings.warn(
-            "Brain_Data.X is deprecated. Use design_matrix parameter in .regress() instead.",
+            "BrainData.X is deprecated. Use design_matrix parameter in .regress() instead.",
             DeprecationWarning,
             stacklevel=2
         )
@@ -232,7 +232,7 @@ class Brain_Data:
     def Y(self):
         """DEPRECATED: Returns pandas for v0.6.0 compatibility"""
         warnings.warn(
-            "Brain_Data.Y is deprecated.",
+            "BrainData.Y is deprecated.",
             DeprecationWarning,
             stacklevel=2
         )
@@ -249,7 +249,7 @@ class Brain_Data:
 - `.regress()`: Accept both pandas/Polars, convert internally
 - **Coordination**: Ensure Model spec's `.predict()` works with this
 
-**Deliverable**: Brain_Data with Polars internally, backward compatible properties
+**Deliverable**: BrainData with Polars internally, backward compatible properties
 
 ---
 
@@ -470,7 +470,7 @@ tmp = out.filter(
 
 **5.3 Y Attribute** (~1 hour)
 - Convert `self.Y` to Polars internally
-- Provide pandas compatibility layer like Brain_Data
+- Provide pandas compatibility layer like BrainData
 
 **Deliverable**: Adjacency with Polars, 5-10x speedup on statistics, tests green
 
@@ -628,7 +628,7 @@ df = df.with_columns((pl.col("old") * 2).alias("new"))
 |------|--------|------------|
 | DesignMatrix breaks user code | HIGH | Extensive testing, `.to_pandas()` escape hatch |
 | Nilearn expects pandas | MEDIUM | Conversion layer at boundaries |
-| Model spec conflicts | MEDIUM | Coordinate via shared Brain_Data.data (numpy) |
+| Model spec conflicts | MEDIUM | Coordinate via shared BrainData.data (numpy) |
 | Performance regression | LOW | Polars is faster, but benchmark to verify |
 | Test failures | MEDIUM | Update tests incrementally per phase |
 | Polars API changes | LOW | Pin to stable version (>=0.20.0) |
@@ -650,7 +650,7 @@ df = df.with_columns((pl.col("old") * 2).alias("new"))
 ## 🔄 Coordination Checkpoints with Model Spec
 
 **Before Phase 2**: Confirm stats.py signatures stable
-**Before Phase 3**: Verify Brain_Data.data stays numpy (both need it)
+**Before Phase 3**: Verify BrainData.data stays numpy (both need it)
 **After Phase 4**: Test DesignMatrix with model-spec ridge regression
 **After Phase 6**: Run both test suites together (Polars + Models)
 
@@ -680,7 +680,7 @@ polars = { version = ">=0.20.0", extras = ["gpu"] }  # GPU engine
 
 - **Day 1**: Bridge module, fix deprecated patterns (~4 hrs)
 - **Day 2**: Stats, validation, file I/O (~6 hrs)
-- **Day 3**: Brain_Data compatibility layer (~5 hrs)
+- **Day 3**: BrainData compatibility layer (~5 hrs)
 - **Days 4-5**: DesignMatrix composition pattern (~10 hrs)
 - **Day 6**: Adjacency lazy evaluation (~6 hrs)
 - **Day 7**: Integration testing (~5 hrs)
@@ -695,7 +695,7 @@ polars = { version = ">=0.20.0", extras = ["gpu"] }  # GPU engine
 2. **Lazy evaluation is powerful** - Especially for Adjacency statistics (5-10x speedup)
 3. **Composition beats subclassing** - For DesignMatrix metadata needs
 4. **Bridge layers enable migration** - Accept both, convert internally, deprecate pandas
-5. **Coordinate at interfaces** - Brain_Data.data (numpy) is shared contract with Model spec
+5. **Coordinate at interfaces** - BrainData.data (numpy) is shared contract with Model spec
 6. **GPU deferral is wise** - CPU Polars already gives 2-5x, GPU in v0.7.0 gives another 10x
 7. **No index = cleaner code** - Polars' integer positions eliminate `.reset_index()` calls
 

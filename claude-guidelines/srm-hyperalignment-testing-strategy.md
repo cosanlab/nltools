@@ -576,7 +576,7 @@ class TestSRMEdgeCases:
 # ========== INTEGRATION TESTS ==========
 
 class TestSRMIntegration:
-    """Integration tests with Brain_Data and align() function."""
+    """Integration tests with BrainData and align() function."""
 
     def test_srm_align_integration(self, multi_subject_data):
         """Test SRM via align() function."""
