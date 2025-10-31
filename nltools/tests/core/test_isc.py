@@ -72,7 +72,7 @@ def test_compute_loo_isc_voxelwise_shape():
 @pytest.mark.tier2
 def test_compute_loo_isc_gpu_matches_numpy():
     """GPU LOO matches NumPy within float32 tolerance."""
-    torch = pytest.importorskip("torch")
+    _ = pytest.importorskip("torch")
 
     np.random.seed(42)
     data = np.random.randn(100, 10, 100)  # 100 voxels (smaller for testing)
@@ -160,7 +160,7 @@ def test_compute_pairwise_isc_voxelwise_shape():
 @pytest.mark.tier2
 def test_compute_pairwise_isc_gpu_matches_numpy():
     """GPU pairwise matches NumPy within float32 tolerance."""
-    torch = pytest.importorskip("torch")
+    _ = pytest.importorskip("torch")
 
     np.random.seed(42)
     data = np.random.randn(100, 10, 100)  # 100 voxels
@@ -462,7 +462,7 @@ def test_isc_backend_consistency_numpy_cpu_parallel():
 @pytest.mark.tier2
 def test_isc_gpu_matches_cpu():
     """GPU backend matches CPU within float32 tolerance."""
-    torch = pytest.importorskip("torch")
+    _ = pytest.importorskip("torch")
 
     np.random.seed(42)
     data = np.random.randn(100, 10, 100)  # 100 voxels
@@ -611,7 +611,7 @@ def test_isc_gpu_speedup_loo():
     import time
 
     start = time.time()
-    result_cpu = isc_permutation_test(
+    _ = isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
         backend="numpy",
@@ -621,7 +621,7 @@ def test_isc_gpu_speedup_loo():
     cpu_time = time.time() - start
 
     start = time.time()
-    result_gpu = isc_permutation_test(
+    _ = isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
         backend="torch",
@@ -651,7 +651,7 @@ def test_isc_gpu_speedup_pairwise():
     import time
 
     start = time.time()
-    result_cpu = isc_permutation_test(
+    _ = isc_permutation_test(
         data,
         summary_statistic="pairwise",
         backend="numpy",
@@ -661,7 +661,7 @@ def test_isc_gpu_speedup_pairwise():
     cpu_time = time.time() - start
 
     start = time.time()
-    result_gpu = isc_permutation_test(
+    _ = isc_permutation_test(
         data,
         summary_statistic="pairwise",
         backend="torch",

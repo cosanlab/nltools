@@ -76,13 +76,13 @@ class Backend:
 
     def _init_auto(self):
         """Automatically select best backend"""
-        try:
-            # TODO: consider this ruff suggestion: F401 `torch` imported but unused; consider using `importlib.util.find_spec` to test for availability
-            import torch
+        import importlib.util
 
+        # Check if PyTorch is available without importing it
+        if importlib.util.find_spec("torch") is not None:
             # PyTorch available, use it
             self._init_torch()
-        except ImportError:
+        else:
             # Fall back to NumPy
             self._init_numpy()
 
