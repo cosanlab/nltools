@@ -474,3 +474,193 @@ def _bootstrap_ridge_weights_cpu_parallel(
         result.pop("samples", None)
 
     return result
+
+
+def _bootstrap_ridge_predict_worker(
+    X: np.ndarray,
+    y: np.ndarray,
+    X_pred: np.ndarray,
+    indices: np.ndarray,
+    alpha: float,
+    **ridge_kwargs,
+) -> np.ndarray:
+    """
+    Worker function for bootstrapping Ridge model predictions.
+
+    Resamples training data, fits Ridge model, and makes predictions on test data.
+
+    Parameters
+    ----------
+    X : np.ndarray
+        Training feature matrix, shape (n_samples, n_features)
+    y : np.ndarray
+        Training target matrix, shape (n_samples, n_voxels)
+    X_pred : np.ndarray
+        Test feature matrix for prediction, shape (n_test_samples, n_features)
+    indices : np.ndarray
+        Bootstrap indices for resampling training data, shape (n_samples,)
+    alpha : float
+        Ridge regularization parameter
+    **ridge_kwargs : dict
+        Additional parameters passed to ridge_svd()
+
+    Returns
+    -------
+    np.ndarray
+        Predictions, shape (n_test_samples, n_voxels)
+    """
+    from nltools.algorithms.ridge import ridge_svd
+
+    # Resample training data
+    X_boot = X[indices]
+    y_boot = y[indices]
+
+    # Fit Ridge model to bootstrap sample
+    weights = ridge_svd(X_boot, y_boot, alpha=alpha, **ridge_kwargs)
+
+    # Make predictions on test data
+    # Matrix multiplication: (n_test, n_features) @ (n_features, n_voxels)
+    predictions = X_pred @ weights
+
+    return predictions
+
+
+def _bootstrap_ridge_predict_cpu_parallel(
+    X: np.ndarray,
+    y: np.ndarray,
+    X_pred: np.ndarray,
+    alpha: float,
+    n_samples: int = 5000,
+    save_weights: bool = False,
+    n_jobs: int = -1,
+    random_state: Optional[int] = None,
+    percentiles: Tuple[float, float] = (2.5, 97.5),
+    **ridge_kwargs,
+) -> Dict[str, np.ndarray]:
+    """
+    Bootstrap Ridge model predictions using CPU parallelization.
+
+    Resamples training data, fits Ridge models, and aggregates predictions
+    on test data. Uses same performance optimizations as weights bootstrap.
+
+    Parameters
+    ----------
+    X : np.ndarray
+        Training feature matrix, shape (n_samples, n_features)
+    y : np.ndarray
+        Training target matrix, shape (n_samples, n_voxels)
+    X_pred : np.ndarray
+        Test feature matrix for prediction, shape (n_test_samples, n_features)
+    alpha : float
+        Ridge regularization parameter
+    n_samples : int, default=5000
+        Number of bootstrap iterations
+    save_weights : bool, default=False
+        If True, store all bootstrap predictions (memory intensive)
+    n_jobs : int, default=-1
+        Number of CPU cores for parallelization
+    random_state : int, optional
+        Random seed for reproducibility
+    percentiles : tuple, default=(2.5, 97.5)
+        Percentiles for confidence intervals
+    **ridge_kwargs : dict
+        Additional parameters passed to ridge_svd()
+
+    Returns
+    -------
+    dict
+        Dictionary containing:
+        - 'mean': Bootstrap mean predictions
+        - 'std': Bootstrap standard deviation
+        - 'Z': Z-scores (mean/std)
+        - 'p': Two-tailed p-values
+        - 'ci_lower': Lower confidence bound
+        - 'ci_upper': Upper confidence bound
+        - 'samples': All samples (only if save_weights=True)
+        - 'backend': Backend used
+
+    Examples
+    --------
+    >>> X = np.random.randn(100, 10)         # Training features
+    >>> y = np.random.randn(100, 50)         # Training targets (50 voxels)
+    >>> X_test = np.random.randn(20, 10)     # Test features
+    >>> result = _bootstrap_ridge_predict_cpu_parallel(X, y, X_test, alpha=1.0)
+    >>> result['mean'].shape
+    (20, 50)  # Predictions for 20 test samples, 50 voxels
+    """
+    from joblib import Parallel, delayed
+    from tqdm import tqdm
+    from .utils import _generate_bootstrap_indices
+
+    # Input validation
+    X = np.asarray(X, dtype=np.float64)
+    y = np.asarray(y, dtype=np.float64)
+    X_pred = np.asarray(X_pred, dtype=np.float64)
+
+    if X.ndim != 2:
+        raise ValueError(f"X must be 2D, got shape {X.shape}")
+    if y.ndim not in [1, 2]:
+        raise ValueError(f"y must be 1D or 2D, got shape {y.shape}")
+    if X_pred.ndim != 2:
+        raise ValueError(f"X_pred must be 2D, got shape {X_pred.shape}")
+    if X.shape[0] != y.shape[0]:
+        raise ValueError(
+            f"X and y must have same n_samples: {X.shape[0]} != {y.shape[0]}"
+        )
+    if X.shape[1] != X_pred.shape[1]:
+        raise ValueError(
+            f"X and X_pred must have same n_features: {X.shape[1]} != {X_pred.shape[1]}"
+        )
+
+    # Handle 1D y
+    single_voxel = y.ndim == 1
+    if single_voxel:
+        y = y[:, np.newaxis]
+
+    n_obs = X.shape[0]
+    n_test_samples = X_pred.shape[0]
+    n_voxels = y.shape[1]
+    output_shape = (n_test_samples, n_voxels)
+
+    # Pre-generate bootstrap indices (deterministic)
+    all_indices = _generate_bootstrap_indices(
+        n_obs, n_samples, random_state=random_state
+    )
+
+    # Initialize online statistics aggregator
+    stats = OnlineBootstrapStats(
+        shape=output_shape,
+        save_samples=save_weights,
+        percentiles=percentiles,
+    )
+
+    # Define worker function
+    def _compute_one_bootstrap(idx):
+        return _bootstrap_ridge_predict_worker(
+            X, y, X_pred, all_indices[idx], alpha, **ridge_kwargs
+        )
+
+    # Execute in parallel with progress bar
+    bootstrap_samples = Parallel(n_jobs=n_jobs)(
+        delayed(_compute_one_bootstrap)(i)
+        for i in tqdm(range(n_samples), desc="Bootstrap Ridge predictions", unit="iter")
+    )
+
+    # Aggregate results
+    for sample in bootstrap_samples:
+        stats.update(sample)
+
+    # Get final results
+    result = stats.get_results()
+
+    # Add backend info
+    import multiprocessing
+
+    actual_n_jobs = multiprocessing.cpu_count() if n_jobs == -1 else n_jobs
+    result["backend"] = f"cpu-parallel-{actual_n_jobs}"
+
+    # Remove samples if not requested
+    if not save_weights:
+        result.pop("samples", None)
+
+    return result

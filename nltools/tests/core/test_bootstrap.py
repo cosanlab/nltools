@@ -5,6 +5,7 @@ from nltools.algorithms.inference.bootstrap import (
     OnlineBootstrapStats,
     _bootstrap_simple_cpu_parallel,
     _bootstrap_ridge_weights_cpu_parallel,
+    _bootstrap_ridge_predict_cpu_parallel,
 )
 
 
@@ -391,3 +392,130 @@ class TestBootstrapRidgeWeights:
         # Other results are ~6×500 = 3,000 floats = 24KB
         # Ratio should be ~17× or more
         assert full_size > efficient_size * 10
+
+
+class TestBootstrapRidgePredict:
+    """Test suite for Ridge model predictions bootstrap."""
+
+    def test_bootstrap_ridge_predict_efficient(self):
+        """Test Ridge predictions bootstrap in efficient mode."""
+        np.random.seed(42)
+        X = np.random.randn(100, 10)  # Training features
+        y = np.random.randn(100, 50)  # Training targets (50 voxels)
+        X_test = np.random.randn(20, 10)  # Test features
+        alpha = 1.0
+
+        result = _bootstrap_ridge_predict_cpu_parallel(
+            X, y, X_test, alpha, n_samples=100, n_jobs=1, random_state=42
+        )
+
+        # Check dict structure
+        assert "mean" in result
+        assert "std" in result
+        assert "Z" in result
+        assert "p" in result
+        assert "ci_lower" in result
+        assert "ci_upper" in result
+        assert "backend" in result
+        assert "samples" not in result
+
+        # Check shapes (predictions for test samples)
+        assert result["mean"].shape == (20, 50)
+        assert result["std"].shape == (20, 50)
+
+        # Check no NaNs
+        assert not np.any(np.isnan(result["mean"]))
+        assert not np.any(np.isnan(result["std"]))
+
+    def test_bootstrap_ridge_predict_full(self):
+        """Test Ridge predictions bootstrap with save_weights=True."""
+        np.random.seed(42)
+        X = np.random.randn(100, 10)
+        y = np.random.randn(100, 50)
+        X_test = np.random.randn(20, 10)
+        alpha = 1.0
+        n_samples = 100
+
+        result = _bootstrap_ridge_predict_cpu_parallel(
+            X,
+            y,
+            X_test,
+            alpha,
+            n_samples=n_samples,
+            save_weights=True,
+            n_jobs=1,
+            random_state=42,
+        )
+
+        # Samples should be stored
+        assert "samples" in result
+        assert result["samples"].shape == (n_samples, 20, 50)
+
+        # Verify percentile CIs match samples
+        ci_lower_from_samples = np.percentile(result["samples"], 2.5, axis=0)
+        ci_upper_from_samples = np.percentile(result["samples"], 97.5, axis=0)
+
+        np.testing.assert_array_almost_equal(
+            result["ci_lower"], ci_lower_from_samples, decimal=5
+        )
+        np.testing.assert_array_almost_equal(
+            result["ci_upper"], ci_upper_from_samples, decimal=5
+        )
+
+    def test_bootstrap_ridge_predict_variance(self):
+        """Test that bootstrap predictions have variance."""
+        np.random.seed(42)
+        X = np.random.randn(100, 10)
+        y = np.random.randn(100, 50)
+        X_test = np.random.randn(20, 10)
+        alpha = 1.0
+
+        result = _bootstrap_ridge_predict_cpu_parallel(
+            X, y, X_test, alpha, n_samples=100, n_jobs=1, random_state=42
+        )
+
+        # Predictions should have variance
+        assert np.mean(result["std"] > 0) > 0.95
+        assert np.mean(result["std"] > 1e-6) > 0.90
+
+    def test_bootstrap_ridge_predict_correctness(self):
+        """Test bootstrap mean matches single fit-predict."""
+        from nltools.algorithms.ridge import ridge_svd
+
+        np.random.seed(42)
+        X = np.random.randn(100, 10)
+        y = np.random.randn(100, 50)
+        X_test = np.random.randn(20, 10)
+        alpha = 1.0
+
+        # Single fit-predict
+        weights_single = ridge_svd(X, y, alpha=alpha)
+        pred_single = X_test @ weights_single
+
+        # Bootstrap predictions
+        result = _bootstrap_ridge_predict_cpu_parallel(
+            X, y, X_test, alpha, n_samples=500, n_jobs=1, random_state=42
+        )
+
+        # Bootstrap mean should be close to single prediction
+        # (Not exact due to finite bootstrap samples, but close)
+        np.testing.assert_allclose(result["mean"], pred_single, rtol=0.1, atol=0.1)
+
+    def test_bootstrap_ridge_predict_reproducibility(self):
+        """Test same random_state produces identical results."""
+        np.random.seed(42)
+        X = np.random.randn(100, 10)
+        y = np.random.randn(100, 50)
+        X_test = np.random.randn(20, 10)
+        alpha = 1.0
+
+        result1 = _bootstrap_ridge_predict_cpu_parallel(
+            X, y, X_test, alpha, n_samples=100, n_jobs=1, random_state=42
+        )
+        result2 = _bootstrap_ridge_predict_cpu_parallel(
+            X, y, X_test, alpha, n_samples=100, n_jobs=1, random_state=42
+        )
+
+        # Results should be identical
+        np.testing.assert_array_almost_equal(result1["mean"], result2["mean"])
+        np.testing.assert_array_almost_equal(result1["std"], result2["std"])
