@@ -636,3 +636,183 @@ class TestBootstrapErrorHandling:
 
         with pytest.raises(ValueError, match="must be 1D or 2D"):
             _bootstrap_simple_cpu_parallel(data_scalar, "mean", n_samples=10)
+
+
+@pytest.mark.tier2
+class TestBootstrapPerformance:
+    """
+    Performance validation tests for bootstrap implementations.
+
+    These tests are marked as tier2 (slow) and only run when explicitly
+    requested or in CI/nightly builds. They validate performance claims
+    and test large-scale scenarios.
+    """
+
+    def test_bootstrap_ridge_speedup(self):
+        """
+        Validate Ridge bootstrap completes in reasonable time for large problems.
+
+        This test validates that the optimized implementation can handle
+        realistic neuroimaging problems efficiently. The key optimization is
+        using efficient online statistics (Welford's algorithm) rather than
+        storing all bootstrap samples in memory.
+
+        For very large problems (many voxels, many bootstrap samples), the
+        memory savings enable problems that would otherwise OOM.
+        """
+        import time
+
+        np.random.seed(42)
+        n_samples = 100
+        n_features = 50
+        n_voxels = 10000  # Large voxel count
+        n_bootstrap = 1000  # Many bootstrap iterations
+        alpha = 1.0
+
+        X = np.random.randn(n_samples, n_features)
+        y = np.random.randn(n_samples, n_voxels)
+
+        # Run optimized implementation (efficient mode, parallel)
+        start = time.time()
+        result = _bootstrap_ridge_weights_cpu_parallel(
+            X,
+            y,
+            alpha,
+            n_samples=n_bootstrap,
+            save_weights=False,
+            n_jobs=-1,
+            random_state=42,
+        )
+        elapsed = time.time() - start
+
+        print("\nRidge bootstrap performance:")
+        print(
+            f"  Problem size: {n_samples} samples × {n_features} features → {n_voxels} voxels"
+        )
+        print(f"  Bootstrap iterations: {n_bootstrap}")
+        print(f"  Elapsed time: {elapsed:.2f}s")
+        print(f"  Throughput: {n_bootstrap / elapsed:.1f} iterations/sec")
+        print(f"  Time per iteration: {elapsed / n_bootstrap * 1000:.1f}ms")
+
+        # Verify results are valid
+        assert "mean" in result
+        assert "std" in result
+        assert result["mean"].shape == (n_features, n_voxels)
+        assert not np.any(np.isnan(result["mean"]))
+
+        # Verify reasonable performance
+        # Should complete 1000 iterations in < 30 seconds on any modern machine
+        assert elapsed < 30.0, f"Expected < 30s, got {elapsed:.1f}s"
+
+        # Verify throughput is reasonable (at least 20 iterations/sec)
+        throughput = n_bootstrap / elapsed
+        assert throughput >= 20.0, f"Expected >= 20 iter/s, got {throughput:.1f} iter/s"
+
+    def test_bootstrap_memory_efficient(self):
+        """Validate memory efficiency of efficient vs full mode."""
+        np.random.seed(42)
+        data = np.random.randn(100, 1000).astype(np.float32)
+
+        # Efficient mode (online statistics, no sample storage)
+        result_efficient = _bootstrap_simple_cpu_parallel(
+            data, "mean", n_samples=1000, save_weights=False, n_jobs=1, random_state=42
+        )
+
+        # Full mode (store all samples)
+        result_full = _bootstrap_simple_cpu_parallel(
+            data, "mean", n_samples=1000, save_weights=True, n_jobs=1, random_state=42
+        )
+
+        # Calculate memory usage
+        # Efficient mode: Only stores mean, std, Z, p, ci_lower, ci_upper (6 arrays of shape (1000,))
+        efficient_arrays = [
+            v for v in result_efficient.values() if isinstance(v, np.ndarray)
+        ]
+        efficient_size = sum(arr.nbytes for arr in efficient_arrays)
+
+        # Full mode: Also stores samples (1000, 1000) = 1M floats
+        full_arrays = [v for v in result_full.values() if isinstance(v, np.ndarray)]
+        full_size = sum(arr.nbytes for arr in full_arrays)
+
+        # Calculate ratio
+        memory_ratio = full_size / efficient_size
+
+        print("\nMemory usage:")
+        print(f"  Efficient mode: {efficient_size / 1e6:.2f} MB")
+        print(f"  Full mode:      {full_size / 1e6:.2f} MB")
+        print(f"  Ratio:          {memory_ratio:.1f}×")
+
+        # Full mode should use much more memory (stores samples)
+        # Samples alone are 1000×1000×4 bytes = 4MB
+        # Other results are 6×1000×4 bytes = 24KB
+        # Expected ratio: ~167×
+        assert memory_ratio > 100, f"Expected ratio > 100×, got {memory_ratio:.1f}×"
+
+        # Verify results are consistent
+        np.testing.assert_allclose(
+            result_efficient["mean"], result_full["mean"], rtol=1e-5
+        )
+
+    def test_bootstrap_large_scale(self):
+        """Validate bootstrap handles large-scale problems."""
+        np.random.seed(42)
+
+        # Realistic neuroimaging scenario
+        n_samples = 100
+        n_voxels = 50000  # 50k voxels (smaller than typical, but enough for test)
+        n_bootstrap = 1000  # Typical bootstrap count
+
+        data = np.random.randn(n_samples, n_voxels).astype(np.float32)
+
+        print("\nLarge-scale test:")
+        print(f"  Data shape: {data.shape}")
+        print(f"  Data size:  {data.nbytes / 1e6:.1f} MB")
+        print(f"  Bootstrap:  {n_bootstrap} iterations")
+
+        import time
+
+        start = time.time()
+
+        # Run bootstrap (efficient mode, no sample storage)
+        result = _bootstrap_simple_cpu_parallel(
+            data,
+            "mean",
+            n_samples=n_bootstrap,
+            save_weights=False,
+            n_jobs=-1,
+            random_state=42,
+        )
+
+        elapsed = time.time() - start
+
+        print(f"  Elapsed:    {elapsed:.2f}s")
+        print(f"  Throughput: {n_bootstrap / elapsed:.1f} iterations/sec")
+
+        # Verify results are valid
+        assert "mean" in result
+        assert "std" in result
+        assert "ci_lower" in result
+        assert "ci_upper" in result
+
+        # Check shapes
+        assert result["mean"].shape == (n_voxels,)
+        assert result["std"].shape == (n_voxels,)
+
+        # Check no NaNs or Infs
+        assert not np.any(np.isnan(result["mean"]))
+        assert not np.any(np.isnan(result["std"]))
+        assert not np.any(np.isinf(result["mean"]))
+        assert not np.any(np.isinf(result["std"]))
+
+        # Check values are reasonable
+        # Bootstrap mean should be close to sample mean
+        sample_mean = np.mean(data, axis=0)
+        mean_diff = np.mean(np.abs(result["mean"] - sample_mean))
+
+        print(f"  Mean diff:  {mean_diff:.6f} (should be small)")
+
+        # Difference should be small (bootstrap mean ≈ sample mean)
+        assert mean_diff < 0.1, f"Bootstrap mean too far from sample mean: {mean_diff}"
+
+        # Test completed without OOM!
+        print("  ✅ Large-scale test passed without OOM")
