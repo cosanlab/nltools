@@ -72,6 +72,32 @@ Standard permutation breaks temporal autocorrelation, inflating Type I error. Us
 
 ---
 
+### Matrix Permutation Tests (Mantel Test)
+
+Tests significance of correlation between two square matrices by permuting rows and columns symmetrically.
+
+**Method**: Compute correlation between matrix elements, then randomly permute one matrix's rows AND columns together (symmetric permutation). Count how often permuted correlation is as extreme as observed.
+
+**Key Operation**: `matrix[perm][:, perm]` where `perm` is random permutation of row/column indices. This preserves matrix structure (e.g., symmetry) while destroying correlation between matrices.
+
+**Metrics Supported**:
+- **Pearson**: Linear correlation between matrix elements
+- **Spearman**: Rank-based correlation (robust to outliers)
+- **Kendall**: Concordance-based correlation (most robust)
+
+**Element Extraction Modes**:
+- **Upper triangle** (`how='upper'`, default): Assumes symmetric matrices (e.g., correlation/similarity matrices)
+- **Lower triangle** (`how='lower'`): Alternative for symmetric matrices
+- **Full matrix** (`how='full'`): All elements, optionally including diagonal
+
+**References**:
+- Chen et al. (2016). "Untangling the relatedness among correlations, part I: nonparametric approaches to inter-subject correlation analysis at the group level." *NeuroImage*, 142, 248-259.
+- Mantel (1967). "The detection of disease clustering and a generalized regression approach." *Cancer Research*, 27(2), 209-220.
+
+**Implementation**: CPU-parallel only (no GPU). Advanced indexing `matrix[perm][:, perm]` is slow on GPU, and CPU-parallel is sufficient for typical matrix sizes (< 200×200).
+
+---
+
 ## P-Value Calculation
 
 All tests use the **Phipson-Smyth correction** to prevent p = 0:
@@ -244,6 +270,7 @@ Users can choose backend explicitly or use `auto` selection:
 - Correlation: ~1.2% (same pattern as two-sample)
 - Timeseries circle_shift: ~32% (shift amounts are RNG-dependent)
 - Timeseries phase_randomize: ~3% (FFT operations numerically stable)
+- Matrix permutation: ~1.2% (same pattern as two-sample/correlation)
 
 All variance is due to different RNG consumption patterns (independent RandomState vs shared state). All NEW implementations are perfectly deterministic and cross-backend consistent.
 
@@ -259,12 +286,13 @@ All implementations tested for:
 3. **Determinism**: Same seed → identical p-values across runs (0.000% variance)
 4. **Edge cases**: Single feature, small n, constant data, etc.
 
-Test suite: 121 tests covering all permutation methods and backends.
+Test suite: 146 tests covering all permutation methods and backends (includes 25 matrix permutation tests).
 
 **Cross-backend determinism verified**:
 - One-sample: All backends produce identical results (0.000% variance)
 - Two-sample: All backends produce identical results (0.000% variance)
 - Correlation: All backends produce identical results (0.000% variance)
+- Matrix permutation: CPU-parallel only (0.000% variance across runs)
 - Timeseries: CPU-parallel only (0.000% variance across runs)
 
 **Critical correctness fix (2025-10-30)**:

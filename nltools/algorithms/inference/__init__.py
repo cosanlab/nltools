@@ -52,6 +52,7 @@ from .timeseries import (
     phase_randomize,
     timeseries_correlation_permutation_test,
 )
+from .matrix import matrix_permutation_test
 
 # Import utility functions (for testing and internal use)
 from .utils import _generate_sign_flips, _compute_pvalue, _auto_batch_size
@@ -64,6 +65,7 @@ __all__ = [
     "circle_shift",
     "phase_randomize",
     "timeseries_correlation_permutation_test",
+    "matrix_permutation_test",
     # Private functions (exported for testing)
     "_generate_sign_flips",
     "_compute_pvalue",
