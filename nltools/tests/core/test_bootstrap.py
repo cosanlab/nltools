@@ -4,6 +4,7 @@ import numpy as np
 from nltools.algorithms.inference.bootstrap import (
     OnlineBootstrapStats,
     _bootstrap_simple_cpu_parallel,
+    _bootstrap_ridge_weights_cpu_parallel,
 )
 
 
@@ -249,3 +250,144 @@ class TestBootstrapSimpleMethods:
 
         assert result is not None
         assert "mean" in result
+
+
+class TestBootstrapRidgeWeights:
+    """Test suite for Ridge model weights bootstrap."""
+
+    def test_bootstrap_ridge_weights_efficient(self):
+        """Test Ridge weights bootstrap in efficient mode."""
+        np.random.seed(42)
+        X = np.random.randn(100, 10)  # 100 samples, 10 features
+        y = np.random.randn(100, 50)  # 50 voxels
+        alpha = 1.0
+
+        result = _bootstrap_ridge_weights_cpu_parallel(
+            X, y, alpha, n_samples=100, n_jobs=1, random_state=42
+        )
+
+        # Check dict structure
+        assert "mean" in result
+        assert "std" in result
+        assert "Z" in result
+        assert "p" in result
+        assert "ci_lower" in result
+        assert "ci_upper" in result
+        assert "backend" in result
+        assert "samples" not in result  # save_weights=False
+
+        # Check shapes (weights are n_features × n_voxels)
+        assert result["mean"].shape == (10, 50)
+        assert result["std"].shape == (10, 50)
+
+        # Check no NaNs
+        assert not np.any(np.isnan(result["mean"]))
+        assert not np.any(np.isnan(result["std"]))
+        assert np.all(result["std"] >= 0)
+
+    def test_bootstrap_ridge_weights_full(self):
+        """Test Ridge weights bootstrap with save_weights=True."""
+        np.random.seed(42)
+        X = np.random.randn(100, 10)
+        y = np.random.randn(100, 50)
+        alpha = 1.0
+        n_samples = 100
+
+        result = _bootstrap_ridge_weights_cpu_parallel(
+            X,
+            y,
+            alpha,
+            n_samples=n_samples,
+            save_weights=True,
+            n_jobs=1,
+            random_state=42,
+        )
+
+        # Samples should be stored
+        assert "samples" in result
+        assert result["samples"].shape == (n_samples, 10, 50)
+
+        # Verify percentile CIs match samples
+        ci_lower_from_samples = np.percentile(result["samples"], 2.5, axis=0)
+        ci_upper_from_samples = np.percentile(result["samples"], 97.5, axis=0)
+
+        np.testing.assert_array_almost_equal(
+            result["ci_lower"], ci_lower_from_samples, decimal=5
+        )
+        np.testing.assert_array_almost_equal(
+            result["ci_upper"], ci_upper_from_samples, decimal=5
+        )
+
+    def test_bootstrap_ridge_weights_variance(self):
+        """Test that bootstrap samples have variance."""
+        np.random.seed(42)
+        X = np.random.randn(100, 10)
+        y = np.random.randn(100, 50)
+        alpha = 1.0
+
+        result = _bootstrap_ridge_weights_cpu_parallel(
+            X, y, alpha, n_samples=100, n_jobs=1, random_state=42
+        )
+
+        # Bootstrap std should be > 0 for most weights
+        # (Some might be near-zero if feature is uninformative)
+        assert np.mean(result["std"] > 0) > 0.95  # At least 95% have variance
+        assert np.mean(result["std"] > 1e-6) > 0.90  # Most have meaningful variance
+
+    def test_bootstrap_ridge_weights_preserves_alpha(self):
+        """Test that alpha parameter affects results."""
+        np.random.seed(42)
+        X = np.random.randn(100, 10)
+        y = np.random.randn(100, 50)
+
+        # Try two different alpha values
+        result1 = _bootstrap_ridge_weights_cpu_parallel(
+            X, y, alpha=0.1, n_samples=50, n_jobs=1, random_state=42
+        )
+        result2 = _bootstrap_ridge_weights_cpu_parallel(
+            X, y, alpha=10.0, n_samples=50, n_jobs=1, random_state=42
+        )
+
+        # Results should be different (different regularization)
+        # Higher alpha = more shrinkage = smaller weights
+        assert not np.allclose(result1["mean"], result2["mean"])
+        # Check that higher alpha generally produces smaller weights
+        assert np.mean(np.abs(result2["mean"])) < np.mean(np.abs(result1["mean"]))
+
+    def test_bootstrap_ridge_weights_memory(self):
+        """Test memory efficiency."""
+        np.random.seed(42)
+        X = np.random.randn(100, 10)
+        y = np.random.randn(100, 50)
+        alpha = 1.0
+
+        # Efficient mode
+        result_efficient = _bootstrap_ridge_weights_cpu_parallel(
+            X, y, alpha, n_samples=100, save_weights=False, n_jobs=1, random_state=42
+        )
+
+        # Full mode
+        result_full = _bootstrap_ridge_weights_cpu_parallel(
+            X, y, alpha, n_samples=100, save_weights=True, n_jobs=1, random_state=42
+        )
+
+        # Calculate approximate memory usage
+        import sys
+
+        # Efficient mode: Only stores mean, std, etc. (6 arrays of shape (10, 50))
+        efficient_size = sum(
+            sys.getsizeof(v)
+            for v in result_efficient.values()
+            if isinstance(v, np.ndarray)
+        )
+
+        # Full mode: Also stores samples (100, 10, 50)
+        full_size = sum(
+            sys.getsizeof(v) for v in result_full.values() if isinstance(v, np.ndarray)
+        )
+
+        # Full mode should be much larger (stores all samples)
+        # Samples alone are 100×(10×50) = 50,000 floats = 400KB
+        # Other results are ~6×500 = 3,000 floats = 24KB
+        # Ratio should be ~17× or more
+        assert full_size > efficient_size * 10
