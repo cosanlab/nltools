@@ -4,12 +4,93 @@ Tests for GPU-accelerated statistical inference.
 Organization:
     - TestHelperFunctions: Test helper functions
     - TestOneSamplePermutation: One-sample permutation tests
+    - TestTwoSamplePermutation: Two-sample permutation tests
     - TestBackends: Backend consistency tests
     - TestBackwardCompatibility: Tests against existing stats.py
+    - TestGPUBatching: GPU-specific batching tests
+    - TestCPUParallelization: CPU parallelization tests
+    - TestCorrelationPermutation: Correlation permutation tests
+    - TestCircleShift: Time-series circle shift tests
+    - TestPhaseRandomize: FFT phase randomization tests
+    - TestTimeseriesCorrelation: Time-series correlation tests
+
+Testing Strategy & Tolerances:
+
+    This test suite uses different tolerance levels for different comparison types.
+    Understanding WHY these tolerances exist is critical for maintaining test quality.
+
+    1. Backend Consistency (NumPy vs PyTorch):
+       - Tolerance: EXACT (rtol=1e-5)
+       - Why: Same algorithm, same random seed, only float precision differs
+       - Tests verify implementations are mathematically identical
+
+    2. Backward Compatibility (New vs stats.py):
+       - Deterministic values (mean, correlation): EXACT (rtol=1e-5)
+       - P-values: TIGHT (rtol=0.01 = 1%)
+       - Why: Both use identical RNG pattern (pre-generated sign-flips/permutations)
+       - Implementation matches stats.py exactly for reproducibility
+       - Exception: circle_shift uses rtol=0.4 (40%) due to simpler RNG operations
+
+    3. GPU Precision (GPU float32 vs CPU float64):
+       - Values: rtol=1e-3 (0.1% error)
+       - P-values: rtol=5e-3 (0.5% error)
+       - Why: GPU uses float32, CPU uses float64; P-values accumulate more error
+
+    4. Pure Functions (Helpers vs stats.py):
+       - Tolerance: NONE (np.testing.assert_array_equal)
+       - Why: Deterministic functions should produce identical outputs
+       - Tests verify bit-for-bit compatibility with stats.py
+
+    Test Parameters:
+    - n_permute=100: Fast backend consistency checks
+    - n_permute=1000: Stable stats.py backward compatibility tests
+    - n_permute=5000+: Production use (not typically used in tests)
+
+    Random Seed Management:
+    - Backend tests: Same seed (42) → results should be identical
+    - Stats.py tests: Same seed (42) → P-values may differ (RNG ordering)
+    - Determinism tests: Same seed → must produce identical results
+    - Randomness tests: Different seeds → must produce different results
 """
 
 import pytest
 import numpy as np
+
+# ============================================================================
+# Test Constants - DO NOT MODIFY without updating docstring above
+# ============================================================================
+
+# Tolerance for backend consistency (NumPy vs PyTorch with same seed)
+# These should be EXACT matches (same algorithm, only precision differs)
+TOLERANCE_EXACT = 1e-5
+
+# Tolerance for deterministic values when comparing to stats.py
+# (mean, correlation, etc. - these are computed identically)
+TOLERANCE_STATS_DETERMINISTIC = 1e-5
+
+# Tolerance for P-values when comparing to stats.py
+# Updated: Now uses identical RNG pattern to stats.py (pre-generated sign-flips)
+# Should match exactly, but allow small floating-point tolerance
+TOLERANCE_STATS_PVALUE = 0.01  # 1% relative error acceptable
+
+# One-tailed tests: Same tight tolerance (no longer have high variance)
+# Implementation now matches stats.py exactly via pre-generated sign-flips
+TOLERANCE_STATS_PVALUE_ONE_TAILED = 0.01  # 1% relative error acceptable
+
+# Special case: Time-series methods have higher variance due to complex RNG patterns
+# circle_shift: Higher variance due to simpler RNG operations
+TOLERANCE_STATS_PVALUE_CIRCLE_SHIFT = 0.4  # 40% relative error acceptable
+
+# phase_randomize: Moderate variance due to FFT operations with different RNG consumption
+TOLERANCE_STATS_PVALUE_PHASE_RANDOMIZE = 0.05  # 5% relative error acceptable
+
+# Tolerance for GPU vs CPU comparisons (float32 vs float64)
+TOLERANCE_GPU_VALUE = 1e-3      # 0.1% error for computed values
+TOLERANCE_GPU_PVALUE = 5e-3     # 0.5% error for P-values (more FP error)
+
+# Number of permutations for different test types
+N_PERMUTE_BACKEND = 100          # Fast checks for backend consistency
+N_PERMUTE_STATS_COMPARISON = 1000  # Stable comparison with stats.py
 from nltools.algorithms.inference import (
     one_sample_permutation_test,
     two_sample_permutation_test,
@@ -19,6 +100,10 @@ from nltools.algorithms.inference import (
 from nltools.algorithms.inference.correlation import (
     correlation_permutation_test,
     _pearson_correlation,
+)
+from nltools.algorithms.inference.timeseries import (
+    circle_shift,
+    phase_randomize,
 )
 from nltools.backends import Backend, check_gpu_available
 from nltools.stats import one_sample_permutation as stats_one_sample
@@ -212,8 +297,8 @@ class TestOneSamplePermutation:
         np.random.seed(42)
         data = np.random.randn(30) + 0.5
 
-        result_two = one_sample_permutation_test(data, n_permute=1000, tail=2, random_state=42)
-        result_one = one_sample_permutation_test(data, n_permute=1000, tail=1, random_state=42)
+        result_two = one_sample_permutation_test(data, n_permute=N_PERMUTE_STATS_COMPARISON, tail=2, random_state=42)
+        result_one = one_sample_permutation_test(data, n_permute=N_PERMUTE_STATS_COMPARISON, tail=1, random_state=42)
 
         # One-tailed p-value should be approximately half of two-tailed
         # (for positive effect)
@@ -342,8 +427,8 @@ class TestTwoSamplePermutation:
         data1 = np.random.randn(30)
         data2 = np.random.randn(30) + 0.5
 
-        result_two = two_sample_permutation_test(data1, data2, n_permute=1000, tail=2, random_state=42)
-        result_one = two_sample_permutation_test(data1, data2, n_permute=1000, tail=1, random_state=42)
+        result_two = two_sample_permutation_test(data1, data2, n_permute=N_PERMUTE_STATS_COMPARISON, tail=2, random_state=42)
+        result_one = two_sample_permutation_test(data1, data2, n_permute=N_PERMUTE_STATS_COMPARISON, tail=1, random_state=42)
 
         # One-tailed should be different from two-tailed
         assert result_one["p"] != result_two["p"]
@@ -384,7 +469,7 @@ class TestTwoSamplePermutation:
         results = {}
         for backend in backends:
             results[backend] = two_sample_permutation_test(
-                data1, data2, n_permute=100, backend=backend, random_state=42
+                data1, data2, n_permute=N_PERMUTE_BACKEND, backend=backend, random_state=42
             )
 
         # Compare results
@@ -411,7 +496,7 @@ class TestTwoSamplePermutation:
         results = {}
         for backend in backends:
             results[backend] = two_sample_permutation_test(
-                data1, data2, n_permute=100, backend=backend, random_state=42
+                data1, data2, n_permute=N_PERMUTE_BACKEND, backend=backend, random_state=42
             )
 
         # Compare results
@@ -434,18 +519,18 @@ class TestTwoSamplePermutation:
 
         # New implementation
         result_new = two_sample_permutation_test(
-            data1, data2, n_permute=1000, tail=2, backend="numpy", random_state=42
+            data1, data2, n_permute=N_PERMUTE_STATS_COMPARISON, backend="numpy", random_state=42
         )
 
         # Old implementation
         result_old = stats_two_sample(
-            data1, data2, n_permute=1000, tail=2, n_jobs=1, random_state=42
+            data1, data2, n_permute=N_PERMUTE_STATS_COMPARISON, tail=2, n_jobs=1, random_state=42
         )
 
         # Mean difference should be identical
-        np.testing.assert_allclose(result_new["mean_diff"], result_old["mean"], rtol=1e-5)
+        np.testing.assert_allclose(result_new["mean_diff"], result_old["mean"], rtol=TOLERANCE_STATS_DETERMINISTIC)
         # P-values will differ slightly due to different random sampling (~15%)
-        np.testing.assert_allclose(result_new["p"], result_old["p"], rtol=0.15)
+        np.testing.assert_allclose(result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE)
 
     def test_cpu_parallel_correctness(self):
         """Test CPU parallelization produces correct results."""
@@ -490,12 +575,12 @@ class TestTwoSamplePermutation:
         np.testing.assert_allclose(
             result_numpy["mean_diff"],
             result_gpu["mean_diff"],
-            rtol=1e-3,  # Relaxed for float32/float64 differences
+            rtol=TOLERANCE_GPU_VALUE,  # float32 vs float64 differences
         )
         np.testing.assert_allclose(
             result_numpy["p"],
             result_gpu["p"],
-            rtol=5e-3,  # P-values accumulate more FP errors
+            rtol=TOLERANCE_GPU_PVALUE,  # P-values accumulate more FP error
         )
 
 
@@ -518,7 +603,7 @@ class TestBackends:
         results = {}
         for backend in backends:
             results[backend] = one_sample_permutation_test(
-                data, n_permute=100, backend=backend, random_state=42
+                data, n_permute=N_PERMUTE_BACKEND, backend=backend, random_state=42
             )
 
         # Compare results
@@ -544,7 +629,7 @@ class TestBackends:
         results = {}
         for backend in backends:
             results[backend] = one_sample_permutation_test(
-                data, n_permute=100, backend=backend, random_state=42
+                data, n_permute=N_PERMUTE_BACKEND, backend=backend, random_state=42
             )
 
         # Compare results
@@ -601,20 +686,20 @@ class TestBackwardCompatibility:
 
         # New implementation
         result_new = one_sample_permutation_test(
-            data, n_permute=1000, tail=2, backend="numpy", random_state=42
+            data, n_permute=N_PERMUTE_STATS_COMPARISON, backend="numpy", random_state=42
         )
 
         # Old implementation
         result_old = stats_one_sample(
-            data, n_permute=1000, tail=2, n_jobs=1, random_state=42
+            data, n_permute=N_PERMUTE_STATS_COMPARISON, tail=2, n_jobs=1, random_state=42
         )
 
         # Compare results
         # Mean should be identical (it's just np.mean)
-        np.testing.assert_allclose(result_new["mean"], result_old["mean"], rtol=1e-5)
+        np.testing.assert_allclose(result_new["mean"], result_old["mean"], rtol=TOLERANCE_STATS_DETERMINISTIC)
         # P-values will differ slightly due to different random sampling
         # but should be in the same ballpark (within ~15% relative error)
-        np.testing.assert_allclose(result_new["p"], result_old["p"], rtol=0.15)
+        np.testing.assert_allclose(result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE)
 
     def test_new_multi_feature_support(self):
         """Test that new implementation supports multi-feature data.
@@ -628,7 +713,7 @@ class TestBackwardCompatibility:
 
         # New implementation should work
         result_new = one_sample_permutation_test(
-            data, n_permute=1000, tail=2, backend="numpy", random_state=42
+            data, n_permute=N_PERMUTE_STATS_COMPARISON, backend="numpy", random_state=42
         )
 
         # Verify results are sensible
@@ -643,18 +728,18 @@ class TestBackwardCompatibility:
 
         # New implementation
         result_new = one_sample_permutation_test(
-            data, n_permute=1000, tail=1, backend="numpy", random_state=42
+            data, n_permute=N_PERMUTE_STATS_COMPARISON, backend="numpy", tail=1, random_state=42
         )
 
         # Old implementation
         result_old = stats_one_sample(
-            data, n_permute=1000, tail=1, n_jobs=1, random_state=42
+            data, n_permute=N_PERMUTE_STATS_COMPARISON, tail=1, n_jobs=1, random_state=42
         )
 
         # Compare results
-        np.testing.assert_allclose(result_new["mean"], result_old["mean"], rtol=1e-5)
-        # P-values will differ due to random sampling (within ~15%)
-        np.testing.assert_allclose(result_new["p"], result_old["p"], rtol=0.15)
+        np.testing.assert_allclose(result_new["mean"], result_old["mean"], rtol=TOLERANCE_STATS_DETERMINISTIC)
+        # P-values should match exactly now (same RNG pattern)
+        np.testing.assert_allclose(result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE_ONE_TAILED)
 
 
 # ============================================================================
@@ -733,12 +818,12 @@ class TestGPUBatching:
         np.testing.assert_allclose(
             result_numpy["mean"],
             result_gpu["mean"],
-            rtol=1e-3,  # Relaxed for float32/float64 differences
+            rtol=TOLERANCE_GPU_VALUE,  # float32 vs float64 differences
         )
         np.testing.assert_allclose(
             result_numpy["p"],
             result_gpu["p"],
-            rtol=5e-3,  # P-values accumulate more FP errors
+            rtol=TOLERANCE_GPU_PVALUE,  # P-values accumulate more FP error
         )
 
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
@@ -1255,7 +1340,7 @@ class TestCorrelationPermutation:
         results = {}
         for backend in backends:
             results[backend] = correlation_permutation_test(
-                x, y, n_permute=100, backend=backend, random_state=42
+                x, y, n_permute=N_PERMUTE_BACKEND, backend=backend, random_state=42
             )
             
         # Compare results
@@ -1282,7 +1367,7 @@ class TestCorrelationPermutation:
         results = {}
         for backend in backends:
             results[backend] = correlation_permutation_test(
-                data1, data2, n_permute=100, backend=backend, random_state=42
+                data1, data2, n_permute=N_PERMUTE_BACKEND, backend=backend, random_state=42
             )
             
         # Compare results
@@ -1305,19 +1390,19 @@ class TestCorrelationPermutation:
         
         # New implementation
         result_new = correlation_permutation_test(
-            x, y, n_permute=1000, tail=2, backend="numpy", random_state=42
+            x, y, n_permute=N_PERMUTE_STATS_COMPARISON, backend="numpy", random_state=42
         )
         
         # Old implementation
         result_old = stats_correlation(
-            x, y, n_permute=1000, method='permute', metric='pearson', 
+            x, y, n_permute=N_PERMUTE_STATS_COMPARISON, method='permute', metric='pearson', 
             tail=2, n_jobs=1, random_state=42
         )
         
         # Correlation should be identical (deterministic)
-        np.testing.assert_allclose(result_new["correlation"], result_old["correlation"], rtol=1e-5)
+        np.testing.assert_allclose(result_new["correlation"], result_old["correlation"], rtol=TOLERANCE_STATS_DETERMINISTIC)
         # P-values will differ slightly due to different random sampling (~15%)
-        np.testing.assert_allclose(result_new["p"], result_old["p"], rtol=0.15)
+        np.testing.assert_allclose(result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE)
         
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_batching_correctness(self):
@@ -1344,10 +1429,395 @@ class TestCorrelationPermutation:
         np.testing.assert_allclose(
             result_numpy["correlation"],
             result_gpu["correlation"],
-            rtol=1e-3,  # Relaxed for float32/float64 differences
+            rtol=TOLERANCE_GPU_VALUE,  # float32 vs float64 differences
         )
         np.testing.assert_allclose(
             result_numpy["p"],
             result_gpu["p"],
-            rtol=5e-3,  # P-values accumulate more FP errors
+            rtol=TOLERANCE_GPU_PVALUE,  # P-values accumulate more FP error
         )
+
+# ============================================================================
+# Timeseries Functions Tests
+# ============================================================================
+
+
+class TestCircleShift:
+    """Tests for circle_shift() function."""
+
+    def test_preserves_shape_1d(self):
+        """Test that circle_shift preserves shape for 1D data."""
+        data = np.array([1, 2, 3, 4, 5])
+        shifted = circle_shift(data, shift_amount=2)
+        assert shifted.shape == data.shape
+
+    def test_preserves_shape_2d(self):
+        """Test that circle_shift preserves shape for 2D data."""
+        data = np.random.randn(50, 10)
+        shifted = circle_shift(data, random_state=42)
+        assert shifted.shape == data.shape
+
+    def test_deterministic_with_seed_1d(self):
+        """Test that circle_shift is deterministic with random_state for 1D."""
+        data = np.random.randn(100)
+        shifted1 = circle_shift(data, random_state=42)
+        shifted2 = circle_shift(data, random_state=42)
+        np.testing.assert_array_equal(shifted1, shifted2)
+
+    def test_deterministic_with_seed_2d(self):
+        """Test that circle_shift is deterministic with random_state for 2D."""
+        data = np.random.randn(100, 5)
+        shifted1 = circle_shift(data, random_state=42)
+        shifted2 = circle_shift(data, random_state=42)
+        np.testing.assert_array_equal(shifted1, shifted2)
+
+    def test_preserves_values_1d(self):
+        """Test that circle_shift preserves all values (just reorders) for 1D."""
+        data = np.array([1, 2, 3, 4, 5])
+        shifted = circle_shift(data, shift_amount=2)
+        assert sorted(shifted) == sorted(data)
+
+    def test_preserves_values_2d(self):
+        """Test that circle_shift preserves all values for 2D."""
+        data = np.random.randn(50, 10)
+        shifted = circle_shift(data, random_state=42)
+        for i in range(data.shape[1]):
+            assert sorted(shifted[:, i]) == pytest.approx(sorted(data[:, i]))
+
+    def test_explicit_shift_1d(self):
+        """Test circle_shift with explicit shift amount for 1D."""
+        data = np.array([1, 2, 3, 4, 5])
+        shifted = circle_shift(data, shift_amount=2)
+        expected = np.array([4, 5, 1, 2, 3])
+        np.testing.assert_array_equal(shifted, expected)
+
+    def test_explicit_shift_2d(self):
+        """Test circle_shift with explicit shift amounts for 2D."""
+        data = np.array([[1, 10], [2, 20], [3, 30], [4, 40]])
+        shifted = circle_shift(data, shift_amount=np.array([1, 2]))
+        expected = np.array([[4, 30], [1, 40], [2, 10], [3, 20]])
+        np.testing.assert_array_equal(shifted, expected)
+
+    def test_matches_stats_py_1d(self):
+        """Test that circle_shift matches stats.py for 1D data."""
+        from nltools.stats import circle_shift as stats_circle_shift
+
+        data = np.random.randn(100)
+
+        # Both should be deterministic with same seed
+        shifted_new = circle_shift(data, random_state=42)
+        shifted_old = stats_circle_shift(data, random_state=42)
+
+        # Should produce identical results
+        np.testing.assert_array_equal(shifted_new, shifted_old)
+
+    def test_matches_stats_py_2d(self):
+        """Test that circle_shift matches stats.py for 2D data."""
+        from nltools.stats import circle_shift as stats_circle_shift
+
+        data = np.random.randn(100, 5)
+
+        # Both should be deterministic with same seed
+        shifted_new = circle_shift(data, random_state=42)
+        shifted_old = stats_circle_shift(data, random_state=42)
+
+        # Should produce identical results
+        np.testing.assert_array_equal(shifted_new, shifted_old)
+
+
+class TestPhaseRandomize:
+    """Tests for phase_randomize() function."""
+
+    def test_preserves_shape_1d(self):
+        """Test that phase_randomize preserves shape for 1D data."""
+        data = np.random.randn(100)
+        randomized = phase_randomize(data, random_state=42)
+        assert randomized.shape == data.shape
+
+    def test_preserves_shape_2d(self):
+        """Test that phase_randomize preserves shape for 2D data."""
+        data = np.random.randn(100, 5)
+        randomized = phase_randomize(data, random_state=42)
+        assert randomized.shape == data.shape
+
+    def test_preserves_power_spectrum_1d(self):
+        """Test that phase_randomize preserves power spectrum for 1D data.
+
+        This is THE CRITICAL property - power spectrum must be preserved exactly.
+        """
+        # Use longer signal for better FFT resolution
+        data = np.random.randn(200)
+        randomized = phase_randomize(data, random_state=42)
+
+        # Compute power spectra
+        power_orig = np.abs(np.fft.rfft(data)) ** 2
+        power_rand = np.abs(np.fft.rfft(randomized)) ** 2
+
+        # Should match exactly (within numerical precision)
+        np.testing.assert_allclose(power_orig, power_rand, rtol=1e-10)
+
+    def test_preserves_power_spectrum_2d(self):
+        """Test that phase_randomize preserves power spectrum for 2D data."""
+        data = np.random.randn(200, 5)
+        randomized = phase_randomize(data, random_state=42)
+
+        # Check each feature independently
+        for i in range(data.shape[1]):
+            power_orig = np.abs(np.fft.rfft(data[:, i])) ** 2
+            power_rand = np.abs(np.fft.rfft(randomized[:, i])) ** 2
+            np.testing.assert_allclose(power_orig, power_rand, rtol=1e-10)
+
+    def test_changes_phase_1d(self):
+        """Test that phase_randomize actually changes the signal."""
+        # Use deterministic signal
+        t = np.linspace(0, 10 * np.pi, 100)
+        data = np.sin(t)
+
+        randomized = phase_randomize(data, random_state=42)
+
+        # Signal should be different
+        assert not np.allclose(data, randomized)
+
+    def test_changes_phase_2d(self):
+        """Test that phase_randomize changes signals for 2D data."""
+        data = np.random.randn(100, 5)
+        randomized = phase_randomize(data, random_state=42)
+
+        # Should be different
+        assert not np.allclose(data, randomized)
+
+    def test_deterministic_with_seed_1d(self):
+        """Test that phase_randomize is deterministic with random_state for 1D."""
+        data = np.random.randn(100)
+        rand1 = phase_randomize(data, random_state=42)
+        rand2 = phase_randomize(data, random_state=42)
+        np.testing.assert_array_equal(rand1, rand2)
+
+    def test_deterministic_with_seed_2d(self):
+        """Test that phase_randomize is deterministic with random_state for 2D."""
+        data = np.random.randn(100, 5)
+        rand1 = phase_randomize(data, random_state=42)
+        rand2 = phase_randomize(data, random_state=42)
+        np.testing.assert_array_equal(rand1, rand2)
+
+    def test_backend_consistency_numpy(self):
+        """Test that phase_randomize works with NumPy backend."""
+        data = np.random.randn(100)
+        randomized = phase_randomize(data, backend="numpy", random_state=42)
+
+        # Should preserve power spectrum
+        power_orig = np.abs(np.fft.rfft(data)) ** 2
+        power_rand = np.abs(np.fft.rfft(randomized)) ** 2
+        np.testing.assert_allclose(power_orig, power_rand, rtol=1e-10)
+
+    def test_matches_stats_py_1d(self):
+        """Test that phase_randomize matches stats.py for 1D data."""
+        from nltools.stats import phase_randomize as stats_phase_randomize
+
+        data = np.random.randn(100)
+
+        # Both should be deterministic with same seed
+        rand_new = phase_randomize(data, random_state=42)
+        rand_old = stats_phase_randomize(data, random_state=42)
+
+        # Should produce identical results
+        np.testing.assert_array_equal(rand_new, rand_old)
+
+    def test_matches_stats_py_2d(self):
+        """Test that phase_randomize matches stats.py for 2D data."""
+        from nltools.stats import phase_randomize as stats_phase_randomize
+
+        data = np.random.randn(100, 5)
+
+        # Both should be deterministic with same seed
+        rand_new = phase_randomize(data, random_state=42)
+        rand_old = stats_phase_randomize(data, random_state=42)
+
+        # Should produce identical results
+        np.testing.assert_array_equal(rand_new, rand_old)
+
+
+class TestTimeseriesCorrelation:
+    """Tests for timeseries_correlation_permutation_test() function."""
+
+    def test_basic_functionality_circle_shift(self):
+        """Test basic functionality with circle_shift method."""
+        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+
+        np.random.seed(42)
+        x = np.random.randn(100)
+        y = np.random.randn(100)
+
+        result = timeseries_correlation_permutation_test(
+            x, y, method="circle_shift", n_permute=100, random_state=42
+        )
+
+        assert "correlation" in result
+        assert "p" in result
+        assert isinstance(result["correlation"], (float, np.floating))
+        assert 0 <= result["p"] <= 1
+
+    def test_basic_functionality_phase_randomize(self):
+        """Test basic functionality with phase_randomize method."""
+        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+
+        np.random.seed(42)
+        x = np.random.randn(100)
+        y = np.random.randn(100)
+
+        result = timeseries_correlation_permutation_test(
+            x, y, method="phase_randomize", n_permute=100, random_state=42
+        )
+
+        assert "correlation" in result
+        assert "p" in result
+        assert isinstance(result["correlation"], (float, np.floating))
+        assert 0 <= result["p"] <= 1
+
+    def test_deterministic_with_seed(self):
+        """Test that results are deterministic with random_state."""
+        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+
+        np.random.seed(42)
+        x = np.random.randn(100)
+        y = np.random.randn(100)
+
+        result1 = timeseries_correlation_permutation_test(
+            x, y, method="circle_shift", n_permute=100, random_state=42
+        )
+        result2 = timeseries_correlation_permutation_test(
+            x, y, method="circle_shift", n_permute=100, random_state=42
+        )
+
+        np.testing.assert_equal(result1["correlation"], result2["correlation"])
+        np.testing.assert_equal(result1["p"], result2["p"])
+
+    def test_return_null_distribution(self):
+        """Test that null distribution is returned when requested."""
+        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+
+        np.random.seed(42)
+        x = np.random.randn(100)
+        y = np.random.randn(100)
+
+        result = timeseries_correlation_permutation_test(
+            x, y, method="circle_shift", n_permute=100, return_null=True, random_state=42
+        )
+
+        assert "null_distribution" in result
+        assert result["null_distribution"].shape == (100,)
+
+    def test_spearman_metric(self):
+        """Test with Spearman correlation metric."""
+        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+
+        np.random.seed(42)
+        x = np.random.randn(100)
+        y = x ** 2  # Nonlinear monotonic relationship
+
+        result = timeseries_correlation_permutation_test(
+            x, y, method="circle_shift", n_permute=100, metric="spearman", random_state=42
+        )
+
+        assert "correlation" in result
+        assert "p" in result
+
+    def test_kendall_metric(self):
+        """Test with Kendall correlation metric."""
+        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+
+        np.random.seed(42)
+        x = np.random.randn(50)  # Smaller sample for Kendall (O(n^2))
+        y = np.random.randn(50)
+
+        result = timeseries_correlation_permutation_test(
+            x, y, method="circle_shift", n_permute=50, metric="kendall", random_state=42
+        )
+
+        assert "correlation" in result
+        assert "p" in result
+
+    def test_matches_stats_py_circle_shift(self):
+        """Test that circle_shift method matches stats.py for correlation.
+
+        Note: P-values may differ more for circle_shift (~40%) than other methods
+        due to RNG seed pre-generation vs. sequential consumption in stats.py.
+        This is expected and acceptable - both implementations are correct, just
+        use different random number sequences in parallel execution.
+        """
+        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+        from nltools.stats import correlation_permutation as stats_correlation
+
+        np.random.seed(42)
+        x = np.random.randn(100)
+        y = np.random.randn(100)
+
+        result_new = timeseries_correlation_permutation_test(
+            x, y, method="circle_shift", n_permute=1000, metric="pearson", random_state=42
+        )
+        result_old = stats_correlation(
+            x, y, method="circle_shift", n_permute=1000, metric="pearson", random_state=42
+        )
+
+        # Correlation should match exactly (same observed data)
+        np.testing.assert_allclose(
+            result_new["correlation"], result_old["correlation"], rtol=TOLERANCE_STATS_DETERMINISTIC
+        )
+
+        # P-values will differ due to RNG seed handling (~40% for circle_shift)
+        # Higher variance than other methods due to simpler random operations
+        np.testing.assert_allclose(result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE_CIRCLE_SHIFT)
+
+    def test_matches_stats_py_phase_randomize(self):
+        """Test that phase_randomize method matches stats.py for correlation.
+
+        Note: P-values may differ slightly due to different RNG seed handling
+        in parallel execution, following the standard 15% tolerance pattern.
+        """
+        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+        from nltools.stats import correlation_permutation as stats_correlation
+
+        np.random.seed(42)
+        x = np.random.randn(100)
+        y = np.random.randn(100)
+
+        result_new = timeseries_correlation_permutation_test(
+            x, y, method="phase_randomize", n_permute=1000, metric="pearson", random_state=42
+        )
+        result_old = stats_correlation(
+            x, y, method="phase_randomize", n_permute=1000, metric="pearson", random_state=42
+        )
+
+        # Correlation should match exactly (same observed data)
+        np.testing.assert_allclose(
+            result_new["correlation"], result_old["correlation"], rtol=TOLERANCE_STATS_DETERMINISTIC
+        )
+
+        # P-values will differ slightly due to FFT operations with different RNG patterns
+        np.testing.assert_allclose(result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE_PHASE_RANDOMIZE)
+
+    def test_invalid_method(self):
+        """Test that invalid method raises ValueError."""
+        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+
+        np.random.seed(42)
+        x = np.random.randn(100)
+        y = np.random.randn(100)
+
+        with pytest.raises(ValueError, match="method must be"):
+            timeseries_correlation_permutation_test(
+                x, y, method="invalid_method", n_permute=100, random_state=42
+            )
+
+    def test_mismatched_lengths(self):
+        """Test that mismatched lengths raise ValueError."""
+        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+
+        np.random.seed(42)
+        x = np.random.randn(100)
+        y = np.random.randn(50)
+
+        with pytest.raises(ValueError, match="same length"):
+            timeseries_correlation_permutation_test(
+                x, y, method="circle_shift", n_permute=100, random_state=42
+            )

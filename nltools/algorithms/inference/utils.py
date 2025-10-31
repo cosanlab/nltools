@@ -22,6 +22,10 @@ def _generate_sign_flips(
     Each row represents one permutation, where each sample is randomly multiplied
     by +1 or -1 to create the null distribution.
 
+    This implementation matches the RNG pattern from nltools.stats.one_sample_permutation
+    for exact backward compatibility: each permutation gets an independent RandomState
+    derived from a unique seed.
+
     Args:
         n_permute (int): Number of permutations to generate
         n_samples (int): Number of samples in the dataset
@@ -39,13 +43,24 @@ def _generate_sign_flips(
         True
 
     Notes:
-        - Each permutation is independent
-        - Values are uniformly sampled from {-1, +1}
+        - Each permutation uses independent RandomState for stats.py compatibility
+        - Values are uniformly sampled from {+1, -1} (matching stats.py order)
         - Returns NumPy array (device transfer handled by caller)
+        - Memory cost: n_permute × n_samples × 1 byte (negligible for typical use)
     """
     rng = check_random_state(random_state)
-    # Generate random binary values (0 or 1), then map to {-1, +1}
-    sign_flips = rng.choice([-1, 1], size=(n_permute, n_samples))
+
+    # Generate unique seed for each permutation (matches stats.py pattern)
+    MAX_INT = 2**31 - 1
+    seeds = rng.randint(MAX_INT, size=n_permute)
+
+    # Generate sign-flips using independent RNG per permutation
+    # This matches stats._permute_sign behavior exactly
+    sign_flips = np.array([
+        np.random.RandomState(seeds[i]).choice([1, -1], n_samples)
+        for i in range(n_permute)
+    ])
+
     return sign_flips
 
 

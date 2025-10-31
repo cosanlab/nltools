@@ -25,10 +25,9 @@ def _one_sample_permutation_cpu_parallel(
     """
     One-sample permutation test using CPU parallelization with joblib.
 
-    This is a memory-efficient implementation that processes one permutation
-    per worker. Unlike GPU batching which loads all permutations into memory,
-    this approach keeps memory usage proportional to the number of workers,
-    not the number of permutations.
+    Pre-generates all sign-flips deterministically (matching stats.py pattern),
+    then parallelizes only the computation. This ensures perfect reproducibility
+    and backward compatibility with nltools.stats.one_sample_permutation.
 
     Args:
         data (np.ndarray): Data to test, shape (n_samples, n_features)
@@ -43,18 +42,14 @@ def _one_sample_permutation_cpu_parallel(
         dict: Same format as main function, with 'backend' indicating CPU parallel
 
     Notes:
-        - Memory usage: ~O(n_workers × n_features), NOT O(n_permute × n_features)
-        - Each worker gets unique random seed derived from main seed
+        - Pre-generates sign-flip matrix (matches stats.py for exact p-values)
+        - Memory usage: n_permute × n_samples × 1 byte (negligible)
+        - Parallelizes computation, not RNG (ensures determinism)
         - Progress bar shows permutation completion
         - Typical speedup: 4-8× on 8-core machines
     """
     from joblib import Parallel, delayed
     from tqdm import tqdm
-
-    # Setup random state and generate seeds for workers
-    rng = check_random_state(random_state)
-    MAX_INT = 2**31 - 1
-    seeds = rng.randint(MAX_INT, size=n_permute)
 
     # Get dimensions (data is already reshaped by caller)
     n_samples, n_features = data.shape
@@ -62,17 +57,18 @@ def _one_sample_permutation_cpu_parallel(
     # Compute observed statistic
     obs_stat = np.mean(data, axis=0)
 
-    # Define worker function (each processes ONE permutation)
-    def _compute_one_perm(seed):
-        """Compute statistic for one sign-flip permutation."""
-        perm_rng = np.random.RandomState(seed)
-        signs = perm_rng.choice([-1, 1], size=n_samples)
+    # Pre-generate ALL sign-flips (matches stats.py pattern exactly)
+    sign_flips = _generate_sign_flips(n_permute, n_samples, random_state=random_state)
+
+    # Define worker function (each processes ONE permutation with pre-computed signs)
+    def _compute_one_perm(signs):
+        """Compute statistic for one sign-flip permutation (signs pre-computed)."""
         perm_data = data * signs[:, np.newaxis]
         return np.mean(perm_data, axis=0)
 
     # Execute in parallel with progress bar
     null_dist = Parallel(n_jobs=n_jobs)(
-        delayed(_compute_one_perm)(seeds[i])
+        delayed(_compute_one_perm)(sign_flips[i])
         for i in tqdm(range(n_permute), desc="CPU parallel perms", unit="perm")
     )
     null_dist = np.array(null_dist)  # Shape: (n_permute, n_features)
