@@ -88,9 +88,9 @@ def _spearman_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     # For vectorized case, rank each permutation separately
     x_ranked = np.empty_like(x)
     for i in range(n_permute):
-        x_ranked[i] = rankdata(x[i], method='average')
+        x_ranked[i] = rankdata(x[i], method="average")
 
-    y_ranked = rankdata(y, method='average')
+    y_ranked = rankdata(y, method="average")
 
     # Apply Pearson correlation to ranks
     # Center ranked data
@@ -189,11 +189,11 @@ def _correlation_permutation_cpu_parallel(
     n_samples, n_features = data1.shape
 
     # Select correlation function
-    if metric == 'pearson':
+    if metric == "pearson":
         corr_func = _pearson_correlation
-    elif metric == 'spearman':
+    elif metric == "spearman":
         corr_func = _spearman_correlation
-    elif metric == 'kendall':
+    elif metric == "kendall":
         corr_func = _kendall_correlation
     else:
         raise NotImplementedError(f"Metric '{metric}' not yet implemented")
@@ -203,10 +203,9 @@ def _correlation_permutation_cpu_parallel(
         obs_corr = corr_func(data1[:, 0], data2[:, 0])
         obs_corr = np.array([obs_corr])
     else:
-        obs_corr = np.array([
-            corr_func(data1[:, i], data2[:, i])
-            for i in range(n_features)
-        ])
+        obs_corr = np.array(
+            [corr_func(data1[:, i], data2[:, i]) for i in range(n_features)]
+        )
 
     # Define worker function (each processes ONE permutation)
     def _compute_one_perm(seed):
@@ -220,10 +219,9 @@ def _correlation_permutation_cpu_parallel(
         if n_features == 1:
             return corr_func(perm_data1[:, 0], data2[:, 0])
         else:
-            return np.array([
-                corr_func(perm_data1[:, i], data2[:, i])
-                for i in range(n_features)
-            ])
+            return np.array(
+                [corr_func(perm_data1[:, i], data2[:, i]) for i in range(n_features)]
+            )
 
     # Execute in parallel with progress bar
     null_dist = Parallel(n_jobs=n_jobs)(
@@ -243,6 +241,7 @@ def _correlation_permutation_cpu_parallel(
     # Determine backend name
     if n_jobs == -1:
         import multiprocessing
+
         n_cores = multiprocessing.cpu_count()
         backend_name = f"cpu-parallel-{n_cores}"
     else:
@@ -306,11 +305,11 @@ def _correlation_permutation_gpu_batched(
     data2 = data2.astype(np.float32)
 
     # Select correlation function
-    if metric == 'pearson':
+    if metric == "pearson":
         corr_func = _pearson_correlation
-    elif metric == 'spearman':
+    elif metric == "spearman":
         corr_func = _spearman_correlation
-    elif metric == 'kendall':
+    elif metric == "kendall":
         corr_func = _kendall_correlation
     else:
         raise NotImplementedError(f"Metric '{metric}' not yet implemented")
@@ -320,10 +319,9 @@ def _correlation_permutation_gpu_batched(
         obs_corr = corr_func(data1[:, 0], data2[:, 0])
         obs_corr = np.array([obs_corr])
     else:
-        obs_corr = np.array([
-            corr_func(data1[:, i], data2[:, i])
-            for i in range(n_features)
-        ])
+        obs_corr = np.array(
+            [corr_func(data1[:, i], data2[:, i]) for i in range(n_features)]
+        )
 
     # Determine batch size based on memory budget
     # Memory bottleneck: permuted indices and correlation computation
@@ -358,10 +356,12 @@ def _correlation_permutation_gpu_batched(
         batch_seeds = random_state.randint(MAX_INT, size=current_batch_size)
 
         # Generate permutation indices using independent RNG per permutation
-        batch_indices = np.array([
-            np.random.RandomState(batch_seeds[i]).permutation(n_samples)
-            for i in range(current_batch_size)
-        ])
+        batch_indices = np.array(
+            [
+                np.random.RandomState(batch_seeds[i]).permutation(n_samples)
+                for i in range(current_batch_size)
+            ]
+        )
 
         # Transfer to device
         batch_indices_device = backend.to_device(batch_indices)
@@ -377,11 +377,15 @@ def _correlation_permutation_gpu_batched(
 
             # Permute data1 for all permutations in batch
             # batch_indices_device: (current_batch_size, n_samples)
-            perm_data1 = feat_data1[batch_indices_device]  # (current_batch_size, n_samples)
+            perm_data1 = feat_data1[
+                batch_indices_device
+            ]  # (current_batch_size, n_samples)
 
             # Compute correlations
             # Center data
-            perm_data1_centered = perm_data1 - torch.mean(perm_data1, dim=1, keepdim=True)
+            perm_data1_centered = perm_data1 - torch.mean(
+                perm_data1, dim=1, keepdim=True
+            )
             feat_data2_centered = feat_data2 - torch.mean(feat_data2)
 
             # Correlation
@@ -390,9 +394,7 @@ def _correlation_permutation_gpu_batched(
 
             # Handle division by zero
             correlations = torch.where(
-                denominator != 0,
-                numerator / denominator,
-                torch.zeros_like(numerator)
+                denominator != 0, numerator / denominator, torch.zeros_like(numerator)
             )
 
             batch_corrs.append(correlations)
@@ -443,7 +445,7 @@ def correlation_permutation_test(
     data1: np.ndarray,
     data2: np.ndarray,
     n_permute: int = 5000,
-    metric: str = 'pearson',
+    metric: str = "pearson",
     tail: int = 2,
     return_null: bool = False,
     backend: Optional[Union[Backend, str]] = None,
@@ -539,8 +541,10 @@ def correlation_permutation_test(
         raise ValueError(f"data2 must be 1D or 2D, got shape {data2.shape}")
     if tail not in [1, 2]:
         raise ValueError(f"tail must be 1 or 2, got {tail}")
-    if metric not in ['pearson', 'spearman', 'kendall']:
-        raise ValueError(f"metric must be 'pearson', 'spearman', or 'kendall', got '{metric}'")
+    if metric not in ["pearson", "spearman", "kendall"]:
+        raise ValueError(
+            f"metric must be 'pearson', 'spearman', or 'kendall', got '{metric}'"
+        )
 
     # Handle shape
     single_feature = data1.ndim == 1 and data2.ndim == 1
@@ -552,8 +556,7 @@ def correlation_permutation_test(
     # Check dimensions match
     if data1.shape != data2.shape:
         raise ValueError(
-            f"data1 and data2 must have same shape, "
-            f"got {data1.shape} and {data2.shape}"
+            f"data1 and data2 must have same shape, got {data1.shape} and {data2.shape}"
         )
 
     n_samples, n_features = data1.shape
@@ -564,20 +567,29 @@ def correlation_permutation_test(
     if use_cpu_parallel:
         # CPU parallelization mode (memory-efficient fallback)
         return _correlation_permutation_cpu_parallel(
-            data1, data2, n_permute, metric, tail, return_null,
-            n_jobs, random_state, single_feature
+            data1,
+            data2,
+            n_permute,
+            metric,
+            tail,
+            return_null,
+            n_jobs,
+            random_state,
+            single_feature,
         )
     else:
         # GPU/Backend mode
         if isinstance(backend, str):
             if backend == "auto":
                 # Auto-select based on problem size and GPU availability
-                backend = auto_select_backend(n_samples, n_features, cv=n_permute // 1000)
+                backend = auto_select_backend(
+                    n_samples, n_features, cv=n_permute // 1000
+                )
             else:
                 backend = Backend(backend)
 
     # GPU backend doesn't support Spearman/Kendall yet (ranking on GPU is complex)
-    if not use_cpu_parallel and metric in ['spearman', 'kendall']:
+    if not use_cpu_parallel and metric in ["spearman", "kendall"]:
         raise NotImplementedError(
             f"{metric.capitalize()} correlation on GPU backend not yet implemented. "
             "Use backend=None for CPU-parallel or backend='numpy' for sequential."
@@ -592,9 +604,9 @@ def correlation_permutation_test(
         # Uses same deterministic RNG pattern as CPU-parallel and GPU
 
         # Select correlation function
-        if metric == 'pearson':
+        if metric == "pearson":
             corr_func = _pearson_correlation
-        elif metric == 'spearman':
+        elif metric == "spearman":
             corr_func = _spearman_correlation
         else:
             raise NotImplementedError(f"Metric '{metric}' not yet implemented")
@@ -604,10 +616,9 @@ def correlation_permutation_test(
             obs_corr = corr_func(data1[:, 0], data2[:, 0])
             obs_corr = np.array([obs_corr])
         else:
-            obs_corr = np.array([
-                corr_func(data1[:, i], data2[:, i])
-                for i in range(n_features)
-            ])
+            obs_corr = np.array(
+                [corr_func(data1[:, i], data2[:, i]) for i in range(n_features)]
+            )
 
         # Pre-generate seeds for deterministic permutations
         # Matches CPU-parallel and GPU pattern: independent RandomState per permutation
@@ -626,10 +637,12 @@ def correlation_permutation_test(
             if n_features == 1:
                 corr = corr_func(perm_data1[:, 0], data2[:, 0])
             else:
-                corr = np.array([
-                    corr_func(perm_data1[:, i], data2[:, i])
-                    for i in range(n_features)
-                ])
+                corr = np.array(
+                    [
+                        corr_func(perm_data1[:, i], data2[:, i])
+                        for i in range(n_features)
+                    ]
+                )
             null_dist.append(corr)
 
         null_dist = np.array(null_dist)  # (n_permute, n_features)
@@ -658,6 +671,14 @@ def correlation_permutation_test(
     else:
         # PyTorch: GPU with automatic batching
         return _correlation_permutation_gpu_batched(
-            data1, data2, n_permute, metric, tail, return_null,
-            backend, max_gpu_memory_gb, rng, single_feature
+            data1,
+            data2,
+            n_permute,
+            metric,
+            tail,
+            return_null,
+            backend,
+            max_gpu_memory_gb,
+            rng,
+            single_feature,
         )

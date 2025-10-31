@@ -56,10 +56,12 @@ def _generate_sign_flips(
 
     # Generate sign-flips using independent RNG per permutation
     # This matches stats._permute_sign behavior exactly
-    sign_flips = np.array([
-        np.random.RandomState(seeds[i]).choice([1, -1], n_samples)
-        for i in range(n_permute)
-    ])
+    sign_flips = np.array(
+        [
+            np.random.RandomState(seeds[i]).choice([1, -1], n_samples)
+            for i in range(n_permute)
+        ]
+    )
 
     return sign_flips
 

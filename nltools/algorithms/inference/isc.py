@@ -38,7 +38,7 @@ from .utils import _compute_pvalue
 # ============================================================================
 
 
-def _compute_loo_isc(data, backend='numpy'):
+def _compute_loo_isc(data, backend="numpy"):
     """
     Compute leave-one-out intersubject correlation.
 
@@ -81,9 +81,9 @@ def _compute_loo_isc(data, backend='numpy'):
     For each subject i, computes: corr(subject_i, mean(all other subjects))
     This is the method recommended by Chen et al. (2016) for unbiased ISC.
     """
-    if backend == 'numpy':
+    if backend == "numpy":
         return _compute_loo_isc_numpy(data)
-    elif backend == 'torch':
+    elif backend == "torch":
         return _compute_loo_isc_gpu(data)
     else:
         raise ValueError(f"backend must be 'numpy' or 'torch', got {backend}")
@@ -143,9 +143,7 @@ def _batch_correlation_gpu(x, y):
 
     # Compute correlation
     numerator = (x_centered * y_centered).sum(dim=0)
-    denominator = torch.sqrt(
-        (x_centered ** 2).sum(dim=0) * (y_centered ** 2).sum(dim=0)
-    )
+    denominator = torch.sqrt((x_centered**2).sum(dim=0) * (y_centered**2).sum(dim=0))
 
     # Handle zero variance case
     correlations = numerator / (denominator + 1e-10)
@@ -166,7 +164,7 @@ def _compute_loo_isc_gpu(data):
         raise ValueError("GPU backend requires 3D voxel-wise data")
 
     n_obs, n_subjects, n_voxels = data.shape
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Transfer data to GPU once
     data_gpu = torch.tensor(data, dtype=torch.float32, device=device)
@@ -194,7 +192,7 @@ def _compute_loo_isc_gpu(data):
 # ============================================================================
 
 
-def _compute_pairwise_isc(data, backend='numpy'):
+def _compute_pairwise_isc(data, backend="numpy"):
     """
     Compute pairwise intersubject correlation (condensed form).
 
@@ -233,9 +231,9 @@ def _compute_pairwise_isc(data, backend='numpy'):
 
     Memory: For 50 subjects, 10K voxels = 98 MB (vs 20 MB for LOO)
     """
-    if backend == 'numpy':
+    if backend == "numpy":
         return _compute_pairwise_isc_numpy(data)
-    elif backend == 'torch':
+    elif backend == "torch":
         return _compute_pairwise_isc_gpu(data)
     else:
         raise ValueError(f"backend must be 'numpy' or 'torch', got {backend}")
@@ -290,7 +288,7 @@ def _batch_corrcoef_gpu(data_gpu):
     cov_matrices = torch.bmm(data_centered, data_centered.transpose(1, 2))
 
     # Compute standard deviations
-    std_devs = torch.sqrt((data_centered ** 2).sum(dim=2))  # (n_voxels, n_subjects)
+    std_devs = torch.sqrt((data_centered**2).sum(dim=2))  # (n_voxels, n_subjects)
 
     # Normalize to get correlations: cov / (std_i * std_j)
     # Broadcasting: (n_voxels, n_subjects, 1) * (n_voxels, 1, n_subjects)
@@ -317,7 +315,7 @@ def _compute_pairwise_isc_gpu(data):
     n_obs, n_subjects, n_voxels = data.shape
     n_pairs = n_subjects * (n_subjects - 1) // 2
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Transpose to (n_voxels, n_subjects, n_observations) for efficient batching
     data_transposed = np.transpose(data, (2, 1, 0))
@@ -342,7 +340,7 @@ def _compute_pairwise_isc_gpu(data):
 # ============================================================================
 
 
-def _bootstrap_loo_numpy(loo_values, metric='median', random_state=None):
+def _bootstrap_loo_numpy(loo_values, metric="median", random_state=None):
     """
     Bootstrap LOO ISC by resampling subjects.
 
@@ -384,9 +382,9 @@ def _bootstrap_loo_numpy(loo_values, metric='median', random_state=None):
         boot_values = loo_values[indices, :]
 
     # Compute summary statistic
-    if metric == 'median':
+    if metric == "median":
         return np.median(boot_values, axis=0)
-    elif metric == 'mean':
+    elif metric == "mean":
         # Fisher z-transform for unbiased mean
         z = np.arctanh(np.clip(boot_values, -0.9999, 0.9999))
         return np.tanh(np.mean(z, axis=0))
@@ -397,7 +395,7 @@ def _bootstrap_loo_numpy(loo_values, metric='median', random_state=None):
 def _bootstrap_loo_cpu_parallel(
     loo_values,
     n_permute=5000,
-    metric='median',
+    metric="median",
     n_jobs=-1,
     random_state=None,
     progress_bar=True,
@@ -459,7 +457,7 @@ def _bootstrap_loo_cpu_parallel(
 
 def _bootstrap_pairwise_numpy(
     pairwise_condensed,
-    metric='median',
+    metric="median",
     bootstrap_subjects=None,
     n_subjects=None,
     random_state=None,
@@ -510,7 +508,7 @@ def _bootstrap_pairwise_numpy(
     if pairwise_condensed.ndim == 1:
         # Single feature
         # Reconstruct correlation matrix from condensed form
-        corr_matrix = squareform(pairwise_condensed, force='tomatrix')
+        corr_matrix = squareform(pairwise_condensed, force="tomatrix")
         np.fill_diagonal(corr_matrix, 1.0)
 
         # Index by bootstrap subjects (symmetric: rows and columns)
@@ -530,7 +528,7 @@ def _bootstrap_pairwise_numpy(
 
         for v in range(n_voxels):
             # Process each voxel independently
-            corr_matrix = squareform(pairwise_condensed[:, v], force='tomatrix')
+            corr_matrix = squareform(pairwise_condensed[:, v], force="tomatrix")
             np.fill_diagonal(corr_matrix, 1.0)
 
             # Index by bootstrap subjects
@@ -547,9 +545,9 @@ def _bootstrap_pairwise_numpy(
     # Compute summary (ignoring NaNs from masked pairs)
     axis = 0 if boot_condensed.ndim > 1 else None
 
-    if metric == 'median':
+    if metric == "median":
         return np.nanmedian(boot_condensed, axis=axis)
-    elif metric == 'mean':
+    elif metric == "mean":
         # Fisher z-transform
         z = np.arctanh(np.clip(boot_condensed, -0.9999, 0.9999))
         return np.tanh(np.nanmean(z, axis=axis))
@@ -561,7 +559,7 @@ def _bootstrap_pairwise_cpu_parallel(
     pairwise_condensed,
     n_permute=5000,
     n_subjects=None,
-    metric='median',
+    metric="median",
     n_jobs=-1,
     random_state=None,
     progress_bar=True,
@@ -630,9 +628,9 @@ def _bootstrap_pairwise_cpu_parallel(
 def isc_permutation_test(
     data,
     n_permute=5000,
-    metric='median',
-    summary_statistic='pairwise',
-    method='bootstrap',
+    metric="median",
+    summary_statistic="pairwise",
+    method="bootstrap",
     ci_percentile=95,
     tail=2,
     backend=None,
@@ -747,13 +745,13 @@ def isc_permutation_test(
     if data.ndim not in [2, 3]:
         raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
 
-    if summary_statistic not in ['leave-one-out', 'pairwise']:
+    if summary_statistic not in ["leave-one-out", "pairwise"]:
         raise ValueError(
             f"summary_statistic must be 'leave-one-out' or 'pairwise', "
             f"got {summary_statistic}"
         )
 
-    if method not in ['bootstrap', 'circle_shift', 'phase_randomize']:
+    if method not in ["bootstrap", "circle_shift", "phase_randomize"]:
         raise ValueError(
             f"method must be 'bootstrap', 'circle_shift', or 'phase_randomize', "
             f"got {method}"
@@ -762,37 +760,38 @@ def isc_permutation_test(
     # Determine backend for computation phase
     if backend is None:
         # Default: numpy for computation, cpu-parallel for bootstrap
-        compute_backend = 'numpy'
-        bootstrap_backend = 'cpu-parallel'
-    elif backend == 'auto':
+        compute_backend = "numpy"
+        bootstrap_backend = "cpu-parallel"
+    elif backend == "auto":
         # Auto-select based on problem size
         is_voxelwise = data.ndim == 3
         n_voxels = data.shape[2] if is_voxelwise else 1
 
         # Use GPU for large voxel-wise LOO problems
-        if is_voxelwise and n_voxels > 5000 and summary_statistic == 'leave-one-out':
+        if is_voxelwise and n_voxels > 5000 and summary_statistic == "leave-one-out":
             try:
                 import torch
-                compute_backend = 'torch' if torch.cuda.is_available() else 'numpy'
-            except ImportError:
-                compute_backend = 'numpy'
-        else:
-            compute_backend = 'numpy'
 
-        bootstrap_backend = 'cpu-parallel'
+                compute_backend = "torch" if torch.cuda.is_available() else "numpy"
+            except ImportError:
+                compute_backend = "numpy"
+        else:
+            compute_backend = "numpy"
+
+        bootstrap_backend = "cpu-parallel"
     else:
         compute_backend = backend
-        bootstrap_backend = 'cpu-parallel' if backend != 'numpy' else 'numpy'
+        bootstrap_backend = "cpu-parallel" if backend != "numpy" else "numpy"
 
     # Phase 1: Compute ISC (run once)
-    if summary_statistic == 'leave-one-out':
+    if summary_statistic == "leave-one-out":
         # Compute leave-one-out values
         loo_values = _compute_loo_isc(data, backend=compute_backend)
 
         # Compute observed summary statistic
-        if metric == 'median':
+        if metric == "median":
             observed_isc = np.median(loo_values, axis=0)
-        elif metric == 'mean':
+        elif metric == "mean":
             z = np.arctanh(np.clip(loo_values, -0.9999, 0.9999))
             observed_isc = np.tanh(np.mean(z, axis=0))
         else:
@@ -800,32 +799,34 @@ def isc_permutation_test(
 
     else:  # pairwise
         # Compute pairwise correlation matrix (condensed form)
-        pairwise_condensed = _compute_pairwise_isc(data, backend='numpy')
+        pairwise_condensed = _compute_pairwise_isc(data, backend="numpy")
         n_subjects = data.shape[1]
 
         # Compute observed summary statistic
-        if metric == 'median':
+        if metric == "median":
             observed_isc = np.nanmedian(pairwise_condensed, axis=0)
-        elif metric == 'mean':
+        elif metric == "mean":
             z = np.arctanh(np.clip(pairwise_condensed, -0.9999, 0.9999))
             observed_isc = np.tanh(np.nanmean(z, axis=0))
         else:
             raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
 
     # Phase 2: Bootstrap/permutation (run n_permute times)
-    if method == 'bootstrap':
-        if summary_statistic == 'leave-one-out':
+    if method == "bootstrap":
+        if summary_statistic == "leave-one-out":
             # LOO bootstrap: resample pre-computed values
-            if bootstrap_backend == 'numpy':
+            if bootstrap_backend == "numpy":
                 rng = check_random_state(random_state)
-                bootstraps = np.array([
-                    _bootstrap_loo_numpy(
-                        loo_values,
-                        metric=metric,
-                        random_state=np.random.RandomState(rng.randint(2**31))
-                    )
-                    for _ in range(n_permute)
-                ])
+                bootstraps = np.array(
+                    [
+                        _bootstrap_loo_numpy(
+                            loo_values,
+                            metric=metric,
+                            random_state=np.random.RandomState(rng.randint(2**31)),
+                        )
+                        for _ in range(n_permute)
+                    ]
+                )
             else:  # cpu-parallel
                 bootstraps = _bootstrap_loo_cpu_parallel(
                     loo_values,
@@ -838,17 +839,19 @@ def isc_permutation_test(
 
         else:  # pairwise
             # Pairwise bootstrap: subject-wise matrix indexing
-            if bootstrap_backend == 'numpy':
+            if bootstrap_backend == "numpy":
                 rng = check_random_state(random_state)
-                bootstraps = np.array([
-                    _bootstrap_pairwise_numpy(
-                        pairwise_condensed,
-                        metric=metric,
-                        n_subjects=n_subjects,
-                        random_state=np.random.RandomState(rng.randint(2**31))
-                    )
-                    for _ in range(n_permute)
-                ])
+                bootstraps = np.array(
+                    [
+                        _bootstrap_pairwise_numpy(
+                            pairwise_condensed,
+                            metric=metric,
+                            n_subjects=n_subjects,
+                            random_state=np.random.RandomState(rng.randint(2**31)),
+                        )
+                        for _ in range(n_permute)
+                    ]
+                )
             else:  # cpu-parallel
                 bootstraps = _bootstrap_pairwise_cpu_parallel(
                     pairwise_condensed,
@@ -863,7 +866,7 @@ def isc_permutation_test(
         # Center bootstrap distribution by subtracting observed (Chen et al. 2016)
         null_distribution = bootstraps - observed_isc
 
-    elif method == 'circle_shift':
+    elif method == "circle_shift":
         # Import timeseries utilities
         from .timeseries import circle_shift
 
@@ -874,19 +877,21 @@ def isc_permutation_test(
         bootstraps = []
         for i in range(n_permute):
             # Circle shift the data
-            data_permuted = circle_shift(data, random_state=np.random.RandomState(seeds[i]))
+            data_permuted = circle_shift(
+                data, random_state=np.random.RandomState(seeds[i])
+            )
 
             # Recompute ISC
-            if summary_statistic == 'leave-one-out':
-                loo_perm = _compute_loo_isc(data_permuted, backend='numpy')
-                if metric == 'median':
+            if summary_statistic == "leave-one-out":
+                loo_perm = _compute_loo_isc(data_permuted, backend="numpy")
+                if metric == "median":
                     isc_perm = np.median(loo_perm, axis=0)
                 else:
                     z = np.arctanh(np.clip(loo_perm, -0.9999, 0.9999))
                     isc_perm = np.tanh(np.mean(z, axis=0))
             else:  # pairwise
-                pair_perm = _compute_pairwise_isc(data_permuted, backend='numpy')
-                if metric == 'median':
+                pair_perm = _compute_pairwise_isc(data_permuted, backend="numpy")
+                if metric == "median":
                     isc_perm = np.nanmedian(pair_perm, axis=0)
                 else:
                     z = np.arctanh(np.clip(pair_perm, -0.9999, 0.9999))
@@ -897,7 +902,7 @@ def isc_permutation_test(
         bootstraps = np.array(bootstraps)
         null_distribution = bootstraps  # Already centered for permutation methods
 
-    elif method == 'phase_randomize':
+    elif method == "phase_randomize":
         # Import timeseries utilities
         from .timeseries import phase_randomize
 
@@ -908,19 +913,21 @@ def isc_permutation_test(
         bootstraps = []
         for i in range(n_permute):
             # Phase randomize the data
-            data_permuted = phase_randomize(data, random_state=np.random.RandomState(seeds[i]))
+            data_permuted = phase_randomize(
+                data, random_state=np.random.RandomState(seeds[i])
+            )
 
             # Recompute ISC
-            if summary_statistic == 'leave-one-out':
-                loo_perm = _compute_loo_isc(data_permuted, backend='numpy')
-                if metric == 'median':
+            if summary_statistic == "leave-one-out":
+                loo_perm = _compute_loo_isc(data_permuted, backend="numpy")
+                if metric == "median":
                     isc_perm = np.median(loo_perm, axis=0)
                 else:
                     z = np.arctanh(np.clip(loo_perm, -0.9999, 0.9999))
                     isc_perm = np.tanh(np.mean(z, axis=0))
             else:  # pairwise
-                pair_perm = _compute_pairwise_isc(data_permuted, backend='numpy')
-                if metric == 'median':
+                pair_perm = _compute_pairwise_isc(data_permuted, backend="numpy")
+                if metric == "median":
                     isc_perm = np.nanmedian(pair_perm, axis=0)
                 else:
                     z = np.arctanh(np.clip(pair_perm, -0.9999, 0.9999))
@@ -941,25 +948,22 @@ def isc_permutation_test(
 
     if observed_isc.ndim == 0 or observed_isc.shape == ():
         # Single value
-        ci = (
-            np.percentile(bootstraps, ci_lower),
-            np.percentile(bootstraps, ci_upper)
-        )
+        ci = (np.percentile(bootstraps, ci_lower), np.percentile(bootstraps, ci_upper))
     else:
         # Per-voxel
         ci = (
             np.percentile(bootstraps, ci_lower, axis=0),
-            np.percentile(bootstraps, ci_upper, axis=0)
+            np.percentile(bootstraps, ci_upper, axis=0),
         )
 
     # Build result dictionary
     result = {
-        'isc': observed_isc,
-        'p': p_value,
-        'ci': ci,
+        "isc": observed_isc,
+        "p": p_value,
+        "ci": ci,
     }
 
     if return_null:
-        result['null_distribution'] = bootstraps
+        result["null_distribution"] = bootstraps
 
     return result

@@ -6,11 +6,9 @@ for testing correlation between two square matrices.
 """
 
 import numpy as np
-from typing import Union, Optional
-from sklearn.utils import check_random_state
+from typing import Optional
 from scipy.stats import pearsonr, spearmanr, kendalltau
 
-from nltools.backends import Backend, auto_select_backend
 from .utils import _compute_pvalue
 
 # Maximum integer for random seed generation

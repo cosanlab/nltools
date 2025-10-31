@@ -84,6 +84,7 @@ def _one_sample_permutation_cpu_parallel(
     # Determine backend name based on n_jobs
     if n_jobs == -1:
         import multiprocessing
+
         n_cores = multiprocessing.cpu_count()
         backend_name = f"cpu-parallel-{n_cores}"
     else:
@@ -325,7 +326,9 @@ def one_sample_permutation_test(
         if isinstance(backend, str):
             if backend == "auto":
                 # Auto-select based on problem size and GPU availability
-                backend = auto_select_backend(n_samples, n_features, cv=n_permute // 1000)
+                backend = auto_select_backend(
+                    n_samples, n_features, cv=n_permute // 1000
+                )
             else:
                 backend = Backend(backend)
 
@@ -370,5 +373,12 @@ def one_sample_permutation_test(
     else:
         # PyTorch: GPU with automatic batching
         return _one_sample_permutation_gpu_batched(
-            data, n_permute, tail, return_null, backend, max_gpu_memory_gb, rng, single_feature
+            data,
+            n_permute,
+            tail,
+            return_null,
+            backend,
+            max_gpu_memory_gb,
+            rng,
+            single_feature,
         )

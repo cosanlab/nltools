@@ -93,6 +93,7 @@ def _two_sample_permutation_cpu_parallel(
     # Determine backend name
     if n_jobs == -1:
         import multiprocessing
+
         n_cores = multiprocessing.cpu_count()
         backend_name = f"cpu-parallel-{n_cores}"
     else:
@@ -193,10 +194,12 @@ def _two_sample_permutation_gpu_batched(
 
         # Generate permutation indices using independent RNG per permutation
         # Shape: (current_batch_size, n_total)
-        batch_indices = np.array([
-            np.random.RandomState(batch_seeds[i]).permutation(n_total)
-            for i in range(current_batch_size)
-        ])
+        batch_indices = np.array(
+            [
+                np.random.RandomState(batch_seeds[i]).permutation(n_total)
+                for i in range(current_batch_size)
+            ]
+        )
 
         # Transfer to device and ensure indices are long type
         batch_indices_device = backend.to_device(batch_indices)
@@ -373,7 +376,14 @@ def two_sample_permutation_test(
     if use_cpu_parallel:
         # CPU parallelization mode (memory-efficient fallback)
         return _two_sample_permutation_cpu_parallel(
-            data1, data2, n_permute, tail, return_null, n_jobs, random_state, single_feature
+            data1,
+            data2,
+            n_permute,
+            tail,
+            return_null,
+            n_jobs,
+            random_state,
+            single_feature,
         )
     else:
         # GPU/Backend mode
@@ -443,5 +453,13 @@ def two_sample_permutation_test(
     else:
         # PyTorch: GPU with automatic batching
         return _two_sample_permutation_gpu_batched(
-            data1, data2, n_permute, tail, return_null, backend, max_gpu_memory_gb, rng, single_feature
+            data1,
+            data2,
+            n_permute,
+            tail,
+            return_null,
+            backend,
+            max_gpu_memory_gb,
+            rng,
+            single_feature,
         )

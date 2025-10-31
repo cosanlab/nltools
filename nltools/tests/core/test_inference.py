@@ -56,6 +56,24 @@ Testing Strategy & Tolerances:
 import pytest
 import numpy as np
 
+from nltools.algorithms.inference import (
+    one_sample_permutation_test,
+    two_sample_permutation_test,
+    _generate_sign_flips,
+    _compute_pvalue,
+)
+from nltools.algorithms.inference.correlation import (
+    correlation_permutation_test,
+    _pearson_correlation,
+)
+from nltools.algorithms.inference.timeseries import (
+    circle_shift,
+    phase_randomize,
+)
+from nltools.backends import check_gpu_available
+from nltools.stats import one_sample_permutation as stats_one_sample
+from nltools.stats import two_sample_permutation as stats_two_sample
+from nltools.stats import correlation_permutation as stats_correlation
 # ============================================================================
 # Test Constants - DO NOT MODIFY without updating docstring above
 # ============================================================================
@@ -83,36 +101,22 @@ TOLERANCE_STATS_PVALUE_ONE_TAILED = 0.02  # 2% relative error acceptable
 # circle_shift: ~32% actual variance (shift amounts determined by RNG sequence)
 # phase_randomize: ~3% actual variance (FFT operations more numerically stable)
 # Both implementations are fully deterministic (same seed → identical results)
-TOLERANCE_STATS_PVALUE_CIRCLE_SHIFT = 0.4  # 40% relative error (accommodates ~32% actual)
+TOLERANCE_STATS_PVALUE_CIRCLE_SHIFT = (
+    0.4  # 40% relative error (accommodates ~32% actual)
+)
 
 # phase_randomize: Lower variance due to FFT numerical stability
-TOLERANCE_STATS_PVALUE_PHASE_RANDOMIZE = 0.05  # 5% relative error (accommodates ~3% actual)
+TOLERANCE_STATS_PVALUE_PHASE_RANDOMIZE = (
+    0.05  # 5% relative error (accommodates ~3% actual)
+)
 
 # Tolerance for GPU vs CPU comparisons (float32 vs float64)
-TOLERANCE_GPU_VALUE = 1e-3      # 0.1% error for computed values
-TOLERANCE_GPU_PVALUE = 5e-3     # 0.5% error for P-values (more FP error)
+TOLERANCE_GPU_VALUE = 1e-3  # 0.1% error for computed values
+TOLERANCE_GPU_PVALUE = 5e-3  # 0.5% error for P-values (more FP error)
 
 # Number of permutations for different test types
-N_PERMUTE_BACKEND = 100          # Fast checks for backend consistency
+N_PERMUTE_BACKEND = 100  # Fast checks for backend consistency
 N_PERMUTE_STATS_COMPARISON = 1000  # Stable comparison with stats.py
-from nltools.algorithms.inference import (
-    one_sample_permutation_test,
-    two_sample_permutation_test,
-    _generate_sign_flips,
-    _compute_pvalue,
-)
-from nltools.algorithms.inference.correlation import (
-    correlation_permutation_test,
-    _pearson_correlation,
-)
-from nltools.algorithms.inference.timeseries import (
-    circle_shift,
-    phase_randomize,
-)
-from nltools.backends import Backend, check_gpu_available
-from nltools.stats import one_sample_permutation as stats_one_sample
-from nltools.stats import two_sample_permutation as stats_two_sample
-from nltools.stats import correlation_permutation as stats_correlation
 
 
 # ============================================================================
@@ -301,8 +305,12 @@ class TestOneSamplePermutation:
         np.random.seed(42)
         data = np.random.randn(30) + 0.5
 
-        result_two = one_sample_permutation_test(data, n_permute=N_PERMUTE_STATS_COMPARISON, tail=2, random_state=42)
-        result_one = one_sample_permutation_test(data, n_permute=N_PERMUTE_STATS_COMPARISON, tail=1, random_state=42)
+        result_two = one_sample_permutation_test(
+            data, n_permute=N_PERMUTE_STATS_COMPARISON, tail=2, random_state=42
+        )
+        result_one = one_sample_permutation_test(
+            data, n_permute=N_PERMUTE_STATS_COMPARISON, tail=1, random_state=42
+        )
 
         # One-tailed p-value should be approximately half of two-tailed
         # (for positive effect)
@@ -335,7 +343,9 @@ class TestTwoSamplePermutation:
         data1 = np.random.randn(20)  # Group 1: 20 subjects
         data2 = np.random.randn(25)  # Group 2: 25 subjects
 
-        result = two_sample_permutation_test(data1, data2, n_permute=1000, random_state=42)
+        result = two_sample_permutation_test(
+            data1, data2, n_permute=1000, random_state=42
+        )
 
         assert "mean_diff" in result
         assert "p" in result
@@ -350,7 +360,9 @@ class TestTwoSamplePermutation:
         data1 = np.random.randn(20, 10)  # 20 subjects, 10 features
         data2 = np.random.randn(25, 10)  # 25 subjects, 10 features
 
-        result = two_sample_permutation_test(data1, data2, n_permute=1000, random_state=42)
+        result = two_sample_permutation_test(
+            data1, data2, n_permute=1000, random_state=42
+        )
 
         assert result["mean_diff"].shape == (10,)
         assert result["p"].shape == (10,)
@@ -362,8 +374,12 @@ class TestTwoSamplePermutation:
         data1 = np.random.randn(20, 5)
         data2 = np.random.randn(25, 5)
 
-        result1 = two_sample_permutation_test(data1, data2, n_permute=100, random_state=42)
-        result2 = two_sample_permutation_test(data1, data2, n_permute=100, random_state=42)
+        result1 = two_sample_permutation_test(
+            data1, data2, n_permute=100, random_state=42
+        )
+        result2 = two_sample_permutation_test(
+            data1, data2, n_permute=100, random_state=42
+        )
 
         np.testing.assert_array_almost_equal(result1["mean_diff"], result2["mean_diff"])
         np.testing.assert_array_almost_equal(result1["p"], result2["p"])
@@ -400,7 +416,9 @@ class TestTwoSamplePermutation:
         data1 = np.random.randn(30)  # Mean = 0
         data2 = np.random.randn(30) + 2.0  # Mean = 2.0 (large difference)
 
-        result = two_sample_permutation_test(data1, data2, n_permute=1000, random_state=42)
+        result = two_sample_permutation_test(
+            data1, data2, n_permute=1000, random_state=42
+        )
 
         assert result["p"] < 0.05  # Should be significant
 
@@ -410,7 +428,9 @@ class TestTwoSamplePermutation:
         data1 = np.random.randn(30)
         data2 = np.random.randn(30) + 0.1  # Small difference
 
-        result = two_sample_permutation_test(data1, data2, n_permute=1000, random_state=42)
+        result = two_sample_permutation_test(
+            data1, data2, n_permute=1000, random_state=42
+        )
 
         assert result["p"] > 0.05  # Should not be significant
 
@@ -420,7 +440,9 @@ class TestTwoSamplePermutation:
         data1 = np.random.randn(15, 5)  # 15 subjects
         data2 = np.random.randn(35, 5)  # 35 subjects (different size)
 
-        result = two_sample_permutation_test(data1, data2, n_permute=500, random_state=42)
+        result = two_sample_permutation_test(
+            data1, data2, n_permute=500, random_state=42
+        )
 
         assert result["mean_diff"].shape == (5,)
         assert result["p"].shape == (5,)
@@ -431,8 +453,12 @@ class TestTwoSamplePermutation:
         data1 = np.random.randn(30)
         data2 = np.random.randn(30) + 0.5
 
-        result_two = two_sample_permutation_test(data1, data2, n_permute=N_PERMUTE_STATS_COMPARISON, tail=2, random_state=42)
-        result_one = two_sample_permutation_test(data1, data2, n_permute=N_PERMUTE_STATS_COMPARISON, tail=1, random_state=42)
+        result_two = two_sample_permutation_test(
+            data1, data2, n_permute=N_PERMUTE_STATS_COMPARISON, tail=2, random_state=42
+        )
+        result_one = two_sample_permutation_test(
+            data1, data2, n_permute=N_PERMUTE_STATS_COMPARISON, tail=1, random_state=42
+        )
 
         # One-tailed should be different from two-tailed
         assert result_one["p"] != result_two["p"]
@@ -473,7 +499,11 @@ class TestTwoSamplePermutation:
         results = {}
         for backend in backends:
             results[backend] = two_sample_permutation_test(
-                data1, data2, n_permute=N_PERMUTE_BACKEND, backend=backend, random_state=42
+                data1,
+                data2,
+                n_permute=N_PERMUTE_BACKEND,
+                backend=backend,
+                random_state=42,
             )
 
         # Compare results
@@ -500,7 +530,11 @@ class TestTwoSamplePermutation:
         results = {}
         for backend in backends:
             results[backend] = two_sample_permutation_test(
-                data1, data2, n_permute=N_PERMUTE_BACKEND, backend=backend, random_state=42
+                data1,
+                data2,
+                n_permute=N_PERMUTE_BACKEND,
+                backend=backend,
+                random_state=42,
             )
 
         # Compare results
@@ -523,18 +557,33 @@ class TestTwoSamplePermutation:
 
         # New implementation
         result_new = two_sample_permutation_test(
-            data1, data2, n_permute=N_PERMUTE_STATS_COMPARISON, backend="numpy", random_state=42
+            data1,
+            data2,
+            n_permute=N_PERMUTE_STATS_COMPARISON,
+            backend="numpy",
+            random_state=42,
         )
 
         # Old implementation
         result_old = stats_two_sample(
-            data1, data2, n_permute=N_PERMUTE_STATS_COMPARISON, tail=2, n_jobs=1, random_state=42
+            data1,
+            data2,
+            n_permute=N_PERMUTE_STATS_COMPARISON,
+            tail=2,
+            n_jobs=1,
+            random_state=42,
         )
 
         # Mean difference should be identical
-        np.testing.assert_allclose(result_new["mean_diff"], result_old["mean"], rtol=TOLERANCE_STATS_DETERMINISTIC)
+        np.testing.assert_allclose(
+            result_new["mean_diff"],
+            result_old["mean"],
+            rtol=TOLERANCE_STATS_DETERMINISTIC,
+        )
         # P-values will differ slightly due to different random sampling (~15%)
-        np.testing.assert_allclose(result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE)
+        np.testing.assert_allclose(
+            result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE
+        )
 
     def test_cpu_parallel_correctness(self):
         """Test CPU parallelization produces correct results."""
@@ -568,7 +617,8 @@ class TestTwoSamplePermutation:
 
         # GPU backend with small memory budget to force batching
         result_gpu = two_sample_permutation_test(
-            data1, data2,
+            data1,
+            data2,
             n_permute=500,
             backend="torch",
             max_gpu_memory_gb=0.5,
@@ -652,7 +702,9 @@ class TestBackends:
         """Test that auto backend selection works."""
         np.random.seed(42)
         data = np.random.randn(30, 10)
-        result = one_sample_permutation_test(data, n_permute=100, backend="auto", random_state=42)
+        result = one_sample_permutation_test(
+            data, n_permute=100, backend="auto", random_state=42
+        )
 
         assert "backend" in result
         assert result["backend"] in ["numpy", "torch-cpu", "torch-cuda", "torch-mps"]
@@ -695,15 +747,23 @@ class TestBackwardCompatibility:
 
         # Old implementation
         result_old = stats_one_sample(
-            data, n_permute=N_PERMUTE_STATS_COMPARISON, tail=2, n_jobs=1, random_state=42
+            data,
+            n_permute=N_PERMUTE_STATS_COMPARISON,
+            tail=2,
+            n_jobs=1,
+            random_state=42,
         )
 
         # Compare results
         # Mean should be identical (it's just np.mean)
-        np.testing.assert_allclose(result_new["mean"], result_old["mean"], rtol=TOLERANCE_STATS_DETERMINISTIC)
+        np.testing.assert_allclose(
+            result_new["mean"], result_old["mean"], rtol=TOLERANCE_STATS_DETERMINISTIC
+        )
         # P-values will differ slightly due to different random sampling
         # but should be in the same ballpark (within ~15% relative error)
-        np.testing.assert_allclose(result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE)
+        np.testing.assert_allclose(
+            result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE
+        )
 
     def test_new_multi_feature_support(self):
         """Test that new implementation supports multi-feature data.
@@ -732,18 +792,30 @@ class TestBackwardCompatibility:
 
         # New implementation
         result_new = one_sample_permutation_test(
-            data, n_permute=N_PERMUTE_STATS_COMPARISON, backend="numpy", tail=1, random_state=42
+            data,
+            n_permute=N_PERMUTE_STATS_COMPARISON,
+            backend="numpy",
+            tail=1,
+            random_state=42,
         )
 
         # Old implementation
         result_old = stats_one_sample(
-            data, n_permute=N_PERMUTE_STATS_COMPARISON, tail=1, n_jobs=1, random_state=42
+            data,
+            n_permute=N_PERMUTE_STATS_COMPARISON,
+            tail=1,
+            n_jobs=1,
+            random_state=42,
         )
 
         # Compare results
-        np.testing.assert_allclose(result_new["mean"], result_old["mean"], rtol=TOLERANCE_STATS_DETERMINISTIC)
+        np.testing.assert_allclose(
+            result_new["mean"], result_old["mean"], rtol=TOLERANCE_STATS_DETERMINISTIC
+        )
         # P-values should match exactly now (same RNG pattern)
-        np.testing.assert_allclose(result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE_ONE_TAILED)
+        np.testing.assert_allclose(
+            result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE_ONE_TAILED
+        )
 
 
 # ============================================================================
@@ -959,7 +1031,12 @@ class TestCPUParallelization:
         data = np.random.randn(30, 10)
 
         result = one_sample_permutation_test(
-            data, n_permute=200, backend=None, n_jobs=2, return_null=True, random_state=42
+            data,
+            n_permute=200,
+            backend=None,
+            n_jobs=2,
+            return_null=True,
+            random_state=42,
         )
 
         assert "null_dist" in result
@@ -981,6 +1058,7 @@ class TestCPUParallelization:
         np.testing.assert_array_almost_equal(result1["mean"], result2["mean"])
         np.testing.assert_array_almost_equal(result1["p"], result2["p"])
 
+
 # ============================================================================
 # Test Correlation Permutation
 # ============================================================================
@@ -994,47 +1072,47 @@ class TestPearsonCorrelation:
         np.random.seed(42)
         x = np.random.randn(100)
         y = x + np.random.randn(100) * 0.1  # Strong positive correlation
-        
+
         r = _pearson_correlation(x, y)
         assert isinstance(r, (float, np.floating))
         assert r > 0.9  # Should be strongly positive
-        
+
     def test_basic_correlation_negative(self):
         """Test negative correlation."""
         np.random.seed(42)
         x = np.random.randn(100)
         y = -x + np.random.randn(100) * 0.1  # Strong negative correlation
-        
+
         r = _pearson_correlation(x, y)
         assert isinstance(r, (float, np.floating))
         assert r < -0.9  # Should be strongly negative
-        
+
     def test_no_correlation(self):
         """Test zero correlation."""
         np.random.seed(42)
         x = np.random.randn(100)
         y = np.random.randn(100)  # Independent
-        
+
         r = _pearson_correlation(x, y)
         assert isinstance(r, (float, np.floating))
         assert -0.3 < r < 0.3  # Should be near zero
-        
+
     def test_vectorized_correlation(self):
         """Test vectorized correlation computation."""
         np.random.seed(42)
         # Multiple permutations
         x_perms = np.random.randn(100, 50)  # 100 permutations, 50 samples
         y = np.random.randn(50)
-        
+
         r = _pearson_correlation(x_perms, y)
         assert r.shape == (100,)
         assert np.all((r >= -1) & (r <= 1))
-        
+
     def test_constant_data(self):
         """Test with constant data (should handle gracefully)."""
         x = np.ones(100)
         y = np.random.randn(100)
-        
+
         r = _pearson_correlation(x, y)
         assert r == 0.0  # Correlation with constant is zero
 
@@ -1049,7 +1127,7 @@ class TestSpearmanCorrelation:
         np.random.seed(42)
         # Create monotonic relationship (perfect for Spearman)
         x = np.random.randn(100)
-        y = x ** 3 + np.random.randn(100) * 0.1  # Monotonic but non-linear
+        y = x**3 + np.random.randn(100) * 0.1  # Monotonic but non-linear
 
         r = _spearman_correlation(x, y)
         assert isinstance(r, (float, np.floating))
@@ -1062,7 +1140,7 @@ class TestSpearmanCorrelation:
 
         np.random.seed(42)
         x = np.random.randn(100)
-        y = x ** 2 + np.random.randn(100) * 0.5
+        y = x**2 + np.random.randn(100) * 0.5
 
         r_ours = _spearman_correlation(x, y)
         r_scipy, _ = spearmanr(x, y)
@@ -1118,7 +1196,7 @@ class TestKendallCorrelation:
 
         np.random.seed(42)
         x = np.random.randn(50)  # Smaller sample for speed (Kendall is O(n^2))
-        y = x ** 2 + np.random.randn(50) * 0.5
+        y = x**2 + np.random.randn(50) * 0.5
 
         r_ours = _kendall_correlation(x, y)
         r_scipy, _ = kendalltau(x, y)
@@ -1158,9 +1236,9 @@ class TestCorrelationPermutation:
         np.random.seed(42)
         x = np.random.randn(50)
         y = x + np.random.randn(50) * 0.5  # Moderate correlation
-        
+
         result = correlation_permutation_test(x, y, n_permute=500, random_state=42)
-        
+
         assert "correlation" in result
         assert "p" in result
         assert "backend" in result
@@ -1168,75 +1246,77 @@ class TestCorrelationPermutation:
         assert isinstance(result["p"], (float, np.floating))
         assert 0 <= result["p"] <= 1
         assert -1 <= result["correlation"] <= 1
-        
+
     def test_basic_functionality_multi_feature(self):
         """Test correlation test with 2D arrays (feature-wise)."""
         np.random.seed(42)
         data1 = np.random.randn(50, 10)  # 50 samples, 10 features
         data2 = data1 + np.random.randn(50, 10) * 0.3  # Correlated
-        
-        result = correlation_permutation_test(data1, data2, n_permute=500, random_state=42)
-        
+
+        result = correlation_permutation_test(
+            data1, data2, n_permute=500, random_state=42
+        )
+
         assert result["correlation"].shape == (10,)
         assert result["p"].shape == (10,)
         assert np.all((result["p"] >= 0) & (result["p"] <= 1))
         assert np.all((result["correlation"] >= -1) & (result["correlation"] <= 1))
-        
+
     def test_deterministic_with_seed(self):
         """Test that results are deterministic with fixed seed."""
         np.random.seed(42)
         x = np.random.randn(50)
         y = x + np.random.randn(50) * 0.5
-        
+
         result1 = correlation_permutation_test(x, y, n_permute=200, random_state=42)
         result2 = correlation_permutation_test(x, y, n_permute=200, random_state=42)
-        
+
         np.testing.assert_almost_equal(result1["correlation"], result2["correlation"])
         np.testing.assert_almost_equal(result1["p"], result2["p"])
-        
+
     def test_return_null_distribution_single(self):
         """Test that null distribution is returned for single feature."""
         np.random.seed(42)
         x = np.random.randn(50)
         y = np.random.randn(50)
-        
+
         result = correlation_permutation_test(
             x, y, n_permute=100, return_null=True, random_state=42
         )
-        
+
         assert "null_dist" in result
         assert result["null_dist"].shape == (100,)
-        
+
     def test_return_null_distribution_multi(self):
         """Test null distribution for multi-feature data."""
         np.random.seed(42)
         data1 = np.random.randn(50, 5)
         data2 = np.random.randn(50, 5)
-        
+
         result = correlation_permutation_test(
             data1, data2, n_permute=100, return_null=True, random_state=42
         )
-        
+
         assert "null_dist" in result
         assert result["null_dist"].shape == (100, 5)
-        
+
     def test_significant_correlation(self):
         """Test that significant correlation is detected."""
         np.random.seed(42)
         x = np.random.randn(100)
         y = x + np.random.randn(100) * 0.1  # Very strong correlation
-        
+
         result = correlation_permutation_test(x, y, n_permute=1000, random_state=42)
-        
+
         assert result["p"] < 0.05  # Should be significant
         assert result["correlation"] > 0.9  # Should be strong positive
-        
+
     def test_non_significant_correlation(self):
         """Test that non-significant correlation has high p-value."""
         np.random.seed(42)
         x = np.random.randn(100)
         y = np.random.randn(100)  # Independent
-        
+
         result = correlation_permutation_test(x, y, n_permute=1000, random_state=42)
 
         assert result["p"] > 0.05  # Should not be significant
@@ -1246,10 +1326,10 @@ class TestCorrelationPermutation:
         np.random.seed(42)
         # Create monotonic but non-linear relationship
         x = np.random.randn(100)
-        y = x ** 3 + np.random.randn(100) * 0.1
+        y = x**3 + np.random.randn(100) * 0.1
 
         result = correlation_permutation_test(
-            x, y, n_permute=500, metric='spearman', random_state=42
+            x, y, n_permute=500, metric="spearman", random_state=42
         )
 
         assert "correlation" in result
@@ -1265,7 +1345,7 @@ class TestCorrelationPermutation:
         y = x + np.random.randn(80) * 5
 
         result = correlation_permutation_test(
-            x, y, n_permute=200, metric='kendall', random_state=42
+            x, y, n_permute=200, metric="kendall", random_state=42
         )
 
         assert "correlation" in result
@@ -1279,8 +1359,12 @@ class TestCorrelationPermutation:
         x = np.random.randn(100)
         y = x * 0.3 + np.random.randn(100) * 0.9  # Moderate positive correlation
 
-        result_two = correlation_permutation_test(x, y, n_permute=500, tail=2, random_state=42)
-        result_one = correlation_permutation_test(x, y, n_permute=500, tail=1, random_state=42)
+        result_two = correlation_permutation_test(
+            x, y, n_permute=500, tail=2, random_state=42
+        )
+        result_one = correlation_permutation_test(
+            x, y, n_permute=500, tail=1, random_state=42
+        )
 
         # For moderate correlations, one-tailed should be approximately half of two-tailed
         # (or both very small if correlation is very strong)
@@ -1290,63 +1374,63 @@ class TestCorrelationPermutation:
         # If neither is at minimum, one-tailed should be smaller
         if result_two["p"] > 0.01:  # Not at minimum
             assert result_one["p"] <= result_two["p"]
-        
+
     def test_cpu_parallel_correctness(self):
         """Test CPU parallelization produces correct results."""
         np.random.seed(42)
         data1 = np.random.randn(50, 20)
         data2 = data1 + np.random.randn(50, 20) * 0.5
-        
+
         result = correlation_permutation_test(
             data1, data2, n_permute=500, backend=None, n_jobs=2, random_state=42
         )
-        
+
         # Observed correlations should be positive (data2 derived from data1)
         assert np.all(result["correlation"] > 0)
-        
+
         # P-values should be valid
         assert np.all((result["p"] >= 0) & (result["p"] <= 1))
         assert "cpu-parallel" in result["backend"]
-        
+
     def test_invalid_tail(self):
         """Test that invalid tail raises error."""
         x = np.random.randn(50)
         y = np.random.randn(50)
-        
+
         with pytest.raises(ValueError, match="tail must be 1 or 2"):
             correlation_permutation_test(x, y, tail=3)
-            
+
     def test_invalid_data_shape(self):
         """Test that invalid data shape raises error."""
         x = np.random.randn(5, 5, 5)  # 3D
         y = np.random.randn(5, 5, 5)
-        
+
         with pytest.raises(ValueError, match="data1 must be 1D or 2D"):
             correlation_permutation_test(x, y)
-            
+
     def test_mismatched_shapes(self):
         """Test that mismatched shapes raise error."""
         x = np.random.randn(50, 5)  # 5 features
         y = np.random.randn(50, 10)  # 10 features (mismatch!)
-        
+
         with pytest.raises(ValueError, match="must have same shape"):
             correlation_permutation_test(x, y)
-            
+
     def test_backend_consistency_single_feature(self, backends):
         """Test that NumPy and PyTorch backends produce same results."""
         if len(backends) < 2:
             pytest.skip("PyTorch not available")
-            
+
         np.random.seed(42)
         x = np.random.randn(50)
         y = x + np.random.randn(50) * 0.5
-        
+
         results = {}
         for backend in backends:
             results[backend] = correlation_permutation_test(
                 x, y, n_permute=N_PERMUTE_BACKEND, backend=backend, random_state=42
             )
-            
+
         # Compare results
         np.testing.assert_allclose(
             results["numpy"]["correlation"],
@@ -1358,22 +1442,26 @@ class TestCorrelationPermutation:
             results["torch"]["p"],
             rtol=1e-5,
         )
-        
+
     def test_backend_consistency_multi_feature(self, backends):
         """Test backend consistency for multi-feature data."""
         if len(backends) < 2:
             pytest.skip("PyTorch not available")
-            
+
         np.random.seed(42)
         data1 = np.random.randn(50, 10)
         data2 = data1 + np.random.randn(50, 10) * 0.3
-        
+
         results = {}
         for backend in backends:
             results[backend] = correlation_permutation_test(
-                data1, data2, n_permute=N_PERMUTE_BACKEND, backend=backend, random_state=42
+                data1,
+                data2,
+                n_permute=N_PERMUTE_BACKEND,
+                backend=backend,
+                random_state=42,
             )
-            
+
         # Compare results
         np.testing.assert_allclose(
             results["numpy"]["correlation"],
@@ -1385,50 +1473,63 @@ class TestCorrelationPermutation:
             results["torch"]["p"],
             rtol=1e-5,
         )
-        
+
     def test_matches_stats_py_single_feature(self):
         """Test that results match stats.py for single feature."""
         np.random.seed(42)
         x = np.random.randn(50)
         y = x + np.random.randn(50) * 0.5
-        
+
         # New implementation
         result_new = correlation_permutation_test(
             x, y, n_permute=N_PERMUTE_STATS_COMPARISON, backend="numpy", random_state=42
         )
-        
+
         # Old implementation
         result_old = stats_correlation(
-            x, y, n_permute=N_PERMUTE_STATS_COMPARISON, method='permute', metric='pearson', 
-            tail=2, n_jobs=1, random_state=42
+            x,
+            y,
+            n_permute=N_PERMUTE_STATS_COMPARISON,
+            method="permute",
+            metric="pearson",
+            tail=2,
+            n_jobs=1,
+            random_state=42,
         )
-        
+
         # Correlation should be identical (deterministic)
-        np.testing.assert_allclose(result_new["correlation"], result_old["correlation"], rtol=TOLERANCE_STATS_DETERMINISTIC)
+        np.testing.assert_allclose(
+            result_new["correlation"],
+            result_old["correlation"],
+            rtol=TOLERANCE_STATS_DETERMINISTIC,
+        )
         # P-values will differ slightly due to different random sampling (~15%)
-        np.testing.assert_allclose(result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE)
-        
+        np.testing.assert_allclose(
+            result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE
+        )
+
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_batching_correctness(self):
         """Test that GPU batching produces same results as NumPy."""
         np.random.seed(42)
         data1 = np.random.randn(50, 1000)
         data2 = data1 + np.random.randn(50, 1000) * 0.3
-        
+
         # NumPy backend
         result_numpy = correlation_permutation_test(
             data1, data2, n_permute=500, backend="numpy", random_state=42
         )
-        
+
         # GPU backend with small memory budget to force batching
         result_gpu = correlation_permutation_test(
-            data1, data2,
+            data1,
+            data2,
             n_permute=500,
             backend="torch",
             max_gpu_memory_gb=0.5,
             random_state=42,
         )
-        
+
         # Results should match (float32 vs float64 precision)
         np.testing.assert_allclose(
             result_numpy["correlation"],
@@ -1440,6 +1541,7 @@ class TestCorrelationPermutation:
             result_gpu["p"],
             rtol=TOLERANCE_GPU_PVALUE,  # P-values accumulate more FP error
         )
+
 
 # ============================================================================
 # Timeseries Functions Tests
@@ -1646,7 +1748,9 @@ class TestTimeseriesCorrelation:
 
     def test_basic_functionality_circle_shift(self):
         """Test basic functionality with circle_shift method."""
-        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+        from nltools.algorithms.inference.timeseries import (
+            timeseries_correlation_permutation_test,
+        )
 
         np.random.seed(42)
         x = np.random.randn(100)
@@ -1663,7 +1767,9 @@ class TestTimeseriesCorrelation:
 
     def test_basic_functionality_phase_randomize(self):
         """Test basic functionality with phase_randomize method."""
-        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+        from nltools.algorithms.inference.timeseries import (
+            timeseries_correlation_permutation_test,
+        )
 
         np.random.seed(42)
         x = np.random.randn(100)
@@ -1680,7 +1786,9 @@ class TestTimeseriesCorrelation:
 
     def test_deterministic_with_seed(self):
         """Test that results are deterministic with random_state."""
-        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+        from nltools.algorithms.inference.timeseries import (
+            timeseries_correlation_permutation_test,
+        )
 
         np.random.seed(42)
         x = np.random.randn(100)
@@ -1698,14 +1806,21 @@ class TestTimeseriesCorrelation:
 
     def test_return_null_distribution(self):
         """Test that null distribution is returned when requested."""
-        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+        from nltools.algorithms.inference.timeseries import (
+            timeseries_correlation_permutation_test,
+        )
 
         np.random.seed(42)
         x = np.random.randn(100)
         y = np.random.randn(100)
 
         result = timeseries_correlation_permutation_test(
-            x, y, method="circle_shift", n_permute=100, return_null=True, random_state=42
+            x,
+            y,
+            method="circle_shift",
+            n_permute=100,
+            return_null=True,
+            random_state=42,
         )
 
         assert "null_distribution" in result
@@ -1713,14 +1828,21 @@ class TestTimeseriesCorrelation:
 
     def test_spearman_metric(self):
         """Test with Spearman correlation metric."""
-        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+        from nltools.algorithms.inference.timeseries import (
+            timeseries_correlation_permutation_test,
+        )
 
         np.random.seed(42)
         x = np.random.randn(100)
-        y = x ** 2  # Nonlinear monotonic relationship
+        y = x**2  # Nonlinear monotonic relationship
 
         result = timeseries_correlation_permutation_test(
-            x, y, method="circle_shift", n_permute=100, metric="spearman", random_state=42
+            x,
+            y,
+            method="circle_shift",
+            n_permute=100,
+            metric="spearman",
+            random_state=42,
         )
 
         assert "correlation" in result
@@ -1728,7 +1850,9 @@ class TestTimeseriesCorrelation:
 
     def test_kendall_metric(self):
         """Test with Kendall correlation metric."""
-        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+        from nltools.algorithms.inference.timeseries import (
+            timeseries_correlation_permutation_test,
+        )
 
         np.random.seed(42)
         x = np.random.randn(50)  # Smaller sample for Kendall (O(n^2))
@@ -1749,7 +1873,9 @@ class TestTimeseriesCorrelation:
         This is expected and acceptable - both implementations are correct, just
         use different random number sequences in parallel execution.
         """
-        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+        from nltools.algorithms.inference.timeseries import (
+            timeseries_correlation_permutation_test,
+        )
         from nltools.stats import correlation_permutation as stats_correlation
 
         np.random.seed(42)
@@ -1757,20 +1883,34 @@ class TestTimeseriesCorrelation:
         y = np.random.randn(100)
 
         result_new = timeseries_correlation_permutation_test(
-            x, y, method="circle_shift", n_permute=1000, metric="pearson", random_state=42
+            x,
+            y,
+            method="circle_shift",
+            n_permute=1000,
+            metric="pearson",
+            random_state=42,
         )
         result_old = stats_correlation(
-            x, y, method="circle_shift", n_permute=1000, metric="pearson", random_state=42
+            x,
+            y,
+            method="circle_shift",
+            n_permute=1000,
+            metric="pearson",
+            random_state=42,
         )
 
         # Correlation should match exactly (same observed data)
         np.testing.assert_allclose(
-            result_new["correlation"], result_old["correlation"], rtol=TOLERANCE_STATS_DETERMINISTIC
+            result_new["correlation"],
+            result_old["correlation"],
+            rtol=TOLERANCE_STATS_DETERMINISTIC,
         )
 
         # P-values will differ due to RNG seed handling (~40% for circle_shift)
         # Higher variance than other methods due to simpler random operations
-        np.testing.assert_allclose(result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE_CIRCLE_SHIFT)
+        np.testing.assert_allclose(
+            result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE_CIRCLE_SHIFT
+        )
 
     def test_matches_stats_py_phase_randomize(self):
         """Test that phase_randomize method matches stats.py for correlation.
@@ -1778,7 +1918,9 @@ class TestTimeseriesCorrelation:
         Note: P-values may differ slightly due to different RNG seed handling
         in parallel execution, following the standard 15% tolerance pattern.
         """
-        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+        from nltools.algorithms.inference.timeseries import (
+            timeseries_correlation_permutation_test,
+        )
         from nltools.stats import correlation_permutation as stats_correlation
 
         np.random.seed(42)
@@ -1786,23 +1928,41 @@ class TestTimeseriesCorrelation:
         y = np.random.randn(100)
 
         result_new = timeseries_correlation_permutation_test(
-            x, y, method="phase_randomize", n_permute=1000, metric="pearson", random_state=42
+            x,
+            y,
+            method="phase_randomize",
+            n_permute=1000,
+            metric="pearson",
+            random_state=42,
         )
         result_old = stats_correlation(
-            x, y, method="phase_randomize", n_permute=1000, metric="pearson", random_state=42
+            x,
+            y,
+            method="phase_randomize",
+            n_permute=1000,
+            metric="pearson",
+            random_state=42,
         )
 
         # Correlation should match exactly (same observed data)
         np.testing.assert_allclose(
-            result_new["correlation"], result_old["correlation"], rtol=TOLERANCE_STATS_DETERMINISTIC
+            result_new["correlation"],
+            result_old["correlation"],
+            rtol=TOLERANCE_STATS_DETERMINISTIC,
         )
 
         # P-values will differ slightly due to FFT operations with different RNG patterns
-        np.testing.assert_allclose(result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE_PHASE_RANDOMIZE)
+        np.testing.assert_allclose(
+            result_new["p"],
+            result_old["p"],
+            rtol=TOLERANCE_STATS_PVALUE_PHASE_RANDOMIZE,
+        )
 
     def test_invalid_method(self):
         """Test that invalid method raises ValueError."""
-        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+        from nltools.algorithms.inference.timeseries import (
+            timeseries_correlation_permutation_test,
+        )
 
         np.random.seed(42)
         x = np.random.randn(100)
@@ -1815,7 +1975,9 @@ class TestTimeseriesCorrelation:
 
     def test_mismatched_lengths(self):
         """Test that mismatched lengths raise ValueError."""
-        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+        from nltools.algorithms.inference.timeseries import (
+            timeseries_correlation_permutation_test,
+        )
 
         np.random.seed(42)
         x = np.random.randn(100)
@@ -1833,7 +1995,9 @@ class TestTimeseriesCorrelation:
         not both variables. Randomizing both would reduce statistical power
         and is conceptually incorrect for testing H0: correlation = 0.
         """
-        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+        from nltools.algorithms.inference.timeseries import (
+            timeseries_correlation_permutation_test,
+        )
 
         np.random.seed(42)
         # Create two uncorrelated time series
@@ -1842,8 +2006,13 @@ class TestTimeseriesCorrelation:
 
         # Get null distribution
         result = timeseries_correlation_permutation_test(
-            x, y, method="phase_randomize", n_permute=1000,
-            return_null=True, random_state=42, n_jobs=1
+            x,
+            y,
+            method="phase_randomize",
+            n_permute=1000,
+            return_null=True,
+            random_state=42,
+            n_jobs=1,
         )
 
         # Null distribution should be centered near zero
@@ -1864,19 +2033,24 @@ class TestTimeseriesCorrelation:
 
         Verifies statistical power - should detect strong correlations.
         """
-        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+        from nltools.algorithms.inference.timeseries import (
+            timeseries_correlation_permutation_test,
+        )
 
         np.random.seed(42)
         # Create two strongly correlated autocorrelated time series
         # Use a smooth autocorrelated signal and add correlated noise
-        t = np.linspace(0, 10*np.pi, 200)
-        base_signal = np.sin(t) + np.sin(2*t) + np.sin(3*t)  # Complex autocorrelated signal
+        t = np.linspace(0, 10 * np.pi, 200)
+        base_signal = (
+            np.sin(t) + np.sin(2 * t) + np.sin(3 * t)
+        )  # Complex autocorrelated signal
         x = base_signal + np.random.randn(200) * 0.3
-        y = base_signal + np.random.randn(200) * 0.3  # Strong correlation via shared signal
+        y = (
+            base_signal + np.random.randn(200) * 0.3
+        )  # Strong correlation via shared signal
 
         result = timeseries_correlation_permutation_test(
-            x, y, method="phase_randomize", n_permute=500,
-            random_state=42, n_jobs=1
+            x, y, method="phase_randomize", n_permute=500, random_state=42, n_jobs=1
         )
 
         # Should detect significant correlation
@@ -1892,20 +2066,20 @@ class TestTimeseriesCorrelation:
         2. Produce null distributions centered near zero
         3. Give similar p-values for uncorrelated data
         """
-        from nltools.algorithms.inference.timeseries import timeseries_correlation_permutation_test
+        from nltools.algorithms.inference.timeseries import (
+            timeseries_correlation_permutation_test,
+        )
 
         np.random.seed(42)
         x = np.random.randn(150)
         y = np.random.randn(150)
 
         result_circle = timeseries_correlation_permutation_test(
-            x, y, method="circle_shift", n_permute=500,
-            random_state=42, n_jobs=1
+            x, y, method="circle_shift", n_permute=500, random_state=42, n_jobs=1
         )
 
         result_phase = timeseries_correlation_permutation_test(
-            x, y, method="phase_randomize", n_permute=500,
-            random_state=42, n_jobs=1
+            x, y, method="phase_randomize", n_permute=500, random_state=42, n_jobs=1
         )
 
         # Both should give non-significant results for uncorrelated data
@@ -2004,12 +2178,9 @@ class TestMatrixHelpers:
         result = _permute_matrix_symmetric(matrix, perm_reverse)
 
         # Manually verify: should reverse both rows and columns
-        expected = np.array([
-            [15, 14, 13, 12],
-            [11, 10, 9, 8],
-            [7, 6, 5, 4],
-            [3, 2, 1, 0]
-        ])
+        expected = np.array(
+            [[15, 14, 13, 12], [11, 10, 9, 8], [7, 6, 5, 4], [3, 2, 1, 0]]
+        )
         np.testing.assert_array_equal(result, expected)
 
         # Verify shape preserved
@@ -2020,11 +2191,7 @@ class TestMatrixHelpers:
         from nltools.algorithms.inference.matrix import _permute_matrix_symmetric
 
         # Create a symmetric matrix
-        matrix = np.array([
-            [1, 2, 3],
-            [2, 4, 5],
-            [3, 5, 6]
-        ])
+        matrix = np.array([[1, 2, 3], [2, 4, 5], [3, 5, 6]])
 
         # Apply any permutation
         perm = np.array([2, 0, 1])
@@ -2064,7 +2231,7 @@ class TestMatrixHelpers:
 
         # Monotonic relationship should have high Spearman
         m1 = np.arange(25).reshape(5, 5).astype(float)
-        m2 = m1 ** 2  # Monotonic but not linear
+        m2 = m1**2  # Monotonic but not linear
         r = _compute_matrix_correlation(m1, m2, metric="spearman")
         assert r > 0.99  # Should be very high for monotonic relationship
 
@@ -2095,8 +2262,12 @@ class TestMatrixHelpers:
         # All modes should work
         r_upper = _compute_matrix_correlation(m1, m2, how="upper")
         r_lower = _compute_matrix_correlation(m1, m2, how="lower")
-        r_full_no_diag = _compute_matrix_correlation(m1, m2, how="full", include_diag=False)
-        r_full_with_diag = _compute_matrix_correlation(m1, m2, how="full", include_diag=True)
+        r_full_no_diag = _compute_matrix_correlation(
+            m1, m2, how="full", include_diag=False
+        )
+        r_full_with_diag = _compute_matrix_correlation(
+            m1, m2, how="full", include_diag=True
+        )
 
         # For symmetric matrices, upper and lower should be identical
         assert abs(r_upper - r_lower) < 1e-10
@@ -2165,15 +2336,29 @@ class TestMatrixPermutationCPUParallel:
 
         # Run twice with same seed
         result1 = _matrix_permutation_cpu_parallel(
-            data1=m1, data2=m2, n_permute=200, metric="pearson",
-            how="upper", include_diag=False, tail=2, return_null=True,
-            n_jobs=1, random_state=42
+            data1=m1,
+            data2=m2,
+            n_permute=200,
+            metric="pearson",
+            how="upper",
+            include_diag=False,
+            tail=2,
+            return_null=True,
+            n_jobs=1,
+            random_state=42,
         )
 
         result2 = _matrix_permutation_cpu_parallel(
-            data1=m1, data2=m2, n_permute=200, metric="pearson",
-            how="upper", include_diag=False, tail=2, return_null=True,
-            n_jobs=1, random_state=42
+            data1=m1,
+            data2=m2,
+            n_permute=200,
+            metric="pearson",
+            how="upper",
+            include_diag=False,
+            tail=2,
+            return_null=True,
+            n_jobs=1,
+            random_state=42,
         )
 
         # Results should be EXACTLY identical (0.000% variance)
@@ -2192,24 +2377,37 @@ class TestMatrixPermutationCPUParallel:
 
         # Run with n_jobs=1
         result_serial = _matrix_permutation_cpu_parallel(
-            data1=m1, data2=m2, n_permute=150, metric="pearson",
-            how="upper", include_diag=False, tail=2, return_null=True,
-            n_jobs=1, random_state=42
+            data1=m1,
+            data2=m2,
+            n_permute=150,
+            metric="pearson",
+            how="upper",
+            include_diag=False,
+            tail=2,
+            return_null=True,
+            n_jobs=1,
+            random_state=42,
         )
 
         # Run with n_jobs=-1 (all cores)
         result_parallel = _matrix_permutation_cpu_parallel(
-            data1=m1, data2=m2, n_permute=150, metric="pearson",
-            how="upper", include_diag=False, tail=2, return_null=True,
-            n_jobs=-1, random_state=42
+            data1=m1,
+            data2=m2,
+            n_permute=150,
+            metric="pearson",
+            how="upper",
+            include_diag=False,
+            tail=2,
+            return_null=True,
+            n_jobs=-1,
+            random_state=42,
         )
 
         # Results should be identical
         assert result_serial["correlation"] == result_parallel["correlation"]
         assert result_serial["p"] == result_parallel["p"]
         np.testing.assert_array_equal(
-            result_serial["null_dist"],
-            result_parallel["null_dist"]
+            result_serial["null_dist"], result_parallel["null_dist"]
         )
 
     def test_return_null_distribution(self):
@@ -2222,18 +2420,32 @@ class TestMatrixPermutationCPUParallel:
 
         # With return_null=True
         result = _matrix_permutation_cpu_parallel(
-            data1=m1, data2=m2, n_permute=100, metric="pearson",
-            how="upper", include_diag=False, tail=2, return_null=True,
-            n_jobs=1, random_state=42
+            data1=m1,
+            data2=m2,
+            n_permute=100,
+            metric="pearson",
+            how="upper",
+            include_diag=False,
+            tail=2,
+            return_null=True,
+            n_jobs=1,
+            random_state=42,
         )
         assert "null_dist" in result
         assert len(result["null_dist"]) == 100
 
         # Without return_null
         result = _matrix_permutation_cpu_parallel(
-            data1=m1, data2=m2, n_permute=100, metric="pearson",
-            how="upper", include_diag=False, tail=2, return_null=False,
-            n_jobs=1, random_state=42
+            data1=m1,
+            data2=m2,
+            n_permute=100,
+            metric="pearson",
+            how="upper",
+            include_diag=False,
+            tail=2,
+            return_null=False,
+            n_jobs=1,
+            random_state=42,
         )
         assert "null_dist" not in result
 
@@ -2297,10 +2509,22 @@ class TestMatrixPermutationMain:
             m1, m2, how="lower", n_permute=100, random_state=42, n_jobs=1
         )
         result_full_no_diag = matrix_permutation_test(
-            m1, m2, how="full", include_diag=False, n_permute=100, random_state=42, n_jobs=1
+            m1,
+            m2,
+            how="full",
+            include_diag=False,
+            n_permute=100,
+            random_state=42,
+            n_jobs=1,
         )
         result_full_with_diag = matrix_permutation_test(
-            m1, m2, how="full", include_diag=True, n_permute=100, random_state=42, n_jobs=1
+            m1,
+            m2,
+            how="full",
+            include_diag=True,
+            n_permute=100,
+            random_state=42,
+            n_jobs=1,
         )
 
         # All should return valid results
@@ -2343,10 +2567,22 @@ class TestMatrixPermutationMain:
 
         # Should work with both values
         result_no_diag = matrix_permutation_test(
-            m1, m2, how="full", include_diag=False, n_permute=100, random_state=42, n_jobs=1
+            m1,
+            m2,
+            how="full",
+            include_diag=False,
+            n_permute=100,
+            random_state=42,
+            n_jobs=1,
         )
         result_with_diag = matrix_permutation_test(
-            m1, m2, how="full", include_diag=True, n_permute=100, random_state=42, n_jobs=1
+            m1,
+            m2,
+            how="full",
+            include_diag=True,
+            n_permute=100,
+            random_state=42,
+            n_jobs=1,
         )
 
         # Both should return valid results
@@ -2436,29 +2672,39 @@ class TestMatrixPermutationCorrectness:
 
         # New implementation
         result_new = matrix_permutation_test(
-            m1, m2, n_permute=N_PERMUTE_STATS_COMPARISON,
-            metric="pearson", how="upper", include_diag=False,
-            tail=2, random_state=42, n_jobs=1
+            m1,
+            m2,
+            n_permute=N_PERMUTE_STATS_COMPARISON,
+            metric="pearson",
+            how="upper",
+            include_diag=False,
+            tail=2,
+            random_state=42,
+            n_jobs=1,
         )
 
         # Old implementation (stats.py)
         result_old = matrix_permutation(
-            m1, m2, n_permute=N_PERMUTE_STATS_COMPARISON,
-            metric="pearson", how="upper", include_diag=False,
-            tail=2, random_state=42, n_jobs=1
+            m1,
+            m2,
+            n_permute=N_PERMUTE_STATS_COMPARISON,
+            metric="pearson",
+            how="upper",
+            include_diag=False,
+            tail=2,
+            random_state=42,
+            n_jobs=1,
         )
 
         # Observed correlation should be identical (deterministic computation)
         np.testing.assert_allclose(
             result_new["correlation"],
             result_old["correlation"],
-            rtol=TOLERANCE_STATS_DETERMINISTIC
+            rtol=TOLERANCE_STATS_DETERMINISTIC,
         )
 
         # P-values may differ slightly (~1-2%) due to RNG pattern
         # This is expected and acceptable (see DESIGN.md)
         np.testing.assert_allclose(
-            result_new["p"],
-            result_old["p"],
-            rtol=TOLERANCE_STATS_PVALUE
+            result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE
         )

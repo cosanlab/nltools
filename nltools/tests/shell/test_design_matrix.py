@@ -544,8 +544,7 @@ class TestDesignMatrixStatisticalOperations:
         """
         # Test 1: Multiple columns
         dm = DesignMatrix(
-            {"x": list(range(10)), "y": list(range(10, 20))},
-            sampling_freq=1.0
+            {"x": list(range(10)), "y": list(range(10, 20))}, sampling_freq=1.0
         )
         dm_down = dm.downsample(target=0.5)
         assert dm_down["x"].to_list() == [0.5, 2.5, 4.5, 6.5, 8.5]

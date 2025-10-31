@@ -21,9 +21,12 @@ import numpy as np
 from typing import Union, Optional, Literal
 from sklearn.utils import check_random_state
 
-from nltools.backends import Backend, auto_select_backend
-from .utils import _compute_pvalue, _auto_batch_size
-from .correlation import _pearson_correlation, _spearman_correlation, _kendall_correlation
+from .utils import _compute_pvalue
+from .correlation import (
+    _pearson_correlation,
+    _spearman_correlation,
+    _kendall_correlation,
+)
 
 
 def circle_shift(
@@ -89,9 +92,7 @@ def circle_shift(
         # Shift each feature independently
         shifted = np.empty_like(data)
         for i, shift in enumerate(shift_amount):
-            shifted[:, i] = np.concatenate(
-                [data[-shift:, i], data[:-shift, i]]
-            )
+            shifted[:, i] = np.concatenate([data[-shift:, i], data[:-shift, i]])
         return shifted
 
     else:
@@ -308,7 +309,7 @@ def timeseries_correlation_permutation_test(
     # Prepare results (convert to Python scalars for consistency with stats.py)
     results = {
         "correlation": float(obs_corr),
-        "p": p_value.item() if hasattr(p_value, 'item') else float(p_value),
+        "p": p_value.item() if hasattr(p_value, "item") else float(p_value),
         "backend": "cpu_parallel",
     }
 

@@ -257,7 +257,9 @@ class DesignMatrix:
 
         return self._copy_with(zscored_df)
 
-    def downsample(self, target: float, method: str = "mean", **kwargs) -> "DesignMatrix":
+    def downsample(
+        self, target: float, method: str = "mean", **kwargs
+    ) -> "DesignMatrix":
         """
         Reduce temporal resolution to target frequency using Polars-native operations.
 
@@ -296,15 +298,11 @@ class DesignMatrix:
         # This replicates: np.repeat(np.arange(1, data.shape[0] / n_samples, 1), n_samples)
         # Note: stats.downsample starts at 1, but we start at 0 (doesn't affect grouping)
         n_groups = int(self.shape[0] / n_samples)
-        idx = pl.Series(
-            np.repeat(np.arange(n_groups), int(n_samples))
-        )
+        idx = pl.Series(np.repeat(np.arange(n_groups), int(n_samples)))
 
         # Handle remainder samples (last incomplete group)
         if self.shape[0] > len(idx):
-            remainder = pl.Series(
-                np.repeat(idx[-1] + 1, self.shape[0] - len(idx))
-            )
+            remainder = pl.Series(np.repeat(idx[-1] + 1, self.shape[0] - len(idx)))
             idx = pl.concat([idx, remainder])
 
         # Add grouping index to dataframe
@@ -316,22 +314,22 @@ class DesignMatrix:
         # Group by index and aggregate
         if method == "mean":
             downsampled_df = (
-                df_with_idx
-                .group_by("_group_idx", maintain_order=True)
+                df_with_idx.group_by("_group_idx", maintain_order=True)
                 .agg([pl.col(col).mean() for col in data_cols])
                 .drop("_group_idx")
             )
         else:  # median
             downsampled_df = (
-                df_with_idx
-                .group_by("_group_idx", maintain_order=True)
+                df_with_idx.group_by("_group_idx", maintain_order=True)
                 .agg([pl.col(col).median() for col in data_cols])
                 .drop("_group_idx")
             )
 
         return self._copy_with(downsampled_df, sampling_freq=target)
 
-    def upsample(self, target: float, method: str = "linear", **kwargs) -> "DesignMatrix":
+    def upsample(
+        self, target: float, method: str = "linear", **kwargs
+    ) -> "DesignMatrix":
         """
         Increase temporal resolution to target frequency using Polars-native interpolation.
 
