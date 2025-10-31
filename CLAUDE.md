@@ -33,6 +33,31 @@ if changes_ready:
 - `refactor-todos.md` - Task checklist with progress
 - `refactor-progress.md` - Session context and decisions
 
+**ALWAYS run ruff BEFORE running tests:**
+```bash
+# ✅ ALWAYS: Check and format with ruff BEFORE running tests
+# Catches linting issues (unused imports, formatting, etc.) in <1 second
+# Much faster than discovering issues via test failures
+
+# Step 1: Check for issues
+uv run ruff check nltools/
+
+# Step 2: Auto-fix what can be fixed
+uv run ruff check --fix nltools/
+
+# Step 3: Format code
+uv run ruff format nltools/
+
+# ✅ BEST PRACTICE: Run all three in sequence before testing
+uv run ruff check --fix nltools/ && uv run ruff format nltools/
+
+# Why this matters:
+# - Ruff runs in <1s vs pytest runs 18s-7min
+# - Catches unused imports, formatting, style issues immediately
+# - Prevents wasted test runs due to trivial linting failures
+# - Ensures consistent code style before review
+```
+
 **Be TOKEN-EFFICIENT with pytest output:**
 ```bash
 # ✅ FIRST RUN: Always capture to log file
@@ -102,14 +127,10 @@ rm -f nltools/tests/*.log      # Remove test log files
 rm -f *.csv *.nii.gz           # Remove test data artifacts (NOT in nltools/tests/data/!)
 ```
 
-**When deploying SUB-AGENTS:**
-- Always instruct them to use `-n auto` for tier1 tests (parallel by default)
-- Tell them tier2 requires explicit permission (must ask before running)
-- Instruct them to create log files for any diagnostic work
-- Always instruct them to use targeted TDD strategy
-- Never have sub-agents run full test suite unless specifically required
-- Remind them to use `uv run` prefix for all commands
-- Tell them NOT to stage changes automatically - wait for instructions
+**❌ DO NOT USE SUB-AGENTS:**
+- Sub-agents are currently non-functional - handle all work directly
+- Never spawn Task tool agents for any purpose
+- All research, implementation, and testing must be done in main conversation
 
 ---
 
@@ -290,13 +311,16 @@ uv run pytest -m tier1 -n auto -xvs --tb=long 2>&1 | tee pytest_initial.log
 
 # 3. Implement minimal fix
 
-# 4. Verify fix with targeted test (quick, no log needed)
+# 4. ALWAYS run ruff before testing (catch linting issues fast!)
+uv run ruff check --fix nltools/ && uv run ruff format nltools/
+
+# 5. Verify fix with targeted test (quick, no log needed)
 uv run pytest path/to/test.py::test_name -x
 
-# 5. Regression check with parallel tier1
+# 6. Regression check with parallel tier1
 uv run pytest -m tier1 -n auto
 
-# 6. Update log only if more analysis needed
+# 7. Update log only if more analysis needed
 uv run pytest --lf -xvs --tb=long 2>&1 | tee pytest_updated.log
 ```
 
@@ -307,10 +331,13 @@ uv run pytest path/to/test.py::test_name -xvs
 
 # 2. Implement fix
 
-# 3. Verify
+# 3. ALWAYS run ruff before re-testing (catch linting issues fast!)
+uv run ruff check --fix nltools/ && uv run ruff format nltools/
+
+# 4. Verify
 uv run pytest --lf -x
 
-# 4. Regression check
+# 5. Regression check
 uv run pytest -m tier1 -n auto
 ```
 
@@ -481,13 +508,14 @@ git log -p -S "code_pattern"
 
 **Best Practices for Every Session**:
 - Start by reading `refactor-progress.md` for context
+- **ALWAYS run ruff before tests** (`uv run ruff check --fix nltools/ && uv run ruff format nltools/`)
 - ALWAYS use `-n auto` for tier1 tests (parallel by default, 6-7× faster)
 - Create log files for diagnostic work (log-first, not log-as-optimization)
 - ASK permission before running tier2 tests (~7 min cost, be intentional)
-- Use targeted TDD strategy (write test → run specific test → implement → verify)
+- Use targeted TDD strategy (write test → **ruff** → run specific test → implement → **ruff** → verify)
 - Never run full test suite during development (tier1 only, unless approved)
 - Clean up log files and test artifacts regularly
-- Deploy sub-agents with explicit instructions: `-n auto`, tier2 permission, log-first
+- Do NOT use sub-agents (currently non-functional)
 - Do NOT stage changes automatically - wait for explicit instructions
 - Update `refactor-todos.md` as tasks complete
 - Update `refactor-progress.md` with learnings and decisions

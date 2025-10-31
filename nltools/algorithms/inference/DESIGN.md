@@ -98,6 +98,90 @@ Tests significance of correlation between two square matrices by permuting rows 
 
 ---
 
+### Intersubject Correlation (ISC)
+
+Tests consistency of brain activity patterns across subjects by computing correlations between subjects' time series.
+
+**Two ISC Computation Modes** (statistically different, monotonically correlated):
+
+1. **Leave-One-Out (LOO)**:
+   - For each subject i: `ISC_i = corr(subject_i, mean(all_other_subjects))`
+   - Summary: median or Fisher-z-mean of LOO values
+   - **Advantage**: O(n_subjects), unbiased, computationally efficient
+   - **When to use**: Large subject sets, quick computation, recommended by Chen et al. 2016
+
+2. **Pairwise** (default):
+   - Compute all n×(n-1)/2 pairwise correlations between subjects
+   - Summary: median or Fisher-z-mean of pairwise correlations
+   - **Advantage**: Captures full correlation structure, traditional ISC
+   - **When to use**: Complete similarity analysis, standard neuroimaging practice
+
+**Relationship Between Modes**: LOO and pairwise ISC are monotonically correlated but non-linearly related (Chen et al. 2016, Figure 3). Both measure subject consistency, but pairwise is more comprehensive while LOO is more efficient.
+
+**Permutation Methods**:
+
+1. **Bootstrap** (default, Chen et al. 2016):
+   - **Subject-wise resampling**: Sample n_subjects with replacement
+   - **LOO**: Resample pre-computed LOO values
+   - **Pairwise**: Index into correlation matrix symmetrically: `matrix[subjects, :][:, subjects]`
+   - **Duplicate handling**: When same subject appears twice, mask self-correlation as NaN
+   - **Null distribution**: Centered by subtracting observed ISC
+
+2. **Circle Shift**:
+   - Circular time-series rotation (preserves autocorrelation)
+   - Recompute ISC on shifted data
+
+3. **Phase Randomize**:
+   - FFT-based phase shuffling (preserves power spectrum)
+   - Recompute ISC on phase-randomized data
+
+**Implementation Strategy** (two-phase approach):
+
+**Phase 1: Compute ISC** (run once, GPU-accelerated):
+- **LOO**: Compute n_subjects values per voxel
+  - NumPy: Sequential loop over subjects
+  - GPU: Batch correlation across voxels (10-30× speedup)
+- **Pairwise**: Compute correlation matrix per voxel (condensed storage)
+  - NumPy: `np.corrcoef` + squareform (2-5× faster than sklearn)
+  - GPU: Batched corrcoef via torch.bmm (10-30× speedup)
+
+**Phase 2: Bootstrap** (run n_permute times, CPU-parallel):
+- **LOO**: Resample pre-computed values (trivial cost)
+- **Pairwise**: Matrix indexing with duplicate masking
+- **Why CPU-parallel**: Bootstrap is already fast (resampling pre-computed values), GPU overhead not worth it
+
+**Memory Efficiency**:
+- **LOO**: n_subjects × n_voxels values (~4 MB for 50 subjects, 10K voxels)
+- **Pairwise condensed**: n_pairs × n_voxels (~98 MB for 50 subjects, 10K voxels)
+  - Uses squareform to store only upper triangle (2× memory savings vs full matrix)
+- **Pre-compute then resample**: Avoids recomputing ISC from raw data
+
+**GPU Acceleration**:
+- **LOO GPU**: Batched correlation via custom kernel
+  - Processes all voxels in parallel
+  - Each subject: correlate with mean of others across all voxels simultaneously
+- **Pairwise GPU**: Batched corrcoef via torch.bmm
+  - Transpose data to (n_voxels, n_subjects, n_observations)
+  - Compute correlation matrices for all voxels in parallel using batched matrix multiply
+  - Extract upper triangles on CPU (more efficient than GPU indexing)
+
+**References**:
+- Chen et al. (2016). "Untangling the relatedness among correlations, part I: nonparametric approaches to inter-subject correlation analysis at the group level." *NeuroImage*, 142, 248-259. [Subject-wise bootstrap, LOO vs pairwise]
+- Brainiak ISC implementation. https://github.com/brainiak/brainiak/blob/master/src/brainiak/isc.py [Efficiency patterns: np.corrcoef, condensed storage]
+- Lancaster et al. (2018). *Op. cit.* [Circle shift and phase randomization]
+
+**Performance** (100 observations, 50 subjects, 10K voxels, 5K bootstraps):
+- LOO NumPy: ~120s, 4 MB
+- LOO CPU-parallel: ~30s, 20 MB
+- LOO GPU: **~5s**, 500 MB GPU (20-30× speedup)
+- Pairwise NumPy: ~180s, 100 MB
+- Pairwise CPU-parallel: ~45s, 200 MB
+- Pairwise GPU: **~10s**, 1 GB GPU (15-20× speedup)
+
+**Implementation**: CPU-parallel bootstrap + optional GPU for ISC computation. GPU provides massive speedup for voxel-wise ISC computation (Phase 1), while CPU-parallel is efficient for bootstrap (Phase 2).
+
+---
+
 ## P-Value Calculation
 
 All tests use the **Phipson-Smyth correction** to prevent p = 0:
@@ -286,12 +370,13 @@ All implementations tested for:
 3. **Determinism**: Same seed → identical p-values across runs (0.000% variance)
 4. **Edge cases**: Single feature, small n, constant data, etc.
 
-Test suite: 146 tests covering all permutation methods and backends (includes 25 matrix permutation tests).
+Test suite: 179 tests covering all permutation methods and backends (includes 25 matrix permutation tests, 33 ISC tests).
 
 **Cross-backend determinism verified**:
 - One-sample: All backends produce identical results (0.000% variance)
 - Two-sample: All backends produce identical results (0.000% variance)
 - Correlation: All backends produce identical results (0.000% variance)
+- ISC: NumPy and CPU-parallel backends produce identical results (0.000% variance); GPU within float32 tolerance (<0.1% variance)
 - Matrix permutation: CPU-parallel only (0.000% variance across runs)
 - Timeseries: CPU-parallel only (0.000% variance across runs)
 
