@@ -127,10 +127,14 @@ rm -f nltools/tests/*.log      # Remove test log files
 rm -f *.csv *.nii.gz           # Remove test data artifacts (NOT in nltools/tests/data/!)
 ```
 
-**❌ DO NOT USE SUB-AGENTS:**
-- Sub-agents are currently non-functional - handle all work directly
-- Never spawn Task tool agents for any purpose
-- All research, implementation, and testing must be done in main conversation
+**When deploying SUB-AGENTS:**
+- Always instruct them to use `-n auto` for tier1 tests (parallel by default)
+- Tell them tier2 requires explicit permission (must ask before running)
+- Instruct them to create log files for any diagnostic work
+- Always instruct them to use targeted TDD strategy
+- Never have sub-agents run full test suite unless specifically required
+- Remind them to use `uv run` prefix for all commands
+- Tell them NOT to stage changes automatically - wait for instructions
 
 ---
 
@@ -515,7 +519,6 @@ git log -p -S "code_pattern"
 - Use targeted TDD strategy (write test → **ruff** → run specific test → implement → **ruff** → verify)
 - Never run full test suite during development (tier1 only, unless approved)
 - Clean up log files and test artifacts regularly
-- Do NOT use sub-agents (currently non-functional)
 - Do NOT stage changes automatically - wait for explicit instructions
 - Update `refactor-todos.md` as tasks complete
 - Update `refactor-progress.md` with learnings and decisions
