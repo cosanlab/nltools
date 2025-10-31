@@ -1,4 +1,4 @@
-# Masking Tools
+# `nltools.mask`
 
 Functions for creating, manipulating, and applying brain masks.
 

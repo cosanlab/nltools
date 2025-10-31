@@ -1,4 +1,4 @@
-# Cross-Validation
+# `nltools.cross_validation`
 
 Cross-validation utilities for neuroimaging analyses.
 

@@ -1,4 +1,4 @@
-# Analysis Tools
+# `nltools.analysis`
 
 Specialized analysis tools for model evaluation and diagnostics.
 

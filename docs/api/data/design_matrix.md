@@ -1,4 +1,4 @@
-# DesignMatrix
+# `nltools.data.DesignMatrix`
 
 Class for creating and manipulating design matrices for GLM analyses.
 

@@ -1,4 +1,4 @@
-# Adjacency
+# `nltools.data.Adjacency`
 
 Class for representing similarity and distance matrices.
 

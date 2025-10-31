@@ -1,4 +1,4 @@
-# Brain_Data
+# `nltools.data.Brain_Data`
 
 Main class for representing neuroimaging data as vectors.
 

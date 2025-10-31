@@ -1,4 +1,4 @@
-# Datasets
+# `nltools.datasets`
 
 Dataset loading utilities and example data.
 

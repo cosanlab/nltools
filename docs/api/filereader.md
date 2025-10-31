@@ -1,4 +1,4 @@
-# File Readers
+# `nltools.file_reader`
 
 Utilities for reading neuroimaging-related file formats.
 

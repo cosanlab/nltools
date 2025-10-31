@@ -1,87 +1,87 @@
-name: Tests, Build, Docs, & Deploy
+# name: Tests, Build, Docs, & Deploy
 
-on:
-  push:
-    branches:
-      - master
-      - main
-      - uv-refactor
-  pull_request:
-    branches:
-      - main
-      - master
-  release:
-    types: [published]
-  workflow_dispatch:
-  # Run tests every week on sundays
-  schedule:
-    - cron: "0 0 * * 0"
+# on:
+#   push:
+#     branches:
+#       - master
+#       - main
+#       - uv-refactor
+#   pull_request:
+#     branches:
+#       - main
+#       - master
+#   release:
+#     types: [published]
+#   workflow_dispatch:
+#   # Run tests every week on sundays
+#   schedule:
+#     - cron: "0 0 * * 0"
 
-jobs:
-  test:
-    runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.experimental }}
-    defaults:
-      run:
-        shell: bash -l {0}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        python-version: ['3.10', 3.11, 3.12]
-        experimental: [false]
-        include:
-          - os: windows-latest
-            python-version: '3.10'
-            experimental: true
-          - os: windows-latest
-            python-version: '3.11'
-            experimental: true
-          - os: windows-latest
-            python-version: '3.12'
-            experimental: true
+# jobs:
+#   test:
+#     runs-on: ${{ matrix.os }}
+#     continue-on-error: ${{ matrix.experimental }}
+#     defaults:
+#       run:
+#         shell: bash -l {0}
+#     strategy:
+#       fail-fast: false
+#       matrix:
+#         os: [ubuntu-latest, macos-latest]
+#         python-version: ['3.10', 3.11, 3.12]
+#         experimental: [false]
+#         include:
+#           - os: windows-latest
+#             python-version: '3.10'
+#             experimental: true
+#           - os: windows-latest
+#             python-version: '3.11'
+#             experimental: true
+#           - os: windows-latest
+#             python-version: '3.12'
+#             experimental: true
 
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+#     steps:
+#       - name: Checkout Code
+#         uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          version: "0.7.6"
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-          python-version: ${{ matrix.python-version }}
+#       - name: Install uv
+#         uses: astral-sh/setup-uv@v5
+#         with:
+#           version: "0.7.6"
+#           enable-cache: true
+#           cache-dependency-glob: "uv.lock"
+#           python-version: ${{ matrix.python-version }}
 
-      - name: Run tests
-        run: |
-          # uv run ruff check
-          uv run pytest
+#       - name: Run tests
+#         run: |
+#           # uv run ruff check
+#           uv run pytest
       
-      - name: Build docs
-        run: |
-          uv run jupyter-book build docs
+#       - name: Build docs
+#         run: |
+#           uv run jupyter-book build docs
         
-      - name: Build package
-        run: |
-          uv build
+#       - name: Build package
+#         run: |
+#           uv build
 
-      # TODO: Uncomment when we have a way to deploy to github pages
-      # - name: Upload built docs
-      #   if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-      #   uses: actions/upload-pages-artifact@v3
-      #   with:
-      #     path: "./docs/_build/html"
+#       # TODO: Uncomment when we have a way to deploy to github pages
+#       # - name: Upload built docs
+#       #   if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+#       #   uses: actions/upload-pages-artifact@v3
+#       #   with:
+#       #     path: "./docs/_build/html"
 
-      # - name: Deploy to GH Pages
-      #   if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-      #   id: deployment
-      #   uses: actions/deploy-pages@v4
+#       # - name: Deploy to GH Pages
+#       #   if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+#       #   id: deployment
+#       #   uses: actions/deploy-pages@v4
 
-      - name: Upload to PyPI
-        if: ${{ github.event_name == 'release' }}
-        uses: pypa/gh-action-pypi-publish@v1.12.4
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
-          verbose: true
-          skip-existing: true
+#       - name: Upload to PyPI
+#         if: ${{ github.event_name == 'release' }}
+#         uses: pypa/gh-action-pypi-publish@v1.12.4
+#         with:
+#           password: ${{ secrets.PYPI_API_TOKEN }}
+#           verbose: true
+#           skip-existing: true

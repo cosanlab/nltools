@@ -1,4 +1,4 @@
-# Statistical Functions
+# `nltools.stats`
 
 Core statistical functions for neuroimaging analyses.
 

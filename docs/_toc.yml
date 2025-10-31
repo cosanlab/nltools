@@ -2,6 +2,48 @@ format: jb-book
 root: index
 
 parts:
+
+  # ========================================
+  # API REFERENCE (Simple & Modular)
+  # ========================================
+  - caption: API Classes
+    chapters:
+      - file: api/data/brain_data
+      - file: api/data/adjacency
+      - file: api/data/design_matrix
+      - file: api/models
+
+  - caption: API Functions
+    chapters:
+      - file: api/stats
+      - file: api/mask
+      - file: api/filereader
+      - file: api/dataset
+      - file: api/crossval
+      - file: api/analysis
+
+  - caption: API Utilities
+    chapters:
+      - file: api/utils
+      - file: api/prefs
+
+  - caption: API Algorithms
+    chapters:
+      - file: api/algorithms
+      - file: api/backends
+
+  # ========================================
+  # MIGRATION & DEVELOPMENT
+  # ========================================
+  - caption: Migration Guide v0.6
+    chapters:
+      - file: migration-guide
+
+  - caption: Development
+    chapters:
+      - file: contributing
+      - file: performance
+
   # ========================================
   # TUTORIALS (New Structure - Markdown)
   # ========================================
@@ -28,54 +70,6 @@ parts:
       # - file: tutorials/03_advanced/02_shared_response_model
       # - file: tutorials/03_advanced/03_representational_similarity
       # - file: tutorials/03_advanced/04_encoding_models
-
-  # ========================================
-  # API REFERENCE (Simple & Modular)
-  # ========================================
-  - caption: Core Data Objects
-    chapters:
-      - file: api/data/brain_data
-      - file: api/data/adjacency
-      - file: api/data/design_matrix
-
-  - caption: Statistical Models
-    chapters:
-      - file: api/models
-      - file: api/algorithms
-
-  - caption: Statistical Functions
-    chapters:
-      - file: api/stats
-      - file: api/analysis
-
-  - caption: Data Operations
-    chapters:
-      - file: api/mask
-      - file: api/filereader
-      - file: api/dataset
-      - file: api/crossval
-
-  - caption: Computation
-    chapters:
-      - file: api/backends
-
-  - caption: Utilities
-    chapters:
-      - file: api/utils
-      - file: api/prefs
-
-  # ========================================
-  # MIGRATION & DEVELOPMENT
-  # ========================================
-  - caption: Migration & Upgrading
-    chapters:
-      - file: migration-guide
-
-  - caption: Development
-    chapters:
-      - file: contributing
-      - file: performance
-
 # ========================================
 # OLD TUTORIALS (Disabled - use for reference only!)
 # ========================================
