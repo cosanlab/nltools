@@ -452,11 +452,106 @@ class BrainData(object):
         # We don't check nifti masker
         return eq_data and eq_X and eq_Y and eq_mask
 
+    def __deepcopy__(self, memo):
+        """Custom deepcopy that handles model attributes.
+
+        Model-related attributes (model_, X_, glm_*, ridge_*) are shared
+        (not copied) to avoid pickle errors with unpicklable Backend objects.
+        All other attributes are deep copied.
+
+        Args:
+            memo: Dictionary to track already copied objects
+
+        Returns:
+            BrainData: New instance with copied/shared attributes
+        """
+        from copy import deepcopy
+
+        # Create new instance without calling __init__
+        new = BrainData.__new__(BrainData)
+        memo[id(self)] = new
+
+        # Copy all attributes with appropriate strategy
+        for key, value in self.__dict__.items():
+            if key in ["mask", "nifti_masker", "masker"]:
+                # Share immutable/expensive objects
+                setattr(new, key, value)
+            elif key in ["model_", "X_"]:
+                # Share fitted model and training data (unpicklable)
+                setattr(new, key, value)
+            elif key.startswith("glm_") or key.startswith("ridge_"):
+                # Share model results (often contain BrainData objects)
+                setattr(new, key, value)
+            else:
+                # Deep copy everything else (data, X, Y, etc.)
+                setattr(new, key, deepcopy(value, memo))
+
+        return new
+
+    def _shallow_copy_with_data(self):
+        """Create a shallow copy for efficient method chaining.
+
+        This method creates a new BrainData instance that shares immutable objects
+        (mask, nifti_masker) but copies mutable attributes. The data array is NOT
+        copied - methods should handle data copying as needed.
+
+        Returns:
+            BrainData: New instance with shared/copied attributes
+        """
+        # Create new instance without calling __init__
+        new = BrainData.__new__(BrainData)
+
+        # Copy all attributes with appropriate strategy
+        for key, value in self.__dict__.items():
+            if key == "data":
+                # Don't copy data array - let methods handle this
+                new.data = self.data  # Just reference for now
+            elif key in ["mask", "nifti_masker", "masker"]:
+                # Share immutable/expensive objects
+                setattr(new, key, value)
+            elif key in ["X", "Y", "design_matrix"]:
+                # Deep copy DataFrames (they're small and mutable)
+                if value is not None:
+                    if hasattr(value, "copy"):  # DataFrame has .copy()
+                        setattr(new, key, value.copy())
+                    else:
+                        setattr(new, key, deepcopy(value))
+                else:
+                    setattr(new, key, None)
+            elif key.startswith("glm_") or key.startswith("ridge_"):
+                # GLM/Ridge results - share for now (they're typically read-only)
+                setattr(new, key, value)
+            elif key in ["model_", "X_"]:
+                # Fitted model and training data - share (shouldn't be copied)
+                setattr(new, key, value)
+            else:
+                # Small attributes - deep copy to be safe
+                setattr(new, key, deepcopy(value))
+
+        return new
+
+    def copy(self):
+        """Create a copy of a BrainData instance.
+
+        Note: Fitted models (model\\_, X\\_) and model results (glm_*, ridge_*)
+        are shared (not copied) to avoid pickle errors with unpicklable objects.
+        All other attributes including the data array are deep copied.
+
+        Returns:
+            BrainData: Copied instance with shared model attributes
+        """
+        return deepcopy(self)
+
     @property
     def shape(self):
         """Get images by voxels shape."""
 
         return self.data.shape
+
+    @property
+    def dtype(self):
+        """Get data type of BrainData.data."""
+        return self.data.dtype
 
     def mean(self, axis=0):
         """Get mean of each voxel or image.
@@ -509,6 +604,21 @@ class BrainData(object):
             float/np.array/BrainData: Sum values.
         """
         return self._apply_func(np.sum, axis)
+
+    def astype(self, dtype):
+        """Cast BrainData.data as type.
+
+        Args:
+            dtype: datatype to convert
+
+        Returns:
+            BrainData: BrainData instance with new datatype
+
+        """
+
+        out = self.copy()
+        out.data = out.data.astype(dtype)
+        return out
 
     def to_nifti(self):
         """Convert BrainData Instance into Nifti Object"""
@@ -870,6 +980,7 @@ class BrainData(object):
         self.glm_r2 = self[0].copy()
         self.glm_r2.data = r2_values.reshape(1, -1)
 
+    # TODO: remove entirely as .fit() is replacement
     def regress(self, design_matrix=None, noise_model="ols", mode=None, **kwargs):
         """
         DEPRECATED: Use fit(model='glm', X=design_matrix) instead.
@@ -930,6 +1041,7 @@ class BrainData(object):
             "residual": self.glm_residual,
         }
 
+    # TODO: make this this works and decide compatibility with .ttest() method
     def compute_contrasts(self, contrasts, contrast_type="t"):
         """Compute contrasts from fitted GLM results.
 
@@ -1119,6 +1231,34 @@ class BrainData(object):
             boolean = True if not self.data else False
         return boolean
 
+    # NOTE: uses nilearn.masking.intersect_masks
+    def _check_masks(self, image):
+        """Check to make sure masks are the same for each dataset and if not create a union mask
+
+        Args:
+            image (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+
+        if np.sum(self.nifti_masker.mask_img.get_fdata() == 1) != np.sum(
+            image.nifti_masker.mask_img.get_fdata() == 1
+        ):
+            new_mask = intersect_masks(
+                [self.nifti_masker.mask_img, image.nifti_masker.mask_img],
+                threshold=1,
+                connected=False,
+            )
+            new_nifti_masker = NiftiMasker(mask_img=new_mask)
+            data2 = new_nifti_masker.fit_transform(self.to_nifti())
+            image2 = new_nifti_masker.fit_transform(image.to_nifti())
+        else:
+            data2 = self.data
+            image2 = image.data
+        return data2, image2
+
+    # TODO: ensure this implementation is efficient as possible
     def similarity(self, image, method="correlation"):
         """Calculate similarity of BrainData() instance with single
         BrainData or Nibabel image
@@ -1144,24 +1284,7 @@ class BrainData(object):
             raise ValueError(f"method must be one of {supported_metrics}")
 
         image = check_brain_data(image)
-
-        # Check to make sure masks are the same for each dataset and if not
-        # create a union mask
-        # This might be handy code for a new BrainData method
-        if np.sum(self.nifti_masker.mask_img.get_fdata() == 1) != np.sum(
-            image.nifti_masker.mask_img.get_fdata() == 1
-        ):
-            new_mask = intersect_masks(
-                [self.nifti_masker.mask_img, image.nifti_masker.mask_img],
-                threshold=1,
-                connected=False,
-            )
-            new_nifti_masker = NiftiMasker(mask_img=new_mask)
-            data2 = new_nifti_masker.fit_transform(self.to_nifti())
-            image2 = new_nifti_masker.fit_transform(image.to_nifti())
-        else:
-            data2 = self.data
-            image2 = image.data
+        data2, image2 = self._check_masks(image)
 
         if method == "dot_product":
             func = lambda x, y: np.dot(x, y)
@@ -1178,6 +1301,7 @@ class BrainData(object):
         out = 1 - out if method == "cosine" else out
         return out
 
+    # TODO: make this more efficient using scipy.spatial.distance.cdist
     def distance(self, metric="euclidean", **kwargs):
         """Calculate distance between images within a BrainData() instance.
 
@@ -1195,6 +1319,7 @@ class BrainData(object):
             matrix_type="Distance",
         )
 
+    # TODO: ensure this implementation is efficient as possible
     def multivariate_similarity(self, images, method="ols"):
         """Predict spatial distribution of BrainData() instance from linear
         combination of other BrainData() instances or Nibabel images
@@ -1214,23 +1339,7 @@ class BrainData(object):
             raise ValueError("This method can only decompose a single brain image.")
 
         images = check_brain_data(images)
-
-        # Check to make sure masks are the same for each dataset and if not create a union mask
-        # TODO: This might be handy code for a new BrainData method
-        if np.sum(self.nifti_masker.mask_img.get_fdata() == 1) != np.sum(
-            images.nifti_masker.mask_img.get_fdata() == 1
-        ):
-            new_mask = intersect_masks(
-                [self.nifti_masker.mask_img, images.nifti_masker.mask_img],
-                threshold=1,
-                connected=False,
-            )
-            new_nifti_masker = NiftiMasker(mask_img=new_mask)
-            data2 = new_nifti_masker.fit_transform(self.to_nifti())
-            image2 = new_nifti_masker.fit_transform(images.to_nifti())
-        else:
-            data2 = self.data
-            image2 = images.data
+        data2, image2 = self._check_masks(images)
 
         # Add intercept and transpose
         image2 = np.vstack((np.ones(image2.shape[1]), image2)).T
@@ -1261,6 +1370,7 @@ class BrainData(object):
             "residual": res,
         }
 
+    # NOTE: uses nilearn.masking.apply_mask
     def apply_mask(self, mask, resample_mask_to_brain=False):
         """Mask BrainData instance using nilearn functionality.
 
@@ -1309,6 +1419,7 @@ class BrainData(object):
 
         return masked
 
+    # NOTE: uses nilearn nilearn.maskers.NiftiLabelsMasker
     def extract_roi(self, mask, metric="mean", n_components=None):
         """Extract activity from mask or ROI atlas using NiftiLabelsMasker.
 
@@ -1455,7 +1566,7 @@ class BrainData(object):
 
         return out
 
-    # TODO: replace with nilearn or speed-up? Check if complete and delete or update comment accordingly
+    # TODO: refactor to be more efficient
     def icc(self, icc_type="icc2"):
         """Calculate intraclass correlation coefficient for data within
             BrainData class
@@ -1534,6 +1645,7 @@ class BrainData(object):
 
         return ICC
 
+    # NOTE: uses scipy.signal.detrend
     def detrend(self, method="linear"):
         """Remove linear trend from each voxel
 
@@ -1555,97 +1667,7 @@ class BrainData(object):
         out.data = detrend(self.data.copy(), type=method, axis=0)
         return out
 
-    def _shallow_copy_with_data(self):
-        """Create a shallow copy for efficient method chaining.
-
-        This method creates a new BrainData instance that shares immutable objects
-        (mask, nifti_masker) but copies mutable attributes. The data array is NOT
-        copied - methods should handle data copying as needed.
-
-        Returns:
-            BrainData: New instance with shared/copied attributes
-        """
-        # Create new instance without calling __init__
-        new = BrainData.__new__(BrainData)
-
-        # Copy all attributes with appropriate strategy
-        for key, value in self.__dict__.items():
-            if key == "data":
-                # Don't copy data array - let methods handle this
-                new.data = self.data  # Just reference for now
-            elif key in ["mask", "nifti_masker", "masker"]:
-                # Share immutable/expensive objects
-                setattr(new, key, value)
-            elif key in ["X", "Y", "design_matrix"]:
-                # Deep copy DataFrames (they're small and mutable)
-                if value is not None:
-                    if hasattr(value, "copy"):  # DataFrame has .copy()
-                        setattr(new, key, value.copy())
-                    else:
-                        setattr(new, key, deepcopy(value))
-                else:
-                    setattr(new, key, None)
-            elif key.startswith("glm_") or key.startswith("ridge_"):
-                # GLM/Ridge results - share for now (they're typically read-only)
-                setattr(new, key, value)
-            elif key in ["model_", "X_"]:
-                # Fitted model and training data - share (shouldn't be copied)
-                setattr(new, key, value)
-            else:
-                # Small attributes - deep copy to be safe
-                setattr(new, key, deepcopy(value))
-
-        return new
-
-    def __deepcopy__(self, memo):
-        """Custom deepcopy that handles model attributes.
-
-        Model-related attributes (model_, X_, glm_*, ridge_*) are shared
-        (not copied) to avoid pickle errors with unpicklable Backend objects.
-        All other attributes are deep copied.
-
-        Args:
-            memo: Dictionary to track already copied objects
-
-        Returns:
-            BrainData: New instance with copied/shared attributes
-        """
-        from copy import deepcopy
-
-        # Create new instance without calling __init__
-        new = BrainData.__new__(BrainData)
-        memo[id(self)] = new
-
-        # Copy all attributes with appropriate strategy
-        for key, value in self.__dict__.items():
-            if key in ["mask", "nifti_masker", "masker"]:
-                # Share immutable/expensive objects
-                setattr(new, key, value)
-            elif key in ["model_", "X_"]:
-                # Share fitted model and training data (unpicklable)
-                setattr(new, key, value)
-            elif key.startswith("glm_") or key.startswith("ridge_"):
-                # Share model results (often contain BrainData objects)
-                setattr(new, key, value)
-            else:
-                # Deep copy everything else (data, X, Y, etc.)
-                setattr(new, key, deepcopy(value, memo))
-
-        return new
-
-    def copy(self):
-        """Create a copy of a BrainData instance.
-
-        Note: Fitted models (model\\_, X\\_) and model results (glm_*, ridge_*)
-        are shared (not copied) to avoid pickle errors with unpicklable objects.
-        All other attributes including the data array are deep copied.
-
-        Returns:
-            BrainData: Copied instance with shared model attributes
-        """
-        return deepcopy(self)
-
-    # NOTE: utils
+    # NOTE: uses pynv
     def upload_neurovault(
         self,
         access_token=None,
@@ -1734,7 +1756,7 @@ class BrainData(object):
         shutil.rmtree(tmp_dir, ignore_errors=True)
         return collection
 
-    # NOTE: stats
+    # NOTE: uses nltools.stats
     def r_to_z(self):
         """Apply Fisher's r to z transformation to each element of the data
         object."""
@@ -1744,7 +1766,7 @@ class BrainData(object):
         out.data = fisher_r_to_z(self.data)
         return out
 
-    # NOTE: stats
+    # NOTE: uses ntlools.stats
     def z_to_r(self):
         """Convert z score back into r value for each element of data object"""
 
@@ -1753,6 +1775,7 @@ class BrainData(object):
         out.data = fisher_z_to_r(self.data)
         return out
 
+    # NOTE: uses nilearn.signal.clean
     def filter(self, sampling_freq=None, high_pass=None, low_pass=None, **kwargs):
         """Apply butterworth filter to data. Wraps nilearn.signal.clean.
 
@@ -1794,26 +1817,6 @@ class BrainData(object):
             low_pass=low_pass,
             **kwargs,
         )
-        return out
-
-    @property
-    def dtype(self):
-        """Get data type of BrainData.data."""
-        return self.data.dtype
-
-    def astype(self, dtype):
-        """Cast BrainData.data as type.
-
-        Args:
-            dtype: datatype to convert
-
-        Returns:
-            BrainData: BrainData instance with new datatype
-
-        """
-
-        out = self.copy()
-        out.data = out.data.astype(dtype)
         return out
 
     def standardize(self, axis=0, method="center"):
@@ -1949,7 +1952,6 @@ class BrainData(object):
                 b.data[b.data != 0] = 1
             return b
 
-    # TODO: refactor with updated nilearn Check if complete and delete or update comment accordingly
     def regions(
         self,
         min_region_size=1350,
@@ -1993,7 +1995,7 @@ class BrainData(object):
 
         return BrainData(regions, mask=self.mask)
 
-    # NOTE: stats
+    # NOTE: nltools.stats
     def transform_pairwise(self):
         """Extract brain connected regions into separate regions.
 
@@ -2009,7 +2011,6 @@ class BrainData(object):
         return out
 
     # TODO: update this to only support mean, median, std, sum, min, max, weights (if fit already only, predict (if fit already only))
-    # NOTE: stats
     def bootstrap(
         self,
         function,
@@ -2055,7 +2056,7 @@ class BrainData(object):
         bootstrapped = BrainData(bootstrapped, mask=self.mask)
         return summarize_bootstrap(bootstrapped, save_weights=save_weights)
 
-    # NOTE: utils,
+    # NOTE: nltools.utils,
     def decompose(
         self, algorithm="pca", axis="voxels", n_components=None, *args, **kwargs
     ):
@@ -2091,7 +2092,7 @@ class BrainData(object):
             out["components"].data = out["decomposition_object"].components_
         return out
 
-    # NOTE: stats
+    # NOTE: nltools.stats
     def align(self, target, method="procrustes", axis=0, *args, **kwargs):
         """Align BrainData instance to target object using functional alignment
 
@@ -2187,6 +2188,7 @@ class BrainData(object):
 
         return out
 
+    # TODO: check if this and other similar methods that use nilearn function calls (e.g. smooth_img()) can be make more efficient by minimizing conversion
     def smooth(self, fwhm):
         """Apply spatial smoothing using nilearn smooth_img()
 
@@ -2208,7 +2210,8 @@ class BrainData(object):
 
         return out
 
-    # NOTE: stats
+    # TODO: does our function offer something beyond what's in nilearn? If so can we make it more efficient?
+    # NOTE: nltools.stats
     def find_spikes(self, global_spike_cutoff=3, diff_spike_cutoff=3):
         """Function to identify spikes from Time Series Data
 
@@ -2226,6 +2229,7 @@ class BrainData(object):
             diff_spike_cutoff=diff_spike_cutoff,
         )
 
+    # TODO: check if we can make more efficient
     def temporal_resample(self, sampling_freq=None, target=None, target_type="hz"):
         """
         Resample BrainData timeseries to a new target frequency or number of samples
@@ -2263,7 +2267,7 @@ class BrainData(object):
             out.data[:, i] = interpolate(new_spacing)
         return out
 
-    # Deprecated methods - will be moved to Model class in future release
+    # TODO: refactor for efficiency and verify
     def predict(self, X=None):
         """Generate predictions using fitted model.
 
@@ -2365,18 +2369,14 @@ class BrainData(object):
 
         return predictions
 
-    def predict_multi(self, *args, **kwargs):
-        """DEPRECATED: This method has been moved to the Model class."""
-        raise NotImplementedError(
-            "predict_multi() has been deprecated. Please use the new Model class for searchlight/multi-ROI prediction."
-        )
-
+    # TODO: reimplement using nltools.inference or drop
     def randomise(self, *args, **kwargs):
         """DEPRECATED: This method has been moved to the Model class."""
         raise NotImplementedError(
             "randomise() has been deprecated. Please use the new Model class for permutation-based inference."
         )
 
+    # TODO: reimplement using nltools.stats and nltools.inference or drop
     def ttest(self, *args, **kwargs):
         """DEPRECATED: This method has been moved to the Model class."""
         raise NotImplementedError(
