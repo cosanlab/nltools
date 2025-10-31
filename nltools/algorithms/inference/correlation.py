@@ -9,6 +9,7 @@ of correlations.
 import numpy as np
 from typing import Union, Optional
 from sklearn.utils import check_random_state
+from scipy.stats import rankdata, kendalltau
 
 from nltools.backends import Backend, auto_select_backend
 from .utils import _compute_pvalue, _auto_batch_size
@@ -54,6 +55,97 @@ def _pearson_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     return correlations
 
 
+def _spearman_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """
+    Compute Spearman rank correlation coefficient(s).
+
+    Spearman correlation is the Pearson correlation of the rank-transformed data.
+    It measures monotonic (not necessarily linear) relationships.
+
+    Args:
+        x (np.ndarray): Data array, shape (n_samples,) or (n_permute, n_samples)
+        y (np.ndarray): Data array, shape (n_samples,)
+
+    Returns:
+        np.ndarray: Spearman correlation coefficient(s)
+            - scalar if x is 1D
+            - shape (n_permute,) if x is 2D
+
+    Notes:
+        Uses scipy.stats.rankdata for rank transformation, then applies
+        Pearson correlation to ranks. Handles tied ranks appropriately.
+    """
+    # Handle dimensions
+    if x.ndim == 1:
+        x = x[np.newaxis, :]  # (1, n_samples)
+        squeeze_output = True
+    else:
+        squeeze_output = False
+
+    n_permute, n_samples = x.shape
+
+    # Rank-transform data (average method for tied ranks)
+    # For vectorized case, rank each permutation separately
+    x_ranked = np.empty_like(x)
+    for i in range(n_permute):
+        x_ranked[i] = rankdata(x[i], method='average')
+
+    y_ranked = rankdata(y, method='average')
+
+    # Apply Pearson correlation to ranks
+    # Center ranked data
+    x_centered = x_ranked - x_ranked.mean(axis=1, keepdims=True)
+    y_centered = y_ranked - y_ranked.mean()
+
+    # Compute correlation
+    numerator = (x_centered @ y_centered) / n_samples
+    denominator = x_centered.std(axis=1, ddof=0) * y_centered.std(ddof=0)
+
+    # Handle division by zero (constant data - all tied ranks)
+    correlations = np.where(denominator != 0, numerator / denominator, 0.0)
+
+    if squeeze_output:
+        return float(correlations[0])
+    return correlations
+
+
+def _kendall_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """
+    Compute Kendall rank correlation coefficient(s).
+
+    Kendall tau correlation measures ordinal association based on concordant
+    and discordant pairs. More robust than Spearman for small samples or
+    data with many tied ranks.
+
+    Args:
+        x (np.ndarray): Data array, shape (n_samples,) or (n_permute, n_samples)
+        y (np.ndarray): Data array, shape (n_samples,)
+
+    Returns:
+        np.ndarray: Kendall correlation coefficient(s)
+            - scalar if x is 1D
+            - shape (n_permute,) if x is 2D
+
+    Notes:
+        Uses scipy.stats.kendalltau for each correlation computation.
+        This is O(n^2) complexity, slower than Pearson/Spearman.
+        For vectorized case, computes each correlation separately.
+    """
+    # Handle dimensions
+    if x.ndim == 1:
+        # Single correlation
+        tau, _ = kendalltau(x, y)
+        return float(tau) if not np.isnan(tau) else 0.0
+    else:
+        # Vectorized: compute each permutation separately
+        n_permute = x.shape[0]
+        correlations = np.empty(n_permute)
+        for i in range(n_permute):
+            tau, _ = kendalltau(x[i], y)
+            correlations[i] = tau if not np.isnan(tau) else 0.0
+        return correlations
+
+
 def _correlation_permutation_cpu_parallel(
     data1: np.ndarray,
     data2: np.ndarray,
@@ -96,18 +188,25 @@ def _correlation_permutation_cpu_parallel(
     # Get dimensions (data already reshaped by caller)
     n_samples, n_features = data1.shape
 
-    # Compute observed correlation
+    # Select correlation function
     if metric == 'pearson':
-        if n_features == 1:
-            obs_corr = _pearson_correlation(data1[:, 0], data2[:, 0])
-            obs_corr = np.array([obs_corr])
-        else:
-            obs_corr = np.array([
-                _pearson_correlation(data1[:, i], data2[:, i])
-                for i in range(n_features)
-            ])
+        corr_func = _pearson_correlation
+    elif metric == 'spearman':
+        corr_func = _spearman_correlation
+    elif metric == 'kendall':
+        corr_func = _kendall_correlation
     else:
         raise NotImplementedError(f"Metric '{metric}' not yet implemented")
+
+    # Compute observed correlation
+    if n_features == 1:
+        obs_corr = corr_func(data1[:, 0], data2[:, 0])
+        obs_corr = np.array([obs_corr])
+    else:
+        obs_corr = np.array([
+            corr_func(data1[:, i], data2[:, i])
+            for i in range(n_features)
+        ])
 
     # Define worker function (each processes ONE permutation)
     def _compute_one_perm(seed):
@@ -119,10 +218,10 @@ def _correlation_permutation_cpu_parallel(
 
         # Compute correlation for each feature
         if n_features == 1:
-            return _pearson_correlation(perm_data1[:, 0], data2[:, 0])
+            return corr_func(perm_data1[:, 0], data2[:, 0])
         else:
             return np.array([
-                _pearson_correlation(perm_data1[:, i], data2[:, i])
+                corr_func(perm_data1[:, i], data2[:, i])
                 for i in range(n_features)
             ])
 
@@ -206,18 +305,25 @@ def _correlation_permutation_gpu_batched(
     data1 = data1.astype(np.float32)
     data2 = data2.astype(np.float32)
 
-    # Compute observed correlation
+    # Select correlation function
     if metric == 'pearson':
-        if n_features == 1:
-            obs_corr = _pearson_correlation(data1[:, 0], data2[:, 0])
-            obs_corr = np.array([obs_corr])
-        else:
-            obs_corr = np.array([
-                _pearson_correlation(data1[:, i], data2[:, i])
-                for i in range(n_features)
-            ])
+        corr_func = _pearson_correlation
+    elif metric == 'spearman':
+        corr_func = _spearman_correlation
+    elif metric == 'kendall':
+        corr_func = _kendall_correlation
     else:
         raise NotImplementedError(f"Metric '{metric}' not yet implemented")
+
+    # Compute observed correlation
+    if n_features == 1:
+        obs_corr = corr_func(data1[:, 0], data2[:, 0])
+        obs_corr = np.array([obs_corr])
+    else:
+        obs_corr = np.array([
+            corr_func(data1[:, i], data2[:, i])
+            for i in range(n_features)
+        ])
 
     # Determine batch size based on memory budget
     # Memory bottleneck: permuted indices and correlation computation
@@ -357,9 +463,9 @@ def correlation_permutation_test(
             - shape (n_samples, n_features) for multi-feature
         n_permute (int): Number of permutations (default: 5000)
         metric (str): Correlation metric (default: 'pearson')
-            - 'pearson': Pearson correlation
-            - 'spearman': Spearman rank correlation (not yet implemented)
-            - 'kendall': Kendall rank correlation (not yet implemented)
+            - 'pearson': Pearson correlation (linear relationships)
+            - 'spearman': Spearman rank correlation (monotonic relationships)
+            - 'kendall': Kendall tau rank correlation (ordinal association, robust to ties)
         tail (int): Test type (default: 2)
             - 1: One-tailed test
             - 2: Two-tailed test
@@ -407,10 +513,11 @@ def correlation_permutation_test(
 
     Notes:
         - Default (backend=None): CPU parallelization with joblib (4-8× speedup)
-        - GPU backend (torch): Fastest for large problems with automatic batching
+        - GPU backend (torch): Fastest for large problems with automatic batching (Pearson only)
         - NumPy backend: Single-threaded, use for small problems or debugging
         - For multi-feature data, each feature pair tested independently
-        - Currently only Pearson correlation is implemented
+        - Spearman/Kendall: CPU-parallel and NumPy backends only (GPU not yet implemented)
+        - Kendall is O(n^2) complexity, slower than Pearson/Spearman for large samples
     """
     # Input validation
     data1 = np.asarray(data1, dtype=np.float64)
@@ -424,8 +531,6 @@ def correlation_permutation_test(
         raise ValueError(f"tail must be 1 or 2, got {tail}")
     if metric not in ['pearson', 'spearman', 'kendall']:
         raise ValueError(f"metric must be 'pearson', 'spearman', or 'kendall', got '{metric}'")
-    if metric in ['spearman', 'kendall']:
-        raise NotImplementedError(f"Metric '{metric}' not yet implemented. Currently only 'pearson' is supported.")
 
     # Handle shape
     single_feature = data1.ndim == 1 and data2.ndim == 1
@@ -461,6 +566,13 @@ def correlation_permutation_test(
             else:
                 backend = Backend(backend)
 
+    # GPU backend doesn't support Spearman/Kendall yet (ranking on GPU is complex)
+    if not use_cpu_parallel and metric in ['spearman', 'kendall']:
+        raise NotImplementedError(
+            f"{metric.capitalize()} correlation on GPU backend not yet implemented. "
+            "Use backend=None for CPU-parallel or backend='numpy' for sequential."
+        )
+
     # Setup random state
     rng = check_random_state(random_state)
 
@@ -468,13 +580,21 @@ def correlation_permutation_test(
     if backend.name == "numpy":
         # NumPy: Sequential processing (simple, memory-efficient)
 
+        # Select correlation function
+        if metric == 'pearson':
+            corr_func = _pearson_correlation
+        elif metric == 'spearman':
+            corr_func = _spearman_correlation
+        else:
+            raise NotImplementedError(f"Metric '{metric}' not yet implemented")
+
         # Compute observed correlation
         if n_features == 1:
-            obs_corr = _pearson_correlation(data1[:, 0], data2[:, 0])
+            obs_corr = corr_func(data1[:, 0], data2[:, 0])
             obs_corr = np.array([obs_corr])
         else:
             obs_corr = np.array([
-                _pearson_correlation(data1[:, i], data2[:, i])
+                corr_func(data1[:, i], data2[:, i])
                 for i in range(n_features)
             ])
 
@@ -487,10 +607,10 @@ def correlation_permutation_test(
 
             # Compute correlation for each feature
             if n_features == 1:
-                corr = _pearson_correlation(perm_data1[:, 0], data2[:, 0])
+                corr = corr_func(perm_data1[:, 0], data2[:, 0])
             else:
                 corr = np.array([
-                    _pearson_correlation(perm_data1[:, i], data2[:, i])
+                    corr_func(perm_data1[:, i], data2[:, i])
                     for i in range(n_features)
                 ])
             null_dist.append(corr)

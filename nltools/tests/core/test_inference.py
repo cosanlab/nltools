@@ -950,6 +950,117 @@ class TestPearsonCorrelation:
         assert r == 0.0  # Correlation with constant is zero
 
 
+class TestSpearmanCorrelation:
+    """Test Spearman correlation helper function."""
+
+    def test_basic_correlation_positive(self):
+        """Test positive Spearman correlation."""
+        from nltools.algorithms.inference.correlation import _spearman_correlation
+
+        np.random.seed(42)
+        # Create monotonic relationship (perfect for Spearman)
+        x = np.random.randn(100)
+        y = x ** 3 + np.random.randn(100) * 0.1  # Monotonic but non-linear
+
+        r = _spearman_correlation(x, y)
+        assert isinstance(r, (float, np.floating))
+        assert r > 0.9  # Should be strongly positive (monotonic)
+
+    def test_matches_scipy(self):
+        """Test that Spearman matches scipy.stats.spearmanr."""
+        from nltools.algorithms.inference.correlation import _spearman_correlation
+        from scipy.stats import spearmanr
+
+        np.random.seed(42)
+        x = np.random.randn(100)
+        y = x ** 2 + np.random.randn(100) * 0.5
+
+        r_ours = _spearman_correlation(x, y)
+        r_scipy, _ = spearmanr(x, y)
+
+        np.testing.assert_allclose(r_ours, r_scipy, rtol=1e-10)
+
+    def test_vectorized_correlation(self):
+        """Test vectorized Spearman correlation computation."""
+        from nltools.algorithms.inference.correlation import _spearman_correlation
+
+        np.random.seed(42)
+        # Multiple permutations
+        x_perms = np.random.randn(100, 50)  # 100 permutations, 50 samples
+        y = np.random.randn(50)
+
+        r = _spearman_correlation(x_perms, y)
+        assert r.shape == (100,)
+        assert np.all((r >= -1) & (r <= 1))
+
+    def test_constant_data(self):
+        """Test with constant data (should handle gracefully)."""
+        from nltools.algorithms.inference.correlation import _spearman_correlation
+
+        x = np.ones(100)
+        y = np.random.randn(100)
+
+        r = _spearman_correlation(x, y)
+        # With constant data, ranks are all tied, correlation should be 0 or nan
+        # Our implementation should return 0
+        assert np.isnan(r) or r == 0.0
+
+
+class TestKendallCorrelation:
+    """Test Kendall correlation helper function."""
+
+    def test_basic_correlation_positive(self):
+        """Test positive Kendall correlation."""
+        from nltools.algorithms.inference.correlation import _kendall_correlation
+
+        np.random.seed(42)
+        # Create monotonic relationship (perfect for Kendall)
+        x = np.arange(100)
+        y = x + np.random.randn(100) * 5  # Monotonic with noise
+
+        r = _kendall_correlation(x, y)
+        assert isinstance(r, (float, np.floating))
+        assert r > 0.8  # Should be strongly positive (concordant pairs dominate)
+
+    def test_matches_scipy(self):
+        """Test that Kendall matches scipy.stats.kendalltau."""
+        from nltools.algorithms.inference.correlation import _kendall_correlation
+        from scipy.stats import kendalltau
+
+        np.random.seed(42)
+        x = np.random.randn(50)  # Smaller sample for speed (Kendall is O(n^2))
+        y = x ** 2 + np.random.randn(50) * 0.5
+
+        r_ours = _kendall_correlation(x, y)
+        r_scipy, _ = kendalltau(x, y)
+
+        np.testing.assert_allclose(r_ours, r_scipy, rtol=1e-10)
+
+    def test_vectorized_correlation(self):
+        """Test vectorized Kendall correlation computation."""
+        from nltools.algorithms.inference.correlation import _kendall_correlation
+
+        np.random.seed(42)
+        # Multiple permutations (small samples for speed)
+        x_perms = np.random.randn(10, 30)  # 10 permutations, 30 samples
+        y = np.random.randn(30)
+
+        r = _kendall_correlation(x_perms, y)
+        assert r.shape == (10,)
+        assert np.all((r >= -1) & (r <= 1))
+
+    def test_constant_data(self):
+        """Test with constant data (should handle gracefully)."""
+        from nltools.algorithms.inference.correlation import _kendall_correlation
+
+        x = np.ones(50)
+        y = np.random.randn(50)
+
+        r = _kendall_correlation(x, y)
+        # With constant data, all pairs are tied, correlation should be 0 or nan
+        assert np.isnan(r) or r == 0.0
+
+
 class TestCorrelationPermutation:
     """Test correlation permutation tests."""
 
@@ -1038,9 +1149,41 @@ class TestCorrelationPermutation:
         y = np.random.randn(100)  # Independent
         
         result = correlation_permutation_test(x, y, n_permute=1000, random_state=42)
-        
+
         assert result["p"] > 0.05  # Should not be significant
-        
+
+    def test_spearman_metric(self):
+        """Test Spearman correlation metric in permutation test."""
+        np.random.seed(42)
+        # Create monotonic but non-linear relationship
+        x = np.random.randn(100)
+        y = x ** 3 + np.random.randn(100) * 0.1
+
+        result = correlation_permutation_test(
+            x, y, n_permute=500, metric='spearman', random_state=42
+        )
+
+        assert "correlation" in result
+        assert "p" in result
+        assert result["p"] < 0.05  # Should be significant (monotonic)
+        assert result["correlation"] > 0.9  # Strong positive Spearman
+
+    def test_kendall_metric(self):
+        """Test Kendall correlation metric in permutation test."""
+        np.random.seed(42)
+        # Create monotonic relationship
+        x = np.arange(80)
+        y = x + np.random.randn(80) * 5
+
+        result = correlation_permutation_test(
+            x, y, n_permute=200, metric='kendall', random_state=42
+        )
+
+        assert "correlation" in result
+        assert "p" in result
+        assert result["p"] < 0.05  # Should be significant (monotonic)
+        assert result["correlation"] > 0.7  # Strong positive Kendall
+
     def test_one_tailed_vs_two_tailed(self):
         """Test that one-tailed and two-tailed p-values differ (when not at minimum)."""
         np.random.seed(123)  # Different seed for moderate correlation
