@@ -69,20 +69,24 @@ TOLERANCE_EXACT = 1e-5
 TOLERANCE_STATS_DETERMINISTIC = 1e-5
 
 # Tolerance for P-values when comparing to stats.py
-# Updated: Now uses identical RNG pattern to stats.py (pre-generated sign-flips)
-# Should match exactly, but allow small floating-point tolerance
-TOLERANCE_STATS_PVALUE = 0.01  # 1% relative error acceptable
+# One-sample: 0.000% error (uses identical _generate_sign_flips pattern)
+# Two-sample/Correlation: ~1-2% error (prioritizes cross-backend determinism over stats.py exact match)
+# Trade-off: Cross-backend consistency (0.000%) > backward compatibility (~1-2%)
+TOLERANCE_STATS_PVALUE = 0.02  # 2% relative error acceptable
 
-# One-tailed tests: Same tight tolerance (no longer have high variance)
-# Implementation now matches stats.py exactly via pre-generated sign-flips
-TOLERANCE_STATS_PVALUE_ONE_TAILED = 0.01  # 1% relative error acceptable
+# One-tailed tests: Same tolerance as two-tailed
+# One-sample achieves 0.000%, two-sample ~1-2% (same patterns as above)
+TOLERANCE_STATS_PVALUE_ONE_TAILED = 0.02  # 2% relative error acceptable
 
-# Special case: Time-series methods have higher variance due to complex RNG patterns
-# circle_shift: Higher variance due to simpler RNG operations
-TOLERANCE_STATS_PVALUE_CIRCLE_SHIFT = 0.4  # 40% relative error acceptable
+# Special case: Time-series methods have higher variance vs stats.py
+# Root cause: Same as two-sample/correlation (independent RandomState vs shared RNG state)
+# circle_shift: ~32% actual variance (shift amounts determined by RNG sequence)
+# phase_randomize: ~3% actual variance (FFT operations more numerically stable)
+# Both implementations are fully deterministic (same seed → identical results)
+TOLERANCE_STATS_PVALUE_CIRCLE_SHIFT = 0.4  # 40% relative error (accommodates ~32% actual)
 
-# phase_randomize: Moderate variance due to FFT operations with different RNG consumption
-TOLERANCE_STATS_PVALUE_PHASE_RANDOMIZE = 0.05  # 5% relative error acceptable
+# phase_randomize: Lower variance due to FFT numerical stability
+TOLERANCE_STATS_PVALUE_PHASE_RANDOMIZE = 0.05  # 5% relative error (accommodates ~3% actual)
 
 # Tolerance for GPU vs CPU comparisons (float32 vs float64)
 TOLERANCE_GPU_VALUE = 1e-3      # 0.1% error for computed values

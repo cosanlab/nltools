@@ -186,10 +186,16 @@ def _two_sample_permutation_gpu_batched(
         end_idx = min(start_idx + batch_size, n_permute)
         current_batch_size = end_idx - start_idx
 
-        # Generate permutation indices for this batch
+        # Pre-generate seeds for this batch (memory-efficient, deterministic)
+        # Matches CPU-parallel pattern: independent RandomState per permutation
+        MAX_INT = 2**31 - 1
+        batch_seeds = random_state.randint(MAX_INT, size=current_batch_size)
+
+        # Generate permutation indices using independent RNG per permutation
         # Shape: (current_batch_size, n_total)
         batch_indices = np.array([
-            random_state.permutation(n_total) for _ in range(current_batch_size)
+            np.random.RandomState(batch_seeds[i]).permutation(n_total)
+            for i in range(current_batch_size)
         ])
 
         # Transfer to device and ensure indices are long type
@@ -381,17 +387,25 @@ def two_sample_permutation_test(
     # Compute null distribution based on backend
     if backend.name == "numpy":
         # NumPy: Sequential processing (simple, memory-efficient)
+        # Uses same deterministic RNG pattern as CPU-parallel and GPU
+
         # Compute observed mean difference
         obs_diff = np.mean(data1, axis=0) - np.mean(data2, axis=0)
 
         # Concatenate data for permutation
         combined = np.vstack([data1, data2])  # (n_total, n_features)
 
+        # Pre-generate seeds for deterministic permutations
+        # Matches CPU-parallel and GPU pattern: independent RandomState per permutation
+        MAX_INT = 2**31 - 1
+        seeds = rng.randint(MAX_INT, size=n_permute)
+
         # Generate null distribution
         null_dist = []
-        for _ in range(n_permute):
-            # Randomly shuffle indices
-            indices = rng.permutation(n_total)
+        for i in range(n_permute):
+            # Use independent RandomState for this permutation (matches CPU-parallel)
+            perm_rng = np.random.RandomState(seeds[i])
+            indices = perm_rng.permutation(n_total)
             # Split into two groups
             group1_indices = indices[:n1]
             group2_indices = indices[n1:]
