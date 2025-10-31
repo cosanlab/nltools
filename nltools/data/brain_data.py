@@ -615,9 +615,9 @@ class BrainData(object):
             BrainData: BrainData instance with new datatype
 
         """
-
-        out = self.copy()
-        out.data = out.data.astype(dtype)
+        # Optimized: Use shallow copy instead of deepcopy
+        out = self._shallow_copy_with_data()
+        out.data = self.data.astype(dtype)
         return out
 
     def to_nifti(self):
@@ -1805,11 +1805,14 @@ class BrainData(object):
             raise ValueError("Need to provide sampling rate (TR)!")
         if high_pass is None and low_pass is None:
             raise ValueError("high_pass and/or low_pass cutoff must beprovided!")
+
         standardize = kwargs.get("standardize", False)
         detrend = kwargs.get("detrend", False)
-        out = self.copy()
+
+        # Optimized: Use shallow copy instead of deepcopy
+        out = self._shallow_copy_with_data()
         out.data = clean(
-            out.data,
+            self.data,
             t_r=1.0 / sampling_freq,
             detrend=detrend,
             standardize=standardize,
@@ -1835,14 +1838,16 @@ class BrainData(object):
             raise IndexError(
                 "BrainData is only 3d but standardization was requested over observations"
             )
-        out = self.copy()
+
+        # Optimized: Use shallow copy instead of deepcopy
+        out = self._shallow_copy_with_data()
         if method == "zscore":
             with_std = True
         elif method == "center":
             with_std = False
         else:
             raise ValueError('method must be ["center","zscore"')
-        out.data = scale(out.data, axis=axis, with_std=with_std)
+        out.data = scale(self.data, axis=axis, with_std=with_std)
         return out
 
     def threshold(
@@ -2004,7 +2009,8 @@ class BrainData(object):
         Returns:
             BrainData: BrainData instance tranformed into pairwise comparisons
         """
-        out = self.copy()
+        # Optimized: Use shallow copy instead of deepcopy
+        out = self._shallow_copy_with_data()
         out.data, new_Y = transform_pairwise(self.data, self.Y)
         out.Y = pd.DataFrame(new_Y)
         out.Y.replace(-1, 0, inplace=True)
@@ -2188,7 +2194,6 @@ class BrainData(object):
 
         return out
 
-    # TODO: check if this and other similar methods that use nilearn function calls (e.g. smooth_img()) can be make more efficient by minimizing conversion
     def smooth(self, fwhm):
         """Apply spatial smoothing using nilearn smooth_img()
 
@@ -2197,13 +2202,16 @@ class BrainData(object):
         Returns:
             BrainData instance (copy with smoothed data)
         """
-        from copy import deepcopy
+        # Optimized: Use shallow copy instead of deepcopy, single conversion path
+        out = self._shallow_copy_with_data()
 
-        out = deepcopy(self)
-        smoothed_data = out.nifti_masker.transform(smooth_img(out.to_nifti(), fwhm))
+        # Single conversion: data → nifti → smooth → data
+        nifti = self.to_nifti()
+        smoothed_nifti = smooth_img(nifti, fwhm)
+        smoothed_data = self.nifti_masker.transform(smoothed_nifti)
 
         # Ensure single images remain 1D
-        if check_brain_data_is_single(out):
+        if check_brain_data_is_single(self):
             out.data = smoothed_data.flatten()
         else:
             out.data = smoothed_data
@@ -2229,7 +2237,6 @@ class BrainData(object):
             diff_spike_cutoff=diff_spike_cutoff,
         )
 
-    # TODO: check if we can make more efficient
     def temporal_resample(self, sampling_freq=None, target=None, target_type="hz"):
         """
         Resample BrainData timeseries to a new target frequency or number of samples
@@ -2246,8 +2253,8 @@ class BrainData(object):
         Returns:
             upsampled BrainData instance
         """
-
-        out = self.copy()
+        # Optimized: Use shallow copy instead of deepcopy
+        out = self._shallow_copy_with_data()
 
         if target_type == "samples":
             n_samples = target
