@@ -9,7 +9,6 @@ The `nltools.stats` module provides a comprehensive collection of statistical fu
 ## Key Functions
 
 **Regression & GLM**
-- `regress()` - Univariate and multivariate regression
 - `align()` - Functional alignment (Procrustes, SRM)
 
 **Correlation & Similarity**
@@ -42,16 +41,12 @@ The `nltools.stats` module provides a comprehensive collection of statistical fu
 
 ```python
 from nltools.stats import (
-    regress,
     correlation_permutation,
     isc,
     fisher_r_to_z
 )
 
-# Regression
-stats = regress(X, y, mode='ols')
-
-# Permutation test
+# Correlation permutation test
 p_value = correlation_permutation(x, y, n_permutations=5000)
 
 # Inter-subject correlation
@@ -72,7 +67,7 @@ z_values = fisher_r_to_z(r_values)
 
 ## See Also
 
-- {doc}`data/brain_data` - BrainData.fit() and BrainData.regress()
+- {doc}`data/brain_data` - BrainData.fit() for GLM analysis
 - {doc}`models` - Ridge and other model classes
 - {doc}`algorithms` - Optimized algorithms (HyperAlignment, SRM)
 - {doc}`analysis` - ROC analysis tools

@@ -10,7 +10,7 @@ from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.manifold import MDS
 from sklearn.utils import check_random_state
 from scipy.spatial.distance import squareform
-from scipy.stats import ttest_1samp
+from scipy.stats import ttest_1samp, t as t_dist
 import scipy.stats as stats
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -27,7 +27,6 @@ from nltools.stats import (
     _permute_isc_group,
 )
 from nltools.algorithms.inference.utils import _compute_pvalue
-from nltools.stats import regress as regression
 from nltools.plotting import plot_stacked_adjacency, plot_silhouette
 from nltools.utils import (
     all_same,
@@ -1542,43 +1541,142 @@ class Adjacency(object):
 
         Args:
             X: Design matrix can be an Adjacency or DesignMatrix instance
-            method: type of regression (default: ols)
+            mode: type of regression (default: ols) - only 'ols' is currently supported
 
         Returns:
             stats: (dict) dictionary of stats outputs.
         """
+        if mode != "ols":
+            raise ValueError(
+                "Only 'ols' mode is currently supported for Adjacency.regress()"
+            )
 
         stats = {}
         if isinstance(X, Adjacency):
             if X.square_shape()[0] != self.square_shape()[0]:
                 raise ValueError("Adjacency instances must be the same size.")
-            (
-                stats["beta"],
-                stats["sigma"],
-                stats["t"],
-                stats["p"],
-                stats["df"],
-                stats["residual"],
-            ) = regression(X.data.T, self.data, mode=mode, **kwargs)
+            # Convert to numpy arrays for regression
+            X_data = X.data.T
+            Y_data = self.data
+
+            # Ensure Y is 2D
+            if len(Y_data.shape) == 1:
+                Y_data = Y_data[:, np.newaxis]
+
+            # OLS regression: b = (X'X)^-1 X'Y
+            # X_data shape: (n_features, n_regressors)
+            # Y_data shape: (n_features, 1)
+            # b shape: (n_regressors, 1)
+            b = np.dot(np.linalg.pinv(X_data), Y_data)
+            res = Y_data - np.dot(X_data, b)
+
+            # Standard errors - ensure sigma is always an array
+            sigma = np.std(res, axis=0, ddof=X_data.shape[1])
+            if sigma.ndim == 0:
+                sigma = sigma[np.newaxis]
+
+            stderr = (
+                np.sqrt(np.diag(np.linalg.pinv(np.dot(X_data.T, X_data))))[
+                    :, np.newaxis
+                ]
+                * sigma[np.newaxis, :]
+            )
+
+            # t-statistics
+            t = np.zeros_like(b)
+            t[stderr > 1.0e-6] = b[stderr > 1.0e-6] / stderr[stderr > 1.0e-6]
+
+            # p-values
+            df = np.array([X_data.shape[0] - X_data.shape[1]] * t.shape[1])
+            p = 2 * (1 - t_dist.cdf(np.abs(t), df))
+
+            # Create Adjacency objects for each stat
+            # For Adjacency X, b has shape (n_regressors, 1), so we need to reshape
+            # to match Adjacency data format which expects (n_matrices, n_features)
+            stats["beta"] = self.copy()
+            stats["sigma"] = self.copy()
+            stats["t"] = self.copy()
+            stats["p"] = self.copy()
+            stats["df"] = self.copy()
+            stats["residual"] = self.copy()
+
+            # Assign data - ensure 2D shape for Adjacency compatibility
+            b_flat = b.squeeze()
+            if b_flat.ndim == 0:
+                b_flat = np.array([b_flat])
+            stats["beta"].data = b_flat
+            stats["sigma"].data = (
+                stderr.squeeze().T if stderr.shape[0] > 1 else stderr.squeeze()
+            )
+            stats["t"].data = t.squeeze().T if t.shape[0] > 1 else t.squeeze()
+            stats["p"].data = p.squeeze().T if p.shape[0] > 1 else p.squeeze()
+            stats["df"].data = df.squeeze()
+            stats["residual"].data = (
+                res.squeeze().T if res.shape[1] == 1 else res.squeeze()
+            )
+
         elif isinstance(X, DesignMatrix):
             if X.shape[0] != len(self):
                 raise ValueError(
                     "Design matrix must have same number of observations as Adjacency"
                 )
-            # Convert Polars DesignMatrix to numpy for stats.regress()
-            (b, se, t, p, df, res) = regression(
-                X.to_numpy(), self.data, mode=mode, **kwargs
+            # Convert Polars DesignMatrix to numpy
+            X_data = X.to_numpy()
+            Y_data = self.data
+
+            # Ensure Y is 2D
+            if len(Y_data.shape) == 1:
+                Y_data = Y_data[:, np.newaxis]
+
+            # OLS regression: b = (X'X)^-1 X'Y
+            b = np.dot(np.linalg.pinv(X_data), Y_data)
+            res = Y_data - np.dot(X_data, b)
+
+            # Standard errors - ensure sigma is always an array
+            sigma = np.std(res, axis=0, ddof=X_data.shape[1])
+            if sigma.ndim == 0:
+                sigma = sigma[np.newaxis]
+
+            stderr = (
+                np.sqrt(np.diag(np.linalg.pinv(np.dot(X_data.T, X_data))))[
+                    :, np.newaxis
+                ]
+                * sigma[np.newaxis, :]
             )
 
-            stats["beta"], stats["sigma"], stats["t"] = [x for x in self[:3]]
-            stats["p"], stats["df"], stats["residual"] = [x for x in self[:3]]
+            # t-statistics
+            t = np.zeros_like(b)
+            t[stderr > 1.0e-6] = b[stderr > 1.0e-6] / stderr[stderr > 1.0e-6]
 
-            stats["beta"].data = b.squeeze()
-            stats["sigma"].data = se.squeeze()
-            stats["t"].data = t.squeeze()
-            stats["p"].data = p.squeeze()
-            stats["df"].data = df.squeeze()
-            stats["residual"].data = res.squeeze()
+            # p-values
+            df = np.array([X_data.shape[0] - X_data.shape[1]] * t.shape[1])
+            p = 2 * (1 - t_dist.cdf(np.abs(t), df))
+
+            stats["beta"], stats["sigma"], stats["t"] = [self.copy() for _ in range(3)]
+            stats["p"], stats["df"], stats["residual"] = [self.copy() for _ in range(3)]
+
+            # Assign data - ensure proper shape for DesignMatrix case
+            # For DesignMatrix, b has shape (n_regressors, n_features)
+            # We need to reshape to (n_features, n_regressors) to match Adjacency format
+            # where each row is a matrix (feature) and columns are regressors
+            # But since we only have one regressor, we need (n_features,) shape
+            # to match the original Adjacency data format
+            if b.shape[0] == 1:
+                # Single regressor case: b is (1, n_features), transpose to (n_features,)
+                stats["beta"].data = b.squeeze()
+                stats["sigma"].data = stderr.squeeze()
+                stats["t"].data = t.squeeze()
+                stats["p"].data = p.squeeze()
+                stats["df"].data = df.squeeze() if df.ndim > 0 else df
+                stats["residual"].data = res.squeeze()
+            else:
+                # Multiple regressors: b is (n_regressors, n_features), transpose to (n_features, n_regressors)
+                stats["beta"].data = b.T
+                stats["sigma"].data = stderr.T
+                stats["t"].data = t.T
+                stats["p"].data = p.T
+                stats["df"].data = df
+                stats["residual"].data = res.T
         else:
             raise ValueError("X must be a DesignMatrix or Adjacency Instance.")
 

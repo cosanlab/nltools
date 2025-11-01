@@ -844,22 +844,3 @@ def test_adjacency_isc_integration():
     assert "isc" in result
     assert "p" in result
     assert 0 <= result["p"] <= 1
-
-
-# ============================================================================
-# Verification Tests: Ensure unused functions have been removed
-# ============================================================================
-
-
-def test_unused_functions_removed():
-    """Verify that unused functions have been removed from stats module."""
-    import nltools.stats as stats_module
-
-    # Verify functions no longer exist
-    assert not hasattr(stats_module, "correlation"), "correlation() should be removed"
-    assert not hasattr(stats_module, "_permute_sign"), (
-        "_permute_sign() should be removed"
-    )
-    assert not hasattr(stats_module, "_permute_func"), (
-        "_permute_func() should be removed"
-    )

@@ -25,7 +25,6 @@ __all__ = [
     "matrix_permutation",
     "make_cosine_basis",
     "summarize_bootstrap",
-    "regress",
     "procrustes",
     "procrustes_distance",
     "align",
@@ -52,7 +51,6 @@ __all__ = [
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
-from scipy.stats import t as t_dist
 from scipy.linalg import orthogonal_procrustes
 from scipy.spatial import procrustes as procrust
 from scipy.signal import hilbert, butter, filtfilt
@@ -900,68 +898,6 @@ def transform_pairwise(X, y):
         return np.asarray(X_new), np.vstack((np.asarray(y_new), np.asarray(y_group))).T
 
 
-# Internal helper function for regress() - kept for backward compatibility
-# See Phase 3.2.1 for future deprecation discussion
-def _robust_estimator(vals, X, robust_estimator="hc0", nlags=1):
-    """
-    Computes robust sandwich estimators for standard errors used in OLS computation. Types include:
-    'hc0': Huber (1980) sandwich estimator to return robust standard error estimates.
-    'hc3': MacKinnon and White (1985) HC3 sandwich estimator. Provides more robustness in smaller samples than HC0 Long & Ervin (2000)
-    'hac': Newey-West (1987) estimator for robustness to heteroscedasticity as well as serial auto-correlation at given lags.
-
-    Refs: https://www.wikiwand.com/en/Heteroscedasticity-consistent_standard_errors
-    https://github.com/statsmodels/statsmodels/blob/master/statsmodels/regression/linear_model.py
-    https://cran.r-project.org/web/packages/sandwich/vignettes/sandwich.pdf
-    https://www.stata.com/manuals13/tsnewey.pdf
-
-    Args:
-        vals (np.ndarray): 1d array of residuals
-        X (np.ndarray): design matrix used in OLS, e.g. BrainData().X
-        robust_estimator (str): estimator type, 'hc0' (default), 'hc3', or 'hac'
-        nlags (int): number of lags, only used with 'hac' estimator, default is 1
-
-    Returns:
-        stderr (np.ndarray): 1d array of standard errors with length == X.shape[1]
-
-    """
-
-    if robust_estimator not in ["hc0", "hc3", "hac"]:
-        raise ValueError("robust_estimator must be one of hc0, hc3 or hac")
-
-    # Make a sandwich!
-    # First we need bread
-    bread = np.linalg.pinv(np.dot(X.T, X))
-
-    # Then we need meat
-    if robust_estimator == "hc0":
-        V = np.diag(vals**2)
-        meat = np.dot(np.dot(X.T, V), X)
-
-    elif robust_estimator == "hc3":
-        V = np.diag(vals**2) / (1 - np.diag(np.dot(X, np.dot(bread, X.T)))) ** 2
-        meat = np.dot(np.dot(X.T, V), X)
-
-    elif robust_estimator == "hac":
-        weights = 1 - np.arange(nlags + 1.0) / (nlags + 1.0)
-
-        # First compute lag 0
-        V = np.diag(vals**2)
-        meat = weights[0] * np.dot(np.dot(X.T, V), X)
-
-        # Now loop over additional lags
-        for l in range(1, nlags + 1):
-            V = np.diag(vals[l:] * vals[:-l])
-            meat_1 = np.dot(np.dot(X[l:].T, V), X[:-l])
-            meat_2 = np.dot(np.dot(X[:-l].T, V), X[l:])
-
-            meat += weights[l] * (meat_1 + meat_2)
-
-    # Then we make a sandwich
-    vcv = np.dot(np.dot(bread, meat), bread)
-
-    return np.sqrt(np.diag(vcv))
-
-
 # TODO: see how best to refactor and where to put this or if covered by other modules
 def summarize_bootstrap(data, save_weights=False):
     """Calculate summary of bootstrap samples
@@ -990,178 +926,13 @@ def summarize_bootstrap(data, save_weights=False):
     return output
 
 
-# TODO: remove - should be deprecated by inference module/
-def regress(X, Y, mode="ols", stats="full", **kwargs):
-    """This is a flexible function to run several types of regression models provided X and Y numpy arrays. Y can be a 1d numpy array or 2d numpy array. In the latter case, results will be output with shape 1 x Y.shape[1], in other words fitting a separate regression model to each column of Y.
-
-    Does NOT add an intercept automatically to the X matrix before fitting like some other software packages. This is left up to the user.
-
-    This function can compute regression in 2 ways:
-
-    1. Standard OLS
-    2. OLS with robust sandwich estimators for standard errors. 3 robust types of
-       estimators exist:
-
-    - 'hc0' - classic huber-white estimator robust to heteroscedasticity (default)
-    - 'hc3' - a variant on huber-white estimator slightly more conservative when sample sizes are small
-    - 'hac' - an estimator robust to both heteroscedasticity and auto-correlation;
-      auto-correlation lag can be controlled with the `nlags` keyword argument; default
-      is 1
-
-    Args:
-        X (ndarray): design matrix; assumes intercept is included
-        Y (ndarray): dependent variable array; if 2d, a model is fit to each column of Y separately
-        mode (str): kind of model to fit; must be one of 'ols' (default) or 'robust'
-        stats (str): one of 'full', 'betas', 'tstats'. Useful to speed up calculation if
-        you know you only need some statistics and not others. Defaults to 'full'.
-        robust_estimator (str,optional): kind of robust estimator to use if mode = 'robust'; default 'hc0'
-        nlags (int,optional): auto-correlation lag correction if mode = 'robust' and robust_estimator = 'hac'; default 1
-
-    Returns:
-        b: coefficients
-        se: standard error of coefficients
-        t: t-statistics (coef/sterr)
-        p : p-values
-        df: degrees of freedom
-        res: residuals
-
-    Examples:
-        Standard OLS
-
-        >>> results = regress(X,Y,mode='ols')
-
-        Robust OLS with heteroscedasticity (hc0) robust standard errors
-
-        >>> results = regress(X,Y,mode='robust')
-
-        Robust OLS with heteroscedasticty and auto-correlation (with lag 2) robust standard errors
-
-        >>> results = regress(X,Y,mode='robust',robust_estimator='hac',nlags=2)
-
-    """
-
-    if not isinstance(mode, str):
-        raise ValueError("mode must be a string")
-
-    if not isinstance(stats, str):
-        raise ValueError("stats must be a string")
-
-    if mode not in ["ols", "robust"]:
-        raise ValueError("Mode must be one of 'ols' or 'robust'")
-
-    if stats not in ["full", "betas", "tstats"]:
-        raise ValueError("stats must be one of 'full', 'betas', 'tstats'")
-
-    # Make sure Y is a 2-D array
-    if len(Y.shape) == 1:
-        Y = Y[:, np.newaxis]
-
-    # Compute standard errors based on regression mode
-    if mode == "ols" or mode == "robust":
-        b = np.dot(np.linalg.pinv(X), Y)
-
-        # Return betas and stop other computations if that's all that's requested
-        if stats == "betas":
-            return b.squeeze()
-        res = Y - np.dot(X, b)
-
-        # Vanilla OLS
-        if mode == "ols":
-            sigma = np.std(res, axis=0, ddof=X.shape[1])
-            stderr = (
-                np.sqrt(np.diag(np.linalg.pinv(np.dot(X.T, X))))[:, np.newaxis]
-                * sigma[np.newaxis, :]
-            )
-
-        # OLS with robust sandwich estimator based standard-errors
-        elif mode == "robust":
-            robust_estimator = kwargs.pop("robust_estimator", "hc0")
-            nlags = kwargs.pop("nlags", 1)
-            axis_func = [_robust_estimator, 0, res, X, robust_estimator, nlags]
-            stderr = np.apply_along_axis(*axis_func)
-
-        # Then only compute t-stats at voxels where the standard error is at least .000001
-        t = np.zeros_like(b)
-        t[stderr > 1.0e-6] = b[stderr > 1.0e-6] / stderr[stderr > 1.0e-6]
-
-        # Return betas and ts and stop other computations if that's all that's requested
-        if stats == "tstats":
-            return b.squeeze(), t.squeeze()
-        df = np.array([X.shape[0] - X.shape[1]] * t.shape[1])
-        p = 2 * (1 - t_dist.cdf(np.abs(t), df))
-
-    return (
-        b.squeeze(),
-        stderr.squeeze(),
-        t.squeeze(),
-        p.squeeze(),
-        df.squeeze(),
-        res.squeeze(),
-    )
-
-
-# TODO: remove and create new efficient approaches in inference/ following design of that moduels
-def regress_permutation(
-    X, Y, n_permute=5000, tail=2, random_state=None, verbose=False, **kwargs
-):
-    """
-    Permuted regression. Permute the design matrix each time by shuffling rows before running the estimation.
-
-    Args:
-        X (ndarray): design matrix; assumes intercept is included
-        Y (ndarray): dependent variable array; if 2d, a model is fit to each column of Y separately
-        n_permute: (int) number of permutations
-        tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
-        n_jobs: (int) The number of CPUs to use to do the computation. -1 means all CPUs.
-        kwargs: optional argument to regress()
-
-    """
-
-    random_state = check_random_state(random_state)
-    b, t = regress(X, Y, stats="tstats", **kwargs)
-    p = np.zeros_like(t)
-    if tail == 1:
-        pos_mask = np.where(t >= 0)
-        neg_mask = np.where(t <= 0)
-    elif tail != 2:
-        raise ValueError("tail must be 1 or 2")
-
-    if (X.shape[1] == 1) and (all(X[:].values == 1.0)):
-        if verbose:
-            print("Running 1-sample sign flip test")
-        func = lambda x: (x.squeeze() * random_state.choice([1, -1], x.shape[0]))[
-            :, np.newaxis
-        ]
-    else:
-        if verbose:
-            print("Running permuted OLS")
-        func = random_state.permutation
-
-    # We could optionally Save (X.T * X)^-1 * X.T so we dont have to invert each permutation, but this would require not relying on regress() and because the second-level design mat is probably on the small side we might not actually save that much time
-    # inv = np.linalg.pinv(X)
-
-    for _ in range(n_permute):
-        _, _t = regress(func(X.values), Y, stats="tstats", **kwargs)
-        if tail == 2:
-            p += np.abs(_t) >= np.abs(t)
-        elif tail == 1:
-            pos_p = _t >= t
-            neg_p = _t <= t
-            p[pos_mask] += pos_p[pos_mask]
-            p[neg_mask] += neg_p[neg_mask]
-    p /= n_permute
-
-    return b, t, p
-
-
-# TODO: check if depcreated due to our new inference/srm module
 def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kwargs):
-    """Align subject data into a common response model.
+    """Align subject data into a common response model. This function is a convenience wrapper around `HyperAlignment` and `SRM` classes
 
     Can be used to hyperalign source data to target data using
     Hyperalignment from Dartmouth (i.e., procrustes transformation; see
     nltools.stats.procrustes) or Shared Response Model from Princeton (see
-    nltools.external.srm). (see nltools.data.BrainData.align for aligning
+    nltools.algorithms.srm). (see nltools.data.BrainData.align for aligning
     a single Brain object to another). Common Model is shared response
     model or centered target data. Transformed data can be back projected to
     original data using Tranformation matrix. Inputs must be a list of BrainData
@@ -1304,9 +1075,8 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
     return out
 
 
-# TODO: check if depcreated due to our new inference/Hyperalignment module
 def procrustes(data1, data2):
-    """Procrustes analysis, a similarity test for two data sets.
+    """Procrustes analysis, a similarity test for two data sets. For more comprehensive procrustes-based alignment tasks, use `HyperAlignment` and `align()` instead.
 
     Each input matrix is a set of points or vectors (the rows of the matrix).
     The dimension of the space is the number of columns of each matrix. Given
@@ -1390,11 +1160,6 @@ def procrustes(data1, data2):
     disparity = np.sum(np.square(mtx1 - mtx2))
 
     return mtx1, mtx2, disparity, R, s
-
-
-# Matrix utility functions moved to nltools.algorithms.inference.matrix
-# Re-exported here for backward compatibility
-# Imported above: double_center, u_center, distance_correlation
 
 
 def procrustes_distance(
@@ -1778,6 +1543,7 @@ def _permute_isc_group(similarity_matrix, group, metric="median", random_state=N
     )
 
 
+# TODO: update to use inference/ module
 def isc_group(
     group1,
     group2,
@@ -1926,11 +1692,13 @@ def isc_group(
     return stats
 
 
+# TODO: remove after rewriteing isc_group and isfc
 def _compute_matrix_correlation(matrix1, matrix2):
     """Computes the intersubject functional correlation between 2 matrices (observation x feature)"""
     return np.corrcoef(matrix1.T, matrix2.T)[matrix1.shape[1] :, : matrix2.shape[1]]
 
 
+# TODO: update to use inference/ module
 def isfc(data, method="average"):
     """Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices
 
@@ -1972,6 +1740,7 @@ def isfc(data, method="average"):
     return sub_isfc
 
 
+# TODO: improve to avoid pandas type conversion use numpy or polars instead
 def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5, pairwise=False):
     """Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array)
 
@@ -2144,7 +1913,6 @@ def _phase_rayleigh_p(phase_angles):
         return np.exp(-1 * Z)
 
 
-# TODO: needs refactoring clean-up and could be deprectaed by our new Hyperalignment inference module
 def align_states(
     reference,
     target,
@@ -2152,7 +1920,7 @@ def align_states(
     return_index=False,
     replace_zero_variance=False,
 ):
-    """Align state weight maps using hungarian algorithm by minimizing pairwise distance between group states.
+    """Align state weight maps using hungarian algorithm by minimizing pairwise distance between group states.This function uses the Hungarian algorithm for state alignment, which is different from aligning multiple subjects' data.
 
     Args:
         reference: (np.array) reference pattern x state matrix
