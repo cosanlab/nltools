@@ -6,12 +6,117 @@ For task checklist, see `refactor-todos.md`. For strategic vision, see `refactor
 
 ---
 
-## Current State (2025-10-30)
+## Current State (2025-10-31)
 
 **Branch**: `uv-cleanup`
 **Version Target**: v0.6.0 (breaking release)
-**Test Status**: 385 tests (344 passing, 5 skipped, 36 deselected) ✅
-**Last Work**: ✅ Polars Integration 100% COMPLETE - Fixed Adjacency.regress() for Polars DesignMatrix
+**Test Status**: 647 tests (606 passing, 41 deselected) ✅
+**Last Work**: ✅ Fit Dataclass Implementation - Immutable container for model fitting results
+
+---
+
+## Fit Dataclass Implementation - COMPLETE ✅ (2025-10-31)
+
+### What Was Accomplished
+
+**Goal**: Create immutable container for model fitting results that works standalone (no BrainData dependency) and supports `inplace=False` behavior.
+
+**Implementation**:
+- ✅ Created `nltools/data/fit_results.py` (286 lines)
+- ✅ Frozen dataclass for immutability (`@dataclass(frozen=True)`)
+- ✅ Comprehensive field support:
+  - **Ridge**: weights, scores, fitted_values, CV fields
+  - **GLM**: betas, t_stats, p_values, se, residuals, r2
+  - **CV**: cv_scores, cv_mean_score, cv_predictions, cv_folds, cv_best_alpha, cv_alpha_scores
+- ✅ Helper methods: `available()`, `asdict(include_none=False)`
+- ✅ Standalone usage (pure numpy arrays, no nltools dependencies)
+- ✅ Serialization support (works with `np.savez()` / `np.load()`)
+
+**Testing**:
+- ✅ Created `nltools/tests/support/test_fit_results.py` (547 lines)
+- ✅ 30 comprehensive tests covering:
+  - Creation (6 tests): Minimal, Ridge, GLM, CV, mixed fields
+  - Immutability (5 tests): Cannot modify fields, frozen dataclass
+  - Introspection (5 tests): `available()` method behavior
+  - Export (7 tests): `asdict()` with various options
+  - Usage patterns (7 tests): Serialization, introspection workflows
+- ✅ All 30 tests passing in 0.07s
+
+**Integration**:
+- ✅ Added to `nltools/data/__init__.py` exports
+- ✅ Full test suite passes (647 tests, 606 passing, 41 deselected)
+
+**Design Decisions**:
+
+1. **Frozen dataclass for immutability**:
+   - Prevents accidental modification of results
+   - Users can't reassign fields after creation
+   - Arrays remain mutable (shallow freeze) - documented in tests
+
+2. **Optional fields with None defaults**:
+   - Ridge-specific: weights, scores
+   - GLM-specific: betas, t_stats, p_values, se, residuals, r2
+   - CV-specific: cv_scores, cv_mean_score, cv_predictions, cv_folds, cv_best_alpha, cv_alpha_scores
+   - Only `fitted_values` is required (always present)
+
+3. **Pure numpy arrays (no nltools dependencies)**:
+   - Enables standalone use with inference algorithms
+   - Users can work directly with `nltools.algorithms.ridge` functions
+   - No circular dependencies on BrainData
+
+4. **Helper methods for introspection**:
+   - `available()` - Returns list of non-None fields (excludes private)
+   - `asdict(include_none=False)` - Convert to dict for serialization
+   - Enables conditional processing based on what's available
+
+5. **Serialization-friendly**:
+   - Works directly with `np.savez(**fit.asdict())`
+   - Reconstructable from loaded npz: `Fit(**{k: loaded[k] for k in loaded.files})`
+   - Supports partial export (only specific fields)
+
+**Usage Examples**:
+
+```python
+# With BrainData (future integration)
+brain = BrainData(data="brain.nii.gz")
+fit = brain.fit(X=dm, mode="ridge", cv=5, inplace=False)
+fit.available()  # ['fitted_values', 'weights', 'scores', 'cv_scores', ...]
+
+# With inference algorithms directly
+from nltools.algorithms import ridge_cv
+fit = ridge_cv(X, y, alpha=1.0, cv=5)
+fit.cv_mean_score.shape  # (n_voxels,)
+
+# Serialization
+np.savez("results.npz", **fit.asdict())
+loaded = np.load("results.npz")
+fit_reloaded = Fit(**{k: loaded[k] for k in loaded.files})
+```
+
+**Next Steps** (from plan.md):
+- Integrate with `BrainData.fit()` to support `inplace=False` behavior
+- Update `.bootstrap()` to return Fit objects
+- Update inference/stats integration to use Fit consistently
+
+**Time**: ~2 hours (implementation + comprehensive tests + integration)
+
+**Test Results**: 647 total tests (606 passing, 41 deselected)
+- New tests: +30 for Fit dataclass
+- All tier1 tests passing (46 passed, 1 skipped in 35.63s)
+
+**Files Created**:
+1. `nltools/data/fit_results.py` - Fit dataclass implementation
+2. `nltools/tests/support/test_fit_results.py` - Comprehensive test suite
+
+**Files Modified**:
+1. `nltools/data/__init__.py` - Added Fit to exports
+
+**Impact**:
+- ✅ Foundation for `inplace=False` behavior in BrainData
+- ✅ Standalone usage of inference algorithms without BrainData
+- ✅ Immutable, serializable results container
+- ✅ Clean separation between computation and data storage
+- ✅ Ready for integration with `.fit()`, `.bootstrap()`, and stats module
 
 ---
 
@@ -647,7 +752,7 @@ find . -name "*.csv" -o -name "*.nii.gz" | grep -v "nltools/tests/data"
 
 *This file should be updated each session with new learnings, decisions, and context. It's the "working memory" for the refactoring effort.*
 
-*Last updated: 2025-10-29*
+*Last updated: 2025-10-31*
 
 ---
 

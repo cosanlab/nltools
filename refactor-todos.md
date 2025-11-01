@@ -186,7 +186,8 @@ For strategic vision, see `refactor-plan.md`. For context and decisions, see `re
 
 | Task | Status | Tests | Commit |
 |------|--------|-------|--------|
-| `fit()` inplace parameter + Fit dataclass | 📋 | TBD | - |
+| Fit dataclass implementation | ✅ | 30 | TBD |
+| `fit()` inplace parameter integration | 📋 | TBD | - |
 | Adjacency refactoring | 📋 | 30+ | - |
 | Plotting integration minimization | 📋 | TBD | - |
 
@@ -239,7 +240,7 @@ For strategic vision, see `refactor-plan.md`. For context and decisions, see `re
 
 ## Test Count Summary
 
-**Total**: 557 tests (512 active, 45 deselected)
+**Total**: 647 tests (606 active, 41 deselected)
 - **Shell**: 131 tests (BrainData: 71+, Adjacency: 54+, DesignMatrix: 10+ old)
 - **Shell (New)**: 71 tests (DesignMatrix Polars: 71 passing, 100% complete)
 - **Core**: 325+ tests (including:
@@ -249,7 +250,7 @@ For strategic vision, see `refactor-plan.md`. For context and decisions, see `re
   - HyperAlignment: 27 tests
   - Ridge: 16 tests
   - Models: 37 tests)
-- **Support**: 31 tests (datasets: 9, efficient_copy: 14, prefs: 5, simulator: 3)
+- **Support**: 61 tests (datasets: 9, efficient_copy: 14, prefs: 5, simulator: 3, fit_results: 30)
 
 **Tier Breakdown**:
 - **Tier 1** (fast, ~18s base, ~50s with inference): ~350 tests
@@ -257,6 +258,6 @@ For strategic vision, see `refactor-plan.md`. For context and decisions, see `re
 
 ---
 
-*Last updated: 2025-10-30*
+*Last updated: 2025-10-31*
 *Branch: uv-cleanup*
 *Version: v0.6.0*
