@@ -133,9 +133,16 @@ def _compute_pvalue(
     denom = float(n_permute) + 1.0
 
     if tail == 1:
-        # One-tailed: count how many null >= observed (or <= for negative)
+        # One-tailed: count how many null >= observed (if obs >= 0) or null <= observed (if obs < 0)
+        # This matches nltools.stats._calc_pvalue behavior exactly
         # Apply correction: +1 to numerator
-        numer = np.sum(null_dist >= obs_stat, axis=0) + 1.0
+        # Use np.where to handle both positive and negative observed statistics
+        mask_positive = obs_stat >= 0
+        numer = np.where(
+            mask_positive,
+            np.sum(null_dist >= obs_stat, axis=0) + 1.0,
+            np.sum(null_dist <= obs_stat, axis=0) + 1.0,
+        )
     else:
         # Two-tailed: count how many |null| >= |observed|
         # Apply correction: +1 to numerator

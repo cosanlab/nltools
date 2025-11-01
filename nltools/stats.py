@@ -52,7 +52,6 @@ __all__ = [
 ]
 
 import numpy as np
-from numpy.fft import fft, ifft
 import pandas as pd
 from scipy.stats import pearsonr, spearmanr, kendalltau, norm
 from scipy.stats import t as t_dist
@@ -67,9 +66,16 @@ from scipy.interpolate import interp1d
 import warnings
 import itertools
 from joblib import Parallel, delayed
-from .utils import attempt_to_import, check_square_numpy_matrix
+from .utils import attempt_to_import
 from .algorithms.srm import SRM, DetSRM
 from .algorithms.inference.timeseries import circle_shift, phase_randomize
+from .algorithms.inference import (
+    one_sample_permutation_test,
+    two_sample_permutation_test,
+    correlation_permutation_test,
+    matrix_permutation_test,
+)
+from .algorithms.inference.timeseries import timeseries_correlation_permutation_test
 from sklearn.utils import check_random_state
 from sklearn.metrics import pairwise_distances
 
@@ -597,19 +603,23 @@ def one_sample_permutation(
         stats: (dict) dictionary of permutation results ['mean','p']
 
     """
-
-    random_state = check_random_state(random_state)
-    seeds = random_state.randint(MAX_INT, size=n_permute)
-
-    data = np.array(data)
-    stats = {"mean": np.nanmean(data)}
-    all_p = Parallel(n_jobs=n_jobs)(
-        delayed(_permute_sign)(data, random_state=seeds[i]) for i in range(n_permute)
+    # Wrapper around inference module for optimized implementation
+    result = one_sample_permutation_test(
+        data,
+        n_permute=n_permute,
+        tail=tail,
+        n_jobs=n_jobs,
+        return_null=return_perms,  # Map parameter name
+        random_state=random_state,
     )
-    stats["p"] = _calc_pvalue(all_p, stats["mean"], tail)
+    # Map return keys to match stats.py API
+    output = {
+        "mean": result["mean"],
+        "p": result["p"],
+    }
     if return_perms:
-        stats["perm_dist"] = all_p
-    return stats
+        output["perm_dist"] = result["null_dist"]
+    return output
 
 
 def two_sample_permutation(
@@ -635,23 +645,24 @@ def two_sample_permutation(
         stats: (dict) dictionary of permutation results ['mean','p']
 
     """
-
-    random_state = check_random_state(random_state)
-    seeds = random_state.randint(MAX_INT, size=n_permute)
-
-    stats = {"mean": np.nanmean(data1) - np.nanmean(data2)}
-    data = pd.DataFrame(data={"Values": data1, "Group": np.ones(len(data1))})
-    data = pd.concat(
-        [data, pd.DataFrame(data={"Values": data2, "Group": np.zeros(len(data2))})]
+    # Wrapper around inference module for optimized implementation
+    result = two_sample_permutation_test(
+        data1,
+        data2,
+        n_permute=n_permute,
+        tail=tail,
+        n_jobs=n_jobs,
+        return_null=return_perms,  # Map parameter name
+        random_state=random_state,
     )
-    all_p = Parallel(n_jobs=n_jobs)(
-        delayed(_permute_group)(data, random_state=seeds[i]) for i in range(n_permute)
-    )
-
-    stats["p"] = _calc_pvalue(all_p, stats["mean"], tail)
+    # Map return keys: 'mean_diff' -> 'mean' for backward compatibility
+    output = {
+        "mean": result["mean_diff"],
+        "p": result["p"],
+    }
     if return_perms:
-        stats["perm_dist"] = all_p
-    return stats
+        output["perm_dist"] = result["null_dist"]
+    return output
 
 
 def correlation_permutation(
@@ -690,49 +701,41 @@ def correlation_permutation(
         stats: (dict) dictionary of permutation results ['correlation','p']
 
     """
-    if len(data1) != len(data2):
-        raise ValueError("Make sure that data1 is the same length as data2")
-
-    if method not in ["permute", "circle_shift", "phase_randomize"]:
-        raise ValueError(
-            "Make sure that method is ['permute', 'circle_shift', 'phase_randomize']"
-        )
-
-    random_state = check_random_state(random_state)
-
-    data1 = np.array(data1)
-    data2 = np.array(data2)
-
-    stats = {"correlation": correlation(data1, data2, metric=metric)[0]}
-
+    # Wrapper around inference module for optimized implementation
+    # Route to correct function based on method
     if method == "permute":
-        all_p = Parallel(n_jobs=n_jobs)(
-            delayed(correlation)(random_state.permutation(data1), data2, metric=metric)
-            for _ in range(n_permute)
+        result = correlation_permutation_test(
+            data1,
+            data2,
+            n_permute=n_permute,
+            metric=metric,  # Preserve stats.py default 'spearman'
+            tail=tail,
+            n_jobs=n_jobs,
+            return_null=return_perms,  # Map parameter name
+            random_state=random_state,
         )
-    elif method == "circle_shift":
-        all_p = Parallel(n_jobs=n_jobs)(
-            delayed(correlation)(
-                circle_shift(data1, random_state=random_state), data2, metric=metric
-            )
-            for _ in range(n_permute)
+    else:  # circle_shift or phase_randomize
+        result = timeseries_correlation_permutation_test(
+            data1,
+            data2,
+            method=method,
+            n_permute=n_permute,
+            metric=metric,  # Preserve stats.py default 'spearman'
+            tail=tail,
+            n_jobs=n_jobs,
+            return_null=return_perms,  # Map parameter name
+            random_state=random_state,
         )
-    elif method == "phase_randomize":
-        all_p = Parallel(n_jobs=n_jobs)(
-            delayed(correlation)(
-                phase_randomize(data1, random_state=random_state),
-                phase_randomize(data2),
-                metric=metric,
-            )
-            for _ in range(n_permute)
-        )
-
-    all_p = [x[0] for x in all_p]
-
-    stats["p"] = _calc_pvalue(all_p, stats["correlation"], tail)
+    # Map return keys to match stats.py API
+    output = {
+        "correlation": result["correlation"],
+        "p": result["p"],
+    }
     if return_perms:
-        stats["perm_dist"] = all_p
-    return stats
+        # Handle different key names: 'null_dist' vs 'null_distribution'
+        null_key = "null_distribution" if "null_distribution" in result else "null_dist"
+        output["perm_dist"] = result[null_key]
+    return output
 
 
 def matrix_permutation(
@@ -772,52 +775,27 @@ def matrix_permutation(
     Returns:
         stats: (dict) dictionary of permutation results ['correlation','p']
     """
-    random_state = check_random_state(random_state)
-    seeds = random_state.randint(MAX_INT, size=n_permute)
-    sq_data1 = check_square_numpy_matrix(data1)
-    sq_data2 = check_square_numpy_matrix(data2)
-
-    if how == "upper":
-        data1 = sq_data1[np.triu_indices(sq_data1.shape[0], k=1)]
-        data2 = sq_data2[np.triu_indices(sq_data2.shape[0], k=1)]
-    elif how == "lower":
-        data1 = sq_data1[np.tril_indices(sq_data1.shape[0], k=-1)]
-        data2 = sq_data2[np.tril_indices(sq_data2.shape[0], k=-1)]
-    elif how == "full":
-        if include_diag:
-            data1 = sq_data1.ravel()
-            data2 = sq_data2.ravel()
-        else:
-            data1 = np.concatenate(
-                [
-                    sq_data1[np.triu_indices(sq_data1.shape[0], k=1)],
-                    sq_data1[np.tril_indices(sq_data1.shape[0], k=-1)],
-                ]
-            )
-            data2 = np.concatenate(
-                [
-                    sq_data2[np.triu_indices(sq_data2.shape[0], k=1)],
-                    sq_data2[np.tril_indices(sq_data2.shape[0], k=-1)],
-                ]
-            )
-
-    stats = {"correlation": correlation(data1, data2, metric=metric)[0]}
-
-    all_p = Parallel(n_jobs=n_jobs)(
-        delayed(_permute_func)(
-            pd.DataFrame(sq_data1),
-            data2,
-            metric=metric,
-            how=how,
-            include_diag=include_diag,
-            random_state=seeds[i],
-        )
-        for i in range(n_permute)
+    # Wrapper around inference module for optimized implementation
+    result = matrix_permutation_test(
+        data1,
+        data2,
+        n_permute=n_permute,
+        metric=metric,  # Preserve stats.py default 'spearman'
+        how=how,
+        include_diag=include_diag,
+        tail=tail,
+        n_jobs=n_jobs,
+        return_null=return_perms,  # Map parameter name
+        random_state=random_state,
     )
-    stats["p"] = _calc_pvalue(all_p, stats["correlation"], tail)
+    # Map return keys to match stats.py API
+    output = {
+        "correlation": result["correlation"],
+        "p": result["p"],
+    }
     if return_perms:
-        stats["perm_dist"] = all_p
-    return stats
+        output["perm_dist"] = result["null_dist"]
+    return output
 
 
 def make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale=True, drop=0):
