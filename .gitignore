@@ -69,4 +69,6 @@ audit/
 claude-research/
 claude-guidelines/
 .private-journal/
+*plan*.md
+tmp/
 
