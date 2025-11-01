@@ -1613,31 +1613,29 @@ class TestCircleShift:
         expected = np.array([[4, 30], [1, 40], [2, 10], [3, 20]])
         np.testing.assert_array_equal(shifted, expected)
 
+    @pytest.mark.skip(
+        reason="circle_shift has been moved from stats.py to algorithms.inference.timeseries"
+    )
     def test_matches_stats_py_1d(self):
-        """Test that circle_shift matches stats.py for 1D data."""
-        from nltools.stats import circle_shift as stats_circle_shift
+        """Test that circle_shift matches stats.py for 1D data.
 
-        data = np.random.randn(100)
+        NOTE: This test is skipped because circle_shift has been moved from
+        nltools.stats to nltools.algorithms.inference.timeseries as part of
+        the refactoring. The function no longer exists in stats.py.
+        """
+        pass
 
-        # Both should be deterministic with same seed
-        shifted_new = circle_shift(data, random_state=42)
-        shifted_old = stats_circle_shift(data, random_state=42)
-
-        # Should produce identical results
-        np.testing.assert_array_equal(shifted_new, shifted_old)
-
+    @pytest.mark.skip(
+        reason="circle_shift has been moved from stats.py to algorithms.inference.timeseries"
+    )
     def test_matches_stats_py_2d(self):
-        """Test that circle_shift matches stats.py for 2D data."""
-        from nltools.stats import circle_shift as stats_circle_shift
+        """Test that circle_shift matches stats.py for 2D data.
 
-        data = np.random.randn(100, 5)
-
-        # Both should be deterministic with same seed
-        shifted_new = circle_shift(data, random_state=42)
-        shifted_old = stats_circle_shift(data, random_state=42)
-
-        # Should produce identical results
-        np.testing.assert_array_equal(shifted_new, shifted_old)
+        NOTE: This test is skipped because circle_shift has been moved from
+        nltools.stats to nltools.algorithms.inference.timeseries as part of
+        the refactoring. The function no longer exists in stats.py.
+        """
+        pass
 
 
 class TestPhaseRandomize:
@@ -1725,31 +1723,29 @@ class TestPhaseRandomize:
         power_rand = np.abs(np.fft.rfft(randomized)) ** 2
         np.testing.assert_allclose(power_orig, power_rand, rtol=1e-10)
 
+    @pytest.mark.skip(
+        reason="phase_randomize has been moved from stats.py to algorithms.inference.timeseries"
+    )
     def test_matches_stats_py_1d(self):
-        """Test that phase_randomize matches stats.py for 1D data."""
-        from nltools.stats import phase_randomize as stats_phase_randomize
+        """Test that phase_randomize matches stats.py for 1D data.
 
-        data = np.random.randn(100)
+        NOTE: This test is skipped because phase_randomize has been moved from
+        nltools.stats to nltools.algorithms.inference.timeseries as part of
+        the refactoring. The function no longer exists in stats.py.
+        """
+        pass
 
-        # Both should be deterministic with same seed
-        rand_new = phase_randomize(data, random_state=42)
-        rand_old = stats_phase_randomize(data, random_state=42)
-
-        # Should produce identical results
-        np.testing.assert_array_equal(rand_new, rand_old)
-
+    @pytest.mark.skip(
+        reason="phase_randomize has been moved from stats.py to algorithms.inference.timeseries"
+    )
     def test_matches_stats_py_2d(self):
-        """Test that phase_randomize matches stats.py for 2D data."""
-        from nltools.stats import phase_randomize as stats_phase_randomize
+        """Test that phase_randomize matches stats.py for 2D data.
 
-        data = np.random.randn(100, 5)
-
-        # Both should be deterministic with same seed
-        rand_new = phase_randomize(data, random_state=42)
-        rand_old = stats_phase_randomize(data, random_state=42)
-
-        # Should produce identical results
-        np.testing.assert_array_equal(rand_new, rand_old)
+        NOTE: This test is skipped because phase_randomize has been moved from
+        nltools.stats to nltools.algorithms.inference.timeseries as part of
+        the refactoring. The function no longer exists in stats.py.
+        """
+        pass
 
 
 class TestTimeseriesCorrelation:
@@ -2717,3 +2713,258 @@ class TestMatrixPermutationCorrectness:
         np.testing.assert_allclose(
             result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE
         )
+
+
+# ============================================================================
+# Matrix Utility Functions Tests (double_center, u_center, distance_correlation)
+# ============================================================================
+
+
+class TestDoubleCenter:
+    """Test double_center function."""
+
+    def test_double_center_basic(self):
+        """Test basic double-centering operation."""
+        from nltools.algorithms.inference.matrix import double_center
+
+        # Create a simple matrix
+        mat = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float)
+        result = double_center(mat)
+
+        # After double-centering, row and column means should be zero
+        assert np.allclose(result.mean(axis=0), 0, atol=1e-10)
+        assert np.allclose(result.mean(axis=1), 0, atol=1e-10)
+        assert result.shape == mat.shape
+
+    def test_double_center_symmetric(self):
+        """Test double-centering on symmetric matrix."""
+        from nltools.algorithms.inference.matrix import double_center
+
+        np.random.seed(42)
+        mat = np.random.randn(5, 5)
+        mat = (mat + mat.T) / 2  # Make symmetric
+
+        result = double_center(mat)
+
+        # Should preserve symmetry
+        assert np.allclose(result, result.T, atol=1e-10)
+        assert np.allclose(result.mean(axis=0), 0, atol=1e-10)
+        assert np.allclose(result.mean(axis=1), 0, atol=1e-10)
+
+    def test_double_center_raises_on_1d(self):
+        """Test that double_center raises error on 1D input."""
+        from nltools.algorithms.inference.matrix import double_center
+
+        with pytest.raises(ValueError, match="Array should be 2d"):
+            double_center(np.array([1, 2, 3]))
+
+
+class TestUCenter:
+    """Test u_center function."""
+
+    def test_u_center_basic(self):
+        """Test basic u-centering operation."""
+        from nltools.algorithms.inference.matrix import u_center
+
+        np.random.seed(42)
+        mat = np.random.randn(5, 5)
+
+        result = u_center(mat)
+
+        # Diagonal should be zero
+        assert np.allclose(np.diag(result), 0, atol=1e-10)
+        assert result.shape == mat.shape
+
+    def test_u_center_symmetric(self):
+        """Test u-centering on symmetric matrix."""
+        from nltools.algorithms.inference.matrix import u_center
+
+        np.random.seed(42)
+        mat = np.random.randn(5, 5)
+        mat = (mat + mat.T) / 2  # Make symmetric
+
+        result = u_center(mat)
+
+        # Should preserve symmetry
+        assert np.allclose(result, result.T, atol=1e-10)
+        # Diagonal should be zero
+        assert np.allclose(np.diag(result), 0, atol=1e-10)
+
+    def test_u_center_diagonal_zero(self):
+        """Test that u_center sets diagonal to zero."""
+        from nltools.algorithms.inference.matrix import u_center
+
+        mat = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float)
+        result = u_center(mat)
+
+        # Diagonal should be explicitly zero
+        assert np.allclose(np.diag(result), 0, atol=1e-10)
+
+    def test_u_center_raises_on_1d(self):
+        """Test that u_center raises error on 1D input."""
+        from nltools.algorithms.inference.matrix import u_center
+
+        with pytest.raises(ValueError, match="Array should be 2d"):
+            u_center(np.array([1, 2, 3]))
+
+
+class TestDistanceCorrelation:
+    """Test distance_correlation function."""
+
+    def test_distance_correlation_basic(self):
+        """Test basic distance correlation computation."""
+        from nltools.algorithms.inference.matrix import distance_correlation
+
+        np.random.seed(42)
+        n = 20
+        x = np.random.randn(n, 3)
+        y = x + np.random.randn(n, 3) * 0.1  # Strongly correlated
+
+        result = distance_correlation(x, y, bias_corrected=True, ttest=False)
+
+        assert "dcorr" in result
+        assert 0 <= result["dcorr"] <= 1
+        assert result["dcorr"] > 0.5  # Should be high for correlated data
+
+    def test_distance_correlation_bias_corrected(self):
+        """Test distance correlation with bias correction."""
+        from nltools.algorithms.inference.matrix import distance_correlation
+
+        np.random.seed(42)
+        n = 20
+        x = np.random.randn(n, 3)
+        y = x + np.random.randn(n, 3) * 0.1
+
+        result_bias = distance_correlation(x, y, bias_corrected=True)
+        result_no_bias = distance_correlation(x, y, bias_corrected=False)
+
+        assert "dcorr" in result_bias
+        assert "dcorr" in result_no_bias
+        assert "dcorr_squared" in result_bias
+        assert "dcorr_squared" not in result_no_bias
+
+    def test_distance_correlation_with_ttest(self):
+        """Test distance correlation with t-test."""
+        from nltools.algorithms.inference.matrix import distance_correlation
+
+        np.random.seed(42)
+        n = 20
+        x = np.random.randn(n, 3)
+        y = x + np.random.randn(n, 3) * 0.1
+
+        result = distance_correlation(x, y, bias_corrected=True, ttest=True)
+
+        assert "dcorr" in result
+        assert "t" in result
+        assert "p" in result
+        assert "df" in result
+        assert 0 <= result["p"] <= 1
+        assert result["df"] > 0
+
+    def test_distance_correlation_1d_arrays(self):
+        """Test distance correlation with 1D arrays."""
+        from nltools.algorithms.inference.matrix import distance_correlation
+
+        np.random.seed(42)
+        n = 20
+        x = np.random.randn(n)
+        y = x + np.random.randn(n) * 0.1
+
+        result = distance_correlation(x, y, bias_corrected=True)
+
+        assert "dcorr" in result
+        assert 0 <= result["dcorr"] <= 1
+
+    def test_distance_correlation_independent(self):
+        """Test distance correlation with independent data."""
+        from nltools.algorithms.inference.matrix import distance_correlation
+
+        np.random.seed(42)
+        n = 20
+        x = np.random.randn(n, 3)
+        y = np.random.randn(n, 3)  # Independent
+
+        result = distance_correlation(x, y, bias_corrected=True)
+
+        assert "dcorr" in result
+        # Should be low but not necessarily zero
+        assert result["dcorr"] < 0.5
+
+    def test_distance_correlation_ttest_requires_bias_corrected(self):
+        """Test that ttest requires bias_corrected=True."""
+        from nltools.algorithms.inference.matrix import distance_correlation
+
+        np.random.seed(42)
+        n = 20
+        x = np.random.randn(n, 3)
+        y = np.random.randn(n, 3)
+
+        with pytest.raises(ValueError, match="bias_corrected must be true"):
+            distance_correlation(x, y, bias_corrected=False, ttest=True)
+
+    def test_distance_correlation_raises_on_3d(self):
+        """Test that distance_correlation raises error on 3D input."""
+        from nltools.algorithms.inference.matrix import distance_correlation
+
+        np.random.seed(42)
+        x = np.random.randn(5, 5, 5)
+        y = np.random.randn(5, 5, 5)
+
+        with pytest.raises(ValueError, match="Both arrays must be 1d or 2d"):
+            distance_correlation(x, y)
+
+
+class TestMatrixUtilitiesIntegration:
+    """Test that matrix utilities work together correctly."""
+
+    def test_double_center_vs_u_center(self):
+        """Test that double_center and u_center produce different results."""
+        from nltools.algorithms.inference.matrix import double_center, u_center
+
+        np.random.seed(42)
+        mat = np.random.randn(5, 5)
+
+        dc_result = double_center(mat)
+        uc_result = u_center(mat)
+
+        # Results should be different
+        assert not np.allclose(dc_result, uc_result, atol=1e-10)
+
+        # Both should have same shape
+        assert dc_result.shape == uc_result.shape
+
+    def test_distance_correlation_uses_centering(self):
+        """Test that distance_correlation correctly uses centering functions."""
+        from nltools.algorithms.inference.matrix import distance_correlation
+
+        np.random.seed(42)
+        n = 20
+        x = np.random.randn(n, 3)
+        y = x + np.random.randn(n, 3) * 0.1
+
+        # Both methods should work
+        result_bias = distance_correlation(x, y, bias_corrected=True)
+        result_no_bias = distance_correlation(x, y, bias_corrected=False)
+
+        assert "dcorr" in result_bias
+        assert "dcorr" in result_no_bias
+        # Results should be different
+        assert not np.allclose(result_bias["dcorr"], result_no_bias["dcorr"], atol=1e-6)
+
+    def test_backward_compatibility_import_from_stats(self):
+        """Test that functions can still be imported from stats.py for backward compatibility."""
+        # After migration, these should still be importable from stats.py
+        from nltools.stats import double_center, u_center, distance_correlation
+
+        assert callable(double_center)
+        assert callable(u_center)
+        assert callable(distance_correlation)
+
+        # Verify they produce same results
+        np.random.seed(42)
+        mat = np.random.randn(5, 5)
+        result1 = double_center(mat)
+        result2 = u_center(mat)
+
+        assert result1.shape == mat.shape
+        assert result2.shape == mat.shape

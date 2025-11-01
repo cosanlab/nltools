@@ -15,14 +15,11 @@ from nltools.stats import (
     two_sample_permutation,
     correlation_permutation,
     matrix_permutation,
-    circle_shift,
-    phase_randomize,
     downsample,
     upsample,
     winsorize,
     align,
     transform_pairwise,
-    _calc_pvalue,
     find_spikes,
     isc,
     isc_group,
@@ -32,6 +29,8 @@ from nltools.stats import (
     fisher_z_to_r,
     align_states,
 )
+from nltools.algorithms.inference.timeseries import circle_shift, phase_randomize
+from nltools.algorithms.inference.utils import _compute_pvalue
 from nltools.simulator import Simulator
 from nltools.mask import create_sphere
 from scipy.spatial.distance import squareform
@@ -69,10 +68,11 @@ def test_permutation():
     # 	correlation_permutation(x, y, metric='kendall',tail=3)
     # with pytest.raises(ValueError):
     # 	correlation_permutation(x, y, metric='doesntwork',tail=3)
+    # Test p-value calculation using _compute_pvalue (replacement for _calc_pvalue)
     s = np.random.normal(0, 1, 10000)
-    two_sided = _calc_pvalue(all_p=s, stat=1.96, tail=2)
-    upper_p = _calc_pvalue(all_p=s, stat=1.96, tail=1)
-    lower_p = _calc_pvalue(all_p=s, stat=-1.96, tail=1)
+    two_sided = float(_compute_pvalue(np.array(1.96), s, tail=2)[0])
+    upper_p = float(_compute_pvalue(np.array(1.96), s, tail=1)[0])
+    lower_p = float(_compute_pvalue(np.array(-1.96), s, tail=1)[0])
     sum_p = upper_p + lower_p
     np.testing.assert_almost_equal(two_sided, sum_p, decimal=3)
 
@@ -797,3 +797,69 @@ def test_align_without_isc():
         np.sum(out2["transformed"][0] - transformed.T), 0, decimal=3
     )
     # SKIP ISC: assert len(out2["isc"]) == out["transformed"][0].shape[0]
+
+
+# ============================================================================
+# Integration Tests: Verify functions work after refactoring
+# ============================================================================
+
+
+def test_procrustes_distance_integration():
+    """Test that procrustes_distance still works after _compute_pvalue migration."""
+    from nltools.stats import procrustes_distance
+
+    np.random.seed(42)
+    n = 20
+    mat1 = np.random.randn(n, 5)
+    mat2 = mat1 + np.random.randn(n, 5) * 0.1
+
+    # Should run without error
+    result = procrustes_distance(mat1, mat2, n_permute=100, random_state=42)
+
+    assert "similarity" in result
+    assert "p" in result
+    assert 0 <= result["p"] <= 1
+    assert isinstance(result["similarity"], (float, np.floating))
+
+
+def test_adjacency_isc_integration():
+    """Test that Adjacency.isc still works after _compute_pvalue migration."""
+    from nltools.data import Adjacency
+
+    np.random.seed(42)
+    n_sub = 10
+    n_obs = 100
+
+    # Create test data
+    data = np.random.multivariate_normal(
+        np.zeros(n_sub), np.eye(n_sub) * 0.7 + np.ones((n_sub, n_sub)) * 0.3, n_obs
+    )
+
+    # Create Adjacency object
+    adj = Adjacency(1 - np.corrcoef(data.T), matrix_type="similarity")
+
+    # Test ISC computation with bootstrap
+    result = adj.isc(n_samples=100, random_state=42)
+
+    assert "isc" in result
+    assert "p" in result
+    assert 0 <= result["p"] <= 1
+
+
+# ============================================================================
+# Verification Tests: Ensure unused functions have been removed
+# ============================================================================
+
+
+def test_unused_functions_removed():
+    """Verify that unused functions have been removed from stats module."""
+    import nltools.stats as stats_module
+
+    # Verify functions no longer exist
+    assert not hasattr(stats_module, "correlation"), "correlation() should be removed"
+    assert not hasattr(stats_module, "_permute_sign"), (
+        "_permute_sign() should be removed"
+    )
+    assert not hasattr(stats_module, "_permute_func"), (
+        "_permute_func() should be removed"
+    )

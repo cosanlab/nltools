@@ -31,7 +31,6 @@ __all__ = [
     "procrustes_distance",
     "align",
     "find_spikes",
-    "correlation",
     "distance_correlation",
     "transform_pairwise",
     "double_center",
@@ -53,9 +52,8 @@ __all__ = [
 
 import numpy as np
 import pandas as pd
-from scipy.stats import pearsonr, spearmanr, kendalltau, norm
+from scipy.stats import norm
 from scipy.stats import t as t_dist
-from scipy.spatial.distance import squareform, pdist
 from scipy.linalg import orthogonal_procrustes
 from scipy.spatial import procrustes as procrust
 from scipy.signal import hilbert, butter, filtfilt
@@ -68,24 +66,29 @@ import itertools
 from joblib import Parallel, delayed
 from .utils import attempt_to_import
 from .algorithms.srm import SRM, DetSRM
-from .algorithms.inference.timeseries import circle_shift, phase_randomize
 from .algorithms.inference import (
     one_sample_permutation_test,
     two_sample_permutation_test,
     correlation_permutation_test,
     matrix_permutation_test,
     isc_permutation_test,
+    double_center,
+    u_center,
+    distance_correlation,
 )
 from .algorithms.inference.timeseries import timeseries_correlation_permutation_test
+from .algorithms.inference.utils import _compute_pvalue
 from sklearn.utils import check_random_state
 from sklearn.metrics import pairwise_distances
 
 MAX_INT = np.iinfo(np.int32).max
 
 # Optional dependencies
+# TODO: remove
 sm = attempt_to_import("statsmodels.tsa.arima.model", name="sm")
 
 
+# TODO: who uses this? check if we can deprecate
 def pearson(x, y):
     """Correlates row vector x with each row vector in 2D array y.
     From neurosynth.stats.py - author: Tal Yarkoni
@@ -169,6 +172,7 @@ def holm_bonf(p, alpha=0.05):
     return s[max(below)] if len(below) else -1
 
 
+# TODO: check if deprecated given new method in BrainData that makes uses of nilearn + custom code
 def threshold(stat, p, thr=0.05, return_mask=False):
     """Threshold test image by p-value from p image
 
@@ -212,6 +216,7 @@ def threshold(stat, p, thr=0.05, return_mask=False):
         return out
 
 
+# TODO: do we need this or does nilearn offer similar functionality already? Who uses it?
 def multi_threshold(t_map, p_map, thresh):
     """Threshold test image by multiple p-value from p image
 
@@ -252,6 +257,7 @@ def multi_threshold(t_map, p_map, thresh):
     return BrainData(nib.Nifti1Image(pos_out, affine))
 
 
+# TODO: see related comment on _transform_outliers
 def winsorize(data, cutoff=None, replace_with_cutoff=True):
     """Winsorize a Pandas DataFrame or Series with the largest/lowest value not considered outlier
 
@@ -270,6 +276,7 @@ def winsorize(data, cutoff=None, replace_with_cutoff=True):
     )
 
 
+# TODO: see related comment on _transform_outliers
 def trim(data, cutoff=None):
     """Trim a Pandas DataFrame or Series by replacing outlier values with NaNs
 
@@ -283,6 +290,7 @@ def trim(data, cutoff=None):
     return _transform_outliers(data, cutoff, replace_with_cutoff=None, method="trim")
 
 
+# TODO: do we need this? can we refactor the function it supports to be more efficient?
 def _transform_outliers(data, cutoff, replace_with_cutoff, method):
     """This function is not exposed to user but is called by either trim
     or winsorize.
@@ -374,6 +382,7 @@ def calc_bpm(beat_interval, sampling_freq):
     return 60 * sampling_freq * (1 / (beat_interval))
 
 
+# TODO: ensure efficient
 def downsample(
     data, sampling_freq=None, target=None, target_type="samples", method="mean"
 ):
@@ -417,6 +426,7 @@ def downsample(
         return data.groupby(idx).median().reset_index(drop=True)
 
 
+# TODO: ensure efficient
 def upsample(
     data, sampling_freq=None, target=None, target_type="samples", method="linear"
 ):
@@ -497,32 +507,11 @@ def fisher_z_to_r(z):
     return np.tanh(z)
 
 
-def correlation(data1, data2, metric="pearson"):
-    """This function calculates the correlation between data1 and data2
-
-    Args:
-        data1: (np.array) x
-        data2: (np.array) y
-        metric: (str) type of correlation ["spearman" or "pearson" or "kendall"]
-    Returns:
-        r: (np.array) correlations
-        p: (float) p-value
-
-    """
-    if metric == "spearman":
-        func = spearmanr
-    elif metric == "pearson":
-        func = pearsonr
-    elif metric == "kendall":
-        func = kendalltau
-    else:
-        raise ValueError('metric must be "spearman" or "pearson" or "kendall"')
-    return func(data1, data2)
+# Removed correlation() - replaced by correlation_permutation_test in inference module
+# This function was a simple wrapper around scipy.stats functions
 
 
-def _permute_sign(data, random_state=None):
-    random_state = check_random_state(random_state)
-    return np.mean(data * random_state.choice([1, -1], len(data)))
+# Removed _permute_sign() - replaced by _generate_sign_flips in inference module
 
 
 def _permute_group(data, random_state=None):
@@ -533,57 +522,12 @@ def _permute_group(data, random_state=None):
     )
 
 
-def _permute_func(data1, data2, metric, how, include_diag=False, random_state=None):
-    """Helper function for matrix_permutation.
-    Can take a functon, that would be repeated for calculation.
-    Args:
-        data1: (np.array) squareform matrix
-        data2: flattened np array (same size upper triangle of data1)
-        metric: similarity/distance function from scipy.stats (e.g., spearman, pearson, kendall etc)
-        random_state: random_state instance for permutation
-    Returns:
-        r: r value of function
-    """
-    random_state = check_random_state(random_state)
-
-    data_row_id = range(data1.shape[0])
-    permuted_ix = random_state.permutation(data_row_id)
-    new_fmri_dist = data1.iloc[permuted_ix, permuted_ix].values
-
-    if how == "upper":
-        new_fmri_dist = new_fmri_dist[np.triu_indices(new_fmri_dist.shape[0], k=1)]
-    elif how == "lower":
-        new_fmri_dist = new_fmri_dist[np.tril_indices(new_fmri_dist.shape[0], k=-1)]
-    elif how == "full":
-        if include_diag:
-            new_fmri_dist = new_fmri_dist.ravel()
-        else:
-            new_fmri_dist = np.concatenate(
-                [
-                    new_fmri_dist[np.triu_indices(new_fmri_dist.shape[0], k=1)],
-                    new_fmri_dist[np.tril_indices(new_fmri_dist.shape[0], k=-1)],
-                ]
-            )
-
-    return correlation(new_fmri_dist, data2, metric=metric)[0]
+# Removed _permute_func() - replaced by matrix_permutation_test in inference module
+# This function was unused and functionality is covered by the optimized inference module
 
 
-def _calc_pvalue(all_p, stat, tail):
-    """Calculates p value based on distribution of correlations
-    This function is called by the permutation functions
-        all_p: list of correlation values from permutation
-        stat: actual value being tested, i.e., stats['correlation'] or stats['mean']
-        tail: (int) either 2 or 1 for two-tailed p-value or one-tailed
-    """
-
-    denom = float(len(all_p)) + 1
-    if tail == 1:
-        numer = np.sum(all_p >= stat) + 1 if stat >= 0 else np.sum(all_p <= stat) + 1
-    elif tail == 2:
-        numer = np.sum(np.abs(all_p) >= np.abs(stat)) + 1
-    else:
-        raise ValueError("tail must be either 1 or 2")
-    return numer / denom
+# Removed _calc_pvalue - replaced by _compute_pvalue from nltools.algorithms.inference.utils
+# This function was duplicated and has been consolidated into the inference module
 
 
 def one_sample_permutation(
@@ -839,6 +783,7 @@ def matrix_permutation(
     return output
 
 
+# TODO: make efficient
 def make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale=True, drop=0):
     """Create a series of cosine basis functions for a discrete cosine
         transform. Based off of implementation in spm_filter and spm_dctmtx
@@ -894,6 +839,7 @@ def make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale=True, d
     return C
 
 
+# TODO: make efficient
 def transform_pairwise(X, y):
     """Transforms data into pairs with balanced labels for ranking
     Transforms a n-class ranking problem into a two-class classification
@@ -948,6 +894,7 @@ def transform_pairwise(X, y):
         return np.asarray(X_new), np.vstack((np.asarray(y_new), np.asarray(y_group))).T
 
 
+# TODO: remove
 def _robust_estimator(vals, X, robust_estimator="hc0", nlags=1):
     """
     Computes robust sandwich estimators for standard errors used in OLS computation. Types include:
@@ -1008,6 +955,7 @@ def _robust_estimator(vals, X, robust_estimator="hc0", nlags=1):
     return np.sqrt(np.diag(vcv))
 
 
+# TODO: see how best to refactor and where to put this or if covered by other modules
 def summarize_bootstrap(data, save_weights=False):
     """Calculate summary of bootstrap samples
 
@@ -1035,6 +983,7 @@ def summarize_bootstrap(data, save_weights=False):
     return output
 
 
+# TODO: remove no longer needed
 def _arma_func(X, Y, idx=None, **kwargs):
     """
     Fit an ARMA(p,q) model. If Y is a matrix and not a vector, expects an idx argument that refers to columns of Y. Used by regress().
@@ -1082,6 +1031,7 @@ def _arma_func(X, Y, idx=None, **kwargs):
     )
 
 
+# TODO: remove - should be deprecated by inference module/
 def regress(X, Y, mode="ols", stats="full", **kwargs):
     """This is a flexible function to run several types of regression models provided X and Y numpy arrays. Y can be a 1d numpy array or 2d numpy array. In the latter case, results will be output with shape 1 x Y.shape[1], in other words fitting a separate regression model to each column of Y.
 
@@ -1239,6 +1189,7 @@ def regress(X, Y, mode="ols", stats="full", **kwargs):
     )
 
 
+# TODO: remove and create new efficient approaches in inference/ following design of that moduels
 def regress_permutation(
     X, Y, n_permute=5000, tail=2, random_state=None, verbose=False, **kwargs
 ):
@@ -1292,6 +1243,7 @@ def regress_permutation(
     return b, t, p
 
 
+# TODO: check if depcreated due to our new inference/srm module
 def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kwargs):
     """Align subject data into a common response model.
 
@@ -1441,6 +1393,7 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
     return out
 
 
+# TODO: check if depcreated due to our new inference/Hyperalignment module
 def procrustes(data1, data2):
     """Procrustes analysis, a similarity test for two data sets.
 
@@ -1528,134 +1481,9 @@ def procrustes(data1, data2):
     return mtx1, mtx2, disparity, R, s
 
 
-def double_center(mat):
-    """Double center a 2d array.
-
-    Args:
-        mat (ndarray): 2d numpy array
-
-    Returns:
-        mat (ndarray): double-centered version of input
-
-    """
-
-    if len(mat.shape) != 2:
-        raise ValueError("Array should be 2d")
-
-    # keepdims ensures that row/column means are not incorrectly broadcast during    subtraction
-    row_mean = mat.mean(axis=0, keepdims=True)
-    col_mean = mat.mean(axis=1, keepdims=True)
-    grand_mean = mat.mean()
-    return mat - row_mean - col_mean + grand_mean
-
-
-def u_center(mat):
-    """U-center a 2d array. U-centering is a bias-corrected form of double-centering
-
-    Args:
-        mat (ndarray): 2d numpy array
-
-    Returns:
-        mat (narray): u-centered version of input
-    """
-
-    if len(mat.shape) != 2:
-        raise ValueError("Array should be 2d")
-
-    dim = mat.shape[0]
-    u_mu = mat.sum() / ((dim - 1) * (dim - 2))
-    sum_cols = mat.sum(axis=0, keepdims=True)
-    sum_rows = mat.sum(axis=1, keepdims=True)
-    u_mu_cols = np.ones((dim, 1)).dot(sum_cols / (dim - 2))
-    u_mu_rows = (sum_rows / (dim - 2)).dot(np.ones((1, dim)))
-    out = np.copy(mat)
-    # Do one operation at a time, to improve broadcasting memory usage.
-    out -= u_mu_rows
-    out -= u_mu_cols
-    out += u_mu
-    # The diagonal is zero
-    out[np.eye(dim, dtype=bool)] = 0
-    return out
-
-
-def distance_correlation(x, y, bias_corrected=True, ttest=False):
-    """
-    Compute the distance correlation betwen 2 arrays to test for multivariate dependence (linear or non-linear). Arrays must match on their first dimension. It's almost always preferable to compute the bias_corrected version which can also optionally perform a ttest. This ttest operates on a statistic thats ~dcorr^2 and will be also returned.
-
-    Explanation:
-    Distance correlation involves computing the normalized covariance of two centered euclidean distance matrices. Each distance matrix is the euclidean distance between rows (if x or y are 2d) or scalars (if x or y are 1d). Each matrix is centered prior to computing the covariance either using double-centering or u-centering, which corrects for bias as the number of dimensions increases. U-centering is almost always preferred in all cases. It also permits inference of the normalized covariance between each distance matrix using a one-tailed directional t-test. (Szekely & Rizzo, 2013). While distance correlation is normally bounded between 0 and 1, u-centering can produce negative estimates, which are never significant.
-
-    Validated against the dcor and dcor.ttest functions in the 'energy' R package and the dcor.distance_correlation, dcor.udistance_correlation_sqr, and dcor.independence.distance_correlation_t_test functions in the dcor Python package.
-
-    Args:
-        x (ndarray): 1d or 2d numpy array of observations by features
-        y (ndarry): 1d or 2d numpy array of observations by features
-        bias_corrected (bool): if false use double-centering which produces a biased-estimate that converges to 1 as the number of dimensions increase. Otherwise used u-centering to correct this bias. **Note** this must be True if ttest=True; default True
-        ttest (bool): perform a ttest using the bias_corrected distance correlation; default False
-
-    Returns:
-        results (dict): dictionary of results (correlation, t, p, and df.) Optionally, covariance, x variance, and y variance
-    """
-
-    if len(x.shape) > 2 or len(y.shape) > 2:
-        raise ValueError("Both arrays must be 1d or 2d")
-
-    if (not bias_corrected) and ttest:
-        raise ValueError("bias_corrected must be true to perform ttest!")
-
-    # 1 compute euclidean distances between pairs of value in each array
-    if len(x.shape) == 1:
-        _x = x[:, np.newaxis]
-    else:
-        _x = x
-    if len(y.shape) == 1:
-        _y = y[:, np.newaxis]
-    else:
-        _y = y
-
-    x_dist = squareform(pdist(_x))
-    y_dist = squareform(pdist(_y))
-
-    # 2 center each matrix
-    if bias_corrected:
-        # U-centering
-        x_dist_cent = u_center(x_dist)
-        y_dist_cent = u_center(y_dist)
-        # Compute covariances using N*(N-3) in denominator
-        adjusted_n = _x.shape[0] * (_x.shape[0] - 3)
-        xy = np.multiply(x_dist_cent, y_dist_cent).sum() / adjusted_n
-        xx = np.multiply(x_dist_cent, x_dist_cent).sum() / adjusted_n
-        yy = np.multiply(y_dist_cent, y_dist_cent).sum() / adjusted_n
-    else:
-        # double-centering
-        x_dist_cent = double_center(x_dist)
-        y_dist_cent = double_center(y_dist)
-        # Compute covariances using N^2 in denominator
-        xy = np.multiply(x_dist_cent, y_dist_cent).mean()
-        xx = np.multiply(x_dist_cent, x_dist_cent).mean()
-        yy = np.multiply(y_dist_cent, y_dist_cent).mean()
-
-    # 3 Normalize to get correlation
-    denom = np.sqrt(xx * yy)
-    dcor = xy / denom
-    out = {}
-
-    if dcor < 0:
-        # This will only apply in the bias_corrected case as values can be < 0
-        out["dcorr"] = 0
-    else:
-        out["dcorr"] = np.sqrt(dcor)
-    if bias_corrected:
-        out["dcorr_squared"] = dcor
-    if ttest:
-        dof = (adjusted_n / 2) - 1
-        t = np.sqrt(dof) * (dcor / np.sqrt(1 - dcor**2))
-        p = 1 - t_dist.cdf(t, dof)
-        out["t"] = t
-        out["p"] = p
-        out["df"] = dof
-
-    return out
+# Matrix utility functions moved to nltools.algorithms.inference.matrix
+# Re-exported here for backward compatibility
+# Imported above: double_center, u_center, distance_correlation
 
 
 def procrustes_distance(
@@ -1701,11 +1529,13 @@ def procrustes_distance(
     )
     all_p = [1 - x[2] for x in all_p]
 
-    stats["p"] = _calc_pvalue(all_p, sse, tail)
+    # Use _compute_pvalue from inference module (signature: obs_stat, null_dist, tail)
+    stats["p"] = float(_compute_pvalue(np.array(sse), np.array(all_p), tail=tail)[0])
 
     return stats
 
 
+# TODO: too slow needs to be made more efficient
 def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
     """Function to identify spikes from fMRI Time Series Data
 
@@ -2161,8 +1991,13 @@ def isc_group(
         ~np.isnan(isc_group_differences_null)
     ]
 
-    stats["p"] = _calc_pvalue(
-        isc_group_differences_null, stats["isc_group_difference"], tail
+    # Use _compute_pvalue from inference module (signature: obs_stat, null_dist, tail)
+    stats["p"] = float(
+        _compute_pvalue(
+            np.array(stats["isc_group_difference"]),
+            isc_group_differences_null,
+            tail=tail,
+        )[0]
     )
 
     stats["ci"] = (
@@ -2398,6 +2233,7 @@ def _phase_rayleigh_p(phase_angles):
         return np.exp(-1 * Z)
 
 
+# TODO: needs refactoring clean-up and could be deprectaed by our new Hyperalignment inference module
 def align_states(
     reference,
     target,

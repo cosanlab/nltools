@@ -2,12 +2,15 @@
 Matrix permutation test implementations (Mantel test).
 
 This module provides CPU-parallel implementations of matrix permutation tests
-for testing correlation between two square matrices.
+for testing correlation between two square matrices, as well as matrix utility
+functions for distance correlation and matrix centering operations.
 """
 
 import numpy as np
 from typing import Optional
 from scipy.stats import pearsonr, spearmanr, kendalltau
+from scipy.spatial.distance import squareform, pdist
+from scipy.stats import t as t_dist
 
 from .utils import _compute_pvalue
 
@@ -338,3 +341,193 @@ def matrix_permutation_test(
         n_jobs=n_jobs,
         random_state=random_state,
     )
+
+
+# ============================================================================
+# Matrix Utility Functions (moved from nltools.stats)
+# ============================================================================
+
+
+def double_center(mat: np.ndarray) -> np.ndarray:
+    """Double center a 2d array.
+
+    Double-centering subtracts row means, column means, and adds the grand mean.
+    This centers both rows and columns around zero.
+
+    Args:
+        mat (ndarray): 2d numpy array
+
+    Returns:
+        mat (ndarray): double-centered version of input
+
+    Raises:
+        ValueError: If input is not 2D
+
+    Examples:
+        >>> mat = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float)
+        >>> result = double_center(mat)
+        >>> np.allclose(result.mean(axis=0), 0)
+        True
+        >>> np.allclose(result.mean(axis=1), 0)
+        True
+    """
+    if len(mat.shape) != 2:
+        raise ValueError("Array should be 2d")
+
+    # keepdims ensures that row/column means are not incorrectly broadcast during subtraction
+    row_mean = mat.mean(axis=0, keepdims=True)
+    col_mean = mat.mean(axis=1, keepdims=True)
+    grand_mean = mat.mean()
+    return mat - row_mean - col_mean + grand_mean
+
+
+def u_center(mat: np.ndarray) -> np.ndarray:
+    """U-center a 2d array. U-centering is a bias-corrected form of double-centering.
+
+    U-centering corrects for bias that occurs with double-centering as the number
+    of dimensions increases. The diagonal is explicitly set to zero.
+
+    Args:
+        mat (ndarray): 2d numpy array
+
+    Returns:
+        mat (ndarray): u-centered version of input
+
+    Raises:
+        ValueError: If input is not 2D
+
+    Examples:
+        >>> mat = np.random.randn(5, 5)
+        >>> result = u_center(mat)
+        >>> np.allclose(np.diag(result), 0)
+        True
+    """
+    if len(mat.shape) != 2:
+        raise ValueError("Array should be 2d")
+
+    dim = mat.shape[0]
+    u_mu = mat.sum() / ((dim - 1) * (dim - 2))
+    sum_cols = mat.sum(axis=0, keepdims=True)
+    sum_rows = mat.sum(axis=1, keepdims=True)
+    u_mu_cols = np.ones((dim, 1)).dot(sum_cols / (dim - 2))
+    u_mu_rows = (sum_rows / (dim - 2)).dot(np.ones((1, dim)))
+    out = np.copy(mat)
+    # Do one operation at a time, to improve broadcasting memory usage.
+    out -= u_mu_rows
+    out -= u_mu_cols
+    out += u_mu
+    # The diagonal is zero
+    out[np.eye(dim, dtype=bool)] = 0
+    return out
+
+
+def distance_correlation(
+    x: np.ndarray,
+    y: np.ndarray,
+    bias_corrected: bool = True,
+    ttest: bool = False,
+) -> dict:
+    """
+    Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
+
+    Arrays must match on their first dimension. It's almost always preferable to compute the bias_corrected
+    version which can also optionally perform a ttest. This ttest operates on a statistic thats ~dcorr^2
+    and will be also returned.
+
+    Explanation:
+    Distance correlation involves computing the normalized covariance of two centered euclidean distance
+    matrices. Each distance matrix is the euclidean distance between rows (if x or y are 2d) or scalars
+    (if x or y are 1d). Each matrix is centered prior to computing the covariance either using double-centering
+    or u-centering, which corrects for bias as the number of dimensions increases. U-centering is almost always
+    preferred in all cases. It also permits inference of the normalized covariance between each distance matrix
+    using a one-tailed directional t-test. (Szekely & Rizzo, 2013). While distance correlation is normally
+    bounded between 0 and 1, u-centering can produce negative estimates, which are never significant.
+
+    Validated against the dcor and dcor.ttest functions in the 'energy' R package and the
+    dcor.distance_correlation, dcor.udistance_correlation_sqr, and dcor.independence.distance_correlation_t_test
+    functions in the dcor Python package.
+
+    Args:
+        x (ndarray): 1d or 2d numpy array of observations by features
+        y (ndarray): 1d or 2d numpy array of observations by features
+        bias_corrected (bool): if false use double-centering which produces a biased-estimate that converges
+            to 1 as the number of dimensions increase. Otherwise used u-centering to correct this bias.
+            **Note** this must be True if ttest=True; default True
+        ttest (bool): perform a ttest using the bias_corrected distance correlation; default False
+
+    Returns:
+        results (dict): dictionary of results (correlation, t, p, and df.) Optionally, covariance,
+            x variance, and y variance
+
+    Raises:
+        ValueError: If arrays are not 1d or 2d, or if ttest=True and bias_corrected=False
+
+    Examples:
+        >>> import numpy as np
+        >>> x = np.random.randn(20, 3)
+        >>> y = x + np.random.randn(20, 3) * 0.1  # Strongly correlated
+        >>> result = distance_correlation(x, y, bias_corrected=True)
+        >>> 'dcorr' in result
+        True
+        >>> 0 <= result['dcorr'] <= 1
+        True
+    """
+    if len(x.shape) > 2 or len(y.shape) > 2:
+        raise ValueError("Both arrays must be 1d or 2d")
+
+    if (not bias_corrected) and ttest:
+        raise ValueError("bias_corrected must be true to perform ttest!")
+
+    # 1 compute euclidean distances between pairs of value in each array
+    if len(x.shape) == 1:
+        _x = x[:, np.newaxis]
+    else:
+        _x = x
+    if len(y.shape) == 1:
+        _y = y[:, np.newaxis]
+    else:
+        _y = y
+
+    x_dist = squareform(pdist(_x))
+    y_dist = squareform(pdist(_y))
+
+    # 2 center each matrix
+    if bias_corrected:
+        # U-centering
+        x_dist_cent = u_center(x_dist)
+        y_dist_cent = u_center(y_dist)
+        # Compute covariances using N*(N-3) in denominator
+        adjusted_n = _x.shape[0] * (_x.shape[0] - 3)
+        xy = np.multiply(x_dist_cent, y_dist_cent).sum() / adjusted_n
+        xx = np.multiply(x_dist_cent, x_dist_cent).sum() / adjusted_n
+        yy = np.multiply(y_dist_cent, y_dist_cent).sum() / adjusted_n
+    else:
+        # double-centering
+        x_dist_cent = double_center(x_dist)
+        y_dist_cent = double_center(y_dist)
+        # Compute covariances using N^2 in denominator
+        xy = np.multiply(x_dist_cent, y_dist_cent).mean()
+        xx = np.multiply(x_dist_cent, x_dist_cent).mean()
+        yy = np.multiply(y_dist_cent, y_dist_cent).mean()
+
+    # 3 Normalize to get correlation
+    denom = np.sqrt(xx * yy)
+    dcor = xy / denom
+    out = {}
+
+    if dcor < 0:
+        # This will only apply in the bias_corrected case as values can be < 0
+        out["dcorr"] = 0
+    else:
+        out["dcorr"] = np.sqrt(dcor)
+    if bias_corrected:
+        out["dcorr_squared"] = dcor
+    if ttest:
+        dof = (adjusted_n / 2) - 1
+        t = np.sqrt(dof) * (dcor / np.sqrt(1 - dcor**2))
+        p = 1 - t_dist.cdf(t, dof)
+        out["t"] = t
+        out["p"] = p
+        out["df"] = dof
+
+    return out

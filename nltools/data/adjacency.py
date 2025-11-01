@@ -22,11 +22,11 @@ from nltools.stats import (
     matrix_permutation,
     fisher_r_to_z,
     fisher_z_to_r,
-    _calc_pvalue,
     _bootstrap_isc,
     _compute_isc_group,
     _permute_isc_group,
 )
+from nltools.algorithms.inference.utils import _compute_pvalue
 from nltools.stats import regress as regression
 from nltools.plotting import plot_stacked_adjacency, plot_silhouette
 from nltools.utils import (
@@ -1178,7 +1178,14 @@ class Adjacency(object):
             for _ in range(n_samples)
         )
 
-        stats["p"] = _calc_pvalue(all_bootstraps - stats["isc"], stats["isc"], tail)
+        # Use _compute_pvalue from inference module (signature: obs_stat, null_dist, tail)
+        stats["p"] = float(
+            _compute_pvalue(
+                np.array(stats["isc"]),
+                np.array(all_bootstraps) - stats["isc"],
+                tail=tail,
+            )[0]
+        )
 
         stats["ci"] = (
             np.percentile(np.array(all_bootstraps), (100 - ci_percentile) / 2, axis=0),
@@ -1323,8 +1330,13 @@ class Adjacency(object):
             ~np.isnan(isc_group_differences_null)
         ]
 
-        stats["p"] = _calc_pvalue(
-            isc_group_differences_null, stats["isc_group_difference"], tail
+        # Use _compute_pvalue from inference module (signature: obs_stat, null_dist, tail)
+        stats["p"] = float(
+            _compute_pvalue(
+                np.array(stats["isc_group_difference"]),
+                isc_group_differences_null,
+                tail=tail,
+            )[0]
         )
 
         stats["ci"] = (

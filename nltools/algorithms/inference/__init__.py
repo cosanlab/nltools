@@ -52,7 +52,12 @@ from .timeseries import (
     phase_randomize,
     timeseries_correlation_permutation_test,
 )
-from .matrix import matrix_permutation_test
+from .matrix import (
+    matrix_permutation_test,
+    double_center,
+    u_center,
+    distance_correlation,
+)
 from .isc import isc_permutation_test
 
 # Import utility functions (for testing and internal use)
@@ -70,6 +75,9 @@ __all__ = [
     "phase_randomize",
     "timeseries_correlation_permutation_test",
     "matrix_permutation_test",
+    "double_center",
+    "u_center",
+    "distance_correlation",
     "isc_permutation_test",
     "OnlineBootstrapStats",
     # Private functions (exported for testing)
