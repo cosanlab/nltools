@@ -15,6 +15,8 @@ from nltools.stats import (
     two_sample_permutation,
     correlation_permutation,
     matrix_permutation,
+    circle_shift,
+    phase_randomize,
     downsample,
     upsample,
     winsorize,
@@ -109,6 +111,56 @@ def test_matrix_permutation():
         x, y, how="full", include_diag=True, n_permute=1000, random_state=111
     )
     assert stats_full_diag["correlation"] > stats_full["correlation"]
+
+
+def test_circle_shift():
+    """Test circle_shift function for time-series data."""
+    import numpy as np
+
+    # Test 1D data
+    data_1d = np.array([1, 2, 3, 4, 5])
+    shifted_1d = circle_shift(data_1d, random_state=42)
+    # Should preserve all values (just reordered)
+    assert sorted(shifted_1d) == sorted(data_1d)
+    assert shifted_1d.shape == data_1d.shape
+
+    # Test 2D data
+    data_2d = np.random.randn(100, 5)
+    shifted_2d = circle_shift(data_2d, random_state=42)
+    assert shifted_2d.shape == data_2d.shape
+    # Each column should preserve its values
+    for i in range(data_2d.shape[1]):
+        assert sorted(shifted_2d[:, i]) == pytest.approx(sorted(data_2d[:, i]))
+
+    # Test determinism
+    shifted_1 = circle_shift(data_2d, random_state=42)
+    shifted_2 = circle_shift(data_2d, random_state=42)
+    np.testing.assert_array_equal(shifted_1, shifted_2)
+
+
+def test_phase_randomize():
+    """Test phase_randomize function for time-series data."""
+    import numpy as np
+
+    # Test 1D data
+    data_1d = np.random.randn(100)
+    randomized_1d = phase_randomize(data_1d, random_state=42)
+    assert randomized_1d.shape == data_1d.shape
+
+    # Test 2D data
+    data_2d = np.random.randn(100, 5)
+    randomized_2d = phase_randomize(data_2d, random_state=42)
+    assert randomized_2d.shape == data_2d.shape
+
+    # Test that power spectrum is preserved (critical property)
+    power_orig = np.abs(np.fft.rfft(data_1d)) ** 2
+    power_rand = np.abs(np.fft.rfft(randomized_1d)) ** 2
+    np.testing.assert_allclose(power_orig, power_rand, rtol=1e-10)
+
+    # Test determinism
+    rand_1 = phase_randomize(data_2d, random_state=42)
+    rand_2 = phase_randomize(data_2d, random_state=42)
+    np.testing.assert_array_equal(rand_1, rand_2)
 
 
 # ==================== Transform Functions ====================

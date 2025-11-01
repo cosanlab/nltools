@@ -69,6 +69,7 @@ import itertools
 from joblib import Parallel, delayed
 from .utils import attempt_to_import, check_square_numpy_matrix
 from .algorithms.srm import SRM, DetSRM
+from .algorithms.inference.timeseries import circle_shift, phase_randomize
 from sklearn.utils import check_random_state
 from sklearn.metrics import pairwise_distances
 
@@ -1755,95 +1756,6 @@ def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
             outlier["diff_spike" + str(i + 1)] = 0
             outlier["diff_spike" + str(i + 1)].iloc[int(loc)] = 1
     return outlier
-
-
-def phase_randomize(data, random_state=None):
-    """Perform phase randomization on time-series signal
-
-    This procedure preserves the power spectrum/autocorrelation,
-    but destroys any nonlinear behavior. Based on the algorithm
-    described in:
-
-    Theiler, J., Galdrikian, B., Longtin, A., Eubank, S., & Farmer, J. D. (1991).
-    Testing for nonlinearity in time series: the method of surrogate data
-    (No. LA-UR-91-3343; CONF-9108181-1). Los Alamos National Lab., NM (United States).
-
-    Lancaster, G., Iatsenko, D., Pidde, A., Ticcinelli, V., & Stefanovska, A. (2018).
-    Surrogate data for hypothesis testing of physical systems. Physics Reports, 748, 1-60.
-
-    1. Calculate the Fourier transform ftx of the original signal xn.
-    2. Generate a vector of random phases in the range[0, 2π]) with
-       length L/2,where L is the length of the time series.
-    3. As the Fourier transform is symmetrical, to create the new phase
-       randomized vector ftr , multiply the first half of ftx (i.e.the half
-       corresponding to the positive frequencies) by exp(iφr) to create the
-       first half of ftr.The remainder of ftr is then the horizontally flipped
-       complex conjugate of the first half.
-    4. Finally, the inverse Fourier transform of ftr gives the FT surrogate.
-
-    Args:
-
-        data: (np.array) data (can be 1d or 2d, time by features)
-        random_state: (int, None, or np.random.RandomState) Initial random seed (default: None)
-
-    Returns:
-
-        shifted_data: (np.array) phase randomized data
-    """
-    random_state = check_random_state(random_state)
-
-    data = np.array(data)
-    fft_data = fft(data, axis=0)
-
-    if data.shape[0] % 2 == 0:
-        pos_freq = np.arange(1, data.shape[0] // 2)
-        neg_freq = np.arange(data.shape[0] - 1, data.shape[0] // 2, -1)
-    else:
-        pos_freq = np.arange(1, (data.shape[0] - 1) // 2 + 1)
-        neg_freq = np.arange(data.shape[0] - 1, (data.shape[0] - 1) // 2, -1)
-
-    if len(data.shape) == 1:
-        phase_shifts = random_state.uniform(0, 2 * np.pi, size=(len(pos_freq)))
-        fft_data[pos_freq] *= np.exp(1j * phase_shifts)
-        fft_data[neg_freq] *= np.exp(-1j * phase_shifts)
-    else:
-        phase_shifts = random_state.uniform(
-            0, 2 * np.pi, size=(len(pos_freq), data.shape[1])
-        )
-        fft_data[pos_freq, :] *= np.exp(1j * phase_shifts)
-        fft_data[neg_freq, :] *= np.exp(-1j * phase_shifts)
-    return np.real(ifft(fft_data, axis=0))
-
-
-def circle_shift(data, random_state=None):
-    """Circle shift data for each feature
-
-    Args:
-
-        data: time series (1D or 2D). If 2D, then must be observations by features
-        random_state: (int, None, or np.random.RandomState) Initial random seed (default: None)
-
-    Returns:
-
-        shifted data
-
-    """
-    random_state = check_random_state(random_state)
-    data = np.array(data)
-    if len(data.shape) == 1:
-        shift = random_state.choice(np.arange(len(data)), replace=False)
-        shifted = np.concatenate((data[-shift:], data[:-shift]))
-    else:
-        shift = random_state.choice(
-            np.arange(data.shape[0]), size=data.shape[1], replace=False
-        )
-        shifted = np.array(
-            [
-                np.concatenate([data[-int(s) :, int(d)], data[: -int(s), int(d)]])
-                for d, s in zip(range(data.shape[1]), shift)
-            ]
-        ).T
-    return shifted
 
 
 def _bootstrap_isc(
