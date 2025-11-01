@@ -7,7 +7,6 @@ Tools to help with statistical analyses.
 """
 
 __all__ = [
-    "pearson",
     "zscore",
     "fdr",
     "holm_bonf",
@@ -64,7 +63,6 @@ from scipy.interpolate import interp1d
 import warnings
 import itertools
 from joblib import Parallel, delayed
-from .utils import attempt_to_import
 from .algorithms.srm import SRM, DetSRM
 from .algorithms.inference import (
     one_sample_permutation_test,
@@ -83,16 +81,24 @@ from sklearn.metrics import pairwise_distances
 
 MAX_INT = np.iinfo(np.int32).max
 
-# Optional dependencies
-# TODO: remove
-sm = attempt_to_import("statsmodels.tsa.arima.model", name="sm")
 
-
-# TODO: who uses this? check if we can deprecate
 def pearson(x, y):
     """Correlates row vector x with each row vector in 2D array y.
     From neurosynth.stats.py - author: Tal Yarkoni
+
+    .. deprecated:: 0.5.2
+        This function is deprecated and will be removed in a future version.
+        Use `scipy.stats.pearsonr` or `numpy.corrcoef` instead, or use
+        `correlation_permutation_test` from the inference module for
+        permutation-based correlation analysis.
     """
+    warnings.warn(
+        "pearson() is deprecated and will be removed in a future version. "
+        "Use scipy.stats.pearsonr or numpy.corrcoef instead, or use "
+        "correlation_permutation_test from the inference module.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     data = np.vstack((x, y))
     ms = data.mean(axis=1)[(slice(None, None, None), None)]
     datam = data - ms
@@ -894,7 +900,8 @@ def transform_pairwise(X, y):
         return np.asarray(X_new), np.vstack((np.asarray(y_new), np.asarray(y_group))).T
 
 
-# TODO: remove
+# Internal helper function for regress() - kept for backward compatibility
+# See Phase 3.2.1 for future deprecation discussion
 def _robust_estimator(vals, X, robust_estimator="hc0", nlags=1):
     """
     Computes robust sandwich estimators for standard errors used in OLS computation. Types include:
@@ -983,61 +990,13 @@ def summarize_bootstrap(data, save_weights=False):
     return output
 
 
-# TODO: remove no longer needed
-def _arma_func(X, Y, idx=None, **kwargs):
-    """
-    Fit an ARMA(p,q) model. If Y is a matrix and not a vector, expects an idx argument that refers to columns of Y. Used by regress().
-    """
-    method = kwargs.pop("method", "css-mle")
-    order = kwargs.pop("order", (1, 1))
-
-    maxiter = kwargs.pop("maxiter", 50)
-    disp = kwargs.pop("disp", -1)
-    start_ar_lags = kwargs.pop("start_ar_lags", order[0] + 1)
-    transparams = kwargs.pop("transparams", False)
-    trend = kwargs.pop("trend", "nc")
-
-    if len(Y.shape) == 2:
-        model = sm.tsa.arima_model.ARMA(endog=Y[:, idx], exog=X.values, order=order)
-    else:
-        model = sm.tsa.arima_model.ARMA(endog=Y, exog=X.values, order=order)
-    try:
-        res = model.fit(
-            trend=trend,
-            method=method,
-            transparams=transparams,
-            maxiter=maxiter,
-            disp=disp,
-            start_ar_lags=start_ar_lags,
-            **kwargs,
-        )
-    except Exception:
-        res = model.fit(
-            trend=trend,
-            method=method,
-            transparams=transparams,
-            maxiter=maxiter,
-            disp=disp,
-            start_ar_lags=start_ar_lags,
-            start_params=np.repeat(1.0, X.shape[1] + 2),
-        )
-
-    return (
-        res.params[:-2],
-        res.tvalues[:-2],
-        res.pvalues[:-2],
-        res.df_resid,
-        res.resid,
-    )
-
-
 # TODO: remove - should be deprecated by inference module/
 def regress(X, Y, mode="ols", stats="full", **kwargs):
     """This is a flexible function to run several types of regression models provided X and Y numpy arrays. Y can be a 1d numpy array or 2d numpy array. In the latter case, results will be output with shape 1 x Y.shape[1], in other words fitting a separate regression model to each column of Y.
 
     Does NOT add an intercept automatically to the X matrix before fitting like some other software packages. This is left up to the user.
 
-    This function can compute regression in 3 ways:
+    This function can compute regression in 2 ways:
 
     1. Standard OLS
     2. OLS with robust sandwich estimators for standard errors. 3 robust types of
@@ -1049,19 +1008,14 @@ def regress(X, Y, mode="ols", stats="full", **kwargs):
       auto-correlation lag can be controlled with the `nlags` keyword argument; default
       is 1
 
-    3. ARMA (auto-regressive moving-average) model (experimental). This model is fit through statsmodels.tsa.arima_model.ARMA, so more information about options can be found there. Any settings can be passed in as kwargs. By default fits a (1,1) model with starting lags of 2. This mode is **computationally intensive** and can take quite a while if Y has many columns.  If Y is a 2d array joblib.Parallel is used for faster fitting by parallelizing fits across columns of Y. Parallelization can be controlled by passing in kwargs. Defaults to multi-threading using 10 separate threads, as threads don't require large arrays to be duplicated in memory. Defaults are also set to enable memory-mapping for very large arrays if backend='multiprocessing' to prevent crashes and hangs. Various levels of progress can be monitored using the 'disp' (statsmodels) and 'verbose' (joblib) keyword arguments with integer values > 0.
-
     Args:
         X (ndarray): design matrix; assumes intercept is included
         Y (ndarray): dependent variable array; if 2d, a model is fit to each column of Y separately
-        mode (str): kind of model to fit; must be one of 'ols' (default), 'robust', or
-        'arma'
+        mode (str): kind of model to fit; must be one of 'ols' (default) or 'robust'
         stats (str): one of 'full', 'betas', 'tstats'. Useful to speed up calculation if
         you know you only need some statistics and not others. Defaults to 'full'.
         robust_estimator (str,optional): kind of robust estimator to use if mode = 'robust'; default 'hc0'
         nlags (int,optional): auto-correlation lag correction if mode = 'robust' and robust_estimator = 'hac'; default 1
-        order (tuple,optional): auto-regressive and moving-average orders for mode = 'arma'; default (1,1)
-        kwargs (dict): additional keyword arguments to statsmodels.tsa.arima_model.ARMA and joblib.Parallel
 
     Returns:
         b: coefficients
@@ -1084,14 +1038,6 @@ def regress(X, Y, mode="ols", stats="full", **kwargs):
 
         >>> results = regress(X,Y,mode='robust',robust_estimator='hac',nlags=2)
 
-        Auto-regressive mode with auto-regressive and moving-average lags = 1
-
-        >>> results = regress(X,Y,mode='arma',order=(1,1))
-
-        Auto-regressive model with auto-regressive lag = 2, moving-average lag = 3, and multi-processing instead of multi-threading using 8 cores (this can use a lot of memory if input arrays are very large!).
-
-        >>> results = regress(X,Y,mode='arma',order=(2,3),backend='multiprocessing',n_jobs=8)
-
     """
 
     if not isinstance(mode, str):
@@ -1100,8 +1046,8 @@ def regress(X, Y, mode="ols", stats="full", **kwargs):
     if not isinstance(stats, str):
         raise ValueError("stats must be a string")
 
-    if mode not in ["ols", "robust", "arma"]:
-        raise ValueError("Mode must be one of 'ols','robust' or 'arma'")
+    if mode not in ["ols", "robust"]:
+        raise ValueError("Mode must be one of 'ols' or 'robust'")
 
     if stats not in ["full", "betas", "tstats"]:
         raise ValueError("stats must be one of 'full', 'betas', 'tstats'")
@@ -1143,41 +1089,6 @@ def regress(X, Y, mode="ols", stats="full", **kwargs):
             return b.squeeze(), t.squeeze()
         df = np.array([X.shape[0] - X.shape[1]] * t.shape[1])
         p = 2 * (1 - t_dist.cdf(np.abs(t), df))
-
-    # ARMA regression
-    elif mode == "arma":
-        if sm is None:
-            raise ImportError(
-                "statsmodels>=0.9.0 is required for ARMA regression. Please install this package manually or install nltools with optional arguments: pip install 'nltools[arma]'"
-            )
-        n_jobs = kwargs.pop("n_jobs", -1)
-        backend = kwargs.pop("backend", "threading")
-        max_nbytes = kwargs.pop("max_nbytes", 1e8)
-        verbose = kwargs.pop("verbose", 0)
-
-        # Parallelize if Y vector contains more than 1 column
-        if len(Y.shape) == 2:
-            if backend == "threading" and n_jobs == -1:
-                n_jobs = 10
-            par_for = Parallel(
-                n_jobs=n_jobs, verbose=verbose, backend=backend, max_nbytes=max_nbytes
-            )
-            out_arma = par_for(
-                delayed(_arma_func)(X, Y, idx=i, **kwargs) for i in range(Y.shape[-1])
-            )
-
-            b = np.column_stack([elem[0] for elem in out_arma])
-            t = np.column_stack([elem[1] for elem in out_arma])
-            p = np.column_stack([elem[2] for elem in out_arma])
-            df = np.array([elem[3] for elem in out_arma])
-            res = np.column_stack([elem[4] for elem in out_arma])
-
-        else:
-            b, t, p, df, res = _arma_func(X, Y, **kwargs)
-
-        # Arma models don't return stderr, so make a variable for consistent function
-        # return values
-        stderr = np.empty_like(b)
 
     return (
         b.squeeze(),
