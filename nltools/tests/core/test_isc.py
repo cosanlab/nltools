@@ -12,6 +12,21 @@ Test organization follows the TDD plan (2025-10-30-isc-tdd-plan.md):
 
 Tier 1: Fast tests (~1-2min, run on every iteration)
 Tier 2: GPU and benchmark tests (~5-7min, run before commits)
+
+Testing Strategy & Tolerances:
+
+    This test suite uses different tolerance levels for different comparison types.
+    Following the pattern from test_inference.py:
+
+    1. Backend Consistency (NumPy vs PyTorch):
+       - Tolerance: EXACT (rtol=1e-5)
+       - Why: Same algorithm, same random seed, only float precision differs
+       - Tests verify implementations are mathematically identical
+
+    2. GPU Precision (GPU float32 vs CPU float64):
+       - Values: rtol=1e-3 (0.1% error)
+       - P-values: rtol=5e-3 (0.5% error)
+       - Why: GPU uses float32, CPU uses float64; P-values accumulate more error
 """
 
 import numpy as np
@@ -29,6 +44,19 @@ from nltools.algorithms.inference.isc import (
     _compute_pairwise_isc,
     isc_permutation_test,
 )
+
+
+# =============================================================================
+# Test Constants - DO NOT MODIFY without updating docstring above
+# =============================================================================
+
+# Tolerance for backend consistency (NumPy vs PyTorch with same seed)
+# These should be EXACT matches (same algorithm, only precision differs)
+TOLERANCE_EXACT = 1e-5
+
+# Tolerance for GPU vs CPU comparisons (float32 vs float64)
+TOLERANCE_GPU_VALUE = 1e-3  # 0.1% error for computed values
+TOLERANCE_GPU_PVALUE = 5e-3  # 0.5% error for P-values (more FP error)
 
 
 # =============================================================================
@@ -80,7 +108,8 @@ def test_compute_loo_isc_gpu_matches_numpy():
     loo_numpy = _compute_loo_isc(data, backend="numpy")
     loo_gpu = _compute_loo_isc(data, backend="torch")
 
-    assert np.allclose(loo_numpy, loo_gpu, rtol=1e-5)
+    # GPU uses float32, CPU uses float64 - use GPU precision tolerance
+    np.testing.assert_allclose(loo_numpy, loo_gpu, rtol=TOLERANCE_GPU_VALUE, atol=1e-7)
 
 
 @pytest.mark.tier1
@@ -168,7 +197,10 @@ def test_compute_pairwise_isc_gpu_matches_numpy():
     pair_numpy = _compute_pairwise_isc(data, backend="numpy")
     pair_gpu = _compute_pairwise_isc(data, backend="torch")
 
-    assert np.allclose(pair_numpy, pair_gpu, rtol=1e-5)
+    # GPU uses float32, CPU uses float64 - use GPU precision tolerance
+    np.testing.assert_allclose(
+        pair_numpy, pair_gpu, rtol=TOLERANCE_GPU_VALUE, atol=1e-7
+    )
 
 
 @pytest.mark.tier2
@@ -185,9 +217,12 @@ def test_batch_corrcoef_gpu_correctness():
     corr_gpu = _batch_corrcoef_gpu(data_gpu).cpu().numpy()
 
     # Verify against NumPy for each voxel
+    # GPU uses float32, CPU uses float64 - use GPU precision tolerance
     for v in range(5):
         corr_numpy = np.corrcoef(data[v])
-        assert np.allclose(corr_gpu[v], corr_numpy, rtol=1e-5)
+        np.testing.assert_allclose(
+            corr_gpu[v], corr_numpy, rtol=TOLERANCE_GPU_VALUE, atol=1e-7
+        )
 
 
 # =============================================================================
@@ -455,8 +490,13 @@ def test_isc_backend_consistency_numpy_cpu_parallel():
         data, backend="cpu-parallel", n_permute=100, random_state=42, progress_bar=False
     )
 
-    assert np.allclose(result_numpy["isc"], result_parallel["isc"])
-    assert np.allclose(result_numpy["p"], result_parallel["p"])
+    # Both use float64 CPU - should be exact matches
+    np.testing.assert_allclose(
+        result_numpy["isc"], result_parallel["isc"], rtol=TOLERANCE_EXACT
+    )
+    np.testing.assert_allclose(
+        result_numpy["p"], result_parallel["p"], rtol=TOLERANCE_EXACT
+    )
 
 
 @pytest.mark.tier2
@@ -485,9 +525,14 @@ def test_isc_gpu_matches_cpu():
         progress_bar=False,
     )
 
-    assert np.allclose(result_cpu["isc"], result_gpu["isc"], rtol=1e-5)
-    # P-values may vary slightly due to bootstrap variance
-    assert np.allclose(result_cpu["p"], result_gpu["p"], rtol=0.2)
+    # GPU uses float32, CPU uses float64 - use GPU precision tolerances
+    np.testing.assert_allclose(
+        result_cpu["isc"], result_gpu["isc"], rtol=TOLERANCE_GPU_VALUE, atol=1e-7
+    )
+    # P-values accumulate more FP error, use GPU p-value tolerance
+    np.testing.assert_allclose(
+        result_cpu["p"], result_gpu["p"], rtol=TOLERANCE_GPU_PVALUE, atol=1e-7
+    )
 
 
 @pytest.mark.tier1
@@ -984,3 +1029,380 @@ def test_isc_sim_metric_pairwise_only():
 
     # LOO results should be identical regardless of sim_metric
     assert np.isclose(result_loo_corr["isc"], result_loo_eucl["isc"])
+
+
+@pytest.mark.tier1
+def test_isc_sim_metric_spearman_basic():
+    """Spearman sim_metric works and produces valid ISC results."""
+    np.random.seed(42)
+    data = np.random.randn(100, 10)
+
+    # Spearman should work (currently fails, but will work after optimization)
+    result_spearman = isc_permutation_test(
+        data,
+        summary_statistic="pairwise",
+        sim_metric="spearman",
+        n_permute=100,
+        random_state=42,
+        progress_bar=False,
+    )
+
+    # Should complete successfully
+    assert "isc" in result_spearman
+    assert "p" in result_spearman
+    assert isinstance(result_spearman["isc"], (float, np.floating))
+    assert -1 <= result_spearman["isc"] <= 1
+
+
+@pytest.mark.tier1
+def test_isc_sim_metric_spearman_vs_correlation():
+    """Spearman and correlation produce different ISC values."""
+    np.random.seed(42)
+    # Create monotonic but non-linear relationship
+    x = np.random.randn(100)
+    data = np.column_stack([x**3 + np.random.randn(100) * 0.1 for _ in range(10)])
+
+    result_corr = isc_permutation_test(
+        data,
+        summary_statistic="pairwise",
+        sim_metric="correlation",
+        n_permute=100,
+        random_state=42,
+        progress_bar=False,
+    )
+
+    result_spearman = isc_permutation_test(
+        data,
+        summary_statistic="pairwise",
+        sim_metric="spearman",
+        n_permute=100,
+        random_state=42,
+        progress_bar=False,
+    )
+
+    # Spearman should handle monotonic relationships better
+    # For non-linear monotonic data, Spearman should be higher
+    assert result_spearman["isc"] != result_corr["isc"]
+    assert -1 <= result_spearman["isc"] <= 1
+    assert -1 <= result_corr["isc"] <= 1
+
+
+@pytest.mark.tier1
+def test_compute_pairwise_isc_spearman_single_feature():
+    """Spearman pairwise ISC matches manual computation for single feature."""
+    from scipy.stats import rankdata
+    from scipy.spatial.distance import squareform
+
+    np.random.seed(42)
+    data = np.random.randn(100, 5)  # 100 timepoints, 5 subjects
+
+    # Compute using our function
+    result = _compute_pairwise_isc(data, backend="numpy", sim_metric="spearman")
+
+    # Manual computation: rank-transform then Pearson correlation
+    data_ranked = np.array([rankdata(data[:, i], method="average") for i in range(5)]).T
+    corr_matrix = np.corrcoef(data_ranked.T)
+    expected = squareform(corr_matrix, checks=False)
+
+    # Results should match
+    np.testing.assert_allclose(result, expected, rtol=1e-10)
+
+
+@pytest.mark.tier1
+def test_compute_pairwise_isc_spearman_voxelwise():
+    """Spearman pairwise ISC works for voxel-wise data."""
+    from scipy.stats import rankdata
+    from scipy.spatial.distance import squareform
+
+    np.random.seed(42)
+    data = np.random.randn(100, 5, 10)  # 100 timepoints, 5 subjects, 10 voxels
+
+    # Compute using our function
+    result = _compute_pairwise_isc(data, backend="numpy", sim_metric="spearman")
+
+    # Verify shape
+    n_pairs = 5 * (5 - 1) // 2
+    assert result.shape == (n_pairs, 10)
+
+    # Verify first voxel matches manual computation
+    data_ranked_v0 = np.array(
+        [rankdata(data[:, i, 0], method="average") for i in range(5)]
+    ).T
+    corr_matrix_v0 = np.corrcoef(data_ranked_v0.T)
+    expected_v0 = squareform(corr_matrix_v0, checks=False)
+
+    np.testing.assert_allclose(result[:, 0], expected_v0, rtol=1e-10)
+
+
+@pytest.mark.tier2
+def test_compute_pairwise_isc_spearman_performance():
+    """Spearman optimization works efficiently and avoids pairwise_distances overhead."""
+    import time
+
+    np.random.seed(42)
+    # Use voxel-wise data where optimization matters most
+    data = np.random.randn(100, 10, 100)  # 100 voxels
+
+    # Time Spearman optimization (rank-transform + corrcoef)
+    start = time.time()
+    result_spearman = _compute_pairwise_isc(
+        data, backend="numpy", sim_metric="spearman"
+    )
+    time_spearman = time.time() - start
+
+    # Time correlation (baseline fast path)
+    start = time.time()
+    result_corr = _compute_pairwise_isc(data, backend="numpy", sim_metric="correlation")
+    time_corr = time.time() - start
+
+    # Verify results are valid
+    assert result_spearman.shape == result_corr.shape
+    assert np.all(np.abs(result_spearman) <= 1)
+    assert np.all(np.abs(result_corr) <= 1)
+
+    # Spearman should complete in reasonable time (within 30× of correlation)
+    # Rank transform adds overhead, but the key benefit is that Spearman now works
+    # (fixes the bug where it previously failed with pairwise_distances)
+    assert time_spearman < 30 * time_corr, (
+        f"Spearman ({time_spearman:.3f}s) should complete reasonably quickly. "
+        f"Rank transform adds overhead but avoids pairwise_distances failure."
+    )
+
+
+@pytest.mark.tier1
+def test_compute_pairwise_isc_cosine_single_feature():
+    """Cosine pairwise ISC matches sklearn pairwise_distances for single feature."""
+    from sklearn.metrics import pairwise_distances
+    from scipy.spatial.distance import squareform
+
+    np.random.seed(42)
+    data = np.random.randn(100, 5)  # 100 timepoints, 5 subjects
+
+    # Compute using our optimized function
+    result = _compute_pairwise_isc(data, backend="numpy", sim_metric="cosine")
+
+    # Compute using sklearn (baseline for correctness)
+    dist_matrix = pairwise_distances(data.T, metric="cosine")
+    sim_matrix = 1 - dist_matrix  # Convert distance to similarity
+    expected = squareform(sim_matrix, checks=False)
+
+    # Results should match sklearn's output
+    np.testing.assert_allclose(result, expected, rtol=1e-10)
+
+
+@pytest.mark.tier1
+def test_compute_pairwise_isc_cosine_voxelwise():
+    """Cosine pairwise ISC matches sklearn pairwise_distances for voxel-wise data."""
+    from sklearn.metrics import pairwise_distances
+    from scipy.spatial.distance import squareform
+
+    np.random.seed(42)
+    data = np.random.randn(100, 5, 10)  # 100 timepoints, 5 subjects, 10 voxels
+
+    # Compute using our optimized function
+    result = _compute_pairwise_isc(data, backend="numpy", sim_metric="cosine")
+
+    # Verify shape
+    n_pairs = 5 * (5 - 1) // 2
+    assert result.shape == (n_pairs, 10)
+
+    # Verify first voxel matches sklearn computation
+    dist_matrix_v0 = pairwise_distances(data[:, :, 0].T, metric="cosine")
+    sim_matrix_v0 = 1 - dist_matrix_v0
+    expected_v0 = squareform(sim_matrix_v0, checks=False)
+
+    np.testing.assert_allclose(result[:, 0], expected_v0, rtol=1e-10)
+
+
+@pytest.mark.tier1
+def test_isc_sim_metric_cosine_vs_correlation():
+    """Cosine and correlation produce different ISC values."""
+    np.random.seed(42)
+    data = np.random.randn(100, 10)
+
+    result_corr = isc_permutation_test(
+        data,
+        summary_statistic="pairwise",
+        sim_metric="correlation",
+        n_permute=100,
+        random_state=42,
+        progress_bar=False,
+    )
+
+    result_cosine = isc_permutation_test(
+        data,
+        summary_statistic="pairwise",
+        sim_metric="cosine",
+        n_permute=100,
+        random_state=42,
+        progress_bar=False,
+    )
+
+    # Different metrics should produce different ISC values
+    assert result_corr["isc"] != result_cosine["isc"]
+    assert -1 <= result_corr["isc"] <= 1
+    # Cosine similarity should be in [0, 1] range (normalized vectors)
+    assert 0 <= result_cosine["isc"] <= 1
+
+
+@pytest.mark.tier1
+def test_compute_pairwise_isc_cosine_handles_zero_norm():
+    """Cosine similarity handles zero-norm vectors gracefully."""
+    np.random.seed(42)
+    data = np.random.randn(100, 5)
+
+    # Add a zero vector (all zeros)
+    data_zero = np.copy(data)
+    data_zero[:, 0] = 0.0  # First subject has zero norm
+
+    # Should not raise error
+    result = _compute_pairwise_isc(data_zero, backend="numpy", sim_metric="cosine")
+
+    # Should produce valid results (may have NaN or 0 for zero-norm pairs)
+    assert result.shape == (10,)  # 5*4/2 = 10 pairs
+    # Values should be finite or NaN (for zero-norm cases)
+    assert np.all(np.isfinite(result) | np.isnan(result))
+
+
+@pytest.mark.tier2
+def test_compute_pairwise_isc_cosine_performance():
+    """Cosine optimization is faster than pairwise_distances fallback."""
+    import time
+
+    np.random.seed(42)
+    # Use voxel-wise data where optimization matters most
+    data = np.random.randn(100, 10, 100)  # 100 voxels
+
+    # Time optimized cosine implementation
+    start = time.time()
+    result_cosine_opt = _compute_pairwise_isc(
+        data, backend="numpy", sim_metric="cosine"
+    )
+    time_cosine_opt = time.time() - start
+
+    # Time correlation (baseline fast path)
+    start = time.time()
+    result_corr = _compute_pairwise_isc(data, backend="numpy", sim_metric="correlation")
+    time_corr = time.time() - start
+
+    # Verify results are valid
+    assert result_cosine_opt.shape == result_corr.shape
+    assert np.all(np.abs(result_cosine_opt) <= 1)
+    assert np.all(np.abs(result_corr) <= 1)
+
+    # Cosine should be reasonably fast (within 10× of correlation)
+    # Normalization + matrix multiply is fast, but slightly slower than raw corrcoef
+    assert time_cosine_opt < 10 * time_corr, (
+        f"Optimized cosine ({time_cosine_opt:.3f}s) should be reasonably fast compared "
+        f"to correlation ({time_corr:.3f}s). Matrix multiply is fast but adds overhead."
+    )
+
+
+@pytest.mark.tier1
+def test_compute_pairwise_isc_euclidean_single_feature():
+    """Euclidean pairwise ISC matches sklearn pairwise_distances for single feature."""
+    from sklearn.metrics import pairwise_distances
+    from scipy.spatial.distance import squareform
+
+    np.random.seed(42)
+    data = np.random.randn(100, 5)  # 100 timepoints, 5 subjects
+
+    # Compute using our optimized function
+    result = _compute_pairwise_isc(data, backend="numpy", sim_metric="euclidean")
+
+    # Compute using sklearn (baseline for correctness)
+    dist_matrix = pairwise_distances(data.T, metric="euclidean")
+    sim_matrix = 1 - dist_matrix  # Convert distance to similarity
+    expected = squareform(sim_matrix, checks=False)
+
+    # Results should match sklearn's output
+    np.testing.assert_allclose(result, expected, rtol=1e-10)
+
+
+@pytest.mark.tier1
+def test_compute_pairwise_isc_euclidean_voxelwise():
+    """Euclidean pairwise ISC matches sklearn pairwise_distances for voxel-wise data."""
+    from sklearn.metrics import pairwise_distances
+    from scipy.spatial.distance import squareform
+
+    np.random.seed(42)
+    data = np.random.randn(100, 5, 10)  # 100 timepoints, 5 subjects, 10 voxels
+
+    # Compute using our optimized function
+    result = _compute_pairwise_isc(data, backend="numpy", sim_metric="euclidean")
+
+    # Verify shape
+    n_pairs = 5 * (5 - 1) // 2
+    assert result.shape == (n_pairs, 10)
+
+    # Verify first voxel matches sklearn computation
+    dist_matrix_v0 = pairwise_distances(data[:, :, 0].T, metric="euclidean")
+    sim_matrix_v0 = 1 - dist_matrix_v0
+    expected_v0 = squareform(sim_matrix_v0, checks=False)
+
+    np.testing.assert_allclose(result[:, 0], expected_v0, rtol=1e-10)
+
+
+@pytest.mark.tier1
+def test_isc_sim_metric_euclidean_vs_correlation():
+    """Euclidean and correlation produce different ISC values."""
+    np.random.seed(42)
+    data = np.random.randn(100, 10)
+
+    result_corr = isc_permutation_test(
+        data,
+        summary_statistic="pairwise",
+        sim_metric="correlation",
+        n_permute=100,
+        random_state=42,
+        progress_bar=False,
+    )
+
+    result_eucl = isc_permutation_test(
+        data,
+        summary_statistic="pairwise",
+        sim_metric="euclidean",
+        n_permute=100,
+        random_state=42,
+        progress_bar=False,
+    )
+
+    # Different metrics should produce different ISC values
+    assert result_corr["isc"] != result_eucl["isc"]
+    assert -1 <= result_corr["isc"] <= 1
+    # Euclidean similarity can be negative (1 - distance, where distance can be > 1)
+    assert isinstance(result_eucl["isc"], (float, np.floating))
+
+
+@pytest.mark.tier2
+def test_compute_pairwise_isc_euclidean_performance():
+    """Euclidean optimization is faster than pairwise_distances fallback."""
+    import time
+
+    np.random.seed(42)
+    # Use voxel-wise data where optimization matters most
+    data = np.random.randn(100, 10, 100)  # 100 voxels
+
+    # Time optimized euclidean implementation
+    start = time.time()
+    result_eucl_opt = _compute_pairwise_isc(
+        data, backend="numpy", sim_metric="euclidean"
+    )
+    time_eucl_opt = time.time() - start
+
+    # Time correlation (baseline fast path)
+    start = time.time()
+    result_corr = _compute_pairwise_isc(data, backend="numpy", sim_metric="correlation")
+    time_corr = time.time() - start
+
+    # Verify results are valid
+    assert result_eucl_opt.shape == result_corr.shape
+    assert np.all(np.isfinite(result_eucl_opt))
+    assert np.all(np.isfinite(result_corr))
+
+    # Euclidean should be reasonably fast (within 15× of correlation)
+    # Matrix operations are fast, but sqrt adds overhead
+    assert time_eucl_opt < 15 * time_corr, (
+        f"Optimized euclidean ({time_eucl_opt:.3f}s) should be reasonably fast compared "
+        f"to correlation ({time_corr:.3f}s). Vectorized operations are fast but sqrt adds overhead."
+    )

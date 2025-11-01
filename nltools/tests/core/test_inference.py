@@ -9,15 +9,23 @@ Organization:
     - TestBackwardCompatibility: Tests against existing stats.py
     - TestGPUBatching: GPU-specific batching tests
     - TestCPUParallelization: CPU parallelization tests
+    - TestPearsonCorrelation: Pearson correlation helper tests
+    - TestSpearmanCorrelation: Spearman correlation helper tests
+    - TestKendallCorrelation: Kendall correlation helper tests
     - TestCorrelationPermutation: Correlation permutation tests
     - TestCircleShift: Time-series circle shift tests
     - TestPhaseRandomize: FFT phase randomization tests
     - TestTimeseriesCorrelation: Time-series correlation tests
+    - TestMatrixHelpers: Matrix manipulation helper tests
+    - TestMatrixPermutationCPUParallel: CPU-parallel matrix permutation tests
+    - TestMatrixPermutationMain: Main matrix permutation function tests
+    - TestMatrixPermutationCorrectness: Matrix permutation correctness tests
 
 Testing Strategy & Tolerances:
 
     This test suite uses different tolerance levels for different comparison types.
     Understanding WHY these tolerances exist is critical for maintaining test quality.
+    These tolerances are also used in test_isc.py for consistency across test suites.
 
     1. Backend Consistency (NumPy vs PyTorch):
        - Tolerance: EXACT (rtol=1e-5)
@@ -26,10 +34,11 @@ Testing Strategy & Tolerances:
 
     2. Backward Compatibility (New vs stats.py):
        - Deterministic values (mean, correlation): EXACT (rtol=1e-5)
-       - P-values: TIGHT (rtol=0.01 = 1%)
+       - P-values: rtol=0.02 (2% relative error acceptable)
        - Why: Both use identical RNG pattern (pre-generated sign-flips/permutations)
        - Implementation matches stats.py exactly for reproducibility
        - Exception: circle_shift uses rtol=0.4 (40%) due to simpler RNG operations
+       - Exception: phase_randomize uses rtol=0.05 (5%) due to FFT numerical stability
 
     3. GPU Precision (GPU float32 vs CPU float64):
        - Values: rtol=1e-3 (0.1% error)
