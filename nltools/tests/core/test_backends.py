@@ -195,6 +195,166 @@ def test_torch_svd_equivalence():
 
 
 @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+def test_mps_svd_cpu_fallback():
+    """MPS SVD should use explicit CPU fallback without warnings"""
+    import torch
+    from nltools.backends import Backend
+
+    # Skip if MPS not available
+    if not (hasattr(torch.backends, "mps") and torch.backends.mps.is_available()):
+        pytest.skip("MPS not available")
+
+    np.random.seed(42)
+    X = np.random.randn(20, 10).astype(np.float32)
+
+    backend_mps = Backend("torch")
+    assert backend_mps.name == "torch-mps"
+    
+    X_mps = backend_mps.to_device(X)
+    assert X_mps.device.type == "mps"
+
+    # SVD should work without emitting PyTorch fallback warnings
+    # (we capture warnings to verify none are emitted)
+    import warnings
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        U, s, Vt = backend_mps.svd(X_mps)
+        
+        # Check that no PyTorch MPS fallback warnings were emitted
+        fallback_warnings = [
+            warning for warning in w
+            if "MPS backend" in str(warning.message) or "linalg_svd" in str(warning.message)
+        ]
+        assert len(fallback_warnings) == 0, f"Unexpected warnings: {[str(w.message) for w in fallback_warnings]}"
+
+    # Results should be on MPS device
+    assert U.device.type == "mps"
+    assert s.device.type == "mps"
+    assert Vt.device.type == "mps"
+
+    # Results should be float32
+    assert U.dtype == torch.float32
+    assert s.dtype == torch.float32
+    assert Vt.dtype == torch.float32
+
+    # Verify correctness by comparing to NumPy
+    backend_np = Backend("numpy")
+    U_np, s_np, Vt_np = backend_np.svd(X)
+    
+    U_np_result = backend_mps.to_numpy(U)
+    s_np_result = backend_mps.to_numpy(s)
+    Vt_np_result = backend_mps.to_numpy(Vt)
+
+    # Singular values should match (within float32 precision)
+    np.testing.assert_allclose(s_np_result, s_np, rtol=1e-3)
+
+
+@pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+def test_float64_precision_warning():
+    """Backend should warn when converting float64 to float32 for MPS"""
+    import torch
+    import warnings
+    from nltools.backends import Backend
+
+    # Skip if MPS not available
+    if not (hasattr(torch.backends, "mps") and torch.backends.mps.is_available()):
+        pytest.skip("MPS not available")
+
+    # Reset warning flags
+    import nltools.backends
+    nltools.backends._already_warned_mps_init[0] = True  # Suppress init warning
+    nltools.backends._already_warned_float64[0] = False  # Allow float64 conversion warning
+
+    backend = Backend("torch")
+    assert backend.name == "torch-mps"
+
+    # Create float64 array
+    arr_float64 = np.random.randn(10, 5).astype(np.float64)
+
+    # Should warn on first conversion
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        result = backend.to_device(arr_float64)
+        
+        # Filter for float64 conversion warning (not init warning)
+        precision_warnings = [
+            warning for warning in w
+            if ("float64" in str(warning.message) or "cast to float32" in str(warning.message))
+            and "torch-mps backend uses float32" not in str(warning.message)  # Exclude init warning
+        ]
+        assert len(precision_warnings) > 0, f"Expected precision warning for float64 conversion. Got warnings: {[str(w.message) for w in w]}"
+
+    # Result should be float32
+    assert result.dtype == torch.float32
+
+
+@pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+def test_mps_backend_warning():
+    """MPS backend should warn about precision limitations on initialization"""
+    import torch
+    import warnings
+    from nltools.backends import Backend
+
+    # Skip if MPS not available
+    if not (hasattr(torch.backends, "mps") and torch.backends.mps.is_available()):
+        pytest.skip("MPS not available")
+
+    # Reset warning flag
+    import nltools.backends
+    nltools.backends._already_warned_mps_init[0] = False
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        backend = Backend("torch")
+        
+        # Check that warning was issued about MPS precision
+        mps_warnings = [
+            warning for warning in w
+            if "torch-mps backend uses float32" in str(warning.message)
+        ]
+        assert len(mps_warnings) > 0, f"Expected MPS precision warning on initialization. Got warnings: {[str(w.message) for w in w]}"
+
+
+def test_assert_array_almost_equal_precision_adjustment():
+    """assert_array_almost_equal should auto-adjust precision for MPS"""
+    import torch
+    import warnings
+    from nltools.backends import Backend, assert_array_almost_equal
+
+    # Skip if MPS not available
+    if not _torch_available():
+        pytest.skip("PyTorch not installed")
+    
+    if not (hasattr(torch.backends, "mps") and torch.backends.mps.is_available()):
+        pytest.skip("MPS not available")
+
+    backend = Backend("torch")
+    assert backend.name == "torch-mps"
+
+    # Create arrays that are very close (within float32 precision but might fail at high decimal precision)
+    np.random.seed(42)
+    x = np.random.randn(10).astype(np.float32)
+    y = x.copy()  # Identical arrays
+
+    x_tensor = backend.to_device(x)
+    y_tensor = backend.to_device(y)
+
+    # Should auto-adjust precision and issue warning when requesting high precision
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        # Request high precision (6 decimals) but should auto-adjust to 2
+        # Arrays are identical so should pass regardless, but warning should be issued
+        assert_array_almost_equal(x_tensor, y_tensor, decimal=6, backend=backend)
+        
+        # Check that precision adjustment warning was issued
+        precision_warnings = [
+            warning for warning in w
+            if "Reducing precision" in str(warning.message) or "decimal=2" in str(warning.message)
+        ]
+        assert len(precision_warnings) > 0, "Expected precision adjustment warning"
+
+
+@pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
 def test_torch_matmul_equivalence():
     """Torch matmul should match NumPy results"""
     from nltools.backends import Backend
