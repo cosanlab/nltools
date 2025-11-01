@@ -71,6 +71,10 @@ flip = np.flip
 atleast_1d = np.atleast_1d
 finfo = np.finfo
 eye = np.eye
+mean = np.mean
+std = np.std
+expand_dims = np.expand_dims
+full = np.full
 
 ###############################################################################
 # Custom functions

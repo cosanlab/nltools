@@ -60,6 +60,10 @@ sign = torch.sign
 clip = torch.clamp
 finfo = torch.finfo
 eye = torch.eye
+mean = torch.mean
+std = torch.std
+expand_dims = torch.unsqueeze
+full = torch.full
 
 ###############################################################################
 # Custom functions
