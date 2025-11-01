@@ -29,6 +29,7 @@ Notes:
 import numpy as np
 from scipy.spatial.distance import squareform
 from sklearn.utils import check_random_state
+from sklearn.metrics import pairwise_distances
 
 from .utils import _compute_pvalue, EPSILON
 
@@ -192,7 +193,7 @@ def _compute_loo_isc_gpu(data):
 # ============================================================================
 
 
-def _compute_pairwise_isc(data, backend="numpy"):
+def _compute_pairwise_isc(data, backend="numpy", sim_metric="correlation"):
     """
     Compute pairwise intersubject correlation (condensed form).
 
@@ -208,6 +209,10 @@ def _compute_pairwise_isc(data, backend="numpy"):
     backend : {'numpy', 'torch'}, default='numpy'
         Computation backend. Use 'torch' for GPU acceleration on
         voxel-wise data.
+    sim_metric : str, default='correlation'
+        Similarity metric. See sklearn.metrics.pairwise_distances for valid
+        options. 'correlation' uses optimized np.corrcoef. Other metrics
+        use pairwise_distances.
 
     Returns
     -------
@@ -225,43 +230,60 @@ def _compute_pairwise_isc(data, backend="numpy"):
 
     Notes
     -----
-    Uses np.corrcoef for efficient correlation matrix computation,
-    then squareform to extract upper triangle. This is 2-5× faster
-    than sklearn's pairwise_distances for correlation.
-
-    Memory: For 50 subjects, 10K voxels = 98 MB (vs 20 MB for LOO)
+    Uses np.corrcoef for efficient correlation matrix computation when
+    sim_metric='correlation', otherwise uses pairwise_distances.
     """
     if backend == "numpy":
-        return _compute_pairwise_isc_numpy(data)
+        return _compute_pairwise_isc_numpy(data, sim_metric=sim_metric)
     elif backend == "torch":
+        if sim_metric != "correlation":
+            raise ValueError(
+                f"GPU backend only supports sim_metric='correlation', got {sim_metric}"
+            )
         return _compute_pairwise_isc_gpu(data)
     else:
         raise ValueError(f"backend must be 'numpy' or 'torch', got {backend}")
 
 
-def _compute_pairwise_isc_numpy(data):
+def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
     """NumPy implementation of pairwise ISC (condensed storage)."""
-    if data.ndim == 2:
-        # Single feature: (n_observations, n_subjects)
-        # Compute correlation matrix (fast with np.corrcoef)
-        corr_matrix = np.corrcoef(data.T)
-        # Extract upper triangle as condensed vector
-        return squareform(corr_matrix, checks=False)
-
-    elif data.ndim == 3:
-        # Voxel-wise: (n_observations, n_subjects, n_voxels)
-        n_obs, n_subjects, n_voxels = data.shape
-        n_pairs = n_subjects * (n_subjects - 1) // 2
-        pairwise_all = np.zeros((n_pairs, n_voxels))
-
-        for v in range(n_voxels):
-            corr_matrix = np.corrcoef(data[:, :, v].T)
-            pairwise_all[:, v] = squareform(corr_matrix, checks=False)
-
-        return pairwise_all
-
+    if sim_metric == "correlation":
+        # Fast path: use np.corrcoef (optimized C implementation)
+        if data.ndim == 2:
+            # Single feature: (n_observations, n_subjects)
+            corr_matrix = np.corrcoef(data.T)
+            return squareform(corr_matrix, checks=False)
+        elif data.ndim == 3:
+            # Voxel-wise: (n_observations, n_subjects, n_voxels)
+            n_obs, n_subjects, n_voxels = data.shape
+            n_pairs = n_subjects * (n_subjects - 1) // 2
+            pairwise_all = np.zeros((n_pairs, n_voxels))
+            for v in range(n_voxels):
+                corr_matrix = np.corrcoef(data[:, :, v].T)
+                pairwise_all[:, v] = squareform(corr_matrix, checks=False)
+            return pairwise_all
+        else:
+            raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
     else:
-        raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
+        # General path: use pairwise_distances for other metrics
+        # Convert distance to similarity: similarity = 1 - distance
+        if data.ndim == 2:
+            # Single feature: (n_observations, n_subjects)
+            dist_matrix = pairwise_distances(data.T, metric=sim_metric)
+            sim_matrix = 1 - dist_matrix
+            return squareform(sim_matrix, checks=False)
+        elif data.ndim == 3:
+            # Voxel-wise: (n_observations, n_subjects, n_voxels)
+            n_obs, n_subjects, n_voxels = data.shape
+            n_pairs = n_subjects * (n_subjects - 1) // 2
+            pairwise_all = np.zeros((n_pairs, n_voxels))
+            for v in range(n_voxels):
+                dist_matrix = pairwise_distances(data[:, :, v].T, metric=sim_metric)
+                sim_matrix = 1 - dist_matrix
+                pairwise_all[:, v] = squareform(sim_matrix, checks=False)
+            return pairwise_all
+        else:
+            raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
 
 
 def _batch_corrcoef_gpu(data_gpu):
@@ -461,6 +483,7 @@ def _bootstrap_pairwise_numpy(
     bootstrap_subjects=None,
     n_subjects=None,
     random_state=None,
+    exclude_self_corr=True,
 ):
     """
     Bootstrap pairwise ISC by subject-wise matrix indexing.
@@ -483,6 +506,9 @@ def _bootstrap_pairwise_numpy(
         Number of subjects (required if bootstrap_subjects is None)
     random_state : int or RandomState, optional
         Random state for sampling
+    exclude_self_corr : bool, default=True
+        If True, mask self-correlations (perfect correlations from duplicate
+        subjects) as NaN. If False, include them in the summary statistic.
 
     Returns
     -------
@@ -514,9 +540,9 @@ def _bootstrap_pairwise_numpy(
         # Index by bootstrap subjects (symmetric: rows and columns)
         boot_matrix = corr_matrix[bootstrap_subjects, :][:, bootstrap_subjects]
 
-        # Mask self-correlations (diagonal and same-subject pairs)
-        # All 1.0 values are same-subject correlations → set to NaN
-        boot_matrix[boot_matrix >= 0.99999] = np.nan
+        # Mask self-correlations if requested
+        if exclude_self_corr:
+            boot_matrix[boot_matrix >= 0.99999] = np.nan
 
         # Extract upper triangle (excluding diagonal)
         boot_condensed = squareform(boot_matrix, checks=False)
@@ -534,8 +560,9 @@ def _bootstrap_pairwise_numpy(
             # Index by bootstrap subjects
             boot_matrix = corr_matrix[bootstrap_subjects, :][:, bootstrap_subjects]
 
-            # Mask same-subject pairs
-            boot_matrix[boot_matrix >= 0.99999] = np.nan
+            # Mask same-subject pairs if requested
+            if exclude_self_corr:
+                boot_matrix[boot_matrix >= 0.99999] = np.nan
 
             # Extract triangle
             boot_condensed_list.append(squareform(boot_matrix, checks=False))
@@ -563,6 +590,7 @@ def _bootstrap_pairwise_cpu_parallel(
     n_jobs=-1,
     random_state=None,
     progress_bar=True,
+    exclude_self_corr=True,
 ):
     """
     CPU-parallel pairwise bootstrap using joblib.
@@ -586,6 +614,9 @@ def _bootstrap_pairwise_cpu_parallel(
         Random seed
     progress_bar : bool, default=True
         Show progress bar
+    exclude_self_corr : bool, default=True
+        If True, mask self-correlations (perfect correlations from duplicate
+        subjects) as NaN. If False, include them in the summary statistic.
 
     Returns
     -------
@@ -613,6 +644,7 @@ def _bootstrap_pairwise_cpu_parallel(
             metric=metric,
             n_subjects=n_subjects,
             random_state=np.random.RandomState(seeds[i]),
+            exclude_self_corr=exclude_self_corr,
         )
         for i in iterator
     )
@@ -639,6 +671,8 @@ def isc_permutation_test(
     random_state=None,
     return_null=False,
     progress_bar=True,
+    exclude_self_corr=True,
+    sim_metric="correlation",
 ):
     """
     Compute intersubject correlation with permutation testing.
@@ -690,6 +724,16 @@ def isc_permutation_test(
         If True, return bootstrap/permutation distribution in result dict
     progress_bar : bool, default=True
         Show progress bar during bootstrap/permutation
+    exclude_self_corr : bool, default=True
+        If True, mask self-correlations (perfect correlations from duplicate
+        subjects in bootstrap samples) as NaN. If False, include them in the
+        summary statistic. Only applies when method='bootstrap' and
+        summary_statistic='pairwise'.
+    sim_metric : str, default='correlation'
+        Similarity metric for pairwise ISC computation. See
+        sklearn.metrics.pairwise_distances for valid options. Only applies
+        when summary_statistic='pairwise'. For 'correlation', uses optimized
+        np.corrcoef. Other metrics use pairwise_distances.
 
     Returns
     -------
@@ -753,6 +797,18 @@ def isc_permutation_test(
             f"got {method}"
         )
 
+    # Validate sim_metric (only used for pairwise)
+    if summary_statistic == "pairwise" and sim_metric != "correlation":
+        # Warn if using non-correlation metric with GPU backend
+        if backend == "torch":
+            import warnings
+
+            warnings.warn(
+                f"sim_metric='{sim_metric}' not supported with GPU backend. "
+                "Falling back to CPU. Use sim_metric='correlation' for GPU acceleration.",
+                UserWarning,
+            )
+
     # Determine backend for computation phase
     if backend is None:
         # Default: numpy for computation, cpu-parallel for bootstrap
@@ -795,7 +851,9 @@ def isc_permutation_test(
 
     else:  # pairwise
         # Compute pairwise correlation matrix (condensed form)
-        pairwise_condensed = _compute_pairwise_isc(data, backend="numpy")
+        pairwise_condensed = _compute_pairwise_isc(
+            data, backend="numpy", sim_metric=sim_metric
+        )
         n_subjects = data.shape[1]
 
         # Compute observed summary statistic
@@ -844,6 +902,7 @@ def isc_permutation_test(
                             metric=metric,
                             n_subjects=n_subjects,
                             random_state=np.random.RandomState(rng.randint(2**31)),
+                            exclude_self_corr=exclude_self_corr,
                         )
                         for _ in range(n_permute)
                     ]
@@ -857,6 +916,7 @@ def isc_permutation_test(
                     n_jobs=n_jobs,
                     random_state=random_state,
                     progress_bar=progress_bar,
+                    exclude_self_corr=exclude_self_corr,
                 )
 
         # Center bootstrap distribution by subtracting observed (Chen et al. 2016)
@@ -886,7 +946,9 @@ def isc_permutation_test(
                     z = np.arctanh(np.clip(loo_perm, -0.9999, 0.9999))
                     isc_perm = np.tanh(np.mean(z, axis=0))
             else:  # pairwise
-                pair_perm = _compute_pairwise_isc(data_permuted, backend="numpy")
+                pair_perm = _compute_pairwise_isc(
+                    data_permuted, backend="numpy", sim_metric=sim_metric
+                )
                 if metric == "median":
                     isc_perm = np.nanmedian(pair_perm, axis=0)
                 else:
@@ -922,7 +984,9 @@ def isc_permutation_test(
                     z = np.arctanh(np.clip(loo_perm, -0.9999, 0.9999))
                     isc_perm = np.tanh(np.mean(z, axis=0))
             else:  # pairwise
-                pair_perm = _compute_pairwise_isc(data_permuted, backend="numpy")
+                pair_perm = _compute_pairwise_isc(
+                    data_permuted, backend="numpy", sim_metric=sim_metric
+                )
                 if metric == "median":
                     isc_perm = np.nanmedian(pair_perm, axis=0)
                 else:
