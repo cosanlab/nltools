@@ -14,17 +14,16 @@ from sklearn.model_selection import KFold
 
 def _torch_available():
     """Check if PyTorch is available."""
-    try:
-        import torch
-        return True
-    except ImportError:
-        return False
+    import importlib.util
+
+    return importlib.util.find_spec("torch") is not None
 
 
 def _torch_cuda_available():
     """Check if PyTorch with CUDA is available."""
     try:
         import torch
+
         return torch.cuda.is_available()
     except ImportError:
         return False
@@ -440,9 +439,7 @@ class TestScoring:
             ).get_backend()
             # Handle 3D predictions (n_alphas, n_samples, n_targets)
             if len(y_pred.shape) == 3:
-                mse = backend_module.mean(
-                    (y_true[None, :, :] - y_pred) ** 2, axis=1
-                )
+                mse = backend_module.mean((y_true[None, :, :] - y_pred) ** 2, axis=1)
             else:
                 mse = backend_module.mean((y_true - y_pred) ** 2, axis=0)
             return -mse
@@ -471,7 +468,10 @@ class TestEdgeCases:
         Y = np.random.randn(10, 3)
 
         best_alphas, coefs, scores = solve_banded_ridge_cv(
-            Xs=[X], Y=Y, alphas=[0.1, 1.0, 10.0], cv=2  # Only 2 folds
+            Xs=[X],
+            Y=Y,
+            alphas=[0.1, 1.0, 10.0],
+            cv=2,  # Only 2 folds
         )
 
         assert best_alphas.shape == (3,)

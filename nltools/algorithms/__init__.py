@@ -14,6 +14,7 @@ __all__ = [
     "ridge_svd",
     "ridge_cv",
     "one_sample_permutation_test",
+    "ridge",  # Export ridge module for advanced usage
 ]
 
 from .srm import DetSRM, SRM
@@ -27,3 +28,4 @@ from .hrf import (
 )
 from .ridge import ridge_svd, ridge_cv
 from .inference import one_sample_permutation_test
+from . import ridge  # Make ridge module accessible
