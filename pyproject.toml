@@ -34,6 +34,7 @@ dev = [
     "networkx>=3.5",
     "pytest>=8.4",
     "pytest-xdist>=3.8.0",
+    "rich>=14.2.0",
     "ruff==0.14.2",
     "torch>=2.9.0",
     "tqdm>=4.67.1",

@@ -1,10 +1,12 @@
-# Ridge Regression Benchmarking Guide
+# Benchmarking Guide
 
 ## Overview
 
-This directory contains systematic benchmarks for ridge regression performance across realistic neuroimaging workflows. The benchmarks compare CPU (NumPy) vs GPU (PyTorch) backends across different problem sizes and use cases.
+This directory contains systematic benchmarks for ridge regression and inference algorithm performance across realistic neuroimaging workflows. The benchmarks compare CPU (NumPy), CPU-parallel (joblib), and GPU (PyTorch) backends across different problem sizes and use cases.
 
 ---
+
+## Ridge Regression Benchmarking
 
 ## Benchmark Script
 
@@ -297,5 +299,257 @@ This covers the vast majority of real-world neuroimaging ridge regression use ca
 
 ---
 
-**Last Updated:** 2025-10-28
-**Benchmark Version:** Systematic v1.0
+## Inference Algorithm Benchmarking
+
+### Benchmark Script
+
+### `inference_benchmarking.py`
+**Purpose:** Systematic inference algorithm benchmarks with flexible CLI interface  
+**Status:** Ready to run  
+**Features:**
+- Configurable algorithms, problem sizes, and permutation counts
+- Device-grouped execution (CPU Single, CPU Parallel, GPU)
+- Real-time progress tracking with remaining benchmark counts
+- Automatic visualization with seaborn stripplot
+- Unique timestamped output files
+- Comprehensive summary tables with 4 decimal precision
+
+**Results:** 
+- Generates `results_inference_systematic_YYYYMMDD_HHMMSS.csv`
+- Generates `results_inference_systematic_YYYYMMDD_HHMMSS.png` (if seaborn/matplotlib available)
+
+---
+
+### Systematic Benchmark Design
+
+### Benchmark Grid
+
+**Algorithms:**
+1. **One Sample Permutation Test** (`one_sample`)
+   - Tests whether mean differs from zero
+   - Supports: CPU Single (parallel=None), CPU Parallel (parallel='cpu'), GPU (parallel='gpu')
+
+2. **Two Sample Permutation Test** (`two_sample`)
+   - Tests difference between two groups (equal group sizes from `--n-samples`)
+   - Supports: CPU Single, CPU Parallel, GPU
+
+3. **Correlation Permutation Test** (`correlation`)
+   - Tests correlation between two datasets
+   - Supports: CPU Single, CPU Parallel, GPU
+
+4. **Timeseries Correlation Permutation Test** (`timeseries_correlation`)
+   - Two methods: `circle_shift` and `phase_randomize`
+   - Tests correlation with temporal structure preservation
+   - Supports: CPU Parallel, GPU (no CPU Single baseline)
+
+5. **Matrix Permutation Test** (`matrix`)
+   - Mantel test for correlation between matrices
+   - Matrix size controlled by `--n-samples` flag
+   - Supports: CPU Single, CPU Parallel
+
+6. **ISC Permutation Test** (`isc`)
+   - Intersubject Correlation with bootstrap resampling
+   - Supports: CPU Parallel, GPU
+
+7. **ISC Group Permutation Test** (`isc_group`)
+   - Group-level ISC difference testing
+   - Supports: CPU Single, CPU Parallel
+
+**Dimensions:**
+- **Sample sizes** (`--n-samples`): Comma-separated integers (default: `25`)
+- **Feature/voxel counts** (`--n-features`): Comma-separated integers (default: `100`)
+- **Permutation counts** (`--n-permute`): Comma-separated integers (default: `5000`)
+- **Timepoints** (`--n-timepoints`): Comma-separated integers for ISC tests (default: `100,500`)
+
+**Backend Options:**
+- **CPU Single** (`parallel=None`): Single-threaded NumPy baseline
+- **CPU Parallel** (`parallel='cpu'`): Multi-threaded joblib (uses all CPU cores)
+- **GPU** (`parallel='gpu'`): PyTorch GPU acceleration (when available)
+
+---
+
+### Running the Benchmarks
+
+### Basic Usage
+
+```bash
+# From project root
+uv run python benchmarks/inference_benchmarking.py
+
+# Dry-run to see benchmark plan
+uv run python benchmarks/inference_benchmarking.py --dry-run
+
+# Single algorithm, small problems
+uv run python benchmarks/inference_benchmarking.py --algorithm one_sample --n-features "1,100"
+
+# Custom configuration
+uv run python benchmarks/inference_benchmarking.py \
+    --algorithm one_sample,two_sample,correlation \
+    --n-samples "50,200" \
+    --n-features "100,1000" \
+    --n-permute "1000,5000"
+
+# ISC tests with custom timepoints
+uv run python benchmarks/inference_benchmarking.py \
+    --algorithm isc,isc_group \
+    --n-timepoints "100,500,1000"
+
+# Quick test (skip large problems)
+uv run python benchmarks/inference_benchmarking.py --quick
+
+# Skip GPU (CPU only)
+uv run python benchmarks/inference_benchmarking.py --no-gpu
+
+# Minimal output
+uv run python benchmarks/inference_benchmarking.py --quiet
+```
+
+### Output Structure
+
+The script groups benchmarks by device and runs algorithms sequentially within each device:
+
+1. **Device 1: CPU Single (parallel=None)**
+   - Runs all algorithms for CPU single-threaded baseline
+   - Shows device summary with average times/memory
+
+2. **Device 2: CPU Parallel (parallel='cpu', n_jobs=N)**
+   - Runs all algorithms with CPU parallelization
+   - Shows device summary and speedups vs CPU Single
+
+3. **Device 3: GPU (parallel='gpu')** (if available)
+   - Runs all algorithms with GPU acceleration
+   - Shows device summary and speedups vs both baselines
+
+**Progress Tracking:**
+- Shows current test number and total tests: `[X/Total] Algorithm Name: parameters`
+- Displays overall progress percentage and remaining count
+- Previous device results remain visible while next device runs
+
+**Output Files:**
+- `results_inference_systematic_YYYYMMDD_HHMMSS.csv` - Full results table
+- `results_inference_systematic_YYYYMMDD_HHMMSS.png` - Visualization (if seaborn/matplotlib available)
+
+---
+
+### Interpreting Results
+
+### Key Metrics
+
+**Speedup Calculations:**
+- **speedup_vs_numpy**: CPU Parallel or GPU speed relative to CPU Single baseline
+  - `speedup > 1.0`: Faster than baseline
+  - `speedup < 1.0`: Slower than baseline (overhead dominates)
+  - `speedup ≈ 1.0`: Similar performance
+- **speedup_vs_cpu_parallel**: GPU speed relative to CPU Parallel baseline
+  - Shows GPU advantage over multi-threaded CPU
+
+**Time (seconds):**
+- Wall-clock time measured with `time.perf_counter()`
+- Includes all overhead (data transfer, parallelization overhead, etc.)
+- Displayed with 4 decimal precision
+
+**Memory (MB):**
+- Process memory delta (RSS) measured with `psutil`
+- Positive values: Memory increased during operation
+- Negative values: Memory decreased (garbage collection)
+- Displayed with 4 decimal precision
+
+**Precision:**
+- All numeric values displayed with 4 decimal places
+- Missing baselines show "N/A" instead of NaN
+- Summary tables filter out NaN values before averaging
+
+### Expected Patterns
+
+**CPU Single vs CPU Parallel:**
+- Small problems: CPU Parallel overhead may dominate → similar or slower
+- Large problems: CPU Parallel provides 4-8× speedup (typical for 8-core machines)
+- Permutation-heavy algorithms benefit most from parallelization
+
+**GPU Acceleration:**
+- Small problems: GPU overhead dominates → CPU Single/Parallel often faster
+- Large problems: GPU provides 10-30× speedup for voxel-wise computations
+- Best for: ISC (voxel-wise), correlation (large feature counts), one/two-sample (large permutations)
+
+**Algorithm-Specific Notes:**
+- **Timeseries Correlation**: No CPU Single baseline (uses CPU Parallel as baseline)
+- **Matrix**: No GPU support (CPU Single and CPU Parallel only)
+- **ISC**: No CPU Single baseline (uses CPU Parallel as baseline)
+- **ISC Group**: Supports CPU Single and CPU Parallel
+
+---
+
+### Visualization
+
+The script automatically generates a seaborn stripplot visualization showing:
+- Individual benchmark runs as points
+- Conditional means as diamonds
+- Backend comparison (CPU Single, CPU Parallel, GPU)
+- Automatic log scale if time range exceeds 100×
+
+The visualization is saved alongside the CSV with matching timestamp.
+
+---
+
+### Troubleshooting
+
+### Benchmark Takes Too Long
+
+**Solution 1:** Reduce permutation count
+```bash
+uv run python benchmarks/inference_benchmarking.py --n-permute "1000"
+```
+
+**Solution 2:** Reduce problem sizes
+```bash
+uv run python benchmarks/inference_benchmarking.py --n-samples "50" --n-features "100"
+```
+
+**Solution 3:** Use quick mode
+```bash
+uv run python benchmarks/inference_benchmarking.py --quick
+```
+
+**Solution 4:** Skip GPU
+```bash
+uv run python benchmarks/inference_benchmarking.py --no-gpu
+```
+
+### GPU Not Detected
+
+Check GPU availability:
+```python
+from nltools.backends import check_gpu_available
+available, info = check_gpu_available()
+print(f"GPU Available: {available}")
+if available:
+    print(f"Device: {info['device']}")
+    print(f"Device Name: {info['device_name']}")
+```
+
+### Memory Issues
+
+**Solution:** Reduce problem sizes or permutation counts
+```bash
+uv run python benchmarks/inference_benchmarking.py \
+    --n-features "100" \
+    --n-permute "1000"
+```
+
+---
+
+### Using Results
+
+The CSV output can be used to:
+1. Compare backend performance across algorithms
+2. Identify when GPU acceleration is beneficial
+3. Guide users on `parallel` parameter selection
+4. Update performance documentation
+5. Inform algorithm development priorities
+
+The visualization provides quick visual comparison of backend performance across problem sizes.
+
+---
+
+**Last Updated:** 2025-11-02  
+**Benchmark Version:** Inference Systematic v1.0
