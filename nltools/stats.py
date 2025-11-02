@@ -1424,6 +1424,11 @@ def isc(
         progress_bar=False,  # Disable progress bar for backward compatibility
     )
 
+    # Map return keys to match original function signature
+    # Inference module returns 'null_dist', but original function returned 'null_distribution'
+    if return_null and "null_dist" in result:
+        result["null_distribution"] = result.pop("null_dist")
+
     # Return dict with same keys as original function
     return result
 
@@ -1651,7 +1656,12 @@ def isc_group(
         summary_statistic="pairwise",  # Match old behavior (always pairwise)
     )
 
-    # Return dict already matches expected keys: ['isc_group_difference', 'p', 'ci', 'null_distribution']
+    # Map return keys to match original function signature
+    # Inference module returns 'null_dist', but original function returned 'null_distribution'
+    if return_null and "null_dist" in result:
+        result["null_distribution"] = result.pop("null_dist")
+
+    # Return dict with expected keys: ['isc_group_difference', 'p', 'ci', 'null_distribution']
     return result
 
 
