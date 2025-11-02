@@ -2035,9 +2035,10 @@ class BrainData(object):
             X_test: (np.ndarray, optional) Test features for 'predict' bootstrap.
                    Required if stat='predict'
             backend: (str, optional) Backend for computation ('numpy', 'torch', 'auto').
-                    If 'torch' and GPU available, uses GPU acceleration. Default: None (CPU).
+                    If 'torch' and GPU available, uses optimized GPU acceleration with
+                    inline Ridge computation (no CPU round-trips). Default: None (CPU).
             max_gpu_memory_gb: (float) Maximum GPU memory to use in GB. Default: 4.0
-            **kwargs: Additional parameters passed to ridge_svd() for Ridge bootstrap
+            **kwargs: Additional parameters (currently unused, reserved for future extensions)
 
         Returns:
             BrainData or dict:
@@ -2051,9 +2052,15 @@ class BrainData(object):
             >>> boot = brain.bootstrap(stat='mean', n_samples=1000)
             >>> assert isinstance(boot, BrainData)
 
-            >>> # Ridge weights bootstrap
+            >>> # Ridge weights bootstrap (CPU)
             >>> brain.fit(X=dm, model='ridge', alpha=1.0)
             >>> boot = brain.bootstrap(stat='weights', n_samples=1000)
+            >>> assert 'mean' in boot
+            >>> assert isinstance(boot['mean'], BrainData)
+
+            >>> # Ridge weights bootstrap (GPU accelerated)
+            >>> brain.fit(X=dm, model='ridge', alpha=1.0)
+            >>> boot = brain.bootstrap(stat='weights', n_samples=1000, backend='torch')
             >>> assert 'mean' in boot
             >>> assert isinstance(boot['mean'], BrainData)
 

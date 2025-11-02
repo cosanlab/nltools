@@ -912,7 +912,6 @@ def _bootstrap_ridge_weights_gpu_batched(
     """
     import torch
     from tqdm import tqdm
-    from nltools.algorithms.ridge import ridge_svd
     from nltools.backends import auto_select_backend
     from .utils import _generate_bootstrap_indices
 
@@ -991,7 +990,7 @@ def _bootstrap_ridge_weights_gpu_batched(
         ]  # Shape: (current_batch_size, n_obs)
 
         # Process each bootstrap sample in batch sequentially
-        # (Ridge SVD is already fast, and vectorizing across bootstraps is complex)
+        # Inline ridge computation on GPU to avoid CPU round-trips
         batch_weights = []
         for i in range(current_batch_size):
             # Resample data using advanced indexing
@@ -1007,14 +1006,22 @@ def _bootstrap_ridge_weights_gpu_batched(
             X_boot_device = X_device[indices_device]
             y_boot_device = y_device[indices_device]
 
-            # Compute Ridge weights on GPU
-            weights = ridge_svd(
-                backend.to_numpy(X_boot_device),
-                backend.to_numpy(y_boot_device),
-                alpha=alpha,
-                backend=backend,
-                **ridge_kwargs,
-            )
+            # Compute Ridge weights directly on GPU (inline SVD computation)
+            # This avoids CPU round-trips from backend.to_numpy() → ridge_svd()
+            # Ridge solution: beta = V @ diag(s / (s² + alpha)) @ U.T @ y
+            U, s, Vt = backend.svd(X_boot_device, full_matrices=False)
+
+            # Compute shrinkage: s / (s² + alpha)
+            shrinkage = s / (s**2 + alpha)
+
+            # Compute: U.T @ y
+            Uty = backend.matmul(U.T, y_boot_device)
+
+            # Compute: V.T @ (shrinkage[:, None] * Uty)
+            coef_device = backend.matmul(Vt.T, shrinkage[:, None] * Uty)
+
+            # Transfer weights back to CPU for aggregation
+            weights = backend.to_numpy(coef_device)
 
             batch_weights.append(weights)
 
@@ -1099,7 +1106,6 @@ def _bootstrap_ridge_predict_gpu_batched(
     """
     import torch
     from tqdm import tqdm
-    from nltools.algorithms.ridge import ridge_svd
     from nltools.backends import auto_select_backend
     from .utils import _generate_bootstrap_indices
 
@@ -1185,6 +1191,7 @@ def _bootstrap_ridge_predict_gpu_batched(
         batch_indices = all_indices[start_idx:end_idx]
 
         # Process each bootstrap sample in batch sequentially
+        # Inline ridge computation on GPU to avoid CPU round-trips
         batch_predictions = []
         for i in range(current_batch_size):
             # Resample training data
@@ -1200,17 +1207,20 @@ def _bootstrap_ridge_predict_gpu_batched(
             X_boot_device = X_device[indices_device]
             y_boot_device = y_device[indices_device]
 
-            # Fit Ridge model on GPU
-            weights = ridge_svd(
-                backend.to_numpy(X_boot_device),
-                backend.to_numpy(y_boot_device),
-                alpha=alpha,
-                backend=backend,
-                **ridge_kwargs,
-            )
+            # Fit Ridge model directly on GPU (inline SVD computation)
+            # Ridge solution: beta = V @ diag(s / (s² + alpha)) @ U.T @ y
+            U, s, Vt = backend.svd(X_boot_device, full_matrices=False)
 
-            # Make predictions on GPU
-            weights_device = backend.to_device(weights)
+            # Compute shrinkage: s / (s² + alpha)
+            shrinkage = s / (s**2 + alpha)
+
+            # Compute: U.T @ y
+            Uty = backend.matmul(U.T, y_boot_device)
+
+            # Compute: V.T @ (shrinkage[:, None] * Uty)
+            weights_device = backend.matmul(Vt.T, shrinkage[:, None] * Uty)
+
+            # Make predictions on GPU: X_pred @ weights
             predictions_device = backend.matmul(X_pred_device, weights_device)
             predictions = backend.to_numpy(predictions_device)
 
