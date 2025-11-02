@@ -58,7 +58,7 @@ from .matrix import (
     u_center,
     distance_correlation,
 )
-from .isc import isc_permutation_test
+from .isc import isc_permutation_test, isc_group_permutation_test
 
 # Import utility functions (for testing and internal use)
 from .utils import _generate_sign_flips, _compute_pvalue, _auto_batch_size
@@ -79,6 +79,7 @@ __all__ = [
     "u_center",
     "distance_correlation",
     "isc_permutation_test",
+    "isc_group_permutation_test",
     "OnlineBootstrapStats",
     # Private functions (exported for testing)
     "_generate_sign_flips",
