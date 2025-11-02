@@ -68,6 +68,7 @@ docs/**/*.nii.gz
 audit/
 claude-research/
 claude-guidelines/
+project-log/
 .private-journal/
 *plan*.md
 tmp/

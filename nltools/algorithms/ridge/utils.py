@@ -5,6 +5,78 @@ following himalaya's implementation patterns.
 """
 
 import numpy as np
+from sklearn.utils import check_random_state
+
+
+def generate_dirichlet_samples(
+    n_samples, n_kernels, concentration=[0.1, 1.0], random_state=None
+):
+    """Generate samples from a Dirichlet distribution.
+
+    This function generates random samples from a Dirichlet distribution,
+    which is used for sampling feature space weights (gamma) in banded ridge
+    regression random search.
+
+    Parameters
+    ----------
+    n_samples : int
+        Number of samples to generate.
+    n_kernels : int
+        Number of dimensions (feature spaces) of the distribution.
+    concentration : float, or list of float
+        Concentration parameters of the Dirichlet distribution.
+        - A value of 1 corresponds to uniform sampling over the simplex.
+        - A value of infinity corresponds to equal weights.
+        - If a list, samples cycle through the list.
+    random_state : int, or None
+        Random generator seed. Use an int for deterministic samples.
+
+    Returns
+    -------
+    gammas : array of shape (n_samples, n_kernels)
+        Dirichlet samples. Each row sums to 1 (lies on simplex).
+
+    Examples
+    --------
+    >>> # Generate 10 samples for 3 feature spaces
+    >>> gammas = generate_dirichlet_samples(10, 3, concentration=[0.1, 1.0])
+    >>> gammas.shape
+    (10, 3)
+    >>> # Each row sums to 1
+    >>> np.allclose(gammas.sum(axis=1), 1.0)
+    True
+    """
+    random_generator = check_random_state(random_state)
+
+    concentration = np.atleast_1d(concentration)
+    n_concentrations = len(concentration)
+    n_samples_per_concentration = int(np.ceil(n_samples / float(n_concentrations)))
+
+    # Generate the gammas
+    gammas = []
+    for conc in concentration:
+        if conc == np.inf:
+            # Equal weights for all spaces
+            gamma = np.full(n_kernels, fill_value=1.0 / n_kernels)[None]
+            gamma = np.tile(gamma, (n_samples_per_concentration, 1))
+        else:
+            # Sample from Dirichlet distribution
+            gamma = random_generator.dirichlet(
+                [conc] * n_kernels, n_samples_per_concentration
+            )
+        gammas.append(gamma)
+    gammas = np.vstack(gammas)
+
+    # Reorder the gammas to alternate between concentrations:
+    # [a0, a1, a2, a0, a1, a2] instead of [a0, a0, a1, a1, a2, a2]
+    gammas = gammas.reshape(n_concentrations, n_samples_per_concentration, n_kernels)
+    gammas = np.swapaxes(gammas, 0, 1)
+    gammas = gammas.reshape(n_concentrations * n_samples_per_concentration, n_kernels)
+
+    # Remove extra gammas if we generated more than requested
+    gammas = gammas[:n_samples]
+
+    return gammas
 
 
 def _batch_or_skip(array, batch, axis):

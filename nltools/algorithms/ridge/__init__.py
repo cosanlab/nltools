@@ -34,6 +34,7 @@ from .solvers import (
 from .utils import (
     _decompose_ridge,
     _r2_score,
+    generate_dirichlet_samples,
 )
 
 # Backward compatibility (legacy API)
@@ -56,4 +57,5 @@ __all__ = [
     # Utilities (advanced usage)
     "_decompose_ridge",
     "_r2_score",
+    "generate_dirichlet_samples",
 ]

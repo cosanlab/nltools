@@ -296,6 +296,51 @@ def test_ridge_default_alpha():
     assert model.alpha == 1.0  # Default value
 
 
+def test_ridge_auto_detects_single_space():
+    """Ridge should auto-detect single feature space from array input."""
+    np.random.seed(42)
+    X = np.random.randn(100, 50).astype(np.float32)
+    y = np.random.randn(100).astype(np.float32)
+
+    model = Ridge(alpha="auto", cv=3)
+    model.fit(X, y)
+
+    # Should have selected an alpha (single space uses solve_ridge_cv)
+    assert hasattr(model, "alpha_")
+    assert isinstance(model.alpha_, float)
+    assert model.deltas_ is None  # No feature space weights for single space
+
+
+def test_ridge_auto_detects_multiple_spaces():
+    """Ridge should auto-detect multiple feature spaces from list input."""
+    np.random.seed(42)
+    X1 = np.random.randn(100, 30).astype(np.float32)
+    X2 = np.random.randn(100, 20).astype(np.float32)
+    y = np.random.randn(100).astype(np.float32)
+
+    model = Ridge(alpha="auto", cv=3, n_iter=5, random_state=42)
+    model.fit([X1, X2], y)
+
+    # Should have feature space weights (multiple spaces uses solve_banded_ridge_cv)
+    assert hasattr(model, "deltas_")
+    assert model.deltas_ is not None
+    assert model.deltas_.shape == (2, 1)  # 2 spaces, 1 target
+    # alpha_ should be None (alphas are embedded in deltas)
+    assert model.alpha_ is None
+
+
+def test_ridge_multiple_spaces_requires_cv():
+    """Multiple feature spaces require alpha='auto' with CV."""
+    np.random.seed(42)
+    X1 = np.random.randn(100, 30).astype(np.float32)
+    X2 = np.random.randn(100, 20).astype(np.float32)
+    y = np.random.randn(100).astype(np.float32)
+
+    model = Ridge(alpha=1.0)  # Fixed alpha
+    with pytest.raises(ValueError, match="Banded ridge requires"):
+        model.fit([X1, X2], y)
+
+
 def test_ridge_fit_single_target():
     """Ridge should fit single-target regression"""
     np.random.seed(42)
