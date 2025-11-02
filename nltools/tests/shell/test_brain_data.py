@@ -557,6 +557,224 @@ class TestBrainData:
         # Should have same mask
         assert sim_brain_data.ridge_weights.mask is sim_brain_data.mask
 
+    # ==================== Fit inplace parameter tests ====================
+
+    def test_fit_inplace_true_backward_compatible(self, sim_brain_data):
+        """Test inplace=True preserves backward compatibility."""
+        import numpy as np
+
+        X_train = np.random.randn(len(sim_brain_data), 10)
+
+        # Fit with inplace=True (default)
+        result = sim_brain_data.fit(model="ridge", alpha=1.0, X=X_train, inplace=True)
+
+        # Should return self
+        assert result is sim_brain_data
+
+        # Should have mutated attributes
+        assert hasattr(sim_brain_data, "ridge_weights")
+        assert hasattr(sim_brain_data, "ridge_fitted_values")
+        assert hasattr(sim_brain_data, "ridge_scores")
+        assert hasattr(sim_brain_data, "model_")
+        assert hasattr(sim_brain_data, "X_")
+
+    def test_fit_inplace_false_returns_fit_dataclass_ridge(self, sim_brain_data):
+        """Test inplace=False returns Fit dataclass for Ridge."""
+        from nltools.data.fit_results import Fit
+        import numpy as np
+
+        # Use a fresh copy to avoid contamination from previous tests
+        brain = sim_brain_data.copy()
+        # Clean up any existing fit attributes that might have been copied
+        for attr in [
+            "ridge_weights",
+            "ridge_fitted_values",
+            "ridge_scores",
+            "glm_betas",
+            "glm_t",
+            "glm_p",
+            "glm_se",
+            "glm_residual",
+            "glm_predicted",
+            "glm_r2",
+            "cv_results_",
+            "model_",
+            "X_",
+        ]:
+            if hasattr(brain, attr):
+                delattr(brain, attr)
+
+        X_train = np.random.randn(len(brain), 10)
+        original_data = brain.data.copy()
+
+        # Fit with inplace=False
+        fit = brain.fit(model="ridge", alpha=1.0, X=X_train, inplace=False)
+
+        # Should return Fit dataclass
+        assert isinstance(fit, Fit)
+
+        # Should have correct fields
+        assert "fitted_values" in fit.available()
+        assert "weights" in fit.available()
+        assert "scores" in fit.available()
+
+        # Check shapes
+        assert fit.fitted_values.shape == brain.shape
+        assert fit.weights.shape == (10, brain.shape[1])
+        assert fit.scores.shape == (brain.shape[1],)
+
+        # BrainData should not have result attributes
+        assert not hasattr(brain, "ridge_weights")
+        assert not hasattr(brain, "ridge_fitted_values")
+        assert not hasattr(brain, "ridge_scores")
+
+        # But should have model_ and X_ for predict()
+        assert hasattr(brain, "model_")
+        assert hasattr(brain, "X_")
+
+        # Data should be unchanged
+        np.testing.assert_array_equal(brain.data, original_data)
+
+    def test_fit_inplace_false_returns_fit_dataclass_ridge_cv(self, sim_brain_data):
+        """Test inplace=False returns Fit dataclass with CV results for Ridge."""
+        from nltools.data.fit_results import Fit
+        import numpy as np
+
+        # Use a fresh copy to avoid contamination
+        brain = sim_brain_data.copy()
+        X_train = np.random.randn(len(brain), 10)
+
+        # Fit with CV and inplace=False
+        fit = brain.fit(model="ridge", alpha=1.0, X=X_train, cv=3, inplace=False)
+
+        # Should return Fit dataclass
+        assert isinstance(fit, Fit)
+
+        # Should have CV fields
+        assert "cv_scores" in fit.available()
+        assert "cv_mean_score" in fit.available()
+        assert "cv_predictions" in fit.available()
+        assert "cv_folds" in fit.available()
+
+        # Check shapes
+        assert fit.cv_scores.shape == (3, brain.shape[1])
+        assert fit.cv_mean_score.shape == (brain.shape[1],)
+        assert fit.cv_predictions.shape == brain.shape
+        assert fit.cv_folds.shape == (len(brain),)
+
+        # BrainData should not have cv_results_
+        assert not hasattr(brain, "cv_results_")
+
+    def test_fit_inplace_false_returns_fit_dataclass_glm(self, sim_brain_data):
+        """Test inplace=False returns Fit dataclass for GLM."""
+        from nltools.data.fit_results import Fit
+        import numpy as np
+        import pandas as pd
+
+        # Use a fresh copy to avoid contamination
+        brain = sim_brain_data.copy()
+        design_matrix = pd.DataFrame(
+            {
+                "Intercept": np.ones(len(brain)),
+                "X1": np.random.randn(len(brain)),
+            }
+        )
+        original_data = brain.data.copy()
+
+        # Fit with inplace=False
+        fit = brain.fit(model="glm", noise_model="ols", X=design_matrix, inplace=False)
+
+        # Should return Fit dataclass
+        assert isinstance(fit, Fit)
+
+        # Should have GLM fields
+        assert "fitted_values" in fit.available()
+        assert "betas" in fit.available()
+        assert "t_stats" in fit.available()
+        assert "p_values" in fit.available()
+        assert "se" in fit.available()
+        assert "residuals" in fit.available()
+        assert "r2" in fit.available()
+
+        # Check shapes
+        assert fit.fitted_values.shape == brain.shape
+        assert fit.betas.shape == (2, brain.shape[1])  # 2 regressors
+        assert fit.t_stats.shape == (2, brain.shape[1])
+        assert fit.p_values.shape == (2, brain.shape[1])
+        assert fit.se.shape == (2, brain.shape[1])
+        assert fit.residuals.shape == brain.shape
+        assert fit.r2.shape == (brain.shape[1],)
+
+        # BrainData should not have GLM result attributes
+        assert not hasattr(brain, "glm_betas")
+        assert not hasattr(brain, "glm_t")
+        assert not hasattr(brain, "glm_p")
+
+        # But should have model_ and design_matrix for predict() and compute_contrasts()
+        assert hasattr(brain, "model_")
+        assert hasattr(brain, "design_matrix")
+
+        # Data should be unchanged
+        np.testing.assert_array_equal(brain.data, original_data)
+
+    def test_fit_inplace_false_allows_predict(self, sim_brain_data):
+        """Test that inplace=False still allows predict() to work."""
+        import numpy as np
+
+        X_train = np.random.randn(len(sim_brain_data), 10)
+
+        # Fit with inplace=False
+        sim_brain_data.fit(model="ridge", alpha=1.0, X=X_train, inplace=False)
+
+        # Should be able to predict (model_ and X_ stored)
+        X_test = np.random.randn(20, 10)
+        predictions = sim_brain_data.predict(X=X_test)
+
+        assert predictions.shape == (20, sim_brain_data.shape[1])
+
+    def test_fit_inplace_false_serialization(self, sim_brain_data):
+        """Test Fit dataclass serialization roundtrip."""
+        from nltools.data.fit_results import Fit
+        import numpy as np
+        import tempfile
+        import os
+
+        X_train = np.random.randn(len(sim_brain_data), 10)
+
+        # Fit with inplace=False
+        fit = sim_brain_data.fit(model="ridge", alpha=1.0, X=X_train, inplace=False)
+
+        # Serialize
+        with tempfile.NamedTemporaryFile(suffix=".npz", delete=False) as f:
+            np.savez(f.name, **fit.asdict())
+
+            # Load
+            loaded = np.load(f.name)
+            fit_reconstructed = Fit(**{k: loaded[k] for k in loaded.files})
+
+            # Clean up
+            os.unlink(f.name)
+
+        # Check fields match
+        np.testing.assert_array_equal(
+            fit.fitted_values, fit_reconstructed.fitted_values
+        )
+        np.testing.assert_array_equal(fit.weights, fit_reconstructed.weights)
+        np.testing.assert_array_equal(fit.scores, fit_reconstructed.scores)
+
+    def test_fit_inplace_default_is_true(self, sim_brain_data):
+        """Test that inplace defaults to True for backward compatibility."""
+        import numpy as np
+
+        X_train = np.random.randn(len(sim_brain_data), 10)
+
+        # Fit without specifying inplace (should default to True)
+        result = sim_brain_data.fit(model="ridge", alpha=1.0, X=X_train)
+
+        # Should return self and mutate attributes
+        assert result is sim_brain_data
+        assert hasattr(sim_brain_data, "ridge_weights")
+
     @pytest.mark.tier2
     def test_glm_fit_numerical_correctness(self, sim_brain_data):
         """Test fit(model='glm') produces numerically correct results."""

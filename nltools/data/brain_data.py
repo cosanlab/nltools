@@ -659,7 +659,7 @@ class BrainData(object):
 
         return out
 
-    def fit(self, model=None, X=None, cv=None, **kwargs):
+    def fit(self, model=None, X=None, cv=None, inplace=True, **kwargs):
         """Fit a model to brain imaging data.
 
         Creates and fits a model from string specification. The brain data
@@ -676,14 +676,17 @@ class BrainData(object):
                 - 'auto': Triggers alpha selection via CV (implies alpha='auto')
                 - sklearn CV object: Custom CV splitter (e.g., KFold(3, shuffle=True))
                 - None: No CV (default, backward compatible)
+            inplace (bool, default=True): If True, mutate self and return self (backward compatible).
+                If False, return Fit dataclass with results (self unchanged).
             **kwargs (dict): Additional arguments passed to model constructor
                 - Ridge: alpha, alphas, backend, random_state
                 - Glm: noise_model, minimize_memory, etc.
 
         Returns:
-            BrainData: Fitted BrainData instance (self)
+            BrainData or Fit: If inplace=True, returns self (fitted BrainData).
+                If inplace=False, returns Fit dataclass with results.
 
-        Attributes:
+        Attributes (when inplace=True):
 
             model_ (BaseModel): Fitted model instance (Ridge, Glm, etc.)
             X_ (ndarray): Training data X, stored for predict() default
@@ -710,24 +713,22 @@ class BrainData(object):
                 ridge_scores (BrainData): R² scores
 
         Examples:
-            >>> # Ridge prediction with CV for reporting performance
+            >>> # Old behavior (backward compatible): mutate self
             >>> brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features)
             >>> print(f"CV R²: {brain_data.cv_results_['mean_score'].mean():.3f}")
-            >>> predictions = brain_data.predict(X=new_features)
+            >>> weights = brain_data.ridge_weights  # Access as attribute
             >>>
-            >>> # Ridge with automatic alpha selection
-            >>> brain_data.fit(model='ridge', cv='auto', X=features)
-            >>> print(f"Selected alpha: {brain_data.cv_results_['best_alpha']}")
+            >>> # New behavior: return Fit dataclass (self unchanged)
+            >>> fit = brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features, inplace=False)
+            >>> assert isinstance(fit, Fit)
+            >>> assert 'weights' in fit.available()
+            >>> assert not hasattr(brain_data, 'ridge_weights')  # brain_data unchanged
+            >>> print(f"CV R²: {fit.cv_mean_score.mean():.3f}")
             >>>
-            >>> # OLS (unregularized) regression with CV
-            >>> # Set alpha to small value (more stable than alpha=0)
-            >>> brain_data.fit(model='ridge', alpha=1e-6, cv=5, X=features)
-            >>> weights = brain_data.ridge_weights  # OLS coefficients
-            >>> cv_r2 = brain_data.cv_results_['mean_score']  # Per-voxel CV R²
-            >>>
-            >>> # GLM regression (CV not supported yet)
-            >>> brain_data.fit(model='glm', noise_model='ar1', X=design_matrix)
-            >>> new_predictions = brain_data.predict(X=new_design_matrix)
+            >>> # GLM with Fit dataclass
+            >>> fit_glm = brain_data.fit(model='glm', X=design_matrix, inplace=False)
+            >>> assert 'betas' in fit_glm.available()
+            >>> assert 't_stats' in fit_glm.available()
         """
         from nltools.models import Ridge, Glm
 
@@ -757,24 +758,59 @@ class BrainData(object):
                     f"number of samples must match."
                 )
 
-        # Store training data for predict() default
+        # Always store model_ and X_ for predict() to work (even if inplace=False)
         self.X_ = X_model
+
+        # Create temporary copy if inplace=False to avoid mutating result attributes
+        if inplace:
+            target = self
+        else:
+            # Create temporary copy for fitting (to avoid mutating self's result attributes)
+            target = self.copy()
+            # Set X_ on copy (will be set below)
+            target.X_ = X_model
+            # Clean up any existing result attributes from the copy
+            for attr in [
+                "ridge_weights",
+                "ridge_fitted_values",
+                "ridge_scores",
+                "glm_betas",
+                "glm_t",
+                "glm_p",
+                "glm_se",
+                "glm_residual",
+                "glm_predicted",
+                "glm_r2",
+                "cv_results_",
+            ]:
+                if hasattr(target, attr):
+                    delattr(target, attr)
 
         # Create model based on string
         if model == "ridge":
-            self.model_ = Ridge(**kwargs)
-            self._fit_ridge(X_model, cv=cv, **kwargs)
+            target.model_ = Ridge(**kwargs)
+            target._fit_ridge(X_model, cv=cv, **kwargs)
         elif model == "glm":
             if cv is not None:
                 raise NotImplementedError(
                     "Cross-validation not yet supported for GLM models"
                 )
-            self.model_ = Glm(**kwargs)
-            self._fit_glm(X_model)
+            target.model_ = Glm(**kwargs)
+            target._fit_glm(X_model)
         else:
             raise ValueError(f"Unknown model '{model}'. Must be one of: 'ridge', 'glm'")
 
-        return self
+        # If inplace=False, copy model_ to self (needed for predict()) and return Fit
+        if not inplace:
+            # Store model_ and X_ on self for predict() to work
+            self.model_ = target.model_
+            # Also store design_matrix for GLM compute_contrasts()
+            if model == "glm" and hasattr(target, "design_matrix"):
+                self.design_matrix = target.design_matrix
+            # Return Fit dataclass with results
+            return target._to_fit_dataclass(model=model)
+        else:
+            return self
 
     def _fit_ridge(self, X, cv=None, **kwargs):
         """Fit Ridge model and extract results.
@@ -801,8 +837,8 @@ class BrainData(object):
         self.ridge_fitted_values = self._shallow_copy_with_data()
         self.ridge_fitted_values.data = fitted
 
-        # Compute R² scores
-        scores = self.model_.score(X, self.data)
+        # Compute R² scores per voxel (using model's score method which now returns per-voxel)
+        scores = self.model_.score(X, self.data)  # (n_voxels,)
         self.ridge_scores = self._shallow_copy_with_data()
         self.ridge_scores.data = scores.reshape(1, -1)  # (1, n_voxels)
 
@@ -991,6 +1027,93 @@ class BrainData(object):
         # Create single-image BrainData for R-squared
         self.glm_r2 = self[0].copy()
         self.glm_r2.data = r2_values.reshape(1, -1)
+
+    def _to_fit_dataclass(self, model):
+        """Convert BrainData fit results to Fit dataclass.
+
+        Args:
+            model (str): Model type ('ridge' or 'glm')
+
+        Returns:
+            Fit: Dataclass containing fit results
+        """
+        from nltools.data.fit_results import Fit
+
+        if model == "ridge":
+            # Extract Ridge results
+            fitted_values = self.ridge_fitted_values.data  # (n_samples, n_voxels)
+            weights = self.ridge_weights.data  # (n_features, n_voxels)
+            scores = self.ridge_scores.data  # (1, n_voxels)
+            # Squeeze first dimension to get (n_voxels,)
+            if scores.ndim > 1 and scores.shape[0] == 1:
+                scores = scores[0]  # (n_voxels,)
+            else:
+                scores = scores.squeeze()  # (n_voxels,)
+
+            # Extract CV results if available
+            cv_scores = None
+            cv_mean_score = None
+            cv_predictions = None
+            cv_folds = None
+            cv_best_alpha = None
+            cv_alpha_scores = None
+
+            if hasattr(self, "cv_results_") and self.cv_results_ is not None:
+                cv_results = self.cv_results_
+                cv_scores = cv_results.get("scores")  # (n_folds, n_voxels)
+                cv_mean_score = cv_results.get("mean_score")  # (n_voxels,)
+
+                # Extract predictions from BrainData
+                if "predictions" in cv_results:
+                    cv_predictions = cv_results[
+                        "predictions"
+                    ].data  # (n_samples, n_voxels)
+
+                cv_folds = cv_results.get("folds")  # (n_samples,)
+                cv_best_alpha = cv_results.get("best_alpha")  # float or None
+                cv_alpha_scores = cv_results.get(
+                    "alpha_scores"
+                )  # (n_folds, n_alphas, n_voxels) or None
+
+            return Fit(
+                fitted_values=fitted_values,
+                weights=weights,
+                scores=scores,
+                cv_scores=cv_scores,
+                cv_mean_score=cv_mean_score,
+                cv_predictions=cv_predictions,
+                cv_folds=cv_folds,
+                cv_best_alpha=cv_best_alpha,
+                cv_alpha_scores=cv_alpha_scores,
+            )
+
+        elif model == "glm":
+            # Extract GLM results
+            fitted_values = self.glm_predicted.data  # (n_samples, n_voxels)
+            betas = self.glm_betas.data  # (n_regressors, n_voxels)
+            t_stats = self.glm_t.data  # (n_regressors, n_voxels)
+            p_values = self.glm_p.data  # (n_regressors, n_voxels)
+            se = self.glm_se.data  # (n_regressors, n_voxels)
+            residuals = self.glm_residual.data  # (n_samples, n_voxels)
+            r2 = self.glm_r2.data  # (1, n_voxels)
+            # Squeeze first dimension to get (n_voxels,)
+            if r2.ndim > 1 and r2.shape[0] == 1:
+                r2 = r2[0]  # (n_voxels,)
+            else:
+                r2 = r2.squeeze()  # (n_voxels,)
+
+            return Fit(
+                fitted_values=fitted_values,
+                betas=betas,
+                t_stats=t_stats,
+                p_values=p_values,
+                se=se,
+                residuals=residuals,
+                r2=r2,
+            )
+
+        else:
+            raise ValueError(f"Unknown model '{model}'. Must be 'ridge' or 'glm'")
 
     def regress(self, design_matrix=None, noise_model="ols", mode=None, **kwargs):
         """Deprecated: Use fit(model='glm', X=design_matrix) instead."""

@@ -275,23 +275,37 @@ class Ridge(BaseModel):
         """
         Return the coefficient of determination R^2 of the prediction.
 
+        For multi-target regression (y is 2D), returns per-target R² scores.
+        For single-target regression (y is 1D), returns a scalar R².
+
         Args:
             X (ndarray of shape (n_samples, n_features)): Test samples
             y (ndarray of shape (n_samples,) or (n_samples, n_targets)): True values
                 for X
 
         Returns:
-            float: R^2 of self.predict(X) vs y
+            float or ndarray:
+                - If y is 1D: scalar R²
+                - If y is 2D: array of shape (n_targets,) with per-target R² scores
         """
         self._check_is_fitted()
         X, y = self._validate_X_y(X, y)
 
         y_pred = self.predict(X)
 
-        # Compute R^2
-        ss_res = np.sum((y - y_pred) ** 2)
-        ss_tot = np.sum((y - np.mean(y, axis=0)) ** 2)
-        r2 = 1 - (ss_res / ss_tot)
+        # Handle single-target case (y is 1D)
+        if y.ndim == 1:
+            ss_res = np.sum((y - y_pred) ** 2)
+            ss_tot = np.sum((y - np.mean(y)) ** 2)
+            r2 = 1 - (ss_res / (ss_tot + 1e-10))
+            return float(r2)
+
+        # Multi-target case: compute R² per target/voxel
+        # y: (n_samples, n_targets)
+        # y_pred: (n_samples, n_targets)
+        ss_res = np.sum((y - y_pred) ** 2, axis=0)  # (n_targets,)
+        ss_tot = np.sum((y - np.mean(y, axis=0)) ** 2, axis=0)  # (n_targets,)
+        r2 = 1 - (ss_res / (ss_tot + 1e-10))  # (n_targets,)
 
         return r2
 
