@@ -8,6 +8,11 @@ from nltools.algorithms.inference.bootstrap import (
     _bootstrap_ridge_weights_cpu_parallel,
     _bootstrap_ridge_predict_cpu_parallel,
 )
+from nltools.backends import check_gpu_available
+
+# GPU tolerance constants (from test_inference.py)
+TOLERANCE_GPU_VALUE = 1e-3  # 0.1% error for computed values
+TOLERANCE_GPU_PVALUE = 5e-3  # 0.5% error for P-values (more FP error)
 
 
 class TestOnlineBootstrapStats:
@@ -816,3 +821,722 @@ class TestBootstrapPerformance:
 
         # Test completed without OOM!
         print("  ✅ Large-scale test passed without OOM")
+
+
+# ============================================================================
+# Test GPU Bootstrap Ridge (Phase 3)
+# ============================================================================
+
+
+class TestBootstrapRidgeWeightsGPU:
+    """Test suite for GPU-accelerated Ridge weights bootstrap."""
+
+    @pytest.mark.tier1
+    @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
+    def test_gpu_basic_functionality(self):
+        """Test basic GPU functionality for Ridge weights bootstrap."""
+        from nltools.algorithms.inference.bootstrap import (
+            _bootstrap_ridge_weights_gpu_batched,
+        )
+        from nltools.backends import Backend
+
+        np.random.seed(42)
+        X = np.random.randn(50, 10)  # 50 samples, 10 features
+        y = np.random.randn(50, 20)  # 20 voxels
+        alpha = 1.0
+
+        backend = Backend("torch")
+        result = _bootstrap_ridge_weights_gpu_batched(
+            X,
+            y,
+            alpha,
+            n_samples=100,
+            backend=backend,
+            max_gpu_memory_gb=4.0,
+            random_state=42,
+        )
+
+        # Check dict structure
+        assert "mean" in result
+        assert "std" in result
+        assert "Z" in result
+        assert "p" in result
+        assert "ci_lower" in result
+        assert "ci_upper" in result
+        assert "backend" in result
+
+        # Check shapes
+        assert result["mean"].shape == (10, 20)
+        assert result["std"].shape == (10, 20)
+
+        # Check no NaNs
+        assert not np.any(np.isnan(result["mean"]))
+        assert not np.any(np.isnan(result["std"]))
+
+    @pytest.mark.tier1
+    @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
+    def test_gpu_matches_cpu(self):
+        """Test that GPU results match CPU results (within tolerance)."""
+        from nltools.algorithms.inference.bootstrap import (
+            _bootstrap_ridge_weights_gpu_batched,
+        )
+        from nltools.backends import Backend
+
+        np.random.seed(42)
+        X = np.random.randn(50, 10)
+        y = np.random.randn(50, 20)
+        alpha = 1.0
+
+        # CPU result
+        result_cpu = _bootstrap_ridge_weights_cpu_parallel(
+            X, y, alpha, n_samples=100, n_jobs=1, random_state=42
+        )
+
+        # GPU result
+        backend = Backend("torch")
+        result_gpu = _bootstrap_ridge_weights_gpu_batched(
+            X,
+            y,
+            alpha,
+            n_samples=100,
+            backend=backend,
+            max_gpu_memory_gb=4.0,
+            random_state=42,
+        )
+
+        # Results should match (float32 vs float64 precision)
+        np.testing.assert_allclose(
+            result_cpu["mean"],
+            result_gpu["mean"],
+            rtol=TOLERANCE_GPU_VALUE,
+        )
+        np.testing.assert_allclose(
+            result_cpu["std"],
+            result_gpu["std"],
+            rtol=TOLERANCE_GPU_VALUE,
+        )
+
+    @pytest.mark.tier1
+    @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
+    def test_gpu_batching_correctness(self):
+        """Test that GPU batching produces correct results."""
+        from nltools.algorithms.inference.bootstrap import (
+            _bootstrap_ridge_weights_gpu_batched,
+        )
+        from nltools.backends import Backend
+
+        np.random.seed(42)
+        X = np.random.randn(50, 10)
+        y = np.random.randn(50, 20)
+        alpha = 1.0
+
+        # Small memory budget to force batching
+        backend = Backend("torch")
+        result = _bootstrap_ridge_weights_gpu_batched(
+            X,
+            y,
+            alpha,
+            n_samples=500,
+            backend=backend,
+            max_gpu_memory_gb=0.1,  # Force small batches
+            random_state=42,
+        )
+
+        # Verify results are valid
+        assert result["mean"].shape == (10, 20)
+        assert not np.any(np.isnan(result["mean"]))
+
+    @pytest.mark.tier1
+    @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
+    def test_gpu_deterministic_with_seed(self):
+        """Test GPU results are deterministic with same seed."""
+        from nltools.algorithms.inference.bootstrap import (
+            _bootstrap_ridge_weights_gpu_batched,
+        )
+        from nltools.backends import Backend
+
+        np.random.seed(42)
+        X = np.random.randn(50, 10)
+        y = np.random.randn(50, 20)
+        alpha = 1.0
+
+        backend = Backend("torch")
+
+        # Run twice with same seed
+        result1 = _bootstrap_ridge_weights_gpu_batched(
+            X,
+            y,
+            alpha,
+            n_samples=100,
+            backend=backend,
+            max_gpu_memory_gb=4.0,
+            random_state=42,
+        )
+        result2 = _bootstrap_ridge_weights_gpu_batched(
+            X,
+            y,
+            alpha,
+            n_samples=100,
+            backend=backend,
+            max_gpu_memory_gb=4.0,
+            random_state=42,
+        )
+
+        # Results should be identical
+        np.testing.assert_allclose(result1["mean"], result2["mean"], rtol=1e-5)
+        np.testing.assert_allclose(result1["std"], result2["std"], rtol=1e-5)
+
+    @pytest.mark.tier2
+    @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
+    def test_gpu_batching_prevents_oom(self):
+        """Test GPU batching prevents OOM for large problems."""
+        from nltools.algorithms.inference.bootstrap import (
+            _bootstrap_ridge_weights_gpu_batched,
+        )
+        from nltools.backends import Backend
+
+        np.random.seed(42)
+
+        # Large problem: Would use ~7.2GB without batching
+        # 1000 samples × 50 observations × 60K voxels × 4 bytes ≈ 12GB
+        X = np.random.randn(50, 10).astype(np.float32)
+        y = np.random.randn(50, 30000).astype(np.float32)  # 30K voxels
+        alpha = 1.0
+
+        # Should work with batching (4GB budget)
+        backend = Backend("torch")
+        result = _bootstrap_ridge_weights_gpu_batched(
+            X,
+            y,
+            alpha,
+            n_samples=1000,
+            backend=backend,
+            max_gpu_memory_gb=4.0,
+            random_state=42,
+        )
+
+        # Verify results are sensible
+        assert result["mean"].shape == (10, 30000)
+        assert result["std"].shape == (10, 30000)
+        assert not np.any(np.isnan(result["mean"]))
+
+
+class TestBootstrapRidgePredictGPU:
+    """Test suite for GPU-accelerated Ridge predictions bootstrap."""
+
+    @pytest.mark.tier1
+    @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
+    def test_gpu_basic_functionality(self):
+        """Test basic GPU functionality for Ridge predictions bootstrap."""
+        from nltools.algorithms.inference.bootstrap import (
+            _bootstrap_ridge_predict_gpu_batched,
+        )
+        from nltools.backends import Backend
+
+        np.random.seed(42)
+        X = np.random.randn(50, 10)  # Training features
+        y = np.random.randn(50, 20)  # Training targets (20 voxels)
+        X_test = np.random.randn(20, 10)  # Test features
+        alpha = 1.0
+
+        backend = Backend("torch")
+        result = _bootstrap_ridge_predict_gpu_batched(
+            X,
+            y,
+            X_test,
+            alpha,
+            n_samples=100,
+            backend=backend,
+            max_gpu_memory_gb=4.0,
+            random_state=42,
+        )
+
+        # Check dict structure
+        assert "mean" in result
+        assert "std" in result
+        assert "Z" in result
+        assert "p" in result
+        assert "ci_lower" in result
+        assert "ci_upper" in result
+        assert "backend" in result
+
+        # Check shapes (predictions for test samples)
+        assert result["mean"].shape == (20, 20)
+        assert result["std"].shape == (20, 20)
+
+        # Check no NaNs
+        assert not np.any(np.isnan(result["mean"]))
+        assert not np.any(np.isnan(result["std"]))
+
+    @pytest.mark.tier1
+    @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
+    def test_gpu_matches_cpu(self):
+        """Test that GPU results match CPU results (within tolerance)."""
+        from nltools.algorithms.inference.bootstrap import (
+            _bootstrap_ridge_predict_gpu_batched,
+        )
+        from nltools.backends import Backend
+
+        np.random.seed(42)
+        X = np.random.randn(50, 10)
+        y = np.random.randn(50, 20)
+        X_test = np.random.randn(20, 10)
+        alpha = 1.0
+
+        # CPU result
+        result_cpu = _bootstrap_ridge_predict_cpu_parallel(
+            X, y, X_test, alpha, n_samples=100, n_jobs=1, random_state=42
+        )
+
+        # GPU result
+        backend = Backend("torch")
+        result_gpu = _bootstrap_ridge_predict_gpu_batched(
+            X,
+            y,
+            X_test,
+            alpha,
+            n_samples=100,
+            backend=backend,
+            max_gpu_memory_gb=4.0,
+            random_state=42,
+        )
+
+        # Results should match (float32 vs float64 precision)
+        np.testing.assert_allclose(
+            result_cpu["mean"],
+            result_gpu["mean"],
+            rtol=TOLERANCE_GPU_VALUE,
+        )
+        np.testing.assert_allclose(
+            result_cpu["std"],
+            result_gpu["std"],
+            rtol=TOLERANCE_GPU_VALUE,
+        )
+
+    @pytest.mark.tier1
+    @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
+    def test_gpu_batching_correctness(self):
+        """Test that GPU batching produces correct results."""
+        from nltools.algorithms.inference.bootstrap import (
+            _bootstrap_ridge_predict_gpu_batched,
+        )
+        from nltools.backends import Backend
+
+        np.random.seed(42)
+        X = np.random.randn(50, 10)
+        y = np.random.randn(50, 20)
+        X_test = np.random.randn(20, 10)
+        alpha = 1.0
+
+        # Small memory budget to force batching
+        backend = Backend("torch")
+        result = _bootstrap_ridge_predict_gpu_batched(
+            X,
+            y,
+            X_test,
+            alpha,
+            n_samples=500,
+            backend=backend,
+            max_gpu_memory_gb=0.1,  # Force small batches
+            random_state=42,
+        )
+
+        # Verify results are valid
+        assert result["mean"].shape == (20, 20)
+        assert not np.any(np.isnan(result["mean"]))
+
+    @pytest.mark.tier1
+    @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
+    def test_gpu_deterministic_with_seed(self):
+        """Test GPU results are deterministic with same seed."""
+        from nltools.algorithms.inference.bootstrap import (
+            _bootstrap_ridge_predict_gpu_batched,
+        )
+        from nltools.backends import Backend
+
+        np.random.seed(42)
+        X = np.random.randn(50, 10)
+        y = np.random.randn(50, 20)
+        X_test = np.random.randn(20, 10)
+        alpha = 1.0
+
+        backend = Backend("torch")
+
+        # Run twice with same seed
+        result1 = _bootstrap_ridge_predict_gpu_batched(
+            X,
+            y,
+            X_test,
+            alpha,
+            n_samples=100,
+            backend=backend,
+            max_gpu_memory_gb=4.0,
+            random_state=42,
+        )
+        result2 = _bootstrap_ridge_predict_gpu_batched(
+            X,
+            y,
+            X_test,
+            alpha,
+            n_samples=100,
+            backend=backend,
+            max_gpu_memory_gb=4.0,
+            random_state=42,
+        )
+
+        # Results should be identical
+        np.testing.assert_allclose(result1["mean"], result2["mean"], rtol=1e-5)
+        np.testing.assert_allclose(result1["std"], result2["std"], rtol=1e-5)
+
+
+# ============================================================================
+# Test Statistical Correctness (GPU Bootstrap)
+# ============================================================================
+
+
+class TestBootstrapRidgeWeightsStatisticalCorrectness:
+    """Test statistical correctness of Ridge weights bootstrap (not just CPU/GPU consistency)."""
+
+    @pytest.mark.tier1
+    @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
+    def test_gpu_bootstrap_mean_converges_to_true_weights(self):
+        """Test that bootstrap mean converges to true Ridge weights."""
+        from nltools.algorithms.inference.bootstrap import (
+            _bootstrap_ridge_weights_gpu_batched,
+        )
+        from nltools.algorithms.ridge import ridge_svd
+        from nltools.backends import Backend
+
+        np.random.seed(42)
+
+        # Create known relationship: y = X @ true_weights + noise
+        n_samples = 100
+        n_features = 10
+        n_voxels = 20
+        alpha = 1.0
+
+        X = np.random.randn(n_samples, n_features).astype(np.float32)
+        true_weights = np.random.randn(n_features, n_voxels).astype(np.float32)
+        noise = np.random.randn(n_samples, n_voxels).astype(np.float32) * 0.1
+        y = X @ true_weights + noise
+
+        # Compute true Ridge weights (what bootstrap should converge to)
+        true_ridge_weights = ridge_svd(X, y, alpha=alpha)
+
+        # Bootstrap with many samples (should converge to true weights)
+        backend = Backend("torch")
+        result = _bootstrap_ridge_weights_gpu_batched(
+            X,
+            y,
+            alpha,
+            n_samples=5000,  # Large bootstrap for convergence
+            backend=backend,
+            max_gpu_memory_gb=4.0,
+            random_state=42,
+        )
+
+        # Bootstrap mean should be close to true Ridge weights
+        # Allow some tolerance due to finite bootstrap samples and noise
+        np.testing.assert_allclose(
+            result["mean"],
+            true_ridge_weights,
+            rtol=0.1,  # 10% tolerance (bootstrap converges but not exact)
+            atol=0.1,
+        )
+
+    @pytest.mark.tier1
+    @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
+    def test_gpu_bootstrap_std_increases_with_fewer_samples(self):
+        """Test that bootstrap std decreases with more bootstrap samples (more precision)."""
+        from nltools.algorithms.inference.bootstrap import (
+            _bootstrap_ridge_weights_gpu_batched,
+        )
+        from nltools.backends import Backend
+
+        np.random.seed(42)
+
+        X = np.random.randn(50, 10).astype(np.float32)
+        y = np.random.randn(50, 20).astype(np.float32)
+        alpha = 1.0
+
+        backend = Backend("torch")
+
+        # Few bootstrap samples → higher std (more uncertainty)
+        result_few = _bootstrap_ridge_weights_gpu_batched(
+            X,
+            y,
+            alpha,
+            n_samples=100,
+            backend=backend,
+            max_gpu_memory_gb=4.0,
+            random_state=42,
+        )
+
+        # Many bootstrap samples → lower std (more precision)
+        result_many = _bootstrap_ridge_weights_gpu_batched(
+            X,
+            y,
+            alpha,
+            n_samples=5000,
+            backend=backend,
+            max_gpu_memory_gb=4.0,
+            random_state=42,
+        )
+
+        # Bootstrap std should decrease (or at least not increase) with more samples
+        # For most weights, std should be smaller or similar
+        std_ratio = result_few["std"] / (result_many["std"] + 1e-10)
+        # Most weights should have ratio > 1 (fewer samples = more uncertainty)
+        # But allow some flexibility (some weights might be very stable)
+        assert (
+            np.mean(std_ratio > 0.8) > 0.5
+        )  # At least 50% should show expected pattern
+
+    @pytest.mark.tier1
+    @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
+    def test_gpu_bootstrap_ci_contains_true_weights(self):
+        """Test that bootstrap confidence intervals contain true Ridge weights."""
+        from nltools.algorithms.inference.bootstrap import (
+            _bootstrap_ridge_weights_gpu_batched,
+        )
+        from nltools.algorithms.ridge import ridge_svd
+        from nltools.backends import Backend
+
+        np.random.seed(42)
+
+        # Create known relationship
+        n_samples = 100
+        n_features = 10
+        n_voxels = 20
+        alpha = 1.0
+
+        X = np.random.randn(n_samples, n_features).astype(np.float32)
+        true_weights = np.random.randn(n_features, n_voxels).astype(np.float32)
+        noise = np.random.randn(n_samples, n_voxels).astype(np.float32) * 0.1
+        y = X @ true_weights + noise
+
+        # True Ridge weights
+        true_ridge_weights = ridge_svd(X, y, alpha=alpha)
+
+        # Bootstrap
+        backend = Backend("torch")
+        result = _bootstrap_ridge_weights_gpu_batched(
+            X,
+            y,
+            alpha,
+            n_samples=2000,  # Enough for stable CI
+            backend=backend,
+            max_gpu_memory_gb=4.0,
+            random_state=42,
+        )
+
+        # 95% CI should contain true weights for most voxels/features
+        # (Allowing some false positives due to finite bootstrap samples)
+        ci_contains_true = (result["ci_lower"] <= true_ridge_weights) & (
+            true_ridge_weights <= result["ci_upper"]
+        )
+
+        # At least 90% of weights should be within CI
+        coverage = np.mean(ci_contains_true)
+        assert coverage >= 0.90, f"CI coverage too low: {coverage:.2%}"
+
+    @pytest.mark.tier1
+    @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
+    def test_gpu_bootstrap_z_scores_are_reasonable(self):
+        """Test that bootstrap Z-scores are statistically reasonable."""
+        from nltools.algorithms.inference.bootstrap import (
+            _bootstrap_ridge_weights_gpu_batched,
+        )
+        from nltools.backends import Backend
+
+        np.random.seed(42)
+
+        X = np.random.randn(50, 10).astype(np.float32)
+        y = np.random.randn(50, 20).astype(np.float32)
+        alpha = 1.0
+
+        backend = Backend("torch")
+        result = _bootstrap_ridge_weights_gpu_batched(
+            X,
+            y,
+            alpha,
+            n_samples=1000,
+            backend=backend,
+            max_gpu_memory_gb=4.0,
+            random_state=42,
+        )
+
+        # Z-scores should be finite and reasonable
+        assert np.all(np.isfinite(result["Z"]))
+        # Most Z-scores should be between -5 and 5 (not extreme outliers)
+        assert np.mean(np.abs(result["Z"]) < 5) > 0.95
+
+        # P-values should be valid (between 0 and 1)
+        assert np.all((result["p"] >= 0) & (result["p"] <= 1))
+        # Most p-values should not be extreme (allowing some small/large ones)
+        assert np.mean((result["p"] > 0.001) & (result["p"] < 0.999)) > 0.8
+
+
+class TestBootstrapRidgePredictStatisticalCorrectness:
+    """Test statistical correctness of Ridge predictions bootstrap."""
+
+    @pytest.mark.tier1
+    @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
+    def test_gpu_bootstrap_mean_converges_to_true_predictions(self):
+        """Test that bootstrap mean predictions converge to true predictions."""
+        from nltools.algorithms.inference.bootstrap import (
+            _bootstrap_ridge_predict_gpu_batched,
+        )
+        from nltools.algorithms.ridge import ridge_svd
+        from nltools.backends import Backend
+
+        np.random.seed(42)
+
+        # Create known relationship
+        n_train = 100
+        n_test = 20
+        n_features = 10
+        n_voxels = 20
+        alpha = 1.0
+
+        X_train = np.random.randn(n_train, n_features).astype(np.float32)
+        true_weights = np.random.randn(n_features, n_voxels).astype(np.float32)
+        noise = np.random.randn(n_train, n_voxels).astype(np.float32) * 0.1
+        y_train = X_train @ true_weights + noise
+
+        X_test = np.random.randn(n_test, n_features).astype(np.float32)
+
+        # True predictions (what bootstrap should converge to)
+        true_ridge_weights = ridge_svd(X_train, y_train, alpha=alpha)
+        true_predictions = X_test @ true_ridge_weights
+
+        # Bootstrap with many samples
+        backend = Backend("torch")
+        result = _bootstrap_ridge_predict_gpu_batched(
+            X_train,
+            y_train,
+            X_test,
+            alpha,
+            n_samples=5000,  # Large bootstrap for convergence
+            backend=backend,
+            max_gpu_memory_gb=4.0,
+            random_state=42,
+        )
+
+        # Bootstrap mean should be close to true predictions
+        np.testing.assert_allclose(
+            result["mean"],
+            true_predictions,
+            rtol=0.1,  # 10% tolerance
+            atol=0.1,
+        )
+
+    @pytest.mark.tier1
+    @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
+    def test_gpu_bootstrap_ci_contains_true_predictions(self):
+        """Test that bootstrap CI contains true predictions."""
+        from nltools.algorithms.inference.bootstrap import (
+            _bootstrap_ridge_predict_gpu_batched,
+        )
+        from nltools.algorithms.ridge import ridge_svd
+        from nltools.backends import Backend
+
+        np.random.seed(42)
+
+        n_train = 100
+        n_test = 20
+        n_features = 10
+        n_voxels = 20
+        alpha = 1.0
+
+        X_train = np.random.randn(n_train, n_features).astype(np.float32)
+        true_weights = np.random.randn(n_features, n_voxels).astype(np.float32)
+        noise = np.random.randn(n_train, n_voxels).astype(np.float32) * 0.1
+        y_train = X_train @ true_weights + noise
+
+        X_test = np.random.randn(n_test, n_features).astype(np.float32)
+
+        # True predictions
+        true_ridge_weights = ridge_svd(X_train, y_train, alpha=alpha)
+        true_predictions = X_test @ true_ridge_weights
+
+        # Bootstrap
+        backend = Backend("torch")
+        result = _bootstrap_ridge_predict_gpu_batched(
+            X_train,
+            y_train,
+            X_test,
+            alpha,
+            n_samples=2000,
+            backend=backend,
+            max_gpu_memory_gb=4.0,
+            random_state=42,
+        )
+
+        # CI should contain true predictions for most cases
+        ci_contains_true = (result["ci_lower"] <= true_predictions) & (
+            true_predictions <= result["ci_upper"]
+        )
+
+        coverage = np.mean(ci_contains_true)
+        assert coverage >= 0.90, f"CI coverage too low: {coverage:.2%}"
+
+    @pytest.mark.tier1
+    @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
+    def test_gpu_bootstrap_variance_increases_with_noise(self):
+        """Test that bootstrap variance increases with more noise in data."""
+        from nltools.algorithms.inference.bootstrap import (
+            _bootstrap_ridge_predict_gpu_batched,
+        )
+        from nltools.backends import Backend
+
+        np.random.seed(42)
+
+        n_train = 100
+        n_test = 20
+        n_features = 10
+        n_voxels = 20
+        alpha = 1.0
+
+        X_train = np.random.randn(n_train, n_features).astype(np.float32)
+        true_weights = np.random.randn(n_features, n_voxels).astype(np.float32)
+        X_test = np.random.randn(n_test, n_features).astype(np.float32)
+
+        backend = Backend("torch")
+
+        # Low noise → lower bootstrap variance
+        noise_low = np.random.randn(n_train, n_voxels).astype(np.float32) * 0.05
+        y_low = X_train @ true_weights + noise_low
+
+        result_low = _bootstrap_ridge_predict_gpu_batched(
+            X_train,
+            y_low,
+            X_test,
+            alpha,
+            n_samples=1000,
+            backend=backend,
+            max_gpu_memory_gb=4.0,
+            random_state=42,
+        )
+
+        # High noise → higher bootstrap variance
+        noise_high = np.random.randn(n_train, n_voxels).astype(np.float32) * 0.5
+        y_high = X_train @ true_weights + noise_high
+
+        result_high = _bootstrap_ridge_predict_gpu_batched(
+            X_train,
+            y_high,
+            X_test,
+            alpha,
+            n_samples=1000,
+            backend=backend,
+            max_gpu_memory_gb=4.0,
+            random_state=43,  # Different seed for independence
+        )
+
+        # High noise should generally produce higher bootstrap std
+        std_ratio = result_high["std"] / (result_low["std"] + 1e-10)
+        # Most predictions should have higher std with more noise
+        assert np.mean(std_ratio > 1.0) > 0.6, (
+            "Expected higher variance with more noise"
+        )

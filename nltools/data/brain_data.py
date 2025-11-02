@@ -2018,7 +2018,7 @@ class BrainData(object):
     ):
         """Bootstrap statistics using efficient online algorithms.
 
-        Uses memory-efficient bootstrap infrastructure with CPU parallelization.
+        Uses memory-efficient bootstrap infrastructure with CPU parallelization or GPU acceleration.
         Supports simple aggregation statistics and fitted model statistics (Ridge).
 
         Args:
@@ -2034,7 +2034,10 @@ class BrainData(object):
             percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
             X_test: (np.ndarray, optional) Test features for 'predict' bootstrap.
                    Required if stat='predict'
-            **kwargs: Additional parameters (currently unused, for future extensibility)
+            backend: (str, optional) Backend for computation ('numpy', 'torch', 'auto').
+                    If 'torch' and GPU available, uses GPU acceleration. Default: None (CPU).
+            max_gpu_memory_gb: (float) Maximum GPU memory to use in GB. Default: 4.0
+            **kwargs: Additional parameters passed to ridge_svd() for Ridge bootstrap
 
         Returns:
             BrainData or dict:
@@ -2064,8 +2067,32 @@ class BrainData(object):
             _bootstrap_simple_cpu_parallel,
             _bootstrap_ridge_weights_cpu_parallel,
             _bootstrap_ridge_predict_cpu_parallel,
+            _bootstrap_ridge_weights_gpu_batched,
+            _bootstrap_ridge_predict_gpu_batched,
         )
         from nltools.data import DesignMatrix
+        from nltools.backends import Backend, check_gpu_available, auto_select_backend
+
+        # Extract backend parameter from kwargs
+        backend = kwargs.pop("backend", None)
+        max_gpu_memory_gb = kwargs.pop("max_gpu_memory_gb", 4.0)
+
+        # Determine if we should use GPU
+        use_gpu = False
+        if backend == "torch" or backend == "auto":
+            if check_gpu_available()[0]:
+                use_gpu = True
+                if backend == "auto":
+                    backend = auto_select_backend(
+                        self.data.shape[0], self.data.shape[1]
+                    )
+                else:
+                    backend = Backend("torch")
+            elif backend == "torch":
+                raise ValueError(
+                    "GPU backend requested but GPU not available. "
+                    "Use backend=None or backend='auto' for CPU fallback."
+                )
 
         # Get data as numpy array
         data = self.data  # Shape: (n_samples, n_voxels)
@@ -2127,16 +2154,31 @@ class BrainData(object):
 
             if stat == "weights":
                 # Ridge weights bootstrap
-                result = _bootstrap_ridge_weights_cpu_parallel(
-                    X,
-                    data,
-                    alpha=alpha,
-                    n_samples=n_samples,
-                    save_boots=save_boots,
-                    n_jobs=n_jobs,
-                    random_state=random_state,
-                    percentiles=percentiles,
-                )
+                if use_gpu:
+                    result = _bootstrap_ridge_weights_gpu_batched(
+                        X,
+                        data,
+                        alpha=alpha,
+                        n_samples=n_samples,
+                        save_boots=save_boots,
+                        backend=backend,
+                        max_gpu_memory_gb=max_gpu_memory_gb,
+                        random_state=random_state,
+                        percentiles=percentiles,
+                        **kwargs,
+                    )
+                else:
+                    result = _bootstrap_ridge_weights_cpu_parallel(
+                        X,
+                        data,
+                        alpha=alpha,
+                        n_samples=n_samples,
+                        save_boots=save_boots,
+                        n_jobs=n_jobs,
+                        random_state=random_state,
+                        percentiles=percentiles,
+                        **kwargs,
+                    )
 
                 # Convert results to BrainData format
                 return self._convert_bootstrap_results_to_brain_data(
@@ -2153,17 +2195,33 @@ class BrainData(object):
 
                 X_test = np.asarray(X_test)
 
-                result = _bootstrap_ridge_predict_cpu_parallel(
-                    X,
-                    data,
-                    X_test,
-                    alpha=alpha,
-                    n_samples=n_samples,
-                    save_boots=save_boots,
-                    n_jobs=n_jobs,
-                    random_state=random_state,
-                    percentiles=percentiles,
-                )
+                if use_gpu:
+                    result = _bootstrap_ridge_predict_gpu_batched(
+                        X,
+                        data,
+                        X_test,
+                        alpha=alpha,
+                        n_samples=n_samples,
+                        save_boots=save_boots,
+                        backend=backend,
+                        max_gpu_memory_gb=max_gpu_memory_gb,
+                        random_state=random_state,
+                        percentiles=percentiles,
+                        **kwargs,
+                    )
+                else:
+                    result = _bootstrap_ridge_predict_cpu_parallel(
+                        X,
+                        data,
+                        X_test,
+                        alpha=alpha,
+                        n_samples=n_samples,
+                        save_boots=save_boots,
+                        n_jobs=n_jobs,
+                        random_state=random_state,
+                        percentiles=percentiles,
+                        **kwargs,
+                    )
 
                 # Convert results to BrainData format
                 return self._convert_bootstrap_results_to_brain_data(
