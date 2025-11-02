@@ -22,18 +22,21 @@ from nltools.backends import Backend
 class TestCircleShift:
     """Tests for circle_shift() function."""
 
+    @pytest.mark.tier1
     def test_preserves_shape_1d(self):
         """Test that circle_shift preserves shape for 1D data."""
         data = np.array([1, 2, 3, 4, 5])
         shifted = circle_shift(data, shift_amount=2)
         assert shifted.shape == data.shape
 
+    @pytest.mark.tier1
     def test_preserves_shape_2d(self):
         """Test that circle_shift preserves shape for 2D data."""
         data = np.random.randn(50, 10)
         shifted = circle_shift(data, random_state=42)
         assert shifted.shape == data.shape
 
+    @pytest.mark.tier1
     def test_deterministic_with_seed_1d(self):
         """Test that circle_shift is deterministic with random_state for 1D."""
         data = np.random.randn(100)
@@ -41,6 +44,7 @@ class TestCircleShift:
         shifted2 = circle_shift(data, random_state=42)
         np.testing.assert_array_equal(shifted1, shifted2)
 
+    @pytest.mark.tier1
     def test_deterministic_with_seed_2d(self):
         """Test that circle_shift is deterministic with random_state for 2D."""
         data = np.random.randn(100, 5)
@@ -48,12 +52,14 @@ class TestCircleShift:
         shifted2 = circle_shift(data, random_state=42)
         np.testing.assert_array_equal(shifted1, shifted2)
 
+    @pytest.mark.tier1
     def test_preserves_values_1d(self):
         """Test that circle_shift preserves all values (just reorders) for 1D."""
         data = np.array([1, 2, 3, 4, 5])
         shifted = circle_shift(data, shift_amount=2)
         assert sorted(shifted) == sorted(data)
 
+    @pytest.mark.tier1
     def test_preserves_values_2d(self):
         """Test that circle_shift preserves all values for 2D."""
         data = np.random.randn(50, 10)
@@ -61,6 +67,7 @@ class TestCircleShift:
         for i in range(data.shape[1]):
             assert sorted(shifted[:, i]) == pytest.approx(sorted(data[:, i]))
 
+    @pytest.mark.tier1
     def test_explicit_shift_1d(self):
         """Test circle_shift with explicit shift amount for 1D."""
         data = np.array([1, 2, 3, 4, 5])
@@ -68,6 +75,7 @@ class TestCircleShift:
         expected = np.array([4, 5, 1, 2, 3])
         np.testing.assert_array_equal(shifted, expected)
 
+    @pytest.mark.tier1
     def test_explicit_shift_2d(self):
         """Test circle_shift with explicit shift amounts for 2D."""
         data = np.array([[1, 10], [2, 20], [3, 30], [4, 40]])
@@ -103,18 +111,21 @@ class TestCircleShift:
 class TestPhaseRandomize:
     """Tests for phase_randomize() function."""
 
+    @pytest.mark.tier1
     def test_preserves_shape_1d(self):
         """Test that phase_randomize preserves shape for 1D data."""
         data = np.random.randn(100)
         randomized = phase_randomize(data, random_state=42)
         assert randomized.shape == data.shape
 
+    @pytest.mark.tier1
     def test_preserves_shape_2d(self):
         """Test that phase_randomize preserves shape for 2D data."""
         data = np.random.randn(100, 5)
         randomized = phase_randomize(data, random_state=42)
         assert randomized.shape == data.shape
 
+    @pytest.mark.tier1
     def test_preserves_power_spectrum_1d(self):
         """Test that phase_randomize preserves power spectrum for 1D data.
 
@@ -131,6 +142,7 @@ class TestPhaseRandomize:
         # Should match exactly (within numerical precision)
         np.testing.assert_allclose(power_orig, power_rand, rtol=1e-10)
 
+    @pytest.mark.tier1
     def test_preserves_power_spectrum_2d(self):
         """Test that phase_randomize preserves power spectrum for 2D data."""
         data = np.random.randn(200, 5)
@@ -142,6 +154,7 @@ class TestPhaseRandomize:
             power_rand = np.abs(np.fft.rfft(randomized[:, i])) ** 2
             np.testing.assert_allclose(power_orig, power_rand, rtol=1e-10)
 
+    @pytest.mark.tier1
     def test_changes_phase_1d(self):
         """Test that phase_randomize actually changes the signal."""
         # Use deterministic signal
@@ -153,6 +166,7 @@ class TestPhaseRandomize:
         # Signal should be different
         assert not np.allclose(data, randomized)
 
+    @pytest.mark.tier1
     def test_changes_phase_2d(self):
         """Test that phase_randomize changes signals for 2D data."""
         data = np.random.randn(100, 5)
@@ -161,6 +175,7 @@ class TestPhaseRandomize:
         # Should be different
         assert not np.allclose(data, randomized)
 
+    @pytest.mark.tier1
     def test_deterministic_with_seed_1d(self):
         """Test that phase_randomize is deterministic with random_state for 1D."""
         data = np.random.randn(100)
@@ -168,6 +183,7 @@ class TestPhaseRandomize:
         rand2 = phase_randomize(data, random_state=42)
         np.testing.assert_array_equal(rand1, rand2)
 
+    @pytest.mark.tier1
     def test_deterministic_with_seed_2d(self):
         """Test that phase_randomize is deterministic with random_state for 2D."""
         data = np.random.randn(100, 5)
@@ -175,6 +191,7 @@ class TestPhaseRandomize:
         rand2 = phase_randomize(data, random_state=42)
         np.testing.assert_array_equal(rand1, rand2)
 
+    @pytest.mark.tier1
     def test_backend_consistency_numpy(self):
         """Test that phase_randomize works with NumPy backend."""
         data = np.random.randn(100)
@@ -185,7 +202,7 @@ class TestPhaseRandomize:
         power_rand = np.abs(np.fft.rfft(randomized)) ** 2
         np.testing.assert_allclose(power_orig, power_rand, rtol=1e-10)
 
-    @pytest.mark.tier1
+    @pytest.mark.tier2
     def test_backend_consistency_torch_1d(self):
         """Test that phase_randomize works with torch backend for 1D data."""
         pytest.importorskip("torch")
@@ -203,7 +220,7 @@ class TestPhaseRandomize:
         # GPU uses float32, so relax tolerance compared to NumPy float64
         np.testing.assert_allclose(power_orig, power_rand, rtol=1e-4, atol=1e-4)
 
-    @pytest.mark.tier1
+    @pytest.mark.tier2
     def test_backend_consistency_torch_2d(self):
         """Test that phase_randomize works with torch backend for 2D data."""
         pytest.importorskip("torch")
@@ -222,7 +239,7 @@ class TestPhaseRandomize:
             # GPU uses float32, so relax tolerance compared to NumPy float64
             np.testing.assert_allclose(power_orig, power_rand, rtol=1e-4, atol=1e-4)
 
-    @pytest.mark.tier1
+    @pytest.mark.tier2
     def test_backend_consistency_torch_vs_numpy(self):
         """Test that torch and numpy backends produce similar results."""
         pytest.importorskip("torch")
@@ -268,6 +285,7 @@ class TestPhaseRandomize:
 class TestTimeseriesCorrelation:
     """Tests for timeseries_correlation_permutation_test() function."""
 
+    @pytest.mark.tier1
     def test_basic_functionality_circle_shift(self):
         """Test basic functionality with circle_shift method."""
         from nltools.algorithms.inference.timeseries import (
@@ -287,6 +305,7 @@ class TestTimeseriesCorrelation:
         assert isinstance(result["correlation"], (float, np.floating))
         assert 0 <= result["p"] <= 1
 
+    @pytest.mark.tier1
     def test_basic_functionality_phase_randomize(self):
         """Test basic functionality with phase_randomize method."""
         from nltools.algorithms.inference.timeseries import (
@@ -306,6 +325,7 @@ class TestTimeseriesCorrelation:
         assert isinstance(result["correlation"], (float, np.floating))
         assert 0 <= result["p"] <= 1
 
+    @pytest.mark.tier1
     def test_deterministic_with_seed(self):
         """Test that results are deterministic with random_state."""
         from nltools.algorithms.inference.timeseries import (
@@ -326,6 +346,7 @@ class TestTimeseriesCorrelation:
         np.testing.assert_equal(result1["correlation"], result2["correlation"])
         np.testing.assert_equal(result1["p"], result2["p"])
 
+    @pytest.mark.tier1
     def test_return_null_distribution(self):
         """Test that null distribution is returned when requested."""
         from nltools.algorithms.inference.timeseries import (
@@ -348,6 +369,7 @@ class TestTimeseriesCorrelation:
         assert "null_dist" in result
         assert result["null_dist"].shape == (100,)
 
+    @pytest.mark.tier1
     def test_spearman_metric(self):
         """Test with Spearman correlation metric."""
         from nltools.algorithms.inference.timeseries import (
@@ -370,6 +392,7 @@ class TestTimeseriesCorrelation:
         assert "correlation" in result
         assert "p" in result
 
+    @pytest.mark.tier1
     def test_kendall_metric(self):
         """Test with Kendall correlation metric."""
         from nltools.algorithms.inference.timeseries import (
@@ -387,6 +410,7 @@ class TestTimeseriesCorrelation:
         assert "correlation" in result
         assert "p" in result
 
+    @pytest.mark.tier2
     def test_matches_stats_py_circle_shift(self):
         """Test that circle_shift method matches stats.py for correlation.
 
@@ -434,6 +458,7 @@ class TestTimeseriesCorrelation:
             result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE_CIRCLE_SHIFT
         )
 
+    @pytest.mark.tier2
     def test_matches_stats_py_phase_randomize(self):
         """Test that phase_randomize method matches stats.py for correlation.
 
@@ -621,7 +646,7 @@ class TestTimeseriesCorrelation:
 class TestTimeseriesGPU:
     """Tests for GPU-accelerated timeseries permutation tests."""
 
-    @pytest.mark.tier1
+    @pytest.mark.tier2
     def test_gpu_basic_functionality_circle_shift(self):
         """Test basic GPU functionality with circle_shift method."""
         pytest.importorskip("torch")
@@ -644,7 +669,7 @@ class TestTimeseriesGPU:
         assert isinstance(result["correlation"], (float, np.floating))
         assert 0 <= result["p"] <= 1
 
-    @pytest.mark.tier1
+    @pytest.mark.tier2
     def test_gpu_basic_functionality_phase_randomize(self):
         """Test basic GPU functionality with phase_randomize method."""
         pytest.importorskip("torch")
@@ -672,7 +697,7 @@ class TestTimeseriesGPU:
         assert isinstance(result["correlation"], (float, np.floating))
         assert 0 <= result["p"] <= 1
 
-    @pytest.mark.tier1
+    @pytest.mark.tier2
     def test_gpu_deterministic_with_seed(self):
         """Test that GPU results are deterministic with random_state."""
         pytest.importorskip("torch")

@@ -13,6 +13,7 @@ from nltools.backends import check_gpu_available
 class TestBackends:
     """Test backend consistency (NumPy vs PyTorch)."""
 
+    @pytest.mark.tier2
     def test_backend_consistency_single_feature(self, backends):
         """Test that NumPy and PyTorch backends produce same results."""
         if len(backends) < 2:
@@ -47,6 +48,7 @@ class TestBackends:
             rtol=1e-5,
         )
 
+    @pytest.mark.tier2
     def test_backend_consistency_multi_feature(self, backends):
         """Test backend consistency for multi-feature data."""
         if len(backends) < 2:
@@ -81,6 +83,7 @@ class TestBackends:
             rtol=1e-5,
         )
 
+    @pytest.mark.tier1
     def test_explicit_numpy_backend(self):
         """Test explicit NumPy backend."""
         np.random.seed(42)
@@ -89,6 +92,7 @@ class TestBackends:
 
         assert result["parallel"] is None
 
+    @pytest.mark.tier2
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_explicit_torch_backend(self):
         """Test explicit PyTorch backend."""

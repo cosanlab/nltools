@@ -16,6 +16,7 @@ from nltools.tests.core.test_inference import (
 class TestOneSamplePermutation:
     """Test one-sample permutation tests."""
 
+    @pytest.mark.tier1
     def test_basic_functionality_single_feature(self):
         """Test basic one-sample test with single feature."""
         np.random.seed(42)
@@ -29,6 +30,7 @@ class TestOneSamplePermutation:
         assert isinstance(result["p"], (float, np.floating))
         assert 0 <= result["p"] <= 1
 
+    @pytest.mark.tier1
     def test_basic_functionality_multi_feature(self):
         """Test basic one-sample test with multiple features."""
         np.random.seed(42)
@@ -39,6 +41,7 @@ class TestOneSamplePermutation:
         assert result["p"].shape == (10,)
         assert np.all((result["p"] >= 0) & (result["p"] <= 1))
 
+    @pytest.mark.tier1
     def test_deterministic_with_seed(self):
         """Test that results are deterministic with fixed seed."""
         np.random.seed(42)
@@ -50,6 +53,7 @@ class TestOneSamplePermutation:
         np.testing.assert_array_almost_equal(result1["mean"], result2["mean"])
         np.testing.assert_array_almost_equal(result1["p"], result2["p"])
 
+    @pytest.mark.tier1
     def test_return_null_distribution(self):
         """Test that null distribution is returned when requested."""
         np.random.seed(42)
@@ -61,6 +65,7 @@ class TestOneSamplePermutation:
         assert "null_dist" in result
         assert result["null_dist"].shape == (100,)
 
+    @pytest.mark.tier1
     def test_return_null_distribution_multifeature(self):
         """Test null distribution for multi-feature data."""
         np.random.seed(42)
@@ -72,6 +77,7 @@ class TestOneSamplePermutation:
         assert "null_dist" in result
         assert result["null_dist"].shape == (100, 5)
 
+    @pytest.mark.tier2
     def test_significant_effect(self):
         """Test that significant effect is detected."""
         # Generate data with large positive mean
@@ -81,6 +87,7 @@ class TestOneSamplePermutation:
 
         assert result["p"] < 0.05  # Should be significant
 
+    @pytest.mark.tier2
     def test_non_significant_effect(self):
         """Test that non-significant effect has high p-value."""
         # Generate data with mean ~ 0
@@ -90,6 +97,7 @@ class TestOneSamplePermutation:
 
         assert result["p"] > 0.05  # Should not be significant
 
+    @pytest.mark.tier2
     def test_one_tailed_vs_two_tailed(self):
         """Test that one-tailed and two-tailed p-values differ."""
         np.random.seed(42)
@@ -106,12 +114,14 @@ class TestOneSamplePermutation:
         # (for positive effect)
         assert result_one["p"] < result_two["p"]
 
+    @pytest.mark.tier1
     def test_invalid_tail(self):
         """Test that invalid tail raises error."""
         data = np.random.randn(30)
         with pytest.raises(ValueError, match="tail must be 1 or 2"):
             one_sample_permutation_test(data, tail=3)
 
+    @pytest.mark.tier1
     def test_invalid_data_shape(self):
         """Test that invalid data shape raises error."""
         data = np.random.randn(5, 5, 5)  # 3D
@@ -122,7 +132,7 @@ class TestOneSamplePermutation:
 class TestOneSamplePermutationStatisticalCorrectness:
     """Test statistical correctness of one-sample permutation tests (not just CPU/GPU consistency)."""
 
-    @pytest.mark.tier1
+    @pytest.mark.tier2
     def test_null_hypothesis_pvalue_distribution(self):
         """Test that p-values are uniformly distributed under null hypothesis (mean=0)."""
         from scipy.stats import kstest
@@ -151,7 +161,7 @@ class TestOneSamplePermutationStatisticalCorrectness:
             f"P-values not uniformly distributed: KS statistic={ks_statistic:.4f}, p={ks_pvalue:.4f}"
         )
 
-    @pytest.mark.tier1
+    @pytest.mark.tier2
     def test_effect_size_sensitivity(self):
         """Test that larger true mean produces lower p-values."""
         n_samples = 50
@@ -191,6 +201,21 @@ class TestOneSamplePermutationStatisticalCorrectness:
 
     @pytest.mark.tier1
     def test_mean_converges_to_true_mean(self):
+        """Test that computed mean converges to true mean (fast version with smaller n_permute)."""
+        n_samples = 50
+        true_mean = 5.0
+
+        np.random.seed(42)
+        data = np.random.randn(n_samples) + true_mean
+
+        result = one_sample_permutation_test(data, n_permute=500, random_state=42, parallel=None)
+
+        # Computed mean should be close to true mean
+        # Tolerance: rtol=0.1 (10% as specified in plan)
+        np.testing.assert_allclose(result["mean"], true_mean, rtol=0.1, atol=0.1)
+
+    @pytest.mark.tier2
+    def test_mean_converges_to_true_mean_full(self):
         """Test that computed mean converges to true mean."""
         n_samples = 50
         true_mean = 5.0
@@ -247,7 +272,7 @@ class TestOneSamplePermutationStatisticalCorrectness:
             "Variance should decrease with more permutations"
         )
 
-    @pytest.mark.tier1
+    @pytest.mark.tier2
     def test_one_tailed_vs_two_tailed(self):
         """Test that one-tailed p-value ≈ two-tailed p-value / 2 for positive mean."""
         n_samples = 50
@@ -275,6 +300,34 @@ class TestOneSamplePermutationStatisticalCorrectness:
 
     @pytest.mark.tier1
     def test_null_distribution_has_zero_mean(self):
+        """Test that null distribution is centered at zero under null hypothesis (fast version)."""
+        n_samples = 50
+        n_permute = 500  # Smaller for tier1
+
+        # Generate null data (mean=0)
+        np.random.seed(42)
+        data = np.random.randn(n_samples)  # Mean ~ 0
+
+        result = one_sample_permutation_test(
+            data, n_permute=n_permute, return_null=True, random_state=42, parallel=None
+        )
+
+        # Null distribution mean should be close to 0 (within sampling error)
+        null_mean = np.mean(result["null_dist"])
+        null_std = np.std(result["null_dist"])
+
+        # Expected std of mean under null: std(null_dist) / sqrt(n_permute)
+        # Use more lenient tolerance (3 standard errors)
+        expected_std_of_mean = null_std / np.sqrt(n_permute)
+        tolerance = 3 * expected_std_of_mean
+
+        assert abs(null_mean) < tolerance, (
+            f"Null distribution mean should be close to 0. "
+            f"Got mean={null_mean:.6f}, expected within ±{tolerance:.6f}"
+        )
+
+    @pytest.mark.tier2
+    def test_null_distribution_has_zero_mean_full(self):
         """Test that null distribution is centered at zero under null hypothesis."""
         n_samples = 50
         n_permute = 2000

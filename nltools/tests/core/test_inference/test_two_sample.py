@@ -20,6 +20,7 @@ from nltools.stats import two_sample_permutation as stats_two_sample
 class TestTwoSamplePermutation:
     """Test two-sample permutation tests."""
 
+    @pytest.mark.tier1
     def test_basic_functionality_single_feature(self):
         """Test basic two-sample test with single feature (1D arrays)."""
         np.random.seed(42)
@@ -37,6 +38,7 @@ class TestTwoSamplePermutation:
         assert isinstance(result["p"], (float, np.floating))
         assert 0 <= result["p"] <= 1
 
+    @pytest.mark.tier2
     def test_basic_functionality_multi_feature(self):
         """Test two-sample test with multiple features (2D arrays)."""
         np.random.seed(42)
@@ -51,6 +53,7 @@ class TestTwoSamplePermutation:
         assert result["p"].shape == (10,)
         assert np.all((result["p"] >= 0) & (result["p"] <= 1))
 
+    @pytest.mark.tier1
     def test_deterministic_with_seed(self):
         """Test that results are deterministic with fixed seed."""
         np.random.seed(42)
@@ -67,6 +70,7 @@ class TestTwoSamplePermutation:
         np.testing.assert_array_almost_equal(result1["mean_diff"], result2["mean_diff"])
         np.testing.assert_array_almost_equal(result1["p"], result2["p"])
 
+    @pytest.mark.tier1
     def test_return_null_distribution_single(self):
         """Test that null distribution is returned for single feature."""
         np.random.seed(42)
@@ -80,6 +84,7 @@ class TestTwoSamplePermutation:
         assert "null_dist" in result
         assert result["null_dist"].shape == (100,)
 
+    @pytest.mark.tier1
     def test_return_null_distribution_multi(self):
         """Test null distribution for multi-feature data."""
         np.random.seed(42)
@@ -93,6 +98,7 @@ class TestTwoSamplePermutation:
         assert "null_dist" in result
         assert result["null_dist"].shape == (100, 5)
 
+    @pytest.mark.tier2
     def test_significant_effect(self):
         """Test that significant group difference is detected."""
         np.random.seed(42)
@@ -105,6 +111,7 @@ class TestTwoSamplePermutation:
 
         assert result["p"] < 0.05  # Should be significant
 
+    @pytest.mark.tier2
     def test_non_significant_effect(self):
         """Test that non-significant difference has high p-value."""
         np.random.seed(42)
@@ -130,6 +137,7 @@ class TestTwoSamplePermutation:
         assert result["mean_diff"].shape == (5,)
         assert result["p"].shape == (5,)
 
+    @pytest.mark.tier2
     def test_one_tailed_vs_two_tailed(self):
         """Test that one-tailed and two-tailed p-values differ."""
         np.random.seed(42)
@@ -146,6 +154,7 @@ class TestTwoSamplePermutation:
         # One-tailed should be different from two-tailed
         assert result_one["p"] != result_two["p"]
 
+    @pytest.mark.tier1
     def test_invalid_tail(self):
         """Test that invalid tail raises error."""
         data1 = np.random.randn(20)
@@ -154,6 +163,7 @@ class TestTwoSamplePermutation:
         with pytest.raises(ValueError, match="tail must be 1 or 2"):
             two_sample_permutation_test(data1, data2, tail=3)
 
+    @pytest.mark.tier1
     def test_invalid_data_shape(self):
         """Test that invalid data shape raises error."""
         data1 = np.random.randn(5, 5, 5)  # 3D
@@ -162,6 +172,7 @@ class TestTwoSamplePermutation:
         with pytest.raises(ValueError, match="data1 must be 1D or 2D"):
             two_sample_permutation_test(data1, data2)
 
+    @pytest.mark.tier1
     def test_mismatched_features(self):
         """Test that mismatched feature dimensions raise error."""
         data1 = np.random.randn(20, 5)  # 5 features
@@ -170,6 +181,7 @@ class TestTwoSamplePermutation:
         with pytest.raises(ValueError, match="must have same number of features"):
             two_sample_permutation_test(data1, data2)
 
+    @pytest.mark.tier2
     def test_backend_consistency_single_feature(self, backends):
         """Test that NumPy and PyTorch backends produce same results."""
         if len(backends) < 2:
@@ -209,6 +221,7 @@ class TestTwoSamplePermutation:
             rtol=1e-5,
         )
 
+    @pytest.mark.tier2
     def test_backend_consistency_multi_feature(self, backends):
         """Test backend consistency for multi-feature data."""
         if len(backends) < 2:
@@ -248,6 +261,7 @@ class TestTwoSamplePermutation:
             rtol=1e-5,
         )
 
+    @pytest.mark.tier2
     def test_matches_stats_single_feature(self):
         """Test that results match stats.py for single feature."""
         np.random.seed(42)
@@ -284,6 +298,7 @@ class TestTwoSamplePermutation:
             result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE
         )
 
+    @pytest.mark.tier2
     def test_cpu_parallel_correctness(self):
         """Test CPU parallelization produces correct results."""
         np.random.seed(42)
@@ -302,6 +317,7 @@ class TestTwoSamplePermutation:
         assert np.all((result["p"] >= 0) & (result["p"] <= 1))
         assert result["parallel"] == "cpu"
 
+    @pytest.mark.tier2
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_batching_correctness(self):
         """Test that GPU batching produces same results as NumPy."""

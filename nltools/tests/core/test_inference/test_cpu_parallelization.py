@@ -1,8 +1,12 @@
 """Tests for CPU parallelization functionality and correctness."""
 
+import pytest
 import numpy as np
 
 from nltools.algorithms.inference import one_sample_permutation_test
+
+# All tests in this file are tier2 (CPU parallelization)
+pytestmark = pytest.mark.tier2
 
 
 class TestCPUParallelization:

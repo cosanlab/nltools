@@ -20,6 +20,7 @@ from nltools.backends import check_gpu_available
 class TestComputeICCVoxelwise:
     """Test basic functionality of compute_icc_voxelwise."""
 
+    @pytest.mark.tier1
     def test_basic_functionality_single_voxel(self):
         """Test basic ICC computation with single voxel."""
         np.random.seed(42)
@@ -36,6 +37,7 @@ class TestComputeICCVoxelwise:
         assert isinstance(icc_map[0], (float, np.floating))
         assert -1 <= icc_map[0] <= 1
 
+    @pytest.mark.tier1
     def test_basic_functionality_multi_voxel(self):
         """Test basic ICC computation with multiple voxels."""
         np.random.seed(42)
@@ -51,6 +53,7 @@ class TestComputeICCVoxelwise:
         assert icc_map.shape == (n_voxels,)
         assert np.all((-1 <= icc_map) & (icc_map <= 1))
 
+    @pytest.mark.tier1
     def test_all_icc_types(self):
         """Test that all ICC types work."""
         np.random.seed(42)
@@ -68,6 +71,7 @@ class TestComputeICCVoxelwise:
             assert np.all(np.isfinite(icc_map))
             assert np.all((-1 <= icc_map) & (icc_map <= 1))
 
+    @pytest.mark.tier1
     def test_correctness_vs_single_icc(self):
         """Test that voxel-wise ICC matches single-voxel compute_icc."""
         np.random.seed(42)
@@ -89,6 +93,7 @@ class TestComputeICCVoxelwise:
 
             np.testing.assert_almost_equal(icc_map[voxel_idx], icc_single, decimal=10)
 
+    @pytest.mark.tier2
     def test_cpu_parallel(self):
         """Test CPU parallelization (for medium-sized problems only)."""
         np.random.seed(42)
@@ -111,6 +116,7 @@ class TestComputeICCVoxelwise:
         # Results should match (within numerical precision)
         np.testing.assert_allclose(icc_single, icc_parallel, rtol=1e-5)
 
+    @pytest.mark.tier2
     def test_cpu_parallel_auto_n_jobs(self):
         """Test CPU parallelization with auto-detection of n_jobs."""
         np.random.seed(42)
@@ -143,6 +149,7 @@ class TestComputeICCVoxelwise:
         # Results should match (within numerical precision)
         np.testing.assert_allclose(icc_auto, icc_explicit, rtol=1e-5)
 
+    @pytest.mark.tier2
     def test_cpu_parallel_memory_constraint(self):
         """Test CPU parallelization respects memory constraints."""
         np.random.seed(42)
@@ -175,7 +182,9 @@ class TestComputeICCVoxelwise:
             # May or may not warn depending on system memory
             # (warning threshold is 20% reduction)
             if len(w) > 0:
-                assert any("exceeds memory limit" in str(warning.message) for warning in w)
+                assert any(
+                    "exceeds memory limit" in str(warning.message) for warning in w
+                )
 
     @pytest.mark.tier2
     def test_gpu_acceleration(self):
@@ -203,6 +212,7 @@ class TestComputeICCVoxelwise:
         # Results should match (GPU uses float32, so slightly lower precision)
         np.testing.assert_allclose(icc_cpu, icc_gpu, rtol=1e-3, atol=1e-3)
 
+    @pytest.mark.tier1
     def test_invalid_data_shape(self):
         """Test that invalid data shape raises error."""
         n_subjects = 10
@@ -214,6 +224,7 @@ class TestComputeICCVoxelwise:
         with pytest.raises(ValueError, match="must equal n_subjects \\* n_sessions"):
             compute_icc_voxelwise(data, n_subjects, n_sessions)
 
+    @pytest.mark.tier1
     def test_invalid_icc_type(self):
         """Test that invalid ICC type raises error."""
         np.random.seed(42)
@@ -225,6 +236,7 @@ class TestComputeICCVoxelwise:
         with pytest.raises(ValueError, match="icc_type must be"):
             compute_icc_voxelwise(data, n_subjects, n_sessions, icc_type="invalid")
 
+    @pytest.mark.tier1
     def test_invalid_parallel(self):
         """Test that invalid parallel option raises error."""
         np.random.seed(42)
@@ -381,6 +393,7 @@ class TestICCCorrectness:
 class TestICCEdgeCases:
     """Test edge cases and error handling."""
 
+    @pytest.mark.tier1
     def test_constant_data(self):
         """Test ICC with constant data (all values the same)."""
         n_subjects = 5

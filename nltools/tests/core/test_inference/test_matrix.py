@@ -194,6 +194,7 @@ class TestMatrixHelpers:
         assert isinstance(r_full_with_diag, float)
 
 
+@pytest.mark.tier2
 class TestMatrixPermutationCPUParallel:
     """Test CPU-parallel implementation of matrix permutation."""
 

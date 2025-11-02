@@ -203,6 +203,7 @@ class TestCorrelationPermutation:
         assert 0 <= result["p"] <= 1
         assert -1 <= result["correlation"] <= 1
 
+    @pytest.mark.tier2
     def test_basic_functionality_multi_feature(self):
         """Test correlation test with 2D arrays (feature-wise)."""
         np.random.seed(42)
@@ -218,6 +219,7 @@ class TestCorrelationPermutation:
         assert np.all((result["p"] >= 0) & (result["p"] <= 1))
         assert np.all((result["correlation"] >= -1) & (result["correlation"] <= 1))
 
+    @pytest.mark.tier1
     def test_deterministic_with_seed(self):
         """Test that results are deterministic with fixed seed."""
         np.random.seed(42)
@@ -230,6 +232,7 @@ class TestCorrelationPermutation:
         np.testing.assert_almost_equal(result1["correlation"], result2["correlation"])
         np.testing.assert_almost_equal(result1["p"], result2["p"])
 
+    @pytest.mark.tier1
     def test_return_null_distribution_single(self):
         """Test that null distribution is returned for single feature."""
         np.random.seed(42)
@@ -243,6 +246,7 @@ class TestCorrelationPermutation:
         assert "null_dist" in result
         assert result["null_dist"].shape == (100,)
 
+    @pytest.mark.tier1
     def test_return_null_distribution_multi(self):
         """Test null distribution for multi-feature data."""
         np.random.seed(42)
@@ -256,6 +260,7 @@ class TestCorrelationPermutation:
         assert "null_dist" in result
         assert result["null_dist"].shape == (100, 5)
 
+    @pytest.mark.tier2
     def test_significant_correlation(self):
         """Test that significant correlation is detected."""
         np.random.seed(42)
@@ -267,6 +272,7 @@ class TestCorrelationPermutation:
         assert result["p"] < 0.05  # Should be significant
         assert result["correlation"] > 0.9  # Should be strong positive
 
+    @pytest.mark.tier2
     def test_non_significant_correlation(self):
         """Test that non-significant correlation has high p-value."""
         np.random.seed(42)
@@ -309,6 +315,7 @@ class TestCorrelationPermutation:
         assert result["p"] < 0.05  # Should be significant (monotonic)
         assert result["correlation"] > 0.7  # Strong positive Kendall
 
+    @pytest.mark.tier2
     def test_one_tailed_vs_two_tailed(self):
         """Test that one-tailed and two-tailed p-values differ (when not at minimum)."""
         np.random.seed(123)  # Different seed for moderate correlation
@@ -331,6 +338,7 @@ class TestCorrelationPermutation:
         if result_two["p"] > 0.01:  # Not at minimum
             assert result_one["p"] <= result_two["p"]
 
+    @pytest.mark.tier2
     def test_cpu_parallel_correctness(self):
         """Test CPU parallelization produces correct results."""
         np.random.seed(42)
@@ -348,6 +356,7 @@ class TestCorrelationPermutation:
         assert np.all((result["p"] >= 0) & (result["p"] <= 1))
         assert result["parallel"] == "cpu"
 
+    @pytest.mark.tier1
     def test_invalid_tail(self):
         """Test that invalid tail raises error."""
         x = np.random.randn(50)
@@ -356,6 +365,7 @@ class TestCorrelationPermutation:
         with pytest.raises(ValueError, match="tail must be 1 or 2"):
             correlation_permutation_test(x, y, tail=3)
 
+    @pytest.mark.tier1
     def test_invalid_data_shape(self):
         """Test that invalid data shape raises error."""
         x = np.random.randn(5, 5, 5)  # 3D
@@ -364,6 +374,7 @@ class TestCorrelationPermutation:
         with pytest.raises(ValueError, match="data1 must be 1D or 2D"):
             correlation_permutation_test(x, y)
 
+    @pytest.mark.tier1
     def test_mismatched_shapes(self):
         """Test that mismatched shapes raise error."""
         x = np.random.randn(50, 5)  # 5 features
@@ -372,6 +383,7 @@ class TestCorrelationPermutation:
         with pytest.raises(ValueError, match="must have same shape"):
             correlation_permutation_test(x, y)
 
+    @pytest.mark.tier2
     def test_backend_consistency_single_feature(self, backends):
         """Test that NumPy and PyTorch backends produce same results."""
         if len(backends) < 2:
@@ -407,6 +419,7 @@ class TestCorrelationPermutation:
             rtol=1e-5,
         )
 
+    @pytest.mark.tier2
     def test_backend_consistency_multi_feature(self, backends):
         """Test backend consistency for multi-feature data."""
         if len(backends) < 2:
@@ -446,6 +459,7 @@ class TestCorrelationPermutation:
             rtol=1e-5,
         )
 
+    @pytest.mark.tier2
     def test_matches_stats_py_single_feature(self):
         """Test that results match stats.py for single feature."""
         np.random.seed(42)
@@ -480,6 +494,7 @@ class TestCorrelationPermutation:
             result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE
         )
 
+    @pytest.mark.tier2
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_batching_correctness(self):
         """Test that GPU batching produces same results as NumPy."""

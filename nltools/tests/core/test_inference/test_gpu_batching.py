@@ -13,6 +13,9 @@ from nltools.tests.core.test_inference import (
 )
 from nltools.backends import check_gpu_available
 
+# All tests in this file are tier2 (GPU batching)
+pytestmark = pytest.mark.tier2
+
 
 class TestGPUBatching:
     """Test GPU batching functionality and memory management."""
