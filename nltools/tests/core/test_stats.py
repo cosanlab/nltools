@@ -623,6 +623,48 @@ def test_isc_group():
             )  # Allow up to 5% NaN filtering
 
 
+def test_isfc_default_parallel():
+    """Test that default behavior uses parallel execution (n_jobs=-1)."""
+    from nltools.stats import isfc
+
+    def simulate_sub_roi_data(n_sub, n_tr):
+        sub_dat = []
+        for _ in range(n_sub):
+            sub_dat.append(
+                np.random.multivariate_normal(
+                    [0, 0, 0, 0, 0],
+                    [
+                        [1, 0.2, 0.5, 0.7, 0.3],
+                        [0.2, 1, 0.6, 0.1, 0.2],
+                        [0.5, 0.6, 1, 0.3, 0.1],
+                        [0.7, 0.1, 0.3, 1, 0.4],
+                        [0.3, 0.2, 0.1, 0.4, 1],
+                    ],
+                    n_tr,
+                )
+            )
+        return sub_dat
+
+    # Generate test data
+    np.random.seed(42)
+    n_sub = 10
+    sub_dat = simulate_sub_roi_data(n_sub, 500)
+
+    # Default call (should use n_jobs=-1, parallel)
+    result_default = isfc(sub_dat)
+
+    # Explicit parallel call
+    result_parallel = isfc(sub_dat, n_jobs=-1)
+
+    # Results should be identical
+    assert len(result_default) == len(result_parallel) == n_sub
+
+    for i in range(n_sub):
+        np.testing.assert_allclose(
+            result_default[i], result_parallel[i], rtol=1e-10, atol=1e-10
+        )
+
+
 def test_isfc():
     """Test intersubject functional correlation."""
 
@@ -651,6 +693,130 @@ def test_isfc():
     assert len(isfc_out) == n_sub
     assert isfc_mean.shape == (5, 5)
     np.testing.assert_almost_equal(np.array(isfc_out).mean(axis=0).mean(), 0, decimal=1)
+
+
+def test_isfc_parallelization():
+    """Test that parallelized ISFC produces identical results to serial."""
+    from nltools.stats import isfc
+
+    def simulate_sub_roi_data(n_sub, n_tr):
+        sub_dat = []
+        for _ in range(n_sub):
+            sub_dat.append(
+                np.random.multivariate_normal(
+                    [0, 0, 0, 0, 0],
+                    [
+                        [1, 0.2, 0.5, 0.7, 0.3],
+                        [0.2, 1, 0.6, 0.1, 0.2],
+                        [0.5, 0.6, 1, 0.3, 0.1],
+                        [0.7, 0.1, 0.3, 1, 0.4],
+                        [0.3, 0.2, 0.1, 0.4, 1],
+                    ],
+                    n_tr,
+                )
+            )
+        return sub_dat
+
+    # Generate test data
+    np.random.seed(42)
+    n_sub = 10
+    sub_dat = simulate_sub_roi_data(n_sub, 500)
+
+    # Serial execution (n_jobs=1)
+    result_serial = isfc(sub_dat, n_jobs=1)
+
+    # Parallel execution (n_jobs=-1, use all cores)
+    result_parallel = isfc(sub_dat, n_jobs=-1)
+
+    # Results should be identical
+    assert len(result_serial) == len(result_parallel) == n_sub
+
+    for i in range(n_sub):
+        np.testing.assert_allclose(
+            result_serial[i], result_parallel[i], rtol=1e-10, atol=1e-10
+        )
+
+
+def test_isfc_parallelization_deterministic():
+    """Test that parallelized ISFC is deterministic."""
+    from nltools.stats import isfc
+
+    def simulate_sub_roi_data(n_sub, n_tr):
+        sub_dat = []
+        for _ in range(n_sub):
+            sub_dat.append(
+                np.random.multivariate_normal(
+                    [0, 0, 0, 0, 0],
+                    [
+                        [1, 0.2, 0.5, 0.7, 0.3],
+                        [0.2, 1, 0.6, 0.1, 0.2],
+                        [0.5, 0.6, 1, 0.3, 0.1],
+                        [0.7, 0.1, 0.3, 1, 0.4],
+                        [0.3, 0.2, 0.1, 0.4, 1],
+                    ],
+                    n_tr,
+                )
+            )
+        return sub_dat
+
+    # Generate test data with fixed seed
+    np.random.seed(42)
+    n_sub = 10
+    sub_dat = simulate_sub_roi_data(n_sub, 500)
+
+    # Run parallel execution twice
+    result1 = isfc(sub_dat, n_jobs=-1)
+    result2 = isfc(sub_dat, n_jobs=-1)
+
+    # Results should be identical (deterministic)
+    assert len(result1) == len(result2) == n_sub
+
+    for i in range(n_sub):
+        np.testing.assert_allclose(result1[i], result2[i], rtol=1e-10, atol=1e-10)
+
+
+def test_isfc_parallelization_different_n_jobs():
+    """Test that different n_jobs values produce identical results."""
+    from nltools.stats import isfc
+
+    def simulate_sub_roi_data(n_sub, n_tr):
+        sub_dat = []
+        for _ in range(n_sub):
+            sub_dat.append(
+                np.random.multivariate_normal(
+                    [0, 0, 0, 0, 0],
+                    [
+                        [1, 0.2, 0.5, 0.7, 0.3],
+                        [0.2, 1, 0.6, 0.1, 0.2],
+                        [0.5, 0.6, 1, 0.3, 0.1],
+                        [0.7, 0.1, 0.3, 1, 0.4],
+                        [0.3, 0.2, 0.1, 0.4, 1],
+                    ],
+                    n_tr,
+                )
+            )
+        return sub_dat
+
+    # Generate test data
+    np.random.seed(42)
+    n_sub = 10
+    sub_dat = simulate_sub_roi_data(n_sub, 500)
+
+    # Test with different n_jobs values
+    result_serial = isfc(sub_dat, n_jobs=1)
+    result_parallel_2 = isfc(sub_dat, n_jobs=2)
+    result_parallel_all = isfc(sub_dat, n_jobs=-1)
+
+    # All should produce identical results
+    assert len(result_serial) == len(result_parallel_2) == len(result_parallel_all)
+
+    for i in range(n_sub):
+        np.testing.assert_allclose(
+            result_serial[i], result_parallel_2[i], rtol=1e-10, atol=1e-10
+        )
+        np.testing.assert_allclose(
+            result_serial[i], result_parallel_all[i], rtol=1e-10, atol=1e-10
+        )
 
 
 def test_isps():

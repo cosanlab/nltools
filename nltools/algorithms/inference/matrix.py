@@ -132,6 +132,51 @@ def _compute_matrix_correlation(
     return r
 
 
+def _compute_cross_correlation(matrix1: np.ndarray, matrix2: np.ndarray) -> np.ndarray:
+    """
+    Compute cross-correlation between columns (features) of two matrices.
+
+    This function computes the correlation between each column of matrix1
+    with each column of matrix2. Useful for computing connectivity matrices
+    such as in intersubject functional connectivity (ISFC).
+
+    Args:
+        matrix1 (np.ndarray): First matrix with shape (n_observations, n_features1)
+        matrix2 (np.ndarray): Second matrix with shape (n_observations, n_features2)
+
+    Returns:
+        np.ndarray: Cross-correlation matrix with shape (n_features1, n_features2)
+            where element [i, j] is the correlation between matrix1[:, i] and matrix2[:, j]
+
+    Examples:
+        >>> matrix1 = np.random.randn(100, 5)  # 100 observations, 5 features
+        >>> matrix2 = np.random.randn(100, 3)  # 100 observations, 3 features
+        >>> corr = _compute_cross_correlation(matrix1, matrix2)
+        >>> corr.shape
+        (5, 3)
+
+    Notes:
+        Uses np.corrcoef for efficient computation. The result is extracted
+        from the full correlation matrix by selecting the cross-correlation block.
+    """
+    if matrix1.shape[0] != matrix2.shape[0]:
+        raise ValueError(
+            f"Matrices must have same number of rows (observations), "
+            f"got {matrix1.shape[0]} and {matrix2.shape[0]}"
+        )
+
+    # Compute full correlation matrix of concatenated matrices
+    # Shape: (n_features1 + n_features2, n_features1 + n_features2)
+    full_corr = np.corrcoef(matrix1.T, matrix2.T)
+
+    # Extract cross-correlation block: correlations between matrix1 columns and matrix2 columns
+    # This is the top-right block of the full correlation matrix
+    # Block [0:n_features1, n_features1:] gives correlations between matrix1 columns and matrix2 columns
+    cross_corr = full_corr[: matrix1.shape[1], matrix1.shape[1] :]
+
+    return cross_corr
+
+
 def _matrix_permutation_cpu_parallel(
     data1: np.ndarray,
     data2: np.ndarray,

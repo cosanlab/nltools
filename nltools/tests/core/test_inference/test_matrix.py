@@ -814,6 +814,143 @@ class TestDistanceCorrelation:
             distance_correlation(x, y)
 
 
+class TestCrossCorrelation:
+    """Test _compute_cross_correlation function for ISFC computation."""
+
+    def test_cross_correlation_basic(self):
+        """Test basic cross-correlation computation."""
+        from nltools.algorithms.inference.matrix import _compute_cross_correlation
+
+        np.random.seed(42)
+        matrix1 = np.random.randn(100, 5)  # 100 observations, 5 features
+        matrix2 = np.random.randn(100, 3)  # 100 observations, 3 features
+
+        result = _compute_cross_correlation(matrix1, matrix2)
+
+        # Should have correct shape
+        assert result.shape == (5, 3)
+
+        # Values should be in valid correlation range
+        assert np.all(result >= -1) and np.all(result <= 1)
+
+    def test_cross_correlation_identical_features(self):
+        """Test cross-correlation with identical features (should be perfect correlation)."""
+        from nltools.algorithms.inference.matrix import _compute_cross_correlation
+
+        np.random.seed(42)
+        matrix1 = np.random.randn(100, 5)
+        matrix2 = matrix1.copy()  # Same features
+
+        result = _compute_cross_correlation(matrix1, matrix2)
+
+        # Diagonal should be perfect correlation (1.0)
+        assert result.shape == (5, 5)
+        np.testing.assert_allclose(np.diag(result), 1.0, rtol=1e-10)
+
+    def test_cross_correlation_negated_features(self):
+        """Test cross-correlation with negated features (should be perfect negative correlation)."""
+        from nltools.algorithms.inference.matrix import _compute_cross_correlation
+
+        np.random.seed(42)
+        matrix1 = np.random.randn(100, 5)
+        matrix2 = -matrix1  # Negated features
+
+        result = _compute_cross_correlation(matrix1, matrix2)
+
+        # Diagonal should be perfect negative correlation (-1.0)
+        assert result.shape == (5, 5)
+        np.testing.assert_allclose(np.diag(result), -1.0, rtol=1e-10)
+
+    def test_cross_correlation_independent_features(self):
+        """Test cross-correlation with independent features."""
+        from nltools.algorithms.inference.matrix import _compute_cross_correlation
+
+        np.random.seed(42)
+        matrix1 = np.random.randn(100, 5)
+        matrix2 = np.random.randn(100, 3)  # Independent
+
+        result = _compute_cross_correlation(matrix1, matrix2)
+
+        # Correlations should be small (close to zero)
+        assert result.shape == (5, 3)
+        assert np.abs(result).mean() < 0.3  # Average correlation should be low
+
+    def test_cross_correlation_correctness_manual(self):
+        """Test that cross-correlation matches manual computation."""
+        from nltools.algorithms.inference.matrix import _compute_cross_correlation
+
+        np.random.seed(42)
+        matrix1 = np.random.randn(100, 5)
+        matrix2 = np.random.randn(100, 3)
+
+        # Compute using function
+        result = _compute_cross_correlation(matrix1, matrix2)
+
+        # Compute manually
+        manual_result = np.zeros((5, 3))
+        for i in range(5):
+            for j in range(3):
+                corr_coef = np.corrcoef(matrix1[:, i], matrix2[:, j])[0, 1]
+                manual_result[i, j] = corr_coef
+
+        # Should match exactly
+        np.testing.assert_allclose(result, manual_result, rtol=1e-10)
+
+    def test_cross_correlation_mismatched_observations(self):
+        """Test that mismatched number of observations raises error."""
+        from nltools.algorithms.inference.matrix import _compute_cross_correlation
+
+        matrix1 = np.random.randn(100, 5)
+        matrix2 = np.random.randn(50, 3)  # Different number of observations
+
+        with pytest.raises(ValueError, match="same number of rows"):
+            _compute_cross_correlation(matrix1, matrix2)
+
+    def test_cross_correlation_isfc_shape(self):
+        """Test cross-correlation with typical ISFC dimensions."""
+        from nltools.algorithms.inference.matrix import _compute_cross_correlation
+
+        # Typical ISFC: 500 timepoints, 5 ROIs
+        np.random.seed(42)
+        subject_data = np.random.randn(500, 5)
+        group_mean = np.random.randn(500, 5)
+
+        result = _compute_cross_correlation(subject_data, group_mean)
+
+        # Should produce 5x5 connectivity matrix
+        assert result.shape == (5, 5)
+        assert np.all(result >= -1) and np.all(result <= 1)
+
+    def test_cross_correlation_deterministic(self):
+        """Test that same input produces identical results."""
+        from nltools.algorithms.inference.matrix import _compute_cross_correlation
+
+        np.random.seed(42)
+        matrix1 = np.random.randn(100, 5)
+        matrix2 = np.random.randn(100, 3)
+
+        result1 = _compute_cross_correlation(matrix1, matrix2)
+        result2 = _compute_cross_correlation(matrix1, matrix2)
+
+        # Should be exactly identical
+        np.testing.assert_array_equal(result1, result2)
+
+    def test_cross_correlation_symmetric_property(self):
+        """Test that cross-correlation has expected properties."""
+        from nltools.algorithms.inference.matrix import _compute_cross_correlation
+
+        np.random.seed(42)
+        matrix1 = np.random.randn(100, 5)
+        matrix2 = np.random.randn(100, 5)
+
+        # Compute both directions
+        result_12 = _compute_cross_correlation(matrix1, matrix2)
+        result_21 = _compute_cross_correlation(matrix2, matrix1)
+
+        # Should be transposes of each other
+        np.testing.assert_allclose(result_12, result_21.T, rtol=1e-10)
+
+
 class TestMatrixUtilitiesIntegration:
     """Test that matrix utilities work together correctly."""
 
