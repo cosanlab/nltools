@@ -11,6 +11,7 @@ from sklearn.utils import check_random_state
 
 from nltools.backends import Backend
 from .utils import _generate_sign_flips, _compute_pvalue, _auto_batch_size
+from .._validation import validate_tail_parameter, validate_parallel_parameter, validate_array_shape_range
 
 
 def _one_sample_permutation_cpu_parallel(
@@ -288,14 +289,9 @@ def one_sample_permutation_test(
     """
     # Input validation
     data = np.asarray(data, dtype=np.float64)
-    if data.ndim not in [1, 2]:
-        raise ValueError(f"data must be 1D or 2D, got shape {data.shape}")
-    if tail not in [1, 2]:
-        raise ValueError(f"tail must be 1 or 2, got {tail}")
-
-    # Validate parallel parameter
-    if parallel not in [None, "cpu", "gpu"]:
-        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel!r}")
+    validate_array_shape_range(data, 1, 2, name="data")
+    validate_tail_parameter(tail)
+    validate_parallel_parameter(parallel)
 
     # Handle shape
     single_feature = data.ndim == 1

@@ -7,7 +7,8 @@ permutation test implementations.
 
 import numpy as np
 from typing import Optional
-from sklearn.utils import check_random_state
+from .._random import generate_sign_flips as _generate_sign_flips_from_random
+from .._validation import validate_tail_parameter
 
 
 # ============================================================================
@@ -23,60 +24,8 @@ from sklearn.utils import check_random_state
 EPSILON = 1e-10
 
 
-def _generate_sign_flips(
-    n_permute: int,
-    n_samples: int,
-    random_state: Optional[int] = None,
-) -> np.ndarray:
-    """
-    Generate random sign-flip matrix for one-sample permutation tests.
-
-    Creates a matrix of random +1/-1 values for sign-flipping permutation tests.
-    Each row represents one permutation, where each sample is randomly multiplied
-    by +1 or -1 to create the null distribution.
-
-    This implementation matches the RNG pattern from nltools.stats.one_sample_permutation
-    for exact backward compatibility: each permutation gets an independent RandomState
-    derived from a unique seed.
-
-    Args:
-        n_permute (int): Number of permutations to generate
-        n_samples (int): Number of samples in the dataset
-        random_state (int, optional): Random seed for reproducibility
-
-    Returns:
-        np.ndarray: Sign-flip matrix of shape (n_permute, n_samples)
-            containing only +1 and -1 values
-
-    Examples:
-        >>> sign_flips = _generate_sign_flips(n_permute=100, n_samples=30, random_state=42)
-        >>> sign_flips.shape
-        (100, 30)
-        >>> np.all(np.isin(sign_flips, [-1, 1]))
-        True
-
-    Notes:
-        - Each permutation uses independent RandomState for stats.py compatibility
-        - Values are uniformly sampled from {+1, -1} (matching stats.py order)
-        - Returns NumPy array (device transfer handled by caller)
-        - Memory cost: n_permute × n_samples × 1 byte (negligible for typical use)
-    """
-    rng = check_random_state(random_state)
-
-    # Generate unique seed for each permutation (matches stats.py pattern)
-    MAX_INT = 2**31 - 1
-    seeds = rng.randint(MAX_INT, size=n_permute)
-
-    # Generate sign-flips using independent RNG per permutation
-    # This matches stats._permute_sign behavior exactly
-    sign_flips = np.array(
-        [
-            np.random.RandomState(seeds[i]).choice([1, -1], n_samples)
-            for i in range(n_permute)
-        ]
-    )
-
-    return sign_flips
+# Re-export from shared random utilities for backward compatibility
+_generate_sign_flips = _generate_sign_flips_from_random
 
 
 def _compute_pvalue(
@@ -118,8 +67,7 @@ def _compute_pvalue(
         - Minimum p-value is 1/(n_permute + 1)
         - For two-tailed tests, uses absolute values
     """
-    if tail not in [1, 2]:
-        raise ValueError(f"tail must be 1 or 2, got {tail}")
+    validate_tail_parameter(tail)
 
     # Handle shape differences
     if null_dist.ndim == 1:
@@ -153,51 +101,7 @@ def _compute_pvalue(
     return p_values
 
 
-def _generate_bootstrap_indices(
-    n_samples: int,
-    n_bootstrap: int,
-    random_state: Optional[int] = None,
-) -> np.ndarray:
-    """
-    Generate bootstrap indices deterministically for resampling.
-
-    Uses the same pattern as permutation tests: pre-generate seeds for
-    reproducible parallelization.
-
-    Args:
-        n_samples: Number of samples in original dataset.
-        n_bootstrap: Number of bootstrap iterations.
-        random_state: Random seed for reproducibility. Defaults to None.
-
-    Returns:
-        np.ndarray: Bootstrap indices with shape (n_bootstrap, n_samples).
-            Each row contains indices sampled with replacement from [0, n_samples).
-
-    Examples:
-        >>> indices = _generate_bootstrap_indices(100, 1000, random_state=42)
-        >>> indices.shape
-        (1000, 100)
-        >>> indices[0]  # First bootstrap sample indices
-        array([23, 45, 23, 67, ...])  # Some repeated (sampling with replacement)
-
-    Notes:
-        - Uses same seed generation pattern as permutation tests for consistency
-        - Each bootstrap iteration gets independent RandomState for reproducibility
-        - Sampling is with replacement (some indices may repeat)
-    """
-    rng = check_random_state(random_state)
-    MAX_INT = 2**31 - 1
-    seeds = rng.randint(MAX_INT, size=n_bootstrap)
-
-    # Each bootstrap gets independent RandomState
-    indices = np.array(
-        [
-            np.random.RandomState(seeds[i]).choice(n_samples, n_samples, replace=True)
-            for i in range(n_bootstrap)
-        ]
-    )
-
-    return indices
+# Re-export from shared random utilities for backward compatibility
 
 
 def _auto_batch_size(

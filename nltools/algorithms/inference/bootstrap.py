@@ -5,6 +5,16 @@ import warnings
 from typing import Tuple, Dict, Optional
 from scipy.stats import norm
 
+from .._validation import (
+    validate_bootstrap_method,
+    validate_bootstrap_data,
+    validate_percentiles,
+    validate_array_shape,
+    validate_array_shape_range,
+    validate_shape_compatibility,
+)
+from .._random import generate_bootstrap_indices
+
 
 # Constants for supported methods
 SIMPLE_METHODS = ["mean", "median", "std", "sum", "min", "max"]
@@ -20,14 +30,7 @@ def _validate_bootstrap_method(method: str) -> None:
     Raises:
         ValueError: If method is not supported.
     """
-    supported = SIMPLE_METHODS + FITTED_METHODS
-    if method not in supported:
-        raise ValueError(
-            f"Unsupported method '{method}'. "
-            f"Supported methods: {SIMPLE_METHODS} (simple methods), "
-            f"{FITTED_METHODS} (fitted model methods). "
-            f"For fitted methods, you must call .fit() first."
-        )
+    validate_bootstrap_method(method, SIMPLE_METHODS, FITTED_METHODS)
 
 
 def _validate_bootstrap_data(data: np.ndarray, method: str) -> None:
@@ -40,22 +43,10 @@ def _validate_bootstrap_data(data: np.ndarray, method: str) -> None:
     Raises:
         ValueError: If data is invalid (wrong shape, too few samples, etc.).
     """
-    # Check dimensionality
-    if data.ndim not in [1, 2]:
-        raise ValueError(
-            f"Data must be 1D or 2D, got shape {data.shape}. "
-            f"For 3D+ data, you may need to reshape or select specific dimensions."
-        )
-
-    # Check number of samples
-    n_samples = data.shape[0] if data.ndim == 2 else len(data)
-    if n_samples < 2:
-        raise ValueError(
-            f"Need at least 2 samples for bootstrap, got {n_samples}. "
-            f"Bootstrap requires resampling, which needs multiple samples."
-        )
+    validate_bootstrap_data(data, method)
 
     # Warn if very few samples
+    n_samples = data.shape[0] if data.ndim == 2 else len(data)
     if n_samples < 10:
         warnings.warn(
             f"Only {n_samples} samples available. Bootstrap works best with n >= 30. "
@@ -101,21 +92,7 @@ def _validate_percentiles(percentiles: tuple) -> None:
     Raises:
         ValueError: If percentiles are invalid.
     """
-    if not isinstance(percentiles, (tuple, list)) or len(percentiles) != 2:
-        raise ValueError(f"percentiles must be a tuple of 2 values, got {percentiles}")
-
-    lower, upper = percentiles
-
-    if not (0 < lower < 50):
-        raise ValueError(f"Lower percentile must be between 0 and 50, got {lower}")
-
-    if not (50 < upper < 100):
-        raise ValueError(f"Upper percentile must be between 50 and 100, got {upper}")
-
-    if lower >= upper:
-        raise ValueError(
-            f"Lower percentile ({lower}) must be less than upper ({upper})"
-        )
+    validate_percentiles(percentiles)
 
 
 class OnlineBootstrapStats:
@@ -388,7 +365,6 @@ def _bootstrap_simple_cpu_parallel(
     """
     from joblib import Parallel, delayed
     from tqdm import tqdm
-    from .utils import _generate_bootstrap_indices
 
     # Validate inputs
     _validate_bootstrap_method(method)
@@ -408,7 +384,7 @@ def _bootstrap_simple_cpu_parallel(
     output_shape = (n_features,) if not single_feature else ()
 
     # Pre-generate bootstrap indices (deterministic)
-    all_indices = _generate_bootstrap_indices(
+    all_indices = generate_bootstrap_indices(
         n_obs, n_samples, random_state=random_state
     )
 
@@ -533,20 +509,15 @@ def _bootstrap_ridge_weights_cpu_parallel(
     """
     from joblib import Parallel, delayed
     from tqdm import tqdm
-    from .utils import _generate_bootstrap_indices
+    from .._validation import validate_array_shape, validate_array_shape_range
 
     # Input validation
     X = np.asarray(X, dtype=np.float64)
     y = np.asarray(y, dtype=np.float64)
 
-    if X.ndim != 2:
-        raise ValueError(f"X must be 2D, got shape {X.shape}")
-    if y.ndim not in [1, 2]:
-        raise ValueError(f"y must be 1D or 2D, got shape {y.shape}")
-    if X.shape[0] != y.shape[0]:
-        raise ValueError(
-            f"X and y must have same n_samples: {X.shape[0]} != {y.shape[0]}"
-        )
+    validate_array_shape(X, 2, name="X")
+    validate_array_shape_range(y, 1, 2, name="y")
+    validate_shape_compatibility(X, y, X_name="X", y_name="y")
 
     # Handle 1D y
     single_voxel = y.ndim == 1
@@ -558,7 +529,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
     output_shape = (n_features, n_voxels)
 
     # Pre-generate bootstrap indices (deterministic)
-    all_indices = _generate_bootstrap_indices(
+    all_indices = generate_bootstrap_indices(
         n_obs, n_samples, random_state=random_state
     )
 
@@ -690,23 +661,17 @@ def _bootstrap_ridge_predict_cpu_parallel(
     """
     from joblib import Parallel, delayed
     from tqdm import tqdm
-    from .utils import _generate_bootstrap_indices
+    from .._validation import validate_shape_compatibility, validate_array_shape
 
     # Input validation
     X = np.asarray(X, dtype=np.float64)
     y = np.asarray(y, dtype=np.float64)
     X_pred = np.asarray(X_pred, dtype=np.float64)
 
-    if X.ndim != 2:
-        raise ValueError(f"X must be 2D, got shape {X.shape}")
-    if y.ndim not in [1, 2]:
-        raise ValueError(f"y must be 1D or 2D, got shape {y.shape}")
-    if X_pred.ndim != 2:
-        raise ValueError(f"X_pred must be 2D, got shape {X_pred.shape}")
-    if X.shape[0] != y.shape[0]:
-        raise ValueError(
-            f"X and y must have same n_samples: {X.shape[0]} != {y.shape[0]}"
-        )
+    validate_array_shape(X, 2, name="X")
+    validate_array_shape_range(y, 1, 2, name="y")
+    validate_array_shape(X_pred, 2, name="X_pred")
+    validate_shape_compatibility(X, y, X_name="X", y_name="y")
     if X.shape[1] != X_pred.shape[1]:
         raise ValueError(
             f"X and X_pred must have same n_features: {X.shape[1]} != {X_pred.shape[1]}"
@@ -723,7 +688,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
     output_shape = (n_test_samples, n_voxels)
 
     # Pre-generate bootstrap indices (deterministic)
-    all_indices = _generate_bootstrap_indices(
+    all_indices = generate_bootstrap_indices(
         n_obs, n_samples, random_state=random_state
     )
 
@@ -848,20 +813,15 @@ def _bootstrap_ridge_weights_gpu_batched(
     import torch
     from tqdm import tqdm
     from nltools.backends import auto_select_backend
-    from .utils import _generate_bootstrap_indices
+    from .._validation import validate_array_shape_range
 
     # Input validation
     X = np.asarray(X, dtype=np.float32)
     y = np.asarray(y, dtype=np.float32)
 
-    if X.ndim != 2:
-        raise ValueError(f"X must be 2D, got shape {X.shape}")
-    if y.ndim not in [1, 2]:
-        raise ValueError(f"y must be 1D or 2D, got shape {y.shape}")
-    if X.shape[0] != y.shape[0]:
-        raise ValueError(
-            f"X and y must have same n_samples: {X.shape[0]} != {y.shape[0]}"
-        )
+    validate_array_shape(X, 2, name="X")
+    validate_array_shape_range(y, 1, 2, name="y")
+    validate_shape_compatibility(X, y, X_name="X", y_name="y")
 
     # Handle backend
     if backend is None:
@@ -885,7 +845,7 @@ def _bootstrap_ridge_weights_gpu_batched(
     _validate_percentiles(percentiles)
 
     # Pre-generate bootstrap indices (deterministic)
-    all_indices = _generate_bootstrap_indices(
+    all_indices = generate_bootstrap_indices(
         n_obs, n_samples, random_state=random_state
     )
 
@@ -1027,23 +987,17 @@ def _bootstrap_ridge_predict_gpu_batched(
     import torch
     from tqdm import tqdm
     from nltools.backends import auto_select_backend
-    from .utils import _generate_bootstrap_indices
+    from .._validation import validate_array_shape, validate_array_shape_range
 
     # Input validation
     X = np.asarray(X, dtype=np.float32)
     y = np.asarray(y, dtype=np.float32)
     X_pred = np.asarray(X_pred, dtype=np.float32)
 
-    if X.ndim != 2:
-        raise ValueError(f"X must be 2D, got shape {X.shape}")
-    if y.ndim not in [1, 2]:
-        raise ValueError(f"y must be 1D or 2D, got shape {y.shape}")
-    if X_pred.ndim != 2:
-        raise ValueError(f"X_pred must be 2D, got shape {X_pred.shape}")
-    if X.shape[0] != y.shape[0]:
-        raise ValueError(
-            f"X and y must have same n_samples: {X.shape[0]} != {y.shape[0]}"
-        )
+    validate_array_shape(X, 2, name="X")
+    validate_array_shape_range(y, 1, 2, name="y")
+    validate_array_shape(X_pred, 2, name="X_pred")
+    validate_shape_compatibility(X, y, X_name="X", y_name="y")
     if X.shape[1] != X_pred.shape[1]:
         raise ValueError(
             f"X and X_pred must have same n_features: {X.shape[1]} != {X_pred.shape[1]}"
@@ -1072,7 +1026,7 @@ def _bootstrap_ridge_predict_gpu_batched(
     _validate_percentiles(percentiles)
 
     # Pre-generate bootstrap indices (deterministic)
-    all_indices = _generate_bootstrap_indices(
+    all_indices = generate_bootstrap_indices(
         n_obs, n_samples, random_state=random_state
     )
 

@@ -11,6 +11,8 @@ from sklearn.utils import check_random_state
 
 from nltools.backends import Backend
 from .utils import _compute_pvalue, _auto_batch_size
+from .._validation import validate_tail_parameter, validate_parallel_parameter, validate_array_shape_range
+from .._random import generate_seeds
 
 
 def _two_sample_permutation_cpu_parallel(
@@ -46,9 +48,7 @@ def _two_sample_permutation_cpu_parallel(
     from tqdm import tqdm
 
     # Setup random state and generate seeds for workers
-    rng = check_random_state(random_state)
-    MAX_INT = 2**31 - 1
-    seeds = rng.randint(MAX_INT, size=n_permute)
+    seeds = generate_seeds(n_permute, random_state=random_state)
 
     # Get dimensions (data already reshaped by caller)
     n1, n_features = data1.shape
@@ -330,19 +330,15 @@ def two_sample_permutation_test(
         - Group sizes can be unequal
     """
     # Validate parallel parameter
-    if parallel not in [None, "cpu", "gpu"]:
-        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel!r}")
+    validate_parallel_parameter(parallel)
 
     # Input validation
     data1 = np.asarray(data1, dtype=np.float64)
     data2 = np.asarray(data2, dtype=np.float64)
 
-    if data1.ndim not in [1, 2]:
-        raise ValueError(f"data1 must be 1D or 2D, got shape {data1.shape}")
-    if data2.ndim not in [1, 2]:
-        raise ValueError(f"data2 must be 1D or 2D, got shape {data2.shape}")
-    if tail not in [1, 2]:
-        raise ValueError(f"tail must be 1 or 2, got {tail}")
+    validate_array_shape_range(data1, 1, 2, name="data1")
+    validate_array_shape_range(data2, 1, 2, name="data2")
+    validate_tail_parameter(tail)
 
     # Handle shape
     single_feature = data1.ndim == 1 and data2.ndim == 1

@@ -13,78 +13,40 @@ from scipy.spatial.distance import squareform, pdist
 from scipy.stats import t as t_dist
 
 from .utils import _compute_pvalue
+from .._shape_utils import extract_triangle_elements, permute_matrix_symmetric
+from .._validation import (
+    validate_how_parameter,
+    validate_metric_parameter,
+    validate_tail_parameter,
+    validate_parallel_parameter_matrix,
+    validate_same_shape,
+    validate_square_matrix,
+)
+
 
 # Maximum integer for random seed generation
 MAX_INT = np.iinfo(np.int32).max
 
 
+# Re-export shape utilities for backward compatibility
 def _extract_matrix_elements(
     matrix: np.ndarray,
     how: str = "upper",
     include_diag: bool = False,
 ) -> np.ndarray:
-    """
-    Extract elements from square matrix for correlation computation.
+    """Extract elements from square matrix (wrapper for extract_triangle_elements).
 
     Args:
-        matrix (np.ndarray): Square matrix (n×n)
-        how (str): Which elements to extract ['upper'|'lower'|'full']
-            - 'upper': Upper triangle (default, assumes symmetric)
-            - 'lower': Lower triangle
-            - 'full': All elements (see include_diag)
-        include_diag (bool): Whether to include diagonal (only applies if how='full')
+        matrix: Square matrix (n×n)
+        how: Which elements to extract ['upper'|'lower'|'full']
+        include_diag: Include diagonal (only for 'full')
 
     Returns:
-        np.ndarray: 1D array of extracted elements
-
-    Examples:
-        >>> matrix = np.arange(16).reshape(4, 4)
-        >>> _extract_matrix_elements(matrix, how='upper')
-        array([ 1,  2,  3,  6,  7, 11])
+        1D array of extracted elements
     """
-    if how == "upper":
-        return matrix[np.triu_indices(matrix.shape[0], k=1)]
-    elif how == "lower":
-        return matrix[np.tril_indices(matrix.shape[0], k=-1)]
-    elif how == "full":
-        if include_diag:
-            return matrix.ravel()
-        else:
-            # Concatenate upper and lower triangles (exclude diagonal)
-            upper = matrix[np.triu_indices(matrix.shape[0], k=1)]
-            lower = matrix[np.tril_indices(matrix.shape[0], k=-1)]
-            return np.concatenate([upper, lower])
-    else:
-        raise ValueError(f"how must be 'upper', 'lower', or 'full', got {how}")
+    return extract_triangle_elements(matrix, triangle=how, include_diag=include_diag)
 
-
-def _permute_matrix_symmetric(
-    matrix: np.ndarray,
-    permutation: np.ndarray,
-) -> np.ndarray:
-    """
-    Apply symmetric row+column permutation to square matrix.
-
-    This is the KEY operation for matrix permutation tests. It reorders
-    both rows AND columns together, preserving matrix structure while
-    destroying correlation between matrices.
-
-    Args:
-        matrix (np.ndarray): Square matrix (n×n)
-        permutation (np.ndarray): Permutation indices (length n)
-
-    Returns:
-        np.ndarray: Symmetrically permuted matrix (n×n)
-
-    Examples:
-        >>> matrix = np.arange(9).reshape(3, 3)
-        >>> perm = np.array([2, 0, 1])  # Rotate indices
-        >>> _permute_matrix_symmetric(matrix, perm)
-        array([[8, 6, 7],
-               [2, 0, 1],
-               [5, 3, 4]])
-    """
-    return matrix[permutation][:, permutation]
+_permute_matrix_symmetric = permute_matrix_symmetric
 
 
 def _compute_matrix_correlation(
@@ -118,16 +80,13 @@ def _compute_matrix_correlation(
     elements2 = _extract_matrix_elements(matrix2, how=how, include_diag=include_diag)
 
     # Compute correlation
+    validate_metric_parameter(metric, ["pearson", "spearman", "kendall"], name="metric")
     if metric == "pearson":
         r, _ = pearsonr(elements1, elements2)
     elif metric == "spearman":
         r, _ = spearmanr(elements1, elements2)
     elif metric == "kendall":
         r, _ = kendalltau(elements1, elements2)
-    else:
-        raise ValueError(
-            f"metric must be 'pearson', 'spearman', or 'kendall', got {metric}"
-        )
 
     return r
 
@@ -220,8 +179,9 @@ def _matrix_permutation_cpu_parallel(
     from tqdm import tqdm
 
     # Validate inputs
-    assert data1.shape == data2.shape, "Matrices must have same shape"
-    assert data1.shape[0] == data1.shape[1], "Matrices must be square"
+    validate_same_shape(data1, data2, name1="data1", name2="data2")
+    validate_square_matrix(data1, name="data1")
+    validate_square_matrix(data2, name="data2")
 
     # Pre-generate seeds (deterministic)
     rng = np.random.RandomState(random_state)
@@ -237,7 +197,7 @@ def _matrix_permutation_cpu_parallel(
         """Compute correlation for one permutation."""
         perm_rng = np.random.RandomState(seed)
         perm = perm_rng.permutation(data1.shape[0])
-        permuted_matrix = _permute_matrix_symmetric(data1, perm)
+        permuted_matrix = permute_matrix_symmetric(data1, perm)
         return _compute_matrix_correlation(
             permuted_matrix, data2, how=how, include_diag=include_diag, metric=metric
         )
@@ -350,31 +310,16 @@ def matrix_permutation_test(
     if not isinstance(data1, np.ndarray) or not isinstance(data2, np.ndarray):
         raise TypeError("data1 and data2 must be numpy arrays")
 
-    if data1.shape != data2.shape:
-        raise ValueError(
-            f"Matrices must have same shape, got {data1.shape} and {data2.shape}"
-        )
+    data1 = np.asarray(data1)
+    data2 = np.asarray(data2)
 
-    if data1.shape[0] != data1.shape[1]:
-        raise ValueError(f"Matrices must be square, got shape {data1.shape}")
-
-    if metric not in ["pearson", "spearman", "kendall"]:
-        raise ValueError(
-            f"metric must be 'pearson', 'spearman', or 'kendall', got {metric}"
-        )
-
-    if how not in ["upper", "lower", "full"]:
-        raise ValueError(f"how must be 'upper', 'lower', or 'full', got {how}")
-
-    if tail not in [1, 2]:
-        raise ValueError(f"tail must be 1 or 2, got {tail}")
-
-    # Validate parallel parameter
-    if parallel not in [None, "cpu"]:
-        raise ValueError(
-            f"parallel must be None or 'cpu', got {parallel!r}. "
-            "GPU support not yet implemented for matrix permutation tests."
-        )
+    validate_same_shape(data1, data2, name1="data1", name2="data2")
+    validate_square_matrix(data1, name="data1")
+    validate_square_matrix(data2, name="data2")
+    validate_metric_parameter(metric, ["pearson", "spearman", "kendall"], name="metric")
+    validate_how_parameter(how)
+    validate_tail_parameter(tail)
+    validate_parallel_parameter_matrix(parallel)
 
     # Decide execution mode based on parallel parameter
     if parallel == "cpu":
