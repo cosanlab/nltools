@@ -25,17 +25,21 @@ def test_solve_banded_ridge_cv_mps():
     Y = np.random.randn(n_samples, n_targets).astype(np.float32)
 
     # Test with torch backend (will use MPS if available)
-    deltas, coefs, cv_scores = solve_banded_ridge_cv(
+    result = solve_banded_ridge_cv(
         [X1, X2],
         Y,
         n_iter=3,  # Small for speed
         alphas=[0.1, 1.0],
         cv=3,
-        backend="torch",
+        parallel="cpu",  # Use CPU parallelization (torch backend handles MPS internally)
         return_weights=True,
         progress_bar=False,
         random_state=42,
     )
+    
+    deltas = result['deltas']
+    coefs = result['coefs']
+    cv_scores = result['cv_scores']
 
     # Check outputs
     assert deltas.shape == (2, n_targets)

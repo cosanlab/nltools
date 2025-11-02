@@ -922,7 +922,7 @@ class BrainData(object):
             y_train, y_test = self.data[train_idx], self.data[test_idx]
 
             # Fit Ridge on training fold
-            coef = ridge_svd(X_train, y_train, alpha=alpha, backend=backend)
+            coef = ridge_svd(X_train, y_train, alpha=alpha, parallel=backend)
 
             # Predict on test fold
             y_pred = X_test @ coef

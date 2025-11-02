@@ -21,33 +21,25 @@ CURRENT_BACKEND = "numpy"
 def set_backend(backend, on_error="raise"):
     """Set the backend using a global variable, and return the backend module.
 
-    Parameters
-    ----------
-    backend : str or module
-        Name or module of the backend.
-    on_error : str in {"raise", "warn"}
-        Define what is done if the backend fails to be loaded.
-        If "warn", this function only warns, and keeps the previous backend.
-        If "raise", this function raises on errors.
+    Args:
+        backend: Name or module of the backend. Must be one of: "numpy", "torch",
+            "torch_cuda".
+        on_error: What to do if backend fails to load. Options:
+            - "raise": Raise an exception (default).
+            - "warn": Warn and keep previous backend.
 
-    Returns
-    -------
-    module : python module
-        Module of the backend.
+    Returns:
+        module: Module of the backend (e.g., numpy, torch backend module).
 
-    Raises
-    ------
-    ValueError
-        If backend is not in ALL_BACKENDS.
-    ImportError
-        If backend dependencies are not installed (when on_error="raise").
+    Raises:
+        ValueError: If backend is not in ALL_BACKENDS.
+        ImportError: If backend dependencies are not installed (when on_error="raise").
 
-    Examples
-    --------
-    >>> from nltools.algorithms.ridge.backends import set_backend
-    >>> backend = set_backend("numpy")
-    >>> backend.name
-    'numpy'
+    Examples:
+        >>> from nltools.algorithms.ridge.backends import set_backend
+        >>> backend = set_backend("numpy")
+        >>> backend.name
+        'numpy'
     """
     global CURRENT_BACKEND
 
@@ -78,17 +70,14 @@ def set_backend(backend, on_error="raise"):
 def get_backend():
     """Get the current backend module.
 
-    Returns
-    -------
-    module : python module
-        Module of the backend.
+    Returns:
+        module: Module of the backend (e.g., numpy, torch backend module).
 
-    Examples
-    --------
-    >>> from nltools.algorithms.ridge.backends import get_backend
-    >>> backend = get_backend()
-    >>> backend.name
-    'numpy'
+    Examples:
+        >>> from nltools.algorithms.ridge.backends import get_backend
+        >>> backend = get_backend()
+        >>> backend.name
+        'numpy'
     """
     module = importlib.import_module(__package__ + "." + CURRENT_BACKEND)
     return module
@@ -97,15 +86,32 @@ def get_backend():
 def _dtype_to_str(dtype):
     """Cast dtype to string, such as "float32", or "float64".
 
-    Parameters
-    ----------
-    dtype : dtype or str or None
-        Data type to convert.
+    Converts numpy, torch, cupy, and other dtype objects to their string
+    representation. Handles None values and string inputs.
 
-    Returns
-    -------
-    str or None
-        String representation of dtype.
+    Args:
+        dtype: Data type to convert. Can be:
+            - str: Returned as-is
+            - None: Returned as None
+            - numpy/cupy dtype: Uses dtype.name
+            - torch dtype: Converts from "torch.float32" format
+            - Other: Attempts numpy.dtype conversion
+
+    Returns:
+        str or None: String representation of dtype (e.g., "float32", "float64"),
+            or None if input was None.
+
+    Raises:
+        NotImplementedError: If dtype cannot be converted to string.
+
+    Examples:
+        >>> import numpy as np
+        >>> _dtype_to_str(np.float32)
+        'float32'
+        >>> _dtype_to_str("float64")
+        'float64'
+        >>> _dtype_to_str(None)
+        None
     """
     if isinstance(dtype, str):
         return dtype
@@ -131,14 +137,19 @@ _already_warned = [False]
 
 
 def warn_if_not_float32(dtype):
-    """Warn if X is not float32.
+    """Warn if dtype is not float32.
 
-    GPU backends are much faster with single precision.
+    GPU backends are much faster with single precision (float32). This function
+    warns the user once if they are using a different dtype, encouraging them
+    to cast to float32 for better performance.
 
-    Parameters
-    ----------
-    dtype : dtype
-        Data type to check.
+    Args:
+        dtype: Data type to check. Can be any dtype object or string.
+
+    Notes:
+        - Warning is only shown once per session (uses internal flag).
+        - Only warns for GPU backends (checked via get_backend()).
+        - Warning is suppressed if dtype is already float32.
     """
     if _already_warned[0]:  # avoid warning multiple times
         return None

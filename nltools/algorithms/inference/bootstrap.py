@@ -12,18 +12,13 @@ FITTED_METHODS = ["weights", "predict"]  # For future use
 
 
 def _validate_bootstrap_method(method: str) -> None:
-    """
-    Validate bootstrap method name.
+    """Validate bootstrap method name.
 
-    Parameters
-    ----------
-    method : str
-        Method name to validate
+    Args:
+        method: Method name to validate.
 
-    Raises
-    ------
-    ValueError
-        If method is not supported
+    Raises:
+        ValueError: If method is not supported.
     """
     supported = SIMPLE_METHODS + FITTED_METHODS
     if method not in supported:
@@ -36,20 +31,14 @@ def _validate_bootstrap_method(method: str) -> None:
 
 
 def _validate_bootstrap_data(data: np.ndarray, method: str) -> None:
-    """
-    Validate input data for bootstrapping.
+    """Validate input data for bootstrapping.
 
-    Parameters
-    ----------
-    data : np.ndarray
-        Data to validate
-    method : str
-        Bootstrap method
+    Args:
+        data: Data to validate.
+        method: Bootstrap method.
 
-    Raises
-    ------
-    ValueError
-        If data is invalid (wrong shape, too few samples, etc.)
+    Raises:
+        ValueError: If data is invalid (wrong shape, too few samples, etc.).
     """
     # Check dimensionality
     if data.ndim not in [1, 2]:
@@ -76,18 +65,13 @@ def _validate_bootstrap_data(data: np.ndarray, method: str) -> None:
 
 
 def _validate_n_samples(n_samples: int) -> None:
-    """
-    Validate number of bootstrap iterations.
+    """Validate number of bootstrap iterations.
 
-    Parameters
-    ----------
-    n_samples : int
-        Number of bootstrap iterations
+    Args:
+        n_samples: Number of bootstrap iterations.
 
-    Raises
-    ------
-    ValueError
-        If n_samples is invalid
+    Raises:
+        ValueError: If n_samples is invalid.
     """
     if not isinstance(n_samples, (int, np.integer)):
         raise TypeError(f"n_samples must be an integer, got {type(n_samples).__name__}")
@@ -109,18 +93,13 @@ def _validate_n_samples(n_samples: int) -> None:
 
 
 def _validate_percentiles(percentiles: tuple) -> None:
-    """
-    Validate percentile values for confidence intervals.
+    """Validate percentile values for confidence intervals.
 
-    Parameters
-    ----------
-    percentiles : tuple
-        Percentile values (lower, upper)
+    Args:
+        percentiles: Percentile values (lower, upper).
 
-    Raises
-    ------
-    ValueError
-        If percentiles are invalid
+    Raises:
+        ValueError: If percentiles are invalid.
     """
     if not isinstance(percentiles, (tuple, list)) or len(percentiles) != 2:
         raise ValueError(f"percentiles must be a tuple of 2 values, got {percentiles}")
@@ -140,31 +119,26 @@ def _validate_percentiles(percentiles: tuple) -> None:
 
 
 class OnlineBootstrapStats:
-    """
-    Memory-efficient online statistics aggregator for bootstrap samples.
+    """Memory-efficient online statistics aggregator for bootstrap samples.
 
     Uses Welford's algorithm for numerically stable online computation of
     mean and variance. Optionally stores all samples for exact percentile CIs.
 
-    Parameters
-    ----------
-    shape : tuple
-        Shape of each bootstrap sample
-    save_samples : bool, default=False
-        If True, store all samples for exact percentile confidence intervals.
-        If False, use normal approximation (much more memory efficient).
-    percentiles : tuple, default=(2.5, 97.5)
-        Percentiles for confidence intervals (e.g., (2.5, 97.5) for 95% CI)
+    Args:
+        shape: Shape of each bootstrap sample.
+        save_samples: If True, store all samples for exact percentile confidence intervals.
+            If False, use normal approximation (much more memory efficient). Defaults to False.
+        percentiles: Percentiles for confidence intervals (e.g., (2.5, 97.5) for 95% CI).
+            Defaults to (2.5, 97.5).
 
-    Examples
-    --------
-    >>> stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
-    >>> for i in range(1000):
-    ...     sample = np.random.randn(100)
-    ...     stats.update(sample)
-    >>> results = stats.get_results()
-    >>> print(results.keys())
-    dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
+    Examples:
+        >>> stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
+        >>> for i in range(1000):
+        ...     sample = np.random.randn(100)
+        ...     stats.update(sample)
+        >>> results = stats.get_results()
+        >>> print(results.keys())
+        dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
     """
 
     def __init__(
@@ -186,15 +160,12 @@ class OnlineBootstrapStats:
         self.samples = [] if save_samples else None
 
     def update(self, sample: np.ndarray) -> None:
-        """
-        Update statistics with a new bootstrap sample.
+        """Update statistics with a new bootstrap sample.
 
         Uses Welford's algorithm for numerical stability.
 
-        Parameters
-        ----------
-        sample : np.ndarray
-            New bootstrap sample with shape matching self.shape
+        Args:
+            sample: New bootstrap sample with shape matching self.shape.
         """
         # Ensure float64 for numerical precision
         sample = np.asarray(sample, dtype=np.float64)
@@ -217,12 +188,9 @@ class OnlineBootstrapStats:
             self.samples.append(sample.copy())
 
     def get_results(self) -> Dict[str, np.ndarray]:
-        """
-        Compute final bootstrap statistics.
+        """Compute final bootstrap statistics.
 
-        Returns
-        -------
-        dict
+        Returns:
             Dictionary containing:
             - 'mean': Bootstrap mean
             - 'std': Bootstrap standard deviation
@@ -232,8 +200,7 @@ class OnlineBootstrapStats:
             - 'ci_upper': Upper confidence bound
             - 'samples': All samples (only if save_samples=True)
 
-        Examples
-        --------
+        Examples:
         **Basic usage:**
         >>> stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
         >>> for i in range(1000):
@@ -347,22 +314,15 @@ def _bootstrap_simple_method_worker(
     method: str,
     indices: np.ndarray,
 ) -> np.ndarray:
-    """
-    Worker function for bootstrapping simple aggregation methods.
+    """Worker function for bootstrapping simple aggregation methods.
 
-    Parameters
-    ----------
-    data : np.ndarray
-        Data to bootstrap (n_samples, n_features)
-    method : str
-        Aggregation method: 'mean', 'median', 'std', 'sum', 'min', 'max'
-    indices : np.ndarray
-        Bootstrap indices (n_samples,)
+    Args:
+        data: Data to bootstrap (n_samples, n_features).
+        method: Aggregation method: 'mean', 'median', 'std', 'sum', 'min', 'max'.
+        indices: Bootstrap indices (n_samples,).
 
-    Returns
-    -------
-    np.ndarray
-        Aggregated result (n_features,) or scalar
+    Returns:
+        Aggregated result (n_features,) or scalar.
     """
     # Resample data
     data_boot = data[indices]
@@ -393,32 +353,21 @@ def _bootstrap_simple_cpu_parallel(
     random_state: Optional[int] = None,
     percentiles: Tuple[float, float] = (2.5, 97.5),
 ) -> Dict[str, np.ndarray]:
-    """
-    Bootstrap simple aggregation methods using CPU parallelization.
+    """Bootstrap simple aggregation methods using CPU parallelization.
 
     Follows the same pattern as inference module: pre-generate indices,
     parallelize computation, aggregate with OnlineBootstrapStats.
 
-    Parameters
-    ----------
-    data : np.ndarray
-        Data to bootstrap, shape (n_samples, n_features) or (n_samples,)
-    method : str
-        Aggregation method: 'mean', 'median', 'std', 'sum', 'min', 'max'
-    n_samples : int, default=5000
-        Number of bootstrap iterations
-    save_boots : bool, default=False
-        If True, store all bootstrap samples (memory intensive)
-    n_jobs : int, default=-1
-        Number of CPU cores for parallelization
-    random_state : int, optional
-        Random seed for reproducibility
-    percentiles : tuple, default=(2.5, 97.5)
-        Percentiles for confidence intervals
+    Args:
+        data: Data to bootstrap, shape (n_samples, n_features) or (n_samples,).
+        method: Aggregation method: 'mean', 'median', 'std', 'sum', 'min', 'max'.
+        n_samples: Number of bootstrap iterations. Defaults to 5000.
+        save_boots: If True, store all bootstrap samples (memory intensive). Defaults to False.
+        n_jobs: Number of CPU cores for parallelization. Defaults to -1.
+        random_state: Random seed for reproducibility.
+        percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
 
-    Returns
-    -------
-    dict
+    Returns:
         Dictionary containing:
         - 'mean': Bootstrap mean
         - 'std': Bootstrap standard deviation
@@ -429,8 +378,7 @@ def _bootstrap_simple_cpu_parallel(
         - 'samples': All samples (only if save_boots=True)
         - 'backend': Backend used (e.g., 'cpu-parallel-8')
 
-    Examples
-    --------
+    Examples:
     >>> data = np.random.randn(100, 50)  # 100 samples, 50 features
     >>> result = _bootstrap_simple_cpu_parallel(data, 'mean', n_samples=1000)
     >>> result['mean'].shape
@@ -510,29 +458,20 @@ def _bootstrap_ridge_weights_worker(
     alpha: float,
     **ridge_kwargs,
 ) -> np.ndarray:
-    """
-    Worker function for bootstrapping Ridge model weights.
+    """Worker function for bootstrapping Ridge model weights.
 
     Bypasses BrainData overhead by calling ridge_svd() directly with numpy arrays.
     This provides 10-100× speedup compared to using BrainData methods.
 
-    Parameters
-    ----------
-    X : np.ndarray
-        Feature matrix, shape (n_samples, n_features)
-    y : np.ndarray
-        Target matrix, shape (n_samples, n_voxels)
-    indices : np.ndarray
-        Bootstrap indices, shape (n_samples,)
-    alpha : float
-        Ridge regularization parameter
-    **ridge_kwargs : dict
-        Additional parameters passed to ridge_svd()
+    Args:
+        X: Feature matrix, shape (n_samples, n_features).
+        y: Target matrix, shape (n_samples, n_voxels).
+        indices: Bootstrap indices, shape (n_samples,).
+        alpha: Ridge regularization parameter.
+        **ridge_kwargs: Additional parameters passed to ridge_svd().
 
-    Returns
-    -------
-    np.ndarray
-        Ridge weights, shape (n_features, n_voxels)
+    Returns:
+        Ridge weights, shape (n_features, n_voxels).
     """
     from nltools.algorithms.ridge import ridge_svd
 
@@ -557,37 +496,24 @@ def _bootstrap_ridge_weights_cpu_parallel(
     percentiles: Tuple[float, float] = (2.5, 97.5),
     **ridge_kwargs,
 ) -> Dict[str, np.ndarray]:
-    """
-    Bootstrap Ridge model weights using CPU parallelization.
+    """Bootstrap Ridge model weights using CPU parallelization.
 
     Performance optimization: Calls ridge_svd() directly instead of using
     BrainData methods, avoiding serialization overhead. Provides 10-100×
     speedup compared to naive implementation.
 
-    Parameters
-    ----------
-    X : np.ndarray
-        Feature matrix, shape (n_samples, n_features)
-    y : np.ndarray
-        Target matrix, shape (n_samples, n_voxels)
-    alpha : float
-        Ridge regularization parameter
-    n_samples : int, default=5000
-        Number of bootstrap iterations
-    save_boots : bool, default=False
-        If True, store all bootstrap samples (memory intensive)
-    n_jobs : int, default=-1
-        Number of CPU cores for parallelization
-    random_state : int, optional
-        Random seed for reproducibility
-    percentiles : tuple, default=(2.5, 97.5)
-        Percentiles for confidence intervals
-    **ridge_kwargs : dict
-        Additional parameters passed to ridge_svd()
+    Args:
+        X: Feature matrix, shape (n_samples, n_features).
+        y: Target matrix, shape (n_samples, n_voxels).
+        alpha: Ridge regularization parameter.
+        n_samples: Number of bootstrap iterations. Defaults to 5000.
+        save_boots: If True, store all bootstrap samples (memory intensive). Defaults to False.
+        n_jobs: Number of CPU cores for parallelization. Defaults to -1.
+        random_state: Random seed for reproducibility.
+        percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
+        **ridge_kwargs: Additional parameters passed to ridge_svd().
 
-    Returns
-    -------
-    dict
+    Returns:
         Dictionary containing:
         - 'mean': Bootstrap mean weights
         - 'std': Bootstrap standard deviation
@@ -598,8 +524,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
         - 'samples': All samples (only if save_boots=True)
         - 'backend': Backend used
 
-    Examples
-    --------
+    Examples:
     >>> X = np.random.randn(100, 10)  # 100 samples, 10 features
     >>> y = np.random.randn(100, 50)  # 100 samples, 50 voxels
     >>> result = _bootstrap_ridge_weights_cpu_parallel(X, y, alpha=1.0)
@@ -684,30 +609,20 @@ def _bootstrap_ridge_predict_worker(
     alpha: float,
     **ridge_kwargs,
 ) -> np.ndarray:
-    """
-    Worker function for bootstrapping Ridge model predictions.
+    """Worker function for bootstrapping Ridge model predictions.
 
     Resamples training data, fits Ridge model, and makes predictions on test data.
 
-    Parameters
-    ----------
-    X : np.ndarray
-        Training feature matrix, shape (n_samples, n_features)
-    y : np.ndarray
-        Training target matrix, shape (n_samples, n_voxels)
-    X_pred : np.ndarray
-        Test feature matrix for prediction, shape (n_test_samples, n_features)
-    indices : np.ndarray
-        Bootstrap indices for resampling training data, shape (n_samples,)
-    alpha : float
-        Ridge regularization parameter
-    **ridge_kwargs : dict
-        Additional parameters passed to ridge_svd()
+    Args:
+        X: Training feature matrix, shape (n_samples, n_features).
+        y: Training target matrix, shape (n_samples, n_voxels).
+        X_pred: Test feature matrix for prediction, shape (n_test_samples, n_features).
+        indices: Bootstrap indices for resampling training data, shape (n_samples,).
+        alpha: Ridge regularization parameter.
+        **ridge_kwargs: Additional parameters passed to ridge_svd().
 
-    Returns
-    -------
-    np.ndarray
-        Predictions, shape (n_test_samples, n_voxels)
+    Returns:
+        Predictions, shape (n_test_samples, n_voxels).
     """
     from nltools.algorithms.ridge import ridge_svd
 
@@ -737,38 +652,24 @@ def _bootstrap_ridge_predict_cpu_parallel(
     percentiles: Tuple[float, float] = (2.5, 97.5),
     **ridge_kwargs,
 ) -> Dict[str, np.ndarray]:
-    """
-    Bootstrap Ridge model predictions using CPU parallelization.
+    """Bootstrap Ridge model predictions using CPU parallelization.
 
     Resamples training data, fits Ridge models, and aggregates predictions
     on test data. Uses same performance optimizations as weights bootstrap.
 
-    Parameters
-    ----------
-    X : np.ndarray
-        Training feature matrix, shape (n_samples, n_features)
-    y : np.ndarray
-        Training target matrix, shape (n_samples, n_voxels)
-    X_pred : np.ndarray
-        Test feature matrix for prediction, shape (n_test_samples, n_features)
-    alpha : float
-        Ridge regularization parameter
-    n_samples : int, default=5000
-        Number of bootstrap iterations
-    save_boots : bool, default=False
-        If True, store all bootstrap predictions (memory intensive)
-    n_jobs : int, default=-1
-        Number of CPU cores for parallelization
-    random_state : int, optional
-        Random seed for reproducibility
-    percentiles : tuple, default=(2.5, 97.5)
-        Percentiles for confidence intervals
-    **ridge_kwargs : dict
-        Additional parameters passed to ridge_svd()
+    Args:
+        X: Training feature matrix, shape (n_samples, n_features).
+        y: Training target matrix, shape (n_samples, n_voxels).
+        X_pred: Test feature matrix for prediction, shape (n_test_samples, n_features).
+        alpha: Ridge regularization parameter.
+        n_samples: Number of bootstrap iterations. Defaults to 5000.
+        save_boots: If True, store all bootstrap predictions (memory intensive). Defaults to False.
+        n_jobs: Number of CPU cores for parallelization. Defaults to -1.
+        random_state: Random seed for reproducibility.
+        percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
+        **ridge_kwargs: Additional parameters passed to ridge_svd().
 
-    Returns
-    -------
-    dict
+    Returns:
         Dictionary containing:
         - 'mean': Bootstrap mean predictions
         - 'std': Bootstrap standard deviation
@@ -779,8 +680,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
         - 'samples': All samples (only if save_boots=True)
         - 'backend': Backend used
 
-    Examples
-    --------
+    Examples:
     >>> X = np.random.randn(100, 10)         # Training features
     >>> y = np.random.randn(100, 50)         # Training targets (50 voxels)
     >>> X_test = np.random.randn(20, 10)     # Test features
@@ -873,31 +773,22 @@ def _auto_batch_size_ridge(
     n_voxels: int,
     max_memory_gb: float = 4.0,
 ) -> tuple[int, int]:
-    """
-    Automatically determine batch size for Ridge bootstrap to avoid GPU OOM.
+    """Automatically determine batch size for Ridge bootstrap to avoid GPU OOM.
 
     Memory bottleneck:
     - X_boot: (batch_size, n_samples, n_features)
     - y_boot: (batch_size, n_samples, n_voxels)
     - SVD buffers and intermediate computations
 
-    Parameters
-    ----------
-    n_bootstrap : int
-        Total number of bootstrap iterations
-    n_samples : int
-        Number of samples in dataset
-    n_features : int
-        Number of features
-    n_voxels : int
-        Number of voxels/targets
-    max_memory_gb : float, default=4.0
-        Maximum GPU memory to use in GB
+    Args:
+        n_bootstrap: Total number of bootstrap iterations.
+        n_samples: Number of samples in dataset.
+        n_features: Number of features.
+        n_voxels: Number of voxels/targets.
+        max_memory_gb: Maximum GPU memory to use in GB. Defaults to 4.0.
 
-    Returns
-    -------
-    tuple[int, int]
-        (batch_size, n_batches)
+    Returns:
+        (batch_size, n_batches).
     """
     bytes_per_element = 4  # float32
 
@@ -934,39 +825,25 @@ def _bootstrap_ridge_weights_gpu_batched(
     percentiles: Tuple[float, float] = (2.5, 97.5),
     **ridge_kwargs,
 ) -> Dict[str, np.ndarray]:
-    """
-    Bootstrap Ridge model weights using GPU with automatic batching.
+    """Bootstrap Ridge model weights using GPU with automatic batching.
 
     Processes bootstrap samples in batches to avoid GPU OOM. Transfers X, y
     to GPU once and reuses across batches for efficiency.
 
-    Parameters
-    ----------
-    X : np.ndarray
-        Feature matrix, shape (n_samples, n_features)
-    y : np.ndarray
-        Target matrix, shape (n_samples, n_voxels)
-    alpha : float
-        Ridge regularization parameter
-    n_samples : int, default=5000
-        Number of bootstrap iterations
-    save_boots : bool, default=False
-        If True, store all bootstrap samples (memory intensive)
-    backend : Backend, optional
-        Backend instance (must be PyTorch). If None, auto-selects.
-    max_gpu_memory_gb : float, default=4.0
-        Maximum GPU memory to use in GB
-    random_state : int, optional
-        Random seed for reproducibility
-    percentiles : tuple, default=(2.5, 97.5)
-        Percentiles for confidence intervals
-    **ridge_kwargs : dict
-        Additional parameters passed to ridge_svd()
+    Args:
+        X: Feature matrix, shape (n_samples, n_features).
+        y: Target matrix, shape (n_samples, n_voxels).
+        alpha: Ridge regularization parameter.
+        n_samples: Number of bootstrap iterations. Defaults to 5000.
+        save_boots: If True, store all bootstrap samples (memory intensive). Defaults to False.
+        backend: Backend instance (must be PyTorch). If None, auto-selects.
+        max_gpu_memory_gb: Maximum GPU memory to use in GB. Defaults to 4.0.
+        random_state: Random seed for reproducibility.
+        percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
+        **ridge_kwargs: Additional parameters passed to ridge_svd().
 
-    Returns
-    -------
-    dict
-        Dictionary containing bootstrap statistics (same format as CPU version)
+    Returns:
+        Dictionary containing bootstrap statistics (same format as CPU version).
     """
     import torch
     from tqdm import tqdm
@@ -1126,41 +1003,26 @@ def _bootstrap_ridge_predict_gpu_batched(
     percentiles: Tuple[float, float] = (2.5, 97.5),
     **ridge_kwargs,
 ) -> Dict[str, np.ndarray]:
-    """
-    Bootstrap Ridge model predictions using GPU with automatic batching.
+    """Bootstrap Ridge model predictions using GPU with automatic batching.
 
     Resamples training data, fits Ridge models, and aggregates predictions
     on test data. Uses same GPU optimizations as weights bootstrap.
 
-    Parameters
-    ----------
-    X : np.ndarray
-        Training feature matrix, shape (n_samples, n_features)
-    y : np.ndarray
-        Training target matrix, shape (n_samples, n_voxels)
-    X_pred : np.ndarray
-        Test feature matrix for prediction, shape (n_test_samples, n_features)
-    alpha : float
-        Ridge regularization parameter
-    n_samples : int, default=5000
-        Number of bootstrap iterations
-    save_boots : bool, default=False
-        If True, store all bootstrap predictions (memory intensive)
-    backend : Backend, optional
-        Backend instance (must be PyTorch). If None, auto-selects.
-    max_gpu_memory_gb : float, default=4.0
-        Maximum GPU memory to use in GB
-    random_state : int, optional
-        Random seed for reproducibility
-    percentiles : tuple, default=(2.5, 97.5)
-        Percentiles for confidence intervals
-    **ridge_kwargs : dict
-        Additional parameters passed to ridge_svd()
+    Args:
+        X: Training feature matrix, shape (n_samples, n_features).
+        y: Training target matrix, shape (n_samples, n_voxels).
+        X_pred: Test feature matrix for prediction, shape (n_test_samples, n_features).
+        alpha: Ridge regularization parameter.
+        n_samples: Number of bootstrap iterations. Defaults to 5000.
+        save_boots: If True, store all bootstrap predictions (memory intensive). Defaults to False.
+        backend: Backend instance (must be PyTorch). If None, auto-selects.
+        max_gpu_memory_gb: Maximum GPU memory to use in GB. Defaults to 4.0.
+        random_state: Random seed for reproducibility.
+        percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
+        **ridge_kwargs: Additional parameters passed to ridge_svd().
 
-    Returns
-    -------
-    dict
-        Dictionary containing bootstrap statistics (same format as CPU version)
+    Returns:
+        Dictionary containing bootstrap statistics (same format as CPU version).
     """
     import torch
     from tqdm import tqdm

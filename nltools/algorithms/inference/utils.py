@@ -164,28 +164,26 @@ def _generate_bootstrap_indices(
     Uses the same pattern as permutation tests: pre-generate seeds for
     reproducible parallelization.
 
-    Parameters
-    ----------
-    n_samples : int
-        Number of samples in original dataset
-    n_bootstrap : int
-        Number of bootstrap iterations
-    random_state : int, optional
-        Random seed for reproducibility
+    Args:
+        n_samples: Number of samples in original dataset.
+        n_bootstrap: Number of bootstrap iterations.
+        random_state: Random seed for reproducibility. Defaults to None.
 
-    Returns
-    -------
-    np.ndarray
-        Bootstrap indices with shape (n_bootstrap, n_samples)
-        Each row contains indices sampled with replacement from [0, n_samples)
+    Returns:
+        np.ndarray: Bootstrap indices with shape (n_bootstrap, n_samples).
+            Each row contains indices sampled with replacement from [0, n_samples).
 
-    Examples
-    --------
-    >>> indices = _generate_bootstrap_indices(100, 1000, random_state=42)
-    >>> indices.shape
-    (1000, 100)
-    >>> indices[0]  # First bootstrap sample indices
-    array([23, 45, 23, 67, ...])  # Some repeated (sampling with replacement)
+    Examples:
+        >>> indices = _generate_bootstrap_indices(100, 1000, random_state=42)
+        >>> indices.shape
+        (1000, 100)
+        >>> indices[0]  # First bootstrap sample indices
+        array([23, 45, 23, 67, ...])  # Some repeated (sampling with replacement)
+
+    Notes:
+        - Uses same seed generation pattern as permutation tests for consistency
+        - Each bootstrap iteration gets independent RandomState for reproducibility
+        - Sampling is with replacement (some indices may repeat)
     """
     rng = check_random_state(random_state)
     MAX_INT = 2**31 - 1

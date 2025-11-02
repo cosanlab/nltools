@@ -14,30 +14,51 @@ human ventral temporal cortex. Neuron, 72(2), 404-416.
 """
 
 import numpy as np
+from typing import List, Tuple, Optional
 from sklearn.base import BaseEstimator, TransformerMixin
 from scipy.linalg import orthogonal_procrustes
 
 __all__ = ["HyperAlignment"]
 
 
-def _procrustes_pairwise(data1, data2):
+def _procrustes_pairwise(
+    data1: np.ndarray, data2: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray, float, np.ndarray, float]:
     """Pairwise Procrustes alignment between two matrices.
 
     Internal helper function that performs pairwise Procrustes alignment.
     This is adapted from nltools.stats.procrustes() for internal use.
 
+    Procrustes alignment finds the optimal orthogonal transformation (rotation + reflection)
+    and scaling to align data2 to data1, minimizing the sum of squared differences.
+
     Args:
-        data1 (array_like, shape (n_samples, n_features)): Reference matrix
-            (target for alignment)
-        data2 (array_like, shape (n_samples, n_features)): Matrix to be aligned
-            to data1
+        data1: Reference matrix (target for alignment), shape (n_samples, n_features).
+        data2: Matrix to be aligned to data1, shape (n_samples, n_features).
 
     Returns:
-        mtx1 (ndarray): Standardized version of data1
-        mtx2 (ndarray): Aligned version of data2
-        disparity (float): Sum of squared differences between aligned matrices
-        R (ndarray): Orthogonal transformation matrix
-        scale (float): Scale factor from singular values
+        tuple: (mtx1, mtx2, disparity, R, scale) where:
+            - mtx1: Standardized version of data1 (centered and normalized).
+            - mtx2: Aligned version of data2 (transformed to match mtx1).
+            - disparity: Sum of squared differences between aligned matrices.
+            - R: Orthogonal transformation matrix (rotation + reflection).
+            - scale: Scale factor from singular values.
+
+    Raises:
+        ValueError: If input matrices have incompatible shapes or are empty.
+
+    Examples:
+        >>> import numpy as np
+        >>> data1 = np.random.randn(100, 50)
+        >>> data2 = np.random.randn(100, 50)
+        >>> mtx1, mtx2, disparity, R, scale = _procrustes_pairwise(data1, data2)
+        >>> disparity  # Should be small after alignment
+        0.023
+
+    Notes:
+        - Handles different column sizes by zero-padding the smaller matrix.
+        - Centers and normalizes inputs before alignment.
+        - Uses singular value decomposition to find optimal transformation.
     """
     mtx1 = np.array(data1, dtype=np.double, copy=True)
     mtx2 = np.array(data2, dtype=np.double, copy=True)
@@ -123,9 +144,9 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
         >>> # Create sample data (3 subjects)
         >>> data = [np.random.randn(100, 50) for _ in range(3)]
         >>>
-        >>> # Fit hyperalignment
+        >>> # Fit hyperalignment with CPU parallelization (default)
         >>> hyper = HyperAlignment(n_iter=2)
-        >>> hyper.fit(data)
+        >>> hyper.fit(data, parallel="cpu", n_jobs=-1)
         >>>
         >>> # Transform to common space
         >>> aligned = hyper.transform(data)
@@ -136,6 +157,14 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
         >>> # Align a new subject
         >>> new_subject = np.random.randn(100, 50)
         >>> new_transform = hyper.transform_subject(new_subject)
+        
+        When to use parallel processing:
+        - Use ``parallel="cpu"`` (default) for datasets with 3+ subjects to speed up
+          pairwise Procrustes operations during template refinement.
+        - Use ``parallel=None`` for debugging or small datasets (<3 subjects) where
+          parallelization overhead isn't beneficial.
+        - Parallel processing is most beneficial when subjects have many voxels
+          (>10K) and template refinement requires multiple iterations.
 
     References:
         Haxby, J. V., Guntupalli, J. S., Connolly, A. C., Halchenko, Y. O.,
@@ -144,7 +173,7 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
         human ventral temporal cortex. Neuron, 72(2), 404-416.
     """
 
-    def __init__(self, n_iter=2, auto_pad=True):
+    def __init__(self, n_iter: int = 2, auto_pad: bool = True) -> None:
         """Initialize HyperAlignment.
 
         Args:
@@ -155,17 +184,34 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
         self.n_iter = n_iter
         self.auto_pad = auto_pad
 
-    def fit(self, data):
+    def fit(
+        self,
+        data: List[np.ndarray],
+        parallel: Optional[str] = "cpu",
+        n_jobs: int = -1,
+    ) -> "HyperAlignment":
         """Fit hyperalignment model to data.
 
         Args:
             data (list of ndarray): List of data matrices, each with shape
                 (n_features, n_samples). Different subjects can have different
                 numbers of features if auto_pad=True.
+            parallel (str, optional): Execution backend.
+                - None: Single-threaded NumPy (debugging/small problems)
+                - "cpu": CPU parallelization via joblib (default, multi-subject processing)
+            n_jobs (int): Number of CPU cores for parallelization (-1 = auto-detect based on memory).
+                Only used when parallel="cpu". Defaults to -1.
 
         Returns:
             self (HyperAlignment): Fitted model
         """
+        # Validate parallel parameter
+        if parallel not in [None, "cpu"]:
+            raise ValueError(f"parallel must be None or 'cpu', got {parallel}")
+        
+        # Store parallel settings
+        self._parallel = parallel
+        self._n_jobs = n_jobs
         if not isinstance(data, list):
             raise TypeError("Data must be a list of arrays")
         if len(data) == 0:
@@ -231,10 +277,44 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
         ## STAGE 2: REFINE TEMPLATE (n_iter iterations) ##
         for iteration in range(self.n_iter):
             # Align each subject to current template and create refined template
-            common = np.zeros(template.shape)
-            for x in m:
-                _, trans, _, _, _ = _procrustes_pairwise(template, x.T)
-                common += trans
+            # Use CPU parallelization for pairwise Procrustes operations if requested
+            if self._parallel == "cpu" and len(m) > 2:
+                from joblib import Parallel, delayed
+                
+                def _align_to_template(subj_idx):
+                    """Align one subject to template."""
+                    _, trans, _, _, _ = _procrustes_pairwise(template, m[subj_idx].T)
+                    return trans
+                
+                # Auto-detect n_jobs if needed
+                n_jobs_to_use = self._n_jobs
+                if n_jobs_to_use == -1:
+                    try:
+                        from nltools.algorithms.inference.utils import _auto_n_jobs_cpu, _estimate_data_size_mb
+                        # Estimate memory for largest subject
+                        max_size_mb = max(_estimate_data_size_mb(x) for x in m)
+                        n_jobs_to_use = _auto_n_jobs_cpu(
+                            data_size_mb=max_size_mb,
+                            n_permute=len(m),
+                            max_memory_gb=8.0,
+                            min_jobs=1,
+                        )
+                    except ImportError:
+                        n_jobs_to_use = 1
+                
+                # Parallel alignment
+                aligned_subjects = Parallel(n_jobs=n_jobs_to_use)(
+                    delayed(_align_to_template)(i) for i in range(len(m))
+                )
+                common = np.zeros(template.shape)
+                for trans in aligned_subjects:
+                    common += trans
+            else:
+                # Single-threaded alignment
+                common = np.zeros(template.shape)
+                for x in m:
+                    _, trans, _, _, _ = _procrustes_pairwise(template, x.T)
+                    common += trans
             common /= len(m)
             template = common
 
@@ -265,39 +345,98 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
         """Alias for ``s_`` (common template)."""
         return self.s_
 
-    def transform(self, data):
+    def transform(
+        self,
+        data: List[np.ndarray],
+        parallel: Optional[str] = "cpu",
+        n_jobs: int = -1,
+    ) -> List[np.ndarray]:
         """Transform data to common space using fitted transformations.
 
         Args:
             data (list of ndarray): List of data matrices to transform. Should be
                 the same data used for fitting (or have compatible dimensions).
+            parallel (str, optional): Execution backend.
+                - None: Single-threaded NumPy (debugging/small problems)
+                - "cpu": CPU parallelization via joblib (default, multi-subject processing)
+            n_jobs (int): Number of CPU cores for parallelization (-1 = auto-detect based on memory).
+                Only used when parallel="cpu". Defaults to -1.
 
         Returns:
             transformed (list of ndarray): List of transformed data matrices in
                 common space
         """
+        # Validate parallel parameter
+        if parallel not in [None, "cpu"]:
+            raise ValueError(f"parallel must be None or 'cpu', got {parallel}")
+        
+        # Use stored parallel settings if not provided
+        parallel_to_use = parallel if parallel is not None else getattr(self, "_parallel", None)
+        n_jobs_to_use = n_jobs if n_jobs != -1 else getattr(self, "_n_jobs", -1)
         if not hasattr(self, "w_"):
             raise ValueError("Model must be fit before transform")
 
         # Apply stored transformations
-        transformed = []
-        for i, x in enumerate(data):
-            # Apply the Procrustes transformation
-            # Standardize first (center and normalize)
-            centered = x.T - np.mean(x.T, 0)
-            norm = np.linalg.norm(centered)
-            if norm > 0:
-                standardized = centered / norm
-            else:
-                standardized = centered
+        # Use CPU parallelization if requested
+        if parallel_to_use == "cpu" and len(data) > 1:
+            from joblib import Parallel, delayed
+            
+            def _transform_one_subject(subj_idx):
+                """Transform one subject."""
+                x = data[subj_idx]
+                # Apply the Procrustes transformation
+                # Standardize first (center and normalize)
+                centered = x.T - np.mean(x.T, 0)
+                norm = np.linalg.norm(centered)
+                if norm > 0:
+                    standardized = centered / norm
+                else:
+                    standardized = centered
 
-            # Apply transformation and scale
-            aligned = np.dot(standardized, self.w_[i].T) * self.scale_[i]
-            transformed.append(aligned.T)
+                # Apply transformation and scale
+                aligned = np.dot(standardized, self.w_[subj_idx].T) * self.scale_[subj_idx]
+                return aligned.T
+            
+            # Auto-detect n_jobs if needed
+            if n_jobs_to_use == -1:
+                try:
+                    from nltools.algorithms.inference.utils import _auto_n_jobs_cpu, _estimate_data_size_mb
+                    # Estimate memory for largest subject
+                    max_size_mb = max(_estimate_data_size_mb(x) for x in data)
+                    n_jobs_to_use = _auto_n_jobs_cpu(
+                        data_size_mb=max_size_mb,
+                        n_permute=len(data),
+                        max_memory_gb=8.0,
+                        min_jobs=1,
+                    )
+                except ImportError:
+                    n_jobs_to_use = 1
+            
+            transformed = Parallel(n_jobs=n_jobs_to_use)(
+                delayed(_transform_one_subject)(i) for i in range(len(data))
+            )
+        else:
+            # Single-threaded transform
+            transformed = []
+            for i, x in enumerate(data):
+                # Apply the Procrustes transformation
+                # Standardize first (center and normalize)
+                centered = x.T - np.mean(x.T, 0)
+                norm = np.linalg.norm(centered)
+                if norm > 0:
+                    standardized = centered / norm
+                else:
+                    standardized = centered
+
+                # Apply transformation and scale
+                aligned = np.dot(standardized, self.w_[i].T) * self.scale_[i]
+                transformed.append(aligned.T)
 
         return transformed
 
-    def transform_subject(self, subject_data):
+    def transform_subject(
+        self, subject_data: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray, float, float]:
         """Align a new subject to the common space.
 
         Args:

@@ -170,7 +170,7 @@ class Ridge(BaseModel):
                 )
             # Fixed alpha: use simple ridge_svd
             self.alpha_ = self.alpha
-            self.coef_ = ridge_svd(Xs[0], y, alpha=self.alpha_, backend=self.backend_)
+            self.coef_ = ridge_svd(Xs[0], y, alpha=self.alpha_, parallel=self.backend_)
             self.cv_scores_ = None
             self.deltas_ = None
 
@@ -189,18 +189,20 @@ class Ridge(BaseModel):
         # Auto-detect: single space vs multiple spaces
         if not is_banded:
             # Single feature space: use solve_ridge_cv
-            best_alphas, coefs, cv_scores = solve_ridge_cv(
+            result = solve_ridge_cv(
                 X=Xs[0],
                 Y=y,
                 alphas=self.alphas,
                 cv=self.cv,
                 local_alpha=self.local_alpha,
-                backend=self.backend_,
+                parallel=self.backend_,
                 fit_intercept=self.fit_intercept,
                 conservative=self.conservative,
             )
-            self.alpha_ = best_alphas
+            self.alpha_ = result['best_alphas']
             self.deltas_ = None
+            coefs = result['coefs']
+            cv_scores = result['cv_scores']
 
             # Squeeze alpha_ if single target (backward compatibility)
             if (
@@ -218,7 +220,7 @@ class Ridge(BaseModel):
                 self.alpha_ = float(self.alpha_[0])
         else:
             # Multiple feature spaces: use solve_banded_ridge_cv (true banded ridge)
-            deltas, coefs, cv_scores = solve_banded_ridge_cv(
+            result = solve_banded_ridge_cv(
                 Xs=Xs,
                 Y=y,
                 n_iter=self.n_iter,
@@ -226,15 +228,18 @@ class Ridge(BaseModel):
                 alphas=self.alphas,
                 cv=self.cv,
                 local_alpha=self.local_alpha,
-                backend=self.backend_,
+                parallel=self.backend_,
                 fit_intercept=self.fit_intercept,
                 conservative=self.conservative,
                 random_state=self.random_state,
                 return_weights=True,
                 progress_bar=False,
             )
-            self.deltas_ = deltas
+            self.deltas_ = result['deltas']
             self.alpha_ = None  # alphas are embedded in deltas
+            coefs = result['coefs']
+            cv_scores = result['cv_scores']
+        
         self.coef_ = coefs
         self.cv_scores_ = cv_scores
 

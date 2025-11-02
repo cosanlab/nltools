@@ -1,6 +1,38 @@
 """
 Hemodynamic Response Functions (HRFs) for fMRI analysis, implemented by NiPy.
 
+This module provides standard HRF implementations for fMRI analysis:
+- SPM HRF: The canonical HRF used in SPM12
+- Glover HRF: The HRF model from Glover (1999)
+- Time derivatives: First-order temporal derivatives
+- Dispersion derivatives: HRF shape variations
+
+All functions are simple mathematical operations and do not require parallelization.
+They work out-of-the-box with sensible defaults for typical fMRI analysis.
+
+Examples:
+    Basic HRF generation:
+
+    >>> from nltools.algorithms.hrf import spm_hrf, glover_hrf
+    >>> import numpy as np
+    >>>
+    >>> # Generate SPM HRF (default: TR=2.0 seconds)
+    >>> hrf_spm = spm_hrf(tr=2.0)
+    >>> len(hrf_spm)  # Length depends on time_length (default: 32 seconds)
+    256
+    >>>
+    >>> # Generate Glover HRF
+    >>> hrf_glover = glover_hrf(tr=2.0)
+    >>>
+    >>> # Generate HRF with custom parameters
+    >>> hrf_custom = spm_hrf(tr=1.0, time_length=40.0, oversampling=32)
+    >>>
+    >>> # Generate time derivative for SPM
+    >>> dhrf = spm_time_derivative(tr=2.0)
+    >>>
+    >>> # Generate dispersion derivative
+    >>> dhrf_disp = spm_dispersion_derivative(tr=2.0)
+
 Copyright (c) 2006-2017, NIPY Developers
 All rights reserved.
 
@@ -83,7 +115,12 @@ def _gamma_difference_hrf(
     return hrf
 
 
-def spm_hrf(tr, oversampling=16, time_length=32.0, onset=0.0):
+def spm_hrf(
+    tr: float,
+    oversampling: int = 16,
+    time_length: float = 32.0,
+    onset: float = 0.0,
+) -> np.ndarray:
     """Implementation of the SPM hrf model.
 
     Args:
@@ -101,7 +138,12 @@ def spm_hrf(tr, oversampling=16, time_length=32.0, onset=0.0):
     return _gamma_difference_hrf(tr, oversampling, time_length, onset)
 
 
-def glover_hrf(tr, oversampling=16, time_length=32, onset=0.0):
+def glover_hrf(
+    tr: float,
+    oversampling: int = 16,
+    time_length: int = 32,
+    onset: float = 0.0,
+) -> np.ndarray:
     """Implementation of the Glover hrf model.
 
     Args:
@@ -129,7 +171,12 @@ def glover_hrf(tr, oversampling=16, time_length=32, onset=0.0):
     )
 
 
-def spm_time_derivative(tr, oversampling=16, time_length=32.0, onset=0.0):
+def spm_time_derivative(
+    tr: float,
+    oversampling: int = 16,
+    time_length: float = 32.0,
+    onset: float = 0.0,
+) -> np.ndarray:
     """Implementation of the SPM time derivative hrf (dhrf) model.
 
     Args:
@@ -156,7 +203,12 @@ def spm_time_derivative(tr, oversampling=16, time_length=32.0, onset=0.0):
     return dhrf
 
 
-def glover_time_derivative(tr, oversampling=16, time_length=32.0, onset=0.0):
+def glover_time_derivative(
+    tr: float,
+    oversampling: int = 16,
+    time_length: float = 32.0,
+    onset: float = 0.0,
+) -> np.ndarray:
     """Implementation of the flover time derivative hrf (dhrf) model.
 
     Args:
@@ -183,7 +235,12 @@ def glover_time_derivative(tr, oversampling=16, time_length=32.0, onset=0.0):
     return dhrf
 
 
-def spm_dispersion_derivative(tr, oversampling=16, time_length=32.0, onset=0.0):
+def spm_dispersion_derivative(
+    tr: float,
+    oversampling: int = 16,
+    time_length: float = 32.0,
+    onset: float = 0.0,
+) -> np.ndarray:
     """Implementation of the SPM dispersion derivative hrf model.
 
     Args:

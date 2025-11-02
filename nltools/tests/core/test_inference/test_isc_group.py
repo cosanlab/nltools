@@ -1319,8 +1319,8 @@ def test_stats_isc_group_backward_compatibility():
         random_state=42,
     )
 
-    assert "null_dist" in result_with_null
-    assert isinstance(result_with_null["null_dist"], np.ndarray)
+    assert "null_distribution" in result_with_null
+    assert isinstance(result_with_null["null_distribution"], np.ndarray)
 
     # Test with bootstrap method
     result_bootstrap = isc_group(

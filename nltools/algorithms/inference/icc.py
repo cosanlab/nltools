@@ -101,13 +101,24 @@ def compute_icc_voxelwise(
     # This allows vectorized computation across voxels
     Y = data.reshape(n_subjects, n_sessions, n_voxels)
 
-    # Select backend
+    # Select backend with graceful fallback
     if parallel == "gpu":
         if backend is None:
-            backend = Backend(backend="torch")
-        if not backend.is_gpu:
-            raise ValueError("GPU backend requested but GPU not available")
-        return _compute_icc_gpu(Y, icc_type, max_gpu_memory_gb, backend)
+            try:
+                backend = Backend("torch")
+                # If Backend("torch") succeeded but ended up on CPU (no GPU available),
+                # that's fine - Backend handles this gracefully
+            except Exception:
+                # If Backend initialization fails, fallback to CPU
+                backend = None
+        # Use GPU if available, otherwise fallback to CPU
+        if backend is not None and backend.is_gpu:
+            return _compute_icc_gpu(Y, icc_type, max_gpu_memory_gb, backend)
+        else:
+            # GPU requested but not available, gracefully fallback to CPU
+            return _compute_icc_cpu(
+                Y, icc_type, n_jobs, False, max_gpu_memory_gb
+            )
     elif parallel == "cpu" or parallel is None:
         return _compute_icc_cpu(
             Y, icc_type, n_jobs, parallel == "cpu", max_gpu_memory_gb

@@ -43,15 +43,18 @@ class TestBandedRidgeBasics:
         Y = np.random.randn(n_samples, n_targets)
 
         # Banded with single group (now uses true banded ridge with random search)
-        deltas, coefs, cv_scores = solve_banded_ridge_cv(
+        result = solve_banded_ridge_cv(
             Xs=[X],
             Y=Y,
             n_iter=5,  # Small number for testing
             alphas=[0.1, 1.0, 10.0],
             cv=3,
             local_alpha=True,
-            backend="numpy",
+            parallel=None,  # Use single-threaded NumPy for deterministic testing
         )
+        deltas = result['deltas']
+        coefs = result['coefs']
+        cv_scores = result['cv_scores']
 
         # Should return per-target deltas
         assert deltas.shape == (1, n_targets)  # 1 space, n_targets
@@ -70,15 +73,18 @@ class TestBandedRidgeBasics:
         X2 = np.random.randn(n_samples, 20)
         Y = np.random.randn(n_samples, 10)
 
-        deltas, coefs, cv_scores = solve_banded_ridge_cv(
+        result = solve_banded_ridge_cv(
             Xs=[X1, X2],
             Y=Y,
             n_iter=5,
             alphas=[0.1, 1.0, 10.0],
             cv=3,
             local_alpha=True,
-            backend="numpy",
+            parallel=None,  # Use single-threaded NumPy for deterministic testing
         )
+        deltas = result['deltas']
+        coefs = result['coefs']
+        cv_scores = result['cv_scores']
 
         # Coefficients should match concatenated feature dimension
         assert coefs.shape == (50, 10)  # 30 + 20 features
@@ -96,7 +102,7 @@ class TestBandedRidgeBasics:
         X3 = np.random.randn(n_samples, 10)
         Y = np.random.randn(n_samples, 5)
 
-        deltas, coefs, cv_scores = solve_banded_ridge_cv(
+        result = solve_banded_ridge_cv(
             Xs=[X1, X2, X3],
             Y=Y,
             n_iter=5,
@@ -104,6 +110,8 @@ class TestBandedRidgeBasics:
             cv=3,
             local_alpha=True,
         )
+        deltas = result['deltas']
+        coefs = result['coefs']
 
         assert coefs.shape == (45, 5)  # 20 + 15 + 10 features
         assert deltas.shape == (3, 5)  # 3 spaces, 5 targets
@@ -140,9 +148,10 @@ class TestAlphaSelection:
         X = np.random.randn(100, 50)
         Y = np.random.randn(100, 10)
 
-        deltas, coefs, cv_scores = solve_banded_ridge_cv(
+        result = solve_banded_ridge_cv(
             Xs=[X], Y=Y, n_iter=5, alphas=[0.1, 1.0, 10.0], cv=3, local_alpha=True
         )
+        deltas = result['deltas']
 
         # With local_alpha=True, each target can have different deltas
         assert deltas.shape == (1, 10)  # 1 space, 10 targets
@@ -155,9 +164,10 @@ class TestAlphaSelection:
         X = np.random.randn(100, 50)
         Y = np.random.randn(100, 10)
 
-        deltas, coefs, cv_scores = solve_banded_ridge_cv(
+        result = solve_banded_ridge_cv(
             Xs=[X], Y=Y, n_iter=5, alphas=[0.1, 1.0, 10.0], cv=3, local_alpha=False
         )
+        deltas = result['deltas']
 
         # With local_alpha=False, alphas are embedded in deltas
         # We can't directly check alphas, but we can check deltas shape
@@ -172,9 +182,11 @@ class TestAlphaSelection:
         Y = np.random.randn(100, 10)
 
         # Single alpha (still does CV but only one choice)
-        deltas, coefs, cv_scores = solve_banded_ridge_cv(
+        result = solve_banded_ridge_cv(
             Xs=[X], Y=Y, n_iter=5, alphas=[1.0], cv=3, local_alpha=True
         )
+        deltas = result['deltas']
+        coefs = result['coefs']
 
         # With single alpha, deltas will be computed but alpha is embedded
         # We can't directly check alphas, but we can check deltas shape
@@ -190,14 +202,16 @@ class TestAlphaSelection:
         Y = np.random.randn(100, 10)
 
         # Small alphas
-        _, _, cv_scores_small = solve_banded_ridge_cv(
+        result_small = solve_banded_ridge_cv(
             Xs=[X], Y=Y, n_iter=5, alphas=[0.001, 0.01, 0.1], cv=3, local_alpha=True
         )
+        cv_scores_small = result_small['cv_scores']
 
         # Large alphas
-        _, _, cv_scores_large = solve_banded_ridge_cv(
+        result_large = solve_banded_ridge_cv(
             Xs=[X], Y=Y, n_iter=5, alphas=[10.0, 100.0, 1000.0], cv=3, local_alpha=True
         )
+        cv_scores_large = result_large['cv_scores']
 
         # Different ranges should give different CV scores
         assert not np.allclose(cv_scores_small.mean(), cv_scores_large.mean())
@@ -215,14 +229,18 @@ class TestBatching:
         Y = np.random.randn(100, 100)  # Many targets
 
         # With batching
-        best_alphas_batch, coefs_batch, scores_batch = solve_banded_ridge_cv(
+        result_batch = solve_banded_ridge_cv(
             Xs=[X], Y=Y, alphas=[0.1, 1.0, 10.0], cv=3, n_targets_batch=20
         )
+        best_alphas_batch = result_batch['deltas']
+        coefs_batch = result_batch['coefs']
 
         # Without batching
-        best_alphas_full, coefs_full, scores_full = solve_banded_ridge_cv(
+        result_full = solve_banded_ridge_cv(
             Xs=[X], Y=Y, alphas=[0.1, 1.0, 10.0], cv=3, n_targets_batch=None
         )
+        best_alphas_full = result_full['deltas']
+        coefs_full = result_full['coefs']
 
         # Results should be very similar (allowing for numerical differences)
         np.testing.assert_allclose(best_alphas_batch, best_alphas_full, rtol=1e-5)
@@ -238,14 +256,18 @@ class TestBatching:
 
         # Many alphas with batching
         alphas = np.logspace(-2, 2, 20)
-        best_alphas_batch, coefs_batch, scores_batch = solve_banded_ridge_cv(
+        result_batch = solve_banded_ridge_cv(
             Xs=[X], Y=Y, alphas=alphas, cv=3, n_alphas_batch=5
         )
+        best_alphas_batch = result_batch['deltas']
+        coefs_batch = result_batch['coefs']
 
         # Without batching
-        best_alphas_full, coefs_full, scores_full = solve_banded_ridge_cv(
+        result_full = solve_banded_ridge_cv(
             Xs=[X], Y=Y, alphas=alphas, cv=3, n_alphas_batch=None
         )
+        best_alphas_full = result_full['deltas']
+        coefs_full = result_full['coefs']
 
         # Results should be identical (generator pattern should be transparent)
         np.testing.assert_allclose(best_alphas_batch, best_alphas_full, rtol=1e-5)
@@ -261,7 +283,7 @@ class TestBatching:
 
         alphas = np.logspace(-2, 2, 20)  # Many alphas
 
-        deltas, coefs, cv_scores = solve_banded_ridge_cv(
+        result = solve_banded_ridge_cv(
             Xs=[X],
             Y=Y,
             n_iter=5,
@@ -270,6 +292,8 @@ class TestBatching:
             n_targets_batch=10,
             n_alphas_batch=5,
         )
+        deltas = result['deltas']
+        coefs = result['coefs']
 
         assert deltas.shape == (1, 50)  # 1 space, 50 targets
         assert coefs.shape == (50, 50)
@@ -290,9 +314,11 @@ class TestCrossValidation:
         # Use sklearn KFold directly
         cv = KFold(n_splits=5, shuffle=True, random_state=42)
 
-        deltas, coefs, cv_scores = solve_banded_ridge_cv(
+        result = solve_banded_ridge_cv(
             Xs=[X], Y=Y, n_iter=5, alphas=[0.1, 1.0, 10.0], cv=cv
         )
+        deltas = result['deltas']
+        coefs = result['coefs']
 
         assert deltas.shape == (1, 10)  # 1 space, 10 targets
         assert coefs.shape == (50, 10)
@@ -306,14 +332,16 @@ class TestCrossValidation:
         Y = np.random.randn(100, 10)
 
         # 3-fold
-        _, _, cv_scores_3 = solve_banded_ridge_cv(
+        result_3 = solve_banded_ridge_cv(
             Xs=[X], Y=Y, n_iter=5, alphas=[0.1, 1.0, 10.0], cv=3
         )
+        cv_scores_3 = result_3['cv_scores']
 
         # 5-fold
-        _, _, cv_scores_5 = solve_banded_ridge_cv(
+        result_5 = solve_banded_ridge_cv(
             Xs=[X], Y=Y, n_iter=5, alphas=[0.1, 1.0, 10.0], cv=5
         )
+        cv_scores_5 = result_5['cv_scores']
 
         # Scores should be somewhat different (different validation sets)
         assert not np.allclose(cv_scores_3, cv_scores_5, rtol=0.01)
@@ -331,9 +359,11 @@ class TestBackends:
         X = np.random.randn(100, 50)
         Y = np.random.randn(100, 10)
 
-        deltas, coefs, cv_scores = solve_banded_ridge_cv(
-            Xs=[X], Y=Y, n_iter=5, alphas=[0.1, 1.0, 10.0], cv=3, backend="numpy"
+        result = solve_banded_ridge_cv(
+            Xs=[X], Y=Y, n_iter=5, alphas=[0.1, 1.0, 10.0], cv=3, parallel=None
         )
+        deltas = result['deltas']
+        coefs = result['coefs']
 
         assert deltas.shape == (1, 10)  # 1 space, 10 targets
         assert coefs.shape == (50, 10)
@@ -348,9 +378,11 @@ class TestBackends:
         X = np.random.randn(100, 50).astype(np.float32)
         Y = np.random.randn(100, 10).astype(np.float32)
 
-        deltas, coefs, cv_scores = solve_banded_ridge_cv(
-            Xs=[X], Y=Y, n_iter=5, alphas=[0.1, 1.0, 10.0], cv=3, backend="torch"
+        result = solve_banded_ridge_cv(
+            Xs=[X], Y=Y, n_iter=5, alphas=[0.1, 1.0, 10.0], cv=3, parallel="cpu"
         )
+        deltas = result['deltas']
+        coefs = result['coefs']
 
         # Results should be on CPU as numpy arrays
         assert isinstance(deltas, np.ndarray)
@@ -365,9 +397,11 @@ class TestBackends:
         X = np.random.randn(100, 50).astype(np.float32)
         Y = np.random.randn(100, 10).astype(np.float32)
 
-        best_alphas, coefs, scores = solve_banded_ridge_cv(
-            Xs=[X], Y=Y, alphas=[0.1, 1.0, 10.0], cv=3, backend="torch_cuda"
+        result = solve_banded_ridge_cv(
+            Xs=[X], Y=Y, alphas=[0.1, 1.0, 10.0], cv=3, parallel="gpu"
         )
+        best_alphas = result['deltas']
+        coefs = result['coefs']
 
         # Results should be on CPU as numpy arrays
         assert isinstance(best_alphas, np.ndarray)
@@ -386,9 +420,10 @@ class TestYInCpu:
         Y = np.random.randn(100, 10)
 
         # Default (Y_in_cpu=True)
-        deltas, coefs, cv_scores = solve_banded_ridge_cv(
+        result = solve_banded_ridge_cv(
             Xs=[X], Y=Y, n_iter=5, alphas=[0.1, 1.0, 10.0], cv=3
         )
+        deltas = result['deltas']
 
         assert deltas.shape == (1, 10)  # 1 space, 10 targets
 
@@ -400,9 +435,10 @@ class TestYInCpu:
         X = np.random.randn(100, 50)
         Y = np.random.randn(100, 10)
 
-        deltas, coefs, cv_scores = solve_banded_ridge_cv(
+        result = solve_banded_ridge_cv(
             Xs=[X], Y=Y, n_iter=5, alphas=[0.1, 1.0, 10.0], cv=3, Y_in_cpu=False
         )
+        deltas = result['deltas']
 
         assert deltas.shape == (1, 10)  # 1 space, 10 targets
 
@@ -416,16 +452,17 @@ class TestYInCpu:
         Y = np.random.randn(100, 100).astype(np.float32)  # Many targets
 
         # With Y_in_cpu (memory efficient)
-        deltas, coefs, cv_scores = solve_banded_ridge_cv(
+        result = solve_banded_ridge_cv(
             Xs=[X],
             Y=Y,
             n_iter=5,
             alphas=[0.1, 1.0, 10.0],
             cv=3,
-            backend="torch",
+            parallel="cpu",
             Y_in_cpu=True,
             n_targets_batch=20,
         )
+        deltas = result['deltas']
 
         assert deltas.shape == (1, 100)  # 1 space, 100 targets
 
@@ -454,9 +491,10 @@ class TestScoring:
         X = np.random.randn(100, 50)
         Y = np.random.randn(100, 10)
 
-        best_alphas, coefs, scores = solve_banded_ridge_cv(
+        result = solve_banded_ridge_cv(
             Xs=[X], Y=Y, alphas=[0.1, 1.0, 10.0], cv=3, score_func=neg_mse
         )
+        scores = result['cv_scores']
 
         # Scores should be negative (neg MSE)
         assert np.all(scores <= 0)
@@ -473,13 +511,14 @@ class TestEdgeCases:
         X = np.random.randn(10, 5)
         Y = np.random.randn(10, 3)
 
-        deltas, coefs, cv_scores = solve_banded_ridge_cv(
+        result = solve_banded_ridge_cv(
             Xs=[X],
             Y=Y,
             n_iter=5,
             alphas=[0.1, 1.0, 10.0],
             cv=2,  # Only 2 folds
         )
+        deltas = result['deltas']
 
         assert deltas.shape == (1, 3)  # 1 space, 3 targets
 
@@ -491,9 +530,11 @@ class TestEdgeCases:
         X = np.random.randn(100, 50)
         Y = np.random.randn(100, 1)
 
-        deltas, coefs, cv_scores = solve_banded_ridge_cv(
+        result = solve_banded_ridge_cv(
             Xs=[X], Y=Y, n_iter=5, alphas=[0.1, 1.0, 10.0], cv=3
         )
+        deltas = result['deltas']
+        coefs = result['coefs']
 
         assert deltas.shape == (1, 1)  # 1 space, 1 target
         assert coefs.shape == (50, 1)
@@ -506,9 +547,11 @@ class TestEdgeCases:
         X = np.random.randn(50, 100)  # More features than samples
         Y = np.random.randn(50, 10)
 
-        deltas, coefs, cv_scores = solve_banded_ridge_cv(
+        result = solve_banded_ridge_cv(
             Xs=[X], Y=Y, n_iter=5, alphas=[0.1, 1.0, 10.0], cv=3
         )
+        deltas = result['deltas']
+        coefs = result['coefs']
 
         assert deltas.shape == (1, 10)  # 1 space, 10 targets
         assert coefs.shape == (100, 10)

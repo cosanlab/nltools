@@ -5,46 +5,45 @@ following himalaya's implementation patterns.
 """
 
 import numpy as np
+from typing import Optional, Union, List, Iterator, Tuple
 from sklearn.utils import check_random_state
 
 
 def generate_dirichlet_samples(
-    n_samples, n_kernels, concentration=[0.1, 1.0], random_state=None
-):
+    n_samples: int,
+    n_kernels: int,
+    concentration: Union[float, List[float]] = [0.1, 1.0],
+    random_state: Optional[int] = None,
+) -> np.ndarray:
     """Generate samples from a Dirichlet distribution.
 
     This function generates random samples from a Dirichlet distribution,
     which is used for sampling feature space weights (gamma) in banded ridge
     regression random search.
 
-    Parameters
-    ----------
-    n_samples : int
-        Number of samples to generate.
-    n_kernels : int
-        Number of dimensions (feature spaces) of the distribution.
-    concentration : float, or list of float
-        Concentration parameters of the Dirichlet distribution.
-        - A value of 1 corresponds to uniform sampling over the simplex.
-        - A value of infinity corresponds to equal weights.
-        - If a list, samples cycle through the list.
-    random_state : int, or None
-        Random generator seed. Use an int for deterministic samples.
+    Args:
+        n_samples: Number of samples to generate.
+        n_kernels: Number of dimensions (feature spaces) of the distribution.
+        concentration: Concentration parameters of the Dirichlet distribution.
+            - A value of 1 corresponds to uniform sampling over the simplex.
+            - A value of infinity corresponds to equal weights.
+            - If a list, samples cycle through the list.
+            Defaults to [0.1, 1.0].
+        random_state: Random generator seed. Use an int for deterministic samples.
+            Defaults to None.
 
-    Returns
-    -------
-    gammas : array of shape (n_samples, n_kernels)
-        Dirichlet samples. Each row sums to 1 (lies on simplex).
+    Returns:
+        np.ndarray: Dirichlet samples of shape (n_samples, n_kernels).
+            Each row sums to 1 (lies on simplex).
 
-    Examples
-    --------
-    >>> # Generate 10 samples for 3 feature spaces
-    >>> gammas = generate_dirichlet_samples(10, 3, concentration=[0.1, 1.0])
-    >>> gammas.shape
-    (10, 3)
-    >>> # Each row sums to 1
-    >>> np.allclose(gammas.sum(axis=1), 1.0)
-    True
+    Examples:
+        >>> # Generate 10 samples for 3 feature spaces
+        >>> gammas = generate_dirichlet_samples(10, 3, concentration=[0.1, 1.0])
+        >>> gammas.shape
+        (10, 3)
+        >>> # Each row sums to 1
+        >>> np.allclose(gammas.sum(axis=1), 1.0)
+        True
     """
     random_generator = check_random_state(random_state)
 
@@ -79,37 +78,30 @@ def generate_dirichlet_samples(
     return gammas
 
 
-def _batch_or_skip(array, batch, axis):
+def _batch_or_skip(array: np.ndarray, batch: slice, axis: int) -> np.ndarray:
     """Apply batch or skip if dimension is 1.
 
     This elegant pattern from himalaya handles both scalar and per-target
     operations without branching in the hot loop.
 
-    Parameters
-    ----------
-    array : array
-        Array to batch.
-    batch : slice
-        Batch slice to apply.
-    axis : int (0 or 1)
-        Axis to batch along.
+    Args:
+        array: Array to batch.
+        batch: Batch slice to apply.
+        axis: Axis to batch along (0 or 1).
 
-    Returns
-    -------
-    array
-        Batched array, or original if dimension is 1.
+    Returns:
+        np.ndarray: Batched array, or original if dimension is 1.
 
-    Examples
-    --------
-    >>> # Scalar alpha (shape: (1,))
-    >>> alphas = np.array([1.0])
-    >>> _batch_or_skip(alphas, slice(0, 10), 0)  # Returns full array
-    array([1.0])
+    Examples:
+        >>> # Scalar alpha (shape: (1,))
+        >>> alphas = np.array([1.0])
+        >>> _batch_or_skip(alphas, slice(0, 10), 0)  # Returns full array
+        array([1.0])
 
-    >>> # Per-target alphas (shape: (100,))
-    >>> alphas = np.random.randn(100)
-    >>> _batch_or_skip(alphas, slice(0, 10), 0).shape  # Returns batch
-    (10,)
+        >>> # Per-target alphas (shape: (100,))
+        >>> alphas = np.random.randn(100)
+        >>> _batch_or_skip(alphas, slice(0, 10), 0).shape  # Returns batch
+        (10,)
     """
     # If dimension is 1, skip batching (broadcast will handle it)
     if array.shape[axis] == 1:
@@ -124,7 +116,12 @@ def _batch_or_skip(array, batch, axis):
         raise NotImplementedError(f"Batching not implemented for axis={axis}")
 
 
-def _decompose_ridge(Xtrain, alphas, n_alphas_batch=None, method="svd"):
+def _decompose_ridge(
+    Xtrain: np.ndarray,
+    alphas: np.ndarray,
+    n_alphas_batch: Optional[int] = None,
+    method: str = "svd",
+) -> Iterator[Tuple[np.ndarray, slice]]:
     """Generator that yields resolution matrices for ridge predictions.
 
     This computes the resolution matrices needed for ridge predictions:
@@ -138,35 +135,32 @@ def _decompose_ridge(Xtrain, alphas, n_alphas_batch=None, method="svd"):
     CRITICAL: This is a GENERATOR (uses yield) for memory efficiency.
     Each alpha batch is yielded, processed, then deleted before the next batch.
 
-    Parameters
-    ----------
-    Xtrain : array of shape (n_samples_train, n_features)
-        Training features.
-    alphas : array of shape (n_alphas,)
-        Ridge regularization parameters to try.
-    n_alphas_batch : int or None
-        If not None, yields batches of alphas. This saves memory when
-        trying many alphas.
-    method : str, default="svd"
-        Decomposition method. Currently only "svd" is supported.
+    Args:
+        Xtrain: Training features of shape (n_samples_train, n_features).
+        alphas: Ridge regularization parameters to try, shape (n_alphas,).
+        n_alphas_batch: If not None, yields batches of alphas. This saves memory
+            when trying many alphas. Defaults to None (process all at once).
+        method: Decomposition method. Currently only "svd" is supported.
+            Defaults to "svd".
 
-    Yields
-    ------
-    matrices : array of shape (n_alphas_batch, n_features, n_samples_train)
-        Resolution matrices for this alpha batch.
-    alpha_batch : slice
-        Slice indicating which alphas this batch corresponds to.
+    Yields:
+        tuple: (matrices, alpha_batch) where:
+            - matrices: Resolution matrices of shape (n_alphas_batch, n_features, n_samples_train)
+            - alpha_batch: Slice indicating which alphas this batch corresponds to
 
-    Examples
-    --------
-    >>> X = np.random.randn(100, 50)
-    >>> alphas = np.array([0.1, 1.0, 10.0])
-    >>> for matrices, batch in _decompose_ridge(X, alphas, n_alphas_batch=2):
-    ...     print(f"Processing alphas {alphas[batch]}")
-    ...     # Use matrices for predictions
-    ...     # matrices is automatically deleted after this iteration
-    Processing alphas [0.1 1.0]
-    Processing alphas [10.0]
+    Examples:
+        >>> X = np.random.randn(100, 50)
+        >>> alphas = np.array([0.1, 1.0, 10.0])
+        >>> for matrices, batch in _decompose_ridge(X, alphas, n_alphas_batch=2):
+        ...     print(f"Processing alphas {alphas[batch]}")
+        ...     # Use matrices for predictions
+        ...     # matrices is automatically deleted after this iteration
+        Processing alphas [0.1 1.0]
+        Processing alphas [10.0]
+
+    Notes:
+        - Uses generator pattern for memory efficiency (Principle 2: automatic memory efficiency)
+        - Each batch is automatically cleaned up after yielding
     """
     from .backends import get_backend
 
@@ -206,33 +200,33 @@ def _decompose_ridge(Xtrain, alphas, n_alphas_batch=None, method="svd"):
         del matrices
 
 
-def _select_best_alphas(scores, alphas, local_alpha, conservative=False):
+def _select_best_alphas(
+    scores: np.ndarray,
+    alphas: np.ndarray,
+    local_alpha: bool,
+    conservative: bool = False,
+) -> Tuple[np.ndarray, np.ndarray]:
     """Select best alphas from cross-validation scores.
 
-    Parameters
-    ----------
-    scores : array of shape (n_splits, n_alphas, n_targets)
-        Cross-validation scores for each split, alpha, and target.
-    alphas : array of shape (n_alphas,)
-        Ridge regularization parameters.
-    local_alpha : bool
-        If True, select best alpha independently for each target.
-        If False, select single best alpha for all targets.
-    conservative : bool, default=False
-        If True, select the largest alpha within 1 std of the best score.
-        This provides more regularization when performance is similar.
+    Args:
+        scores: Cross-validation scores of shape (n_splits, n_alphas, n_targets)
+            for each split, alpha, and target.
+        alphas: Ridge regularization parameters of shape (n_alphas,).
+        local_alpha: If True, select best alpha independently for each target.
+            If False, select single best alpha for all targets.
+        conservative: If True, select the largest alpha within 1 std of the best score.
+            This provides more regularization when performance is similar.
+            Defaults to False.
 
-    Returns
-    -------
-    alphas_argmax : array of shape (n_targets,)
-        Indices of best alphas for each target.
-    best_scores_mean : array of shape (n_targets,)
-        Mean scores (averaged over CV splits) for best alphas.
+    Returns:
+        tuple: (alphas_argmax, best_scores_mean) where:
+            - alphas_argmax: Indices of best alphas for each target, shape (n_targets,)
+            - best_scores_mean: Mean scores (averaged over CV splits) for best alphas,
+                shape (n_targets,)
 
-    Notes
-    -----
-    Follows himalaya's implementation pattern. Adds small epsilon bias
-    toward larger alphas (more regularization) when scores are tied.
+    Notes:
+        - Follows himalaya's implementation pattern
+        - Adds small epsilon bias toward larger alphas (more regularization) when scores are tied
     """
     from .backends import get_backend
 
@@ -288,29 +282,23 @@ def _select_best_alphas(scores, alphas, local_alpha, conservative=False):
     return alphas_argmax, best_scores_mean
 
 
-def _r2_score(y_true, y_pred):
+def _r2_score(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
     """Compute R² score (coefficient of determination).
 
     Backend-agnostic implementation that works with NumPy, PyTorch, etc.
 
-    Parameters
-    ----------
-    y_true : array of shape (n_samples, n_targets)
-        True target values.
-    y_pred : array of shape (n_samples, n_targets) or (n_alphas, n_samples, n_targets)
-        Predicted target values.
+    Args:
+        y_true: True target values of shape (n_samples, n_targets).
+        y_pred: Predicted target values of shape (n_samples, n_targets) or
+            (n_alphas, n_samples, n_targets).
 
-    Returns
-    -------
-    r2 : array of shape (n_targets,) or (n_alphas, n_targets)
-        R² scores for each target.
+    Returns:
+        np.ndarray: R² scores for each target. Shape (n_targets,) or (n_alphas, n_targets).
 
-    Notes
-    -----
-    R² = 1 - SS_res / SS_tot
-    where:
-        SS_res = sum((y_true - y_pred)^2)  # Residual sum of squares
-        SS_tot = sum((y_true - y_mean)^2)  # Total sum of squares
+    Notes:
+        - R² = 1 - SS_res / SS_tot
+        - SS_res = sum((y_true - y_pred)^2)  # Residual sum of squares
+        - SS_tot = sum((y_true - y_mean)^2)  # Total sum of squares
     """
     from .backends import get_backend
 

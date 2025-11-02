@@ -70,9 +70,12 @@ class TestNewAPI:
         X = np.random.randn(100, 50)
         Y = np.random.randn(100, 10)
 
-        best_alphas, coefs, scores = solve_ridge_cv(
-            X, Y, alphas=[0.1, 1.0, 10.0], cv=3, backend="numpy"
+        result = solve_ridge_cv(
+            X, Y, alphas=[0.1, 1.0, 10.0], cv=3, parallel="cpu"
         )
+        best_alphas = result['best_alphas']
+        coefs = result['coefs']
+        scores = result['cv_scores']
 
         assert best_alphas.shape == (10,)
         assert coefs.shape == (50, 10)
@@ -88,14 +91,16 @@ class TestNewAPI:
         Y = np.random.randn(100, 10)
 
         # Local alpha (different per target)
-        best_alphas_local, _, _ = solve_ridge_cv(
-            X, Y, alphas=[0.1, 1.0, 10.0], cv=3, local_alpha=True, backend="numpy"
+        result_local = solve_ridge_cv(
+            X, Y, alphas=[0.1, 1.0, 10.0], cv=3, local_alpha=True, parallel="cpu"
         )
+        best_alphas_local = result_local['best_alphas']
 
         # Global alpha (same for all targets)
-        best_alphas_global, _, _ = solve_ridge_cv(
-            X, Y, alphas=[0.1, 1.0, 10.0], cv=3, local_alpha=False, backend="numpy"
+        result_global = solve_ridge_cv(
+            X, Y, alphas=[0.1, 1.0, 10.0], cv=3, local_alpha=False, parallel="cpu"
         )
+        best_alphas_global = result_global['best_alphas']
 
         # Global should have same alpha for all targets
         assert np.all(best_alphas_global == best_alphas_global[0])
@@ -113,9 +118,12 @@ class TestNewAPI:
         X2 = np.random.randn(100, 20)
         Y = np.random.randn(100, 5)
 
-        deltas, coefs, cv_scores = solve_banded_ridge_cv(
-            [X1, X2], Y, n_iter=5, alphas=[0.1, 1.0, 10.0], cv=3, backend="numpy"
+        result = solve_banded_ridge_cv(
+            [X1, X2], Y, n_iter=5, alphas=[0.1, 1.0, 10.0], cv=3, parallel="cpu"
         )
+        deltas = result['deltas']
+        coefs = result['coefs']
+        cv_scores = result['cv_scores']
 
         assert deltas.shape == (2, 5)  # 2 spaces, 5 targets
         assert coefs.shape == (50, 5)  # 30 + 20 = 50 features
@@ -132,14 +140,20 @@ class TestNewAPI:
         alphas = [0.1, 1.0, 10.0]
 
         # Regular ridge
-        best_alphas_1, coefs_1, scores_1 = solve_ridge_cv(
-            X, Y, alphas=alphas, cv=3, backend="numpy"
+        result_1 = solve_ridge_cv(
+            X, Y, alphas=alphas, cv=3, parallel="cpu"
         )
+        best_alphas_1 = result_1['best_alphas']
+        coefs_1 = result_1['coefs']
+        scores_1 = result_1['cv_scores']
 
         # Banded with single feature space (true banded ridge)
-        deltas_2, coefs_2, cv_scores_2 = solve_banded_ridge_cv(
-            [X], Y, n_iter=5, alphas=alphas, cv=3, backend="numpy"
+        result_2 = solve_banded_ridge_cv(
+            [X], Y, n_iter=5, alphas=alphas, cv=3, parallel="cpu"
         )
+        deltas_2 = result_2['deltas']
+        coefs_2 = result_2['coefs']
+        cv_scores_2 = result_2['cv_scores']
 
         # Results should be similar but not identical (different algorithms)
         # Banded ridge uses random search, so we just check shapes
@@ -158,14 +172,20 @@ class TestNewAPI:
         Y = np.random.randn(100, 20)
 
         # Without batching
-        best_alphas_1, coefs_1, scores_1 = solve_ridge_cv(
-            X, Y, alphas=[1.0], cv=2, backend="numpy", n_targets_batch=None
+        result_1 = solve_ridge_cv(
+            X, Y, alphas=[1.0], cv=2, parallel="cpu", n_targets_batch=None
         )
+        best_alphas_1 = result_1['best_alphas']
+        coefs_1 = result_1['coefs']
+        scores_1 = result_1['cv_scores']
 
         # With batching
-        best_alphas_2, coefs_2, scores_2 = solve_ridge_cv(
-            X, Y, alphas=[1.0], cv=2, backend="numpy", n_targets_batch=5
+        result_2 = solve_ridge_cv(
+            X, Y, alphas=[1.0], cv=2, parallel="cpu", n_targets_batch=5
         )
+        best_alphas_2 = result_2['best_alphas']
+        coefs_2 = result_2['coefs']
+        scores_2 = result_2['cv_scores']
 
         # Should give same results
         assert_array_equal(best_alphas_1, best_alphas_2)
@@ -237,13 +257,19 @@ class TestBackendManagement:
 
         # NumPy backend
         set_backend("numpy")
-        best_alphas_np, coefs_np, scores_np = solve_ridge_cv(X, Y, alphas=alphas, cv=2)
+        result_np = solve_ridge_cv(X, Y, alphas=alphas, cv=2)
+        best_alphas_np = result_np['best_alphas']
+        coefs_np = result_np['coefs']
+        scores_np = result_np['cv_scores']
 
         # Torch backend
         set_backend("torch")
-        best_alphas_torch, coefs_torch, scores_torch = solve_ridge_cv(
+        result_torch = solve_ridge_cv(
             X, Y, alphas=alphas, cv=2
         )
+        best_alphas_torch = result_torch['best_alphas']
+        coefs_torch = result_torch['coefs']
+        scores_torch = result_torch['cv_scores']
 
         # Results should be close (allowing for numerical differences)
         assert_array_equal(best_alphas_np, best_alphas_torch)
@@ -307,9 +333,11 @@ class TestEdgeCases:
         X = np.random.randn(50, 20)
         Y = np.random.randn(50, 5)
 
-        best_alphas, coefs, scores = solve_ridge_cv(
-            X, Y, alphas=[1.0], cv=2, backend="numpy"
+        result = solve_ridge_cv(
+            X, Y, alphas=[1.0], cv=2, parallel="cpu"
         )
+        best_alphas = result['best_alphas']
+        coefs = result['coefs']
 
         # All targets should get the same alpha
         assert np.all(best_alphas == 1.0)
@@ -323,9 +351,12 @@ class TestEdgeCases:
         X = np.random.randn(50, 20)
         y = np.random.randn(50, 1)
 
-        best_alphas, coefs, scores = solve_ridge_cv(
-            X, y, alphas=[0.1, 1.0, 10.0], cv=2, backend="numpy"
+        result = solve_ridge_cv(
+            X, y, alphas=[0.1, 1.0, 10.0], cv=2, parallel="cpu"
         )
+        best_alphas = result['best_alphas']
+        coefs = result['coefs']
+        scores = result['cv_scores']
 
         assert best_alphas.shape == (1,)
         assert coefs.shape == (20, 1)

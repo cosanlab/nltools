@@ -11,15 +11,21 @@ References:
 """
 
 import numpy as np
-from typing import Union, Optional
-from nltools.backends import Backend, auto_select_backend
+from typing import Optional
+from nltools.backends import Backend
 
 
 def ridge_svd(
+    # Required
     X: np.ndarray,
     y: np.ndarray,
+    # Optional algorithm parameters
     alpha: float = 1.0,
-    backend: Optional[Union[Backend, str]] = None,
+    # Backend parameters (grouped)
+    parallel: Optional[str] = None,
+    max_gpu_memory_gb: float = 4.0,
+    # Random state (last) - not used but kept for consistency
+    random_state: Optional[int] = None,
 ) -> np.ndarray:
     """
     Solve ridge regression using Singular Value Decomposition.
@@ -42,8 +48,15 @@ def ridge_svd(
             Can be 1D for single-target or 2D for multi-target
         alpha (float, optional): Regularization strength. Must be positive. Higher values
             increase regularization (shrink coefficients toward zero). Defaults to 1.0.
-        backend (Backend or str, optional): Backend for computation ('numpy', 'torch', 'auto', or Backend instance).
-            If None, uses NumPy. If 'auto', selects based on problem size.
+        parallel (str, optional): Execution backend.
+            - None: Single-threaded NumPy (debugging/small problems)
+            - "cpu": CPU-only using NumPy (default)
+            - "gpu": GPU acceleration via PyTorch (falls back to CPU if GPU unavailable)
+            Defaults to None.
+        max_gpu_memory_gb (float, optional): GPU memory budget in GB (only used if parallel='gpu').
+            Defaults to 4.0.
+        random_state (int, optional): Random seed (not currently used, kept for consistency).
+            Defaults to None.
 
     Returns:
         np.ndarray: Ridge regression coefficients
@@ -77,15 +90,31 @@ def ridge_svd(
     X = np.asarray(X, dtype=np.float32)
     y = np.asarray(y, dtype=np.float32)
 
-    # Handle backend
-    if backend is None:
+    # Handle backend (convert parallel to backend with graceful fallback)
+    if parallel is None:
         backend = Backend("numpy")
-    elif isinstance(backend, str):
-        if backend == "auto":
-            n_samples, n_features = X.shape
-            backend = auto_select_backend(n_samples, n_features)
+    elif isinstance(parallel, Backend):
+        backend = parallel
+    elif isinstance(parallel, str):
+        if parallel == "cpu":
+            backend = Backend("numpy")
+        elif parallel == "gpu":
+            # Try GPU, but gracefully fallback to CPU if unavailable
+            try:
+                backend = Backend("torch")
+                # If Backend("torch") succeeded but ended up on CPU (no GPU available),
+                # that's fine - Backend handles this gracefully
+            except Exception:
+                # If Backend initialization fails, fallback to CPU
+                backend = Backend("numpy")
         else:
-            backend = Backend(backend)
+            raise ValueError(
+                f"parallel must be None, 'cpu', or 'gpu', got: {parallel}"
+            )
+    else:
+        raise ValueError(
+            f"parallel must be None, 'cpu', 'gpu', or Backend instance, got: {type(parallel)}"
+        )
 
     # Check dimensions
     if X.ndim != 2:
@@ -137,11 +166,17 @@ def ridge_svd(
 
 
 def ridge_cv(
+    # Required
     X: np.ndarray,
     y: np.ndarray,
+    # Optional algorithm parameters
     alphas: Optional[np.ndarray] = None,
     cv: int = 5,
-    backend: Union[str, Backend] = "auto",
+    # Backend parameters (grouped)
+    parallel: Optional[str] = "cpu",
+    max_gpu_memory_gb: float = 4.0,
+    # Random state (last)
+    random_state: Optional[int] = None,
 ) -> dict:
     """
     Ridge regression with cross-validation for hyperparameter selection.
@@ -155,8 +190,15 @@ def ridge_cv(
         alphas (np.ndarray, optional): Array of alpha values to try. If None, uses default range:
             np.logspace(-2, 4, 20) = [0.01, 0.015, ..., 10000]
         cv (int, optional): Number of cross-validation folds. Defaults to 5.
-        backend (str or Backend, optional): Backend for computation. 'auto' selects based on problem size.
-            Defaults to 'auto'.
+        parallel (str, optional): Execution backend.
+            - None: Single-threaded NumPy (debugging/small problems)
+            - "cpu": CPU-only using NumPy (default)
+            - "gpu": GPU acceleration via PyTorch (falls back to CPU if GPU unavailable)
+            Defaults to "cpu".
+        max_gpu_memory_gb (float, optional): GPU memory budget in GB (only used if parallel='gpu').
+            Defaults to 4.0.
+        random_state (int, optional): Random seed (not currently used, kept for consistency).
+            Defaults to None.
 
     Returns:
         dict: Dictionary containing:
@@ -179,7 +221,7 @@ def ridge_cv(
     Notes:
         - Uses R**2 (coefficient of determination) as the scoring metric
         - For multi-target regression, selects alpha that maximizes mean R**2 across targets
-        - Automatically uses GPU backend for large problems when available
+        - When parallel='gpu' is requested but GPU is unavailable, gracefully falls back to CPU
     """
     # Default alphas: logarithmic range from 0.01 to 10000
     if alphas is None:
@@ -190,13 +232,24 @@ def ridge_cv(
     X = np.asarray(X, dtype=np.float32)
     y = np.asarray(y, dtype=np.float32)
 
-    # Setup backend
-    if isinstance(backend, str):
-        if backend == "auto":
-            n_samples, n_features = X.shape
-            backend = auto_select_backend(n_samples, n_features, cv=cv)
-        else:
-            backend = Backend(backend)
+    # Setup backend (convert parallel to backend with graceful fallback)
+    if parallel is None:
+        backend = Backend("numpy")
+    elif parallel == "cpu":
+        backend = Backend("numpy")
+    elif parallel == "gpu":
+        # Try GPU, but gracefully fallback to CPU if unavailable
+        try:
+            backend = Backend("torch")
+            # If Backend("torch") succeeded but ended up on CPU (no GPU available),
+            # that's fine - Backend handles this gracefully
+        except Exception:
+            # If Backend initialization fails, fallback to CPU
+            backend = Backend("numpy")
+    else:
+        raise ValueError(
+            f"parallel must be None, 'cpu', or 'gpu', got: {parallel}"
+        )
 
     # Determine if single or multi-target
     single_target = y.ndim == 1
@@ -228,7 +281,13 @@ def ridge_cv(
         # Try each alpha
         for i, alpha in enumerate(alphas):
             # Fit model
-            coef = ridge_svd(X_train, y_train, alpha=alpha, backend=backend)
+            # Convert backend to parallel parameter for ridge_svd
+            # Backend handles MPS/CUDA/CPU gracefully, but ridge_svd expects simple parallel param
+            if backend.name.startswith("torch"):
+                parallel_param = "gpu"  # Backend will use GPU/MPS if available, CPU otherwise
+            else:
+                parallel_param = "cpu"
+            coef = ridge_svd(X_train, y_train, alpha=alpha, parallel=parallel_param)
 
             # Predict and score
             # Note: y_train is already 2D (n, 1) for single target, so coef is (n_features, 1)
@@ -250,7 +309,12 @@ def ridge_cv(
     best_alpha = alphas[best_idx]
 
     # Fit final model on full data
-    coef_final = ridge_svd(X, y, alpha=best_alpha, backend=backend)
+    # Convert backend to parallel parameter for ridge_svd
+    if backend.name.startswith("torch"):
+        parallel_param = "gpu"
+    else:
+        parallel_param = "cpu"
+    coef_final = ridge_svd(X, y, alpha=best_alpha, parallel=parallel_param)
 
     # Return to original shape for single-target
     if single_target:

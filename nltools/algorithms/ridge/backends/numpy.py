@@ -82,28 +82,52 @@ full = np.full
 
 
 def to_numpy(array):
-    """Convert array to numpy (no-op for numpy arrays)."""
+    """Convert array to numpy (no-op for numpy arrays).
+
+    This function is a no-op for numpy arrays, but provides a consistent interface
+    for backend-agnostic code. Other backends (torch, torch_cuda) override this
+    to convert their arrays to numpy.
+
+    Args:
+        array: Input array (numpy ndarray).
+
+    Returns:
+        ndarray: The input array unchanged (no conversion needed).
+
+    Examples:
+        >>> import numpy as np
+        >>> arr = np.array([1, 2, 3])
+        >>> result = to_numpy(arr)
+        >>> result is arr  # Same object (no copy)
+        True
+    """
     return array
 
 
 def zeros_like(array, shape=None, dtype=None, device=None):
-    """Add a shape parameter in zeros_like.
+    """Create array of zeros with same shape and dtype as reference array.
 
-    Parameters
-    ----------
-    array : ndarray
-        Reference array.
-    shape : tuple, optional
-        Shape of output array. If None, uses array.shape.
-    dtype : dtype, optional
-        Data type of output. If None, uses array.dtype.
-    device : ignored
-        Device parameter (ignored for numpy backend).
+    Extended version of numpy.zeros_like with additional shape parameter.
+    Allows creating arrays with different shape but same dtype as reference.
 
-    Returns
-    -------
-    ndarray
-        Array of zeros.
+    Args:
+        array: Reference array for dtype inference.
+        shape: Shape of output array. If None, uses array.shape.
+        dtype: Data type of output. If None, uses array.dtype.
+        device: Ignored parameter (for compatibility with torch backends).
+
+    Returns:
+        ndarray: Array of zeros with specified shape and dtype.
+
+    Examples:
+        >>> import numpy as np
+        >>> arr = np.array([1, 2, 3])
+        >>> zeros_like(arr, shape=(5, 4))
+        array([[0., 0., 0., 0.],
+               [0., 0., 0., 0.],
+               [0., 0., 0., 0.],
+               [0., 0., 0., 0.],
+               [0., 0., 0., 0.]])
     """
     if shape is None:
         shape = array.shape
@@ -113,23 +137,26 @@ def zeros_like(array, shape=None, dtype=None, device=None):
 
 
 def ones_like(array, shape=None, dtype=None, device=None):
-    """Add a shape parameter in ones_like.
+    """Create array of ones with same shape and dtype as reference array.
 
-    Parameters
-    ----------
-    array : ndarray
-        Reference array.
-    shape : tuple, optional
-        Shape of output array. If None, uses array.shape.
-    dtype : dtype, optional
-        Data type of output. If None, uses array.dtype.
-    device : ignored
-        Device parameter (ignored for numpy backend).
+    Extended version of numpy.ones_like with additional shape parameter.
+    Allows creating arrays with different shape but same dtype as reference.
 
-    Returns
-    -------
-    ndarray
-        Array of ones.
+    Args:
+        array: Reference array for dtype inference.
+        shape: Shape of output array. If None, uses array.shape.
+        dtype: Data type of output. If None, uses array.dtype.
+        device: Ignored parameter (for compatibility with torch backends).
+
+    Returns:
+        ndarray: Array of ones with specified shape and dtype.
+
+    Examples:
+        >>> import numpy as np
+        >>> arr = np.array([1, 2, 3])
+        >>> ones_like(arr, shape=(2, 3))
+        array([[1., 1., 1.],
+               [1., 1., 1.]])
     """
     if shape is None:
         shape = array.shape
@@ -139,25 +166,27 @@ def ones_like(array, shape=None, dtype=None, device=None):
 
 
 def full_like(array, fill_value, shape=None, dtype=None, device=None):
-    """Add a shape parameter in full_like.
+    """Create array filled with value, with same shape and dtype as reference array.
 
-    Parameters
-    ----------
-    array : ndarray
-        Reference array.
-    fill_value : scalar
-        Fill value.
-    shape : tuple, optional
-        Shape of output array. If None, uses array.shape.
-    dtype : dtype, optional
-        Data type of output. If None, uses array.dtype.
-    device : ignored
-        Device parameter (ignored for numpy backend).
+    Extended version of numpy.full_like with additional shape parameter.
+    Allows creating arrays with different shape but same dtype as reference.
 
-    Returns
-    -------
-    ndarray
-        Array filled with fill_value.
+    Args:
+        array: Reference array for dtype inference.
+        fill_value: Scalar value to fill array with.
+        shape: Shape of output array. If None, uses array.shape.
+        dtype: Data type of output. If None, uses array.dtype.
+        device: Ignored parameter (for compatibility with torch backends).
+
+    Returns:
+        ndarray: Array filled with fill_value, with specified shape and dtype.
+
+    Examples:
+        >>> import numpy as np
+        >>> arr = np.array([1, 2, 3])
+        >>> full_like(arr, 42, shape=(2, 2))
+        array([[42., 42.],
+               [42., 42.]])
     """
     if shape is None:
         shape = array.shape
@@ -167,51 +196,112 @@ def full_like(array, fill_value, shape=None, dtype=None, device=None):
 
 
 def to_cpu(array):
-    """Transfer array to CPU (no-op for numpy)."""
+    """Transfer array to CPU (no-op for numpy arrays).
+
+    Provides consistent interface for backend-agnostic code. Since numpy arrays
+    are always on CPU, this is a no-op.
+
+    Args:
+        array: Input numpy array.
+
+    Returns:
+        ndarray: The input array unchanged (already on CPU).
+
+    Examples:
+        >>> import numpy as np
+        >>> arr = np.array([1, 2, 3])
+        >>> result = to_cpu(arr)
+        >>> result is arr  # Same object
+        True
+    """
     return array
 
 
 def to_gpu(array, device=None):
-    """Transfer array to GPU (no-op for numpy)."""
+    """Transfer array to GPU (no-op for numpy backend).
+
+    Provides consistent interface for backend-agnostic code. Since numpy backend
+    doesn't support GPU, this is a no-op.
+
+    Args:
+        array: Input numpy array.
+        device: Ignored parameter (for compatibility with torch backends).
+
+    Returns:
+        ndarray: The input array unchanged (numpy doesn't support GPU).
+
+    Examples:
+        >>> import numpy as np
+        >>> arr = np.array([1, 2, 3])
+        >>> result = to_gpu(arr)
+        >>> result is arr  # Same object
+        True
+    """
     return array
 
 
 def is_in_gpu(array):
-    """Check if array is in GPU (always False for numpy)."""
+    """Check if array is in GPU (always False for numpy backend).
+
+    Provides consistent interface for backend-agnostic code. Since numpy arrays
+    are always on CPU, this always returns False.
+
+    Args:
+        array: Input numpy array.
+
+    Returns:
+        bool: Always False for numpy backend.
+
+    Examples:
+        >>> import numpy as np
+        >>> arr = np.array([1, 2, 3])
+        >>> is_in_gpu(arr)
+        False
+    """
     return False
 
 
 def asarray_like(x, ref):
     """Convert x to array with same dtype as ref.
 
-    Parameters
-    ----------
-    x : array-like
-        Input data.
-    ref : ndarray
-        Reference array for dtype.
+    Convenience function to ensure dtype consistency with a reference array.
 
-    Returns
-    -------
-    ndarray
-        Array with same dtype as ref.
+    Args:
+        x: Input data (array-like).
+        ref: Reference array for dtype inference.
+
+    Returns:
+        ndarray: Array with same dtype as ref.
+
+    Examples:
+        >>> import numpy as np
+        >>> ref = np.array([1, 2, 3], dtype=np.float32)
+        >>> asarray_like([4, 5, 6], ref)
+        array([4., 5., 6.], dtype=float32)
     """
     return np.asarray(x, dtype=ref.dtype)
 
 
 def check_arrays(*all_inputs):
-    """Change all inputs into arrays (or list of arrays) using the same
-    precision as the first one. Some arrays can be None.
+    """Convert all inputs to arrays with consistent dtype.
 
-    Parameters
-    ----------
-    *all_inputs : array-like or None
-        Input arrays or lists of arrays.
+    Changes all inputs into arrays (or list of arrays) using the same precision
+    as the first input. Some arrays can be None. Useful for ensuring dtype
+    consistency across multiple inputs.
 
-    Returns
-    -------
-    list
-        List of arrays with consistent dtype.
+    Args:
+        *all_inputs: Input arrays or lists of arrays. Can include None values.
+
+    Returns:
+        list: List of arrays with consistent dtype (matching first input).
+
+    Examples:
+        >>> import numpy as np
+        >>> arr1 = np.array([1, 2], dtype=np.float32)
+        >>> arr2 = np.array([3, 4], dtype=np.float64)
+        >>> result = check_arrays(arr1, arr2)
+        >>> result[1].dtype == np.float32  # Converted to match first
+        True
     """
     all_arrays = []
     all_arrays.append(asarray(all_inputs[0]))
@@ -228,25 +318,27 @@ def check_arrays(*all_inputs):
 
 
 def asarray(a, dtype=None, order=None, device=None):
-    """Convert input to array.
+    """Convert input to numpy array.
 
-    This function can convert from numpy, lists, torch, and other array types.
+    Universal converter that can handle numpy arrays, lists, torch tensors,
+    cupy arrays, and other array types. Attempts multiple conversion strategies.
 
-    Parameters
-    ----------
-    a : array-like
-        Input data.
-    dtype : dtype, optional
-        Desired data type.
-    order : {'C', 'F'}, optional
-        Memory layout.
-    device : ignored
-        Device parameter (ignored for numpy backend).
+    Args:
+        a: Input data (array-like). Can be numpy array, list, torch tensor,
+            cupy array, or other array-like object.
+        dtype: Desired data type. If None, inferred from input.
+        order: Memory layout ('C' for C-order, 'F' for Fortran-order).
+        device: Ignored parameter (for compatibility with torch backends).
 
-    Returns
-    -------
-    ndarray
-        Array representation of a.
+    Returns:
+        ndarray: NumPy array representation of input.
+
+    Examples:
+        >>> import numpy as np
+        >>> asarray([1, 2, 3])
+        array([1, 2, 3])
+        >>> asarray([1, 2, 3], dtype=np.float32)
+        array([1., 2., 3.], dtype=float32)
     """
     # works from numpy, lists, torch, and others
     try:
@@ -272,21 +364,32 @@ def asarray(a, dtype=None, order=None, device=None):
 def svd(X, full_matrices=True):
     """Compute singular value decomposition.
 
-    Parameters
-    ----------
-    X : ndarray
-        Input matrix (2D or 3D).
-    full_matrices : bool
-        Whether to compute full U and V matrices.
+    Computes SVD for 2D or 3D arrays. For 3D arrays, computes SVD for each
+    matrix along the first dimension.
 
-    Returns
-    -------
-    U : ndarray
-        Left singular vectors.
-    s : ndarray
-        Singular values.
-    Vt : ndarray
-        Right singular vectors (transposed).
+    Args:
+        X: Input matrix, shape (n_samples, n_features) for 2D, or
+            (n_matrices, n_samples, n_features) for 3D.
+        full_matrices: Whether to compute full U and V matrices. If False,
+            computes only the necessary columns.
+
+    Returns:
+        tuple: (U, s, Vt) where:
+            - U: Left singular vectors, shape (n_samples, n_samples) or (n_samples, min(n_samples, n_features)).
+            - s: Singular values, shape (min(n_samples, n_features),).
+            - Vt: Right singular vectors (transposed), shape (min(n_samples, n_features), n_features) or (n_features, n_features).
+
+        For 3D input, returns stacked arrays with shape (n_matrices, ...).
+
+    Raises:
+        NotImplementedError: If input has more than 3 dimensions.
+
+    Examples:
+        >>> import numpy as np
+        >>> X = np.random.randn(10, 5)
+        >>> U, s, Vt = svd(X, full_matrices=False)
+        >>> U.shape, s.shape, Vt.shape
+        ((10, 5), (5,), (5, 5))
     """
     if X.ndim == 2 or not use_scipy:
         return linalg.svd(X, full_matrices=full_matrices)
