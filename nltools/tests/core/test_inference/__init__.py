@@ -7,11 +7,6 @@ This module provides:
 - Common imports used across test files
 """
 
-import pytest
-import numpy as np
-
-from nltools.backends import check_gpu_available
-
 # ============================================================================
 # Test Constants - DO NOT MODIFY without updating docstring above
 # ============================================================================

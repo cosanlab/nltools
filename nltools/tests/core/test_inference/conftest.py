@@ -26,4 +26,3 @@ def backends():
     if check_gpu_available()[0]:
         backends_list.append("torch")
     return backends_list
-

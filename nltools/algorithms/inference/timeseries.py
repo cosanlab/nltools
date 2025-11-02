@@ -488,7 +488,6 @@ def _timeseries_correlation_permutation_gpu_batched(
 
     # Transfer data to device once (reused across batches)
     data1_device = backend.to_device(data1)
-    data2_device = backend.to_device(data2)
 
     # Accumulate null distribution across batches
     null_dist_list = []
@@ -514,10 +513,12 @@ def _timeseries_correlation_permutation_gpu_batched(
         # Generate permuted data1 for this batch using batched operations
         if method == "circle_shift":
             # Generate random shift amounts for all permutations in batch
-            shift_amounts = np.array([
-                np.random.RandomState(batch_seeds[i]).choice(np.arange(n_samples))
-                for i in range(current_batch_size)
-            ])
+            shift_amounts = np.array(
+                [
+                    np.random.RandomState(batch_seeds[i]).choice(np.arange(n_samples))
+                    for i in range(current_batch_size)
+                ]
+            )
             shift_amounts_device = backend.to_device(shift_amounts.astype(np.int64))
             if backend.name.startswith("torch"):
                 shift_amounts_device = shift_amounts_device.long()
@@ -535,13 +536,13 @@ def _timeseries_correlation_permutation_gpu_batched(
         # Compute correlations for all permutations in batch simultaneously
         # Vectorize correlation computation
         perm_data1_np = backend.to_numpy(perm_data1_batch)  # (batch_size, n_samples)
-        
+
         # Use correlation function that handles 2D input (batch dimension)
         batch_corrs = []
         for i in range(current_batch_size):
             corr = corr_func(perm_data1_np[i], data2)
             batch_corrs.append(corr[0] if isinstance(corr, np.ndarray) else corr)
-        
+
         batch_corrs = np.array(batch_corrs)
         null_dist_list.append(batch_corrs)
 

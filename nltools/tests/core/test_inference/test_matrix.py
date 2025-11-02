@@ -881,9 +881,13 @@ def _generate_correlated_matrices(n, correlation_strength, random_state=None):
     # Create two matrices with shared structure
     # Use correlation matrices approach: create base data and compute correlation matrices
     base_data1 = np.random.randn(n + 10, n)  # Extra samples for stability
-    base_data2 = base_data1 + np.random.randn(n + 10, n) * np.sqrt(
-        (1 - correlation_strength**2) / correlation_strength**2
-    ) if correlation_strength > 0 else np.random.randn(n + 10, n)
+    base_data2 = (
+        base_data1
+        + np.random.randn(n + 10, n)
+        * np.sqrt((1 - correlation_strength**2) / correlation_strength**2)
+        if correlation_strength > 0
+        else np.random.randn(n + 10, n)
+    )
 
     # Compute correlation matrices
     m1 = np.corrcoef(base_data1.T)

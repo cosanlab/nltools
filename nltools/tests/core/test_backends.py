@@ -246,9 +246,7 @@ def test_mps_svd_cpu_fallback():
     backend_np = Backend("numpy")
     U_np, s_np, Vt_np = backend_np.svd(X)
 
-    U_np_result = backend_mps.to_numpy(U)
     s_np_result = backend_mps.to_numpy(s)
-    Vt_np_result = backend_mps.to_numpy(Vt)
 
     # Singular values should match (within float32 precision)
     np.testing.assert_allclose(s_np_result, s_np, rtol=1e-3)
@@ -321,7 +319,7 @@ def test_mps_backend_warning():
 
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
-        backend = Backend("torch")
+        _ = Backend("torch")  # Initialize to trigger warning
 
         # Check that warning was issued about MPS precision
         mps_warnings = [

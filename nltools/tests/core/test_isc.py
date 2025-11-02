@@ -1406,3 +1406,547 @@ def test_compute_pairwise_isc_euclidean_performance():
         f"Optimized euclidean ({time_eucl_opt:.3f}s) should be reasonably fast compared "
         f"to correlation ({time_corr:.3f}s). Vectorized operations are fast but sqrt adds overhead."
     )
+
+
+# =============================================================================
+# Statistical Correctness Tests
+# =============================================================================
+
+
+def _generate_shared_signal_isc(
+    n_timepoints, n_subjects, isc_strength, random_state=None
+):
+    """
+    Generate time series data with known ISC.
+
+    Creates data where all subjects share a common signal with strength
+    controlled by isc_strength. Higher isc_strength → higher ISC.
+
+    Parameters
+    ----------
+    n_timepoints : int
+        Number of time points
+    n_subjects : int
+        Number of subjects
+    isc_strength : float
+        Strength of shared signal (0.0 = no ISC, 1.0 = perfect ISC)
+        Higher values → higher ISC
+    random_state : int or RandomState, optional
+        Random seed
+
+    Returns
+    -------
+    data : ndarray, shape (n_timepoints, n_subjects)
+        Time series data with known ISC structure
+    """
+    from sklearn.utils import check_random_state
+
+    rng = check_random_state(random_state)
+
+    # Generate shared signal
+    shared_signal = rng.randn(n_timepoints)
+
+    # Generate data for each subject: shared_signal * strength + noise * (1 - strength)
+    data = np.zeros((n_timepoints, n_subjects))
+    for i in range(n_subjects):
+        noise = rng.randn(n_timepoints)
+        data[:, i] = shared_signal * isc_strength + noise * np.sqrt(1 - isc_strength**2)
+
+    return data
+
+
+class TestISCStatisticalCorrectness:
+    """Test statistical correctness of ISC permutation tests (not just CPU/GPU consistency)."""
+
+    @pytest.mark.tier2
+    def test_null_hypothesis_pvalue_distribution(self):
+        """Test that p-values are uniformly distributed under null hypothesis (ISC = 0)."""
+        from scipy.stats import kstest
+
+        n_timepoints = 100
+        n_subjects = 15
+        n_tests = 100  # Run many tests with different seeds
+        n_permute = 2000  # Enough permutations for stable p-values
+
+        # Test both LOO and pairwise methods
+        summary_statistics = ["leave-one-out", "pairwise"]
+
+        for summary_statistic in summary_statistics:
+            p_values = []
+
+            for seed in range(n_tests):
+                np.random.seed(seed)
+                # Generate independent time series (ISC = 0)
+                data = np.random.randn(n_timepoints, n_subjects)
+
+                result = isc_permutation_test(
+                    data,
+                    summary_statistic=summary_statistic,
+                    n_permute=n_permute,
+                    random_state=seed,
+                    progress_bar=False,
+                )
+
+                p_values.append(result["p"])
+
+            # Test uniformity using Kolmogorov-Smirnov test
+            # Under null hypothesis, p-values should be uniformly distributed
+            ks_statistic, ks_pvalue = kstest(p_values, "uniform")
+
+            # KS test p-value should be > 0.05 (p-values are uniform)
+            assert ks_pvalue > 0.05, (
+                f"P-values should be uniformly distributed under null hypothesis for {summary_statistic}. "
+                f"KS test p-value: {ks_pvalue:.4f}"
+            )
+
+    @pytest.mark.tier1
+    def test_isc_value_correctness_loo(self):
+        """Test that LOO ISC value matches expected value for known ISC structure."""
+        np.random.seed(42)
+        n_timepoints = 100
+        n_subjects = 15
+        isc_strength = 0.7  # High ISC
+
+        # Generate data with known ISC
+        data = _generate_shared_signal_isc(
+            n_timepoints, n_subjects, isc_strength, random_state=42
+        )
+
+        # Compute ISC
+        result = isc_permutation_test(
+            data,
+            summary_statistic="leave-one-out",
+            n_permute=100,  # Small for speed
+            random_state=42,
+            progress_bar=False,
+        )
+
+        # ISC should be positive and reasonably high (strength 0.7)
+        # Note: Actual ISC will be less than 0.7 due to noise, but should be positive
+        assert result["isc"] > 0.3, (
+            f"LOO ISC should be positive for shared signal. Got {result['isc']:.4f}"
+        )
+        assert result["isc"] < 1.0, "ISC should be less than 1.0"
+
+    @pytest.mark.tier1
+    def test_isc_value_correctness_pairwise(self):
+        """Test that pairwise ISC value matches expected value for known ISC structure."""
+        np.random.seed(42)
+        n_timepoints = 100
+        n_subjects = 15
+        isc_strength = 0.7  # High ISC
+
+        # Generate data with known ISC
+        data = _generate_shared_signal_isc(
+            n_timepoints, n_subjects, isc_strength, random_state=42
+        )
+
+        # Compute ISC
+        result = isc_permutation_test(
+            data,
+            summary_statistic="pairwise",
+            n_permute=100,  # Small for speed
+            random_state=42,
+            progress_bar=False,
+        )
+
+        # ISC should be positive and reasonably high
+        assert result["isc"] > 0.3, (
+            f"Pairwise ISC should be positive for shared signal. Got {result['isc']:.4f}"
+        )
+        assert result["isc"] < 1.0, "ISC should be less than 1.0"
+
+    @pytest.mark.tier1
+    def test_effect_size_sensitivity(self):
+        """Test that higher ISC produces lower p-values."""
+        np.random.seed(42)
+        n_timepoints = 100
+        n_subjects = 15
+        n_permute = 2000  # Enough for stable p-values
+
+        # Test different ISC strengths
+        isc_strengths = [0.0, 0.2, 0.4, 0.6]
+        p_values = []
+
+        for isc_strength in isc_strengths:
+            data = _generate_shared_signal_isc(
+                n_timepoints, n_subjects, isc_strength, random_state=42
+            )
+
+            result = isc_permutation_test(
+                data,
+                summary_statistic="leave-one-out",
+                n_permute=n_permute,
+                random_state=42,
+                progress_bar=False,
+            )
+
+            p_values.append(result["p"])
+
+        # Verify monotonic relationship: higher ISC → lower p-value
+        # (p-values should generally decrease as ISC increases)
+        # Note: Due to sampling variability, ISC=0.0 may occasionally have p < 0.05
+        # But high ISC (0.6) should reliably produce low p-values
+        assert p_values[-1] < 0.05, (
+            f"High ISC (0.6) should have significant p-value. Got {p_values[-1]:.4f}"
+        )
+
+        # Verify trend: p-values should generally decrease with higher ISC
+        # (allow some variance due to finite permutations)
+        # Check that large ISC differences produce corresponding p-value decreases
+        for i in range(len(p_values) - 1):
+            # Higher ISC should generally produce lower p-values
+            # But allow some variance, so check if trend is correct on average
+            if isc_strengths[i + 1] > isc_strengths[i] + 0.3:  # Large enough difference
+                assert p_values[i + 1] <= p_values[i] * 1.5, (
+                    f"P-value should decrease with higher ISC. "
+                    f"ISC={isc_strengths[i]}: p={p_values[i]:.4f}, "
+                    f"ISC={isc_strengths[i + 1]}: p={p_values[i + 1]:.4f}"
+                )
+
+        # Verify that high ISC produces significantly lower p-value than low/null ISC
+        # (ISC=0.6 should have much lower p-value than ISC=0.0 or 0.2)
+        assert p_values[-1] < p_values[0] * 0.5, (
+            f"High ISC (0.6) should produce much lower p-value than null ISC (0.0). "
+            f"ISC=0.0: p={p_values[0]:.4f}, ISC=0.6: p={p_values[-1]:.4f}"
+        )
+
+    @pytest.mark.tier1
+    def test_loo_vs_pairwise_relationship(self):
+        """Test that LOO and pairwise ISC are different but both detect ISC correctly."""
+        np.random.seed(42)
+        n_timepoints = 100
+        n_subjects = 15
+        isc_strength = 0.5  # Medium ISC
+
+        # Generate data with known ISC
+        data = _generate_shared_signal_isc(
+            n_timepoints, n_subjects, isc_strength, random_state=42
+        )
+
+        # Compute both LOO and pairwise ISC
+        result_loo = isc_permutation_test(
+            data,
+            summary_statistic="leave-one-out",
+            n_permute=2000,
+            random_state=42,
+            progress_bar=False,
+        )
+
+        result_pairwise = isc_permutation_test(
+            data,
+            summary_statistic="pairwise",
+            n_permute=2000,
+            random_state=42,
+            progress_bar=False,
+        )
+
+        # Both should detect ISC (p < 0.05 for isc_strength=0.5)
+        assert result_loo["p"] < 0.05, "LOO should detect ISC"
+        assert result_pairwise["p"] < 0.05, "Pairwise should detect ISC"
+
+        # Both should have positive ISC values
+        assert result_loo["isc"] > 0, "LOO ISC should be positive"
+        assert result_pairwise["isc"] > 0, "Pairwise ISC should be positive"
+
+        # LOO and pairwise ISC are different metrics (expected, see Chen 2016)
+        assert result_loo["isc"] != result_pairwise["isc"], (
+            "LOO and pairwise ISC are different metrics and should produce different values"
+        )
+
+        # Both should be monotonically related (higher true ISC → higher both)
+        # Test with higher ISC strength
+        data_high = _generate_shared_signal_isc(
+            n_timepoints, n_subjects, isc_strength=0.8, random_state=42
+        )
+
+        result_loo_high = isc_permutation_test(
+            data_high,
+            summary_statistic="leave-one-out",
+            n_permute=1000,
+            random_state=42,
+            progress_bar=False,
+        )
+
+        result_pairwise_high = isc_permutation_test(
+            data_high,
+            summary_statistic="pairwise",
+            n_permute=1000,
+            random_state=42,
+            progress_bar=False,
+        )
+
+        # Higher ISC strength → higher ISC values (both methods)
+        assert result_loo_high["isc"] > result_loo["isc"], (
+            "LOO ISC should increase with higher true ISC"
+        )
+        assert result_pairwise_high["isc"] > result_pairwise["isc"], (
+            "Pairwise ISC should increase with higher true ISC"
+        )
+
+    @pytest.mark.tier1
+    def test_bootstrap_method_correctness(self):
+        """Test that bootstrap method produces correct null distribution."""
+        np.random.seed(42)
+        n_timepoints = 100
+        n_subjects = 15
+        isc_strength = 0.5
+
+        # Generate data with known ISC
+        data = _generate_shared_signal_isc(
+            n_timepoints, n_subjects, isc_strength, random_state=42
+        )
+
+        # Run bootstrap with return_null=True
+        result = isc_permutation_test(
+            data,
+            summary_statistic="leave-one-out",
+            method="bootstrap",
+            n_permute=2000,
+            random_state=42,
+            return_null=True,
+            progress_bar=False,
+        )
+
+        # Bootstrap distribution should be centered around observed ISC
+        # (return_null returns raw bootstrap samples, not centered null_distribution)
+        null_dist = result["null_distribution"]
+        observed_isc = result["isc"]
+
+        # Mean of bootstrap samples should approximate observed ISC
+        bootstrap_mean = np.mean(null_dist)
+        assert np.abs(bootstrap_mean - observed_isc) < 0.2, (
+            f"Bootstrap distribution should be centered near observed ISC. "
+            f"Observed: {observed_isc:.4f}, Bootstrap mean: {bootstrap_mean:.4f}"
+        )
+
+        # CI should contain observed ISC at reasonable rate
+        # (with 2000 permutations, CI should contain observed most of the time)
+        ci_lower, ci_upper = result["ci"]
+        assert ci_lower <= observed_isc <= ci_upper, (
+            f"95% CI should contain observed ISC. "
+            f"CI: [{ci_lower:.4f}, {ci_upper:.4f}], Observed: {observed_isc:.4f}"
+        )
+
+    @pytest.mark.tier1
+    def test_circle_shift_preserves_temporal_structure(self):
+        """Test that circle_shift preserves temporal autocorrelation structure."""
+        np.random.seed(42)
+        n_timepoints = 200  # Longer for better autocorrelation measurement
+        n_subjects = 10
+
+        # Create time series with strong autocorrelation (AR(1) process)
+        data = np.zeros((n_timepoints, n_subjects))
+        ar_coef = 0.7  # Strong autocorrelation
+        for i in range(n_subjects):
+            noise = np.random.randn(n_timepoints)
+            data[0, i] = noise[0]
+            for t in range(1, n_timepoints):
+                data[t, i] = ar_coef * data[t - 1, i] + noise[t]
+
+        # Compute autocorrelation of original data
+        autocorr_orig = []
+        for i in range(n_subjects):
+            # Compute lag-1 autocorrelation
+            autocorr_orig.append(np.corrcoef(data[:-1, i], data[1:, i])[0, 1])
+
+        # Run ISC test with circle_shift (which should preserve autocorrelation)
+        result = isc_permutation_test(
+            data,
+            summary_statistic="leave-one-out",
+            method="circle_shift",
+            n_permute=100,  # Small for speed
+            random_state=42,
+            progress_bar=False,
+        )
+
+        # Verify test completes successfully
+        assert "isc" in result
+        assert "p" in result
+
+        # Verify autocorrelation is preserved in circle_shifted data
+        # (by checking that circle_shift function preserves it)
+        from nltools.algorithms.inference.timeseries import circle_shift
+
+        shifted_data = circle_shift(data, random_state=42)
+        autocorr_shifted = []
+        for i in range(n_subjects):
+            autocorr_shifted.append(
+                np.corrcoef(shifted_data[:-1, i], shifted_data[1:, i])[0, 1]
+            )
+
+        # Autocorrelation should be preserved (within tolerance)
+        np.testing.assert_allclose(
+            np.mean(autocorr_orig),
+            np.mean(autocorr_shifted),
+            rtol=0.1,  # 10% tolerance
+            err_msg="Circle shift should preserve autocorrelation structure",
+        )
+
+    @pytest.mark.tier1
+    def test_phase_randomize_preserves_power_spectrum(self):
+        """Test that phase_randomize preserves power spectrum."""
+        np.random.seed(42)
+        n_timepoints = 200  # Longer for better FFT resolution
+        n_subjects = 10
+
+        # Create time series with known frequency structure
+        t = np.linspace(0, 10 * np.pi, n_timepoints)
+        data = np.zeros((n_timepoints, n_subjects))
+        for i in range(n_subjects):
+            # Mix of frequencies
+            data[:, i] = (
+                np.sin(2 * np.pi * t)
+                + 0.5 * np.sin(4 * np.pi * t)
+                + np.random.randn(n_timepoints) * 0.1
+            )
+
+        # Compute power spectrum of original data
+        power_orig = []
+        for i in range(n_subjects):
+            fft_orig = np.fft.rfft(data[:, i])
+            power_orig.append(np.abs(fft_orig) ** 2)
+
+        # Verify phase_randomize preserves power spectrum
+        from nltools.algorithms.inference.timeseries import phase_randomize
+
+        randomized_data = phase_randomize(data, random_state=42)
+        power_rand = []
+        for i in range(n_subjects):
+            fft_rand = np.fft.rfft(randomized_data[:, i])
+            power_rand.append(np.abs(fft_rand) ** 2)
+
+        # Power spectrum should be preserved exactly (within numerical precision)
+        for i in range(n_subjects):
+            np.testing.assert_allclose(
+                power_orig[i],
+                power_rand[i],
+                rtol=1e-10,
+                err_msg="Phase randomize must preserve power spectrum exactly",
+            )
+
+        # Verify ISC test with phase_randomize completes successfully
+        result = isc_permutation_test(
+            data,
+            summary_statistic="leave-one-out",
+            method="phase_randomize",
+            n_permute=100,  # Small for speed
+            random_state=42,
+            progress_bar=False,
+        )
+
+        assert "isc" in result
+        assert "p" in result
+
+    @pytest.mark.tier1
+    def test_metric_correctness_median_vs_mean(self):
+        """Test that median and mean metrics both detect ISC correctly."""
+        np.random.seed(42)
+        n_timepoints = 100
+        n_subjects = 15
+        isc_strength = 0.5
+
+        # Generate data with known ISC
+        data = _generate_shared_signal_isc(
+            n_timepoints, n_subjects, isc_strength, random_state=42
+        )
+
+        # Compute ISC with median metric
+        result_median = isc_permutation_test(
+            data,
+            summary_statistic="leave-one-out",
+            metric="median",
+            n_permute=2000,
+            random_state=42,
+            progress_bar=False,
+        )
+
+        # Compute ISC with mean metric
+        result_mean = isc_permutation_test(
+            data,
+            summary_statistic="leave-one-out",
+            metric="mean",
+            n_permute=2000,
+            random_state=42,
+            progress_bar=False,
+        )
+
+        # Both should detect ISC
+        assert result_median["p"] < 0.05, "Median metric should detect ISC"
+        assert result_mean["p"] < 0.05, "Mean metric should detect ISC"
+
+        # Both should have positive ISC values
+        assert result_median["isc"] > 0, "Median ISC should be positive"
+        assert result_mean["isc"] > 0, "Mean ISC should be positive"
+
+        # Test robustness: median should be less affected by outliers
+        # Create data with one outlier subject
+        data_outlier = data.copy()
+        data_outlier[:, 0] = np.random.randn(n_timepoints) * 10  # Outlier subject
+
+        result_median_outlier = isc_permutation_test(
+            data_outlier,
+            summary_statistic="leave-one-out",
+            metric="median",
+            n_permute=1000,
+            random_state=42,
+            progress_bar=False,
+        )
+
+        result_mean_outlier = isc_permutation_test(
+            data_outlier,
+            summary_statistic="leave-one-out",
+            metric="mean",
+            n_permute=1000,
+            random_state=42,
+            progress_bar=False,
+        )
+
+        # Median should be more robust (less affected by outlier)
+        # ISC values should be similar but median may be slightly more stable
+        assert isinstance(result_median_outlier["isc"], (float, np.floating))
+        assert isinstance(result_mean_outlier["isc"], (float, np.floating))
+        # Both should still detect ISC from remaining subjects
+        assert result_median_outlier["isc"] > 0 or result_mean_outlier["isc"] > 0, (
+            "At least one metric should detect ISC from non-outlier subjects"
+        )
+
+    @pytest.mark.tier2
+    def test_pvalue_converges_with_more_permutations(self):
+        """Test that p-values stabilize with more permutations."""
+        np.random.seed(42)
+        n_timepoints = 100
+        n_subjects = 15
+        isc_strength = 0.4  # Medium ISC
+
+        # Generate data with known ISC
+        data = _generate_shared_signal_isc(
+            n_timepoints, n_subjects, isc_strength, random_state=42
+        )
+
+        # Run with different permutation counts
+        n_permutes = [100, 1000, 5000]
+        p_values = []
+
+        for n_permute in n_permutes:
+            result = isc_permutation_test(
+                data,
+                summary_statistic="leave-one-out",
+                n_permute=n_permute,
+                random_state=42,  # Same seed for fair comparison
+                progress_bar=False,
+            )
+            p_values.append(result["p"])
+
+        # P-values should stabilize (variance decreases) with more permutations
+        # Check that p-values are in reasonable range and don't change dramatically
+        for i, p_val in enumerate(p_values):
+            assert 0 <= p_val <= 1, f"P-value should be in [0, 1]. Got {p_val:.4f}"
+
+        # P-values should be relatively stable (not wildly different)
+        # With same seed, they should be similar (allowing for Monte Carlo variance)
+        p_value_range = max(p_values) - min(p_values)
+        assert p_value_range < 0.3, (
+            f"P-values should be relatively stable across permutation counts. "
+            f"Range: {p_value_range:.4f}, Values: {p_values}"
+        )
