@@ -8,9 +8,6 @@ import pytest
 import numpy as np
 
 from nltools.algorithms.inference import one_sample_permutation_test
-from nltools.tests.core.test_inference import (
-    N_PERMUTE_STATS_COMPARISON,
-)
 
 
 class TestOneSamplePermutation:
@@ -104,10 +101,10 @@ class TestOneSamplePermutation:
         data = np.random.randn(30) + 0.5
 
         result_two = one_sample_permutation_test(
-            data, n_permute=N_PERMUTE_STATS_COMPARISON, tail=2, random_state=42
+            data, n_permute=1000, tail=2, random_state=42
         )
         result_one = one_sample_permutation_test(
-            data, n_permute=N_PERMUTE_STATS_COMPARISON, tail=1, random_state=42
+            data, n_permute=1000, tail=1, random_state=42
         )
 
         # One-tailed p-value should be approximately half of two-tailed
@@ -125,7 +122,7 @@ class TestOneSamplePermutation:
     def test_invalid_data_shape(self):
         """Test that invalid data shape raises error."""
         data = np.random.randn(5, 5, 5)  # 3D
-        with pytest.raises(ValueError, match="data must be 1D or 2D"):
+        with pytest.raises(ValueError, match="data must be 1D to 2D"):
             one_sample_permutation_test(data)
 
 
@@ -208,7 +205,9 @@ class TestOneSamplePermutationStatisticalCorrectness:
         np.random.seed(42)
         data = np.random.randn(n_samples) + true_mean
 
-        result = one_sample_permutation_test(data, n_permute=500, random_state=42, parallel=None)
+        result = one_sample_permutation_test(
+            data, n_permute=500, random_state=42, parallel=None
+        )
 
         # Computed mean should be close to true mean
         # Tolerance: rtol=0.1 (10% as specified in plan)

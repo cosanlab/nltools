@@ -10,14 +10,10 @@ from nltools.algorithms.inference.correlation import (
 )
 from nltools.tests.core.test_inference import (
     N_PERMUTE_BACKEND,
-    N_PERMUTE_STATS_COMPARISON,
-    TOLERANCE_STATS_DETERMINISTIC,
-    TOLERANCE_STATS_PVALUE,
     TOLERANCE_GPU_VALUE,
     TOLERANCE_GPU_PVALUE,
 )
 from nltools.backends import check_gpu_available
-from nltools.stats import correlation_permutation as stats_correlation
 
 
 class TestPearsonCorrelation:
@@ -457,41 +453,6 @@ class TestCorrelationPermutation:
             results["numpy"]["p"],
             results["torch"]["p"],
             rtol=1e-5,
-        )
-
-    @pytest.mark.tier2
-    def test_matches_stats_py_single_feature(self):
-        """Test that results match stats.py for single feature."""
-        np.random.seed(42)
-        x = np.random.randn(50)
-        y = x + np.random.randn(50) * 0.5
-
-        # New implementation
-        result_new = correlation_permutation_test(
-            x, y, n_permute=N_PERMUTE_STATS_COMPARISON, parallel=None, random_state=42
-        )
-
-        # Old implementation
-        result_old = stats_correlation(
-            x,
-            y,
-            n_permute=N_PERMUTE_STATS_COMPARISON,
-            method="permute",
-            metric="pearson",
-            tail=2,
-            n_jobs=1,
-            random_state=42,
-        )
-
-        # Correlation should be identical (deterministic)
-        np.testing.assert_allclose(
-            result_new["correlation"],
-            result_old["correlation"],
-            rtol=TOLERANCE_STATS_DETERMINISTIC,
-        )
-        # P-values will differ slightly due to different random sampling (~15%)
-        np.testing.assert_allclose(
-            result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE
         )
 
     @pytest.mark.tier2

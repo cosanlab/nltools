@@ -199,10 +199,10 @@ class Ridge(BaseModel):
                 fit_intercept=self.fit_intercept,
                 conservative=self.conservative,
             )
-            self.alpha_ = result['best_alphas']
+            self.alpha_ = result["best_alphas"]
             self.deltas_ = None
-            coefs = result['coefs']
-            cv_scores = result['cv_scores']
+            coefs = result["coefs"]
+            cv_scores = result["cv_scores"]
 
             # Squeeze alpha_ if single target (backward compatibility)
             if (
@@ -235,11 +235,11 @@ class Ridge(BaseModel):
                 return_weights=True,
                 progress_bar=False,
             )
-            self.deltas_ = result['deltas']
+            self.deltas_ = result["deltas"]
             self.alpha_ = None  # alphas are embedded in deltas
-            coefs = result['coefs']
-            cv_scores = result['cv_scores']
-        
+            coefs = result["coefs"]
+            cv_scores = result["cv_scores"]
+
         self.coef_ = coefs
         self.cv_scores_ = cv_scores
 

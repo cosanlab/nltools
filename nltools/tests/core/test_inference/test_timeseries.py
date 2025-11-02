@@ -723,6 +723,7 @@ class TestTimeseriesGPU:
     def test_gpu_return_null_distribution(self):
         """Test that GPU returns null distribution when requested."""
         pytest.importorskip("torch")
+        import warnings
         from nltools.algorithms.inference.timeseries import (
             timeseries_correlation_permutation_test,
         )
@@ -731,15 +732,20 @@ class TestTimeseriesGPU:
         x = np.random.randn(100)
         y = np.random.randn(100)
 
-        result = timeseries_correlation_permutation_test(
-            x,
-            y,
-            method="circle_shift",
-            n_permute=100,
-            parallel="gpu",
-            return_null=True,
-            random_state=42,
-        )
+        # Suppress MPS precision warning (expected for torch-mps backend)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message="torch-mps backend uses float32", category=UserWarning
+            )
+            result = timeseries_correlation_permutation_test(
+                x,
+                y,
+                method="circle_shift",
+                n_permute=100,
+                parallel="gpu",
+                return_null=True,
+                random_state=42,
+            )
 
         assert "null_dist" in result
         assert result["null_dist"].shape == (100,)

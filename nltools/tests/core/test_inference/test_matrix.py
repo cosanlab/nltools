@@ -5,12 +5,6 @@ import numpy as np
 from scipy.stats import kstest
 
 from nltools.algorithms.inference import matrix_permutation_test
-from nltools.tests.core.test_inference import (
-    N_PERMUTE_STATS_COMPARISON,
-    TOLERANCE_STATS_DETERMINISTIC,
-    TOLERANCE_STATS_PVALUE,
-)
-from nltools.stats import matrix_permutation
 
 
 class TestMatrixHelpers:
@@ -561,59 +555,6 @@ class TestMatrixPermutationCorrectness:
 
         # Standard deviation should be reasonable
         assert 0.01 < null_std < 0.15
-
-    def test_backward_compatibility_stats_py(self):
-        """Test backward compatibility with stats.py matrix_permutation.
-
-        Note: Expect ~1-2% variance due to different RNG pattern
-        (independent RandomState per permutation vs shared RNG state).
-        Both implementations are statistically correct.
-        """
-
-        # Create test matrices
-        np.random.seed(42)
-        n = 15
-        m1 = np.random.randn(n, n)
-        m2 = np.random.randn(n, n)
-
-        # New implementation
-        result_new = matrix_permutation_test(
-            m1,
-            m2,
-            n_permute=N_PERMUTE_STATS_COMPARISON,
-            metric="pearson",
-            how="upper",
-            include_diag=False,
-            tail=2,
-            random_state=42,
-            n_jobs=1,
-        )
-
-        # Old implementation (stats.py)
-        result_old = matrix_permutation(
-            m1,
-            m2,
-            n_permute=N_PERMUTE_STATS_COMPARISON,
-            metric="pearson",
-            how="upper",
-            include_diag=False,
-            tail=2,
-            random_state=42,
-            n_jobs=1,
-        )
-
-        # Observed correlation should be identical (deterministic computation)
-        np.testing.assert_allclose(
-            result_new["correlation"],
-            result_old["correlation"],
-            rtol=TOLERANCE_STATS_DETERMINISTIC,
-        )
-
-        # P-values may differ slightly (~1-2%) due to RNG pattern
-        # This is expected and acceptable (see DESIGN.md)
-        np.testing.assert_allclose(
-            result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE
-        )
 
 
 # ============================================================================

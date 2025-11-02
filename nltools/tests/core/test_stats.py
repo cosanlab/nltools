@@ -1303,7 +1303,11 @@ def test_icc_variance_component_correctness():
     Y = np.zeros((n_subjects, n_sessions))
     for i in range(n_subjects):
         for j in range(n_sessions):
-            Y[i, j] = subject_effects[i] + session_effects[j] + np.random.randn() * noise_level
+            Y[i, j] = (
+                subject_effects[i]
+                + session_effects[j]
+                + np.random.randn() * noise_level
+            )
 
     # Compute ICC (which internally computes variance components)
     # We verify correctness by checking ICC values and relationships
@@ -1367,8 +1371,8 @@ def test_icc_effect_size_sensitivity():
                     f"{icc_type}: Higher reliability should produce higher ICC. "
                     f"Level {i} (noise={reliability_levels[i][0]:.1f}, "
                     f"signal={reliability_levels[i][1]:.1f}): {icc_values[icc_type][i]:.6f}, "
-                    f"Level {i+1} (noise={reliability_levels[i+1][0]:.1f}, "
-                    f"signal={reliability_levels[i+1][1]:.1f}): {icc_values[icc_type][i+1]:.6f}"
+                    f"Level {i + 1} (noise={reliability_levels[i + 1][0]:.1f}, "
+                    f"signal={reliability_levels[i + 1][1]:.1f}): {icc_values[icc_type][i + 1]:.6f}"
                 )
 
 
@@ -1432,9 +1436,15 @@ def test_icc_known_values_perfect_reliability():
 
     # With perfect reliability, ICC should be very close to 1.0
     # Note: ICC can be exactly 1.0 only in limit, but should be very high (>0.99)
-    assert icc1 > 0.99, f"Perfect reliability should produce ICC1 > 0.99, got {icc1:.6f}"
-    assert icc2 > 0.99, f"Perfect reliability should produce ICC2 > 0.99, got {icc2:.6f}"
-    assert icc3 > 0.99, f"Perfect reliability should produce ICC3 > 0.99, got {icc3:.6f}"
+    assert icc1 > 0.99, (
+        f"Perfect reliability should produce ICC1 > 0.99, got {icc1:.6f}"
+    )
+    assert icc2 > 0.99, (
+        f"Perfect reliability should produce ICC2 > 0.99, got {icc2:.6f}"
+    )
+    assert icc3 > 0.99, (
+        f"Perfect reliability should produce ICC3 > 0.99, got {icc3:.6f}"
+    )
 
 
 @pytest.mark.tier1
@@ -1473,7 +1483,11 @@ def test_icc_icc2_vs_icc3_difference():
     Y = np.zeros((n_subjects, n_sessions))
     for i in range(n_subjects):
         for j in range(n_sessions):
-            Y[i, j] = subject_effects[i] + session_effects[j] + np.random.randn() * noise_level
+            Y[i, j] = (
+                subject_effects[i]
+                + session_effects[j]
+                + np.random.randn() * noise_level
+            )
 
     icc1 = compute_icc(Y, icc_type="icc1")
     icc2 = compute_icc(Y, icc_type="icc2")
@@ -1504,7 +1518,7 @@ def test_icc_sample_size_sensitivity():
 
     # Test with different sample sizes
     sample_sizes = [
-        (5, 3),   # Small
+        (5, 3),  # Small
         (10, 5),  # Medium
         (20, 5),  # Large
     ]
@@ -1547,9 +1561,15 @@ def test_icc_edge_case_constant_data():
 
     # With constant data, ICC may be NaN or 0 depending on implementation
     # Our implementation should return a valid number (may be NaN or 0)
-    assert np.isfinite(icc1) or np.isnan(icc1), f"ICC1 should be finite or NaN, got {icc1}"
-    assert np.isfinite(icc2) or np.isnan(icc2), f"ICC2 should be finite or NaN, got {icc2}"
-    assert np.isfinite(icc3) or np.isnan(icc3), f"ICC3 should be finite or NaN, got {icc3}"
+    assert np.isfinite(icc1) or np.isnan(icc1), (
+        f"ICC1 should be finite or NaN, got {icc1}"
+    )
+    assert np.isfinite(icc2) or np.isnan(icc2), (
+        f"ICC2 should be finite or NaN, got {icc2}"
+    )
+    assert np.isfinite(icc3) or np.isnan(icc3), (
+        f"ICC3 should be finite or NaN, got {icc3}"
+    )
 
 
 @pytest.mark.tier1
@@ -1570,9 +1590,15 @@ def test_icc_edge_case_single_session():
         icc3 = compute_icc(Y, icc_type="icc3")
 
         # If it doesn't raise an error, values should be valid
-        assert np.isfinite(icc1) or np.isnan(icc1), f"ICC1 should be finite or NaN, got {icc1}"
-        assert np.isfinite(icc2) or np.isnan(icc2), f"ICC2 should be finite or NaN, got {icc2}"
-        assert np.isfinite(icc3) or np.isnan(icc3), f"ICC3 should be finite or NaN, got {icc3}"
+        assert np.isfinite(icc1) or np.isnan(icc1), (
+            f"ICC1 should be finite or NaN, got {icc1}"
+        )
+        assert np.isfinite(icc2) or np.isnan(icc2), (
+            f"ICC2 should be finite or NaN, got {icc2}"
+        )
+        assert np.isfinite(icc3) or np.isnan(icc3), (
+            f"ICC3 should be finite or NaN, got {icc3}"
+        )
     except ValueError:
         # ValueError is acceptable for edge case (e.g., division by zero)
         pass
@@ -1597,9 +1623,15 @@ def test_icc_cross_validation_with_reference():
     icc3_high = compute_icc(Y_high, icc_type="icc3")
 
     # High reliability should produce ICC > 0.7 (common threshold for "good" reliability)
-    assert icc1_high > 0.6, f"High reliability should produce ICC1 > 0.6, got {icc1_high:.6f}"
-    assert icc2_high > 0.6, f"High reliability should produce ICC2 > 0.6, got {icc2_high:.6f}"
-    assert icc3_high > 0.6, f"High reliability should produce ICC3 > 0.6, got {icc3_high:.6f}"
+    assert icc1_high > 0.6, (
+        f"High reliability should produce ICC1 > 0.6, got {icc1_high:.6f}"
+    )
+    assert icc2_high > 0.6, (
+        f"High reliability should produce ICC2 > 0.6, got {icc2_high:.6f}"
+    )
+    assert icc3_high > 0.6, (
+        f"High reliability should produce ICC3 > 0.6, got {icc3_high:.6f}"
+    )
 
     # Scenario 2: Moderate reliability
     Y_moderate = np.zeros((n_subjects, n_sessions))

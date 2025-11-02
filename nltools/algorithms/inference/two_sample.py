@@ -91,8 +91,8 @@ def _two_sample_permutation_cpu_parallel(
 
     # Return to original shape
     if single_feature:
-        obs_diff = float(obs_diff[0])
-        p_values = float(p_values[0])
+        obs_diff = obs_diff.item() if hasattr(obs_diff, "item") else float(obs_diff[0])
+        p_values = p_values.item() if hasattr(p_values, "item") else float(p_values[0])
 
     # Build result
     result = {
@@ -236,8 +236,8 @@ def _two_sample_permutation_gpu_batched(
 
     # Return to original shape
     if single_feature:
-        obs_diff = float(obs_diff[0])
-        p_values = float(p_values[0])
+        obs_diff = obs_diff.item() if hasattr(obs_diff, "item") else float(obs_diff[0])
+        p_values = p_values.item() if hasattr(p_values, "item") else float(p_values[0])
 
     # Build result
     result = {
@@ -387,8 +387,12 @@ def two_sample_permutation_test(
             p_values = _compute_pvalue(obs_diff, null_dist, tail=tail)
 
             if single_feature:
-                obs_diff = float(obs_diff[0])
-                p_values = float(p_values[0])
+                obs_diff = (
+                    obs_diff.item() if hasattr(obs_diff, "item") else float(obs_diff[0])
+                )
+                p_values = (
+                    p_values.item() if hasattr(p_values, "item") else float(p_values[0])
+                )
 
             result = {
                 "mean_diff": obs_diff,

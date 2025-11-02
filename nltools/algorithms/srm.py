@@ -232,11 +232,11 @@ class SRM(BaseEstimator, TransformerMixin):
             self (SRM): Fitted model
         """
         logger.info("Starting Probabilistic SRM")
-        
+
         # Validate parallel parameter
         if parallel not in [None, "cpu", "gpu"]:
             raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel}")
-        
+
         # Store parallel settings for use in _srm
         self._parallel = parallel
         self._n_jobs = n_jobs
@@ -298,7 +298,7 @@ class SRM(BaseEstimator, TransformerMixin):
             s (list of 2D arrays, element i has shape=[features_i, samples_i]):
                 Shared responses from input data (X)
         """
-        
+
         # Validate parallel parameter
         if parallel not in [None, "cpu", "gpu"]:
             raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel}")
@@ -317,21 +317,27 @@ class SRM(BaseEstimator, TransformerMixin):
         if parallel == "cpu" and len(X) > 1:
             # CPU-parallel transform across subjects
             from joblib import Parallel, delayed
-            
+
             def _transform_one_subject(subj_idx):
                 """Transform one subject."""
                 if X[subj_idx] is not None:
                     return self.w_[subj_idx].T.dot(X[subj_idx])
                 return None
-            
+
             # Use stored n_jobs from fit if available, otherwise use provided
             n_jobs_to_use = getattr(self, "_n_jobs", n_jobs)
             if n_jobs_to_use == -1:
                 # Auto-detect based on memory
                 try:
-                    from nltools.algorithms.inference.utils import _auto_n_jobs_cpu, _estimate_data_size_mb
+                    from nltools.algorithms.inference.utils import (
+                        _auto_n_jobs_cpu,
+                        _estimate_data_size_mb,
+                    )
+
                     # Estimate memory for largest subject
-                    max_size_mb = max(_estimate_data_size_mb(x) for x in X if x is not None)
+                    max_size_mb = max(
+                        _estimate_data_size_mb(x) for x in X if x is not None
+                    )
                     n_jobs_to_use = _auto_n_jobs_cpu(
                         data_size_mb=max_size_mb,
                         n_permute=len(X),
@@ -341,7 +347,7 @@ class SRM(BaseEstimator, TransformerMixin):
                 except ImportError:
                     # Fallback to single-threaded if inference utils not available
                     n_jobs_to_use = 1
-            
+
             s = Parallel(n_jobs=n_jobs_to_use)(
                 delayed(_transform_one_subject)(i) for i in range(len(X))
             )
@@ -604,7 +610,7 @@ class SRM(BaseEstimator, TransformerMixin):
             # Use CPU parallelization for multi-subject updates if requested
             if parallel == "cpu" and subjects > 1:
                 from joblib import Parallel, delayed
-                
+
                 def _update_one_subject(subj_idx):
                     """Update transform and variance for one subject."""
                     if x[subj_idx] is not None:
@@ -622,14 +628,22 @@ class SRM(BaseEstimator, TransformerMixin):
                         return w_new, rho2_new
                     else:
                         return None, 0.0
-                
+
                 # Auto-detect n_jobs if needed
                 n_jobs_to_use = n_jobs
                 if n_jobs_to_use == -1:
                     try:
-                        from nltools.algorithms.inference.utils import _auto_n_jobs_cpu, _estimate_data_size_mb
+                        from nltools.algorithms.inference.utils import (
+                            _auto_n_jobs_cpu,
+                            _estimate_data_size_mb,
+                        )
+
                         # Estimate memory for largest subject
-                        max_size_mb = max(_estimate_data_size_mb(x[i]) for i in range(subjects) if x[i] is not None)
+                        max_size_mb = max(
+                            _estimate_data_size_mb(x[i])
+                            for i in range(subjects)
+                            if x[i] is not None
+                        )
                         n_jobs_to_use = _auto_n_jobs_cpu(
                             data_size_mb=max_size_mb,
                             n_permute=subjects,
@@ -638,7 +652,7 @@ class SRM(BaseEstimator, TransformerMixin):
                         )
                     except ImportError:
                         n_jobs_to_use = 1
-                
+
                 # Parallel update
                 results = Parallel(n_jobs=n_jobs_to_use)(
                     delayed(_update_one_subject)(i) for i in range(subjects)
@@ -770,11 +784,11 @@ class DetSRM(BaseEstimator, TransformerMixin):
             self (DetSRM): Fitted model
         """
         logger.info("Starting Deterministic SRM")
-        
+
         # Validate parallel parameter
         if parallel not in [None, "cpu", "gpu"]:
             raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel}")
-        
+
         # Store parallel settings for use in _srm
         self._parallel = parallel
         self._n_jobs = n_jobs
@@ -832,7 +846,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
             s (list of 2D arrays, element i has shape=[features_i, samples_i]):
                 Shared responses from input data (X)
         """
-        
+
         # Validate parallel parameter
         if parallel not in [None, "cpu", "gpu"]:
             raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel}")
@@ -851,17 +865,21 @@ class DetSRM(BaseEstimator, TransformerMixin):
         if parallel == "cpu" and len(X) > 1:
             # CPU-parallel transform across subjects
             from joblib import Parallel, delayed
-            
+
             def _transform_one_subject(subj_idx):
                 """Transform one subject."""
                 return self.w_[subj_idx].T.dot(X[subj_idx])
-            
+
             # Use stored n_jobs from fit if available, otherwise use provided
             n_jobs_to_use = getattr(self, "_n_jobs", n_jobs)
             if n_jobs_to_use == -1:
                 # Auto-detect based on memory
                 try:
-                    from nltools.algorithms.inference.utils import _auto_n_jobs_cpu, _estimate_data_size_mb
+                    from nltools.algorithms.inference.utils import (
+                        _auto_n_jobs_cpu,
+                        _estimate_data_size_mb,
+                    )
+
                     # Estimate memory for largest subject
                     max_size_mb = max(_estimate_data_size_mb(x) for x in X)
                     n_jobs_to_use = _auto_n_jobs_cpu(
@@ -873,7 +891,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
                 except ImportError:
                     # Fallback to single-threaded if inference utils not available
                     n_jobs_to_use = 1
-            
+
             s = Parallel(n_jobs=n_jobs_to_use)(
                 delayed(_transform_one_subject)(i) for i in range(len(X))
             )
@@ -1020,7 +1038,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
             # Use CPU parallelization for multi-subject updates if requested
             if parallel == "cpu" and subjects > 1:
                 from joblib import Parallel, delayed
-                
+
                 def _update_one_subject(subj_idx):
                     """Update transform for one subject."""
                     a_subject = data[subj_idx].dot(shared_response.T)
@@ -1030,14 +1048,20 @@ class DetSRM(BaseEstimator, TransformerMixin):
                         a_subject + perturbation, full_matrices=False
                     )
                     return u_subject.dot(v_subject)
-                
+
                 # Auto-detect n_jobs if needed
                 n_jobs_to_use = n_jobs
                 if n_jobs_to_use == -1:
                     try:
-                        from nltools.algorithms.inference.utils import _auto_n_jobs_cpu, _estimate_data_size_mb
+                        from nltools.algorithms.inference.utils import (
+                            _auto_n_jobs_cpu,
+                            _estimate_data_size_mb,
+                        )
+
                         # Estimate memory for largest subject
-                        max_size_mb = max(_estimate_data_size_mb(data[i]) for i in range(subjects))
+                        max_size_mb = max(
+                            _estimate_data_size_mb(data[i]) for i in range(subjects)
+                        )
                         n_jobs_to_use = _auto_n_jobs_cpu(
                             data_size_mb=max_size_mb,
                             n_permute=subjects,
@@ -1046,7 +1070,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
                         )
                     except ImportError:
                         n_jobs_to_use = 1
-                
+
                 # Parallel update
                 w = Parallel(n_jobs=n_jobs_to_use)(
                     delayed(_update_one_subject)(i) for i in range(subjects)

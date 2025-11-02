@@ -55,7 +55,9 @@ def extract_triangle_elements(
             lower = matrix[np.tril_indices(matrix.shape[0], k=-1)]
             return np.concatenate([upper, lower])
     else:
-        raise ValueError(f"triangle must be 'upper', 'lower', or 'full', got {triangle}")
+        raise ValueError(
+            f"triangle must be 'upper', 'lower', or 'full', got {triangle}"
+        )
 
 
 def permute_matrix_symmetric(
@@ -109,7 +111,9 @@ def ensure_2d(array: np.ndarray, name: str = "array") -> np.ndarray:
     elif array.ndim == 2:
         return array
     else:
-        raise ValueError(f"{name} must be 1D or 2D, got shape {array.shape} ({array.ndim}D)")
+        raise ValueError(
+            f"{name} must be 1D or 2D, got shape {array.shape} ({array.ndim}D)"
+        )
 
 
 def batch_or_skip(array: np.ndarray, batch: slice, axis: int) -> np.ndarray:
@@ -146,4 +150,3 @@ def batch_or_skip(array: np.ndarray, batch: slice, axis: int) -> np.ndarray:
             return array[:, batch]
         else:
             raise ValueError(f"axis must be 0 or 1, got {axis}")
-

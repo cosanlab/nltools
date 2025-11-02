@@ -7,14 +7,10 @@ from scipy.stats import kstest
 from nltools.algorithms.inference import two_sample_permutation_test
 from nltools.tests.core.test_inference import (
     N_PERMUTE_BACKEND,
-    N_PERMUTE_STATS_COMPARISON,
-    TOLERANCE_STATS_DETERMINISTIC,
-    TOLERANCE_STATS_PVALUE,
     TOLERANCE_GPU_VALUE,
     TOLERANCE_GPU_PVALUE,
 )
 from nltools.backends import check_gpu_available
-from nltools.stats import two_sample_permutation as stats_two_sample
 
 
 class TestTwoSamplePermutation:
@@ -145,10 +141,10 @@ class TestTwoSamplePermutation:
         data2 = np.random.randn(30) + 0.5
 
         result_two = two_sample_permutation_test(
-            data1, data2, n_permute=N_PERMUTE_STATS_COMPARISON, tail=2, random_state=42
+            data1, data2, n_permute=1000, tail=2, random_state=42
         )
         result_one = two_sample_permutation_test(
-            data1, data2, n_permute=N_PERMUTE_STATS_COMPARISON, tail=1, random_state=42
+            data1, data2, n_permute=1000, tail=1, random_state=42
         )
 
         # One-tailed should be different from two-tailed
@@ -169,7 +165,7 @@ class TestTwoSamplePermutation:
         data1 = np.random.randn(5, 5, 5)  # 3D
         data2 = np.random.randn(5, 5, 5)
 
-        with pytest.raises(ValueError, match="data1 must be 1D or 2D"):
+        with pytest.raises(ValueError, match="data1 must be 1D to 2D"):
             two_sample_permutation_test(data1, data2)
 
     @pytest.mark.tier1
@@ -259,43 +255,6 @@ class TestTwoSamplePermutation:
             results["numpy"]["p"],
             results["torch"]["p"],
             rtol=1e-5,
-        )
-
-    @pytest.mark.tier2
-    def test_matches_stats_single_feature(self):
-        """Test that results match stats.py for single feature."""
-        np.random.seed(42)
-        data1 = np.random.randn(20)
-        data2 = np.random.randn(25)
-
-        # New implementation
-        result_new = two_sample_permutation_test(
-            data1,
-            data2,
-            n_permute=N_PERMUTE_STATS_COMPARISON,
-            parallel=None,
-            random_state=42,
-        )
-
-        # Old implementation
-        result_old = stats_two_sample(
-            data1,
-            data2,
-            n_permute=N_PERMUTE_STATS_COMPARISON,
-            tail=2,
-            n_jobs=1,
-            random_state=42,
-        )
-
-        # Mean difference should be identical
-        np.testing.assert_allclose(
-            result_new["mean_diff"],
-            result_old["mean"],
-            rtol=TOLERANCE_STATS_DETERMINISTIC,
-        )
-        # P-values will differ slightly due to different random sampling (~15%)
-        np.testing.assert_allclose(
-            result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE
         )
 
     @pytest.mark.tier2

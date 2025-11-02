@@ -8,7 +8,6 @@ Following model-spec.md Phase 2 implementation.
 import numpy as np
 import pytest
 from nltools.algorithms.ridge import ridge_svd
-from nltools.backends import Backend
 
 
 # ============================================================================

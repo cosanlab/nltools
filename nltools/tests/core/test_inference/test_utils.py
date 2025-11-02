@@ -161,7 +161,9 @@ class TestMemoryManagement:
             # Should warn if reduction is significant (>20%)
             if (8 - n_jobs) / 8 >= 0.2:
                 assert len(w) > 0
-                assert any("exceeds memory limit" in str(warning.message) for warning in w)
+                assert any(
+                    "exceeds memory limit" in str(warning.message) for warning in w
+                )
 
     def test_verify_n_jobs_memory_constraint_respects_cpu_limit(self):
         """Test that memory constraint respects CPU count limit."""

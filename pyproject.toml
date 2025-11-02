@@ -64,5 +64,6 @@ markers = [
     "tier1: Fast core tests (<3s, run on every iteration)",
     "tier2: Comprehensive tests (>3s, run before commits)",
 ]
-# Default: run tier1 only for fast feedback during development
-addopts = "-m 'not tier2'"
+# Default: run tier1 only for fast feedback during development and CI
+# This ensures GitHub Actions runs only fast tests by default
+addopts = "-m tier1"

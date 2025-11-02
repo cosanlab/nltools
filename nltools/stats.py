@@ -2270,15 +2270,24 @@ def compute_icc(Y, icc_type="icc2"):
 
     # Sum square column effect - between columns (sessions)
     SSC = ((np.mean(Y, axis=0) - mean_Y) ** 2).sum() * n
-    MSC = SSC / dfc
+    # Handle edge case: single session (dfc = 0)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        MSC = SSC / dfc if dfc > 0 else np.nan
 
     # Sum Square Row effect - between rows/subjects
     SSR = ((np.mean(Y, axis=1) - mean_Y) ** 2).sum() * k
-    MSR = SSR / dfr
+    # Handle edge case: single subject (dfr = 0)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        MSR = SSR / dfr if dfr > 0 else np.nan
 
     # Sum Square Error - compute efficiently using SST = SSC + SSR + SSE
     SSE = SST - SSC - SSR
-    MSE = SSE / dfe
+    # Handle edge case: single subject or single session (dfe = 0)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        MSE = SSE / dfe if dfe > 0 else np.nan
+
+    # Small constant to prevent division by zero in ICC calculations
+    EPSILON = 1e-10
 
     if icc_type == "icc1":
         # ICC(1) - One-way random effects model
@@ -2290,21 +2299,26 @@ def compute_icc(Y, icc_type="icc2"):
         # MS_within = variance within subjects (error)
         # Note: ICC1 uses the same MSR and MSE as computed above, but interpretation differs
         # ICC(1) assumes sessions are interchangeable (no session effect in model)
-        ICC = (MSR - MSE) / (MSR + (k - 1) * MSE)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            ICC = (MSR - MSE) / (MSR + (k - 1) * MSE + EPSILON)
 
     elif icc_type == "icc2":
         # ICC(2,1) = (mean square subject - mean square error) /
         # (mean square subject + (k-1)*mean square error +
         # k*(mean square columns - mean square error)/n)
-        ICC = (MSR - MSE) / (MSR + (k - 1) * MSE + k * (MSC - MSE) / n)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            ICC = (MSR - MSE) / (MSR + (k - 1) * MSE + k * (MSC - MSE) / n + EPSILON)
 
     elif icc_type == "icc3":
         # ICC(3,1) = (mean square subject - mean square error) /
         # (mean square subject + (k-1)*mean square error)
-        ICC = (MSR - MSE) / (MSR + (k - 1) * MSE)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            ICC = (MSR - MSE) / (MSR + (k - 1) * MSE + EPSILON)
 
     else:
-        raise ValueError(f"icc_type must be 'icc1', 'icc2', or 'icc3', got '{icc_type}'")
+        raise ValueError(
+            f"icc_type must be 'icc1', 'icc2', or 'icc3', got '{icc_type}'"
+        )
 
     return ICC
 

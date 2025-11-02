@@ -4,10 +4,8 @@ Tests for BrainData.icc() integration with voxel-wise ICC computation.
 
 import pytest
 import numpy as np
-import pandas as pd
 
 from nltools.data import BrainData
-from nltools.tests.conftest import minimal_brain_data
 from nltools.stats import compute_icc
 
 

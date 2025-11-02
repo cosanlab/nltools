@@ -76,8 +76,7 @@ def validate_array_shape(
     """
     if array.ndim != expected_ndim:
         raise ValueError(
-            f"{name} must be {expected_ndim}D, got shape {array.shape} "
-            f"({array.ndim}D)"
+            f"{name} must be {expected_ndim}D, got shape {array.shape} ({array.ndim}D)"
         )
 
 
@@ -170,9 +169,7 @@ def validate_metric_parameter(
     """
     if metric not in allowed:
         allowed_str = ", ".join(f"'{m}'" for m in allowed)
-        raise ValueError(
-            f"{name} must be one of [{allowed_str}], got {metric!r}"
-        )
+        raise ValueError(f"{name} must be one of [{allowed_str}], got {metric!r}")
 
 
 def validate_how_parameter(how: str) -> None:
@@ -202,7 +199,9 @@ def validate_square_matrix(matrix: np.ndarray, name: str = "matrix") -> None:
         raise ValueError(f"{name} must be square, got shape {matrix.shape}")
 
 
-def validate_n_samples(n_samples: int, min_samples: int = 2, name: str = "n_samples") -> None:
+def validate_n_samples(
+    n_samples: int, min_samples: int = 2, name: str = "n_samples"
+) -> None:
     """Validate number of samples.
 
     Args:
@@ -214,9 +213,7 @@ def validate_n_samples(n_samples: int, min_samples: int = 2, name: str = "n_samp
         ValueError: If n_samples is less than min_samples
     """
     if n_samples < min_samples:
-        raise ValueError(
-            f"{name} must be at least {min_samples}, got {n_samples}"
-        )
+        raise ValueError(f"{name} must be at least {min_samples}, got {n_samples}")
 
 
 def validate_percentiles(percentiles: Tuple[float, float]) -> None:
@@ -283,7 +280,9 @@ def validate_shape_compatibility(
         )
 
 
-def validate_bootstrap_method(method: str, simple_methods: list[str], fitted_methods: list[str]) -> None:
+def validate_bootstrap_method(
+    method: str, simple_methods: list[str], fitted_methods: list[str]
+) -> None:
     """Validate bootstrap method name.
 
     Args:
@@ -357,4 +356,3 @@ def validate_isc_parameters(
     if method is not None:
         if method not in ["permute", "bootstrap"]:
             raise ValueError(f"method must be 'permute' or 'bootstrap', got {method}")
-

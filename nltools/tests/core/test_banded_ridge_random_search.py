@@ -46,10 +46,10 @@ def test_solve_banded_ridge_cv_basic():
         progress_bar=False,
         random_state=42,
     )
-    
-    deltas = result['deltas']
-    coefs = result['coefs']
-    cv_scores = result['cv_scores']
+
+    deltas = result["deltas"]
+    coefs = result["coefs"]
+    cv_scores = result["cv_scores"]
 
     # Check outputs
     assert deltas.shape == (2, n_targets)  # 2 feature spaces
@@ -94,10 +94,10 @@ def test_solve_banded_ridge_cv_with_provided_gammas():
         return_weights=True,
         progress_bar=False,
     )
-    
-    deltas = result['deltas']
-    coefs = result['coefs']
-    cv_scores = result['cv_scores']
+
+    deltas = result["deltas"]
+    coefs = result["coefs"]
+    cv_scores = result["cv_scores"]
 
     assert deltas.shape == (2, n_targets)
     assert coefs.shape == (n_features1 + n_features2, n_targets)
@@ -127,10 +127,10 @@ def test_solve_banded_ridge_cv_no_weights():
         progress_bar=False,
         random_state=42,
     )
-    
-    deltas = result['deltas']
-    coefs = result.get('coefs')  # May be None if return_weights=False
-    cv_scores = result['cv_scores']
+
+    deltas = result["deltas"]
+    coefs = result.get("coefs")  # May be None if return_weights=False
+    cv_scores = result["cv_scores"]
 
     assert deltas.shape == (2, n_targets)
     assert coefs is None
@@ -158,10 +158,10 @@ def test_solve_banded_ridge_cv_single_space():
         progress_bar=False,
         random_state=42,
     )
-    
-    deltas = result['deltas']
-    coefs = result['coefs']
-    cv_scores = result['cv_scores']
+
+    deltas = result["deltas"]
+    coefs = result["coefs"]
+    cv_scores = result["cv_scores"]
 
     assert deltas.shape == (1, n_targets)  # 1 feature space
     assert coefs.shape == (n_features, n_targets)
@@ -193,10 +193,10 @@ def test_solve_banded_ridge_cv_with_intercept():
         random_state=42,
     )
 
-    deltas = result['deltas']
-    coefs = result['coefs']
-    intercept = result.get('intercept')
-    
+    deltas = result["deltas"]
+    coefs = result["coefs"]
+    intercept = result.get("intercept")
+
     assert deltas.shape == (2, n_targets)
     assert coefs.shape == (n_features1 + n_features2, n_targets)
     if intercept is not None:

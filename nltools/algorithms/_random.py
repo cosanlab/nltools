@@ -157,4 +157,3 @@ def generate_bootstrap_indices(
     )
 
     return indices
-

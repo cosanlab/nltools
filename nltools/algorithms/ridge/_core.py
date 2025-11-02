@@ -138,9 +138,7 @@ def ridge_svd(
                 # If Backend initialization fails, fallback to CPU
                 backend = Backend("numpy")
         else:
-            raise ValueError(
-                f"parallel must be None, 'cpu', or 'gpu', got: {parallel}"
-            )
+            raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got: {parallel}")
     else:
         raise ValueError(
             f"parallel must be None, 'cpu', 'gpu', or Backend instance, got: {type(parallel)}"
@@ -280,9 +278,7 @@ def ridge_cv(
             # If Backend initialization fails, fallback to CPU
             backend = Backend("numpy")
     else:
-        raise ValueError(
-            f"parallel must be None, 'cpu', or 'gpu', got: {parallel}"
-        )
+        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got: {parallel}")
 
     # Determine if single or multi-target
     single_target = y.ndim == 1
@@ -317,7 +313,9 @@ def ridge_cv(
             # Convert backend to parallel parameter for ridge_svd
             # Backend handles MPS/CUDA/CPU gracefully, but ridge_svd expects simple parallel param
             if backend.name.startswith("torch"):
-                parallel_param = "gpu"  # Backend will use GPU/MPS if available, CPU otherwise
+                parallel_param = (
+                    "gpu"  # Backend will use GPU/MPS if available, CPU otherwise
+                )
             else:
                 parallel_param = "cpu"
             coef = ridge_svd(X_train, y_train, alpha=alpha, parallel=parallel_param)

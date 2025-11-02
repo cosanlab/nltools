@@ -36,10 +36,10 @@ def test_solve_banded_ridge_cv_mps():
         progress_bar=False,
         random_state=42,
     )
-    
-    deltas = result['deltas']
-    coefs = result['coefs']
-    cv_scores = result['cv_scores']
+
+    deltas = result["deltas"]
+    coefs = result["coefs"]
+    cv_scores = result["cv_scores"]
 
     # Check outputs
     assert deltas.shape == (2, n_targets)
