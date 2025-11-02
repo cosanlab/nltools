@@ -811,7 +811,7 @@ def test_isc_group_permutation_test_backend_consistency():
     result_numpy = isc_group_permutation_test(
         group1,
         group2,
-        backend="numpy",
+        parallel=None,
         n_permute=100,
         random_state=42,
         progress_bar=False,
@@ -820,7 +820,7 @@ def test_isc_group_permutation_test_backend_consistency():
     result_parallel = isc_group_permutation_test(
         group1,
         group2,
-        backend="cpu-parallel",
+        parallel="cpu",
         n_permute=100,
         random_state=42,
         progress_bar=False,
@@ -853,8 +853,8 @@ def test_isc_group_permutation_test_return_null():
         progress_bar=False,
     )
 
-    assert "null_distribution" in result
-    assert result["null_distribution"].shape == (100,)
+    assert "null_dist" in result
+    assert result["null_dist"].shape == (100,)
 
 
 @pytest.mark.tier1
@@ -1186,7 +1186,7 @@ class TestISCGroupStatisticalCorrectness:
         )
 
         # Bootstrap distribution should be centered (mean ≈ 0 after centering)
-        null_dist = result["null_distribution"]
+        null_dist = result["null_dist"]
         null_mean = np.nanmean(null_dist)
 
         # Bootstrap distribution is centered by subtracting observed difference
@@ -1319,8 +1319,8 @@ def test_stats_isc_group_backward_compatibility():
         random_state=42,
     )
 
-    assert "null_distribution" in result_with_null
-    assert isinstance(result_with_null["null_distribution"], np.ndarray)
+    assert "null_dist" in result_with_null
+    assert isinstance(result_with_null["null_dist"], np.ndarray)
 
     # Test with bootstrap method
     result_bootstrap = isc_group(

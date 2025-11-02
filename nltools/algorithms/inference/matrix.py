@@ -210,20 +210,11 @@ def _matrix_permutation_cpu_parallel(
     if isinstance(p_value, np.ndarray):
         p_value = float(p_value[0])
 
-    # Determine backend name based on n_jobs
-    if n_jobs == -1:
-        import multiprocessing
-
-        n_cores = multiprocessing.cpu_count()
-        backend_name = f"cpu-parallel-{n_cores}"
-    else:
-        backend_name = f"cpu-parallel-{n_jobs}"
-
     # Build result
     result = {
         "correlation": obs_corr,
         "p": p_value,
-        "backend": backend_name,
+        "parallel": "cpu",
     }
 
     if return_null:
@@ -240,6 +231,7 @@ def matrix_permutation_test(
     how: str = "upper",
     include_diag: bool = False,
     tail: int = 2,
+    parallel: Optional[str] = "cpu",
     n_jobs: int = -1,
     return_null: bool = False,
     random_state: Optional[int] = None,
@@ -271,7 +263,11 @@ def matrix_permutation_test(
             - 'full': All elements (see include_diag)
         include_diag (bool): Include diagonal elements (only applies if how='full') (default: False)
         tail (int): One-tailed (1) or two-tailed (2) test (default: 2)
+        parallel (str, optional): Parallelization method (default: 'cpu')
+            - None: Single-threaded NumPy (for debugging/small problems)
+            - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
         n_jobs (int): Number of parallel workers, -1 = all cores (default: -1)
+            Only used when parallel='cpu'
         return_null (bool): Return null distribution (default: False)
         random_state (int, optional): Random seed for reproducibility
 
@@ -279,7 +275,7 @@ def matrix_permutation_test(
         dict: Dictionary with keys:
             - 'correlation' (float): Observed correlation coefficient
             - 'p' (float): P-value using Phipson-Smyth correction
-            - 'backend' (str): Backend used (e.g., 'cpu-parallel-8')
+            - 'parallel' (str): Parallelization method used ('cpu' or None)
             - 'null_dist' (np.ndarray): Null distribution (if return_null=True)
 
     References:
@@ -328,19 +324,70 @@ def matrix_permutation_test(
     if tail not in [1, 2]:
         raise ValueError(f"tail must be 1 or 2, got {tail}")
 
-    # Route to CPU-parallel implementation
-    return _matrix_permutation_cpu_parallel(
-        data1=data1,
-        data2=data2,
-        n_permute=n_permute,
-        metric=metric,
-        how=how,
-        include_diag=include_diag,
-        tail=tail,
-        return_null=return_null,
-        n_jobs=n_jobs,
-        random_state=random_state,
-    )
+    # Validate parallel parameter
+    if parallel not in [None, "cpu"]:
+        raise ValueError(
+            f"parallel must be None or 'cpu', got {parallel!r}. "
+            "GPU support not yet implemented for matrix permutation tests."
+        )
+
+    # Decide execution mode based on parallel parameter
+    if parallel == "cpu":
+        # CPU parallelization mode
+        return _matrix_permutation_cpu_parallel(
+            data1=data1,
+            data2=data2,
+            n_permute=n_permute,
+            metric=metric,
+            how=how,
+            include_diag=include_diag,
+            tail=tail,
+            return_null=return_null,
+            n_jobs=n_jobs,
+            random_state=random_state,
+        )
+    else:
+        # Single-threaded NumPy mode
+        rng = np.random.RandomState(random_state)
+        seeds = rng.randint(MAX_INT, size=n_permute)
+
+        # Compute observed correlation
+        obs_corr = _compute_matrix_correlation(
+            data1, data2, how=how, include_diag=include_diag, metric=metric
+        )
+
+        # Generate null distribution
+        null_dist = []
+        for seed in seeds:
+            perm_rng = np.random.RandomState(seed)
+            perm = perm_rng.permutation(data1.shape[0])
+            permuted_matrix = _permute_matrix_symmetric(data1, perm)
+            corr = _compute_matrix_correlation(
+                permuted_matrix,
+                data2,
+                how=how,
+                include_diag=include_diag,
+                metric=metric,
+            )
+            null_dist.append(corr)
+
+        null_dist = np.array(null_dist)
+
+        # Compute p-value
+        p_value = _compute_pvalue(obs_corr, null_dist, tail=tail)
+        if isinstance(p_value, np.ndarray):
+            p_value = float(p_value[0])
+
+        result = {
+            "correlation": obs_corr,
+            "p": p_value,
+            "parallel": None,
+        }
+
+        if return_null:
+            result["null_dist"] = null_dist
+
+        return result
 
 
 # ============================================================================

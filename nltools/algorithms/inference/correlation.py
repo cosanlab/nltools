@@ -7,11 +7,11 @@ of correlations.
 """
 
 import numpy as np
-from typing import Union, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 from sklearn.utils import check_random_state
 from scipy.stats import rankdata, kendalltau
 
-from nltools.backends import Backend, auto_select_backend
+from nltools.backends import Backend
 from .utils import _compute_pvalue, _auto_batch_size, EPSILON
 
 if TYPE_CHECKING:
@@ -241,20 +241,11 @@ def _correlation_permutation_cpu_parallel(
         obs_corr = float(obs_corr[0])
         p_values = float(p_values[0])
 
-    # Determine backend name
-    if n_jobs == -1:
-        import multiprocessing
-
-        n_cores = multiprocessing.cpu_count()
-        backend_name = f"cpu-parallel-{n_cores}"
-    else:
-        backend_name = f"cpu-parallel-{n_jobs}"
-
     # Build result
     result = {
         "correlation": obs_corr,
         "p": p_values,
-        "backend": backend_name,
+        "parallel": "cpu",
     }
 
     if return_null:
@@ -650,7 +641,7 @@ def _correlation_permutation_gpu_batched(
     result = {
         "correlation": obs_corr,
         "p": p_values,
-        "backend": backend.name,
+        "parallel": "gpu",
     }
 
     if return_null:
@@ -668,7 +659,7 @@ def correlation_permutation_test(
     metric: str = "pearson",
     tail: int = 2,
     return_null: bool = False,
-    backend: Optional[Union[Backend, str]] = None,
+    parallel: Optional[str] = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     random_state: Optional[int] = None,
@@ -682,9 +673,6 @@ def correlation_permutation_test(
     Assumption: Observations are independent (i.i.d.). For autocorrelated time
     series, use timeseries_correlation_permutation_test with circle_shift or
     phase_randomize methods instead.
-
-    When backend='torch', uses GPU acceleration with automatic batching.
-    When backend=None (default), uses efficient CPU parallelization via joblib.
 
     Args:
         data1 (np.ndarray): Data to permute
@@ -702,16 +690,16 @@ def correlation_permutation_test(
             - 1: One-tailed test
             - 2: Two-tailed test
         return_null (bool): If True, return full null distribution (default: False)
-        backend (Backend or str, optional): Backend for computation
-            - 'numpy': CPU-only (single-threaded)
-            - 'torch': GPU acceleration with automatic batching
-            - 'auto': Automatically select based on problem size
-            - None: Uses efficient CPU parallelization (n_jobs)
+        parallel (str, optional): Parallelization method (default: 'cpu')
+            - None: Single-threaded NumPy (for debugging/small problems)
+            - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
+            - 'gpu': GPU acceleration via PyTorch (fastest for large problems)
         n_jobs (int): Number of CPU cores for parallelization (default: -1 = all cores)
-            Only used when backend=None (CPU parallelization mode)
+            Only used when parallel='cpu'
         max_gpu_memory_gb (float): Maximum GPU memory to use in GB (default: 4.0)
             Controls automatic batching to prevent OOM errors. Only used with
-            backend='torch' or 'auto'.
+            parallel='gpu'. Larger values allow more permutations per batch but
+            risk OOM on smaller GPUs.
         random_state (int, optional): Random seed for reproducibility
 
     Returns:
@@ -719,10 +707,10 @@ def correlation_permutation_test(
             - 'correlation' (float or np.ndarray): Observed correlation(s)
             - 'p' (float or np.ndarray): P-value(s)
             - 'null_dist' (np.ndarray): Null distribution (if return_null=True)
-            - 'backend' (str): Backend used for computation
+            - 'parallel' (str): Parallelization method used
 
     Examples:
-        >>> # Single feature (1D arrays)
+        >>> # Single feature (default CPU parallelization)
         >>> x = np.random.randn(100)
         >>> y = x + np.random.randn(100) * 0.5  # Correlated
         >>> result = correlation_permutation_test(x, y, n_permute=5000)
@@ -741,17 +729,21 @@ def correlation_permutation_test(
         (10,)
 
         >>> # GPU acceleration
-        >>> result = correlation_permutation_test(data1, data2, n_permute=5000, backend='torch')
+        >>> result = correlation_permutation_test(data1, data2, n_permute=5000, parallel='gpu')
 
     Notes:
-        - Default (backend=None): CPU parallelization with joblib (4-8× speedup)
-        - GPU backend (torch): Fastest for large problems with automatic batching
+        - Default (parallel='cpu'): CPU parallelization with joblib (4-8× speedup)
+        - GPU parallelization ('gpu'): Fastest for large problems with automatic batching
             - Pearson correlation: Fully vectorized across all features (5-20× speedup for multi-feature)
-            - Spearman/Kendall: CPU-parallel and NumPy backends only (GPU not yet implemented)
-        - NumPy backend: Single-threaded, use for small problems or debugging
+            - Spearman/Kendall: Only supported with parallel='cpu' or parallel=None (GPU not yet implemented)
+        - Single-threaded (parallel=None): Use for small problems or debugging
         - For multi-feature data, each feature pair tested independently
         - Kendall is O(n^2) complexity, slower than Pearson/Spearman for large samples
     """
+    # Validate parallel parameter
+    if parallel not in [None, "cpu", "gpu"]:
+        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel!r}")
+
     # Input validation
     data1 = np.asarray(data1, dtype=np.float64)
     data2 = np.asarray(data2, dtype=np.float64)
@@ -782,115 +774,98 @@ def correlation_permutation_test(
 
     n_samples, n_features = data1.shape
 
-    # Decide execution mode: GPU backend vs CPU parallelization
-    use_cpu_parallel = backend is None
-
-    if use_cpu_parallel:
-        # CPU parallelization mode (memory-efficient fallback)
-        return _correlation_permutation_cpu_parallel(
-            data1,
-            data2,
-            n_permute,
-            metric,
-            tail,
-            return_null,
-            n_jobs,
-            random_state,
-            single_feature,
-        )
-    else:
-        # GPU/Backend mode
-        if isinstance(backend, str):
-            if backend == "auto":
-                # Auto-select based on problem size and GPU availability
-                backend = auto_select_backend(
-                    n_samples, n_features, cv=n_permute // 1000
-                )
-            else:
-                backend = Backend(backend)
-
     # GPU backend supports Pearson and Spearman (Kendall still uses CPU fallback)
-    if not use_cpu_parallel and metric == "kendall":
+    if parallel == "gpu" and metric == "kendall":
         raise NotImplementedError(
-            "Kendall correlation on GPU backend not yet implemented. "
-            "Use backend=None for CPU-parallel or backend='numpy' for sequential."
+            "Kendall correlation on GPU not yet implemented. "
+            "Use parallel='cpu' or parallel=None for Kendall correlation."
         )
 
-    # Setup random state
-    rng = check_random_state(random_state)
+    # Decide execution mode based on parallel parameter
+    if parallel == "cpu" or parallel is None:
+        # CPU modes
+        if parallel is None:
+            # Single-threaded NumPy
+            rng = check_random_state(random_state)
 
-    # Compute null distribution based on backend
-    if backend.name == "numpy":
-        # NumPy: Sequential processing (simple, memory-efficient)
-        # Uses same deterministic RNG pattern as CPU-parallel and GPU
-
-        # Select correlation function
-        if metric == "pearson":
-            corr_func = _pearson_correlation
-        elif metric == "spearman":
-            corr_func = _spearman_correlation
-        else:
-            raise NotImplementedError(f"Metric '{metric}' not yet implemented")
-
-        # Compute observed correlation
-        if n_features == 1:
-            obs_corr = corr_func(data1[:, 0], data2[:, 0])
-            obs_corr = np.array([obs_corr])
-        else:
-            obs_corr = np.array(
-                [corr_func(data1[:, i], data2[:, i]) for i in range(n_features)]
-            )
-
-        # Pre-generate seeds for deterministic permutations
-        # Matches CPU-parallel and GPU pattern: independent RandomState per permutation
-        MAX_INT = 2**31 - 1
-        seeds = rng.randint(MAX_INT, size=n_permute)
-
-        # Generate null distribution
-        null_dist = []
-        for i in range(n_permute):
-            # Use independent RandomState for this permutation (matches CPU-parallel)
-            perm_rng = np.random.RandomState(seeds[i])
-            indices = perm_rng.permutation(n_samples)
-            perm_data1 = data1[indices]
-
-            # Compute correlation for each feature
-            if n_features == 1:
-                corr = corr_func(perm_data1[:, 0], data2[:, 0])
+            # Select correlation function
+            if metric == "pearson":
+                corr_func = _pearson_correlation
+            elif metric == "spearman":
+                corr_func = _spearman_correlation
+            elif metric == "kendall":
+                corr_func = _kendall_correlation
             else:
-                corr = np.array(
-                    [
-                        corr_func(perm_data1[:, i], data2[:, i])
-                        for i in range(n_features)
-                    ]
+                raise NotImplementedError(f"Metric '{metric}' not yet implemented")
+
+            # Compute observed correlation
+            if n_features == 1:
+                obs_corr = corr_func(data1[:, 0], data2[:, 0])
+                obs_corr = np.array([obs_corr])
+            else:
+                obs_corr = np.array(
+                    [corr_func(data1[:, i], data2[:, i]) for i in range(n_features)]
                 )
-            null_dist.append(corr)
 
-        null_dist = np.array(null_dist)  # (n_permute, n_features)
+            # Pre-generate seeds for deterministic permutations
+            MAX_INT = 2**31 - 1
+            seeds = rng.randint(MAX_INT, size=n_permute)
 
-        # Compute p-values
-        p_values = _compute_pvalue(obs_corr, null_dist, tail=tail)
+            # Generate null distribution
+            null_dist = []
+            for i in range(n_permute):
+                perm_rng = np.random.RandomState(seeds[i])
+                indices = perm_rng.permutation(n_samples)
+                perm_data1 = data1[indices]
 
-        # Return to original shape
-        if single_feature:
-            obs_corr = float(obs_corr[0])
-            p_values = float(p_values[0])
+                # Compute correlation for each feature
+                if n_features == 1:
+                    corr = corr_func(perm_data1[:, 0], data2[:, 0])
+                else:
+                    corr = np.array(
+                        [
+                            corr_func(perm_data1[:, i], data2[:, i])
+                            for i in range(n_features)
+                        ]
+                    )
+                null_dist.append(corr)
 
-        # Build result dict
-        result = {
-            "correlation": obs_corr,
-            "p": p_values,
-            "backend": backend.name,
-        }
+            null_dist = np.array(null_dist)
+            p_values = _compute_pvalue(obs_corr, null_dist, tail=tail)
 
-        if return_null:
             if single_feature:
-                null_dist = null_dist.squeeze()
-            result["null_dist"] = null_dist
+                obs_corr = float(obs_corr[0])
+                p_values = float(p_values[0])
 
-        return result
+            result = {
+                "correlation": obs_corr,
+                "p": p_values,
+                "parallel": None,
+            }
+
+            if return_null:
+                if single_feature:
+                    null_dist = null_dist.squeeze()
+                result["null_dist"] = null_dist
+
+            return result
+        else:
+            # CPU parallelization mode
+            return _correlation_permutation_cpu_parallel(
+                data1,
+                data2,
+                n_permute,
+                metric,
+                tail,
+                return_null,
+                n_jobs,
+                random_state,
+                single_feature,
+            )
     else:
-        # PyTorch: GPU with automatic batching
+        # GPU mode
+        backend_obj = Backend("torch")
+        rng = check_random_state(random_state)
         return _correlation_permutation_gpu_batched(
             data1,
             data2,
@@ -898,7 +873,7 @@ def correlation_permutation_test(
             metric,
             tail,
             return_null,
-            backend,
+            backend_obj,
             max_gpu_memory_gb,
             rng,
             single_feature,

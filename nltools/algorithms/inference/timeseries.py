@@ -27,7 +27,7 @@ from .correlation import (
     _spearman_correlation,
     _kendall_correlation,
 )
-from nltools.backends import Backend, auto_select_backend
+from nltools.backends import Backend
 
 if TYPE_CHECKING:
     import torch
@@ -125,15 +125,19 @@ def phase_randomize(
 
     Args:
         data: Time series data, shape (n_samples,) or (n_samples, n_features)
-        backend: Computation backend ('numpy' or 'torch'). If None, auto-selects.
+        backend: Computation backend ('numpy' or 'torch').
+            - 'numpy': CPU implementation using NumPy FFT (default, float64 precision)
+            - 'torch': GPU implementation using PyTorch FFT (float32 precision, faster)
+            - None: Defaults to 'numpy'
         random_state: Random seed for reproducibility
 
     Returns:
         Phase-randomized data with same shape as input
 
     Notes:
-        - **CRITICAL**: Preserves power spectrum exactly
-        - GPU-friendly: Excellent candidate for GPU acceleration via PyTorch FFT
+        - **CRITICAL**: Preserves power spectrum exactly (within numerical precision)
+        - GPU acceleration: Use `backend='torch'` for GPU-accelerated FFT (5-20× faster for large data)
+        - Precision: NumPy backend uses float64, PyTorch backend uses float32
         - Conjugate symmetry is maintained for real-valued output
 
     Examples:
@@ -142,13 +146,30 @@ def phase_randomize(
         >>> # Power spectrum preserved:
         >>> np.allclose(np.abs(np.fft.rfft(x))**2, np.abs(np.fft.rfft(x_rand))**2)
         True
+
+        >>> # GPU acceleration for large datasets:
+        >>> x_large = np.random.randn(10000)
+        >>> x_rand_gpu = phase_randomize(x_large, backend='torch', random_state=42)
     """
     data = np.asarray(data)
     rng = check_random_state(random_state)
 
-    # Use NumPy FFT (PyTorch FFT support can be added later)
-    # For now, we always use NumPy regardless of backend parameter
-    # TODO: Implement PyTorch FFT for GPU acceleration
+    # Handle GPU backend
+    if backend == "torch":
+        from nltools.backends import Backend
+
+        backend_obj = Backend("torch")
+        return _phase_randomize_gpu(data, backend_obj, rng)
+
+    # Default: Use NumPy FFT (CPU)
+    if backend is not None and backend != "numpy":
+        import warnings
+
+        warnings.warn(
+            f"Unknown backend '{backend}'. Using 'numpy' as default.",
+            UserWarning,
+            stacklevel=2,
+        )
 
     # Compute FFT
     fft_data = np.fft.fft(data, axis=0)
@@ -566,11 +587,11 @@ def _timeseries_correlation_permutation_gpu_batched(
     result = {
         "correlation": float(obs_corr),
         "p": p_value.item() if hasattr(p_value, "item") else float(p_value),
-        "backend": backend.name,
+        "parallel": "gpu",
     }
 
     if return_null:
-        result["null_distribution"] = null_dist
+        result["null_dist"] = null_dist
 
     return result
 
@@ -582,7 +603,7 @@ def timeseries_correlation_permutation_test(
     n_permute: int = 5000,
     metric: Literal["pearson", "spearman", "kendall"] = "pearson",
     tail: int = 2,
-    backend: Optional[Union[Backend, str]] = None,
+    parallel: Optional[str] = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     return_null: bool = False,
@@ -607,15 +628,16 @@ def timeseries_correlation_permutation_test(
         n_permute: Number of permutations
         metric: Correlation type ('pearson', 'spearman', 'kendall')
         tail: Test type (1=one-tailed, 2=two-tailed)
-        backend: Backend for computation (default: None = CPU parallel)
-            - None: CPU parallelization with joblib
-            - 'torch': GPU acceleration with automatic batching
-            - 'auto': Automatically select based on problem size
+        parallel: Parallelization method (default: 'cpu')
+            - None: Single-threaded NumPy (for debugging/small problems)
+            - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
+            - 'gpu': GPU acceleration via PyTorch (fastest for large problems)
         n_jobs: Number of parallel jobs (-1 = all cores)
-            Only used when backend=None (CPU parallelization mode)
+            Only used when parallel='cpu'
         max_gpu_memory_gb: Maximum GPU memory to use in GB (default: 4.0)
             Controls automatic batching to prevent OOM errors. Only used with
-            backend='torch' or 'auto'.
+            parallel='gpu'. Larger values allow more permutations per batch but
+            risk OOM on smaller GPUs.
         return_null: Whether to return null distribution
         random_state: Random seed for reproducibility
 
@@ -623,8 +645,8 @@ def timeseries_correlation_permutation_test(
         Dictionary with keys:
             - 'correlation': Observed correlation coefficient
             - 'p': P-value
-            - 'null_distribution': (if return_null=True) Null distribution
-            - 'backend': Backend used for computation
+            - 'null_dist': (if return_null=True) Null distribution
+            - 'parallel': Parallelization method used
 
     Examples:
         >>> x = np.sin(np.linspace(0, 10*np.pi, 100))
@@ -639,18 +661,23 @@ def timeseries_correlation_permutation_test(
 
         >>> # GPU acceleration
         >>> result = timeseries_correlation_permutation_test(
-        ...     x, y, method='phase_randomize', backend='torch', n_permute=5000
+        ...     x, y, method='phase_randomize', parallel='gpu', n_permute=5000
         ... )
 
     Notes:
+        - Default (parallel='cpu'): CPU parallelization with joblib (4-8× speedup)
+        - GPU parallelization ('gpu'): 5-20× faster for large problems (n_samples > 1000)
+        - Single-threaded (parallel=None): Use for small problems or debugging
         - For independent data, use regular correlation_permutation_test
         - circle_shift is faster and suitable for most fMRI time series
         - phase_randomize preserves power spectrum exactly (tests nonlinearity)
         - Only data1 is randomized; data2 remains fixed to test correlation
-        - GPU backend: 5-20× faster for large problems (n_samples > 1000)
-        - CPU backend: Faster for small problems due to GPU overhead
         - phase_randomize benefits most from GPU (FFT acceleration)
     """
+    # Validate parallel parameter
+    if parallel not in [None, "cpu", "gpu"]:
+        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel!r}")
+
     # Validate inputs
     data1 = np.asarray(data1).squeeze()
     data2 = np.asarray(data2).squeeze()
@@ -671,90 +698,113 @@ def timeseries_correlation_permutation_test(
             f"metric must be 'pearson', 'spearman', or 'kendall', got '{metric}'"
         )
 
-    # Decide execution mode: GPU backend vs CPU parallelization
-    use_cpu_parallel = backend is None
+    # Select correlation function
+    if metric == "pearson":
+        corr_func = _pearson_correlation
+    elif metric == "spearman":
+        corr_func = _spearman_correlation
+    else:  # kendall
+        corr_func = _kendall_correlation
 
-    if use_cpu_parallel:
-        # CPU parallelization mode (existing implementation)
-        # Setup random state and generate seeds for workers
-        rng = check_random_state(random_state)
-        MAX_INT = 2**31 - 1
-        seeds = rng.randint(MAX_INT, size=n_permute)
+    # Compute observed correlation
+    obs_corr = corr_func(data1, data2)
+    if isinstance(obs_corr, np.ndarray):
+        obs_corr = obs_corr[0]
+    obs_corr = np.asarray(obs_corr)
 
-        # Select correlation function
-        if metric == "pearson":
-            corr_func = _pearson_correlation
-        elif metric == "spearman":
-            corr_func = _spearman_correlation
-        else:  # kendall
-            corr_func = _kendall_correlation
+    # Decide execution mode based on parallel parameter
+    if parallel == "cpu" or parallel is None:
+        # CPU modes
+        if parallel is None:
+            # Single-threaded NumPy
+            rng = check_random_state(random_state)
+            MAX_INT = 2**31 - 1
+            seeds = rng.randint(MAX_INT, size=n_permute)
 
-        # Compute observed correlation
-        obs_corr = corr_func(data1, data2)
-        if isinstance(obs_corr, np.ndarray):
-            obs_corr = obs_corr[0]
-        obs_corr = np.asarray(obs_corr)  # Ensure it's an ndarray for _compute_pvalue
+            if method == "circle_shift":
+                null_dist = []
+                for seed in seeds:
+                    perm_data1 = circle_shift(data1, random_state=seed)
+                    corr = corr_func(perm_data1, data2)
+                    null_dist.append(corr[0] if isinstance(corr, np.ndarray) else corr)
+            else:  # phase_randomize
+                null_dist = []
+                for seed in seeds:
+                    perm_data1 = phase_randomize(data1, random_state=seed)
+                    corr = corr_func(perm_data1, data2)
+                    null_dist.append(corr[0] if isinstance(corr, np.ndarray) else corr)
 
-        # Define worker function
-        from joblib import Parallel, delayed
-        from tqdm import tqdm
+            null_dist = np.array(null_dist)
+            p_value = _compute_pvalue(obs_corr, null_dist, tail=tail)
 
-        if method == "circle_shift":
+            results = {
+                "correlation": float(obs_corr),
+                "p": p_value.item() if hasattr(p_value, "item") else float(p_value),
+                "parallel": None,
+            }
 
-            def _compute_one_perm(seed):
-                """Compute correlation for one circle_shift permutation."""
-                perm_data1 = circle_shift(data1, random_state=seed)
-                corr = corr_func(perm_data1, data2)
-                return corr[0] if isinstance(corr, np.ndarray) else corr
+            if return_null:
+                results["null_dist"] = null_dist
 
-        else:  # phase_randomize
+            return results
+        else:
+            # CPU parallelization mode (existing implementation)
+            # Setup random state and generate seeds for workers
+            rng = check_random_state(random_state)
+            MAX_INT = 2**31 - 1
+            seeds = rng.randint(MAX_INT, size=n_permute)
 
-            def _compute_one_perm(seed):
-                """Compute correlation for one phase_randomize permutation.
+            # Define worker function
+            from joblib import Parallel, delayed
+            from tqdm import tqdm
 
-                Note: Only data1 is phase-randomized to test correlation significance.
-                Randomizing both variables reduces power and is conceptually incorrect
-                for testing H0: correlation = 0.
-                """
-                perm_data1 = phase_randomize(data1, random_state=seed)
-                # data2 unchanged - this destroys correlation under H0
-                corr = corr_func(perm_data1, data2)
-                return corr[0] if isinstance(corr, np.ndarray) else corr
+            if method == "circle_shift":
 
-        # Execute in parallel with progress bar
-        null_dist = Parallel(n_jobs=n_jobs)(
-            delayed(_compute_one_perm)(seeds[i])
-            for i in tqdm(range(n_permute), desc=f"{method} perms", unit="perm")
-        )
-        null_dist = np.array(null_dist)
+                def _compute_one_perm(seed):
+                    """Compute correlation for one circle_shift permutation."""
+                    perm_data1 = circle_shift(data1, random_state=seed)
+                    corr = corr_func(perm_data1, data2)
+                    return corr[0] if isinstance(corr, np.ndarray) else corr
 
-        # Compute p-value
-        p_value = _compute_pvalue(obs_corr, null_dist, tail=tail)
+            else:  # phase_randomize
 
-        # Prepare results (convert to Python scalars for consistency with stats.py)
-        results = {
-            "correlation": float(obs_corr),
-            "p": p_value.item() if hasattr(p_value, "item") else float(p_value),
-            "backend": "cpu_parallel",
-        }
+                def _compute_one_perm(seed):
+                    """Compute correlation for one phase_randomize permutation.
 
-        if return_null:
-            results["null_distribution"] = null_dist
+                    Note: Only data1 is phase-randomized to test correlation significance.
+                    Randomizing both variables reduces power and is conceptually incorrect
+                    for testing H0: correlation = 0.
+                    """
+                    perm_data1 = phase_randomize(data1, random_state=seed)
+                    # data2 unchanged - this destroys correlation under H0
+                    corr = corr_func(perm_data1, data2)
+                    return corr[0] if isinstance(corr, np.ndarray) else corr
 
-        return results
+            # Execute in parallel with progress bar
+            null_dist = Parallel(n_jobs=n_jobs)(
+                delayed(_compute_one_perm)(seeds[i])
+                for i in tqdm(range(n_permute), desc=f"{method} perms", unit="perm")
+            )
+            null_dist = np.array(null_dist)
+
+            # Compute p-value
+            p_value = _compute_pvalue(obs_corr, null_dist, tail=tail)
+
+            # Prepare results (convert to Python scalars for consistency with stats.py)
+            results = {
+                "correlation": float(obs_corr),
+                "p": p_value.item() if hasattr(p_value, "item") else float(p_value),
+                "parallel": "cpu",
+            }
+
+            if return_null:
+                results["null_dist"] = null_dist
+
+            return results
     else:
-        # GPU/Backend mode
-        if isinstance(backend, str):
-            if backend == "auto":
-                # Auto-select based on problem size and GPU availability
-                backend = auto_select_backend(len(data1), 1, cv=n_permute // 1000)
-            else:
-                backend = Backend(backend)
-
-        # Setup random state
+        # GPU mode
+        backend_obj = Backend("torch")
         rng = check_random_state(random_state)
-
-        # Route to GPU batched implementation
         return _timeseries_correlation_permutation_gpu_batched(
             data1,
             data2,
@@ -763,7 +813,7 @@ def timeseries_correlation_permutation_test(
             metric,
             tail,
             return_null,
-            backend,
+            backend_obj,
             max_gpu_memory_gb,
             rng,
         )

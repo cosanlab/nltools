@@ -6,10 +6,10 @@ of the two-sample permutation test (group permutation test).
 """
 
 import numpy as np
-from typing import Union, Optional
+from typing import Optional
 from sklearn.utils import check_random_state
 
-from nltools.backends import Backend, auto_select_backend
+from nltools.backends import Backend
 from .utils import _compute_pvalue, _auto_batch_size
 
 
@@ -90,20 +90,11 @@ def _two_sample_permutation_cpu_parallel(
         obs_diff = float(obs_diff[0])
         p_values = float(p_values[0])
 
-    # Determine backend name
-    if n_jobs == -1:
-        import multiprocessing
-
-        n_cores = multiprocessing.cpu_count()
-        backend_name = f"cpu-parallel-{n_cores}"
-    else:
-        backend_name = f"cpu-parallel-{n_jobs}"
-
     # Build result
     result = {
         "mean_diff": obs_diff,
         "p": p_values,
-        "backend": backend_name,
+        "parallel": "cpu",
     }
 
     if return_null:
@@ -248,7 +239,7 @@ def _two_sample_permutation_gpu_batched(
     result = {
         "mean_diff": obs_diff,
         "p": p_values,
-        "backend": backend.name,
+        "parallel": "gpu",
     }
 
     if return_null:
@@ -265,7 +256,7 @@ def two_sample_permutation_test(
     n_permute: int = 5000,
     tail: int = 2,
     return_null: bool = False,
-    backend: Optional[Union[Backend, str]] = None,
+    parallel: Optional[str] = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     random_state: Optional[int] = None,
@@ -280,9 +271,6 @@ def two_sample_permutation_test(
     Assumption: Exchangeability under the null hypothesis (group assignments
     are arbitrary). Valid for independent samples from similar distributions.
 
-    When backend='torch', uses GPU acceleration with automatic batching.
-    When backend=None (default), uses efficient CPU parallelization via joblib.
-
     Args:
         data1 (np.ndarray): Group 1 data
             - shape (n_samples1,) for single feature
@@ -295,16 +283,16 @@ def two_sample_permutation_test(
             - 1: One-tailed test
             - 2: Two-tailed test
         return_null (bool): If True, return full null distribution (default: False)
-        backend (Backend or str, optional): Backend for computation
-            - 'numpy': CPU-only (single-threaded)
-            - 'torch': GPU acceleration with automatic batching
-            - 'auto': Automatically select based on problem size
-            - None: Uses efficient CPU parallelization (n_jobs)
+        parallel (str, optional): Parallelization method (default: 'cpu')
+            - None: Single-threaded NumPy (for debugging/small problems)
+            - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
+            - 'gpu': GPU acceleration via PyTorch (fastest for large problems)
         n_jobs (int): Number of CPU cores for parallelization (default: -1 = all cores)
-            Only used when backend=None (CPU parallelization mode)
+            Only used when parallel='cpu'
         max_gpu_memory_gb (float): Maximum GPU memory to use in GB (default: 4.0)
             Controls automatic batching to prevent OOM errors. Only used with
-            backend='torch' or 'auto'.
+            parallel='gpu'. Larger values allow more permutations per batch but
+            risk OOM on smaller GPUs.
         random_state (int, optional): Random seed for reproducibility
 
     Returns:
@@ -312,10 +300,10 @@ def two_sample_permutation_test(
             - 'mean_diff' (float or np.ndarray): Observed mean difference (data1 - data2)
             - 'p' (float or np.ndarray): P-value(s)
             - 'null_dist' (np.ndarray): Null distribution (if return_null=True)
-            - 'backend' (str): Backend used for computation
+            - 'parallel' (str): Parallelization method used
 
     Examples:
-        >>> # Single feature
+        >>> # Single feature (default CPU parallelization)
         >>> data1 = np.random.randn(20)  # Group 1: 20 subjects
         >>> data2 = np.random.randn(25)  # Group 2: 25 subjects
         >>> result = two_sample_permutation_test(data1, data2, n_permute=5000)
@@ -325,22 +313,26 @@ def two_sample_permutation_test(
         >>> # Voxel-wise test with GPU
         >>> data1 = np.random.randn(20, 10000)  # 20 subjects, 10K voxels
         >>> data2 = np.random.randn(25, 10000)  # 25 subjects, 10K voxels
-        >>> result = two_sample_permutation_test(data1, data2, n_permute=5000, backend='torch')
+        >>> result = two_sample_permutation_test(data1, data2, n_permute=5000, parallel='gpu')
         >>> result['mean_diff'].shape
         (10000,)
         >>> result['p'].shape
         (10000,)
 
-        >>> # CPU parallelization (no GPU)
-        >>> result = two_sample_permutation_test(data1, data2, n_permute=5000, n_jobs=-1)
+        >>> # Single-threaded (for debugging)
+        >>> result = two_sample_permutation_test(data1, data2, n_permute=5000, parallel=None)
 
     Notes:
-        - Default (backend=None): CPU parallelization with joblib (4-8× speedup)
-        - GPU backend (torch): Fastest for large problems with automatic batching
-        - NumPy backend: Single-threaded, use for small problems or debugging
+        - Default (parallel='cpu'): CPU parallelization with joblib (4-8× speedup)
+        - GPU parallelization ('gpu'): Fastest for large problems with automatic batching
+        - Single-threaded (parallel=None): Use for small problems or debugging
         - For voxel-wise tests, each voxel tested independently
         - Group sizes can be unequal
     """
+    # Validate parallel parameter
+    if parallel not in [None, "cpu", "gpu"]:
+        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel!r}")
+
     # Input validation
     data1 = np.asarray(data1, dtype=np.float64)
     data2 = np.asarray(data2, dtype=np.float64)
@@ -370,95 +362,69 @@ def two_sample_permutation_test(
     n2 = data2.shape[0]
     n_total = n1 + n2
 
-    # Decide execution mode: GPU backend vs CPU parallelization
-    use_cpu_parallel = backend is None
+    # Decide execution mode based on parallel parameter
+    if parallel == "cpu" or parallel is None:
+        # CPU modes
+        if parallel is None:
+            # Single-threaded NumPy
+            rng = check_random_state(random_state)
+            obs_diff = np.mean(data1, axis=0) - np.mean(data2, axis=0)
+            combined = np.vstack([data1, data2])
+            MAX_INT = 2**31 - 1
+            seeds = rng.randint(MAX_INT, size=n_permute)
 
-    if use_cpu_parallel:
-        # CPU parallelization mode (memory-efficient fallback)
-        return _two_sample_permutation_cpu_parallel(
-            data1,
-            data2,
-            n_permute,
-            tail,
-            return_null,
-            n_jobs,
-            random_state,
-            single_feature,
-        )
-    else:
-        # GPU/Backend mode
-        if isinstance(backend, str):
-            if backend == "auto":
-                # Auto-select based on problem size and GPU availability
-                backend = auto_select_backend(n_total, n_features, cv=n_permute // 1000)
-            else:
-                backend = Backend(backend)
+            null_dist = []
+            for i in range(n_permute):
+                perm_rng = np.random.RandomState(seeds[i])
+                indices = perm_rng.permutation(n_total)
+                group1_indices = indices[:n1]
+                group2_indices = indices[n1:]
+                mean1 = np.mean(combined[group1_indices], axis=0)
+                mean2 = np.mean(combined[group2_indices], axis=0)
+                null_dist.append(mean1 - mean2)
 
-    # Setup random state
-    rng = check_random_state(random_state)
+            null_dist = np.array(null_dist)
+            p_values = _compute_pvalue(obs_diff, null_dist, tail=tail)
 
-    # Compute null distribution based on backend
-    if backend.name == "numpy":
-        # NumPy: Sequential processing (simple, memory-efficient)
-        # Uses same deterministic RNG pattern as CPU-parallel and GPU
-
-        # Compute observed mean difference
-        obs_diff = np.mean(data1, axis=0) - np.mean(data2, axis=0)
-
-        # Concatenate data for permutation
-        combined = np.vstack([data1, data2])  # (n_total, n_features)
-
-        # Pre-generate seeds for deterministic permutations
-        # Matches CPU-parallel and GPU pattern: independent RandomState per permutation
-        MAX_INT = 2**31 - 1
-        seeds = rng.randint(MAX_INT, size=n_permute)
-
-        # Generate null distribution
-        null_dist = []
-        for i in range(n_permute):
-            # Use independent RandomState for this permutation (matches CPU-parallel)
-            perm_rng = np.random.RandomState(seeds[i])
-            indices = perm_rng.permutation(n_total)
-            # Split into two groups
-            group1_indices = indices[:n1]
-            group2_indices = indices[n1:]
-            # Compute mean difference
-            mean1 = np.mean(combined[group1_indices], axis=0)
-            mean2 = np.mean(combined[group2_indices], axis=0)
-            null_dist.append(mean1 - mean2)
-
-        null_dist = np.array(null_dist)  # (n_permute, n_features)
-
-        # Compute p-values
-        p_values = _compute_pvalue(obs_diff, null_dist, tail=tail)
-
-        # Return to original shape (convert to scalar for single feature)
-        if single_feature:
-            obs_diff = float(obs_diff[0])
-            p_values = float(p_values[0])
-
-        # Build result dict
-        result = {
-            "mean_diff": obs_diff,
-            "p": p_values,
-            "backend": backend.name,
-        }
-
-        if return_null:
             if single_feature:
-                null_dist = null_dist.squeeze()
-            result["null_dist"] = null_dist
+                obs_diff = float(obs_diff[0])
+                p_values = float(p_values[0])
 
-        return result
+            result = {
+                "mean_diff": obs_diff,
+                "p": p_values,
+                "parallel": None,
+            }
+
+            if return_null:
+                if single_feature:
+                    null_dist = null_dist.squeeze()
+                result["null_dist"] = null_dist
+
+            return result
+        else:
+            # CPU parallelization mode
+            return _two_sample_permutation_cpu_parallel(
+                data1,
+                data2,
+                n_permute,
+                tail,
+                return_null,
+                n_jobs,
+                random_state,
+                single_feature,
+            )
     else:
-        # PyTorch: GPU with automatic batching
+        # GPU mode
+        backend_obj = Backend("torch")
+        rng = check_random_state(random_state)
         return _two_sample_permutation_gpu_batched(
             data1,
             data2,
             n_permute,
             tail,
             return_null,
-            backend,
+            backend_obj,
             max_gpu_memory_gb,
             rng,
             single_feature,

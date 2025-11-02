@@ -24,7 +24,7 @@ class TestOneSamplePermutation:
 
         assert "mean" in result
         assert "p" in result
-        assert "backend" in result
+        assert "parallel" in result
         assert isinstance(result["mean"], (float, np.floating))
         assert isinstance(result["p"], (float, np.floating))
         assert 0 <= result["p"] <= 1

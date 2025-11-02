@@ -32,7 +32,7 @@ class TestTwoSamplePermutation:
 
         assert "mean_diff" in result
         assert "p" in result
-        assert "backend" in result
+        assert "parallel" in result
         assert isinstance(result["mean_diff"], (float, np.floating))
         assert isinstance(result["p"], (float, np.floating))
         assert 0 <= result["p"] <= 1
@@ -181,11 +181,19 @@ class TestTwoSamplePermutation:
 
         results = {}
         for backend in backends:
+            # Map backend to parallel parameter
+            if backend == "numpy":
+                parallel = None
+            elif backend == "torch":
+                parallel = "gpu"
+            else:
+                parallel = "cpu"
+
             results[backend] = two_sample_permutation_test(
                 data1,
                 data2,
                 n_permute=N_PERMUTE_BACKEND,
-                backend=backend,
+                parallel=parallel,
                 random_state=42,
             )
 
@@ -212,11 +220,19 @@ class TestTwoSamplePermutation:
 
         results = {}
         for backend in backends:
+            # Map backend to parallel parameter
+            if backend == "numpy":
+                parallel = None
+            elif backend == "torch":
+                parallel = "gpu"
+            else:
+                parallel = "cpu"
+
             results[backend] = two_sample_permutation_test(
                 data1,
                 data2,
                 n_permute=N_PERMUTE_BACKEND,
-                backend=backend,
+                parallel=parallel,
                 random_state=42,
             )
 
@@ -243,7 +259,7 @@ class TestTwoSamplePermutation:
             data1,
             data2,
             n_permute=N_PERMUTE_STATS_COMPARISON,
-            backend="numpy",
+            parallel=None,
             random_state=42,
         )
 
@@ -275,7 +291,7 @@ class TestTwoSamplePermutation:
         data2 = np.random.randn(25, 50)
 
         result = two_sample_permutation_test(
-            data1, data2, n_permute=500, backend=None, n_jobs=2, random_state=42
+            data1, data2, n_permute=500, parallel="cpu", n_jobs=2, random_state=42
         )
 
         # Mean difference should match observed
@@ -284,7 +300,7 @@ class TestTwoSamplePermutation:
 
         # P-values should be valid
         assert np.all((result["p"] >= 0) & (result["p"] <= 1))
-        assert "cpu-parallel" in result["backend"]
+        assert result["parallel"] == "cpu"
 
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_batching_correctness(self):
@@ -295,7 +311,7 @@ class TestTwoSamplePermutation:
 
         # NumPy backend
         result_numpy = two_sample_permutation_test(
-            data1, data2, n_permute=500, backend="numpy", random_state=42
+            data1, data2, n_permute=500, parallel=None, random_state=42
         )
 
         # GPU backend with small memory budget to force batching
@@ -303,7 +319,7 @@ class TestTwoSamplePermutation:
             data1,
             data2,
             n_permute=500,
-            backend="torch",
+            parallel="gpu",
             max_gpu_memory_gb=0.5,
             random_state=42,
         )

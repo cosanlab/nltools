@@ -227,13 +227,13 @@ class TestMatrixPermutationCPUParallel:
         # Check result structure
         assert "correlation" in result
         assert "p" in result
-        assert "backend" in result
+        assert "parallel" in result
         assert "null_dist" in result
 
         # Check types
         assert isinstance(result["correlation"], float)
         assert isinstance(result["p"], float)
-        assert isinstance(result["backend"], str)
+        assert isinstance(result["parallel"], (str, type(None)))
         assert isinstance(result["null_dist"], np.ndarray)
 
         # P-value should be in valid range

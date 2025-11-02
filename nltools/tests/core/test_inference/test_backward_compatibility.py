@@ -22,7 +22,7 @@ class TestBackwardCompatibility:
 
         # New implementation
         result_new = one_sample_permutation_test(
-            data, n_permute=N_PERMUTE_STATS_COMPARISON, backend="numpy", random_state=42
+            data, n_permute=N_PERMUTE_STATS_COMPARISON, parallel=None, random_state=42
         )
 
         # Old implementation
@@ -57,7 +57,7 @@ class TestBackwardCompatibility:
 
         # New implementation should work
         result_new = one_sample_permutation_test(
-            data, n_permute=N_PERMUTE_STATS_COMPARISON, backend="numpy", random_state=42
+            data, n_permute=N_PERMUTE_STATS_COMPARISON, parallel=None, random_state=42
         )
 
         # Verify results are sensible
@@ -74,7 +74,7 @@ class TestBackwardCompatibility:
         result_new = one_sample_permutation_test(
             data,
             n_permute=N_PERMUTE_STATS_COMPARISON,
-            backend="numpy",
+            parallel=None,
             tail=1,
             random_state=42,
         )

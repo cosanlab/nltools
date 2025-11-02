@@ -66,14 +66,14 @@ class TestGPUBatching:
 
         # NumPy backend (no batching needed)
         result_numpy = one_sample_permutation_test(
-            data, n_permute=500, backend="numpy", random_state=42
+            data, n_permute=500, parallel=None, random_state=42
         )
 
         # GPU backend with small memory budget to force batching
         result_gpu = one_sample_permutation_test(
             data,
             n_permute=500,
-            backend="torch",
+            parallel="gpu",
             max_gpu_memory_gb=0.5,  # Force small batches
             random_state=42,
         )
@@ -103,7 +103,7 @@ class TestGPUBatching:
         result = one_sample_permutation_test(
             data,
             n_permute=1000,
-            backend="torch",
+            parallel="gpu",
             max_gpu_memory_gb=4.0,
             random_state=42,
         )
@@ -123,7 +123,7 @@ class TestGPUBatching:
             result = one_sample_permutation_test(
                 data,
                 n_permute=500,
-                backend="numpy",  # Use numpy to avoid GPU requirement
+                parallel=None,  # Use numpy to avoid GPU requirement
                 max_gpu_memory_gb=memory_gb,
                 random_state=42,
             )

@@ -23,8 +23,16 @@ class TestBackends:
 
         results = {}
         for backend in backends:
+            # Map backend to parallel parameter
+            if backend == "numpy":
+                parallel = None
+            elif backend == "torch":
+                parallel = "gpu"
+            else:
+                parallel = "cpu"
+
             results[backend] = one_sample_permutation_test(
-                data, n_permute=N_PERMUTE_BACKEND, backend=backend, random_state=42
+                data, n_permute=N_PERMUTE_BACKEND, parallel=parallel, random_state=42
             )
 
         # Compare results
@@ -49,8 +57,16 @@ class TestBackends:
 
         results = {}
         for backend in backends:
+            # Map backend to parallel parameter
+            if backend == "numpy":
+                parallel = None
+            elif backend == "torch":
+                parallel = "gpu"
+            else:
+                parallel = "cpu"
+
             results[backend] = one_sample_permutation_test(
-                data, n_permute=N_PERMUTE_BACKEND, backend=backend, random_state=42
+                data, n_permute=N_PERMUTE_BACKEND, parallel=parallel, random_state=42
             )
 
         # Compare results
@@ -65,30 +81,19 @@ class TestBackends:
             rtol=1e-5,
         )
 
-    def test_auto_backend_selection(self):
-        """Test that auto backend selection works."""
-        np.random.seed(42)
-        data = np.random.randn(30, 10)
-        result = one_sample_permutation_test(
-            data, n_permute=100, backend="auto", random_state=42
-        )
-
-        assert "backend" in result
-        assert result["backend"] in ["numpy", "torch-cpu", "torch-cuda", "torch-mps"]
-
     def test_explicit_numpy_backend(self):
         """Test explicit NumPy backend."""
         np.random.seed(42)
         data = np.random.randn(30)
-        result = one_sample_permutation_test(data, backend="numpy", random_state=42)
+        result = one_sample_permutation_test(data, parallel=None, random_state=42)
 
-        assert result["backend"] == "numpy"
+        assert result["parallel"] is None
 
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_explicit_torch_backend(self):
         """Test explicit PyTorch backend."""
         np.random.seed(42)
         data = np.random.randn(30)
-        result = one_sample_permutation_test(data, backend="torch", random_state=42)
+        result = one_sample_permutation_test(data, parallel="gpu", random_state=42)
 
-        assert result["backend"].startswith("torch")
+        assert result["parallel"] == "gpu"

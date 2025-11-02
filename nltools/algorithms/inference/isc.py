@@ -580,8 +580,12 @@ def _compute_isc_group_difference(
     # Compute ISC for each group
     if summary_statistic == "pairwise":
         # Pairwise ISC: compute condensed correlation matrices
-        isc1_values = _compute_pairwise_isc(group1, backend=backend, sim_metric=sim_metric)
-        isc2_values = _compute_pairwise_isc(group2, backend=backend, sim_metric=sim_metric)
+        isc1_values = _compute_pairwise_isc(
+            group1, backend=backend, sim_metric=sim_metric
+        )
+        isc2_values = _compute_pairwise_isc(
+            group2, backend=backend, sim_metric=sim_metric
+        )
 
         # Handle single feature vs voxel-wise
         if isc1_values.ndim == 1:
@@ -839,8 +843,12 @@ def _bootstrap_isc_group_numpy(
             group2_boot = group2[:, boot_indices2, :]
 
         # Compute pairwise ISC for bootstrapped groups
-        pairwise1_boot = _compute_pairwise_isc(group1_boot, backend="numpy", sim_metric=sim_metric)
-        pairwise2_boot = _compute_pairwise_isc(group2_boot, backend="numpy", sim_metric=sim_metric)
+        pairwise1_boot = _compute_pairwise_isc(
+            group1_boot, backend="numpy", sim_metric=sim_metric
+        )
+        pairwise2_boot = _compute_pairwise_isc(
+            group2_boot, backend="numpy", sim_metric=sim_metric
+        )
 
         # Handle exclude_self_corr: mask perfect correlations from duplicate subjects
         if exclude_self_corr:
@@ -977,7 +985,7 @@ def isc_group_permutation_test(
     summary_statistic="pairwise",
     ci_percentile=95,
     tail=2,
-    backend=None,
+    parallel="cpu",
     n_jobs=-1,
     random_state=None,
     return_null=False,
@@ -1020,15 +1028,15 @@ def isc_group_permutation_test(
         Confidence interval percentile (e.g., 95 for 95% CI)
     tail : {1, 2}, default=2
         One-tailed (1) or two-tailed (2) p-value
-    backend : {'numpy', 'cpu-parallel', 'torch', 'auto'}, optional
-        Computation backend:
-        - 'numpy': Single-threaded (simple, portable)
-        - 'cpu-parallel': Joblib parallelization (default, 4-8× speedup)
-        - 'torch': GPU acceleration (10-30× speedup for voxel-wise LOO)
-        - 'auto': Automatically select based on problem size
-        Default: 'cpu-parallel' for bootstrap/permutation, 'numpy' for computation
+    parallel : {'cpu', 'gpu', None}, optional
+        Parallelization method:
+        - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
+        - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO)
+        - None: Single-threaded NumPy (for debugging/small problems)
+        Default: 'cpu'
     n_jobs : int, default=-1
         Number of CPU cores for parallelization (-1 = all cores)
+        Only used when parallel='cpu'
     random_state : int or RandomState, optional
         Random seed for reproducibility
     return_null : bool, default=False
@@ -1049,8 +1057,8 @@ def isc_group_permutation_test(
         - 'isc_group_difference': Observed ISC difference (float or array per voxel)
         - 'p': P-value (Phipson-Smyth corrected)
         - 'ci': Confidence interval tuple (lower, upper)
-        - 'null_distribution': (optional) Bootstrap/permutation distribution
-        - 'backend': Backend used (str)
+        - 'parallel': Parallelization method used
+        - 'null_dist': (optional) Bootstrap/permutation distribution
 
     Examples
     --------
@@ -1067,7 +1075,7 @@ def isc_group_permutation_test(
     ...     group1_voxels,
     ...     group2_voxels,
     ...     summary_statistic='leave-one-out',
-    ...     backend='torch',  # GPU for LOO computation
+    ...     parallel='gpu',  # GPU for LOO computation
     ...     n_permute=5000
     ... )
     >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
@@ -1118,40 +1126,25 @@ def isc_group_permutation_test(
             f"summary_statistic must be 'pairwise' or 'leave-one-out', got {summary_statistic}"
         )
 
-    # Determine backend for computation phase
-    if backend is None:
-        # Default: numpy for computation, cpu-parallel for bootstrap/permutation
-        compute_backend = "numpy"
-        bootstrap_backend = "cpu-parallel"
-    elif backend == "auto":
-        # Auto-select based on problem size
-        is_voxelwise = group1.ndim == 3
-        n_voxels = group1.shape[2] if is_voxelwise else 1
+    # Validate parallel parameter
+    if parallel not in [None, "cpu", "gpu"]:
+        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel!r}")
 
-        # Use GPU for large voxel-wise LOO problems
-        if (
-            is_voxelwise
-            and n_voxels > 5000
-            and summary_statistic == "leave-one-out"
-        ):
-            try:
-                import torch
-
-                compute_backend = "torch" if torch.cuda.is_available() else "numpy"
-            except ImportError:
-                compute_backend = "numpy"
-        else:
+    # Determine backend for computation phase based on parallel parameter
+    if parallel == "cpu" or parallel is None:
+        # CPU modes
+        if parallel is None:
+            # Single-threaded NumPy
             compute_backend = "numpy"
-
-        bootstrap_backend = "cpu-parallel"
-    elif backend == "cpu-parallel":
-        # cpu-parallel applies to bootstrap/permutation, not computation
-        compute_backend = "numpy"
-        bootstrap_backend = "cpu-parallel"
+            bootstrap_backend = "numpy"
+        else:
+            # CPU parallelization
+            compute_backend = "numpy"
+            bootstrap_backend = "cpu-parallel"
     else:
-        # numpy or torch
-        compute_backend = backend
-        bootstrap_backend = "cpu-parallel" if backend != "numpy" else "numpy"
+        # GPU mode
+        compute_backend = "torch"
+        bootstrap_backend = "cpu-parallel"  # Bootstrap still uses CPU parallel
 
     # Phase 1: Compute observed ISC difference
     observed_diff = _compute_isc_group_difference(
@@ -1261,9 +1254,7 @@ def isc_group_permutation_test(
     # Compute confidence intervals
     if null_dist.ndim == 1:
         ci_lower = np.percentile(null_dist, (100 - ci_percentile) / 2)
-        ci_upper = np.percentile(
-            null_dist, ci_percentile + (100 - ci_percentile) / 2
-        )
+        ci_upper = np.percentile(null_dist, ci_percentile + (100 - ci_percentile) / 2)
     else:
         # Voxel-wise: compute CI per voxel
         ci_lower = np.nanpercentile(null_dist, (100 - ci_percentile) / 2, axis=0)
@@ -1276,11 +1267,11 @@ def isc_group_permutation_test(
         "isc_group_difference": observed_diff,
         "p": p_values,
         "ci": (ci_lower, ci_upper),
-        "backend": f"{bootstrap_backend}-{n_jobs if bootstrap_backend == 'cpu-parallel' else '1'}",
+        "parallel": parallel,
     }
 
     if return_null:
-        result["null_distribution"] = null_dist
+        result["null_dist"] = null_dist
 
     return result
 
@@ -1593,9 +1584,9 @@ def isc_permutation_test(
     method="bootstrap",
     ci_percentile=95,
     tail=2,
-    backend=None,
+    parallel="cpu",
     n_jobs=-1,
-    max_memory_gb=4,
+    max_gpu_memory_gb=4,
     random_state=None,
     return_null=False,
     progress_bar=True,
@@ -1635,17 +1626,17 @@ def isc_permutation_test(
         Confidence interval percentile (e.g., 95 for 95% CI)
     tail : {1, 2}, default=2
         One-tailed (1) or two-tailed (2) p-value
-    backend : {'numpy', 'cpu-parallel', 'torch', 'auto'}, optional
-        Computation backend:
-        - 'numpy': Single-threaded (simple, portable)
-        - 'cpu-parallel': Joblib parallelization (default, 4-8× speedup)
-        - 'torch': GPU acceleration (10-30× speedup for voxel-wise LOO)
-        - 'auto': Automatically select based on problem size
-        Default: 'cpu-parallel' for bootstrap, 'numpy' for computation
+    parallel : {'cpu', 'gpu', None}, optional
+        Parallelization method:
+        - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
+        - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO)
+        - None: Single-threaded NumPy (for debugging/small problems)
+        Default: 'cpu'
     n_jobs : int, default=-1
         Number of CPU cores for parallelization (-1 = all cores)
-    max_memory_gb : float, default=4
-        GPU memory budget (only used if backend='torch')
+        Only used when parallel='cpu'
+    max_gpu_memory_gb : float, default=4
+        GPU memory budget in GB (only used if parallel='gpu')
     random_state : int or RandomState, optional
         Random seed for reproducibility
     return_null : bool, default=False
@@ -1670,7 +1661,8 @@ def isc_permutation_test(
         - 'isc': Observed ISC value (float or array per voxel)
         - 'p': P-value (Phipson-Smyth corrected)
         - 'ci': Confidence interval tuple (lower, upper)
-        - 'null_distribution': (optional) Bootstrap/permutation distribution
+        - 'parallel': Parallelization method used
+        - 'null_dist': (optional) Bootstrap/permutation distribution
 
     Examples
     --------
@@ -1684,7 +1676,7 @@ def isc_permutation_test(
     >>> result = isc_permutation_test(
     ...     data_voxels,
     ...     summary_statistic='leave-one-out',
-    ...     backend='torch',  # GPU for LOO computation
+    ...     parallel='gpu',  # GPU for LOO computation
     ...     n_permute=5000
     ... )
     >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
@@ -1725,43 +1717,27 @@ def isc_permutation_test(
             f"got {method}"
         )
 
-    # Validate sim_metric (only used for pairwise)
-    if summary_statistic == "pairwise" and sim_metric != "correlation":
-        # Warn if using non-correlation metric with GPU backend
-        if backend == "torch":
-            import warnings
+    # Validate parallel parameter
+    if parallel not in [None, "cpu", "gpu"]:
+        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel!r}")
 
-            warnings.warn(
-                f"sim_metric='{sim_metric}' not supported with GPU backend. "
-                "Falling back to CPU. Use sim_metric='correlation' for GPU acceleration.",
-                UserWarning,
-            )
-
-    # Determine backend for computation phase
-    if backend is None:
-        # Default: numpy for computation, cpu-parallel for bootstrap
-        compute_backend = "numpy"
-        bootstrap_backend = "cpu-parallel"
-    elif backend == "auto":
-        # Auto-select based on problem size
-        is_voxelwise = data.ndim == 3
-        n_voxels = data.shape[2] if is_voxelwise else 1
-
-        # Use GPU for large voxel-wise LOO problems
-        if is_voxelwise and n_voxels > 5000 and summary_statistic == "leave-one-out":
-            try:
-                import torch
-
-                compute_backend = "torch" if torch.cuda.is_available() else "numpy"
-            except ImportError:
-                compute_backend = "numpy"
-        else:
+    # Determine backend for computation phase based on parallel parameter
+    if parallel == "cpu" or parallel is None:
+        # CPU modes
+        if parallel is None:
+            # Single-threaded NumPy
             compute_backend = "numpy"
-
-        bootstrap_backend = "cpu-parallel"
+            bootstrap_backend = "numpy"
+        else:
+            # CPU parallelization
+            compute_backend = "numpy"
+            bootstrap_backend = "cpu-parallel"
     else:
-        compute_backend = backend
-        bootstrap_backend = "cpu-parallel" if backend != "numpy" else "numpy"
+        # GPU mode
+        compute_backend = "torch"
+        bootstrap_backend = "cpu-parallel"  # Bootstrap still uses CPU parallel
+
+    # Input validation
 
     # Phase 1: Compute ISC (run once)
     if summary_statistic == "leave-one-out":
@@ -1949,9 +1925,10 @@ def isc_permutation_test(
         "isc": observed_isc,
         "p": p_value,
         "ci": ci,
+        "parallel": parallel,
     }
 
     if return_null:
-        result["null_distribution"] = bootstraps
+        result["null_dist"] = null_distribution
 
     return result
