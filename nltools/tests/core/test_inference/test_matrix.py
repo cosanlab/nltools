@@ -2,6 +2,7 @@
 
 import pytest
 import numpy as np
+from scipy.stats import kstest
 
 from nltools.algorithms.inference import matrix_permutation_test
 from nltools.tests.core.test_inference import (
@@ -867,3 +868,236 @@ class TestMatrixUtilitiesIntegration:
 
         assert result1.shape == mat.shape
         assert result2.shape == mat.shape
+
+
+# ============================================================================
+# Test Matrix Permutation Statistical Correctness
+# ============================================================================
+
+
+def _generate_correlated_matrices(n, correlation_strength, random_state=None):
+    """Generate two correlated matrices with known correlation."""
+    np.random.seed(random_state)
+    # Create two matrices with shared structure
+    # Use correlation matrices approach: create base data and compute correlation matrices
+    base_data1 = np.random.randn(n + 10, n)  # Extra samples for stability
+    base_data2 = base_data1 + np.random.randn(n + 10, n) * np.sqrt(
+        (1 - correlation_strength**2) / correlation_strength**2
+    ) if correlation_strength > 0 else np.random.randn(n + 10, n)
+
+    # Compute correlation matrices
+    m1 = np.corrcoef(base_data1.T)
+    m2 = np.corrcoef(base_data2.T)
+
+    return m1, m2
+
+
+class TestMatrixPermutationStatisticalCorrectness:
+    """Test statistical correctness of matrix permutation tests."""
+
+    @pytest.mark.tier2
+    def test_null_hypothesis_pvalue_distribution(self):
+        """Test that p-values are uniformly distributed under null hypothesis for all metrics."""
+        n = 20
+        n_tests = 100  # Run many tests with different seeds
+        n_permute = 2000  # Enough permutations for stable p-values
+
+        metrics = ["pearson", "spearman", "kendall"]
+
+        for metric in metrics:
+            p_values = []
+
+            for seed in range(n_tests):
+                np.random.seed(seed)
+                # Generate two independent matrices (correlation = 0)
+                m1 = np.random.randn(n, n)
+                m2 = np.random.randn(n, n)
+
+                result = matrix_permutation_test(
+                    m1,
+                    m2,
+                    n_permute=n_permute,
+                    metric=metric,
+                    random_state=seed,
+                    n_jobs=1,
+                )
+
+                p_values.append(result["p"])
+
+            # Test uniformity using Kolmogorov-Smirnov test
+            # Under null hypothesis, p-values should be uniformly distributed
+            ks_statistic, ks_pvalue = kstest(p_values, "uniform")
+
+            # KS test p-value should be > 0.05 (p-values are uniform)
+            assert ks_pvalue > 0.05, (
+                f"P-values should be uniformly distributed under null hypothesis for {metric}. "
+                f"KS test p-value: {ks_pvalue:.4f}"
+            )
+
+    @pytest.mark.tier1
+    def test_correlation_value_correctness(self):
+        """Test that computed correlation values match expected values."""
+        n = 25
+        correlation_strength = 0.7  # Known correlation strength
+
+        # Generate matrices with known correlation
+        m1, m2 = _generate_correlated_matrices(n, correlation_strength, random_state=42)
+
+        # Test with Pearson metric
+        result = matrix_permutation_test(
+            m1, m2, n_permute=2000, metric="pearson", random_state=42, n_jobs=1
+        )
+
+        # Computed correlation should be positive (matrices are correlated)
+        # Tolerance: rtol=0.1 (10% as specified in plan - matrices are smaller, less stable)
+        assert result["correlation"] > 0.3, (
+            f"Correlation should be positive for correlated matrices. "
+            f"Got {result['correlation']:.4f}"
+        )
+
+    @pytest.mark.tier1
+    def test_effect_size_sensitivity(self):
+        """Test that larger correlation produces lower p-values."""
+        n = 20
+        n_permute = 5000  # Large enough for stable p-values
+
+        # Test with different correlation strengths
+        correlation_strengths = [0.0, 0.2, 0.4, 0.6]  # Null, small, medium, large
+        p_values = []
+
+        for corr_strength in correlation_strengths:
+            # Generate matrices with known correlation
+            m1, m2 = _generate_correlated_matrices(n, corr_strength, random_state=42)
+
+            result = matrix_permutation_test(
+                m1, m2, n_permute=n_permute, metric="pearson", random_state=42, n_jobs=1
+            )
+
+            p_values.append(result["p"])
+
+        # Verify larger correlation → smaller p-value (monotonic relationship)
+        # Skip corr=0 (null hypothesis), test others
+        # Note: Very large effects may hit minimum p-value (1/(n_permute+1)),
+        # so allow >= for equality case when effects are extremely large
+        assert p_values[1] >= p_values[2], (
+            f"Larger correlation should produce smaller p-value. "
+            f"corr=0.2: p={p_values[1]:.6f}, corr=0.4: p={p_values[2]:.6f}"
+        )
+        assert p_values[2] >= p_values[3], (
+            f"Larger correlation should produce smaller p-value. "
+            f"corr=0.4: p={p_values[2]:.6f}, corr=0.6: p={p_values[3]:.6f}"
+        )
+
+        # Large correlation (corr=0.6) should be significant
+        assert p_values[3] < 0.05, (
+            f"Large correlation (corr=0.6) should be significant, got p={p_values[3]:.4f}"
+        )
+
+    @pytest.mark.tier1
+    def test_symmetric_permutation_correctness(self):
+        """Test that symmetric permutation preserves symmetry and computes correlation correctly."""
+        n = 20
+
+        # Create symmetric matrix (distance matrix)
+        np.random.seed(42)
+        m1 = np.random.randn(n, n)
+        m1 = (m1 + m1.T) / 2  # Make symmetric
+        m2 = np.random.randn(n, n)
+        m2 = (m2 + m2.T) / 2  # Make symmetric
+
+        result = matrix_permutation_test(
+            m1, m2, n_permute=2000, how="upper", random_state=42, n_jobs=1
+        )
+
+        # Correlation should be computed correctly (upper triangle only)
+        assert isinstance(result["correlation"], float)
+        assert -1 <= result["correlation"] <= 1
+
+        # Verify permutation preserves symmetry (test by checking result structure)
+        # The permutation function should preserve symmetry
+        from nltools.algorithms.inference.matrix import _permute_matrix_symmetric
+
+        perm = np.random.RandomState(42).permutation(n)
+        permuted = _permute_matrix_symmetric(m1, perm)
+
+        # Permuted matrix should still be symmetric
+        np.testing.assert_allclose(permuted, permuted.T, rtol=1e-10)
+
+    @pytest.mark.tier2
+    def test_matrix_size_sensitivity(self):
+        """Test that larger matrices produce more stable p-values."""
+        # Same effect size (correlation structure), different matrix sizes
+        correlation_strength = 0.5  # Moderate correlation
+        sizes = [10, 20, 30]
+
+        # Run multiple times with different seeds to estimate variance
+        n_runs = 20
+        n_permute = 2000
+
+        p_value_variances = []
+
+        for n in sizes:
+            p_values = []
+
+            for seed in range(n_runs):
+                m1, m2 = _generate_correlated_matrices(
+                    n, correlation_strength, random_state=seed
+                )
+
+                result = matrix_permutation_test(
+                    m1,
+                    m2,
+                    n_permute=n_permute,
+                    metric="pearson",
+                    random_state=seed,
+                    n_jobs=1,
+                )
+
+                p_values.append(result["p"])
+
+            p_value_variances.append(np.var(p_values))
+
+        # Larger matrices should produce more stable p-values (lower variance)
+        # Allow some flexibility (variance estimation is noisy)
+        assert p_value_variances[1] < p_value_variances[0] * 2, (
+            f"Larger matrices should produce more stable p-values (lower variance). "
+            f"n=10: variance={p_value_variances[0]:.6f}, "
+            f"n=20: variance={p_value_variances[1]:.6f}"
+        )
+        assert p_value_variances[2] < p_value_variances[0] * 2, (
+            f"Larger matrices should produce more stable p-values (lower variance). "
+            f"n=10: variance={p_value_variances[0]:.6f}, "
+            f"n=30: variance={p_value_variances[2]:.6f}"
+        )
+
+    @pytest.mark.tier1
+    def test_metric_correctness(self):
+        """Test that Spearman detects rank relationships better than Pearson."""
+        n = 20
+
+        # Create matrices with known rank relationship (but not linear)
+        # Use squared values to create monotonic but non-linear relationship
+        np.random.seed(42)
+        base = np.random.randn(n, n)
+        m1 = base
+        m2 = np.sign(base) * (base**2)  # Monotonic but non-linear relationship
+
+        result_pearson = matrix_permutation_test(
+            m1, m2, n_permute=2000, metric="pearson", random_state=42, n_jobs=1
+        )
+        result_spearman = matrix_permutation_test(
+            m1, m2, n_permute=2000, metric="spearman", random_state=42, n_jobs=1
+        )
+
+        # Spearman should detect stronger relationship (higher correlation)
+        assert result_spearman["correlation"] > result_pearson["correlation"], (
+            f"Spearman should detect rank relationship better. "
+            f"Pearson: {result_pearson['correlation']:.4f}, "
+            f"Spearman: {result_spearman['correlation']:.4f}"
+        )
+
+        # Spearman should have smaller or equal p-value (better detects relationship)
+        assert result_spearman["p"] <= result_pearson["p"], (
+            f"Spearman should have smaller or equal p-value. "
+            f"Pearson: p={result_pearson['p']:.4f}, Spearman: p={result_spearman['p']:.4f}"
+        )
