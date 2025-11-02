@@ -70,4 +70,5 @@ docs/**/*.nii.gz
 **Haxby*.ipynb
 audit/
 claude-research/
+benchmarks/results/
 

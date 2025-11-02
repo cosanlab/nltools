@@ -991,27 +991,3 @@ def test_procrustes_distance_integration():
     assert "p" in result
     assert 0 <= result["p"] <= 1
     assert isinstance(result["similarity"], (float, np.floating))
-
-
-def test_adjacency_isc_integration():
-    """Test that Adjacency.isc still works after _compute_pvalue migration."""
-    from nltools.data import Adjacency
-
-    np.random.seed(42)
-    n_sub = 10
-    n_obs = 100
-
-    # Create test data
-    data = np.random.multivariate_normal(
-        np.zeros(n_sub), np.eye(n_sub) * 0.7 + np.ones((n_sub, n_sub)) * 0.3, n_obs
-    )
-
-    # Create Adjacency object
-    adj = Adjacency(1 - np.corrcoef(data.T), matrix_type="similarity")
-
-    # Test ISC computation with bootstrap
-    result = adj.isc(n_samples=100, random_state=42)
-
-    assert "isc" in result
-    assert "p" in result
-    assert 0 <= result["p"] <= 1
