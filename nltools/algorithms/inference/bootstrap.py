@@ -330,7 +330,7 @@ def _bootstrap_simple_cpu_parallel(
     data: np.ndarray,
     method: str,
     n_samples: int = 5000,
-    save_weights: bool = False,
+    save_boots: bool = False,
     n_jobs: int = -1,
     random_state: Optional[int] = None,
     percentiles: Tuple[float, float] = (2.5, 97.5),
@@ -349,7 +349,7 @@ def _bootstrap_simple_cpu_parallel(
         Aggregation method: 'mean', 'median', 'std', 'sum', 'min', 'max'
     n_samples : int, default=5000
         Number of bootstrap iterations
-    save_weights : bool, default=False
+    save_boots : bool, default=False
         If True, store all bootstrap samples (memory intensive)
     n_jobs : int, default=-1
         Number of CPU cores for parallelization
@@ -368,7 +368,7 @@ def _bootstrap_simple_cpu_parallel(
         - 'p': Two-tailed p-values
         - 'ci_lower': Lower confidence bound
         - 'ci_upper': Upper confidence bound
-        - 'samples': All samples (only if save_weights=True)
+        - 'samples': All samples (only if save_boots=True)
         - 'backend': Backend used (e.g., 'cpu-parallel-8')
 
     Examples
@@ -409,7 +409,7 @@ def _bootstrap_simple_cpu_parallel(
     # Initialize online statistics aggregator
     stats = OnlineBootstrapStats(
         shape=output_shape if output_shape else (1,),
-        save_samples=save_weights,
+        save_samples=save_boots,
         percentiles=percentiles,
     )
 
@@ -439,7 +439,7 @@ def _bootstrap_simple_cpu_parallel(
     result["backend"] = f"cpu-parallel-{actual_n_jobs}"
 
     # Remove samples if not requested
-    if not save_weights:
+    if not save_boots:
         result.pop("samples", None)
 
     return result
@@ -493,7 +493,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
     y: np.ndarray,
     alpha: float,
     n_samples: int = 5000,
-    save_weights: bool = False,
+    save_boots: bool = False,
     n_jobs: int = -1,
     random_state: Optional[int] = None,
     percentiles: Tuple[float, float] = (2.5, 97.5),
@@ -516,7 +516,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
         Ridge regularization parameter
     n_samples : int, default=5000
         Number of bootstrap iterations
-    save_weights : bool, default=False
+    save_boots : bool, default=False
         If True, store all bootstrap samples (memory intensive)
     n_jobs : int, default=-1
         Number of CPU cores for parallelization
@@ -537,7 +537,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
         - 'p': Two-tailed p-values
         - 'ci_lower': Lower confidence bound
         - 'ci_upper': Upper confidence bound
-        - 'samples': All samples (only if save_weights=True)
+        - 'samples': All samples (only if save_boots=True)
         - 'backend': Backend used
 
     Examples
@@ -582,7 +582,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
     # Initialize online statistics aggregator
     stats = OnlineBootstrapStats(
         shape=output_shape,
-        save_samples=save_weights,
+        save_samples=save_boots,
         percentiles=percentiles,
     )
 
@@ -612,7 +612,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
     result["backend"] = f"cpu-parallel-{actual_n_jobs}"
 
     # Remove samples if not requested
-    if not save_weights:
+    if not save_boots:
         result.pop("samples", None)
 
     return result
@@ -673,7 +673,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
     X_pred: np.ndarray,
     alpha: float,
     n_samples: int = 5000,
-    save_weights: bool = False,
+    save_boots: bool = False,
     n_jobs: int = -1,
     random_state: Optional[int] = None,
     percentiles: Tuple[float, float] = (2.5, 97.5),
@@ -697,7 +697,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
         Ridge regularization parameter
     n_samples : int, default=5000
         Number of bootstrap iterations
-    save_weights : bool, default=False
+    save_boots : bool, default=False
         If True, store all bootstrap predictions (memory intensive)
     n_jobs : int, default=-1
         Number of CPU cores for parallelization
@@ -718,7 +718,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
         - 'p': Two-tailed p-values
         - 'ci_lower': Lower confidence bound
         - 'ci_upper': Upper confidence bound
-        - 'samples': All samples (only if save_weights=True)
+        - 'samples': All samples (only if save_boots=True)
         - 'backend': Backend used
 
     Examples
@@ -772,7 +772,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
     # Initialize online statistics aggregator
     stats = OnlineBootstrapStats(
         shape=output_shape,
-        save_samples=save_weights,
+        save_samples=save_boots,
         percentiles=percentiles,
     )
 
@@ -802,7 +802,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
     result["backend"] = f"cpu-parallel-{actual_n_jobs}"
 
     # Remove samples if not requested
-    if not save_weights:
+    if not save_boots:
         result.pop("samples", None)
 
     return result

@@ -21,10 +21,8 @@ import tempfile
 import warnings  # noqa: F401
 from copy import deepcopy
 from sklearn.metrics.pairwise import pairwise_distances
-from sklearn.utils import check_random_state
 from sklearn.preprocessing import scale
 from pynv import Client
-from joblib import Parallel, delayed
 from nilearn.maskers import NiftiMasker
 from nilearn.image import smooth_img, resample_to_img
 from nilearn.masking import intersect_masks
@@ -32,7 +30,6 @@ from nilearn.regions import connected_regions, connected_label_regions
 from nltools.utils import (
     attempt_to_import,
     concatenate,
-    _bootstrap_apply_func,
     set_decomposition_algorithm,
     check_brain_data,
     check_brain_data_is_single,
@@ -42,7 +39,6 @@ from nltools.stats import (
     fisher_r_to_z,
     fisher_z_to_r,
     transform_pairwise,
-    summarize_bootstrap,
     procrustes,
     find_spikes,
 )
@@ -2009,51 +2005,235 @@ class BrainData(object):
         out.Y.replace(-1, 0, inplace=True)
         return out
 
-    # TODO: update this to only support mean, median, std, sum, min, max, weights (if fit already only, predict (if fit already only))
     def bootstrap(
         self,
-        function,
+        stat,
         n_samples=5000,
-        save_weights=False,
+        save_boots=False,
         n_jobs=-1,
         random_state=None,
-        *args,
+        percentiles=(2.5, 97.5),
+        X_test=None,
         **kwargs,
     ):
-        """Bootstrap a `BrainData` method.
+        """Bootstrap statistics using efficient online algorithms.
+
+        Uses memory-efficient bootstrap infrastructure with CPU parallelization.
+        Supports simple aggregation statistics and fitted model statistics (Ridge).
 
         Args:
-            function: (str) method to apply to data for each bootstrap
-            n_samples: (int) number of samples to bootstrap with replacement
-            save_weights: (bool) Save each bootstrap iteration (useful for aggregating
-            many bootstraps on a cluster)
-            n_jobs: (int) The number of CPUs to use to do the computation. -1 means all
-            CPUs.Returns:
+            stat: (str) Statistic to bootstrap. Options:
+                - Simple stats: 'mean', 'median', 'std', 'sum', 'min', 'max'
+                - Model stats: 'weights' (requires fitted Ridge model),
+                               'predict' (requires fitted Ridge model + X_test)
+            n_samples: (int) Number of bootstrap iterations. Default: 5000
+            save_boots: (bool) If True, store all bootstrap samples (memory intensive).
+                       Default: False
+            n_jobs: (int) Number of CPU cores for parallelization. -1 means all CPUs.
+            random_state: (int, optional) Random seed for reproducibility
+            percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
+            X_test: (np.ndarray, optional) Test features for 'predict' bootstrap.
+                   Required if stat='predict'
+            **kwargs: Additional parameters (currently unused, for future extensibility)
 
         Returns:
-            output: summarized studentized bootstrap output
+            BrainData or dict:
+                - For simple stats: Returns BrainData with bootstrap mean
+                - For model stats: Returns dict with keys: 'mean', 'std', 'Z', 'p',
+                  'ci_lower', 'ci_upper' (all BrainData objects)
+                - If save_boots=True: Returns dict with 'samples' key containing all samples
 
         Examples:
-            >>>  b = dat.bootstrap('mean', n_samples=5000)
-            >>>  b = dat.bootstrap('predict', n_samples=5000, algorithm='ridge')
-            >>>  b = dat.bootstrap('predict', n_samples=5000, save_weights=True)
+            >>> # Simple aggregation
+            >>> boot = brain.bootstrap(stat='mean', n_samples=1000)
+            >>> assert isinstance(boot, BrainData)
 
+            >>> # Ridge weights bootstrap
+            >>> brain.fit(X=dm, model='ridge', alpha=1.0)
+            >>> boot = brain.bootstrap(stat='weights', n_samples=1000)
+            >>> assert 'mean' in boot
+            >>> assert isinstance(boot['mean'], BrainData)
+
+            >>> # Ridge predict bootstrap
+            >>> brain.fit(X=dm, model='ridge', alpha=1.0)
+            >>> boot = brain.bootstrap(stat='predict', X_test=X_new, n_samples=1000)
+            >>> assert 'mean' in boot
+            >>> assert isinstance(boot['mean'], BrainData)
         """
-
-        random_state = check_random_state(random_state)
-        seeds = random_state.randint(MAX_INT, size=n_samples)
-
-        bootstrapped = Parallel(n_jobs=n_jobs)(
-            delayed(_bootstrap_apply_func)(
-                self, function, random_state=seeds[i], *args, **kwargs
-            )
-            for i in range(n_samples)
+        from nltools.algorithms.inference.bootstrap import (
+            _bootstrap_simple_cpu_parallel,
+            _bootstrap_ridge_weights_cpu_parallel,
+            _bootstrap_ridge_predict_cpu_parallel,
         )
+        from nltools.data import DesignMatrix
 
-        if function == "predict":
-            bootstrapped = [x["weight_map"] for x in bootstrapped]
-        bootstrapped = BrainData(bootstrapped, mask=self.mask)
-        return summarize_bootstrap(bootstrapped, save_weights=save_weights)
+        # Get data as numpy array
+        data = self.data  # Shape: (n_samples, n_voxels)
+
+        # Route to appropriate bootstrap function
+        SIMPLE_STATS = ["mean", "median", "std", "sum", "min", "max"]
+        FITTED_STATS = ["weights", "predict"]
+
+        if stat in SIMPLE_STATS:
+            # Simple aggregation bootstrap
+            result = _bootstrap_simple_cpu_parallel(
+                data,
+                method=stat,
+                n_samples=n_samples,
+                save_boots=save_boots,
+                n_jobs=n_jobs,
+                random_state=random_state,
+                percentiles=percentiles,
+            )
+
+            # Convert result to BrainData format
+            return self._convert_bootstrap_results_to_brain_data(
+                result, save_boots=save_boots, return_dict=False
+            )
+
+        elif stat in FITTED_STATS:
+            # Check if model is fitted
+            if not hasattr(self, "model_") or self.model_ is None:
+                raise ValueError(
+                    f"Must call .fit(model='ridge', X=design_matrix) before bootstrap(stat='{stat}')"
+                )
+
+            # Check if Ridge model
+            if not hasattr(self.model_, "coef_") or not hasattr(self.model_, "alpha_"):
+                raise ValueError(
+                    f"Bootstrap stat='{stat}' only supports Ridge models. "
+                    f"Got model type: {type(self.model_)}"
+                )
+
+            # Get design matrix from stored X_
+            if not hasattr(self, "X_") or self.X_ is None:
+                raise ValueError(
+                    "Design matrix not found. Must call .fit(model='ridge', X=design_matrix) "
+                    "with X parameter."
+                )
+
+            # Convert DesignMatrix to numpy if needed
+            if isinstance(self.X_, DesignMatrix):
+                X = self.X_.to_numpy()
+            else:
+                X = np.asarray(self.X_)
+
+            # Get alpha from model
+            alpha = (
+                self.model_.alpha_
+                if hasattr(self.model_, "alpha_")
+                else self.model_.alpha
+            )
+
+            if stat == "weights":
+                # Ridge weights bootstrap
+                result = _bootstrap_ridge_weights_cpu_parallel(
+                    X,
+                    data,
+                    alpha=alpha,
+                    n_samples=n_samples,
+                    save_boots=save_boots,
+                    n_jobs=n_jobs,
+                    random_state=random_state,
+                    percentiles=percentiles,
+                )
+
+                # Convert results to BrainData format
+                return self._convert_bootstrap_results_to_brain_data(
+                    result, save_boots=save_boots, return_dict=True
+                )
+
+            elif stat == "predict":
+                # Ridge predict bootstrap
+                if X_test is None:
+                    raise ValueError(
+                        "X_test parameter required for bootstrap(stat='predict'). "
+                        "Provide test features: bootstrap(stat='predict', X_test=...)"
+                    )
+
+                X_test = np.asarray(X_test)
+
+                result = _bootstrap_ridge_predict_cpu_parallel(
+                    X,
+                    data,
+                    X_test,
+                    alpha=alpha,
+                    n_samples=n_samples,
+                    save_boots=save_boots,
+                    n_jobs=n_jobs,
+                    random_state=random_state,
+                    percentiles=percentiles,
+                )
+
+                # Convert results to BrainData format
+                return self._convert_bootstrap_results_to_brain_data(
+                    result, save_boots=save_boots, return_dict=True
+                )
+
+        else:
+            # Invalid stat
+            raise ValueError(
+                f"Unsupported stat '{stat}'. "
+                f"Supported simple stats: {SIMPLE_STATS}. "
+                f"Supported fitted model stats: {FITTED_STATS}. "
+                f"For fitted stats, you must call .fit() first."
+            )
+
+    def _convert_bootstrap_results_to_brain_data(
+        self, result, save_boots=False, return_dict=False
+    ):
+        """Convert bootstrap results dictionary to BrainData format.
+
+        Helper method to convert numpy arrays from bootstrap functions into
+        BrainData objects or dicts of BrainData objects.
+
+        Args:
+            result: (dict) Result dictionary from bootstrap function with keys:
+                    'mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper', and optionally 'samples'
+            save_boots: (bool) If True, include 'samples' key in output
+            return_dict: (bool) If True, always return dict even for simple stats.
+                        If False, return BrainData for simple stats (when save_boots=False)
+
+        Returns:
+            BrainData or dict:
+                - If return_dict=False and save_boots=False: Returns BrainData with mean
+                - Otherwise: Returns dict with BrainData objects for each statistic
+        """
+        if save_boots:
+            # Return dict with samples
+            out = {}
+            for key in ["mean", "std", "Z", "p", "ci_lower", "ci_upper"]:
+                if key in result:
+                    out[key] = self._shallow_copy_with_data()
+                    # Reshape 1D arrays to 2D (1, n_voxels) for BrainData
+                    data_2d = (
+                        result[key]
+                        if result[key].ndim == 2
+                        else result[key].reshape(1, -1)
+                    )
+                    out[key].data = data_2d
+            if "samples" in result:
+                out["samples"] = result["samples"]
+            return out
+        elif return_dict:
+            # Return dict format (for model stats)
+            out = {}
+            for key in ["mean", "std", "Z", "p", "ci_lower", "ci_upper"]:
+                if key in result:
+                    out[key] = self._shallow_copy_with_data()
+                    out[key].data = result[key]
+            return out
+        else:
+            # Return BrainData with mean (for simple stats)
+            boot_mean = self._shallow_copy_with_data()
+            # Reshape 1D arrays to 2D (1, n_voxels) for BrainData
+            mean_2d = (
+                result["mean"]
+                if result["mean"].ndim == 2
+                else result["mean"].reshape(1, -1)
+            )
+            boot_mean.data = mean_2d
+            return boot_mean
 
     # NOTE: nltools.utils,
     def decompose(

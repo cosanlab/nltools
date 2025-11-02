@@ -179,7 +179,7 @@ class TestBootstrapSimpleMethods:
             assert "ci_lower" in result
             assert "ci_upper" in result
             assert "backend" in result
-            assert "samples" not in result  # save_weights=False
+            assert "samples" not in result  # save_boots=False
 
             # Check shapes
             assert result["mean"].shape == (20,)
@@ -210,8 +210,8 @@ class TestBootstrapSimpleMethods:
         np.testing.assert_array_almost_equal(result1["Z"], result2["Z"])
         np.testing.assert_array_almost_equal(result1["p"], result2["p"])
 
-    def test_bootstrap_simple_save_weights(self):
-        """Test save_weights=True stores all samples."""
+    def test_bootstrap_simple_save_boots(self):
+        """Test save_boots=True stores all samples."""
         np.random.seed(42)
         data = np.random.randn(50, 20)
 
@@ -220,7 +220,7 @@ class TestBootstrapSimpleMethods:
             data,
             "mean",
             n_samples=n_samples,
-            save_weights=True,
+            save_boots=True,
             n_jobs=1,
             random_state=42,
         )
@@ -276,7 +276,7 @@ class TestBootstrapRidgeWeights:
         assert "ci_lower" in result
         assert "ci_upper" in result
         assert "backend" in result
-        assert "samples" not in result  # save_weights=False
+        assert "samples" not in result  # save_boots=False
 
         # Check shapes (weights are n_features × n_voxels)
         assert result["mean"].shape == (10, 50)
@@ -288,7 +288,7 @@ class TestBootstrapRidgeWeights:
         assert np.all(result["std"] >= 0)
 
     def test_bootstrap_ridge_weights_full(self):
-        """Test Ridge weights bootstrap with save_weights=True."""
+        """Test Ridge weights bootstrap with save_boots=True."""
         np.random.seed(42)
         X = np.random.randn(100, 10)
         y = np.random.randn(100, 50)
@@ -300,7 +300,7 @@ class TestBootstrapRidgeWeights:
             y,
             alpha,
             n_samples=n_samples,
-            save_weights=True,
+            save_boots=True,
             n_jobs=1,
             random_state=42,
         )
@@ -365,12 +365,12 @@ class TestBootstrapRidgeWeights:
 
         # Efficient mode
         result_efficient = _bootstrap_ridge_weights_cpu_parallel(
-            X, y, alpha, n_samples=100, save_weights=False, n_jobs=1, random_state=42
+            X, y, alpha, n_samples=100, save_boots=False, n_jobs=1, random_state=42
         )
 
         # Full mode
         result_full = _bootstrap_ridge_weights_cpu_parallel(
-            X, y, alpha, n_samples=100, save_weights=True, n_jobs=1, random_state=42
+            X, y, alpha, n_samples=100, save_boots=True, n_jobs=1, random_state=42
         )
 
         # Calculate approximate memory usage
@@ -429,7 +429,7 @@ class TestBootstrapRidgePredict:
         assert not np.any(np.isnan(result["std"]))
 
     def test_bootstrap_ridge_predict_full(self):
-        """Test Ridge predictions bootstrap with save_weights=True."""
+        """Test Ridge predictions bootstrap with save_boots=True."""
         np.random.seed(42)
         X = np.random.randn(100, 10)
         y = np.random.randn(100, 50)
@@ -443,7 +443,7 @@ class TestBootstrapRidgePredict:
             X_test,
             alpha,
             n_samples=n_samples,
-            save_weights=True,
+            save_boots=True,
             n_jobs=1,
             random_state=42,
         )
@@ -679,7 +679,7 @@ class TestBootstrapPerformance:
             y,
             alpha,
             n_samples=n_bootstrap,
-            save_weights=False,
+            save_boots=False,
             n_jobs=-1,
             random_state=42,
         )
@@ -715,12 +715,12 @@ class TestBootstrapPerformance:
 
         # Efficient mode (online statistics, no sample storage)
         result_efficient = _bootstrap_simple_cpu_parallel(
-            data, "mean", n_samples=1000, save_weights=False, n_jobs=1, random_state=42
+            data, "mean", n_samples=1000, save_boots=False, n_jobs=1, random_state=42
         )
 
         # Full mode (store all samples)
         result_full = _bootstrap_simple_cpu_parallel(
-            data, "mean", n_samples=1000, save_weights=True, n_jobs=1, random_state=42
+            data, "mean", n_samples=1000, save_boots=True, n_jobs=1, random_state=42
         )
 
         # Calculate memory usage
@@ -778,7 +778,7 @@ class TestBootstrapPerformance:
             data,
             "mean",
             n_samples=n_bootstrap,
-            save_weights=False,
+            save_boots=False,
             n_jobs=-1,
             random_state=42,
         )
