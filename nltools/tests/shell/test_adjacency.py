@@ -348,11 +348,57 @@ class TestAdjacency:
 
     def test_bootstrap(self, sim_adjacency_multiple):
         """Test bootstrap resampling."""
-        n_samples = 3
-        b = sim_adjacency_multiple.bootstrap("mean", n_samples=n_samples)
-        assert isinstance(b["Z"], Adjacency)
-        b = sim_adjacency_multiple.bootstrap("std", n_samples=n_samples)
-        assert isinstance(b["Z"], Adjacency)
+        n_samples = 50
+        boot = sim_adjacency_multiple.bootstrap(
+            stat="mean", n_samples=n_samples, random_state=42
+        )
+        assert isinstance(boot["Z"], Adjacency)
+        assert isinstance(boot["mean"], Adjacency)
+        assert "p" in boot
+        boot = sim_adjacency_multiple.bootstrap(
+            stat="std", n_samples=n_samples, random_state=42
+        )
+        assert isinstance(boot["Z"], Adjacency)
+        assert isinstance(boot["std"], Adjacency)
+
+    def test_bootstrap_save_boots(self, sim_adjacency_multiple):
+        """Test bootstrap with save_boots parameter."""
+        n_samples = 50
+        result = sim_adjacency_multiple.bootstrap(
+            stat="mean", n_samples=n_samples, save_boots=True, random_state=42
+        )
+        # When save_boots=True, should return dict with samples
+        assert isinstance(result, dict)
+        assert "samples" in result
+        assert result["samples"].shape[0] == n_samples
+
+    def test_bootstrap_all_simple_stats(self, sim_adjacency_multiple):
+        """Test all simple stats work."""
+        n_samples = 50
+        stats = ["mean", "median", "std", "sum", "min", "max"]
+        for stat in stats:
+            boot = sim_adjacency_multiple.bootstrap(
+                stat=stat, n_samples=n_samples, random_state=42
+            )
+            assert isinstance(boot, dict)
+            assert "Z" in boot
+            assert isinstance(boot["Z"], Adjacency)
+
+    def test_bootstrap_reproducibility(self, sim_adjacency_multiple):
+        """Test same random_state produces identical results."""
+        n_samples = 50
+        boot1 = sim_adjacency_multiple.bootstrap(
+            stat="mean", n_samples=n_samples, random_state=42
+        )
+        boot2 = sim_adjacency_multiple.bootstrap(
+            stat="mean", n_samples=n_samples, random_state=42
+        )
+        np.testing.assert_allclose(boot1["mean"].data, boot2["mean"].data, rtol=1e-10)
+
+    def test_bootstrap_invalid_stat_error(self, sim_adjacency_multiple):
+        """Test error for unsupported stat."""
+        with pytest.raises(ValueError, match="Unsupported stat"):
+            sim_adjacency_multiple.bootstrap(stat="invalid_stat", n_samples=10)
 
     def test_isc(self, sim_adjacency_single):
         """Test intersubject correlation."""

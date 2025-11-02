@@ -18,7 +18,6 @@ from nltools.stats import (
     correlation_permutation,
     one_sample_permutation,
     two_sample_permutation,
-    summarize_bootstrap,
     matrix_permutation,
     fisher_r_to_z,
     fisher_z_to_r,
@@ -32,7 +31,6 @@ from nltools.utils import (
     all_same,
     attempt_to_import,
     concatenate,
-    _bootstrap_apply_func,
     to_h5,
 )
 from .design_matrix import DesignMatrix
@@ -1068,44 +1066,107 @@ class Adjacency(object):
 
     def bootstrap(
         self,
-        function,
+        stat,
         n_samples=5000,
-        save_weights=False,
+        save_boots=False,
         n_jobs=-1,
         random_state=None,
-        *args,
-        **kwargs,
+        percentiles=(2.5, 97.5),
     ):
-        """Bootstrap an Adjacency method.
+        """Bootstrap statistics using efficient online algorithms.
+
+        Uses memory-efficient bootstrap infrastructure with CPU parallelization.
+        Supports simple aggregation statistics (mean, std, median, sum, min, max).
 
         Args:
-            function: (str) method to apply to data for each bootstrap
-            n_samples: (int) number of samples to bootstrap with replacement
-            save_weights: (bool) Save each bootstrap iteration
-                        (useful for aggregating many bootstraps on a cluster)
-            n_jobs: (int) The number of CPUs to use to do the computation.
-                        -1 means all CPUs.Returns:
+            stat: (str) Statistic to bootstrap. Options:
+                - Simple stats: 'mean', 'median', 'std', 'sum', 'min', 'max'
+            n_samples: (int) Number of bootstrap iterations. Default: 5000
+            save_boots: (bool) If True, store all bootstrap samples (memory intensive).
+                       Default: False
+            n_jobs: (int) Number of CPU cores for parallelization. -1 means all CPUs.
+            random_state: (int, optional) Random seed for reproducibility
+            percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
 
         Returns:
-            summarized studentized bootstrap output
+            dict: Dictionary with keys: 'Z', 'p', 'mean', 'std', 'ci_lower', 'ci_upper'
+                  (all Adjacency objects). If save_boots=True, also includes 'samples'.
 
         Examples:
-            >>>  b = dat.bootstrap('mean', n_samples=5000)
-            >>>  b = dat.bootstrap('predict', n_samples=5000, algorithm='ridge')
-            >>>  b = dat.bootstrap('predict', n_samples=5000, save_weights=True)
-
+            >>> # Simple aggregation
+            >>> boot = adj.bootstrap(stat='mean', n_samples=1000)
+            >>> assert 'mean' in boot
+            >>> assert isinstance(boot['mean'], Adjacency)
         """
-
-        random_state = check_random_state(random_state)
-        seeds = random_state.randint(MAX_INT, size=n_samples)
-        bootstrapped = Parallel(n_jobs=n_jobs)(
-            delayed(_bootstrap_apply_func)(
-                self, function, random_state=seeds[i], *args, **kwargs
-            )
-            for i in range(n_samples)
+        from nltools.algorithms.inference.bootstrap import (
+            _bootstrap_simple_cpu_parallel,
         )
-        bootstrapped = Adjacency(bootstrapped)
-        return summarize_bootstrap(bootstrapped, save_weights=save_weights)
+
+        # Validate stat parameter
+        SIMPLE_STATS = ["mean", "median", "std", "sum", "min", "max"]
+        if stat not in SIMPLE_STATS:
+            raise ValueError(
+                f"Unsupported stat '{stat}'. Supported simple stats: {SIMPLE_STATS}."
+            )
+
+        # Get data as numpy array
+        # Adjacency.data shape: (n_matrices, n_features)
+        data = self.data  # Shape: (n_samples, n_features)
+
+        # Route to bootstrap function
+        result = _bootstrap_simple_cpu_parallel(
+            data,
+            method=stat,
+            n_samples=n_samples,
+            save_boots=save_boots,
+            n_jobs=n_jobs,
+            random_state=random_state,
+            percentiles=percentiles,
+        )
+
+        # Convert result to Adjacency format
+        return self._convert_bootstrap_results_to_adjacency(
+            result, save_boots=save_boots
+        )
+
+    def _convert_bootstrap_results_to_adjacency(self, result, save_boots=False):
+        """Convert bootstrap results dictionary to Adjacency format.
+
+        Helper method to convert numpy arrays from bootstrap functions into
+        Adjacency objects.
+
+        Args:
+            result: (dict) Result dictionary from bootstrap function with keys:
+                    'mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper', and optionally 'samples'
+            save_boots: (bool) If True, include 'samples' key in output
+
+        Returns:
+            dict: Dictionary with Adjacency objects for each statistic
+        """
+        out = {}
+        for key in ["mean", "std", "Z", "p", "ci_lower", "ci_upper"]:
+            if key in result:
+                # Convert numpy array to Adjacency
+                # Result shape: (n_features,) for aggregated stats
+                adj_data = result[key]
+                if adj_data.ndim == 0:
+                    # Scalar - convert to 1D array
+                    adj_data = np.array([adj_data])
+                elif adj_data.ndim == 1:
+                    # Already 1D - reshape to (1, n_features) for Adjacency
+                    adj_data = adj_data.reshape(1, -1)
+                # adj_data is now (1, n_features)
+
+                out[key] = Adjacency(
+                    data=adj_data,
+                    matrix_type=self.matrix_type + "_flat",
+                )
+
+        if save_boots and "samples" in result:
+            # Samples shape: (n_samples, n_features)
+            out["samples"] = result["samples"]
+
+        return out
 
     def isc(
         self,

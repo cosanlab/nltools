@@ -1551,6 +1551,38 @@ class TestCorrelationPermutation:
             rtol=TOLERANCE_GPU_PVALUE,  # P-values accumulate more FP error
         )
 
+    @pytest.mark.tier2
+    @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
+    def test_gpu_vectorized_multi_feature(self):
+        """Test that vectorized GPU implementation matches CPU for multi-feature data."""
+        np.random.seed(42)
+        data1 = np.random.randn(100, 50)  # 100 samples, 50 features
+        data2 = data1 + np.random.randn(100, 50) * 0.2  # Correlated
+
+        # CPU parallel (default)
+        result_cpu = correlation_permutation_test(
+            data1, data2, n_permute=200, backend=None, random_state=42
+        )
+
+        # GPU vectorized (should process all features simultaneously)
+        result_gpu = correlation_permutation_test(
+            data1, data2, n_permute=200, backend="torch", random_state=42
+        )
+
+        # Results should match closely (float32 vs float64 precision)
+        np.testing.assert_allclose(
+            result_cpu["correlation"],
+            result_gpu["correlation"],
+            rtol=TOLERANCE_GPU_VALUE,
+        )
+        np.testing.assert_allclose(
+            result_cpu["p"], result_gpu["p"], rtol=TOLERANCE_GPU_PVALUE
+        )
+
+        # Verify shapes are correct
+        assert result_gpu["correlation"].shape == (50,)
+        assert result_gpu["p"].shape == (50,)
+
 
 # ============================================================================
 # Timeseries Functions Tests
@@ -2094,6 +2126,263 @@ class TestTimeseriesCorrelation:
         # P-values should be in similar ballpark (both testing same H0)
         # Allow generous tolerance as methods differ
         assert abs(result_circle["p"] - result_phase["p"]) < 0.5
+
+
+# ============================================================================
+# GPU Timeseries Tests
+# ============================================================================
+
+
+class TestTimeseriesGPU:
+    """Tests for GPU-accelerated timeseries permutation tests."""
+
+    @pytest.mark.tier1
+    def test_gpu_basic_functionality_circle_shift(self):
+        """Test basic GPU functionality with circle_shift method."""
+        pytest.importorskip("torch")
+        from nltools.algorithms.inference.timeseries import (
+            timeseries_correlation_permutation_test,
+        )
+
+        np.random.seed(42)
+        x = np.random.randn(100)
+        y = np.random.randn(100)
+
+        result = timeseries_correlation_permutation_test(
+            x, y, method="circle_shift", n_permute=100, backend="torch", random_state=42
+        )
+
+        assert "correlation" in result
+        assert "p" in result
+        assert "backend" in result
+        assert "torch" in result["backend"]
+        assert isinstance(result["correlation"], (float, np.floating))
+        assert 0 <= result["p"] <= 1
+
+    @pytest.mark.tier1
+    def test_gpu_basic_functionality_phase_randomize(self):
+        """Test basic GPU functionality with phase_randomize method."""
+        pytest.importorskip("torch")
+        from nltools.algorithms.inference.timeseries import (
+            timeseries_correlation_permutation_test,
+        )
+
+        np.random.seed(42)
+        x = np.random.randn(100)
+        y = np.random.randn(100)
+
+        result = timeseries_correlation_permutation_test(
+            x,
+            y,
+            method="phase_randomize",
+            n_permute=100,
+            backend="torch",
+            random_state=42,
+        )
+
+        assert "correlation" in result
+        assert "p" in result
+        assert "backend" in result
+        assert "torch" in result["backend"]
+        assert isinstance(result["correlation"], (float, np.floating))
+        assert 0 <= result["p"] <= 1
+
+    @pytest.mark.tier1
+    def test_gpu_deterministic_with_seed(self):
+        """Test that GPU results are deterministic with random_state."""
+        pytest.importorskip("torch")
+        from nltools.algorithms.inference.timeseries import (
+            timeseries_correlation_permutation_test,
+        )
+
+        np.random.seed(42)
+        x = np.random.randn(100)
+        y = np.random.randn(100)
+
+        result1 = timeseries_correlation_permutation_test(
+            x, y, method="circle_shift", n_permute=100, backend="torch", random_state=42
+        )
+        result2 = timeseries_correlation_permutation_test(
+            x, y, method="circle_shift", n_permute=100, backend="torch", random_state=42
+        )
+
+        np.testing.assert_equal(result1["correlation"], result2["correlation"])
+        np.testing.assert_equal(result1["p"], result2["p"])
+
+    @pytest.mark.tier1
+    def test_gpu_return_null_distribution(self):
+        """Test that GPU returns null distribution when requested."""
+        pytest.importorskip("torch")
+        from nltools.algorithms.inference.timeseries import (
+            timeseries_correlation_permutation_test,
+        )
+
+        np.random.seed(42)
+        x = np.random.randn(100)
+        y = np.random.randn(100)
+
+        result = timeseries_correlation_permutation_test(
+            x,
+            y,
+            method="circle_shift",
+            n_permute=100,
+            backend="torch",
+            return_null=True,
+            random_state=42,
+        )
+
+        assert "null_distribution" in result
+        assert result["null_distribution"].shape == (100,)
+
+    @pytest.mark.tier2
+    def test_gpu_matches_cpu_circle_shift(self):
+        """Test that GPU circle_shift matches CPU results (within float32 tolerance)."""
+        pytest.importorskip("torch")
+        from nltools.algorithms.inference.timeseries import (
+            timeseries_correlation_permutation_test,
+        )
+
+        np.random.seed(42)
+        x = np.random.randn(200)
+        y = np.random.randn(200)
+
+        result_cpu = timeseries_correlation_permutation_test(
+            x, y, method="circle_shift", n_permute=100, backend=None, random_state=42
+        )
+        result_gpu = timeseries_correlation_permutation_test(
+            x, y, method="circle_shift", n_permute=100, backend="torch", random_state=42
+        )
+
+        # Correlation should match closely (GPU uses float32)
+        np.testing.assert_allclose(
+            result_cpu["correlation"],
+            result_gpu["correlation"],
+            rtol=TOLERANCE_GPU_VALUE,
+        )
+
+        # P-values should match closely
+        np.testing.assert_allclose(
+            result_cpu["p"], result_gpu["p"], rtol=TOLERANCE_GPU_PVALUE
+        )
+
+    @pytest.mark.tier2
+    def test_gpu_matches_cpu_phase_randomize(self):
+        """Test that GPU phase_randomize matches CPU results (within float32 tolerance)."""
+        pytest.importorskip("torch")
+        from nltools.algorithms.inference.timeseries import (
+            timeseries_correlation_permutation_test,
+        )
+
+        np.random.seed(42)
+        x = np.random.randn(200)
+        y = np.random.randn(200)
+
+        result_cpu = timeseries_correlation_permutation_test(
+            x,
+            y,
+            method="phase_randomize",
+            n_permute=100,
+            backend=None,
+            random_state=42,
+        )
+        result_gpu = timeseries_correlation_permutation_test(
+            x,
+            y,
+            method="phase_randomize",
+            n_permute=100,
+            backend="torch",
+            random_state=42,
+        )
+
+        # Correlation should match closely (GPU uses float32)
+        np.testing.assert_allclose(
+            result_cpu["correlation"],
+            result_gpu["correlation"],
+            rtol=TOLERANCE_GPU_VALUE,
+        )
+
+        # P-values should match closely
+        np.testing.assert_allclose(
+            result_cpu["p"], result_gpu["p"], rtol=TOLERANCE_GPU_PVALUE
+        )
+
+    @pytest.mark.tier2
+    def test_gpu_phase_randomize_preserves_power_spectrum(self):
+        """Test that GPU phase_randomize preserves power spectrum."""
+        pytest.importorskip("torch")
+        from nltools.algorithms.inference.timeseries import _phase_randomize_gpu
+        from nltools.backends import Backend
+
+        np.random.seed(42)
+        x = np.random.randn(200)
+
+        backend = Backend("torch")
+        rng = np.random.RandomState(42)
+        randomized = _phase_randomize_gpu(x, backend, rng)
+
+        # Compute power spectra
+        power_orig = np.abs(np.fft.rfft(x)) ** 2
+        power_rand = np.abs(np.fft.rfft(randomized)) ** 2
+
+        # Should match exactly (within numerical precision)
+        np.testing.assert_allclose(power_orig, power_rand, rtol=1e-5)
+
+    @pytest.mark.tier2
+    def test_gpu_circle_shift_correctness(self):
+        """Test that GPU circle_shift produces correct results."""
+        pytest.importorskip("torch")
+        from nltools.algorithms.inference.timeseries import (
+            _circle_shift_gpu,
+            circle_shift,
+        )
+        from nltools.backends import Backend
+
+        np.random.seed(42)
+        x = np.array([1, 2, 3, 4, 5])
+
+        # Test GPU version
+        backend = Backend("torch")
+        x_device = backend.to_device(x.astype(np.float32))
+        shifted_gpu = _circle_shift_gpu(x_device, shift_amount=2, backend=backend)
+        shifted_gpu = backend.to_numpy(shifted_gpu)
+
+        # Test CPU version
+        shifted_cpu = circle_shift(x, shift_amount=2)
+
+        # Should match exactly
+        np.testing.assert_allclose(shifted_gpu, shifted_cpu, rtol=1e-5)
+
+    @pytest.mark.tier2
+    def test_gpu_batching_prevents_oom(self):
+        """Test that GPU batching handles large problems without OOM."""
+        torch = pytest.importorskip("torch")
+
+        if not torch.cuda.is_available():
+            pytest.skip("GPU not available for OOM test")
+
+        from nltools.algorithms.inference.timeseries import (
+            timeseries_correlation_permutation_test,
+        )
+
+        np.random.seed(42)
+        # Large problem that would OOM without batching
+        x = np.random.randn(1000)
+        y = np.random.randn(1000)
+
+        # Should complete without error
+        result = timeseries_correlation_permutation_test(
+            x,
+            y,
+            method="phase_randomize",
+            n_permute=5000,
+            backend="torch",
+            max_gpu_memory_gb=1.0,  # Small memory budget to force batching
+            random_state=42,
+        )
+
+        assert "correlation" in result
+        assert "p" in result
+        assert result["null_distribution"].shape == (5000,)
 
 
 # ============================================================================
