@@ -11,7 +11,11 @@ from sklearn.utils import check_random_state
 
 from nltools.backends import Backend
 from .utils import _generate_sign_flips, _compute_pvalue, _auto_batch_size
-from .._validation import validate_tail_parameter, validate_parallel_parameter, validate_array_shape_range
+from .._validation import (
+    validate_tail_parameter,
+    validate_parallel_parameter,
+    validate_array_shape_range,
+)
 
 
 def _one_sample_permutation_cpu_parallel(

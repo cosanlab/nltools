@@ -1,8 +1,32 @@
 #!/usr/bin/env python
 # coding: latin-1
 
-"""Shared Response Model (SRM)
-===========================
+"""Shared Response Model (SRM) for multi-subject fMRI alignment.
+
+SRM finds a shared low-dimensional representation across subjects while
+allowing subject-specific transformations. This enables cross-subject
+analyses while preserving individual variability.
+
+Algorithm overview:
+    1. Initialize subject-specific transforms W_i (random orthogonal matrices)
+    2. Iteratively optimize using Expectation-Maximization (EM):
+       - E-step: Update shared response S (group average in shared space)
+       - M-step: Update subject transforms W_i (solve Procrustes problem)
+       - Update noise variance rho_i^2 per subject
+       - Compute likelihood (measure of fit)
+    3. Converge when likelihood stabilizes or max iterations reached
+
+Performance:
+    - Time complexity: O(n_iter × (n_subjects × n_voxels × n_features × n_samples + n_features^3))
+    - Memory complexity: O(n_subjects × n_voxels × n_features)
+    - Parallelization: ~4-8× speedup with CPU-parallel (parallel="cpu")
+    - GPU acceleration: Falls back to CPU (not yet implemented)
+
+When to use SRM:
+    - Multi-subject alignment preserving representational structure
+    - Cross-subject analysis requiring shared response space
+    - Alternative to hyperalignment when spatial structure is less important
+    - See `nltools.algorithms.hyperalignment.HyperAlignment` for spatial-preserving alignment
 
 The implementations are based on the following publications:
 
@@ -64,6 +88,11 @@ def _init_w_transforms(
 ) -> Tuple[List[Optional[np.ndarray]], np.ndarray]:
     """Initialize the mappings (Wi) for the SRM with random orthogonal matrices.
 
+    Initialization strategy:
+        - Uses QR decomposition of random matrices to ensure orthogonality
+        - Each subject gets independent random initialization (via separate RandomState)
+        - Orthogonal matrices preserve distances and enable efficient optimization
+
     Args:
         data (list of 2D arrays, element i has shape=[voxels_i, samples]):
             Each element in the list contains the fMRI data of one subject.
@@ -88,6 +117,8 @@ def _init_w_transforms(
     voxels = np.empty(subjects, dtype=int)
 
     # Set Wi to a random orthogonal voxels by features matrix
+    # QR decomposition ensures orthogonality: Q is orthogonal, R is upper triangular
+    # This initialization strategy enables efficient Procrustes optimization later
     for subject in range(subjects):
         if data[subject] is not None:
             voxels[subject] = data[subject].shape[0]
@@ -326,6 +357,11 @@ class SRM(BaseEstimator, TransformerMixin):
     def _init_structures(self, data, subjects):
         """Initializes data structures for SRM and preprocess the data.
 
+        Data structure choices:
+            - Demeaning: Removes subject-specific baselines (important for alignment)
+            - Noise variance: Initialized to 1.0 (unit variance assumption)
+            - Trace storage: Pre-computes ||X_i||_F^2 for efficient likelihood computation
+
         Args:
             data (list of 2D arrays, element i has shape=[voxels_i, samples]):
                 Each element in the list contains the fMRI data of one subject.
@@ -347,6 +383,8 @@ class SRM(BaseEstimator, TransformerMixin):
 
         trace_xtx = np.zeros(subjects)
 
+        # Initialize noise variance to 1.0 (unit variance assumption)
+        # This will be updated during EM iterations
         for subject in range(subjects):
             rho2[subject] = 1
             if data[subject] is not None:
@@ -372,6 +410,12 @@ class SRM(BaseEstimator, TransformerMixin):
     ):
         """Calculate the log-likelihood function
 
+        Likelihood computation:
+            - Uses Cholesky decomposition for numerical stability (avoids direct matrix inversion)
+            - Computes log-determinant efficiently via Cholesky factors
+            - Tracks model fit via trace terms and quadratic form
+            - Used for convergence checking (when likelihood stabilizes)
+
         Args:
             chol_sigma_s_rhos (array, shape=[features, features]):
                 Cholesky factorization of the matrix (Sigma_S + sum_i(1/rho_i^2) * I)
@@ -390,11 +434,13 @@ class SRM(BaseEstimator, TransformerMixin):
         Returns:
             loglikehood (float): The log-likelihood value.
         """
+        # Compute log-determinant using Cholesky factors (numerically stable)
         log_det = (
             np.log(np.diag(chol_sigma_s_rhos) ** 2).sum()
             + log_det_psi
             + np.log(np.diag(chol_sigma_s) ** 2).sum()
         )
+        # Log-likelihood: -0.5 * (determinant terms + trace terms) + quadratic form
         loglikehood = -0.5 * samples * log_det - 0.5 * trace_xt_invsigma2_x
         loglikehood += 0.5 * np.trace(
             wt_invpsi_x.T.dot(inv_sigma_s_rhos).dot(wt_invpsi_x)
@@ -407,6 +453,12 @@ class SRM(BaseEstimator, TransformerMixin):
     def _update_transform_subject(Xi, S):
         """Updates the mappings `W_i` for one subject.
 
+        Optimization step:
+            - Solves orthogonal Procrustes problem: min ||X_i - W_i S||_F^2 s.t. W_i^T W_i = I
+            - Uses SVD: optimal W_i = U V^T where U Σ V^T = X_i S^T
+            - Ensures orthogonality constraint (W_i^T W_i = I) is satisfied
+            - This is the M-step update in the EM algorithm
+
         Args:
             Xi (array, shape=[voxels, timepoints]):
                 The fMRI data :math:`X_i` for aligning the subject.
@@ -417,8 +469,10 @@ class SRM(BaseEstimator, TransformerMixin):
             Wi (array, shape=[voxels, features]):
                 The orthogonal transform (mapping) :math:`W_i` for the subject.
         """
+        # Compute cross-covariance: X_i S^T
         A = Xi.dot(S.T)
-        # Solve the Procrustes problem
+        # Solve the Procrustes problem via SVD
+        # Optimal orthogonal transform: W_i = U V^T where A = U Σ V^T
         U, _, V = np.linalg.svd(A, full_matrices=False)
         return U.dot(V)
 
@@ -487,11 +541,13 @@ class SRM(BaseEstimator, TransformerMixin):
         shared_response = np.zeros((self.features, samples))
         sigma_s = np.identity(self.features)
 
-        # Main loop of the algorithm (run
+        # Main loop of the algorithm (EM iterations)
+        # E-step: Update shared response S given current transforms W_i
+        # M-step: Update transforms W_i and noise variances rho_i^2 given S
         for iteration in range(self.n_iter):
             logger.info("Iteration %d" % (iteration + 1))
 
-            # E-step:
+            # E-step: Update shared response S
 
             # Sum the inverted the rho2 elements for computing W^T * Psi^-1 * W
             rho0 = (1 / rho2).sum()
@@ -528,12 +584,13 @@ class SRM(BaseEstimator, TransformerMixin):
 
             log_det_psi = np.sum(np.log(rho2) * voxels)
 
-            # Update the shared response
+            # Update the shared response S (E-step)
+            # Weighted average of transformed data: S = Σ_s (I - rho0 * inv(Σ_s + rho0*I)) @ W^T @ Psi^{-1} @ X
             shared_response = sigma_s.dot(
                 np.identity(self.features) - rho0 * inv_sigma_s_rhos
             ).dot(wt_invpsi_x)
 
-            # M-step
+            # M-step: Update transforms W_i and noise variances rho_i^2
 
             # Update Sigma_s and compute its trace
             sigma_s = (
@@ -541,8 +598,9 @@ class SRM(BaseEstimator, TransformerMixin):
             )
             trace_sigma_s = samples * np.trace(sigma_s)
 
-            # Update each subject's mapping transform W_i and error variance
-            # rho_i^2
+            # Update each subject's mapping transform W_i and error variance rho_i^2
+            # Each subject's transform is updated independently via Procrustes optimization
+            # Noise variance is updated based on residual error after transform update
             # Use CPU parallelization for multi-subject updates if requested
             if parallel == "cpu" and subjects > 1:
                 from joblib import Parallel, delayed
@@ -684,7 +742,6 @@ class DetSRM(BaseEstimator, TransformerMixin):
         self.n_iter = n_iter
         self.features = features
         self.rand_seed = rand_seed
-        return
 
     def fit(
         self,
@@ -873,6 +930,12 @@ class DetSRM(BaseEstimator, TransformerMixin):
     def _update_transform_subject(Xi, S):
         """Updates the mappings `W_i` for one subject.
 
+        Optimization step:
+            - Solves orthogonal Procrustes problem: min ||X_i - W_i S||_F^2 s.t. W_i^T W_i = I
+            - Uses SVD: optimal W_i = U V^T where U Σ V^T = X_i S^T
+            - Ensures orthogonality constraint (W_i^T W_i = I) is satisfied
+            - This is the M-step update in the EM algorithm
+
         Args:
             Xi (array, shape=[voxels, timepoints]):
                 The fMRI data :math:`X_i` for aligning the subject.
@@ -883,8 +946,10 @@ class DetSRM(BaseEstimator, TransformerMixin):
             Wi (array, shape=[voxels, features]):
                 The orthogonal transform (mapping) :math:`W_i` for the subject.
         """
+        # Compute cross-covariance: X_i S^T
         A = Xi.dot(S.T)
-        # Solve the Procrustes problem
+        # Solve the Procrustes problem via SVD
+        # Optimal orthogonal transform: W_i = U V^T where A = U Σ V^T
         U, _, V = np.linalg.svd(A, full_matrices=False)
         return U.dot(V)
 

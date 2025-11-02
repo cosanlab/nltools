@@ -7,10 +7,13 @@ This module provides standard HRF implementations for fMRI analysis:
 - Time derivatives: First-order temporal derivatives
 - Dispersion derivatives: HRF shape variations
 
-All functions are simple mathematical operations and do not require parallelization.
-They work out-of-the-box with sensible defaults for typical fMRI analysis.
+Performance:
+    - Computational cost: Negligible (simple mathematical operations)
+    - Memory usage: Small (typically <10KB per HRF)
+    - No parallelization needed: Functions are fast enough for typical use
+    - Typical use: Convolve HRF with design matrix for GLM analysis
 
-Examples:
+Usage examples:
     Basic HRF generation:
 
     >>> from nltools.algorithms.hrf import spm_hrf, glover_hrf
@@ -32,6 +35,24 @@ Examples:
     >>>
     >>> # Generate dispersion derivative
     >>> dhrf_disp = spm_dispersion_derivative(tr=2.0)
+
+    Integration with design matrices:
+
+    >>> from nltools.algorithms.hrf import spm_hrf
+    >>> from nltools.data import DesignMatrix
+    >>> import numpy as np
+    >>>
+    >>> # Create event timing (e.g., stimulus onsets)
+    >>> events = np.array([10, 30, 50, 70])  # Time points in seconds
+    >>> tr = 2.0  # TR in seconds
+    >>> n_trs = 100  # Number of TRs
+    >>>
+    >>> # Generate HRF
+    >>> hrf = spm_hrf(tr=tr)
+    >>>
+    >>> # Create design matrix with HRF convolution
+    >>> # (This is typically done via DesignMatrix class)
+    >>> # dm = DesignMatrix(...)  # See DesignMatrix documentation
 
 Copyright (c) 2006-2017, NIPY Developers
 All rights reserved.

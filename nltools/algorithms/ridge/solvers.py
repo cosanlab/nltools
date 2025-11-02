@@ -153,11 +153,27 @@ def solve_banded_ridge_cv(
         allows different scaling weights per feature space. For single feature space
         ridge regression, use solve_ridge_cv instead.
 
+        Algorithm details:
+            - Random search: Samples gamma weights from Dirichlet distribution
+            - Banded ridge: Scales each feature space by sqrt(gamma_i), then solves standard ridge
+            - Cross-validation: Evaluates each (gamma, alpha) combination via k-fold CV
+            - Best selection: Chooses (gamma, alpha) that maximizes CV score per target
+
         Memory efficiency strategies (Principle 2: automatic memory efficiency):
-        - Generator pattern for alpha batching (via _decompose_ridge)
-        - Target batching (n_targets_batch)
-        - Y_in_cpu strategy (transfer only needed batches to GPU)
-        - Immediate cleanup with del statements
+        - Generator pattern for alpha batching (via _decompose_ridge): Processes alphas in batches
+          to avoid storing all resolution matrices simultaneously
+        - Target batching (n_targets_batch): Processes targets in chunks to fit GPU memory
+        - Y_in_cpu strategy (transfer only needed batches to GPU): Keeps large Y on CPU,
+          transfers only batches needed for computation
+        - Immediate cleanup with del statements: Explicitly frees memory after each batch
+
+        Performance:
+            - Time complexity: O(n_iter × n_splits × (n_alphas_batch × n_features^2 + n_targets_batch × n_samples))
+            - Memory complexity: O(n_features × n_targets_batch) per batch
+            - GPU acceleration: ~10-100× speedup for large problems (n_features > 10K)
+
+        See `nltools.algorithms.ridge.utils._decompose_ridge()` for generator pattern details.
+        See `nltools.algorithms.ridge.DESIGN.md` for detailed algorithm explanation.
     """
     from .backends import set_backend, get_backend
     from .utils import (
@@ -171,11 +187,11 @@ def solve_banded_ridge_cv(
     # Validate parallel parameter first
     if parallel is not None and parallel not in ["cpu", "gpu"]:
         raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got: {parallel!r}")
-    
+
     # Convert None to "cpu" for consistency
     if parallel is None:
         parallel = "cpu"
-    
+
     if isinstance(parallel, str):
         # Map parallel to backend name with graceful fallback
         if parallel == "cpu":
@@ -185,9 +201,12 @@ def solve_banded_ridge_cv(
             try:
                 # Check if CUDA is available
                 import torch
+
                 if torch.cuda.is_available():
                     backend_name = "torch_cuda"
-                elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                elif (
+                    hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
+                ):
                     # MPS available, use torch backend (handles MPS gracefully)
                     backend_name = "torch"
                 else:
@@ -199,7 +218,7 @@ def solve_banded_ridge_cv(
             except Exception:
                 # Any other error, fallback to CPU
                 backend_name = "numpy"
-            
+
             # Try to set the backend, with graceful fallback
             try:
                 set_backend(backend_name, on_error="raise")
@@ -212,7 +231,7 @@ def solve_banded_ridge_cv(
             raise ValueError(f"parallel must be 'cpu' or 'gpu', got: {parallel!r}")
     else:
         backend_name = str(parallel)
-    
+
     backend = get_backend()
 
     # Validate inputs
@@ -366,6 +385,8 @@ def solve_banded_ridge_cv(
                 X_val = X_val - X_train_mean[None, :]
 
             # Generator: batch over alphas
+            # _decompose_ridge yields (resolution_matrices, alpha_indices) pairs
+            # This avoids storing all resolution matrices simultaneously (memory efficient)
             for matrices, alpha_batch in _decompose_ridge(
                 X_train,
                 alphas,
@@ -373,6 +394,8 @@ def solve_banded_ridge_cv(
                 method=diagonalize_method,
             ):
                 # Compute X_val @ matrices for predictions
+                # matrices shape: (n_alphas_batch, n_features, n_train_samples)
+                # pred_matrix shape: (n_alphas_batch, n_val_samples, n_train_samples)
                 pred_matrix = backend.matmul(X_val, matrices)
 
                 # Batch over targets
@@ -529,13 +552,13 @@ def solve_banded_ridge_cv(
         "cv_scores": cv_scores,
         "parallel": backend_name,
     }
-    
+
     if return_weights:
         result["coefs"] = coefs
-    
+
     if fit_intercept and return_weights:
         result["intercept"] = intercept
-    
+
     return result
 
 
@@ -713,11 +736,26 @@ def solve_ridge_cv(
         with cross-validation. For multiple feature spaces (banded/group ridge),
         use solve_banded_ridge_cv instead.
 
+        Algorithm details:
+            - Cross-validation: k-fold CV evaluates each alpha value
+            - Alpha selection: Chooses best alpha per target (or globally if local_alpha=False)
+            - Refit: Fits final model on full dataset using best alpha(s)
+
         Memory efficiency strategies (Principle 2: automatic memory efficiency):
-        - Generator pattern for alpha batching (via _decompose_ridge)
-        - Target batching (n_targets_batch)
-        - Y_in_cpu strategy (transfer only needed batches to GPU)
-        - Immediate cleanup with del statements
+        - Generator pattern for alpha batching (via _decompose_ridge): Processes alphas in batches
+          to avoid storing all resolution matrices simultaneously
+        - Target batching (n_targets_batch): Processes targets in chunks to fit GPU memory
+        - Y_in_cpu strategy (transfer only needed batches to GPU): Keeps large Y on CPU,
+          transfers only batches needed for computation
+        - Immediate cleanup with del statements: Explicitly frees memory after each batch
+
+        Performance:
+            - Time complexity: O(n_splits × (n_alphas_batch × n_features^2 + n_targets_batch × n_samples))
+            - Memory complexity: O(n_features × n_targets_batch) per batch
+            - GPU acceleration: ~10-100× speedup for large problems (n_features > 10K)
+
+        See `nltools.algorithms.ridge.utils._decompose_ridge()` for generator pattern details.
+        See `nltools.algorithms.ridge.DESIGN.md` for detailed algorithm explanation.
     """
     from .backends import set_backend, get_backend
     from .utils import _decompose_ridge, _select_best_alphas, _r2_score
@@ -726,11 +764,11 @@ def solve_ridge_cv(
     # Validate parallel parameter first
     if parallel is not None and parallel not in ["cpu", "gpu"]:
         raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got: {parallel!r}")
-    
+
     # Convert None to "cpu" for consistency
     if parallel is None:
         parallel = "cpu"
-    
+
     if isinstance(parallel, str):
         # Map parallel to backend name with graceful fallback
         if parallel == "cpu":
@@ -740,9 +778,12 @@ def solve_ridge_cv(
             try:
                 # Check if CUDA is available
                 import torch
+
                 if torch.cuda.is_available():
                     backend_name = "torch_cuda"
-                elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                elif (
+                    hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
+                ):
                     # MPS available, use torch backend (handles MPS gracefully)
                     backend_name = "torch"
                 else:
@@ -754,7 +795,7 @@ def solve_ridge_cv(
             except Exception:
                 # Any other error, fallback to CPU
                 backend_name = "numpy"
-            
+
             # Try to set the backend, with graceful fallback
             try:
                 set_backend(backend_name, on_error="raise")
@@ -767,7 +808,7 @@ def solve_ridge_cv(
             raise ValueError(f"parallel must be 'cpu' or 'gpu', got: {parallel!r}")
     else:
         backend_name = str(parallel)
-    
+
     backend = get_backend()
 
     # Validate inputs
@@ -837,11 +878,14 @@ def solve_ridge_cv(
             X_val = X_val - X_train_mean[None, :]
 
         # Generator: batch over alphas
+        # _decompose_ridge yields (resolution_matrices, alpha_indices) pairs
+        # This avoids storing all resolution matrices simultaneously (memory efficient)
         for matrices, alpha_batch in _decompose_ridge(
             X_train, alphas, n_alphas_batch=n_alphas_batch
         ):
             # Compute X_val @ matrices for predictions
-            # Shape: (n_alphas_batch, n_val_samples, n_train_samples)
+            # matrices shape: (n_alphas_batch, n_features, n_train_samples)
+            # pred_matrix shape: (n_alphas_batch, n_val_samples, n_train_samples)
             pred_matrix = backend.matmul(X_val, matrices)
 
             # Batch over targets

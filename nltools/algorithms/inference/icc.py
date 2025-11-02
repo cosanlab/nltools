@@ -116,9 +116,7 @@ def compute_icc_voxelwise(
             return _compute_icc_gpu(Y, icc_type, max_gpu_memory_gb, backend)
         else:
             # GPU requested but not available, gracefully fallback to CPU
-            return _compute_icc_cpu(
-                Y, icc_type, n_jobs, False, max_gpu_memory_gb
-            )
+            return _compute_icc_cpu(Y, icc_type, n_jobs, False, max_gpu_memory_gb)
     elif parallel == "cpu" or parallel is None:
         return _compute_icc_cpu(
             Y, icc_type, n_jobs, parallel == "cpu", max_gpu_memory_gb

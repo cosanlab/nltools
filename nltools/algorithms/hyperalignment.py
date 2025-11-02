@@ -1,9 +1,29 @@
 """
-HyperAlignment using Procrustes Analysis
-=========================================
+HyperAlignment: Multi-subject cortical surface alignment using iterative Procrustes refinement.
 
-Procrustes-based hyperalignment for aligning multi-subject neuroimaging data
-to a common representational space through iterative template refinement.
+Hyperalignment finds a common representational space across subjects by iteratively
+refining pairwise Procrustes transformations. Unlike simple alignment, hyperalignment
+preserves both spatial structure and representational similarity.
+
+Algorithm overview:
+    1. Initialize template (first subject or group average)
+    2. For each iteration:
+       - Align each subject to template (Procrustes transformation)
+       - Update template (average in aligned space)
+    3. Converge when transformations stabilize or max iterations reached
+    4. Final alignment: Apply learned transformations to all subjects
+
+Performance:
+    - Time complexity: O(n_iter × n_subjects² × n_voxels × n_samples)
+    - Memory complexity: O(n_subjects × n_voxels × n_features)
+    - Parallelization: ~4-8× speedup with CPU-parallel (parallel="cpu")
+    - Most beneficial when subjects have many voxels (>10K) and multiple iterations
+
+When to use hyperalignment:
+    - Multi-subject alignment preserving spatial structure
+    - Alternative to SRM when spatial structure is important
+    - See `nltools.algorithms.srm.SRM` for dimension-reduction approach
+    - See `nltools.stats.procrustes()` for single-subject alignment
 
 This module implements the hyperalignment technique described in:
 
@@ -26,11 +46,22 @@ def _procrustes_pairwise(
 ) -> Tuple[np.ndarray, np.ndarray, float, np.ndarray, float]:
     """Pairwise Procrustes alignment between two matrices.
 
-    Internal helper function that performs pairwise Procrustes alignment.
-    This is adapted from nltools.stats.procrustes() for internal use.
-
     Procrustes alignment finds the optimal orthogonal transformation (rotation + reflection)
     and scaling to align data2 to data1, minimizing the sum of squared differences.
+
+    Algorithm:
+        - Centers both matrices (removes translation)
+        - Normalizes to unit Frobenius norm (removes scale)
+        - Finds optimal rotation via SVD: R = U V^T where U Σ V^T = data1^T @ data2
+        - Applies transformation: data2_aligned = data2 @ R^T * scale
+
+    Performance:
+        - Time complexity: O(min(n_samples, n_features)^3) for SVD
+        - Memory complexity: O(n_samples × n_features)
+        - Used in pairwise fashion during hyperalignment iterations
+
+    Internal helper function that performs pairwise Procrustes alignment.
+    This is adapted from nltools.stats.procrustes() for internal use.
 
     Args:
         data1: Reference matrix (target for alignment), shape (n_samples, n_features).
@@ -157,7 +188,7 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
         >>> # Align a new subject
         >>> new_subject = np.random.randn(100, 50)
         >>> new_transform = hyper.transform_subject(new_subject)
-        
+
         When to use parallel processing:
         - Use ``parallel="cpu"`` (default) for datasets with 3+ subjects to speed up
           pairwise Procrustes operations during template refinement.
@@ -208,7 +239,7 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
         # Validate parallel parameter
         if parallel not in [None, "cpu"]:
             raise ValueError(f"parallel must be None or 'cpu', got {parallel}")
-        
+
         # Store parallel settings
         self._parallel = parallel
         self._n_jobs = n_jobs
@@ -263,6 +294,8 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
             m = [x.copy() for x in data]
 
         ## STAGE 1: CREATE INITIAL AVERAGE TEMPLATE ##
+        # Start with first subject as template, then incrementally align others
+        # This provides a better starting point than random initialization
         template = None
         for i, x in enumerate(m):
             if i == 0:
@@ -270,27 +303,34 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
                 template = np.copy(x.T)
             else:
                 # Align to evolving template and accumulate
+                # Incremental averaging reduces bias from order-dependence
                 _, trans, _, _, _ = _procrustes_pairwise(template / i, x.T)
                 template += trans
         template /= len(m)
 
         ## STAGE 2: REFINE TEMPLATE (n_iter iterations) ##
+        # Iteratively refine template by aligning all subjects and averaging
+        # Each iteration improves the common space representation
         for iteration in range(self.n_iter):
             # Align each subject to current template and create refined template
             # Use CPU parallelization for pairwise Procrustes operations if requested
             if self._parallel == "cpu" and len(m) > 2:
                 from joblib import Parallel, delayed
-                
+
                 def _align_to_template(subj_idx):
                     """Align one subject to template."""
                     _, trans, _, _, _ = _procrustes_pairwise(template, m[subj_idx].T)
                     return trans
-                
+
                 # Auto-detect n_jobs if needed
                 n_jobs_to_use = self._n_jobs
                 if n_jobs_to_use == -1:
                     try:
-                        from nltools.algorithms.inference.utils import _auto_n_jobs_cpu, _estimate_data_size_mb
+                        from nltools.algorithms.inference.utils import (
+                            _auto_n_jobs_cpu,
+                            _estimate_data_size_mb,
+                        )
+
                         # Estimate memory for largest subject
                         max_size_mb = max(_estimate_data_size_mb(x) for x in m)
                         n_jobs_to_use = _auto_n_jobs_cpu(
@@ -301,7 +341,7 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
                         )
                     except ImportError:
                         n_jobs_to_use = 1
-                
+
                 # Parallel alignment
                 aligned_subjects = Parallel(n_jobs=n_jobs_to_use)(
                     delayed(_align_to_template)(i) for i in range(len(m))
@@ -369,9 +409,11 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
         # Validate parallel parameter
         if parallel not in [None, "cpu"]:
             raise ValueError(f"parallel must be None or 'cpu', got {parallel}")
-        
+
         # Use stored parallel settings if not provided
-        parallel_to_use = parallel if parallel is not None else getattr(self, "_parallel", None)
+        parallel_to_use = (
+            parallel if parallel is not None else getattr(self, "_parallel", None)
+        )
         n_jobs_to_use = n_jobs if n_jobs != -1 else getattr(self, "_n_jobs", -1)
         if not hasattr(self, "w_"):
             raise ValueError("Model must be fit before transform")
@@ -380,7 +422,7 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
         # Use CPU parallelization if requested
         if parallel_to_use == "cpu" and len(data) > 1:
             from joblib import Parallel, delayed
-            
+
             def _transform_one_subject(subj_idx):
                 """Transform one subject."""
                 x = data[subj_idx]
@@ -394,13 +436,19 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
                     standardized = centered
 
                 # Apply transformation and scale
-                aligned = np.dot(standardized, self.w_[subj_idx].T) * self.scale_[subj_idx]
+                aligned = (
+                    np.dot(standardized, self.w_[subj_idx].T) * self.scale_[subj_idx]
+                )
                 return aligned.T
-            
+
             # Auto-detect n_jobs if needed
             if n_jobs_to_use == -1:
                 try:
-                    from nltools.algorithms.inference.utils import _auto_n_jobs_cpu, _estimate_data_size_mb
+                    from nltools.algorithms.inference.utils import (
+                        _auto_n_jobs_cpu,
+                        _estimate_data_size_mb,
+                    )
+
                     # Estimate memory for largest subject
                     max_size_mb = max(_estimate_data_size_mb(x) for x in data)
                     n_jobs_to_use = _auto_n_jobs_cpu(
@@ -411,7 +459,7 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
                     )
                 except ImportError:
                     n_jobs_to_use = 1
-            
+
             transformed = Parallel(n_jobs=n_jobs_to_use)(
                 delayed(_transform_one_subject)(i) for i in range(len(data))
             )

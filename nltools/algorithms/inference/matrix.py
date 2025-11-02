@@ -46,6 +46,7 @@ def _extract_matrix_elements(
     """
     return extract_triangle_elements(matrix, triangle=how, include_diag=include_diag)
 
+
 _permute_matrix_symmetric = permute_matrix_symmetric
 
 

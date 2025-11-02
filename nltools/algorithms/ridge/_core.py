@@ -1,6 +1,26 @@
 """
 Ridge regression algorithms using SVD decomposition.
 
+This module implements ridge regression using Singular Value Decomposition (SVD),
+which provides numerical stability and efficiency for high-dimensional problems.
+
+Algorithm approach:
+    Why SVD vs direct inversion:
+        - Direct inversion: beta = (X.T @ X + alpha*I)^(-1) @ X.T @ y
+        - SVD approach: X = U @ diag(s) @ V.T, then beta = V @ diag(s / (s**2 + alpha)) @ U.T @ y
+        - Benefits: Avoids explicit matrix inversion (numerically stable), efficient for rank-deficient X
+        - Performance: O(n_samples × n_features × min(n_samples, n_features)) for SVD
+
+Backend choice trade-offs:
+    - NumPy (CPU): Default, reliable, works everywhere
+    - PyTorch CPU: Similar performance to NumPy, useful for consistent API
+    - PyTorch GPU: ~10-100× speedup for large problems (n_features > 10K), requires GPU
+
+Cross-references:
+    - See `nltools.algorithms.ridge.solvers.solve_ridge_cv()` for GPU-accelerated cross-validation
+    - See `nltools.algorithms.ridge.utils._decompose_ridge()` for generator-based batching pattern
+    - See `nltools.algorithms.ridge.DESIGN.md` for detailed algorithm explanation
+
 Inspired by the himalaya library's efficient SVD-based ridge regression approach.
 himalaya is licensed under BSD-3-Clause: https://github.com/gallantlab/himalaya
 
@@ -34,13 +54,21 @@ def ridge_svd(
     numerical stability and efficiency for high-dimensional problems.
     The implementation is inspired by the himalaya library.
 
-    The ridge regression solution is:
-        beta = (X.T @ X + alpha*I)^(-1) @ X.T @ y
+    Algorithm:
+        The ridge regression solution is:
+            beta = (X.T @ X + alpha*I)^(-1) @ X.T @ y
 
-    Using SVD of X = U @ diag(s) @ V.T, this becomes:
-        beta = V @ diag(s / (s**2 + alpha)) @ U.T @ y
+        Using SVD of X = U @ diag(s) @ V.T, this becomes:
+            beta = V @ diag(s / (s**2 + alpha)) @ U.T @ y
 
-    This formulation avoids explicit matrix inversion and is numerically stable.
+        This formulation avoids explicit matrix inversion and is numerically stable.
+        The shrinkage factor s / (s**2 + alpha) regularizes small singular values.
+
+    Performance:
+        - Time complexity: O(n_samples × n_features × min(n_samples, n_features))
+        - Space complexity: O(n_samples × n_features)
+        - GPU acceleration: ~10-100× speedup for large problems (n_features > 10K)
+        - See `solve_ridge_cv()` for cross-validation with GPU support
 
     Args:
         X (np.ndarray): Training data features with shape (n_samples, n_features)
@@ -82,6 +110,8 @@ def ridge_svd(
         - For alpha→0, this reduces to ordinary least squares (OLS). Use alpha=1e-6
           for OLS in practice (more numerically stable than alpha=0)
         - Supports both CPU (NumPy) and GPU (PyTorch) backends
+        - See `nltools.algorithms.ridge.solvers.solve_ridge_cv()` for cross-validation
+        - See `nltools.algorithms.ridge.utils._decompose_ridge()` for generator pattern
     """
     # Input validation
     if alpha < 0:
@@ -139,10 +169,13 @@ def ridge_svd(
 
     # Compute SVD: X = U @ diag(s) @ Vt
     # Use reduced SVD (full_matrices=False) for efficiency
+    # Reduced SVD only computes min(n_samples, n_features) singular values
     U, s, Vt = backend.svd(X_device, full_matrices=False)
 
     # Compute ridge shrinkage: s / (s**2 + alpha)
     # This is the key step that regularizes the solution
+    # Small singular values get heavily shrunk, large ones less so
+    # This prevents overfitting in high-dimensional settings
     if backend.name == "numpy":
         shrinkage = s / (s**2 + alpha)
         # Compute: beta = V @ diag(shrinkage) @ U.T @ y

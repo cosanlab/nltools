@@ -11,7 +11,11 @@ from sklearn.utils import check_random_state
 
 from nltools.backends import Backend
 from .utils import _compute_pvalue, _auto_batch_size
-from .._validation import validate_tail_parameter, validate_parallel_parameter, validate_array_shape_range
+from .._validation import (
+    validate_tail_parameter,
+    validate_parallel_parameter,
+    validate_array_shape_range,
+)
 from .._random import generate_seeds
 
 

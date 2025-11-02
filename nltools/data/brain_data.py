@@ -682,34 +682,25 @@ class BrainData(object):
                 - Glm: noise_model, minimize_memory, etc.
 
         Returns:
-            BrainData or Fit: If inplace=True, returns self (fitted BrainData).
-                If inplace=False, returns Fit dataclass with results.
+            BrainData or Fit: If ``inplace=True``, returns self (fitted BrainData).
+                If ``inplace=False``, returns Fit dataclass with results.
 
         Attributes (when inplace=True):
 
-            model_ (BaseModel): Fitted model instance (Ridge, Glm, etc.)
-            X_ (ndarray): Training data X, stored for predict() default
-            cv_results_ (dict, optional): Cross-validation results (if cv is not None). Contains:
-                - 'scores': (n_folds, n_voxels) array of R² per fold
-                - 'mean_score': (n_voxels,) array of mean R² across folds
-                - 'predictions': BrainData of out-of-fold predictions
-                - 'folds': (n_samples,) array of fold indices
-                - 'best_alpha': Selected alpha (if alpha selection performed)
-                - 'alpha_scores': (n_folds, n_alphas, n_voxels) array (if alpha selection)
-
-            For model='glm':
-                glm_betas (BrainData): Beta coefficients
-                glm_t (BrainData): T-statistics
-                glm_p (BrainData): P-values
-                glm_se (BrainData): Standard errors
-                glm_residual (BrainData): Residuals
-                glm_predicted (BrainData): Fitted values
-                glm_r2 (BrainData): R² values
-
-            For model='ridge':
-                ridge_weights (BrainData): Model coefficients
-                ridge_fitted_values (BrainData): Fitted values
-                ridge_scores (BrainData): R² scores
+            ``model_`` (BaseModel): Fitted model instance (Ridge, Glm, etc.)
+            ``X_`` (ndarray): Training data X, stored for predict() default
+            ``cv_results_`` (dict, optional): Cross-validation results dict with keys 'scores',
+            'mean_score', 'predictions', 'folds', 'best_alpha', 'alpha_scores' (if cv is not None).
+            glm_betas (BrainData, optional): Beta coefficients (for model='glm')
+            glm_t (BrainData, optional): T-statistics (for model='glm')
+            glm_p (BrainData, optional): P-values (for model='glm')
+            glm_se (BrainData, optional): Standard errors (for model='glm')
+            glm_residual (BrainData, optional): Residuals (for model='glm')
+            glm_predicted (BrainData, optional): Fitted values (for model='glm')
+            glm_r2 (BrainData, optional): R² values (for model='glm')
+            ridge_weights (BrainData, optional): Model coefficients (for model='ridge')
+            ridge_fitted_values (BrainData, optional): Fitted values (for model='ridge')
+            ridge_scores (BrainData, optional): R² scores (for model='ridge')
 
         Examples:
             >>> # Old behavior (backward compatible): mutate self
@@ -2112,10 +2103,9 @@ class BrainData(object):
         Supports simple aggregation statistics and fitted model statistics (Ridge).
 
         Args:
-            stat: (str) Statistic to bootstrap. Options:
-                - Simple stats: 'mean', 'median', 'std', 'sum', 'min', 'max'
-                - Model stats: 'weights' (requires fitted Ridge model),
-                               'predict' (requires fitted Ridge model + X_test)
+            stat: (str) Statistic to bootstrap. Options: Simple stats ('mean', 'median', 'std',
+                'sum', 'min', 'max') or Model stats ('weights' requires fitted Ridge model,
+                'predict' requires fitted Ridge model + X_test).
             n_samples: (int) Number of bootstrap iterations. Default: 5000
             save_boots: (bool) If True, store all bootstrap samples (memory intensive).
                        Default: False
@@ -2135,7 +2125,7 @@ class BrainData(object):
                 - For simple stats: Returns BrainData with bootstrap mean
                 - For model stats: Returns dict with keys: 'mean', 'std', 'Z', 'p',
                   'ci_lower', 'ci_upper' (all BrainData objects)
-                - If save_boots=True: Returns dict with 'samples' key containing all samples
+                - If ``save_boots=True``: Returns dict with 'samples' key containing all samples
 
         Examples:
             >>> # Simple aggregation
