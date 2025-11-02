@@ -22,6 +22,7 @@ import psutil
 import os
 import platform
 import argparse
+import gc
 from typing import Tuple, Dict, Optional, List
 from itertools import product
 from datetime import datetime
@@ -81,11 +82,13 @@ class NoOpTqdm:
 tqdm_module = types.ModuleType("tqdm")
 tqdm_module.tqdm = NoOpTqdm
 tqdm_module.__all__ = ["tqdm"]
-# Also create tqdm.auto submodule
+# Also create tqdm.auto submodule properly
 auto_module = types.ModuleType("auto")
 auto_module.tqdm = NoOpTqdm
+auto_module.__all__ = ["tqdm"]
 tqdm_module.auto = auto_module
 sys.modules["tqdm"] = tqdm_module
+sys.modules["tqdm.auto"] = auto_module
 
 # Rich imports
 # noqa: E402 - imports must come after tqdm patching
@@ -126,6 +129,9 @@ try:
     tqdm.tqdm = NoOpTqdm
     if hasattr(tqdm, "auto"):
         tqdm.auto.tqdm = NoOpTqdm
+    # Ensure tqdm.auto module exists in sys.modules
+    if "tqdm.auto" not in sys.modules:
+        sys.modules["tqdm.auto"] = tqdm.auto if hasattr(tqdm, "auto") else auto_module
 except (ImportError, AttributeError):
     pass
 
@@ -341,6 +347,8 @@ def benchmark_isc(
     parallel: Optional[str],
     n_jobs: int = -1,
     random_state: Optional[int] = 42,
+    method: str = "bootstrap",
+    summary_statistic: str = "leave-one-out",
 ) -> Tuple[float, float]:
     """Benchmark isc_permutation_test."""
     mem_start = get_memory_mb()
@@ -348,9 +356,12 @@ def benchmark_isc(
     _ = isc_permutation_test(
         data,
         n_permute=n_permute,
+        method=method,
+        summary_statistic=summary_statistic,
         parallel=parallel,
         n_jobs=n_jobs,
         random_state=random_state,
+        progress_bar=False,  # Disable progress bar to avoid conflicts
     )
     end = time.perf_counter()
     mem_end = get_memory_mb()
@@ -365,6 +376,8 @@ def benchmark_isc_group(
     parallel: Optional[str],
     n_jobs: int = -1,
     random_state: Optional[int] = 42,
+    method: str = "permute",
+    summary_statistic: str = "pairwise",
 ) -> Tuple[float, float]:
     """Benchmark isc_group_permutation_test."""
     mem_start = get_memory_mb()
@@ -373,9 +386,12 @@ def benchmark_isc_group(
         group1,
         group2,
         n_permute=n_permute,
+        method=method,
+        summary_statistic=summary_statistic,
         parallel=parallel,
         n_jobs=n_jobs,
         random_state=random_state,
+        progress_bar=False,  # Disable progress bar to avoid conflicts
     )
     end = time.perf_counter()
     mem_end = get_memory_mb()
@@ -416,8 +432,8 @@ def get_algorithm_label(algorithm: str, method: Optional[str] = None) -> str:
     base_label = algorithm_labels.get(algorithm, algorithm.replace("_", " ").title())
     if method:
         method_labels = {
-            "circle_shift": "Circle Shift",
-            "phase_randomize": "Phase Randomize",
+            "circle_shift": "Permutation (Circle Shift)",
+            "phase_randomize": "Permutation (Phase Randomize)",
             "bootstrap": "Bootstrap",
             "permute": "Permutation",
         }
@@ -431,42 +447,25 @@ def get_algorithm_label(algorithm: str, method: Optional[str] = None) -> str:
     return base_label
 
 
-def create_system_info_panel(
-    config: Dict, gpu_available: bool, gpu_info: Dict
-) -> Panel:
-    """Create system information panel."""
-    system_info = Table.grid(padding=1)
-    system_info.add_column(style="cyan", justify="right")
-    system_info.add_column(style="white")
-
-    system_info.add_row("System:", f"{platform.system()} {platform.release()}")
-    system_info.add_row("Machine:", platform.machine())
-    system_info.add_row("Python:", platform.python_version())
-
+def format_system_info_line(config: Dict, gpu_available: bool, gpu_info: Dict) -> str:
+    """Format system information as a single condensed line."""
     import torch
 
-    system_info.add_row("NumPy:", np.__version__)
-    system_info.add_row("PyTorch:", torch.__version__)
+    parts = []
+    parts.append(f"Python {platform.python_version()}")
+    parts.append(f"NumPy {np.__version__}")
+    parts.append(f"PyTorch {torch.__version__}")
 
-    system_info.add_row("GPU Available:", "✓ Yes" if gpu_available else "✗ No")
     if gpu_available:
-        system_info.add_row("GPU Device:", gpu_info.get("device", "Unknown"))
-        system_info.add_row("GPU Name:", gpu_info.get("device_name", "Unknown"))
-
-    # Add benchmark config
-    system_info.add_row("", "")  # Spacer
-    system_info.add_row("[bold]Algorithms:", ", ".join(config["algorithms"]))
-    system_info.add_row("Samples:", ", ".join(str(x) for x in config["n_samples"]))
-    system_info.add_row("Features:", ", ".join(str(x) for x in config["n_features"]))
-    system_info.add_row("Permutations:", ", ".join(str(x) for x in config["n_permute"]))
-    if "n_timepoints" in config:
-        system_info.add_row(
-            "Timepoints:", ", ".join(str(x) for x in config["n_timepoints"])
+        parts.append(
+            f"GPU: {gpu_info.get('device_name', gpu_info.get('device', 'Unknown'))}"
         )
+    else:
+        parts.append("GPU: None")
 
-    return Panel(
-        system_info, title="[bold blue]System & Configuration", border_style="blue"
-    )
+    parts.append(f"Algorithms: {', '.join(config['algorithms'])}")
+
+    return " | ".join(parts)
 
 
 def create_results_table(device_results: List[Dict]) -> Table:
@@ -517,8 +516,8 @@ def create_results_table(device_results: List[Dict]) -> Table:
 
 def print_system_info(config: Dict, gpu_available: bool, gpu_info: Dict):
     """Print system information in a styled panel (legacy function for compatibility)."""
-    panel = create_system_info_panel(config, gpu_available, gpu_info)
-    console.print(panel)
+    system_info_line = format_system_info_line(config, gpu_available, gpu_info)
+    console.print(f"[dim]{system_info_line}[/dim]")
 
 
 def print_benchmark_config(config: Dict):
@@ -628,9 +627,14 @@ def print_results_summary_table(df: pd.DataFrame):
 
 
 def print_full_results_table(df: pd.DataFrame):
-    """Print full results table."""
+    """Print full results table, sorted by algorithm and then by time (fastest first)."""
+    # Sort by algorithm, then by time_seconds (ascending - fastest first)
+    sorted_df = df.sort_values(
+        by=["algorithm", "time_seconds"], ascending=[True, True]
+    ).reset_index(drop=True)
+
     # Format numeric columns
-    display_df = df.copy()
+    display_df = sorted_df.copy()
     numeric_cols = [
         "time_seconds",
         "memory_mb",
@@ -767,6 +771,7 @@ def run_one_sample_benchmarks(
     progress: Progress,
     task_id: int,
     quiet: bool = False,
+    live_update=None,
 ) -> int:
     """Run one_sample benchmarks for given device."""
     tests_run = 0
@@ -775,10 +780,17 @@ def run_one_sample_benchmarks(
         config["n_samples"], config["n_features"], config["n_permute"]
     ):
         tests_run += 1
-        test_label = f"n={n_samples}, f={n_features}, p={n_permute}"
+        backend_label = (
+            "CPU Single"
+            if device == "numpy"
+            else ("CPU Parallel" if device == "cpu-parallel" else "GPU")
+        )
+        test_label = f"One Sample Permutation [{backend_label}] | n={n_samples}, f={n_features}, p={n_permute}"
 
         if not quiet:
-            progress.update(task_id, description=f"Running One Sample: {test_label}")
+            progress.update(task_id, description=test_label)
+            if live_update:
+                live_update()
 
         # Generate data
         data = generate_one_sample_data(n_samples, n_features)
@@ -831,6 +843,7 @@ def run_one_sample_benchmarks(
         results.append(result_dict)
         progress.update(task_id, advance=1)
         del data
+        gc.collect()  # Force garbage collection after each test
 
     return tests_run
 
@@ -845,6 +858,7 @@ def run_two_sample_benchmarks(
     progress: Progress,
     task_id: int,
     quiet: bool = False,
+    live_update=None,
 ) -> int:
     """Run two_sample benchmarks for given device."""
     tests_run = 0
@@ -853,10 +867,17 @@ def run_two_sample_benchmarks(
         config["n_samples"], config["n_features"], config["n_permute"]
     ):
         tests_run += 1
-        test_label = f"n={n_samples}, f={n_features}, p={n_permute}"
+        backend_label = (
+            "CPU Single"
+            if device == "numpy"
+            else ("CPU Parallel" if device == "cpu-parallel" else "GPU")
+        )
+        test_label = f"Two Sample Permutation [{backend_label}] | n={n_samples}, f={n_features}, p={n_permute}"
 
         if not quiet:
-            progress.update(task_id, description=f"Running Two Sample: {test_label}")
+            progress.update(task_id, description=test_label)
+            if live_update:
+                live_update()
 
         data1, data2 = generate_two_sample_data(n_samples, n_samples, n_features)
         condition_key = f"two_sample_{n_samples}_{n_features}_{n_permute}"
@@ -906,6 +927,7 @@ def run_two_sample_benchmarks(
         results.append(result_dict)
         progress.update(task_id, advance=1)
         del data1, data2
+        gc.collect()  # Force garbage collection after each test
 
     return tests_run
 
@@ -920,6 +942,7 @@ def run_correlation_benchmarks(
     progress: Progress,
     task_id: int,
     quiet: bool = False,
+    live_update=None,
 ) -> int:
     """Run correlation benchmarks for given device."""
     tests_run = 0
@@ -928,10 +951,17 @@ def run_correlation_benchmarks(
         config["n_samples"], config["n_features"], config["n_permute"]
     ):
         tests_run += 1
-        test_label = f"n={n_samples}, f={n_features}, p={n_permute}"
+        backend_label = (
+            "CPU Single"
+            if device == "numpy"
+            else ("CPU Parallel" if device == "cpu-parallel" else "GPU")
+        )
+        test_label = f"Correlation Permutation (pearson) [{backend_label}] | n={n_samples}, f={n_features}, p={n_permute}"
 
         if not quiet:
-            progress.update(task_id, description=f"Running Correlation: {test_label}")
+            progress.update(task_id, description=test_label)
+            if live_update:
+                live_update()
 
         data1, data2 = generate_correlation_data(n_samples, n_features)
         condition_key = f"correlation_{n_samples}_{n_features}_{n_permute}"
@@ -981,6 +1011,7 @@ def run_correlation_benchmarks(
         results.append(result_dict)
         progress.update(task_id, advance=1)
         del data1, data2
+        gc.collect()  # Force garbage collection after each test
 
     return tests_run
 
@@ -994,6 +1025,7 @@ def run_timeseries_correlation_benchmarks(
     progress: Progress,
     task_id: int,
     quiet: bool = False,
+    live_update=None,
 ) -> int:
     """Run timeseries_correlation benchmarks for given device."""
     tests_run = 0
@@ -1007,12 +1039,14 @@ def run_timeseries_correlation_benchmarks(
 
         for method in methods:
             tests_run += 1
-            test_label = f"{method}, n={n_samples}, p={n_permute}"
+            backend_label = "CPU Parallel" if device == "cpu-parallel" else "GPU"
+            method_label = method.replace("_", " ").title()
+            test_label = f"Timeseries Correlation ({method_label}) [{backend_label}] | n={n_samples}, p={n_permute}"
 
             if not quiet:
-                progress.update(
-                    task_id, description=f"Running Timeseries ({method}): {test_label}"
-                )
+                progress.update(task_id, description=test_label)
+                if live_update:
+                    live_update()
 
             rng = np.random.RandomState(42)
             t = np.linspace(0, 10 * np.pi, n_samples)
@@ -1056,6 +1090,7 @@ def run_timeseries_correlation_benchmarks(
             results.append(result_dict)
             progress.update(task_id, advance=1)
             del data1, data2
+            gc.collect()  # Force garbage collection after each test
 
     return tests_run
 
@@ -1070,6 +1105,7 @@ def run_matrix_benchmarks(
     progress: Progress,
     task_id: int,
     quiet: bool = False,
+    live_update=None,
 ) -> int:
     """Run matrix benchmarks for given device."""
     tests_run = 0
@@ -1079,10 +1115,13 @@ def run_matrix_benchmarks(
 
     for matrix_size, n_permute in product(config["n_samples"], config["n_permute"]):
         tests_run += 1
-        test_label = f"size={matrix_size}, p={n_permute}"
+        backend_label = "CPU Single" if device == "numpy" else "CPU Parallel"
+        test_label = f"Matrix Permutation (Mantel Test, pearson) [{backend_label}] | size={matrix_size}, p={n_permute}"
 
         if not quiet:
-            progress.update(task_id, description=f"Running Matrix: {test_label}")
+            progress.update(task_id, description=test_label)
+            if live_update:
+                live_update()
 
         matrix1, matrix2 = generate_matrix_data(matrix_size)
         condition_key = f"matrix_{matrix_size}_{n_permute}"
@@ -1123,6 +1162,7 @@ def run_matrix_benchmarks(
         results.append(result_dict)
         progress.update(task_id, advance=1)
         del matrix1, matrix2
+        gc.collect()  # Force garbage collection after each test
 
     return tests_run
 
@@ -1136,6 +1176,7 @@ def run_isc_benchmarks(
     progress: Progress,
     task_id: int,
     quiet: bool = False,
+    live_update=None,
 ) -> int:
     """Run isc benchmarks for given device."""
     tests_run = 0
@@ -1143,19 +1184,39 @@ def run_isc_benchmarks(
     n_timepoints = config.get("n_timepoints", [100, 500])
     n_voxels_config = config["n_features"][:3]
 
-    for n_subj, n_tp, n_vox, n_permute in product(
-        n_subjects, n_timepoints, n_voxels_config, config["n_permute"]
+    # Test bootstrap method with both summary statistics
+    # Note: circle_shift doesn't support 3D voxel-wise data, so we only test bootstrap
+    # For permutation tests with ISC, use bootstrap method (which works with voxel-wise data)
+    methods = ["bootstrap"]  # Only bootstrap works with 3D voxel-wise ISC data
+    summary_stats = ["leave-one-out", "pairwise"]
+
+    for n_subj, n_tp, n_vox, n_permute, method, summary_stat in product(
+        n_subjects,
+        n_timepoints,
+        n_voxels_config,
+        config["n_permute"],
+        methods,
+        summary_stats,
     ):
         tests_run += 1
+        backend_label = "CPU Parallel" if device == "cpu-parallel" else "GPU"
+        # Label: "Bootstrap" (only bootstrap method works with voxel-wise ISC data)
+        method_label = "Bootstrap"
+        summary_label = summary_stat.replace("-", " ").title()
         test_label = (
+            f"ISC ({method_label}, {summary_label}) [{backend_label}] | "
             f"subjects={n_subj}, timepoints={n_tp}, voxels={n_vox}, p={n_permute}"
         )
 
         if not quiet:
-            progress.update(task_id, description=f"Running ISC: {test_label}")
+            progress.update(task_id, description=test_label)
+            if live_update:
+                live_update()
 
         data = generate_isc_data(n_tp, n_subj, n_vox)
-        condition_key = f"isc_{n_subj}_{n_tp}_{n_vox}_{n_permute}"
+        condition_key = (
+            f"isc_{method}_{summary_stat}_{n_subj}_{n_tp}_{n_vox}_{n_permute}"
+        )
 
         time_result, mem_result = benchmark_isc(
             data,
@@ -1163,10 +1224,15 @@ def run_isc_benchmarks(
             parallel=parallel,
             n_jobs=-1 if device == "cpu-parallel" else None,
             random_state=42,
+            method=method,
+            summary_statistic=summary_stat,
         )
 
+        # Algorithm name: "isc_bootstrap_loo" or "isc_bootstrap_pairwise"
+        # Note: Only bootstrap method works with voxel-wise ISC data
+        algorithm_name = f"isc_{method}_{summary_stat}"
         result_dict = {
-            "algorithm": "isc",
+            "algorithm": algorithm_name,
             "n_samples": n_tp,
             "n_features": n_vox,
             "n_permute": n_permute,
@@ -1188,6 +1254,7 @@ def run_isc_benchmarks(
         results.append(result_dict)
         progress.update(task_id, advance=1)
         del data
+        gc.collect()  # Force garbage collection after each test
 
     return tests_run
 
@@ -1202,6 +1269,7 @@ def run_isc_group_benchmarks(
     progress: Progress,
     task_id: int,
     quiet: bool = False,
+    live_update=None,
 ) -> int:
     """Run isc_group benchmarks for given device."""
     tests_run = 0
@@ -1209,21 +1277,42 @@ def run_isc_group_benchmarks(
     n_timepoints = config.get("n_timepoints", [100, 500])
     n_voxels_config = config["n_features"][:3]
 
+    # Test both methods and summary statistics
+    methods = ["permute", "bootstrap"]
+    summary_stats = ["pairwise", "leave-one-out"]
+
     if device not in ["numpy", "cpu-parallel"]:
         return 0
 
-    for (n_subj1, n_subj2), n_tp, n_vox, n_permute in product(
-        group_sizes, n_timepoints, n_voxels_config, config["n_permute"]
+    for (n_subj1, n_subj2), n_tp, n_vox, n_permute, method, summary_stat in product(
+        group_sizes,
+        n_timepoints,
+        n_voxels_config,
+        config["n_permute"],
+        methods,
+        summary_stats,
     ):
         tests_run += 1
-        test_label = f"group1={n_subj1}, group2={n_subj2}, timepoints={n_tp}, voxels={n_vox}, p={n_permute}"
+        backend_label = "CPU Single" if device == "numpy" else "CPU Parallel"
+        # Use clearer labels: "Bootstrap" or "Permutation"
+        if method == "permute":
+            method_label = "Permutation"
+        else:
+            method_label = "Bootstrap"
+        summary_label = summary_stat.replace("-", " ").title()
+        test_label = (
+            f"ISC Group ({method_label}, {summary_label}) [{backend_label}] | "
+            f"group1={n_subj1}, group2={n_subj2}, timepoints={n_tp}, voxels={n_vox}, p={n_permute}"
+        )
 
         if not quiet:
-            progress.update(task_id, description=f"Running ISC Group: {test_label}")
+            progress.update(task_id, description=test_label)
+            if live_update:
+                live_update()
 
         group1 = generate_isc_data(n_tp, n_subj1, n_vox)
         group2 = generate_isc_data(n_tp, n_subj2, n_vox)
-        condition_key = f"isc_group_{n_subj1}_{n_subj2}_{n_tp}_{n_vox}_{n_permute}"
+        condition_key = f"isc_group_{method}_{summary_stat}_{n_subj1}_{n_subj2}_{n_tp}_{n_vox}_{n_permute}"
 
         time_result, mem_result = benchmark_isc_group(
             group1,
@@ -1232,10 +1321,14 @@ def run_isc_group_benchmarks(
             parallel=parallel,
             n_jobs=-1 if device == "cpu-parallel" else None,
             random_state=42,
+            method=method,
+            summary_statistic=summary_stat,
         )
 
+        # Use clearer algorithm name: "isc_group_bootstrap_loo" or "isc_group_permutation_pairwise"
+        algorithm_name = f"isc_group_{method}_{summary_stat}"
         result_dict = {
-            "algorithm": "isc_group",
+            "algorithm": algorithm_name,
             "n_samples": f"{n_tp},{n_subj1},{n_subj2}",
             "n_features": n_vox,
             "n_permute": n_permute,
@@ -1261,6 +1354,7 @@ def run_isc_group_benchmarks(
         results.append(result_dict)
         progress.update(task_id, advance=1)
         del group1, group2
+        gc.collect()  # Force garbage collection after each test
 
     return tests_run
 
@@ -1319,8 +1413,15 @@ def count_total_tests(
             n_subjects = [10, 20, 30]
             n_timepoints = config.get("n_timepoints", [100, 500])
             n_voxels = config["n_features"][:3]
-            for n_subj, n_tp, n_vox, n_permute in product(
-                n_subjects, n_timepoints, n_voxels, config["n_permute"]
+            methods = ["bootstrap"]  # Only bootstrap works with 3D voxel-wise ISC data
+            summary_stats = ["leave-one-out", "pairwise"]
+            for n_subj, n_tp, n_vox, n_permute, method, summary_stat in product(
+                n_subjects,
+                n_timepoints,
+                n_voxels,
+                config["n_permute"],
+                methods,
+                summary_stats,
             ):
                 device_counts["cpu-parallel"] += 1
                 if gpu_available and not no_gpu:
@@ -1329,8 +1430,15 @@ def count_total_tests(
             group_sizes = [(10, 10), (20, 20), (30, 30)]
             n_timepoints = config.get("n_timepoints", [100, 500])
             n_voxels = config["n_features"][:3]
-            for (n1, n2), n_tp, n_vox, n_permute in product(
-                group_sizes, n_timepoints, n_voxels, config["n_permute"]
+            methods = ["permute", "bootstrap"]
+            summary_stats = ["pairwise", "leave-one-out"]
+            for (n1, n2), n_tp, n_vox, n_permute, method, summary_stat in product(
+                group_sizes,
+                n_timepoints,
+                n_voxels,
+                config["n_permute"],
+                methods,
+                summary_stats,
             ):
                 device_counts["numpy"] += 1
                 device_counts["cpu-parallel"] += 1
@@ -1389,16 +1497,15 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
     layout = Layout()
     layout.split_column(
         Layout(name="header", size=3),  # Device name (larger for visibility)
-        Layout(name="status", size=1),  # Running test name
+        Layout(name="status", size=2),  # Running test name + system info line
         Layout(name="progress", size=3),  # Progress bar
-        Layout(name="system", size=12),  # System info panel
-        Layout(name="results", size=None),  # Results table (grows)
+        Layout(name="results", size=None),  # Results table (grows - expanded space)
     )
 
     # Initialize layout components
     current_device = ""
     current_test = "[dim]Waiting to start...[/dim]"
-    system_panel = create_system_info_panel(config, gpu_available, gpu_info)
+    system_info_line = format_system_info_line(config, gpu_available, gpu_info)
     results_table = create_results_table([])
 
     # Create progress bar that will be updated
@@ -1419,18 +1526,24 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                 padding=(0, 1),
             )
         )
+        # Combine test name and system info in status section
+        status_text = f"{current_test}\n[dim]{system_info_line}[/dim]"
         layout["status"].update(
-            Panel(Text(current_test, style="cyan"), border_style="cyan", padding=(0, 1))
+            Panel(Text(status_text, style="cyan"), border_style="cyan", padding=(0, 1))
         )
         layout["progress"].update(progress)
-        layout["system"].update(system_panel)
         layout["results"].update(
             Panel(results_table, title="[bold green]Test Results", border_style="green")
         )
         return layout
 
     # Run benchmarks with Live display
-    with Live(make_layout(), refresh_per_second=10, screen=True) as live:
+    with Live(make_layout(), refresh_per_second=10, screen=True) as live_context:
+
+        def live_update():
+            """Update the live display."""
+            live_context.update(make_layout())
+
         for device_idx, (device, parallel) in enumerate(devices_to_run, 1):
             if device == "cpu-parallel":
                 n_jobs = os.cpu_count() or 1
@@ -1440,7 +1553,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
             device_label = get_device_label(device, n_jobs)
             current_device = device_label
             current_test = "[dim]Initializing...[/dim]"
-            live.update(make_layout())
+            live_context.update(make_layout())
 
             device_results = []
             device_task_id = progress.add_task(
@@ -1462,6 +1575,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                         progress,
                         device_task_id,
                         False,
+                        live_update,
                     )
                     device_results.extend(results[-tests_run:])
                     # Update display after each algorithm
@@ -1471,7 +1585,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                         task = progress.tasks[device_task_id]
                         if task.description:
                             current_test = task.description
-                    live.update(make_layout())
+                    live_context.update(make_layout())
                 elif algorithm == "two_sample":
                     tests_run = run_two_sample_benchmarks(
                         config,
@@ -1483,6 +1597,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                         progress,
                         device_task_id,
                         False,
+                        live_update,
                     )
                     device_results.extend(results[-tests_run:])
                     # Update display after each algorithm
@@ -1492,7 +1607,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                         task = progress.tasks[device_task_id]
                         if task.description:
                             current_test = task.description
-                    live.update(make_layout())
+                    live_context.update(make_layout())
                 elif algorithm == "correlation":
                     tests_run = run_correlation_benchmarks(
                         config,
@@ -1504,6 +1619,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                         progress,
                         device_task_id,
                         False,
+                        live_update,
                     )
                     device_results.extend(results[-tests_run:])
                     # Update display after each algorithm
@@ -1513,7 +1629,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                         task = progress.tasks[device_task_id]
                         if task.description:
                             current_test = task.description
-                    live.update(make_layout())
+                    live_context.update(make_layout())
                 elif algorithm == "timeseries_correlation":
                     tests_run = run_timeseries_correlation_benchmarks(
                         config,
@@ -1524,6 +1640,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                         progress,
                         device_task_id,
                         False,
+                        live_update,
                     )
                     device_results.extend(results[-tests_run:])
                     # Update display after each algorithm
@@ -1533,7 +1650,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                         task = progress.tasks[device_task_id]
                         if task.description:
                             current_test = task.description
-                    live.update(make_layout())
+                    live_context.update(make_layout())
                 elif algorithm == "matrix":
                     tests_run = run_matrix_benchmarks(
                         config,
@@ -1545,6 +1662,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                         progress,
                         device_task_id,
                         False,
+                        live_update,
                     )
                     device_results.extend(results[-tests_run:])
                     # Update display after each algorithm
@@ -1554,7 +1672,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                         task = progress.tasks[device_task_id]
                         if task.description:
                             current_test = task.description
-                    live.update(make_layout())
+                    live_context.update(make_layout())
                 elif algorithm == "isc":
                     tests_run = run_isc_benchmarks(
                         config,
@@ -1565,6 +1683,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                         progress,
                         device_task_id,
                         False,
+                        live_update,
                     )
                     device_results.extend(results[-tests_run:])
                     # Update display after each algorithm
@@ -1574,7 +1693,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                         task = progress.tasks[device_task_id]
                         if task.description:
                             current_test = task.description
-                    live.update(make_layout())
+                    live_context.update(make_layout())
                 elif algorithm == "isc_group":
                     tests_run = run_isc_group_benchmarks(
                         config,
@@ -1586,6 +1705,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                         progress,
                         device_task_id,
                         False,
+                        live_update,
                     )
                     device_results.extend(results[-tests_run:])
                     # Update display after each algorithm
@@ -1595,13 +1715,29 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                         task = progress.tasks[device_task_id]
                         if task.description:
                             current_test = task.description
-                    live.update(make_layout())
+                    live_context.update(make_layout())
 
             # Accumulate results at end of device
             all_device_results.extend(device_results)
             results_table = create_results_table(all_device_results)
             current_test = f"[green]✓ Completed {device_label}[/green]"
-            live.update(make_layout())
+            live_context.update(make_layout())
+
+            # Force garbage collection after each device completes
+            del device_results
+            gc.collect()
+
+            # Check memory usage and warn if high
+            try:
+                mem = psutil.virtual_memory()
+                if mem.percent > 85:
+                    console.print(
+                        f"[yellow]Warning: Memory usage is {mem.percent:.1f}%. "
+                        f"Consider reducing problem sizes or running fewer algorithms.[/yellow]",
+                        style="dim",
+                    )
+            except Exception:
+                pass  # Ignore memory check errors
 
     console.print("\n[bold green]✓ Benchmark Complete![/bold green]\n")
     return pd.DataFrame(results)
@@ -1788,7 +1924,13 @@ Examples:
         "--output",
         type=str,
         default="results_inference_systematic.csv",
-        help="Output CSV filename (default: results_inference_systematic.csv)",
+        help="Output CSV filename (only used with --save flag, default: results_inference_systematic.csv)",
+    )
+
+    parser.add_argument(
+        "--save",
+        action="store_true",
+        help="Save results to CSV file",
     )
 
     parser.add_argument(
@@ -1921,29 +2063,31 @@ def main():
     # Run benchmarks
     results_df = run_systematic_benchmarks(config)
 
-    # Save to CSV with timestamp in results subdirectory
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    results_dir = os.path.join(os.path.dirname(__file__), "results")
-    os.makedirs(results_dir, exist_ok=True)
+    # Save to CSV with timestamp in results subdirectory (only if --save flag provided)
+    if args.save:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        results_dir = os.path.join(os.path.dirname(__file__), "results")
+        os.makedirs(results_dir, exist_ok=True)
 
-    csv_base = args.output.replace(".csv", "")
-    csv_filename = f"{csv_base}_{timestamp}.csv"
-    csv_path = os.path.join(results_dir, csv_filename)
-    results_df.to_csv(csv_path, index=False)
+        csv_base = args.output.replace(".csv", "")
+        csv_filename = f"{csv_base}_{timestamp}.csv"
+        csv_path = os.path.join(results_dir, csv_filename)
+        results_df.to_csv(csv_path, index=False)
+
+        if not config.get("quiet", False):
+            console.print(f"[green]Results saved to:[/green] {csv_path}\n")
+    else:
+        if not config.get("quiet", False):
+            console.print(
+                "[dim]Results not saved (use --save flag to save CSV file)[/dim]\n"
+            )
 
     if not config.get("quiet", False):
-        console.print(f"[green]Results saved to:[/green] {csv_path}\n")
-
         # Print summary tables
         print_results_summary_table(results_df)
 
-        # Optionally print full results (can be verbose)
-        if len(results_df) <= 50:
-            print_full_results_table(results_df)
-        else:
-            console.print(
-                f"\n[dim]Full results table omitted ({len(results_df)} rows). See CSV file.[/dim]\n"
-            )
+        # Always print full results table (sorted by fastest device for each algorithm)
+        print_full_results_table(results_df)
 
 
 if __name__ == "__main__":

@@ -483,11 +483,11 @@ def test_isc_backend_consistency_numpy_cpu_parallel():
     data = np.random.randn(100, 10, 20)
 
     result_numpy = isc_permutation_test(
-        data, backend="numpy", n_permute=100, random_state=42, progress_bar=False
+        data, parallel=None, n_permute=100, random_state=42, progress_bar=False
     )
 
     result_parallel = isc_permutation_test(
-        data, backend="cpu-parallel", n_permute=100, random_state=42, progress_bar=False
+        data, parallel="cpu", n_permute=100, random_state=42, progress_bar=False
     )
 
     # Both use float64 CPU - should be exact matches
@@ -545,8 +545,8 @@ def test_isc_return_null_distribution():
         data, n_permute=100, return_null=True, random_state=42, progress_bar=False
     )
 
-    assert "null_distribution" in result
-    assert result["null_distribution"].shape == (100,)
+    assert "null_dist" in result
+    assert result["null_dist"].shape == (100,)
 
 
 @pytest.mark.tier1
@@ -854,8 +854,8 @@ def test_isc_exclude_self_corr_affects_bootstrap():
     # Bootstrap distributions should be different
     # When exclude_self_corr=False, perfect correlations (1.0) from duplicates
     # are included, which can inflate the bootstrap distribution
-    null_exclude = result_exclude["null_distribution"]
-    null_include = result_include["null_distribution"]
+    null_exclude = result_exclude["null_dist"]
+    null_include = result_include["null_dist"]
 
     # Both should have valid results
     assert not np.all(np.isnan(null_exclude))
@@ -1708,16 +1708,16 @@ class TestISCStatisticalCorrectness:
             progress_bar=False,
         )
 
-        # Bootstrap distribution should be centered around observed ISC
-        # (return_null returns raw bootstrap samples, not centered null_distribution)
-        null_dist = result["null_distribution"]
+        # Bootstrap distribution should be centered around 0
+        # (return_null returns centered null_distribution: bootstraps - observed_isc)
+        null_dist = result["null_dist"]
         observed_isc = result["isc"]
 
-        # Mean of bootstrap samples should approximate observed ISC
-        bootstrap_mean = np.mean(null_dist)
-        assert np.abs(bootstrap_mean - observed_isc) < 0.2, (
-            f"Bootstrap distribution should be centered near observed ISC. "
-            f"Observed: {observed_isc:.4f}, Bootstrap mean: {bootstrap_mean:.4f}"
+        # Mean of centered null distribution should be close to 0
+        null_mean = np.mean(null_dist)
+        assert np.abs(null_mean) < 0.2, (
+            f"Centered null distribution should have mean close to 0. "
+            f"Observed ISC: {observed_isc:.4f}, Null mean: {null_mean:.4f}"
         )
 
         # CI should contain observed ISC at reasonable rate

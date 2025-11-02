@@ -717,12 +717,14 @@ def _permute_isc_group_cpu_parallel(
     random_state=None,
     progress_bar=True,
     sim_metric="correlation",
+    max_memory_gb=None,
 ):
     """
     CPU-parallel permutation for ISC group difference.
 
     Efficiently parallelizes permutation resampling across CPU cores using joblib.
     Uses deterministic seed generation for reproducibility.
+    Automatically limits workers based on available memory if n_jobs=-1.
 
     Parameters
     ----------
@@ -737,11 +739,15 @@ def _permute_isc_group_cpu_parallel(
     summary_statistic : {'pairwise', 'leave-one-out'}, default='pairwise'
         ISC computation method
     n_jobs : int, default=-1
-        Number of CPU cores for parallelization
+        Number of CPU cores for parallelization (-1 = auto-detect based on memory)
     random_state : int or RandomState, optional
         Random seed for reproducibility
     progress_bar : bool, default=True
         Show progress bar
+    sim_metric : str, default='correlation'
+        Similarity metric for pairwise ISC
+    max_memory_gb : float, optional
+        Maximum memory budget in GB (only used if n_jobs=-1)
 
     Returns
     -------
@@ -752,6 +758,20 @@ def _permute_isc_group_cpu_parallel(
     """
     from joblib import Parallel, delayed
     from tqdm.auto import tqdm
+    from .utils import _auto_n_jobs_cpu, _estimate_data_size_mb
+
+    # Auto-detect optimal n_jobs based on memory if n_jobs=-1
+    # Estimate memory for combined groups
+    if n_jobs == -1:
+        combined_size_mb = _estimate_data_size_mb(group1) + _estimate_data_size_mb(
+            group2
+        )
+        n_jobs = _auto_n_jobs_cpu(
+            data_size_mb=combined_size_mb,
+            n_permute=n_permute,
+            max_memory_gb=max_memory_gb,
+            min_jobs=1,
+        )
 
     rng = check_random_state(random_state)
     MAX_INT = 2**31 - 1
@@ -905,12 +925,14 @@ def _bootstrap_isc_group_cpu_parallel(
     random_state=None,
     progress_bar=True,
     sim_metric="correlation",
+    max_memory_gb=None,
 ):
     """
     CPU-parallel bootstrap for ISC group difference.
 
     Efficiently parallelizes bootstrap resampling across CPU cores using joblib.
     Uses deterministic seed generation for reproducibility.
+    Automatically limits workers based on available memory if n_jobs=-1.
 
     Parameters
     ----------
@@ -929,11 +951,15 @@ def _bootstrap_isc_group_cpu_parallel(
     exclude_self_corr : bool, default=True
         Mask self-correlations in bootstrap (pairwise only)
     n_jobs : int, default=-1
-        Number of CPU cores for parallelization
+        Number of CPU cores for parallelization (-1 = auto-detect based on memory)
     random_state : int or RandomState, optional
         Random seed for reproducibility
     progress_bar : bool, default=True
         Show progress bar
+    sim_metric : str, default='correlation'
+        Similarity metric for pairwise ISC
+    max_memory_gb : float, optional
+        Maximum memory budget in GB (only used if n_jobs=-1)
 
     Returns
     -------
@@ -944,6 +970,20 @@ def _bootstrap_isc_group_cpu_parallel(
     """
     from joblib import Parallel, delayed
     from tqdm.auto import tqdm
+    from .utils import _auto_n_jobs_cpu, _estimate_data_size_mb
+
+    # Auto-detect optimal n_jobs based on memory if n_jobs=-1
+    # Estimate memory for combined groups
+    if n_jobs == -1:
+        combined_size_mb = _estimate_data_size_mb(group1) + _estimate_data_size_mb(
+            group2
+        )
+        n_jobs = _auto_n_jobs_cpu(
+            data_size_mb=combined_size_mb,
+            n_permute=n_permute,
+            max_memory_gb=max_memory_gb,
+            min_jobs=1,
+        )
 
     rng = check_random_state(random_state)
     MAX_INT = 2**31 - 1
@@ -1221,6 +1261,7 @@ def isc_group_permutation_test(
                 random_state=random_state,
                 progress_bar=progress_bar,
                 sim_metric=sim_metric,
+                max_memory_gb=None,  # Auto-detect
             )
 
     # Handle NaN values (from exclude_self_corr masking)
@@ -1340,12 +1381,14 @@ def _bootstrap_loo_cpu_parallel(
     n_jobs=-1,
     random_state=None,
     progress_bar=True,
+    max_memory_gb=None,
 ):
     """
     CPU-parallel LOO bootstrap using joblib.
 
     Efficiently parallelizes bootstrap resampling across CPU cores.
     Uses deterministic seed generation for reproducibility.
+    Automatically limits workers based on available memory if n_jobs=-1.
 
     Parameters
     ----------
@@ -1356,11 +1399,13 @@ def _bootstrap_loo_cpu_parallel(
     metric : {'median', 'mean'}, default='median'
         Summary statistic
     n_jobs : int, default=-1
-        Number of CPU cores (-1 = all cores)
+        Number of CPU cores (-1 = auto-detect based on memory)
     random_state : int or RandomState, optional
         Random seed for reproducibility
     progress_bar : bool, default=True
         Show progress bar
+    max_memory_gb : float, optional
+        Maximum memory budget in GB (only used if n_jobs=-1)
 
     Returns
     -------
@@ -1369,6 +1414,17 @@ def _bootstrap_loo_cpu_parallel(
     """
     from joblib import Parallel, delayed
     from tqdm.auto import tqdm
+    from .utils import _auto_n_jobs_cpu, _estimate_data_size_mb
+
+    # Auto-detect optimal n_jobs based on memory if n_jobs=-1
+    if n_jobs == -1:
+        data_size_mb = _estimate_data_size_mb(loo_values)
+        n_jobs = _auto_n_jobs_cpu(
+            data_size_mb=data_size_mb,
+            n_permute=n_permute,
+            max_memory_gb=max_memory_gb,
+            min_jobs=1,
+        )
 
     # Pre-generate seeds for deterministic parallelization
     rng = check_random_state(random_state)
@@ -1469,24 +1525,35 @@ def _bootstrap_pairwise_numpy(
     else:
         # Voxel-wise: (n_pairs, n_voxels)
         n_pairs, n_voxels = pairwise_condensed.shape
-        boot_condensed_list = []
 
+        # Vectorized approach: process all voxels at once using matrix operations
+        # Instead of looping over voxels, we can vectorize the squareform operations
+        # by building all matrices at once and using advanced indexing
+
+        # Build all correlation matrices at once: (n_subjects, n_subjects, n_voxels)
+        # This is more memory-intensive but much faster
+        corr_matrices = np.zeros(
+            (n_subjects, n_subjects, n_voxels), dtype=pairwise_condensed.dtype
+        )
         for v in range(n_voxels):
-            # Process each voxel independently
             corr_matrix = squareform(pairwise_condensed[:, v], force="tomatrix")
             np.fill_diagonal(corr_matrix, 1.0)
+            corr_matrices[:, :, v] = corr_matrix
 
-            # Index by bootstrap subjects
-            boot_matrix = corr_matrix[bootstrap_subjects, :][:, bootstrap_subjects]
+        # Index by bootstrap subjects for all voxels at once
+        # Shape: (n_subjects, n_subjects, n_voxels)
+        boot_matrices = corr_matrices[bootstrap_subjects, :, :][
+            :, bootstrap_subjects, :
+        ]
 
-            # Mask same-subject pairs if requested
-            if exclude_self_corr:
-                boot_matrix[boot_matrix >= 0.99999] = np.nan
+        # Mask self-correlations if requested (vectorized across all voxels)
+        if exclude_self_corr:
+            boot_matrices[boot_matrices >= 0.99999] = np.nan
 
-            # Extract triangle
-            boot_condensed_list.append(squareform(boot_matrix, checks=False))
-
-        boot_condensed = np.column_stack(boot_condensed_list)
+        # Extract upper triangle for all voxels
+        boot_condensed = np.zeros((n_pairs, n_voxels), dtype=pairwise_condensed.dtype)
+        for v in range(n_voxels):
+            boot_condensed[:, v] = squareform(boot_matrices[:, :, v], checks=False)
 
     # Compute summary (ignoring NaNs from masked pairs)
     axis = 0 if boot_condensed.ndim > 1 else None
@@ -1510,12 +1577,14 @@ def _bootstrap_pairwise_cpu_parallel(
     random_state=None,
     progress_bar=True,
     exclude_self_corr=True,
+    max_memory_gb=None,
 ):
     """
     CPU-parallel pairwise bootstrap using joblib.
 
     Same pattern as LOO bootstrap, but operates on pairwise correlation
     matrices with subject-wise indexing.
+    Automatically limits workers based on available memory if n_jobs=-1.
 
     Parameters
     ----------
@@ -1528,7 +1597,7 @@ def _bootstrap_pairwise_cpu_parallel(
     metric : {'median', 'mean'}, default='median'
         Summary statistic
     n_jobs : int, default=-1
-        Number of CPU cores
+        Number of CPU cores (-1 = auto-detect based on memory)
     random_state : int or RandomState, optional
         Random seed
     progress_bar : bool, default=True
@@ -1536,6 +1605,8 @@ def _bootstrap_pairwise_cpu_parallel(
     exclude_self_corr : bool, default=True
         If True, mask self-correlations (perfect correlations from duplicate
         subjects) as NaN. If False, include them in the summary statistic.
+    max_memory_gb : float, optional
+        Maximum memory budget in GB (only used if n_jobs=-1)
 
     Returns
     -------
@@ -1544,9 +1615,20 @@ def _bootstrap_pairwise_cpu_parallel(
     """
     from joblib import Parallel, delayed
     from tqdm.auto import tqdm
+    from .utils import _auto_n_jobs_cpu, _estimate_data_size_mb
 
     if n_subjects is None:
         raise ValueError("n_subjects is required for pairwise bootstrap")
+
+    # Auto-detect optimal n_jobs based on memory if n_jobs=-1
+    if n_jobs == -1:
+        data_size_mb = _estimate_data_size_mb(pairwise_condensed)
+        n_jobs = _auto_n_jobs_cpu(
+            data_size_mb=data_size_mb,
+            n_permute=n_permute,
+            max_memory_gb=max_memory_gb,
+            min_jobs=1,
+        )
 
     # Pre-generate seeds
     rng = check_random_state(random_state)
@@ -1793,6 +1875,7 @@ def isc_permutation_test(
                     n_jobs=n_jobs,
                     random_state=random_state,
                     progress_bar=progress_bar,
+                    max_memory_gb=None,  # Auto-detect
                 )
 
         else:  # pairwise
@@ -1821,6 +1904,7 @@ def isc_permutation_test(
                     random_state=random_state,
                     progress_bar=progress_bar,
                     exclude_self_corr=exclude_self_corr,
+                    max_memory_gb=None,  # Auto-detect
                 )
 
         # Center bootstrap distribution by subtracting observed (Chen et al. 2016)

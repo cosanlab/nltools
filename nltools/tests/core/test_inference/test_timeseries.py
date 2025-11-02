@@ -236,7 +236,9 @@ class TestPhaseRandomize:
         randomized_torch = phase_randomize(data, backend="torch", random_state=42)
 
         # Results should match within float32 tolerance (GPU uses float32)
-        np.testing.assert_allclose(randomized_numpy, randomized_torch, rtol=1e-5, atol=1e-5)
+        np.testing.assert_allclose(
+            randomized_numpy, randomized_torch, rtol=1e-5, atol=1e-5
+        )
 
     @pytest.mark.skip(
         reason="phase_randomize has been moved from stats.py to algorithms.inference.timeseries"
