@@ -1583,6 +1583,39 @@ class TestCorrelationPermutation:
         assert result_gpu["correlation"].shape == (50,)
         assert result_gpu["p"].shape == (50,)
 
+    @pytest.mark.tier2
+    @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
+    def test_gpu_spearman_matches_cpu(self):
+        """Test that Spearman GPU implementation matches CPU for multi-feature data."""
+        np.random.seed(42)
+        # Create monotonic but non-linear relationship (good for Spearman)
+        data1 = np.random.randn(100, 20)  # 100 samples, 20 features
+        data2 = data1**3 + np.random.randn(100, 20) * 0.1  # Monotonic relationship
+
+        # CPU parallel (default)
+        result_cpu = correlation_permutation_test(
+            data1, data2, n_permute=200, metric="spearman", backend=None, random_state=42
+        )
+
+        # GPU vectorized Spearman
+        result_gpu = correlation_permutation_test(
+            data1, data2, n_permute=200, metric="spearman", backend="torch", random_state=42
+        )
+
+        # Results should match closely (float32 vs float64 precision)
+        np.testing.assert_allclose(
+            result_cpu["correlation"],
+            result_gpu["correlation"],
+            rtol=TOLERANCE_GPU_VALUE,
+        )
+        np.testing.assert_allclose(
+            result_cpu["p"], result_gpu["p"], rtol=TOLERANCE_GPU_PVALUE
+        )
+
+        # Verify shapes are correct
+        assert result_gpu["correlation"].shape == (20,)
+        assert result_gpu["p"].shape == (20,)
+
 
 # ============================================================================
 # Timeseries Functions Tests

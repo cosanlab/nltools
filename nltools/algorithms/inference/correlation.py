@@ -7,12 +7,15 @@ of correlations.
 """
 
 import numpy as np
-from typing import Union, Optional
+from typing import Union, Optional, TYPE_CHECKING
 from sklearn.utils import check_random_state
 from scipy.stats import rankdata, kendalltau
 
 from nltools.backends import Backend, auto_select_backend
 from .utils import _compute_pvalue, _auto_batch_size, EPSILON
+
+if TYPE_CHECKING:
+    import torch
 
 
 def _pearson_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -262,6 +265,103 @@ def _correlation_permutation_cpu_parallel(
     return result
 
 
+def _rank_transform_gpu(
+    data: "torch.Tensor", dim: int = -1, method: str = "average"
+) -> "torch.Tensor":
+    """
+    GPU-accelerated rank transformation using PyTorch.
+
+    Computes ranks using the "average" method for tied ranks, matching
+    scipy.stats.rankdata behavior. This is used for Spearman correlation.
+
+    Args:
+        data: Input tensor, shape (..., n_samples, ...)
+        dim: Dimension along which to rank (default: last dimension)
+        method: Ranking method (currently only "average" supported)
+
+    Returns:
+        Ranked tensor with same shape as input, dtype float32
+
+    Notes:
+        Uses torch.argsort twice to compute ranks:
+        1. First argsort: get indices that sort the data
+        2. Second argsort: get ranks (indices that sort the sorted indices)
+        Then averages ranks for tied values by grouping consecutive duplicates.
+    """
+    import torch
+
+    if method != "average":
+        raise NotImplementedError(f"Rank method '{method}' not yet implemented on GPU")
+
+    # Save original shape and device
+    original_shape = data.shape
+    device = data.device
+
+    # Move ranking dimension to last position
+    ndim = len(original_shape)
+    if dim < 0:
+        dim = ndim + dim
+    dims = list(range(ndim))
+    dims[dim], dims[-1] = dims[-1], dims[dim]
+    data_reordered = data.permute(*dims)  # (..., n_samples)
+
+    # Flatten all but last dimension
+    n_samples = data_reordered.shape[-1]
+    data_flat = data_reordered.reshape(-1, n_samples)  # (n_batches, n_samples)
+    n_batches = data_flat.shape[0]
+
+    # Compute ranks for each batch
+    ranked_flat = torch.zeros_like(data_flat, dtype=torch.float32)
+    for i in range(n_batches):
+        batch_data = data_flat[i]  # (n_samples,)
+
+        # Sort data to handle ties
+        sorted_data, sorted_indices = torch.sort(batch_data, stable=True)
+
+        # Initial ranks: 1, 2, 3, ..., n_samples
+        ranks = torch.arange(1, n_samples + 1, dtype=torch.float32, device=device)
+
+        # Handle tied ranks: average method
+        # Find consecutive duplicates and assign average rank
+        if n_samples > 1:
+            # Compare adjacent sorted values
+            diff = torch.diff(sorted_data)
+            ties = torch.cat([torch.tensor([False], device=device), diff == 0])
+
+            if ties.any():
+                # Group consecutive ties - simpler approach
+                # Find where ties start and end
+                tie_groups = []
+                i = 0
+                while i < n_samples:
+                    if ties[i]:
+                        # Found start of tie group
+                        start = i
+                        # Find end of tie group
+                        while i < n_samples and ties[i]:
+                            i += 1
+                        end = i + 1 if i < n_samples else n_samples
+                        tie_groups.append((start, end))
+                    else:
+                        i += 1
+
+                # Assign average rank to each tie group
+                for start, end in tie_groups:
+                    avg_rank = ranks[start:end].mean()
+                    ranks[start:end] = avg_rank
+
+        # Map ranks back to original order
+        ranked_flat[i, sorted_indices] = ranks
+
+    # Reshape back to reordered shape
+    ranked_reordered = ranked_flat.reshape(*data_reordered.shape)
+
+    # Restore original dimension order
+    ranked = ranked_reordered.permute(*dims)
+
+    return ranked
+
+
 def _correlation_permutation_gpu_batched(
     data1: np.ndarray,
     data2: np.ndarray,
@@ -284,7 +384,7 @@ def _correlation_permutation_gpu_batched(
         data1 (np.ndarray): Data to permute, shape (n_samples, n_features)
         data2 (np.ndarray): Data to correlate with, shape (n_samples, n_features)
         n_permute (int): Number of permutations
-        metric (str): Correlation metric ('pearson')
+        metric (str): Correlation metric ('pearson', 'spearman', or 'kendall')
         tail (int): Test type (1 or 2)
         return_null (bool): Whether to return null distribution
         backend (Backend): Backend instance (must be PyTorch)
@@ -304,34 +404,62 @@ def _correlation_permutation_gpu_batched(
     data1 = data1.astype(np.float32)
     data2 = data2.astype(np.float32)
 
-    # Select correlation function
-    if metric == "pearson":
-        corr_func = _pearson_correlation
-    elif metric == "spearman":
-        corr_func = _spearman_correlation
-    elif metric == "kendall":
-        corr_func = _kendall_correlation
-    else:
-        raise NotImplementedError(f"Metric '{metric}' not yet implemented")
-
-    # Compute observed correlation
-    if n_features == 1:
-        obs_corr = corr_func(data1[:, 0], data2[:, 0])
-        obs_corr = np.array([obs_corr])
-    else:
-        obs_corr = np.array(
-            [corr_func(data1[:, i], data2[:, i]) for i in range(n_features)]
-        )
-
     # Determine batch size based on memory budget
     # Memory bottleneck: permuted indices and correlation computation
     batch_size, n_batches = _auto_batch_size(
         n_permute, n_samples, n_features, max_memory_gb=max_gpu_memory_gb
     )
 
-    # Transfer data to device once
+    # Transfer data to device once (for GPU-accelerated observed correlation)
     data1_device = backend.to_device(data1)
     data2_device = backend.to_device(data2)
+
+    # Pre-rank data2 for Spearman (only needs to be done once)
+    if metric == "spearman":
+        data2_ranked_device = _rank_transform_gpu(data2_device, dim=0)
+    else:
+        data2_ranked_device = None
+
+    # Compute observed correlation on GPU for efficiency
+    if metric == "pearson":
+        # Use GPU vectorized Pearson correlation
+        data1_centered = data1_device - torch.mean(data1_device, dim=0, keepdim=True)
+        data2_centered = data2_device - torch.mean(data2_device, dim=0, keepdim=True)
+        numerator = torch.sum(data1_centered * data2_centered, dim=0) / n_samples
+        denominator = torch.std(data1_device, dim=0, unbiased=False) * torch.std(
+            data2_device, dim=0, unbiased=False
+        )
+        obs_corr = backend.to_numpy(numerator / (denominator + EPSILON))
+    elif metric == "spearman":
+        # Use GPU rank transformation + Pearson correlation
+        data1_ranked = _rank_transform_gpu(data1_device, dim=0)
+        data2_ranked = _rank_transform_gpu(data2_device, dim=0)
+        # Pearson correlation on ranks
+        data1_ranked_centered = data1_ranked - torch.mean(
+            data1_ranked, dim=0, keepdim=True
+        )
+        data2_ranked_centered = data2_ranked - torch.mean(
+            data2_ranked, dim=0, keepdim=True
+        )
+        numerator = (
+            torch.sum(data1_ranked_centered * data2_ranked_centered, dim=0) / n_samples
+        )
+        denominator = torch.std(data1_ranked, dim=0, unbiased=False) * torch.std(
+            data2_ranked, dim=0, unbiased=False
+        )
+        obs_corr = backend.to_numpy(numerator / (denominator + EPSILON))
+    elif metric == "kendall":
+        # Kendall not implemented on GPU yet - use CPU function
+        corr_func = _kendall_correlation
+        if n_features == 1:
+            obs_corr = corr_func(data1[:, 0], data2[:, 0])
+            obs_corr = np.array([obs_corr])
+        else:
+            obs_corr = np.array(
+                [corr_func(data1[:, i], data2[:, i]) for i in range(n_features)]
+            )
+    else:
+        raise NotImplementedError(f"Metric '{metric}' not yet implemented")
 
     # Accumulate null distribution across batches
     null_dist_list = []
@@ -373,16 +501,15 @@ def _correlation_permutation_gpu_batched(
             # Use advanced indexing to permute all features at once
             # batch_indices_device: (current_batch_size, n_samples)
             # data1_device: (n_samples, n_features)
-            # Use gather to permute: perm_data1[b, s, f] = data1[batch_indices[b, s], f]
+            # Use advanced indexing: perm_data1[b, s, f] = data1[batch_indices[b, s], f]
             # Result shape: (current_batch_size, n_samples, n_features)
-            batch_indices_expanded = batch_indices_device.unsqueeze(2).expand(
-                -1, -1, n_features
-            )  # (current_batch_size, n_samples, n_features)
-            perm_data1 = torch.gather(
-                data1_device.unsqueeze(0).expand(current_batch_size, -1, -1),
-                dim=1,
-                index=batch_indices_expanded,
-            )  # (current_batch_size, n_samples, n_features)
+            # Create batch indices for advanced indexing
+            batch_idx = torch.arange(
+                current_batch_size, device=batch_indices_device.device
+            )[:, None]  # (current_batch_size, 1)
+            perm_data1 = data1_device[
+                batch_indices_device
+            ]  # (current_batch_size, n_samples, n_features)
 
             # Center data for all features simultaneously
             # perm_data1: (current_batch_size, n_samples, n_features)
@@ -416,8 +543,56 @@ def _correlation_permutation_gpu_batched(
                 denominator + EPSILON
             )  # (current_batch_size, n_features)
             batch_corrs = backend.to_numpy(batch_corrs)
+        elif metric == "spearman":
+            # Vectorized Spearman correlation using GPU rank transformation
+            # Permute data1 for all features simultaneously using advanced indexing
+            perm_data1 = data1_device[
+                batch_indices_device
+            ]  # (current_batch_size, n_samples, n_features)
+
+            # Rank-transform permuted data1 and use pre-ranked data2
+            # Rank along sample dimension (dim=1 for perm_data1)
+            perm_data1_ranked = _rank_transform_gpu(perm_data1, dim=1)
+            # data2_ranked was pre-computed once, expand to match batch dimension
+            data2_ranked_batch = data2_ranked_device.unsqueeze(0).expand(
+                current_batch_size, -1, -1
+            )  # (current_batch_size, n_samples, n_features)
+
+            # Center ranked data
+            perm_data1_ranked_centered = perm_data1_ranked - torch.mean(
+                perm_data1_ranked, dim=1, keepdim=True
+            )  # (current_batch_size, n_samples, n_features)
+            data2_ranked_centered = data2_ranked_batch - torch.mean(
+                data2_ranked_batch, dim=1, keepdim=True
+            )  # (current_batch_size, n_samples, n_features)
+
+            # Compute Spearman correlations (Pearson on ranks) for all features
+            numerator = (
+                torch.einsum(
+                    "bsf,bsf->bf", perm_data1_ranked_centered, data2_ranked_centered
+                )
+                / n_samples
+            )
+
+            # Compute denominators
+            std_perm = torch.std(
+                perm_data1_ranked, dim=1, unbiased=False
+            )  # (current_batch_size, n_features)
+            std_data2 = torch.std(
+                data2_ranked_batch, dim=1, unbiased=False
+            )  # (current_batch_size, n_features)
+
+            # Broadcasting
+            denominator = std_perm * std_data2
+
+            # Handle division by zero using EPSILON
+            batch_corrs = numerator / (
+                denominator + EPSILON
+            )  # (current_batch_size, n_features)
+            batch_corrs = backend.to_numpy(batch_corrs)
         else:
-            # Non-Pearson metrics: fall back to loop (Spearman/Kendall not vectorized yet)
+            # Kendall not vectorized yet - fall back to CPU loop
+            corr_func = _kendall_correlation
             batch_corrs = []
             for feat_idx in range(n_features):
                 # Get data for this feature
@@ -634,10 +809,10 @@ def correlation_permutation_test(
             else:
                 backend = Backend(backend)
 
-    # GPU backend doesn't support Spearman/Kendall yet (ranking on GPU is complex)
-    if not use_cpu_parallel and metric in ["spearman", "kendall"]:
+    # GPU backend supports Pearson and Spearman (Kendall still uses CPU fallback)
+    if not use_cpu_parallel and metric == "kendall":
         raise NotImplementedError(
-            f"{metric.capitalize()} correlation on GPU backend not yet implemented. "
+            "Kendall correlation on GPU backend not yet implemented. "
             "Use backend=None for CPU-parallel or backend='numpy' for sequential."
         )
 

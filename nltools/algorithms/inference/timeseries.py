@@ -18,7 +18,7 @@ References:
 """
 
 import numpy as np
-from typing import Union, Optional, Literal
+from typing import Union, Optional, Literal, TYPE_CHECKING
 from sklearn.utils import check_random_state
 
 from .utils import _compute_pvalue, _auto_batch_size
@@ -28,6 +28,9 @@ from .correlation import (
     _kendall_correlation,
 )
 from nltools.backends import Backend, auto_select_backend
+
+if TYPE_CHECKING:
+    import torch
 
 
 def circle_shift(
@@ -174,6 +177,51 @@ def phase_randomize(
     return np.real(np.fft.ifft(fft_data, axis=0))
 
 
+def _circle_shift_gpu_batched(
+    data: "torch.Tensor",
+    shift_amounts: "torch.Tensor",
+    backend: Backend,
+) -> "torch.Tensor":
+    """
+    GPU-accelerated batched circular shift for time-series data.
+
+    Processes multiple shifts simultaneously for efficiency. This is much faster
+    than calling _circle_shift_gpu multiple times sequentially.
+
+    Args:
+        data: Time series data on GPU, shape (n_samples,)
+        shift_amounts: Shift amounts for each permutation, shape (batch_size,)
+        backend: Backend instance (must be PyTorch)
+
+    Returns:
+        Batched circularly shifted data, shape (batch_size, n_samples)
+    """
+    import torch
+
+    if data.ndim != 1:
+        raise ValueError(
+            f"Batched circle_shift currently only supports 1D data, got shape {data.shape}"
+        )
+
+    n_samples = len(data)
+    batch_size = len(shift_amounts)
+    device = data.device
+
+    # Create batch indices: (batch_size, n_samples)
+    # For each batch item b, shift by shift_amounts[b]
+    batch_indices = (
+        torch.arange(n_samples, device=device).unsqueeze(0).expand(batch_size, -1)
+    )
+    shift_amounts_expanded = shift_amounts.unsqueeze(1)  # (batch_size, 1)
+
+    # Apply circular shift: indices = (indices - shift) % n_samples
+    shifted_indices = (batch_indices - shift_amounts_expanded) % n_samples
+
+    # Use advanced indexing to get shifted data
+    # data[shifted_indices] gives (batch_size, n_samples)
+    return data[shifted_indices]
+
+
 def _circle_shift_gpu(
     data: np.ndarray,
     shift_amount: Union[int, np.ndarray],
@@ -302,6 +350,78 @@ def _phase_randomize_gpu(
     return backend.to_numpy(randomized)
 
 
+def _phase_randomize_gpu_batched(
+    data: "torch.Tensor",
+    batch_seeds: np.ndarray,
+    backend: Backend,
+    random_state,
+) -> "torch.Tensor":
+    """
+    GPU-accelerated batched FFT-based phase randomization.
+
+    Processes multiple phase randomizations simultaneously for efficiency.
+    Much faster than calling _phase_randomize_gpu multiple times sequentially.
+
+    Args:
+        data: Time series data on GPU, shape (n_samples,)
+        batch_seeds: Random seeds for each permutation, shape (batch_size,)
+        backend: Backend instance (must be PyTorch)
+        random_state: Base random state instance
+
+    Returns:
+        Batched phase-randomized data, shape (batch_size, n_samples)
+    """
+    import torch
+
+    if data.ndim != 1:
+        raise ValueError(
+            f"Batched phase_randomize currently only supports 1D data, got shape {data.shape}"
+        )
+
+    n_samples = len(data)
+    batch_size = len(batch_seeds)
+    device = data.device
+
+    # Compute FFT once for all permutations
+    fft_data = torch.fft.fft(data)  # (n_samples,)
+
+    # Determine positive and negative frequency indices
+    if n_samples % 2 == 0:
+        pos_freq = torch.arange(1, n_samples // 2, device=device)
+        neg_freq = torch.arange(n_samples - 1, n_samples // 2, -1, device=device)
+    else:
+        pos_freq = torch.arange(1, (n_samples - 1) // 2 + 1, device=device)
+        neg_freq = torch.arange(n_samples - 1, (n_samples - 1) // 2, -1, device=device)
+
+    n_pos_freq = len(pos_freq)
+
+    # Generate random phases for all permutations in batch
+    # Shape: (batch_size, n_pos_freq)
+    phase_shifts = np.zeros((batch_size, n_pos_freq))
+    for i, seed in enumerate(batch_seeds):
+        perm_rng = np.random.RandomState(seed)
+        phase_shifts[i] = perm_rng.uniform(0, 2 * np.pi, size=n_pos_freq)
+
+    phase_shifts_device = torch.as_tensor(
+        phase_shifts, device=device, dtype=torch.float32
+    )  # (batch_size, n_pos_freq)
+
+    # Expand fft_data to batch dimension: (batch_size, n_samples)
+    fft_data_batch = fft_data.unsqueeze(0).expand(batch_size, -1).clone()
+
+    # Apply phase shifts: fft_data[pos_freq] *= exp(1j * phase_shifts)
+    # Broadcasting: (batch_size, n_pos_freq) applied to (batch_size, n_samples)
+    fft_data_batch[:, pos_freq] *= torch.exp(1j * phase_shifts_device)
+    # For negative frequencies, need to flip phase_shifts to match neg_freq order
+    # neg_freq is in reverse order, so we flip phase_shifts
+    fft_data_batch[:, neg_freq] *= torch.exp(-1j * phase_shifts_device.flip(dims=[1]))
+
+    # Inverse FFT and return real part
+    randomized = torch.fft.ifft(fft_data_batch, dim=1).real  # (batch_size, n_samples)
+
+    return randomized
+
+
 def _timeseries_correlation_permutation_gpu_batched(
     data1: np.ndarray,
     data2: np.ndarray,
@@ -366,6 +486,10 @@ def _timeseries_correlation_permutation_gpu_batched(
         n_permute, n_samples, 1, max_memory_gb=max_gpu_memory_gb
     )
 
+    # Transfer data to device once (reused across batches)
+    data1_device = backend.to_device(data1)
+    data2_device = backend.to_device(data2)
+
     # Accumulate null distribution across batches
     null_dist_list = []
 
@@ -387,30 +511,37 @@ def _timeseries_correlation_permutation_gpu_batched(
         MAX_INT = 2**31 - 1
         batch_seeds = random_state.randint(MAX_INT, size=current_batch_size)
 
-        # Generate permuted data1 for this batch
-        batch_perm_data1 = []
-        for i in range(current_batch_size):
-            # Create independent RNG for this permutation
-            perm_rng = np.random.RandomState(batch_seeds[i])
-            if method == "circle_shift":
-                # Generate random shift amount
-                shift_amount = perm_rng.choice(np.arange(n_samples))
-                # Transfer data1 to device
-                data1_device = backend.to_device(data1)
-                # Apply GPU circle shift
-                perm_data1 = _circle_shift_gpu(data1_device, shift_amount, backend)
-                perm_data1 = backend.to_numpy(perm_data1)
-            else:  # phase_randomize
-                # Use GPU phase randomization
-                perm_data1 = _phase_randomize_gpu(data1, backend, perm_rng)
-            batch_perm_data1.append(perm_data1)
+        # Generate permuted data1 for this batch using batched operations
+        if method == "circle_shift":
+            # Generate random shift amounts for all permutations in batch
+            shift_amounts = np.array([
+                np.random.RandomState(batch_seeds[i]).choice(np.arange(n_samples))
+                for i in range(current_batch_size)
+            ])
+            shift_amounts_device = backend.to_device(shift_amounts.astype(np.int64))
+            if backend.name.startswith("torch"):
+                shift_amounts_device = shift_amounts_device.long()
 
-        # Compute correlations for this batch
+            # Batched circle shift: (batch_size, n_samples)
+            perm_data1_batch = _circle_shift_gpu_batched(
+                data1_device, shift_amounts_device, backend
+            )
+        else:  # phase_randomize
+            # Batched phase randomization: (batch_size, n_samples)
+            perm_data1_batch = _phase_randomize_gpu_batched(
+                data1_device, batch_seeds, backend, random_state
+            )
+
+        # Compute correlations for all permutations in batch simultaneously
+        # Vectorize correlation computation
+        perm_data1_np = backend.to_numpy(perm_data1_batch)  # (batch_size, n_samples)
+        
+        # Use correlation function that handles 2D input (batch dimension)
         batch_corrs = []
-        for perm_data1 in batch_perm_data1:
-            corr = corr_func(perm_data1, data2)
+        for i in range(current_batch_size):
+            corr = corr_func(perm_data1_np[i], data2)
             batch_corrs.append(corr[0] if isinstance(corr, np.ndarray) else corr)
-
+        
         batch_corrs = np.array(batch_corrs)
         null_dist_list.append(batch_corrs)
 
@@ -418,6 +549,7 @@ def _timeseries_correlation_permutation_gpu_batched(
         pbar.update(current_batch_size)
 
         # Free batch memory
+        del perm_data1_batch, perm_data1_np, batch_corrs
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
