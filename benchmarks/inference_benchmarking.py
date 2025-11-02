@@ -25,7 +25,7 @@ import psutil
 import os
 import platform
 import argparse
-from typing import Tuple, Dict, Optional, Union
+from typing import Tuple, Dict, Optional
 from itertools import product
 
 # Import nltools components
@@ -41,7 +41,16 @@ from nltools.algorithms.inference import (
     isc_permutation_test,
     isc_group_permutation_test,
 )
-from nltools.backends import Backend, check_gpu_available
+from nltools.backends import check_gpu_available
+
+# Try to import visualization libraries
+try:
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+
+    HAS_VIS = True
+except ImportError:
+    HAS_VIS = False
 
 # Try to import tqdm for progress bars
 try:
@@ -131,7 +140,7 @@ def generate_isc_data(
 def benchmark_one_sample(
     data: np.ndarray,
     n_permute: int,
-    backend: Union[Backend, str, None],
+    parallel: Optional[str],
     n_jobs: int = -1,
     random_state: Optional[int] = 42,
 ) -> Tuple[float, float]:
@@ -142,7 +151,7 @@ def benchmark_one_sample(
     _ = one_sample_permutation_test(
         data,
         n_permute=n_permute,
-        backend=backend,
+        parallel=parallel,
         n_jobs=n_jobs,
         random_state=random_state,
     )
@@ -158,7 +167,7 @@ def benchmark_two_sample(
     data1: np.ndarray,
     data2: np.ndarray,
     n_permute: int,
-    backend: Union[Backend, str, None],
+    parallel: Optional[str],
     n_jobs: int = -1,
     random_state: Optional[int] = 42,
 ) -> Tuple[float, float]:
@@ -170,7 +179,7 @@ def benchmark_two_sample(
         data1,
         data2,
         n_permute=n_permute,
-        backend=backend,
+        parallel=parallel,
         n_jobs=n_jobs,
         random_state=random_state,
     )
@@ -186,7 +195,7 @@ def benchmark_correlation(
     data1: np.ndarray,
     data2: np.ndarray,
     n_permute: int,
-    backend: Union[Backend, str, None],
+    parallel: Optional[str],
     metric: str = "pearson",
     n_jobs: int = -1,
     random_state: Optional[int] = 42,
@@ -200,7 +209,7 @@ def benchmark_correlation(
         data2,
         n_permute=n_permute,
         metric=metric,
-        backend=backend,
+        parallel=parallel,
         n_jobs=n_jobs,
         random_state=random_state,
     )
@@ -217,7 +226,7 @@ def benchmark_timeseries_correlation(
     data2: np.ndarray,
     n_permute: int,
     method: str,
-    backend: Union[Backend, str, None],
+    parallel: Optional[str],
     n_jobs: int = -1,
     random_state: Optional[int] = 42,
 ) -> Tuple[float, float]:
@@ -230,7 +239,7 @@ def benchmark_timeseries_correlation(
         data2,
         method=method,
         n_permute=n_permute,
-        backend=backend,
+        parallel=parallel,
         n_jobs=n_jobs,
         random_state=random_state,
     )
@@ -273,7 +282,7 @@ def benchmark_matrix(
 def benchmark_isc(
     data: np.ndarray,
     n_permute: int,
-    backend: Union[Backend, str, None],
+    parallel: Optional[str],
     n_jobs: int = -1,
     random_state: Optional[int] = 42,
 ) -> Tuple[float, float]:
@@ -284,7 +293,7 @@ def benchmark_isc(
     _ = isc_permutation_test(
         data,
         n_permute=n_permute,
-        backend=backend,
+        parallel=parallel,
         n_jobs=n_jobs,
         random_state=random_state,
     )
@@ -578,7 +587,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
 
                 # CPU (NumPy)
                 time_np, mem_np = benchmark_one_sample(
-                    data, n_permute, backend="numpy", random_state=42
+                    data, n_permute, parallel=None, random_state=42
                 )
                 results.append(
                     {
@@ -597,7 +606,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
 
                 # CPU-parallel
                 time_cp, mem_cp = benchmark_one_sample(
-                    data, n_permute, backend=None, n_jobs=-1, random_state=42
+                    data, n_permute, parallel="cpu", n_jobs=-1, random_state=42
                 )
                 speedup_cp = numpy_baselines[condition_key] / time_cp
                 results.append(
@@ -619,7 +628,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                 skip_gpu = config.get("no_gpu", False) or not gpu_available
                 if not skip_gpu:
                     time_gpu, mem_gpu = benchmark_one_sample(
-                        data, n_permute, backend="torch", random_state=42
+                        data, n_permute, parallel="gpu", random_state=42
                     )
                     speedup_gpu_np = numpy_baselines[condition_key] / time_gpu
                     speedup_gpu_cp = cpu_parallel_baselines[condition_key] / time_gpu
@@ -666,7 +675,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
 
                 # CPU (NumPy)
                 time_np, mem_np = benchmark_two_sample(
-                    data1, data2, n_permute, backend="numpy", random_state=42
+                    data1, data2, n_permute, parallel=None, random_state=42
                 )
                 results.append(
                     {
@@ -685,7 +694,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
 
                 # CPU-parallel
                 time_cp, mem_cp = benchmark_two_sample(
-                    data1, data2, n_permute, backend=None, n_jobs=-1, random_state=42
+                    data1, data2, n_permute, parallel="cpu", n_jobs=-1, random_state=42
                 )
                 speedup_cp = numpy_baselines[condition_key] / time_cp
                 results.append(
@@ -707,7 +716,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                 skip_gpu = config.get("no_gpu", False) or not gpu_available
                 if not skip_gpu:
                     time_gpu, mem_gpu = benchmark_two_sample(
-                        data1, data2, n_permute, backend="torch", random_state=42
+                        data1, data2, n_permute, parallel="gpu", random_state=42
                     )
                     speedup_gpu_np = numpy_baselines[condition_key] / time_gpu
                     speedup_gpu_cp = cpu_parallel_baselines[condition_key] / time_gpu
@@ -749,7 +758,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
 
                 # CPU (NumPy)
                 time_np, mem_np = benchmark_correlation(
-                    data1, data2, n_permute, backend="numpy", random_state=42
+                    data1, data2, n_permute, parallel=None, random_state=42
                 )
                 results.append(
                     {
@@ -768,7 +777,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
 
                 # CPU-parallel
                 time_cp, mem_cp = benchmark_correlation(
-                    data1, data2, n_permute, backend=None, n_jobs=-1, random_state=42
+                    data1, data2, n_permute, parallel="cpu", n_jobs=-1, random_state=42
                 )
                 speedup_cp = numpy_baselines[condition_key] / time_cp
                 results.append(
@@ -790,7 +799,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                 skip_gpu = config.get("no_gpu", False) or not gpu_available
                 if not skip_gpu:
                     time_gpu, mem_gpu = benchmark_correlation(
-                        data1, data2, n_permute, backend="torch", random_state=42
+                        data1, data2, n_permute, parallel="gpu", random_state=42
                     )
                     speedup_gpu_np = numpy_baselines[condition_key] / time_gpu
                     speedup_gpu_cp = cpu_parallel_baselines[condition_key] / time_gpu
@@ -851,7 +860,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                         data2,
                         n_permute,
                         method,
-                        backend=None,
+                        parallel="cpu",
                         n_jobs=-1,
                         random_state=42,
                     )
@@ -878,7 +887,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                             data2,
                             n_permute,
                             method,
-                            backend="torch",
+                            parallel="gpu",
                             random_state=42,
                         )
                         speedup_gpu_cp = (
@@ -963,7 +972,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
 
                 # CPU-parallel (ISC supports CPU-parallel and GPU)
                 time_cp, mem_cp = benchmark_isc(
-                    data, n_permute, backend=None, n_jobs=-1, random_state=42
+                    data, n_permute, parallel="cpu", n_jobs=-1, random_state=42
                 )
                 results.append(
                     {
@@ -984,7 +993,7 @@ def run_systematic_benchmarks(config: Dict) -> pd.DataFrame:
                 skip_gpu = config.get("no_gpu", False) or not gpu_available
                 if not skip_gpu:
                     time_gpu, mem_gpu = benchmark_isc(
-                        data, n_permute, backend="torch", random_state=42
+                        data, n_permute, parallel="gpu", random_state=42
                     )
                     speedup_gpu_cp = cpu_parallel_baselines[condition_key] / time_gpu
                     results.append(
@@ -1090,6 +1099,115 @@ def print_summary(df: pd.DataFrame):
             print(f"  GPU avg speedup vs CPU-parallel: {avg_speedup_gpu_cp:.2f}x")
 
 
+def create_benchmark_plot(df: pd.DataFrame, output_path: str):
+    """Create a seaborn stripplot visualization of benchmark results.
+
+    Similar to seaborn's jitter stripplot example, showing individual
+    observations with conditional means.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Benchmark results DataFrame
+    output_path : str
+        Path to save the figure
+    """
+    if not HAS_VIS:
+        print("Warning: seaborn/matplotlib not available. Skipping visualization.")
+        return
+
+    # Prepare data for plotting
+    plot_df = df.copy()
+
+    # Create a combined problem size label
+    plot_df["problem_size"] = (
+        plot_df["algorithm"].astype(str)
+        + "\n"
+        + "n="
+        + plot_df["n_samples"].astype(str)
+        + ", "
+        + "f="
+        + plot_df["n_features"].astype(str)
+        + ", "
+        + "p="
+        + plot_df["n_permute"].astype(str)
+    )
+
+    # Map backend names for clearer labels
+    backend_map = {
+        "numpy": "CPU (NumPy)",
+        "cpu-parallel": "CPU-Parallel",
+        "torch": "GPU (PyTorch)",
+    }
+    plot_df["backend_label"] = plot_df["backend"].map(backend_map)
+
+    # Initialize figure
+    sns.set_theme(style="whitegrid")
+    f, ax = plt.subplots(figsize=(14, 8))
+    sns.despine(bottom=True, left=True)
+
+    # Show individual observations with stripplot
+    sns.stripplot(
+        data=plot_df,
+        x="time_seconds",
+        y="problem_size",
+        hue="backend_label",
+        dodge=True,
+        alpha=0.25,
+        zorder=1,
+        legend=False,
+        size=3,
+    )
+
+    # Show conditional means with pointplot
+    # Adjust width based on number of hue levels
+    n_hue_levels = plot_df["backend_label"].nunique()
+    dodge_width = 0.8 - 0.8 / n_hue_levels
+
+    sns.pointplot(
+        data=plot_df,
+        x="time_seconds",
+        y="problem_size",
+        hue="backend_label",
+        dodge=dodge_width,
+        palette="dark",
+        errorbar=None,
+        markers="d",
+        markersize=6,
+        linestyle="none",
+        ax=ax,
+    )
+
+    # Improve legend
+    sns.move_legend(
+        ax,
+        loc="lower right",
+        ncol=3,
+        frameon=True,
+        columnspacing=1,
+        handletextpad=0,
+        title="Backend",
+    )
+
+    # Labels and formatting
+    ax.set_xlabel("Time (seconds)", fontsize=12)
+    ax.set_ylabel("Algorithm & Problem Size", fontsize=12)
+    ax.set_title(
+        "Inference Algorithm Benchmark Results", fontsize=14, fontweight="bold"
+    )
+
+    # Use log scale for x-axis if range is wide
+    if plot_df["time_seconds"].max() / plot_df["time_seconds"].min() > 100:
+        ax.set_xscale("log")
+        ax.set_xlabel("Time (seconds, log scale)", fontsize=12)
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close()
+
+    print(f"Visualization saved to: {output_path}")
+
+
 def main():
     """Run systematic benchmarks with CLI support and save results."""
     args = parse_args()
@@ -1177,10 +1295,26 @@ def main():
     # Run benchmarks
     results_df = run_systematic_benchmarks(config)
 
-    # Save to CSV
-    output_path = os.path.join(os.path.dirname(__file__), args.output)
-    results_df.to_csv(output_path, index=False)
-    print(f"\nResults saved to: {output_path}")
+    # Save to CSV with timestamp
+    from datetime import datetime
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Generate unique filenames
+    csv_base = args.output.replace(".csv", "")
+    csv_filename = f"{csv_base}_{timestamp}.csv"
+    csv_path = os.path.join(os.path.dirname(__file__), csv_filename)
+    results_df.to_csv(csv_path, index=False)
+    print(f"\nResults saved to: {csv_path}")
+
+    # Generate visualization
+    if HAS_VIS:
+        fig_base = csv_filename.replace(".csv", "")
+        fig_filename = f"{fig_base}.png"
+        fig_path = os.path.join(os.path.dirname(__file__), fig_filename)
+        create_benchmark_plot(results_df, fig_path)
+    else:
+        print("Warning: seaborn/matplotlib not available. Skipping visualization.")
 
     # Print summary
     if not args.quiet:

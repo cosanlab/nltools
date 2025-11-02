@@ -3,6 +3,9 @@
 *.pyc
 docs/_build
 docs/auto_examples
+benchmarks/*.md
+benchmarks/*.csv
+benchmarks/*.png
 *.log
 *.egg*
 build/
