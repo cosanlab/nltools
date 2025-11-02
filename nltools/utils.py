@@ -50,16 +50,20 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
     if obj_type == "brain_data":
         # Note: X and Y attributes removed in v0.6.0
         # Store empty DataFrames for backward compatibility
-        with pd.HDFStore(file_name, "w") as f:
-            # Check if obj has these deprecated attributes for backward compatibility
-            if hasattr(obj, "X"):
-                f["X"] = obj.X
-            else:
-                f["X"] = pd.DataFrame()
-            if hasattr(obj, "Y"):
-                f["Y"] = obj.Y
-            else:
-                f["Y"] = pd.DataFrame()
+        import warnings
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning, module="tables")
+            warnings.filterwarnings("ignore", message=".*performance.*", module="tables")
+            with pd.HDFStore(file_name, "w") as f:
+                # Check if obj has these deprecated attributes for backward compatibility
+                if hasattr(obj, "X"):
+                    f["X"] = obj.X
+                else:
+                    f["X"] = pd.DataFrame()
+                if hasattr(obj, "Y"):
+                    f["Y"] = obj.Y
+                else:
+                    f["Y"] = pd.DataFrame()
 
         with h5File(file_name, "a") as f:
             f.create_dataset("data", data=obj.data, compression=h5_compression)
@@ -71,8 +75,12 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
             )
             f.create_dataset("mask_file_name", data=obj.mask.get_filename())
     else:
-        with pd.HDFStore(file_name, "w") as f:
-            f["Y"] = obj.Y
+        import warnings
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning, module="tables")
+            warnings.filterwarnings("ignore", message=".*performance.*", module="tables")
+            with pd.HDFStore(file_name, "w") as f:
+                f["Y"] = obj.Y
 
         with h5File(file_name, "a") as f:
             f.create_dataset("data", data=obj.data, compression=h5_compression)

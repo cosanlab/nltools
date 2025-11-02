@@ -1,6 +1,6 @@
 # nltools v0.6.0 Planning Documents Index
 
-**Last Updated**: 2025-11-01
+**Last Updated**: 2025-11-02 (TODO audit complete, plans consolidated)
 
 ---
 
@@ -35,11 +35,10 @@ These 3 documents form the canonical planning system for v0.6.0:
 
 These provide historical context and detailed plans:
 
-- **[refactor-progress.md](refactor-progress.md)** - Session notes
-  - Detailed log of what was accomplished each session
-  - Key decisions and rationale
-  - Implementation details and learnings
-  - **Keep updating** as you work
+- **[TODO-AUDIT.md](TODO-AUDIT.md)** - Complete TODO audit
+  - All remaining TODOs in codebase cataloged and categorized
+  - Prioritization and recommendations
+  - **Reference** for code quality work
 
 - **[STATS_TODO_ACTION_PLAN.md](STATS_TODO_ACTION_PLAN.md)** - Stats migration
   - Comprehensive stats.py migration details
@@ -57,30 +56,39 @@ These provide historical context and detailed plans:
 
 ## 📦 Archived Documents (Historical Reference)
 
-These documents have been **superseded** by the v0.6.0-* files above:
+These documents have been **superseded** by the v0.6.0-* files above and moved to `claude-research/archive/v0.6.0-plans/`:
 
-- ~~[plan.md](plan.md)~~ → Superseded by `v0.6.0-ACTION-PLAN.md`
+- ~~[CONSOLIDATION-SUMMARY.md](../claude-research/archive/v0.6.0-plans/CONSOLIDATION-SUMMARY.md)~~ → Historical summary
+  - Documented consolidation work done on 2025-11-01
+  - Archived after consolidation complete
+
+- ~~[stats-py-tdd-plan.md](../claude-research/archive/v0.6.0-plans/stats-py-tdd-plan.md)~~ → TDD plan (mostly complete)
+  - Phase 4/5 stats work TDD plan
+  - Phase 5 complete, Phase 4 optimizations deferred
+  - Archived as reference
+
+- ~~[v0.6.0-REMAINING-WORK.md](../claude-research/archive/v0.6.0-plans/v0.6.0-REMAINING-WORK.md)~~ → Superseded by ACTION-PLAN + VERIFICATION
+  - Redundant with ACTION-PLAN and VERIFICATION
+  - Information consolidated into primary docs
+  - Archived to reduce duplication
+
+- ~~[plan.md](../claude-research/plan.md)~~ → Superseded by `v0.6.0-ACTION-PLAN.md`
   - User's initial attempt at organizing next steps
   - Now replaced by comprehensive action plan
 
-- ~~[NEXT-SESSION-TODO.md](NEXT-SESSION-TODO.md)~~ → Superseded by `v0.6.0-VERIFICATION.md`
+- ~~[NEXT-SESSION-TODO.md](../claude-research/NEXT-SESSION-TODO.md)~~ → Superseded by `v0.6.0-VERIFICATION.md`
   - Oct 30 session todos
   - Inference module completion notes
   - Now covered in verification checklist
 
-- ~~[refactor-todos.md](refactor-todos.md)~~ → Superseded by `v0.6.0-VERIFICATION.md`
+- ~~[refactor-todos.md](../claude-research/refactor-todos.md)~~ → Superseded by `v0.6.0-VERIFICATION.md`
   - Old task checklist with progress tracking
   - Now replaced by comprehensive verification checklist
 
-- ~~[TUTORIAL_PLAN.md](TUTORIAL_PLAN.md)~~ → Consolidated into `v0.6.0-ACTION-PLAN.md`
+- ~~[TUTORIAL_PLAN.md](../claude-research/archive/TUTORIAL_PLAN.md)~~ → Consolidated into `v0.6.0-ACTION-PLAN.md`
   - 6-week comprehensive tutorial plan
   - Now integrated into Post-Release Priorities section
-  - Details preserved in ACTION-PLAN, moved to `claude-research/archive/`
-
-- **[PHASE3_COMPLETE.md](PHASE3_COMPLETE.md)** - Ridge Phase 3 summary
-  - Documentation of ridge integration completion
-  - Historical record of ridge work
-  - **Archive after release**
+  - Details preserved in ACTION-PLAN
 
 ---
 
@@ -90,10 +98,10 @@ These documents have been **superseded** by the v0.6.0-* files above:
 v0.6.0-SUMMARY.md (Overview)
     ├─> v0.6.0-ACTION-PLAN.md (What to do)
     │       ├─> STATS_TODO_ACTION_PLAN.md (Stats details)
-    │       └─> MIGRATION_PLAN_STATS_TO_INFERENCE.md (Migration details)
+    │       ├─> MIGRATION_PLAN_STATS_TO_INFERENCE.md (Migration details)
+    │       └─> TODO-AUDIT.md (All remaining TODOs)
     │
     └─> v0.6.0-VERIFICATION.md (Checklist)
-            └─> refactor-progress.md (Session notes)
 ```
 
 ---
@@ -120,26 +128,26 @@ v0.6.0-SUMMARY.md (Overview)
 
 ## 📊 Current Project Status
 
-**Completion**: 75% → Release Ready
-**Critical Path**: Stats Migration → BrainData.fit() → Bootstrap → Release
-**Estimated Remaining**: 20-36 hours (depends on bootstrap status)
+**Completion**: 95% → Release Ready
+**Critical Path**: ✅ Stats Migration → ✅ BrainData.fit() → ✅ Bootstrap → Code Quality → Release
+**Estimated Remaining**: 10-15 hours (code quality, warnings, documentation)
 
-**Test Status**: 700/744 passing (44 deselected)
+**Test Status**: 801/803 passing (2 failing, 710 deselected - mostly tier2 GPU tests)
 
 **Completed Major Work**:
 - ✅ GPU-accelerated inference module (170 tests)
 - ✅ Ridge regression GPU support (72 tests)
 - ✅ Polars DesignMatrix migration (71 tests)
 - ✅ Fit dataclass infrastructure (30 tests)
+- ✅ Stats.py → inference migration (100% complete)
+- ✅ BrainData.fit() integration (11 tests, inplace parameter)
+- ✅ Bootstrap refactoring (40 tests, OnlineBootstrapStats)
+- ✅ Phase 5 Usage Verification (threshold, multi_threshold, summarize_bootstrap)
 
-**In Progress**:
-- 🔧 Stats.py → inference migration (~80% done)
-- 🔧 Bootstrap refactoring (~66% done?)
-
-**Next Up**:
-1. Verify bootstrap status (2h)
-2. Complete stats migration (6-8h)
-3. BrainData.fit() integration (3-4h)
+**Remaining Work**:
+- 🔧 Code quality (TODO cleanup, warning fixes)
+- 🔧 Documentation updates (migration guide, API docs)
+- 🔧 Pre-release testing
 
 ---
 
@@ -167,6 +175,7 @@ v0.6.0-SUMMARY.md (Overview)
 - Quick overview → `v0.6.0-SUMMARY.md`
 - Detailed plan → `v0.6.0-ACTION-PLAN.md`
 - Task tracking → `v0.6.0-VERIFICATION.md`
+- TODO audit → `TODO-AUDIT.md`
 - Stats migration → `STATS_TODO_ACTION_PLAN.md`
 
 **What if docs conflict?**
@@ -183,4 +192,4 @@ v0.6.0-SUMMARY.md (Overview)
 
 **Created**: 2025-11-01
 **Purpose**: Navigation guide for v0.6.0 planning documents
-**Status**: Active planning phase (75% complete)
+**Status**: Active planning phase (95% complete, release-ready)

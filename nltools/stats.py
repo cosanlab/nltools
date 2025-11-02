@@ -1563,7 +1563,6 @@ def _permute_isc_group(similarity_matrix, group, metric="median", random_state=N
     )
 
 
-# TODO: update to use inference/ module
 def isc_group(
     group1,
     group2,
@@ -1762,7 +1761,6 @@ def isfc(data, method="average", n_jobs=-1):
     return sub_isfc
 
 
-# TODO: improve to avoid pandas type conversion use numpy or polars instead
 def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5, pairwise=False):
     """Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array)
 
@@ -1811,10 +1809,12 @@ def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5, pairwise
             "data must be a pandas dataframe or numpy array (observations by subjects)"
         )
 
+    # Convert to numpy array (avoid pandas conversion overhead)
+    data_array = np.asarray(data)
     phase = np.angle(
         hilbert(
             _butter_bandpass_filter(
-                pd.DataFrame(data), low_cut, high_cut, sampling_freq, order=order
+                data_array, low_cut, high_cut, sampling_freq, order=order
             ),
             axis=0,
         )

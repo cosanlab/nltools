@@ -20,7 +20,6 @@ import pandas as pd
 import tempfile
 import warnings  # noqa: F401
 from copy import deepcopy
-from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.preprocessing import scale
 from pynv import Client
 from nilearn.maskers import NiftiMasker
@@ -1413,23 +1412,22 @@ class BrainData(object):
         out = 1 - out if method == "cosine" else out
         return out
 
-    # TODO: make this more efficient using scipy.spatial.distance.cdist
     def distance(self, metric="euclidean", **kwargs):
         """Calculate distance between images within a BrainData() instance.
 
         Args:
-            metric: (str) type of distance metric (can use any scikit learn or
-                    sciypy metric)
+            metric: (str) type of distance metric (can use any scipy.spatial.distance
+                    metric supported by cdist, e.g., 'euclidean', 'cityblock', 'cosine',
+                    'correlation', 'hamming', 'jaccard', etc.)
 
         Returns:
             dist: (Adjacency) Outputs a 2D distance matrix.
 
         """
-
-        return Adjacency(
-            pairwise_distances(self.data, metric=metric, **kwargs),
-            matrix_type="Distance",
-        )
+        # Use scipy.spatial.distance.cdist directly for efficiency
+        # Computes pairwise distances between all images (rows)
+        dist_matrix = cdist(self.data, self.data, metric=metric, **kwargs)
+        return Adjacency(dist_matrix, matrix_type="Distance")
 
     # TODO: ensure this implementation is efficient as possible
     def multivariate_similarity(self, images, method="ols"):
@@ -1605,8 +1603,8 @@ class BrainData(object):
 
         elif n_unique > 2:
             # Labeled atlas - use NiftiLabelsMasker for efficiency
-            # Round values to ensure integer labels
-            mask_brain.data = np.round(mask_brain.data).astype(int)
+            # Round values to ensure integer labels (use int32 for nilearn/FSL/SPM compatibility)
+            mask_brain.data = np.round(mask_brain.data).astype(np.int32)
             mask_img = mask_brain.to_nifti()
 
             # Create masker based on metric
@@ -2766,14 +2764,14 @@ class BrainData(object):
 
         return predictions
 
-    # TODO: reimplement using nltools.inference or drop
+    # TODO: refactor to make use of new Model class
     def randomise(self, *args, **kwargs):
         """DEPRECATED: This method has been moved to the Model class."""
         raise NotImplementedError(
             "randomise() has been deprecated. Please use the new Model class for permutation-based inference."
         )
 
-    # TODO: reimplement using nltools.stats and nltools.inference or drop
+    # TODO: refactor to make use of new Model class
     def ttest(self, *args, **kwargs):
         """DEPRECATED: This method has been moved to the Model class."""
         raise NotImplementedError(
