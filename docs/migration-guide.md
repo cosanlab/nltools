@@ -180,6 +180,7 @@ stats = adj.regress(dm)  # Works! Converts dm.to_numpy() internally
 | `.ttest()` | Use `scipy.stats.ttest_1samp()` | Low |
 | `.randomise()` | Use nilearn permutation testing | Medium |
 | `.predict_multi()` | Will return in future Model class | N/A |
+| `summarize_bootstrap()` | `BrainData.bootstrap()` or `OnlineBootstrapStats` | **Low** |
 
 ### 2. Removed Classes
 
@@ -430,6 +431,95 @@ new_aligned, R, disp, scale = hyper.transform_subject(new_data)
 
 ---
 
+### Pattern 8: Bootstrap Summary Statistics
+
+**Status**: ⚠️ **BREAKING CHANGE** - `summarize_bootstrap()` has been removed in v0.6.0
+
+The `summarize_bootstrap()` function has been removed and replaced with `BrainData.bootstrap()` and `OnlineBootstrapStats` for more efficient and flexible bootstrap analysis.
+
+**Before (v0.5.1):**
+```python
+from nltools.stats import summarize_bootstrap
+
+# Create BrainData with multiple bootstrap samples
+bootstrap_samples = BrainData(list_of_samples)  # Multiple samples
+
+# Summarize bootstrap samples
+result = summarize_bootstrap(bootstrap_samples, save_weights=False)
+# Returns: {'mean': BrainData, 'Z': BrainData, 'p': BrainData}
+
+mean_brain = result['mean']
+z_brain = result['Z']
+p_brain = result['p']
+```
+
+**After (v0.6.0) - Option 1: Use BrainData.bootstrap()**
+```python
+# For generating bootstrap samples and getting statistics
+boot = brain.bootstrap(stat='mean', n_samples=1000)
+# Returns BrainData with bootstrap mean
+
+# For model statistics (weights, predictions), returns dict with all stats
+brain.fit(X=dm, model='ridge', alpha=1.0)
+boot = brain.bootstrap(stat='weights', n_samples=1000)
+# Returns: {'mean': BrainData, 'std': BrainData, 'Z': BrainData, 'p': BrainData,
+#           'ci_lower': BrainData, 'ci_upper': BrainData}
+```
+
+**After (v0.6.0) - Option 2: Use OnlineBootstrapStats for existing samples**
+```python
+from nltools.algorithms.inference.bootstrap import OnlineBootstrapStats
+from nltools.data import BrainData
+
+# If you already have bootstrap samples (BrainData with multiple images)
+bootstrap_samples = BrainData(list_of_samples)
+
+# Initialize OnlineBootstrapStats with shape matching your data
+stats = OnlineBootstrapStats(
+    shape=(bootstrap_samples.shape[1],),  # Number of voxels/features
+    save_samples=False,  # Set True if you need 'samples' key
+    percentiles=(2.5, 97.5)  # For confidence intervals
+)
+
+# Update with each bootstrap sample
+for sample in bootstrap_samples:  # Iterate over samples
+    stats.update(sample.data)  # Pass 1D array of voxel values
+
+# Get results (equivalent to summarize_bootstrap output)
+result = stats.get_results()
+# Returns: {'mean': array, 'std': array, 'Z': array, 'p': array,
+#           'ci_lower': array, 'ci_upper': array}
+
+# Convert to BrainData format (reproduce old API format)
+mean_brain = bootstrap_samples[0].copy()
+mean_brain.data = result['mean']
+
+z_brain = bootstrap_samples[0].copy()
+z_brain.data = result['Z']
+
+p_brain = bootstrap_samples[0].copy()
+p_brain.data = result['p']
+
+# Result equivalent to old summarize_bootstrap():
+equivalent_result = {
+    'mean': mean_brain,
+    'Z': z_brain,
+    'p': p_brain
+}
+# Optionally include samples if save_samples=True:
+if 'samples' in result:
+    equivalent_result['samples'] = result['samples']
+```
+
+| Aspect | Old | New | Benefit |
+|--------|-----|-----|---------|
+| API | Single function | Multiple options | More flexible |
+| Memory | Stores all samples | Optional online stats | More efficient |
+| Additional outputs | mean, Z, p | Plus std, ci_lower, ci_upper | More complete |
+| Integration | Standalone | Integrated with BrainData.bootstrap() | Better workflow |
+
+---
+
 ## New Features
 
 ### Compute Contrasts
@@ -535,6 +625,7 @@ brain_data.X = design_matrix  # Still works but deprecated
 - [ ] Update `.shape()` → `.shape` (and `.isempty()`, `.dtype()`)
 - [ ] Update `.smooth()` to assign return value
 - [ ] Remove `.X` and `.Y` assignments (pass `X=` to `.fit()`)
+- [ ] Replace `summarize_bootstrap()` with `BrainData.bootstrap()` or `OnlineBootstrapStats`
 - [ ] Consider using new `.fit(model='ridge')` for regression
 - [ ] Consider using new CV features (`cv=5`, `alpha='auto'`)
 - [ ] Test with `FutureWarning` → error to catch remaining issues

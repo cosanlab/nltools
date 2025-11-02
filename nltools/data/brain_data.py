@@ -2192,6 +2192,35 @@ class BrainData(object):
             >>> boot = brain.bootstrap(stat='predict', X_test=X_new, n_samples=1000)
             >>> assert 'mean' in boot
             >>> assert isinstance(boot['mean'], BrainData)
+
+        Note:
+            This method replaces the deprecated `summarize_bootstrap()` function from
+            `nltools.stats`. To reproduce `summarize_bootstrap()` functionality:
+
+            **Old API (deprecated):**
+            >>> from nltools.stats import summarize_bootstrap
+            >>> bootstrap_samples = BrainData(list_of_samples)  # Multiple samples
+            >>> result = summarize_bootstrap(bootstrap_samples, save_weights=False)
+            >>> # Returns: {'mean': BrainData, 'Z': BrainData, 'p': BrainData}
+
+            **New API (recommended):**
+            >>> # Option 1: Use BrainData.bootstrap() for generating bootstrap samples
+            >>> boot = brain.bootstrap(stat='mean', n_samples=1000, save_boots=False)
+            >>> # Returns BrainData with bootstrap mean
+            >>> # To get Z and p, use stat='weights' or 'predict' which returns dict
+
+            >>> # Option 2: For existing bootstrap samples (BrainData with multiple images),
+            >>> # use OnlineBootstrapStats directly:
+            >>> from nltools.algorithms.inference.bootstrap import OnlineBootstrapStats
+            >>> stats = OnlineBootstrapStats(shape=(brain.shape[1],), save_samples=False)
+            >>> for sample in bootstrap_samples:  # Iterate over samples
+            ...     stats.update(sample.data)
+            >>> result = stats.get_results()
+            >>> # Returns: {'mean': array, 'std': array, 'Z': array, 'p': array,
+            >>> #           'ci_lower': array, 'ci_upper': array}
+            >>> # Convert to BrainData if needed:
+            >>> mean_brain = brain._shallow_copy_with_data()
+            >>> mean_brain.data = result['mean']
         """
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_simple_cpu_parallel,

@@ -23,7 +23,6 @@ The `nltools.utils` module provides utility functions that support the core func
 
 **Bootstrap Utilities**
 - `_bootstrap_apply_func()` - Apply function to bootstrap samples
-- `summarize_bootstrap()` - Summarize bootstrap distributions
 
 **HDF5 Support**
 - `to_h5()` - Write data to HDF5 format
