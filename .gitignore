@@ -67,9 +67,4 @@ docs/**/*.nii.gz
 **Haxby*.ipynb
 audit/
 claude-research/
-claude-guidelines/
-project-log/
-.private-journal/
-*plan*.md
-tmp/
 

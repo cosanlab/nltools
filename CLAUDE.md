@@ -15,13 +15,16 @@ Example:
 Build and refactor `nltools`, a neuroimaging library with a delightful and intuitive user-facing API that prefers "composition over abstraction" by bringing together the power of libraries like `nilearn` with custom efficient, parallelizable, gpu-enabled algorithms that facilitate a wide-range of basic and advanced neuroimaging analyses. Advanced analyses made easy.  
 
 ## ⚙️ Environment & Project Context
-- **Active branch:** `uv-cleanup`  
-- **Version target:** `v0.6.0` (breaking release; API updates allowed)  
-- **Architecture:** *Functional core, imperative shell*  
-  - Imperative: `nltools/data/` (`BrainData`, `Adjacency`, `DesignMatrix`)  
-  - Functional: `stats.py`, `utils.py`, `algorithms/` (`ridge`, `srm`, `hyperalignment`, `inference`)  
-- **Previous research, progress & planning files**: `claude-research/`
-- **Active TDD plans:** `plans/`
+- **Active branch:** `uv-cleanup`
+- **Version target:** `v0.6.0` (breaking release; API updates allowed)
+- **Architecture:** *Functional core, imperative shell*
+  - Imperative: `nltools/data/` (`BrainData`, `Adjacency`, `DesignMatrix`)
+  - Functional: `stats.py`, `utils.py`, `algorithms/` (`ridge`, `srm`, `hyperalignment`, `inference`)
+- **Research & background**: `claude-research/` (use sub-agents to add new research here)
+- **Active planning system**: `plans/` - **ALWAYS CHECK HERE FIRST**
+  - **Primary docs**: `v0.6.0-SUMMARY.md` → `v0.6.0-ACTION-PLAN.md` → `v0.6.0-VERIFICATION.md`
+  - **Reference**: `refactor-progress.md` (session notes), `STATS_TODO_ACTION_PLAN.md`, `MIGRATION_PLAN_STATS_TO_INFERENCE.md`
+  - **Read**: `plans/README.md` for navigation guide
 
 
 ## SUB-AGENT usage protocol
