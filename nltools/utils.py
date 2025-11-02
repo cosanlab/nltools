@@ -51,9 +51,12 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
         # Note: X and Y attributes removed in v0.6.0
         # Store empty DataFrames for backward compatibility
         import warnings
+
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=UserWarning, module="tables")
-            warnings.filterwarnings("ignore", message=".*performance.*", module="tables")
+            warnings.filterwarnings(
+                "ignore", message=".*performance.*", module="tables"
+            )
             with pd.HDFStore(file_name, "w") as f:
                 # Check if obj has these deprecated attributes for backward compatibility
                 if hasattr(obj, "X"):
@@ -76,9 +79,12 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
             f.create_dataset("mask_file_name", data=obj.mask.get_filename())
     else:
         import warnings
+
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=UserWarning, module="tables")
-            warnings.filterwarnings("ignore", message=".*performance.*", module="tables")
+            warnings.filterwarnings(
+                "ignore", message=".*performance.*", module="tables"
+            )
             with pd.HDFStore(file_name, "w") as f:
                 f["Y"] = obj.Y
 

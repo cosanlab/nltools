@@ -168,21 +168,35 @@ def test_phase_randomize():
 
 def test_downsample():
     """Test downsampling algorithm with different aggregation methods."""
+    import polars as pl
+
     dat = pd.DataFrame()
     dat["x"] = range(0, 100)
     dat["y"] = np.repeat(range(1, 11), 10)
-    assert (
-        dat.groupby("y").mean().values.ravel()
-        == downsample(
-            data=dat["x"], sampling_freq=10, target=1, target_type="hz", method="mean"
-        ).values
-    ).all
-    assert (
-        dat.groupby("y").median().values.ravel()
-        == downsample(
-            data=dat["x"], sampling_freq=10, target=1, target_type="hz", method="median"
-        ).values
-    ).all
+
+    result = downsample(
+        data=dat["x"], sampling_freq=10, target=1, target_type="hz", method="mean"
+    )
+    # Convert Polars to numpy if needed
+    if isinstance(result, pl.Series):
+        result_values = result.to_numpy()
+    else:
+        result_values = result.values
+
+    expected = dat.groupby("y").mean().values.ravel()
+    assert (result_values == expected).all()
+
+    result = downsample(
+        data=dat["x"], sampling_freq=10, target=1, target_type="hz", method="median"
+    )
+    # Convert Polars to numpy if needed
+    if isinstance(result, pl.Series):
+        result_values = result.to_numpy()
+    else:
+        result_values = result.values
+
+    expected = dat.groupby("y").median().values.ravel()
+    assert (result_values == expected).all()
     # with pytest.raises(ValueError):
     # 	downsample(data=list(dat['x']),sampling_freq=10,target=1,target_type='hz',method='median')
     # with pytest.raises(ValueError):
@@ -210,6 +224,8 @@ def test_upsample():
 
 def test_winsorize():
     """Test winsorizing outlier handling with quantile and std methods."""
+    import polars as pl
+
     outlier_test = pd.DataFrame(
         [
             92,
@@ -237,7 +253,12 @@ def test_winsorize():
 
     out = winsorize(
         outlier_test, cutoff={"quantile": [0.05, 0.95]}, replace_with_cutoff=False
-    ).values.squeeze()
+    )
+    # Convert Polars to numpy for comparison
+    if isinstance(out, pl.DataFrame):
+        out = out.to_numpy().squeeze()
+    else:
+        out = out.values.squeeze()
     correct_result = np.array(
         [
             92,
@@ -264,9 +285,12 @@ def test_winsorize():
     )
     assert np.sum(out == correct_result) == 20
 
-    out = winsorize(
-        outlier_test, cutoff={"std": [2, 2]}, replace_with_cutoff=False
-    ).values.squeeze()
+    out = winsorize(outlier_test, cutoff={"std": [2, 2]}, replace_with_cutoff=False)
+    # Convert Polars to numpy for comparison
+    if isinstance(out, pl.DataFrame):
+        out = out.to_numpy().squeeze()
+    else:
+        out = out.values.squeeze()
     correct_result = np.array(
         [
             92,
@@ -293,9 +317,12 @@ def test_winsorize():
     )
     assert np.sum(out == correct_result) == 20
 
-    out = winsorize(
-        outlier_test, cutoff={"std": [2, 2]}, replace_with_cutoff=True
-    ).values.squeeze()
+    out = winsorize(outlier_test, cutoff={"std": [2, 2]}, replace_with_cutoff=True)
+    # Convert Polars to numpy for comparison
+    if isinstance(out, pl.DataFrame):
+        out = out.to_numpy().squeeze()
+    else:
+        out = out.values.squeeze()
     correct_result = np.array(
         [
             92.0,
