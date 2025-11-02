@@ -59,6 +59,7 @@ from .matrix import (
     distance_correlation,
 )
 from .isc import isc_permutation_test, isc_group_permutation_test
+from .icc import compute_icc_voxelwise
 
 # Import utility functions (for testing and internal use)
 from .utils import _generate_sign_flips, _compute_pvalue, _auto_batch_size
@@ -80,6 +81,7 @@ __all__ = [
     "distance_correlation",
     "isc_permutation_test",
     "isc_group_permutation_test",
+    "compute_icc_voxelwise",
     "OnlineBootstrapStats",
     # Private functions (exported for testing)
     "_generate_sign_flips",

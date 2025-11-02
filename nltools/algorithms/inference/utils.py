@@ -343,6 +343,112 @@ def _auto_n_jobs_cpu(
     return optimal_n_jobs
 
 
+def _verify_n_jobs_memory_constraint(
+    requested_n_jobs: int,
+    data_size_mb: float,
+    n_permute: int,
+    max_memory_gb: float = 8.0,
+    min_jobs: int = 1,
+    warn_threshold: float = 0.2,
+) -> int:
+    """
+    Verify memory constraint for explicitly requested n_jobs.
+
+    Ensures that requested number of workers doesn't exceed memory budget.
+    If memory constraint is violated, reduces n_jobs and optionally warns.
+
+    Args:
+        requested_n_jobs (int): User-requested number of workers
+        data_size_mb (float): Size of data per worker in MB
+        n_permute (int): Number of tasks to process
+        max_memory_gb (float): Maximum memory budget in GB (default: 8.0)
+        min_jobs (int): Minimum number of workers (default: 1)
+        warn_threshold (float): Warn if reduction exceeds this fraction (default: 0.2)
+
+    Returns:
+        int: Verified number of workers (may be reduced from requested)
+
+    Examples:
+        >>> # Memory allows requested workers
+        >>> n_jobs = _verify_n_jobs_memory_constraint(
+        ...     requested_n_jobs=4,
+        ...     data_size_mb=1.0,
+        ...     n_permute=1000,
+        ...     max_memory_gb=8.0
+        ... )
+        >>> n_jobs
+        4
+
+        >>> # Memory constraint reduces workers
+        >>> n_jobs = _verify_n_jobs_memory_constraint(
+        ...     requested_n_jobs=8,
+        ...     data_size_mb=2.0,  # Large data
+        ...     n_permute=1000,
+        ...     max_memory_gb=8.0
+        ... )
+        >>> n_jobs < 8  # Should be reduced
+        True
+
+    Notes:
+        - Always respects memory constraints to prevent OOM
+        - Warns if reduction is significant (>20% by default)
+        - Never reduces below min_jobs
+        - Uses same memory calculation as _auto_n_jobs_cpu for consistency
+    """
+    import multiprocessing
+    import warnings
+
+    # Get CPU count limit
+    max_jobs_by_cpu = multiprocessing.cpu_count()
+
+    # Calculate memory budget (same as _auto_n_jobs_cpu)
+    available_memory_gb = max_memory_gb
+    if available_memory_gb is None:
+        try:
+            import psutil
+
+            mem = psutil.virtual_memory()
+            available_memory_gb = (mem.available / 1024**3) * 0.5  # 50% headroom
+        except ImportError:
+            available_memory_gb = 8.0
+
+    available_memory_mb = available_memory_gb * 1024
+
+    # Calculate memory per worker (same as _auto_n_jobs_cpu)
+    serialization_factor = 3.0
+    result_overhead_mb = (n_permute * 4 / 1024**2) * 0.1
+    memory_per_worker_mb = data_size_mb * serialization_factor + result_overhead_mb
+
+    # Calculate maximum workers allowed by memory
+    if memory_per_worker_mb <= 0:
+        max_workers_by_memory = max_jobs_by_cpu
+    else:
+        max_workers_by_memory = int(available_memory_mb / memory_per_worker_mb)
+        max_workers_by_memory = max(
+            min_jobs, min(max_workers_by_memory, max_jobs_by_cpu)
+        )
+
+    # Determine final n_jobs
+    # Priority: memory constraint > CPU limit > user request
+    final_n_jobs = min(requested_n_jobs, max_workers_by_memory)
+    final_n_jobs = max(min_jobs, final_n_jobs)  # Never below min_jobs
+
+    # Warn if significant reduction occurred
+    if final_n_jobs < requested_n_jobs:
+        reduction_fraction = (requested_n_jobs - final_n_jobs) / requested_n_jobs
+        if reduction_fraction >= warn_threshold:
+            warnings.warn(
+                f"Requested n_jobs={requested_n_jobs} exceeds memory limit "
+                f"({max_memory_gb:.1f} GB). Reducing to {final_n_jobs} workers "
+                f"to prevent out-of-memory errors. "
+                f"Estimated memory per worker: {memory_per_worker_mb:.2f} MB.",
+                UserWarning,
+                stacklevel=3,
+            )
+
+    return final_n_jobs
+
+
 def _estimate_data_size_mb(data: np.ndarray) -> float:
     """
     Estimate memory size of data array in MB.

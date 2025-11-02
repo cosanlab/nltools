@@ -7,9 +7,7 @@ Classes to represent brain image data.
 """
 
 from nilearn.signal import clean
-from scipy.stats import pearsonr, spearmanr
 from scipy.spatial.distance import cdist
-from scipy.stats import t as t_dist
 from scipy.signal import detrend
 from scipy.interpolate import pchip
 import os
@@ -40,6 +38,8 @@ from nltools.stats import (
     transform_pairwise,
     procrustes,
     find_spikes,
+    compute_similarity,
+    compute_multivariate_similarity,
 )
 from .adjacency import Adjacency
 from nltools.prefs import MNI_Template
@@ -1369,7 +1369,6 @@ class BrainData(object):
             image2 = image.data
         return data2, image2
 
-    # TODO: ensure this implementation is efficient as possible
     def similarity(self, image, method="correlation"):
         """Calculate similarity of BrainData() instance with single
         BrainData or Nibabel image
@@ -1382,7 +1381,6 @@ class BrainData(object):
             pexp: (list) Outputs a vector of pattern expression values
 
         """
-
         supported_metrics = [
             "correlation",
             "pearson",
@@ -1397,20 +1395,8 @@ class BrainData(object):
         image = check_brain_data(image)
         data2, image2 = self._check_masks(image)
 
-        if method == "dot_product":
-            func = lambda x, y: np.dot(x, y)
-        elif method in ["pearson", "correlation"]:
-            func = lambda x, y: pearsonr(x, y)[0]
-        elif method in ["spearman", "rank_correlation"]:
-            func = lambda x, y: spearmanr(x, y)[0]
-        elif method == "cosine":
-            func = method
-
-        out = cdist(np.atleast_2d(data2), np.atleast_2d(image2), func).squeeze()
-        # cdist metric argument returns distances by default (unless we specific a
-        # custom function like above) so flip it to similarity
-        out = 1 - out if method == "cosine" else out
-        return out
+        # Delegate to functional core (stats.py)
+        return compute_similarity(data2, image2, method=method)
 
     def distance(self, metric="euclidean", **kwargs):
         """Calculate distance between images within a BrainData() instance.
@@ -1429,7 +1415,6 @@ class BrainData(object):
         dist_matrix = cdist(self.data, self.data, metric=metric, **kwargs)
         return Adjacency(dist_matrix, matrix_type="Distance")
 
-    # TODO: ensure this implementation is efficient as possible
     def multivariate_similarity(self, images, method="ols"):
         """Predict spatial distribution of BrainData() instance from linear
         combination of other BrainData() instances or Nibabel images
@@ -1451,34 +1436,13 @@ class BrainData(object):
         images = check_brain_data(images)
         data2, image2 = self._check_masks(images)
 
-        # Add intercept and transpose
-        image2 = np.vstack((np.ones(image2.shape[1]), image2)).T
+        # Prepare data for functional core: y is single image, X is predictors
+        # image2 shape: (n_images, n_voxels) -> transpose to (n_voxels, n_images)
+        y = data2.squeeze()  # Single image: (n_voxels,)
+        X = image2.T  # Predictors: (n_voxels, n_images)
 
-        # Calculate pattern expression
-        if method == "ols":
-            b = np.dot(np.linalg.pinv(image2), data2)
-            res = data2 - np.dot(image2, b)
-            sigma = np.std(res, axis=0)
-            stderr = np.dot(
-                np.matrix(
-                    np.diagonal(np.linalg.inv(np.dot(image2.T, image2))) ** 0.5
-                ).T,
-                np.matrix(sigma),
-            )
-            t_out = b / stderr
-            df = image2.shape[0] - image2.shape[1]
-            p = 2 * (1 - t_dist.cdf(np.abs(t_out), df))
-        else:
-            raise NotImplementedError
-
-        return {
-            "beta": b,
-            "t": t_out,
-            "p": p,
-            "df": df,
-            "sigma": sigma,
-            "residual": res,
-        }
+        # Delegate to functional core (stats.py)
+        return compute_multivariate_similarity(y, X, method=method)
 
     # NOTE: uses nilearn.masking.apply_mask
     def apply_mask(self, mask, resample_mask_to_brain=False):
@@ -1676,10 +1640,20 @@ class BrainData(object):
 
         return out
 
-    # TODO: refactor to be more efficient
-    def icc(self, icc_type="icc2"):
-        """Calculate intraclass correlation coefficient for data within
-            BrainData class
+    def icc(
+        self,
+        n_subjects,
+        n_sessions,
+        icc_type="icc2",
+        parallel=None,
+        n_jobs=-1,
+        max_gpu_memory_gb=4.0,
+    ):
+        """Calculate voxel-wise intraclass correlation coefficient for data within
+            BrainData class.
+
+        Computes ICC for each voxel independently, making it highly parallelizable.
+        Supports GPU acceleration for large voxel counts.
 
         ICC Formulas are based on:
         Shrout, P. E., & Fleiss, J. L. (1979). Intraclass correlations: uses in
@@ -1688,72 +1662,67 @@ class BrainData(object):
         icc1:  x_ij = mu + beta_j + w_ij
         icc2/3:  x_ij = mu + alpha_i + beta_j + (ab)_ij + epsilon_ij
 
-        Code modifed from nipype algorithms.icc
-        https://github.com/nipy/nipype/blob/master/nipype/algorithms/icc.py
-
         Args:
-            icc_type: type of icc to calculate (icc: voxel random effect,
-                    icc2: voxel and column random effect, icc3: voxel and
-                    column fixed effect)
+            n_subjects: Number of subjects in the data
+            n_sessions: Number of sessions per subject
+            icc_type: Type of ICC to calculate
+                    - 'icc1': One-way random effects (subjects random, sessions treated as interchangeable)
+                    - 'icc2': Two-way random effects (subjects and sessions random) (default)
+                    - 'icc3': Two-way mixed effects (subjects random, sessions fixed)
+            parallel: Parallelization method
+                    - None: Single-threaded vectorized NumPy (default, memory efficient)
+                    - 'cpu': CPU parallelization via joblib (for medium-sized problems, 1K-10K voxels)
+                    - 'gpu': GPU acceleration via PyTorch (recommended for large voxel counts >10K, 10-50× speedup)
+            n_jobs: Number of CPU cores (-1 = all cores). Only used when parallel='cpu'
+            max_gpu_memory_gb: GPU memory budget in GB. Only used when parallel='gpu'
 
         Returns:
-            ICC: (np.array) intraclass correlation coefficient
+            BrainData: BrainData instance with ICC map (shape: (1, n_voxels))
 
+        Examples:
+            >>> # Typical test-retest reliability analysis
+            >>> data = BrainData(...)  # Shape: (60, 238955) = 20 subjects × 3 sessions
+            >>> icc_map = data.icc(n_subjects=20, n_sessions=3, icc_type='icc2')
+            >>> icc_map.shape
+            (1, 238955)
+            >>> # Visualize ICC map
+            >>> icc_map.plot()
+
+        Notes:
+            Data must be organized such that n_images = n_subjects * n_sessions.
+            Images should be ordered as: [subject1_session1, subject1_session2, ...,
+            subject2_session1, ...]
         """
+        from nltools.algorithms.inference.icc import compute_icc_voxelwise
 
-        Y = self.data.T
-        [n, k] = Y.shape
+        # Validate data shape
+        n_images = self.shape[0]
 
-        # Degrees of Freedom
-        dfc = k - 1
-        dfe = (n - 1) * (k - 1)
-        dfr = n - 1
+        if n_images != n_subjects * n_sessions:
+            raise ValueError(
+                f"Number of images ({n_images}) must equal n_subjects * n_sessions "
+                f"({n_subjects} * {n_sessions} = {n_subjects * n_sessions}). "
+                f"Make sure images are organized as: "
+                f"[subject1_session1, subject1_session2, ..., subject2_session1, ...]"
+            )
 
-        # Sum Square Total
-        mean_Y = np.mean(Y)
-        SST = ((Y - mean_Y) ** 2).sum()
-
-        # create the design matrix for the different levels
-        x = np.kron(np.eye(k), np.ones((n, 1)))  # sessions
-        x0 = np.tile(np.eye(n), (k, 1))  # subjects
-        X = np.hstack([x, x0])
-
-        # Sum Square Error
-        predicted_Y = np.dot(
-            np.dot(np.dot(X, np.linalg.pinv(np.dot(X.T, X))), X.T), Y.flatten("F")
+        # Compute voxel-wise ICC
+        icc_map = compute_icc_voxelwise(
+            self.data,
+            n_subjects=n_subjects,
+            n_sessions=n_sessions,
+            icc_type=icc_type,
+            parallel=parallel,
+            n_jobs=n_jobs,
+            max_gpu_memory_gb=max_gpu_memory_gb,
         )
-        residuals = Y.flatten("F") - predicted_Y
-        SSE = (residuals**2).sum()
 
-        MSE = SSE / dfe
-
-        # Sum square column effect - between colums
-        SSC = ((np.mean(Y, 0) - mean_Y) ** 2).sum() * n
-        MSC = SSC / dfc / n
-
-        # Sum Square subject effect - between rows/subjects
-        SSR = SST - SSC - SSE
-        MSR = SSR / dfr
-
-        if icc_type == "icc1":
-            # ICC(2,1) = (mean square subject - mean square error) /
-            # (mean square subject + (k-1)*mean square error +
-            # k*(mean square columns - mean square error)/n)
-            # ICC = (MSR - MSRW) / (MSR + (k-1) * MSRW)
-            NotImplementedError("This method isn't implemented yet.")
-
-        elif icc_type == "icc2":
-            # ICC(2,1) = (mean square subject - mean square error) /
-            # (mean square subject + (k-1)*mean square error +
-            # k*(mean square columns - mean square error)/n)
-            ICC = (MSR - MSE) / (MSR + (k - 1) * MSE + k * (MSC - MSE) / n)
-
-        elif icc_type == "icc3":
-            # ICC(3,1) = (mean square subject - mean square error) /
-            # (mean square subject + (k-1)*mean square error)
-            ICC = (MSR - MSE) / (MSR + (k - 1) * MSE)
-
-        return ICC
+        # Return as BrainData object (shape: (1, n_voxels))
+        out = self._shallow_copy_with_data()
+        out.data = icc_map[np.newaxis, :]  # (1, n_voxels)
+        out.X = pd.DataFrame()
+        out.Y = pd.DataFrame()
+        return out
 
     # NOTE: uses scipy.signal.detrend
     def detrend(self, method="linear"):
@@ -2662,7 +2631,6 @@ class BrainData(object):
             out.data[:, i] = interpolate(new_spacing)
         return out
 
-    # TODO: refactor for efficiency and verify
     def predict(self, X=None):
         """Generate predictions using fitted model.
 
@@ -2704,7 +2672,8 @@ class BrainData(object):
             raise ValueError("Model is not fitted")
 
         # Use training data if X not provided
-        if X is None:
+        using_training_data = X is None
+        if using_training_data:
             if not hasattr(self, "X_"):
                 raise ValueError(
                     "No training data stored. This should not happen - "
@@ -2743,7 +2712,7 @@ class BrainData(object):
 
         if isinstance(self.model_, Glm):
             # For GLM, check if using training data or new data
-            if X is self.X_:
+            if using_training_data:
                 # Using training data - get fitted values
                 y_pred_list = self.model_.predict()  # Returns list of nifti images
                 # Convert to array
