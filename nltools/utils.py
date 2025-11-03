@@ -15,6 +15,7 @@ __all__ = [
     "_bootstrap_apply_func",
     "set_decomposition_algorithm",
     "get_mni_from_img_resolution",
+    "detect_best_matching_template",
     "to_h5",
     "load_brain_data_h5",
 ]
@@ -325,6 +326,173 @@ def get_mni_from_img_resolution(brain, img_type="plot"):
         return join(base_path, f"MNI152_{res_str}_brain.nii.gz")
     else:
         return join(base_path, f"MNI152_{res_str}_T1.nii.gz")
+
+
+def detect_best_matching_template(
+    data_img, prefer_exact_match=True, resample_enabled=True
+):
+    """
+    Detect the best matching MNI template from available resources based on data resolution.
+
+    This function analyzes the affine matrix of a nibabel image to determine its resolution
+    and finds the best matching template from available resources (default, nilearn, fmriprep).
+    For non-isotropic voxels, it uses the average voxel size across all dimensions.
+
+    Args:
+        data_img: nibabel Nifti1Image object
+        prefer_exact_match: If True, prefer exact resolution match. If False, use closest match.
+        resample_enabled: If True, indicates that resampling is enabled in the calling context.
+                         Used to conditionally suggest resampling in warnings. Default: True.
+
+    Returns:
+        dict: Dictionary with keys:
+            - 'template': Template variant ('default', 'nilearn', or 'fmriprep')
+            - 'resolution': Resolution in mm (1, 2, or 3)
+            - 'mask_path': Path to mask file
+            - 'brain_path': Path to brain-extracted image
+            - 'plot_path': Path to T1 image
+            - 'match_distance': Distance from detected resolution to matched resolution
+
+    Raises:
+        ValueError: If no matching template is found or voxel sizes are invalid
+
+    Examples:
+        >>> import nibabel as nib
+        >>> data = nib.Nifti1Image(
+        ...     np.random.randn(91, 109, 91, 10),
+        ...     affine=np.eye(4) * 2  # 2mm resolution
+        ... )
+        >>> template_info = detect_best_matching_template(data)
+        >>> print(template_info['template'])  # 'default'
+        >>> print(template_info['resolution'])  # 2
+    """
+    # Extract resolution from affine matrix
+    affine = data_img.affine
+    res_array = np.abs(np.diag(affine[:3, :3]))
+
+    # Check if isotropic
+    voxel_dims = np.unique(res_array)
+    is_isotropic = len(voxel_dims) == 1
+
+    if is_isotropic:
+        # Use the single voxel dimension
+        resolution_float = float(voxel_dims[0])
+    else:
+        # For non-isotropic voxels, use average voxel size across all dimensions
+        # Ensure positive by using absolute value (already done above)
+        resolution_float = float(np.mean(res_array))
+
+    # Determine resolution in mm (round to nearest integer)
+    resolution = int(np.round(resolution_float))
+
+    # Validate resolution is reasonable (1-10mm range)
+    if resolution < 1 or resolution > 10:
+        raise ValueError(
+            f"Detected resolution ({resolution_float}mm) is outside reasonable range (1-10mm). "
+            f"Data may not be in standard MNI space."
+        )
+
+    # Define template priority order (prefer default, then nilearn, then fmriprep)
+    template_priority = ["default", "nilearn", "fmriprep"]
+
+    # Define supported combinations for each template
+    supported_combinations = {
+        "default": [2, 3],
+        "nilearn": [1, 2, 3],
+        "fmriprep": [1, 2],
+    }
+
+    # Find best matching template
+    best_template = None
+    best_resolution = None
+    best_match_distance = float("inf")
+
+    # First, try exact match if preferred
+    if prefer_exact_match:
+        for template in template_priority:
+            if resolution in supported_combinations[template]:
+                best_template = template
+                best_resolution = resolution
+                best_match_distance = 0
+                break
+
+    # If no exact match found, find closest match
+    if best_template is None:
+        available_resolutions = set()
+        for resolutions in supported_combinations.values():
+            available_resolutions.update(resolutions)
+
+        if not available_resolutions:
+            raise ValueError(
+                "No templates available. This suggests an incomplete installation."
+            )
+
+        # Find closest resolution
+        closest_res = min(available_resolutions, key=lambda x: abs(x - resolution))
+        best_match_distance = abs(closest_res - resolution)
+
+        # Find template with this resolution (prefer priority order)
+        for template in template_priority:
+            if closest_res in supported_combinations[template]:
+                best_template = template
+                best_resolution = closest_res
+                break
+
+        if best_template is None:
+            raise ValueError(
+                f"Could not find template for resolution {closest_res}mm. "
+                f"This should not happen - please report as a bug."
+            )
+
+        # Warn if using closest match (not exact)
+        if best_match_distance > 0:
+            import warnings
+
+            if resample_enabled:
+                # Resampling is enabled, so don't suggest it - data will be resampled automatically
+                warnings.warn(
+                    f"\nResampling data resolution ({resolution_float:.3f}mm) to closest matching template resolution: {best_resolution}mm.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            else:
+                # Resampling is disabled, so suggest resampling manually
+                warnings.warn(
+                    f"\nData resolution ({resolution_float:.3f}mm) doesn't match template for masking: {best_template} {best_resolution}mm.\nConsider resampling your data to {best_resolution}mm for best results.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
+    # Build paths
+    base_path = join(dirname(__file__), "resources", "niftis", best_template)
+    res_str = f"{best_resolution}mm"
+
+    mask_path = join(base_path, f"MNI152_{res_str}_mask.nii.gz")
+    brain_path = join(base_path, f"MNI152_{res_str}_brain.nii.gz")
+    plot_path = join(base_path, f"MNI152_{res_str}_T1.nii.gz")
+
+    # Verify files exist
+    import os
+
+    for path_name, path in [
+        ("mask", mask_path),
+        ("brain", brain_path),
+        ("plot", plot_path),
+    ]:
+        if not os.path.exists(path):
+            raise FileNotFoundError(
+                f"Template file not found: {path}\n"
+                f"This suggests an incomplete installation or missing template files."
+            )
+
+    return {
+        "template": best_template,
+        "resolution": best_resolution,
+        "mask_path": mask_path,
+        "brain_path": brain_path,
+        "plot_path": plot_path,
+        "match_distance": best_match_distance,
+    }
 
 
 def set_algorithm(algorithm, *args, **kwargs):

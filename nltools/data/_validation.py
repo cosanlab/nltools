@@ -139,13 +139,18 @@ def validate_data_type(data):
         data: Input data to validate.
 
     Returns:
-        str: Type of data ('list', 'h5', 'url', 'file', 'none').
+        str: Type of data ('brain_data', 'list', 'h5', 'url', 'file', 'nibabel', 'none').
 
     Raises:
         TypeError: If data type is not supported.
     """
+    # Import here to avoid circular imports
+    from nltools.data import BrainData
+
     if data is None:
         return "none"
+    elif isinstance(data, BrainData):
+        return "brain_data"
     elif isinstance(data, list):
         return "list"
     elif isinstance(data, (str, Path)):

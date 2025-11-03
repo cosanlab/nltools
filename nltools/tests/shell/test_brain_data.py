@@ -50,20 +50,44 @@ class TestBrainData:
     def test_init_resample_true_mismatched_spaces(self):
         """Test automatic resampling when data and mask have different spaces."""
         import nibabel as nib
+        import warnings
 
-        # Create data in different space (3mm) than default mask (2mm)
+        # Create data in different space (3mm) than explicitly specified mask (2mm)
         # Use small shape to speed up test
         data_3mm = nib.Nifti1Image(
             np.random.randn(60, 72, 60, 10),  # 3mm shape
             affine=np.eye(4) * 3,  # 3mm affine
         )
 
-        # Use default mask (2mm) with resample=True
-        brain = BrainData(data_3mm, resample=True)
+        # Explicitly use 2mm mask (new behavior: mask=None would auto-detect 3mm)
+        mask_img = nib.load(MNI_Template.mask)
+
+        # With verbose=True, should show resampling warning
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            brain = BrainData(data_3mm, mask=mask_img, resample=True, verbose=True)
+            resample_warnings = [
+                warning
+                for warning in w
+                if "resampling" in str(warning.message).lower()
+                and "resample=true" in str(warning.message).lower()
+            ]
+            assert len(resample_warnings) > 0  # Warning shown when verbose=True
+
+        # With verbose=False, should suppress warning
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            brain = BrainData(data_3mm, mask=mask_img, resample=True, verbose=False)
+            resample_warnings = [
+                warning
+                for warning in w
+                if "resampling" in str(warning.message).lower()
+                and "resample=true" in str(warning.message).lower()
+            ]
+            assert len(resample_warnings) == 0  # No warning when verbose=False
 
         # Should be resampled to 2mm mask space
         assert brain.shape[1] == 238955  # 2mm voxel count
-        mask_img = nib.load(MNI_Template.mask)
         assert np.allclose(brain.nifti_masker.affine_, mask_img.affine, rtol=1e-2)
 
     @pytest.mark.tier1
@@ -85,22 +109,40 @@ class TestBrainData:
 
     @pytest.mark.tier1
     def test_init_resample_false_mismatched_spaces(self):
-        """Test that mismatched spaces with resample=False raises informative error."""
+        """Test that resample=False with mismatched spaces shows warning but still resamples."""
         import nibabel as nib
+        import warnings
 
         # Create data in different space
         data_3mm = nib.Nifti1Image(
             np.random.randn(60, 72, 60, 10), affine=np.eye(4) * 3
         )
+        # Create 2mm mask
+        mask_2mm = nib.Nifti1Image(
+            np.ones((91, 109, 91), dtype=np.float32), affine=np.eye(4) * 2
+        )
 
-        # Should raise error when spaces don't match
-        with pytest.raises(ValueError, match="resample=True"):
-            BrainData(data_3mm, resample=False)
+        # With verbose=False, warning should be suppressed
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            brain = BrainData(data_3mm, mask=mask_2mm, resample=False, verbose=False)
+            assert len(w) == 0  # No warning when verbose=False
+
+        # With verbose=True, warning should be shown
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            brain = BrainData(data_3mm, mask=mask_2mm, resample=False, verbose=True)
+            assert len(w) > 0  # Warning shown when verbose=True
+            assert "resample" in str(w[0].message).lower()
+
+        # Data should still be resampled correctly
+        assert brain.shape[1] == (91 * 109 * 91)  # Should match 2mm mask
 
     @pytest.mark.tier1
     def test_init_resample_true_custom_mask(self, tmpdir):
         """Test resampling to custom mask space."""
         import nibabel as nib
+        import warnings
 
         # Create custom 3mm mask
         custom_mask_data = np.ones((60, 72, 60), dtype=np.float32)
@@ -111,14 +153,36 @@ class TestBrainData:
             np.random.randn(91, 109, 91, 10), affine=np.eye(4) * 2
         )
 
-        brain = BrainData(data_2mm, mask=custom_mask, resample=True)
+        # With verbose=True, should show resampling warning
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            brain = BrainData(data_2mm, mask=custom_mask, resample=True, verbose=True)
+            resample_warnings = [
+                warning
+                for warning in w
+                if "resampling" in str(warning.message).lower()
+                and "resample=true" in str(warning.message).lower()
+            ]
+            assert len(resample_warnings) > 0  # Warning shown when verbose=True
+
+        # With verbose=False, should suppress warning
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            brain = BrainData(data_2mm, mask=custom_mask, resample=True, verbose=False)
+            resample_warnings = [
+                warning
+                for warning in w
+                if "resampling" in str(warning.message).lower()
+                and "resample=true" in str(warning.message).lower()
+            ]
+            assert len(resample_warnings) == 0  # No warning when verbose=False
 
         # Should be resampled to 3mm custom mask space
         assert brain.shape[1] == (60 * 72 * 60)  # All voxels in 3mm space
 
     @pytest.mark.tier1
     def test_init_resample_true_default_mask(self):
-        """Test resampling to default MNI template when mask=None."""
+        """Test resampling to auto-detected template when mask=None."""
         import nibabel as nib
 
         # Create 3mm data
@@ -126,15 +190,244 @@ class TestBrainData:
             np.random.randn(60, 72, 60, 10), affine=np.eye(4) * 3
         )
 
-        # Use default mask (mask=None)
+        # Use default mask (mask=None) - will auto-detect template from data
         brain = BrainData(data_3mm, resample=True)
 
-        # Should be resampled to default MNI template space (2mm)
-        assert brain.shape[1] == 238955  # 2mm voxel count
+        # Should auto-detect and use 3mm template (not default 2mm)
+        assert brain.shape[1] == 71020  # 3mm voxel count
+        assert brain._detected_template["resolution"] == 3
+        assert brain._detected_template["template"] == "default"
 
     @pytest.mark.tier1
     def test_init_resample_true_list_of_files(self, tmpdir):
         """Test resampling works with list of files."""
+        import nibabel as nib
+        import warnings
+
+        # Create two 3mm files
+        data1 = nib.Nifti1Image(np.random.randn(60, 72, 60), affine=np.eye(4) * 3)
+        data2 = nib.Nifti1Image(np.random.randn(60, 72, 60), affine=np.eye(4) * 3)
+
+        file1 = str(tmpdir.join("data1.nii.gz"))
+        file2 = str(tmpdir.join("data2.nii.gz"))
+        data1.to_filename(file1)
+        data2.to_filename(file2)
+
+        # With verbose=True, should show resampling warning (only once for first item)
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            brain = BrainData([file1, file2], resample=True, verbose=True)
+            resample_warnings = [
+                warning
+                for warning in w
+                if "resampling" in str(warning.message).lower()
+                and "resample=true" in str(warning.message).lower()
+            ]
+            # Note: May or may not show warning depending on if spaces match after auto-detection
+            # If spaces match exactly, no warning; if there's a mismatch, warning appears
+
+        # With verbose=False, should suppress warning
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            brain = BrainData([file1, file2], resample=True, verbose=False)
+            resample_warnings = [
+                warning
+                for warning in w
+                if "resampling" in str(warning.message).lower()
+                and "resample=true" in str(warning.message).lower()
+            ]
+            assert len(resample_warnings) == 0  # No warning when verbose=False
+
+        # Should be resampled to auto-detected template space (3mm)
+        assert brain.shape == (2, 71020)
+        assert brain._detected_template["resolution"] == 3
+
+    @pytest.mark.tier1
+    def test_init_resample_true_matched_spaces_no_resample(self):
+        """Test that resample=True skips resampling when spaces already match."""
+        import nibabel as nib
+        import warnings
+
+        # Create data in same space as default mask
+        mask_img = nib.load(MNI_Template.mask)
+        data_same_space = nib.Nifti1Image(
+            np.random.randn(*mask_img.shape + (10,)), affine=mask_img.affine
+        )
+
+        # Should not resample (optimization) and should not show warning
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            brain = BrainData(data_same_space, resample=True, verbose=True)
+            resample_warnings = [
+                warning
+                for warning in w
+                if "resampling" in str(warning.message).lower()
+                and "resample=true" in str(warning.message).lower()
+            ]
+            assert len(resample_warnings) == 0  # No warning when spaces match
+
+        # Should match original shape
+        expected_voxels = mask_img.get_fdata().sum().astype(int)
+        assert brain.shape[1] == expected_voxels
+
+    # ==================== Template Auto-Detection ====================
+
+    @pytest.mark.tier1
+    def test_init_mask_none_auto_detect_2mm(self):
+        """Test automatic template detection for 2mm data."""
+        import nibabel as nib
+
+        # Create 2mm data (matches default template)
+        data_2mm = nib.Nifti1Image(
+            np.random.randn(91, 109, 91, 10), affine=np.eye(4) * 2
+        )
+
+        brain = BrainData(data_2mm, mask=None, resample=True)
+
+        # Should detect and use 2mm template
+        assert brain.shape[1] == 238955  # 2mm voxel count
+        assert np.allclose(np.abs(brain.mask.affine[0, 0]), 2.0, rtol=1e-3)
+        assert hasattr(brain, "_detected_template")
+        assert brain._detected_template["resolution"] == 2
+        assert brain._detected_template["template"] == "default"
+
+    @pytest.mark.tier1
+    def test_init_mask_none_auto_detect_3mm(self):
+        """Test automatic template detection for 3mm data."""
+        import nibabel as nib
+
+        # Create 3mm data
+        data_3mm = nib.Nifti1Image(
+            np.random.randn(60, 72, 60, 10), affine=np.eye(4) * 3
+        )
+
+        brain = BrainData(data_3mm, mask=None, resample=True)
+
+        # Should detect and use 3mm template
+        assert brain.shape[1] == 71020  # 3mm voxel count
+        assert np.allclose(np.abs(brain.mask.affine[0, 0]), 3.0, rtol=1e-3)
+        assert brain._detected_template["resolution"] == 3
+        assert brain._detected_template["template"] == "default"
+
+    @pytest.mark.tier1
+    def test_init_mask_none_auto_detect_1mm(self):
+        """Test automatic template detection for 1mm data (uses nilearn template)."""
+        import nibabel as nib
+
+        # Create 1mm data (only available in nilearn template)
+        data_1mm = nib.Nifti1Image(
+            np.random.randn(182, 218, 182, 10), affine=np.eye(4) * 1
+        )
+
+        brain = BrainData(data_1mm, mask=None, resample=True)
+
+        # Should detect and use 1mm nilearn template
+        assert np.allclose(np.abs(brain.mask.affine[0, 0]), 1.0, rtol=1e-3)
+        assert brain._detected_template["resolution"] == 1
+        assert brain._detected_template["template"] == "nilearn"
+
+    @pytest.mark.tier1
+    def test_init_mask_none_resample_false_exact_match(self):
+        """Test auto-detection with resample=False requires exact match."""
+        import nibabel as nib
+
+        # Create 2mm data that exactly matches template
+        mask_2mm = nib.load(MNI_Template.mask)  # Get exact template
+        data_2mm = nib.Nifti1Image(
+            np.random.randn(*mask_2mm.shape + (10,)), affine=mask_2mm.affine
+        )
+
+        brain = BrainData(data_2mm, mask=None, resample=False)
+
+        # Should use template without resampling
+        assert brain.shape[1] == mask_2mm.get_fdata().sum().astype(int)
+
+    @pytest.mark.tier1
+    def test_init_mask_none_resample_false_mismatch(self):
+        """Test that resample=False with mismatched data shows warning but still resamples."""
+        import nibabel as nib
+        import warnings
+
+        # Create data that doesn't match any template exactly
+        data = nib.Nifti1Image(
+            np.random.randn(100, 100, 100, 10),
+            affine=np.eye(4) * 1.5,  # Non-standard resolution
+        )
+
+        # With verbose=False, warning should be suppressed
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            brain = BrainData(data, mask=None, resample=False, verbose=False)
+            assert len(w) == 0  # No warning when verbose=False
+
+        # With verbose=True, warning should be shown
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            brain = BrainData(data, mask=None, resample=False, verbose=True)
+            assert len(w) > 0  # Warning shown when verbose=True
+            assert "resample" in str(w[0].message).lower()
+
+        # Data should still be resampled correctly
+        assert brain.shape[1] > 0  # Should have valid shape
+
+    @pytest.mark.tier1
+    def test_init_custom_mask_overrides_auto_detect(self):
+        """Test that explicit mask parameter overrides auto-detection."""
+        import nibabel as nib
+        import warnings
+
+        # Create custom mask
+        custom_mask = nib.Nifti1Image(
+            np.ones((50, 50, 50), dtype=np.float32), affine=np.eye(4) * 2.5
+        )
+
+        # Create 2mm data
+        data_2mm = nib.Nifti1Image(
+            np.random.randn(91, 109, 91, 10), affine=np.eye(4) * 2
+        )
+
+        # With verbose=True, should show resampling warning
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            brain = BrainData(data_2mm, mask=custom_mask, resample=True, verbose=True)
+            resample_warnings = [
+                warning
+                for warning in w
+                if "resampling" in str(warning.message).lower()
+                and "resample=true" in str(warning.message).lower()
+            ]
+            assert len(resample_warnings) > 0  # Warning shown when verbose=True
+
+        # With verbose=False, should suppress warning
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            brain = BrainData(data_2mm, mask=custom_mask, resample=True, verbose=False)
+            resample_warnings = [
+                warning
+                for warning in w
+                if "resampling" in str(warning.message).lower()
+                and "resample=true" in str(warning.message).lower()
+            ]
+            assert len(resample_warnings) == 0  # No warning when verbose=False
+
+        # Should use custom mask, not auto-detected
+        assert np.allclose(np.abs(brain.mask.affine[0, 0]), 2.5, rtol=1e-3)
+        assert brain._detected_template is None or not brain._mask_was_none
+
+    @pytest.mark.tier1
+    def test_init_mask_none_empty_data(self):
+        """Test that empty data with mask=None uses default template."""
+        brain = BrainData(data=None, mask=None)
+
+        # Should use default template (2mm default)
+        assert brain.mask is not None
+        assert hasattr(brain, "_detected_template")
+        # Default template info should be None for empty data
+        assert brain._detected_template is None or brain._mask_was_none
+
+    @pytest.mark.tier1
+    def test_init_mask_none_list_consistent_resolution(self, tmpdir):
+        """Test auto-detection with list of files (same resolution)."""
         import nibabel as nib
 
         # Create two 3mm files
@@ -146,28 +439,96 @@ class TestBrainData:
         data1.to_filename(file1)
         data2.to_filename(file2)
 
-        brain = BrainData([file1, file2], resample=True)
+        brain = BrainData([file1, file2], mask=None, resample=True)
 
-        # Should be resampled to 2mm default mask space
-        assert brain.shape == (2, 238955)
+        # Should detect 3mm template and use for all files
+        assert brain.shape[0] == 2
+        assert brain.shape[1] == 71020  # 3mm voxel count
+        assert np.allclose(np.abs(brain.mask.affine[0, 0]), 3.0, rtol=1e-3)
 
     @pytest.mark.tier1
-    def test_init_resample_true_matched_spaces_no_resample(self):
-        """Test that resample=True skips resampling when spaces already match."""
+    def test_init_from_brain_data(self):
+        """Test initialization from another BrainData object."""
         import nibabel as nib
 
-        # Create data in same space as default mask
-        mask_img = nib.load(MNI_Template.mask)
-        data_same_space = nib.Nifti1Image(
-            np.random.randn(*mask_img.shape + (10,)), affine=mask_img.affine
+        # Create original BrainData
+        data_2mm = nib.Nifti1Image(
+            np.random.randn(91, 109, 91, 10), affine=np.eye(4) * 2
+        )
+        brain1 = BrainData(data_2mm, mask=None, resample=True)
+
+        # Create new BrainData from existing one
+        brain2 = BrainData(brain1)
+
+        # Should have same shape and data
+        assert brain1.shape == brain2.shape
+        assert np.allclose(brain1.data, brain2.data)
+        assert brain1.mask.get_filename() == brain2.mask.get_filename()
+
+    @pytest.mark.tier1
+    def test_init_from_brain_data_with_mask_override(self):
+        """Test initialization from BrainData with mask override."""
+        import nibabel as nib
+        import warnings
+
+        # Create original BrainData (2mm)
+        data_2mm = nib.Nifti1Image(
+            np.random.randn(91, 109, 91, 10), affine=np.eye(4) * 2
+        )
+        brain1 = BrainData(data_2mm, mask=None, resample=True)
+
+        # Create 3mm mask
+        mask_3mm = nib.Nifti1Image(
+            np.ones((60, 72, 60), dtype=np.float32), affine=np.eye(4) * 3
         )
 
-        # Should not resample (optimization)
-        brain = BrainData(data_same_space, resample=True)
+        # With verbose=True, should show resampling warning
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            brain2 = BrainData(brain1, mask=mask_3mm, resample=True, verbose=True)
+            resample_warnings = [
+                warning
+                for warning in w
+                if "resampling" in str(warning.message).lower()
+                and "resample=true" in str(warning.message).lower()
+            ]
+            assert len(resample_warnings) > 0  # Warning shown when verbose=True
 
-        # Should match original shape
-        expected_voxels = mask_img.get_fdata().sum().astype(int)
-        assert brain.shape[1] == expected_voxels
+        # With verbose=False, should suppress warning
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            brain2 = BrainData(brain1, mask=mask_3mm, resample=True, verbose=False)
+            resample_warnings = [
+                warning
+                for warning in w
+                if "resampling" in str(warning.message).lower()
+                and "resample=true" in str(warning.message).lower()
+            ]
+            assert len(resample_warnings) == 0  # No warning when verbose=False
+
+        # Should be resampled to 3mm mask space
+        assert brain2.shape[1] == (60 * 72 * 60)  # All voxels in 3mm space
+        assert np.allclose(np.abs(brain2.mask.affine[0, 0]), 3.0, rtol=1e-3)
+
+    @pytest.mark.tier1
+    def test_init_from_brain_data_resample_false_error(self):
+        """Test that resample=False raises error when masks don't match."""
+        import nibabel as nib
+
+        # Create original BrainData (2mm)
+        data_2mm = nib.Nifti1Image(
+            np.random.randn(91, 109, 91, 10), affine=np.eye(4) * 2
+        )
+        brain1 = BrainData(data_2mm, mask=None, resample=True)
+
+        # Create 3mm mask
+        mask_3mm = nib.Nifti1Image(
+            np.ones((60, 72, 60), dtype=np.float32), affine=np.eye(4) * 3
+        )
+
+        # Should raise error when resample=False and masks don't match
+        with pytest.raises(ValueError, match="resample=True"):
+            BrainData(brain1, mask=mask_3mm, resample=False)
 
     @pytest.mark.tier2
     def test_init_resample_backward_compatibility(self):

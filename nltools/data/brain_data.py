@@ -112,6 +112,10 @@ class BrainData(object):
 
         if data_type == "none":
             self.data = np.array([])
+        elif data_type == "brain_data":
+            # Copy from another BrainData object
+            # Note: mask was already initialized, but we may need to override it
+            self._load_from_brain_data(data, mask)
         elif data_type == "h5":
             self._load_from_h5(data, mask)
             # H5 loading sets X and Y, so we're done
@@ -127,9 +131,20 @@ class BrainData(object):
         if self.data is not None and 1 in self.data.shape:
             self.data = self.data.squeeze()
 
-        # Set X and Y if provided
-        self.X = X if X is not None else None
-        self.Y = Y if Y is not None else None
+        # Set X and Y if provided (override copied values if explicitly provided)
+        if X is not None:
+            self.X = X
+        elif data_type == "brain_data" and hasattr(data, "X") and data.X is not None:
+            self.X = data.X.copy() if hasattr(data.X, "copy") else data.X
+        else:
+            self.X = None
+
+        if Y is not None:
+            self.Y = Y
+        elif data_type == "brain_data" and hasattr(data, "Y") and data.Y is not None:
+            self.Y = data.Y.copy() if hasattr(data.Y, "copy") else data.Y
+        else:
+            self.Y = None
 
     def _initialize_mask(self, mask, **kwargs):
         """Initialize the mask and NiftiMasker.
@@ -138,12 +153,20 @@ class BrainData(object):
             mask: Brain mask as nibabel object, file path, or None.
             **kwargs: Additional arguments passed to NiftiMasker.
         """
+        # Store whether mask was None (for auto-detection later)
+        self._mask_was_none = mask is None
+
         if mask is None:
+            # For empty BrainData or when data not yet loaded, use default template
+            # Template will be auto-detected during data loading if data is provided
             self.mask = nib.load(MNI_Template.mask)
+            self._detected_template = None  # Will be set during data loading if needed
         elif isinstance(mask, (str, Path)):
             self.mask = nib.load(str(mask))
+            self._detected_template = None  # Explicit mask provided, no auto-detection
         elif isinstance(mask, nib.Nifti1Image):
             self.mask = mask
+            self._detected_template = None  # Explicit mask provided, no auto-detection
         else:
             raise TypeError(
                 f"mask must be a nibabel instance or a valid file name. "
@@ -163,6 +186,168 @@ class BrainData(object):
 
         # Determine space (MNI or native) based on mask
         self._space = self._detect_space(self.mask)
+
+    def _detect_and_update_mask(self, data_img):
+        """Detect best matching template from data and update mask if mask was None.
+
+        Also handles resampling if needed based on the resample kwarg.
+
+        This method is called during data loading to auto-detect template when mask=None.
+        After detecting or falling back to a template, it checks if resampling is needed
+        and resamples the data_img accordingly.
+
+        Args:
+            data_img: nibabel Nifti1Image object from which to detect template
+
+        Returns:
+            nibabel.Nifti1Image: The data_img, possibly resampled to match the mask
+        """
+        if not self._mask_was_none:
+            # Mask was explicitly provided, don't auto-detect
+            # Still check if resampling is needed based on resample kwarg
+            if not self._check_space_match(data_img, self.mask):
+                if self._resample:
+                    # Warn about resampling
+                    self._warn_if_resampling()
+                    # Resample data to mask space
+                    from nilearn.image import resample_to_img
+                    from contextlib import redirect_stdout
+                    import os
+
+                    if not self.verbose:
+                        with open(os.devnull, "w") as devnull:
+                            with redirect_stdout(devnull):
+                                data_img = resample_to_img(
+                                    data_img,
+                                    self.mask,
+                                    interpolation="continuous",
+                                    copy_header=True,
+                                    force_resample=True,
+                                )
+                    else:
+                        data_img = resample_to_img(
+                            data_img,
+                            self.mask,
+                            interpolation="continuous",
+                            copy_header=True,
+                        )
+            return data_img
+
+        try:
+            from nltools.utils import detect_best_matching_template
+
+            # Detect template from data
+            template_info = detect_best_matching_template(
+                data_img, prefer_exact_match=True, resample_enabled=self._resample
+            )
+
+            # Store detected template info
+            self._detected_template = template_info
+
+            # Load detected template mask
+            detected_mask = nib.load(template_info["mask_path"])
+
+            # Check if detected mask differs from current mask
+            current_mask_path = self.mask.get_filename()
+            detected_mask_path = template_info["mask_path"]
+
+            if current_mask_path != detected_mask_path:
+                # Update mask to detected template
+                self.mask = detected_mask
+
+                # Re-initialize masker with new mask
+                self.nifti_masker = NiftiMasker(
+                    mask_img=self.mask,
+                    verbose=getattr(self, "verbose", False),
+                )
+                self.nifti_masker.fit()
+
+                # Update voxel resolution
+                affine = self.mask.affine
+                self._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
+
+                # Update space detection
+                self._space = self._detect_space(self.mask)
+
+                # Check if resampling is needed after updating mask
+                if not self._check_space_match(data_img, self.mask):
+                    if self._resample:
+                        # Warn about resampling
+                        self._warn_if_resampling(
+                            f"Detected template ({template_info['template']} {template_info['resolution']}mm) differs from data resolution."
+                        )
+                        # Resample data to detected mask space
+                        from nilearn.image import resample_to_img
+                        from contextlib import redirect_stdout
+                        import os
+
+                        if not self.verbose:
+                            with open(os.devnull, "w") as devnull:
+                                with redirect_stdout(devnull):
+                                    data_img = resample_to_img(
+                                        data_img,
+                                        self.mask,
+                                        interpolation="continuous",
+                                        copy_header=True,
+                                        force_resample=True,
+                                    )
+                        else:
+                            data_img = resample_to_img(
+                                data_img,
+                                self.mask,
+                                interpolation="continuous",
+                                copy_header=True,
+                            )
+                    else:
+                        # resample=False but spaces don't match - error will be raised in caller
+                        pass
+
+        except Exception as e:
+            # If detection fails, fall back to default template
+            # This maintains backward compatibility
+            import warnings
+
+            warnings.warn(
+                f"Failed to auto-detect template from data: {e}. "
+                f"Using default template (MNI_Template.mask).",
+                UserWarning,
+                stacklevel=3,
+            )
+
+            # After falling back to default template, check if resampling is needed
+            if not self._check_space_match(data_img, self.mask):
+                if self._resample:
+                    # Warn about resampling
+                    self._warn_if_resampling(
+                        "Template auto-detection failed; using default template."
+                    )
+                    # Resample data to default mask space
+                    from nilearn.image import resample_to_img
+                    from contextlib import redirect_stdout
+                    import os
+
+                    if not self.verbose:
+                        with open(os.devnull, "w") as devnull:
+                            with redirect_stdout(devnull):
+                                data_img = resample_to_img(
+                                    data_img,
+                                    self.mask,
+                                    interpolation="continuous",
+                                    copy_header=True,
+                                    force_resample=True,
+                                )
+                    else:
+                        data_img = resample_to_img(
+                            data_img,
+                            self.mask,
+                            interpolation="continuous",
+                            copy_header=True,
+                        )
+                else:
+                    # resample=False but spaces don't match - error will be raised in caller
+                    pass
+
+        return data_img
 
     def _detect_space(self, mask):
         """Detect if mask is in MNI space or native space.
@@ -227,6 +412,23 @@ class BrainData(object):
 
         return affine_match and shape_match
 
+    def _warn_if_resampling(self, context=""):
+        """Warn about resampling if verbose=True and resample=True.
+
+        Args:
+            context: Optional context string to include in warning message.
+        """
+        if self._resample and self.verbose:
+            import warnings
+
+            base_msg = "Resampling data to match mask space (resample=True)."
+            if context:
+                msg = f"{base_msg} {context}"
+            else:
+                msg = base_msg
+
+            warnings.warn(msg, UserWarning, stacklevel=4)
+
     def _load_from_list(self, data_list):
         """Load data from a list of BrainData objects or file paths.
 
@@ -245,6 +447,22 @@ class BrainData(object):
         else:
             # Load files
             self.data = []
+
+            # Auto-detect template from first item if mask was None
+            if self._mask_was_none and len(data_list) > 0:
+                first_item = data_list[0]
+                if isinstance(first_item, (str, Path)):
+                    first_img = nib.load(str(first_item))
+                elif isinstance(first_item, nib.Nifti1Image):
+                    first_img = first_item
+                else:
+                    # For BrainData objects, skip detection (will be handled in concatenate)
+                    first_img = None
+
+                if first_img is not None:
+                    # Detect template and handle resampling if needed
+                    first_img = self._detect_and_update_mask(first_img)
+
             if not self.verbose:
                 with open(os.devnull, "w") as devnull:
                     with redirect_stdout(devnull):
@@ -263,6 +481,9 @@ class BrainData(object):
                             # Check if resampling is needed
                             if self._resample:
                                 if not self._check_space_match(item_img, self.mask):
+                                    # Warn about resampling (only once for first item)
+                                    if item == data_list[0]:
+                                        self._warn_if_resampling()
                                     item_img = resample_to_img(
                                         item_img,
                                         self.mask,
@@ -300,6 +521,9 @@ class BrainData(object):
                     # Check if resampling is needed
                     if self._resample:
                         if not self._check_space_match(item_img, self.mask):
+                            # Warn about resampling (only once for first item)
+                            if item == data_list[0]:
+                                self._warn_if_resampling()
                             item_img = resample_to_img(
                                 item_img,
                                 self.mask,
@@ -322,6 +546,84 @@ class BrainData(object):
                     self.data.append(self.nifti_masker.transform(item_img))
             # Use vstack for nilearn 0.12+ compatibility (transforms 3D → 1D instead of 3D → 2D)
             self.data = np.vstack(self.data)
+
+    def _load_from_brain_data(self, brain_data, mask=None):
+        """Load data from another BrainData object.
+
+        Args:
+            brain_data: BrainData object to copy from.
+            mask: Optional mask to use. If None, uses mask from brain_data.
+        """
+        # Copy data array
+        self.data = (
+            brain_data.data.copy() if brain_data.data is not None else np.array([])
+        )
+
+        # Handle mask: use provided mask if given, otherwise use source mask
+        if mask is not None:
+            # User provided mask - re-initialize with it
+            # This will trigger mask initialization but we already have data
+            # Need to handle resampling if mask differs
+            if isinstance(mask, (str, Path)):
+                new_mask = nib.load(str(mask))
+            elif isinstance(mask, nib.Nifti1Image):
+                new_mask = mask
+            else:
+                raise TypeError(
+                    f"mask must be a nibabel instance or a valid file name. "
+                    f"Received {type(mask).__name__}"
+                )
+
+            # Check if mask differs from source
+            if not self._check_space_match(brain_data.mask, new_mask):
+                # Need to resample data to new mask space
+                if self._resample:
+                    # Warn about resampling
+                    self._warn_if_resampling(
+                        "New mask differs from source BrainData mask."
+                    )
+                    # Convert data back to nifti, resample, then mask
+                    source_nifti = brain_data.to_nifti()
+                    resampled_nifti = resample_to_img(
+                        source_nifti,
+                        new_mask,
+                        interpolation="continuous",
+                        copy_header=True,
+                        force_resample=True,
+                    )
+                    # Update mask
+                    self.mask = new_mask
+                    self.nifti_masker = NiftiMasker(mask_img=self.mask).fit()
+                    # Extract and transform data
+                    self.data = self.nifti_masker.transform(resampled_nifti)
+                    # Update voxel resolution and space
+                    affine = self.mask.affine
+                    self._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
+                    self._space = self._detect_space(self.mask)
+                else:
+                    raise ValueError(
+                        "Source BrainData mask and provided mask are in different spaces. "
+                        "Set resample=True to automatically resample data to new mask space."
+                    )
+            else:
+                # Masks match - just update mask reference
+                self.mask = new_mask
+                self.nifti_masker = NiftiMasker(mask_img=self.mask).fit()
+                affine = self.mask.affine
+                self._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
+                self._space = self._detect_space(self.mask)
+        else:
+            # Use source mask - copy mask and masker
+            self.mask = brain_data.mask
+            self.nifti_masker = brain_data.nifti_masker
+            self._voxel_resolution = brain_data._voxel_resolution
+            self._space = brain_data._space
+
+        # Copy detected template info if present
+        if hasattr(brain_data, "_detected_template"):
+            self._detected_template = brain_data._detected_template
+        if hasattr(brain_data, "_mask_was_none"):
+            self._mask_was_none = brain_data._mask_was_none
 
     def _load_from_h5(self, file_path, mask):
         """Load data from HDF5 file.
@@ -392,11 +694,30 @@ class BrainData(object):
                 f"Received {type(data).__name__}"
             )
 
-        # Check if resampling is needed
-        if self._resample:
-            # Check if spaces match
+        # Auto-detect template from data if mask was None
+        # This also handles resampling if needed
+        data_img = self._detect_and_update_mask(data_img)
+
+        # Check if resampling is needed (for resample=False case)
+        if not self._resample:
+            # Check if spaces match when resample=False
             if not self._check_space_match(data_img, self.mask):
-                # Resample data to mask space
+                # Warn instead of raising error, but still resample to avoid data corruption
+                if self.verbose:
+                    warnings.warn(
+                        f"Data and mask are in different spaces (affine or shape mismatch). "
+                        f"Resampling data to match mask space despite resample=False. "
+                        f"Set resample=True to explicitly enable resampling, or ensure data "
+                        f"is already in the same space as the mask.\n"
+                        f"Data affine:\n{data_img.affine}\n"
+                        f"Mask affine:\n{self.mask.affine}\n"
+                        f"Data shape: {data_img.shape[:3]}\n"
+                        f"Mask shape: {self.mask.shape[:3]}",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+
+                # Resample data to mask space (required for correct processing)
                 if not self.verbose:
                     with open(os.devnull, "w") as devnull:
                         with redirect_stdout(devnull):
@@ -414,18 +735,6 @@ class BrainData(object):
                         interpolation="continuous",
                         copy_header=True,
                     )
-        else:
-            # Check if spaces match when resample=False
-            if not self._check_space_match(data_img, self.mask):
-                raise ValueError(
-                    f"Data and mask are in different spaces (affine or shape mismatch). "
-                    f"Set resample=True to automatically resample data to mask space, "
-                    f"or ensure data is already in the same space as the mask.\n"
-                    f"Data affine:\n{data_img.affine}\n"
-                    f"Mask affine:\n{self.mask.affine}\n"
-                    f"Data shape: {data_img.shape[:3]}\n"
-                    f"Mask shape: {self.mask.shape[:3]}"
-                )
 
         # Transform data using masker
         if not self.verbose:
