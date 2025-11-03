@@ -774,6 +774,9 @@ class TestBrainData:
         # Should return self and mutate attributes
         assert result is sim_brain_data
         assert hasattr(sim_brain_data, "ridge_weights")
+        # Verify progress_bar parameter exists on model (defaults to verbose=False)
+        assert hasattr(sim_brain_data.model_, "progress_bar")
+        assert sim_brain_data.model_.progress_bar is False
 
     @pytest.mark.tier2
     def test_glm_fit_numerical_correctness(self, sim_brain_data):
@@ -795,6 +798,9 @@ class TestBrainData:
 
         # Check t-statistics are reasonable
         assert not np.isnan(sim_brain_data.glm_t.data).any()
+        # Verify progress_bar parameter exists and defaults to False
+        assert hasattr(sim_brain_data.model_, "progress_bar")
+        assert sim_brain_data.model_.progress_bar is False
 
     def test_glm_fit_suppresses_drift_model_warning(self, sim_brain_data):
         """Test fit(model='glm') suppresses drift_model warning when design matrices are supplied"""
@@ -829,6 +835,16 @@ class TestBrainData:
 
         # Verify model was fitted successfully
         assert hasattr(sim_brain_data, "model_")
+        assert sim_brain_data.model_.is_fitted_
+        # Verify progress_bar parameter exists and defaults to False
+        assert hasattr(sim_brain_data.model_, "progress_bar")
+        assert sim_brain_data.model_.progress_bar is False
+        
+        # Test with progress_bar=True to verify it's respected
+        sim_brain_data.fit(
+            model="glm", noise_model="ols", X=design_matrix, progress_bar=True
+        )
+        assert sim_brain_data.model_.progress_bar is True
         assert sim_brain_data.model_.is_fitted_
 
     def test_fit_validates_model_name(self, sim_brain_data):

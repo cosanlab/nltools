@@ -89,7 +89,13 @@ class Glm(BaseModel):
     """
 
     def __init__(
-        self, t_r=None, noise_model="ols", smoothing_fwhm=None, mask=None, **kwargs
+        self,
+        t_r=None,
+        noise_model="ols",
+        smoothing_fwhm=None,
+        mask=None,
+        progress_bar=False,
+        **kwargs,
     ):
         # Initialize BaseModel
         super().__init__()
@@ -98,6 +104,7 @@ class Glm(BaseModel):
         self.t_r = t_r
         self.noise_model = noise_model
         self.smoothing_fwhm = smoothing_fwhm
+        self.progress_bar = progress_bar
 
         # Initialize mask (use MNI template if not provided, like BrainData)
         if mask is None:
@@ -108,6 +115,8 @@ class Glm(BaseModel):
         # Compose FirstLevelModel (composition not inheritance)
         # Extract drift_model from kwargs if present, otherwise use None
         drift_model = kwargs.pop("drift_model", None)
+        # Don't pass verbose to nilearn - we'll use our own progress bar
+        kwargs.pop("verbose", None)  # Remove if present to avoid verbose output
         self._glm = FirstLevelModel(
             t_r=t_r,
             noise_model=noise_model,
@@ -154,19 +163,73 @@ class Glm(BaseModel):
         else:
             design_matrices_pd = None
 
-        # Delegate to composed FirstLevelModel
-        # Suppress warning about drift_model being ignored when design matrices are supplied
-        # This is expected behavior since drift should be included in the design matrix
-        with warnings.catch_warnings():
-            # Filter the specific warning about drift_model being ignored
-            # The warning message format: "If design matrices are supplied, [drift_model] will be ignored."
-            # Use a permissive pattern to catch variations
-            warnings.filterwarnings(
-                "ignore",
-                message=".*drift.*ignored.*|.*design matrices.*drift.*",
-                category=UserWarning,
-            )
-            self._glm.fit(X, design_matrices=design_matrices_pd, events=events, **kwargs)
+        # Track progress steps for GLM fitting
+        # We can observe these steps:
+        # 1. Input preparation (design matrix conversion)
+        # 2. GLM fitting (main computation - happens in nilearn)
+        # 3. Results stored (complete)
+        total_steps = 3
+
+        # Wrap fit call with tqdm progress bar if requested
+        if self.progress_bar:
+            try:
+                from tqdm import tqdm
+
+                # Use context manager for robust cleanup (recommended by tqdm docs)
+                with tqdm(
+                    total=total_steps, desc="Fitting GLM", unit="step", leave=False
+                ) as pbar:
+                    # Step 1: Input preparation complete
+                    pbar.update(1)
+                    pbar.set_postfix({"step": "preparing inputs"})
+
+                    # Step 2: Fit GLM (this is the main computation)
+                    pbar.update(1)
+                    pbar.set_postfix({"step": "fitting regression"})
+
+                    # Delegate to composed FirstLevelModel
+                    # Suppress warning about drift_model being ignored when design matrices are supplied
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings(
+                            "ignore",
+                            message=".*drift.*ignored.*|.*design matrices.*drift.*",
+                            category=UserWarning,
+                        )
+                        self._glm.fit(
+                            X,
+                            design_matrices=design_matrices_pd,
+                            events=events,
+                            **kwargs,
+                        )
+
+                    # Step 3: Complete
+                    pbar.update(1)
+                    pbar.set_postfix({"step": "complete"})
+            except ImportError:
+                # tqdm not available, fall back to no progress bar
+                # Delegate to composed FirstLevelModel
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore",
+                        message=".*drift.*ignored.*|.*design matrices.*drift.*",
+                        category=UserWarning,
+                    )
+                    self._glm.fit(
+                        X, design_matrices=design_matrices_pd, events=events, **kwargs
+                    )
+        else:
+            # No progress bar - proceed normally
+            # Delegate to composed FirstLevelModel
+            # Suppress warning about drift_model being ignored when design matrices are supplied
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message=".*drift.*ignored.*|.*design matrices.*drift.*",
+                    category=UserWarning,
+                )
+                self._glm.fit(
+                    X, design_matrices=design_matrices_pd, events=events, **kwargs
+                )
 
         # Set BaseModel fitted state
         self.is_fitted_ = True

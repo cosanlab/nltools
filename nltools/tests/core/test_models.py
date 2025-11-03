@@ -327,6 +327,9 @@ def test_ridge_auto_detects_multiple_spaces():
     assert model.deltas_.shape == (2, 1)  # 2 spaces, 1 target
     # alpha_ should be None (alphas are embedded in deltas)
     assert model.alpha_ is None
+    # Verify progress_bar parameter exists and defaults to False
+    assert hasattr(model, "progress_bar")
+    assert model.progress_bar is False
 
 
 def test_ridge_multiple_spaces_requires_cv():
@@ -339,6 +342,12 @@ def test_ridge_multiple_spaces_requires_cv():
     model = Ridge(alpha=1.0)  # Fixed alpha
     with pytest.raises(ValueError, match="Banded ridge requires"):
         model.fit([X1, X2], y)
+
+    # Test that progress_bar=True works with banded ridge (where progress bar is shown)
+    model_with_pb = Ridge(alpha="auto", cv=3, n_iter=3, progress_bar=True)
+    assert model_with_pb.progress_bar is True
+    model_with_pb.fit([X1, X2], y)
+    assert model_with_pb.is_fitted_
 
 
 def test_ridge_fit_single_target():
@@ -359,6 +368,9 @@ def test_ridge_fit_single_target():
     # Should store coefficients
     assert hasattr(model, "coef_")
     assert model.coef_.shape == (50,)
+    # Verify progress_bar parameter exists (defaults to False)
+    assert hasattr(model, "progress_bar")
+    assert model.progress_bar is False
 
 
 def test_ridge_fit_multi_target():
@@ -725,6 +737,15 @@ def test_glm_suppresses_drift_model_warning():
 
     # Verify model was fitted successfully
     assert model.is_fitted_
+    # Verify progress_bar parameter exists and defaults to False
+    assert hasattr(model, "progress_bar")
+    assert model.progress_bar is False
+    
+    # Test with progress_bar=True - should work without errors
+    model_with_pb = Glm(t_r=2.0, mask=mask_img, progress_bar=True)
+    assert model_with_pb.progress_bar is True
+    model_with_pb.fit(img, design_matrices=design_matrix)
+    assert model_with_pb.is_fitted_
 
 
 def test_glm_compute_contrast_after_fit():
@@ -816,6 +837,9 @@ def test_glm_multiple_runs():
     model.fit(images, design_matrices=design_matrices)
 
     assert model.is_fitted_
+    # Verify progress_bar parameter exists and defaults to False
+    assert hasattr(model, "progress_bar")
+    assert model.progress_bar is False
 
     # Compute contrast across runs
     contrast_map = model.compute_contrast("task")
@@ -861,6 +885,9 @@ def test_glm_residuals_property():
     assert isinstance(residuals, list)
     assert len(residuals) == 1  # One run
     assert hasattr(residuals[0], "get_fdata")
+    # Verify progress_bar parameter exists and defaults to False
+    assert hasattr(model, "progress_bar")
+    assert model.progress_bar is False
 
 
 def test_glm_design_matrices_property():

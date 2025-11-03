@@ -664,7 +664,9 @@ class BrainData(object):
 
         return out
 
-    def fit(self, model=None, X=None, cv=None, inplace=True, **kwargs):
+    def fit(
+        self, model=None, X=None, cv=None, inplace=True, progress_bar=None, **kwargs
+    ):
         """Fit a model to brain imaging data.
 
         Creates and fits a model from string specification. The brain data
@@ -683,6 +685,10 @@ class BrainData(object):
                 - None: No CV (default, backward compatible)
             inplace (bool, default=True): If True, mutate self and return self (backward compatible).
                 If False, return Fit dataclass with results (self unchanged).
+            progress_bar (bool, optional): Display progress bar during fitting.
+                - If None: Uses self.verbose (default)
+                - If True: Shows progress bar for long-running operations
+                - If False: No progress bar
             **kwargs (dict): Additional arguments passed to model constructor
                 - Ridge: alpha, alphas, backend, random_state
                 - Glm: noise_model, minimize_memory, etc.
@@ -746,16 +752,32 @@ class BrainData(object):
                     f"number of samples must match."
                 )
         else:
-            # Ridge: convert to numpy
-            X_model = np.asarray(X)
-            if X_model.shape[0] != self.shape[0]:
-                raise ValueError(
-                    f"X has {X_model.shape[0]} samples, but brain data has {self.shape[0]} samples. "
-                    f"number of samples must match."
-                )
+            # Ridge: handle list (banded ridge) or array (regular ridge)
+            if isinstance(X, list):
+                # Banded ridge: keep as list, validate each element
+                X_model = X
+                for i, Xi in enumerate(X):
+                    Xi_array = np.asarray(Xi)
+                    if Xi_array.shape[0] != self.shape[0]:
+                        raise ValueError(
+                            f"X[{i}] has {Xi_array.shape[0]} samples, but brain data has {self.shape[0]} samples. "
+                            f"number of samples must match."
+                        )
+            else:
+                # Regular ridge: convert to numpy
+                X_model = np.asarray(X)
+                if X_model.shape[0] != self.shape[0]:
+                    raise ValueError(
+                        f"X has {X_model.shape[0]} samples, but brain data has {self.shape[0]} samples. "
+                        f"number of samples must match."
+                    )
 
         # Always store model_ and X_ for predict() to work (even if inplace=False)
         self.X_ = X_model
+
+        # Determine progress_bar setting (default to self.verbose if not specified)
+        if progress_bar is None:
+            progress_bar = self.verbose
 
         # Create temporary copy if inplace=False to avoid mutating result attributes
         if inplace:
@@ -784,7 +806,11 @@ class BrainData(object):
 
         # Create model based on string
         if model == "ridge":
-            target.model_ = Ridge(**kwargs)
+            # Pass progress_bar to Ridge model
+            ridge_kwargs = kwargs.copy()
+            if "progress_bar" not in ridge_kwargs:
+                ridge_kwargs["progress_bar"] = progress_bar
+            target.model_ = Ridge(**ridge_kwargs)
             target._fit_ridge(X_model, cv=cv, **kwargs)
         elif model == "glm":
             if cv is not None:
@@ -796,6 +822,9 @@ class BrainData(object):
             glm_kwargs = kwargs.copy()
             if "mask" not in glm_kwargs:
                 glm_kwargs["mask"] = target.mask
+            # Pass progress_bar to GLM (not verbose - we use tqdm progress bar)
+            if "progress_bar" not in glm_kwargs:
+                glm_kwargs["progress_bar"] = progress_bar
             target.model_ = Glm(**glm_kwargs)
             target._fit_glm(X_model)
         else:
@@ -885,6 +914,59 @@ class BrainData(object):
             # Assume sklearn CV object
             cv_splitter = cv
             perform_alpha_selection = alpha == "auto"
+
+    def _compute_ridge_cv(
+        self, X, cv, alpha=None, alphas=None, backend="auto", **kwargs
+    ):
+        """Compute cross-validation results for Ridge regression.
+
+        Args:
+            X (ndarray or list): Training features. If ndarray, shape (n_samples, n_features).
+                If list, list of feature spaces for banded ridge.
+            cv (int, 'auto', or sklearn CV splitter): Cross-validation specification
+            alpha (float or 'auto', optional): Regularization strength (extracted from model if not provided)
+            alphas (array-like, optional): Alpha values to try for alpha selection
+            backend (str): Computational backend ('numpy', 'torch', 'auto'). Default: 'auto'
+            **kwargs (dict): Additional arguments (currently unused, for future extensibility)
+
+        Returns:
+            dict: Dictionary containing:
+                - 'scores': (n_folds, n_voxels) array of R² per fold
+                - 'mean_score': (n_voxels,) array of mean R² across folds
+                - 'predictions': BrainData of out-of-fold predictions
+                - 'folds': (n_samples,) array of fold indices
+                - 'best_alpha': Selected alpha (if alpha selection performed)
+                - 'alpha_scores': (n_folds, n_alphas, n_voxels) array (if alpha selection)
+        """
+        from sklearn.model_selection import check_cv
+        from sklearn.metrics import r2_score
+        from nltools.algorithms.ridge import ridge_cv, ridge_svd
+
+        # Get alpha from model if not explicitly provided
+        if alpha is None:
+            alpha = self.model_.alpha if hasattr(self.model_, "alpha") else 1.0
+
+        # Normalize cv parameter
+        if cv == "auto":
+            # cv='auto' implies alpha selection with default 5 folds
+            cv_splitter = check_cv(5)
+            perform_alpha_selection = True
+        elif isinstance(cv, int):
+            cv_splitter = check_cv(cv)
+            perform_alpha_selection = alpha == "auto"
+        else:
+            # Assume sklearn CV object
+            cv_splitter = cv
+            perform_alpha_selection = alpha == "auto"
+
+        # Handle list (banded ridge) vs array (regular ridge)
+        if isinstance(X, list):
+            # Banded ridge CV is handled by the model itself, not here
+            # This shouldn't be called for banded ridge
+            raise ValueError(
+                "Cross-validation for banded ridge should be handled by the model. "
+                "Use alpha='auto' with cv parameter in fit()."
+            )
 
         n_samples, n_features = X.shape
         n_voxels = self.data.shape[1]

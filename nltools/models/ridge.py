@@ -53,6 +53,9 @@ class Ridge(BaseModel):
             1 std of best score (more regularization).
         random_state (int or None, default=None): Random seed for reproducibility
             (used for CV splits and random search)
+        progress_bar (bool, default=False): Whether to display progress bar during
+            banded ridge fitting (when X is a list). Requires tqdm. Not used for
+            single feature space ridge regression.
 
     Attributes:
         coef_ (ndarray of shape (n_features,) or (n_features, n_targets)): Ridge
@@ -93,6 +96,7 @@ class Ridge(BaseModel):
         fit_intercept=False,
         conservative=False,
         random_state=None,
+        progress_bar=False,
     ):
         super().__init__()
         self.alpha = alpha
@@ -105,6 +109,7 @@ class Ridge(BaseModel):
         self.fit_intercept = fit_intercept
         self.conservative = conservative
         self.random_state = random_state
+        self.progress_bar = progress_bar
 
     def fit(self, X, y):
         """
@@ -220,6 +225,16 @@ class Ridge(BaseModel):
                 self.alpha_ = float(self.alpha_[0])
         else:
             # Multiple feature spaces: use solve_banded_ridge_cv (true banded ridge)
+            # Convert backend to string for solve_banded_ridge_cv (expects 'cpu' or 'gpu', not 'numpy')
+            if isinstance(self.backend_, Backend):
+                backend_name = self.backend_.name if hasattr(self.backend_, "name") else "cpu"
+            else:
+                backend_name = str(self.backend_)
+            # Map 'numpy' to 'cpu' for solve_banded_ridge_cv compatibility
+            if backend_name == "numpy":
+                parallel_str = "cpu"
+            else:
+                parallel_str = backend_name
             result = solve_banded_ridge_cv(
                 Xs=Xs,
                 Y=y,
@@ -228,12 +243,12 @@ class Ridge(BaseModel):
                 alphas=self.alphas,
                 cv=self.cv,
                 local_alpha=self.local_alpha,
-                parallel=self.backend_,
+                parallel=parallel_str,
                 fit_intercept=self.fit_intercept,
                 conservative=self.conservative,
                 random_state=self.random_state,
                 return_weights=True,
-                progress_bar=False,
+                progress_bar=self.progress_bar,
             )
             self.deltas_ = result["deltas"]
             self.alpha_ = None  # alphas are embedded in deltas
