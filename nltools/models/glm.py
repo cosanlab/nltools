@@ -6,6 +6,7 @@ Wraps nilearn.glm.first_level.FirstLevelModel with sklearn-compatible API.
 
 import numpy as np
 import nibabel as nib
+import warnings
 from .base import BaseModel
 from nilearn.glm.first_level import FirstLevelModel
 from nltools.prefs import MNI_Template
@@ -105,6 +106,8 @@ class Glm(BaseModel):
             self.mask = mask
 
         # Compose FirstLevelModel (composition not inheritance)
+        # Extract drift_model from kwargs if present, otherwise use None
+        drift_model = kwargs.pop("drift_model", None)
         self._glm = FirstLevelModel(
             t_r=t_r,
             noise_model=noise_model,
@@ -112,7 +115,7 @@ class Glm(BaseModel):
             mask_img=self.mask,
             minimize_memory=False,  # Need this to access predictions
             standardize=False,  # User should standardize beforehand if needed
-            drift_model=None,  # Should be in design matrix if needed
+            drift_model=drift_model,  # Allow user to set, but warning will be suppressed when design matrices provided
             **kwargs,
         )
 
@@ -152,7 +155,18 @@ class Glm(BaseModel):
             design_matrices_pd = None
 
         # Delegate to composed FirstLevelModel
-        self._glm.fit(X, design_matrices=design_matrices_pd, events=events, **kwargs)
+        # Suppress warning about drift_model being ignored when design matrices are supplied
+        # This is expected behavior since drift should be included in the design matrix
+        with warnings.catch_warnings():
+            # Filter the specific warning about drift_model being ignored
+            # The warning message format: "If design matrices are supplied, [drift_model] will be ignored."
+            # Use a permissive pattern to catch variations
+            warnings.filterwarnings(
+                "ignore",
+                message=".*drift.*ignored.*|.*design matrices.*drift.*",
+                category=UserWarning,
+            )
+            self._glm.fit(X, design_matrices=design_matrices_pd, events=events, **kwargs)
 
         # Set BaseModel fitted state
         self.is_fitted_ = True

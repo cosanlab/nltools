@@ -791,7 +791,12 @@ class BrainData(object):
                 raise NotImplementedError(
                     "Cross-validation not yet supported for GLM models"
                 )
-            target.model_ = Glm(**kwargs)
+            # Pass mask from BrainData to Glm to prevent resampling during GLM estimation
+            # The mask must match the one used to mask the data initially
+            glm_kwargs = kwargs.copy()
+            if "mask" not in glm_kwargs:
+                glm_kwargs["mask"] = target.mask
+            target.model_ = Glm(**glm_kwargs)
             target._fit_glm(X_model)
         else:
             raise ValueError(f"Unknown model '{model}'. Must be one of: 'ridge', 'glm'")

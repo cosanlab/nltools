@@ -670,6 +670,63 @@ def test_glm_fit_tracks_state():
     # This just checks the attribute exists
 
 
+def test_glm_suppresses_drift_model_warning():
+    """Glm should suppress drift_model warning when design matrices are supplied"""
+    import warnings
+    from nltools.models import Glm
+    from nilearn.glm.first_level import make_first_level_design_matrix
+    import pandas as pd
+    from nibabel import Nifti1Image
+
+    # Create synthetic fMRI data (small)
+    np.random.seed(42)
+    n_scans = 20
+    img_shape = (10, 10, 10)  # Small for speed
+    fmri_data = np.random.randn(n_scans, *img_shape).astype(np.float32)
+    affine = np.eye(4)
+    img = Nifti1Image(fmri_data.T, affine)  # Note: nibabel uses (x,y,z,t) order
+
+    # Create a simple mask (all ones)
+    mask_data = np.ones(img_shape, dtype=np.int8)
+    mask_img = Nifti1Image(mask_data, affine)
+
+    # Create design matrix
+    frame_times = np.arange(n_scans) * 2.0  # TR = 2s
+    events = pd.DataFrame(
+        {
+            "onset": [0, 10, 20, 30],
+            "duration": [1, 1, 1, 1],
+            "trial_type": ["task", "task", "rest", "rest"],
+        }
+    )
+    design_matrix = make_first_level_design_matrix(
+        frame_times, events=events, hrf_model="spm"
+    )
+
+    # Create Glm with drift_model set (this would trigger warning without suppression)
+    model = Glm(t_r=2.0, mask=mask_img, drift_model="cosine")
+
+    # Capture warnings
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")  # Capture all warnings
+        model.fit(img, design_matrices=design_matrix)
+
+        # Check that drift_model warning is NOT present
+        drift_warnings = [
+            warn
+            for warn in w
+            if "drift_model" in str(warn.message).lower()
+            and "will be ignored" in str(warn.message).lower()
+        ]
+        assert len(drift_warnings) == 0, (
+            f"Expected no drift_model warnings, but got {len(drift_warnings)}: "
+            f"{[str(w.message) for w in drift_warnings]}"
+        )
+
+    # Verify model was fitted successfully
+    assert model.is_fitted_
+
+
 def test_glm_compute_contrast_after_fit():
     """Glm should compute contrasts after fitting"""
     from nltools.models import Glm

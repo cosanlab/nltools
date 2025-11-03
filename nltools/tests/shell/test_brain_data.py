@@ -796,6 +796,41 @@ class TestBrainData:
         # Check t-statistics are reasonable
         assert not np.isnan(sim_brain_data.glm_t.data).any()
 
+    def test_glm_fit_suppresses_drift_model_warning(self, sim_brain_data):
+        """Test fit(model='glm') suppresses drift_model warning when design matrices are supplied"""
+        import warnings
+
+        design_matrix = pd.DataFrame(
+            {
+                "Intercept": np.ones(len(sim_brain_data)),
+                "X1": np.random.randn(len(sim_brain_data)),
+            }
+        )
+
+        # Capture warnings during fit
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")  # Capture all warnings
+            # Fit GLM with drift_model set (would trigger warning without suppression)
+            sim_brain_data.fit(
+                model="glm", noise_model="ols", X=design_matrix, drift_model="cosine"
+            )
+
+            # Check that drift_model warning is NOT present
+            drift_warnings = [
+                warn
+                for warn in w
+                if "drift_model" in str(warn.message).lower()
+                and "will be ignored" in str(warn.message).lower()
+            ]
+            assert len(drift_warnings) == 0, (
+                f"Expected no drift_model warnings, but got {len(drift_warnings)}: "
+                f"{[str(w.message) for w in drift_warnings]}"
+            )
+
+        # Verify model was fitted successfully
+        assert hasattr(sim_brain_data, "model_")
+        assert sim_brain_data.model_.is_fitted_
+
     def test_fit_validates_model_name(self, sim_brain_data):
         """Test fit() raises error for unknown model names."""
         X = np.random.randn(len(sim_brain_data), 10)
