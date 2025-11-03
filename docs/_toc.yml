@@ -58,28 +58,14 @@ parts:
       - file: performance
 
   # ========================================
-  # TUTORIALS (New Structure - Markdown)
+  # TUTORIALS (Flat Structure - Root Level)
   # ========================================
-  - caption: Getting Started
+  - caption: Tutorials
     chapters:
-      - file: tutorials/01_fundamentals/01_brain_data_basics
-      - file: tutorials/01_fundamentals/02_design_matrix_basics
-      - file: tutorials/01_fundamentals/03_adjacency_basics
-
-  - caption: Common Workflows
-    chapters:
-      - file: tutorials/02_workflows/01_first_level_glm
-      - file: tutorials/02_workflows/02_group_analysis
-      - file: tutorials/02_workflows/03_roi_analysis
-      # TODO: Add these tutorials as they're completed
-      # - file: tutorials/02_workflows/04_mvpa_prediction
-      # - file: tutorials/02_workflows/05_connectivity_analysis
-      # - file: tutorials/02_workflows/06_searchlight_analysis
-
-  - caption: Advanced Methods
-    chapters:
-      - file: tutorials/03_advanced/01_hyperalignment
-      # TODO: Add these tutorials as they're completed
-      # - file: tutorials/03_advanced/02_shared_response_model
-      # - file: tutorials/03_advanced/03_representational_similarity
-      # - file: tutorials/03_advanced/04_encoding_models
+      - file: tutorials/01_first_level_glm.ipynb
+      # TODO: Add more tutorials as they're completed
+      # - file: tutorials/02_group_analysis
+      # - file: tutorials/03_roi_analysis
+      # - file: tutorials/04_brain_data_basics
+      # - file: tutorials/05_design_matrix_basics
+      # - file: tutorials/06_hyperalignment

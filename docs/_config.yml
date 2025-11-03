@@ -4,7 +4,10 @@ logo: ""
 
 
 execute:
-  execute_notebooks: off
+  execute_notebooks: auto  # Enabled for tutorial execution
+  kernel_name: python3  # Use default Python kernel
+  execution_timeout: 600  # 10 minutes timeout
+  allow_errors: false
 
 # Information about where the book exists on the web
 repository:
@@ -84,6 +87,10 @@ sphinx:
       - 'tutorials/02_Analysis/**'
       - 'tutorials/README.md'
       - 'tutorials/data/README.md'
+      # Exclude old tutorial structure (moved to plans/old-tutorials/)
+      - 'tutorials/01_fundamentals/**'
+      - 'tutorials/02_workflows/**'
+      - 'tutorials/03_advanced/**'
 
     # Warnings
     suppress_warnings:

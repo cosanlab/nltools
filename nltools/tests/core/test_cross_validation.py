@@ -90,9 +90,7 @@ class TestKFoldStratifiedBasic:
         """Test with very small dataset."""
         y = pd.DataFrame(np.random.randn(10))
         cv = KFoldStratified(n_splits=2)
-        check_cv_coverage(
-            cv, X=np.zeros(len(y)), y=y, groups=None, expected_n_splits=2
-        )
+        check_cv_coverage(cv, X=np.zeros(len(y)), y=y, groups=None, expected_n_splits=2)
 
 
 class TestKFoldStratifiedSklearnCompatibility:
