@@ -33,6 +33,46 @@ from h5py import File as h5File
 from nltools.prefs import MNI_Template
 
 
+def _get_nilearn_version():
+    """Get nilearn version as tuple (major, minor).
+
+    Returns:
+        tuple: (major, minor) version numbers
+    """
+    try:
+        import nilearn
+
+        version_str = nilearn.__version__
+        return tuple(int(x) for x in version_str.split(".")[:2])
+    except (ImportError, AttributeError, ValueError):
+        # Fallback to assuming older version if nilearn not available
+        return (0, 0)
+
+
+def _ensure_1d_array_for_nilearn(data, nilearn_version=None):
+    """Ensure data is 1D for nilearn >= 0.12 compatibility.
+
+    Nilearn 0.12+ expects 1D arrays from maskers.transform().
+    This helper ensures backward compatibility.
+
+    Args:
+        data: Input data array
+        nilearn_version: Optional version tuple (major, minor). If None, detected automatically.
+
+    Returns:
+        np.ndarray: Data array (flattened if needed for nilearn >= 0.12)
+    """
+    if nilearn_version is None:
+        nilearn_version = _get_nilearn_version()
+
+    if nilearn_version >= (0, 12):
+        # Nilearn 0.12+ transform() returns 1D arrays for single images
+        # Ensure we handle this correctly
+        if hasattr(data, "ndim") and data.ndim > 1 and data.shape[0] == 1:
+            return data.flatten()
+    return data
+
+
 def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
     """Save BrainData or Adjacency objects to HDF5 files.
 
