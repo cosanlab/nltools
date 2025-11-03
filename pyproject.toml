@@ -31,6 +31,7 @@ dependencies = [
 dev = [
     "ipywidgets>=8.1.7",
     "jupyter-book>=1.0.4.post1",
+    "jupytext>=1.18.1",
     "networkx>=3.5",
     "pytest>=8.4",
     "pytest-xdist>=3.8.0",

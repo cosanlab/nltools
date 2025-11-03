@@ -62,7 +62,7 @@ parts:
   # ========================================
   - caption: Tutorials
     chapters:
-      - file: tutorials/01_first_level_glm.ipynb
+      - file: tutorials/01_basics
       # TODO: Add more tutorials as they're completed
       # - file: tutorials/02_group_analysis
       # - file: tutorials/03_roi_analysis

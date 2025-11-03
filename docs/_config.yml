@@ -6,7 +6,7 @@ logo: ""
 execute:
   execute_notebooks: auto  # Enabled for tutorial execution
   kernel_name: python3  # Use default Python kernel
-  execution_timeout: 600  # 10 minutes timeout
+  timeout: 600  # 10 minutes timeout (use 'timeout' not 'execution_timeout')
   allow_errors: false
 
 # Information about where the book exists on the web

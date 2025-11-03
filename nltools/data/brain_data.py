@@ -303,12 +303,14 @@ class BrainData(object):
     def __repr__(self):
         mask_filename = self.mask.get_filename()
         mask_display = os.path.basename(mask_filename) if mask_filename else "None"
+        Y_shape = self.Y.shape if hasattr(self, "Y") and self.Y is not None else "None"
+        X_shape = self.X.shape if hasattr(self, "X") and self.X is not None else "None"
         return "%s.%s(data=%s, Y=%s, X=%s, mask=%s)" % (
             self.__class__.__module__,
             self.__class__.__name__,
             self.shape,
-            self.Y.shape,
-            self.X.shape,
+            Y_shape,
+            X_shape,
             mask_display,
         )
 
@@ -338,9 +340,13 @@ class BrainData(object):
                 "Make sure the value you are trying to set is a BrainData() instance."
             )
         self.data[index, :] = value.data
-        if not value.Y.empty:
+        if hasattr(value, "Y") and value.Y is not None and not value.Y.empty:
+            if not hasattr(self, "Y") or self.Y is None:
+                raise ValueError("Cannot set Y values: self.Y does not exist.")
             self.Y.values[index] = value.Y
-        if not value.X.empty:
+        if hasattr(value, "X") and value.X is not None and not value.X.empty:
+            if not hasattr(self, "X") or self.X is None:
+                raise ValueError("Cannot set X values: self.X does not exist.")
             if self.X.shape[1] != value.X.shape[1]:
                 raise ValueError("Make sure self.X is the same size as value.X.")
             self.X.values[index] = value.X
