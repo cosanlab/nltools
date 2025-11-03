@@ -16,6 +16,7 @@ parts:
   - caption: API Functions
     chapters:
       - file: api/stats
+      - file: api/plotting
       - file: api/mask
       - file: api/filereader
       - file: api/dataset

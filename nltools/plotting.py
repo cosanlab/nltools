@@ -18,6 +18,7 @@ __all__ = [
     "plot_t_brain",
     "plot_brain",
     "plot_interactive_brain",
+    "surface_plot",
 ]
 
 import pandas as pd
@@ -26,11 +27,23 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy.fft import fft, fftfreq
 from nltools.stats import two_sample_permutation, one_sample_permutation
-from nilearn.plotting import plot_glass_brain, plot_stat_map, view_img, view_img_on_surf
-from nltools.utils import attempt_to_import, get_mni_from_img_resolution
+from nilearn.plotting import (
+    plot_glass_brain,
+    plot_stat_map,
+    view_img,
+    view_img_on_surf,
+    plot_surf_stat_map,
+)
+from nilearn.surface import vol_to_surf
+from nltools.utils import (
+    attempt_to_import,
+    get_mni_from_img_resolution,
+    get_resource_path,
+)
 import warnings
 import sklearn
 import os
+from pathlib import Path
 
 # Optional dependencies
 ipywidgets = attempt_to_import(
@@ -845,3 +858,361 @@ def component_viewer(output, tr=2.0):
             description="Threshold", value=2.0, min=0, max=4, step=0.1
         ),
     )
+
+
+def _get_surface_paths():
+    """Get paths to included surface files.
+
+    Returns:
+        dict: Dictionary with keys for surface meshes and background maps.
+            Keys include: 'pial_left', 'pial_right', 'inflated_left',
+            'inflated_right', 'midthickness_left', 'midthickness_right',
+            'white_left', 'white_right', 'curv_left', 'curv_right',
+            'sulc_left', 'sulc_right', 'thickness_left', 'thickness_right'.
+    """
+    from os.path import join
+
+    resource_path = get_resource_path().rstrip(os.pathsep)
+    surfaces_dir = join(resource_path, "surfaces")
+
+    paths = {
+        # Surface meshes
+        "pial_left": join(surfaces_dir, "sub-colin_hemi-L_pial.surf.gii"),
+        "pial_right": join(surfaces_dir, "sub-colin_hemi-R_pial.surf.gii"),
+        "inflated_left": join(surfaces_dir, "sub-colin_hemi-L_inflated.surf.gii"),
+        "inflated_right": join(surfaces_dir, "sub-colin_hemi-R_inflated.surf.gii"),
+        "midthickness_left": join(
+            surfaces_dir, "sub-colin_hemi-L_midthickness.surf.gii"
+        ),
+        "midthickness_right": join(
+            surfaces_dir, "sub-colin_hemi-R_midthickness.surf.gii"
+        ),
+        "white_left": join(surfaces_dir, "sub-colin_hemi-L_white.surf.gii"),
+        "white_right": join(surfaces_dir, "sub-colin_hemi-R_white.surf.gii"),
+        # Background maps
+        "curv_left": join(surfaces_dir, "sub-colin_hemi-L_curv.shape.gii"),
+        "curv_right": join(surfaces_dir, "sub-colin_hemi-R_curv.shape.gii"),
+        "sulc_left": join(surfaces_dir, "sub-colin_hemi-L_sulc.shape.gii"),
+        "sulc_right": join(surfaces_dir, "sub-colin_hemi-R_sulc.shape.gii"),
+        "thickness_left": join(surfaces_dir, "sub-colin_hemi-L_thickness.shape.gii"),
+        "thickness_right": join(surfaces_dir, "sub-colin_hemi-R_thickness.shape.gii"),
+    }
+
+    return paths
+
+
+def _resolve_brain_input(brain):
+    """Convert various input types to nibabel Nifti1Image.
+
+    Args:
+        brain: BrainData, nibabel Nifti1Image, or file path to NIfTI image.
+
+    Returns:
+        nibabel.Nifti1Image: Nifti image object.
+
+    Raises:
+        ValueError: If input cannot be converted to Nifti1Image (e.g., empty
+            BrainData or file not found).
+        TypeError: If input type is not supported.
+    """
+    import nibabel as nib
+    from nltools.data import BrainData
+
+    if isinstance(brain, BrainData):
+        if len(brain) == 0:
+            raise ValueError("Cannot plot empty BrainData object")
+        # If multiple images, use first one
+        if len(brain.shape) == 2 and brain.shape[0] > 1:
+            brain = brain[0]
+        return brain.to_nifti()
+    elif isinstance(brain, nib.Nifti1Image):
+        return brain
+    elif isinstance(brain, (str, Path)):
+        if not os.path.exists(brain):
+            raise ValueError(f"File not found: {brain}")
+        return nib.load(brain)
+    else:
+        raise TypeError(
+            f"Input must be BrainData, nibabel Nifti1Image, or file path, got {type(brain)}"
+        )
+
+
+def _get_background_map(bg_map, hemi):
+    """Resolve background map path.
+
+    Args:
+        bg_map (str or None): Background map type ('curvature', 'sulc', None,
+            or file path to custom background map).
+        hemi (str): Hemisphere ('left' or 'right').
+
+    Returns:
+        str or None: Path to background map file, or None if bg_map is None.
+
+    Raises:
+        ValueError: If bg_map is not recognized or file not found.
+    """
+    if bg_map is None:
+        return None
+
+    if isinstance(bg_map, str) and os.path.exists(bg_map):
+        # User provided a file path
+        return bg_map
+
+    paths = _get_surface_paths()
+
+    # Map common names to file keys
+    bg_map_map = {
+        "curvature": "curv",
+        "curv": "curv",
+        "sulc": "sulc",
+        "sulcal": "sulc",
+        "thickness": "thickness",
+    }
+
+    bg_key = bg_map_map.get(bg_map.lower() if isinstance(bg_map, str) else None)
+    if bg_key is None:
+        raise ValueError(
+            f"Unknown background map: {bg_map}. "
+            f"Supported options: {list(bg_map_map.keys())}, None, or file path"
+        )
+
+    key = f"{bg_key}_{hemi}"
+    if key not in paths:
+        raise ValueError(f"Background map not found: {key}")
+
+    return paths[key]
+
+
+def surface_plot(
+    brain,
+    surface="inflated",
+    bg_map="curvature",
+    hemi="both",
+    view="montage",
+    threshold=None,
+    cmap="RdBu_r",
+    vmax=None,
+    vmin=None,
+    darkness=0.5,
+    bg_on_data=False,
+    colorbar=False,
+    figsize=(10, 10),
+    n_samples=1,
+    radius=0.0,
+    interpolation="nearest",
+    engine="matplotlib",
+    axes=None,
+    save=None,
+    **kwargs,
+):
+    """Plot neuroimaging data on cortical surface.
+
+    Intelligently projects volumetric NIfTI data onto cortical surfaces
+    and displays in customizable montage layouts. Automatically handles
+    hemispheric parsing and uses included MNI152 template surfaces.
+
+    Args:
+        brain: BrainData, nibabel Nifti1Image, or file path to NIfTI image.
+            If BrainData has multiple images, plots the first one.
+        surface (str, optional): Surface mesh type. Options: 'pial',
+            'inflated', 'midthickness', 'white'. Defaults to 'inflated'.
+        bg_map (str or None, optional): Background map. Options: 'curvature',
+            'sulc', None, or file path to custom background map.
+            Defaults to 'curvature'.
+        hemi (str, optional): Hemisphere to plot. Options: 'left', 'right',
+            'both'. Defaults to 'both'.
+        view (str or list, optional): View type. Options: 'lateral', 'medial',
+            'montage', or list of views. Defaults to 'montage' (2×2 grid).
+        threshold (float or str, optional): Threshold value. Can be a float
+            or percentile string like '95%'. Defaults to None.
+        cmap (str, optional): Colormap name. Defaults to 'RdBu_r'.
+        vmax (float, optional): Maximum value for colormap scaling.
+        vmin (float, optional): Minimum value for colormap scaling.
+        darkness (float, optional): Background darkness (0-1). Defaults to 0.5.
+        bg_on_data (bool, optional): Overlay background on data. Defaults to False.
+        colorbar (bool, optional): Show colorbar. Defaults to False.
+        figsize (tuple, optional): Figure size tuple (width, height).
+            Defaults to (10, 10).
+        n_samples (int, optional): Number of samples for vol_to_surf projection.
+            Defaults to 1.
+        radius (float, optional): Sampling radius for vol_to_surf projection.
+            Defaults to 0.0.
+        interpolation (str, optional): Interpolation method for projection.
+            Options: 'nearest', 'linear'. Defaults to 'nearest'.
+        engine (str, optional): Rendering engine. Options: 'matplotlib',
+            'plotly'. Defaults to 'matplotlib'.
+        axes (matplotlib.axes.Axes or list, optional): Custom matplotlib axes
+            for montage layout. If None, creates new figure. Defaults to None.
+        save (str or None, optional): File path to save plot. If None, plot
+            is displayed but not saved. Defaults to None.
+        **kwargs: Additional arguments passed to plot_surf_stat_map.
+
+    Returns:
+        matplotlib.figure.Figure or plotly.graph_objects.Figure: Figure object
+        containing the surface plot(s).
+
+    Raises:
+        ValueError: If input is empty BrainData, invalid surface/view/hemi,
+            or surface files not found.
+        TypeError: If input type is not supported.
+
+    Examples:
+        Plot BrainData with default 2×2 montage:
+
+        >>> from nltools.plotting import surface_plot
+        >>> from nltools.data import BrainData
+        >>> brain = BrainData('data.nii.gz')
+        >>> fig = surface_plot(brain)
+
+        Single hemisphere, lateral view:
+
+        >>> fig = surface_plot(brain, hemi='left', view='lateral')
+
+        Custom colormap and threshold:
+
+        >>> fig = surface_plot(brain, cmap='hot', threshold=0.5)
+
+        Percentile threshold with custom background:
+
+        >>> fig = surface_plot(brain, threshold='95%', bg_map='sulc')
+    """
+    # Resolve input to nibabel image
+    nifti_img = _resolve_brain_input(brain)
+
+    # Get surface paths
+    paths = _get_surface_paths()
+
+    # Validate surface type
+    valid_surfaces = ["pial", "inflated", "midthickness", "white"]
+    if surface not in valid_surfaces:
+        raise ValueError(
+            f"Invalid surface type: {surface}. Must be one of {valid_surfaces}"
+        )
+
+    # Determine which hemispheres to plot
+    if hemi == "both":
+        hemispheres = ["left", "right"]
+    elif hemi in ["left", "right"]:
+        hemispheres = [hemi]
+    else:
+        raise ValueError(f"Invalid hemi: {hemi}. Must be 'left', 'right', or 'both'")
+
+    # Determine views
+    if view == "montage":
+        views = ["lateral", "medial"]
+    elif isinstance(view, str):
+        views = [view]
+    elif isinstance(view, list):
+        views = view
+    else:
+        raise ValueError(
+            f"Invalid view: {view}. Must be 'lateral', 'medial', 'montage', or list"
+        )
+
+    # Validate views
+    valid_views = ["lateral", "medial"]
+    for v in views:
+        if v not in valid_views:
+            raise ValueError(f"Invalid view: {v}. Must be one of {valid_views}")
+
+    # Project volume to surface textures for each hemisphere
+    textures = {}
+    for h in hemispheres:
+        surface_key = f"{surface}_{h}"
+        if surface_key not in paths:
+            raise ValueError(f"Surface file not found: {surface_key}")
+
+        textures[h] = vol_to_surf(
+            nifti_img,
+            paths[surface_key],
+            interpolation=interpolation,
+            n_samples=n_samples,
+            radius=radius,
+        )
+
+    # Prepare background maps
+    bg_maps = {}
+    for h in hemispheres:
+        bg_maps[h] = _get_background_map(bg_map, h)
+
+    # Handle threshold (percentile string)
+    if isinstance(threshold, str) and threshold.endswith("%"):
+        # Convert percentile to actual threshold value
+        percentile = float(threshold[:-1])
+        all_values = np.concatenate([textures[h] for h in hemispheres])
+        all_values = all_values[~np.isnan(all_values)]
+        if len(all_values) > 0:
+            threshold = np.percentile(np.abs(all_values), percentile)
+
+    # Create figure and axes if not provided
+    if axes is None:
+        if hemi == "both" and view == "montage":
+            # Default 2×2 montage: LH lateral, RH lateral, LH medial, RH medial
+            fig, axes = plt.subplots(
+                2, 2, figsize=figsize, subplot_kw={"projection": "3d"}
+            )
+            axes = axes.flatten()
+        elif len(hemispheres) == 1 and len(views) == 1:
+            # Single plot
+            fig, axes = plt.subplots(
+                1, 1, figsize=figsize, subplot_kw={"projection": "3d"}
+            )
+            axes = [axes]
+        else:
+            # Custom layout
+            n_plots = len(hemispheres) * len(views)
+            fig, axes = plt.subplots(
+                1, n_plots, figsize=figsize, subplot_kw={"projection": "3d"}
+            )
+            if n_plots == 1:
+                axes = [axes]
+            else:
+                axes = axes.flatten()
+    else:
+        if isinstance(axes, np.ndarray):
+            axes = axes.flatten()
+        elif not isinstance(axes, list):
+            axes = [axes]
+        fig = axes[0].figure
+
+    # Plot each combination
+    plot_idx = 0
+    for view_name in views:
+        for h in hemispheres:
+            if plot_idx >= len(axes):
+                break
+
+            surface_key = f"{surface}_{h}"
+            mesh = paths[surface_key]
+            texture = textures[h]
+            bg = bg_maps[h]
+
+            # Plot on specified axis
+            plot_surf_stat_map(
+                mesh,
+                texture,
+                hemi=h,
+                view=view_name,
+                bg_map=bg,
+                bg_on_data=bg_on_data,
+                darkness=darkness,
+                colorbar=colorbar,
+                cmap=cmap,
+                threshold=threshold,
+                vmax=vmax,
+                vmin=vmin,
+                axes=axes[plot_idx],
+                engine=engine,
+                **kwargs,
+            )
+            plot_idx += 1
+
+    # Adjust layout
+    if hemi == "both" and view == "montage":
+        plt.subplots_adjust(wspace=-0.05, hspace=-0.1)
+
+    # Save if requested
+    if save is not None:
+        fig.savefig(save, bbox_inches="tight", transparent=True, dpi=300)
+
+    return fig
