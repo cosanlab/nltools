@@ -42,28 +42,6 @@ The `nltools.stats` module provides a comprehensive collection of statistical fu
 - `double_center()` - Double centering for distance matrices
 - `u_center()` - U-centering for distance correlation
 
-## Migration Notes
-
-**Functions Removed** (use alternatives):
-- `regress()` → Use `nltools.models.Glm` or `BrainData.fit(model='glm')`
-- `regress_permutation()` → Use `one_sample_permutation_test()` from inference module
-- `correlation()` → Use `correlation_permutation_test()` from inference module
-- `pearson()` → Use `scipy.stats.pearsonr` or `correlation_permutation_test()`
-
-**Recommended Migration**:
-For new code, use the inference module directly for better performance (4-8× CPU, 10-100× GPU speedup):
-```python
-from nltools.algorithms.inference import (
-    one_sample_permutation_test,
-    two_sample_permutation_test,
-    correlation_permutation_test,
-    isc_permutation_test,
-    isc_group_permutation_test,
-)
-```
-
-See the [Migration Guide](../migration-guide.md#pattern-9-stats-py-inference-module-migration) for details.
-
 ## Quick Start
 
 ```python

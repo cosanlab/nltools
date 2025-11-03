@@ -31,6 +31,19 @@ parts:
     chapters:
       - file: api/algorithms
       - file: api/backends
+      
+  - caption: Inference Module
+    chapters:
+      - file: api/algorithms/inference
+      - file: api/algorithms/inference_one_sample
+      - file: api/algorithms/inference_two_sample
+      - file: api/algorithms/inference_correlation
+      - file: api/algorithms/inference_timeseries
+      - file: api/algorithms/inference_matrix
+      - file: api/algorithms/inference_isc
+      - file: api/algorithms/inference_icc
+      - file: api/algorithms/inference_bootstrap
+      - file: api/algorithms/inference_utils
 
   # ========================================
   # MIGRATION & DEVELOPMENT

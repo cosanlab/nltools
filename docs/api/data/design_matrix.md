@@ -16,39 +16,7 @@ Class for creating and manipulating design matrices for GLM analyses.
 - **Pandas compatible**: Automatic conversion to pandas for nilearn compatibility
 - **File I/O**: CSV, TSV, and other supported formats
 
-## Performance
-
-**v0.6.0 Changes**: DesignMatrix now uses Polars instead of pandas internally, providing:
-- **2-5× faster** operations (especially statistics and concatenation)
-- **Lower memory usage** (Apache Arrow format)
-- **Better type safety** and error messages
-- **Automatic conversion** to pandas for nilearn GLM compatibility
-
-See the [Migration Guide](../migration-guide.md#designmatrix-pandas-polars) for details.
-
-## Quick Start
-
-```python
-from nltools.data import DesignMatrix
-import numpy as np
-
-# Create from array or pandas DataFrame
-dm = DesignMatrix(data=df)
-
-# Add polynomial trends
-dm = dm.add_poly(order=2, include_lower=True)
-
-# Add DCT basis for filtering
-dm = dm.add_dct_basis(duration=180)
-
-# Convolve with HRF
-convolved = dm.convolve(hrf_model='glover')
-
-# Visualize
-dm.heatmap()
-```
-
-## Full API Reference
+## API Reference
 
 ```{eval-rst}
 .. autoclass:: nltools.data.DesignMatrix

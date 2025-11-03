@@ -15,24 +15,7 @@ Class for representing similarity and distance matrices.
 - **Transformations**: Distance ↔ similarity conversions
 - **File I/O**: Save/load matrices with labels
 
-## Quick Start
-
-```python
-from nltools.data import Adjacency, BrainData
-
-# Create from pairwise distances
-data = BrainData('brain_images.nii.gz')
-similarity = data.distance(metric='correlation')
-
-# Threshold and visualize
-thresholded = similarity.threshold(upper=0.8)
-thresholded.plot()
-
-# Statistical testing
-stats = similarity.ttest(permutation=True, n_permutations=5000)
-```
-
-## Full API Reference
+## API Reference
 
 ```{eval-rst}
 .. autoclass:: nltools.data.Adjacency

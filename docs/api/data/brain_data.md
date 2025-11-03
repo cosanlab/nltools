@@ -16,50 +16,7 @@ Main class for representing neuroimaging data as vectors.
 - **Visualization**: Quick plotting methods for brain maps
 - **File I/O**: Support for NIfTI, HDF5, and NeuroVault formats
 
-## Quick Start
-
-```python
-from nltools.data import BrainData
-from nltools.datasets import fetch_pain
-
-# Load example data
-data = fetch_pain()
-
-# Basic operations
-smoothed = data.smooth(fwhm=6)
-standardized = data.standardize()
-
-# Statistical modeling (mutating mode - default)
-data.fit(model='ridge', X=design_matrix)
-predictions = data.predict(X=test_data)
-
-# Statistical modeling (immutable mode - returns Fit dataclass)
-from nltools.data import Fit
-fit = data.fit(model='ridge', X=design_matrix, inplace=False)
-assert isinstance(fit, Fit)
-assert 'weights' in fit.available()
-```
-
-## Fit Method
-
-The `fit()` method supports two modes:
-
-**Default mode** (`inplace=True`): Mutates BrainData object, adds attributes
-```python
-brain.fit(model='ridge', X=features, alpha=1.0)
-weights = brain.ridge_weights  # Access as attribute
-```
-
-**Immutable mode** (`inplace=False`): Returns Fit dataclass, BrainData unchanged
-```python
-fit = brain.fit(model='ridge', X=features, alpha=1.0, inplace=False)
-weights = fit.weights  # Access from Fit object
-assert not hasattr(brain, 'ridge_weights')  # brain unchanged
-```
-
-See the [Migration Guide](../migration-guide.md#pattern-10-fit-dataclass-braindata-fit-inplace-false) for more details.
-
-## Full API Reference
+## API Reference
 
 ```{eval-rst}
 .. autoclass:: nltools.data.BrainData
