@@ -83,29 +83,3 @@ parts:
       # - file: tutorials/03_advanced/02_shared_response_model
       # - file: tutorials/03_advanced/03_representational_similarity
       # - file: tutorials/03_advanced/04_encoding_models
-# ========================================
-# OLD TUTORIALS (Disabled - use for reference only!)
-# ========================================
-# - caption: Basic Tutorials
-#   chapters:
-#   - file: tutorials/newer-reference-only/basic/01_brain_data_basics
-#   - file: tutorials/newer-reference-only/basic/02_design_matrix_basics
-#   - file: tutorials/newer-reference-only/basic/03_adjacency_basics
-#   - file: tutorials/newer-reference-only/basic/04_basic_analysis_workflow
-#   - file: tutorials/newer-reference-only/basic/05_brain_collection_basics
-# - caption: Data Operations
-#   chapters:
-#   - file: tutorials/old-reference-only/01_DataOperations/plot_neurovault_io
-#   - file: tutorials/old-reference-only/01_DataOperations/plot_download
-#   - file: tutorials/old-reference-only/01_DataOperations/plot_mni_prefs
-#   - file: tutorials/old-reference-only/01_DataOperations/plot_adjacency
-#   - file: tutorials/old-reference-only/01_DataOperations/plot_mask
-#   - file: tutorials/old-reference-only/01_DataOperations/plot_design_matrix
-# - caption: Analysis Examples
-#   chapters:
-#   - file: tutorials/old-reference-only/02_Analysis/plot_similarity_example
-#   - file: tutorials/old-reference-only/02_Analysis/plot_univariate_regression
-#   - file: tutorials/old-reference-only/02_Analysis/plot_decomposition
-#   - file: tutorials/old-reference-only/02_Analysis/plot_multivariate_classification
-#   - file: tutorials/old-reference-only/02_Analysis/plot_multivariate_prediction
-#   - file: tutorials/old-reference-only/02_Analysis/plot_hyperalignment
