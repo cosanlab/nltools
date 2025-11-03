@@ -323,6 +323,178 @@ class TestBrainData:
         assert np.allclose(b_new.data, b_new_written.data)
         new_file.unlink()
 
+    # ==================== Resampling Methods ====================
+
+    @pytest.mark.tier1
+    def test_resample_to_img_nibabel(self):
+        """Test resampling to target nibabel image."""
+        import nibabel as nib
+
+        # Create source BrainData (3mm) - need custom mask in 3mm space
+        source_data = nib.Nifti1Image(
+            np.random.randn(60, 72, 60, 10), affine=np.eye(4) * 3
+        )
+        # Create 3mm mask matching the data
+        mask_3mm = nib.Nifti1Image(
+            np.ones((60, 72, 60), dtype=np.float32), affine=np.eye(4) * 3
+        )
+        brain_source = BrainData(source_data, mask=mask_3mm, resample=False)
+
+        # Create target image (2mm, same as MNI template)
+        mask_img = nib.load(MNI_Template.mask)
+
+        # Resample
+        brain_resampled = brain_source.resample_to(img=mask_img)
+
+        # Should match target space
+        assert brain_resampled.shape[1] == 238955  # 2mm voxel count
+        assert np.allclose(
+            brain_resampled.nifti_masker.affine_, mask_img.affine, rtol=1e-2
+        )
+        assert (
+            brain_resampled.shape[0] == brain_source.shape[0]
+        )  # Same number of images
+
+    @pytest.mark.tier1
+    def test_resample_to_img_filepath(self, tmpdir):
+        """Test resampling to target image from file path."""
+        import nibabel as nib
+
+        # Create source BrainData (3mm) - need custom mask in 3mm space
+        source_data = nib.Nifti1Image(
+            np.random.randn(60, 72, 60, 10), affine=np.eye(4) * 3
+        )
+        # Create 3mm mask matching the data
+        mask_3mm = nib.Nifti1Image(
+            np.ones((60, 72, 60), dtype=np.float32), affine=np.eye(4) * 3
+        )
+        brain_source = BrainData(source_data, mask=mask_3mm, resample=False)
+
+        # Save target image to file
+        target_path = str(tmpdir.join("target.nii.gz"))
+        mask_img = nib.load(MNI_Template.mask)
+        mask_img.to_filename(target_path)
+
+        # Resample
+        brain_resampled = brain_source.resample_to(img=target_path)
+
+        # Should match target space
+        assert brain_resampled.shape[1] == 238955
+        assert brain_resampled.shape[0] == brain_source.shape[0]
+
+    @pytest.mark.tier1
+    def test_resample_to_resolution_isotropic(self):
+        """Test resampling to specified isotropic resolution."""
+        import nibabel as nib
+
+        # Create source BrainData (2mm)
+        mask_img = nib.load(MNI_Template.mask)
+        source_data = nib.Nifti1Image(
+            np.random.randn(*mask_img.shape + (10,)), affine=mask_img.affine
+        )
+        brain_source = BrainData(source_data, resample=False)
+
+        # Resample to 3mm
+        brain_resampled = brain_source.resample_to(resolution=3.0)
+
+        # Should have different voxel count
+        assert brain_resampled.shape[1] != brain_source.shape[1]
+        # Check resolution is approximately 3mm
+        resampled_nifti = brain_resampled.to_nifti()
+        zooms = resampled_nifti.header.get_zooms()[:3]
+        assert np.allclose(zooms, 3.0, rtol=0.1)
+        assert (
+            brain_resampled.shape[0] == brain_source.shape[0]
+        )  # Same number of images
+
+    @pytest.mark.tier1
+    def test_resample_to_both_params_error(self):
+        """Test error when both img and resolution are provided."""
+        import nibabel as nib
+
+        # Create BrainData with matching mask
+        mask_img = nib.load(MNI_Template.mask)
+        source_data = nib.Nifti1Image(
+            np.random.randn(*mask_img.shape), affine=mask_img.affine
+        )
+        brain = BrainData(source_data, resample=False)
+
+        with pytest.raises(ValueError, match="both.*img.*and.*resolution"):
+            brain.resample_to(img=mask_img, resolution=2.0)
+
+    @pytest.mark.tier1
+    def test_resample_to_no_params_error(self):
+        """Test error when neither img nor resolution is provided."""
+        import nibabel as nib
+
+        # Create BrainData with matching mask
+        mask_img = nib.load(MNI_Template.mask)
+        source_data = nib.Nifti1Image(
+            np.random.randn(*mask_img.shape), affine=mask_img.affine
+        )
+        brain = BrainData(source_data, resample=False)
+
+        with pytest.raises(ValueError, match="either.*img.*or.*resolution"):
+            brain.resample_to()
+
+    @pytest.mark.tier1
+    def test_resample_to_invalid_img_type(self):
+        """Test error with invalid img type."""
+        import nibabel as nib
+
+        # Create BrainData with matching mask
+        mask_img = nib.load(MNI_Template.mask)
+        source_data = nib.Nifti1Image(
+            np.random.randn(*mask_img.shape), affine=mask_img.affine
+        )
+        brain = BrainData(source_data, resample=False)
+
+        with pytest.raises(TypeError, match="img.*must be"):
+            brain.resample_to(img=123)  # Invalid type
+
+    @pytest.mark.tier1
+    def test_resample_to_preserves_metadata(self):
+        """Test that X and Y metadata are preserved after resampling."""
+        import nibabel as nib
+
+        # Create BrainData with matching mask
+        mask_img = nib.load(MNI_Template.mask)
+        source_data = nib.Nifti1Image(
+            np.random.randn(*mask_img.shape + (5,)), affine=mask_img.affine
+        )
+        X = pd.DataFrame({"cond1": [1, 2, 3, 4, 5]})
+        Y = pd.DataFrame({"outcome": [0, 1, 0, 1, 0]})
+
+        brain_source = BrainData(source_data, X=X, Y=Y, resample=False)
+        brain_resampled = brain_source.resample_to(resolution=3.0)
+
+        # Metadata should be preserved
+        assert brain_resampled.X.equals(brain_source.X)
+        assert brain_resampled.Y.equals(brain_source.Y)
+        assert (
+            brain_resampled.shape[0] == brain_source.shape[0]
+        )  # Same number of images
+
+    @pytest.mark.tier1
+    def test_resample_to_same_space_identity(self):
+        """Test resampling to same space produces similar results."""
+        import nibabel as nib
+
+        # Create BrainData
+        mask_img = nib.load(MNI_Template.mask)
+        source_data = nib.Nifti1Image(
+            np.random.randn(*mask_img.shape + (5,)), affine=mask_img.affine
+        )
+        brain_source = BrainData(source_data, resample=False)
+
+        # Resample to same space (should be near-identical)
+        brain_resampled = brain_source.resample_to(img=mask_img)
+
+        # Data should be very similar (within interpolation tolerance)
+        assert np.allclose(
+            brain_source.data, brain_resampled.data, rtol=1e-3, atol=1e-3
+        )
+
     # ==================== Properties & Basic Operations ====================
 
     def test_shape(self, sim_brain_data):

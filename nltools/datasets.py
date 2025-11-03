@@ -19,6 +19,9 @@ __all__ = [
 
 import pandas as pd
 import warnings
+import os
+import sys
+import logging
 from pathlib import Path
 from nltools.data import BrainData
 from nltools.file_reader import onsets_to_dm
@@ -193,7 +196,11 @@ def fetch_haxby(
             - `n_subjects=None` or `'all'`: Returns all runs for all subjects (nested lists)
         data_dir (str, optional): Directory to store downloaded data. Default: None
         verbose (int, optional): Verbosity level. Default: 1
-        resample (bool, default=True): Whether to automatically resample data to mask space.
+        mask (str, nibabel.Nifti1Image, or None, default="haxby_mask"): Brain mask to use.
+            - `"haxby_mask"`: Use the default mask provided with the Haxby dataset (default)
+            - `None`: Use default MNI template mask
+            - Other: Passed directly to BrainData (file path, nibabel object, etc.)
+        resample (bool, default=False): Whether to automatically resample data to mask space.
             See BrainData.__init__() for details.
 
     Returns:
@@ -296,12 +303,34 @@ def fetch_haxby(
 
     for subject_id in subject_list:
         # Download data for this subject
-        nilearn_data = nilearn_fetch_haxby(
-            data_dir=data_dir,
-            subjects=(subject_id,),
-            fetch_stimuli=False,
-            verbose=verbose,
-        )
+        # Suppress nilearn's "[fetch_haxby] Dataset found..." message
+        # This message is printed even when verbose=0, so we suppress all output
+        # Save original stdout, stderr, and logging level
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        nilearn_logger = logging.getLogger("nilearn")
+        old_log_level = nilearn_logger.level if nilearn_logger.level else logging.NOTSET
+
+        try:
+            # Redirect both stdout and stderr to devnull
+            sys.stdout = open(os.devnull, "w")
+            sys.stderr = open(os.devnull, "w")
+            # Suppress nilearn logging
+            nilearn_logger.setLevel(logging.CRITICAL)
+
+            nilearn_data = nilearn_fetch_haxby(
+                data_dir=data_dir,
+                subjects=(subject_id,),
+                fetch_stimuli=False,
+                verbose=0,  # Force verbose=0 to minimize output
+            )
+        finally:
+            # Restore stdout, stderr, and logging level
+            sys.stdout.close()
+            sys.stderr.close()
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+            nilearn_logger.setLevel(old_log_level)
 
         # Process each run
         subject_brain_data = []

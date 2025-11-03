@@ -21,7 +21,7 @@ from copy import deepcopy
 from sklearn.preprocessing import scale
 from pynv import Client
 from nilearn.maskers import NiftiMasker
-from nilearn.image import smooth_img, resample_to_img
+from nilearn.image import smooth_img, resample_to_img, resample_img
 from nilearn.masking import intersect_masks
 from nilearn.regions import connected_regions, connected_label_regions
 from nltools.utils import (
@@ -127,6 +127,10 @@ class BrainData(object):
         if self.data is not None and 1 in self.data.shape:
             self.data = self.data.squeeze()
 
+        # Set X and Y if provided
+        self.X = X if X is not None else None
+        self.Y = Y if Y is not None else None
+
     def _initialize_mask(self, mask, **kwargs):
         """Initialize the mask and NiftiMasker.
 
@@ -151,6 +155,59 @@ class BrainData(object):
             mask_img=self.mask, verbose=kwargs.get("verbose", 0), **kwargs
         )
         self.nifti_masker.fit()
+
+        # Extract voxel resolution from mask affine matrix
+        # The diagonal elements of the affine matrix (excluding translation) give voxel sizes
+        affine = self.mask.affine
+        self._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
+
+        # Determine space (MNI or native) based on mask
+        self._space = self._detect_space(self.mask)
+
+    def _detect_space(self, mask):
+        """Detect if mask is in MNI space or native space.
+
+        Args:
+            mask: nibabel Nifti1Image object
+
+        Returns:
+            str: 'mni' if mask is MNI template, 'native' otherwise
+        """
+        from nltools.prefs import MNI_Template
+
+        # Get mask filename if available
+        mask_filename = mask.get_filename()
+
+        # Check if mask is None (uses default MNI template)
+        # This is handled in _initialize_mask, but check here for safety
+        if mask_filename is None:
+            # Compare affine matrix with MNI template
+            try:
+                mni_mask = nib.load(MNI_Template.mask)
+                if np.allclose(mask.affine, mni_mask.affine, rtol=1e-3):
+                    return "mni"
+            except Exception:
+                pass
+            return "native"
+
+        # Normalize paths for comparison
+        mask_path = str(Path(mask_filename).resolve())
+        mni_mask_path = str(Path(MNI_Template.mask).resolve())
+
+        # Check if mask path matches MNI template path
+        if mask_path == mni_mask_path:
+            return "mni"
+
+        # Check if affine matches MNI template affine (for cases where mask is loaded differently)
+        try:
+            mni_mask = nib.load(MNI_Template.mask)
+            if np.allclose(mask.affine, mni_mask.affine, rtol=1e-3):
+                return "mni"
+        except Exception:
+            pass
+
+        # Default to native if not matching MNI
+        return "native"
 
     def _check_space_match(self, data_img, mask_img):
         """Check if data and mask are in same space.
@@ -289,6 +346,11 @@ class BrainData(object):
         if h5_data.get("load_mask", False):
             self.mask = h5_data["mask"]
             self.nifti_masker = NiftiMasker(self.mask).fit(self.mask)
+            # Extract voxel resolution from mask affine matrix
+            affine = self.mask.affine
+            self._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
+            # Determine space (MNI or native) based on mask
+            self._space = self._detect_space(self.mask)
         elif mask is not None and not h5_data.get("load_mask", True):
             warnings.warn(
                 "Existing mask found in HDF5 file but is being ignored because "
@@ -441,14 +503,27 @@ class BrainData(object):
     def __repr__(self):
         mask_filename = self.mask.get_filename()
         mask_display = os.path.basename(mask_filename) if mask_filename else "None"
-        Y_shape = self.Y.shape if hasattr(self, "Y") and self.Y is not None else "None"
-        X_shape = self.X.shape if hasattr(self, "X") and self.X is not None else "None"
-        return "%s.%s(data=%s, Y=%s, X=%s, mask=%s)" % (
+
+        # Format voxel resolution
+        if hasattr(self, "_voxel_resolution") and self._voxel_resolution is not None:
+            # Check if resolution is isotropic (all values equal)
+            if np.allclose(self._voxel_resolution, self._voxel_resolution[0]):
+                resolution_str = f"{self._voxel_resolution[0]:.1f}mm"
+            else:
+                # Anisotropic: show all three dimensions
+                resolution_str = f"{self._voxel_resolution[0]:.1f}x{self._voxel_resolution[1]:.1f}x{self._voxel_resolution[2]:.1f}mm"
+        else:
+            resolution_str = "unknown"
+
+        # Format space
+        space_str = getattr(self, "_space", "unknown")
+
+        return "%s.%s(data=%s, resolution=%s, space=%s, mask=%s)" % (
             self.__class__.__module__,
             self.__class__.__name__,
             self.shape,
-            Y_shape,
-            X_shape,
+            resolution_str,
+            space_str,
             mask_display,
         )
 
@@ -763,6 +838,133 @@ class BrainData(object):
         """Convert BrainData Instance into Nifti Object"""
 
         return self.nifti_masker.inverse_transform(self.data)
+
+    def resample_to(self, img=None, resolution=None, interpolation="continuous"):
+        """Resample BrainData to match target image or resolution.
+
+        Args:
+            img: Target image for resampling. Can be:
+                - nibabel Nifti1Image object
+                - str/Path to .nii/.nii.gz file
+                - None (if using resolution parameter)
+            resolution: Target voxel size in mm. Can be:
+                - float/int: Isotropic resolution (e.g., 2.0 = 2mm³)
+                - None (if using img parameter)
+
+        Returns:
+            BrainData: New BrainData instance with resampled data
+
+        Raises:
+            ValueError: If both img and resolution are None, or both are provided
+            TypeError: If img is not a valid image type
+        """
+        # Validate inputs
+        if img is None and resolution is None:
+            raise ValueError(
+                "Must provide either 'img' or 'resolution' parameter. "
+                "Provide exactly one of them."
+            )
+        if img is not None and resolution is not None:
+            raise ValueError(
+                "Cannot provide both 'img' and 'resolution' parameters. "
+                "Provide exactly one of them."
+            )
+
+        # Check for empty BrainData
+        if len(self) == 0:
+            raise ValueError("Cannot resample empty BrainData object")
+
+        # Convert current BrainData to nifti
+        source_nifti = self.to_nifti()
+
+        # Ensure source image has proper sform/qform in header (fixes nilearn warning)
+        # If sform is not set (code=0), set it from affine to ensure correct resampling
+        # Note: We use code=2 (NIFTI_XFORM_ALIGNED_ANAT) because:
+        # 1. We're resampling/aligning to another image or resolution
+        # 2. Nilearn always sets sform_code=2 during resampling anyway
+        # 3. This matches NIfTI best practices for aligned anatomical images
+        sform_code = source_nifti.header.get_sform(coded=True)[1]
+        if sform_code == 0:
+            source_nifti.header.set_sform(source_nifti.affine, code=2)
+
+        if img is not None:
+            # Resample to target image
+            # Validate img type
+            if not isinstance(img, (str, Path, nib.Nifti1Image)):
+                raise TypeError(
+                    f"img must be nibabel Nifti1Image, file path (str/Path), or None. "
+                    f"Got {type(img).__name__}"
+                )
+
+            # Resample - resample_to_img can handle file paths directly
+            resampled_nifti = resample_to_img(
+                source_nifti,
+                img,  # Can be file path or nibabel image
+                interpolation=interpolation,
+                copy_header=True,
+                force_resample=True,
+            )
+
+            # For mask, we need to load the image if it's a file path
+            # (since we need to create a masker with it)
+            if isinstance(img, (str, Path)):
+                target_img = nib.load(str(img))
+            else:
+                target_img = img
+
+            # Ensure target image has proper sform if it's a nibabel object
+            # Use code=2 (NIFTI_XFORM_ALIGNED_ANAT) as per nilearn's behavior
+            if isinstance(target_img, nib.Nifti1Image):
+                target_sform_code = target_img.header.get_sform(coded=True)[1]
+                if target_sform_code == 0:
+                    target_img.header.set_sform(target_img.affine, code=2)
+
+            return BrainData(resampled_nifti, mask=target_img, resample=False)
+
+        else:  # resolution is not None
+            # Resample to specified resolution
+            resolution = float(resolution)
+            if resolution <= 0:
+                raise ValueError(f"resolution must be positive. Got {resolution}")
+
+            # Create target affine with specified resolution (diagonal matrix)
+            # resample_img automatically calculates output shape and origin
+            target_affine = np.eye(4)
+            target_affine[:3, :3] = np.diag([resolution, resolution, resolution])
+
+            # Resample data
+            resampled_nifti = resample_img(
+                source_nifti,
+                target_affine=target_affine,
+                interpolation=interpolation,
+                copy=True,
+                copy_header=True,
+                force_resample=True,
+            )
+
+            # Resample mask with nearest interpolation (preserves binary nature)
+            # Ensure mask has proper sform before resampling (code=2 matches nilearn)
+            mask_sform_code = self.mask.header.get_sform(coded=True)[1]
+            if mask_sform_code == 0:
+                self.mask.header.set_sform(self.mask.affine, code=2)
+
+            resampled_mask = resample_img(
+                self.mask,
+                target_affine=target_affine,
+                interpolation="nearest",  # Use nearest for binary masks
+                copy=True,
+                copy_header=True,
+                force_resample=True,
+            )
+
+            # Preserve X and Y metadata if present
+            kwargs = {"mask": resampled_mask, "resample": False}
+            if hasattr(self, "X") and self.X is not None:
+                kwargs["X"] = self.X
+            if hasattr(self, "Y") and self.Y is not None:
+                kwargs["Y"] = self.Y
+
+            return BrainData(resampled_nifti, **kwargs)
 
     def write(self, file_name):
         """Write out BrainData object to Nifti or HDF5 File.
@@ -1665,6 +1867,12 @@ class BrainData(object):
 
         # Create masker for the masked space
         masked.nifti_masker = NiftiMasker(mask_img=mask_img).fit()
+
+        # Update mask, voxel resolution, and space
+        masked.mask = mask_img
+        affine = mask_img.affine
+        masked._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
+        masked._space = masked._detect_space(mask_img)
 
         # Preserve 1D output for single images (backward compatibility)
         if (len(masked.shape) > 1) & (masked.shape[0] == 1):
