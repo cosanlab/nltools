@@ -7,7 +7,7 @@ types of cross-validation
 
 """
 
-__all__ = ["KFoldStratified", "set_cv"]
+__all__ = ["KFoldStratified"]
 
 from sklearn.model_selection._split import _BaseKFold
 from sklearn.utils.validation import check_array
@@ -77,63 +77,3 @@ class KFoldStratified(_BaseKFold):
         """
         y = check_array(y, ensure_2d=False, dtype=None)
         return super(KFoldStratified, self).split(X, y, groups)
-
-
-def set_cv(Y=None, cv_dict=None, return_generator=True):
-    """Helper function to create a sci-kit learn compatible cv object using
-    common parameters for prediction analyses.
-
-    Args:
-        Y:  (pd.DataFrame) Pandas Dataframe of Y labels
-        cv_dict: (dict) Type of cross_validation to use. A dictionary of
-            {'type': 'kfolds', 'n_folds': n},
-            {'type': 'kfolds', 'n_folds': n, 'stratified': Y},
-            {'type': 'kfolds', 'n_folds': n, 'subject_id': holdout}, or
-            {'type': 'loso', 'subject_id': holdout}
-        return_generator (bool): return a cv generator instead of an instance; default True
-    Returns:
-        cv: a scikit-learn model-selection generator
-
-    """
-
-    if isinstance(cv_dict, dict):
-        if cv_dict["type"] == "kfolds":
-            if "subject_id" in cv_dict:  # Hold out subjects within each fold
-                from sklearn.model_selection import GroupKFold
-
-                cv_inst = GroupKFold(n_splits=cv_dict["n_folds"])
-                cv = cv_inst.split(
-                    X=np.zeros(len(Y)), y=Y, groups=cv_dict["subject_id"]
-                )
-            elif "stratified" in cv_dict:  # Stratified K-Folds Continuous
-                from nltools.cross_validation import KFoldStratified
-
-                cv_inst = KFoldStratified(n_splits=cv_dict["n_folds"])
-                cv = cv_inst.split(X=np.zeros(len(Y)), y=Y)
-            else:  # Normal K-Folds
-                from sklearn.model_selection import KFold
-
-                cv_inst = KFold(n_splits=cv_dict["n_folds"])
-                cv = cv_inst.split(X=np.zeros(len(Y)), y=Y)
-        elif cv_dict["type"] == "loso":  # Leave One Subject Out
-            from sklearn.model_selection import LeaveOneGroupOut
-
-            cv_inst = LeaveOneGroupOut()
-            cv = cv_inst.split(X=np.zeros(len(Y)), y=Y, groups=cv_dict["subject_id"])
-        else:
-            raise ValueError(
-                """Make sure you specify a dictionary of
-                            {'type': 'kfolds', 'n_folds': n},
-                            {'type': 'kfolds', 'n_folds': n, 'stratified': Y},
-                            {'type': 'kfolds', 'n_folds': n,
-                            'subject_id': holdout}, or {'type': 'loso',
-                            'subject_id': holdout}, where n = number of folds,
-                            and subject = vector of subject ids that
-                            corresponds to self.Y"""
-            )
-    else:
-        raise ValueError("Make sure 'cv_dict' is a dictionary.")
-    if return_generator:
-        return cv
-    else:
-        return cv_inst
