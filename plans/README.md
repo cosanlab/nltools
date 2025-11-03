@@ -1,6 +1,6 @@
 # nltools v0.6.0 Planning Documents Index
 
-**Last Updated**: 2025-11-02 (TODO audit complete, plans consolidated)
+**Last Updated**: 2025-01-03 (Plans reviewed and updated against current repo state)
 
 ---
 
@@ -13,7 +13,7 @@ These 3 documents form the canonical planning system for v0.6.0:
 1. **[v0.6.0-SUMMARY.md](v0.6.0-SUMMARY.md)** - Executive overview
    - Big picture: where we are, what's done, what's left
    - Decision matrix for key choices
-   - Timeline estimates (20-36h to release)
+   - Timeline estimates (10-15h to release)
    - Open questions for Eshin
    - **Read this first** for high-level understanding
 
@@ -31,32 +31,84 @@ These 3 documents form the canonical planning system for v0.6.0:
 
 ---
 
-## 📋 Reference Documents (Keep)
+## 📋 Reference Documents (Archived)
 
-These provide historical context and detailed plans:
+These provide historical context and detailed plans. **Archived** to `claude-research/archive/v0.6.0-plans/`:
 
-- **[TODO-AUDIT.md](TODO-AUDIT.md)** - Complete TODO audit
+- ~~[TODO-AUDIT.md](../claude-research/archive/v0.6.0-plans/TODO-AUDIT.md)~~ - Complete TODO audit
   - All remaining TODOs in codebase cataloged and categorized
-  - Prioritization and recommendations
-  - **Reference** for code quality work
+  - **Archived**: Reference only, all TODOs categorized (none are blockers)
 
-- **[STATS_TODO_ACTION_PLAN.md](STATS_TODO_ACTION_PLAN.md)** - Stats migration
+- ~~[STATS_TODO_ACTION_PLAN.md](../claude-research/archive/v0.6.0-plans/STATS_TODO_ACTION_PLAN.md)~~ - Stats migration
   - Comprehensive stats.py migration details
-  - Phase-by-phase breakdown of stats work
-  - Function-by-function status table
-  - **Reference** when working on stats migration
+  - **Archived**: Migration complete (100%), reference only
 
-- **[MIGRATION_PLAN_STATS_TO_INFERENCE.md](MIGRATION_PLAN_STATS_TO_INFERENCE.md)** - Migration phases
+- ~~[MIGRATION_PLAN_STATS_TO_INFERENCE.md](../claude-research/archive/v0.6.0-plans/MIGRATION_PLAN_STATS_TO_INFERENCE.md)~~ - Migration phases
   - API compatibility analysis
-  - Testing strategy for migration
+  - **Archived**: Migration complete (100%), reference only
+
+---
+
+## 🤖 Sub-Agent Execution Plans
+
+These are detailed, executable plans for sub-agents to work in parallel:
+
+- **[PHASE4-CODE-QUALITY-PLAN.md](PHASE4-CODE-QUALITY-PLAN.md)** - Code Quality & Bug Fixes
+  - Fix int64→int32 conversions (Priority 1)
+  - Add nilearn 0.12 compatibility layer (Priority 2)
+  - Suppress PyTables warnings (Priority 3)
+  - Review test deselection (~710 tests)
+  - **Estimated**: 4-6 hours
+
+- **[PHASE5-DOCUMENTATION-PLAN.md](PHASE5-DOCUMENTATION-PLAN.md)** - Documentation Updates
+  - Update migration guide (stats migration, Fit dataclass, breaking changes)
+  - Create breaking changes summary table
+  - Update API documentation
+  - Create examples (inference module, GPU acceleration, Fit dataclass)
+  - **Estimated**: 8-12 hours
+
+- **[PRE-RELEASE-VERIFICATION-PLAN.md](PRE-RELEASE-VERIFICATION-PLAN.md)** - Verification & Testing
+  - Smoke tests (manual verification)
+  - Integration tests (tier1, tier2, full suite)
+  - Performance benchmarks (CPU vs GPU speedup)
   - Backward compatibility verification
-  - **Reference** for stats.py wrapper implementation
+  - **Estimated**: 2-3 hours
+
+- **[RELEASE-PREPARATION-PLAN.md](RELEASE-PREPARATION-PLAN.md)** - Release Execution
+  - Update version to 0.6.0
+  - Create/update CHANGELOG.md
+  - Create Git tag
+  - Build and test package
+  - Upload to PyPI (after approval)
+  - **Estimated**: 1-2 hours
+
+**Note**: These plans can be executed in parallel (Phase 4 and Phase 5) or sequentially. Pre-release verification should come after Phase 4 and Phase 5 are complete. Release preparation should be the final step.
 
 ---
 
 ## 📦 Archived Documents (Historical Reference)
 
 These documents have been **superseded** by the v0.6.0-* files above and moved to `claude-research/archive/v0.6.0-plans/`:
+
+- ~~[TODO-AUDIT.md](../claude-research/archive/v0.6.0-plans/TODO-AUDIT.md)~~ → Complete TODO audit (archived)
+  - All remaining TODOs cataloged and categorized
+  - All TODOs are non-blockers, archived as reference
+
+- ~~[STATS_TODO_ACTION_PLAN.md](../claude-research/archive/v0.6.0-plans/STATS_TODO_ACTION_PLAN.md)~~ → Stats migration plan (archived)
+  - Comprehensive stats.py migration details
+  - Migration complete (100%), archived as reference
+
+- ~~[MIGRATION_PLAN_STATS_TO_INFERENCE.md](../claude-research/archive/v0.6.0-plans/MIGRATION_PLAN_STATS_TO_INFERENCE.md)~~ → Migration phases (archived)
+  - API compatibility analysis
+  - Migration complete (100%), archived as reference
+
+- ~~[inference-test-refactoring-plan.md](../claude-research/archive/v0.6.0-plans/inference-test-refactoring-plan.md)~~ → Inference test refactoring plan (complete)
+  - Phase 1-7 optimization plan
+  - All phases complete, archived as reference
+
+- ~~[inference-test-refactoring-progress.md](../claude-research/archive/v0.6.0-plans/inference-test-refactoring-progress.md)~~ → Inference test refactoring progress (complete)
+  - Progress tracking for inference test refactoring
+  - All phases verified complete, archived as reference
 
 - ~~[CONSOLIDATION-SUMMARY.md](../claude-research/archive/v0.6.0-plans/CONSOLIDATION-SUMMARY.md)~~ → Historical summary
   - Documented consolidation work done on 2025-11-01
@@ -97,9 +149,7 @@ These documents have been **superseded** by the v0.6.0-* files above and moved t
 ```
 v0.6.0-SUMMARY.md (Overview)
     ├─> v0.6.0-ACTION-PLAN.md (What to do)
-    │       ├─> STATS_TODO_ACTION_PLAN.md (Stats details)
-    │       ├─> MIGRATION_PLAN_STATS_TO_INFERENCE.md (Migration details)
-    │       └─> TODO-AUDIT.md (All remaining TODOs)
+    │       └─> Sub-agent plans (PHASE4, PHASE5, PRE-RELEASE, RELEASE)
     │
     └─> v0.6.0-VERIFICATION.md (Checklist)
 ```
@@ -112,7 +162,7 @@ v0.6.0-SUMMARY.md (Overview)
 1. Read **v0.6.0-SUMMARY.md** for context
 2. Check **v0.6.0-ACTION-PLAN.md** for what's next
 3. Use **v0.6.0-VERIFICATION.md** as your checklist
-4. Reference detailed docs as needed (STATS_TODO, MIGRATION_PLAN)
+4. Reference sub-agent plans as needed (PHASE4, PHASE5, etc.)
 
 ### During Work
 1. Check boxes in **v0.6.0-VERIFICATION.md**
@@ -132,7 +182,8 @@ v0.6.0-SUMMARY.md (Overview)
 **Critical Path**: ✅ Stats Migration → ✅ BrainData.fit() → ✅ Bootstrap → Code Quality → Release
 **Estimated Remaining**: 10-15 hours (code quality, warnings, documentation)
 
-**Test Status**: 801/803 passing (2 failing, 710 deselected - mostly tier2 GPU tests)
+**Test Status**: 309 tier1 tests collected (645 deselected - mostly tier2 GPU tests)
+**Tier1 Performance**: ~36s runtime (303 passed, 6 skipped)
 
 **Completed Major Work**:
 - ✅ GPU-accelerated inference module (170 tests)
@@ -175,8 +226,8 @@ v0.6.0-SUMMARY.md (Overview)
 - Quick overview → `v0.6.0-SUMMARY.md`
 - Detailed plan → `v0.6.0-ACTION-PLAN.md`
 - Task tracking → `v0.6.0-VERIFICATION.md`
-- TODO audit → `TODO-AUDIT.md`
-- Stats migration → `STATS_TODO_ACTION_PLAN.md`
+- Sub-agent execution → `PHASE4-CODE-QUALITY-PLAN.md`, `PHASE5-DOCUMENTATION-PLAN.md`, etc.
+- Historical reference → `claude-research/archive/v0.6.0-plans/`
 
 **What if docs conflict?**
 - Primary docs (`v0.6.0-*`) are authoritative
