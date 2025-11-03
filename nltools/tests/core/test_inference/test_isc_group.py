@@ -70,7 +70,7 @@ TOLERANCE_STATS_PVALUE = 0.02  # 2% relative error acceptable
 def test_compute_isc_group_difference_numpy_single_feature_pairwise():
     """ISC group difference computes correctly for single feature with pairwise method."""
     np.random.seed(42)
-    n_obs = 100
+    n_obs = 50  # Reduced from 100 for tier1 speed
     n_subjects1, n_subjects2 = 5, 5
 
     # Create correlated groups
@@ -100,7 +100,7 @@ def test_compute_isc_group_difference_numpy_single_feature_pairwise():
 def test_compute_isc_group_difference_numpy_single_feature_loo():
     """ISC group difference computes correctly for single feature with LOO method."""
     np.random.seed(42)
-    n_obs = 100
+    n_obs = 50  # Reduced from 100 for tier1 speed
     n_subjects1, n_subjects2 = 5, 5
 
     group1 = np.random.randn(n_obs, n_subjects1)
@@ -132,9 +132,9 @@ def test_compute_isc_group_difference_numpy_single_feature_loo():
 def test_compute_isc_group_difference_numpy_voxelwise():
     """ISC group difference computes correctly for voxel-wise data."""
     np.random.seed(42)
-    n_obs = 100
+    n_obs = 50  # Reduced from 100 for tier1 speed
     n_subjects1, n_subjects2 = 5, 5
-    n_voxels = 10
+    n_voxels = 5  # Reduced from 10 for tier1 speed
 
     group1 = np.random.randn(n_obs, n_subjects1, n_voxels)
     group2 = np.random.randn(n_obs, n_subjects2, n_voxels)
@@ -164,8 +164,8 @@ def test_compute_isc_group_difference_numpy_voxelwise():
 def test_compute_isc_group_difference_metric_mean():
     """ISC group difference works with 'mean' metric (Fisher z-transform)."""
     np.random.seed(42)
-    group1 = np.random.randn(100, 5)
-    group2 = np.random.randn(100, 5)
+    group1 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
+    group2 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
 
     # Compute with mean metric
     isc_diff_mean = _compute_isc_group_difference(
@@ -230,8 +230,8 @@ def test_compute_isc_group_difference_gpu_matches_numpy():
 def test_compute_isc_group_difference_deterministic():
     """ISC group difference computation is deterministic."""
     np.random.seed(42)
-    group1 = np.random.randn(100, 5)
-    group2 = np.random.randn(100, 5)
+    group1 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
+    group2 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
 
     isc_diff1 = _compute_isc_group_difference(
         group1, group2, metric="median", summary_statistic="pairwise", backend="numpy"
@@ -248,8 +248,10 @@ def test_compute_isc_group_difference_deterministic():
 def test_compute_isc_group_difference_mismatched_observations():
     """ISC group difference raises error if groups have different number of observations."""
     np.random.seed(42)
-    group1 = np.random.randn(100, 5)
-    group2 = np.random.randn(101, 5)  # Different number of observations
+    group1 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
+    group2 = np.random.randn(
+        51, 5
+    )  # Reduced from 101, 5 for tier1 speed - Different number of observations
 
     with pytest.raises(ValueError, match="same number of observations"):
         _compute_isc_group_difference(
@@ -265,8 +267,8 @@ def test_compute_isc_group_difference_mismatched_observations():
 def test_compute_isc_group_difference_invalid_metric():
     """ISC group difference raises error for invalid metric."""
     np.random.seed(42)
-    group1 = np.random.randn(100, 5)
-    group2 = np.random.randn(100, 5)
+    group1 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
+    group2 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
 
     with pytest.raises(ValueError, match="metric must be"):
         _compute_isc_group_difference(
@@ -282,8 +284,8 @@ def test_compute_isc_group_difference_invalid_metric():
 def test_compute_isc_group_difference_invalid_summary_statistic():
     """ISC group difference raises error for invalid summary_statistic."""
     np.random.seed(42)
-    group1 = np.random.randn(100, 5)
-    group2 = np.random.randn(100, 5)
+    group1 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
+    group2 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
 
     with pytest.raises(ValueError, match="summary_statistic must be"):
         _compute_isc_group_difference(
@@ -738,8 +740,8 @@ def test_bootstrap_isc_group_cpu_parallel_voxelwise():
 def test_isc_group_permutation_test_basic():
     """Main function returns all expected outputs."""
     np.random.seed(42)
-    group1 = np.random.randn(100, 5)
-    group2 = np.random.randn(100, 5)
+    group1 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
+    group2 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
 
     result = isc_group_permutation_test(
         group1,
@@ -762,8 +764,8 @@ def test_isc_group_permutation_test_basic():
 def test_isc_group_permutation_test_bootstrap_method():
     """Main function works with bootstrap method."""
     np.random.seed(42)
-    group1 = np.random.randn(100, 5)
-    group2 = np.random.randn(100, 5)
+    group1 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
+    group2 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
 
     result = isc_group_permutation_test(
         group1,
@@ -783,8 +785,8 @@ def test_isc_group_permutation_test_bootstrap_method():
 def test_isc_group_permutation_test_voxelwise():
     """Main function works with voxel-wise data."""
     np.random.seed(42)
-    group1 = np.random.randn(100, 5, 10)  # 10 voxels
-    group2 = np.random.randn(100, 5, 10)
+    group1 = np.random.randn(50, 5, 5)  # Reduced from 100, 5, 10 for tier1 speed
+    group2 = np.random.randn(50, 5, 5)  # Reduced from 100, 5, 10 for tier1 speed
 
     result = isc_group_permutation_test(
         group1,
@@ -795,18 +797,18 @@ def test_isc_group_permutation_test_voxelwise():
         progress_bar=False,
     )
 
-    assert result["isc_group_difference"].shape == (10,)
-    assert result["p"].shape == (10,)
-    assert result["ci"][0].shape == (10,)
-    assert result["ci"][1].shape == (10,)
+    assert result["isc_group_difference"].shape == (5,)  # Reduced from 10
+    assert result["p"].shape == (5,)  # Reduced from 10
+    assert result["ci"][0].shape == (5,)  # Reduced from 10
+    assert result["ci"][1].shape == (5,)  # Reduced from 10
 
 
 @pytest.mark.tier1
 def test_isc_group_permutation_test_backend_consistency():
     """NumPy and CPU-parallel backends give identical results."""
     np.random.seed(42)
-    group1 = np.random.randn(100, 5)
-    group2 = np.random.randn(100, 5)
+    group1 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
+    group2 = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
 
     result_numpy = isc_group_permutation_test(
         group1,
@@ -1051,14 +1053,14 @@ class TestISCGroupStatisticalCorrectness:
                 f"KS test p-value: {ks_pvalue:.4f}"
             )
 
-    @pytest.mark.tier1
+    @pytest.mark.tier2
     def test_isc_group_difference_value_correctness(self):
         """Test that ISC group difference matches expected value for known group differences."""
         np.random.seed(42)
         n_timepoints = 100
         n_subjects1 = 10
         n_subjects2 = 10
-        n_permute = 100  # Small for speed
+        n_permute = 2000  # Increased from 100 for tier2 statistical correctness
 
         # Test case: group1 has higher ISC than group2
         group1, group2 = _generate_isc_group_data(
@@ -1092,7 +1094,7 @@ class TestISCGroupStatisticalCorrectness:
             f"Got {result['isc_group_difference']:.4f}"
         )
 
-    @pytest.mark.tier1
+    @pytest.mark.tier2
     def test_effect_size_sensitivity(self):
         """Test that larger group difference produces lower p-values."""
         np.random.seed(42)
@@ -1156,14 +1158,14 @@ class TestISCGroupStatisticalCorrectness:
                     f"Diff={diff2:.3f}: p={p_values[i + 1]:.4f}"
                 )
 
-    @pytest.mark.tier1
+    @pytest.mark.tier2
     def test_bootstrap_method_correctness(self):
         """Test that bootstrap method produces correct null distribution."""
         np.random.seed(42)
         n_timepoints = 100
         n_subjects1 = 10
         n_subjects2 = 10
-        n_permute = 1000  # Enough for stable distribution
+        n_permute = 2000  # Increased from 1000 for tier2 statistical correctness
 
         # Generate groups with known difference
         group1, group2 = _generate_isc_group_data(
@@ -1207,7 +1209,7 @@ class TestISCGroupStatisticalCorrectness:
                 f"CI=[{ci_lower:.4f}, {ci_upper:.4f}], observed={observed_diff:.4f}"
             )
 
-    @pytest.mark.tier1
+    @pytest.mark.tier2
     def test_backward_compatibility_stats_py(self):
         """Test that new implementation matches old stats.py isc_group results."""
         np.random.seed(42)
@@ -1229,7 +1231,7 @@ class TestISCGroupStatisticalCorrectness:
             result_old = isc_group_old(
                 group1,
                 group2,
-                n_samples=500,  # Smaller for speed
+                n_samples=1000,  # Increased from 500 for tier2 statistical correctness
                 method=method,
                 random_state=42,
                 return_null=False,
@@ -1239,7 +1241,7 @@ class TestISCGroupStatisticalCorrectness:
             result_new = isc_group_permutation_test(
                 group1,
                 group2,
-                n_permute=500,
+                n_permute=1000,  # Increased from 500 for tier2 statistical correctness
                 method=method,
                 random_state=42,
                 progress_bar=False,
@@ -1285,8 +1287,8 @@ class TestISCGroupStatisticalCorrectness:
 def test_stats_isc_group_backward_compatibility():
     """Test that stats.py wrapper maintains exact API compatibility."""
     np.random.seed(42)
-    group1 = np.random.randn(100, 10)
-    group2 = np.random.randn(100, 10)
+    group1 = np.random.randn(50, 5)  # Reduced from 100, 10 for tier1 speed
+    group2 = np.random.randn(50, 5)  # Reduced from 100, 10 for tier1 speed
 
     # Test direct call to stats.py wrapper
     from nltools.stats import isc_group
@@ -1294,7 +1296,7 @@ def test_stats_isc_group_backward_compatibility():
     result = isc_group(
         group1,
         group2,
-        n_samples=500,  # Map to n_permute
+        n_samples=100,  # Reduced from 500 for tier1 speed
         method="permute",
         metric="median",
         return_null=False,

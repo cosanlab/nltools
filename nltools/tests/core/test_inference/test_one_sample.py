@@ -14,29 +14,33 @@ class TestOneSamplePermutation:
     """Test one-sample permutation tests."""
 
     @pytest.mark.tier1
-    def test_basic_functionality_single_feature(self):
-        """Test basic one-sample test with single feature."""
+    @pytest.mark.parametrize("n_features", [1, 10])
+    def test_basic_functionality(self, n_features):
+        """Test basic one-sample test with single or multiple features."""
         np.random.seed(42)
-        data = np.random.randn(30)  # Mean ~ 0
-        result = one_sample_permutation_test(data, n_permute=1000, random_state=42)
+        if n_features == 1:
+            data = np.random.randn(30)  # Mean ~ 0
+        else:
+            data = np.random.randn(30, n_features)  # 30 samples, n_features features
+
+        result = one_sample_permutation_test(data, n_permute=100, random_state=42)
 
         assert "mean" in result
         assert "p" in result
         assert "parallel" in result
-        assert isinstance(result["mean"], (float, np.floating))
-        assert isinstance(result["p"], (float, np.floating))
-        assert 0 <= result["p"] <= 1
 
-    @pytest.mark.tier1
-    def test_basic_functionality_multi_feature(self):
-        """Test basic one-sample test with multiple features."""
-        np.random.seed(42)
-        data = np.random.randn(30, 10)  # 30 samples, 10 features
-        result = one_sample_permutation_test(data, n_permute=1000, random_state=42)
+        if n_features == 1:
+            assert isinstance(result["mean"], (float, np.floating))
+            assert isinstance(result["p"], (float, np.floating))
+        else:
+            assert result["mean"].shape == (n_features,)
+            assert result["p"].shape == (n_features,)
 
-        assert result["mean"].shape == (10,)
-        assert result["p"].shape == (10,)
-        assert np.all((result["p"] >= 0) & (result["p"] <= 1))
+        assert (
+            0 <= result["p"] <= 1
+            if n_features == 1
+            else np.all((result["p"] >= 0) & (result["p"] <= 1))
+        )
 
     @pytest.mark.tier1
     def test_deterministic_with_seed(self):
@@ -51,28 +55,23 @@ class TestOneSamplePermutation:
         np.testing.assert_array_almost_equal(result1["p"], result2["p"])
 
     @pytest.mark.tier1
-    def test_return_null_distribution(self):
+    @pytest.mark.parametrize("n_features", [1, 5])
+    def test_return_null_distribution(self, n_features):
         """Test that null distribution is returned when requested."""
         np.random.seed(42)
-        data = np.random.randn(30)
+        if n_features == 1:
+            data = np.random.randn(30)
+            expected_shape = (100,)
+        else:
+            data = np.random.randn(30, n_features)
+            expected_shape = (100, n_features)
+
         result = one_sample_permutation_test(
             data, n_permute=100, return_null=True, random_state=42
         )
 
         assert "null_dist" in result
-        assert result["null_dist"].shape == (100,)
-
-    @pytest.mark.tier1
-    def test_return_null_distribution_multifeature(self):
-        """Test null distribution for multi-feature data."""
-        np.random.seed(42)
-        data = np.random.randn(30, 5)
-        result = one_sample_permutation_test(
-            data, n_permute=100, return_null=True, random_state=42
-        )
-
-        assert "null_dist" in result
-        assert result["null_dist"].shape == (100, 5)
+        assert result["null_dist"].shape == expected_shape
 
     @pytest.mark.tier2
     def test_significant_effect(self):
@@ -80,7 +79,7 @@ class TestOneSamplePermutation:
         # Generate data with large positive mean
         np.random.seed(42)
         data = np.random.randn(30) + 2.0  # Mean = 2.0
-        result = one_sample_permutation_test(data, n_permute=1000, random_state=42)
+        result = one_sample_permutation_test(data, n_permute=2000, random_state=42)
 
         assert result["p"] < 0.05  # Should be significant
 
@@ -90,7 +89,7 @@ class TestOneSamplePermutation:
         # Generate data with mean ~ 0
         np.random.seed(42)
         data = np.random.randn(30)
-        result = one_sample_permutation_test(data, n_permute=1000, random_state=42)
+        result = one_sample_permutation_test(data, n_permute=2000, random_state=42)
 
         assert result["p"] > 0.05  # Should not be significant
 
@@ -101,10 +100,10 @@ class TestOneSamplePermutation:
         data = np.random.randn(30) + 0.5
 
         result_two = one_sample_permutation_test(
-            data, n_permute=1000, tail=2, random_state=42
+            data, n_permute=2000, tail=2, random_state=42
         )
         result_one = one_sample_permutation_test(
-            data, n_permute=1000, tail=1, random_state=42
+            data, n_permute=2000, tail=1, random_state=42
         )
 
         # One-tailed p-value should be approximately half of two-tailed
@@ -199,14 +198,14 @@ class TestOneSamplePermutationStatisticalCorrectness:
     @pytest.mark.tier1
     def test_mean_converges_to_true_mean(self):
         """Test that computed mean converges to true mean (fast version with smaller n_permute)."""
-        n_samples = 50
+        n_samples = 30  # Reduced from 50 for tier1 speed
         true_mean = 5.0
 
         np.random.seed(42)
         data = np.random.randn(n_samples) + true_mean
 
         result = one_sample_permutation_test(
-            data, n_permute=500, random_state=42, parallel=None
+            data, n_permute=100, random_state=42, parallel=None
         )
 
         # Computed mean should be close to true mean
@@ -300,8 +299,8 @@ class TestOneSamplePermutationStatisticalCorrectness:
     @pytest.mark.tier1
     def test_null_distribution_has_zero_mean(self):
         """Test that null distribution is centered at zero under null hypothesis (fast version)."""
-        n_samples = 50
-        n_permute = 500  # Smaller for tier1
+        n_samples = 30  # Reduced from 50 for tier1 speed
+        n_permute = 100  # Reduced from 500 for tier1 speed
 
         # Generate null data (mean=0)
         np.random.seed(42)

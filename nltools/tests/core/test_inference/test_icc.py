@@ -24,8 +24,8 @@ class TestComputeICCVoxelwise:
     def test_basic_functionality_single_voxel(self):
         """Test basic ICC computation with single voxel."""
         np.random.seed(42)
-        n_subjects = 10
-        n_sessions = 5
+        n_subjects = 8  # Reduced from 10 for tier1 speed
+        n_sessions = 3  # Reduced from 5 for tier1 speed
         n_voxels = 1
 
         data = np.random.randn(n_subjects * n_sessions, n_voxels)
@@ -41,9 +41,9 @@ class TestComputeICCVoxelwise:
     def test_basic_functionality_multi_voxel(self):
         """Test basic ICC computation with multiple voxels."""
         np.random.seed(42)
-        n_subjects = 10
-        n_sessions = 5
-        n_voxels = 100
+        n_subjects = 8  # Reduced from 10 for tier1 speed
+        n_sessions = 3  # Reduced from 5 for tier1 speed
+        n_voxels = 50  # Reduced from 100 for tier1 speed
 
         data = np.random.randn(n_subjects * n_sessions, n_voxels)
         icc_map = compute_icc_voxelwise(
@@ -57,9 +57,9 @@ class TestComputeICCVoxelwise:
     def test_all_icc_types(self):
         """Test that all ICC types work."""
         np.random.seed(42)
-        n_subjects = 10
-        n_sessions = 5
-        n_voxels = 50
+        n_subjects = 8  # Reduced from 10 for tier1 speed
+        n_sessions = 3  # Reduced from 5 for tier1 speed
+        n_voxels = 20  # Reduced from 50 for tier1 speed
 
         data = np.random.randn(n_subjects * n_sessions, n_voxels)
 
@@ -75,9 +75,9 @@ class TestComputeICCVoxelwise:
     def test_correctness_vs_single_icc(self):
         """Test that voxel-wise ICC matches single-voxel compute_icc."""
         np.random.seed(42)
-        n_subjects = 10
-        n_sessions = 5
-        n_voxels = 20
+        n_subjects = 8  # Reduced from 10 for tier1 speed
+        n_sessions = 3  # Reduced from 5 for tier1 speed
+        n_voxels = 10  # Reduced from 20 for tier1 speed
 
         data = np.random.randn(n_subjects * n_sessions, n_voxels)
 
@@ -412,6 +412,7 @@ class TestICCEdgeCases:
             "ICC should be finite or NaN for constant data"
         )
 
+    @pytest.mark.tier1
     def test_small_sample_size(self):
         """Test ICC with minimal sample size."""
         np.random.seed(42)
@@ -428,12 +429,13 @@ class TestICCEdgeCases:
         assert icc_map.shape == (n_voxels,)
         assert np.all(np.isfinite(icc_map))
 
+    @pytest.mark.tier1
     def test_large_voxel_count(self):
         """Test ICC with large voxel count (uses vectorized, memory efficient)."""
         np.random.seed(42)
-        n_subjects = 10
-        n_sessions = 5
-        n_voxels = 50000  # Large voxel count (uses vectorized, not parallel)
+        n_subjects = 8  # Reduced from 10 for tier1 speed
+        n_sessions = 3  # Reduced from 5 for tier1 speed
+        n_voxels = 1000  # Reduced from 50000 for tier1 speed (still large enough to test vectorized path)
 
         data = np.random.randn(n_subjects * n_sessions, n_voxels)
 
@@ -447,6 +449,7 @@ class TestICCEdgeCases:
         assert np.all((-1 <= icc_map) & (icc_map <= 1))
 
 
+@pytest.mark.tier1
 class TestICSingleVoxel:
     """Test _compute_single_icc helper function."""
 
@@ -487,6 +490,7 @@ class TestICSingleVoxel:
 class TestICCVectorized:
     """Test vectorized ICC computation."""
 
+    @pytest.mark.tier1
     def test_vectorized_matches_single_voxel(self):
         """Test that vectorized computation matches single-voxel computation."""
         np.random.seed(42)
@@ -507,6 +511,7 @@ class TestICCVectorized:
 
         np.testing.assert_almost_equal(icc_vectorized, np.array(icc_single), decimal=10)
 
+    @pytest.mark.tier1
     def test_vectorized_all_icc_types(self):
         """Test vectorized computation for all ICC types."""
         np.random.seed(42)

@@ -14,48 +14,17 @@ class TestBackends:
     """Test backend consistency (NumPy vs PyTorch)."""
 
     @pytest.mark.tier2
-    def test_backend_consistency_single_feature(self, backends):
+    @pytest.mark.parametrize("n_features", [1, 10])
+    def test_backend_consistency(self, backends, n_features):
         """Test that NumPy and PyTorch backends produce same results."""
         if len(backends) < 2:
             pytest.skip("PyTorch not available")
 
         np.random.seed(42)
-        data = np.random.randn(30)
-
-        results = {}
-        for backend in backends:
-            # Map backend to parallel parameter
-            if backend == "numpy":
-                parallel = None
-            elif backend == "torch":
-                parallel = "gpu"
-            else:
-                parallel = "cpu"
-
-            results[backend] = one_sample_permutation_test(
-                data, n_permute=N_PERMUTE_BACKEND, parallel=parallel, random_state=42
-            )
-
-        # Compare results
-        np.testing.assert_allclose(
-            results["numpy"]["mean"],
-            results["torch"]["mean"],
-            rtol=1e-5,
-        )
-        np.testing.assert_allclose(
-            results["numpy"]["p"],
-            results["torch"]["p"],
-            rtol=1e-5,
-        )
-
-    @pytest.mark.tier2
-    def test_backend_consistency_multi_feature(self, backends):
-        """Test backend consistency for multi-feature data."""
-        if len(backends) < 2:
-            pytest.skip("PyTorch not available")
-
-        np.random.seed(42)
-        data = np.random.randn(30, 10)
+        if n_features == 1:
+            data = np.random.randn(30)
+        else:
+            data = np.random.randn(30, n_features)
 
         results = {}
         for backend in backends:

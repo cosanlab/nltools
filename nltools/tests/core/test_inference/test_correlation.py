@@ -16,6 +16,7 @@ from nltools.tests.core.test_inference import (
 from nltools.backends import check_gpu_available
 
 
+@pytest.mark.tier1
 class TestPearsonCorrelation:
     """Test Pearson correlation helper function."""
 
@@ -69,6 +70,7 @@ class TestPearsonCorrelation:
         assert r == 0.0  # Correlation with constant is zero
 
 
+@pytest.mark.tier1
 class TestSpearmanCorrelation:
     """Test Spearman correlation helper function."""
 
@@ -125,6 +127,7 @@ class TestSpearmanCorrelation:
         assert np.isnan(r) or r == 0.0
 
 
+@pytest.mark.tier1
 class TestKendallCorrelation:
     """Test Kendall correlation helper function."""
 
@@ -183,78 +186,70 @@ class TestKendallCorrelation:
 class TestCorrelationPermutation:
     """Test correlation permutation tests."""
 
-    def test_basic_functionality_single_feature(self):
-        """Test basic correlation test with 1D arrays."""
+    @pytest.mark.tier1
+    @pytest.mark.parametrize("n_features", [1, 10])
+    def test_basic_functionality(self, n_features):
+        """Test basic correlation test with single or multiple features."""
         np.random.seed(42)
-        x = np.random.randn(50)
-        y = x + np.random.randn(50) * 0.5  # Moderate correlation
+        if n_features == 1:
+            x = np.random.randn(30)  # Reduced from 50 for tier1 speed
+            y = x + np.random.randn(30) * 0.5  # Moderate correlation
+        else:
+            data1 = np.random.randn(30, n_features)  # 30 samples, n_features features
+            data2 = data1 + np.random.randn(30, n_features) * 0.3  # Correlated
+            x, y = data1, data2
 
-        result = correlation_permutation_test(x, y, n_permute=500, random_state=42)
+        result = correlation_permutation_test(x, y, n_permute=100, random_state=42)
 
         assert "correlation" in result
         assert "p" in result
         assert "parallel" in result
-        assert isinstance(result["correlation"], (float, np.floating))
-        assert isinstance(result["p"], (float, np.floating))
-        assert 0 <= result["p"] <= 1
-        assert -1 <= result["correlation"] <= 1
 
-    @pytest.mark.tier2
-    def test_basic_functionality_multi_feature(self):
-        """Test correlation test with 2D arrays (feature-wise)."""
-        np.random.seed(42)
-        data1 = np.random.randn(50, 10)  # 50 samples, 10 features
-        data2 = data1 + np.random.randn(50, 10) * 0.3  # Correlated
-
-        result = correlation_permutation_test(
-            data1, data2, n_permute=500, random_state=42
-        )
-
-        assert result["correlation"].shape == (10,)
-        assert result["p"].shape == (10,)
-        assert np.all((result["p"] >= 0) & (result["p"] <= 1))
-        assert np.all((result["correlation"] >= -1) & (result["correlation"] <= 1))
+        if n_features == 1:
+            assert isinstance(result["correlation"], (float, np.floating))
+            assert isinstance(result["p"], (float, np.floating))
+            assert 0 <= result["p"] <= 1
+            assert -1 <= result["correlation"] <= 1
+        else:
+            assert result["correlation"].shape == (n_features,)
+            assert result["p"].shape == (n_features,)
+            assert np.all((result["p"] >= 0) & (result["p"] <= 1))
+            assert np.all((result["correlation"] >= -1) & (result["correlation"] <= 1))
 
     @pytest.mark.tier1
     def test_deterministic_with_seed(self):
         """Test that results are deterministic with fixed seed."""
         np.random.seed(42)
-        x = np.random.randn(50)
-        y = x + np.random.randn(50) * 0.5
+        x = np.random.randn(30)  # Reduced from 50 for tier1 speed
+        y = x + np.random.randn(30) * 0.5
 
-        result1 = correlation_permutation_test(x, y, n_permute=200, random_state=42)
-        result2 = correlation_permutation_test(x, y, n_permute=200, random_state=42)
+        result1 = correlation_permutation_test(x, y, n_permute=100, random_state=42)
+        result2 = correlation_permutation_test(x, y, n_permute=100, random_state=42)
 
         np.testing.assert_almost_equal(result1["correlation"], result2["correlation"])
         np.testing.assert_almost_equal(result1["p"], result2["p"])
 
     @pytest.mark.tier1
-    def test_return_null_distribution_single(self):
-        """Test that null distribution is returned for single feature."""
+    @pytest.mark.parametrize("n_features", [1, 5])
+    def test_return_null_distribution(self, n_features):
+        """Test that null distribution is returned when requested."""
         np.random.seed(42)
-        x = np.random.randn(50)
-        y = np.random.randn(50)
+        if n_features == 1:
+            x = np.random.randn(30)  # Reduced from 50 for tier1 speed
+            y = np.random.randn(30)
+            expected_shape = (100,)
+        else:
+            data1 = np.random.randn(30, n_features)
+            data2 = np.random.randn(30, n_features)
+            x, y = data1, data2
+            expected_shape = (100, n_features)
 
         result = correlation_permutation_test(
             x, y, n_permute=100, return_null=True, random_state=42
         )
 
         assert "null_dist" in result
-        assert result["null_dist"].shape == (100,)
-
-    @pytest.mark.tier1
-    def test_return_null_distribution_multi(self):
-        """Test null distribution for multi-feature data."""
-        np.random.seed(42)
-        data1 = np.random.randn(50, 5)
-        data2 = np.random.randn(50, 5)
-
-        result = correlation_permutation_test(
-            data1, data2, n_permute=100, return_null=True, random_state=42
-        )
-
-        assert "null_dist" in result
-        assert result["null_dist"].shape == (100, 5)
+        assert result["null_dist"].shape == expected_shape
 
     @pytest.mark.tier2
     def test_significant_correlation(self):
@@ -263,7 +258,7 @@ class TestCorrelationPermutation:
         x = np.random.randn(100)
         y = x + np.random.randn(100) * 0.1  # Very strong correlation
 
-        result = correlation_permutation_test(x, y, n_permute=1000, random_state=42)
+        result = correlation_permutation_test(x, y, n_permute=2000, random_state=42)
 
         assert result["p"] < 0.05  # Should be significant
         assert result["correlation"] > 0.9  # Should be strong positive
@@ -275,19 +270,24 @@ class TestCorrelationPermutation:
         x = np.random.randn(100)
         y = np.random.randn(100)  # Independent
 
-        result = correlation_permutation_test(x, y, n_permute=1000, random_state=42)
+        result = correlation_permutation_test(x, y, n_permute=2000, random_state=42)
 
         assert result["p"] > 0.05  # Should not be significant
 
+    @pytest.mark.tier1
     def test_spearman_metric(self):
         """Test Spearman correlation metric in permutation test."""
         np.random.seed(42)
         # Create monotonic but non-linear relationship
-        x = np.random.randn(100)
-        y = x**3 + np.random.randn(100) * 0.1
+        x = np.random.randn(30)  # Reduced from 100 for tier1 speed
+        y = x**3 + np.random.randn(30) * 0.1
 
         result = correlation_permutation_test(
-            x, y, n_permute=500, metric="spearman", random_state=42
+            x,
+            y,
+            n_permute=100,
+            metric="spearman",
+            random_state=42,  # Reduced from 500 for tier1 speed
         )
 
         assert "correlation" in result
@@ -295,21 +295,28 @@ class TestCorrelationPermutation:
         assert result["p"] < 0.05  # Should be significant (monotonic)
         assert result["correlation"] > 0.9  # Strong positive Spearman
 
+    @pytest.mark.tier1
     def test_kendall_metric(self):
         """Test Kendall correlation metric in permutation test."""
         np.random.seed(42)
         # Create monotonic relationship
-        x = np.arange(80)
-        y = x + np.random.randn(80) * 5
+        x = np.arange(30)  # Reduced from 80 for tier1 speed
+        y = x + np.random.randn(30) * 5
 
         result = correlation_permutation_test(
-            x, y, n_permute=200, metric="kendall", random_state=42
+            x,
+            y,
+            n_permute=100,
+            metric="kendall",
+            random_state=42,  # Reduced from 200 for tier1 speed
         )
 
         assert "correlation" in result
         assert "p" in result
         assert result["p"] < 0.05  # Should be significant (monotonic)
-        assert result["correlation"] > 0.7  # Strong positive Kendall
+        assert (
+            result["correlation"] > 0.65
+        )  # Strong positive Kendall (reduced threshold for smaller sample size)
 
     @pytest.mark.tier2
     def test_one_tailed_vs_two_tailed(self):

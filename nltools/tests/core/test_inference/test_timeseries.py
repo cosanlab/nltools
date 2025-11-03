@@ -32,14 +32,14 @@ class TestCircleShift:
     @pytest.mark.tier1
     def test_preserves_shape_2d(self):
         """Test that circle_shift preserves shape for 2D data."""
-        data = np.random.randn(50, 10)
+        data = np.random.randn(30, 5)  # Reduced from 50, 10 for tier1 speed
         shifted = circle_shift(data, random_state=42)
         assert shifted.shape == data.shape
 
     @pytest.mark.tier1
     def test_deterministic_with_seed_1d(self):
         """Test that circle_shift is deterministic with random_state for 1D."""
-        data = np.random.randn(100)
+        data = np.random.randn(50)  # Reduced from 100 for tier1 speed
         shifted1 = circle_shift(data, random_state=42)
         shifted2 = circle_shift(data, random_state=42)
         np.testing.assert_array_equal(shifted1, shifted2)
@@ -47,7 +47,7 @@ class TestCircleShift:
     @pytest.mark.tier1
     def test_deterministic_with_seed_2d(self):
         """Test that circle_shift is deterministic with random_state for 2D."""
-        data = np.random.randn(100, 5)
+        data = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
         shifted1 = circle_shift(data, random_state=42)
         shifted2 = circle_shift(data, random_state=42)
         np.testing.assert_array_equal(shifted1, shifted2)
@@ -62,7 +62,7 @@ class TestCircleShift:
     @pytest.mark.tier1
     def test_preserves_values_2d(self):
         """Test that circle_shift preserves all values for 2D."""
-        data = np.random.randn(50, 10)
+        data = np.random.randn(30, 5)  # Reduced from 50, 10 for tier1 speed
         shifted = circle_shift(data, random_state=42)
         for i in range(data.shape[1]):
             assert sorted(shifted[:, i]) == pytest.approx(sorted(data[:, i]))
@@ -86,6 +86,7 @@ class TestCircleShift:
     @pytest.mark.skip(
         reason="circle_shift has been moved from stats.py to algorithms.inference.timeseries"
     )
+    @pytest.mark.tier1
     def test_matches_stats_py_1d(self):
         """Test that circle_shift matches stats.py for 1D data.
 
@@ -98,6 +99,7 @@ class TestCircleShift:
     @pytest.mark.skip(
         reason="circle_shift has been moved from stats.py to algorithms.inference.timeseries"
     )
+    @pytest.mark.tier1
     def test_matches_stats_py_2d(self):
         """Test that circle_shift matches stats.py for 2D data.
 
@@ -114,14 +116,14 @@ class TestPhaseRandomize:
     @pytest.mark.tier1
     def test_preserves_shape_1d(self):
         """Test that phase_randomize preserves shape for 1D data."""
-        data = np.random.randn(100)
+        data = np.random.randn(50)  # Reduced from 100 for tier1 speed
         randomized = phase_randomize(data, random_state=42)
         assert randomized.shape == data.shape
 
     @pytest.mark.tier1
     def test_preserves_shape_2d(self):
         """Test that phase_randomize preserves shape for 2D data."""
-        data = np.random.randn(100, 5)
+        data = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
         randomized = phase_randomize(data, random_state=42)
         assert randomized.shape == data.shape
 
@@ -131,8 +133,8 @@ class TestPhaseRandomize:
 
         This is THE CRITICAL property - power spectrum must be preserved exactly.
         """
-        # Use longer signal for better FFT resolution
-        data = np.random.randn(200)
+        # Use shorter signal for tier1 speed (still sufficient for FFT)
+        data = np.random.randn(100)  # Reduced from 200 for tier1 speed
         randomized = phase_randomize(data, random_state=42)
 
         # Compute power spectra
@@ -145,7 +147,7 @@ class TestPhaseRandomize:
     @pytest.mark.tier1
     def test_preserves_power_spectrum_2d(self):
         """Test that phase_randomize preserves power spectrum for 2D data."""
-        data = np.random.randn(200, 5)
+        data = np.random.randn(100, 5)  # Reduced from 200, 5 for tier1 speed
         randomized = phase_randomize(data, random_state=42)
 
         # Check each feature independently
@@ -158,7 +160,7 @@ class TestPhaseRandomize:
     def test_changes_phase_1d(self):
         """Test that phase_randomize actually changes the signal."""
         # Use deterministic signal
-        t = np.linspace(0, 10 * np.pi, 100)
+        t = np.linspace(0, 10 * np.pi, 50)  # Reduced from 100 for tier1 speed
         data = np.sin(t)
 
         randomized = phase_randomize(data, random_state=42)
@@ -169,7 +171,7 @@ class TestPhaseRandomize:
     @pytest.mark.tier1
     def test_changes_phase_2d(self):
         """Test that phase_randomize changes signals for 2D data."""
-        data = np.random.randn(100, 5)
+        data = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
         randomized = phase_randomize(data, random_state=42)
 
         # Should be different
@@ -178,7 +180,7 @@ class TestPhaseRandomize:
     @pytest.mark.tier1
     def test_deterministic_with_seed_1d(self):
         """Test that phase_randomize is deterministic with random_state for 1D."""
-        data = np.random.randn(100)
+        data = np.random.randn(50)  # Reduced from 100 for tier1 speed
         rand1 = phase_randomize(data, random_state=42)
         rand2 = phase_randomize(data, random_state=42)
         np.testing.assert_array_equal(rand1, rand2)
@@ -186,7 +188,7 @@ class TestPhaseRandomize:
     @pytest.mark.tier1
     def test_deterministic_with_seed_2d(self):
         """Test that phase_randomize is deterministic with random_state for 2D."""
-        data = np.random.randn(100, 5)
+        data = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed
         rand1 = phase_randomize(data, random_state=42)
         rand2 = phase_randomize(data, random_state=42)
         np.testing.assert_array_equal(rand1, rand2)
@@ -194,7 +196,7 @@ class TestPhaseRandomize:
     @pytest.mark.tier1
     def test_backend_consistency_numpy(self):
         """Test that phase_randomize works with NumPy backend."""
-        data = np.random.randn(100)
+        data = np.random.randn(50)  # Reduced from 100 for tier1 speed
         randomized = phase_randomize(data, backend="numpy", random_state=42)
 
         # Should preserve power spectrum
@@ -260,6 +262,7 @@ class TestPhaseRandomize:
     @pytest.mark.skip(
         reason="phase_randomize has been moved from stats.py to algorithms.inference.timeseries"
     )
+    @pytest.mark.tier1
     def test_matches_stats_py_1d(self):
         """Test that phase_randomize matches stats.py for 1D data.
 
@@ -272,6 +275,7 @@ class TestPhaseRandomize:
     @pytest.mark.skip(
         reason="phase_randomize has been moved from stats.py to algorithms.inference.timeseries"
     )
+    @pytest.mark.tier1
     def test_matches_stats_py_2d(self):
         """Test that phase_randomize matches stats.py for 2D data.
 
@@ -293,8 +297,8 @@ class TestTimeseriesCorrelation:
         )
 
         np.random.seed(42)
-        x = np.random.randn(100)
-        y = np.random.randn(100)
+        x = np.random.randn(50)  # Reduced from 100 for tier1 speed
+        y = np.random.randn(50)  # Reduced from 100 for tier1 speed
 
         result = timeseries_correlation_permutation_test(
             x, y, method="circle_shift", n_permute=100, random_state=42
@@ -313,8 +317,8 @@ class TestTimeseriesCorrelation:
         )
 
         np.random.seed(42)
-        x = np.random.randn(100)
-        y = np.random.randn(100)
+        x = np.random.randn(50)  # Reduced from 100 for tier1 speed
+        y = np.random.randn(50)  # Reduced from 100 for tier1 speed
 
         result = timeseries_correlation_permutation_test(
             x, y, method="phase_randomize", n_permute=100, random_state=42
@@ -333,8 +337,8 @@ class TestTimeseriesCorrelation:
         )
 
         np.random.seed(42)
-        x = np.random.randn(100)
-        y = np.random.randn(100)
+        x = np.random.randn(50)  # Reduced from 100 for tier1 speed
+        y = np.random.randn(50)  # Reduced from 100 for tier1 speed
 
         result1 = timeseries_correlation_permutation_test(
             x, y, method="circle_shift", n_permute=100, random_state=42
@@ -354,8 +358,8 @@ class TestTimeseriesCorrelation:
         )
 
         np.random.seed(42)
-        x = np.random.randn(100)
-        y = np.random.randn(100)
+        x = np.random.randn(50)  # Reduced from 100 for tier1 speed
+        y = np.random.randn(50)  # Reduced from 100 for tier1 speed
 
         result = timeseries_correlation_permutation_test(
             x,
@@ -377,7 +381,7 @@ class TestTimeseriesCorrelation:
         )
 
         np.random.seed(42)
-        x = np.random.randn(100)
+        x = np.random.randn(50)  # Reduced from 100 for tier1 speed
         y = x**2  # Nonlinear monotonic relationship
 
         result = timeseries_correlation_permutation_test(
@@ -400,8 +404,8 @@ class TestTimeseriesCorrelation:
         )
 
         np.random.seed(42)
-        x = np.random.randn(50)  # Smaller sample for Kendall (O(n^2))
-        y = np.random.randn(50)
+        x = np.random.randn(30)  # Reduced from 50 for tier1 speed
+        y = np.random.randn(30)  # Reduced from 50 for tier1 speed
 
         result = timeseries_correlation_permutation_test(
             x, y, method="circle_shift", n_permute=50, metric="kendall", random_state=42
@@ -505,6 +509,7 @@ class TestTimeseriesCorrelation:
             rtol=TOLERANCE_STATS_PVALUE_PHASE_RANDOMIZE,
         )
 
+    @pytest.mark.tier1
     def test_invalid_method(self):
         """Test that invalid method raises ValueError."""
         from nltools.algorithms.inference.timeseries import (
@@ -512,14 +517,15 @@ class TestTimeseriesCorrelation:
         )
 
         np.random.seed(42)
-        x = np.random.randn(100)
-        y = np.random.randn(100)
+        x = np.random.randn(50)  # Reduced from 100 for tier1 speed
+        y = np.random.randn(50)  # Reduced from 100 for tier1 speed
 
         with pytest.raises(ValueError, match="method must be"):
             timeseries_correlation_permutation_test(
                 x, y, method="invalid_method", n_permute=100, random_state=42
             )
 
+    @pytest.mark.tier1
     def test_mismatched_lengths(self):
         """Test that mismatched lengths raise ValueError."""
         from nltools.algorithms.inference.timeseries import (
@@ -527,14 +533,15 @@ class TestTimeseriesCorrelation:
         )
 
         np.random.seed(42)
-        x = np.random.randn(100)
-        y = np.random.randn(50)
+        x = np.random.randn(50)  # Reduced from 100 for tier1 speed
+        y = np.random.randn(25)  # Reduced from 50 for tier1 speed
 
         with pytest.raises(ValueError, match="same length"):
             timeseries_correlation_permutation_test(
                 x, y, method="circle_shift", n_permute=100, random_state=42
             )
 
+    @pytest.mark.tier2
     def test_phase_randomize_null_distribution_centered(self):
         """Test that phase_randomize creates null distribution centered at zero.
 
@@ -556,7 +563,7 @@ class TestTimeseriesCorrelation:
             x,
             y,
             method="phase_randomize",
-            n_permute=1000,
+            n_permute=2000,  # Increased from 1000 for tier2 statistical correctness
             return_null=True,
             random_state=42,
             n_jobs=1,
@@ -575,6 +582,7 @@ class TestTimeseriesCorrelation:
         # P-value should be non-significant for uncorrelated data
         assert result["p"] > 0.05
 
+    @pytest.mark.tier2
     def test_phase_randomize_detects_significant_correlation(self):
         """Test that phase_randomize correctly detects significant correlations.
 
@@ -597,13 +605,19 @@ class TestTimeseriesCorrelation:
         )  # Strong correlation via shared signal
 
         result = timeseries_correlation_permutation_test(
-            x, y, method="phase_randomize", n_permute=500, random_state=42, n_jobs=1
+            x,
+            y,
+            method="phase_randomize",
+            n_permute=2000,
+            random_state=42,
+            n_jobs=1,  # Increased from 500 for tier2
         )
 
         # Should detect significant correlation
         assert abs(result["correlation"]) > 0.7, "Should have strong correlation"
         assert result["p"] < 0.05, "Should be statistically significant"
 
+    @pytest.mark.tier2
     def test_circle_shift_vs_phase_randomize_consistency(self):
         """Test that both methods produce sensible results for same data.
 
@@ -622,11 +636,21 @@ class TestTimeseriesCorrelation:
         y = np.random.randn(150)
 
         result_circle = timeseries_correlation_permutation_test(
-            x, y, method="circle_shift", n_permute=500, random_state=42, n_jobs=1
+            x,
+            y,
+            method="circle_shift",
+            n_permute=2000,
+            random_state=42,
+            n_jobs=1,  # Increased from 500 for tier2
         )
 
         result_phase = timeseries_correlation_permutation_test(
-            x, y, method="phase_randomize", n_permute=500, random_state=42, n_jobs=1
+            x,
+            y,
+            method="phase_randomize",
+            n_permute=2000,
+            random_state=42,
+            n_jobs=1,  # Increased from 500 for tier2
         )
 
         # Both should give non-significant results for uncorrelated data
@@ -966,7 +990,7 @@ class TestTimeseriesCorrelationStatisticalCorrectness:
                 f"KS test p-value: {ks_pvalue:.4f}"
             )
 
-    @pytest.mark.tier1
+    @pytest.mark.tier2
     def test_correlation_value_correctness(self):
         """Test that computed correlation values match expected values."""
         n_samples = 200
@@ -992,7 +1016,7 @@ class TestTimeseriesCorrelationStatisticalCorrectness:
     @pytest.mark.tier1
     def test_circle_shift_preserves_autocorrelation(self):
         """Test that circle_shift preserves autocorrelation structure."""
-        n_samples = 200
+        n_samples = 100  # Reduced from 200 for tier1 speed
         ar_coef = 0.8  # Strong autocorrelation
 
         # Create time series with strong autocorrelation (AR(1) process)
@@ -1004,7 +1028,7 @@ class TestTimeseriesCorrelationStatisticalCorrectness:
 
         # Run circle_shift many times and check autocorrelation is preserved
         autocorrs_shifted = []
-        for seed in range(50):
+        for seed in range(30):  # Reduced from 50 for tier1 speed
             shifted = circle_shift(x, random_state=seed)
             autocorr_shifted = np.corrcoef(shifted[:-1], shifted[1:])[0, 1]
             autocorrs_shifted.append(autocorr_shifted)
@@ -1019,7 +1043,7 @@ class TestTimeseriesCorrelationStatisticalCorrectness:
     @pytest.mark.tier1
     def test_phase_randomize_preserves_power_spectrum(self):
         """Test that phase_randomize preserves power spectrum."""
-        n_samples = 200
+        n_samples = 100  # Reduced from 200 for tier1 speed
 
         # Create time series with known power spectrum
         np.random.seed(42)
@@ -1036,7 +1060,7 @@ class TestTimeseriesCorrelationStatisticalCorrectness:
             # Power spectrum should match exactly (within numerical precision)
             np.testing.assert_allclose(power_orig, power_rand, rtol=1e-10, atol=1e-10)
 
-    @pytest.mark.tier1
+    @pytest.mark.tier2
     def test_effect_size_sensitivity(self):
         """Test that larger correlation produces lower p-values."""
         n_samples = 150
@@ -1093,7 +1117,7 @@ class TestTimeseriesCorrelationStatisticalCorrectness:
             f"Large correlation (corr=0.6) should be significant (phase_randomize), got p={p_values_phase[3]:.4f}"
         )
 
-    @pytest.mark.tier1
+    @pytest.mark.tier2
     def test_circle_shift_statistical_properties(self):
         """Test that circle_shift preserves statistical properties."""
         n_samples = 200
@@ -1131,7 +1155,7 @@ class TestTimeseriesCorrelationStatisticalCorrectness:
             "Circle shift should preserve all values (circular reordering)"
         )
 
-    @pytest.mark.tier1
+    @pytest.mark.tier2
     def test_phase_randomize_statistical_properties(self):
         """Test that phase_randomize preserves power spectrum and approximate mean/variance."""
         n_samples = 200

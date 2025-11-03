@@ -10,6 +10,7 @@ from nltools.algorithms.inference import matrix_permutation_test
 class TestMatrixHelpers:
     """Test helper functions for matrix permutation."""
 
+    @pytest.mark.tier1
     def test_extract_upper_triangle(self):
         """Test extraction of upper triangle elements."""
         from nltools.algorithms.inference.matrix import _extract_matrix_elements
@@ -28,6 +29,7 @@ class TestMatrixHelpers:
         expected = np.array([1, 2, 3, 4, 7, 8, 9, 13, 14, 19])
         np.testing.assert_array_equal(elements, expected)
 
+    @pytest.mark.tier1
     def test_extract_lower_triangle(self):
         """Test extraction of lower triangle elements."""
         from nltools.algorithms.inference.matrix import _extract_matrix_elements
@@ -42,6 +44,7 @@ class TestMatrixHelpers:
         expected = np.array([5, 10, 11, 15, 16, 17, 20, 21, 22, 23])
         np.testing.assert_array_equal(elements, expected)
 
+    @pytest.mark.tier1
     def test_extract_full_matrix_no_diag(self):
         """Test extraction of full matrix without diagonal."""
         from nltools.algorithms.inference.matrix import _extract_matrix_elements
@@ -58,6 +61,7 @@ class TestMatrixHelpers:
         expected = np.concatenate([upper, lower])
         np.testing.assert_array_equal(elements, expected)
 
+    @pytest.mark.tier1
     def test_extract_full_matrix_with_diag(self):
         """Test extraction of full matrix with diagonal."""
         from nltools.algorithms.inference.matrix import _extract_matrix_elements
@@ -72,6 +76,7 @@ class TestMatrixHelpers:
         expected = matrix.ravel()
         np.testing.assert_array_equal(elements, expected)
 
+    @pytest.mark.tier1
     def test_permute_matrix_symmetric(self):
         """Test symmetric row+column permutation."""
         from nltools.algorithms.inference.matrix import _permute_matrix_symmetric
@@ -97,6 +102,7 @@ class TestMatrixHelpers:
         # Verify shape preserved
         assert result.shape == matrix.shape
 
+    @pytest.mark.tier1
     def test_permute_matrix_preserves_symmetry(self):
         """Test that symmetric permutation preserves matrix symmetry."""
         from nltools.algorithms.inference.matrix import _permute_matrix_symmetric
@@ -111,6 +117,7 @@ class TestMatrixHelpers:
         # Result should still be symmetric
         np.testing.assert_array_equal(result, result.T)
 
+    @pytest.mark.tier1
     def test_compute_matrix_correlation_pearson(self):
         """Test Pearson correlation computation."""
         from nltools.algorithms.inference.matrix import _compute_matrix_correlation
@@ -131,6 +138,7 @@ class TestMatrixHelpers:
         r = _compute_matrix_correlation(m1, m2, metric="pearson")
         assert abs(r) < 1.0
 
+    @pytest.mark.tier1
     def test_compute_matrix_correlation_spearman(self):
         """Test Spearman correlation computation."""
         from nltools.algorithms.inference.matrix import _compute_matrix_correlation
@@ -146,6 +154,7 @@ class TestMatrixHelpers:
         r = _compute_matrix_correlation(m1, m2, metric="spearman")
         assert r > 0.99  # Should be very high for monotonic relationship
 
+    @pytest.mark.tier1
     def test_compute_matrix_correlation_kendall(self):
         """Test Kendall correlation computation."""
         from nltools.algorithms.inference.matrix import _compute_matrix_correlation
@@ -159,6 +168,7 @@ class TestMatrixHelpers:
         tau = _compute_matrix_correlation(matrix, -matrix, metric="kendall")
         assert abs(tau - (-1.0)) < 1e-10
 
+    @pytest.mark.tier1
     def test_compute_matrix_correlation_all_extraction_modes(self):
         """Test that correlation works with all extraction modes."""
         from nltools.algorithms.inference.matrix import _compute_matrix_correlation
@@ -365,48 +375,48 @@ class TestMatrixPermutationCPUParallel:
 class TestMatrixPermutationMain:
     """Test main matrix_permutation_test function."""
 
+    @pytest.mark.tier1
     def test_input_validation_non_square(self):
         """Test that non-square matrices are rejected."""
-
         m1 = np.random.randn(5, 6)  # Not square
         m2 = np.random.randn(5, 6)
 
         with pytest.raises(ValueError, match="must be square"):
             matrix_permutation_test(m1, m2, n_permute=100)
 
+    @pytest.mark.tier1
     def test_input_validation_mismatched_sizes(self):
         """Test that mismatched matrix sizes are rejected."""
-
         m1 = np.random.randn(5, 5)
         m2 = np.random.randn(6, 6)
 
         with pytest.raises(ValueError, match="must have same shape"):
             matrix_permutation_test(m1, m2, n_permute=100)
 
+    @pytest.mark.tier1
     def test_input_validation_invalid_metric(self):
         """Test that invalid metric is rejected."""
-
         m1 = np.random.randn(5, 5)
         m2 = np.random.randn(5, 5)
 
         with pytest.raises(ValueError, match="metric must be"):
             matrix_permutation_test(m1, m2, metric="invalid")
 
+    @pytest.mark.tier1
     def test_input_validation_invalid_how(self):
         """Test that invalid 'how' parameter is rejected."""
-
         m1 = np.random.randn(5, 5)
         m2 = np.random.randn(5, 5)
 
         with pytest.raises(ValueError, match="how must be"):
             matrix_permutation_test(m1, m2, how="invalid")
 
+    @pytest.mark.tier1
     def test_all_extraction_modes(self):
         """Test that all extraction modes work correctly."""
-
         np.random.seed(42)
-        m1 = np.random.randn(8, 8)
-        m2 = np.random.randn(8, 8)
+        m1 = np.random.randn(6, 6)  # Reduced from 8×8 for tier1 speed
+        m2 = np.random.randn(6, 6)
 
         # All modes should work
         result_upper = matrix_permutation_test(
@@ -440,12 +450,12 @@ class TestMatrixPermutationMain:
         assert 0 < result_full_no_diag["p"] < 1
         assert 0 < result_full_with_diag["p"] < 1
 
+    @pytest.mark.tier1
     def test_all_metrics(self):
         """Test that all correlation metrics work correctly."""
-
         np.random.seed(42)
-        m1 = np.random.randn(8, 8)
-        m2 = np.random.randn(8, 8)
+        m1 = np.random.randn(6, 6)  # Reduced from 8×8 for tier1 speed
+        m2 = np.random.randn(6, 6)
 
         # All metrics should work
         result_pearson = matrix_permutation_test(
@@ -463,12 +473,12 @@ class TestMatrixPermutationMain:
         assert 0 < result_spearman["p"] < 1
         assert 0 < result_kendall["p"] < 1
 
+    @pytest.mark.tier1
     def test_include_diag_parameter(self):
         """Test that include_diag parameter works correctly."""
-
         np.random.seed(42)
-        m1 = np.random.randn(8, 8)
-        m2 = np.random.randn(8, 8)
+        m1 = np.random.randn(6, 6)  # Reduced from 8×8 for tier1 speed
+        m2 = np.random.randn(6, 6)
 
         # Should work with both values
         result_no_diag = matrix_permutation_test(
@@ -501,15 +511,15 @@ class TestMatrixPermutationMain:
 class TestMatrixPermutationCorrectness:
     """Test statistical correctness of matrix permutation."""
 
+    @pytest.mark.tier2
     def test_identical_matrices(self):
         """Test that identical matrices produce perfect correlation and significant p-value."""
-
         # Create a matrix and test against itself
         np.random.seed(42)
         matrix = np.random.randn(20, 20)
 
         result = matrix_permutation_test(
-            matrix, matrix, n_permute=500, random_state=42, n_jobs=1
+            matrix, matrix, n_permute=2000, random_state=42, n_jobs=1
         )
 
         # Correlation should be perfect
@@ -518,16 +528,16 @@ class TestMatrixPermutationCorrectness:
         # P-value should be highly significant
         assert result["p"] < 0.05
 
+    @pytest.mark.tier2
     def test_uncorrelated_matrices(self):
         """Test that uncorrelated random matrices produce non-significant p-value."""
-
         # Create two independent random matrices
         np.random.seed(42)
         m1 = np.random.randn(25, 25)
         m2 = np.random.randn(25, 25)
 
         result = matrix_permutation_test(
-            m1, m2, n_permute=500, random_state=42, n_jobs=1
+            m1, m2, n_permute=2000, random_state=42, n_jobs=1
         )
 
         # Correlation should be weak
@@ -536,15 +546,15 @@ class TestMatrixPermutationCorrectness:
         # P-value should be non-significant
         assert result["p"] > 0.05
 
+    @pytest.mark.tier2
     def test_null_distribution_centered(self):
         """Test that null distribution is centered near zero for uncorrelated matrices."""
-
         np.random.seed(42)
         m1 = np.random.randn(20, 20)
         m2 = np.random.randn(20, 20)
 
         result = matrix_permutation_test(
-            m1, m2, n_permute=1000, return_null=True, random_state=42, n_jobs=1
+            m1, m2, n_permute=2000, return_null=True, random_state=42, n_jobs=1
         )
 
         null_mean = np.mean(result["null_dist"])
@@ -562,9 +572,11 @@ class TestMatrixPermutationCorrectness:
 # ============================================================================
 
 
+@pytest.mark.tier1
 class TestDoubleCenter:
     """Test double_center function."""
 
+    @pytest.mark.tier1
     def test_double_center_basic(self):
         """Test basic double-centering operation."""
         from nltools.algorithms.inference.matrix import double_center
@@ -578,6 +590,7 @@ class TestDoubleCenter:
         assert np.allclose(result.mean(axis=1), 0, atol=1e-10)
         assert result.shape == mat.shape
 
+    @pytest.mark.tier1
     def test_double_center_symmetric(self):
         """Test double-centering on symmetric matrix."""
         from nltools.algorithms.inference.matrix import double_center
@@ -601,9 +614,11 @@ class TestDoubleCenter:
             double_center(np.array([1, 2, 3]))
 
 
+@pytest.mark.tier1
 class TestUCenter:
     """Test u_center function."""
 
+    @pytest.mark.tier1
     def test_u_center_basic(self):
         """Test basic u-centering operation."""
         from nltools.algorithms.inference.matrix import u_center
@@ -650,6 +665,7 @@ class TestUCenter:
             u_center(np.array([1, 2, 3]))
 
 
+@pytest.mark.tier1
 class TestDistanceCorrelation:
     """Test distance_correlation function."""
 
@@ -756,6 +772,7 @@ class TestDistanceCorrelation:
             distance_correlation(x, y)
 
 
+@pytest.mark.tier1
 class TestCrossCorrelation:
     """Test _compute_cross_correlation function for ISFC computation."""
 
@@ -893,6 +910,7 @@ class TestCrossCorrelation:
         np.testing.assert_allclose(result_12, result_21.T, rtol=1e-10)
 
 
+@pytest.mark.tier1
 class TestMatrixUtilitiesIntegration:
     """Test that matrix utilities work together correctly."""
 

@@ -12,33 +12,27 @@ pytestmark = pytest.mark.tier2
 class TestCPUParallelization:
     """Test CPU parallelization functionality and correctness."""
 
-    def test_cpu_parallel_single_feature(self):
-        """Test CPU parallel with single feature (1D data)."""
+    @pytest.mark.parametrize("n_features", [1, 100])
+    def test_cpu_parallel(self, n_features):
+        """Test CPU parallel with single or multiple features."""
         np.random.seed(42)
-        data = np.random.randn(30)
+        if n_features == 1:
+            data = np.random.randn(30)
+        else:
+            data = np.random.randn(30, n_features)
 
         result = one_sample_permutation_test(
             data, n_permute=500, parallel="cpu", n_jobs=2, random_state=42
         )
 
-        # Verify scalar results
-        assert isinstance(result["mean"], (float, np.floating))
-        assert isinstance(result["p"], (float, np.floating))
-        assert result["parallel"] == "cpu"
-
-    def test_cpu_parallel_multi_feature(self):
-        """Test CPU parallel with multiple features (2D data)."""
-        np.random.seed(42)
-        data = np.random.randn(30, 100)
-
-        result = one_sample_permutation_test(
-            data, n_permute=500, parallel="cpu", n_jobs=2, random_state=42
-        )
-
-        # Verify array results
-        assert result["mean"].shape == (100,)
-        assert result["p"].shape == (100,)
-        assert np.all((result["p"] >= 0) & (result["p"] <= 1))
+        # Verify results based on feature count
+        if n_features == 1:
+            assert isinstance(result["mean"], (float, np.floating))
+            assert isinstance(result["p"], (float, np.floating))
+        else:
+            assert result["mean"].shape == (n_features,)
+            assert result["p"].shape == (n_features,)
+            assert np.all((result["p"] >= 0) & (result["p"] <= 1))
         assert result["parallel"] == "cpu"
 
     def test_cpu_parallel_correctness(self):
