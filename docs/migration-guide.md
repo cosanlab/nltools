@@ -68,6 +68,7 @@ if result.ndim == 1:
 
 ## Breaking Changes
 
+(designmatrix-pandas-polars)=
 ### DesignMatrix: Pandas → Polars
 
 **Status**: ✅ COMPLETE (v0.6.0)
@@ -520,6 +521,188 @@ if 'samples' in result:
 
 ---
 
+(pattern-9-stats-py-inference-module-migration)=
+### Pattern 9: Stats.py → Inference Module Migration
+
+**Status**: ✅ Migrated to inference module (wrappers maintained for backward compatibility)
+
+#### ISC Functions (`isc()`, `isc_group()`, `isfc()`)
+
+**Old API** (still works, but uses inference module internally):
+```python
+from nltools.stats import isc, isc_group, isfc
+
+result = isc(data, n_samples=1000)
+result = isc_group(group1, group2, n_samples=1000)
+result = isfc(data, n_permute=1000)
+```
+
+**New API** (recommended):
+```python
+from nltools.algorithms.inference import (
+    isc_permutation_test,
+    isc_group_permutation_test,
+)
+from nltools.stats import isfc  # Still available, now uses inference module
+
+# ISC - single group
+result = isc_permutation_test(data, n_permute=1000)
+
+# ISC Group - two groups
+result = isc_group_permutation_test(group1, group2, n_permute=1000)
+
+# ISFC - functional connectivity
+result = isfc(data, n_permute=1000)  # Now uses inference module internally
+```
+
+**Key Changes**:
+- `isc()` → `isc_permutation_test()` (parameter name: `n_samples` → `n_permute`)
+- `isc_group()` → `isc_group_permutation_test()` (parameter name: `n_samples` → `n_permute`)
+- `isfc()` unchanged (still `isfc()`, but now uses inference module internally)
+- Return keys: `null_dist` → `null_distribution` (wrapper handles mapping)
+- GPU acceleration available with `parallel="gpu"` or `backend="torch"`
+- CPU parallelization available with `parallel="cpu"` and `n_jobs=-1`
+
+**Performance**: 4-8× CPU speedup, 10-100× GPU speedup
+
+#### Removed Functions
+
+**Functions Removed** (use alternatives):
+- `regress()` → Use `nltools.models.Glm` or `BrainData.fit(model='glm')`
+- `regress_permutation()` → Use inference module permutation tests
+- `correlation()` → Use `correlation_permutation_test()` from inference module
+- `pearson()` → Use `scipy.stats.pearsonr` or `correlation_permutation_test()`
+
+**Matrix Utilities** (moved to inference module, re-exported from stats.py):
+- `double_center()` → `nltools.algorithms.inference.double_center()` (still available via `nltools.stats`)
+- `u_center()` → `nltools.algorithms.inference.u_center()` (still available via `nltools.stats`)
+- `distance_correlation()` → `nltools.algorithms.inference.distance_correlation()` (still available via `nltools.stats`)
+
+---
+
+(pattern-10-fit-dataclass-braindata-fit-inplace-false)=
+### Pattern 10: Fit Dataclass (`BrainData.fit(inplace=False)`)
+
+**Status**: ✅ NEW FEATURE (v0.6.0)
+
+**New Feature**: `BrainData.fit()` now supports returning Fit objects instead of mutating attributes.
+
+**Old API** (still works, default behavior):
+```python
+brain.fit(X=dm, model='ridge', alpha=1.0)  # Mutates brain, adds attributes
+assert hasattr(brain, 'ridge_weights')
+```
+
+**New API** (recommended):
+```python
+from nltools.data import Fit
+
+fit = brain.fit(X=dm, model='ridge', alpha=1.0, inplace=False)  # Returns Fit object
+assert isinstance(fit, Fit)
+assert 'weights' in fit.available()
+assert not hasattr(brain, 'ridge_weights')  # brain unchanged
+
+# Serialization
+import numpy as np
+np.savez('fit_results.npz', **fit.asdict())
+loaded = Fit.from_dict(np.load('fit_results.npz'))
+```
+
+**Use Cases**:
+- Immutable results (no accidental mutation)
+- Serialization (save/load fits)
+- Multiple fits on same BrainData object
+- Functional programming style
+
+**Fit Dataclass Attributes**:
+- **Ridge**: `weights`, `scores`, `fitted_values`
+- **Ridge + CV**: Also includes `cv_scores`, `cv_mean_score`, `cv_predictions`, `cv_folds`, `cv_best_alpha`, `cv_alpha_scores`
+- **GLM**: `betas`, `t_stats`, `p_values`, `se`, `residuals`, `fitted_values`, `r2`
+
+---
+
+### Pattern 11: Bootstrap Infrastructure (`OnlineBootstrapStats`)
+
+**Status**: ✅ NEW FEATURE (v0.6.0)
+
+**New Feature**: Memory-efficient online bootstrap statistics.
+
+**Old API** (still works):
+```python
+boot = brain.bootstrap(stat='mean', n_samples=5000)
+```
+
+**New Implementation**:
+- Uses `OnlineBootstrapStats` for memory efficiency
+- Supports CPU parallelization (`n_jobs=-1`)
+- Works with fitted models (ridge, GLM)
+
+**Advanced Usage**:
+```python
+from nltools.algorithms.inference import OnlineBootstrapStats
+
+# Direct usage (numpy arrays)
+stats = OnlineBootstrapStats()
+for sample in samples:
+    stats.update(sample)
+result = stats.get_statistics()
+```
+
+---
+
+### Pattern 12: GPU Acceleration
+
+**Status**: ✅ NEW FEATURE (v0.6.0)
+
+**New Feature**: GPU-accelerated permutation tests (10-100× speedup).
+
+**Requirements**:
+- PyTorch installed
+- CUDA-capable GPU (optional; CPU parallelization available)
+
+**Usage**:
+```python
+from nltools.algorithms.inference import one_sample_permutation_test
+
+# CPU (default)
+result = one_sample_permutation_test(data, n_permute=1000)
+
+# GPU (automatic batching)
+result = one_sample_permutation_test(
+    data, 
+    n_permute=1000, 
+    backend='torch',
+    max_gpu_memory_gb=4.0  # Memory budget
+)
+
+# CPU parallel (4-8× speedup)
+result = one_sample_permutation_test(
+    data,
+    n_permute=1000,
+    backend=None,  # or 'auto'
+    n_jobs=-1  # Use all cores
+)
+```
+
+See the [GPU-Accelerated Statistical Inference](#new-feature-gpu-accelerated-statistical-inference) section below for more details.
+
+---
+
+## Breaking Changes Summary
+
+| Component | Change | Old API | New API | Migration Path |
+|-----------|--------|---------|---------|----------------|
+| `stats.py` | Function removed | `regress()` | `nltools.models.Glm` | Use `BrainData.fit(model='glm')` |
+| `stats.py` | Function removed | `regress_permutation()` | Inference module | Use `one_sample_permutation_test()` |
+| `stats.py` | Function removed | `correlation()` | `correlation_permutation_test()` | Import from `inference` module |
+| `stats.py` | Function deprecated | `pearson()` | `scipy.stats.pearsonr` | Use scipy or inference module |
+| `DesignMatrix` | Backend changed | pandas | Polars | Automatic migration (backward compatible) |
+| `BrainData.fit()` | New parameter | `fit()` mutates | `fit(inplace=False)` returns Fit | Optional migration |
+| Import paths | Module moved | `stats.isc()` | `inference.isc_permutation_test()` | Wrapper maintained |
+| Return keys | Key renamed | `null_dist` | `null_distribution` | Wrapper handles mapping |
+
+---
+
 ## New Features
 
 ### Compute Contrasts
@@ -628,6 +811,10 @@ brain_data.X = design_matrix  # Still works but deprecated
 - [ ] Replace `summarize_bootstrap()` with `BrainData.bootstrap()` or `OnlineBootstrapStats`
 - [ ] Consider using new `.fit(model='ridge')` for regression
 - [ ] Consider using new CV features (`cv=5`, `alpha='auto'`)
+- [ ] Migrate `isc()`, `isc_group()` to `isc_permutation_test()`, `isc_group_permutation_test()` (optional - wrappers maintained)
+- [ ] Replace `stats.correlation()` with `correlation_permutation_test()` from inference module
+- [ ] Replace `stats.pearson()` with `scipy.stats.pearsonr` or `correlation_permutation_test()`
+- [ ] Consider using `fit(inplace=False)` for immutable results and serialization
 - [ ] Test with `FutureWarning` → error to catch remaining issues
 
 ---
