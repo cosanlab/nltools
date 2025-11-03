@@ -12,6 +12,7 @@ from scipy.signal import detrend
 from scipy.interpolate import pchip
 import os
 import shutil
+import re
 import nibabel as nib
 import numpy as np
 import pandas as pd
@@ -83,7 +84,13 @@ class BrainData(object):
                 - File path (str/Path) to .nii/.nii.gz/.h5/.hdf5
                 - nibabel Nifti1Image object
                 - URL to download data from
-            mask: Brain mask as nibabel object, file path, or None (uses MNI template).
+            mask: Brain mask. Can be:
+                - None (uses MNI template with auto-detection)
+                - nibabel Nifti1Image object
+                - File path (str/Path) to mask file
+                - Template name string: '{res}mm-MNI152-2009{version}'
+                  (e.g., '2mm-MNI152-2009c', '3mm-MNI152-2009a', '2mm-MNI152-2009fsl')
+                  where version: 'fsl' for default/, 'a' for nilearn/, 'c' for fmriprep/
             masker: nilearn masker object (e.g. ROI or searchlight extractor); Default will load data as voxels
             resample (bool, default=True): Whether to automatically resample data to mask space.
                 - If True: Data is resampled to match mask spatial characteristics (affine, shape)
@@ -150,7 +157,9 @@ class BrainData(object):
         """Initialize the mask and NiftiMasker.
 
         Args:
-            mask: Brain mask as nibabel object, file path, or None.
+            mask: Brain mask as nibabel object, file path, template name string, or None.
+                Template name strings supported: '{res}mm-MNI152-2009{version}'
+                (e.g., '2mm-MNI152-2009c', '3mm-MNI152-2009a', '2mm-MNI152-2009fsl')
             **kwargs: Additional arguments passed to NiftiMasker.
         """
         # Store whether mask was None (for auto-detection later)
@@ -162,14 +171,24 @@ class BrainData(object):
             self.mask = nib.load(MNI_Template.mask)
             self._detected_template = None  # Will be set during data loading if needed
         elif isinstance(mask, (str, Path)):
-            self.mask = nib.load(str(mask))
+            mask_str = str(mask)
+            # Check if it's a template name string (format: {res}mm-MNI152-2009{version})
+            if re.match(r"^\d+mm-MNI152-2009[acfsl]+$", mask_str):
+                # Resolve template name to file path
+                from nltools.prefs import resolve_template_name
+
+                mask_path = resolve_template_name(mask_str, file_type="mask")
+                self.mask = nib.load(mask_path)
+            else:
+                # Regular file path
+                self.mask = nib.load(mask_str)
             self._detected_template = None  # Explicit mask provided, no auto-detection
         elif isinstance(mask, nib.Nifti1Image):
             self.mask = mask
             self._detected_template = None  # Explicit mask provided, no auto-detection
         else:
             raise TypeError(
-                f"mask must be a nibabel instance or a valid file name. "
+                f"mask must be a nibabel instance, file path, template name string, or None. "
                 f"Received {type(mask).__name__}"
             )
 
@@ -565,12 +584,23 @@ class BrainData(object):
             # This will trigger mask initialization but we already have data
             # Need to handle resampling if mask differs
             if isinstance(mask, (str, Path)):
-                new_mask = nib.load(str(mask))
+                mask_str = str(mask)
+                # Check if it's a template name string
+                if re.match(r"^\d+mm-MNI152-2009[acfsl]+$", mask_str):
+                    # Resolve template name to file path
+                    from nltools.prefs import resolve_template_name
+
+                    new_mask = nib.load(
+                        resolve_template_name(mask_str, file_type="mask")
+                    )
+                else:
+                    # Regular file path
+                    new_mask = nib.load(mask_str)
             elif isinstance(mask, nib.Nifti1Image):
                 new_mask = mask
             else:
                 raise TypeError(
-                    f"mask must be a nibabel instance or a valid file name. "
+                    f"mask must be a nibabel instance, file path, template name string, or None. "
                     f"Received {type(mask).__name__}"
                 )
 

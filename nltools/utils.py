@@ -21,6 +21,7 @@ __all__ = [
 ]
 
 from os.path import dirname, join, sep as pathsep
+import os
 import nibabel as nib
 import importlib
 from sklearn.pipeline import Pipeline
@@ -312,7 +313,18 @@ def get_mni_from_img_resolution(brain, img_type="plot"):
         else:
             return MNI_Template.plot
 
-    # Build path with matching resolution
+    # Map template names to version codes
+    version_map = {
+        "default": "fsl",
+        "nilearn": "a",
+        "fmriprep": "c",
+    }
+
+    version = version_map.get(MNI_Template.template)
+    if version is None:
+        raise ValueError(f"Unknown template: {MNI_Template.template}")
+
+    # Build path with matching resolution using new naming convention
     from os.path import join, dirname
 
     base_path = join(
@@ -323,9 +335,16 @@ def get_mni_from_img_resolution(brain, img_type="plot"):
     res_str = f"{resolution}mm"
 
     if img_type == "brain":
-        return join(base_path, f"MNI152_{res_str}_brain.nii.gz")
+        new_path = join(base_path, f"{res_str}-MNI152-2009{version}-brain.nii.gz")
+        old_path = join(base_path, f"MNI152_{res_str}_brain.nii.gz")
     else:
-        return join(base_path, f"MNI152_{res_str}_T1.nii.gz")
+        new_path = join(base_path, f"{res_str}-MNI152-2009{version}-T1.nii.gz")
+        old_path = join(base_path, f"MNI152_{res_str}_T1.nii.gz")
+
+    # Use new naming if available, otherwise fall back to old naming
+    if not os.path.exists(new_path) and os.path.exists(old_path):
+        return old_path
+    return new_path
 
 
 def detect_best_matching_template(
@@ -463,17 +482,39 @@ def detect_best_matching_template(
                     stacklevel=2,
                 )
 
-    # Build paths
+    # Map template names to version codes
+    version_map = {
+        "default": "fsl",
+        "nilearn": "a",
+        "fmriprep": "c",
+    }
+
+    version = version_map.get(best_template)
+    if version is None:
+        raise ValueError(f"Unknown template: {best_template}")
+
+    # Build paths using new naming convention: {res}mm-MNI152-2009{version}-{type}.nii.gz
     base_path = join(dirname(__file__), "resources", "niftis", best_template)
     res_str = f"{best_resolution}mm"
 
-    mask_path = join(base_path, f"MNI152_{res_str}_mask.nii.gz")
-    brain_path = join(base_path, f"MNI152_{res_str}_brain.nii.gz")
-    plot_path = join(base_path, f"MNI152_{res_str}_T1.nii.gz")
+    mask_path = join(base_path, f"{res_str}-MNI152-2009{version}-mask.nii.gz")
+    brain_path = join(base_path, f"{res_str}-MNI152-2009{version}-brain.nii.gz")
+    plot_path = join(base_path, f"{res_str}-MNI152-2009{version}-T1.nii.gz")
+
+    # Fallback to old naming convention for backward compatibility
+    old_mask_path = join(base_path, f"MNI152_{res_str}_mask.nii.gz")
+    old_brain_path = join(base_path, f"MNI152_{res_str}_brain.nii.gz")
+    old_plot_path = join(base_path, f"MNI152_{res_str}_T1.nii.gz")
+
+    # Use new naming if available, otherwise fall back to old naming
+    if not os.path.exists(mask_path) and os.path.exists(old_mask_path):
+        mask_path = old_mask_path
+    if not os.path.exists(brain_path) and os.path.exists(old_brain_path):
+        brain_path = old_brain_path
+    if not os.path.exists(plot_path) and os.path.exists(old_plot_path):
+        plot_path = old_plot_path
 
     # Verify files exist
-    import os
-
     for path_name, path in [
         ("mask", mask_path),
         ("brain", brain_path),
