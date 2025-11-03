@@ -740,7 +740,7 @@ def test_glm_suppresses_drift_model_warning():
     # Verify progress_bar parameter exists and defaults to False
     assert hasattr(model, "progress_bar")
     assert model.progress_bar is False
-    
+
     # Test with progress_bar=True - should work without errors
     model_with_pb = Glm(t_r=2.0, mask=mask_img, progress_bar=True)
     assert model_with_pb.progress_bar is True

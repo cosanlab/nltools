@@ -46,6 +46,195 @@ class TestBrainData:
 
     # ==================== Initialization & I/O ====================
 
+    @pytest.mark.tier1
+    def test_init_resample_true_mismatched_spaces(self):
+        """Test automatic resampling when data and mask have different spaces."""
+        import nibabel as nib
+
+        # Create data in different space (3mm) than default mask (2mm)
+        # Use small shape to speed up test
+        data_3mm = nib.Nifti1Image(
+            np.random.randn(60, 72, 60, 10),  # 3mm shape
+            affine=np.eye(4) * 3,  # 3mm affine
+        )
+
+        # Use default mask (2mm) with resample=True
+        brain = BrainData(data_3mm, resample=True)
+
+        # Should be resampled to 2mm mask space
+        assert brain.shape[1] == 238955  # 2mm voxel count
+        mask_img = nib.load(MNI_Template.mask)
+        assert np.allclose(brain.nifti_masker.affine_, mask_img.affine, rtol=1e-2)
+
+    @pytest.mark.tier1
+    def test_init_resample_false_matched_spaces(self):
+        """Test no resampling when resample=False and spaces match."""
+        import nibabel as nib
+
+        # Create data in same space as mask
+        mask_img = nib.load(MNI_Template.mask)
+        data_same_space = nib.Nifti1Image(
+            np.random.randn(*mask_img.shape + (10,)), affine=mask_img.affine
+        )
+
+        brain = BrainData(data_same_space, resample=False)
+
+        # Should not be resampled
+        expected_voxels = mask_img.get_fdata().sum().astype(int)
+        assert brain.shape[1] == expected_voxels
+
+    @pytest.mark.tier1
+    def test_init_resample_false_mismatched_spaces(self):
+        """Test that mismatched spaces with resample=False raises informative error."""
+        import nibabel as nib
+
+        # Create data in different space
+        data_3mm = nib.Nifti1Image(
+            np.random.randn(60, 72, 60, 10), affine=np.eye(4) * 3
+        )
+
+        # Should raise error when spaces don't match
+        with pytest.raises(ValueError, match="resample=True"):
+            BrainData(data_3mm, resample=False)
+
+    @pytest.mark.tier1
+    def test_init_resample_true_custom_mask(self, tmpdir):
+        """Test resampling to custom mask space."""
+        import nibabel as nib
+
+        # Create custom 3mm mask
+        custom_mask_data = np.ones((60, 72, 60), dtype=np.float32)
+        custom_mask = nib.Nifti1Image(custom_mask_data, affine=np.eye(4) * 3)
+
+        # Create 2mm data
+        data_2mm = nib.Nifti1Image(
+            np.random.randn(91, 109, 91, 10), affine=np.eye(4) * 2
+        )
+
+        brain = BrainData(data_2mm, mask=custom_mask, resample=True)
+
+        # Should be resampled to 3mm custom mask space
+        assert brain.shape[1] == (60 * 72 * 60)  # All voxels in 3mm space
+
+    @pytest.mark.tier1
+    def test_init_resample_true_default_mask(self):
+        """Test resampling to default MNI template when mask=None."""
+        import nibabel as nib
+
+        # Create 3mm data
+        data_3mm = nib.Nifti1Image(
+            np.random.randn(60, 72, 60, 10), affine=np.eye(4) * 3
+        )
+
+        # Use default mask (mask=None)
+        brain = BrainData(data_3mm, resample=True)
+
+        # Should be resampled to default MNI template space (2mm)
+        assert brain.shape[1] == 238955  # 2mm voxel count
+
+    @pytest.mark.tier1
+    def test_init_resample_true_list_of_files(self, tmpdir):
+        """Test resampling works with list of files."""
+        import nibabel as nib
+
+        # Create two 3mm files
+        data1 = nib.Nifti1Image(np.random.randn(60, 72, 60), affine=np.eye(4) * 3)
+        data2 = nib.Nifti1Image(np.random.randn(60, 72, 60), affine=np.eye(4) * 3)
+
+        file1 = str(tmpdir.join("data1.nii.gz"))
+        file2 = str(tmpdir.join("data2.nii.gz"))
+        data1.to_filename(file1)
+        data2.to_filename(file2)
+
+        brain = BrainData([file1, file2], resample=True)
+
+        # Should be resampled to 2mm default mask space
+        assert brain.shape == (2, 238955)
+
+    @pytest.mark.tier1
+    def test_init_resample_true_matched_spaces_no_resample(self):
+        """Test that resample=True skips resampling when spaces already match."""
+        import nibabel as nib
+
+        # Create data in same space as default mask
+        mask_img = nib.load(MNI_Template.mask)
+        data_same_space = nib.Nifti1Image(
+            np.random.randn(*mask_img.shape + (10,)), affine=mask_img.affine
+        )
+
+        # Should not resample (optimization)
+        brain = BrainData(data_same_space, resample=True)
+
+        # Should match original shape
+        expected_voxels = mask_img.get_fdata().sum().astype(int)
+        assert brain.shape[1] == expected_voxels
+
+    @pytest.mark.tier2
+    def test_init_resample_backward_compatibility(self):
+        """Test that default behavior (resample=True) matches v0.5.1 behavior."""
+        import nibabel as nib
+
+        # Create 3mm data (different from default 2mm mask)
+        data_3mm = nib.Nifti1Image(
+            np.random.randn(60, 72, 60, 10), affine=np.eye(4) * 3
+        )
+
+        # Default behavior (resample=True)
+        brain_default = BrainData(data_3mm)
+
+        # Explicit resample=True
+        brain_explicit = BrainData(data_3mm, resample=True)
+
+        # Should be identical
+        assert np.allclose(brain_default.data, brain_explicit.data)
+        assert np.allclose(
+            brain_default.nifti_masker.affine_, brain_explicit.nifti_masker.affine_
+        )
+
+    @pytest.mark.tier2
+    def test_init_resample_preserves_data_integrity(self):
+        """Test that resampling preserves data characteristics."""
+        import nibabel as nib
+
+        # Create test data with known values
+        data_3mm = nib.Nifti1Image(
+            np.ones((60, 72, 60, 10)) * 5.0,  # Constant value
+            affine=np.eye(4) * 3,
+        )
+
+        brain = BrainData(data_3mm, resample=True)
+
+        # Values within mask should be preserved (approximately, due to interpolation)
+        # Most voxels will be 0 (outside mask), but masked voxels should be ~5.0
+        masked_voxels = brain.data[brain.data != 0]
+        if len(masked_voxels) > 0:
+            assert np.allclose(
+                masked_voxels, 5.0, rtol=0.1
+            )  # Allow interpolation tolerance
+
+    @pytest.mark.tier2
+    def test_init_resample_single_vs_multi_image(self):
+        """Test resampling works for both single and multi-image data."""
+        import nibabel as nib
+
+        mask_img = nib.load(MNI_Template.mask)
+
+        # Single image
+        data_single = nib.Nifti1Image(
+            np.random.randn(*mask_img.shape),
+            affine=mask_img.affine * 2,  # Different space
+        )
+        brain_single = BrainData(data_single, resample=True)
+        assert len(brain_single.shape) == 1 or brain_single.shape[0] == 1
+
+        # Multi-image
+        data_multi = nib.Nifti1Image(
+            np.random.randn(*mask_img.shape + (5,)),
+            affine=mask_img.affine * 2,  # Different space
+        )
+        brain_multi = BrainData(data_multi, resample=True)
+        assert brain_multi.shape[0] == 5
+
     @pytest.mark.tier2
     def test_load(self, tmpdir):
         """Test loading BrainData from various sources and formats."""
@@ -839,7 +1028,7 @@ class TestBrainData:
         # Verify progress_bar parameter exists and defaults to False
         assert hasattr(sim_brain_data.model_, "progress_bar")
         assert sim_brain_data.model_.progress_bar is False
-        
+
         # Test with progress_bar=True to verify it's respected
         sim_brain_data.fit(
             model="glm", noise_model="ols", X=design_matrix, progress_bar=True

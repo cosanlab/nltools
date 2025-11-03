@@ -176,7 +176,13 @@ def fetch_emotion_ratings(data_dir=None, verbose=1):
         raise RuntimeError(f"Failed to fetch emotion ratings dataset: {e}")
 
 
-def fetch_haxby(n_subjects=1, data_dir=None, verbose=1):
+def fetch_haxby(
+    n_subjects=1,
+    data_dir=None,
+    verbose=1,
+    mask="haxby_mask",
+    resample=False,
+):
     """Download and load Haxby2001 dataset from nilearn.
 
     Args:
@@ -187,6 +193,8 @@ def fetch_haxby(n_subjects=1, data_dir=None, verbose=1):
             - `n_subjects=None` or `'all'`: Returns all runs for all subjects (nested lists)
         data_dir (str, optional): Directory to store downloaded data. Default: None
         verbose (int, optional): Verbosity level. Default: 1
+        resample (bool, default=True): Whether to automatically resample data to mask space.
+            See BrainData.__init__() for details.
 
     Returns:
         tuple:
@@ -305,10 +313,12 @@ def fetch_haxby(n_subjects=1, data_dir=None, verbose=1):
         # For now, let's assume we create one BrainData per chunk (run)
         # Load the full func file
         func_file = nilearn_data.func[0]
-        mask_file = nilearn_data.mask
+        mask_file = nilearn_data.mask if mask == "haxby_mask" else mask
 
         # Load full BrainData
-        full_brain_data = BrainData(func_file, mask=mask_file, verbose=0)
+        full_brain_data = BrainData(
+            func_file, mask=mask_file, verbose=0, resample=resample
+        )
 
         # Parse labels to get events per chunk
         labels_file = nilearn_data.session_target[0]

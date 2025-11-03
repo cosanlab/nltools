@@ -85,6 +85,10 @@ class BrainData(object):
                 - URL to download data from
             mask: Brain mask as nibabel object, file path, or None (uses MNI template).
             masker: nilearn masker object (e.g. ROI or searchlight extractor); Default will load data as voxels
+            resample (bool, default=True): Whether to automatically resample data to mask space.
+                - If True: Data is resampled to match mask spatial characteristics (affine, shape)
+                - If False: Data must already be in mask space (faster, but may raise errors if spaces don't match)
+                - Default True preserves backward compatibility with v0.5.1 behavior
             **kwargs: Additional arguments passed to NiftiMasker.
         """
         # Import validation functions
@@ -93,6 +97,9 @@ class BrainData(object):
         # Initialize attributes
         self._h5_compression = kwargs.pop("h5_compression", "gzip")
         self.verbose = kwargs.pop("verbose", False)
+        self._resample = kwargs.pop(
+            "resample", True
+        )  # Default True for backward compatibility
         self.design_matrix = None
         self.masker = masker
         self._labels = None
@@ -145,6 +152,24 @@ class BrainData(object):
         )
         self.nifti_masker.fit()
 
+    def _check_space_match(self, data_img, mask_img):
+        """Check if data and mask are in same space.
+
+        Args:
+            data_img: nibabel Nifti1Image object
+            mask_img: nibabel Nifti1Image object (mask)
+
+        Returns:
+            bool: True if spaces match (no resampling needed), False otherwise
+        """
+        # Compare affine matrices
+        affine_match = np.allclose(data_img.affine, mask_img.affine, rtol=1e-3)
+
+        # Compare spatial shapes
+        shape_match = data_img.shape[:3] == mask_img.shape[:3]
+
+        return affine_match and shape_match
+
     def _load_from_list(self, data_list):
         """Load data from a list of BrainData objects or file paths.
 
@@ -167,10 +192,77 @@ class BrainData(object):
                 with open(os.devnull, "w") as devnull:
                     with redirect_stdout(devnull):
                         for item in data_list:
-                            self.data.append(self.nifti_masker.transform(item))
+                            # Load nibabel image if file path
+                            if isinstance(item, (str, Path)):
+                                item_img = nib.load(str(item))
+                            elif isinstance(item, nib.Nifti1Image):
+                                item_img = item
+                            else:
+                                raise TypeError(
+                                    f"List items must be file paths or nibabel Nifti1Image. "
+                                    f"Received {type(item).__name__}"
+                                )
+
+                            # Check if resampling is needed
+                            if self._resample:
+                                if not self._check_space_match(item_img, self.mask):
+                                    item_img = resample_to_img(
+                                        item_img,
+                                        self.mask,
+                                        interpolation="continuous",
+                                        copy_header=True,
+                                        force_resample=True,
+                                    )
+                            else:
+                                # Check if spaces match when resample=False
+                                if not self._check_space_match(item_img, self.mask):
+                                    raise ValueError(
+                                        f"Data item and mask are in different spaces. "
+                                        f"Set resample=True to automatically resample data to mask space, "
+                                        f"or ensure all data items are already in the same space as the mask.\n"
+                                        f"Item affine:\n{item_img.affine}\n"
+                                        f"Mask affine:\n{self.mask.affine}\n"
+                                        f"Item shape: {item_img.shape[:3]}\n"
+                                        f"Mask shape: {self.mask.shape[:3]}"
+                                    )
+
+                            self.data.append(self.nifti_masker.transform(item_img))
             else:
                 for item in data_list:
-                    self.data.append(self.nifti_masker.transform(item))
+                    # Load nibabel image if file path
+                    if isinstance(item, (str, Path)):
+                        item_img = nib.load(str(item))
+                    elif isinstance(item, nib.Nifti1Image):
+                        item_img = item
+                    else:
+                        raise TypeError(
+                            f"List items must be file paths or nibabel Nifti1Image. "
+                            f"Received {type(item).__name__}"
+                        )
+
+                    # Check if resampling is needed
+                    if self._resample:
+                        if not self._check_space_match(item_img, self.mask):
+                            item_img = resample_to_img(
+                                item_img,
+                                self.mask,
+                                interpolation="continuous",
+                                copy_header=True,
+                            )
+                    else:
+                        # Check if spaces match when resample=False
+                        if not self._check_space_match(item_img, self.mask):
+                            raise ValueError(
+                                f"Data item and mask are in different spaces. "
+                                f"Set resample=True to automatically resample data to mask space, "
+                                f"or ensure all data items are already in the same space as the mask.\n"
+                                f"Item affine:\n{item_img.affine}\n"
+                                f"Mask affine:\n{self.mask.affine}\n"
+                                f"Item shape: {item_img.shape[:3]}\n"
+                                f"Mask shape: {self.mask.shape[:3]}"
+                            )
+
+                    self.data.append(self.nifti_masker.transform(item_img))
             # Use vstack for nilearn 0.12+ compatibility (transforms 3D → 1D instead of 3D → 2D)
             self.data = np.vstack(self.data)
 
@@ -227,13 +319,59 @@ class BrainData(object):
         Args:
             data: File path or nibabel object.
         """
+        # Load nibabel image if file path
+        if isinstance(data, (str, Path)):
+            data_img = nib.load(str(data))
+        elif isinstance(data, nib.Nifti1Image):
+            data_img = data
+        else:
+            raise TypeError(
+                f"data must be a file path or nibabel Nifti1Image. "
+                f"Received {type(data).__name__}"
+            )
+
+        # Check if resampling is needed
+        if self._resample:
+            # Check if spaces match
+            if not self._check_space_match(data_img, self.mask):
+                # Resample data to mask space
+                if not self.verbose:
+                    with open(os.devnull, "w") as devnull:
+                        with redirect_stdout(devnull):
+                            data_img = resample_to_img(
+                                data_img,
+                                self.mask,
+                                interpolation="continuous",
+                                copy_header=True,
+                                force_resample=True,
+                            )
+                else:
+                    data_img = resample_to_img(
+                        data_img,
+                        self.mask,
+                        interpolation="continuous",
+                        copy_header=True,
+                    )
+        else:
+            # Check if spaces match when resample=False
+            if not self._check_space_match(data_img, self.mask):
+                raise ValueError(
+                    f"Data and mask are in different spaces (affine or shape mismatch). "
+                    f"Set resample=True to automatically resample data to mask space, "
+                    f"or ensure data is already in the same space as the mask.\n"
+                    f"Data affine:\n{data_img.affine}\n"
+                    f"Mask affine:\n{self.mask.affine}\n"
+                    f"Data shape: {data_img.shape[:3]}\n"
+                    f"Mask shape: {self.mask.shape[:3]}"
+                )
+
         # Transform data using masker
         if not self.verbose:
             with open(os.devnull, "w") as devnull:
                 with redirect_stdout(devnull):
-                    self.data = self.nifti_masker.transform(data)
+                    self.data = self.nifti_masker.transform(data_img)
         else:
-            self.data = self.nifti_masker.transform(data)
+            self.data = self.nifti_masker.transform(data_img)
 
     def _perform_arithmetic(self, other, operation, operation_name, inplace=False):
         """Perform arithmetic operation with validation.
@@ -871,49 +1009,6 @@ class BrainData(object):
         scores = self.model_.score(X, self.data)  # (n_voxels,)
         self.ridge_scores = self._shallow_copy_with_data()
         self.ridge_scores.data = scores.reshape(1, -1)  # (1, n_voxels)
-
-    def _compute_ridge_cv(
-        self, X, cv, alpha=None, alphas=None, backend="auto", **kwargs
-    ):
-        """Compute cross-validation results for Ridge regression.
-
-        Args:
-            X (ndarray): Training features, shape (n_samples, n_features)
-            cv (int, 'auto', or sklearn CV splitter): Cross-validation specification
-            alpha (float or 'auto', optional): Regularization strength (extracted from model if not provided)
-            alphas (array-like, optional): Alpha values to try for alpha selection
-            backend (str): Computational backend ('numpy', 'torch', 'auto'). Default: 'auto'
-            **kwargs (dict): Additional arguments (currently unused, for future extensibility)
-
-        Returns:
-            dict: Dictionary containing:
-                - 'scores': (n_folds, n_voxels) array of R² per fold
-                - 'mean_score': (n_voxels,) array of mean R² across folds
-                - 'predictions': BrainData of out-of-fold predictions
-                - 'folds': (n_samples,) array of fold indices
-                - 'best_alpha': Selected alpha (if alpha selection performed)
-                - 'alpha_scores': (n_folds, n_alphas, n_voxels) array (if alpha selection)
-        """
-        from sklearn.model_selection import check_cv
-        from sklearn.metrics import r2_score
-        from nltools.algorithms.ridge import ridge_cv, ridge_svd
-
-        # Get alpha from model if not explicitly provided
-        if alpha is None:
-            alpha = self.model_.alpha if hasattr(self.model_, "alpha") else 1.0
-
-        # Normalize cv parameter
-        if cv == "auto":
-            # cv='auto' implies alpha selection with default 5 folds
-            cv_splitter = check_cv(5)
-            perform_alpha_selection = True
-        elif isinstance(cv, int):
-            cv_splitter = check_cv(cv)
-            perform_alpha_selection = alpha == "auto"
-        else:
-            # Assume sklearn CV object
-            cv_splitter = cv
-            perform_alpha_selection = alpha == "auto"
 
     def _compute_ridge_cv(
         self, X, cv, alpha=None, alphas=None, backend="auto", **kwargs
@@ -2815,6 +2910,366 @@ class BrainData(object):
         predictions.data = y_pred
 
         return predictions
+
+    def plot(
+        self,
+        kind="glass",
+        thr_upper=None,
+        thr_lower=None,
+        threshold=None,
+        cut_coords=None,
+        cmap=None,
+        bg_img=None,
+        ax=None,
+        title=None,
+        colorbar=True,
+        save=None,
+        stat="mean",
+        **kwargs,
+    ):
+        """Plot BrainData instance using nilearn visualization or matplotlib.
+
+        Creates brain visualizations using glass brain and/or multi-slice views,
+        or matplotlib plots for timeseries/histograms. Respects MNI_Template settings
+        for background image selection.
+
+        Args:
+            kind (str): Visualization type:
+                - 'glass': Glass brain only
+                - 'slices': Multi-slice views only
+                - 'timeseries': Matplotlib line plot (mean/median/std across voxels)
+                - 'histogram': Matplotlib histogram of voxel values
+            thr_upper (str/float, optional): Upper threshold. Can be:
+                - Float/int: Absolute threshold value
+                - String ending in '%': Percentile threshold (e.g., '95%')
+            thr_lower (str/float, optional): Lower threshold (same format as thr_upper)
+            threshold (float, optional): Convenience parameter. If positive, sets thr_upper.
+                If negative, sets thr_lower. Overrides thr_upper/thr_lower if provided.
+            cut_coords (list, optional): Cut coordinates for multi-slice views.
+                Format: [[x_coords], [y_coords], [z_coords]].
+                If None, uses default coordinates.
+            cmap (str, optional): Colormap name. If None, auto-selects based on data.
+            bg_img (str/nibabel image, optional): Background image.
+                If None, uses get_mni_from_img_resolution() which respects MNI_Template settings.
+            ax (matplotlib.axes.Axes, optional): Matplotlib axis for timeseries/histogram plots.
+                If None, creates new figure.
+            title (str, optional): Plot title. If None, auto-generates based on data.
+            colorbar (bool): Whether to show colorbar (nilearn plots only). Default: True.
+            save (str, optional): Path to save figure(s). If provided, saves plots.
+            stat (str): Statistic for timeseries plots ('mean', 'median', 'std').
+                Default: 'mean'. Only used when kind='timeseries'.
+            **kwargs: Additional arguments passed to nilearn plot functions.
+
+        Returns:
+            Display or matplotlib Figure: Nilearn Display object(s) or matplotlib Figure.
+
+        Raises:
+            ValueError: If BrainData is empty or invalid 'kind' parameter.
+            RuntimeError: If to_nifti() conversion fails.
+
+        Examples:
+            >>> # Basic plotting with defaults
+            >>> brain.plot()
+            >>>
+            >>> # Glass brain only
+            >>> brain.plot(kind='glass')
+            >>>
+            >>> # Multi-slice views
+            >>> brain.plot(kind='slices')
+            >>>
+            >>> # With thresholding
+            >>> brain.plot(thr_upper='95%')
+            >>> brain.plot(threshold=2.5)  # Convenience parameter
+            >>>
+            >>> # Timeseries plotting
+            >>> brain.plot(kind='timeseries', stat='mean')
+            >>> brain.plot(kind='timeseries', stat='std', ax=my_axis)
+            >>>
+            >>> # Histogram plotting
+            >>> brain.plot(kind='histogram')
+            >>>
+            >>> # Custom title
+            >>> brain.plot(title='My Brain Map')
+
+        Note:
+            This method respects MNI_Template settings (from nltools.prefs).
+            Background images are automatically selected based on data resolution
+            and current MNI_Template.template/resolution settings.
+        """
+        from nilearn.plotting import plot_glass_brain, plot_stat_map
+        from nltools.utils import get_mni_from_img_resolution
+        import matplotlib.pyplot as plt
+
+        # Validate inputs
+        if self.isempty:
+            raise ValueError("Cannot plot empty BrainData object")
+
+        # Handle convenience threshold parameter
+        if threshold is not None:
+            if threshold >= 0:
+                thr_upper = threshold
+            else:
+                thr_lower = threshold
+
+        # Validate 'kind' parameter
+        valid_kinds = ["glass", "slices", "timeseries", "histogram"]
+        if kind not in valid_kinds:
+            raise ValueError(
+                f"Invalid 'kind' parameter: '{kind}'. Must be one of: {valid_kinds}. "
+            )
+
+        # Handle matplotlib-based plots (timeseries, histogram)
+        if kind in ["timeseries", "histogram"]:
+            return self._plot_matplotlib(
+                kind=kind, stat=stat, ax=ax, title=title, save=save
+            )
+
+        # Handle thresholding
+        if thr_upper or thr_lower:
+            obj = self.threshold(upper=thr_upper, lower=thr_lower)
+        else:
+            obj = self
+
+        # Ensure single image for plotting
+        if len(obj.shape) > 1 and obj.shape[0] > 1:
+            obj = obj[0]
+
+        # Default cut coordinates
+        if cut_coords is None:
+            cut_coords = [
+                range(-50, 51, 8),  # x coordinates
+                range(-80, 50, 10),  # y coordinates
+                range(-40, 71, 9),  # z coordinates
+            ]
+
+        # Default colormap with auto-selection
+        if cmap is None:
+            cmap = self._auto_select_colormap(obj.data)
+
+        # Views for multi-slice plotting
+        views = ["x", "y", "z"]
+
+        # Handle save paths
+        save_paths = self._prepare_save_paths(save) if save else None
+
+        # Convert to nifti
+        try:
+            nifti_img = obj.to_nifti()
+        except Exception as e:
+            raise RuntimeError(f"Failed to convert BrainData to NIfTI: {e}") from e
+
+        # Plot based on 'kind' parameter
+        display_objects = []
+
+        # Prepare kwargs with title if provided
+        # Remove 'how' from kwargs if present (backward compatibility)
+        plot_kwargs = kwargs.copy()
+        plot_kwargs.pop("how", None)  # Remove 'how' if accidentally passed
+        if title:
+            plot_kwargs["title"] = title
+
+        if kind == "glass":
+            display_glass = plot_glass_brain(
+                nifti_img,
+                display_mode="lzry",
+                colorbar=colorbar,
+                cmap=cmap,
+                plot_abs=False,
+                **plot_kwargs,
+            )
+            display_objects.append(display_glass)
+            if save_paths:
+                plt.savefig(save_paths["glass"], bbox_inches="tight")
+
+        elif kind == "slices":
+            # Background image selection (respects MNI_Template)
+            if bg_img is None:
+                try:
+                    bg_img = get_mni_from_img_resolution(obj, img_type="brain")
+                except ValueError as e:
+                    # Handle non-isometric voxels gracefully
+                    if "isometric" in str(e).lower():
+                        # Use default MNI template as fallback
+                        from nltools.prefs import MNI_Template
+
+                        warnings.warn(
+                            f"Non-isometric voxels detected: {str(e)}. "
+                            f"Using default MNI152 template ({MNI_Template.template}, "
+                            f"{MNI_Template.resolution}mm) as background image. "
+                            f"To use a custom background, provide bg_img parameter.",
+                            UserWarning,
+                            stacklevel=2,
+                        )
+                        bg_img = MNI_Template.brain
+                    else:
+                        # Re-raise if it's a different ValueError
+                        raise
+            for v, c, savefile in zip(
+                views, cut_coords, save_paths["slices"] if save_paths else [None] * 3
+            ):
+                display_slice = plot_stat_map(
+                    nifti_img,
+                    cut_coords=c,
+                    display_mode=v,
+                    cmap=cmap,
+                    bg_img=bg_img,
+                    colorbar=colorbar,
+                    **plot_kwargs,
+                )
+                display_objects.append(display_slice)
+                if savefile:
+                    plt.savefig(savefile, bbox_inches="tight")
+
+        # Return last display object or None
+        return display_objects[-1] if display_objects else None
+
+    def _plot_matplotlib(
+        self,
+        kind,
+        stat="mean",
+        ax=None,
+        title=None,
+        save=None,
+    ):
+        """Plot using matplotlib (timeseries or histogram).
+
+        Args:
+            kind (str): 'timeseries' or 'histogram'
+            stat (str): Statistic for timeseries ('mean', 'median', 'std')
+            ax (matplotlib.axes.Axes, optional): Axis to plot on
+            title (str, optional): Plot title
+            save (str, optional): Path to save figure
+
+        Returns:
+            matplotlib.figure.Figure: Figure object
+        """
+        import matplotlib.pyplot as plt
+
+        # Create axis if not provided
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(8, 6))
+        else:
+            fig = ax.figure
+
+        if kind == "timeseries":
+            # For single image, raise informative error
+            if len(self.shape) == 1 or (len(self.shape) > 1 and self.shape[0] == 1):
+                raise ValueError(
+                    "timeseries plotting requires multiple images. "
+                    f"Got {self.shape[0] if len(self.shape) > 1 else 1} image(s). "
+                    "Use histogram for single image visualization."
+                )
+
+            # Compute statistic across voxels for each image
+            if stat == "mean":
+                values = self.mean(axis=1)
+            elif stat == "median":
+                values = self.median(axis=1)
+            elif stat == "std":
+                values = self.std(axis=1)
+            else:
+                raise ValueError(
+                    f"Invalid stat '{stat}'. Must be 'mean', 'median', or 'std'"
+                )
+
+            # Ensure values is 1D array
+            if hasattr(values, "data"):
+                values = values.data
+            values = np.array(values).flatten()
+
+            # Plot
+            ax.plot(values, linewidth=2)
+            ax.set_xlabel("Image Index", fontsize=12)
+            ax.set_ylabel(f"{stat.capitalize()} Across Voxels", fontsize=12)
+            if title is None:
+                title = f"{stat.capitalize()} Across Voxels"
+            ax.set_title(title, fontsize=14)
+            ax.grid(True, alpha=0.3)
+
+        elif kind == "histogram":
+            # Flatten data for histogram
+            if len(self.shape) == 1:
+                data_flat = self.data
+            else:
+                data_flat = self.data.flatten()
+
+            # Remove NaN/Inf
+            data_flat = data_flat[np.isfinite(data_flat)]
+
+            # Plot histogram
+            ax.hist(data_flat, bins=50, edgecolor="black", alpha=0.7)
+            ax.set_xlabel("Voxel Value", fontsize=12)
+            ax.set_ylabel("Frequency", fontsize=12)
+            if title is None:
+                title = "Voxel Value Distribution"
+            ax.set_title(title, fontsize=14)
+            ax.grid(True, alpha=0.3)
+
+        # Save if requested
+        if save:
+            fig.savefig(save, bbox_inches="tight", dpi=150)
+
+        return fig
+
+    def _auto_select_colormap(self, data):
+        """Auto-select colormap based on data characteristics.
+
+        Args:
+            data: numpy array of brain data
+
+        Returns:
+            str: Colormap name
+        """
+        # Flatten data for analysis
+        if data.ndim > 1:
+            data_flat = data.flatten()
+        else:
+            data_flat = data
+
+        # Remove NaN/Inf
+        data_flat = data_flat[np.isfinite(data_flat)]
+
+        if len(data_flat) == 0:
+            return "RdBu_r"  # Default fallback
+
+        # Check data range for colormap selection
+        # If mostly positive (> 90% positive), use hot/reds
+        positive_ratio = np.sum(data_flat > 0) / len(data_flat)
+        if positive_ratio > 0.9:
+            return "hot"
+        # If mostly negative (> 90% negative), use cool/blues
+        elif (1 - positive_ratio) > 0.9:
+            return "cool"
+        # Otherwise use bipolar
+        else:
+            return "RdBu_r"
+
+    def _prepare_save_paths(self, save):
+        """Prepare save paths for multiple plot outputs.
+
+        Args:
+            save: Base save path (str or Path)
+
+        Returns:
+            dict: Dictionary with 'glass' and 'slices' keys containing save paths
+        """
+        save = str(save)  # Convert Path objects to strings
+        path, filename = os.path.split(save)
+        if "." in filename:
+            filename, extension = filename.rsplit(".", 1)
+        else:
+            extension = "png"
+
+        base_path = os.path.join(path, filename) if path else filename
+
+        return {
+            "glass": f"{base_path}_glass.{extension}",
+            "slices": [
+                f"{base_path}_x.{extension}",
+                f"{base_path}_y.{extension}",
+                f"{base_path}_z.{extension}",
+            ],
+        }
 
     # TODO: refactor to make use of new Model class
     def randomise(self, *args, **kwargs):

@@ -227,7 +227,9 @@ class Ridge(BaseModel):
             # Multiple feature spaces: use solve_banded_ridge_cv (true banded ridge)
             # Convert backend to string for solve_banded_ridge_cv (expects 'cpu' or 'gpu', not 'numpy')
             if isinstance(self.backend_, Backend):
-                backend_name = self.backend_.name if hasattr(self.backend_, "name") else "cpu"
+                backend_name = (
+                    self.backend_.name if hasattr(self.backend_, "name") else "cpu"
+                )
             else:
                 backend_name = str(self.backend_)
             # Map 'numpy' to 'cpu' for solve_banded_ridge_cv compatibility
