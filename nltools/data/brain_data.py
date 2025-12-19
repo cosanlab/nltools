@@ -3383,8 +3383,6 @@ class BrainData(object):
 
         return out
 
-    # TODO: does our function offer something beyond what's in nilearn? If so can we make it more efficient?
-    # NOTE: nltools.stats
     def find_spikes(self, global_spike_cutoff=3, diff_spike_cutoff=3):
         """Function to identify spikes from Time Series Data
 
@@ -3901,14 +3899,14 @@ class BrainData(object):
             ],
         }
 
-    # TODO: refactor to make use of new Model class
+    # NOTE: Tracked in beads issue nltools-5dw for Model class refactoring
     def randomise(self, *args, **kwargs):
         """DEPRECATED: This method has been moved to the Model class."""
         raise NotImplementedError(
             "randomise() has been deprecated. Please use the new Model class for permutation-based inference."
         )
 
-    # TODO: refactor to make use of new Model class
+    # NOTE: Tracked in beads issue nltools-5dw for Model class refactoring
     def ttest(self, *args, **kwargs):
         """DEPRECATED: This method has been moved to the Model class."""
         raise NotImplementedError(
