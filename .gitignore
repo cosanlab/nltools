@@ -72,3 +72,5 @@ audit/
 claude-research/
 benchmarks/results/
 
+.beads/
+.github/copilot-instructions.md
