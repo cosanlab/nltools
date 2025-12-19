@@ -1,5 +1,5 @@
 # CLAUDE.md — nltools Development Guide
-*Last updated: 2025-11-01*
+*Last updated: 2025-12-18*
 
 **Note**: This project uses [bd (beads)](https://github.com/steveyegge/beads)
 for issue tracking. Use `bd` commands instead of markdown TODOs.
@@ -25,10 +25,12 @@ Build and refactor `nltools`, a neuroimaging library with a delightful and intui
   - Imperative: `nltools/data/` (`BrainData`, `Adjacency`, `DesignMatrix`)
   - Functional: `stats.py`, `utils.py`, `algorithms/` (`ridge`, `srm`, `hyperalignment`, `inference`)
 - **Research & background**: `claude-research/` (use sub-agents to add new research here)
-- **Active planning system**: `plans/` - **ALWAYS CHECK HERE FIRST**
-  - **Primary docs**: `v0.6.0-SUMMARY.md` → `v0.6.0-ACTION-PLAN.md` → `v0.6.0-VERIFICATION.md`
-  - **Reference**: `refactor-progress.md` (session notes), `STATS_TODO_ACTION_PLAN.md`, `MIGRATION_PLAN_STATS_TO_INFERENCE.md`
-  - **Read**: `plans/README.md` for navigation guide
+- **Task tracking**: Use `bd` (beads) for all issue/task management
+  - **Find work**: `bd ready` or `bd list --status=open`
+  - **Create issues**: `bd create --title="..." --type=task --priority=2`
+  - **Update/close**: `bd update <id> --status=in_progress`, `bd close <id>`
+  - **Sync**: `bd sync` at session end
+  - **Reference**: `plans/README.md` for beads commands and archived plans
 
 
 ## SUB-AGENT usage protocol
