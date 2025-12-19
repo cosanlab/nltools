@@ -993,7 +993,7 @@ def surface_plot(
     cmap="RdBu_r",
     vmax=None,
     vmin=None,
-    darkness=0.5,
+    darkness=None,
     bg_on_data=False,
     colorbar=False,
     figsize=(10, 10),
@@ -1028,7 +1028,7 @@ def surface_plot(
         cmap (str, optional): Colormap name. Defaults to 'RdBu_r'.
         vmax (float, optional): Maximum value for colormap scaling.
         vmin (float, optional): Minimum value for colormap scaling.
-        darkness (float, optional): Background darkness (0-1). Defaults to 0.5.
+        darkness (float or None, optional): Background darkness (0-1). Defaults to None.
         bg_on_data (bool, optional): Overlay background on data. Defaults to False.
         colorbar (bool, optional): Show colorbar. Defaults to False.
         figsize (tuple, optional): Figure size tuple (width, height).

@@ -118,7 +118,6 @@ class TestSurfacePlot:
             threshold=0.5,
             vmax=1.0,
             vmin=-1.0,
-            darkness=0.7,
             colorbar=False,
         )
         assert fig is not None
