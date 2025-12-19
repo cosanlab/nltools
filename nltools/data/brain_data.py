@@ -134,9 +134,13 @@ class BrainData(object):
         elif data_type in ["file", "nibabel"]:
             self._load_from_file(data)
 
-        # Collapse any extra data dimension
-        if self.data is not None and 1 in self.data.shape:
-            self.data = self.data.squeeze()
+        # Collapse extra trailing dimensions, but preserve samples dimension for list inputs
+        # List inputs should always be 2D (n_samples, n_voxels) even with 1 sample
+        # Direct file inputs should be 1D (n_voxels,) for single images
+        if self.data is not None and self.data.ndim > 1 and data_type != "list":
+            # Only squeeze for non-list inputs (direct file, nibabel, url)
+            if 1 in self.data.shape:
+                self.data = self.data.squeeze()
 
         # Set X and Y if provided (override copied values if explicitly provided)
         if X is not None:
