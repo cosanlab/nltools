@@ -57,6 +57,43 @@ tables = attempt_to_import("tables")
 MAX_INT = np.iinfo(np.int32).max
 
 
+def _detect_interpolation(img):
+    """Detect appropriate interpolation method based on image data type.
+
+    Determines whether an image contains discrete (atlas/label) or continuous
+    data by checking if values are integers and counting unique values.
+
+    Args:
+        img: nibabel Nifti1Image or similar image object with get_fdata() method
+
+    Returns:
+        str: 'nearest' for discrete/atlas data, 'continuous' for continuous data
+
+    Notes:
+        - Returns 'nearest' if all non-NaN values are integers AND unique count < 1000
+        - Atlases typically have < 500 unique integer labels
+        - Statistical maps have continuous floating-point values
+    """
+    data = img.get_fdata()
+
+    # Handle empty or all-NaN data
+    valid_data = data[~np.isnan(data)]
+    if valid_data.size == 0:
+        return "continuous"
+
+    # Check if all values are effectively integers
+    is_integer_valued = np.allclose(valid_data, np.round(valid_data), rtol=1e-10)
+
+    if is_integer_valued:
+        n_unique = len(np.unique(valid_data))
+        # Atlases typically have < 1000 unique labels (most have < 500)
+        # Continuous data would have many more unique values
+        if n_unique < 1000:
+            return "nearest"
+
+    return "continuous"
+
+
 class BrainData(object):
     """
     BrainData is a class to represent neuroimaging data in python as a vector
@@ -96,6 +133,13 @@ class BrainData(object):
                 - If True: Data is resampled to match mask spatial characteristics (affine, shape)
                 - If False: Data must already be in mask space (faster, but may raise errors if spaces don't match)
                 - Default True preserves backward compatibility with v0.5.1 behavior
+            interpolation (str, default='auto'): Interpolation method for resampling.
+                - 'auto': Automatically detect based on data type (recommended)
+                    - Uses 'nearest' for discrete data (atlases, masks, labels)
+                    - Uses 'continuous' for continuous data (stat maps, beta images)
+                - 'nearest': Nearest-neighbor, preserves discrete values (use for atlases)
+                - 'linear': Linear interpolation
+                - 'continuous': Higher-order spline interpolation (use for stat maps)
             **kwargs: Additional arguments passed to NiftiMasker.
         """
         # Import validation functions
@@ -107,6 +151,16 @@ class BrainData(object):
         self._resample = kwargs.pop(
             "resample", True
         )  # Default True for backward compatibility
+        self._interpolation = kwargs.pop(
+            "interpolation", "auto"
+        )  # 'auto', 'nearest', 'linear', or 'continuous'
+        # Validate interpolation parameter
+        valid_interpolations = ("auto", "nearest", "linear", "continuous")
+        if self._interpolation not in valid_interpolations:
+            raise ValueError(
+                f"interpolation must be one of {valid_interpolations}, "
+                f"got '{self._interpolation}'"
+            )
         self.design_matrix = None
         self.masker = masker
         self._labels = None
@@ -210,6 +264,21 @@ class BrainData(object):
         # Determine space (MNI or native) based on mask
         self._space = self._detect_space(self.mask)
 
+    def _get_interpolation(self, img):
+        """Get the interpolation method to use for a given image.
+
+        Resolves 'auto' to either 'nearest' or 'continuous' based on data type.
+
+        Args:
+            img: nibabel image to check (used when interpolation='auto')
+
+        Returns:
+            str: 'nearest', 'linear', or 'continuous'
+        """
+        if self._interpolation == "auto":
+            return _detect_interpolation(img)
+        return self._interpolation
+
     def _detect_and_update_mask(self, data_img):
         """Detect best matching template from data and update mask if mask was None.
 
@@ -243,7 +312,7 @@ class BrainData(object):
                                 data_img = resample_to_img(
                                     data_img,
                                     self.mask,
-                                    interpolation="continuous",
+                                    interpolation=self._get_interpolation(data_img),
                                     copy_header=True,
                                     force_resample=True,
                                 )
@@ -251,7 +320,7 @@ class BrainData(object):
                         data_img = resample_to_img(
                             data_img,
                             self.mask,
-                            interpolation="continuous",
+                            interpolation=self._get_interpolation(data_img),
                             copy_header=True,
                         )
             return data_img
@@ -310,7 +379,7 @@ class BrainData(object):
                                     data_img = resample_to_img(
                                         data_img,
                                         self.mask,
-                                        interpolation="continuous",
+                                        interpolation=self._get_interpolation(data_img),
                                         copy_header=True,
                                         force_resample=True,
                                     )
@@ -318,7 +387,7 @@ class BrainData(object):
                             data_img = resample_to_img(
                                 data_img,
                                 self.mask,
-                                interpolation="continuous",
+                                interpolation=self._get_interpolation(data_img),
                                 copy_header=True,
                             )
                     else:
@@ -355,7 +424,7 @@ class BrainData(object):
                                 data_img = resample_to_img(
                                     data_img,
                                     self.mask,
-                                    interpolation="continuous",
+                                    interpolation=self._get_interpolation(data_img),
                                     copy_header=True,
                                     force_resample=True,
                                 )
@@ -363,7 +432,7 @@ class BrainData(object):
                         data_img = resample_to_img(
                             data_img,
                             self.mask,
-                            interpolation="continuous",
+                            interpolation=self._get_interpolation(data_img),
                             copy_header=True,
                         )
                 else:
@@ -510,7 +579,7 @@ class BrainData(object):
                                     item_img = resample_to_img(
                                         item_img,
                                         self.mask,
-                                        interpolation="continuous",
+                                        interpolation=self._get_interpolation(item_img),
                                         copy_header=True,
                                         force_resample=True,
                                     )
@@ -550,7 +619,7 @@ class BrainData(object):
                             item_img = resample_to_img(
                                 item_img,
                                 self.mask,
-                                interpolation="continuous",
+                                interpolation=self._get_interpolation(item_img),
                                 copy_header=True,
                             )
                     else:
@@ -621,7 +690,7 @@ class BrainData(object):
                     resampled_nifti = resample_to_img(
                         source_nifti,
                         new_mask,
-                        interpolation="continuous",
+                        interpolation=self._get_interpolation(source_nifti),
                         copy_header=True,
                         force_resample=True,
                     )
@@ -758,7 +827,7 @@ class BrainData(object):
                             data_img = resample_to_img(
                                 data_img,
                                 self.mask,
-                                interpolation="continuous",
+                                interpolation=self._get_interpolation(data_img),
                                 copy_header=True,
                                 force_resample=True,
                             )
@@ -766,7 +835,7 @@ class BrainData(object):
                     data_img = resample_to_img(
                         data_img,
                         self.mask,
-                        interpolation="continuous",
+                        interpolation=self._get_interpolation(data_img),
                         copy_header=True,
                     )
 
@@ -1182,7 +1251,7 @@ class BrainData(object):
 
         return self.nifti_masker.inverse_transform(self.data)
 
-    def resample_to(self, img=None, resolution=None, interpolation="continuous"):
+    def resample_to(self, img=None, resolution=None, interpolation=None):
         """Resample BrainData to match target image or resolution.
 
         Args:
@@ -1193,6 +1262,11 @@ class BrainData(object):
             resolution: Target voxel size in mm. Can be:
                 - float/int: Isotropic resolution (e.g., 2.0 = 2mm³)
                 - None (if using img parameter)
+            interpolation: Interpolation method for resampling. Can be:
+                - None (default): Uses instance's interpolation setting
+                - 'nearest': Nearest-neighbor (for atlases, masks, labels)
+                - 'linear': Linear interpolation
+                - 'continuous': Higher-order spline (for stat maps)
 
         Returns:
             BrainData: New BrainData instance with resampled data
@@ -1219,6 +1293,10 @@ class BrainData(object):
 
         # Convert current BrainData to nifti
         source_nifti = self.to_nifti()
+
+        # Resolve interpolation: None uses instance setting with auto-detection
+        if interpolation is None:
+            interpolation = self._get_interpolation(source_nifti)
 
         # Ensure source image has proper sform/qform in header (fixes nilearn warning)
         # If sform is not set (code=0), set it from affine to ensure correct resampling
@@ -2201,6 +2279,7 @@ class BrainData(object):
             mask_img = resample_to_img(
                 mask_img,
                 masked.to_nifti(),
+                interpolation="nearest",  # Masks are discrete, use nearest
                 force_resample=True,
                 copy_header=True,
             )

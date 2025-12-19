@@ -1168,6 +1168,105 @@ class TestBrainData:
             brain_source.data, brain_resampled.data, rtol=1e-3, atol=1e-3
         )
 
+    # ==================== Interpolation Tests ====================
+
+    @pytest.mark.tier1
+    def test_interpolation_auto_default(self):
+        """Test that interpolation='auto' is the default."""
+        brain = BrainData()
+        assert brain._interpolation == "auto"
+
+    @pytest.mark.tier1
+    def test_interpolation_explicit_nearest(self):
+        """Test explicit interpolation='nearest' is stored."""
+        brain = BrainData(interpolation="nearest")
+        assert brain._interpolation == "nearest"
+
+    @pytest.mark.tier1
+    def test_interpolation_explicit_continuous(self):
+        """Test explicit interpolation='continuous' is stored."""
+        brain = BrainData(interpolation="continuous")
+        assert brain._interpolation == "continuous"
+
+    @pytest.mark.tier1
+    def test_interpolation_invalid_raises_error(self):
+        """Test invalid interpolation value raises ValueError."""
+        with pytest.raises(ValueError, match="interpolation must be one of"):
+            BrainData(interpolation="invalid")
+
+    @pytest.mark.tier1
+    def test_interpolation_auto_detects_atlas(self, tmpdir):
+        """Test auto-detection uses nearest for atlas/label data."""
+        import nibabel as nib
+
+        # Create atlas with discrete integer labels
+        atlas_data = np.zeros((20, 20, 20))
+        atlas_data[5:10, 5:10, 5:10] = 1
+        atlas_data[10:15, 10:15, 10:15] = 2
+        atlas_data[15:18, 15:18, 15:18] = 3
+
+        # 3mm voxels to force resampling to 2mm template
+        affine = np.eye(4) * 3
+        affine[3, 3] = 1
+        atlas_img = nib.Nifti1Image(atlas_data, affine)
+
+        # Load with auto interpolation
+        brain = BrainData(atlas_img, interpolation="auto")
+
+        # Values should remain discrete (no interpolation artifacts)
+        unique_vals = np.unique(brain.data)
+        # With nearest interpolation, we should have only a few discrete values
+        # (some may be 0 due to masking, but shouldn't have many intermediate values)
+        assert len(unique_vals) < 10, f"Expected discrete values, got {len(unique_vals)} unique values"
+
+    @pytest.mark.tier1
+    def test_interpolation_auto_detects_continuous(self, tmpdir):
+        """Test auto-detection uses continuous for statistical maps."""
+        import nibabel as nib
+
+        # Create continuous statistical data
+        stat_data = np.random.randn(20, 20, 20)
+
+        # 3mm voxels
+        affine = np.eye(4) * 3
+        affine[3, 3] = 1
+        stat_img = nib.Nifti1Image(stat_data, affine)
+
+        # Load with auto interpolation
+        brain = BrainData(stat_img, interpolation="auto")
+
+        # Continuous data should have many unique values
+        unique_vals = np.unique(brain.data)
+        assert len(unique_vals) > 100, f"Expected many unique values, got {len(unique_vals)}"
+
+    @pytest.mark.tier1
+    def test_resample_to_respects_interpolation(self):
+        """Test resample_to uses instance interpolation setting."""
+        import nibabel as nib
+
+        # Create atlas-like source data with explicit nearest
+        atlas_data = np.zeros((60, 72, 60))
+        atlas_data[20:40, 20:50, 20:40] = 1
+        atlas_data[30:50, 30:60, 30:50] = 2
+
+        affine = np.eye(4) * 3
+        affine[3, 3] = 1
+        atlas_img = nib.Nifti1Image(atlas_data, affine)
+        mask_3mm = nib.Nifti1Image(
+            np.ones((60, 72, 60), dtype=np.float32), affine=affine
+        )
+
+        # Load with explicit nearest interpolation
+        brain = BrainData(atlas_img, mask=mask_3mm, interpolation="nearest", resample=False)
+
+        # Resample to 2mm template
+        mask_2mm = nib.load(MNI_Template.mask)
+        brain_resampled = brain.resample_to(img=mask_2mm)
+
+        # Values should still be discrete after resampling
+        unique_vals = np.unique(brain_resampled.data)
+        assert len(unique_vals) < 10, f"Expected discrete values after resample, got {len(unique_vals)}"
+
     # ==================== Properties & Basic Operations ====================
 
     def test_shape(self, sim_brain_data):
