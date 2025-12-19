@@ -433,10 +433,12 @@ class TestBrainData:
         """Test initialization from BrainData with template name string override."""
         import nibabel as nib
         import warnings
+        from nltools.prefs import MNI_Template
 
-        # Create original BrainData (2mm)
+        # Create original BrainData (2mm) using actual MNI152 affine
+        default_mask = nib.load(MNI_Template.mask)
         data_2mm = nib.Nifti1Image(
-            np.random.randn(91, 109, 91, 10), affine=np.eye(4) * 2
+            np.random.randn(91, 109, 91, 10), affine=default_mask.affine
         )
         brain1 = BrainData(data_2mm, mask=None, resample=True)
 
@@ -587,10 +589,12 @@ class TestBrainData:
     def test_init_mask_none_auto_detect_2mm(self):
         """Test automatic template detection for 2mm data."""
         import nibabel as nib
+        from nltools.prefs import MNI_Template
 
-        # Create 2mm data (matches default template)
+        # Create 2mm data (matches default template) using actual MNI152 affine
+        default_mask = nib.load(MNI_Template.mask)
         data_2mm = nib.Nifti1Image(
-            np.random.randn(91, 109, 91, 10), affine=np.eye(4) * 2
+            np.random.randn(91, 109, 91, 10), affine=default_mask.affine
         )
 
         brain = BrainData(data_2mm, mask=None, resample=True)
@@ -762,10 +766,12 @@ class TestBrainData:
     def test_init_from_brain_data(self):
         """Test initialization from another BrainData object."""
         import nibabel as nib
+        from nltools.prefs import MNI_Template
 
-        # Create original BrainData
+        # Create original BrainData using actual MNI152 affine
+        default_mask = nib.load(MNI_Template.mask)
         data_2mm = nib.Nifti1Image(
-            np.random.randn(91, 109, 91, 10), affine=np.eye(4) * 2
+            np.random.randn(91, 109, 91, 10), affine=default_mask.affine
         )
         brain1 = BrainData(data_2mm, mask=None, resample=True)
 
@@ -782,10 +788,12 @@ class TestBrainData:
         """Test initialization from BrainData with mask override."""
         import nibabel as nib
         import warnings
+        from nltools.prefs import MNI_Template
 
-        # Create original BrainData (2mm)
+        # Create original BrainData (2mm) using actual MNI152 affine
+        default_mask = nib.load(MNI_Template.mask)
         data_2mm = nib.Nifti1Image(
-            np.random.randn(91, 109, 91, 10), affine=np.eye(4) * 2
+            np.random.randn(91, 109, 91, 10), affine=default_mask.affine
         )
         brain1 = BrainData(data_2mm, mask=None, resample=True)
 
@@ -826,10 +834,12 @@ class TestBrainData:
     def test_init_from_brain_data_resample_false_error(self):
         """Test that resample=False raises error when masks don't match."""
         import nibabel as nib
+        from nltools.prefs import MNI_Template
 
-        # Create original BrainData (2mm)
+        # Create original BrainData (2mm) using actual MNI152 affine to avoid resampling warning
+        default_mask = nib.load(MNI_Template.mask)
         data_2mm = nib.Nifti1Image(
-            np.random.randn(91, 109, 91, 10), affine=np.eye(4) * 2
+            np.random.randn(91, 109, 91, 10), affine=default_mask.affine
         )
         brain1 = BrainData(data_2mm, mask=None, resample=True)
 
@@ -1217,7 +1227,9 @@ class TestBrainData:
         unique_vals = np.unique(brain.data)
         # With nearest interpolation, we should have only a few discrete values
         # (some may be 0 due to masking, but shouldn't have many intermediate values)
-        assert len(unique_vals) < 10, f"Expected discrete values, got {len(unique_vals)} unique values"
+        assert len(unique_vals) < 10, (
+            f"Expected discrete values, got {len(unique_vals)} unique values"
+        )
 
     @pytest.mark.tier1
     def test_interpolation_auto_detects_continuous(self, tmpdir):
@@ -1237,7 +1249,9 @@ class TestBrainData:
 
         # Continuous data should have many unique values
         unique_vals = np.unique(brain.data)
-        assert len(unique_vals) > 100, f"Expected many unique values, got {len(unique_vals)}"
+        assert len(unique_vals) > 100, (
+            f"Expected many unique values, got {len(unique_vals)}"
+        )
 
     @pytest.mark.tier1
     def test_resample_to_respects_interpolation(self):
@@ -1257,7 +1271,9 @@ class TestBrainData:
         )
 
         # Load with explicit nearest interpolation
-        brain = BrainData(atlas_img, mask=mask_3mm, interpolation="nearest", resample=False)
+        brain = BrainData(
+            atlas_img, mask=mask_3mm, interpolation="nearest", resample=False
+        )
 
         # Resample to 2mm template
         mask_2mm = nib.load(MNI_Template.mask)
@@ -1265,7 +1281,9 @@ class TestBrainData:
 
         # Values should still be discrete after resampling
         unique_vals = np.unique(brain_resampled.data)
-        assert len(unique_vals) < 10, f"Expected discrete values after resample, got {len(unique_vals)}"
+        assert len(unique_vals) < 10, (
+            f"Expected discrete values after resample, got {len(unique_vals)}"
+        )
 
     # ==================== Properties & Basic Operations ====================
 
