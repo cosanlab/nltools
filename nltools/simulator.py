@@ -42,6 +42,7 @@ class Simulator:
             raise ValueError("brain_mask is not a string or a nibabel instance")
         self.brain_mask = brain_mask
         self.nifti_masker = NiftiMasker(mask_img=self.brain_mask)
+        self.nifti_masker.fit()  # Fit once with pre-specified mask
         self.random_state = check_random_state(random_state)
 
     def gaussian(self, mu, sigma, i_tot):
@@ -104,7 +105,6 @@ class Simulator:
             sigma: standard deviation
         """
 
-        self.nifti_masker.fit(self.brain_mask)
         vlength = int(np.sum(self.brain_mask.get_fdata()))
         if sigma != 0:
             n = self.random_state.normal(mu, sigma, vlength)
@@ -251,7 +251,7 @@ class Simulator:
 
         # Create n_reps with cov for each voxel within sphere
         # Build covariance matrix with each variable correlated with y amount 'cor' and each other amount 'cov'
-        flat_sphere = self.nifti_masker.fit_transform(mask)
+        flat_sphere = self.nifti_masker.transform(mask)
 
         n_vox = np.sum(flat_sphere == 1)
         cov_matrix = np.ones([n_vox + 1, n_vox + 1]) * cov
@@ -382,7 +382,7 @@ class Simulator:
 
         # Create n_reps with cov for each voxel within sphere
         # Build covariance matrix with each variable correlated with y amount 'cor' and each other amount 'cov'
-        flat_masks = self.nifti_masker.fit_transform(masks)
+        flat_masks = self.nifti_masker.transform(masks)
 
         print("Building correlation/covariation matrix...")
         n_vox = np.sum(
