@@ -91,14 +91,14 @@ class TestSurfacePlot:
         left_texture = vol_to_surf(
             nifti_img,
             paths["pial_left"],
-            interpolation="nearest",
+            interpolation="linear",
             n_samples=1,
             radius=0.0,
         )
         right_texture = vol_to_surf(
             nifti_img,
             paths["pial_right"],
-            interpolation="nearest",
+            interpolation="linear",
             n_samples=1,
             radius=0.0,
         )
@@ -139,7 +139,13 @@ class TestSurfacePlot:
 
     @pytest.mark.tier1
     @pytest.mark.parametrize(
-        "hemi,view", [("left", "lateral"), ("right", "lateral"), ("left", "medial"), ("right", "medial")]
+        "hemi,view",
+        [
+            ("left", "lateral"),
+            ("right", "lateral"),
+            ("left", "medial"),
+            ("right", "medial"),
+        ],
     )
     def test_single_hemisphere_view(self, sim_brain_data, hemi, view):
         """Test plotting single hemisphere and view combinations"""
@@ -235,4 +241,3 @@ class TestSurfacePlot:
         )
         assert fig is not None
         plt.close(fig)
-

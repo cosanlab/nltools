@@ -999,7 +999,7 @@ def surface_plot(
     figsize=(10, 10),
     n_samples=1,
     radius=0.0,
-    interpolation="nearest",
+    interpolation="linear",
     engine="matplotlib",
     axes=None,
     save=None,
@@ -1038,7 +1038,7 @@ def surface_plot(
         radius (float, optional): Sampling radius for vol_to_surf projection.
             Defaults to 0.0.
         interpolation (str, optional): Interpolation method for projection.
-            Options: 'nearest', 'linear'. Defaults to 'nearest'.
+            Options: 'linear', 'nearest_most_frequent'. Defaults to 'linear'.
         engine (str, optional): Rendering engine. Options: 'matplotlib',
             'plotly'. Defaults to 'matplotlib'.
         axes (matplotlib.axes.Axes or list, optional): Custom matplotlib axes
