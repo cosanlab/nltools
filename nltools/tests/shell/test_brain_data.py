@@ -105,6 +105,7 @@ class TestBrainData:
         expected_voxels = mask_img.get_fdata().sum().astype(int)
         assert brain.shape[1] == expected_voxels
 
+    @pytest.mark.slow
     def test_init_resample_false_mismatched_spaces(self):
         """Test that resample=False with mismatched spaces shows warning but still resamples."""
         import nibabel as nib
@@ -299,6 +300,7 @@ class TestBrainData:
         assert brain._detected_template is None  # Explicit mask provided
         assert not brain._mask_was_none
 
+    @pytest.mark.slow
     def test_init_mask_template_name_string_1mm_nilearn(self):
         """Test initialization with template name string: 1mm-MNI152-2009a (nilearn)."""
         import nibabel as nib
@@ -368,6 +370,7 @@ class TestBrainData:
         assert brain.shape[1] == 71020  # Exact voxel count for default 3mm
         assert np.allclose(np.abs(brain.mask.affine[0, 0]), 3.0, rtol=1e-3)
 
+    @pytest.mark.slow
     def test_init_mask_template_name_string_1mm_fmriprep(self):
         """Test initialization with template name string: 1mm-MNI152-2009c (fmriprep)."""
         import nibabel as nib
@@ -493,6 +496,7 @@ class TestBrainData:
         with pytest.raises(ValueError, match="file_type must be"):
             resolve_template_name("2mm-MNI152-2009c", file_type="invalid")
 
+    @pytest.mark.slow
     def test_all_template_voxel_counts(self):
         """Test that all supported templates have correct voxel counts."""
         import nibabel as nib
@@ -599,6 +603,7 @@ class TestBrainData:
         assert brain._detected_template["resolution"] == 3
         assert brain._detected_template["template"] == "default"
 
+    @pytest.mark.slow
     def test_init_mask_none_auto_detect_1mm(self):
         """Test automatic template detection for 1mm data (uses nilearn template)."""
         import nibabel as nib
@@ -1767,6 +1772,7 @@ class TestBrainData:
         # BrainData should not have cv_results_
         assert not hasattr(brain, "cv_results_")
 
+    @pytest.mark.slow
     def test_fit_inplace_false_returns_fit_dataclass_glm(self, sim_brain_data):
         """Test inplace=False returns Fit dataclass for GLM."""
         from nltools.data.fit_results import Fit
@@ -1904,6 +1910,7 @@ class TestBrainData:
         assert hasattr(sim_brain_data.model_, "progress_bar")
         assert sim_brain_data.model_.progress_bar is False
 
+    @pytest.mark.slow
     def test_glm_fit_suppresses_drift_model_warning(self, sim_brain_data):
         """Test fit(model='glm') suppresses drift_model warning when design matrices are supplied"""
         import warnings
