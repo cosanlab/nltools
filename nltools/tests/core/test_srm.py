@@ -14,14 +14,17 @@ from sklearn.exceptions import NotFittedError
 
 
 # ========== FIXTURES ==========
+# Module-scoped fixtures reduce redundant computation across tests
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def multi_subject_data():
     """Generate synthetic multi-subject data with known shared structure.
 
     Creates data where subjects share common latent structure but have
     different observation spaces (different voxel counts).
+
+    Module-scoped: deterministic data, shared across all tests in module.
     """
     n_timepoints = 100
     n_features = 10  # True latent dimensionality
@@ -54,7 +57,30 @@ def multi_subject_data():
     }
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
+def fitted_srm(multi_subject_data):
+    """Pre-fitted SRM model for property tests.
+
+    Module-scoped: expensive fit() runs once, shared across tests.
+    Uses n_iter=10 for good convergence.
+    """
+    srm = SRM(features=10, n_iter=10, rand_seed=42)
+    srm.fit(multi_subject_data["data"])
+    return srm
+
+
+@pytest.fixture(scope="module")
+def fitted_detsrm(multi_subject_data):
+    """Pre-fitted DetSRM model for property tests.
+
+    Module-scoped: expensive fit() runs once, shared across tests.
+    """
+    detsrm = DetSRM(features=10, n_iter=10, rand_seed=42)
+    detsrm.fit(multi_subject_data["data"])
+    return detsrm
+
+
+@pytest.fixture(scope="module")
 def identical_subjects():
     """Data where all subjects are identical (edge case)."""
     n_subjects = 3
@@ -63,14 +89,14 @@ def identical_subjects():
     return [base_data.copy() for _ in range(n_subjects)]
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def single_subject():
     """Single subject data (should error)."""
     np.random.seed(456)
     return [np.random.randn(100, 50)]
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def minimal_brain_data():
     """Minimal synthetic data for quick tests."""
     np.random.seed(789)
@@ -213,91 +239,65 @@ class TestSRMContract:
 
 
 class TestSRMMathematicalProperties:
-    """Test mathematical properties that must hold for correct SRM."""
+    """Test mathematical properties that must hold for correct SRM.
 
-    def test_orthogonality_of_transforms(self, multi_subject_data):
-        """Test that learned W_i matrices have orthonormal columns (W.T @ W ≈ I).
+    Uses module-scoped fitted_srm fixture to avoid redundant fitting.
+    All properties tested with multiple assertions per computation.
+    """
 
-        This is a fundamental property of Procrustes-based alignment.
-        W has shape [voxels, features], so we check column orthonormality.
+    def test_fitted_model_properties(self, fitted_srm, multi_subject_data):
+        """Test all mathematical invariants of a fitted SRM model.
+
+        Consolidates: orthogonality, reconstruction, shape, variance tests.
+        Single fit(), multiple assertions.
         """
-        srm = SRM(features=10, n_iter=5)
-        srm.fit(multi_subject_data["data"])
+        # 1. Check shared response shape
+        expected_shape = (10, multi_subject_data["timepoints"])
+        assert fitted_srm.s_.shape == expected_shape, (
+            f"Shared response shape {fitted_srm.s_.shape} != expected {expected_shape}"
+        )
 
-        for i, w in enumerate(srm.w_):
-            # Compute W.T @ W (should be identity for orthonormal columns)
+        # 2. Check orthogonality of all W_i matrices (W.T @ W ≈ I)
+        for i, w in enumerate(fitted_srm.w_):
             gram = w.T @ w
-            identity = np.eye(w.shape[1])  # features x features
-
-            # Check orthogonality with tolerance
-            # Use Frobenius norm of difference
+            identity = np.eye(w.shape[1])
             ortho_error = np.linalg.norm(gram - identity, "fro")
-
             assert ortho_error < 1e-5, (
                 f"Subject {i}: W.T @ W not orthogonal (error={ortho_error:.2e})"
             )
 
-    def test_reconstruction_quality(self, multi_subject_data):
-        """Test that X_i ≈ W_i @ S (reconstruction error is bounded).
-
-        The model should explain most of the variance in the data.
-        """
-        srm = SRM(features=10, n_iter=10)
-        srm.fit(multi_subject_data["data"])
-
-        for i, (x, w) in enumerate(zip(multi_subject_data["data"], srm.w_)):
-            # Demean (SRM centers data)
+        # 3. Check reconstruction quality (X_i ≈ W_i @ S)
+        for i, (x, w) in enumerate(zip(multi_subject_data["data"], fitted_srm.w_)):
             x_centered = x - x.mean(axis=1, keepdims=True)
-
-            # Reconstruct: X ≈ W @ S
-            reconstruction = w @ srm.s_
-
-            # Compute relative error
+            reconstruction = w @ fitted_srm.s_
             error = np.linalg.norm(x_centered - reconstruction, "fro")
             data_norm = np.linalg.norm(x_centered, "fro")
             relative_error = error / data_norm
-
-            # Should explain at least 80% of variance (relative error < 0.45)
             assert relative_error < 0.5, (
                 f"Subject {i}: Poor reconstruction (error={relative_error:.2%})"
             )
 
-    def test_shared_response_shape(self, multi_subject_data):
-        """Test that shared response has correct dimensions."""
-        srm = SRM(features=10, n_iter=2)
-        srm.fit(multi_subject_data["data"])
+    def test_transform_properties(self, fitted_srm, multi_subject_data):
+        """Test transform output properties.
 
-        expected_shape = (10, multi_subject_data["timepoints"])
-        assert srm.s_.shape == expected_shape
+        Single transform(), multiple assertions on shape and variance.
+        """
+        # Transform once
+        transformed = fitted_srm.transform(multi_subject_data["data"])
 
-    def test_transform_shape_preservation(self, multi_subject_data):
-        """Test that transform preserves timepoint dimension."""
-        srm = SRM(features=10, n_iter=2)
-        srm.fit(multi_subject_data["data"])
-
-        transformed = srm.transform(multi_subject_data["data"])
-
+        # 1. Check shape preservation for each subject
         for i, s in enumerate(transformed):
             expected_shape = (10, multi_subject_data["timepoints"])
             assert s.shape == expected_shape, (
                 f"Subject {i}: Wrong shape {s.shape}, expected {expected_shape}"
             )
 
-    def test_variance_explained(self, multi_subject_data):
-        """Test that SRM captures substantial variance.
-
-        Variance in transformed space should be comparable to original.
-        """
-        srm = SRM(features=10, n_iter=10)
-        srm.fit(multi_subject_data["data"])
-        transformed = srm.transform(multi_subject_data["data"])
-
-        # Compute variance in original and transformed spaces
+        # 2. Check variance preservation
         original_var = np.mean([np.var(x) for x in multi_subject_data["data"]])
         transformed_var = np.mean([np.var(s) for s in transformed])
-
-        # Transformed variance should be at least 30% of original
-        assert transformed_var > 0.3 * original_var
+        assert transformed_var > 0.3 * original_var, (
+            f"Variance not preserved: {transformed_var:.4f} < 0.3 * {original_var:.4f}"
+        )
 
 
 # ========== EDGE CASES ==========
@@ -407,96 +407,82 @@ class TestSRMEdgeCases:
 
 
 class TestDetSRMMathematicalProperties:
-    """Test mathematical properties for deterministic SRM."""
+    """Test mathematical properties for deterministic SRM.
 
-    def test_detsrm_orthogonality(self, multi_subject_data):
-        """Test DetSRM transformation orthogonality."""
-        detsrm = DetSRM(features=10, n_iter=10)
-        detsrm.fit(multi_subject_data["data"])
+    Uses module-scoped fitted_detsrm fixture to avoid redundant fitting.
+    """
 
-        for i, w in enumerate(detsrm.w_):
+    def test_fitted_detsrm_properties(self, fitted_detsrm, multi_subject_data):
+        """Test all mathematical invariants of a fitted DetSRM model.
+
+        Consolidates: orthogonality, reconstruction, shape tests.
+        Single fit(), multiple assertions.
+        """
+        # 1. Check shared response shape
+        expected_shape = (10, multi_subject_data["timepoints"])
+        assert fitted_detsrm.s_.shape == expected_shape, (
+            f"DetSRM shared response shape {fitted_detsrm.s_.shape} != {expected_shape}"
+        )
+
+        # 2. Check orthogonality of all W_i matrices
+        for i, w in enumerate(fitted_detsrm.w_):
             gram = w.T @ w
-            identity = np.eye(w.shape[1])  # features x features
+            identity = np.eye(w.shape[1])
             ortho_error = np.linalg.norm(gram - identity, "fro")
+            assert ortho_error < 1e-5, (
+                f"DetSRM Subject {i}: W.T @ W not orthogonal (error={ortho_error:.2e})"
+            )
 
-            assert ortho_error < 1e-5, f"DetSRM Subject {i}: W.T @ W not orthogonal"
-
-    def test_detsrm_reconstruction(self, multi_subject_data):
-        """Test DetSRM reconstruction quality."""
-        detsrm = DetSRM(features=10, n_iter=10)
-        detsrm.fit(multi_subject_data["data"])
-
-        for i, (x, w) in enumerate(zip(multi_subject_data["data"], detsrm.w_)):
-            # DetSRM centers data internally
+        # 3. Check reconstruction quality
+        for i, (x, w) in enumerate(zip(multi_subject_data["data"], fitted_detsrm.w_)):
             x_centered = x - x.mean(axis=1, keepdims=True)
-            reconstruction = w @ detsrm.s_
+            reconstruction = w @ fitted_detsrm.s_
             error = np.linalg.norm(x_centered - reconstruction, "fro")
             data_norm = np.linalg.norm(x_centered, "fro")
+            assert error / data_norm < 0.5, (
+                f"DetSRM Subject {i}: Poor reconstruction"
+            )
 
-            assert error / data_norm < 0.5
-
-    def test_detsrm_shared_response_shape(self, multi_subject_data):
-        """Test that DetSRM shared response has correct dimensions."""
-        detsrm = DetSRM(features=10, n_iter=5)
-        detsrm.fit(multi_subject_data["data"])
-
-        expected_shape = (10, multi_subject_data["timepoints"])
-        assert detsrm.s_.shape == expected_shape
-
-    def test_detsrm_transform_shape(self, multi_subject_data):
-        """Test DetSRM transform output shapes."""
-        detsrm = DetSRM(features=10, n_iter=5)
-        detsrm.fit(multi_subject_data["data"])
-
-        transformed = detsrm.transform(multi_subject_data["data"])
+    def test_detsrm_transform_properties(self, fitted_detsrm, multi_subject_data):
+        """Test DetSRM transform output properties."""
+        transformed = fitted_detsrm.transform(multi_subject_data["data"])
 
         for i, s in enumerate(transformed):
             expected_shape = (10, multi_subject_data["timepoints"])
-            assert s.shape == expected_shape
+            assert s.shape == expected_shape, (
+                f"DetSRM Subject {i}: Wrong shape {s.shape}"
+            )
 
-    def test_srm_vs_detsrm_similar_results(self, multi_subject_data):
+    def test_srm_vs_detsrm_similar_results(self, fitted_srm, fitted_detsrm, multi_subject_data):
         """Test that SRM and DetSRM produce similar alignments.
 
-        Both should learn similar shared spaces, though via different
-        optimization (EM vs BCD).
+        Uses pre-fitted fixtures - no additional fitting needed.
         """
-        srm = SRM(features=10, n_iter=10, rand_seed=42)
-        srm.fit(multi_subject_data["data"])
-        srm_transformed = srm.transform(multi_subject_data["data"])
-
-        detsrm = DetSRM(features=10, n_iter=10, rand_seed=42)
-        detsrm.fit(multi_subject_data["data"])
-        detsrm_transformed = detsrm.transform(multi_subject_data["data"])
+        srm_transformed = fitted_srm.transform(multi_subject_data["data"])
+        detsrm_transformed = fitted_detsrm.transform(multi_subject_data["data"])
 
         # Shared responses should be highly correlated
-        # (may differ in sign/order due to different optimization)
         for s1, s2 in zip(srm_transformed, detsrm_transformed):
-            # Compute correlation between vectorized responses
             corr = np.corrcoef(s1.flatten(), s2.flatten())[0, 1]
-
-            # Allow for sign flips (take absolute correlation)
             assert abs(corr) > 0.8, "SRM and DetSRM should produce similar alignments"
 
     def test_detsrm_deterministic_with_seed(self, multi_subject_data):
-        """Test DetSRM reproducibility with same random seed."""
+        """Test DetSRM reproducibility with same random seed.
+
+        Note: Requires two fits to compare - cannot use fixture.
+        """
         detsrm1 = DetSRM(features=10, n_iter=5, rand_seed=42)
         detsrm1.fit(multi_subject_data["data"])
 
         detsrm2 = DetSRM(features=10, n_iter=5, rand_seed=42)
         detsrm2.fit(multi_subject_data["data"])
 
-        # Should produce identical results
         np.testing.assert_array_almost_equal(detsrm1.s_, detsrm2.s_, decimal=10)
-
         for w1, w2 in zip(detsrm1.w_, detsrm2.w_):
             np.testing.assert_array_almost_equal(w1, w2, decimal=10)
 
-    def test_detsrm_transform_subject(self, multi_subject_data):
+    def test_detsrm_transform_subject(self, fitted_detsrm, multi_subject_data):
         """Test DetSRM transform_subject() with new data."""
-        detsrm = DetSRM(features=10, n_iter=5)
-        detsrm.fit(multi_subject_data["data"])
-
-        # Create new subject
         np.random.seed(888)
         new_voxels = 175
         new_w = np.linalg.qr(np.random.randn(new_voxels, 10))[0]
@@ -504,14 +490,12 @@ class TestDetSRMMathematicalProperties:
             "shared"
         ] + 0.01 * np.random.randn(new_voxels, multi_subject_data["timepoints"])
 
-        # Transform new subject
-        new_w_learned = detsrm.transform_subject(new_subject_data)
+        new_w_learned = fitted_detsrm.transform_subject(new_subject_data)
 
-        # Check orthogonality (orthonormal columns)
+        # Check orthogonality
         gram = new_w_learned.T @ new_w_learned
-        identity = np.eye(new_w_learned.shape[1])  # features x features
+        identity = np.eye(new_w_learned.shape[1])
         ortho_error = np.linalg.norm(gram - identity, "fro")
-
         assert ortho_error < 1e-5
 
 

@@ -39,6 +39,7 @@ dev = [
     "ruff==0.14.2",
     "torch>=2.9.0",
     "tqdm>=4.67.1",
+    "ty>=0.0.4",
 ]
 
 [project.urls]

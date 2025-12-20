@@ -1,3 +1,24 @@
+"""
+Shared pytest fixtures for nltools test suite.
+
+This module provides common fixtures used across test modules.
+
+# Brain Data Fixtures Guide
+# =========================
+#
+# Choose the right fixture for your test:
+#
+# | Fixture               | Voxels | Samples | Use Case                          |
+# |-----------------------|--------|---------|-----------------------------------|
+# | sim_brain_data        | Full   | 6       | Realistic brain, slow but thorough|
+# | minimal_brain_data    | 5      | 50      | API contract tests, fast          |
+# | small_brain_data_for_cv| 5     | 24      | CV tests (24 divisible by 3)      |
+# | tiny_brain_data_for_cv | 3     | 6       | Edge cases, insufficient samples  |
+#
+# Use minimal_brain_data for most tests - it's 10x faster than sim_brain_data.
+# Use sim_brain_data only when you need realistic brain structure.
+"""
+
 import pytest
 import numpy as np
 import pandas as pd
@@ -161,52 +182,53 @@ def sim_adjacency_directed():
     return Adjacency(sim_directed, matrix_type="directed", labels=labels)
 
 
-@pytest.fixture(scope="module")
-def old_h5_brain(request):
-    # Navigate from test file location to data directory
+# ============================================================================
+# H5 Test Data Path Fixtures
+# ============================================================================
+# Helper to reduce path resolution boilerplate
+
+
+def _get_test_data_path(request, filename):
+    """Get path to test data file in nltools/tests/data/."""
     test_file_dir = os.path.dirname(request.module.__file__)
     tests_dir = os.path.dirname(test_file_dir)
-    return os.path.join(tests_dir, "data", "old_brain.h5")
+    return os.path.join(tests_dir, "data", filename)
+
+
+@pytest.fixture(scope="module")
+def old_h5_brain(request):
+    """Path to old-format brain H5 file."""
+    return _get_test_data_path(request, "old_brain.h5")
 
 
 @pytest.fixture(scope="module")
 def new_h5_brain(request):
-    # Navigate from test file location to data directory
-    test_file_dir = os.path.dirname(request.module.__file__)
-    tests_dir = os.path.dirname(test_file_dir)
-    return os.path.join(tests_dir, "data", "new_brain.h5")
+    """Path to new-format brain H5 file."""
+    return _get_test_data_path(request, "new_brain.h5")
 
 
 @pytest.fixture(scope="module")
 def old_h5_adj_single(request):
-    # Navigate from test file location to data directory
-    test_file_dir = os.path.dirname(request.module.__file__)
-    tests_dir = os.path.dirname(test_file_dir)
-    return os.path.join(tests_dir, "data", "old_single.h5")
+    """Path to old-format single adjacency H5 file."""
+    return _get_test_data_path(request, "old_single.h5")
 
 
 @pytest.fixture(scope="module")
 def new_h5_adj_single(request):
-    # Navigate from test file location to data directory
-    test_file_dir = os.path.dirname(request.module.__file__)
-    tests_dir = os.path.dirname(test_file_dir)
-    return os.path.join(tests_dir, "data", "new_single.h5")
+    """Path to new-format single adjacency H5 file."""
+    return _get_test_data_path(request, "new_single.h5")
 
 
 @pytest.fixture(scope="module")
 def old_h5_adj_double(request):
-    # Navigate from test file location to data directory
-    test_file_dir = os.path.dirname(request.module.__file__)
-    tests_dir = os.path.dirname(test_file_dir)
-    return os.path.join(tests_dir, "data", "old_double.h5")
+    """Path to old-format double adjacency H5 file."""
+    return _get_test_data_path(request, "old_double.h5")
 
 
 @pytest.fixture(scope="module")
 def new_h5_adj_double(request):
-    # Navigate from test file location to data directory
-    test_file_dir = os.path.dirname(request.module.__file__)
-    tests_dir = os.path.dirname(test_file_dir)
-    return os.path.join(tests_dir, "data", "new_double.h5")
+    """Path to new-format double adjacency H5 file."""
+    return _get_test_data_path(request, "new_double.h5")
 
 
 @pytest.fixture(scope="module")
