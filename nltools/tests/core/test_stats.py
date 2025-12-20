@@ -44,7 +44,7 @@ import pytest
 # ==================== Permutation Functions ====================
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_permutation():
     """Test one-sample, two-sample, and correlation permutation tests."""
     # Create a positive definite covariance matrix
@@ -888,7 +888,7 @@ def test_fisher_r_to_z():
 # ==================== Utility Functions ====================
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_find_spikes():
     """Test spike detection in neuroimaging data."""
     sim = Simulator()
@@ -927,7 +927,7 @@ def test_align_states():
     )
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_align_without_isc():
     """Test alignment methods without ISC calculation.
 
@@ -1287,7 +1287,6 @@ def test_compute_icc_invalid_type():
 # ==================== Statistical Correctness Tests ====================
 
 
-@pytest.mark.tier1
 def test_icc_variance_component_correctness():
     """Test that variance components (MSR, MSE, MSC) are computed correctly."""
     # Create data with known structure
@@ -1329,7 +1328,6 @@ def test_icc_variance_component_correctness():
     )
 
 
-@pytest.mark.tier1
 def test_icc_effect_size_sensitivity():
     """Test that higher reliability produces higher ICC values."""
     n_subjects = 10
@@ -1376,7 +1374,6 @@ def test_icc_effect_size_sensitivity():
                 )
 
 
-@pytest.mark.tier1
 def test_icc_formula_correctness_manual():
     """Test ICC formulas match manual calculations from Shrout & Fleiss (1979)."""
     # Simple test case: 3 subjects, 3 sessions with known structure
@@ -1417,7 +1414,6 @@ def test_icc_formula_correctness_manual():
     np.testing.assert_almost_equal(icc1_func, icc3_func, decimal=10)
 
 
-@pytest.mark.tier1
 def test_icc_known_values_perfect_reliability():
     """Test ICC with perfect reliability (should be 1.0)."""
     np.random.seed(42)
@@ -1447,7 +1443,6 @@ def test_icc_known_values_perfect_reliability():
     )
 
 
-@pytest.mark.tier1
 def test_icc_known_values_zero_reliability():
     """Test ICC with zero reliability (pure noise, should be near 0 or negative)."""
     np.random.seed(42)
@@ -1468,7 +1463,6 @@ def test_icc_known_values_zero_reliability():
     assert icc3 < 0.5, f"Zero reliability should produce ICC3 < 0.5, got {icc3:.6f}"
 
 
-@pytest.mark.tier1
 def test_icc_icc2_vs_icc3_difference():
     """Test that ICC2 accounts for session effects differently than ICC3."""
     np.random.seed(42)
@@ -1509,7 +1503,6 @@ def test_icc_icc2_vs_icc3_difference():
     )
 
 
-@pytest.mark.tier1
 def test_icc_sample_size_sensitivity():
     """Test that ICC values are consistent across different sample sizes."""
     np.random.seed(42)
@@ -1547,7 +1540,6 @@ def test_icc_sample_size_sensitivity():
         )
 
 
-@pytest.mark.tier1
 def test_icc_edge_case_constant_data():
     """Test ICC with constant data (all values the same)."""
     # All values identical
@@ -1572,7 +1564,6 @@ def test_icc_edge_case_constant_data():
     )
 
 
-@pytest.mark.tier1
 def test_icc_edge_case_single_session():
     """Test ICC with single session (edge case)."""
     np.random.seed(42)
@@ -1604,7 +1595,7 @@ def test_icc_edge_case_single_session():
         pass
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_icc_cross_validation_with_reference():
     """Test ICC values against reference implementation pattern (Shrout & Fleiss 1979)."""
     # Create data matching typical ICC validation scenarios

@@ -61,6 +61,7 @@ class TestGPUBatching:
         # Larger budget should allow larger batches
         assert batch_large > batch_small
 
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_batching_correctness(self):
         """Test that GPU batching produces same results as NumPy."""
@@ -93,6 +94,7 @@ class TestGPUBatching:
             rtol=TOLERANCE_GPU_PVALUE,  # P-values accumulate more FP error
         )
 
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_batching_large_problem(self):
         """Test GPU batching with large problem that would OOM without batching."""

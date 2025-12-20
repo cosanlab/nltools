@@ -224,7 +224,7 @@ class TestAdjacency:
 
     # ==================== Similarity & Distance Methods ====================
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_similarity(self, sim_adjacency_multiple):
         """Test similarity computation with permutation tests and different metrics."""
         n_permute = 1000

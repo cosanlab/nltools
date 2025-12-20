@@ -439,9 +439,7 @@ class TestDetSRMMathematicalProperties:
             reconstruction = w @ fitted_detsrm.s_
             error = np.linalg.norm(x_centered - reconstruction, "fro")
             data_norm = np.linalg.norm(x_centered, "fro")
-            assert error / data_norm < 0.5, (
-                f"DetSRM Subject {i}: Poor reconstruction"
-            )
+            assert error / data_norm < 0.5, f"DetSRM Subject {i}: Poor reconstruction"
 
     def test_detsrm_transform_properties(self, fitted_detsrm, multi_subject_data):
         """Test DetSRM transform output properties."""
@@ -453,7 +451,9 @@ class TestDetSRMMathematicalProperties:
                 f"DetSRM Subject {i}: Wrong shape {s.shape}"
             )
 
-    def test_srm_vs_detsrm_similar_results(self, fitted_srm, fitted_detsrm, multi_subject_data):
+    def test_srm_vs_detsrm_similar_results(
+        self, fitted_srm, fitted_detsrm, multi_subject_data
+    ):
         """Test that SRM and DetSRM produce similar alignments.
 
         Uses pre-fitted fixtures - no additional fitting needed.

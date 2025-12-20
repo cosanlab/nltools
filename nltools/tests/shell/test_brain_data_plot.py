@@ -17,7 +17,6 @@ class TestBrainDataPlot:
 
     # ==================== Phase 1: Baseline Tests ====================
 
-    @pytest.mark.tier1
     def test_plot_single_image_default(self, sim_brain_data):
         """Test plotting single BrainData image with defaults"""
         # Extract single image
@@ -27,70 +26,62 @@ class TestBrainDataPlot:
         # Should return nilearn Display object or matplotlib figure
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_multiple_images_default(self, sim_brain_data):
         """Test plotting from BrainData with multiple images"""
         # For multiple images, should plot first image or mean
         result = sim_brain_data.plot()
         assert result is not None
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_plot_glass_brain(self, sim_brain_data):
         """Test glass brain visualization"""
         single_image = sim_brain_data[0]
         result = single_image.plot(kind="glass")
         assert result is not None
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_plot_multi_slice(self, sim_brain_data):
         """Test multi-slice visualization"""
         single_image = sim_brain_data[0]
         result = single_image.plot(kind="slices")
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_thresholding_float(self, sim_brain_data):
         """Test thresholding functionality with float"""
         single_image = sim_brain_data[0]
         result = single_image.plot(thr_upper=0.5)
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_thresholding_percentile(self, sim_brain_data):
         """Test thresholding functionality with percentile string"""
         single_image = sim_brain_data[0]
         result = single_image.plot(thr_upper="95%")
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_thresholding_lower(self, sim_brain_data):
         """Test lower thresholding"""
         single_image = sim_brain_data[0]
         result = single_image.plot(thr_lower=-0.5)
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_thresholding_bandpass(self, sim_brain_data):
         """Test band-pass thresholding"""
         single_image = sim_brain_data[0]
         result = single_image.plot(thr_upper="90%", thr_lower="10%")
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_custom_cut_coords(self, sim_brain_data):
         """Test custom cut coordinates"""
         single_image = sim_brain_data[0]
         result = single_image.plot(cut_coords=[[0], [0], [0]])
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_custom_colormap(self, sim_brain_data):
         """Test custom colormap"""
         single_image = sim_brain_data[0]
         result = single_image.plot(cmap="hot")
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_background_image_respects_template(self, sim_brain_data):
         """Test that background image respects MNI_Template settings"""
         single_image = sim_brain_data[0]
@@ -100,7 +91,6 @@ class TestBrainDataPlot:
         )  # Should auto-select based on MNI_Template and resolution
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_respects_template_changes(self, sim_brain_data):
         """Test that plot respects MNI_Template changes"""
         single_image = sim_brain_data[0]
@@ -122,21 +112,18 @@ class TestBrainDataPlot:
             MNI_Template.template = original_template
             MNI_Template.resolution = original_resolution
 
-    @pytest.mark.tier1
     def test_plot_empty_brain_data(self):
         """Test error handling for empty BrainData"""
         brain = BrainData()
         with pytest.raises(ValueError, match="empty|Empty"):
             brain.plot()
 
-    @pytest.mark.tier1
     def test_plot_invalid_kind(self, sim_brain_data):
         """Test error handling for invalid 'kind' parameter"""
         single_image = sim_brain_data[0]
         with pytest.raises(ValueError):
             single_image.plot(kind="invalid")
 
-    @pytest.mark.tier1
     def test_plot_uses_template_resolution_matcher(self, sim_brain_data):
         """Test that plot uses get_mni_from_img_resolution() which respects MNI_Template"""
         single_image = sim_brain_data[0]
@@ -150,7 +137,6 @@ class TestBrainDataPlot:
 
     # ==================== Phase 3: Robustness Tests ====================
 
-    @pytest.mark.tier1
     def test_plot_validate_kind_multiple_invalid(self, sim_brain_data):
         """Test validation of 'kind' parameter with multiple invalid values"""
         single_image = sim_brain_data[0]
@@ -158,7 +144,6 @@ class TestBrainDataPlot:
             with pytest.raises(ValueError):
                 single_image.plot(kind=invalid)
 
-    @pytest.mark.tier1
     def test_plot_handle_nan_values(self, sim_brain_data):
         """Test handling of NaN/Inf values"""
         single_image = sim_brain_data[0]
@@ -175,14 +160,12 @@ class TestBrainDataPlot:
         result = single_image.plot(thr_upper=0.5)
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_single_voxel(self, minimal_brain_data):
         """Test edge case: very small brain data"""
         # minimal_brain_data has 5 voxels, should work
         result = minimal_brain_data[0].plot()
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_missing_mask_handling(self):
         """Test handling when mask is None (should use default)"""
         # Create BrainData without explicit mask (uses default)
@@ -195,7 +178,6 @@ class TestBrainDataPlot:
         result = brain.plot()
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_cut_coords_format_validation(self, sim_brain_data):
         """Test that cut_coords format is handled correctly"""
         single_image = sim_brain_data[0]
@@ -208,7 +190,6 @@ class TestBrainDataPlot:
         )
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_custom_bg_img_nibabel(self, sim_brain_data):
         """Test custom background image as nibabel image"""
         import nibabel as nib
@@ -220,7 +201,6 @@ class TestBrainDataPlot:
         result = single_image.plot(bg_img=custom_bg)
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_save_functionality(self, sim_brain_data, tmpdir):
         """Test save functionality"""
         single_image = sim_brain_data[0]
@@ -235,39 +215,33 @@ class TestBrainDataPlot:
 
     # ==================== Phase 4/5/6: User-Friendly Features ====================
 
-    @pytest.mark.tier1
     def test_plot_timeseries_mean(self, sim_brain_data):
         """Test timeseries plotting with mean aggregation"""
         # Multiple images: plot mean across voxels
         result = sim_brain_data.plot(kind="timeseries", stat="mean")
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_timeseries_median(self, sim_brain_data):
         """Test timeseries plotting with median aggregation"""
         result = sim_brain_data.plot(kind="timeseries", stat="median")
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_timeseries_std(self, sim_brain_data):
         """Test timeseries plotting with std aggregation"""
         result = sim_brain_data.plot(kind="timeseries", stat="std")
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_histogram_single_image(self, sim_brain_data):
         """Test histogram plotting for single image"""
         single_image = sim_brain_data[0]
         result = single_image.plot(kind="histogram")
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_histogram_multiple_images(self, sim_brain_data):
         """Test histogram plotting for multiple images"""
         result = sim_brain_data.plot(kind="histogram")
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_threshold_convenience(self, sim_brain_data):
         """Test convenience threshold parameter"""
         single_image = sim_brain_data[0]
@@ -278,14 +252,12 @@ class TestBrainDataPlot:
         result = single_image.plot(threshold=-0.5)
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_custom_title(self, sim_brain_data):
         """Test custom title"""
         single_image = sim_brain_data[0]
         result = single_image.plot(title="My Custom Title")
         assert result is not None
 
-    @pytest.mark.tier1
     def test_plot_matplotlib_axis_timeseries(self, sim_brain_data):
         """Test plotting timeseries on existing matplotlib axis"""
         import matplotlib.pyplot as plt
@@ -295,7 +267,6 @@ class TestBrainDataPlot:
         assert result is not None
         plt.close(fig)
 
-    @pytest.mark.tier1
     def test_plot_matplotlib_axis_histogram(self, sim_brain_data):
         """Test plotting histogram on existing matplotlib axis"""
         import matplotlib.pyplot as plt

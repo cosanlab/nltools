@@ -499,7 +499,9 @@ def test_ridge_cv_properties(fitted_ridge_cv):
 
     # 2. Should have CV scores
     assert hasattr(model, "cv_scores_"), "Missing cv_scores_ attribute"
-    assert model.cv_scores_.shape[0] == 3, f"cv_scores_ n_folds {model.cv_scores_.shape[0]} != 3"
+    assert model.cv_scores_.shape[0] == 3, (
+        f"cv_scores_ n_folds {model.cv_scores_.shape[0]} != 3"
+    )
 
     # 3. Reproducibility: same data should give same results
     model2 = Ridge(alpha="auto", cv=3)

@@ -66,7 +66,6 @@ TOLERANCE_STATS_PVALUE = 0.02  # 2% relative error acceptable
 # =============================================================================
 
 
-@pytest.mark.tier1
 def test_compute_isc_group_difference_numpy_single_feature_pairwise():
     """ISC group difference computes correctly for single feature with pairwise method."""
     np.random.seed(42)
@@ -96,7 +95,6 @@ def test_compute_isc_group_difference_numpy_single_feature_pairwise():
     assert np.isclose(isc_diff, expected_diff)
 
 
-@pytest.mark.tier1
 def test_compute_isc_group_difference_numpy_single_feature_loo():
     """ISC group difference computes correctly for single feature with LOO method."""
     np.random.seed(42)
@@ -128,7 +126,6 @@ def test_compute_isc_group_difference_numpy_single_feature_loo():
     assert np.isclose(isc_diff, expected_diff)
 
 
-@pytest.mark.tier1
 def test_compute_isc_group_difference_numpy_voxelwise():
     """ISC group difference computes correctly for voxel-wise data."""
     np.random.seed(42)
@@ -160,7 +157,6 @@ def test_compute_isc_group_difference_numpy_voxelwise():
     assert np.isclose(isc_diff[0], expected_diff_v0)
 
 
-@pytest.mark.tier1
 def test_compute_isc_group_difference_metric_mean():
     """ISC group difference works with 'mean' metric (Fisher z-transform)."""
     np.random.seed(42)
@@ -186,7 +182,7 @@ def test_compute_isc_group_difference_metric_mean():
     assert isinstance(isc_diff_median, (float, np.floating))
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_compute_isc_group_difference_gpu_matches_numpy():
     """GPU ISC group difference matches NumPy within float32 tolerance (voxel-wise LOO only)."""
     torch = pytest.importorskip("torch")
@@ -226,7 +222,6 @@ def test_compute_isc_group_difference_gpu_matches_numpy():
     )
 
 
-@pytest.mark.tier1
 def test_compute_isc_group_difference_deterministic():
     """ISC group difference computation is deterministic."""
     np.random.seed(42)
@@ -244,7 +239,6 @@ def test_compute_isc_group_difference_deterministic():
     assert np.allclose(isc_diff1, isc_diff2)
 
 
-@pytest.mark.tier1
 def test_compute_isc_group_difference_mismatched_observations():
     """ISC group difference raises error if groups have different number of observations."""
     np.random.seed(42)
@@ -263,7 +257,6 @@ def test_compute_isc_group_difference_mismatched_observations():
         )
 
 
-@pytest.mark.tier1
 def test_compute_isc_group_difference_invalid_metric():
     """ISC group difference raises error for invalid metric."""
     np.random.seed(42)
@@ -280,7 +273,6 @@ def test_compute_isc_group_difference_invalid_metric():
         )
 
 
-@pytest.mark.tier1
 def test_compute_isc_group_difference_invalid_summary_statistic():
     """ISC group difference raises error for invalid summary_statistic."""
     np.random.seed(42)
@@ -302,7 +294,6 @@ def test_compute_isc_group_difference_invalid_summary_statistic():
 # =============================================================================
 
 
-@pytest.mark.tier1
 def test_permute_isc_group_combines_groups():
     """Permutation method combines groups and permutes labels."""
     np.random.seed(42)
@@ -318,7 +309,6 @@ def test_permute_isc_group_combines_groups():
     assert np.isfinite(permuted_diff)
 
 
-@pytest.mark.tier1
 def test_permute_isc_group_deterministic():
     """Permutation is deterministic with same random_state."""
     np.random.seed(42)
@@ -336,7 +326,6 @@ def test_permute_isc_group_deterministic():
     assert np.isclose(diff1, diff2)
 
 
-@pytest.mark.tier1
 def test_permute_isc_group_different_random_states():
     """Different random states produce different permutations."""
     np.random.seed(42)
@@ -356,7 +345,6 @@ def test_permute_isc_group_different_random_states():
     assert isinstance(diff2, (float, np.floating))
 
 
-@pytest.mark.tier1
 def test_permute_isc_group_works_with_loo():
     """Permutation works with leave-one-out summary statistic."""
     np.random.seed(42)
@@ -375,7 +363,6 @@ def test_permute_isc_group_works_with_loo():
     assert np.isfinite(permuted_diff)
 
 
-@pytest.mark.tier1
 def test_permute_isc_group_works_with_mean_metric():
     """Permutation works with mean metric."""
     np.random.seed(42)
@@ -390,7 +377,6 @@ def test_permute_isc_group_works_with_mean_metric():
     assert np.isfinite(permuted_diff)
 
 
-@pytest.mark.tier1
 def test_permute_isc_group_cpu_parallel_matches_numpy():
     """CPU-parallel permutation matches sequential NumPy exactly."""
     np.random.seed(42)
@@ -427,7 +413,6 @@ def test_permute_isc_group_cpu_parallel_matches_numpy():
     assert np.allclose(perm_numpy, perm_parallel)
 
 
-@pytest.mark.tier1
 def test_permute_isc_group_cpu_parallel_deterministic():
     """CPU-parallel permutation is deterministic."""
     np.random.seed(42)
@@ -457,7 +442,6 @@ def test_permute_isc_group_cpu_parallel_deterministic():
     assert np.allclose(perm1, perm2)
 
 
-@pytest.mark.tier1
 def test_permute_isc_group_cpu_parallel_voxelwise():
     """CPU-parallel permutation works with voxel-wise data."""
     np.random.seed(42)
@@ -483,7 +467,6 @@ def test_permute_isc_group_cpu_parallel_voxelwise():
 # =============================================================================
 
 
-@pytest.mark.tier1
 def test_bootstrap_isc_group_resamples_subjects():
     """Bootstrap resamples subjects within each group."""
     np.random.seed(42)
@@ -509,7 +492,6 @@ def test_bootstrap_isc_group_resamples_subjects():
     assert np.isfinite(boot_diff)
 
 
-@pytest.mark.tier1
 def test_bootstrap_isc_group_centers_by_observed():
     """Bootstrap differences are centered by subtracting observed difference."""
     np.random.seed(42)
@@ -536,7 +518,6 @@ def test_bootstrap_isc_group_centers_by_observed():
     assert isinstance(boot_diff, (float, np.floating))
 
 
-@pytest.mark.tier1
 def test_bootstrap_isc_group_exclude_self_corr():
     """exclude_self_corr parameter controls masking of self-correlations."""
     np.random.seed(42)
@@ -574,7 +555,6 @@ def test_bootstrap_isc_group_exclude_self_corr():
     assert np.isfinite(boot_include)
 
 
-@pytest.mark.tier1
 def test_bootstrap_isc_group_works_with_loo():
     """Bootstrap works with leave-one-out summary statistic."""
     np.random.seed(42)
@@ -602,7 +582,6 @@ def test_bootstrap_isc_group_works_with_loo():
     assert np.isfinite(boot_diff)
 
 
-@pytest.mark.tier1
 def test_bootstrap_isc_group_works_with_mean_metric():
     """Bootstrap works with mean metric."""
     np.random.seed(42)
@@ -626,7 +605,6 @@ def test_bootstrap_isc_group_works_with_mean_metric():
     assert np.isfinite(boot_diff)
 
 
-@pytest.mark.tier1
 def test_bootstrap_isc_group_cpu_parallel_matches_numpy():
     """CPU-parallel bootstrap matches sequential NumPy exactly."""
     np.random.seed(42)
@@ -669,7 +647,6 @@ def test_bootstrap_isc_group_cpu_parallel_matches_numpy():
     assert np.allclose(boot_numpy, boot_parallel)
 
 
-@pytest.mark.tier1
 def test_bootstrap_isc_group_cpu_parallel_deterministic():
     """CPU-parallel bootstrap is deterministic."""
     np.random.seed(42)
@@ -705,7 +682,6 @@ def test_bootstrap_isc_group_cpu_parallel_deterministic():
     assert np.allclose(boot1, boot2)
 
 
-@pytest.mark.tier1
 def test_bootstrap_isc_group_cpu_parallel_voxelwise():
     """CPU-parallel bootstrap works with voxel-wise data."""
     np.random.seed(42)
@@ -736,7 +712,6 @@ def test_bootstrap_isc_group_cpu_parallel_voxelwise():
 # =============================================================================
 
 
-@pytest.mark.tier1
 def test_isc_group_permutation_test_basic():
     """Main function returns all expected outputs."""
     np.random.seed(42)
@@ -760,7 +735,6 @@ def test_isc_group_permutation_test_basic():
     assert result["ci"][0] <= result["ci"][1]
 
 
-@pytest.mark.tier1
 def test_isc_group_permutation_test_bootstrap_method():
     """Main function works with bootstrap method."""
     np.random.seed(42)
@@ -781,7 +755,6 @@ def test_isc_group_permutation_test_bootstrap_method():
     assert "ci" in result
 
 
-@pytest.mark.tier1
 def test_isc_group_permutation_test_voxelwise():
     """Main function works with voxel-wise data."""
     np.random.seed(42)
@@ -803,7 +776,6 @@ def test_isc_group_permutation_test_voxelwise():
     assert result["ci"][1].shape == (5,)  # Reduced from 10
 
 
-@pytest.mark.tier1
 def test_isc_group_permutation_test_backend_consistency():
     """NumPy and CPU-parallel backends give identical results."""
     np.random.seed(42)
@@ -839,7 +811,6 @@ def test_isc_group_permutation_test_backend_consistency():
     )
 
 
-@pytest.mark.tier1
 def test_isc_group_permutation_test_return_null():
     """Main function returns null distribution when requested."""
     np.random.seed(42)
@@ -859,7 +830,6 @@ def test_isc_group_permutation_test_return_null():
     assert result["null_dist"].shape == (100,)
 
 
-@pytest.mark.tier1
 def test_isc_group_permutation_test_all_metrics():
     """Main function works with both median and mean metrics."""
     np.random.seed(42)
@@ -882,7 +852,6 @@ def test_isc_group_permutation_test_all_metrics():
         assert 0 <= result["p"] <= 1
 
 
-@pytest.mark.tier1
 def test_isc_group_permutation_test_all_summary_statistics():
     """Main function works with both pairwise and leave-one-out."""
     np.random.seed(42)
@@ -904,7 +873,6 @@ def test_isc_group_permutation_test_all_summary_statistics():
         assert np.isfinite(result["isc_group_difference"])
 
 
-@pytest.mark.tier1
 def test_isc_group_permutation_test_invalid_method():
     """Main function raises error for invalid method."""
     np.random.seed(42)
@@ -917,7 +885,6 @@ def test_isc_group_permutation_test_invalid_method():
         )
 
 
-@pytest.mark.tier1
 def test_isc_group_permutation_test_exclude_self_corr_parameter():
     """exclude_self_corr parameter is accepted and works."""
     np.random.seed(42)
@@ -1003,7 +970,7 @@ def _generate_isc_group_data(
 class TestISCGroupStatisticalCorrectness:
     """Test statistical correctness of ISC group permutation tests."""
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_null_hypothesis_pvalue_distribution(self):
         """Test that p-values are uniformly distributed under null hypothesis (no group difference)."""
         from scipy.stats import kstest
@@ -1053,7 +1020,7 @@ class TestISCGroupStatisticalCorrectness:
                 f"KS test p-value: {ks_pvalue:.4f}"
             )
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_isc_group_difference_value_correctness(self):
         """Test that ISC group difference matches expected value for known group differences."""
         np.random.seed(42)
@@ -1094,7 +1061,7 @@ class TestISCGroupStatisticalCorrectness:
             f"Got {result['isc_group_difference']:.4f}"
         )
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_effect_size_sensitivity(self):
         """Test that larger group difference produces lower p-values."""
         np.random.seed(42)
@@ -1158,7 +1125,7 @@ class TestISCGroupStatisticalCorrectness:
                     f"Diff={diff2:.3f}: p={p_values[i + 1]:.4f}"
                 )
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_bootstrap_method_correctness(self):
         """Test that bootstrap method produces correct null distribution."""
         np.random.seed(42)
@@ -1209,7 +1176,7 @@ class TestISCGroupStatisticalCorrectness:
                 f"CI=[{ci_lower:.4f}, {ci_upper:.4f}], observed={observed_diff:.4f}"
             )
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_backward_compatibility_stats_py(self):
         """Test that new implementation matches old stats.py isc_group results."""
         np.random.seed(42)
@@ -1283,7 +1250,6 @@ class TestISCGroupStatisticalCorrectness:
 # =============================================================================
 
 
-@pytest.mark.tier1
 def test_stats_isc_group_backward_compatibility():
     """Test that stats.py wrapper maintains exact API compatibility."""
     np.random.seed(42)

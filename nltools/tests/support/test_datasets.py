@@ -174,14 +174,13 @@ class TestIntegration:
 class TestFetchHaxby:
     """Test the fetch_haxby function"""
 
-    @pytest.mark.tier1
     def test_fetch_haxby_imports(self):
         """Should be able to import fetch_haxby"""
         from nltools.datasets import fetch_haxby
 
         assert callable(fetch_haxby)
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_fetch_haxby_basic_call(self):
         """Should accept n_subjects parameter and return tuple"""
         from nltools.datasets import fetch_haxby
@@ -218,7 +217,7 @@ class TestFetchHaxby:
                     assert isinstance(result, tuple)
                     assert len(result) == 2
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_fetch_haxby_real_data(self):
         """Integration test with real data - should return correct types and shapes"""
         from nltools.datasets import fetch_haxby
@@ -245,7 +244,7 @@ class TestFetchHaxby:
         except Exception as e:
             pytest.skip(f"Integration test skipped: {e}")
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_fetch_haxby_design_matrix_labels(self):
         """DesignMatrix should contain informative condition labels"""
         from nltools.datasets import fetch_haxby
@@ -286,7 +285,7 @@ class TestFetchHaxby:
         except Exception as e:
             pytest.skip(f"Integration test skipped: {e}")
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_fetch_haxby_all_subjects(self):
         """Should return nested lists when n_subjects='all' or None"""
         from nltools.datasets import fetch_haxby
@@ -327,7 +326,7 @@ class TestFetchHaxby:
         except Exception as e:
             pytest.skip(f"Integration test skipped: {e}")
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_fetch_haxby_fit_compatible(self):
         """Returned data should work with BrainData.fit() for each run"""
         from nltools.datasets import fetch_haxby
@@ -344,7 +343,7 @@ class TestFetchHaxby:
         except Exception as e:
             pytest.skip(f"Integration test skipped: {e}")
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_fetch_haxby_predict_compatible(self):
         """Returned data should work with BrainData.predict() for each run"""
         from nltools.datasets import fetch_haxby
@@ -374,7 +373,6 @@ class TestFetchHaxby:
         except Exception as e:
             pytest.skip(f"Integration test skipped: {e}")
 
-    @pytest.mark.tier1
     def test_fetch_haxby_invalid_n_subjects(self):
         """Should raise ValueError for invalid n_subjects"""
         from nltools.datasets import fetch_haxby
@@ -388,7 +386,6 @@ class TestFetchHaxby:
         with pytest.raises(ValueError):
             fetch_haxby(n_subjects=7)  # More subjects than available (max 6)
 
-    @pytest.mark.tier1
     def test_fetch_haxby_missing_nilearn(self):
         """Should raise ImportError if nilearn not available"""
         from nltools.datasets import fetch_haxby

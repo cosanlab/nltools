@@ -15,7 +15,6 @@ from nltools.plotting import surface_plot
 class TestSurfacePlot:
     """Test surface_plot() function"""
 
-    @pytest.mark.tier1
     def test_surface_resource_paths(self):
         """Test that surface files can be located and paths are valid"""
         from nltools.plotting import _get_surface_paths
@@ -36,7 +35,6 @@ class TestSurfacePlot:
             assert key in paths, f"Missing surface key: {key}"
             assert os.path.exists(paths[key]), f"Surface file not found: {paths[key]}"
 
-    @pytest.mark.tier1
     @pytest.mark.parametrize("input_type", ["brain_data", "nibabel", "file_path"])
     def test_surface_plot_input_types(self, sim_brain_data, tmpdir, input_type):
         """Test surface_plot accepts BrainData, nibabel image, or file path"""
@@ -56,7 +54,6 @@ class TestSurfacePlot:
         assert fig is not None
         plt.close(fig)
 
-    @pytest.mark.tier1
     def test_surface_plot_invalid_input(self):
         """Test error handling for invalid input types"""
         with pytest.raises((ValueError, TypeError)):
@@ -66,7 +63,6 @@ class TestSurfacePlot:
         with pytest.raises((ValueError, TypeError)):
             surface_plot(None)
 
-    @pytest.mark.tier1
     def test_default_montage_layout(self, sim_brain_data):
         """Test default 2×2 montage structure"""
         single_image = sim_brain_data[0]
@@ -77,7 +73,6 @@ class TestSurfacePlot:
         assert len(fig.axes) == 4  # 2×2 grid
         plt.close(fig)
 
-    @pytest.mark.tier1
     def test_bilateral_surface_projection(self, sim_brain_data):
         """Test that volume projects correctly to both hemispheres"""
         from nilearn.surface import vol_to_surf
@@ -106,7 +101,6 @@ class TestSurfacePlot:
         assert left_texture.size > 0 and right_texture.size > 0
         assert len(left_texture.shape) == 1  # 1D vertex array
 
-    @pytest.mark.tier1
     def test_customization_options(self, sim_brain_data):
         """Test key customization parameters"""
         single_image = sim_brain_data[0]
@@ -128,7 +122,6 @@ class TestSurfacePlot:
         assert fig is not None
         plt.close(fig)
 
-    @pytest.mark.tier1
     @pytest.mark.parametrize("bg_map", ["curvature", "sulc", None])
     def test_background_map_options(self, sim_brain_data, bg_map):
         """Test different background map options"""
@@ -137,7 +130,6 @@ class TestSurfacePlot:
         assert fig is not None
         plt.close(fig)
 
-    @pytest.mark.tier1
     @pytest.mark.parametrize(
         "hemi,view",
         [
@@ -154,7 +146,6 @@ class TestSurfacePlot:
         assert fig is not None
         plt.close(fig)
 
-    @pytest.mark.tier1
     @pytest.mark.parametrize("surface", ["pial", "inflated", "midthickness"])
     def test_surface_mesh_types(self, sim_brain_data, surface):
         """Test different surface mesh types"""
@@ -163,21 +154,18 @@ class TestSurfacePlot:
         assert fig is not None
         plt.close(fig)
 
-    @pytest.mark.tier1
     def test_invalid_surface_type(self, sim_brain_data):
         """Test error handling for invalid surface type"""
         single_image = sim_brain_data[0]
         with pytest.raises(ValueError):
             surface_plot(single_image, surface="invalid")
 
-    @pytest.mark.tier1
     def test_empty_brain_data(self):
         """Test error handling for empty BrainData"""
         empty_brain = BrainData()
         with pytest.raises(ValueError, match="empty|Empty"):
             surface_plot(empty_brain)
 
-    @pytest.mark.tier1
     def test_multi_image_brain_data(self, sim_brain_data):
         """Test handling BrainData with multiple images"""
         # Should plot first image or mean
@@ -185,7 +173,6 @@ class TestSurfacePlot:
         assert fig is not None
         plt.close(fig)
 
-    @pytest.mark.tier1
     def test_nan_inf_handling(self, sim_brain_data):
         """Test handling of NaN and Inf values"""
         single_image = sim_brain_data[0]
@@ -198,7 +185,7 @@ class TestSurfacePlot:
         assert fig is not None
         plt.close(fig)
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_save_functionality(self, sim_brain_data, tmpdir):
         """Test saving plot to file"""
         import os
@@ -210,7 +197,6 @@ class TestSurfacePlot:
         assert os.path.exists(save_path)
         plt.close(fig)
 
-    @pytest.mark.tier1
     def test_custom_axes_and_figsize(self, sim_brain_data):
         """Test custom axes and figure size"""
         single_image = sim_brain_data[0]
@@ -226,7 +212,6 @@ class TestSurfacePlot:
         assert result is not None
         plt.close(fig)
 
-    @pytest.mark.tier1
     def test_projection_parameters(self, sim_brain_data):
         """Test custom vol_to_surf parameters"""
         single_image = sim_brain_data[0]

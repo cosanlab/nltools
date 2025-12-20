@@ -347,7 +347,6 @@ class TestCrossValidation:
         assert not np.allclose(cv_scores_3, cv_scores_5, rtol=0.01)
 
 
-@pytest.mark.tier1
 class TestBackends:
     """Test different backends."""
 
@@ -388,6 +387,7 @@ class TestBackends:
         assert isinstance(deltas, np.ndarray)
         assert isinstance(coefs, np.ndarray)
 
+    @pytest.mark.gpu
     @pytest.mark.skipif(not _torch_cuda_available(), reason="CUDA not available")
     def test_torch_cuda_backend(self):
         """PyTorch CUDA backend should work."""
