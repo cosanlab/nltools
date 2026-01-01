@@ -1147,9 +1147,10 @@ class BrainData(object):
             elif key.startswith("glm_") or key.startswith("ridge_"):
                 # GLM/Ridge results - share for now (they're typically read-only)
                 setattr(new, key, value)
-            elif key in ["model_", "X_"]:
-                # Fitted model and training data - share (shouldn't be copied)
-                setattr(new, key, value)
+            elif key in ["model_", "X_", "cv_results_"]:
+                # Fitted model state - don't propagate to copies
+                # A copy represents fresh data, not a fitted model
+                pass
             else:
                 # Small attributes - deep copy to be safe
                 setattr(new, key, deepcopy(value))
@@ -1157,14 +1158,17 @@ class BrainData(object):
         return new
 
     def copy(self):
-        """Create a copy of a BrainData instance.
+        """Create a deep copy of a BrainData instance.
 
-        Note: Fitted models (model\\_, X\\_) and model results (glm_*, ridge_*)
-        are shared (not copied) to avoid pickle errors with unpicklable objects.
-        All other attributes including the data array are deep copied.
+        All attributes including data, fitted models, and results are deep copied.
+        Use this when you need a complete independent copy.
+
+        Note: For methods like apply_mask(), threshold(), etc., fitted model state
+        (model_, X_, cv_results_) is NOT propagated since the new data shape
+        would invalidate the original fit.
 
         Returns:
-            BrainData: Copied instance with shared model attributes
+            BrainData: Deep copied instance
         """
         return deepcopy(self)
 
