@@ -704,7 +704,7 @@ class Adjacency(object):
             out.data = np.vstack([self.data, data.data])
             out.is_single_matrix = False
             if out.Y.size:
-                out.Y = self.Y.append(data.Y)
+                out.Y = pd.concat([self.Y, data.Y], ignore_index=True)
 
         return out
 
@@ -1029,21 +1029,26 @@ class Adjacency(object):
             if len(labels) != distance.shape[0]:
                 raise ValueError("Labels must be same length as distance matrix")
 
-        out = pd.DataFrame(columns=["Distance", "Group", "Type"], index=None)
+        frames = []
         for i in np.unique(labels):
-            tmp_w = pd.DataFrame(columns=out.columns, index=None)
-            tmp_w["Distance"] = distance.loc[labels == i, labels == i].values[
+            # Within-group distances (upper triangle of group i x group i)
+            within_vals = distance.loc[labels == i, labels == i].values[
                 np.triu_indices(sum(labels == i), k=1)
             ]
-            tmp_w["Type"] = "Within"
-            tmp_w["Group"] = i
-            tmp_b = pd.DataFrame(columns=out.columns, index=None)
-            tmp_b["Distance"] = distance.loc[labels != i, labels != i].values[
-                np.triu_indices(sum(labels == i), k=1)
-            ]
-            tmp_b["Type"] = "Between"
-            tmp_b["Group"] = i
-            out = out.append(tmp_w).append(tmp_b)
+            tmp_w = pd.DataFrame({
+                "Distance": within_vals,
+                "Type": "Within",
+                "Group": i
+            })
+            # Between-group distances (group i to all other groups)
+            between_vals = distance.loc[labels == i, labels != i].values.flatten()
+            tmp_b = pd.DataFrame({
+                "Distance": between_vals,
+                "Type": "Between",
+                "Group": i
+            })
+            frames.extend([tmp_w, tmp_b])
+        out = pd.concat(frames, ignore_index=True)
         f = sns.violinplot(
             x="Group",
             y="Distance",
@@ -1082,19 +1087,26 @@ class Adjacency(object):
             if len(labels) != distance.shape[0]:
                 raise ValueError("Labels must be same length as distance matrix")
 
-        out = pd.DataFrame(columns=["Distance", "Group", "Type"], index=None)
+        frames = []
         for i in np.unique(labels):
-            tmp_w = pd.DataFrame(columns=out.columns, index=None)
-            tmp_w["Distance"] = distance.loc[labels == i, labels == i].values[
+            # Within-group distances (upper triangle of group i x group i)
+            within_vals = distance.loc[labels == i, labels == i].values[
                 np.triu_indices(sum(labels == i), k=1)
             ]
-            tmp_w["Type"] = "Within"
-            tmp_w["Group"] = i
-            tmp_b = pd.DataFrame(columns=out.columns, index=None)
-            tmp_b["Distance"] = distance.loc[labels == i, labels != i].values.flatten()
-            tmp_b["Type"] = "Between"
-            tmp_b["Group"] = i
-            out = out.append(tmp_w).append(tmp_b)
+            tmp_w = pd.DataFrame({
+                "Distance": within_vals,
+                "Type": "Within",
+                "Group": i
+            })
+            # Between-group distances (group i to all other groups)
+            between_vals = distance.loc[labels == i, labels != i].values.flatten()
+            tmp_b = pd.DataFrame({
+                "Distance": between_vals,
+                "Type": "Between",
+                "Group": i
+            })
+            frames.extend([tmp_w, tmp_b])
+        out = pd.concat(frames, ignore_index=True)
         stats = {}
         for i in np.unique(labels):
             # Within group test
