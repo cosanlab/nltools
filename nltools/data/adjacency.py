@@ -746,6 +746,7 @@ class Adjacency(object):
         n_permute=5000,
         metric="spearman",
         ignore_diagonal=False,
+        nan_policy="omit",
         **kwargs,
     ):
         """
@@ -757,9 +758,67 @@ class Adjacency(object):
             perm_type: (str) '1d','2d', or None
             metric: (str) 'spearman','pearson','kendall'
             ignore_diagonal: (bool) only applies to 'directed' Adjacency types using
-            perm_type=None or perm_type='1d'
+                perm_type=None or perm_type='1d'
+            nan_policy: (str) How to handle NaN values. Options:
+                - 'omit': Remove NaN values pairwise before computing correlation (default)
+                - 'propagate': Allow NaN to propagate through calculations
+                - 'raise': Raise an error if NaN values are present
 
         """
+        if nan_policy not in ("omit", "propagate", "raise"):
+            raise ValueError(
+                f"nan_policy must be 'omit', 'propagate', or 'raise', got {nan_policy!r}"
+            )
+
+        def _handle_nans(arr1, arr2, nan_policy):
+            """Handle NaN values according to policy.
+
+            For 1D arrays: masks out positions where either array has NaN.
+            For 2D arrays: flattens and masks, then reshapes (for matrix perm).
+            """
+            arr1 = np.asarray(arr1)
+            arr2 = np.asarray(arr2)
+
+            # Check for NaN presence
+            has_nan1 = np.any(np.isnan(arr1))
+            has_nan2 = np.any(np.isnan(arr2))
+
+            if not has_nan1 and not has_nan2:
+                return arr1, arr2
+
+            if nan_policy == "raise":
+                if has_nan1 or has_nan2:
+                    raise ValueError(
+                        "Input contains NaN values. Use nan_policy='omit' to ignore them "
+                        "or nan_policy='propagate' to allow NaN in results."
+                    )
+            elif nan_policy == "propagate":
+                return arr1, arr2
+            elif nan_policy == "omit":
+                # For 2D matrix permutation, we can't easily mask individual elements
+                # because the permutation test permutes rows/columns together.
+                # Instead, we warn and use propagate for 2D.
+                if arr1.ndim == 2:
+                    import warnings
+
+                    warnings.warn(
+                        "NaN values detected in 2D matrix data. For perm_type='2d', "
+                        "NaN handling is limited. Consider using perm_type='1d' or None, "
+                        "or removing NaN values before calling similarity().",
+                        UserWarning,
+                    )
+                    return arr1, arr2
+
+                # For 1D: mask out NaN positions from both arrays
+                mask = ~(np.isnan(arr1) | np.isnan(arr2))
+                if not np.any(mask):
+                    raise ValueError(
+                        "All values are NaN after pairwise removal. Cannot compute similarity."
+                    )
+                return arr1[mask], arr2[mask]
+
+            return arr1, arr2
+
         data1 = self.copy()
         if not isinstance(data, Adjacency):
             data2 = Adjacency(data)
@@ -800,9 +859,12 @@ class Adjacency(object):
         if self.is_single_matrix:
             if plot:
                 plot_stacked_adjacency(self, data)
+            arr1 = _convert_data_similarity(data1, perm_type=perm_type)
+            arr2 = _convert_data_similarity(data2, perm_type=perm_type)
+            arr1, arr2 = _handle_nans(arr1, arr2, nan_policy)
             return similarity_func(
-                _convert_data_similarity(data1, perm_type=perm_type),
-                _convert_data_similarity(data2, perm_type=perm_type),
+                arr1,
+                arr2,
                 metric=metric,
                 n_permute=n_permute,
                 **kwargs,
@@ -812,16 +874,21 @@ class Adjacency(object):
                 _, a = plt.subplots(len(self))
                 for i in a:
                     plot_stacked_adjacency(self, data, ax=i)
-            return [
-                similarity_func(
-                    _convert_data_similarity(x, perm_type=perm_type),
-                    _convert_data_similarity(data2, perm_type=perm_type),
-                    metric=metric,
-                    n_permute=n_permute,
-                    **kwargs,
+            results = []
+            arr2_base = _convert_data_similarity(data2, perm_type=perm_type)
+            for x in self:
+                arr1 = _convert_data_similarity(x, perm_type=perm_type)
+                arr1_clean, arr2_clean = _handle_nans(arr1, arr2_base, nan_policy)
+                results.append(
+                    similarity_func(
+                        arr1_clean,
+                        arr2_clean,
+                        metric=metric,
+                        n_permute=n_permute,
+                        **kwargs,
+                    )
                 )
-                for x in self
-            ]
+            return results
 
     def distance(self, metric="correlation", **kwargs):
         """Calculate distance between images within an Adjacency() instance.

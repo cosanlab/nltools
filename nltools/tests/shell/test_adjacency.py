@@ -330,6 +330,44 @@ class TestAdjacency:
             significant=1,
         )
 
+    def test_similarity_nan_handling(self):
+        """Test NaN handling in similarity calculation (#432)."""
+        # Create correlated data that can be squareformed
+        # 190 elements = upper triangle of 20x20 matrix (20*19/2 = 190)
+        rng = np.random.default_rng(42)
+        cov_matrix = np.array([[1.0, 0.7], [0.7, 1.0]])
+        data = rng.multivariate_normal([2, 6], cov_matrix, 190)
+
+        x = Adjacency(data[:, 0])
+        y = Adjacency(data[:, 1])
+
+        # Baseline without NaN using perm_type=None (no permutation, just correlation)
+        stats_clean = x.similarity(y, perm_type=None, nan_policy="omit")
+
+        # Add NaN values to copies
+        x_nan = x.copy()
+        y_nan = y.copy()
+        x_nan.data[10] = np.nan
+        y_nan.data[20] = np.nan
+
+        # Test nan_policy='omit' (default) - should work and give similar result
+        stats_omit = x_nan.similarity(y_nan, perm_type=None, nan_policy="omit")
+        assert not np.isnan(stats_omit["correlation"])
+        # Correlation should be similar (within reasonable tolerance)
+        assert abs(stats_omit["correlation"] - stats_clean["correlation"]) < 0.15
+
+        # Test nan_policy='propagate' - should return NaN
+        stats_prop = x_nan.similarity(y_nan, perm_type=None, nan_policy="propagate")
+        assert np.isnan(stats_prop["correlation"])
+
+        # Test nan_policy='raise' - should raise ValueError
+        with pytest.raises(ValueError, match="Input contains NaN"):
+            x_nan.similarity(y_nan, perm_type=None, nan_policy="raise")
+
+        # Test invalid nan_policy
+        with pytest.raises(ValueError, match="nan_policy must be"):
+            x.similarity(y, perm_type=None, nan_policy="invalid")
+
     # ==================== Statistical Methods ====================
 
     def test_ttest(self, sim_adjacency_multiple):
