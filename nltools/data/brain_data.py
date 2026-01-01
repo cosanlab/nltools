@@ -1660,6 +1660,17 @@ class BrainData(object):
         from sklearn.metrics import r2_score
         from nltools.algorithms.ridge import ridge_cv, ridge_svd
 
+        # Convert backend to parallel parameter for ridge functions
+        # ridge_svd/ridge_cv expect: None, 'cpu', or 'gpu'
+        if backend in ("auto", "numpy", None):
+            parallel = "cpu"
+        elif backend == "torch":
+            parallel = "gpu"
+        elif backend in ("cpu", "gpu"):
+            parallel = backend
+        else:
+            parallel = "cpu"  # Safe default
+
         # Get alpha from model if not explicitly provided
         if alpha is None:
             alpha = self.model_.alpha if hasattr(self.model_, "alpha") else 1.0
@@ -1700,7 +1711,7 @@ class BrainData(object):
                 alphas = np.logspace(-2, 4, 20)  # Default alpha grid
 
             result = ridge_cv(
-                X, self.data, alphas=alphas, cv=cv_splitter.n_splits, backend=backend
+                X, self.data, alphas=alphas, cv=cv_splitter.n_splits, parallel=parallel
             )
 
             best_alpha = result["alpha"]
@@ -1724,7 +1735,7 @@ class BrainData(object):
             y_train, y_test = self.data[train_idx], self.data[test_idx]
 
             # Fit Ridge on training fold
-            coef = ridge_svd(X_train, y_train, alpha=alpha, parallel=backend)
+            coef = ridge_svd(X_train, y_train, alpha=alpha, parallel=parallel)
 
             # Predict on test fold
             y_pred = X_test @ coef

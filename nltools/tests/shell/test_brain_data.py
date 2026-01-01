@@ -2762,9 +2762,10 @@ class TestBrainData:
         assert isinstance(b, BrainData)
         assert b.shape == (1, masked.shape[1])  # (1, n_voxels)
 
-        # Bootstrap with "predict" requires fitted model
+        # Bootstrap with "predict" requires fitted model (pass X_test to get past that check)
+        X_test = np.random.randn(5, 10)  # Dummy test features
         with pytest.raises(ValueError, match="Must call.*fit"):
-            masked.bootstrap(stat="predict", n_samples=n_samples)
+            masked.bootstrap(stat="predict", n_samples=n_samples, X_test=X_test)
 
     def test_bootstrap_invalid_method_error(self, sim_brain_data):
         """Test error raised for unsupported method."""
