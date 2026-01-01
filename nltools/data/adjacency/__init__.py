@@ -29,7 +29,7 @@ from nltools.utils import (
     concatenate,
     to_h5,
 )
-from .design_matrix import DesignMatrix
+from ..design_matrix import DesignMatrix
 from pathlib import Path
 from h5py import File as h5File
 import warnings
