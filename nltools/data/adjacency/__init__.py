@@ -1551,6 +1551,9 @@ class Adjacency(object):
             # to match the original Adjacency data format
             if b.shape[0] == 1:
                 # Single regressor case: b is (1, n_features), transpose to (n_features,)
+                # Result is a single matrix of coefficients
+                for key in ["beta", "sigma", "t", "p", "df", "residual"]:
+                    stats[key].is_single_matrix = True
                 stats["beta"].data = b.squeeze()
                 stats["sigma"].data = stderr.squeeze()
                 stats["t"].data = t.squeeze()

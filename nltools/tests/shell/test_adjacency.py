@@ -624,9 +624,6 @@ class TestAdjacency:
 
     # ==================== Regression & Analysis ====================
 
-    @pytest.mark.skip(
-        reason="Adjacency.regress() implementation refactored - skipping temporarily"
-    )
     def test_regression(self):
         """Test regression with Adjacency and DesignMatrix predictors."""
         # Test Adjacency Regression
