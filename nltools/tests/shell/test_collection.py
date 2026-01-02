@@ -1494,3 +1494,202 @@ class TestBrainCollectionISC:
 
         assert result["method"] == "pairwise"
         assert isinstance(result["isc"], BrainData)
+
+
+class TestGLMHelpers:
+    """Tests for GLM/Ridge helper functions."""
+
+    def test_resolve_save_path_basic(self, tmp_path):
+        """Test basic path resolution with metadata."""
+        from nltools.data.collection import _resolve_save_path
+
+        row = pd.Series({"subject": "sub-01", "session": "ses-01"})
+        template = str(tmp_path / "{subject}_{session}_betas.nii.gz")
+
+        result = _resolve_save_path(template, row, idx=0)
+
+        assert result == tmp_path / "sub-01_ses-01_betas.nii.gz"
+
+    def test_resolve_save_path_idx(self, tmp_path):
+        """Test path resolution with {idx} placeholder."""
+        from nltools.data.collection import _resolve_save_path
+
+        row = pd.Series({"subject": "sub-01"})
+        template = str(tmp_path / "sub_{idx}_betas.nii.gz")
+
+        result = _resolve_save_path(template, row, idx=5)
+
+        assert result == tmp_path / "sub_5_betas.nii.gz"
+
+    def test_resolve_save_path_creates_dirs(self, tmp_path):
+        """Test that parent directories are created."""
+        from nltools.data.collection import _resolve_save_path
+
+        row = pd.Series({"subject": "sub-01"})
+        template = str(tmp_path / "nested" / "dirs" / "{subject}_betas.nii.gz")
+
+        result = _resolve_save_path(template, row, idx=0)
+
+        assert result.parent.exists()
+
+    def test_resolve_save_path_missing_placeholder(self, tmp_path):
+        """Test error on missing placeholder."""
+        from nltools.data.collection import _resolve_save_path
+
+        row = pd.Series({"subject": "sub-01"})
+        template = str(tmp_path / "{subject}_{missing}_betas.nii.gz")
+
+        with pytest.raises(KeyError, match="missing"):
+            _resolve_save_path(template, row, idx=0)
+
+    def test_build_design_matrix_basic(self):
+        """Test basic design matrix construction."""
+        from nltools.data.collection import _build_subject_design_matrix
+
+        events = pd.DataFrame(
+            {
+                "onset": [0, 10, 20, 30],
+                "duration": [2, 2, 2, 2],
+                "trial_type": ["face", "house", "face", "house"],
+            }
+        )
+
+        dm, task_cols = _build_subject_design_matrix(
+            events=events,
+            n_scans=50,
+            t_r=2.0,
+        )
+
+        # Should have task columns
+        assert "face" in task_cols
+        assert "house" in task_cols
+        assert len(task_cols) == 2
+
+        # Design matrix should have correct number of rows
+        assert len(dm) == 50
+
+        # Should have drift and constant
+        assert "constant" in dm.columns
+
+    def test_build_design_matrix_with_confounds(self, tmp_path):
+        """Test design matrix with confounds."""
+        from nltools.data.collection import _build_subject_design_matrix
+
+        events = pd.DataFrame(
+            {
+                "onset": [0, 10, 20],
+                "duration": [2, 2, 2],
+                "trial_type": ["task", "task", "task"],
+            }
+        )
+
+        # Create confounds DataFrame
+        confounds = pd.DataFrame(
+            {
+                "motion_x": np.random.randn(30),
+                "motion_y": np.random.randn(30),
+                "spike_01": np.zeros(30),
+            }
+        )
+
+        dm, task_cols = _build_subject_design_matrix(
+            events=events,
+            n_scans=30,
+            t_r=2.0,
+            confounds=confounds,
+            confound_columns=["motion_x", "motion_y"],
+        )
+
+        # Task columns should NOT include confounds
+        assert "task" in task_cols
+        assert "motion_x" not in task_cols
+
+        # But design matrix should have confounds
+        assert "motion_x" in dm.columns
+        assert "motion_y" in dm.columns
+        assert "spike_01" not in dm.columns  # Not selected
+
+    def test_build_design_matrix_confounds_from_file(self, tmp_path):
+        """Test loading confounds from TSV file."""
+        from nltools.data.collection import _build_subject_design_matrix
+
+        events = pd.DataFrame(
+            {
+                "onset": [0, 10],
+                "duration": [2, 2],
+                "trial_type": ["cond", "cond"],
+            }
+        )
+
+        # Write confounds file
+        confounds_path = tmp_path / "confounds.tsv"
+        confounds_df = pd.DataFrame(
+            {
+                "trans_x": np.random.randn(20),
+                "trans_y": np.random.randn(20),
+            }
+        )
+        confounds_df.to_csv(confounds_path, sep="\t", index=False)
+
+        dm, task_cols = _build_subject_design_matrix(
+            events=events,
+            n_scans=20,
+            t_r=2.0,
+            confounds=confounds_path,
+        )
+
+        assert "trans_x" in dm.columns
+        assert "trans_y" in dm.columns
+
+    def test_build_design_matrix_missing_confound_column(self):
+        """Test error on missing confound column."""
+        from nltools.data.collection import _build_subject_design_matrix
+
+        events = pd.DataFrame(
+            {
+                "onset": [0],
+                "duration": [2],
+                "trial_type": ["task"],
+            }
+        )
+
+        confounds = pd.DataFrame(
+            {
+                "motion_x": np.random.randn(20),
+            }
+        )
+
+        with pytest.raises(ValueError, match="not found"):
+            _build_subject_design_matrix(
+                events=events,
+                n_scans=20,
+                t_r=2.0,
+                confounds=confounds,
+                confound_columns=["motion_x", "missing_col"],
+            )
+
+    def test_build_design_matrix_length_mismatch(self):
+        """Test error on confounds length mismatch."""
+        from nltools.data.collection import _build_subject_design_matrix
+
+        events = pd.DataFrame(
+            {
+                "onset": [0],
+                "duration": [2],
+                "trial_type": ["task"],
+            }
+        )
+
+        confounds = pd.DataFrame(
+            {
+                "motion_x": np.random.randn(15),  # Wrong length
+            }
+        )
+
+        with pytest.raises(ValueError, match="Lengths must match"):
+            _build_subject_design_matrix(
+                events=events,
+                n_scans=20,
+                t_r=2.0,
+                confounds=confounds,
+            )

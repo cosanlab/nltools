@@ -51,6 +51,168 @@ _AXIS_NAMES = {
 }
 
 
+# =============================================================================
+# Helper Functions for fit_glm / fit_ridge
+# =============================================================================
+
+
+def _resolve_save_path(
+    template: str,
+    metadata_row: pd.Series,
+    idx: int,
+) -> Path:
+    """Resolve a template path using metadata values.
+
+    Replaces {column_name} placeholders with values from metadata.
+    Falls back to {idx} for the subject index.
+
+    Args:
+        template: Path template with {placeholders}, e.g., 'output/{subject}_betas.nii.gz'
+        metadata_row: Series with metadata for this subject
+        idx: Subject index (used for {idx} placeholder)
+
+    Returns:
+        Resolved Path object
+
+    Raises:
+        KeyError: If placeholder not found in metadata and not 'idx'
+
+    Example:
+        >>> row = pd.Series({'subject': 'sub-01', 'session': 'ses-01'})
+        >>> _resolve_save_path('out/{subject}_{session}.nii.gz', row, 0)
+        PosixPath('out/sub-01_ses-01.nii.gz')
+    """
+    import re
+
+    result = template
+
+    # Find all {placeholder} patterns
+    placeholders = re.findall(r"\{(\w+)\}", template)
+
+    for placeholder in placeholders:
+        if placeholder == "idx":
+            value = str(idx)
+        elif placeholder in metadata_row.index:
+            value = str(metadata_row[placeholder])
+        else:
+            available = list(metadata_row.index) + ["idx"]
+            raise KeyError(
+                f"Placeholder '{{{placeholder}}}' not found in metadata. "
+                f"Available: {available}"
+            )
+        result = result.replace(f"{{{placeholder}}}", value)
+
+    path = Path(result)
+
+    # Create parent directories if needed
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    return path
+
+
+def _build_subject_design_matrix(
+    events: pd.DataFrame,
+    n_scans: int,
+    t_r: float,
+    confounds: pd.DataFrame | Path | str | None = None,
+    confound_columns: list[str] | None = None,
+    hrf_model: str = "spm",
+    drift_model: str = "cosine",
+    high_pass: float = 0.01,
+) -> tuple[pd.DataFrame, list[str]]:
+    """Build complete design matrix for a subject.
+
+    Combines task design (from events) with subject-specific confounds.
+
+    Args:
+        events: Task events DataFrame with 'onset', 'duration', 'trial_type' columns
+        n_scans: Number of scans/timepoints
+        t_r: Repetition time in seconds
+        confounds: Subject confounds - DataFrame, path to TSV, or None
+        confound_columns: Which confound columns to include (None = all)
+        hrf_model: HRF model for task regressors ('spm', 'glover', etc.)
+        drift_model: Drift model ('cosine', 'polynomial', None)
+        high_pass: High-pass filter cutoff in Hz
+
+    Returns:
+        Tuple of:
+            - design_matrix: Complete design matrix (task + confounds + drift)
+            - task_columns: List of task regressor column names
+
+    Example:
+        >>> events = pd.DataFrame({
+        ...     'onset': [0, 10, 20],
+        ...     'duration': [2, 2, 2],
+        ...     'trial_type': ['face', 'house', 'face']
+        ... })
+        >>> dm, task_cols = _build_subject_design_matrix(events, 100, 2.0)
+        >>> print(task_cols)
+        ['face', 'house']
+    """
+    from nilearn.glm.first_level import make_first_level_design_matrix
+
+    # Create frame times
+    frame_times = np.arange(n_scans) * t_r
+
+    # Build task design matrix
+    task_dm = make_first_level_design_matrix(
+        frame_times=frame_times,
+        events=events,
+        hrf_model=hrf_model,
+        drift_model=drift_model,
+        high_pass=high_pass,
+    )
+
+    # Identify task columns (everything except drift and constant)
+    drift_cols = [
+        c for c in task_dm.columns if c.startswith("drift_") or c == "constant"
+    ]
+    task_columns = [c for c in task_dm.columns if c not in drift_cols]
+
+    # Load confounds if provided
+    if confounds is not None:
+        if isinstance(confounds, (str, Path)):
+            confounds_path = Path(confounds)
+            if not confounds_path.exists():
+                raise FileNotFoundError(f"Confounds file not found: {confounds_path}")
+            # Detect separator (TSV vs CSV)
+            sep = "\t" if confounds_path.suffix in [".tsv", ".txt"] else ","
+            confounds_df = pd.read_csv(confounds_path, sep=sep)
+        else:
+            confounds_df = confounds
+
+        # Select columns if specified
+        if confound_columns is not None:
+            missing = set(confound_columns) - set(confounds_df.columns)
+            if missing:
+                raise ValueError(
+                    f"Confound columns not found: {missing}. "
+                    f"Available: {list(confounds_df.columns)}"
+                )
+            confounds_df = confounds_df[confound_columns]
+
+        # Validate length
+        if len(confounds_df) != n_scans:
+            raise ValueError(
+                f"Confounds have {len(confounds_df)} rows but data has {n_scans} scans. "
+                "Lengths must match."
+            )
+
+        # Handle NaN values in confounds (common for first few rows of derivatives)
+        confounds_df = confounds_df.fillna(0)
+
+        # Concatenate: task_dm already has drift and constant, add confounds before them
+        # Reorder: task | confounds | drift | constant
+        full_dm = pd.concat(
+            [task_dm[task_columns], confounds_df, task_dm[drift_cols]],
+            axis=1,
+        )
+    else:
+        full_dm = task_dm
+
+    return full_dm, task_columns
+
+
 class BrainCollection:
     """
     Collection of brain images with tensor-like operations.
