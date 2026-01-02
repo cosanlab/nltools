@@ -75,30 +75,6 @@ class TestCircleShift:
         expected = np.array([[4, 30], [1, 40], [2, 10], [3, 20]])
         np.testing.assert_array_equal(shifted, expected)
 
-    @pytest.mark.skip(
-        reason="circle_shift has been moved from stats.py to algorithms.inference.timeseries"
-    )
-    def test_matches_stats_py_1d(self):
-        """Test that circle_shift matches stats.py for 1D data.
-
-        NOTE: This test is skipped because circle_shift has been moved from
-        nltools.stats to nltools.algorithms.inference.timeseries as part of
-        the refactoring. The function no longer exists in stats.py.
-        """
-        pass
-
-    @pytest.mark.skip(
-        reason="circle_shift has been moved from stats.py to algorithms.inference.timeseries"
-    )
-    def test_matches_stats_py_2d(self):
-        """Test that circle_shift matches stats.py for 2D data.
-
-        NOTE: This test is skipped because circle_shift has been moved from
-        nltools.stats to nltools.algorithms.inference.timeseries as part of
-        the refactoring. The function no longer exists in stats.py.
-        """
-        pass
-
 
 class TestPhaseRandomize:
     """Tests for phase_randomize() function."""
@@ -239,30 +215,6 @@ class TestPhaseRandomize:
         np.testing.assert_allclose(
             randomized_numpy, randomized_torch, rtol=1e-5, atol=1e-5
         )
-
-    @pytest.mark.skip(
-        reason="phase_randomize has been moved from stats.py to algorithms.inference.timeseries"
-    )
-    def test_matches_stats_py_1d(self):
-        """Test that phase_randomize matches stats.py for 1D data.
-
-        NOTE: This test is skipped because phase_randomize has been moved from
-        nltools.stats to nltools.algorithms.inference.timeseries as part of
-        the refactoring. The function no longer exists in stats.py.
-        """
-        pass
-
-    @pytest.mark.skip(
-        reason="phase_randomize has been moved from stats.py to algorithms.inference.timeseries"
-    )
-    def test_matches_stats_py_2d(self):
-        """Test that phase_randomize matches stats.py for 2D data.
-
-        NOTE: This test is skipped because phase_randomize has been moved from
-        nltools.stats to nltools.algorithms.inference.timeseries as part of
-        the refactoring. The function no longer exists in stats.py.
-        """
-        pass
 
 
 class TestTimeseriesCorrelation:
