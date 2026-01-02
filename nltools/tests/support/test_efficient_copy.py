@@ -60,6 +60,7 @@ def test_scale_efficient(sim_brain_data):
     assert not np.isclose(original_mean, 100.0)
 
 
+@pytest.mark.filterwarnings("ignore:Numerical issues:UserWarning")
 def test_method_chaining_efficiency(sim_brain_data):
     """Test that method chaining is efficient"""
 

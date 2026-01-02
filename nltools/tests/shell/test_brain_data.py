@@ -2337,6 +2337,7 @@ class TestBrainData:
         detrend = sim_brain_data.detrend()
         assert detrend.shape == sim_brain_data.shape
 
+    @pytest.mark.filterwarnings("ignore:Numerical issues:UserWarning")
     def test_standardize(self, sim_brain_data):
         """Test standardization with different methods."""
         s = sim_brain_data.standardize()
