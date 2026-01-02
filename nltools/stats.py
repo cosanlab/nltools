@@ -1696,7 +1696,7 @@ def _permute_isc_group(similarity_matrix, group, metric="median", random_state=N
     if not isinstance(group, np.ndarray):
         raise ValueError("group must be a numpy array.")
 
-    if len(group) != similarity_matrix.square_shape()[0]:
+    if len(group) != similarity_matrix.n_nodes:
         raise ValueError(
             "Group array must be the same length as the similarity matrix."
         )

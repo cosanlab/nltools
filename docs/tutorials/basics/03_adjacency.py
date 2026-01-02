@@ -87,26 +87,25 @@ plt.title("Random Symmetric Matrix")
 plt.close()
 
 # %% [markdown]
-# ## Vectorized Representation
+# ## Shape and Vectorized Representation
 #
-# Adjacency matrices are symmetric, so we only need upper/lower triangle.
+# Adjacency matrices are symmetric, so internally we store only the upper triangle
+# as a vector. The `.shape` property returns the logical `(n_nodes, n_nodes)` shape,
+# while `.vector_shape` shows the internal storage.
 
 # %%
-# Get vectorized form (upper triangle, no diagonal)
-vector = adj.data
+# Shape returns (n_nodes, n_nodes) - the logical matrix dimensions
+print(f"Logical shape: {adj.shape}")
+print(f"Number of nodes: {adj.n_nodes}")
 
-# adj.shape returns (vector_length,) - get n_nodes from squareform
+# Internal vectorized storage (upper triangle, no diagonal)
+print(f"Vector shape: {adj.vector_shape}")
+vector_length = adj.n_nodes * (adj.n_nodes - 1) // 2
+print(f"Expected vector length (n*(n-1)/2): {vector_length}")
+
+# Convert to full square matrix
 square = adj.squareform()
-n_nodes = square.shape[0]
-expected_length = n_nodes * (n_nodes - 1) // 2
-
-print(f"Full matrix shape: {square.shape}")
-print(f"Vectorized length: {len(vector)}")
-print(f"Expected (n*(n-1)/2 = {n_nodes}*{n_nodes - 1}/2): {expected_length}")
-
-# Convert back to square matrix
-square = adj.squareform()
-print(f"Square form: {square.shape}")
+print(f"Squareform shape: {square.shape}")
 
 # %% [markdown]
 # ## Thresholding

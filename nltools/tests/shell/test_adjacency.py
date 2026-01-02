@@ -86,10 +86,29 @@ class TestAdjacency:
     def test_squareform(self, sim_adjacency_multiple):
         """Test vector → matrix → vector conversion preserves data."""
         assert len(sim_adjacency_multiple.squareform()) == len(sim_adjacency_multiple)
-        assert (
-            sim_adjacency_multiple[0].squareform().shape
-            == sim_adjacency_multiple[0].square_shape()
-        )
+        # square_shape() is deprecated, test that it still works but warns
+        import warnings
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            sq_shape = sim_adjacency_multiple[0].square_shape()
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert "deprecated" in str(w[0].message).lower()
+        assert sim_adjacency_multiple[0].squareform().shape == sq_shape
+
+    def test_shape_property(self, sim_adjacency_single, sim_adjacency_multiple):
+        """Test shape property returns (n_nodes, n_nodes) for single, (n, n_nodes, n_nodes) for stacked."""
+        # Single matrix: shape is (n_nodes, n_nodes)
+        assert sim_adjacency_single.shape == (4, 4)
+        assert sim_adjacency_single.n_nodes == 4
+        assert sim_adjacency_single.vector_shape == (6,)
+
+        # Multiple matrices: shape is (n_matrices, n_nodes, n_nodes)
+        n_matrices = len(sim_adjacency_multiple)
+        assert sim_adjacency_multiple.shape == (n_matrices, 4, 4)
+        assert sim_adjacency_multiple.n_nodes == 4
+        assert sim_adjacency_multiple.vector_shape == (n_matrices, 6)
 
     def test_append(self, sim_adjacency_single):
         """Test appending adjacency matrices."""
@@ -97,7 +116,10 @@ class TestAdjacency:
         a = a.append(sim_adjacency_single)
         assert a.shape == sim_adjacency_single.shape
         a = a.append(a)
-        assert a.shape == (2, 6)
+        # shape returns (n_matrices, n_nodes, n_nodes)
+        assert a.shape == (2, 4, 4)
+        # vector_shape returns the internal representation
+        assert a.vector_shape == (2, 6)
 
     # ==================== I/O Operations ====================
 
@@ -339,9 +361,7 @@ class TestAdjacency:
     def test_distance(self, sim_adjacency_multiple):
         """Test distance matrix computation."""
         assert isinstance(sim_adjacency_multiple.distance(), Adjacency)
-        assert sim_adjacency_multiple.distance().square_shape()[0] == len(
-            sim_adjacency_multiple
-        )
+        assert sim_adjacency_multiple.distance().n_nodes == len(sim_adjacency_multiple)
 
     def test_similarity_conversion(self, sim_adjacency_single):
         """Test conversion between distance and similarity."""
@@ -713,8 +733,8 @@ class TestAdjacency:
         results1 = data.social_relations_model()
         assert isinstance(data.social_relations_model(), pd.Series)
         assert isinstance(data2.social_relations_model(), pd.DataFrame)
-        assert len(results1["actor_effect"]) == data.square_shape()[0]
-        assert results1["relationship_effect"].shape == data.square_shape()
+        assert len(results1["actor_effect"]) == data.n_nodes
+        assert results1["relationship_effect"].shape == data.shape
         np.testing.assert_approx_equal(results1["actor_variance"], 3.33, significant=2)
         np.testing.assert_approx_equal(
             results1["partner_variance"], 0.66, significant=2

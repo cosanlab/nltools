@@ -241,13 +241,11 @@ reloaded = BrainData.read('/tmp/brain.h5')  # Mask preserved
 ---
 
 (adjacency-shape-behavior)=
-### Adjacency.shape Returns Vector Length
+### Adjacency.shape Now Returns Logical Shape
 
-**Status**: ⚠️ Known inconsistency - will be fixed in v0.6.x
+**Status**: ✅ FIXED (v0.6.0)
 
-> **Note**: This is a known API inconsistency. `Adjacency.shape` should return `(n_nodes, n_nodes)` for consistency with `BrainData.shape` and `DesignMatrix.shape`. This will be fixed in a future v0.6.x release. See [nltools-76p](https://github.com/cosanlab/nltools/issues/nltools-76p).
-
-`Adjacency.shape` returns the **vector length** (upper triangle), not the square matrix dimensions:
+`Adjacency.shape` now returns the **logical shape** `(n_nodes, n_nodes)` for consistency with `BrainData.shape` and `DesignMatrix.shape`:
 
 ```python
 from nltools.data import Adjacency
@@ -260,20 +258,26 @@ np.fill_diagonal(matrix, 0)
 
 adj = Adjacency(data=matrix, matrix_type='similarity')
 
-# ❌ UNEXPECTED: shape returns vector length
-print(adj.shape)  # (45,) - NOT (10, 10)
+# ✅ shape now returns logical dimensions
+print(adj.shape)      # (10, 10) - the logical matrix shape
+print(adj.n_nodes)    # 10 - convenience property
 
-# ✅ To get n_nodes, use squareform:
-square = adj.squareform()
-n_nodes = square.shape[0]
-print(n_nodes)  # 10
+# For stacked matrices:
+stacked = adj.append(adj)
+print(stacked.shape)  # (2, 10, 10) - (n_matrices, n_nodes, n_nodes)
 
-# The vector length formula: n_nodes * (n_nodes - 1) / 2
-expected_length = n_nodes * (n_nodes - 1) // 2
-print(expected_length)  # 45
+# To get the internal vector representation shape, use vector_shape:
+print(adj.vector_shape)      # (45,) - upper triangle as vector
+print(stacked.vector_shape)  # (2, 45)
 ```
 
-**Why this design**: Adjacency matrices are symmetric, so only the upper (or lower) triangle contains unique information. Storing as a vector saves 50%+ memory and enables efficient vectorized operations.
+**New properties**:
+- `.shape` → `(n_nodes, n_nodes)` or `(n_matrices, n_nodes, n_nodes)`
+- `.n_nodes` → Number of nodes in the matrix
+- `.vector_shape` → Shape of internal vectorized storage
+
+**Deprecated**:
+- `.square_shape()` → Use `.shape` instead (will be removed in v0.7.0)
 
 **Threshold API**: Uses `lower`/`upper` keywords, not `threshold`:
 ```python

@@ -238,14 +238,14 @@ class Adjacency(object):
 
         elif isinstance(labels, (list, np.ndarray)):
             if self.is_single_matrix:
-                if len(labels) != self.square_shape()[0]:
+                if len(labels) != self.n_nodes:
                     raise ValueError(
                         "Make sure the length of labels matches the shape of data."
                     )
                 self.labels = deepcopy(labels)
             else:
                 if len(labels) != len(self):
-                    if len(labels) != self.square_shape()[0]:
+                    if len(labels) != self.n_nodes:
                         raise ValueError(
                             "Make sure length of labels either "
                             "matches the number of Adjacency "
@@ -255,9 +255,7 @@ class Adjacency(object):
                     else:
                         self.labels = list(labels) * len(self)
                 else:
-                    if np.all(
-                        np.array([len(x) for x in labels]) != self.square_shape()[0]
-                    ):
+                    if np.all(np.array([len(x) for x in labels]) != self.n_nodes):
                         raise ValueError(
                             "All lists of labels must be same length as shape of data."
                         )
@@ -266,13 +264,10 @@ class Adjacency(object):
             raise TypeError("Make sure labels is a list or numpy array.")
 
     def __repr__(self):
-        return (
-            "%s.%s(shape=%s, square_shape=%s, Y=%s, is_symmetric=%s,matrix_type=%s)"
-        ) % (
+        return "%s.%s(shape=%s, Y=%s, is_symmetric=%s, matrix_type=%s)" % (
             self.__class__.__module__,
             self.__class__.__name__,
             self.shape,
-            self.square_shape(),
             self.Y.shape,
             self.issymmetric,
             self.matrix_type,
@@ -663,11 +658,73 @@ class Adjacency(object):
 
     @property
     def shape(self):
-        """Calculate shape of data."""
+        """Return the logical shape of the adjacency matrix.
+
+        Returns:
+            tuple: For single matrix: (n_nodes, n_nodes)
+                   For stacked matrices: (n_matrices, n_nodes, n_nodes)
+                   For empty: (0, 0)
+
+        Note:
+            Use `.vector_shape` to get the internal vectorized representation shape.
+        """
+        if self.matrix_type == "empty":
+            return (0, 0)
+
+        # Compute n_nodes from vector length
+        if self.is_single_matrix:
+            vector_len = self.data.shape[0]
+        else:
+            vector_len = self.data.shape[1]
+
+        if self.issymmetric:
+            # For symmetric: vector_len = n*(n-1)/2, solve for n
+            n_nodes = int((1 + np.sqrt(1 + 8 * vector_len)) / 2)
+        else:
+            # For directed: vector_len = n*n
+            n_nodes = int(np.sqrt(vector_len))
+
+        if self.is_single_matrix:
+            return (n_nodes, n_nodes)
+        else:
+            return (len(self), n_nodes, n_nodes)
+
+    @property
+    def vector_shape(self):
+        """Return shape of internal vectorized representation.
+
+        Returns:
+            tuple: For single matrix: (vector_length,)
+                   For stacked matrices: (n_matrices, vector_length)
+
+        Note:
+            This is the raw shape of the internal data storage.
+            Use `.shape` for the logical (n_nodes, n_nodes) shape.
+        """
         return self.data.shape
 
+    @property
+    def n_nodes(self):
+        """Return the number of nodes in the adjacency matrix.
+
+        Returns:
+            int: Number of nodes (n) for an (n, n) matrix.
+        """
+        return self.shape[-1]
+
     def square_shape(self):
-        """Calculate shape of squareform data."""
+        """Calculate shape of squareform data.
+
+        .. deprecated::
+            Use `.shape` instead. This method will be removed in v0.7.0.
+        """
+        warnings.warn(
+            "square_shape() is deprecated. Use .shape instead, which now returns "
+            "(n_nodes, n_nodes) for single matrices or (n_matrices, n_nodes, n_nodes) "
+            "for stacked matrices.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if self.matrix_type == "empty":
             return np.array([])
         else:
@@ -698,7 +755,7 @@ class Adjacency(object):
             out = data.copy()
         else:
             out = self.copy()
-            if self.square_shape() != data.square_shape():
+            if self.n_nodes != data.n_nodes:
                 raise ValueError("Data is not the same shape as Adjacency instance.")
 
             out.data = np.vstack([self.data, data.data])
@@ -1287,9 +1344,9 @@ class Adjacency(object):
         if n_components not in [2, 3]:
             raise ValueError("Cannot plot {0}-d image".format(n_components))
         if labels is not None:
-            if len(labels) != self.square_shape()[0]:
+            if len(labels) != self.n_nodes:
                 raise ValueError(
-                    "Make sure labels matches the same shape as Adjaency data"
+                    "Make sure labels matches the same shape as Adjacency data"
                 )
         else:
             labels = self.labels
@@ -1453,7 +1510,7 @@ class Adjacency(object):
 
         stats = {}
         if isinstance(X, Adjacency):
-            if X.square_shape()[0] != self.square_shape()[0]:
+            if X.n_nodes != self.n_nodes:
                 raise ValueError("Adjacency instances must be the same size.")
             # Convert to numpy arrays for regression
             X_data = X.data.T
@@ -1673,10 +1730,10 @@ class Adjacency(object):
                     "This function only operates on single matrix Adjacency instances."
                 )
 
-            n = data.square_shape()[0]
+            n = data.n_nodes
             if n < 4:
                 raise ValueError(
-                    "The Social Relations Model cannote be estimated when sample size is less than 4."
+                    "The Social Relations Model cannot be estimated when sample size is less than 4."
                 )
             grand_mean = data.mean()
             dat = data.squareform().copy()

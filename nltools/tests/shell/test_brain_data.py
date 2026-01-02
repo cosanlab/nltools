@@ -1424,7 +1424,7 @@ class TestBrainData:
         """Test distance computation returns Adjacency object."""
         distance = sim_brain_data.distance(metric="correlation")
         assert isinstance(distance, Adjacency)
-        assert distance.square_shape()[0] == shape_2d[0]
+        assert distance.n_nodes == shape_2d[0]
 
     # ==================== Regression & GLM ====================
 

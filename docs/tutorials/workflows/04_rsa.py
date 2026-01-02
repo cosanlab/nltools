@@ -104,7 +104,7 @@ similarity = patterns.distance(metric="correlation")
 # Add condition labels
 similarity.labels = conditions
 
-print(f"Similarity matrix size: {similarity.square_shape()}")
+print(f"Similarity matrix size: {similarity.shape}")
 
 # %% [markdown]
 # ### Visualizing the Similarity Matrix
@@ -265,7 +265,7 @@ for cond1, cond2 in key_pairs:
 # Basic properties
 print("Adjacency Object Properties:")
 print(f"  Matrix type: {sim_matrix.matrix_type}")
-print(f"  Shape: {sim_matrix.square_shape()}")
+print(f"  Shape: {sim_matrix.shape}")
 print(f"  Labels: {sim_matrix.labels}")
 
 # %%
