@@ -890,19 +890,39 @@ class Adjacency(object):
                 )
             return results
 
-    def distance(self, metric="correlation", **kwargs):
+    def distance(self, metric="correlation", include_diag=False, **kwargs):
         """Calculate distance between images within an Adjacency() instance.
 
         Args:
             metric: (str) type of distance metric (can use any scikit learn or
-                    sciypy metric)
+                    scipy metric)
+            include_diag: (bool) whether to include the main diagonal when
+                    computing distances between adjacency matrices. Only applies
+                    to symmetric matrices. Default False (consistent with how
+                    symmetric matrices are stored without diagonal).
 
         Returns:
             dist: (Adjacency) Outputs a 2D distance matrix.
 
         """
+        if include_diag and self.issymmetric:
+            # Get square form and extract upper triangle WITH diagonal
+            squares = self.squareform()
+            if self.is_single_matrix:
+                squares = [squares]
+            # Extract upper triangle including diagonal for each matrix
+            data_with_diag = []
+            for sq in squares:
+                mask = np.triu(
+                    np.ones_like(sq, dtype=bool), k=0
+                )  # k=0 includes diagonal
+                data_with_diag.append(sq[mask])
+            data = np.array(data_with_diag)
+        else:
+            data = self.data
+
         return Adjacency(
-            pairwise_distances(self.data, metric=metric, **kwargs),
+            pairwise_distances(data, metric=metric, **kwargs),
             matrix_type="distance",
         )
 
@@ -1035,18 +1055,14 @@ class Adjacency(object):
             within_vals = distance.loc[labels == i, labels == i].values[
                 np.triu_indices(sum(labels == i), k=1)
             ]
-            tmp_w = pd.DataFrame({
-                "Distance": within_vals,
-                "Type": "Within",
-                "Group": i
-            })
+            tmp_w = pd.DataFrame(
+                {"Distance": within_vals, "Type": "Within", "Group": i}
+            )
             # Between-group distances (group i to all other groups)
             between_vals = distance.loc[labels == i, labels != i].values.flatten()
-            tmp_b = pd.DataFrame({
-                "Distance": between_vals,
-                "Type": "Between",
-                "Group": i
-            })
+            tmp_b = pd.DataFrame(
+                {"Distance": between_vals, "Type": "Between", "Group": i}
+            )
             frames.extend([tmp_w, tmp_b])
         out = pd.concat(frames, ignore_index=True)
         f = sns.violinplot(
@@ -1093,18 +1109,14 @@ class Adjacency(object):
             within_vals = distance.loc[labels == i, labels == i].values[
                 np.triu_indices(sum(labels == i), k=1)
             ]
-            tmp_w = pd.DataFrame({
-                "Distance": within_vals,
-                "Type": "Within",
-                "Group": i
-            })
+            tmp_w = pd.DataFrame(
+                {"Distance": within_vals, "Type": "Within", "Group": i}
+            )
             # Between-group distances (group i to all other groups)
             between_vals = distance.loc[labels == i, labels != i].values.flatten()
-            tmp_b = pd.DataFrame({
-                "Distance": between_vals,
-                "Type": "Between",
-                "Group": i
-            })
+            tmp_b = pd.DataFrame(
+                {"Distance": between_vals, "Type": "Between", "Group": i}
+            )
             frames.extend([tmp_w, tmp_b])
         out = pd.concat(frames, ignore_index=True)
         stats = {}

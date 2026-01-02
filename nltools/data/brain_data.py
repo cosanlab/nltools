@@ -1413,20 +1413,66 @@ class BrainData(object):
         else:
             self.to_nifti().to_filename(file_name)
 
-    def scale(self, scale_val=100.0):
-        """
-        Scale all values such that they are on the range [0, scale_val], via grand-mean scaling. This is NOT global-scaling/intensity normalization. It rescales each voxel to be a proportion of the global average * `scale_val`. This is useful for ensuring that data is on a common scale (e.g. good for multiple runs, participants, etc) and if the default value of 100 is used, can be interpreted as something akin to (but not exactly) "percent signal change." This is consistent with default behavior in AFNI and SPM.Change this value to 10000 to make consistent with FSL.
+    def scale(self, scale_val=100.0, axis=None):
+        """Scale data via mean scaling.
+
+        Two scaling modes are available:
+
+        - **Grand-mean scaling** (axis=None, default): Divides all values by the
+          global mean across all voxels and timepoints. This is consistent with
+          FSL and SPM behavior. Use scale_val=10000 for FSL-style scaling.
+
+        - **Voxel-wise scaling** (axis=0): Divides each voxel's time-series by
+          its own temporal mean. This is AFNI-style scaling and can be useful
+          when voxels have very different baseline intensities. Voxels with
+          zero or near-zero mean are set to zero to avoid NaN/Inf.
+
+        When scale_val=100 (default), the result can be interpreted as something
+        akin to (but not exactly) "percent signal change."
 
         Args:
-            scale_val: (int/float) what value to send the grand-mean to;
-                        default 100
+            scale_val: (int/float) Target value for the mean after scaling.
+                    Default 100.
+            axis: (int or None) Axis along which to compute the mean:
+                    - None: Grand-mean scaling (default, FSL/SPM style)
+                    - 0: Voxel-wise scaling (AFNI style) - each voxel scaled
+                         by its own temporal mean
+
+        Returns:
+            BrainData: New BrainData instance with scaled data.
+
+        Examples:
+            >>> # Grand-mean scaling (default)
+            >>> scaled = brain.scale(100.0)
+            >>>
+            >>> # Voxel-wise scaling (AFNI style)
+            >>> scaled = brain.scale(100.0, axis=0)
 
         """
-
         out = self._shallow_copy_with_data()
-        # Copy data array and modify in-place
         out.data = self.data.copy()
-        out.data = out.data / out.data.mean() * scale_val
+
+        if axis is None:
+            # Grand-mean scaling: divide by global mean
+            out.data = out.data / out.data.mean() * scale_val
+        elif axis == 0:
+            # Voxel-wise scaling: divide each voxel by its temporal mean
+            # Compute mean along time axis (axis=0), keeping dims for broadcasting
+            voxel_means = out.data.mean(axis=0, keepdims=True)
+
+            # Handle zero-mean voxels to avoid NaN/Inf
+            # Set zero-mean voxels to 1 temporarily, then zero out result
+            zero_mask = np.abs(voxel_means) < np.finfo(float).eps
+            voxel_means_safe = np.where(zero_mask, 1.0, voxel_means)
+
+            # Scale
+            out.data = out.data / voxel_means_safe * scale_val
+
+            # Zero out voxels that had zero mean
+            if np.any(zero_mask):
+                out.data[:, zero_mask.squeeze()] = 0.0
+        else:
+            raise ValueError(f"axis must be None or 0, got {axis}")
 
         return out
 
@@ -2115,12 +2161,15 @@ class BrainData(object):
 
         return contrast_vector
 
-    def append(self, data, **kwargs):
+    def append(self, data, ignore_attrs=False, **kwargs):
         """Append data to BrainData instance.
 
         Args:
             data: BrainData instance to append.
-            kwargs: Optional arguments passed to pandas concat.
+            ignore_attrs: (bool) If True, skip concatenation of X and Y
+                    attributes. Useful when appending images where .X or .Y
+                    have different column counts. Default False.
+            kwargs: Optional arguments passed to pandas concat for X/Y.
 
         Returns:
             BrainData: New appended BrainData instance.
@@ -2139,6 +2188,38 @@ class BrainData(object):
 
             out = self._shallow_copy_with_data()
             out.data = np.vstack([self.data, data.data])
+
+            # Handle X and Y attributes
+            if not ignore_attrs:
+                # Concatenate X if both have it
+                if (
+                    hasattr(self, "X")
+                    and self.X is not None
+                    and hasattr(data, "X")
+                    and data.X is not None
+                ):
+                    out.X = pd.concat([self.X, data.X], ignore_index=True, **kwargs)
+                elif hasattr(data, "X") and data.X is not None:
+                    # self.X is None but data.X exists - just use data.X
+                    out.X = data.X.copy()
+                # else: keep self.X (already copied in _shallow_copy_with_data)
+
+                # Concatenate Y if both have it
+                if (
+                    hasattr(self, "Y")
+                    and self.Y is not None
+                    and hasattr(data, "Y")
+                    and data.Y is not None
+                ):
+                    out.Y = pd.concat([self.Y, data.Y], ignore_index=True, **kwargs)
+                elif hasattr(data, "Y") and data.Y is not None:
+                    # self.Y is None but data.Y exists - just use data.Y
+                    out.Y = data.Y.copy()
+                # else: keep self.Y (already copied in _shallow_copy_with_data)
+            else:
+                # ignore_attrs=True: set X and Y to None to avoid confusion
+                out.X = None
+                out.Y = None
 
         return out
 
