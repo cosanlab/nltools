@@ -385,9 +385,7 @@ def test_transform_pairwise():
 # ==================== Alignment & ISC Functions ====================
 
 
-@pytest.mark.skip(
-    reason="ISC calculation has known bugs. Alignment functionality tested in test_align_without_isc() and test_hyperalignment.py (27 tests). ISC fix plan: claude-research/align-isc-fix-plan.md"
-)
+@pytest.mark.slow
 def test_align():
     """Test hyperalignment algorithms (SRM, Procrustes) on matrices and BrainData."""
     # Test hyperalignment matrix
@@ -532,7 +530,7 @@ def test_align():
     assert (
         out2["transformation_matrix"][0].shape == out2["transformation_matrix"][0].shape
     )
-    assert len(out2["isc"]) == out2["transformed"][0].shape[0]
+    assert len(out2["isc"]) == out2["transformed"][0].shape[1]
 
     # Test hyperalignment on BrainData over time (axis=1)
     data = [d1, d2, d3]
@@ -575,7 +573,7 @@ def test_align():
     assert (
         out2["transformation_matrix"][0].shape == out2["transformation_matrix"][0].shape
     )
-    assert len(out2["isc"]) == out2["transformed"][0].shape[1]
+    assert len(out2["isc"]) == out2["transformed"][0].shape[0]
 
 
 def test_isc():
