@@ -1314,3 +1314,167 @@ class TestBrainCollectionISC:
         # Both should give high ISC for correlated data
         assert result_median["isc"].data.mean() > 0.7
         assert result_mean["isc"].data.mean() > 0.7
+
+    def test_isc_test_returns_correct_keys(self, sample_mask):
+        """Test isc_test returns all expected keys."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_subjects = 4
+        n_obs = 20
+
+        bds = []
+        for _ in range(n_subjects):
+            bd = BrainData(mask=sample_mask)
+            bd.data = np.random.randn(n_obs, n_voxels)
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        result = bc.isc_test(
+            radius=None, n_permute=100, show_progress=False, random_state=42
+        )
+
+        # Check all expected keys
+        assert "isc" in result
+        assert "p" in result
+        assert "ci" in result
+        assert "method" in result
+        assert "permutation_method" in result
+        assert "extraction" in result
+        assert "n_subjects" in result
+        assert "n_permute" in result
+
+        # Check types
+        assert isinstance(result["isc"], BrainData)
+        assert isinstance(result["p"], BrainData)
+        assert isinstance(result["ci"], tuple)
+        assert len(result["ci"]) == 2
+        assert isinstance(result["ci"][0], BrainData)
+        assert isinstance(result["ci"][1], BrainData)
+
+    def test_isc_test_correlated_significant(self, sample_mask):
+        """Test that correlated subjects produce significant ISC."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_subjects = 5
+        n_obs = 50
+
+        # Create shared signal
+        shared_signal = np.random.randn(n_obs, n_voxels)
+
+        bds = []
+        for _ in range(n_subjects):
+            bd = BrainData(mask=sample_mask)
+            bd.data = shared_signal + 0.1 * np.random.randn(n_obs, n_voxels)
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        result = bc.isc_test(
+            radius=None, n_permute=500, show_progress=False, random_state=42
+        )
+
+        # Most p-values should be significant for highly correlated data
+        sig_voxels = (result["p"].data < 0.05).sum()
+        total_voxels = n_voxels
+        assert sig_voxels / total_voxels > 0.9  # >90% significant
+
+    def test_isc_test_uncorrelated_not_significant(self, sample_mask):
+        """Test that uncorrelated subjects produce non-significant ISC."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_subjects = 5
+        n_obs = 50
+
+        bds = []
+        for _ in range(n_subjects):
+            bd = BrainData(mask=sample_mask)
+            bd.data = np.random.randn(n_obs, n_voxels)
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        result = bc.isc_test(
+            radius=None, n_permute=500, show_progress=False, random_state=42
+        )
+
+        # Very few p-values should be significant for uncorrelated data
+        # (expect ~5% by chance at alpha=0.05)
+        sig_voxels = (result["p"].data < 0.05).sum()
+        total_voxels = n_voxels
+        assert sig_voxels / total_voxels < 0.15  # <15% (allow some slack)
+
+    def test_isc_test_permutation_methods(self, sample_mask):
+        """Test that all permutation methods run without error."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_subjects = 4
+        n_obs = 20
+
+        shared = np.random.randn(n_obs, n_voxels)
+        bds = []
+        for _ in range(n_subjects):
+            bd = BrainData(mask=sample_mask)
+            bd.data = shared + 0.2 * np.random.randn(n_obs, n_voxels)
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        for method in ["bootstrap", "circle_shift", "phase_randomize"]:
+            result = bc.isc_test(
+                radius=None,
+                n_permute=50,
+                permutation_method=method,
+                show_progress=False,
+                random_state=42,
+            )
+            assert result["permutation_method"] == method
+            assert isinstance(result["isc"], BrainData)
+            assert isinstance(result["p"], BrainData)
+
+    def test_isc_test_return_null(self, sample_mask):
+        """Test that return_null includes null distribution."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_subjects = 4
+        n_obs = 15
+
+        bds = []
+        for _ in range(n_subjects):
+            bd = BrainData(mask=sample_mask)
+            bd.data = np.random.randn(n_obs, n_voxels)
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        result = bc.isc_test(
+            radius=None,
+            n_permute=100,
+            return_null=True,
+            show_progress=False,
+            random_state=42,
+        )
+
+        assert "null_dist" in result
+        assert result["null_dist"] is not None
+        assert result["null_dist"].shape[0] == 100  # n_permute
+
+    def test_isc_test_pairwise_method(self, sample_mask):
+        """Test isc_test with pairwise method."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_subjects = 4
+        n_obs = 20
+
+        bds = []
+        for _ in range(n_subjects):
+            bd = BrainData(mask=sample_mask)
+            bd.data = np.random.randn(n_obs, n_voxels)
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        result = bc.isc_test(
+            method="pairwise",
+            radius=None,
+            n_permute=100,
+            show_progress=False,
+            random_state=42,
+        )
+
+        assert result["method"] == "pairwise"
+        assert isinstance(result["isc"], BrainData)

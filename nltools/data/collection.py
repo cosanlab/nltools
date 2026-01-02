@@ -2325,3 +2325,149 @@ class BrainCollection:
             "n_subjects": len(self),
             "extraction_info": extraction_info,
         }
+
+    def isc_test(
+        self,
+        method: str = "loo",
+        roi_mask: "nib.Nifti1Image | Path | str | None" = None,
+        radius: float | None = 6.0,
+        n_permute: int = 5000,
+        permutation_method: str = "bootstrap",
+        metric: str = "median",
+        tail: int = 2,
+        ci_percentile: float = 95,
+        parallel: str = "cpu",
+        n_jobs: int = -1,
+        random_state: int | None = None,
+        return_null: bool = False,
+        show_progress: bool = True,
+    ) -> dict:
+        """
+        Compute ISC with permutation testing for statistical inference.
+
+        This method combines ISC computation with permutation testing to
+        determine statistical significance. It uses the same extraction
+        pipeline as isc() and wraps isc_permutation_test().
+
+        Args:
+            method: ISC computation method:
+                - 'loo': Leave-one-out (correlate each subject with mean of others)
+                - 'pairwise': All pairwise correlations between subjects
+            roi_mask: If provided, compute ISC per ROI. Can be:
+                - NIfTI image with integer labels (atlas/parcellation)
+                - Path to parcellation file
+            radius: Searchlight radius in mm. If None, use voxelwise mode.
+                Ignored if roi_mask is provided.
+            n_permute: Number of permutations/bootstrap iterations. Default 5000.
+            permutation_method: Method for null distribution:
+                - 'bootstrap': Subject-wise bootstrap (default, Chen et al. 2016).
+                    Tests whether observed ISC differs from random groupings.
+                - 'circle_shift': Circular time-shift (preserves autocorrelation).
+                    Tests for temporally-locked shared signal.
+                - 'phase_randomize': FFT phase randomization (preserves power spectrum).
+                    Tests for nonlinear temporal coupling.
+            metric: Summary statistic for aggregating ISC values:
+                - 'median': Robust to outliers (default)
+                - 'mean': Fisher z-transformed mean
+            tail: One-tailed (1) or two-tailed (2) test. Default 2.
+            ci_percentile: Confidence interval percentile (e.g., 95). Default 95.
+            parallel: Parallelization method ('cpu', 'gpu', or None).
+            n_jobs: Number of parallel jobs (-1 = all cores).
+            random_state: Random seed for reproducibility.
+            return_null: If True, include null distribution in results.
+            show_progress: Show progress bar during extraction and permutation.
+
+        Returns:
+            Dictionary with:
+                - 'isc': BrainData with ISC values
+                - 'p': BrainData with p-values (Phipson-Smyth corrected)
+                - 'ci': Tuple of (lower, upper) BrainData confidence intervals
+                - 'method': ISC method used ('loo' or 'pairwise')
+                - 'permutation_method': Permutation method used
+                - 'extraction': Extraction mode ('roi', 'searchlight', 'voxelwise')
+                - 'n_subjects': Number of subjects
+                - 'n_permute': Number of permutations
+                - 'null_dist': (optional) Null distribution array if return_null=True
+
+        Examples:
+            >>> # ROI-based ISC with permutation testing
+            >>> result = bc.isc_test(roi_mask="atlas.nii.gz", n_permute=5000)
+            >>> sig_mask = result['p'].data < 0.05
+            >>> print(f"Significant ROIs: {sig_mask.sum()}")
+
+            >>> # Searchlight ISC testing
+            >>> result = bc.isc_test(radius=10.0)
+            >>> result['isc'].plot()  # Show ISC values
+            >>> result['p'].plot()    # Show p-values
+
+            >>> # Voxelwise with phase randomization (tests temporal coupling)
+            >>> result = bc.isc_test(
+            ...     radius=None,
+            ...     permutation_method='phase_randomize',
+            ...     parallel='gpu'
+            ... )
+
+        Notes:
+            - Bootstrap (default) is recommended for standard ISC inference
+              (Chen et al. 2016). It tests whether ISC is significant at
+              the group level.
+            - Circle_shift and phase_randomize are more specialized - they
+              test for temporally-structured shared signal beyond what's
+              explained by autocorrelation or spectral structure alone.
+            - For large voxelwise analyses, bootstrap is much faster as it
+              resamples pre-computed values rather than recomputing ISC.
+
+        References:
+            Chen, G., et al. (2016). Untangling the relatedness among
+            correlations, part I: nonparametric approaches to inter-subject
+            correlation analysis at the group level. NeuroImage, 142, 248-259.
+        """
+        from nltools.algorithms.inference.isc import isc_permutation_test
+
+        # Map method names
+        summary_statistic = "leave-one-out" if method == "loo" else method
+
+        # Extract data
+        extracted, extraction_info = self._extract_for_isc(
+            roi_mask=roi_mask,
+            radius=radius,
+            show_progress=show_progress,
+        )
+
+        # Run permutation test
+        result = isc_permutation_test(
+            data=extracted,
+            n_permute=n_permute,
+            metric=metric,
+            summary_statistic=summary_statistic,
+            method=permutation_method,
+            ci_percentile=ci_percentile,
+            tail=tail,
+            return_null=return_null,
+            progress_bar=show_progress,
+            parallel=parallel,
+            n_jobs=n_jobs,
+            random_state=random_state,
+        )
+
+        # Project results to brain space
+        isc_brain = self._project_to_brain(result["isc"], extraction_info)
+        p_brain = self._project_to_brain(result["p"], extraction_info)
+        ci_lower = self._project_to_brain(result["ci"][0], extraction_info)
+        ci_upper = self._project_to_brain(result["ci"][1], extraction_info)
+
+        output = {
+            "isc": isc_brain,
+            "p": p_brain,
+            "ci": (ci_lower, ci_upper),
+            "method": method,
+            "permutation_method": permutation_method,
+            "extraction": extraction_info["mode"],
+            "n_subjects": len(self),
+            "n_permute": n_permute,
+        }
+
+        if return_null:
+            output["null_dist"] = result.get("null_dist")
+
+        return output
