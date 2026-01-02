@@ -361,38 +361,39 @@ class BrainData(object):
                 # Update space detection
                 self._space = self._detect_space(self.mask)
 
-                # Check if resampling is needed after updating mask
-                if not self._check_space_match(data_img, self.mask):
-                    if self._resample:
-                        # Warn about resampling
-                        self._warn_if_resampling(
-                            f"Detected template ({template_info['template']} {template_info['resolution']}mm) differs from data resolution."
-                        )
-                        # Resample data to detected mask space
-                        from nilearn.image import resample_to_img
-                        from contextlib import redirect_stdout
-                        import os
+            # Always check if resampling is needed (regardless of whether mask changed)
+            # Data might be in different space even if template matches
+            if not self._check_space_match(data_img, self.mask):
+                if self._resample:
+                    # Warn about resampling
+                    self._warn_if_resampling(
+                        f"Detected template ({template_info['template']} {template_info['resolution']}mm) differs from data resolution."
+                    )
+                    # Resample data to detected mask space
+                    from nilearn.image import resample_to_img
+                    from contextlib import redirect_stdout
+                    import os
 
-                        if not self.verbose:
-                            with open(os.devnull, "w") as devnull:
-                                with redirect_stdout(devnull):
-                                    data_img = resample_to_img(
-                                        data_img,
-                                        self.mask,
-                                        interpolation=self._get_interpolation(data_img),
-                                        copy_header=True,
-                                        force_resample=True,
-                                    )
-                        else:
-                            data_img = resample_to_img(
-                                data_img,
-                                self.mask,
-                                interpolation=self._get_interpolation(data_img),
-                                copy_header=True,
-                            )
+                    if not self.verbose:
+                        with open(os.devnull, "w") as devnull:
+                            with redirect_stdout(devnull):
+                                data_img = resample_to_img(
+                                    data_img,
+                                    self.mask,
+                                    interpolation=self._get_interpolation(data_img),
+                                    copy_header=True,
+                                    force_resample=True,
+                                )
                     else:
-                        # resample=False but spaces don't match - error will be raised in caller
-                        pass
+                        data_img = resample_to_img(
+                            data_img,
+                            self.mask,
+                            interpolation=self._get_interpolation(data_img),
+                            copy_header=True,
+                        )
+                else:
+                    # resample=False but spaces don't match - error will be raised in caller
+                    pass
 
         except Exception as e:
             # If detection fails, fall back to default template
