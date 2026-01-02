@@ -1111,3 +1111,206 @@ class TestBrainCollectionTransformations:
         assert isinstance(result, BrainData)
         # Should have fewer than 4 images in filtered collection
         # Result is mean across filtered images
+
+
+# =============================================================================
+# ISC Tests
+# =============================================================================
+
+
+class TestBrainCollectionISC:
+    """Tests for ISC methods on BrainCollection."""
+
+    def test_extract_voxelwise_shape(self, sample_mask):
+        """Test voxelwise extraction returns correct shape."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_subjects = 5
+        n_obs = 20
+
+        # Create collection with uniform observations
+        bds = []
+        for _ in range(n_subjects):
+            bd = BrainData(mask=sample_mask)
+            bd.data = np.random.randn(n_obs, n_voxels)
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        # Extract voxelwise
+        extracted, info = bc._extract_for_isc(
+            roi_mask=None, radius=None, show_progress=False
+        )
+
+        assert extracted.shape == (n_obs, n_subjects, n_voxels)
+        assert info["mode"] == "voxelwise"
+        assert info["n_features"] == n_voxels
+
+    def test_extract_searchlight_shape(self, sample_mask):
+        """Test searchlight extraction returns correct shape."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_subjects = 3
+        n_obs = 10
+
+        bds = []
+        for _ in range(n_subjects):
+            bd = BrainData(mask=sample_mask)
+            bd.data = np.random.randn(n_obs, n_voxels)
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        # Extract with searchlight
+        extracted, info = bc._extract_for_isc(
+            roi_mask=None, radius=5.0, show_progress=False
+        )
+
+        assert extracted.shape == (n_obs, n_subjects, n_voxels)
+        assert info["mode"] == "searchlight"
+        assert info["radius"] == 5.0
+        assert "neighborhoods" in info
+
+    def test_project_to_brain_voxelwise(self, sample_mask):
+        """Test projecting voxelwise values back to brain."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_subjects = 3
+        n_obs = 10
+
+        bds = []
+        for _ in range(n_subjects):
+            bd = BrainData(mask=sample_mask)
+            bd.data = np.random.randn(n_obs, n_voxels)
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        # Extract
+        _, info = bc._extract_for_isc(roi_mask=None, radius=None, show_progress=False)
+
+        # Project random values
+        values = np.random.randn(n_voxels)
+        result = bc._project_to_brain(values, info)
+
+        assert isinstance(result, BrainData)
+        np.testing.assert_array_equal(result.data, values)
+
+    def test_isc_voxelwise_shape(self, sample_mask):
+        """Test ISC computation returns BrainData with correct shape."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_subjects = 5
+        n_obs = 20
+
+        bds = []
+        for _ in range(n_subjects):
+            bd = BrainData(mask=sample_mask)
+            bd.data = np.random.randn(n_obs, n_voxels)
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        result = bc.isc(method="loo", radius=None, show_progress=False)
+
+        assert "isc" in result
+        assert isinstance(result["isc"], BrainData)
+        assert result["isc"].data.shape == (n_voxels,)
+        assert result["method"] == "loo"
+        assert result["extraction"] == "voxelwise"
+        assert result["n_subjects"] == n_subjects
+
+    def test_isc_pairwise_method(self, sample_mask):
+        """Test pairwise ISC method."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_subjects = 4
+        n_obs = 15
+
+        bds = []
+        for _ in range(n_subjects):
+            bd = BrainData(mask=sample_mask)
+            bd.data = np.random.randn(n_obs, n_voxels)
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        result = bc.isc(method="pairwise", radius=None, show_progress=False)
+
+        assert result["method"] == "pairwise"
+        assert isinstance(result["isc"], BrainData)
+
+    def test_isc_correlated_subjects(self, sample_mask):
+        """Test ISC is high when subjects are correlated."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_subjects = 5
+        n_obs = 50
+
+        # Create shared signal
+        shared_signal = np.random.randn(n_obs, n_voxels)
+
+        bds = []
+        for _ in range(n_subjects):
+            bd = BrainData(mask=sample_mask)
+            # Each subject = shared signal + small noise
+            bd.data = shared_signal + 0.1 * np.random.randn(n_obs, n_voxels)
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        result = bc.isc(method="loo", radius=None, show_progress=False)
+
+        # ISC should be high (>0.8) for correlated subjects
+        assert result["isc"].data.mean() > 0.8
+
+    def test_isc_uncorrelated_subjects(self, sample_mask):
+        """Test ISC is near zero for uncorrelated subjects."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_subjects = 5
+        n_obs = 50
+
+        bds = []
+        for _ in range(n_subjects):
+            bd = BrainData(mask=sample_mask)
+            # Each subject = independent random
+            bd.data = np.random.randn(n_obs, n_voxels)
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        result = bc.isc(method="loo", radius=None, show_progress=False)
+
+        # ISC should be near zero for uncorrelated subjects
+        assert np.abs(result["isc"].data.mean()) < 0.3
+
+    def test_isc_variable_obs_raises(self, sample_mask):
+        """Test that variable observation counts raise an error."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+
+        bds = []
+        for i in range(3):
+            bd = BrainData(mask=sample_mask)
+            bd.data = np.random.randn(10 + i, n_voxels)  # Different lengths
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        with pytest.raises(ValueError, match="uniform observation counts"):
+            bc.isc(radius=None, show_progress=False)
+
+    def test_isc_mean_metric(self, sample_mask):
+        """Test ISC with mean (Fisher z) metric."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_subjects = 4
+        n_obs = 20
+
+        shared = np.random.randn(n_obs, n_voxels)
+        bds = []
+        for _ in range(n_subjects):
+            bd = BrainData(mask=sample_mask)
+            bd.data = shared + 0.1 * np.random.randn(n_obs, n_voxels)
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        result_median = bc.isc(metric="median", radius=None, show_progress=False)
+        result_mean = bc.isc(metric="mean", radius=None, show_progress=False)
+
+        # Both should give high ISC for correlated data
+        assert result_median["isc"].data.mean() > 0.7
+        assert result_mean["isc"].data.mean() > 0.7

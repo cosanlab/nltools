@@ -1999,3 +1999,329 @@ class BrainCollection:
             n_jobs=n_jobs,
             show_progress=show_progress,
         )
+
+    # =========================================================================
+    # ISC (Intersubject Correlation) Methods
+    # =========================================================================
+
+    def _extract_for_isc(
+        self,
+        roi_mask: "nib.Nifti1Image | Path | str | None" = None,
+        radius: float | None = 6.0,
+        show_progress: bool = True,
+    ) -> tuple[np.ndarray, dict]:
+        """
+        Extract data for ISC computation.
+
+        Memory-efficient extraction that processes one subject at a time.
+        Returns data in ISC-compatible format: (n_obs, n_subjects, n_features).
+
+        Args:
+            roi_mask: If provided, extract mean per ROI. Can be:
+                - NIfTI image with integer labels (atlas/parcellation)
+                - Path to parcellation file
+            radius: Searchlight radius in mm. If None, use voxelwise mode.
+                Ignored if roi_mask is provided.
+            show_progress: Show progress bar during extraction.
+
+        Returns:
+            Tuple of:
+                - extracted_data: Array of shape (n_obs, n_subjects, n_features)
+                - extraction_info: Dict with metadata for projection back:
+                    - 'mode': 'roi', 'searchlight', or 'voxelwise'
+                    - 'n_features': Number of features
+                    - 'roi_mask': ROI mask if mode='roi'
+                    - 'neighborhoods': SphereNeighborhoods if mode='searchlight'
+        """
+        n_obs = self.shape[1]
+        if n_obs is None:
+            raise ValueError(
+                "ISC requires uniform observation counts across subjects. "
+                f"Got variable counts: {[bd.shape[0] for bd in self]}"
+            )
+
+        # Determine extraction mode
+        if roi_mask is not None:
+            return self._extract_roi(roi_mask, show_progress)
+        elif radius is not None:
+            return self._extract_searchlight(radius, show_progress)
+        else:
+            return self._extract_voxelwise(show_progress)
+
+    def _extract_roi(
+        self,
+        roi_mask: "nib.Nifti1Image | Path | str",
+        show_progress: bool = True,
+    ) -> tuple[np.ndarray, dict]:
+        """Extract mean signal per ROI."""
+        from nilearn.maskers import NiftiLabelsMasker
+
+        # Load ROI mask if path
+        if isinstance(roi_mask, (str, Path)):
+            roi_mask = nib.load(roi_mask)
+
+        # Create masker
+        masker = NiftiLabelsMasker(
+            labels_img=roi_mask,
+            standardize=False,
+            resampling_target="data",
+        )
+
+        n_subjects = len(self)
+        n_obs = self.shape[1]
+
+        # Get number of ROIs from first subject
+        first_img = self[0].to_nifti()
+        first_signals = masker.fit_transform(first_img)
+        n_rois = first_signals.shape[1]
+
+        # Preallocate output: (n_obs, n_subjects, n_rois)
+        extracted = np.zeros((n_obs, n_subjects, n_rois), dtype=np.float32)
+        extracted[:, 0, :] = first_signals
+
+        # Extract remaining subjects
+        iterator = range(1, n_subjects)
+        if show_progress:
+            iterator = tqdm.tqdm(iterator, desc="Extracting ROIs", unit="subjects")
+
+        for i in iterator:
+            img = self[i].to_nifti()
+            signals = masker.transform(img)
+            extracted[:, i, :] = signals
+
+        extraction_info = {
+            "mode": "roi",
+            "n_features": n_rois,
+            "roi_mask": roi_mask,
+            "masker": masker,
+        }
+
+        return extracted, extraction_info
+
+    def _extract_searchlight(
+        self,
+        radius: float,
+        show_progress: bool = True,
+    ) -> tuple[np.ndarray, dict]:
+        """Extract mean signal per searchlight sphere."""
+        from nltools.neighborhoods import compute_searchlight_neighborhoods
+
+        n_subjects = len(self)
+        n_obs = self.shape[1]
+        n_voxels = self.n_voxels
+
+        # Get cached neighborhoods
+        neighborhoods = compute_searchlight_neighborhoods(
+            self._mask, radius_mm=radius, use_cache=True
+        )
+
+        # Preallocate output: (n_obs, n_subjects, n_voxels)
+        extracted = np.zeros((n_obs, n_subjects, n_voxels), dtype=np.float32)
+
+        # Extract each subject
+        iterator = range(n_subjects)
+        if show_progress:
+            iterator = tqdm.tqdm(
+                iterator, desc="Extracting searchlight", unit="subjects"
+            )
+
+        for subj_idx in iterator:
+            bd = self[subj_idx]
+            data = bd.data  # (n_obs, n_voxels)
+
+            # Compute mean per sphere neighborhood
+            for voxel_idx, neighbor_indices in neighborhoods.iter_neighborhoods():
+                extracted[:, subj_idx, voxel_idx] = data[:, neighbor_indices].mean(
+                    axis=1
+                )
+
+        extraction_info = {
+            "mode": "searchlight",
+            "n_features": n_voxels,
+            "radius": radius,
+            "neighborhoods": neighborhoods,
+        }
+
+        return extracted, extraction_info
+
+    def _extract_voxelwise(
+        self,
+        show_progress: bool = True,
+    ) -> tuple[np.ndarray, dict]:
+        """Extract raw voxel data."""
+        n_subjects = len(self)
+        n_obs = self.shape[1]
+        n_voxels = self.n_voxels
+
+        # Preallocate output: (n_obs, n_subjects, n_voxels)
+        extracted = np.zeros((n_obs, n_subjects, n_voxels), dtype=np.float32)
+
+        # Extract each subject
+        iterator = range(n_subjects)
+        if show_progress:
+            iterator = tqdm.tqdm(iterator, desc="Extracting voxels", unit="subjects")
+
+        for subj_idx in iterator:
+            bd = self[subj_idx]
+            extracted[:, subj_idx, :] = bd.data
+
+        extraction_info = {
+            "mode": "voxelwise",
+            "n_features": n_voxels,
+        }
+
+        return extracted, extraction_info
+
+    def _project_to_brain(
+        self,
+        values: np.ndarray,
+        extraction_info: dict,
+    ) -> "BrainData":
+        """
+        Project ISC values back to brain space.
+
+        Args:
+            values: ISC values, shape depends on extraction mode:
+                - ROI mode: (n_rois,)
+                - Searchlight/voxelwise: (n_voxels,)
+            extraction_info: Dict from _extract_for_isc with mode info.
+
+        Returns:
+            BrainData with ISC values in brain space.
+        """
+        from .brain_data import BrainData
+
+        mode = extraction_info["mode"]
+
+        if mode == "roi":
+            # Expand ROI values to voxels using the masker's inverse_transform
+            masker = extraction_info["masker"]
+
+            # Use inverse_transform to project back
+            img = masker.inverse_transform(values.reshape(1, -1))
+
+            # Convert to BrainData
+            result = BrainData(mask=self._mask)
+            result.data = result._nifti_to_data(img)
+            return result
+
+        elif mode in ("searchlight", "voxelwise"):
+            # Direct assignment
+            result = BrainData(mask=self._mask)
+            result.data = values
+            return result
+
+        else:
+            raise ValueError(f"Unknown extraction mode: {mode}")
+
+    def isc(
+        self,
+        method: str = "loo",
+        roi_mask: "nib.Nifti1Image | Path | str | None" = None,
+        radius: float | None = 6.0,
+        metric: str = "median",
+        parallel: str = "cpu",
+        n_jobs: int = -1,
+        show_progress: bool = True,
+    ) -> dict:
+        """
+        Compute intersubject correlation (ISC) across the collection.
+
+        ISC measures the similarity of brain responses across subjects,
+        computed by correlating each subject's timeseries with others.
+
+        Args:
+            method: ISC computation method:
+                - 'loo': Leave-one-out (correlate each subject with mean of others)
+                - 'pairwise': All pairwise correlations between subjects
+            roi_mask: If provided, compute ISC per ROI. Can be:
+                - NIfTI image with integer labels (atlas/parcellation)
+                - Path to parcellation file
+            radius: Searchlight radius in mm. If None, use voxelwise mode.
+                Ignored if roi_mask is provided.
+            metric: Summary statistic for aggregating ISC values:
+                - 'median': Robust to outliers (default)
+                - 'mean': Fisher z-transformed mean
+            parallel: Parallelization method ('cpu', 'gpu', or None).
+            n_jobs: Number of parallel jobs (-1 = all cores).
+            show_progress: Show progress bar during extraction.
+
+        Returns:
+            Dictionary with:
+                - 'isc': BrainData with ISC values
+                - 'method': ISC method used ('loo' or 'pairwise')
+                - 'extraction': Extraction mode ('roi', 'searchlight', 'voxelwise')
+                - 'n_subjects': Number of subjects
+                - 'extraction_info': Dict with extraction metadata
+
+        Examples:
+            >>> # ROI-based ISC using atlas
+            >>> result = bc.isc(roi_mask="atlas.nii.gz")
+            >>> result['isc'].plot()
+
+            >>> # Searchlight ISC
+            >>> result = bc.isc(radius=10.0)
+
+            >>> # Voxelwise ISC
+            >>> result = bc.isc(radius=None)
+
+        Notes:
+            For permutation testing, see BrainCollection.isc_test() (requires
+            discussion of statistical methodology first).
+        """
+        from nltools.algorithms.inference.isc import (
+            _compute_loo_isc,
+            _compute_pairwise_isc,
+        )
+
+        # Extract data
+        extracted, extraction_info = self._extract_for_isc(
+            roi_mask=roi_mask,
+            radius=radius,
+            show_progress=show_progress,
+        )
+
+        # Data is (n_obs, n_subjects, n_features)
+        # ISC functions expect this shape
+
+        # Compute ISC
+        if method == "loo":
+            # LOO ISC: (n_subjects, n_features)
+            backend = "torch" if parallel == "gpu" else "numpy"
+            loo_values = _compute_loo_isc(extracted, backend=backend)
+
+            # Aggregate across subjects
+            if metric == "median":
+                isc_values = np.median(loo_values, axis=0)
+            elif metric == "mean":
+                z = np.arctanh(np.clip(loo_values, -0.9999, 0.9999))
+                isc_values = np.tanh(np.mean(z, axis=0))
+            else:
+                raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
+
+        elif method == "pairwise":
+            # Pairwise ISC: (n_pairs, n_features)
+            pairwise = _compute_pairwise_isc(extracted, backend="numpy")
+
+            # Aggregate across pairs
+            if metric == "median":
+                isc_values = np.nanmedian(pairwise, axis=0)
+            elif metric == "mean":
+                z = np.arctanh(np.clip(pairwise, -0.9999, 0.9999))
+                isc_values = np.tanh(np.nanmean(z, axis=0))
+            else:
+                raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
+
+        else:
+            raise ValueError(f"method must be 'loo' or 'pairwise', got {method}")
+
+        # Project back to brain space
+        isc_brain = self._project_to_brain(isc_values, extraction_info)
+
+        return {
+            "isc": isc_brain,
+            "method": method,
+            "extraction": extraction_info["mode"],
+            "n_subjects": len(self),
+            "extraction_info": extraction_info,
+        }
