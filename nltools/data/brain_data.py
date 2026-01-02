@@ -2931,11 +2931,11 @@ class BrainData(object):
             if isinstance(lower, str) and lower[-1] == "%":
                 lower = np.percentile(b.data, float(lower[:-1]))
 
-            if upper and lower:
+            if upper is not None and lower is not None:
                 b.data[(b.data < upper) & (b.data > lower)] = 0
-            elif upper:
+            elif upper is not None:
                 b.data[b.data < upper] = 0
-            elif lower:
+            elif lower is not None:
                 b.data[b.data > lower] = 0
 
             if binarize:

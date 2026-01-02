@@ -2516,6 +2516,32 @@ class TestBrainData:
         assert isinstance(result, BrainData)
         # Verify band-pass behavior preserved (values in range kept)
 
+    def test_threshold_with_zero_value(self, sim_brain_data):
+        """Test threshold works correctly when upper=0 or lower=0 (#370).
+
+        This was a bug where `if upper:` evaluated to False when upper=0,
+        causing thresholding to be skipped.
+        """
+        brain = sim_brain_data.copy()
+        # Create data with positive and negative values
+        brain.data = brain.data - brain.data.mean()
+
+        # Test upper=0: should zero out values < 0
+        result_upper0 = brain.threshold(upper=0)
+        assert np.all(result_upper0.data >= 0), "upper=0 should zero values < 0"
+
+        # Test lower=0: should zero out values > 0
+        result_lower0 = brain.threshold(lower=0)
+        assert np.all(result_lower0.data <= 0), "lower=0 should zero values > 0"
+
+        # Test upper=0, lower=-0.5: bandpass with zero boundary
+        result_bandpass = brain.threshold(upper=0, lower=-0.5)
+        # Values between -0.5 and 0 should be zeroed
+        non_zero = result_bandpass.data[result_bandpass.data != 0]
+        assert np.all((non_zero >= 0) | (non_zero <= -0.5)), (
+            "bandpass with upper=0 should work"
+        )
+
     @pytest.mark.slow
     def test_threshold_cluster_realistic_neuroimaging(self, sim_brain_data):
         """Integration test with realistic neuroimaging workflow"""
