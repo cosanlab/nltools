@@ -2,6 +2,29 @@ format: jb-book
 root: index
 
 parts:
+  # ========================================
+  # MIGRATION & DEVELOPMENT
+  # ========================================
+  - caption: Migration Guide v0.6
+    chapters:
+      - file: migration-guide
+
+  - caption: Development
+    chapters:
+      - file: contributing
+      - file: performance
+
+  # ========================================
+  # TUTORIALS (Flat Structure - Root Level)
+  # ========================================
+  - caption: Tutorials
+    chapters:
+      - file: tutorials/01_basics
+      - file: tutorials/02_glm
+      - file: tutorials/03_group_analysis
+      - file: tutorials/04_thresholding
+      - file: tutorials/05_rsa
+      - file: tutorials/06_decoding
 
   # ========================================
   # API REFERENCE (Simple & Modular)
@@ -46,26 +69,3 @@ parts:
       - file: api/algorithms/inference_bootstrap
       - file: api/algorithms/inference_utils
 
-  # ========================================
-  # MIGRATION & DEVELOPMENT
-  # ========================================
-  - caption: Migration Guide v0.6
-    chapters:
-      - file: migration-guide
-
-  - caption: Development
-    chapters:
-      - file: contributing
-      - file: performance
-
-  # ========================================
-  # TUTORIALS (Flat Structure - Root Level)
-  # ========================================
-  - caption: Tutorials
-    chapters:
-      - file: tutorials/01_basics
-      - file: tutorials/02_glm
-      - file: tutorials/03_group_analysis
-      - file: tutorials/04_thresholding
-      - file: tutorials/05_rsa
-      - file: tutorials/06_decoding
