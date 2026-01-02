@@ -12,6 +12,7 @@ from nltools.data import BrainData
 from nltools.plotting import surface_plot
 
 
+@pytest.mark.filterwarnings("ignore:Mean of empty slice:RuntimeWarning")
 class TestSurfacePlot:
     """Test surface_plot() function"""
 

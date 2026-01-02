@@ -10,6 +10,7 @@ Follows "functional core" pattern: simple function tests focused on algorithmic 
 import numpy as np
 from numpy import sin, pi, arange
 import pandas as pd
+import polars as pl
 from nltools.stats import (
     one_sample_permutation,
     two_sample_permutation,
@@ -896,11 +897,11 @@ def test_find_spikes():
     d1 = sim.create_data(y, 1, reps=n_reps, output_dir=None).apply_mask(s1)
 
     spikes = find_spikes(d1)
-    assert isinstance(spikes, pd.DataFrame)
+    assert isinstance(spikes, pl.DataFrame)
     assert spikes.shape[0] == len(d1)
 
     spikes = find_spikes(d1.to_nifti())
-    assert isinstance(spikes, pd.DataFrame)
+    assert isinstance(spikes, pl.DataFrame)
     assert spikes.shape[0] == len(d1)
 
 
