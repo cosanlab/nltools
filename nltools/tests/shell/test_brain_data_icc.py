@@ -44,6 +44,7 @@ class TestBrainDataICC:
         assert np.all(np.isfinite(icc_map.data))
         assert np.all((-1 <= icc_map.data) & (icc_map.data <= 1))
 
+    @pytest.mark.slow
     def test_correctness_vs_single_voxel(self):
         """Test that BrainData.icc() matches single-voxel compute_icc."""
         from nltools.simulator import Simulator
@@ -147,6 +148,7 @@ class TestBrainDataICC:
         with pytest.raises(ValueError, match="must equal n_subjects \\* n_sessions"):
             dat.icc(n_subjects=5, n_sessions=10)
 
+    @pytest.mark.slow
     def test_return_type(self):
         """Test that ICC returns BrainData object."""
         from nltools.simulator import Simulator

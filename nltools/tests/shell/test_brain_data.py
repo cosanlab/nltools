@@ -1742,6 +1742,7 @@ class TestBrainData:
         # Data should be unchanged
         np.testing.assert_array_equal(brain.data, original_data)
 
+    @pytest.mark.slow
     def test_fit_inplace_false_returns_fit_dataclass_ridge_cv(self, sim_brain_data):
         """Test inplace=False returns Fit dataclass with CV results for Ridge."""
         from nltools.data.fit_results import Fit

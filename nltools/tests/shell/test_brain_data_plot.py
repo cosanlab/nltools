@@ -166,6 +166,7 @@ class TestBrainDataPlot:
         result = minimal_brain_data[0].plot()
         assert result is not None
 
+    @pytest.mark.slow
     def test_plot_missing_mask_handling(self):
         """Test handling when mask is None (should use default)"""
         # Create BrainData without explicit mask (uses default)
