@@ -204,6 +204,30 @@ class TestAdjacency:
             np.std(sim_adjacency_multiple.data, axis=1)
         )
 
+    def test_median(self, sim_adjacency_single, sim_adjacency_multiple):
+        """Test median calculation for single and multiple adjacency matrices."""
+        # Test single matrix - should return float
+        single_median = sim_adjacency_single.median()
+        assert isinstance(single_median, (float, np.floating))
+        assert np.isclose(single_median, np.nanmedian(sim_adjacency_single.data))
+
+        # Test multiple matrices with axis=0 - should return Adjacency
+        median_axis0 = sim_adjacency_multiple.median(axis=0)
+        assert isinstance(median_axis0, Adjacency)
+        assert len(median_axis0) == 1
+        np.testing.assert_array_almost_equal(
+            median_axis0.data.flatten(),
+            np.nanmedian(sim_adjacency_multiple.data, axis=0),
+        )
+
+        # Test multiple matrices with axis=1 - should return np.array
+        median_axis1 = sim_adjacency_multiple.median(axis=1)
+        assert isinstance(median_axis1, np.ndarray)
+        assert len(median_axis1) == len(sim_adjacency_multiple)
+        np.testing.assert_array_almost_equal(
+            median_axis1, np.nanmedian(sim_adjacency_multiple.data, axis=1)
+        )
+
     def test_sum(self):
         """Test sum handles different matrix types correctly."""
         n = 10
@@ -330,6 +354,43 @@ class TestAdjacency:
             significant=1,
         )
 
+    def test_distance_to_similarity_euclidean(self, sim_adjacency_single):
+        """Test distance to similarity conversion using euclidean metric."""
+        # Get similarity using euclidean conversion
+        sim_euclidean = sim_adjacency_single.distance_to_similarity(
+            metric="euclidean", beta=1
+        )
+
+        # Check that output is an Adjacency with similarity type
+        assert isinstance(sim_euclidean, Adjacency)
+        assert sim_euclidean.matrix_type == "similarity"
+
+        # Verify the formula: exp(-beta * d / std(d))
+        # Note: diagonal remains 0 (distance to self = 0, not exp(0) = 1)
+        d = sim_adjacency_single.squareform()
+        expected = np.exp(-1 * d / d.std())
+        # Check off-diagonal elements match the formula
+        mask = ~np.eye(d.shape[0], dtype=bool)
+        np.testing.assert_array_almost_equal(
+            sim_euclidean.squareform()[mask], expected[mask]
+        )
+
+        # Test with different beta value
+        sim_euclidean_beta2 = sim_adjacency_single.distance_to_similarity(
+            metric="euclidean", beta=2
+        )
+        expected_beta2 = np.exp(-2 * d / d.std())
+        np.testing.assert_array_almost_equal(
+            sim_euclidean_beta2.squareform()[mask], expected_beta2[mask]
+        )
+
+        # Higher beta should produce smaller similarity values (faster decay)
+        assert np.mean(sim_euclidean_beta2.data) < np.mean(sim_euclidean.data)
+
+        # Test invalid metric raises error
+        with pytest.raises(ValueError, match="correlation"):
+            sim_adjacency_single.distance_to_similarity(metric="invalid")
+
     def test_similarity_nan_handling(self):
         """Test NaN handling in similarity calculation (#432)."""
         # Create correlated data that can be squareformed
@@ -437,6 +498,57 @@ class TestAdjacency:
         with pytest.raises(ValueError, match="Unsupported stat"):
             sim_adjacency_multiple.bootstrap(stat="invalid_stat", n_samples=10)
 
+    @pytest.mark.slow
+    def test_stats_label_distance(self):
+        """Test permutation tests on within and between label distances."""
+        # Create a block diagonal distance matrix with clear group structure
+        # Groups are: [0,1,2], [3,4,5], [6,7,8] with distinct within-group distances
+        np.random.seed(42)  # For reproducibility
+        n = 9
+        labels = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2])
+
+        # Create distance matrix with small within-group and large between-group
+        # distances to get a significant result
+        dist_matrix = np.zeros((n, n))
+        for i in range(n):
+            for j in range(n):
+                if i != j:
+                    if labels[i] == labels[j]:
+                        # Within-group: small distance
+                        dist_matrix[i, j] = 0.1 + np.random.rand() * 0.1
+                    else:
+                        # Between-group: large distance
+                        dist_matrix[i, j] = 0.8 + np.random.rand() * 0.1
+        # Make symmetric
+        dist_matrix = (dist_matrix + dist_matrix.T) / 2
+
+        adj = Adjacency(dist_matrix, matrix_type="distance", labels=labels)
+
+        # Run stats_label_distance with fewer permutations for speed
+        results = adj.stats_label_distance(labels=labels, n_permute=500)
+
+        # Should return a dict keyed by group labels (as strings)
+        assert isinstance(results, dict)
+        assert set(results.keys()) == {"0", "1", "2"}
+
+        # Each group should have 'mean' and 'p' from two_sample_permutation
+        for group_key in results:
+            assert "mean" in results[group_key]
+            assert "p" in results[group_key]
+            # Mean difference should be negative (within < between for distances)
+            assert results[group_key]["mean"] < 0
+            # With clear structure, p-value should be significant
+            assert results[group_key]["p"] < 0.05
+
+        # Test error for multiple matrices
+        multi_adj = Adjacency([dist_matrix, dist_matrix], matrix_type="distance")
+        with pytest.raises(ValueError, match="single adjacency"):
+            multi_adj.stats_label_distance(labels=labels)
+
+        # Test error for wrong label length
+        with pytest.raises(ValueError, match="same length"):
+            adj.stats_label_distance(labels=np.array([0, 1]))
+
     # ==================== Transform & Utility Methods ====================
 
     def test_threshold(self, sim_adjacency_directed):
@@ -460,6 +572,45 @@ class TestAdjacency:
             0,
             decimal=2,
         )
+
+    def test_generate_permutations(self, sim_adjacency_single):
+        """Test lazy generation of permuted adjacency matrices."""
+        n_perm = 10
+        original_data = sim_adjacency_single.data.copy()
+
+        # Test that generator yields correct number of permutations
+        perms = list(
+            sim_adjacency_single.generate_permutations(n_perm, random_state=42)
+        )
+        assert len(perms) == n_perm
+
+        # Each permutation should be an Adjacency object
+        for perm in perms:
+            assert isinstance(perm, Adjacency)
+            # Same shape as original
+            assert perm.shape == sim_adjacency_single.shape
+
+        # Permutations should differ from original
+        # (With 4x4 matrix, extremely unlikely all match by chance)
+        all_same = all(np.allclose(perm.data, original_data) for perm in perms)
+        assert not all_same
+
+        # Test reproducibility with same random_state
+        perm_list1 = [
+            p.data.copy()
+            for p in sim_adjacency_single.generate_permutations(5, random_state=123)
+        ]
+        perm_list2 = [
+            p.data.copy()
+            for p in sim_adjacency_single.generate_permutations(5, random_state=123)
+        ]
+        for p1, p2 in zip(perm_list1, perm_list2):
+            np.testing.assert_array_equal(p1, p2)
+
+        # Test that different random_states produce different permutations
+        perm_a = next(sim_adjacency_single.generate_permutations(1, random_state=1))
+        perm_b = next(sim_adjacency_single.generate_permutations(1, random_state=2))
+        assert not np.allclose(perm_a.data, perm_b.data)
 
     # ==================== Graph Operations ====================
 
