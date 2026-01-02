@@ -3848,6 +3848,118 @@ class BrainData(object):
         # Return last display object or None
         return display_objects[-1] if display_objects else None
 
+    def plot_flatmap(
+        self,
+        threshold=None,
+        cmap="RdBu_r",
+        vmax=None,
+        vmin=None,
+        template="fsaverage5",
+        with_curvature=True,
+        curvature_contrast=0.5,
+        curvature_brightness=0.5,
+        colorbar=True,
+        colorbar_orientation="horizontal",
+        figsize=(12, 6),
+        title=None,
+        radius=3.0,
+        interpolation="linear",
+        axes=None,
+        save=None,
+    ):
+        """Plot brain data on cortical flatmap.
+
+        Projects MNI152 volumetric data onto an fsaverage surface and renders
+        as a 2D flattened cortical map. Uses nilearn's vol_to_surf for
+        projection and matplotlib's tripcolor for rendering.
+
+        This method provides publication-quality flatmap visualizations
+        without requiring external dependencies like pycortex.
+
+        Args:
+            threshold (float or str, optional): Values below this absolute
+                threshold are masked. Can be a float or percentile string
+                like '95%'. Defaults to None (no threshold).
+            cmap (str, optional): Matplotlib colormap for data. Defaults to
+                'RdBu_r' (diverging red-blue).
+            vmax (float, optional): Maximum value for colormap. If None,
+                uses symmetric max of absolute values.
+            vmin (float, optional): Minimum value for colormap. If None
+                and vmax is set, uses -vmax for diverging maps.
+            template (str, optional): fsaverage resolution. Options:
+                'fsaverage3' (642 vertices), 'fsaverage4' (2562),
+                'fsaverage5' (10242, default), 'fsaverage6' (40962),
+                'fsaverage' (163842, full resolution).
+            with_curvature (bool, optional): Show sulcal/gyral pattern as
+                grayscale background. Defaults to True.
+            curvature_contrast (float, optional): Contrast of curvature
+                (0=flat gray, 1=full contrast). Defaults to 0.5.
+            curvature_brightness (float, optional): Mean brightness of
+                curvature (0=dark, 1=bright). Defaults to 0.5.
+            colorbar (bool, optional): Show colorbar. Defaults to True.
+            colorbar_orientation (str, optional): 'horizontal' or 'vertical'.
+                Defaults to 'horizontal'.
+            figsize (tuple, optional): Figure size (width, height).
+                Defaults to (12, 6).
+            title (str, optional): Figure title. Defaults to None.
+            radius (float, optional): Sampling radius in mm for vol_to_surf
+                projection. Larger values provide smoother projections.
+                Defaults to 3.0.
+            interpolation (str, optional): Interpolation for vol_to_surf.
+                Options: 'linear', 'nearest'. Defaults to 'linear'.
+            axes (matplotlib.axes.Axes, optional): Existing axes to plot on.
+                If None, creates new figure. Defaults to None.
+            save (str, optional): File path to save figure. Defaults to None.
+
+        Returns:
+            matplotlib.figure.Figure: The figure containing the flatmap.
+
+        Examples:
+            >>> # Basic flatmap
+            >>> brain.plot_flatmap()
+            >>>
+            >>> # Thresholded with custom colormap
+            >>> brain.plot_flatmap(threshold=2.5, cmap='hot')
+            >>>
+            >>> # Percentile threshold, no curvature background
+            >>> brain.plot_flatmap(threshold='95%', with_curvature=False)
+            >>>
+            >>> # High resolution for publication
+            >>> fig = brain.plot_flatmap(template='fsaverage6')
+            >>> fig.savefig('flatmap.pdf', dpi=300)
+
+        Notes:
+            - Data is projected from MNI152 space to fsaverage surface space.
+              Small alignment differences are expected at boundaries.
+            - Higher resolution templates (fsaverage6, fsaverage) produce
+              sharper images but take longer to render.
+            - The flat surfaces are cached by nilearn after first download.
+        """
+        from nltools.plotting import plot_flatmap
+
+        if self.isempty:
+            raise ValueError("Cannot plot empty BrainData object")
+
+        return plot_flatmap(
+            brain=self,
+            threshold=threshold,
+            cmap=cmap,
+            vmax=vmax,
+            vmin=vmin,
+            template=template,
+            with_curvature=with_curvature,
+            curvature_contrast=curvature_contrast,
+            curvature_brightness=curvature_brightness,
+            colorbar=colorbar,
+            colorbar_orientation=colorbar_orientation,
+            figsize=figsize,
+            title=title,
+            radius=radius,
+            interpolation=interpolation,
+            axes=axes,
+            save=save,
+        )
+
     def _plot_matplotlib(
         self,
         kind,
