@@ -13,8 +13,8 @@ from nltools.tests.core.test_inference import (
 )
 from nltools.backends import check_gpu_available
 
-# All tests in this file are tier2 (GPU batching)
-pytestmark = pytest.mark.tier2
+# GPU batching tests are slow and require GPU hardware
+pytestmark = [pytest.mark.slow, pytest.mark.gpu]
 
 
 class TestGPUBatching:
