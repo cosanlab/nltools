@@ -93,6 +93,30 @@ DesignMatrix now uses Polars DataFrames internally instead of pandas. This provi
 - Faster operations via Polars vectorization
 - Column access returns Polars Series (not pandas Series)
 
+**Common API differences** (Polars Series vs pandas Series):
+```python
+# Getting numpy arrays
+dm['column'].to_numpy()   # ✅ Polars way
+dm['column'].values       # ❌ Doesn't exist (pandas-only)
+
+# Getting Python lists
+dm['column'].to_list()    # ✅ Polars way
+dm['column'].tolist()     # ❌ Doesn't exist (pandas-only)
+
+# Computing correlations between columns
+import numpy as np
+corr = np.corrcoef(dm['col1'].to_numpy(), dm['col2'].to_numpy())[0, 1]  # ✅
+dm['col1'].corr(dm['col2'])  # ❌ Polars Series has no .corr() method
+
+# Saving to CSV (access underlying Polars DataFrame)
+dm._df.write_csv('/path/to/file.csv')  # ✅ Polars way
+dm.to_csv('/path/to/file.csv')         # ❌ Method doesn't exist
+
+# Loading from CSV
+import polars as pl
+dm = DesignMatrix(pl.read_csv('/path/to/file.csv'), sampling_freq=0.5)
+```
+
 **What's the same:**
 - `.shape`, `.columns`, `.empty` properties work identically
 - `.fillna()`, `.drop()`, `.zscore()` methods work identically
@@ -171,6 +195,98 @@ stats = adj.regress(dm)  # Works! Converts dm.to_numpy() internally
 **Timeline**: Complete in v0.6.0. All integration work finished. Tutorials and examples updated.
 
 ## Breaking Changes
+
+(braindata-mask-handling)=
+### BrainData Mask Handling When Saving/Loading
+
+**Status**: ⚠️ Behavior clarification (v0.6.0)
+
+When saving BrainData to NIfTI and reloading, you must pass the same mask to preserve the shape:
+
+```python
+from nltools.data import BrainData
+
+# Original data
+brain = BrainData(nifti_file, mask=some_mask)
+print(brain.shape)  # (100, 50000)
+
+# Save to NIfTI
+brain.to_nifti('/tmp/brain.nii.gz')
+
+# ❌ WRONG: Reloading without mask uses different default mask
+reloaded = BrainData('/tmp/brain.nii.gz')
+# ValueError: operands could not be broadcast together with shapes (39912,) (50000,)
+
+# ✅ CORRECT: Pass the same mask when reloading
+reloaded = BrainData('/tmp/brain.nii.gz', mask=brain.mask)
+print(reloaded.shape)  # (100, 50000) - matches original
+```
+
+**Why this happens**: The default mask is computed from the data, which may differ from the original mask used to create the BrainData object. This is especially important when:
+- Working with ROI masks
+- Saving/loading intermediate results
+- Comparing data across sessions
+
+**Best practice**: Always save both the data and mask together, or use HDF5 format which preserves the mask:
+```python
+# Option 1: Save mask separately
+brain.to_nifti('/tmp/brain.nii.gz')
+brain.mask.to_filename('/tmp/mask.nii.gz')
+
+# Option 2: Use HDF5 (preserves mask automatically)
+brain.write('/tmp/brain.h5')
+reloaded = BrainData.read('/tmp/brain.h5')  # Mask preserved
+```
+
+---
+
+(adjacency-shape-behavior)=
+### Adjacency.shape Returns Vector Length
+
+**Status**: ⚠️ Known inconsistency - will be fixed in v0.6.x
+
+> **Note**: This is a known API inconsistency. `Adjacency.shape` should return `(n_nodes, n_nodes)` for consistency with `BrainData.shape` and `DesignMatrix.shape`. This will be fixed in a future v0.6.x release. See [nltools-76p](https://github.com/cosanlab/nltools/issues/nltools-76p).
+
+`Adjacency.shape` returns the **vector length** (upper triangle), not the square matrix dimensions:
+
+```python
+from nltools.data import Adjacency
+import numpy as np
+
+# Create 10x10 adjacency matrix
+matrix = np.random.randn(10, 10)
+matrix = (matrix + matrix.T) / 2  # Make symmetric
+np.fill_diagonal(matrix, 0)
+
+adj = Adjacency(data=matrix, matrix_type='similarity')
+
+# ❌ UNEXPECTED: shape returns vector length
+print(adj.shape)  # (45,) - NOT (10, 10)
+
+# ✅ To get n_nodes, use squareform:
+square = adj.squareform()
+n_nodes = square.shape[0]
+print(n_nodes)  # 10
+
+# The vector length formula: n_nodes * (n_nodes - 1) / 2
+expected_length = n_nodes * (n_nodes - 1) // 2
+print(expected_length)  # 45
+```
+
+**Why this design**: Adjacency matrices are symmetric, so only the upper (or lower) triangle contains unique information. Storing as a vector saves 50%+ memory and enables efficient vectorized operations.
+
+**Threshold API**: Uses `lower`/`upper` keywords, not `threshold`:
+```python
+# ❌ WRONG
+adj.threshold(threshold=0.3)  # TypeError: unexpected keyword argument
+
+# ✅ CORRECT
+adj.threshold(lower=0.3)       # Keep values >= 0.3
+adj.threshold(upper=0.5)       # Keep values <= 0.5
+adj.threshold(lower='90%')     # Keep top 10% (percentile threshold)
+```
+
+---
 
 ### 1. Removed Methods
 
