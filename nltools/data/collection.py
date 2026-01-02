@@ -1207,3 +1207,795 @@ class BrainCollection:
 
         else:
             raise ValueError(f"Cannot batch over axis {axis}. Use axis=0 or axis=1.")
+
+    # =========================================================================
+    # Group Inference Methods
+    # =========================================================================
+
+    def ttest(
+        self,
+        popmean: float = 0.0,
+        axis: int | str = 0,
+    ) -> tuple["BrainData", "BrainData"]:
+        """
+        One-sample t-test across images.
+
+        Tests whether the mean across images is significantly different from
+        a population mean (default: 0). This is the voxel-wise equivalent of
+        scipy.stats.ttest_1samp.
+
+        Args:
+            popmean: Population mean to test against (default: 0).
+            axis: Axis to test across. Only axis=0 (images) supported.
+
+        Returns:
+            Tuple of (t_stat, p_value) as BrainData objects.
+            Both have shape (n_obs, n_voxels) if uniform obs counts.
+
+        Raises:
+            ValueError: If images have variable observation counts.
+
+        Examples:
+            >>> t_stat, p_val = bc.ttest()  # Test mean != 0
+            >>> t_stat, p_val = bc.ttest(popmean=0.5)  # Test mean != 0.5
+
+            >>> # Threshold significant voxels
+            >>> sig_mask = p_val.data < 0.05
+        """
+        from scipy import stats
+        from .brain_data import BrainData
+
+        axis = self._normalize_axis(axis)
+        if axis != 0:
+            raise ValueError(
+                "ttest only supports axis=0 (across images). "
+                "For per-image tests, use apply()."
+            )
+
+        # Get tensor - requires uniform observation counts
+        tensor = self.to_tensor()  # (n_images, n_obs, n_voxels)
+
+        # Compute t-test across axis 0
+        t_stat_arr, p_val_arr = stats.ttest_1samp(tensor, popmean, axis=0)
+
+        # Package as BrainData
+        t_stat = BrainData(mask=self._mask)
+        t_stat.data = t_stat_arr
+
+        p_val = BrainData(mask=self._mask)
+        p_val.data = p_val_arr
+
+        return t_stat, p_val
+
+    def ttest2(
+        self,
+        other: "BrainCollection",
+        equal_var: bool = True,
+    ) -> tuple["BrainData", "BrainData"]:
+        """
+        Two-sample t-test between collections.
+
+        Tests whether two collections have different means. This is the
+        voxel-wise equivalent of scipy.stats.ttest_ind.
+
+        Args:
+            other: Another BrainCollection to compare against.
+            equal_var: If True (default), perform standard t-test assuming
+                equal variances. If False, use Welch's t-test.
+
+        Returns:
+            Tuple of (t_stat, p_value) as BrainData objects.
+
+        Raises:
+            ValueError: If collections have different masks or variable obs counts.
+
+        Examples:
+            >>> t_stat, p_val = patients.ttest2(controls)
+            >>> t_stat, p_val = group1.ttest2(group2, equal_var=False)  # Welch's
+        """
+        from scipy import stats
+        from .brain_data import BrainData
+
+        # Validate mask compatibility
+        if self._mask.shape != other._mask.shape:
+            raise ValueError(
+                f"Collections must have same mask shape. "
+                f"Got {self._mask.shape} and {other._mask.shape}."
+            )
+
+        # Get tensors
+        tensor1 = self.to_tensor()  # (n1, n_obs, n_voxels)
+        tensor2 = other.to_tensor()  # (n2, n_obs, n_voxels)
+
+        # Check obs counts match
+        if tensor1.shape[1] != tensor2.shape[1]:
+            raise ValueError(
+                f"Collections must have same observation count per image. "
+                f"Got {tensor1.shape[1]} and {tensor2.shape[1]}."
+            )
+
+        # Compute two-sample t-test across axis 0
+        t_stat_arr, p_val_arr = stats.ttest_ind(
+            tensor1, tensor2, axis=0, equal_var=equal_var
+        )
+
+        # Package as BrainData
+        t_stat = BrainData(mask=self._mask)
+        t_stat.data = t_stat_arr
+
+        p_val = BrainData(mask=self._mask)
+        p_val.data = p_val_arr
+
+        return t_stat, p_val
+
+    def permutation_test(
+        self,
+        n_permute: int = 5000,
+        tail: int = 2,
+        parallel: str | None = "cpu",
+        n_jobs: int = -1,
+        max_gpu_memory_gb: float = 4.0,
+        random_state: int | None = None,
+        return_null: bool = False,
+    ) -> dict:
+        """
+        One-sample permutation test across images (sign-flipping).
+
+        Tests whether the mean across images is significantly different from
+        zero using sign-flipping permutation. More robust than parametric
+        t-test for non-normal distributions.
+
+        This is a collection-level interface to
+        nltools.algorithms.inference.one_sample_permutation_test.
+
+        Args:
+            n_permute: Number of permutations (default: 5000).
+            tail: Test type - 1 for one-tailed, 2 for two-tailed (default).
+            parallel: Parallelization method:
+                - 'cpu': CPU parallelization via joblib (default)
+                - 'gpu': GPU acceleration via PyTorch
+                - None: Single-threaded (for debugging)
+            n_jobs: Number of CPU cores (default: -1 = all cores).
+            max_gpu_memory_gb: GPU memory budget (default: 4.0 GB).
+            random_state: Random seed for reproducibility.
+            return_null: If True, include null distribution in result.
+
+        Returns:
+            dict with keys:
+                - 'mean': BrainData with observed mean across images
+                - 'p': BrainData with p-values
+                - 'null_dist': np.ndarray (if return_null=True)
+                - 'parallel': parallelization method used
+
+        Raises:
+            ValueError: If images have variable observation counts.
+
+        Examples:
+            >>> result = bc.permutation_test(n_permute=5000)
+            >>> mean_bd, p_bd = result['mean'], result['p']
+
+            >>> # With GPU acceleration
+            >>> result = bc.permutation_test(parallel='gpu')
+        """
+        from nltools.algorithms.inference import one_sample_permutation_test
+        from .brain_data import BrainData
+
+        # Get tensor - requires uniform observation counts
+        tensor = self.to_tensor()  # (n_images, n_obs, n_voxels)
+        n_images, n_obs, n_voxels = tensor.shape
+
+        # For each observation/timepoint, run permutation test across images
+        mean_results = []
+        p_results = []
+        null_dists = [] if return_null else None
+
+        iterator = range(n_obs)
+        if tqdm is not None:
+            iterator = tqdm.tqdm(iterator, desc="Permutation tests")
+
+        for obs_idx in iterator:
+            # Data for this observation: (n_images, n_voxels)
+            data = tensor[:, obs_idx, :]
+
+            result = one_sample_permutation_test(
+                data,
+                n_permute=n_permute,
+                tail=tail,
+                return_null=return_null,
+                parallel=parallel,
+                n_jobs=n_jobs,
+                max_gpu_memory_gb=max_gpu_memory_gb,
+                random_state=random_state,
+            )
+
+            mean_results.append(result["mean"])
+            p_results.append(result["p"])
+            if return_null:
+                null_dists.append(result["null_dist"])
+
+        # Stack results: (n_obs, n_voxels)
+        mean_arr = np.vstack(mean_results)
+        p_arr = np.vstack(p_results)
+
+        # Package as BrainData
+        mean_bd = BrainData(mask=self._mask)
+        mean_bd.data = mean_arr if n_obs > 1 else mean_arr.squeeze()
+
+        p_bd = BrainData(mask=self._mask)
+        p_bd.data = p_arr if n_obs > 1 else p_arr.squeeze()
+
+        result_dict = {
+            "mean": mean_bd,
+            "p": p_bd,
+            "parallel": parallel,
+        }
+
+        if return_null:
+            result_dict["null_dist"] = np.array(null_dists)
+
+        return result_dict
+
+    def permutation_test2(
+        self,
+        other: "BrainCollection",
+        n_permute: int = 5000,
+        tail: int = 2,
+        parallel: str | None = "cpu",
+        n_jobs: int = -1,
+        max_gpu_memory_gb: float = 4.0,
+        random_state: int | None = None,
+        return_null: bool = False,
+    ) -> dict:
+        """
+        Two-sample permutation test between collections.
+
+        Tests whether two collections have different means using group
+        label permutation. More robust than parametric t-test.
+
+        Args:
+            other: Another BrainCollection to compare against.
+            n_permute: Number of permutations (default: 5000).
+            tail: Test type - 1 for one-tailed, 2 for two-tailed (default).
+            parallel: Parallelization method ('cpu', 'gpu', or None).
+            n_jobs: Number of CPU cores (default: -1 = all cores).
+            max_gpu_memory_gb: GPU memory budget (default: 4.0 GB).
+            random_state: Random seed for reproducibility.
+            return_null: If True, include null distribution in result.
+
+        Returns:
+            dict with keys:
+                - 'mean_diff': BrainData with observed mean difference
+                - 'p': BrainData with p-values
+                - 'null_dist': np.ndarray (if return_null=True)
+                - 'parallel': parallelization method used
+
+        Examples:
+            >>> result = patients.permutation_test2(controls)
+            >>> diff_bd, p_bd = result['mean_diff'], result['p']
+        """
+        from nltools.algorithms.inference import two_sample_permutation_test
+        from .brain_data import BrainData
+
+        # Validate mask compatibility
+        if self._mask.shape != other._mask.shape:
+            raise ValueError(
+                f"Collections must have same mask shape. "
+                f"Got {self._mask.shape} and {other._mask.shape}."
+            )
+
+        # Get tensors
+        tensor1 = self.to_tensor()  # (n1, n_obs, n_voxels)
+        tensor2 = other.to_tensor()  # (n2, n_obs, n_voxels)
+
+        if tensor1.shape[1] != tensor2.shape[1]:
+            raise ValueError(
+                f"Collections must have same observation count. "
+                f"Got {tensor1.shape[1]} and {tensor2.shape[1]}."
+            )
+
+        n_obs = tensor1.shape[1]
+
+        diff_results = []
+        p_results = []
+        null_dists = [] if return_null else None
+
+        iterator = range(n_obs)
+        if tqdm is not None:
+            iterator = tqdm.tqdm(iterator, desc="Two-sample permutation tests")
+
+        for obs_idx in iterator:
+            data1 = tensor1[:, obs_idx, :]  # (n1, n_voxels)
+            data2 = tensor2[:, obs_idx, :]  # (n2, n_voxels)
+
+            result = two_sample_permutation_test(
+                data1,
+                data2,
+                n_permute=n_permute,
+                tail=tail,
+                return_null=return_null,
+                parallel=parallel,
+                n_jobs=n_jobs,
+                max_gpu_memory_gb=max_gpu_memory_gb,
+                random_state=random_state,
+            )
+
+            diff_results.append(result["mean_diff"])
+            p_results.append(result["p"])
+            if return_null:
+                null_dists.append(result["null_dist"])
+
+        # Stack results
+        diff_arr = np.vstack(diff_results)
+        p_arr = np.vstack(p_results)
+
+        diff_bd = BrainData(mask=self._mask)
+        diff_bd.data = diff_arr if n_obs > 1 else diff_arr.squeeze()
+
+        p_bd = BrainData(mask=self._mask)
+        p_bd.data = p_arr if n_obs > 1 else p_arr.squeeze()
+
+        result_dict = {
+            "mean_diff": diff_bd,
+            "p": p_bd,
+            "parallel": parallel,
+        }
+
+        if return_null:
+            result_dict["null_dist"] = np.array(null_dists)
+
+        return result_dict
+
+    def anova(
+        self,
+        groups: str | list | np.ndarray,
+    ) -> tuple["BrainData", "BrainData"]:
+        """
+        One-way ANOVA across groups defined by metadata.
+
+        Tests whether group means differ significantly. This is the
+        voxel-wise equivalent of scipy.stats.f_oneway.
+
+        Args:
+            groups: Group assignment for each image. Can be:
+                - str: Column name in metadata
+                - list/array: Group labels of length n_images
+
+        Returns:
+            Tuple of (F_stat, p_value) as BrainData objects.
+
+        Raises:
+            ValueError: If groups length doesn't match n_images.
+            KeyError: If group column not found in metadata.
+
+        Examples:
+            >>> # Groups from metadata column
+            >>> f_stat, p_val = bc.anova('condition')
+
+            >>> # Explicit group labels
+            >>> groups = ['control'] * 10 + ['patient'] * 15
+            >>> f_stat, p_val = bc.anova(groups)
+        """
+        from scipy import stats
+        from .brain_data import BrainData
+
+        # Resolve groups
+        if isinstance(groups, str):
+            if groups not in self._metadata.columns:
+                raise KeyError(
+                    f"Column '{groups}' not found in metadata. "
+                    f"Available: {list(self._metadata.columns)}"
+                )
+            group_labels = self._metadata[groups].values
+        else:
+            group_labels = np.asarray(groups)
+            if len(group_labels) != self.n_images:
+                raise ValueError(
+                    f"groups length ({len(group_labels)}) must match "
+                    f"n_images ({self.n_images})"
+                )
+
+        # Get tensor
+        tensor = self.to_tensor()  # (n_images, n_obs, n_voxels)
+        n_images, n_obs, n_voxels = tensor.shape
+
+        # Get unique groups
+        unique_groups = np.unique(group_labels)
+        if len(unique_groups) < 2:
+            raise ValueError("ANOVA requires at least 2 groups")
+
+        # Compute F-test for each observation
+        f_results = []
+        p_results = []
+
+        for obs_idx in range(n_obs):
+            data = tensor[:, obs_idx, :]  # (n_images, n_voxels)
+
+            # Split by groups
+            group_data = [data[group_labels == g] for g in unique_groups]
+
+            # F-test across groups
+            f_stat_arr, p_val_arr = stats.f_oneway(*group_data)
+
+            f_results.append(f_stat_arr)
+            p_results.append(p_val_arr)
+
+        # Stack results
+        f_arr = np.vstack(f_results) if n_obs > 1 else np.array(f_results[0])
+        p_arr = np.vstack(p_results) if n_obs > 1 else np.array(p_results[0])
+
+        # Package as BrainData
+        f_stat = BrainData(mask=self._mask)
+        f_stat.data = f_arr
+
+        p_val = BrainData(mask=self._mask)
+        p_val.data = p_arr
+
+        return f_stat, p_val
+
+    # =========================================================================
+    # Transformation Methods
+    # =========================================================================
+
+    def map(
+        self,
+        fn: callable,
+        axis: int | str = 0,
+        n_jobs: int = 1,
+        show_progress: bool = True,
+    ) -> "BrainCollection":
+        """
+        Apply function across specified axis.
+
+        This is the general-purpose transformation method. For common operations,
+        use convenience methods like standardize(), smooth(), etc.
+
+        Args:
+            fn: Function to apply. Signature depends on axis:
+                - axis=0: fn(BrainData) → BrainData (per image)
+                - axis=1: fn(BrainData) → BrainData (per timepoint slice)
+                - axis=2: fn(ndarray[n_obs]) → ndarray (per voxel timeseries)
+            axis: Axis to iterate over:
+                - 0 or 'images': Apply fn to each image independently
+                - 1 or 'time': Apply fn to each timepoint across images
+                - 2 or 'voxels': Apply fn to each voxel timeseries per image
+            n_jobs: Number of parallel jobs. -1 for all cores. Default 1.
+            show_progress: Show tqdm progress bar. Default True.
+
+        Returns:
+            BrainCollection with transformed data.
+
+        Examples:
+            >>> # Per-image operation
+            >>> bc.map(lambda bd: bd.standardize())
+
+            >>> # Per-voxel timeseries (e.g., detrend each voxel)
+            >>> from scipy.signal import detrend
+            >>> bc.map(detrend, axis=2)
+
+            >>> # Parallel processing
+            >>> bc.map(expensive_fn, n_jobs=-1)
+        """
+        axis = self._normalize_axis(axis)
+
+        if axis == 0:
+            return self._map_axis0(fn, n_jobs, show_progress)
+        elif axis == 1:
+            return self._map_axis1(fn, n_jobs, show_progress)
+        elif axis == 2:
+            return self._map_axis2(fn, n_jobs, show_progress)
+        else:
+            raise ValueError(f"Invalid axis: {axis}. Must be 0, 1, or 2.")
+
+    def _map_axis0(
+        self,
+        fn: callable,
+        n_jobs: int,
+        show_progress: bool,
+    ) -> "BrainCollection":
+        """Map function over images (axis=0)."""
+        from joblib import Parallel, delayed
+
+        indices = range(self.n_images)
+
+        if n_jobs == 1:
+            # Sequential processing
+            if show_progress and tqdm is not None:
+                indices = tqdm.tqdm(indices, desc="Mapping over images")
+
+            results = []
+            for i in indices:
+                bd = self._load_item(i)
+                results.append(fn(bd))
+        else:
+            # Parallel processing
+            def _process(i):
+                bd = self._load_item(i)
+                return fn(bd)
+
+            if show_progress and tqdm is not None:
+                indices = tqdm.tqdm(indices, desc="Mapping over images")
+
+            results = Parallel(n_jobs=n_jobs)(delayed(_process)(i) for i in indices)
+
+        return BrainCollection(results, mask=self._mask, metadata=self._metadata)
+
+    def _map_axis1(
+        self,
+        fn: callable,
+        n_jobs: int,
+        show_progress: bool,
+    ) -> "BrainCollection":
+        """Map function over timepoints (axis=1)."""
+        from .brain_data import BrainData
+
+        # Ensure all sample counts known and uniform
+        for i in range(len(self)):
+            if self._sample_counts[i] is None:
+                self._load_item(i)
+
+        unique_counts = set(self._sample_counts)
+        if len(unique_counts) > 1:
+            raise ValueError(
+                f"map(axis=1) requires uniform observation counts. "
+                f"Found: {sorted(unique_counts)}"
+            )
+
+        n_obs = self._sample_counts[0]
+        indices = range(n_obs)
+
+        if show_progress and tqdm is not None:
+            indices = tqdm.tqdm(indices, desc="Mapping over timepoints")
+
+        # For each timepoint, create a BrainCollection slice and apply fn
+        results_per_t = []
+        for t in indices:
+            # Get timepoint slice: bc[:, t] returns BrainCollection with 1 obs each
+            t_slice = self[:, t]
+            result = fn(t_slice)
+            results_per_t.append(result)
+
+        # results_per_t is list of BrainData (one per timepoint)
+        # Need to reassemble into images
+        # Each result should be a BrainData with shape (n_voxels,) or similar
+        # Stack them back into (n_obs, n_voxels) per image
+
+        # If fn returns BrainData, stack across timepoints
+        if isinstance(results_per_t[0], BrainData):
+            # Reassemble: each image gets data from all timepoints
+            new_items = []
+            for img_idx in range(self.n_images):
+                img_data = []
+                for t in range(n_obs):
+                    # results_per_t[t] is result for timepoint t
+                    # If it's a single BrainData (reduced), extract scalar per image
+                    if hasattr(results_per_t[t], "data"):
+                        img_data.append(results_per_t[t].data)
+                stacked = np.vstack(img_data) if len(img_data) > 1 else img_data[0]
+                new_bd = BrainData(mask=self._mask)
+                new_bd.data = stacked
+                new_items.append(new_bd)
+            return BrainCollection(new_items, mask=self._mask, metadata=self._metadata)
+        else:
+            raise TypeError(
+                f"map(axis=1) function must return BrainData, got {type(results_per_t[0])}"
+            )
+
+    def _map_axis2(
+        self,
+        fn: callable,
+        n_jobs: int,
+        show_progress: bool,
+    ) -> "BrainCollection":
+        """Map function over voxels (axis=2) per image."""
+        from .brain_data import BrainData
+
+        indices = range(self.n_images)
+        if show_progress and tqdm is not None:
+            indices = tqdm.tqdm(indices, desc="Mapping over voxels")
+
+        results = []
+        for i in indices:
+            bd = self._load_item(i)
+            data = bd.data
+            if data.ndim == 1:
+                data = data[np.newaxis, :]
+
+            # Apply fn to each voxel's timeseries (each column)
+            # fn receives (n_obs,) array, returns (n_obs,) or scalar
+            transformed_cols = []
+            for v in range(data.shape[1]):
+                transformed_cols.append(fn(data[:, v]))
+
+            transformed = np.column_stack(transformed_cols)
+
+            new_bd = BrainData(mask=self._mask)
+            new_bd.data = (
+                transformed.squeeze() if transformed.shape[0] == 1 else transformed
+            )
+            results.append(new_bd)
+
+        return BrainCollection(results, mask=self._mask, metadata=self._metadata)
+
+    def filter(
+        self,
+        predicate: callable | list | np.ndarray | "pd.Series",
+    ) -> "BrainCollection":
+        """
+        Filter collection by predicate.
+
+        Args:
+            predicate: Filter condition. Can be:
+                - callable: fn(BrainData) → bool
+                - list/ndarray: Boolean mask of length n_images
+                - pd.Series: Boolean series (index ignored)
+
+        Returns:
+            BrainCollection with subset of images matching predicate.
+
+        Examples:
+            >>> # Filter by callable
+            >>> bc.filter(lambda bd: bd.data.mean() > 0)
+
+            >>> # Filter by boolean mask
+            >>> mask = [True, False, True]
+            >>> bc.filter(mask)
+
+            >>> # Filter by metadata condition
+            >>> bc.filter(bc.metadata['group'] == 'control')
+        """
+        if callable(predicate):
+            # Apply predicate to each image
+            mask = []
+            for i in range(self.n_images):
+                bd = self._load_item(i)
+                mask.append(bool(predicate(bd)))
+            mask = np.array(mask)
+        elif isinstance(predicate, pd.Series):
+            mask = predicate.values.astype(bool)
+        else:
+            mask = np.asarray(predicate, dtype=bool)
+
+        if len(mask) != self.n_images:
+            raise ValueError(
+                f"Predicate length ({len(mask)}) must match n_images ({self.n_images})"
+            )
+
+        indices = np.where(mask)[0].tolist()
+        return self._subset(indices)
+
+    # =========================================================================
+    # Convenience Methods (Delegators to BrainData methods)
+    # =========================================================================
+
+    def standardize(
+        self,
+        axis: int = 0,
+        method: str = "center",
+        n_jobs: int = 1,
+        show_progress: bool = True,
+    ) -> "BrainCollection":
+        """
+        Standardize each image.
+
+        Delegates to BrainData.standardize() for each image.
+
+        Args:
+            axis: Axis for standardization within each image:
+                - 0: Standardize across observations (time) per voxel
+                - 1: Standardize across voxels per observation
+            method: 'center' (subtract mean) or 'zscore' (subtract mean, divide std)
+            n_jobs: Number of parallel jobs.
+            show_progress: Show progress bar.
+
+        Returns:
+            BrainCollection with standardized images.
+
+        Examples:
+            >>> bc.standardize()  # Center each image across time
+            >>> bc.standardize(method='zscore')  # Z-score each image
+            >>> bc.standardize(axis=1)  # Standardize across voxels
+        """
+        return self.map(
+            lambda bd: bd.standardize(axis=axis, method=method),
+            axis=0,
+            n_jobs=n_jobs,
+            show_progress=show_progress,
+        )
+
+    def smooth(
+        self,
+        fwhm: float,
+        n_jobs: int = 1,
+        show_progress: bool = True,
+    ) -> "BrainCollection":
+        """
+        Spatially smooth each image.
+
+        Delegates to BrainData.smooth() for each image.
+
+        Args:
+            fwhm: Full width at half maximum of Gaussian kernel in mm.
+            n_jobs: Number of parallel jobs.
+            show_progress: Show progress bar.
+
+        Returns:
+            BrainCollection with smoothed images.
+
+        Examples:
+            >>> bc.smooth(fwhm=6)  # 6mm FWHM smoothing
+        """
+        return self.map(
+            lambda bd: bd.smooth(fwhm),
+            axis=0,
+            n_jobs=n_jobs,
+            show_progress=show_progress,
+        )
+
+    def threshold(
+        self,
+        upper: float | str | None = None,
+        lower: float | str | None = None,
+        binarize: bool = False,
+        coerce_nan: bool = True,
+        n_jobs: int = 1,
+        show_progress: bool = True,
+    ) -> "BrainCollection":
+        """
+        Threshold each image.
+
+        Delegates to BrainData.threshold() for each image.
+
+        Args:
+            upper: Upper cutoff. String interpreted as percentile.
+            lower: Lower cutoff. String interpreted as percentile.
+            binarize: Return binary mask.
+            coerce_nan: Replace NaN with 0.
+            n_jobs: Number of parallel jobs.
+            show_progress: Show progress bar.
+
+        Returns:
+            BrainCollection with thresholded images.
+
+        Examples:
+            >>> bc.threshold(lower=0)  # Zero out negative values
+            >>> bc.threshold(upper='95%')  # Keep top 5%
+            >>> bc.threshold(lower=2, binarize=True)  # Binary mask
+        """
+        return self.map(
+            lambda bd: bd.threshold(
+                upper=upper, lower=lower, binarize=binarize, coerce_nan=coerce_nan
+            ),
+            axis=0,
+            n_jobs=n_jobs,
+            show_progress=show_progress,
+        )
+
+    def detrend(
+        self,
+        method: str = "linear",
+        n_jobs: int = 1,
+        show_progress: bool = True,
+    ) -> "BrainCollection":
+        """
+        Remove trend from each image.
+
+        Delegates to BrainData.detrend() for each image.
+
+        Args:
+            method: 'linear' or 'constant'.
+            n_jobs: Number of parallel jobs.
+            show_progress: Show progress bar.
+
+        Returns:
+            BrainCollection with detrended images.
+
+        Examples:
+            >>> bc.detrend()  # Remove linear trend
+            >>> bc.detrend(method='constant')  # Remove mean only
+        """
+        return self.map(
+            lambda bd: bd.detrend(method=method),
+            axis=0,
+            n_jobs=n_jobs,
+            show_progress=show_progress,
+        )

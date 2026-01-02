@@ -10,6 +10,7 @@ Tests organized by functionality:
 """
 
 import numpy as np
+import nibabel as nib
 import pandas as pd
 import pytest
 
@@ -116,10 +117,12 @@ class TestBrainCollectionConstruction:
 
     def test_init_with_metadata(self, sample_brain_data_list, sample_mask):
         """Test construction with metadata."""
-        metadata = pd.DataFrame({
-            "subject": ["01", "02", "03"],
-            "group": ["control", "patient", "control"],
-        })
+        metadata = pd.DataFrame(
+            {
+                "subject": ["01", "02", "03"],
+                "group": ["control", "patient", "control"],
+            }
+        )
         bc = BrainCollection(
             sample_brain_data_list, mask=sample_mask, metadata=metadata
         )
@@ -139,9 +142,7 @@ class TestBrainCollectionConstruction:
         """Test that metadata length mismatch raises error."""
         metadata = pd.DataFrame({"subject": ["01", "02"]})  # Only 2 rows
         with pytest.raises(ValueError, match="metadata length"):
-            BrainCollection(
-                sample_brain_data_list, mask=sample_mask, metadata=metadata
-            )
+            BrainCollection(sample_brain_data_list, mask=sample_mask, metadata=metadata)
 
     def test_init_invalid_item_type_raises(self, sample_mask):
         """Test that invalid item type raises error."""
@@ -500,7 +501,9 @@ class TestBrainCollectionIterBatches:
 
     def test_iter_batches_axis0(self, sample_collection):
         """Test iter_batches over images (axis=0)."""
-        batches = list(sample_collection.iter_batches(batch_size=2, show_progress=False))
+        batches = list(
+            sample_collection.iter_batches(batch_size=2, show_progress=False)
+        )
         assert len(batches) == 2
         assert len(batches[0]) == 2
         assert len(batches[1]) == 1
@@ -649,3 +652,462 @@ class TestBrainCollectionAggregation:
         bc = BrainCollection(bds, mask=sample_mask)
         with pytest.raises(ValueError, match="variable observation counts"):
             bc.mean(axis=0)
+
+
+class TestBrainCollectionInference:
+    """Tests for group inference methods."""
+
+    def test_ttest_shape(self, sample_collection):
+        """Test ttest returns correct shapes."""
+        t_stat, p_val = sample_collection.ttest()
+
+        # Should match (n_obs, n_voxels)
+        tensor = sample_collection.to_tensor()
+        expected_shape = tensor.shape[1:]  # (n_obs, n_voxels)
+
+        assert t_stat.data.shape == expected_shape
+        assert p_val.data.shape == expected_shape
+
+    def test_ttest_matches_scipy(self, sample_collection):
+        """Test ttest matches scipy.stats.ttest_1samp."""
+        from scipy import stats
+
+        t_stat, p_val = sample_collection.ttest(popmean=0)
+
+        tensor = sample_collection.to_tensor()
+        expected_t, expected_p = stats.ttest_1samp(tensor, 0, axis=0)
+
+        np.testing.assert_array_almost_equal(t_stat.data, expected_t)
+        np.testing.assert_array_almost_equal(p_val.data, expected_p)
+
+    def test_ttest_with_popmean(self, sample_collection):
+        """Test ttest with non-zero population mean."""
+        from scipy import stats
+
+        popmean = 0.5
+        t_stat, p_val = sample_collection.ttest(popmean=popmean)
+
+        tensor = sample_collection.to_tensor()
+        expected_t, expected_p = stats.ttest_1samp(tensor, popmean, axis=0)
+
+        np.testing.assert_array_almost_equal(t_stat.data, expected_t)
+        np.testing.assert_array_almost_equal(p_val.data, expected_p)
+
+    def test_ttest_axis_not_zero_raises(self, sample_collection):
+        """Test ttest raises for axis != 0."""
+        with pytest.raises(ValueError, match="only supports axis=0"):
+            sample_collection.ttest(axis=1)
+
+    def test_ttest2_shape(self, sample_brain_data_list, sample_mask):
+        """Test ttest2 returns correct shapes."""
+        bc1 = BrainCollection(sample_brain_data_list[:2], mask=sample_mask)
+        bc2 = BrainCollection(sample_brain_data_list[1:], mask=sample_mask)
+
+        t_stat, p_val = bc1.ttest2(bc2)
+
+        tensor1 = bc1.to_tensor()
+        expected_shape = tensor1.shape[1:]
+
+        assert t_stat.data.shape == expected_shape
+        assert p_val.data.shape == expected_shape
+
+    def test_ttest2_matches_scipy(self, sample_brain_data_list, sample_mask):
+        """Test ttest2 matches scipy.stats.ttest_ind."""
+        from scipy import stats
+
+        bc1 = BrainCollection(sample_brain_data_list[:2], mask=sample_mask)
+        bc2 = BrainCollection(sample_brain_data_list[1:], mask=sample_mask)
+
+        t_stat, p_val = bc1.ttest2(bc2)
+
+        tensor1 = bc1.to_tensor()
+        tensor2 = bc2.to_tensor()
+        expected_t, expected_p = stats.ttest_ind(tensor1, tensor2, axis=0)
+
+        np.testing.assert_array_almost_equal(t_stat.data, expected_t)
+        np.testing.assert_array_almost_equal(p_val.data, expected_p)
+
+    def test_ttest2_welch(self, sample_brain_data_list, sample_mask):
+        """Test ttest2 with Welch's t-test."""
+        from scipy import stats
+
+        bc1 = BrainCollection(sample_brain_data_list[:2], mask=sample_mask)
+        bc2 = BrainCollection(sample_brain_data_list[1:], mask=sample_mask)
+
+        t_stat, p_val = bc1.ttest2(bc2, equal_var=False)
+
+        tensor1 = bc1.to_tensor()
+        tensor2 = bc2.to_tensor()
+        expected_t, expected_p = stats.ttest_ind(
+            tensor1, tensor2, axis=0, equal_var=False
+        )
+
+        np.testing.assert_array_almost_equal(t_stat.data, expected_t)
+        np.testing.assert_array_almost_equal(p_val.data, expected_p)
+
+    def test_ttest2_mask_mismatch_raises(self, sample_brain_data_list, sample_mask):
+        """Test ttest2 raises for mismatched masks."""
+        bc1 = BrainCollection(sample_brain_data_list, mask=sample_mask)
+
+        # Create collection with different mask
+        different_mask = np.zeros((5, 5, 5), dtype=np.int8)
+        different_mask[1:4, 1:4, 1:4] = 1
+        different_mask_nii = nib.Nifti1Image(different_mask, np.eye(4))
+
+        n_voxels2 = int(different_mask.sum())
+        bd = BrainData(mask=different_mask_nii)
+        bd.data = np.random.randn(5, n_voxels2)
+        bc2 = BrainCollection([bd], mask=different_mask_nii)
+
+        with pytest.raises(ValueError, match="same mask shape"):
+            bc1.ttest2(bc2)
+
+    def test_anova_from_list(self, sample_mask):
+        """Test ANOVA with group labels as list."""
+        from scipy import stats
+
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_images = 9
+        n_obs = 1
+
+        # Create 3 groups of 3 images each
+        bds = []
+        for i in range(n_images):
+            bd = BrainData(mask=sample_mask)
+            bd.data = np.random.randn(n_obs, n_voxels) + i // 3  # Group mean offset
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+        groups = ["A", "A", "A", "B", "B", "B", "C", "C", "C"]
+
+        f_stat, p_val = bc.anova(groups)
+
+        # Verify shapes
+        assert f_stat.data.shape == (n_voxels,)
+        assert p_val.data.shape == (n_voxels,)
+
+        # Verify against scipy
+        tensor = bc.to_tensor().squeeze(axis=1)  # (n_images, n_voxels)
+        group_a = tensor[0:3]
+        group_b = tensor[3:6]
+        group_c = tensor[6:9]
+        expected_f, expected_p = stats.f_oneway(group_a, group_b, group_c)
+
+        np.testing.assert_array_almost_equal(f_stat.data, expected_f)
+        np.testing.assert_array_almost_equal(p_val.data, expected_p)
+
+    def test_anova_from_metadata(self, sample_mask):
+        """Test ANOVA with group from metadata column."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_images = 6
+        n_obs = 1
+
+        bds = []
+        for _ in range(n_images):
+            bd = BrainData(mask=sample_mask)
+            bd.data = np.random.randn(n_obs, n_voxels)
+            bds.append(bd)
+
+        metadata = pd.DataFrame({"condition": ["A", "A", "B", "B", "C", "C"]})
+        bc = BrainCollection(bds, mask=sample_mask, metadata=metadata)
+
+        f_stat, p_val = bc.anova("condition")
+
+        assert f_stat.data.shape == (n_voxels,)
+        assert p_val.data.shape == (n_voxels,)
+
+    def test_anova_missing_column_raises(self, sample_collection):
+        """Test ANOVA raises for missing metadata column."""
+        with pytest.raises(KeyError, match="not found in metadata"):
+            sample_collection.anova("nonexistent_column")
+
+    def test_anova_wrong_length_raises(self, sample_collection):
+        """Test ANOVA raises for wrong group length."""
+        wrong_length = ["A", "B"]  # Only 2 elements, but 3 images
+        with pytest.raises(ValueError, match="must match"):
+            sample_collection.anova(wrong_length)
+
+    def test_anova_one_group_raises(self, sample_collection):
+        """Test ANOVA raises for single group."""
+        groups = ["A"] * sample_collection.n_images
+        with pytest.raises(ValueError, match="at least 2 groups"):
+            sample_collection.anova(groups)
+
+    def test_permutation_test_shape(self, sample_mask):
+        """Test permutation_test returns correct shapes."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+
+        # Create collection with single observation for speed
+        bds = []
+        for _ in range(5):
+            bd = BrainData(mask=sample_mask)
+            bd.data = np.random.randn(1, n_voxels)
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        # Use small n_permute for speed
+        result = bc.permutation_test(n_permute=10, parallel=None)
+
+        assert "mean" in result
+        assert "p" in result
+        assert result["mean"].data.shape == (n_voxels,)
+        assert result["p"].data.shape == (n_voxels,)
+
+    def test_permutation_test_return_null(self, sample_mask):
+        """Test permutation_test with return_null=True."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_permute = 10
+
+        bds = []
+        for _ in range(5):
+            bd = BrainData(mask=sample_mask)
+            bd.data = np.random.randn(1, n_voxels)
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        result = bc.permutation_test(
+            n_permute=n_permute, parallel=None, return_null=True
+        )
+
+        assert "null_dist" in result
+        # Shape: (n_obs, n_permute, n_voxels)
+        assert result["null_dist"].shape[1] == n_permute
+
+    def test_permutation_test2_shape(self, sample_mask):
+        """Test permutation_test2 returns correct shapes."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+
+        # Create two collections
+        bds1 = []
+        bds2 = []
+        for _ in range(3):
+            bd1 = BrainData(mask=sample_mask)
+            bd1.data = np.random.randn(1, n_voxels)
+            bds1.append(bd1)
+
+            bd2 = BrainData(mask=sample_mask)
+            bd2.data = np.random.randn(1, n_voxels)
+            bds2.append(bd2)
+
+        bc1 = BrainCollection(bds1, mask=sample_mask)
+        bc2 = BrainCollection(bds2, mask=sample_mask)
+
+        result = bc1.permutation_test2(bc2, n_permute=10, parallel=None)
+
+        assert "mean_diff" in result
+        assert "p" in result
+        assert result["mean_diff"].data.shape == (n_voxels,)
+        assert result["p"].data.shape == (n_voxels,)
+
+
+class TestBrainCollectionTransformations:
+    """Tests for map, filter, and convenience methods."""
+
+    def test_map_axis0_basic(self, sample_collection):
+        """Test map over images (axis=0)."""
+
+        # Simple identity-like transform
+        def double_data(bd):
+            result = BrainData(mask=bd.mask)
+            result.data = bd.data * 2
+            return result
+
+        result = sample_collection.map(double_data, axis=0, show_progress=False)
+
+        assert isinstance(result, BrainCollection)
+        assert result.n_images == sample_collection.n_images
+
+        # Check data was doubled
+        orig = sample_collection[0].data
+        transformed = result[0].data
+        np.testing.assert_array_almost_equal(transformed, orig * 2)
+
+    def test_map_axis0_preserves_metadata(self, sample_mask):
+        """Test that map preserves metadata."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        bds = [BrainData(mask=sample_mask) for _ in range(3)]
+        for bd in bds:
+            bd.data = np.random.randn(5, n_voxels)
+
+        metadata = pd.DataFrame({"subject": ["A", "B", "C"]})
+        bc = BrainCollection(bds, mask=sample_mask, metadata=metadata)
+
+        result = bc.map(lambda bd: bd, axis=0, show_progress=False)
+
+        assert list(result.metadata["subject"]) == ["A", "B", "C"]
+
+    def test_map_axis2_per_voxel(self, sample_mask):
+        """Test map over voxels (axis=2) applies function to each timeseries."""
+        from scipy.signal import detrend
+
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_obs = 10
+
+        bd = BrainData(mask=sample_mask)
+        # Add linear trend to each voxel
+        trend = np.linspace(0, 1, n_obs)[:, np.newaxis]
+        bd.data = np.random.randn(n_obs, n_voxels) + trend
+
+        bc = BrainCollection([bd], mask=sample_mask)
+
+        result = bc.map(detrend, axis=2, show_progress=False)
+
+        # Detrended data should have near-zero mean per voxel
+        assert result.n_images == 1
+        detrended = result[0].data
+        col_means = np.abs(detrended.mean(axis=0))
+        assert np.all(col_means < 0.1)  # Should be close to 0
+
+    def test_map_axis0_returns_braindata(self, sample_collection):
+        """Test that map axis=0 function must return BrainData."""
+        result = sample_collection.map(lambda bd: bd, axis=0, show_progress=False)
+        assert all(isinstance(result[i], BrainData) for i in range(result.n_images))
+
+    def test_filter_callable(self, sample_mask):
+        """Test filter with callable predicate."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+
+        bds = []
+        for i in range(5):
+            bd = BrainData(mask=sample_mask)
+            bd.data = np.ones((3, n_voxels)) * (i - 2)  # Means: -2, -1, 0, 1, 2
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        # Filter to positive mean images
+        result = bc.filter(lambda bd: bd.data.mean() > 0)
+
+        assert result.n_images == 2  # Only images with mean > 0
+
+    def test_filter_boolean_array(self, sample_collection):
+        """Test filter with boolean array."""
+        mask = [True, False, True]
+        result = sample_collection.filter(mask)
+
+        assert result.n_images == 2
+
+    def test_filter_series(self, sample_mask):
+        """Test filter with pandas Series."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        bds = [BrainData(mask=sample_mask) for _ in range(3)]
+        for bd in bds:
+            bd.data = np.random.randn(5, n_voxels)
+
+        metadata = pd.DataFrame({"group": ["A", "B", "A"]})
+        bc = BrainCollection(bds, mask=sample_mask, metadata=metadata)
+
+        result = bc.filter(bc.metadata["group"] == "A")
+
+        assert result.n_images == 2
+
+    def test_filter_length_mismatch_raises(self, sample_collection):
+        """Test filter raises for wrong predicate length."""
+        with pytest.raises(ValueError, match="must match"):
+            sample_collection.filter([True, False])  # Wrong length
+
+    def test_standardize_zscore(self, sample_collection):
+        """Test standardize with zscore method."""
+        result = sample_collection.standardize(method="zscore", show_progress=False)
+
+        # Each image should be z-scored: mean ~0, std ~1 per voxel
+        for i in range(result.n_images):
+            data = result[i].data
+            # Check mean is close to 0 for each voxel
+            assert np.allclose(data.mean(axis=0), 0, atol=1e-10)
+            # Check std is close to 1 for each voxel
+            assert np.allclose(data.std(axis=0, ddof=0), 1, atol=1e-10)
+
+    def test_standardize_axis1(self, sample_mask):
+        """Test standardize across voxels (axis=1)."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        bd = BrainData(mask=sample_mask)
+        bd.data = np.random.randn(5, n_voxels) + 10  # Offset mean
+
+        bc = BrainCollection([bd], mask=sample_mask)
+
+        result = bc.standardize(axis=1, method="center", show_progress=False)
+
+        # Each observation should have mean ~0 across voxels
+        data = result[0].data
+        for obs in range(data.shape[0]):
+            assert np.abs(data[obs].mean()) < 1e-10
+
+    def test_threshold_upper(self, sample_mask):
+        """Test threshold with upper bound (zeros values below upper)."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        bd = BrainData(mask=sample_mask)
+        bd.data = np.linspace(-1, 1, n_voxels)
+
+        bc = BrainCollection([bd], mask=sample_mask)
+
+        # upper=0 zeros values below 0, keeping positive values
+        result = bc.threshold(upper=0, show_progress=False)
+
+        data = result[0].data
+        # Non-zero values should all be >= 0
+        assert np.all(data[data != 0] >= 0)
+
+    def test_threshold_binarize(self, sample_mask):
+        """Test threshold with binarize."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        bd = BrainData(mask=sample_mask)
+        bd.data = np.linspace(-1, 1, n_voxels)
+
+        bc = BrainCollection([bd], mask=sample_mask)
+
+        # upper=0 zeros values below 0, binarize makes remaining 1
+        result = bc.threshold(upper=0, binarize=True, show_progress=False)
+
+        # Should be binary
+        data = result[0].data
+        unique_vals = np.unique(data)
+        assert len(unique_vals) <= 2
+        assert all(v in [0, 1] for v in unique_vals)
+
+    def test_detrend(self, sample_mask):
+        """Test detrend removes linear trend."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_obs = 20
+
+        bd = BrainData(mask=sample_mask)
+        # Create data with strong linear trend
+        trend = np.linspace(0, 10, n_obs)[:, np.newaxis]
+        bd.data = np.random.randn(n_obs, n_voxels) * 0.1 + trend
+
+        bc = BrainCollection([bd], mask=sample_mask)
+
+        result = bc.detrend(show_progress=False)
+
+        # Trend should be removed
+        data = result[0].data
+        # Check that correlation with linear trend is low
+        trend_flat = np.linspace(0, 1, n_obs)
+        for v in range(min(10, n_voxels)):  # Check first 10 voxels
+            corr = np.corrcoef(data[:, v], trend_flat)[0, 1]
+            assert np.abs(corr) < 0.3  # Low correlation
+
+    def test_chaining(self, sample_mask):
+        """Test method chaining works."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+
+        bds = []
+        for i in range(4):
+            bd = BrainData(mask=sample_mask)
+            bd.data = np.random.randn(10, n_voxels) + i  # Different means
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        # Chain: filter -> standardize -> aggregate
+        result = (
+            bc.filter(lambda bd: bd.data.mean() > 0.5)
+            .standardize(method="zscore", show_progress=False)
+            .mean(axis=0)
+        )
+
+        assert isinstance(result, BrainData)
+        # Should have fewer than 4 images in filtered collection
+        # Result is mean across filtered images
