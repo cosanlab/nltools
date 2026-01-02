@@ -429,6 +429,46 @@ class TestAdjacency:
         with pytest.raises(ValueError, match="nan_policy must be"):
             x.similarity(y, perm_type=None, nan_policy="invalid")
 
+    def test_similarity_nan_handling_perm_types(self):
+        """Test NaN handling works with all perm_type options (#432).
+
+        This specifically tests the fix for the AttributeError:
+        'float' object has no attribute 'ndim' that occurred when
+        using perm_type='2d' with NaN values.
+        """
+        # Create symmetric matrices for 2d permutation test
+        rng = np.random.default_rng(42)
+        n = 10
+        data1 = rng.random((n, n))
+        data1 = (data1 + data1.T) / 2  # Make symmetric
+        data1[0, 1] = np.nan
+        data1[1, 0] = np.nan
+
+        data2 = rng.random((n, n))
+        data2 = (data2 + data2.T) / 2  # Make symmetric
+
+        adj1 = Adjacency(data1, matrix_type="similarity")
+        adj2 = Adjacency(data2, matrix_type="similarity")
+
+        # perm_type='1d' should work and return valid result
+        result_1d = adj1.similarity(
+            adj2, perm_type="1d", n_permute=100, nan_policy="omit"
+        )
+        assert "correlation" in result_1d
+        assert "p" in result_1d
+        assert not np.isnan(result_1d["correlation"])  # NaNs removed
+
+        # perm_type='2d' should not crash (was the bug)
+        # Note: With NaN in 2d, correlation will be NaN due to limitations
+        with pytest.warns(UserWarning, match="NaN values detected in 2D matrix"):
+            result_2d = adj1.similarity(
+                adj2, perm_type="2d", n_permute=100, nan_policy="omit"
+            )
+        assert "correlation" in result_2d
+        assert "p" in result_2d
+        # p-value should be valid even if correlation is NaN
+        assert 0 <= result_2d["p"] <= 1
+
     # ==================== Statistical Methods ====================
 
     def test_ttest(self, sim_adjacency_multiple):
