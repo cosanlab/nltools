@@ -2887,19 +2887,20 @@ class BrainCollection:
         self,
         X: "np.ndarray | str | list",
         alpha: float | str = 1.0,
-        cv: int | None = None,
+        cv: int | None = 5,
         scale: bool = True,
         scale_value: float = 100.0,
-        return_stats: list[str] | None = None,
+        output: str = "scores",
         save: dict[str, str] | None = None,
         show_progress: bool = True,
         **ridge_kwargs,
-    ) -> "BrainCollection":
+    ) -> "BrainCollection | dict[str, BrainCollection]":
         """
         Fit ridge regression to each subject in collection.
 
-        Memory-efficient encoding/decoding model fitting that processes subjects
-        one at a time. Returns a BrainCollection of model weights.
+        Memory-efficient encoding model fitting that processes subjects one at a
+        time. Default behavior returns cross-validated R² scores per voxel,
+        suitable for group-level inference on encoding model performance.
 
         Args:
             X: Feature matrix. Can be:
@@ -2909,12 +2910,15 @@ class BrainCollection:
             alpha: Ridge regularization parameter. Can be:
                 - float: Fixed regularization strength
                 - 'auto': Use cross-validation to select optimal alpha
-            cv: Cross-validation folds (None = no CV, int = k-fold).
-                Required if alpha='auto'.
+            cv: Cross-validation folds for computing scores. Default is 5.
+                Required when output='scores' or 'both'. Set to None only when
+                output='weights'.
             scale: If True, apply percent signal change scaling before fitting.
             scale_value: Scaling value (default 100.0 for percent signal change).
-            return_stats: Optional list of statistics to return as separate
-                BrainCollections. Options: 'scores', 'fitted_values'.
+            output: What to return. Options:
+                - 'scores': CV R² scores per voxel (default, for encoding workflow)
+                - 'weights': Model weights (n_features, n_voxels)
+                - 'both': Dict with both 'scores' and 'weights'
             save: Dict mapping output type to path template, e.g.:
                 {'weights': 'output/{subject}_weights.nii.gz',
                  'scores': 'output/{subject}_scores.nii.gz'}
@@ -2924,38 +2928,39 @@ class BrainCollection:
                 (e.g., backend='torch', random_state=42).
 
         Returns:
-            BrainCollection where each BrainData has shape (n_features, n_voxels).
-            If return_stats specified, returns dict with keys 'weights', 'scores', etc.
-            If cv specified, each BrainData will have cv_results_ attribute.
+            BrainCollection of scores or weights, or dict with both if output='both'.
+            Each BrainData will have cv_results_ attribute when cv is used.
 
         Examples:
-            >>> # Basic ridge fit with shared features
-            >>> weights = bc.fit_ridge(X=features, alpha=1.0)
-            >>> # Group-level analysis of weights
-            >>> group_ttest = weights[:, 0].ttest()  # First feature weights
+            >>> # Encoding model workflow: get CV scores for group analysis
+            >>> scores = bc.fit_ridge(X=features, alpha=1.0)
+            >>> group_ttest = scores.ttest()  # Test encoding accuracy vs chance
+
+            >>> # Get both scores and weights
+            >>> results = bc.fit_ridge(X=features, alpha=1.0, output='both')
+            >>> scores = results['scores']
+            >>> weights = results['weights']
 
             >>> # Auto-select alpha with CV
-            >>> weights = bc.fit_ridge(X=features, alpha='auto', cv=5)
+            >>> scores = bc.fit_ridge(X=features, alpha='auto', cv=5)
 
-            >>> # Per-subject features from metadata
-            >>> weights = bc.fit_ridge(
-            ...     X='features_file',  # column name in metadata
-            ...     alpha=1.0,
-            ... )
-
-            >>> # Get R² scores too
-            >>> results = bc.fit_ridge(X=features, alpha=1.0, return_stats=['scores'])
-            >>> weights = results['weights']
-            >>> scores = results['scores']
+            >>> # Get weights only (no CV needed)
+            >>> weights = bc.fit_ridge(X=features, alpha=1.0, output='weights', cv=None)
         """
-        # Validate return_stats
-        valid_stats = {"scores", "fitted_values"}
-        if return_stats is not None:
-            invalid = set(return_stats) - valid_stats
-            if invalid:
-                raise ValueError(
-                    f"Invalid return_stats: {invalid}. Valid options: {valid_stats}"
-                )
+        # Validate output parameter
+        valid_outputs = {"scores", "weights", "both"}
+        if output not in valid_outputs:
+            raise ValueError(
+                f"Invalid output: '{output}'. Valid options: {valid_outputs}"
+            )
+
+        # CV is required for scores
+        if output in ("scores", "both") and cv is None:
+            raise ValueError(
+                f"cv must be specified when output='{output}'. "
+                "Set cv=5 (or another int) to compute cross-validated scores, "
+                "or use output='weights' if you only need model weights."
+            )
 
         # Resolve X to per-subject list (returns None if shared array)
         X_list = self._resolve_features(X)
@@ -2965,10 +2970,13 @@ class BrainCollection:
         if show_progress and tqdm is not None:
             iterator = tqdm.tqdm(iterator, desc="Fitting Ridge", unit="subject")
 
-        # Storage for results
-        weight_data_list = []
-        weight_metadata = []
-        stat_data = {stat: [] for stat in (return_stats or [])}
+        # Storage for results based on output type
+        need_weights = output in ("weights", "both")
+        need_scores = output in ("scores", "both")
+
+        weight_data_list = [] if need_weights else None
+        score_data_list = [] if need_scores else None
+        result_metadata = []
         cv_results_list = []
         feature_names = None
 
@@ -2995,73 +3003,92 @@ class BrainCollection:
             # Fit ridge
             bd.fit(model="ridge", X=X_subj, alpha=alpha, cv=cv, **ridge_kwargs)
 
-            # Extract weights
-            weights_data = bd.ridge_weights.data
-
-            # Create BrainData for weights by copying structure
-            weights = bd[0].copy()
-            weights.data = weights_data
-            if feature_names:
-                weights._feature_names = feature_names
+            result_metadata.append(metadata_row.to_dict())
 
             # Store CV results if available
+            cv_result = None
             if hasattr(bd, "cv_results_") and bd.cv_results_ is not None:
-                cv_results_list.append(bd.cv_results_)
-                weights.cv_results_ = bd.cv_results_
+                cv_result = bd.cv_results_
+                cv_results_list.append(cv_result)
 
-            # Save if requested
-            if save and "weights" in save:
-                save_path = _resolve_save_path(save["weights"], metadata_row, i)
-                weights.write(str(save_path))
+            # Extract weights if needed
+            if need_weights:
+                weights_data = bd.ridge_weights.data
+                weights = bd[0].copy()
+                weights.data = weights_data
+                if feature_names:
+                    weights._feature_names = feature_names
+                if cv_result:
+                    weights.cv_results_ = cv_result
 
-            weight_data_list.append(weights)
-            weight_metadata.append(metadata_row.to_dict())
+                if save and "weights" in save:
+                    save_path = _resolve_save_path(save["weights"], metadata_row, i)
+                    weights.write(str(save_path))
 
-            # Extract optional stats
-            if return_stats:
-                for stat in return_stats:
-                    if stat == "scores":
-                        stat_data_arr = bd.ridge_scores.data
-                    elif stat == "fitted_values":
-                        stat_data_arr = bd.ridge_fitted_values.data
+                weight_data_list.append(weights)
 
-                    # Create BrainData by copying structure
-                    stat_bd = bd[0].copy()
-                    stat_bd.data = stat_data_arr
+            # Extract scores if needed
+            if need_scores:
+                scores_data = bd.ridge_scores.data
+                scores = bd[0].copy()
+                scores.data = scores_data
+                if cv_result:
+                    scores.cv_results_ = cv_result
 
-                    if save and stat in save:
-                        save_path = _resolve_save_path(save[stat], metadata_row, i)
-                        stat_bd.write(str(save_path))
+                if save and "scores" in save:
+                    save_path = _resolve_save_path(save["scores"], metadata_row, i)
+                    scores.write(str(save_path))
 
-                    stat_data[stat].append(stat_bd)
+                score_data_list.append(scores)
 
             # Unload to free memory (only works for path-based collections)
             self.unload([i])
 
-        # Build result collection
-        weight_collection = BrainCollection(
-            weight_data_list,
-            mask=self.mask,
-            metadata=pd.DataFrame(weight_metadata),
-        )
-        if feature_names:
-            weight_collection._feature_names = feature_names
-        if cv_results_list:
-            weight_collection.cv_results_ = cv_results_list
+        # Build result collection(s)
+        result_meta_df = pd.DataFrame(result_metadata)
 
-        # Return based on what was requested
-        if return_stats:
-            result = {"weights": weight_collection}
-            for stat in return_stats:
-                stat_collection = BrainCollection(
-                    stat_data[stat],
-                    mask=self.mask,
-                    metadata=pd.DataFrame(weight_metadata),
-                )
-                result[stat] = stat_collection
-            return result
+        if output == "weights":
+            weight_collection = BrainCollection(
+                weight_data_list,
+                mask=self.mask,
+                metadata=result_meta_df,
+            )
+            if feature_names:
+                weight_collection._feature_names = feature_names
+            if cv_results_list:
+                weight_collection.cv_results_ = cv_results_list
+            return weight_collection
 
-        return weight_collection
+        elif output == "scores":
+            score_collection = BrainCollection(
+                score_data_list,
+                mask=self.mask,
+                metadata=result_meta_df,
+            )
+            if cv_results_list:
+                score_collection.cv_results_ = cv_results_list
+            return score_collection
+
+        else:  # output == "both"
+            weight_collection = BrainCollection(
+                weight_data_list,
+                mask=self.mask,
+                metadata=result_meta_df,
+            )
+            if feature_names:
+                weight_collection._feature_names = feature_names
+            if cv_results_list:
+                weight_collection.cv_results_ = cv_results_list
+
+            score_collection = BrainCollection(
+                score_data_list,
+                mask=self.mask,
+                metadata=result_meta_df,
+            )
+            if cv_results_list:
+                score_collection.cv_results_ = cv_results_list
+
+            return {"weights": weight_collection, "scores": score_collection}
 
     def _resolve_features(
         self,

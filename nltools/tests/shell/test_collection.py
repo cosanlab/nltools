@@ -1930,11 +1930,28 @@ class TestBrainCollectionFitRidge:
         """Create shared feature matrix for all subjects."""
         return np.random.randn(20, 5)  # 20 samples, 5 features
 
-    def test_fit_ridge_basic(self, small_collection, shared_features):
-        """Test basic ridge fitting with shared features."""
+    def test_fit_ridge_default_scores(self, small_collection, shared_features):
+        """Test default behavior returns CV scores (encoding workflow)."""
+        scores = small_collection.fit_ridge(
+            X=shared_features,
+            alpha=1.0,
+            show_progress=False,
+        )
+
+        # Should return BrainCollection of scores
+        assert isinstance(scores, BrainCollection)
+        # Should have same number of subjects
+        assert len(scores) == 3
+        # Scores should have shape (1, n_voxels) - single R² value per voxel
+        assert scores[0].shape[0] == 1
+
+    def test_fit_ridge_output_weights(self, small_collection, shared_features):
+        """Test output='weights' returns model weights."""
         weights = small_collection.fit_ridge(
             X=shared_features,
             alpha=1.0,
+            output="weights",
+            cv=None,  # CV not required for weights-only
             show_progress=False,
         )
 
@@ -1947,22 +1964,22 @@ class TestBrainCollectionFitRidge:
 
     def test_fit_ridge_no_scale(self, small_collection, shared_features):
         """Test ridge fitting without scaling."""
-        weights = small_collection.fit_ridge(
+        scores = small_collection.fit_ridge(
             X=shared_features,
             alpha=1.0,
             scale=False,
             show_progress=False,
         )
 
-        assert isinstance(weights, BrainCollection)
-        assert len(weights) == 3
+        assert isinstance(scores, BrainCollection)
+        assert len(scores) == 3
 
-    def test_fit_ridge_return_stats(self, small_collection, shared_features):
-        """Test ridge with return_stats."""
+    def test_fit_ridge_output_both(self, small_collection, shared_features):
+        """Test output='both' returns dict with scores and weights."""
         result = small_collection.fit_ridge(
             X=shared_features,
             alpha=1.0,
-            return_stats=["scores"],
+            output="both",
             show_progress=False,
         )
 
@@ -1975,22 +1992,24 @@ class TestBrainCollectionFitRidge:
         assert len(result["weights"]) == 3
         assert len(result["scores"]) == 3
 
+        # Weights should have shape (5, n_voxels) - 5 features
+        assert result["weights"][0].shape[0] == 5
         # Scores should have shape (1, n_voxels)
         assert result["scores"][0].shape[0] == 1
 
     def test_fit_ridge_with_cv(self, small_collection, shared_features):
-        """Test ridge with cross-validation."""
-        weights = small_collection.fit_ridge(
+        """Test ridge with cross-validation stores cv_results_."""
+        scores = small_collection.fit_ridge(
             X=shared_features,
             alpha=1.0,
             cv=3,
             show_progress=False,
         )
 
-        assert isinstance(weights, BrainCollection)
+        assert isinstance(scores, BrainCollection)
         # Should have CV results
-        assert hasattr(weights, "cv_results_")
-        assert len(weights.cv_results_) == 3
+        assert hasattr(scores, "cv_results_")
+        assert len(scores.cv_results_) == 3
 
     def test_fit_ridge_with_features_list(self, small_collection):
         """Test ridge with per-subject features as list."""
@@ -2000,15 +2019,16 @@ class TestBrainCollectionFitRidge:
             np.random.randn(20, 5),
         ]
 
-        weights = small_collection.fit_ridge(
+        scores = small_collection.fit_ridge(
             X=features_list,
             alpha=1.0,
             show_progress=False,
         )
 
-        assert isinstance(weights, BrainCollection)
-        assert len(weights) == 3
-        assert weights[0].shape[0] == 5
+        assert isinstance(scores, BrainCollection)
+        assert len(scores) == 3
+        # Scores have shape (1, n_voxels)
+        assert scores[0].shape[0] == 1
 
     def test_fit_ridge_with_features_metadata_column(
         self, sample_brain_data, sample_mask, tmp_path
@@ -2039,38 +2059,53 @@ class TestBrainCollectionFitRidge:
             ),
         )
 
-        weights = bc.fit_ridge(
+        scores = bc.fit_ridge(
             X="features_file",
             alpha=1.0,
             show_progress=False,
         )
 
-        assert isinstance(weights, BrainCollection)
-        assert len(weights) == 3
+        assert isinstance(scores, BrainCollection)
+        assert len(scores) == 3
 
     def test_fit_ridge_save(self, small_collection, shared_features, tmp_path):
         """Test ridge with saving intermediates."""
-        save_path = str(tmp_path / "{subject}_weights.nii.gz")
+        weights_path = str(tmp_path / "{subject}_weights.nii.gz")
+        scores_path = str(tmp_path / "{subject}_scores.nii.gz")
 
-        weights = small_collection.fit_ridge(
+        result = small_collection.fit_ridge(
             X=shared_features,
             alpha=1.0,
-            save={"weights": save_path},
+            output="both",
+            save={"weights": weights_path, "scores": scores_path},
             show_progress=False,
         )
 
         # Check result and files were created
-        assert len(weights) == 3
+        assert len(result["weights"]) == 3
+        assert len(result["scores"]) == 3
         for subj in ["sub-01", "sub-02", "sub-03"]:
             assert (tmp_path / f"{subj}_weights.nii.gz").exists()
+            assert (tmp_path / f"{subj}_scores.nii.gz").exists()
 
-    def test_fit_ridge_invalid_return_stats(self, small_collection, shared_features):
-        """Test error on invalid return_stats."""
-        with pytest.raises(ValueError, match="Invalid return_stats"):
+    def test_fit_ridge_invalid_output(self, small_collection, shared_features):
+        """Test error on invalid output parameter."""
+        with pytest.raises(ValueError, match="Invalid output"):
             small_collection.fit_ridge(
                 X=shared_features,
                 alpha=1.0,
-                return_stats=["invalid_stat"],
+                output="invalid_output",
+                show_progress=False,
+            )
+
+    def test_fit_ridge_scores_require_cv(self, small_collection, shared_features):
+        """Test that output='scores' requires cv parameter."""
+        with pytest.raises(ValueError, match="cv must be specified"):
+            small_collection.fit_ridge(
+                X=shared_features,
+                alpha=1.0,
+                output="scores",
+                cv=None,
                 show_progress=False,
             )
 
