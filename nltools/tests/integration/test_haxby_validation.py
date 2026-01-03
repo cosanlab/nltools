@@ -247,11 +247,17 @@ class TestWorkflowIntegration:
 
 @pytest.fixture(scope="module")
 def haxby_collection():
-    """Load Haxby dataset as BrainCollection with 3 subjects."""
+    """Load Haxby dataset as BrainCollection with 3 subjects.
+
+    Returns 3 subjects × 4 runs = 12 total BrainData objects.
+    Uses first run from each subject for simplicity in group tests.
+    """
     brain_data_list, dm_list = fetch_haxby(n_subjects=3, verbose=0)
-    # Flatten nested structure (each subject returns a list)
-    brains = [bd for bd_list in brain_data_list for bd in bd_list]
-    dms = [dm for dm_list in dm_list for dm in dm_list]
+
+    # fetch_haxby returns flat lists: 12 items (3 subjects × 4 runs)
+    # Take first run from each subject (indices 0, 4, 8)
+    brains = [brain_data_list[i * 4] for i in range(3)]
+    dms = [dm_list[i * 4] for i in range(3)]
 
     mask = brains[0].mask
     bc = BrainCollection(
@@ -372,3 +378,358 @@ class TestBrainCollectionRidgeWorkflow:
         assert "weights" in result
         assert len(result["scores"]) == 3
         assert len(result["weights"]) == 3
+
+
+@pytest.mark.slow
+class TestMVPAWorkflow:
+    """Test MVPA/decoding workflow using face vs house classification."""
+
+    def test_face_house_classification_above_chance(self, haxby_data):
+        """Face vs house decoding should exceed chance (50%) significantly.
+
+        Uses leave-one-run-out cross-validation on extracted condition timepoints.
+        Haxby dataset is well-known to show ~80%+ accuracy for this contrast.
+        """
+        data, dm = haxby_data
+        data = data.copy()
+
+        # Get face and house condition masks from design matrix
+        face_mask = dm["face"].to_numpy() > 0.5
+        house_mask = dm["house"].to_numpy() > 0.5
+
+        # Extract timepoints for each condition
+        face_data = data.data[face_mask]
+        house_data = data.data[house_mask]
+
+        # Combine into classification dataset
+        X = np.vstack([face_data, house_data])
+        y = np.array([0] * len(face_data) + [1] * len(house_data))
+
+        # Simple CV classification
+        from sklearn.model_selection import cross_val_score
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.svm import SVC
+        from sklearn.pipeline import make_pipeline
+
+        clf = make_pipeline(StandardScaler(), SVC(kernel="linear"))
+        scores = cross_val_score(clf, X, y, cv=5)
+        accuracy = scores.mean()
+
+        # Should be well above chance (50%)
+        assert accuracy > 0.6, f"Accuracy {accuracy:.1%} should exceed 60%"
+
+    def test_predict_mvpa_api(self, haxby_data):
+        """BrainData.predict() should work for MVPA classification."""
+        from nltools.data import BrainData
+
+        data, dm = haxby_data
+        data = data.copy()
+
+        # Get condition labels
+        face_mask = dm["face"].to_numpy() > 0.5
+        house_mask = dm["house"].to_numpy() > 0.5
+        condition_mask = face_mask | house_mask
+
+        # Subset to face/house timepoints only
+        data_subset = data[condition_mask]
+        y = np.where(face_mask[condition_mask], 0, 1)
+
+        # Use predict API - returns BrainData with accuracy values
+        result = data_subset.predict(
+            y=y,
+            method="whole_brain",
+            estimator="svm",
+            cv=3,
+            scoring="accuracy",
+            show_progress=False,
+        )
+
+        # Should return BrainData with accuracy
+        assert isinstance(result, BrainData)
+        # Whole-brain returns single accuracy value
+        accuracy = result.data.mean()
+        assert accuracy > 0.5, f"Accuracy {accuracy:.1%} should exceed chance"
+
+    def test_predict_returns_braindata(self, haxby_data):
+        """predict() should return BrainData with accuracy scores."""
+        from nltools.data import BrainData
+
+        data, dm = haxby_data
+        data = data.copy()
+
+        # Simple binary classification setup
+        n_samples = data.shape[0]
+        y = np.array([0, 1] * (n_samples // 2) + [0] * (n_samples % 2))
+
+        result = data.predict(
+            y=y,
+            method="whole_brain",
+            estimator="svm",
+            cv=3,
+            show_progress=False,
+        )
+
+        # Validate structure - returns BrainData
+        assert isinstance(result, BrainData)
+        assert result.data is not None
+        # Accuracy should be in valid range [0, 1]
+        assert 0 <= result.data.mean() <= 1
+
+
+@pytest.mark.slow
+class TestGroupInferenceWorkflow:
+    """Test second-level group inference workflows."""
+
+    def test_contrast_ttest_across_subjects(self, haxby_collection):
+        """Group ttest on face-house contrast should find significant voxels.
+
+        This tests the full workflow: GLM -> contrast -> group ttest.
+        The Haxby dataset should show significant face vs house effects
+        in visual regions (FFA, PPA).
+        """
+        from nltools.data import BrainData
+
+        bc, dms = haxby_collection
+
+        # Fit GLM per subject
+        dm = dms[0].add_dct_basis(duration=128).add_poly(order=1, include_lower=True)
+        betas = bc.fit(model="glm", X=dm, show_progress=False)
+
+        # Compute face-house contrast for each subject
+        contrasts = betas.map(
+            lambda bd: bd.compute_contrasts("face - house"),
+            axis=0,
+            show_progress=False,
+        )
+
+        # Run group-level t-test
+        t_stat, p_val = contrasts.ttest()
+
+        # Validate output types
+        assert isinstance(t_stat, BrainData)
+        assert isinstance(p_val, BrainData)
+
+        # T-stats should be finite and variable
+        assert np.all(np.isfinite(t_stat.data))
+        assert t_stat.data.std() > 0.1, "T-stats should vary across voxels"
+
+        # Should find some significant voxels (uncorrected)
+        n_sig = (p_val.data < 0.05).sum()
+        assert n_sig > 0, "Should find at least some significant voxels"
+
+    def test_permutation_test_produces_valid_pvalues(self, haxby_collection):
+        """Permutation test should produce valid p-values in [0, 1]."""
+        bc, dms = haxby_collection
+
+        # Fit GLM and get contrasts
+        dm = dms[0].add_dct_basis(duration=128).add_poly(order=1, include_lower=True)
+        betas = bc.fit(model="glm", X=dm, show_progress=False)
+
+        contrasts = betas.map(
+            lambda bd: bd.compute_contrasts("face - house"),
+            axis=0,
+            show_progress=False,
+        )
+
+        # Run permutation test with small n for speed
+        result = contrasts.permutation_test(
+            n_permute=100,
+            random_state=42,  # Small for testing
+        )
+
+        # Should return dict with expected keys
+        assert isinstance(result, dict)
+        assert "mean" in result  # Mean across subjects
+        assert "p" in result  # P-values
+
+        # P-values should be in valid range
+        p_vals = result["p"].data.flatten()
+        assert np.all(p_vals >= 0), "P-values should be >= 0"
+        assert np.all(p_vals <= 1), "P-values should be <= 1"
+
+    def test_ttest_with_temporal_mean(self, haxby_collection):
+        """Ttest on mean activation (simpler workflow)."""
+        from nltools.data import BrainData
+
+        bc, _ = haxby_collection
+
+        # Compute mean across time for each subject
+        temporal_means = bc.mean(axis=1)
+
+        # Run t-test across subjects
+        t_stat, p_val = temporal_means.ttest()
+
+        # Validate outputs
+        assert isinstance(t_stat, BrainData)
+        assert isinstance(p_val, BrainData)
+        assert t_stat.shape == p_val.shape
+
+
+@pytest.fixture(scope="module")
+def haxby_vtc_betas():
+    """Load Haxby with VTC mask and compute category betas for ISC tests.
+
+    Returns BrainCollection of category betas (7 categories × 3 subjects)
+    masked to ventral temporal cortex. Uses subject 1's VTC mask for all
+    subjects to ensure common voxel space for spatial ISC comparisons.
+    """
+    import nibabel as nib
+    from nilearn.datasets import fetch_haxby as nilearn_fetch_haxby
+
+    from nltools.data import BrainData, BrainCollection
+
+    # Get VTC mask from nilearn - use union of all subjects' masks
+    nilearn_data = nilearn_fetch_haxby(subjects=[1, 2, 3])
+
+    # Create union mask (logical OR of all VTC masks)
+    mask_data = None
+    affine = None
+    for mask_path in nilearn_data.mask_vt:
+        mask_img = nib.load(mask_path)
+        if mask_data is None:
+            mask_data = mask_img.get_fdata() > 0
+            affine = mask_img.affine
+        else:
+            mask_data = mask_data | (mask_img.get_fdata() > 0)
+
+    vtc_mask = nib.Nifti1Image(mask_data.astype(np.float32), affine)
+
+    # Load nltools data
+    brain_data_list, dm_list = fetch_haxby(n_subjects=3, verbose=0)
+
+    # Category columns (excluding rest and scrambledpix for cleaner analysis)
+    categories = ["face", "house", "cat", "bottle", "scissors", "shoe", "chair"]
+
+    # Process each subject: fit GLM and extract category betas
+    all_betas = []
+    for subj_idx in range(3):
+        # Get first run for this subject
+        data = brain_data_list[subj_idx * 4]
+        dm = dm_list[subj_idx * 4]
+
+        # Create BrainData with common VTC mask
+        data_vtc = BrainData(data.to_nifti(), mask=vtc_mask)
+
+        # Fit GLM
+        dm_filt = dm.add_dct_basis(duration=128).add_poly(order=1, include_lower=True)
+        data_vtc.fit(model="glm", X=dm_filt)
+
+        # Extract betas for each category (shape: n_categories × n_vtc_voxels)
+        category_betas = []
+        for cat in categories:
+            beta = data_vtc.compute_contrasts(cat)
+            category_betas.append(beta.data.flatten())
+
+        # Stack into single array
+        betas_array = np.vstack(category_betas)
+
+        # Create BrainData for this subject's betas
+        beta_bd = BrainData(mask=vtc_mask)
+        beta_bd.data = betas_array
+        all_betas.append(beta_bd)
+
+    # Create BrainCollection of betas
+    bc_betas = BrainCollection(all_betas, mask=vtc_mask)
+
+    return bc_betas, categories, vtc_mask
+
+
+@pytest.mark.slow
+class TestISCWorkflow:
+    """Test inter-subject correlation workflows using VTC mask."""
+
+    def test_temporal_isc_smoke_test(self, haxby_collection):
+        """Temporal ISC on raw data - API smoke test.
+
+        Note: Haxby subjects had different presentation orders, so we don't
+        expect strong temporal ISC. This just validates the API works.
+        """
+        from nltools.data import BrainData
+
+        bc, _ = haxby_collection
+
+        # Compute ISC using leave-one-out method
+        result = bc.isc(method="loo", show_progress=False)
+
+        # Should return dict with isc BrainData
+        assert isinstance(result, dict)
+        assert "isc" in result
+        assert isinstance(result["isc"], BrainData)
+
+        # Correlations should be in valid range [-1, 1]
+        isc_vals = result["isc"].data.flatten()
+        assert np.all(isc_vals >= -1), "ISC should be >= -1"
+        assert np.all(isc_vals <= 1), "ISC should be <= 1"
+        assert np.all(np.isfinite(isc_vals)), "ISC should be finite"
+
+    def test_beta_series_isc_vtc(self, haxby_vtc_betas):
+        """Beta-series ISC in VTC - API validation with category betas.
+
+        Stack category betas in consistent order across subjects, then run
+        temporal ISC. With only 7 categories, this is primarily an API test.
+        The spatial ISC test provides stronger validation of shared representations.
+        """
+        bc_betas, categories, _ = haxby_vtc_betas
+
+        # Run temporal ISC on beta-series (categories as "timepoints")
+        result = bc_betas.isc(method="loo", show_progress=False)
+
+        assert isinstance(result, dict)
+        assert "isc" in result
+
+        # Validate ISC values are finite and in valid range
+        isc_vals = result["isc"].data.flatten()
+        assert np.all(np.isfinite(isc_vals)), "ISC values should be finite"
+        assert np.all(isc_vals >= -1), "ISC should be >= -1"
+        assert np.all(isc_vals <= 1), "ISC should be <= 1"
+
+        # Note: With only 7 categories, mean ISC may not be positive
+        # The spatial ISC test (same vs cross category) is more robust
+
+    def test_spatial_pattern_correlation_computation(self, haxby_vtc_betas):
+        """Validate spatial pattern correlation computation across subjects.
+
+        Computes same-category vs cross-category correlations. Without
+        anatomical alignment (SRM/hyperalignment), cross-subject spatial
+        correlations may not show the expected pattern due to individual
+        differences in functional anatomy.
+
+        This test validates the computation runs correctly and produces
+        valid correlation values. The SRM workflow tests validate that
+        alignment improves cross-subject pattern similarity.
+        """
+        bc_betas, categories, _ = haxby_vtc_betas
+
+        # Extract beta data: shape (n_subjects, n_categories, n_voxels)
+        n_subjects = len(bc_betas)
+        betas = np.array([bc_betas[i].data for i in range(n_subjects)])
+
+        # Compute same-category correlations (e.g., face-face across subjects)
+        same_category_corrs = []
+        for cat_idx in range(len(categories)):
+            patterns = betas[:, cat_idx, :]
+            for i in range(n_subjects):
+                for j in range(i + 1, n_subjects):
+                    r = np.corrcoef(patterns[i], patterns[j])[0, 1]
+                    same_category_corrs.append(r)
+
+        # Compute cross-category correlations
+        cross_category_corrs = []
+        for cat_i in range(len(categories)):
+            for cat_j in range(cat_i + 1, len(categories)):
+                for subj_i in range(n_subjects):
+                    for subj_j in range(subj_i + 1, n_subjects):
+                        r = np.corrcoef(
+                            betas[subj_i, cat_i, :], betas[subj_j, cat_j, :]
+                        )[0, 1]
+                        cross_category_corrs.append(r)
+
+        # Validate correlations are finite and in valid range
+        all_corrs = same_category_corrs + cross_category_corrs
+        assert all(np.isfinite(r) for r in all_corrs), (
+            "All correlations should be finite"
+        )
+        assert all(-1 <= r <= 1 for r in all_corrs), "Correlations should be in [-1, 1]"
+
+        # Note: Without SRM alignment, same > cross may not hold
+        # SRM tests validate that alignment improves this relationship

@@ -3666,8 +3666,14 @@ class BrainCollection:
         if isinstance(X, np.ndarray):
             return None
 
-        # Shared DataFrame/DesignMatrix - return None to signal shared
+        # Shared DataFrame - return None to signal shared
         if isinstance(X, pd.DataFrame):
+            return None
+
+        # Shared DesignMatrix (Polars-based, doesn't inherit from pd.DataFrame)
+        from .design_matrix import DesignMatrix
+
+        if isinstance(X, DesignMatrix):
             return None
 
         # Metadata column name - return list of file paths
@@ -3689,7 +3695,8 @@ class BrainCollection:
             return X
 
         raise TypeError(
-            f"X must be np.ndarray, DataFrame, str, or list, got {type(X).__name__}"
+            f"X must be np.ndarray, DataFrame, DesignMatrix, str, or list, "
+            f"got {type(X).__name__}"
         )
 
     def _load_features(self, path: str | Path) -> np.ndarray:
