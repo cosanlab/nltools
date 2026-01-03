@@ -16,6 +16,8 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Properties** | `.shape()`, `.isempty()` | `.shape`, `.isempty` | Changed |
 | **Cross-validation** | N/A | `.fit(..., cv=5)` | New |
 | **HyperAlignment** | Via `align()` only | `HyperAlignment` class | New |
+| **Multi-subject** | N/A | `BrainCollection` class | **New** |
+| **GPU inference** | N/A | `inference` module | **New** |
 
 ---
 
@@ -857,6 +859,94 @@ best_alpha = brain_data.cv_results_['best_alpha']
 alpha_scores = brain_data.cv_results_['alpha_scores']
 ```
 
+### BrainCollection: Multi-Subject Data Container (NEW)
+
+**Status**: ✅ NEW (v0.6.0)
+
+`BrainCollection` is a new class for working with multi-subject neuroimaging data. It provides a unified interface for group-level analyses including encoding models, GLM workflows, and inter-subject correlation.
+
+**Key Features**:
+- **3-axis indexing**: `(n_images, n_observations, n_voxels)` semantics
+- **Lazy loading**: Memory-efficient for large multi-subject datasets
+- **Group inference**: t-tests, permutation tests, ANOVA
+- **Encoding models**: `fit_ridge()`, `fit_glm()`, `predict()`
+- **ISC analysis**: `isc()`, `isc_test()` for naturalistic neuroimaging
+- **Transformations**: `map()`, `filter()`, aggregations across axes
+
+**Basic Usage**:
+```python
+from nltools.data import BrainData, BrainCollection
+from nltools.datasets import fetch_haxby
+
+# Load multi-subject data
+data, _ = fetch_haxby(n_subjects=5)
+bc = BrainCollection(data, mask=data[0].mask)
+
+# 3-axis indexing
+first_subject = bc[0]              # BrainData
+timepoint_10 = bc[:, 10]           # BrainCollection
+subset = bc[:, :, :1000]           # BrainCollection
+
+# Group statistics
+group_mean = bc.mean(axis=0)       # Mean across subjects -> BrainData
+subject_means = bc.mean(axis=1)    # Mean across time -> BrainCollection
+
+# Group inference
+t_stat, p_val = subject_means.ttest()
+```
+
+**Encoding Models**:
+```python
+import numpy as np
+
+# Fit ridge regression for each subject
+X = np.random.randn(bc[0].shape[0], 10)  # (timepoints, features)
+result = bc.fit_ridge(X=X, cv=3)
+
+# Access weights for group-level inference
+# weights[:, feature_idx, :] -> BrainCollection of that feature's weights
+```
+
+**ISC (Inter-Subject Correlation)**:
+```python
+# Compute ISC with leave-one-out method
+isc_result = bc.isc(method="loo")
+print(f"Mean ISC: {isc_result['isc'].data.mean():.3f}")
+
+# ISC with permutation testing
+isc_test_result = bc.isc_test(method="loo", n_permute=1000)
+significant = (isc_test_result['p'].data < 0.05).sum()
+```
+
+**GLM Workflow**:
+```python
+import pandas as pd
+
+# Create events DataFrame
+events = pd.DataFrame({
+    "onset": [0, 10, 20, 30],
+    "duration": [5, 5, 5, 5],
+    "trial_type": ["A", "B", "A", "B"],
+})
+
+# Fit first-level GLM for each subject
+betas = bc.fit_glm(events=events, t_r=2.0)
+
+# Compute contrasts
+contrast = betas.compute_contrasts("A - B")
+
+# Group-level inference
+t_stat, p_val = contrast.ttest()
+```
+
+**Construction Methods**:
+| Method | Description |
+|--------|-------------|
+| `BrainCollection(data, mask)` | From list of BrainData or paths |
+| `BrainCollection.from_glob(pattern, mask)` | From glob pattern |
+| `BrainCollection.from_bids(layout, mask)` | From pybids BIDSLayout |
+| `BrainCollection.from_stacked(brain_data, axis)` | Split stacked BrainData |
+
 ---
 
 ## Compatibility & Warnings
@@ -935,6 +1025,7 @@ brain_data.X = design_matrix  # Still works but deprecated
 - [ ] Replace `stats.correlation()` with `correlation_permutation_test()` from inference module
 - [ ] Replace `stats.pearson()` with `scipy.stats.pearsonr` or `correlation_permutation_test()`
 - [ ] Consider using `fit(inplace=False)` for immutable results and serialization
+- [ ] Consider using `BrainCollection` for multi-subject analyses (new in v0.6.0)
 - [ ] Test with `FutureWarning` → error to catch remaining issues
 
 ---
@@ -1170,4 +1261,4 @@ result = one_sample_permutation_test(data, backend='auto')
 
 ---
 
-*Last updated: 2025-10-30 for nltools v0.6.0*
+*Last updated: 2026-01-02 for nltools v0.6.0*
