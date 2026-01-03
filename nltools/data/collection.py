@@ -3122,3 +3122,255 @@ class BrainCollection:
             return pd.read_csv(path, sep=sep).values
         else:
             raise ValueError(f"Unsupported feature file format: {suffix}")
+
+    def compute_contrasts(
+        self,
+        contrasts: "str | dict | np.ndarray | list",
+    ) -> "BrainCollection | dict[str, BrainCollection]":
+        """
+        Compute contrasts from fitted GLM beta coefficients.
+
+        Applies contrast weights to each subject's betas and returns a
+        BrainCollection of contrast values suitable for group-level analysis.
+
+        Must be called on a BrainCollection created by fit_glm() which has
+        the _design_columns attribute set.
+
+        Args:
+            contrasts: Can be:
+                - str: Contrast string using column names, e.g., "face - house"
+                - dict: Multiple contrasts, e.g., {"main": "face - house", "avg": [0.5, 0.5]}
+                - array/list: Numeric contrast vector, e.g., [1, -1]
+
+        Returns:
+            BrainCollection where each BrainData has shape (n_voxels,) containing
+            the contrast values. If dict input, returns dict of BrainCollections.
+
+        Raises:
+            RuntimeError: If _design_columns not set (not from fit_glm)
+            ValueError: If contrast vector length doesn't match number of regressors
+            ValueError: If column name in string contrast not found
+
+        Examples:
+            >>> # Fit GLM and compute contrast
+            >>> betas = bc.fit_glm(events=events_df, t_r=2.0)
+            >>> contrast = betas.compute_contrasts("face - house")
+            >>> # Group t-test on contrast
+            >>> group_result = contrast.ttest()
+
+            >>> # Multiple contrasts
+            >>> contrasts = betas.compute_contrasts({
+            ...     "face_vs_house": "face - house",
+            ...     "face_vs_baseline": "face",
+            ... })
+            >>> face_vs_house_ttest = contrasts["face_vs_house"].ttest()
+        """
+        # Validate that this collection has design columns
+        if not hasattr(self, "_design_columns") or self._design_columns is None:
+            raise RuntimeError(
+                "No design columns found. This method requires a BrainCollection "
+                "created by fit_glm() which stores the task regressor names."
+            )
+
+        design_columns = self._design_columns
+
+        # Handle dict of contrasts
+        if isinstance(contrasts, dict):
+            results = {}
+            for name, contrast_spec in contrasts.items():
+                results[name] = self._compute_single_contrast(
+                    contrast_spec, design_columns
+                )
+            return results
+
+        # Single contrast
+        return self._compute_single_contrast(contrasts, design_columns)
+
+    def _compute_single_contrast(
+        self,
+        contrast: "str | np.ndarray | list",
+        design_columns: list[str],
+    ) -> "BrainCollection":
+        """Compute a single contrast across all subjects.
+
+        Args:
+            contrast: Contrast specification (string, array, or list)
+            design_columns: List of regressor names from fit_glm
+
+        Returns:
+            BrainCollection with contrast values for each subject
+        """
+        # Parse contrast to numeric vector
+        if isinstance(contrast, str):
+            contrast_vector = self._parse_contrast_string(contrast, design_columns)
+        else:
+            contrast_vector = np.asarray(contrast)
+
+        # Validate contrast vector length
+        n_regressors = len(design_columns)
+        if len(contrast_vector) != n_regressors:
+            raise ValueError(
+                f"Contrast vector length ({len(contrast_vector)}) must match "
+                f"number of regressors ({n_regressors}). "
+                f"Regressors: {design_columns}"
+            )
+
+        # Compute contrast for each subject
+        contrast_data_list = []
+        for i in range(len(self)):
+            bd = self._load_item(i)
+
+            # Compute weighted sum of betas
+            # bd.data has shape (n_regressors, n_voxels)
+            contrast_values = np.zeros(bd.shape[1])
+            for j, weight in enumerate(contrast_vector):
+                if weight != 0:
+                    contrast_values += weight * bd.data[j, :]
+
+            # Create BrainData with contrast values
+            contrast_bd = bd[0].copy()
+            contrast_bd.data = contrast_values
+
+            contrast_data_list.append(contrast_bd)
+
+        # Build result collection
+        return BrainCollection(
+            contrast_data_list,
+            mask=self.mask,
+            metadata=self._metadata.copy(),
+        )
+
+    def _parse_contrast_string(
+        self,
+        contrast_str: str,
+        design_columns: list[str],
+    ) -> np.ndarray:
+        """Parse a contrast string into a numeric contrast vector.
+
+        Args:
+            contrast_str: Contrast string like "A - B" or "2*A - B"
+            design_columns: List of regressor column names
+
+        Returns:
+            Numeric contrast vector
+
+        Raises:
+            ValueError: If column name not found in design_columns
+        """
+        import re
+
+        # Initialize contrast vector
+        contrast_vector = np.zeros(len(design_columns))
+
+        # Split by + and - (keeping the operators)
+        tokens = re.split(r"(\+|\-)", contrast_str)
+        tokens = [t.strip() for t in tokens if t.strip()]
+
+        # Process tokens
+        sign = 1  # Start with positive
+        for token in tokens:
+            if token == "+":
+                sign = 1
+            elif token == "-":
+                sign = -1
+            else:
+                # Parse coefficient and variable
+                if "*" in token:
+                    coef_str, var_name = token.split("*")
+                    coef = float(coef_str.strip())
+                    var_name = var_name.strip()
+                else:
+                    coef = 1.0
+                    var_name = token
+
+                # Find column index
+                if var_name in design_columns:
+                    idx = design_columns.index(var_name)
+                    contrast_vector[idx] = sign * coef
+                else:
+                    raise ValueError(
+                        f"Column '{var_name}' not found in design columns. "
+                        f"Available: {design_columns}"
+                    )
+
+        return contrast_vector
+
+    def select_feature(
+        self,
+        feature: "int | str",
+    ) -> "BrainCollection":
+        """
+        Select a single feature's weights across all subjects.
+
+        Used after fit_ridge() to extract weights for a specific feature
+        for group-level analysis (e.g., t-test on feature weights).
+
+        Must be called on a BrainCollection created by fit_ridge() where
+        each subject has shape (n_features, n_voxels).
+
+        Args:
+            feature: Feature to select. Can be:
+                - int: Feature index (0-based)
+                - str: Feature name (requires _feature_names attribute)
+
+        Returns:
+            BrainCollection where each BrainData has shape (n_voxels,)
+            containing the weights for the specified feature.
+
+        Raises:
+            IndexError: If feature index out of range
+            KeyError: If feature name not found in _feature_names
+            RuntimeError: If string feature given but _feature_names not set
+
+        Examples:
+            >>> # Fit ridge and select feature
+            >>> weights = bc.fit_ridge(X=features, alpha=1.0)
+            >>> feature_0 = weights.select_feature(0)
+            >>> # Group t-test on first feature's weights
+            >>> group_result = feature_0.ttest()
+
+            >>> # By name (if features had column names)
+            >>> face_weights = weights.select_feature("face_response")
+        """
+        # Resolve feature name to index
+        if isinstance(feature, str):
+            if not hasattr(self, "_feature_names") or self._feature_names is None:
+                raise RuntimeError(
+                    "Cannot select feature by name: _feature_names not set. "
+                    "Use integer index or pass features with column names to fit_ridge()."
+                )
+            if feature not in self._feature_names:
+                raise KeyError(
+                    f"Feature '{feature}' not found. Available: {self._feature_names}"
+                )
+            feature_idx = self._feature_names.index(feature)
+        else:
+            feature_idx = feature
+
+        # Extract feature weights for each subject
+        feature_data_list = []
+        for i in range(len(self)):
+            bd = self._load_item(i)
+
+            # Validate index
+            if feature_idx < 0 or feature_idx >= bd.shape[0]:
+                raise IndexError(
+                    f"Feature index {feature_idx} out of range for subject {i} "
+                    f"with {bd.shape[0]} features."
+                )
+
+            # Extract single feature's weights
+            feature_values = bd.data[feature_idx, :]
+
+            # Create BrainData with feature weights
+            feature_bd = bd[0].copy()
+            feature_bd.data = feature_values
+
+            feature_data_list.append(feature_bd)
+
+        # Build result collection
+        return BrainCollection(
+            feature_data_list,
+            mask=self.mask,
+            metadata=self._metadata.copy(),
+        )

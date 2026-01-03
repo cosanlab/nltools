@@ -2083,3 +2083,157 @@ class TestBrainCollectionFitRidge:
         """Test error when features list has wrong length."""
         with pytest.raises(ValueError, match="must match collection length"):
             small_collection._resolve_features([np.array([])] * 5)  # Wrong length
+
+
+class TestBrainCollectionComputeContrasts:
+    """Tests for BrainCollection.compute_contrasts() method."""
+
+    @pytest.fixture
+    def betas_collection(self, sample_brain_data, sample_mask):
+        """Create a BrainCollection simulating fit_glm output."""
+        subjects = []
+        for i in range(3):
+            bd = sample_brain_data.copy()
+            # 2 regressors (face, house) x n_voxels
+            bd.data = np.random.randn(2, bd.shape[1])
+            subjects.append(bd)
+
+        bc = BrainCollection(
+            subjects,
+            mask=sample_mask,
+            metadata=pd.DataFrame({"subject": ["sub-01", "sub-02", "sub-03"]}),
+        )
+        bc._design_columns = ["face", "house"]
+        return bc
+
+    def test_compute_contrasts_string(self, betas_collection):
+        """Test contrast with string specification."""
+        contrast = betas_collection.compute_contrasts("face - house")
+
+        assert isinstance(contrast, BrainCollection)
+        assert len(contrast) == 3
+        # Each subject should have 1D contrast values
+        assert contrast[0].data.ndim == 1
+
+    def test_compute_contrasts_array(self, betas_collection):
+        """Test contrast with array specification."""
+        contrast = betas_collection.compute_contrasts([1, -1])
+
+        assert isinstance(contrast, BrainCollection)
+        assert len(contrast) == 3
+
+    def test_compute_contrasts_dict(self, betas_collection):
+        """Test multiple contrasts with dict."""
+        contrasts = betas_collection.compute_contrasts(
+            {
+                "face_vs_house": "face - house",
+                "face_only": [1, 0],
+            }
+        )
+
+        assert isinstance(contrasts, dict)
+        assert "face_vs_house" in contrasts
+        assert "face_only" in contrasts
+        assert len(contrasts["face_vs_house"]) == 3
+        assert len(contrasts["face_only"]) == 3
+
+    def test_compute_contrasts_with_coefficient(self, betas_collection):
+        """Test contrast with coefficient in string."""
+        contrast = betas_collection.compute_contrasts("2*face - house")
+
+        assert isinstance(contrast, BrainCollection)
+        # Values should reflect the 2x weighting
+        # Just check it runs without error
+
+    def test_compute_contrasts_no_design_columns(self, sample_brain_data, sample_mask):
+        """Test error when _design_columns not set."""
+        subjects = [sample_brain_data.copy() for _ in range(3)]
+        bc = BrainCollection(subjects, mask=sample_mask)
+
+        with pytest.raises(RuntimeError, match="No design columns found"):
+            bc.compute_contrasts("face - house")
+
+    def test_compute_contrasts_wrong_length(self, betas_collection):
+        """Test error when contrast vector has wrong length."""
+        with pytest.raises(ValueError, match="must match number of regressors"):
+            betas_collection.compute_contrasts(
+                [1, -1, 0]
+            )  # 3 elements, but 2 regressors
+
+    def test_compute_contrasts_unknown_column(self, betas_collection):
+        """Test error when contrast string references unknown column."""
+        with pytest.raises(ValueError, match="not found in design columns"):
+            betas_collection.compute_contrasts("face - unknown")
+
+
+class TestBrainCollectionSelectFeature:
+    """Tests for BrainCollection.select_feature() method."""
+
+    @pytest.fixture
+    def weights_collection(self, sample_brain_data, sample_mask):
+        """Create a BrainCollection simulating fit_ridge output."""
+        subjects = []
+        for i in range(3):
+            bd = sample_brain_data.copy()
+            # 5 features x n_voxels
+            bd.data = np.random.randn(5, bd.shape[1])
+            subjects.append(bd)
+
+        bc = BrainCollection(
+            subjects,
+            mask=sample_mask,
+            metadata=pd.DataFrame({"subject": ["sub-01", "sub-02", "sub-03"]}),
+        )
+        bc._feature_names = ["f0", "f1", "f2", "f3", "f4"]
+        return bc
+
+    def test_select_feature_by_index(self, weights_collection):
+        """Test selecting feature by integer index."""
+        feature_0 = weights_collection.select_feature(0)
+
+        assert isinstance(feature_0, BrainCollection)
+        assert len(feature_0) == 3
+        # Each subject should have 1D weights
+        assert feature_0[0].data.ndim == 1
+
+    def test_select_feature_by_name(self, weights_collection):
+        """Test selecting feature by name."""
+        feature_f2 = weights_collection.select_feature("f2")
+
+        assert isinstance(feature_f2, BrainCollection)
+        assert len(feature_f2) == 3
+
+    def test_select_feature_preserves_metadata(self, weights_collection):
+        """Test that metadata is preserved."""
+        feature_0 = weights_collection.select_feature(0)
+
+        assert "subject" in feature_0.metadata.columns
+        assert list(feature_0.metadata["subject"]) == ["sub-01", "sub-02", "sub-03"]
+
+    def test_select_feature_index_out_of_range(self, weights_collection):
+        """Test error when feature index out of range."""
+        with pytest.raises(IndexError, match="out of range"):
+            weights_collection.select_feature(10)
+
+    def test_select_feature_name_not_found(self, weights_collection):
+        """Test error when feature name not found."""
+        with pytest.raises(KeyError, match="not found"):
+            weights_collection.select_feature("unknown_feature")
+
+    def test_select_feature_no_feature_names(self, sample_brain_data, sample_mask):
+        """Test error when selecting by name but _feature_names not set."""
+        subjects = []
+        for i in range(3):
+            bd = sample_brain_data.copy()
+            bd.data = np.random.randn(5, bd.shape[1])
+            subjects.append(bd)
+
+        bc = BrainCollection(subjects, mask=sample_mask)
+
+        # Integer index should still work
+        feature_0 = bc.select_feature(0)
+        assert len(feature_0) == 3
+
+        # String should fail
+        with pytest.raises(RuntimeError, match="_feature_names not set"):
+            bc.select_feature("f0")
