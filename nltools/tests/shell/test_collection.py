@@ -1693,3 +1693,214 @@ class TestGLMHelpers:
                 t_r=2.0,
                 confounds=confounds,
             )
+
+
+class TestBrainCollectionFitGLM:
+    """Tests for BrainCollection.fit_glm() method."""
+
+    @pytest.fixture
+    def small_collection(self, sample_brain_data, sample_mask):
+        """Create a small BrainCollection with 3 subjects."""
+        # Create collection with 3 subjects, each with ~20 timepoints
+        subjects = []
+        for i in range(3):
+            # Create timeseries data (20 timepoints)
+            bd = sample_brain_data.copy()
+            data = np.random.randn(20, bd.shape[1]) * 100 + 1000
+            bd.data = data
+            subjects.append(bd)
+
+        return BrainCollection(
+            subjects,
+            mask=sample_mask,
+            metadata=pd.DataFrame({"subject": ["sub-01", "sub-02", "sub-03"]}),
+        )
+
+    @pytest.fixture
+    def simple_events(self):
+        """Create simple task events."""
+        return pd.DataFrame(
+            {
+                "onset": [2, 10, 18, 26],
+                "duration": [2, 2, 2, 2],
+                "trial_type": ["face", "house", "face", "house"],
+            }
+        )
+
+    def test_fit_glm_basic(self, small_collection, simple_events):
+        """Test basic GLM fitting."""
+        betas = small_collection.fit_glm(
+            events=simple_events,
+            t_r=2.0,
+            show_progress=False,
+        )
+
+        # Should return BrainCollection
+        assert isinstance(betas, BrainCollection)
+        # Should have same number of subjects
+        assert len(betas) == 3
+        # Each subject should have betas for 2 conditions (face, house)
+        assert betas[0].shape[0] == 2
+
+    def test_fit_glm_no_scale(self, small_collection, simple_events):
+        """Test GLM fitting without scaling."""
+        betas = small_collection.fit_glm(
+            events=simple_events,
+            t_r=2.0,
+            scale=False,
+            show_progress=False,
+        )
+
+        assert isinstance(betas, BrainCollection)
+        assert len(betas) == 3
+
+    def test_fit_glm_return_stats(self, small_collection, simple_events):
+        """Test GLM with return_stats."""
+        result = small_collection.fit_glm(
+            events=simple_events,
+            t_r=2.0,
+            return_stats=["t", "r2"],
+            show_progress=False,
+        )
+
+        # Should return dict
+        assert isinstance(result, dict)
+        assert "betas" in result
+        assert "t" in result
+        assert "r2" in result
+
+        # Check shapes
+        assert len(result["betas"]) == 3
+        assert len(result["t"]) == 3
+        assert len(result["r2"]) == 3
+
+        # t-stats should have same shape as betas
+        assert result["t"][0].shape == result["betas"][0].shape
+        # r2 should have shape (1, n_voxels)
+        assert result["r2"][0].shape[0] == 1
+
+    def test_fit_glm_return_residuals(self, small_collection, simple_events):
+        """Test GLM with return_residuals shorthand."""
+        result = small_collection.fit_glm(
+            events=simple_events,
+            t_r=2.0,
+            return_residuals=True,
+            show_progress=False,
+        )
+
+        assert isinstance(result, dict)
+        assert "residual" in result
+        # Residuals should have shape (n_scans, n_voxels)
+        assert result["residual"][0].shape[0] == 20
+
+    def test_fit_glm_with_confounds_list(self, small_collection, simple_events):
+        """Test GLM with confounds as list of DataFrames."""
+        confounds_list = [
+            pd.DataFrame({"motion": np.random.randn(20)}),
+            pd.DataFrame({"motion": np.random.randn(20)}),
+            pd.DataFrame({"motion": np.random.randn(20)}),
+        ]
+
+        betas = small_collection.fit_glm(
+            events=simple_events,
+            t_r=2.0,
+            confounds=confounds_list,
+            show_progress=False,
+        )
+
+        assert isinstance(betas, BrainCollection)
+        assert len(betas) == 3
+        # Still only task betas, not confound betas
+        assert betas[0].shape[0] == 2
+
+    def test_fit_glm_with_confounds_metadata_column(
+        self, sample_brain_data, sample_mask, simple_events, tmp_path
+    ):
+        """Test GLM with confounds from metadata column."""
+        # Create confound files
+        confound_paths = []
+        for i in range(3):
+            path = tmp_path / f"sub-0{i + 1}_confounds.tsv"
+            confounds = pd.DataFrame({"motion": np.random.randn(20)})
+            confounds.to_csv(path, sep="\t", index=False)
+            confound_paths.append(str(path))
+
+        # Create collection with confound paths in metadata
+        subjects = []
+        for i in range(3):
+            bd = sample_brain_data.copy()
+            bd.data = np.random.randn(20, bd.shape[1]) * 100 + 1000
+            subjects.append(bd)
+
+        bc = BrainCollection(
+            subjects,
+            mask=sample_mask,
+            metadata=pd.DataFrame(
+                {
+                    "subject": ["sub-01", "sub-02", "sub-03"],
+                    "confound_file": confound_paths,
+                }
+            ),
+        )
+
+        betas = bc.fit_glm(
+            events=simple_events,
+            t_r=2.0,
+            confounds="confound_file",
+            show_progress=False,
+        )
+
+        assert isinstance(betas, BrainCollection)
+        assert len(betas) == 3
+
+    def test_fit_glm_save(self, small_collection, simple_events, tmp_path):
+        """Test GLM with saving intermediates."""
+        save_path = str(tmp_path / "{subject}_betas.nii.gz")
+
+        betas = small_collection.fit_glm(
+            events=simple_events,
+            t_r=2.0,
+            save={"betas": save_path},
+            show_progress=False,
+        )
+
+        # Check result and files were created
+        assert len(betas) == 3
+        for subj in ["sub-01", "sub-02", "sub-03"]:
+            assert (tmp_path / f"{subj}_betas.nii.gz").exists()
+
+    def test_fit_glm_design_columns_stored(self, small_collection, simple_events):
+        """Test that design columns are stored for contrast parsing."""
+        betas = small_collection.fit_glm(
+            events=simple_events,
+            t_r=2.0,
+            show_progress=False,
+        )
+
+        # Collection should have _design_columns
+        assert hasattr(betas, "_design_columns")
+        assert "face" in betas._design_columns
+        assert "house" in betas._design_columns
+
+        # Individual BrainData should also have it
+        assert hasattr(betas[0], "_design_columns")
+
+    def test_fit_glm_invalid_return_stats(self, small_collection, simple_events):
+        """Test error on invalid return_stats."""
+        with pytest.raises(ValueError, match="Invalid return_stats"):
+            small_collection.fit_glm(
+                events=simple_events,
+                t_r=2.0,
+                return_stats=["invalid_stat"],
+                show_progress=False,
+            )
+
+    def test_resolve_confounds_missing_column(self, small_collection):
+        """Test error when confounds column doesn't exist."""
+        with pytest.raises(KeyError, match="not found in metadata"):
+            small_collection._resolve_confounds("nonexistent_column")
+
+    def test_resolve_confounds_wrong_length(self, small_collection):
+        """Test error when confounds list has wrong length."""
+        with pytest.raises(ValueError, match="must match collection length"):
+            small_collection._resolve_confounds([pd.DataFrame()] * 5)  # Wrong length

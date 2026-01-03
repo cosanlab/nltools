@@ -201,6 +201,9 @@ def _build_subject_design_matrix(
         # Handle NaN values in confounds (common for first few rows of derivatives)
         confounds_df = confounds_df.fillna(0)
 
+        # Align confounds index with design matrix frame_times index
+        confounds_df.index = task_dm.index
+
         # Concatenate: task_dm already has drift and constant, add confounds before them
         # Reorder: task | confounds | drift | constant
         full_dm = pd.concat(
@@ -2633,3 +2636,249 @@ class BrainCollection:
             output["null_dist"] = result.get("null_dist")
 
         return output
+
+    def fit_glm(
+        self,
+        events: pd.DataFrame,
+        t_r: float,
+        confounds: str | list[pd.DataFrame | Path | str] | None = None,
+        confound_columns: list[str] | None = None,
+        hrf_model: str = "spm",
+        drift_model: str = "cosine",
+        high_pass: float = 0.01,
+        scale: bool = True,
+        scale_value: float = 100.0,
+        return_stats: list[str] | None = None,
+        return_residuals: bool = False,
+        save: dict[str, str] | None = None,
+        show_progress: bool = True,
+    ) -> "BrainCollection":
+        """
+        Fit GLM to each subject in collection.
+
+        Memory-efficient first-level GLM analysis that processes subjects
+        one at a time. Returns a BrainCollection of beta coefficients for
+        task regressors (confounds and drift terms are fit but not returned).
+
+        Args:
+            events: Task events DataFrame with onset, duration, trial_type columns.
+                This is shared across all subjects (same experimental paradigm).
+            t_r: Repetition time (TR) in seconds.
+            confounds: Subject-specific confounds. Can be:
+                - str: Column name in metadata pointing to confound file paths
+                - list: List of DataFrames or paths, one per subject
+                - None: No confounds (only task + drift terms)
+            confound_columns: Columns to extract from confound files.
+                If None and confounds provided, uses all columns.
+            hrf_model: HRF model for convolution ('spm', 'glover', 'fir', etc.)
+            drift_model: Drift model ('cosine', 'polynomial', None)
+            high_pass: High-pass filter cutoff in Hz (default 0.01)
+            scale: If True, apply percent signal change scaling before fitting.
+            scale_value: Scaling value (default 100.0 for percent signal change).
+            return_stats: Optional list of statistics to return as separate
+                BrainCollections. Options: 't', 'r2', 'p', 'se', 'residual'.
+            return_residuals: If True, return residuals (same as return_stats=['residual']).
+            save: Dict mapping output type to path template, e.g.:
+                {'betas': 'output/{subject}_betas.nii.gz',
+                 't': 'output/{subject}_tstat.nii.gz'}
+                Supports {subject}, {session}, {idx}, and other metadata columns.
+            show_progress: Show progress bar during fitting.
+
+        Returns:
+            BrainCollection where each BrainData has shape (n_task_regressors, n_voxels).
+            The ._design_columns attribute stores task regressor names.
+            If return_stats specified, returns dict with keys 'betas', 't', etc.
+
+        Examples:
+            >>> # Basic GLM fit
+            >>> betas = bc.fit_glm(events=events_df, t_r=2.0)
+            >>> # Group t-test on first regressor
+            >>> group_t = betas[:, 0].ttest()
+
+            >>> # With confounds from metadata column
+            >>> betas = bc.fit_glm(
+            ...     events=events_df,
+            ...     t_r=2.0,
+            ...     confounds='confound_file',  # column name in metadata
+            ...     confound_columns=['trans_x', 'trans_y', 'trans_z', 'rot_x', 'rot_y', 'rot_z']
+            ... )
+
+            >>> # Save intermediates
+            >>> betas = bc.fit_glm(
+            ...     events=events_df,
+            ...     t_r=2.0,
+            ...     save={'betas': 'derivatives/{subject}/betas.nii.gz'}
+            ... )
+
+            >>> # Get t-stats too
+            >>> results = bc.fit_glm(events=events_df, t_r=2.0, return_stats=['t'])
+            >>> betas = results['betas']
+            >>> tstats = results['t']
+        """
+        # Handle return_residuals shorthand
+        if return_residuals and return_stats is None:
+            return_stats = ["residual"]
+        elif return_residuals and "residual" not in return_stats:
+            return_stats = list(return_stats) + ["residual"]
+
+        # Validate return_stats
+        valid_stats = {"t", "r2", "p", "se", "residual"}
+        if return_stats is not None:
+            invalid = set(return_stats) - valid_stats
+            if invalid:
+                raise ValueError(
+                    f"Invalid return_stats: {invalid}. Valid options: {valid_stats}"
+                )
+
+        # Resolve confounds to per-subject list
+        confounds_list = self._resolve_confounds(confounds)
+
+        # Progress bar setup
+        iterator = range(len(self))
+        if show_progress and tqdm is not None:
+            iterator = tqdm.tqdm(iterator, desc="Fitting GLM", unit="subject")
+
+        # Storage for results
+        beta_data_list = []
+        beta_metadata = []
+        stat_data = {stat: [] for stat in (return_stats or [])}
+        task_columns = None  # Will be set on first subject
+
+        for i in iterator:
+            # Load subject data
+            bd = self._load_item(i)
+            metadata_row = self._metadata.iloc[i]
+            n_scans = bd.shape[0]
+
+            # Get subject-specific confounds
+            subj_confounds = confounds_list[i] if confounds_list else None
+
+            # Build design matrix
+            dm, task_cols = _build_subject_design_matrix(
+                events=events,
+                n_scans=n_scans,
+                t_r=t_r,
+                confounds=subj_confounds,
+                confound_columns=confound_columns,
+                hrf_model=hrf_model,
+                drift_model=drift_model,
+                high_pass=high_pass,
+            )
+
+            # Store task columns for later
+            if task_columns is None:
+                task_columns = task_cols
+
+            # Apply scaling if requested
+            if scale:
+                bd = bd.scale(scale_value)
+
+            # Fit GLM
+            bd.fit(model="glm", X=dm)
+
+            # Extract task betas only (not confounds/drift)
+            task_indices = [dm.columns.get_loc(col) for col in task_cols]
+            task_betas_data = bd.glm_betas.data[task_indices, :]
+
+            # Create BrainData for task betas by copying structure
+            task_betas = bd[0].copy()
+            task_betas.data = task_betas_data
+            task_betas._design_columns = task_cols  # Store for contrast parsing
+
+            # Save if requested
+            if save and "betas" in save:
+                save_path = _resolve_save_path(save["betas"], metadata_row, i)
+                task_betas.write(str(save_path))
+
+            beta_data_list.append(task_betas)
+            beta_metadata.append(metadata_row.to_dict())
+
+            # Extract optional stats
+            if return_stats:
+                for stat in return_stats:
+                    if stat == "t":
+                        stat_data_arr = bd.glm_t.data[task_indices, :]
+                    elif stat == "p":
+                        stat_data_arr = bd.glm_p.data[task_indices, :]
+                    elif stat == "se":
+                        stat_data_arr = bd.glm_se.data[task_indices, :]
+                    elif stat == "r2":
+                        stat_data_arr = bd.glm_r2.data  # Shape (1, n_voxels)
+                    elif stat == "residual":
+                        stat_data_arr = (
+                            bd.glm_residual.data
+                        )  # Shape (n_scans, n_voxels)
+
+                    # Create BrainData by copying structure
+                    stat_bd = bd[0].copy()
+                    stat_bd.data = stat_data_arr
+
+                    if save and stat in save:
+                        save_path = _resolve_save_path(save[stat], metadata_row, i)
+                        stat_bd.write(str(save_path))
+
+                    stat_data[stat].append(stat_bd)
+
+            # Unload to free memory (only works for path-based collections)
+            self.unload([i])
+
+        # Build result collection
+        beta_collection = BrainCollection(
+            beta_data_list,
+            mask=self.mask,
+            metadata=pd.DataFrame(beta_metadata),
+        )
+        beta_collection._design_columns = task_columns
+
+        # Return based on what was requested
+        if return_stats:
+            result = {"betas": beta_collection}
+            for stat in return_stats:
+                stat_collection = BrainCollection(
+                    stat_data[stat],
+                    mask=self.mask,
+                    metadata=pd.DataFrame(beta_metadata),
+                )
+                result[stat] = stat_collection
+            return result
+
+        return beta_collection
+
+    def _resolve_confounds(
+        self,
+        confounds: str | list[pd.DataFrame | Path | str] | None,
+    ) -> list[pd.DataFrame | Path | str | None] | None:
+        """Resolve confounds argument to per-subject list.
+
+        Args:
+            confounds: Either:
+                - str: Column name in metadata containing confound paths
+                - list: Already per-subject list of DataFrames or paths
+                - None: No confounds
+
+        Returns:
+            List of confounds (one per subject) or None
+        """
+        if confounds is None:
+            return None
+
+        if isinstance(confounds, str):
+            # It's a metadata column name
+            if confounds not in self._metadata.columns:
+                raise KeyError(
+                    f"Confounds column '{confounds}' not found in metadata. "
+                    f"Available: {list(self._metadata.columns)}"
+                )
+            return list(self._metadata[confounds])
+
+        if isinstance(confounds, list):
+            if len(confounds) != len(self):
+                raise ValueError(
+                    f"confounds list length ({len(confounds)}) must match "
+                    f"collection length ({len(self)})"
+                )
+            return confounds
+
+        raise TypeError(
+            f"confounds must be str, list, or None, got {type(confounds).__name__}"
+        )
