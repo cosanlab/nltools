@@ -1061,6 +1061,45 @@ class TestBrainCollectionTransformations:
         result = sample_collection.map(lambda bd: bd, axis=0, show_progress=False)
         assert all(isinstance(result[i], BrainData) for i in range(result.n_images))
 
+    def test_map_axis1_over_timepoints(self, sample_mask):
+        """Test map over timepoints (axis=1) applies function to each timepoint slice."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_obs = 5
+        n_images = 3
+
+        bds = []
+        for i in range(n_images):
+            bd = BrainData(mask=sample_mask)
+            bd.data = np.random.randn(n_obs, n_voxels)
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        # Function that takes a timepoint slice (BrainCollection) and returns mean BrainData
+        def mean_across_images(bc_slice):
+            return bc_slice.mean(axis=0)
+
+        result = bc.map(mean_across_images, axis=1, show_progress=False)
+
+        # Result should be a BrainCollection with same n_images
+        assert isinstance(result, BrainCollection)
+        assert result.n_images == n_images
+
+    def test_map_axis1_variable_obs_raises(self, sample_mask):
+        """Test that map(axis=1) raises for variable observation counts."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+
+        bd1 = BrainData(mask=sample_mask)
+        bd1.data = np.random.randn(5, n_voxels)
+
+        bd2 = BrainData(mask=sample_mask)
+        bd2.data = np.random.randn(10, n_voxels)  # Different obs count
+
+        bc = BrainCollection([bd1, bd2], mask=sample_mask)
+
+        with pytest.raises(ValueError, match="uniform observation counts"):
+            bc.map(lambda x: x.mean(axis=0), axis=1, show_progress=False)
+
     def test_filter_callable(self, sample_mask):
         """Test filter with callable predicate."""
         n_voxels = int(sample_mask.get_fdata().sum())
@@ -1289,6 +1328,46 @@ class TestBrainCollectionISC:
         assert isinstance(result, BrainData)
         np.testing.assert_array_equal(result.data, values)
 
+    def test_isc_roi_extraction(self, sample_mask):
+        """Test ISC with ROI mask extraction mode."""
+        import nibabel as nib
+
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_subjects = 3
+        n_obs = 10
+
+        # Create correlated subjects
+        shared = np.random.randn(n_obs, n_voxels)
+        bds = []
+        for _ in range(n_subjects):
+            bd = BrainData(mask=sample_mask)
+            bd.data = shared + 0.1 * np.random.randn(n_obs, n_voxels)
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        # Create a simple label mask with 2 ROIs
+        mask_data = sample_mask.get_fdata()
+        label_data = np.zeros_like(mask_data, dtype=np.int32)
+        # Assign half of voxels to ROI 1, half to ROI 2
+        flat_mask = mask_data.flatten() > 0
+        flat_labels = np.zeros(mask_data.size, dtype=np.int32)
+        active_indices = np.where(flat_mask)[0]
+        half = len(active_indices) // 2
+        flat_labels[active_indices[:half]] = 1
+        flat_labels[active_indices[half:]] = 2
+        label_data = flat_labels.reshape(mask_data.shape)
+        roi_mask = nib.Nifti1Image(label_data, sample_mask.affine)
+
+        # Run ISC with ROI mask
+        result = bc.isc(roi_mask=roi_mask, radius=None, show_progress=False)
+
+        # Should return ISC per ROI
+        assert "isc" in result
+        assert result["extraction"] == "roi"
+        # Result should be BrainData with 2 ROI values
+        assert result["isc"].data.shape == (2,)
+
     def test_isc_voxelwise_shape(self, sample_mask):
         """Test ISC computation returns BrainData with correct shape."""
         n_voxels = int(sample_mask.get_fdata().sum())
@@ -1410,6 +1489,36 @@ class TestBrainCollectionISC:
         # Both should give high ISC for correlated data
         assert result_median["isc"].data.mean() > 0.7
         assert result_mean["isc"].data.mean() > 0.7
+
+    def test_isc_test_basic_api(self, sample_mask):
+        """Fast test for isc_test API contract (minimal permutations)."""
+        n_voxels = int(sample_mask.get_fdata().sum())
+        n_subjects = 3
+        n_obs = 10
+
+        bds = []
+        for _ in range(n_subjects):
+            bd = BrainData(mask=sample_mask)
+            bd.data = np.random.randn(n_obs, n_voxels)
+            bds.append(bd)
+
+        bc = BrainCollection(bds, mask=sample_mask)
+
+        # Use very small n_permute for speed
+        result = bc.isc_test(
+            radius=None,
+            n_permute=10,
+            show_progress=False,
+            random_state=42,
+        )
+
+        # Check result structure
+        assert "isc" in result
+        assert "p" in result
+        assert "ci" in result
+        assert isinstance(result["isc"], BrainData)
+        assert isinstance(result["p"], BrainData)
+        assert len(result["ci"]) == 2
 
     @pytest.mark.slow
     def test_isc_test_returns_correct_keys(self, sample_mask):

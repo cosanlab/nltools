@@ -2496,15 +2496,10 @@ class BrainCollection:
         mode = extraction_info["mode"]
 
         if mode == "roi":
-            # Expand ROI values to voxels using the masker's inverse_transform
-            masker = extraction_info["masker"]
-
-            # Use inverse_transform to project back
-            img = masker.inverse_transform(values.reshape(1, -1))
-
-            # Convert to BrainData
+            # For ROI mode, values are per-ROI, not per-voxel
+            # Return a BrainData with ROI values directly (not expanded to voxels)
             result = BrainData(mask=self._mask)
-            result.data = result._nifti_to_data(img)
+            result.data = values
             return result
 
         elif mode in ("searchlight", "voxelwise"):
