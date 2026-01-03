@@ -108,7 +108,6 @@ class TestBrainCollectionConstruction:
         assert len(bc) == 3
         assert not any(bc.is_loaded)
 
-    @pytest.mark.slow
     def test_init_from_paths_eager(self, temp_nifti_files):
         """Test eager construction from paths."""
         paths, mask = temp_nifti_files
@@ -605,7 +604,6 @@ class TestBrainCollectionIterBatches:
         assert len(batches[0]) == 2
         assert len(batches[1]) == 1
 
-    @pytest.mark.slow
     def test_iter_batches_axis1(self, sample_collection):
         """Test iter_batches over observations (axis=1)."""
         batches = list(
@@ -860,7 +858,6 @@ class TestBrainCollectionInference:
         with pytest.raises(ValueError, match="same mask shape"):
             bc1.ttest2(bc2)
 
-    @pytest.mark.slow
     def test_anova_from_list(self, sample_mask):
         """Test ANOVA with group labels as list."""
         from scipy import stats
@@ -895,7 +892,6 @@ class TestBrainCollectionInference:
         np.testing.assert_array_almost_equal(f_stat.data, expected_f)
         np.testing.assert_array_almost_equal(p_val.data, expected_p)
 
-    @pytest.mark.slow
     def test_anova_from_metadata(self, sample_mask):
         """Test ANOVA with group from metadata column."""
         n_voxels = int(sample_mask.get_fdata().sum())
@@ -933,7 +929,6 @@ class TestBrainCollectionInference:
         with pytest.raises(ValueError, match="at least 2 groups"):
             sample_collection.anova(groups)
 
-    @pytest.mark.slow
     def test_permutation_test_shape(self, sample_mask):
         """Test permutation_test returns correct shapes."""
         n_voxels = int(sample_mask.get_fdata().sum())
@@ -955,7 +950,6 @@ class TestBrainCollectionInference:
         assert result["mean"].data.shape == (n_voxels,)
         assert result["p"].data.shape == (n_voxels,)
 
-    @pytest.mark.slow
     def test_permutation_test_return_null(self, sample_mask):
         """Test permutation_test with return_null=True."""
         n_voxels = int(sample_mask.get_fdata().sum())
@@ -977,7 +971,6 @@ class TestBrainCollectionInference:
         # Shape: (n_obs, n_permute, n_voxels)
         assert result["null_dist"].shape[1] == n_permute
 
-    @pytest.mark.slow
     def test_permutation_test2_shape(self, sample_mask):
         """Test permutation_test2 returns correct shapes."""
         n_voxels = int(sample_mask.get_fdata().sum())
@@ -1296,7 +1289,6 @@ class TestBrainCollectionISC:
         assert isinstance(result, BrainData)
         np.testing.assert_array_equal(result.data, values)
 
-    @pytest.mark.slow
     def test_isc_voxelwise_shape(self, sample_mask):
         """Test ISC computation returns BrainData with correct shape."""
         n_voxels = int(sample_mask.get_fdata().sum())
@@ -1339,7 +1331,6 @@ class TestBrainCollectionISC:
         assert result["method"] == "pairwise"
         assert isinstance(result["isc"], BrainData)
 
-    @pytest.mark.slow
     def test_isc_correlated_subjects(self, sample_mask):
         """Test ISC is high when subjects are correlated."""
         n_voxels = int(sample_mask.get_fdata().sum())
@@ -1398,7 +1389,6 @@ class TestBrainCollectionISC:
         with pytest.raises(ValueError, match="uniform observation counts"):
             bc.isc(radius=None, show_progress=False)
 
-    @pytest.mark.slow
     def test_isc_mean_metric(self, sample_mask):
         """Test ISC with mean (Fisher z) metric."""
         n_voxels = int(sample_mask.get_fdata().sum())
@@ -1488,6 +1478,7 @@ class TestBrainCollectionISC:
     @pytest.mark.slow
     def test_isc_test_uncorrelated_not_significant(self, sample_mask):
         """Test that uncorrelated subjects produce non-significant ISC."""
+        np.random.seed(42)  # Fixed seed for reproducibility
         n_voxels = int(sample_mask.get_fdata().sum())
         n_subjects = 5
         n_obs = 50
