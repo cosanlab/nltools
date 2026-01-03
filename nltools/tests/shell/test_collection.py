@@ -1904,3 +1904,182 @@ class TestBrainCollectionFitGLM:
         """Test error when confounds list has wrong length."""
         with pytest.raises(ValueError, match="must match collection length"):
             small_collection._resolve_confounds([pd.DataFrame()] * 5)  # Wrong length
+
+
+class TestBrainCollectionFitRidge:
+    """Tests for BrainCollection.fit_ridge() method."""
+
+    @pytest.fixture
+    def small_collection(self, sample_brain_data, sample_mask):
+        """Create a small BrainCollection with 3 subjects."""
+        subjects = []
+        for i in range(3):
+            bd = sample_brain_data.copy()
+            data = np.random.randn(20, bd.shape[1]) * 100 + 1000
+            bd.data = data
+            subjects.append(bd)
+
+        return BrainCollection(
+            subjects,
+            mask=sample_mask,
+            metadata=pd.DataFrame({"subject": ["sub-01", "sub-02", "sub-03"]}),
+        )
+
+    @pytest.fixture
+    def shared_features(self):
+        """Create shared feature matrix for all subjects."""
+        return np.random.randn(20, 5)  # 20 samples, 5 features
+
+    def test_fit_ridge_basic(self, small_collection, shared_features):
+        """Test basic ridge fitting with shared features."""
+        weights = small_collection.fit_ridge(
+            X=shared_features,
+            alpha=1.0,
+            show_progress=False,
+        )
+
+        # Should return BrainCollection
+        assert isinstance(weights, BrainCollection)
+        # Should have same number of subjects
+        assert len(weights) == 3
+        # Each subject should have weights for 5 features
+        assert weights[0].shape[0] == 5
+
+    def test_fit_ridge_no_scale(self, small_collection, shared_features):
+        """Test ridge fitting without scaling."""
+        weights = small_collection.fit_ridge(
+            X=shared_features,
+            alpha=1.0,
+            scale=False,
+            show_progress=False,
+        )
+
+        assert isinstance(weights, BrainCollection)
+        assert len(weights) == 3
+
+    def test_fit_ridge_return_stats(self, small_collection, shared_features):
+        """Test ridge with return_stats."""
+        result = small_collection.fit_ridge(
+            X=shared_features,
+            alpha=1.0,
+            return_stats=["scores"],
+            show_progress=False,
+        )
+
+        # Should return dict
+        assert isinstance(result, dict)
+        assert "weights" in result
+        assert "scores" in result
+
+        # Check shapes
+        assert len(result["weights"]) == 3
+        assert len(result["scores"]) == 3
+
+        # Scores should have shape (1, n_voxels)
+        assert result["scores"][0].shape[0] == 1
+
+    def test_fit_ridge_with_cv(self, small_collection, shared_features):
+        """Test ridge with cross-validation."""
+        weights = small_collection.fit_ridge(
+            X=shared_features,
+            alpha=1.0,
+            cv=3,
+            show_progress=False,
+        )
+
+        assert isinstance(weights, BrainCollection)
+        # Should have CV results
+        assert hasattr(weights, "cv_results_")
+        assert len(weights.cv_results_) == 3
+
+    def test_fit_ridge_with_features_list(self, small_collection):
+        """Test ridge with per-subject features as list."""
+        features_list = [
+            np.random.randn(20, 5),
+            np.random.randn(20, 5),
+            np.random.randn(20, 5),
+        ]
+
+        weights = small_collection.fit_ridge(
+            X=features_list,
+            alpha=1.0,
+            show_progress=False,
+        )
+
+        assert isinstance(weights, BrainCollection)
+        assert len(weights) == 3
+        assert weights[0].shape[0] == 5
+
+    def test_fit_ridge_with_features_metadata_column(
+        self, sample_brain_data, sample_mask, tmp_path
+    ):
+        """Test ridge with features from metadata column."""
+        # Create feature files
+        feature_paths = []
+        for i in range(3):
+            path = tmp_path / f"sub-0{i + 1}_features.npy"
+            np.save(path, np.random.randn(20, 5))
+            feature_paths.append(str(path))
+
+        # Create collection with feature paths in metadata
+        subjects = []
+        for i in range(3):
+            bd = sample_brain_data.copy()
+            bd.data = np.random.randn(20, bd.shape[1]) * 100 + 1000
+            subjects.append(bd)
+
+        bc = BrainCollection(
+            subjects,
+            mask=sample_mask,
+            metadata=pd.DataFrame(
+                {
+                    "subject": ["sub-01", "sub-02", "sub-03"],
+                    "features_file": feature_paths,
+                }
+            ),
+        )
+
+        weights = bc.fit_ridge(
+            X="features_file",
+            alpha=1.0,
+            show_progress=False,
+        )
+
+        assert isinstance(weights, BrainCollection)
+        assert len(weights) == 3
+
+    def test_fit_ridge_save(self, small_collection, shared_features, tmp_path):
+        """Test ridge with saving intermediates."""
+        save_path = str(tmp_path / "{subject}_weights.nii.gz")
+
+        weights = small_collection.fit_ridge(
+            X=shared_features,
+            alpha=1.0,
+            save={"weights": save_path},
+            show_progress=False,
+        )
+
+        # Check result and files were created
+        assert len(weights) == 3
+        for subj in ["sub-01", "sub-02", "sub-03"]:
+            assert (tmp_path / f"{subj}_weights.nii.gz").exists()
+
+    def test_fit_ridge_invalid_return_stats(self, small_collection, shared_features):
+        """Test error on invalid return_stats."""
+        with pytest.raises(ValueError, match="Invalid return_stats"):
+            small_collection.fit_ridge(
+                X=shared_features,
+                alpha=1.0,
+                return_stats=["invalid_stat"],
+                show_progress=False,
+            )
+
+    def test_resolve_features_missing_column(self, small_collection):
+        """Test error when features column doesn't exist."""
+        with pytest.raises(KeyError, match="not found in metadata"):
+            small_collection._resolve_features("nonexistent_column")
+
+    def test_resolve_features_wrong_length(self, small_collection):
+        """Test error when features list has wrong length."""
+        with pytest.raises(ValueError, match="must match collection length"):
+            small_collection._resolve_features([np.array([])] * 5)  # Wrong length

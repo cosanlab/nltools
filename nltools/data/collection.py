@@ -2882,3 +2882,243 @@ class BrainCollection:
         raise TypeError(
             f"confounds must be str, list, or None, got {type(confounds).__name__}"
         )
+
+    def fit_ridge(
+        self,
+        X: "np.ndarray | str | list",
+        alpha: float | str = 1.0,
+        cv: int | None = None,
+        scale: bool = True,
+        scale_value: float = 100.0,
+        return_stats: list[str] | None = None,
+        save: dict[str, str] | None = None,
+        show_progress: bool = True,
+        **ridge_kwargs,
+    ) -> "BrainCollection":
+        """
+        Fit ridge regression to each subject in collection.
+
+        Memory-efficient encoding/decoding model fitting that processes subjects
+        one at a time. Returns a BrainCollection of model weights.
+
+        Args:
+            X: Feature matrix. Can be:
+                - np.ndarray: Shared features (n_samples, n_features) used for all subjects
+                - str: Column name in metadata pointing to feature file paths
+                - list: List of arrays/DataFrames, one per subject
+            alpha: Ridge regularization parameter. Can be:
+                - float: Fixed regularization strength
+                - 'auto': Use cross-validation to select optimal alpha
+            cv: Cross-validation folds (None = no CV, int = k-fold).
+                Required if alpha='auto'.
+            scale: If True, apply percent signal change scaling before fitting.
+            scale_value: Scaling value (default 100.0 for percent signal change).
+            return_stats: Optional list of statistics to return as separate
+                BrainCollections. Options: 'scores', 'fitted_values'.
+            save: Dict mapping output type to path template, e.g.:
+                {'weights': 'output/{subject}_weights.nii.gz',
+                 'scores': 'output/{subject}_scores.nii.gz'}
+                Supports {subject}, {session}, {idx}, and other metadata columns.
+            show_progress: Show progress bar during fitting.
+            **ridge_kwargs: Additional arguments passed to Ridge model
+                (e.g., backend='torch', random_state=42).
+
+        Returns:
+            BrainCollection where each BrainData has shape (n_features, n_voxels).
+            If return_stats specified, returns dict with keys 'weights', 'scores', etc.
+            If cv specified, each BrainData will have cv_results_ attribute.
+
+        Examples:
+            >>> # Basic ridge fit with shared features
+            >>> weights = bc.fit_ridge(X=features, alpha=1.0)
+            >>> # Group-level analysis of weights
+            >>> group_ttest = weights[:, 0].ttest()  # First feature weights
+
+            >>> # Auto-select alpha with CV
+            >>> weights = bc.fit_ridge(X=features, alpha='auto', cv=5)
+
+            >>> # Per-subject features from metadata
+            >>> weights = bc.fit_ridge(
+            ...     X='features_file',  # column name in metadata
+            ...     alpha=1.0,
+            ... )
+
+            >>> # Get R² scores too
+            >>> results = bc.fit_ridge(X=features, alpha=1.0, return_stats=['scores'])
+            >>> weights = results['weights']
+            >>> scores = results['scores']
+        """
+        # Validate return_stats
+        valid_stats = {"scores", "fitted_values"}
+        if return_stats is not None:
+            invalid = set(return_stats) - valid_stats
+            if invalid:
+                raise ValueError(
+                    f"Invalid return_stats: {invalid}. Valid options: {valid_stats}"
+                )
+
+        # Resolve X to per-subject list (returns None if shared array)
+        X_list = self._resolve_features(X)
+
+        # Progress bar setup
+        iterator = range(len(self))
+        if show_progress and tqdm is not None:
+            iterator = tqdm.tqdm(iterator, desc="Fitting Ridge", unit="subject")
+
+        # Storage for results
+        weight_data_list = []
+        weight_metadata = []
+        stat_data = {stat: [] for stat in (return_stats or [])}
+        cv_results_list = []
+        feature_names = None
+
+        for i in iterator:
+            # Load subject data
+            bd = self._load_item(i)
+            metadata_row = self._metadata.iloc[i]
+
+            # Get subject features
+            X_subj = X_list[i] if X_list else X
+
+            # Load from file if needed
+            if isinstance(X_subj, (str, Path)):
+                X_subj = self._load_features(X_subj)
+
+            # Extract feature names if available
+            if feature_names is None and hasattr(X_subj, "columns"):
+                feature_names = list(X_subj.columns)
+
+            # Apply scaling if requested
+            if scale:
+                bd = bd.scale(scale_value)
+
+            # Fit ridge
+            bd.fit(model="ridge", X=X_subj, alpha=alpha, cv=cv, **ridge_kwargs)
+
+            # Extract weights
+            weights_data = bd.ridge_weights.data
+
+            # Create BrainData for weights by copying structure
+            weights = bd[0].copy()
+            weights.data = weights_data
+            if feature_names:
+                weights._feature_names = feature_names
+
+            # Store CV results if available
+            if hasattr(bd, "cv_results_") and bd.cv_results_ is not None:
+                cv_results_list.append(bd.cv_results_)
+                weights.cv_results_ = bd.cv_results_
+
+            # Save if requested
+            if save and "weights" in save:
+                save_path = _resolve_save_path(save["weights"], metadata_row, i)
+                weights.write(str(save_path))
+
+            weight_data_list.append(weights)
+            weight_metadata.append(metadata_row.to_dict())
+
+            # Extract optional stats
+            if return_stats:
+                for stat in return_stats:
+                    if stat == "scores":
+                        stat_data_arr = bd.ridge_scores.data
+                    elif stat == "fitted_values":
+                        stat_data_arr = bd.ridge_fitted_values.data
+
+                    # Create BrainData by copying structure
+                    stat_bd = bd[0].copy()
+                    stat_bd.data = stat_data_arr
+
+                    if save and stat in save:
+                        save_path = _resolve_save_path(save[stat], metadata_row, i)
+                        stat_bd.write(str(save_path))
+
+                    stat_data[stat].append(stat_bd)
+
+            # Unload to free memory (only works for path-based collections)
+            self.unload([i])
+
+        # Build result collection
+        weight_collection = BrainCollection(
+            weight_data_list,
+            mask=self.mask,
+            metadata=pd.DataFrame(weight_metadata),
+        )
+        if feature_names:
+            weight_collection._feature_names = feature_names
+        if cv_results_list:
+            weight_collection.cv_results_ = cv_results_list
+
+        # Return based on what was requested
+        if return_stats:
+            result = {"weights": weight_collection}
+            for stat in return_stats:
+                stat_collection = BrainCollection(
+                    stat_data[stat],
+                    mask=self.mask,
+                    metadata=pd.DataFrame(weight_metadata),
+                )
+                result[stat] = stat_collection
+            return result
+
+        return weight_collection
+
+    def _resolve_features(
+        self,
+        X: "np.ndarray | str | list | None",
+    ) -> list | None:
+        """Resolve feature matrix X to per-subject list.
+
+        Args:
+            X: Either:
+                - np.ndarray: Shared features (used for all subjects)
+                - str: Column name in metadata containing feature paths
+                - list: Already per-subject list of arrays
+                - None: Error
+
+        Returns:
+            List of features (one per subject) or None if shared
+        """
+        if X is None:
+            raise ValueError("X must be provided")
+
+        if isinstance(X, np.ndarray):
+            # Shared features - return None to signal no per-subject list
+            return None
+
+        if isinstance(X, str):
+            # It's a metadata column name
+            if X not in self._metadata.columns:
+                raise KeyError(
+                    f"Feature column '{X}' not found in metadata. "
+                    f"Available: {list(self._metadata.columns)}"
+                )
+            return list(self._metadata[X])
+
+        if isinstance(X, list):
+            if len(X) != len(self):
+                raise ValueError(
+                    f"X list length ({len(X)}) must match "
+                    f"collection length ({len(self)})"
+                )
+            return X
+
+        raise TypeError(f"X must be np.ndarray, str, or list, got {type(X).__name__}")
+
+    def _load_features(self, path: str | Path) -> np.ndarray:
+        """Load features from a file path.
+
+        Supports common formats: .npy, .csv, .tsv, .txt
+        """
+        path = Path(path)
+        if not path.exists():
+            raise FileNotFoundError(f"Feature file not found: {path}")
+
+        suffix = path.suffix.lower()
+        if suffix == ".npy":
+            return np.load(path)
+        elif suffix in [".csv", ".tsv", ".txt"]:
+            sep = "\t" if suffix in [".tsv", ".txt"] else ","
+            return pd.read_csv(path, sep=sep).values
+        else:
+            raise ValueError(f"Unsupported feature file format: {suffix}")
