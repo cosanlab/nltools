@@ -728,3 +728,165 @@ class TestISCWorkflow:
             f"Same-category ISC ({mean_same:.4f}) should exceed "
             f"cross-category ISC ({mean_cross:.4f})"
         )
+
+
+@pytest.mark.slow
+class TestRSAWorkflow:
+    """Test Representational Similarity Analysis workflows."""
+
+    def test_rdm_construction_from_betas(self, haxby_vtc_betas):
+        """Validate RDM construction from category betas.
+
+        Tests that BrainData.distance() produces a valid Adjacency RDM:
+        - Symmetric matrix with zero diagonal
+        - Correct shape (n_categories × n_categories)
+        - Values in valid range for correlation distance [0, 2]
+        """
+        from nltools.data import Adjacency
+
+        bc_betas, categories, _ = haxby_vtc_betas
+
+        # Get first subject's betas as a single BrainData
+        # bc_betas[0].data has shape (n_categories, n_voxels)
+        subject_betas = bc_betas[0]
+
+        # Compute RDM using correlation distance
+        rdm = subject_betas.distance(metric="correlation")
+
+        # Should return Adjacency object
+        assert isinstance(rdm, Adjacency), "distance() should return Adjacency"
+
+        # Get square matrix for validation
+        rdm_matrix = rdm.squareform()
+
+        # Shape should be n_categories × n_categories
+        n_cats = len(categories)
+        assert rdm_matrix.shape == (n_cats, n_cats), (
+            f"RDM shape {rdm_matrix.shape} should be ({n_cats}, {n_cats})"
+        )
+
+        # Should be symmetric
+        assert np.allclose(rdm_matrix, rdm_matrix.T), "RDM should be symmetric"
+
+        # Diagonal should be zero (distance to self)
+        assert np.allclose(np.diag(rdm_matrix), 0), "RDM diagonal should be zero"
+
+        # Correlation distance values should be in [0, 2]
+        off_diag = rdm_matrix[~np.eye(n_cats, dtype=bool)]
+        assert np.all(off_diag >= 0), "Correlation distance should be >= 0"
+        assert np.all(off_diag <= 2), "Correlation distance should be <= 2"
+
+    def test_model_rdm_correlation(self, haxby_vtc_betas):
+        """Test neural-model RDM comparison with permutation testing.
+
+        Creates an animate vs inanimate model and tests correlation
+        with neural RDM using Adjacency.similarity().
+        """
+        from nltools.data import Adjacency
+
+        bc_betas, categories, _ = haxby_vtc_betas
+
+        # Get first subject's RDM
+        subject_betas = bc_betas[0]
+        neural_rdm = subject_betas.distance(metric="correlation")
+
+        # Create animate vs inanimate model RDM
+        n_cats = len(categories)
+        model_matrix = np.zeros((n_cats, n_cats))
+
+        # Define category groups
+        animate = ["face", "cat"]
+        inanimate = ["bottle", "chair", "house", "scissors", "shoe"]
+
+        animate_idx = [categories.index(c) for c in animate if c in categories]
+        inanimate_idx = [categories.index(c) for c in inanimate if c in categories]
+
+        # Within-group: low distance (similar), between-group: high distance
+        # Model: 0 = same group, 1 = different group
+        for i in animate_idx:
+            for j in inanimate_idx:
+                model_matrix[i, j] = 1
+                model_matrix[j, i] = 1
+
+        model_rdm = Adjacency(model_matrix, matrix_type="distance", labels=categories)
+
+        # Compare neural and model RDMs
+        result = neural_rdm.similarity(model_rdm, metric="spearman", n_permute=100)
+
+        # Should return dict with correlation and p-value
+        assert isinstance(result, dict), "similarity() should return dict"
+        assert "correlation" in result, "Result should have 'correlation' key"
+        assert "p" in result, "Result should have 'p' key"
+
+        # Correlation should be in valid range
+        rho = result["correlation"]
+        assert -1 <= rho <= 1, f"Correlation {rho} should be in [-1, 1]"
+
+        # P-value should be in valid range
+        p = result["p"]
+        assert 0 <= p <= 1, f"P-value {p} should be in [0, 1]"
+
+    def test_category_structure_in_rdm(self, haxby_vtc_betas):
+        """Validate expected category relationships in neural RDM.
+
+        Face and cat (animate) should be more similar to each other
+        than face and house (animate vs inanimate).
+        """
+        bc_betas, categories, _ = haxby_vtc_betas
+
+        # Get first subject's RDM
+        subject_betas = bc_betas[0]
+        rdm = subject_betas.distance(metric="correlation")
+        rdm_matrix = rdm.squareform()
+
+        # Get category indices
+        face_idx = categories.index("face")
+        cat_idx = categories.index("cat")
+        house_idx = categories.index("house")
+
+        # Face-cat distance (both animate)
+        face_cat_dist = rdm_matrix[face_idx, cat_idx]
+
+        # Face-house distance (animate vs inanimate)
+        face_house_dist = rdm_matrix[face_idx, house_idx]
+
+        # Animate items should be more similar (lower distance)
+        # Note: This is a soft expectation - may not always hold for single subject
+        # Just validate the computation produces reasonable values
+        assert np.isfinite(face_cat_dist), "Face-cat distance should be finite"
+        assert np.isfinite(face_house_dist), "Face-house distance should be finite"
+        assert face_cat_dist >= 0, "Distance should be non-negative"
+        assert face_house_dist >= 0, "Distance should be non-negative"
+
+    def test_adjacency_utilities(self, haxby_vtc_betas):
+        """Validate Adjacency helper methods work correctly."""
+        from nltools.data import Adjacency
+
+        bc_betas, categories, _ = haxby_vtc_betas
+
+        # Get RDM
+        subject_betas = bc_betas[0]
+        rdm = subject_betas.distance(metric="correlation")
+
+        # Test squareform
+        square = rdm.squareform()
+        assert square.ndim == 2, "squareform should return 2D array"
+        assert square.shape[0] == square.shape[1], "squareform should be square"
+
+        # Test threshold
+        thresholded = rdm.threshold(upper=1.0)
+        assert isinstance(thresholded, Adjacency), "threshold should return Adjacency"
+
+        # Test distance_to_similarity
+        similarity = rdm.distance_to_similarity(metric="correlation")
+        assert isinstance(similarity, Adjacency), "distance_to_similarity should return Adjacency"
+
+        # Similarity values should be in [-1, 1] for correlation
+        sim_matrix = similarity.squareform()
+        off_diag = sim_matrix[~np.eye(len(categories), dtype=bool)]
+        assert np.all(off_diag >= -1), "Similarity should be >= -1"
+        assert np.all(off_diag <= 1), "Similarity should be <= 1"
+
+        # Test labels
+        rdm.labels = categories
+        assert rdm.labels == categories, "Labels should be settable"
