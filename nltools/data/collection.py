@@ -902,15 +902,16 @@ class BrainCollection:
             ... )
         """
         # Import pybids
-        BIDSLayout = attempt_to_import(
-            "bids",
-            "BIDSLayout",
-            "pybids required for BIDS loading. Install with: pip install pybids",
-        )
+        bids_module = attempt_to_import("bids", "bids")
+        if bids_module is None:
+            raise ImportError(
+                "pybids required for BIDS loading. Install with: pip install pybids"
+            )
+        BIDSLayout = bids_module.BIDSLayout
 
         # Create layout if path provided
         if isinstance(layout, (str, Path)):
-            layout = BIDSLayout(layout, derivatives=True)
+            layout = BIDSLayout(layout, validate=False)
 
         # Build filter dict
         filters = {"extension": extension, "suffix": suffix}

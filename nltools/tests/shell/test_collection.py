@@ -15,6 +15,7 @@ import pandas as pd
 import pytest
 
 from nltools.data import BrainData, BrainCollection
+from nltools.tests.conftest import HAS_PYBIDS
 
 
 # =============================================================================
@@ -393,6 +394,101 @@ class TestBrainCollectionClassMethods:
         """Test from_stacked raises when splits don't sum to total."""
         with pytest.raises(ValueError, match="splits sum"):
             BrainCollection.from_stacked(sample_brain_data, splits=[5, 5])
+
+
+# =============================================================================
+# BIDS Loading Tests
+# =============================================================================
+
+
+class TestBrainCollectionFromBIDS:
+    """Tests for BrainCollection.from_bids() method."""
+
+    @pytest.mark.skipif(not HAS_PYBIDS, reason="pybids not installed")
+    def test_from_bids_basic(self, minimal_bids_dataset, minimal_bids_mask):
+        """Test basic from_bids construction."""
+        bc = BrainCollection.from_bids(
+            minimal_bids_dataset,
+            mask=minimal_bids_mask,
+            task="rest",
+        )
+
+        # Should find 2 subjects
+        assert len(bc) == 2
+
+    @pytest.mark.skipif(not HAS_PYBIDS, reason="pybids not installed")
+    def test_from_bids_metadata_extracted(
+        self, minimal_bids_dataset, minimal_bids_mask
+    ):
+        """Test that BIDS entities are extracted to metadata."""
+        bc = BrainCollection.from_bids(
+            minimal_bids_dataset,
+            mask=minimal_bids_mask,
+            task="rest",
+        )
+
+        # Should have subject in metadata
+        assert "subject" in bc.metadata.columns
+        assert "task" in bc.metadata.columns
+        # Check subject values
+        subjects = sorted(bc.metadata["subject"].tolist())
+        assert subjects == ["01", "02"]
+
+    @pytest.mark.skipif(not HAS_PYBIDS, reason="pybids not installed")
+    def test_from_bids_subject_filter(self, minimal_bids_dataset, minimal_bids_mask):
+        """Test filtering by subject."""
+        bc = BrainCollection.from_bids(
+            minimal_bids_dataset,
+            mask=minimal_bids_mask,
+            task="rest",
+            subject="01",
+        )
+
+        # Should find only 1 subject
+        assert len(bc) == 1
+        assert bc.metadata["subject"].iloc[0] == "01"
+
+    @pytest.mark.skipif(not HAS_PYBIDS, reason="pybids not installed")
+    def test_from_bids_no_matches_raises(self, minimal_bids_dataset, minimal_bids_mask):
+        """Test error when no files match filters."""
+        with pytest.raises(ValueError, match="No files found"):
+            BrainCollection.from_bids(
+                minimal_bids_dataset,
+                mask=minimal_bids_mask,
+                task="nonexistent_task",
+            )
+
+    @pytest.mark.skipif(not HAS_PYBIDS, reason="pybids not installed")
+    def test_from_bids_with_layout_object(
+        self, minimal_bids_dataset, minimal_bids_mask
+    ):
+        """Test passing BIDSLayout object instead of path."""
+        from bids import BIDSLayout
+
+        layout = BIDSLayout(minimal_bids_dataset, validate=False)
+        bc = BrainCollection.from_bids(
+            layout,
+            mask=minimal_bids_mask,
+            task="rest",
+        )
+
+        assert len(bc) == 2
+
+    @pytest.mark.skipif(not HAS_PYBIDS, reason="pybids not installed")
+    def test_from_bids_data_loads_correctly(
+        self, minimal_bids_dataset, minimal_bids_mask
+    ):
+        """Test that loaded data has correct shape."""
+        bc = BrainCollection.from_bids(
+            minimal_bids_dataset,
+            mask=minimal_bids_mask,
+            task="rest",
+        )
+
+        # Each subject should have 10 timepoints (from fixture) and 27 voxels (3x3x3)
+        bd = bc[0]
+        assert bd.shape[0] == 10  # n_timepoints
+        assert bd.shape[1] == 27  # n_voxels (3x3x3)
 
 
 # =============================================================================
