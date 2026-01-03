@@ -198,7 +198,11 @@ def compute_searchlight_neighborhoods(
             # We only store indices and indptr (not data, since all values are 1)
             n_entries = len(cached["indices"])
             adjacency = sparse.csr_matrix(
-                (np.ones(n_entries, dtype=np.float32), cached["indices"], cached["indptr"]),
+                (
+                    np.ones(n_entries, dtype=np.float32),
+                    cached["indices"],
+                    cached["indptr"],
+                ),
                 shape=tuple(cached["shape"]),
             )
             return SphereNeighborhoods(

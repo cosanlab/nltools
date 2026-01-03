@@ -205,11 +205,14 @@ n_timepoints = bc[0].shape[0]
 n_features = 5
 X = np.random.randn(n_timepoints, n_features)
 
-# Fit ridge regression for each subject
-# Returns BrainCollection of weights (n_features × n_voxels per subject)
-result = bc.fit_ridge(X=X, cv=3)
-print(f"Result type: {type(result)}")
-print(f"Keys: {list(result.keys()) if isinstance(result, dict) else 'BrainCollection'}")
+# Fit ridge regression using unified fit() API
+# Returns BrainCollection of CV scores by default
+scores = bc.fit(model="ridge", X=X, cv=3, show_progress=False)
+print(f"Scores shape: {scores[0].shape}")
+
+# Get weights instead of scores
+weights = bc.fit(model="ridge", X=X, output="weights", cv=None, show_progress=False)
+print(f"Weights shape: {weights[0].shape}")
 
 # %% [markdown]
 # ### Accessing Weights and Scores
@@ -263,11 +266,16 @@ events = pd.DataFrame(
     }
 )
 
-# Fit GLM to each subject
-# betas = bc.fit_glm(
+# Fit GLM using unified fit() API with DesignMatrix
+# dm = DesignMatrix.from_events(events, t_r=2.0, n_scans=bc[0].shape[0])
+# betas = bc.fit(model="glm", X=dm, show_progress=False)
+#
+# # Or use fit_from_events() convenience method
+# betas = bc.fit_from_events(
 #     events=events,
 #     t_r=2.0,  # TR in seconds
 #     return_stats=["t"],
+#     show_progress=False,
 # )
 #
 # # Compute contrasts
@@ -326,8 +334,9 @@ print(bc_with_meta.metadata.head())
 # | Subject means | `bc.mean(axis=1)` | BrainCollection |
 # | T-test | `bc.ttest()` | (t_stat, p_val) |
 # | Permutation test | `bc.permutation_test()` | dict |
-# | Ridge encoding | `bc.fit_ridge(X)` | dict/BrainCollection |
+# | Ridge encoding | `bc.fit(model="ridge", X=X)` | BrainCollection |
 # | ISC | `bc.isc()` | dict |
-# | GLM | `bc.fit_glm(events)` | BrainCollection |
+# | GLM | `bc.fit(model="glm", X=dm)` | BrainCollection |
+# | GLM from events | `bc.fit_from_events(events)` | BrainCollection |
 #
 # For more advanced workflows, see the workflow tutorials.

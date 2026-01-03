@@ -1466,13 +1466,9 @@ def plot_flatmap(
         sm.set_array([])
 
         if colorbar_orientation == "horizontal":
-            fig.colorbar(
-                sm, ax=ax, orientation="horizontal", fraction=0.046, pad=0.04
-            )
+            fig.colorbar(sm, ax=ax, orientation="horizontal", fraction=0.046, pad=0.04)
         else:
-            fig.colorbar(
-                sm, ax=ax, orientation="vertical", fraction=0.046, pad=0.04
-            )
+            fig.colorbar(sm, ax=ax, orientation="vertical", fraction=0.046, pad=0.04)
 
     plt.tight_layout()
 

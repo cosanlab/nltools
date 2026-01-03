@@ -2288,6 +2288,67 @@ class TestBrainCollectionFit:
         assert "t" in result
         assert "p" in result
 
+    def test_fit_glm_with_numpy_array(self, small_collection):
+        """Test fit(model='glm') with numpy array input."""
+        X = np.random.randn(20, 4)
+
+        result = small_collection.fit(model="glm", X=X, show_progress=False)
+
+        assert isinstance(result, BrainCollection)
+        assert len(result) == 3
+        assert result[0].shape[0] == 4
+
+    def test_fit_ridge_with_output_weights(self, small_collection, shared_features):
+        """Test fit(model='ridge') with output='weights'."""
+        result = small_collection.fit(
+            model="ridge",
+            X=shared_features,
+            alpha=1.0,
+            output="weights",
+            cv=None,
+            show_progress=False,
+        )
+
+        assert isinstance(result, BrainCollection)
+        assert len(result) == 3
+        # Weights shape: (n_features, n_voxels)
+        assert result[0].shape[0] == 5
+
+    def test_fit_ridge_with_output_both(self, small_collection, shared_features):
+        """Test fit(model='ridge') with output='both'."""
+        result = small_collection.fit(
+            model="ridge",
+            X=shared_features,
+            alpha=1.0,
+            output="both",
+            cv=3,
+            show_progress=False,
+        )
+
+        assert isinstance(result, dict)
+        assert "scores" in result
+        assert "weights" in result
+        assert len(result["scores"]) == 3
+        assert len(result["weights"]) == 3
+
+    def test_fit_scale_parameter(self, small_collection, shared_design_matrix):
+        """Test fit() scale parameter is passed through."""
+        # Just verify it doesn't error - scale=False
+        result = small_collection.fit(
+            model="glm", X=shared_design_matrix, scale=False, show_progress=False
+        )
+        assert isinstance(result, BrainCollection)
+
+        # Custom scale_value
+        result2 = small_collection.fit(
+            model="glm",
+            X=shared_design_matrix,
+            scale=True,
+            scale_value=1000.0,
+            show_progress=False,
+        )
+        assert isinstance(result2, BrainCollection)
+
 
 class TestBrainCollectionInternalFitGlm:
     """Tests for BrainCollection._fit_glm() method (DesignMatrix input)."""
@@ -2307,6 +2368,18 @@ class TestBrainCollectionInternalFitGlm:
             mask=sample_mask,
             metadata=pd.DataFrame({"subject": ["sub-01", "sub-02", "sub-03"]}),
         )
+
+    def test_internal_fit_glm_with_numpy_array(self, small_collection):
+        """Test _fit_glm with numpy array input (auto-converted to DataFrame)."""
+        X = np.random.randn(20, 3)
+
+        result = small_collection._fit_glm(X=X, show_progress=False)
+
+        assert isinstance(result, BrainCollection)
+        assert len(result) == 3
+        assert result[0].shape[0] == 3  # 3 columns
+        # Auto-generated column names
+        assert result._design_columns == ["col_0", "col_1", "col_2"]
 
     @pytest.fixture
     def shared_design_matrix(self):
