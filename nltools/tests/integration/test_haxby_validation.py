@@ -570,45 +570,37 @@ def haxby_vtc_betas():
     """Load Haxby with VTC mask and compute category betas for ISC tests.
 
     Returns BrainCollection of category betas (7 categories × 3 subjects)
-    masked to ventral temporal cortex. Uses subject 1's VTC mask for all
-    subjects to ensure common voxel space for spatial ISC comparisons.
+    masked to ventral temporal cortex. Uses precomputed MNI-aligned data
+    with union VTC mask for common voxel space across subjects.
     """
     import nibabel as nib
-    from nilearn.datasets import fetch_haxby as nilearn_fetch_haxby
+    from pathlib import Path
 
     from nltools.data import BrainData, BrainCollection
 
-    # Get VTC mask from nilearn - use union of all subjects' masks
-    nilearn_data = nilearn_fetch_haxby(subjects=[1, 2, 3])
+    # Path to precomputed MNI-aligned Haxby data
+    data_dir = Path(__file__).parent.parent / "data" / "haxby"
 
-    # Create union mask (logical OR of all VTC masks)
-    mask_data = None
-    affine = None
-    for mask_path in nilearn_data.mask_vt:
-        mask_img = nib.load(mask_path)
-        if mask_data is None:
-            mask_data = mask_img.get_fdata() > 0
-            affine = mask_img.affine
-        else:
-            mask_data = mask_data | (mask_img.get_fdata() > 0)
+    # Load precomputed union VTC mask (already in MNI 2mm space)
+    vtc_mask = nib.load(data_dir / "mask_vtc_union.nii.gz")
 
-    vtc_mask = nib.Nifti1Image(mask_data.astype(np.float32), affine)
-
-    # Load nltools data
-    brain_data_list, dm_list = fetch_haxby(n_subjects=3, verbose=0)
+    # Load design matrices from fetch_haxby (still needed for GLM)
+    _, dm_list = fetch_haxby(n_subjects=3, verbose=0)
 
     # Category columns (excluding rest and scrambledpix for cleaner analysis)
     categories = ["face", "house", "cat", "bottle", "scissors", "shoe", "chair"]
 
-    # Process each subject: fit GLM and extract category betas
+    # Process each subject: load precomputed bold, fit GLM, extract category betas
     all_betas = []
     for subj_idx in range(3):
-        # Get first run for this subject
-        data = brain_data_list[subj_idx * 4]
-        dm = dm_list[subj_idx * 4]
+        subj_dir = data_dir / f"subj{subj_idx + 1}"
 
-        # Create BrainData with common VTC mask
-        data_vtc = BrainData(data.to_nifti(), mask=vtc_mask)
+        # Load precomputed MNI-aligned bold data with VTC mask
+        bold_file = subj_dir / "bold_00.nii.gz"
+        data_vtc = BrainData(str(bold_file), mask=vtc_mask, verbose=0, resample=False)
+
+        # Get design matrix for first run of this subject
+        dm = dm_list[subj_idx * 4]
 
         # Fit GLM
         dm_filt = dm.add_dct_basis(duration=128).add_poly(order=1, include_lower=True)
@@ -624,7 +616,7 @@ def haxby_vtc_betas():
         betas_array = np.vstack(category_betas)
 
         # Create BrainData for this subject's betas
-        beta_bd = BrainData(mask=vtc_mask)
+        beta_bd = BrainData(mask=vtc_mask, verbose=0)
         beta_bd.data = betas_array
         all_betas.append(beta_bd)
 
@@ -687,16 +679,14 @@ class TestISCWorkflow:
         # The spatial ISC test (same vs cross category) is more robust
 
     def test_spatial_pattern_correlation_computation(self, haxby_vtc_betas):
-        """Validate spatial pattern correlation computation across subjects.
+        """Validate spatial ISC shows same-category > cross-category pattern.
 
-        Computes same-category vs cross-category correlations. Without
-        anatomical alignment (SRM/hyperalignment), cross-subject spatial
-        correlations may not show the expected pattern due to individual
-        differences in functional anatomy.
+        With MNI-aligned data and VTC mask, same-category correlations
+        (e.g., face-face across subjects) should exceed cross-category
+        correlations (e.g., face-house across subjects).
 
-        This test validates the computation runs correctly and produces
-        valid correlation values. The SRM workflow tests validate that
-        alignment improves cross-subject pattern similarity.
+        The effect is small without SRM/hyperalignment, but should be
+        in the expected direction with properly aligned data.
         """
         bc_betas, categories, _ = haxby_vtc_betas
 
@@ -731,5 +721,10 @@ class TestISCWorkflow:
         )
         assert all(-1 <= r <= 1 for r in all_corrs), "Correlations should be in [-1, 1]"
 
-        # Note: Without SRM alignment, same > cross may not hold
-        # SRM tests validate that alignment improves this relationship
+        # With MNI-aligned data, same-category should exceed cross-category
+        mean_same = np.mean(same_category_corrs)
+        mean_cross = np.mean(cross_category_corrs)
+        assert mean_same > mean_cross, (
+            f"Same-category ISC ({mean_same:.4f}) should exceed "
+            f"cross-category ISC ({mean_cross:.4f})"
+        )
