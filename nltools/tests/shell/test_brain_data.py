@@ -1972,6 +1972,61 @@ class TestBrainData:
         with pytest.raises(ValueError, match="number of samples"):
             sim_brain_data.fit(model="ridge", alpha=1.0, X=X_wrong)
 
+    def test_fit_scale_default_true(self, sim_brain_data):
+        """Test fit() applies scaling by default (scale=True)."""
+        X = np.random.randn(len(sim_brain_data), 10)
+        original_mean = sim_brain_data.data.mean()
+
+        # Fit with default scale=True
+        sim_brain_data.fit(model="ridge", alpha=1.0, X=X)
+
+        # Data should be scaled (mean should be ~100 after grand-mean scaling)
+        # Note: original mean is ~0 for simulated data, so result will be very different
+        assert sim_brain_data.data.mean() != original_mean
+        # After scaling, mean should be close to scale_value (100)
+        np.testing.assert_allclose(sim_brain_data.data.mean(), 100.0, rtol=0.1)
+
+    def test_fit_scale_false_preserves_data(self, sim_brain_data):
+        """Test fit() with scale=False preserves original data values."""
+        X = np.random.randn(len(sim_brain_data), 10)
+        original_data = sim_brain_data.data.copy()
+
+        # Fit with scale=False
+        sim_brain_data.fit(model="ridge", alpha=1.0, X=X, scale=False)
+
+        # Data should be unchanged
+        np.testing.assert_allclose(sim_brain_data.data, original_data)
+
+    def test_fit_scale_value_custom(self, sim_brain_data):
+        """Test fit() respects custom scale_value."""
+        X = np.random.randn(len(sim_brain_data), 10)
+
+        # Fit with custom scale_value
+        sim_brain_data.fit(
+            model="ridge", alpha=1.0, X=X, scale=True, scale_value=1000.0
+        )
+
+        # Mean should be close to custom scale_value
+        np.testing.assert_allclose(sim_brain_data.data.mean(), 1000.0, rtol=0.1)
+
+    def test_fit_scale_inplace_false(self, sim_brain_data):
+        """Test fit() with scale=True and inplace=False doesn't modify original."""
+        from nltools.data.fit_results import Fit
+
+        X = np.random.randn(len(sim_brain_data), 10)
+        original_data = sim_brain_data.data.copy()
+
+        # Fit with inplace=False and scale=True
+        result = sim_brain_data.fit(
+            model="ridge", alpha=1.0, X=X, inplace=False, scale=True
+        )
+
+        # Should return Fit dataclass
+        assert isinstance(result, Fit)
+
+        # Original data should be unchanged (scaling was applied to copy)
+        np.testing.assert_allclose(sim_brain_data.data, original_data)
+
     def test_predict_with_no_X_uses_training_data(self, sim_brain_data):
         """Test predict() with no X returns predictions on training data."""
         X_train = np.random.randn(len(sim_brain_data), 10)

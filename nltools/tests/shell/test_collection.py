@@ -1938,6 +1938,21 @@ class TestBrainCollectionFitGLM:
         # Each subject should have betas for 2 conditions (face, house)
         assert betas[0].shape[0] == 2
 
+    def test_fit_from_events_basic(self, small_collection, simple_events):
+        """Test fit_from_events is an alias for fit_glm."""
+        betas = small_collection.fit_from_events(
+            events=simple_events,
+            t_r=2.0,
+            show_progress=False,
+        )
+
+        # Should return BrainCollection
+        assert isinstance(betas, BrainCollection)
+        # Should have same number of subjects
+        assert len(betas) == 3
+        # Each subject should have betas for 2 conditions (face, house)
+        assert betas[0].shape[0] == 2
+
     def test_fit_glm_no_scale(self, small_collection, simple_events):
         """Test GLM fitting without scaling."""
         betas = small_collection.fit_glm(
@@ -2191,6 +2206,197 @@ class TestBrainCollectionFitGLM:
             )
 
 
+class TestBrainCollectionFit:
+    """Tests for BrainCollection.fit() unified method."""
+
+    @pytest.fixture
+    def small_collection(self, sample_brain_data, sample_mask):
+        """Create a small BrainCollection with 3 subjects."""
+        subjects = []
+        for i in range(3):
+            bd = sample_brain_data.copy()
+            data = np.random.randn(20, bd.shape[1]) * 100 + 1000
+            bd.data = data
+            subjects.append(bd)
+
+        return BrainCollection(
+            subjects,
+            mask=sample_mask,
+            metadata=pd.DataFrame({"subject": ["sub-01", "sub-02", "sub-03"]}),
+        )
+
+    @pytest.fixture
+    def shared_design_matrix(self):
+        """Create a shared design matrix for testing."""
+        return pd.DataFrame(
+            {
+                "face": np.random.randn(20),
+                "house": np.random.randn(20),
+                "constant": np.ones(20),
+            }
+        )
+
+    @pytest.fixture
+    def shared_features(self):
+        """Create shared feature matrix for Ridge."""
+        return np.random.randn(20, 5)
+
+    def test_fit_glm_dispatches_correctly(self, small_collection, shared_design_matrix):
+        """Test fit(model='glm') dispatches to _fit_glm."""
+        result = small_collection.fit(
+            model="glm", X=shared_design_matrix, show_progress=False
+        )
+
+        assert isinstance(result, BrainCollection)
+        assert len(result) == 3
+        assert result[0].shape[0] == 3  # face, house, constant
+
+    def test_fit_ridge_dispatches_correctly(self, small_collection, shared_features):
+        """Test fit(model='ridge') dispatches to fit_ridge."""
+        result = small_collection.fit(
+            model="ridge",
+            X=shared_features,
+            alpha=1.0,
+            cv=3,
+            output="scores",
+            show_progress=False,
+        )
+
+        assert isinstance(result, BrainCollection)
+        assert len(result) == 3
+        # Scores should be 1D per subject
+        assert result[0].shape[0] == 1
+
+    def test_fit_unknown_model_raises(self, small_collection, shared_design_matrix):
+        """Test fit() raises for unknown model."""
+        with pytest.raises(ValueError, match="Unknown model"):
+            small_collection.fit(
+                model="unknown", X=shared_design_matrix, show_progress=False
+            )
+
+    def test_fit_glm_with_return_stats(self, small_collection, shared_design_matrix):
+        """Test fit(model='glm') with return_stats."""
+        result = small_collection.fit(
+            model="glm",
+            X=shared_design_matrix,
+            return_stats=["t", "p"],
+            show_progress=False,
+        )
+
+        assert isinstance(result, dict)
+        assert "betas" in result
+        assert "t" in result
+        assert "p" in result
+
+
+class TestBrainCollectionInternalFitGlm:
+    """Tests for BrainCollection._fit_glm() method (DesignMatrix input)."""
+
+    @pytest.fixture
+    def small_collection(self, sample_brain_data, sample_mask):
+        """Create a small BrainCollection with 3 subjects."""
+        subjects = []
+        for i in range(3):
+            bd = sample_brain_data.copy()
+            data = np.random.randn(20, bd.shape[1]) * 100 + 1000
+            bd.data = data
+            subjects.append(bd)
+
+        return BrainCollection(
+            subjects,
+            mask=sample_mask,
+            metadata=pd.DataFrame({"subject": ["sub-01", "sub-02", "sub-03"]}),
+        )
+
+    @pytest.fixture
+    def shared_design_matrix(self):
+        """Create a shared design matrix for testing."""
+        return pd.DataFrame(
+            {
+                "face": np.random.randn(20),
+                "house": np.random.randn(20),
+                "constant": np.ones(20),
+            }
+        )
+
+    def test_internal_fit_glm_shared_dm(self, small_collection, shared_design_matrix):
+        """Test _fit_glm with shared design matrix."""
+        result = small_collection._fit_glm(
+            X=shared_design_matrix, scale=True, show_progress=False
+        )
+
+        assert isinstance(result, BrainCollection)
+        assert len(result) == 3
+        # Betas should have shape (n_regressors, n_voxels)
+        assert result[0].shape[0] == 3  # face, house, constant
+
+    def test_internal_fit_glm_per_subject_list(self, small_collection):
+        """Test _fit_glm with per-subject design matrices."""
+        dm_list = [
+            pd.DataFrame(
+                {
+                    "stim": np.random.randn(20),
+                    "baseline": np.ones(20),
+                }
+            )
+            for _ in range(3)
+        ]
+
+        result = small_collection._fit_glm(X=dm_list, scale=True, show_progress=False)
+
+        assert isinstance(result, BrainCollection)
+        assert len(result) == 3
+        assert result[0].shape[0] == 2  # stim, baseline
+
+    def test_internal_fit_glm_no_scale(self, small_collection, shared_design_matrix):
+        """Test _fit_glm with scale=False runs without error."""
+        result = small_collection._fit_glm(
+            X=shared_design_matrix, scale=False, show_progress=False
+        )
+
+        assert isinstance(result, BrainCollection)
+        assert len(result) == 3
+
+    def test_internal_fit_glm_return_stats(
+        self, small_collection, shared_design_matrix
+    ):
+        """Test _fit_glm with return_stats."""
+        result = small_collection._fit_glm(
+            X=shared_design_matrix,
+            return_stats=["t", "p"],
+            show_progress=False,
+        )
+
+        assert isinstance(result, dict)
+        assert "betas" in result
+        assert "t" in result
+        assert "p" in result
+        assert len(result["betas"]) == 3
+        assert len(result["t"]) == 3
+        assert len(result["p"]) == 3
+
+    def test_internal_fit_glm_design_columns_stored(
+        self, small_collection, shared_design_matrix
+    ):
+        """Test that design columns are stored on result."""
+        result = small_collection._fit_glm(X=shared_design_matrix, show_progress=False)
+
+        assert hasattr(result, "_design_columns")
+        assert result._design_columns == ["face", "house", "constant"]
+
+    def test_internal_fit_glm_shape_mismatch(self, small_collection):
+        """Test error when X has wrong number of samples."""
+        wrong_dm = pd.DataFrame(
+            {
+                "col1": np.random.randn(15),  # Wrong: should be 20
+                "col2": np.random.randn(15),
+            }
+        )
+
+        with pytest.raises(ValueError, match="samples"):
+            small_collection._fit_glm(X=wrong_dm, show_progress=False)
+
+
 class TestBrainCollectionFitRidge:
     """Tests for BrainCollection.fit_ridge() method."""
 
@@ -2394,15 +2600,41 @@ class TestBrainCollectionFitRidge:
                 show_progress=False,
             )
 
-    def test_resolve_features_missing_column(self, small_collection):
+    def test_resolve_X_missing_column(self, small_collection):
         """Test error when features column doesn't exist."""
         with pytest.raises(KeyError, match="not found in metadata"):
-            small_collection._resolve_features("nonexistent_column")
+            small_collection._resolve_X("nonexistent_column")
 
-    def test_resolve_features_wrong_length(self, small_collection):
+    def test_resolve_X_wrong_length(self, small_collection):
         """Test error when features list has wrong length."""
         with pytest.raises(ValueError, match="must match collection length"):
-            small_collection._resolve_features([np.array([])] * 5)  # Wrong length
+            small_collection._resolve_X([np.array([])] * 5)  # Wrong length
+
+    def test_resolve_X_shared_array(self, small_collection):
+        """Test that shared array returns None (signaling shared)."""
+        X = np.random.randn(10, 5)
+        result = small_collection._resolve_X(X)
+        assert result is None
+
+    def test_resolve_X_shared_dataframe(self, small_collection):
+        """Test that shared DataFrame returns None (signaling shared)."""
+        X = pd.DataFrame(np.random.randn(10, 5), columns=["a", "b", "c", "d", "e"])
+        result = small_collection._resolve_X(X)
+        assert result is None
+
+    def test_resolve_X_per_subject_list(self, small_collection):
+        """Test that per-subject list is returned as-is."""
+        n_subjects = len(small_collection)
+        X_list = [np.random.randn(10, 5) for _ in range(n_subjects)]
+        result = small_collection._resolve_X(X_list)
+        assert result is X_list
+
+    def test_resolve_X_metadata_column(self, small_collection):
+        """Test that string column name returns list of values."""
+        # Add a feature column to metadata
+        small_collection._metadata["features"] = [f"feat_{i}.npy" for i in range(3)]
+        result = small_collection._resolve_X("features")
+        assert result == ["feat_0.npy", "feat_1.npy", "feat_2.npy"]
 
 
 class TestBrainCollectionPredict:

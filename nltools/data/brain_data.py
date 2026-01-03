@@ -1477,7 +1477,15 @@ class BrainData(object):
         return out
 
     def fit(
-        self, model=None, X=None, cv=None, inplace=True, progress_bar=None, **kwargs
+        self,
+        model=None,
+        X=None,
+        cv=None,
+        inplace=True,
+        progress_bar=None,
+        scale=True,
+        scale_value=100.0,
+        **kwargs,
     ):
         """Fit a model to brain imaging data.
 
@@ -1501,6 +1509,12 @@ class BrainData(object):
                 - If None: Uses self.verbose (default)
                 - If True: Shows progress bar for long-running operations
                 - If False: No progress bar
+            scale (bool, default=True): Apply grand-mean scaling before fitting. Calls
+                self.scale(scale_value) which divides all values by the global mean
+                and multiplies by scale_value. This puts data in percent signal change
+                units, which is standard for fMRI analysis.
+            scale_value (float, default=100.0): Target value for mean after scaling.
+                Only used if scale=True.
             **kwargs (dict): Additional arguments passed to model constructor
                 - Ridge: alpha, alphas, backend, random_state
                 - Glm: noise_model, minimize_memory, etc.
@@ -1615,6 +1629,11 @@ class BrainData(object):
             ]:
                 if hasattr(target, attr):
                     delattr(target, attr)
+
+        # Apply scaling before fitting (puts data in percent signal change units)
+        if scale:
+            scaled = target.scale(scale_value)
+            target.data = scaled.data
 
         # Create model based on string
         if model == "ridge":

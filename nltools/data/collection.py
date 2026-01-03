@@ -2769,6 +2769,90 @@ class BrainCollection:
 
         return output
 
+    def fit(
+        self,
+        model: str,
+        X: "pd.DataFrame | np.ndarray | str | list",
+        cv: int | None = None,
+        scale: bool = True,
+        scale_value: float = 100.0,
+        show_progress: bool = True,
+        **kwargs,
+    ) -> "BrainCollection | dict[str, BrainCollection]":
+        """
+        Fit a model to each subject in the collection.
+
+        Unified fitting method that shadows BrainData.fit() API for multi-subject
+        analysis. Dispatches to model-specific implementations based on the
+        model parameter.
+
+        Args:
+            model: Model type - 'glm' or 'ridge'
+            X: Design/feature matrix. Can be:
+                - pd.DataFrame/DesignMatrix: Shared (used for all subjects)
+                - np.ndarray: Shared array (used for all subjects)
+                - str: Column name in metadata pointing to file paths
+                - list: Per-subject list of DataFrames/arrays/paths
+            cv: Cross-validation folds (Ridge only). Default is None for GLM,
+                5 for Ridge when output='scores'.
+            scale: If True, apply percent signal change scaling before fitting.
+            scale_value: Scaling value (default 100.0 for percent signal change).
+            show_progress: Show progress bar during fitting.
+            **kwargs: Model-specific arguments passed to _fit_glm or _fit_ridge:
+                - GLM: return_stats, save
+                - Ridge: alpha, output, save, backend, random_state
+
+        Returns:
+            BrainCollection of fitted results:
+                - GLM: Beta coefficients (n_regressors, n_voxels) per subject
+                - Ridge: Scores or weights depending on 'output' kwarg
+            If return_stats (GLM) or output='both' (Ridge), returns dict.
+
+        Examples:
+            >>> # GLM with shared design matrix
+            >>> betas = bc.fit(model='glm', X=dm)
+            >>> t_stat, p_val = betas.ttest()
+            >>>
+            >>> # GLM with per-subject design matrices
+            >>> betas = bc.fit(model='glm', X=[dm1, dm2, dm3])
+            >>>
+            >>> # Ridge encoding model with CV scores
+            >>> scores = bc.fit(model='ridge', X=features, cv=5)
+            >>> group_t = scores.ttest()
+            >>>
+            >>> # Ridge with auto alpha selection
+            >>> scores = bc.fit(model='ridge', X=features, cv=5, alpha='auto')
+
+        See Also:
+            fit_from_events: Convenience method for event-based GLM workflows
+            fit_glm: Legacy GLM fitting (use fit_from_events instead)
+            fit_ridge: Legacy Ridge fitting (use fit(..., model='ridge') instead)
+        """
+        if model == "glm":
+            return self._fit_glm(
+                X=X,
+                scale=scale,
+                scale_value=scale_value,
+                show_progress=show_progress,
+                **kwargs,
+            )
+        elif model == "ridge":
+            # Handle cv default for Ridge
+            if cv is None:
+                output = kwargs.get("output", "scores")
+                if output in ("scores", "both"):
+                    cv = 5  # Default for scores
+            return self.fit_ridge(
+                X=X,
+                cv=cv,
+                scale=scale,
+                scale_value=scale_value,
+                show_progress=show_progress,
+                **kwargs,
+            )
+        else:
+            raise ValueError(f"Unknown model: '{model}'. Supported: 'glm', 'ridge'")
+
     def fit_glm(
         self,
         events: pd.DataFrame,
@@ -3045,6 +3129,105 @@ class BrainCollection:
 
         return beta_collection
 
+    def fit_from_events(
+        self,
+        events: pd.DataFrame,
+        t_r: float,
+        confounds: str | list[pd.DataFrame | Path | str] | None = None,
+        confound_columns: list[str] | None = None,
+        hrf_model: str = "spm",
+        drift_model: str = "cosine",
+        high_pass: float = 0.01,
+        scale: bool = True,
+        scale_value: float = 100.0,
+        return_stats: list[str] | None = None,
+        return_residuals: bool = False,
+        save: dict[str, str] | None = None,
+        show_progress: bool = True,
+        by_run: bool = False,
+        run_column: str = "run",
+        run_lengths: int | list[int] | None = None,
+    ) -> "BrainCollection":
+        """
+        Build design matrices from events and fit GLM to each subject.
+
+        Convenience method for event-based experimental designs. Builds
+        nilearn-compatible design matrices from the events DataFrame and
+        fits a GLM to each subject in the collection.
+
+        This is the recommended method for typical task-based fMRI analysis
+        where you have event timing information. For more control, use
+        fit(model='glm', X=design_matrices) with pre-built design matrices.
+
+        Args:
+            events: Task events DataFrame with onset, duration, trial_type columns.
+                This is shared across all subjects (same experimental paradigm).
+                If by_run=True, must also have a run column.
+            t_r: Repetition time (TR) in seconds.
+            confounds: Subject-specific confounds. Can be:
+                - str: Column name in metadata pointing to confound file paths
+                - list: List of DataFrames or paths, one per subject
+                - None: No confounds (only task + drift terms)
+            confound_columns: Columns to extract from confound files.
+                If None and confounds provided, uses all columns.
+            hrf_model: HRF model for convolution ('spm', 'glover', 'fir', etc.)
+            drift_model: Drift model ('cosine', 'polynomial', None)
+            high_pass: High-pass filter cutoff in Hz (default 0.01)
+            scale: If True, apply percent signal change scaling before fitting.
+            scale_value: Scaling value (default 100.0 for percent signal change).
+            return_stats: Optional list of statistics to return as separate
+                BrainCollections. Options: 't', 'r2', 'p', 'se', 'residual'.
+            return_residuals: If True, return residuals (same as return_stats=['residual']).
+            save: Dict mapping output type to path template.
+            show_progress: Show progress bar during fitting.
+            by_run: If True, fit GLM separately per run and return run-level betas.
+                This enables MVPA decoding with leave-one-run-out CV.
+            run_column: Column name in events identifying runs (default 'run').
+            run_lengths: Number of TRs per run. Required when by_run=True.
+
+        Returns:
+            BrainCollection of beta coefficients for task regressors.
+            If return_stats specified, returns dict with keys 'betas', 't', etc.
+
+        Examples:
+            >>> # Basic GLM fit from events
+            >>> betas = bc.fit_from_events(events=events_df, t_r=2.0)
+            >>> group_t = betas.ttest()
+            >>>
+            >>> # With confounds from metadata column
+            >>> betas = bc.fit_from_events(
+            ...     events=events_df,
+            ...     t_r=2.0,
+            ...     confounds='confound_file',
+            ...     confound_columns=['trans_x', 'trans_y', 'trans_z']
+            ... )
+            >>>
+            >>> # Run-level betas for MVPA
+            >>> betas = bc.fit_from_events(events=events_df, t_r=2.0, by_run=True)
+
+        See Also:
+            fit: Unified fit method that accepts pre-built design matrices
+            _fit_glm: Internal method for design matrix-based fitting
+        """
+        return self.fit_glm(
+            events=events,
+            t_r=t_r,
+            confounds=confounds,
+            confound_columns=confound_columns,
+            hrf_model=hrf_model,
+            drift_model=drift_model,
+            high_pass=high_pass,
+            scale=scale,
+            scale_value=scale_value,
+            return_stats=return_stats,
+            return_residuals=return_residuals,
+            save=save,
+            show_progress=show_progress,
+            by_run=by_run,
+            run_column=run_column,
+            run_lengths=run_lengths,
+        )
+
     def _resolve_confounds(
         self,
         confounds: str | list[pd.DataFrame | Path | str] | None,
@@ -3083,6 +3266,167 @@ class BrainCollection:
         raise TypeError(
             f"confounds must be str, list, or None, got {type(confounds).__name__}"
         )
+
+    def _fit_glm(
+        self,
+        X: "pd.DataFrame | np.ndarray | str | list",
+        scale: bool = True,
+        scale_value: float = 100.0,
+        return_stats: list[str] | None = None,
+        save: dict[str, str] | None = None,
+        show_progress: bool = True,
+    ) -> "BrainCollection | dict[str, BrainCollection]":
+        """Internal GLM fitting with design matrix input.
+
+        Core implementation that accepts DesignMatrix/DataFrame directly.
+        Called by fit(model='glm') and fit_from_events().
+
+        Args:
+            X: Design matrix. Can be:
+                - pd.DataFrame/DesignMatrix: Shared (used for all subjects)
+                - np.ndarray: Shared array (converted to DataFrame internally)
+                - str: Column name in metadata pointing to file paths
+                - list: Per-subject list of DataFrames/arrays/paths
+            scale: If True, apply percent signal change scaling before fitting.
+            scale_value: Scaling value (default 100.0 for percent signal change).
+            return_stats: Optional list of statistics to return as separate
+                BrainCollections. Options: 't', 'r2', 'p', 'se', 'residual'.
+            save: Dict mapping output type to path template.
+            show_progress: Show progress bar during fitting.
+
+        Returns:
+            BrainCollection of betas, or dict with betas + requested stats.
+        """
+        # Validate return_stats
+        valid_stats = {"t", "r2", "p", "se", "residual"}
+        if return_stats is not None:
+            invalid = set(return_stats) - valid_stats
+            if invalid:
+                raise ValueError(
+                    f"Invalid return_stats: {invalid}. Valid options: {valid_stats}"
+                )
+
+        # Resolve X to per-subject list (or None if shared)
+        X_list = self._resolve_X(X)
+
+        # Progress bar setup
+        iterator = range(len(self))
+        if show_progress and tqdm is not None:
+            iterator = tqdm.tqdm(iterator, desc="Fitting GLM", unit="subject")
+
+        # Storage for results
+        beta_data_list = []
+        beta_metadata = []
+        stat_data = {stat: [] for stat in (return_stats or [])}
+        design_columns = None  # Will be set on first subject
+
+        for i in iterator:
+            # Load subject data
+            bd = self._load_item(i)
+            metadata_row = self._metadata.iloc[i]
+
+            # Get subject-specific design matrix
+            X_subj = X_list[i] if X_list else X
+
+            # Load from file if needed
+            if isinstance(X_subj, (str, Path)):
+                X_subj = self._load_design_matrix(X_subj)
+
+            # Convert array to DataFrame if needed
+            if isinstance(X_subj, np.ndarray):
+                X_subj = pd.DataFrame(
+                    X_subj, columns=[f"col_{j}" for j in range(X_subj.shape[1])]
+                )
+
+            # Store design columns for result metadata
+            if design_columns is None:
+                design_columns = list(X_subj.columns)
+
+            # Validate shapes match
+            if X_subj.shape[0] != bd.shape[0]:
+                raise ValueError(
+                    f"Subject {i}: X has {X_subj.shape[0]} samples but data has "
+                    f"{bd.shape[0]} samples. Shapes must match."
+                )
+
+            # Apply scaling if requested (scale=False since we scale here)
+            if scale:
+                bd = bd.scale(scale_value)
+
+            # Fit GLM using BrainData.fit()
+            bd.fit(model="glm", X=X_subj, scale=False)
+
+            # Extract betas
+            betas = bd[0].copy()
+            betas.data = bd.glm_betas.data
+            betas._design_columns = design_columns
+
+            # Save if requested
+            if save and "betas" in save:
+                save_path = _resolve_save_path(save["betas"], metadata_row, i)
+                betas.write(str(save_path))
+
+            beta_data_list.append(betas)
+            beta_metadata.append(metadata_row.to_dict())
+
+            # Extract optional stats
+            if return_stats:
+                for stat in return_stats:
+                    if stat == "t":
+                        stat_bd = bd[0].copy()
+                        stat_bd.data = bd.glm_t.data
+                    elif stat == "p":
+                        stat_bd = bd[0].copy()
+                        stat_bd.data = bd.glm_p.data
+                    elif stat == "se":
+                        stat_bd = bd[0].copy()
+                        stat_bd.data = bd.glm_se.data
+                    elif stat == "r2":
+                        stat_bd = bd[0].copy()
+                        stat_bd.data = bd.glm_r2.data
+                    elif stat == "residual":
+                        stat_bd = bd[0].copy()
+                        stat_bd.data = bd.glm_residual.data
+
+                    stat_bd._design_columns = design_columns
+
+                    if save and stat in save:
+                        save_path = _resolve_save_path(save[stat], metadata_row, i)
+                        stat_bd.write(str(save_path))
+
+                    stat_data[stat].append(stat_bd)
+
+        # Build result collection
+        result_metadata = pd.DataFrame(beta_metadata)
+        beta_collection = BrainCollection(
+            beta_data_list, mask=self._mask, metadata=result_metadata, lazy=False
+        )
+        beta_collection._design_columns = design_columns
+
+        # Return stats if requested
+        if return_stats:
+            result = {"betas": beta_collection}
+            for stat, data_list in stat_data.items():
+                stat_collection = BrainCollection(
+                    data_list, mask=self._mask, metadata=result_metadata, lazy=False
+                )
+                stat_collection._design_columns = design_columns
+                result[stat] = stat_collection
+            return result
+
+        return beta_collection
+
+    def _load_design_matrix(self, path: str | Path) -> pd.DataFrame:
+        """Load design matrix from a file path.
+
+        Supports common formats: .csv, .tsv, .txt
+        """
+        path = Path(path)
+        if not path.exists():
+            raise FileNotFoundError(f"Design matrix file not found: {path}")
+
+        sep = "\t" if path.suffix in [".tsv", ".txt"] else ","
+        return pd.read_csv(path, sep=sep)
 
     def fit_ridge(
         self,
@@ -3164,7 +3508,7 @@ class BrainCollection:
             )
 
         # Resolve X to per-subject list (returns None if shared array)
-        X_list = self._resolve_features(X)
+        X_list = self._resolve_X(X)
 
         # Progress bar setup
         iterator = range(len(self))
@@ -3291,38 +3635,51 @@ class BrainCollection:
 
             return {"weights": weight_collection, "scores": score_collection}
 
-    def _resolve_features(
+    def _resolve_X(
         self,
-        X: "np.ndarray | str | list | None",
+        X: "np.ndarray | pd.DataFrame | str | list | None",
     ) -> list | None:
-        """Resolve feature matrix X to per-subject list.
+        """Resolve design/feature matrix X to per-subject list.
+
+        Unified helper for resolving X parameter across fit methods. Supports
+        three input patterns:
+        1. Shared matrix (array/DataFrame/DesignMatrix): Same X for all subjects
+        2. Per-subject list: List of matrices, one per subject
+        3. Metadata column: String column name pointing to file paths
 
         Args:
-            X: Either:
-                - np.ndarray: Shared features (used for all subjects)
-                - str: Column name in metadata containing feature paths
-                - list: Already per-subject list of arrays
+            X: Design/feature matrix. Can be:
+                - np.ndarray: Shared array (used for all subjects)
+                - pd.DataFrame: Shared DataFrame/DesignMatrix (used for all subjects)
+                - str: Column name in metadata containing file paths
+                - list: Per-subject list of arrays/DataFrames/paths
                 - None: Error
 
         Returns:
-            List of features (one per subject) or None if shared
+            list | None: Per-subject list if X varies by subject, None if shared.
+                Caller should use: `X_subj = X_list[i] if X_list else X`
         """
         if X is None:
             raise ValueError("X must be provided")
 
+        # Shared array - return None to signal no per-subject list
         if isinstance(X, np.ndarray):
-            # Shared features - return None to signal no per-subject list
             return None
 
+        # Shared DataFrame/DesignMatrix - return None to signal shared
+        if isinstance(X, pd.DataFrame):
+            return None
+
+        # Metadata column name - return list of file paths
         if isinstance(X, str):
-            # It's a metadata column name
             if X not in self._metadata.columns:
                 raise KeyError(
-                    f"Feature column '{X}' not found in metadata. "
+                    f"Column '{X}' not found in metadata. "
                     f"Available: {list(self._metadata.columns)}"
                 )
             return list(self._metadata[X])
 
+        # Per-subject list - validate length
         if isinstance(X, list):
             if len(X) != len(self):
                 raise ValueError(
@@ -3331,7 +3688,9 @@ class BrainCollection:
                 )
             return X
 
-        raise TypeError(f"X must be np.ndarray, str, or list, got {type(X).__name__}")
+        raise TypeError(
+            f"X must be np.ndarray, DataFrame, str, or list, got {type(X).__name__}"
+        )
 
     def _load_features(self, path: str | Path) -> np.ndarray:
         """Load features from a file path.
@@ -3454,7 +3813,7 @@ class BrainCollection:
         X_list = None
         shared_X = None
         if X is not None:
-            X_resolved = self._resolve_features(X)
+            X_resolved = self._resolve_X(X)
             if X_resolved is None:
                 # Shared features
                 shared_X = X
