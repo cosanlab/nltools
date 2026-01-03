@@ -216,6 +216,142 @@ def _build_subject_design_matrix(
     return full_dm, task_columns
 
 
+def _fit_glm_by_run(
+    bd: "BrainData",
+    events: pd.DataFrame,
+    runs: list,
+    run_column: str,
+    run_lengths: int | list[int] | None,
+    t_r: float,
+    confounds: pd.DataFrame | None,
+    confound_columns: list[str] | None,
+    hrf_model: str,
+    drift_model: str,
+    high_pass: float,
+    scale: bool,
+    scale_value: float,
+) -> tuple["BrainData", list[str], list[str], list]:
+    """Fit GLM separately for each run and stack betas.
+
+    Args:
+        bd: Subject's BrainData (concatenated timeseries)
+        events: Events DataFrame with run column
+        runs: Unique run identifiers (sorted)
+        run_column: Column name for run identifier
+        run_lengths: TRs per run (int for uniform, list for variable, None to infer)
+        t_r: Repetition time
+        confounds: Subject confounds (concatenated) or None
+        confound_columns: Columns to extract from confounds
+        hrf_model: HRF model for design matrix
+        drift_model: Drift model
+        high_pass: High-pass filter cutoff
+        scale: Whether to apply percent signal change scaling
+        scale_value: Scaling value
+
+    Returns:
+        Tuple of:
+            - BrainData with stacked run-level betas (n_runs * n_conditions, n_voxels)
+            - task_columns: List of condition names
+            - condition_labels: Condition label for each beta row
+            - run_labels: Run label for each beta row
+    """
+    n_scans = bd.shape[0]
+    n_runs = len(runs)
+
+    # Resolve run lengths
+    if run_lengths is None:
+        # Try to infer equal-length runs
+        if n_scans % n_runs != 0:
+            raise ValueError(
+                f"Cannot infer run lengths: {n_scans} scans not evenly divisible by "
+                f"{n_runs} runs. Please provide run_lengths parameter."
+            )
+        run_length_list = [n_scans // n_runs] * n_runs
+    elif isinstance(run_lengths, int):
+        run_length_list = [run_lengths] * n_runs
+    else:
+        run_length_list = list(run_lengths)
+
+    # Validate total matches
+    if sum(run_length_list) != n_scans:
+        raise ValueError(
+            f"run_lengths sum ({sum(run_length_list)}) does not match "
+            f"total scans ({n_scans})"
+        )
+
+    # Calculate run start indices
+    run_starts = [0]
+    for length in run_length_list[:-1]:
+        run_starts.append(run_starts[-1] + length)
+
+    # Storage for run-level results
+    all_betas = []
+    condition_labels = []
+    run_labels = []
+    task_columns = None
+
+    for run_idx, run_id in enumerate(runs):
+        # Get run boundaries
+        start_tr = run_starts[run_idx]
+        end_tr = start_tr + run_length_list[run_idx]
+        n_run_scans = run_length_list[run_idx]
+
+        # Slice data for this run
+        run_bd = bd[start_tr:end_tr]
+
+        # Filter events to this run and adjust onsets (assuming run-relative onsets)
+        run_events = events[events[run_column] == run_id].copy()
+        # Remove run column for design matrix building
+        run_events = run_events.drop(columns=[run_column])
+
+        # Slice confounds if provided
+        run_confounds = None
+        if confounds is not None:
+            run_confounds = confounds.iloc[start_tr:end_tr].reset_index(drop=True)
+
+        # Build design matrix for this run
+        dm, task_cols = _build_subject_design_matrix(
+            events=run_events,
+            n_scans=n_run_scans,
+            t_r=t_r,
+            confounds=run_confounds,
+            confound_columns=confound_columns,
+            hrf_model=hrf_model,
+            drift_model=drift_model,
+            high_pass=high_pass,
+        )
+
+        # Store task columns from first run
+        if task_columns is None:
+            task_columns = task_cols
+
+        # Apply scaling if requested
+        if scale:
+            run_bd = run_bd.scale(scale_value)
+
+        # Fit GLM
+        run_bd.fit(model="glm", X=dm)
+
+        # Extract task betas only
+        task_indices = [dm.columns.get_loc(col) for col in task_cols]
+        run_betas = run_bd.glm_betas.data[task_indices, :]
+
+        # Store betas and labels
+        all_betas.append(run_betas)
+        condition_labels.extend(task_cols)
+        run_labels.extend([run_id] * len(task_cols))
+
+    # Stack all run betas
+    stacked_betas = np.vstack(all_betas)
+
+    # Create output BrainData
+    result = bd[0].copy()
+    result.data = stacked_betas
+    result._design_columns = task_columns
+
+    return result, task_columns, condition_labels, run_labels
+
+
 class BrainCollection:
     """
     Collection of brain images with tensor-like operations.
@@ -2652,6 +2788,9 @@ class BrainCollection:
         return_residuals: bool = False,
         save: dict[str, str] | None = None,
         show_progress: bool = True,
+        by_run: bool = False,
+        run_column: str = "run",
+        run_lengths: int | list[int] | None = None,
     ) -> "BrainCollection":
         """
         Fit GLM to each subject in collection.
@@ -2663,6 +2802,7 @@ class BrainCollection:
         Args:
             events: Task events DataFrame with onset, duration, trial_type columns.
                 This is shared across all subjects (same experimental paradigm).
+                If by_run=True, must also have a run column.
             t_r: Repetition time (TR) in seconds.
             confounds: Subject-specific confounds. Can be:
                 - str: Column name in metadata pointing to confound file paths
@@ -2683,10 +2823,21 @@ class BrainCollection:
                  't': 'output/{subject}_tstat.nii.gz'}
                 Supports {subject}, {session}, {idx}, and other metadata columns.
             show_progress: Show progress bar during fitting.
+            by_run: If True, fit GLM separately per run and return run-level betas.
+                This enables MVPA decoding with leave-one-run-out CV.
+                Each subject will have (n_runs * n_conditions, n_voxels) betas.
+            run_column: Column name in events identifying runs (default 'run').
+            run_lengths: Number of TRs per run. Required when by_run=True.
+                - int: All runs have same length
+                - list[int]: Different length per run
+                - None: Will attempt to infer equal-length runs from total scans
 
         Returns:
-            BrainCollection where each BrainData has shape (n_task_regressors, n_voxels).
+            BrainCollection where each BrainData has shape:
+                - (n_task_regressors, n_voxels) if by_run=False (default)
+                - (n_runs * n_task_regressors, n_voxels) if by_run=True
             The ._design_columns attribute stores task regressor names.
+            If by_run=True, also stores ._condition_labels and ._run_labels.
             If return_stats specified, returns dict with keys 'betas', 't', etc.
 
         Examples:
@@ -2695,6 +2846,12 @@ class BrainCollection:
             >>> # Group t-test on first regressor
             >>> group_t = betas[:, 0].ttest()
 
+            >>> # Run-level betas for MVPA decoding
+            >>> betas = bc.fit_glm(events=events_df, t_r=2.0, by_run=True)
+            >>> # betas._condition_labels = ['face', 'house', 'face', 'house', ...]
+            >>> # betas._run_labels = [1, 1, 2, 2, 3, 3, ...]
+            >>> accuracy = betas.predict(y=None, method='searchlight')
+
             >>> # With confounds from metadata column
             >>> betas = bc.fit_glm(
             ...     events=events_df,
@@ -2702,18 +2859,6 @@ class BrainCollection:
             ...     confounds='confound_file',  # column name in metadata
             ...     confound_columns=['trans_x', 'trans_y', 'trans_z', 'rot_x', 'rot_y', 'rot_z']
             ... )
-
-            >>> # Save intermediates
-            >>> betas = bc.fit_glm(
-            ...     events=events_df,
-            ...     t_r=2.0,
-            ...     save={'betas': 'derivatives/{subject}/betas.nii.gz'}
-            ... )
-
-            >>> # Get t-stats too
-            >>> results = bc.fit_glm(events=events_df, t_r=2.0, return_stats=['t'])
-            >>> betas = results['betas']
-            >>> tstats = results['t']
         """
         # Handle return_residuals shorthand
         if return_residuals and return_stats is None:
@@ -2730,6 +2875,22 @@ class BrainCollection:
                     f"Invalid return_stats: {invalid}. Valid options: {valid_stats}"
                 )
 
+        # Validate by_run parameters
+        if by_run:
+            if run_column not in events.columns:
+                raise ValueError(
+                    f"by_run=True requires '{run_column}' column in events. "
+                    f"Available columns: {list(events.columns)}"
+                )
+            runs = sorted(events[run_column].unique())
+            if return_stats is not None:
+                raise NotImplementedError(
+                    "return_stats is not yet supported with by_run=True. "
+                    "Only beta coefficients are returned."
+                )
+        else:
+            runs = None
+
         # Resolve confounds to per-subject list
         confounds_list = self._resolve_confounds(confounds)
 
@@ -2743,6 +2904,9 @@ class BrainCollection:
         beta_metadata = []
         stat_data = {stat: [] for stat in (return_stats or [])}
         task_columns = None  # Will be set on first subject
+        # For by_run mode: store labels (same for all subjects)
+        all_condition_labels = None
+        all_run_labels = None
 
         for i in iterator:
             # Load subject data
@@ -2753,37 +2917,73 @@ class BrainCollection:
             # Get subject-specific confounds
             subj_confounds = confounds_list[i] if confounds_list else None
 
-            # Build design matrix
-            dm, task_cols = _build_subject_design_matrix(
-                events=events,
-                n_scans=n_scans,
-                t_r=t_r,
-                confounds=subj_confounds,
-                confound_columns=confound_columns,
-                hrf_model=hrf_model,
-                drift_model=drift_model,
-                high_pass=high_pass,
-            )
+            if by_run:
+                # ===== BY_RUN MODE: Fit GLM separately per run =====
+                # Load confounds as DataFrame for slicing
+                if subj_confounds is not None:
+                    if isinstance(subj_confounds, (str, Path)):
+                        conf_path = Path(subj_confounds)
+                        sep = "\t" if conf_path.suffix in [".tsv", ".txt"] else ","
+                        subj_confounds = pd.read_csv(conf_path, sep=sep)
+                        if confound_columns:
+                            subj_confounds = subj_confounds[confound_columns]
+                        subj_confounds = subj_confounds.fillna(0)
 
-            # Store task columns for later
-            if task_columns is None:
-                task_columns = task_cols
+                task_betas, task_cols, cond_labels, run_lbls = _fit_glm_by_run(
+                    bd=bd,
+                    events=events,
+                    runs=runs,
+                    run_column=run_column,
+                    run_lengths=run_lengths,
+                    t_r=t_r,
+                    confounds=subj_confounds,
+                    confound_columns=confound_columns,
+                    hrf_model=hrf_model,
+                    drift_model=drift_model,
+                    high_pass=high_pass,
+                    scale=scale,
+                    scale_value=scale_value,
+                )
 
-            # Apply scaling if requested
-            if scale:
-                bd = bd.scale(scale_value)
+                # Store task columns and labels from first subject
+                if task_columns is None:
+                    task_columns = task_cols
+                    all_condition_labels = cond_labels
+                    all_run_labels = run_lbls
 
-            # Fit GLM
-            bd.fit(model="glm", X=dm)
+            else:
+                # ===== STANDARD MODE: Single GLM per subject =====
+                # Build design matrix
+                dm, task_cols = _build_subject_design_matrix(
+                    events=events,
+                    n_scans=n_scans,
+                    t_r=t_r,
+                    confounds=subj_confounds,
+                    confound_columns=confound_columns,
+                    hrf_model=hrf_model,
+                    drift_model=drift_model,
+                    high_pass=high_pass,
+                )
 
-            # Extract task betas only (not confounds/drift)
-            task_indices = [dm.columns.get_loc(col) for col in task_cols]
-            task_betas_data = bd.glm_betas.data[task_indices, :]
+                # Store task columns for later
+                if task_columns is None:
+                    task_columns = task_cols
 
-            # Create BrainData for task betas by copying structure
-            task_betas = bd[0].copy()
-            task_betas.data = task_betas_data
-            task_betas._design_columns = task_cols  # Store for contrast parsing
+                # Apply scaling if requested
+                if scale:
+                    bd = bd.scale(scale_value)
+
+                # Fit GLM
+                bd.fit(model="glm", X=dm)
+
+                # Extract task betas only (not confounds/drift)
+                task_indices = [dm.columns.get_loc(col) for col in task_cols]
+                task_betas_data = bd.glm_betas.data[task_indices, :]
+
+                # Create BrainData for task betas by copying structure
+                task_betas = bd[0].copy()
+                task_betas.data = task_betas_data
+                task_betas._design_columns = task_cols  # Store for contrast parsing
 
             # Save if requested
             if save and "betas" in save:
@@ -2793,7 +2993,7 @@ class BrainCollection:
             beta_data_list.append(task_betas)
             beta_metadata.append(metadata_row.to_dict())
 
-            # Extract optional stats
+            # Extract optional stats (standard mode only, validated earlier)
             if return_stats:
                 for stat in return_stats:
                     if stat == "t":
@@ -2829,6 +3029,11 @@ class BrainCollection:
             metadata=pd.DataFrame(beta_metadata),
         )
         beta_collection._design_columns = task_columns
+
+        # Store run-level labels for MVPA workflows
+        if by_run:
+            beta_collection._condition_labels = all_condition_labels
+            beta_collection._run_labels = all_run_labels
 
         # Return based on what was requested
         if return_stats:
@@ -3149,6 +3354,166 @@ class BrainCollection:
             return pd.read_csv(path, sep=sep).values
         else:
             raise ValueError(f"Unsupported feature file format: {suffix}")
+
+    def predict(
+        self,
+        X: "np.ndarray | str | list | None" = None,
+        y: "np.ndarray | None" = None,
+        method: str = "whole_brain",
+        estimator="svm",
+        cv=5,
+        groups: "np.ndarray | None" = None,
+        roi_mask=None,
+        radius: float = 10.0,
+        scoring: str = "accuracy",
+        standardize: bool = True,
+        n_jobs: int = -1,
+        show_progress: bool = True,
+    ) -> "BrainCollection":
+        """
+        Generate predictions for each subject in collection.
+
+        This method supports two prediction modes determined by which parameter
+        is provided:
+
+        1. **Timeseries prediction** (X provided): Use fitted ridge model to
+           predict voxel responses for new feature data.
+
+        2. **MVPA decoding** (y provided): Train a classifier to predict labels
+           from brain patterns using cross-validation.
+
+        For MVPA, if this collection was created with by_run=True, you can
+        use y=None to infer labels from _condition_labels and groups from
+        _run_labels (leave-one-run-out CV).
+
+        Args:
+            X: Features for timeseries prediction. Can be:
+                - np.ndarray: Shared features (same for all subjects)
+                - str: Metadata column with per-subject feature paths
+                - list: Per-subject feature arrays
+            y: Labels for MVPA decoding. If None and _condition_labels exists,
+                will use stored condition labels (from fit_glm with by_run=True).
+            method: MVPA method - 'whole_brain', 'searchlight', or 'roi'.
+            estimator: Classifier - 'svm', 'logistic', 'ridge', 'lda' or
+                sklearn estimator instance.
+            cv: Cross-validation strategy. If None and _run_labels exists,
+                uses leave-one-group-out with run labels.
+            groups: Group labels for GroupKFold/LeaveOneGroupOut. If None
+                and _run_labels exists, uses stored run labels.
+            roi_mask: Mask for ROI-based MVPA. Required if method='roi'.
+            radius: Searchlight radius in mm (default 10.0).
+            scoring: Scoring metric (default 'accuracy').
+            standardize: If True, standardize features before classification.
+            n_jobs: Parallel jobs for searchlight (-1 = all cores).
+            show_progress: Show progress bar during fitting.
+
+        Returns:
+            BrainCollection with prediction results:
+            - For timeseries: (n_timepoints, n_voxels) predicted responses
+            - For MVPA: (1, n_voxels) accuracy values
+
+        Examples:
+            >>> # MVPA workflow with run-level betas
+            >>> betas = bc.fit_glm(events=events, t_r=2.0, by_run=True)
+            >>> accuracy = betas.predict(y=None, method='whole_brain')
+            >>> # y and groups inferred from _condition_labels, _run_labels
+
+            >>> # Explicit labels
+            >>> accuracy = betas.predict(y=labels, method='searchlight')
+
+            >>> # Timeseries prediction with ridge weights
+            >>> weights = bc.fit_ridge(X=features, output='weights')
+            >>> predictions = weights.predict(X=new_features)
+        """
+        # Validate mutually exclusive modes
+        if X is not None and y is not None:
+            raise ValueError(
+                "Cannot specify both X and y. Use X for timeseries prediction "
+                "or y for MVPA decoding."
+            )
+
+        # Infer y from _condition_labels if available
+        if y is None and X is None:
+            if hasattr(self, "_condition_labels") and self._condition_labels:
+                y = np.array(self._condition_labels)
+            else:
+                raise ValueError(
+                    "Must provide X for timeseries prediction or y for MVPA. "
+                    "If using fit_glm(by_run=True), y can be inferred from "
+                    "_condition_labels."
+                )
+
+        # Infer groups from _run_labels if available
+        if y is not None and groups is None:
+            if hasattr(self, "_run_labels") and self._run_labels:
+                groups = np.array(self._run_labels)
+
+        # Progress bar setup
+        iterator = range(len(self))
+        if show_progress and tqdm is not None:
+            desc = "Predicting (MVPA)" if y is not None else "Predicting (timeseries)"
+            iterator = tqdm.tqdm(iterator, desc=desc, unit="subject")
+
+        # Resolve per-subject features if X is provided
+        X_list = None
+        shared_X = None
+        if X is not None:
+            X_resolved = self._resolve_features(X)
+            if X_resolved is None:
+                # Shared features
+                shared_X = X
+            else:
+                X_list = X_resolved
+
+        # Storage for results
+        result_data_list = []
+        result_metadata = []
+
+        for i in iterator:
+            # Load subject data
+            bd = self._load_item(i)
+            metadata_row = self._metadata.iloc[i]
+
+            if X is not None:
+                # Timeseries prediction mode
+                if X_list is not None:
+                    subj_X = X_list[i]
+                    if isinstance(subj_X, (str, Path)):
+                        subj_X = self._load_features(subj_X)
+                else:
+                    subj_X = shared_X
+
+                result = bd.predict(X=subj_X)
+            else:
+                # MVPA mode
+                result = bd.predict(
+                    y=y,
+                    method=method,
+                    estimator=estimator,
+                    cv=cv,
+                    groups=groups,
+                    roi_mask=roi_mask,
+                    radius=radius,
+                    scoring=scoring,
+                    standardize=standardize,
+                    n_jobs=n_jobs,
+                    show_progress=False,  # Disable per-subject progress
+                )
+
+            result_data_list.append(result)
+            result_metadata.append(metadata_row.to_dict())
+
+            # Unload to free memory
+            self.unload([i])
+
+        # Build result collection
+        result_collection = BrainCollection(
+            result_data_list,
+            mask=self.mask,
+            metadata=pd.DataFrame(result_metadata),
+        )
+
+        return result_collection
 
     def compute_contrasts(
         self,

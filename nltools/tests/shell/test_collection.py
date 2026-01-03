@@ -1905,6 +1905,95 @@ class TestBrainCollectionFitGLM:
         with pytest.raises(ValueError, match="must match collection length"):
             small_collection._resolve_confounds([pd.DataFrame()] * 5)  # Wrong length
 
+    def test_fit_glm_by_run_basic(self, small_collection):
+        """Test fit_glm with by_run=True for run-level betas."""
+        # Create events with run column (2 runs, 10 TRs each)
+        events = pd.DataFrame(
+            {
+                "onset": [0, 4, 0, 4],  # Run-relative onsets
+                "duration": [2, 2, 2, 2],
+                "trial_type": ["face", "house", "face", "house"],
+                "run": [1, 1, 2, 2],  # 2 events per run
+            }
+        )
+
+        betas = small_collection.fit_glm(
+            events=events,
+            t_r=2.0,
+            by_run=True,
+            run_lengths=10,  # 10 TRs per run
+            show_progress=False,
+        )
+
+        # Should return BrainCollection
+        assert isinstance(betas, BrainCollection)
+        # Same number of subjects
+        assert len(betas) == 3
+        # Each subject should have 4 betas: 2 conditions x 2 runs
+        assert betas[0].shape[0] == 4
+
+    def test_fit_glm_by_run_stores_labels(self, small_collection):
+        """Test that by_run mode stores condition and run labels."""
+        events = pd.DataFrame(
+            {
+                "onset": [0, 4, 0, 4],
+                "duration": [2, 2, 2, 2],
+                "trial_type": ["face", "house", "face", "house"],
+                "run": [1, 1, 2, 2],
+            }
+        )
+
+        betas = small_collection.fit_glm(
+            events=events,
+            t_r=2.0,
+            by_run=True,
+            run_lengths=10,
+            show_progress=False,
+        )
+
+        # Should have _condition_labels and _run_labels
+        assert hasattr(betas, "_condition_labels")
+        assert hasattr(betas, "_run_labels")
+        # Should have 4 labels each (2 conditions x 2 runs)
+        assert len(betas._condition_labels) == 4
+        assert len(betas._run_labels) == 4
+        # Check structure: [face, house, face, house] for conditions
+        assert betas._condition_labels == ["face", "house", "face", "house"]
+        # Check structure: [1, 1, 2, 2] for runs
+        assert betas._run_labels == [1, 1, 2, 2]
+
+    def test_fit_glm_by_run_missing_run_column(self, small_collection, simple_events):
+        """Test error when run column is missing."""
+        # simple_events doesn't have a run column
+        with pytest.raises(ValueError, match="requires 'run' column"):
+            small_collection.fit_glm(
+                events=simple_events,
+                t_r=2.0,
+                by_run=True,
+                show_progress=False,
+            )
+
+    def test_fit_glm_by_run_return_stats_not_supported(self, small_collection):
+        """Test that return_stats is not supported with by_run."""
+        events = pd.DataFrame(
+            {
+                "onset": [0, 4, 0, 4],
+                "duration": [2, 2, 2, 2],
+                "trial_type": ["face", "house", "face", "house"],
+                "run": [1, 1, 2, 2],
+            }
+        )
+
+        with pytest.raises(NotImplementedError, match="not yet supported with by_run"):
+            small_collection.fit_glm(
+                events=events,
+                t_r=2.0,
+                by_run=True,
+                run_lengths=10,
+                return_stats=["t"],
+                show_progress=False,
+            )
+
 
 class TestBrainCollectionFitRidge:
     """Tests for BrainCollection.fit_ridge() method."""
@@ -2118,6 +2207,99 @@ class TestBrainCollectionFitRidge:
         """Test error when features list has wrong length."""
         with pytest.raises(ValueError, match="must match collection length"):
             small_collection._resolve_features([np.array([])] * 5)  # Wrong length
+
+
+class TestBrainCollectionPredict:
+    """Tests for BrainCollection.predict() method."""
+
+    @pytest.fixture
+    def mvpa_collection(self, sample_brain_data, sample_mask):
+        """Create a BrainCollection simulating fit_glm(by_run=True) output."""
+        subjects = []
+        for i in range(3):
+            bd = sample_brain_data.copy()
+            # 4 betas: 2 conditions x 2 runs
+            bd.data = np.random.randn(4, bd.shape[1])
+            subjects.append(bd)
+
+        bc = BrainCollection(
+            subjects,
+            mask=sample_mask,
+            metadata=pd.DataFrame({"subject": ["sub-01", "sub-02", "sub-03"]}),
+        )
+        # Simulate by_run labels
+        bc._condition_labels = ["face", "house", "face", "house"]
+        bc._run_labels = [1, 1, 2, 2]
+        return bc
+
+    def test_predict_mvpa_with_labels(self, mvpa_collection):
+        """Test predict(y=...) performs MVPA for each subject."""
+        y = np.array([0, 1, 0, 1])  # Binary labels for 4 samples
+
+        accuracy = mvpa_collection.predict(
+            y=y,
+            method="whole_brain",
+            cv=2,
+            show_progress=False,
+        )
+
+        # Should return BrainCollection
+        assert isinstance(accuracy, BrainCollection)
+        # Same number of subjects
+        assert len(accuracy) == 3
+        # Each subject should have 1 accuracy value
+        assert accuracy[0].shape[0] == 1
+
+    def test_predict_mvpa_inferred_labels(self, mvpa_collection):
+        """Test predict(y=None) infers labels from _condition_labels."""
+        accuracy = mvpa_collection.predict(
+            y=None,
+            method="whole_brain",
+            cv=2,
+            show_progress=False,
+        )
+
+        assert isinstance(accuracy, BrainCollection)
+        assert len(accuracy) == 3
+
+    def test_predict_mvpa_inferred_groups(self, mvpa_collection):
+        """Test that groups are inferred from _run_labels."""
+        # With _run_labels, should use LeaveOneGroupOut
+        accuracy = mvpa_collection.predict(
+            y=None,  # Uses _condition_labels
+            method="whole_brain",
+            cv=2,
+            show_progress=False,
+        )
+
+        assert isinstance(accuracy, BrainCollection)
+        assert len(accuracy) == 3
+
+    def test_predict_cannot_specify_both_x_and_y(self, mvpa_collection):
+        """Test error when both X and y provided."""
+        X = np.random.randn(4, 5)
+        y = np.array([0, 1, 0, 1])
+
+        with pytest.raises(ValueError, match="Cannot specify both X and y"):
+            mvpa_collection.predict(X=X, y=y, show_progress=False)
+
+    def test_predict_requires_x_or_y(self, sample_brain_data, sample_mask):
+        """Test error when neither X nor y provided and no _condition_labels."""
+        # Create collection WITHOUT _condition_labels
+        subjects = []
+        for i in range(3):
+            bd = sample_brain_data.copy()
+            bd.data = np.random.randn(4, bd.shape[1])
+            subjects.append(bd)
+
+        bc = BrainCollection(
+            subjects,
+            mask=sample_mask,
+            metadata=pd.DataFrame({"subject": ["sub-01", "sub-02", "sub-03"]}),
+        )
+
+        with pytest.raises(ValueError, match="Must provide X for timeseries"):
+            bc.predict(show_progress=False)
 
 
 class TestBrainCollectionComputeContrasts:
