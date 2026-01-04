@@ -322,6 +322,7 @@ class MultiSubjectPipeline:
         """
         from .base import FittedStack
         from .results import CVResult
+        from .steps import AlignStep, FittedAlign
 
         results = []
 
@@ -336,10 +337,22 @@ class MultiSubjectPipeline:
 
             # Apply transforms to training subjects
             for step in self.steps:
-                fitted = step.fit(self._concat_subjects(train_subjects))
+                if isinstance(step, AlignStep):
+                    # Alignment expects list of subjects, not concatenated data
+                    fitted = step.fit(train_subjects)
+                else:
+                    fitted = step.fit(self._concat_subjects(train_subjects))
                 fitted_stack.append(fitted)
-                train_subjects = [fitted.transform(s) for s in train_subjects]
-                test_subject = fitted.transform(test_subject)
+
+                # Alignment uses different transform methods for train vs test
+                if isinstance(fitted, FittedAlign):
+                    # Transform training subjects together (returns list)
+                    train_subjects = list(fitted.transform(train_subjects))
+                    # Transform held-out subject using new_subject method
+                    test_subject = fitted.transform_new_subject(test_subject)
+                else:
+                    train_subjects = [fitted.transform(s) for s in train_subjects]
+                    test_subject = fitted.transform(test_subject)
 
             # Pool training data
             train_pooled = self._concat_subjects(train_subjects)

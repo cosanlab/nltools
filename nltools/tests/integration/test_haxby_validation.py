@@ -879,7 +879,9 @@ class TestRSAWorkflow:
 
         # Test distance_to_similarity
         similarity = rdm.distance_to_similarity(metric="correlation")
-        assert isinstance(similarity, Adjacency), "distance_to_similarity should return Adjacency"
+        assert isinstance(similarity, Adjacency), (
+            "distance_to_similarity should return Adjacency"
+        )
 
         # Similarity values should be in [-1, 1] for correlation
         sim_matrix = similarity.squareform()
@@ -960,7 +962,9 @@ class TestSRMWorkflow:
 
         # Check transform dimensionality
         for i, w in enumerate(srm.w_):
-            assert w.shape[1] == n_features, f"Transform {i} should have {n_features} features"
+            assert w.shape[1] == n_features, (
+                f"Transform {i} should have {n_features} features"
+            )
 
         # Check shared response shape
         assert srm.s_.shape == (n_features, n_samples), (
@@ -1069,7 +1073,7 @@ class TestSRMWorkflow:
 
         # Prepare train and test data for each subject
         train_data = []  # List of (n_voxels, n_train_samples) per subject
-        test_data = []   # List of (n_voxels, n_test_samples) per subject
+        test_data = []  # List of (n_voxels, n_test_samples) per subject
 
         for subj_idx in range(1, 7):  # All 6 subjects
             subj_key = f"subj{subj_idx}"
@@ -1077,7 +1081,7 @@ class TestSRMWorkflow:
 
             # Split by runs
             train_betas = subj_betas[:n_train_runs]  # (8, 7, n_voxels)
-            test_betas = subj_betas[n_train_runs:]   # (3, 7, n_voxels)
+            test_betas = subj_betas[n_train_runs:]  # (3, 7, n_voxels)
 
             # Reshape to (n_samples, n_voxels) then transpose to (n_voxels, n_samples)
             train_flat = train_betas.reshape(-1, train_betas.shape[-1]).T
@@ -1090,10 +1094,12 @@ class TestSRMWorkflow:
 
         # Create labels
         train_labels = np.tile(categories * n_train_runs, n_subjects)  # (336,)
-        test_labels = np.tile(categories * n_test_runs, n_subjects)    # (126,)
+        test_labels = np.tile(categories * n_test_runs, n_subjects)  # (126,)
 
         # ===== BASELINE: Raw pooled (no SRM) =====
-        raw_train_pooled = np.hstack(train_data).T  # (n_train_samples * n_subjects, n_voxels)
+        raw_train_pooled = np.hstack(
+            train_data
+        ).T  # (n_train_samples * n_subjects, n_voxels)
         raw_test_pooled = np.hstack(test_data).T
 
         scaler_raw = StandardScaler()

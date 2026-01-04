@@ -188,10 +188,16 @@ class TestAlignStepLOSOFix:
         # Verify it returns a fitted alignment
         assert fitted is not None
 
-        # Transform should work on individual subjects
-        for subj in subject_data:
-            transformed = fitted.transform(subj)
-            assert transformed.shape[1] == 10  # n_features
+        # Transform works on list of subjects (returns list)
+        transformed = fitted.transform(subject_data)
+        assert len(transformed) == len(subject_data)
+        for arr in transformed:
+            assert arr.shape[1] == 10  # n_features
+
+        # Transform new subject (single array) via transform_new_subject
+        new_subject = subject_data[0]
+        transformed_new = fitted.transform_new_subject(new_subject)
+        assert transformed_new.shape[1] == 10  # n_features
 
     def test_mixed_steps_handled_correctly(self, subject_data):
         """Test that regular and alignment steps are handled differently.

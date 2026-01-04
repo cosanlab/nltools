@@ -443,14 +443,23 @@ class FittedAlign:
         Parameters
         ----------
         data : list of ndarray
-            List of subject data arrays, each shape (n_voxels, n_samples).
+            List of subject data arrays, each shape (n_samples, n_features).
+            Pipeline convention is (samples, features).
 
         Returns
         -------
         list of ndarray
-            Aligned data for each subject.
+            Aligned data for each subject, shape (n_samples, n_aligned_features).
         """
-        return self.model.transform(data)
+        # Pipeline uses (samples, features) convention
+        # Alignment algorithms expect (features, samples)
+        processed = [arr.T for arr in data]
+
+        # Transform (expects features, samples)
+        result = self.model.transform(processed)
+
+        # Transpose back to (samples, features)
+        return [arr.T for arr in result]
 
     def transform_new_subject(self, data: np.ndarray) -> np.ndarray:
         """Align a new subject not in training (for LOSO).
@@ -460,16 +469,28 @@ class FittedAlign:
         Parameters
         ----------
         data : np.ndarray
-            Data for the new subject, shape (n_voxels, n_samples).
+            Data for the new subject, shape (n_samples, n_features).
+            Pipeline convention is (samples, features).
 
         Returns
         -------
         np.ndarray
-            Aligned data for the new subject.
+            Aligned data for the new subject, shape (n_samples, n_aligned_features).
         """
-        w = self.model.transform_subject(data)
-        # Apply the transform: X_aligned = W.T @ X
-        return w.T @ data
+        # Pipeline uses (samples, features) convention
+        # Alignment algorithms expect (features, samples)
+        proc = data.T
+
+        if self.method == "srm":
+            # SRM returns weight matrix, need to apply: X_aligned = W.T @ X
+            w = self.model.transform_subject(proc)
+            result = w.T @ proc
+        else:  # hyperalignment
+            # HyperAlignment returns (transformed, R, disparity, scale)
+            result, _, _, _ = self.model.transform_subject(proc)
+
+        # Transpose back to (samples, features)
+        return result.T
 
     def inverse_transform(self, data: list[np.ndarray]) -> list[np.ndarray]:
         """Reverse alignment (only for full-rank hyperalignment).
@@ -477,12 +498,13 @@ class FittedAlign:
         Parameters
         ----------
         data : list of ndarray
-            Aligned data for each subject.
+            Aligned data for each subject, shape (n_samples, n_aligned_features).
+            Pipeline convention is (samples, features).
 
         Returns
         -------
         list of ndarray
-            Data in original subject-specific space.
+            Data in original subject-specific space, shape (n_samples, n_features).
 
         Raises
         ------
@@ -493,8 +515,14 @@ class FittedAlign:
             raise NotImplementedError(
                 "Inverse transform only supported for hyperalignment"
             )
-        # W is orthogonal, so inverse is transpose
-        return [self.model.w_[i] @ d for i, d in enumerate(data)]
+        # Pipeline uses (samples, features) convention
+        # W is orthogonal, so inverse is transpose: W @ d (features × samples)
+        result = []
+        for i, d in enumerate(data):
+            # Transpose to (features, samples), apply W, transpose back
+            reconstructed = self.model.w_[i] @ d.T
+            result.append(reconstructed.T)
+        return result
 
 
 class AlignStep:
@@ -619,32 +647,22 @@ class AlignStep:
     def _ensure_voxels_first(self, data: list[np.ndarray]) -> list[np.ndarray]:
         """Ensure data is in (voxels, samples) format.
 
-        SRM/HyperAlignment expect (voxels, samples) but pipelines often use
-        (samples, voxels). We detect and transpose if needed.
+        SRM/HyperAlignment expect (voxels, samples) but pipelines use
+        (samples, features) convention. Always transpose.
 
         Parameters
         ----------
         data : list of ndarray
-            List of subject data arrays.
+            List of subject data arrays, each (n_samples, n_features).
 
         Returns
         -------
         list of ndarray
-            Data with shape (n_voxels, n_samples) for each subject.
+            Data with shape (n_features, n_samples) for each subject.
         """
-        # Heuristic: if first dim is smaller, assume it's samples (needs transpose)
-        # This works when n_samples << n_voxels (typical for fMRI)
-        # - (samples, voxels) has shape[0] < shape[1] -> transpose to (voxels, samples)
-        # - (voxels, samples) has shape[0] > shape[1] -> keep as-is
-        result = []
-        for arr in data:
-            if arr.shape[0] < arr.shape[1]:
-                # (samples, voxels) -> transpose to (voxels, samples)
-                result.append(arr.T)
-            else:
-                # Already (voxels, samples), keep as-is
-                result.append(arr)
-        return result
+        # Pipeline convention is (samples, features)
+        # Alignment algorithms expect (features, samples)
+        return [arr.T for arr in data]
 
 
 __all__ = [

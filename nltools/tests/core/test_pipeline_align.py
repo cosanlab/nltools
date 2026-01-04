@@ -96,25 +96,24 @@ class TestAlignStep:
         step = AlignStep(method="srm", n_features=10, n_iter=3)
         fitted = step.fit(multi_subject_data)
 
-        # Transform expects (voxels, samples) format
-        data_transposed = [d.T for d in multi_subject_data]
-        transformed = fitted.transform(data_transposed)
+        # Transform uses pipeline convention: (samples, features)
+        transformed = fitted.transform(multi_subject_data)
 
         assert len(transformed) == 4
-        # SRM reduces to n_features dimensions
-        assert transformed[0].shape[0] == 10
+        # SRM reduces to n_features dimensions: (samples, n_features)
+        assert transformed[0].shape[1] == 10
 
     def test_transform_hyperalignment(self, multi_subject_data):
         """Test transforming with fitted HyperAlignment."""
         step = AlignStep(method="hyperalignment", n_iter=2)
         fitted = step.fit(multi_subject_data)
 
-        data_transposed = [d.T for d in multi_subject_data]
-        transformed = fitted.transform(data_transposed)
+        # Transform uses pipeline convention: (samples, features)
+        transformed = fitted.transform(multi_subject_data)
 
         assert len(transformed) == 4
-        # HyperAlignment preserves dimensions
-        assert transformed[0].shape == data_transposed[0].shape
+        # HyperAlignment preserves dimensions: (samples, features)
+        assert transformed[0].shape == multi_subject_data[0].shape
 
 
 class TestFittedAlign:
@@ -141,18 +140,20 @@ class TestFittedAlign:
     def test_transform_new_subject_srm(self, fitted_srm):
         """Test transforming a new subject with SRM."""
         np.random.seed(123)
-        new_subject = np.random.randn(100, 50)  # (voxels, samples)
+        # Pipeline convention: (samples, features)
+        new_subject = np.random.randn(50, 100)  # (samples, voxels)
 
         aligned = fitted_srm.transform_new_subject(new_subject)
 
-        # Should return aligned data
-        assert aligned.shape[0] == 10  # n_features
-        assert aligned.shape[1] == 50  # n_samples
+        # Should return aligned data: (samples, n_features)
+        assert aligned.shape[0] == 50  # n_samples
+        assert aligned.shape[1] == 10  # n_features
 
     def test_inverse_transform_hyperalignment(self, fitted_hyperalign):
         """Test inverse transform with HyperAlignment."""
         np.random.seed(42)
-        data = [np.random.randn(100, 50) for _ in range(3)]  # (voxels, samples)
+        # Pipeline convention: (samples, features)
+        data = [np.random.randn(50, 100) for _ in range(3)]  # (samples, voxels)
 
         transformed = fitted_hyperalign.transform(data)
         reconstructed = fitted_hyperalign.inverse_transform(transformed)
@@ -238,34 +239,35 @@ class TestAlignmentIntegration:
         n_features = 20
 
         # Create data with more voxels than features
+        # Pipeline convention: (samples, voxels)
         data = [np.random.randn(50, 100) for _ in range(3)]  # (samples, voxels)
 
         step = AlignStep(method="srm", n_features=n_features, n_iter=3)
         fitted = step.fit(data)
 
-        # Transform - note SRM expects (voxels, samples)
-        data_t = [d.T for d in data]
-        transformed = fitted.transform(data_t)
+        # Transform uses pipeline convention: (samples, features)
+        transformed = fitted.transform(data)
 
-        # Should reduce to n_features
+        # Should reduce to n_features: (samples, n_features)
         for t in transformed:
-            assert t.shape[0] == n_features
+            assert t.shape[1] == n_features
 
     def test_hyperalignment_preserves_dimensions(self):
         """Test HyperAlignment preserves data dimensions."""
         np.random.seed(42)
 
+        # Pipeline convention: (samples, features)
         data = [np.random.randn(50, 80) for _ in range(3)]
 
         step = AlignStep(method="hyperalignment", n_iter=2)
         fitted = step.fit(data)
 
-        data_t = [d.T for d in data]
-        transformed = fitted.transform(data_t)
+        # Transform uses pipeline convention: (samples, features)
+        transformed = fitted.transform(data)
 
-        # Should preserve dimensions
+        # Should preserve dimensions: (samples, features)
         for i, t in enumerate(transformed):
-            assert t.shape == data_t[i].shape
+            assert t.shape == data[i].shape
 
     def test_alignment_improves_similarity(self):
         """Test that alignment increases inter-subject similarity."""
@@ -275,6 +277,7 @@ class TestAlignmentIntegration:
         n_voxels = 60
 
         # Create data with shared signal but different noise
+        # Pipeline convention: (samples, features)
         shared = np.random.randn(n_samples, 20)
         data = []
         for _ in range(n_subjects):
@@ -286,8 +289,8 @@ class TestAlignmentIntegration:
         step = AlignStep(method="srm", n_features=20, n_iter=5)
         fitted = step.fit(data)
 
-        data_t = [d.T for d in data]
-        transformed = fitted.transform(data_t)
+        # Transform uses pipeline convention: (samples, features)
+        transformed = fitted.transform(data)
 
         # Calculate mean pairwise correlation before and after
         def mean_pairwise_corr(arrays):
@@ -298,7 +301,7 @@ class TestAlignmentIntegration:
                     corrs.append(c)
             return np.mean(corrs)
 
-        corr_before = mean_pairwise_corr(data_t)
+        corr_before = mean_pairwise_corr(data)
         corr_after = mean_pairwise_corr(transformed)
 
         # Alignment should increase similarity
