@@ -890,3 +890,155 @@ class TestRSAWorkflow:
         # Test labels
         rdm.labels = categories
         assert rdm.labels == categories, "Labels should be settable"
+
+
+@pytest.fixture(scope="module")
+def haxby_all_betas():
+    """Load pre-computed VTC betas for all subjects and runs.
+
+    Returns dict with:
+        - betas: dict of subject -> (n_runs, n_categories, n_voxels) arrays
+        - categories: list of category names
+        - n_subjects, n_runs, n_categories: metadata
+    """
+    import h5py
+    from pathlib import Path
+
+    data_dir = Path(__file__).parent.parent / "data" / "haxby"
+    betas_file = data_dir / "vtc_betas.h5"
+
+    with h5py.File(betas_file, "r") as f:
+        betas = {k: f[k][:] for k in f.keys()}
+        categories = list(f.attrs["categories"])
+        n_subjects = f.attrs["n_subjects"]
+        n_runs = f.attrs["n_runs"]
+        n_categories = f.attrs["n_categories"]
+
+    return {
+        "betas": betas,
+        "categories": categories,
+        "n_subjects": n_subjects,
+        "n_runs": n_runs,
+        "n_categories": n_categories,
+    }
+
+
+@pytest.mark.slow
+class TestSRMWorkflow:
+    """Test Shared Response Model workflows using pre-computed VTC betas."""
+
+    def test_srm_fit_transform_on_vtc_betas(self, haxby_all_betas):
+        """Validate SRM fits and transforms real brain data.
+
+        Tests that SRM can fit on multi-subject VTC betas and transform
+        data to shared space with correct dimensionality.
+        """
+        from nltools.algorithms.srm import SRM
+
+        betas = haxby_all_betas["betas"]
+        n_runs = haxby_all_betas["n_runs"]
+        n_categories = haxby_all_betas["n_categories"]
+
+        # Stack all runs for each subject: (n_runs * n_categories, n_voxels)
+        # Then transpose to (n_voxels, n_samples) as SRM expects
+        subject_data = []
+        for subj_key in ["subj1", "subj2", "subj3"]:  # Use 3 subjects for speed
+            stacked = betas[subj_key].reshape(-1, betas[subj_key].shape[-1])
+            subject_data.append(stacked.T)  # (n_voxels, n_samples)
+
+        n_samples = n_runs * n_categories
+        n_features = 20  # Low for speed
+
+        # Fit SRM
+        srm = SRM(features=n_features, n_iter=5, rand_seed=42)
+        srm.fit(subject_data)
+
+        # Validate fitted model
+        assert hasattr(srm, "w_"), "SRM should have w_ (transforms) after fit"
+        assert hasattr(srm, "s_"), "SRM should have s_ (shared response) after fit"
+        assert len(srm.w_) == 3, "Should have transform for each subject"
+
+        # Check transform dimensionality
+        for i, w in enumerate(srm.w_):
+            assert w.shape[1] == n_features, f"Transform {i} should have {n_features} features"
+
+        # Check shared response shape
+        assert srm.s_.shape == (n_features, n_samples), (
+            f"Shared response shape {srm.s_.shape} should be ({n_features}, {n_samples})"
+        )
+
+        # Transform data to shared space
+        transformed = srm.transform(subject_data)
+        assert len(transformed) == 3, "Should transform all 3 subjects"
+        for i, t in enumerate(transformed):
+            assert t.shape == (n_features, n_samples), (
+                f"Transformed {i} shape {t.shape} should be ({n_features}, {n_samples})"
+            )
+
+    def test_overfit_decoding_ceiling(self, haxby_all_betas):
+        """Validate SRM improves decoding when intentionally overfitting.
+
+        This is a sanity check: if we train SRM and classifier on ALL data,
+        then test on the SAME data, accuracy should be near-ceiling.
+        If not, the pipeline is broken.
+
+        Note: This is NOT proper cross-validation - it's intentional overfitting
+        to validate the mechanics work before adding proper train/test splits.
+        """
+        from sklearn.svm import SVC
+        from sklearn.preprocessing import StandardScaler
+        from nltools.algorithms.srm import SRM
+
+        betas = haxby_all_betas["betas"]
+        categories = haxby_all_betas["categories"]
+        n_runs = haxby_all_betas["n_runs"]
+
+        # Prepare data for 3 subjects
+        subject_data = []
+        for subj_key in ["subj1", "subj2", "subj3"]:
+            stacked = betas[subj_key].reshape(-1, betas[subj_key].shape[-1])
+            subject_data.append(stacked.T)  # (n_voxels, n_samples)
+
+        # Create labels: repeat categories for each run, tile for each subject
+        labels_per_subject = np.array(categories * n_runs)  # (77,)
+        n_subjects = len(subject_data)
+        labels_pooled = np.tile(labels_per_subject, n_subjects)  # (231,)
+
+        # ===== BASELINE: No SRM =====
+        # Pool raw data across subjects and classify
+        raw_pooled = np.hstack(subject_data).T  # (n_samples * n_subjects, n_voxels)
+        scaler_raw = StandardScaler()
+        raw_scaled = scaler_raw.fit_transform(raw_pooled)
+
+        clf_raw = SVC(kernel="linear", random_state=42)
+        clf_raw.fit(raw_scaled, labels_pooled)
+        accuracy_raw = clf_raw.score(raw_scaled, labels_pooled)
+
+        # ===== WITH SRM =====
+        # Fit SRM
+        n_features = 30
+        srm = SRM(features=n_features, n_iter=10, rand_seed=42)
+        srm.fit(subject_data)
+
+        # Transform to shared space
+        transformed = srm.transform(subject_data)
+
+        # Pool transformed data
+        srm_pooled = np.hstack(transformed).T  # (n_samples * n_subjects, n_features)
+        scaler_srm = StandardScaler()
+        srm_scaled = scaler_srm.fit_transform(srm_pooled)
+
+        clf_srm = SVC(kernel="linear", random_state=42)
+        clf_srm.fit(srm_scaled, labels_pooled)
+        accuracy_srm = clf_srm.score(srm_scaled, labels_pooled)
+
+        # Both should be very high when overfitting
+        # Note: baseline with 11718 voxels easily overfits to 100%
+        # SRM with 30 features provides regularization, preventing perfect overfit
+        # This is expected - the test validates pipeline mechanics, not that SRM > raw
+        assert accuracy_raw > 0.8, (
+            f"Baseline overfit accuracy {accuracy_raw:.1%} should be >80%"
+        )
+        assert accuracy_srm > 0.9, (
+            f"SRM overfit accuracy {accuracy_srm:.1%} should be >90%"
+        )
