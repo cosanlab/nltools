@@ -3835,6 +3835,7 @@ class BrainData(object):
         Returns:
             BrainData with accuracy values.
         """
+        import warnings
         from sklearn.model_selection import StratifiedKFold
         from sklearn.preprocessing import StandardScaler
         from sklearn.pipeline import make_pipeline
@@ -3847,8 +3848,20 @@ class BrainData(object):
                 f"Invalid method: {method}. Must be one of {valid_methods}"
             )
 
+        # Emit deprecation warning for whole_brain method suggesting fluent API
+        if method == "whole_brain":
+            warnings.warn(
+                "predict(y=labels, cv=k) is deprecated for whole-brain MVPA. "
+                "Use the fluent pipeline API instead:\n"
+                "  result = brain.cv(k=5).predict(y=labels, algorithm='svm')\n"
+                "The fluent API provides richer results (per-fold scores, predictions) "
+                "and supports preprocessing chains (.normalize(), .reduce()).",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
         # Resolve estimator
-        estimator = self._resolve_estimator(estimator)
+        estimator_obj = self._resolve_estimator(estimator)
 
         # Resolve CV
         if isinstance(cv, int):
@@ -3866,13 +3879,16 @@ class BrainData(object):
 
         # Build pipeline with optional standardization
         if standardize:
-            pipe = make_pipeline(StandardScaler(), clone(estimator))
+            pipe = make_pipeline(StandardScaler(), clone(estimator_obj))
         else:
-            pipe = clone(estimator)
+            pipe = clone(estimator_obj)
 
         # Dispatch by method
         if method == "whole_brain":
-            accuracy = self._mvpa_whole_brain(X_data, y, pipe, cv, groups, scoring)
+            # Use Pipeline infrastructure for whole-brain MVPA
+            accuracy = self._mvpa_whole_brain_pipeline(
+                y, estimator, cv, groups, standardize
+            )
         elif method == "searchlight":
             accuracy = self._mvpa_searchlight(
                 X_data, y, pipe, cv, groups, scoring, radius, n_jobs, show_progress
@@ -3923,11 +3939,77 @@ class BrainData(object):
         return estimator
 
     def _mvpa_whole_brain(self, X, y, pipe, cv, groups, scoring):
-        """Whole-brain MVPA - single accuracy across all voxels."""
+        """Whole-brain MVPA - single accuracy across all voxels.
+
+        Legacy implementation using sklearn cross_val_score directly.
+        Kept for searchlight/ROI methods that still use sklearn pipelines.
+        """
         from sklearn.model_selection import cross_val_score
 
         scores = cross_val_score(pipe, X, y, cv=cv, groups=groups, scoring=scoring)
         return np.array([np.mean(scores)])
+
+    def _mvpa_whole_brain_pipeline(self, y, estimator, cv, groups, standardize):
+        """Whole-brain MVPA using Pipeline infrastructure.
+
+        Delegates to the fluent pipeline API for whole-brain classification,
+        then extracts mean accuracy for backward compatibility.
+
+        Args:
+            y: Labels to predict.
+            estimator: Estimator name ('svm', 'logistic', etc.).
+            cv: Cross-validation splitter or int.
+            groups: Group labels for CV.
+            standardize: Whether to z-score features.
+
+        Returns:
+            np.ndarray with single mean accuracy value.
+        """
+        # Map estimator names to Pipeline algorithm names
+        estimator_map = {
+            "svm": "svm",
+            "logistic": "logistic",
+            "ridge": "ridge",
+            "lda": "logistic",  # Approximate with logistic
+        }
+
+        # Get algorithm name (pass through if not in map)
+        if isinstance(estimator, str):
+            algorithm = estimator_map.get(estimator, estimator)
+        else:
+            # Custom estimator - fall back to legacy implementation
+            from sklearn.model_selection import StratifiedKFold
+            from sklearn.preprocessing import StandardScaler
+            from sklearn.pipeline import make_pipeline
+            from sklearn.base import clone
+
+            if isinstance(cv, int):
+                cv = StratifiedKFold(n_splits=cv, shuffle=True, random_state=42)
+            if standardize:
+                pipe = make_pipeline(StandardScaler(), clone(estimator))
+            else:
+                pipe = clone(estimator)
+            return self._mvpa_whole_brain(self.data, y, pipe, cv, groups, "accuracy")
+
+        # Build CV parameters from cv argument
+        if isinstance(cv, int):
+            k = cv
+        else:
+            # For sklearn CV objects, extract n_splits
+            k = getattr(cv, "n_splits", 5)
+
+        # Build and execute pipeline
+        pipeline = self.cv(k=k, scheme="kfold", groups=groups)
+
+        # Add normalization if requested
+        if standardize:
+            pipeline = pipeline.normalize(method="zscore")
+
+        # Execute and get results
+        cv_result = pipeline.predict(y=y, algorithm=algorithm)
+
+        # Return mean accuracy as single-element array for backward compat
+        return np.array([cv_result.mean_score])
 
     def _mvpa_searchlight(
         self, X, y, pipe, cv, groups, scoring, radius, n_jobs, show_progress
