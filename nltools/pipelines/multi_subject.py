@@ -164,6 +164,126 @@ class MultiSubjectPipeline:
     # Terminal methods
     # =========================================================================
 
+    def isc(
+        self,
+        method: str = "pairwise",
+        metric: str = "median",
+        n_permute: int = 5000,
+        parallel: str = "cpu",
+        **kwargs,
+    ):
+        """Compute inter-subject correlation across subjects.
+
+        Executes the pipeline and computes ISC using permutation testing.
+        Data is transformed through all pipeline steps before ISC computation.
+
+        Parameters
+        ----------
+        method : str, default='pairwise'
+            ISC computation method:
+            - 'pairwise': Average all pairwise correlations
+            - 'leave-one-out': Correlate each subject with mean of others
+        metric : str, default='median'
+            Summary statistic for aggregating ISC values:
+            - 'median': Direct median (robust to outliers)
+            - 'mean': Fisher z-transformed mean
+        n_permute : int, default=5000
+            Number of bootstrap iterations for p-value computation.
+        parallel : str, default='cpu'
+            Parallelization method: 'cpu', 'gpu', or None.
+        **kwargs
+            Additional arguments passed to ISCTerminal.
+
+        Returns
+        -------
+        ISCResult
+            Result containing ISC values, p-values, and confidence intervals.
+
+        Examples
+        --------
+        >>> result = (
+        ...     MultiSubjectPipeline(data=subjects, cv=None)
+        ...     .normalize()
+        ...     .isc(method='pairwise', n_permute=1000)
+        ... )
+        >>> print(f"ISC: {result.isc:.3f}, p: {result.p:.3f}")
+        """
+        from .terminals import ISCTerminal
+
+        terminal = ISCTerminal(
+            method=method,
+            metric=metric,
+            n_permute=n_permute,
+            parallel=parallel,
+            kwargs=kwargs,
+        )
+
+        # Apply transforms to all subjects
+        transformed_data = list(self.data)
+        for step in self.steps:
+            fitted = step.fit(self._concat_subjects(transformed_data))
+            transformed_data = [fitted.transform(s) for s in transformed_data]
+
+        return terminal.fit_evaluate(transformed_data)
+
+    def rsa(
+        self,
+        model_rdm: NDArray,
+        method: str = "spearman",
+        n_permute: int = 5000,
+        **kwargs,
+    ):
+        """Compute representational similarity analysis.
+
+        Executes the pipeline and computes RSA correlation between neural
+        and model RDMs using permutation testing.
+
+        Parameters
+        ----------
+        model_rdm : np.ndarray
+            Model RDM to correlate with neural RDMs. Should be symmetric
+            matrix or upper triangle (condensed form).
+        method : str, default='spearman'
+            Correlation method: 'spearman', 'pearson', or 'kendall'.
+        n_permute : int, default=5000
+            Number of permutations for p-value computation.
+        **kwargs
+            Additional arguments passed to RSATerminal.
+
+        Returns
+        -------
+        RSAResult
+            Result containing correlation coefficient and p-value.
+
+        Examples
+        --------
+        >>> model = np.corrcoef(conditions)  # Theoretical model
+        >>> result = (
+        ...     MultiSubjectPipeline(data=subjects, cv=None)
+        ...     .normalize()
+        ...     .rsa(model_rdm=model, method='spearman')
+        ... )
+        >>> print(f"r = {result.correlation:.3f}, p = {result.p_value:.3f}")
+        """
+        from .terminals import RSATerminal
+
+        terminal = RSATerminal(
+            model_rdm=model_rdm,
+            method=method,
+            n_permute=n_permute,
+            kwargs=kwargs,
+        )
+
+        # Pool all subject data
+        pooled = self._concat_subjects(self.data)
+
+        # Apply transforms
+        for step in self.steps:
+            fitted = step.fit(pooled)
+            pooled = fitted.transform(pooled)
+
+        return terminal.fit_evaluate(pooled)
+
     def predict(self, y, algorithm: str = "ridge", **kwargs):
         """Execute pipeline with CV and return prediction results.
 

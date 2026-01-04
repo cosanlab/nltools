@@ -41,10 +41,10 @@ from .base import (
     Terminal,
     TransformStep,
 )
-from .cv import CVScheme as CVSchemeImpl
-from .results import CVResult, FoldResult
+from .cv import CVScheme as CVSchemeImpl, NestedCVScheme
+from .results import CVResult, FoldResult, ISCResult, PermutationResult, RSAResult
 from .steps import AlignStep, FittedAlign, NormalizeStep, PipeStep, ReduceStep
-from .terminals import PredictTerminal
+from .terminals import ISCTerminal, PredictTerminal, RSATerminal
 from .multi_subject import MultiSubjectPipeline
 from .pool import PooledData, ResultDict, StatResult
 
@@ -53,6 +53,7 @@ __all__ = [
     "Pipeline",
     "CVScheme",
     "CVSchemeImpl",
+    "NestedCVScheme",
     "FittedStack",
     # Protocols
     "TransformStep",
@@ -65,11 +66,16 @@ __all__ = [
     # Alignment (Phase 7)
     "AlignStep",
     "FittedAlign",
-    # Terminals (Phase 3)
+    # Terminals (Phase 3 + Phase 8)
     "PredictTerminal",
-    # Results (Phase 3)
+    "ISCTerminal",
+    "RSATerminal",
+    # Results (Phase 3 + Phase 8)
     "CVResult",
     "FoldResult",
+    "ISCResult",
+    "RSAResult",
+    "PermutationResult",
     # Multi-subject (Phase 4)
     "MultiSubjectPipeline",
     # Pool infrastructure (Phase 5)

@@ -14,7 +14,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 if TYPE_CHECKING:
-    from .results import FoldResult
+    from .results import FoldResult, ISCResult, RSAResult
 
 
 @dataclass
@@ -176,4 +176,290 @@ class PredictTerminal:
         return PredictTerminal(y=new_y, algorithm=self.algorithm, kwargs=self.kwargs)
 
 
-__all__ = ["PredictTerminal"]
+@dataclass
+class ISCTerminal:
+    """ISC terminal for multi-subject pipelines.
+
+    Computes inter-subject correlation across subjects in the pipeline.
+    Uses the ISC permutation test from nltools.algorithms.inference.isc.
+
+    Parameters
+    ----------
+    method : str
+        ISC computation method. Options:
+        - 'pairwise': Average all pairwise correlations (default)
+        - 'leave-one-out': Correlate each subject with mean of others
+    metric : str
+        Summary statistic for aggregating ISC values:
+        - 'median': Direct median (robust to outliers, default)
+        - 'mean': Fisher z-transformed mean (unbiased averaging)
+    n_permute : int
+        Number of bootstrap iterations for p-value computation.
+        Defaults to 5000.
+    parallel : str or None
+        Parallelization method:
+        - 'cpu': CPU parallelization via joblib (default)
+        - 'gpu': GPU acceleration via PyTorch
+        - None: Single-threaded NumPy
+    kwargs : dict
+        Additional arguments passed to isc_permutation_test.
+
+    Examples
+    --------
+    >>> terminal = ISCTerminal(method='pairwise', n_permute=1000)
+    >>> result = terminal.fit_evaluate(data_list)
+    >>> print(f"ISC: {result.isc:.3f}, p: {result.p:.3f}")
+    """
+
+    method: str = "pairwise"
+    metric: str = "median"
+    n_permute: int = 5000
+    parallel: str = "cpu"
+    kwargs: Dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self):
+        """Validate parameters."""
+        if self.method not in ("pairwise", "leave-one-out"):
+            raise ValueError(
+                f"method must be 'pairwise' or 'leave-one-out', got {self.method!r}"
+            )
+        if self.metric not in ("median", "mean"):
+            raise ValueError(f"metric must be 'median' or 'mean', got {self.metric!r}")
+        if self.parallel not in (None, "cpu", "gpu"):
+            raise ValueError(
+                f"parallel must be None, 'cpu', or 'gpu', got {self.parallel!r}"
+            )
+
+    def fit_evaluate(
+        self,
+        data: list,
+        **kwargs,
+    ) -> "ISCResult":
+        """Compute ISC across subjects.
+
+        Parameters
+        ----------
+        data : list of np.ndarray
+            List of subject data arrays. Each array should have shape
+            (n_observations, n_features) where n_observations is the same
+            across subjects (e.g., timepoints in fMRI).
+
+        Returns
+        -------
+        ISCResult
+            Result containing ISC values, p-values, and confidence intervals.
+        """
+        from ..algorithms.inference.isc import isc_permutation_test
+        from .results import ISCResult
+
+        # Validate input
+        if not isinstance(data, list) or len(data) < 2:
+            raise ValueError("data must be a list of at least 2 subject arrays")
+
+        # Convert list to 3D array: (n_observations, n_subjects, n_features)
+        # Each subject array is (n_observations, n_features)
+        n_subjects = len(data)
+        data_arrays = [np.asarray(d) for d in data]
+
+        # Validate shapes
+        n_obs = data_arrays[0].shape[0]
+        for i, d in enumerate(data_arrays):
+            if d.shape[0] != n_obs:
+                raise ValueError(
+                    f"All subjects must have same number of observations. "
+                    f"Subject 0 has {n_obs}, subject {i} has {d.shape[0]}"
+                )
+
+        # Stack into (n_observations, n_subjects, n_features)
+        if data_arrays[0].ndim == 1:
+            # Single feature per observation: (n_obs,) -> (n_obs, n_subjects)
+            stacked = np.stack(data_arrays, axis=1)
+        else:
+            # Multiple features: (n_obs, n_features) -> (n_obs, n_subjects, n_features)
+            stacked = np.stack(data_arrays, axis=1)
+
+        # Map method name to summary_statistic parameter
+        summary_statistic = self.method
+
+        # Call ISC permutation test
+        merged_kwargs = {**self.kwargs, **kwargs}
+        result = isc_permutation_test(
+            data=stacked,
+            n_permute=self.n_permute,
+            metric=self.metric,
+            summary_statistic=summary_statistic,
+            parallel=self.parallel,
+            **merged_kwargs,
+        )
+
+        return ISCResult(
+            isc=result["isc"],
+            p=result["p"],
+            ci=result["ci"],
+            method=self.method,
+            metric=self.metric,
+            n_subjects=n_subjects,
+        )
+
+
+@dataclass
+class RSATerminal:
+    """RSA terminal for multi-subject pipelines.
+
+    Computes representational similarity analysis by correlating neural RDMs
+    with a model RDM.
+
+    Parameters
+    ----------
+    model_rdm : np.ndarray
+        Model RDM to correlate with neural RDMs. Should be a symmetric
+        matrix or upper triangle (condensed form).
+    method : str
+        Correlation method. Options:
+        - 'spearman': Spearman rank correlation (default)
+        - 'pearson': Pearson correlation
+        - 'kendall': Kendall's tau
+    n_permute : int
+        Number of permutations for p-value computation.
+        Defaults to 5000.
+    kwargs : dict
+        Additional arguments passed to correlation computation.
+
+    Examples
+    --------
+    >>> model = np.random.rand(10, 10)  # 10 conditions
+    >>> model = (model + model.T) / 2  # Make symmetric
+    >>> terminal = RSATerminal(model_rdm=model, method='spearman')
+    >>> result = terminal.fit_evaluate(neural_rdm)
+    """
+
+    model_rdm: NDArray
+    method: str = "spearman"
+    n_permute: int = 5000
+    kwargs: Dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self):
+        """Validate and prepare model RDM."""
+        self.model_rdm = np.asarray(self.model_rdm)
+
+        if self.method not in ("spearman", "pearson", "kendall"):
+            raise ValueError(
+                f"method must be 'spearman', 'pearson', or 'kendall', "
+                f"got {self.method!r}"
+            )
+
+        # Convert to condensed form if square matrix
+        if self.model_rdm.ndim == 2:
+            if self.model_rdm.shape[0] != self.model_rdm.shape[1]:
+                raise ValueError("model_rdm must be square if 2D")
+            from scipy.spatial.distance import squareform
+
+            self.model_rdm = squareform(self.model_rdm, checks=False)
+        elif self.model_rdm.ndim != 1:
+            raise ValueError("model_rdm must be 1D (condensed) or 2D (square)")
+
+    def fit_evaluate(
+        self,
+        data: NDArray,
+        **kwargs,
+    ) -> "RSAResult":
+        """Compute RSA correlation between neural and model RDMs.
+
+        Parameters
+        ----------
+        data : np.ndarray
+            Neural data to compute RDM from, or pre-computed RDM.
+            - If 2D square: Treated as RDM (will extract upper triangle)
+            - If 1D: Treated as condensed RDM
+            - If 2D non-square: Treated as (n_conditions, n_features),
+              RDM will be computed using correlation distance
+
+        Returns
+        -------
+        RSAResult
+            Result containing correlation coefficient and p-value.
+        """
+        from scipy.spatial.distance import squareform
+        from scipy.stats import spearmanr, pearsonr, kendalltau
+        from sklearn.utils import check_random_state
+        from .results import RSAResult
+
+        data = np.asarray(data)
+
+        # Handle input data format
+        if data.ndim == 2:
+            if data.shape[0] == data.shape[1]:
+                # Square matrix - assume it's an RDM
+                neural_rdm = squareform(data, checks=False)
+            else:
+                # (n_conditions, n_features) - compute RDM
+                from sklearn.metrics import pairwise_distances
+
+                dist_matrix = pairwise_distances(data, metric="correlation")
+                neural_rdm = squareform(dist_matrix, checks=False)
+        elif data.ndim == 1:
+            # Already condensed
+            neural_rdm = data
+        else:
+            raise ValueError("data must be 1D (condensed RDM) or 2D")
+
+        # Validate size match
+        if len(neural_rdm) != len(self.model_rdm):
+            # Compute expected n_conditions from length
+            # n_pairs = n*(n-1)/2, so n = (1 + sqrt(1 + 8*n_pairs)) / 2
+            n_model = int((1 + np.sqrt(1 + 8 * len(self.model_rdm))) / 2)
+            n_neural = int((1 + np.sqrt(1 + 8 * len(neural_rdm))) / 2)
+            raise ValueError(
+                f"RDM size mismatch: model has {n_model} conditions, "
+                f"neural has {n_neural} conditions"
+            )
+
+        # Compute correlation
+        if self.method == "spearman":
+            corr_func = lambda x, y: spearmanr(x, y)
+        elif self.method == "pearson":
+            corr_func = lambda x, y: pearsonr(x, y)
+        else:  # kendall
+            corr_func = lambda x, y: kendalltau(x, y)
+
+        observed_corr, _ = corr_func(neural_rdm, self.model_rdm)
+
+        # Permutation test
+        merged_kwargs = {**self.kwargs, **kwargs}
+        random_state = merged_kwargs.get("random_state", None)
+        rng = check_random_state(random_state)
+
+        n_conditions = int((1 + np.sqrt(1 + 8 * len(self.model_rdm))) / 2)
+        null_dist = np.zeros(self.n_permute)
+
+        for i in range(self.n_permute):
+            # Permute row/column order of the model RDM
+            # This is equivalent to permuting condition labels
+            perm_idx = rng.permutation(n_conditions)
+
+            # Reconstruct square matrix, permute, and re-extract upper triangle
+            model_square = squareform(self.model_rdm)
+            model_perm = model_square[np.ix_(perm_idx, perm_idx)]
+            model_rdm_perm = squareform(model_perm, checks=False)
+
+            null_dist[i], _ = corr_func(neural_rdm, model_rdm_perm)
+
+        # Compute p-value (two-tailed)
+        # Phipson-Smyth correction: (b + 1) / (m + 1)
+        n_extreme = np.sum(np.abs(null_dist) >= np.abs(observed_corr))
+        p_value = (n_extreme + 1) / (self.n_permute + 1)
+
+        # Compute confidence interval from null distribution
+        ci_lower = np.percentile(null_dist, 2.5)
+        ci_upper = np.percentile(null_dist, 97.5)
+
+        return RSAResult(
+            correlation=float(observed_corr),
+            p_value=float(p_value),
+            ci=(float(ci_lower), float(ci_upper)),
+            method=self.method,
+            n_conditions=n_conditions,
+        )
+
+
+__all__ = ["PredictTerminal", "ISCTerminal", "RSATerminal"]

@@ -10,7 +10,7 @@ from typing import Any, Iterator, Literal, Optional
 import numpy as np
 from numpy.typing import NDArray
 
-CVSchemeType = Literal["kfold", "loso", "loro", "bootstrap"]
+CVSchemeType = Literal["kfold", "loso", "loro", "bootstrap", "permutation"]
 
 
 @dataclass
@@ -22,10 +22,11 @@ class CVScheme:
     - loso: leave-one-subject-out (for multi-subject)
     - loro: leave-one-run-out
     - bootstrap: bootstrap resampling
+    - permutation: permutation testing (shuffles targets)
 
     Args:
         k: Number of folds (for kfold scheme). Defaults to 5 if scheme is 'kfold'.
-        scheme: CV scheme type. One of 'kfold', 'loso', 'loro', or 'bootstrap'.
+        scheme: CV scheme type. One of 'kfold', 'loso', 'loro', 'bootstrap', or 'permutation'.
         split_by: Attribute to split by ('runs', 'subjects', 'sessions').
             Used for documentation purposes with loso/loro schemes.
         n: Number of bootstrap iterations (for bootstrap scheme). Defaults to 1000.
@@ -46,6 +47,9 @@ class CVScheme:
 
         >>> # Bootstrap with 500 iterations
         >>> cv = CVScheme(scheme='bootstrap', n=500, random_state=42)
+
+        >>> # Permutation testing with 1000 permutations
+        >>> cv = CVScheme(scheme='permutation', n=1000, random_state=42)
     """
 
     k: Optional[int] = None
@@ -114,6 +118,8 @@ class CVScheme:
             yield from self._group_split(n_samples, groups)
         elif self.scheme == "bootstrap":
             yield from self._bootstrap_split(n_samples)
+        elif self.scheme == "permutation":
+            yield from self._permutation_split(n_samples)
         else:
             raise ValueError(f"Unknown scheme: {self.scheme}")
 
@@ -202,6 +208,40 @@ class CVScheme:
 
             yield train_idx, test_idx
 
+    def _permutation_split(
+        self, n_samples: int
+    ) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]:
+        """Generate permutation test splits.
+
+        For each permutation, returns all sample indices for training and
+        a permuted version of those indices for target shuffling.
+
+        In permutation testing, the model is trained on all data but with
+        shuffled target values. The train_idx represents the original order
+        and perm_idx represents how to shuffle the target variable y.
+
+        Args:
+            n_samples: Total number of samples.
+
+        Yields:
+            Tuple of (train_indices, permuted_indices) for each permutation.
+            train_indices: Original sample order (0, 1, 2, ..., n-1).
+            permuted_indices: Shuffled indices to apply to target variable.
+
+        Example:
+            >>> cv = CVScheme(scheme='permutation', n=100, random_state=42)
+            >>> for train_idx, perm_idx in cv.split(data):
+            ...     y_shuffled = y[perm_idx]  # Shuffle targets
+            ...     model.fit(X, y_shuffled)
+            ...     null_score = model.score(X, y_shuffled)
+        """
+        indices = np.arange(n_samples, dtype=np.intp)
+
+        for _ in range(self.n):
+            # Permuted indices for shuffling targets
+            perm_idx = self._rng.permutation(n_samples).astype(np.intp)
+            yield indices.copy(), perm_idx
+
     def n_splits(
         self, data: Any = None, groups: Optional[NDArray[np.intp]] = None
     ) -> int:
@@ -228,6 +268,8 @@ class CVScheme:
             return len(np.unique(groups))
         elif self.scheme == "bootstrap":
             return self.n
+        elif self.scheme == "permutation":
+            return self.n
         return 0
 
     def __repr__(self) -> str:
@@ -236,4 +278,142 @@ class CVScheme:
             return f"CVScheme(scheme='kfold', k={self.k})"
         elif self.scheme == "bootstrap":
             return f"CVScheme(scheme='bootstrap', n={self.n})"
+        elif self.scheme == "permutation":
+            return f"CVScheme(scheme='permutation', n={self.n})"
         return f"CVScheme(scheme='{self.scheme}', split_by='{self.split_by}')"
+
+
+@dataclass
+class NestedCVScheme:
+    """Nested cross-validation for hyperparameter tuning.
+
+    Combines an outer CV loop for model evaluation with an inner CV loop
+    for model selection/hyperparameter tuning. This prevents information
+    leakage by ensuring the test data in the outer loop is never used
+    for any model selection decisions.
+
+    The outer loop evaluates final model performance on held-out data,
+    while the inner loop is used for hyperparameter tuning or model
+    selection within each outer training fold.
+
+    Args:
+        outer: CVScheme for the outer evaluation loop.
+        inner: CVScheme for the inner model selection loop.
+
+    Examples:
+        >>> # LOSO outer with 3-fold inner for hyperparameter tuning
+        >>> cv = NestedCVScheme(
+        ...     outer=CVScheme(scheme='loso'),
+        ...     inner=CVScheme(scheme='kfold', k=3)
+        ... )
+        >>> for outer_train, outer_test, inner_iter in cv.split(data, groups):
+        ...     # Inner loop for hyperparameter tuning
+        ...     for inner_train, inner_val in inner_iter:
+        ...         # These are indices into outer_train
+        ...         actual_train = outer_train[inner_train]
+        ...         actual_val = outer_train[inner_val]
+        ...         # Tune hyperparameters...
+        ...     # Final evaluation on outer_test
+
+        >>> # 5-fold outer with bootstrap inner
+        >>> cv = NestedCVScheme(
+        ...     outer=CVScheme(scheme='kfold', k=5),
+        ...     inner=CVScheme(scheme='bootstrap', n=100)
+        ... )
+    """
+
+    outer: CVScheme
+    inner: CVScheme
+
+    def split(
+        self,
+        data: Any,
+        groups: Optional[NDArray[np.intp]] = None,
+        inner_groups: Optional[NDArray[np.intp]] = None,
+    ) -> Iterator[
+        tuple[
+            NDArray[np.intp],
+            NDArray[np.intp],
+            Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]],
+        ]
+    ]:
+        """Generate nested cross-validation splits.
+
+        For each outer fold, yields the outer train/test indices and an
+        iterator over inner train/validation splits. The inner splits are
+        indices into the outer training set, not the original data.
+
+        Args:
+            data: Data to split (used for length).
+            groups: Group labels for outer loop (e.g., subject IDs).
+                Required if outer.scheme is 'loso' or 'loro'.
+            inner_groups: Group labels for inner loop. If provided, these
+                are indexed by outer_train to get inner groups.
+
+        Yields:
+            Tuple of (outer_train_idx, outer_test_idx, inner_splits_iterator).
+            - outer_train_idx: Indices of samples in outer training set.
+            - outer_test_idx: Indices of samples in outer test set.
+            - inner_splits_iterator: Iterator yielding (inner_train, inner_val)
+              tuples where indices are relative to outer_train_idx.
+
+        Example:
+            >>> cv = NestedCVScheme(
+            ...     outer=CVScheme(scheme='kfold', k=5),
+            ...     inner=CVScheme(scheme='kfold', k=3)
+            ... )
+            >>> for outer_train, outer_test, inner_iter in cv.split(data):
+            ...     for inner_train, inner_val in inner_iter:
+            ...         # inner_train/inner_val are indices into outer_train
+            ...         train_data = data[outer_train[inner_train]]
+            ...         val_data = data[outer_train[inner_val]]
+        """
+        for outer_train, outer_test in self.outer.split(data, groups):
+            # Create inner data representation (just the count for splits)
+            n_inner = len(outer_train)
+
+            # Get inner groups if provided
+            inner_grps = None
+            if inner_groups is not None:
+                inner_grps = inner_groups[outer_train]
+
+            # Create fresh inner iterator for each outer fold
+            def make_inner_iterator(
+                n: int, grps: Optional[NDArray[np.intp]]
+            ) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]:
+                """Generate inner splits for this outer fold."""
+                yield from self.inner.split(np.arange(n), groups=grps)
+
+            yield outer_train, outer_test, make_inner_iterator(n_inner, inner_grps)
+
+    def n_outer_splits(
+        self, data: Any = None, groups: Optional[NDArray[np.intp]] = None
+    ) -> int:
+        """Return number of outer splits.
+
+        Args:
+            data: Data to split (unused for most schemes).
+            groups: Group labels for outer loop.
+
+        Returns:
+            Number of outer folds.
+        """
+        return self.outer.n_splits(data, groups)
+
+    def n_inner_splits(
+        self, data: Any = None, groups: Optional[NDArray[np.intp]] = None
+    ) -> int:
+        """Return number of inner splits per outer fold.
+
+        Args:
+            data: Data to split (unused for most schemes).
+            groups: Group labels for inner loop.
+
+        Returns:
+            Number of inner folds per outer fold.
+        """
+        return self.inner.n_splits(data, groups)
+
+    def __repr__(self) -> str:
+        """Return string representation."""
+        return f"NestedCVScheme(outer={self.outer!r}, inner={self.inner!r})"

@@ -169,4 +169,221 @@ class CVResult:
         return f"CVResult(n_folds={self.n_folds}, mean_score={self.mean_score:.4f})"
 
 
-__all__ = ["FoldResult", "CVResult"]
+@dataclass
+class ISCResult:
+    """Result from ISC terminal computation.
+
+    Holds intersubject correlation values, p-values, and confidence intervals
+    from the ISC permutation test.
+
+    Attributes
+    ----------
+    isc : np.ndarray
+        ISC values. Shape depends on input:
+        - Scalar for single-feature ISC
+        - (n_voxels,) for voxel-wise ISC
+    p : np.ndarray
+        P-values (Phipson-Smyth corrected).
+    ci : tuple
+        Confidence interval (lower, upper).
+    method : str
+        ISC method used ('pairwise' or 'leave-one-out').
+    metric : str
+        Summary metric used ('median' or 'mean').
+    n_subjects : int
+        Number of subjects in the analysis.
+    """
+
+    isc: NDArray[np.floating]
+    p: NDArray[np.floating]
+    ci: tuple
+    method: str
+    metric: str
+    n_subjects: int
+
+    def __repr__(self) -> str:
+        if np.ndim(self.isc) == 0 or self.isc.shape == ():
+            return f"ISCResult(isc={float(self.isc):.4f}, p={float(self.p):.4f})"
+        return (
+            f"ISCResult(n_voxels={len(self.isc)}, "
+            f"mean_isc={np.mean(self.isc):.4f}, "
+            f"sig_voxels={(self.p < 0.05).sum()})"
+        )
+
+    def summary(self) -> str:
+        """Return formatted summary string."""
+        lines = [
+            f"ISCResult: {self.method} method, {self.metric} metric",
+            f"  N subjects: {self.n_subjects}",
+        ]
+        if np.ndim(self.isc) == 0 or self.isc.shape == ():
+            lines.append(f"  ISC: {float(self.isc):.4f}")
+            lines.append(f"  p-value: {float(self.p):.4f}")
+            lines.append(f"  95% CI: [{self.ci[0]:.4f}, {self.ci[1]:.4f}]")
+        else:
+            lines.append(f"  N voxels: {len(self.isc)}")
+            lines.append(f"  Mean ISC: {np.mean(self.isc):.4f}")
+            lines.append(f"  Significant voxels (p<0.05): {(self.p < 0.05).sum()}")
+        return "\n".join(lines)
+
+
+@dataclass
+class RSAResult:
+    """Result from RSA terminal computation.
+
+    Holds representational similarity analysis correlation and p-value.
+
+    Attributes
+    ----------
+    correlation : float
+        Correlation between neural RDM and model RDM.
+    p_value : float
+        P-value from permutation test.
+    ci : tuple
+        Confidence interval (lower, upper).
+    method : str
+        Correlation method used (e.g., 'spearman', 'pearson').
+    n_conditions : int
+        Number of conditions/stimuli in the RDM.
+    """
+
+    correlation: float
+    p_value: float
+    ci: tuple
+    method: str
+    n_conditions: int
+
+    def __repr__(self) -> str:
+        return f"RSAResult(r={self.correlation:.4f}, p={self.p_value:.4f})"
+
+    def summary(self) -> str:
+        """Return formatted summary string."""
+        lines = [
+            f"RSAResult: {self.method} correlation",
+            f"  N conditions: {self.n_conditions}",
+            f"  Correlation: {self.correlation:.4f}",
+            f"  p-value: {self.p_value:.4f}",
+            f"  95% CI: [{self.ci[0]:.4f}, {self.ci[1]:.4f}]",
+        ]
+        return "\n".join(lines)
+
+
+@dataclass
+class PermutationResult:
+    """Result from permutation testing.
+
+    Contains the observed result from the real data, the null distribution
+    of scores from permuted data, and the computed p-value.
+
+    The p-value is calculated as the proportion of permutation scores
+    that are greater than or equal to the observed score (for metrics
+    where higher is better, like R2 or accuracy).
+
+    Attributes
+    ----------
+    observed : CVResult
+        The result from the real (non-permuted) data.
+    null_distribution : np.ndarray
+        Array of scores from each permutation, forming the null distribution.
+    p_value : float
+        Permutation p-value: proportion of null scores >= observed score.
+    n_permutations : int
+        Number of permutations performed.
+
+    Examples
+    --------
+    >>> perm_result = pipeline.permutation_test(y, n_permutations=1000)
+    >>> print(f"Observed score: {perm_result.observed.mean_score:.4f}")
+    >>> print(f"p-value: {perm_result.p_value:.4f}")
+    >>> if perm_result.p_value < 0.05:
+    ...     print("Significant!")
+
+    Notes
+    -----
+    The p-value calculation uses the formula:
+        p = (n_permutations_exceeding + 1) / (n_permutations + 1)
+
+    Adding 1 to both numerator and denominator ensures the p-value is
+    never exactly 0 and accounts for the observed value itself.
+    """
+
+    observed: CVResult
+    null_distribution: NDArray[np.floating]
+    p_value: float
+    n_permutations: int
+
+    @classmethod
+    def from_scores(
+        cls,
+        observed: CVResult,
+        null_scores: NDArray[np.floating],
+    ) -> "PermutationResult":
+        """Create PermutationResult from observed result and null scores.
+
+        Automatically computes the p-value from the null distribution.
+
+        Parameters
+        ----------
+        observed : CVResult
+            The result from the real (non-permuted) data.
+        null_scores : np.ndarray
+            Array of scores from each permutation.
+
+        Returns
+        -------
+        PermutationResult
+            Complete permutation result with computed p-value.
+        """
+        n_permutations = len(null_scores)
+        # Count permutations with score >= observed (plus 1 for observed itself)
+        n_exceeding = np.sum(null_scores >= observed.mean_score)
+        p_value = (n_exceeding + 1) / (n_permutations + 1)
+
+        return cls(
+            observed=observed,
+            null_distribution=null_scores,
+            p_value=float(p_value),
+            n_permutations=n_permutations,
+        )
+
+    @property
+    def observed_score(self) -> float:
+        """Convenience accessor for observed mean score."""
+        return self.observed.mean_score
+
+    @property
+    def null_mean(self) -> float:
+        """Mean of the null distribution."""
+        return float(np.mean(self.null_distribution))
+
+    @property
+    def null_std(self) -> float:
+        """Standard deviation of the null distribution."""
+        return float(np.std(self.null_distribution))
+
+    @property
+    def z_score(self) -> float:
+        """Z-score of observed relative to null distribution."""
+        if self.null_std == 0:
+            return float("inf") if self.observed_score > self.null_mean else 0.0
+        return (self.observed_score - self.null_mean) / self.null_std
+
+    def summary(self) -> str:
+        """Return formatted summary string."""
+        lines = [
+            f"PermutationResult: {self.n_permutations} permutations",
+            f"  Observed score: {self.observed_score:.4f}",
+            f"  Null mean: {self.null_mean:.4f} (+/- {self.null_std:.4f})",
+            f"  Z-score: {self.z_score:.2f}",
+            f"  p-value: {self.p_value:.4f}",
+        ]
+        return "\n".join(lines)
+
+    def __repr__(self) -> str:
+        return (
+            f"PermutationResult(observed_score={self.observed_score:.4f}, "
+            f"p_value={self.p_value:.4f}, n_permutations={self.n_permutations})"
+        )
+
+
+__all__ = ["FoldResult", "CVResult", "ISCResult", "RSAResult", "PermutationResult"]

@@ -328,3 +328,390 @@ class TestPredictTerminal:
 
         # Just verify it runs without error
         assert isinstance(result, FoldResult)
+
+
+class TestISCTerminal:
+    """Tests for ISCTerminal."""
+
+    def test_creation_defaults(self):
+        """Test ISCTerminal creation with defaults."""
+        from nltools.pipelines.terminals import ISCTerminal
+
+        terminal = ISCTerminal()
+        assert terminal.method == "pairwise"
+        assert terminal.metric == "median"
+        assert terminal.n_permute == 5000
+        assert terminal.parallel == "cpu"
+
+    def test_creation_custom(self):
+        """Test ISCTerminal creation with custom parameters."""
+        from nltools.pipelines.terminals import ISCTerminal
+
+        terminal = ISCTerminal(
+            method="leave-one-out",
+            metric="mean",
+            n_permute=1000,
+            parallel=None,
+        )
+        assert terminal.method == "leave-one-out"
+        assert terminal.metric == "mean"
+        assert terminal.n_permute == 1000
+        assert terminal.parallel is None
+
+    def test_invalid_method_raises(self):
+        """Test invalid method raises ValueError."""
+        from nltools.pipelines.terminals import ISCTerminal
+
+        with pytest.raises(ValueError, match="method must be"):
+            ISCTerminal(method="invalid")
+
+    def test_invalid_metric_raises(self):
+        """Test invalid metric raises ValueError."""
+        from nltools.pipelines.terminals import ISCTerminal
+
+        with pytest.raises(ValueError, match="metric must be"):
+            ISCTerminal(metric="invalid")
+
+    def test_invalid_parallel_raises(self):
+        """Test invalid parallel raises ValueError."""
+        from nltools.pipelines.terminals import ISCTerminal
+
+        with pytest.raises(ValueError, match="parallel must be"):
+            ISCTerminal(parallel="invalid")
+
+    def test_fit_evaluate_single_feature(self):
+        """Test ISC computation on single-feature data."""
+        from nltools.pipelines.terminals import ISCTerminal
+        from nltools.pipelines.results import ISCResult
+
+        np.random.seed(42)
+
+        # Create correlated data across subjects (shared signal + noise)
+        n_obs, n_subjects = 50, 5
+        shared_signal = np.random.randn(n_obs)
+        data = [shared_signal + np.random.randn(n_obs) * 0.5 for _ in range(n_subjects)]
+
+        terminal = ISCTerminal(method="pairwise", n_permute=100, parallel=None)
+        result = terminal.fit_evaluate(data)
+
+        assert isinstance(result, ISCResult)
+        assert result.n_subjects == n_subjects
+        assert result.method == "pairwise"
+        assert result.metric == "median"
+        # ISC should be positive for correlated data
+        assert result.isc > 0
+
+    def test_fit_evaluate_multi_feature(self):
+        """Test ISC computation on multi-feature (voxel-wise) data."""
+        from nltools.pipelines.terminals import ISCTerminal
+        from nltools.pipelines.results import ISCResult
+
+        np.random.seed(42)
+
+        # Create data with multiple features (voxels)
+        n_obs, n_subjects, n_features = 50, 5, 10
+        shared_signal = np.random.randn(n_obs, n_features)
+        data = [
+            shared_signal + np.random.randn(n_obs, n_features) * 0.5
+            for _ in range(n_subjects)
+        ]
+
+        terminal = ISCTerminal(method="leave-one-out", n_permute=100, parallel=None)
+        result = terminal.fit_evaluate(data)
+
+        assert isinstance(result, ISCResult)
+        assert result.n_subjects == n_subjects
+        assert result.method == "leave-one-out"
+        # Should return per-voxel ISC
+        assert result.isc.shape == (n_features,)
+        assert result.p.shape == (n_features,)
+
+    def test_fit_evaluate_insufficient_subjects_raises(self):
+        """Test that less than 2 subjects raises error."""
+        from nltools.pipelines.terminals import ISCTerminal
+
+        terminal = ISCTerminal()
+        with pytest.raises(ValueError, match="at least 2 subject"):
+            terminal.fit_evaluate([np.random.randn(10)])
+
+    def test_fit_evaluate_mismatched_observations_raises(self):
+        """Test that mismatched observation counts raise error."""
+        from nltools.pipelines.terminals import ISCTerminal
+
+        terminal = ISCTerminal()
+        data = [np.random.randn(50), np.random.randn(60)]  # Different n_obs
+        with pytest.raises(ValueError, match="same number of observations"):
+            terminal.fit_evaluate(data)
+
+
+class TestRSATerminal:
+    """Tests for RSATerminal."""
+
+    def test_creation_defaults(self):
+        """Test RSATerminal creation with defaults."""
+        from nltools.pipelines.terminals import RSATerminal
+
+        model_rdm = np.random.rand(5, 5)
+        model_rdm = (model_rdm + model_rdm.T) / 2  # Make symmetric
+        terminal = RSATerminal(model_rdm=model_rdm)
+
+        assert terminal.method == "spearman"
+        assert terminal.n_permute == 5000
+
+    def test_creation_custom(self):
+        """Test RSATerminal creation with custom parameters."""
+        from nltools.pipelines.terminals import RSATerminal
+
+        model_rdm = np.random.rand(5, 5)
+        model_rdm = (model_rdm + model_rdm.T) / 2
+        terminal = RSATerminal(
+            model_rdm=model_rdm,
+            method="pearson",
+            n_permute=1000,
+        )
+        assert terminal.method == "pearson"
+        assert terminal.n_permute == 1000
+
+    def test_condensed_model_rdm(self):
+        """Test RSATerminal accepts condensed RDM."""
+        from nltools.pipelines.terminals import RSATerminal
+        from scipy.spatial.distance import squareform
+
+        n_conditions = 5
+        model_square = np.random.rand(n_conditions, n_conditions)
+        model_square = (model_square + model_square.T) / 2
+        model_condensed = squareform(model_square, checks=False)
+
+        terminal = RSATerminal(model_rdm=model_condensed)
+        # Should be stored in condensed form
+        assert terminal.model_rdm.ndim == 1
+        assert len(terminal.model_rdm) == n_conditions * (n_conditions - 1) // 2
+
+    def test_invalid_method_raises(self):
+        """Test invalid method raises ValueError."""
+        from nltools.pipelines.terminals import RSATerminal
+
+        with pytest.raises(ValueError, match="method must be"):
+            RSATerminal(model_rdm=np.eye(5), method="invalid")
+
+    def test_non_square_2d_raises(self):
+        """Test non-square 2D model RDM raises ValueError."""
+        from nltools.pipelines.terminals import RSATerminal
+
+        with pytest.raises(ValueError, match="must be square"):
+            RSATerminal(model_rdm=np.random.rand(5, 3))
+
+    def test_fit_evaluate_square_rdm(self):
+        """Test RSA computation with square neural RDM."""
+        from nltools.pipelines.terminals import RSATerminal
+        from nltools.pipelines.results import RSAResult
+
+        np.random.seed(42)
+
+        # Create model and neural RDMs with some correlation
+        n_conditions = 8
+        base = np.random.rand(n_conditions, n_conditions)
+        model_rdm = (base + base.T) / 2
+
+        # Neural RDM = model + noise (should correlate)
+        noise = np.random.rand(n_conditions, n_conditions) * 0.3
+        noise = (noise + noise.T) / 2
+        neural_rdm = model_rdm + noise
+
+        terminal = RSATerminal(model_rdm=model_rdm, n_permute=100)
+        result = terminal.fit_evaluate(neural_rdm)
+
+        assert isinstance(result, RSAResult)
+        assert result.method == "spearman"
+        assert result.n_conditions == n_conditions
+        # Should have positive correlation for similar RDMs
+        assert result.correlation > 0
+
+    def test_fit_evaluate_condensed_rdm(self):
+        """Test RSA computation with condensed neural RDM."""
+        from nltools.pipelines.terminals import RSATerminal
+        from nltools.pipelines.results import RSAResult
+        from scipy.spatial.distance import squareform
+
+        np.random.seed(42)
+
+        n_conditions = 6
+        base = np.random.rand(n_conditions, n_conditions)
+        model_rdm = (base + base.T) / 2
+        neural_rdm = model_rdm + np.random.rand(n_conditions, n_conditions) * 0.2
+        neural_rdm = (neural_rdm + neural_rdm.T) / 2
+        neural_condensed = squareform(neural_rdm, checks=False)
+
+        terminal = RSATerminal(model_rdm=model_rdm, n_permute=100)
+        result = terminal.fit_evaluate(neural_condensed)
+
+        assert isinstance(result, RSAResult)
+        assert result.n_conditions == n_conditions
+
+    def test_fit_evaluate_from_features(self):
+        """Test RSA computation from condition x features matrix."""
+        from nltools.pipelines.terminals import RSATerminal
+        from nltools.pipelines.results import RSAResult
+
+        np.random.seed(42)
+
+        n_conditions, n_features = 5, 50
+
+        # Create features that produce predictable RDM
+        features = np.random.randn(n_conditions, n_features)
+
+        # Create model RDM that matches the correlation distance structure
+        from sklearn.metrics import pairwise_distances
+
+        model_dist = pairwise_distances(features, metric="correlation")
+        # Make symmetric (should already be, but just in case)
+        model_rdm = (model_dist + model_dist.T) / 2
+
+        terminal = RSATerminal(model_rdm=model_rdm, n_permute=100)
+        result = terminal.fit_evaluate(features)
+
+        assert isinstance(result, RSAResult)
+        assert result.n_conditions == n_conditions
+        # Should have perfect correlation since RDM computed from same features
+        assert result.correlation > 0.99
+
+    def test_fit_evaluate_size_mismatch_raises(self):
+        """Test that RDM size mismatch raises error."""
+        from nltools.pipelines.terminals import RSATerminal
+
+        model_rdm = np.eye(5)  # 5 conditions
+        neural_rdm = np.eye(6)  # 6 conditions
+
+        terminal = RSATerminal(model_rdm=model_rdm, n_permute=100)
+        with pytest.raises(ValueError, match="RDM size mismatch"):
+            terminal.fit_evaluate(neural_rdm)
+
+    def test_fit_evaluate_pearson(self):
+        """Test RSA with Pearson correlation."""
+        from nltools.pipelines.terminals import RSATerminal
+        from nltools.pipelines.results import RSAResult
+
+        np.random.seed(42)
+
+        n_conditions = 5
+        model_rdm = np.eye(n_conditions)
+        neural_rdm = (
+            np.eye(n_conditions) + np.random.rand(n_conditions, n_conditions) * 0.1
+        )
+        neural_rdm = (neural_rdm + neural_rdm.T) / 2
+
+        terminal = RSATerminal(model_rdm=model_rdm, method="pearson", n_permute=100)
+        result = terminal.fit_evaluate(neural_rdm)
+
+        assert isinstance(result, RSAResult)
+        assert result.method == "pearson"
+
+    def test_fit_evaluate_kendall(self):
+        """Test RSA with Kendall correlation."""
+        from nltools.pipelines.terminals import RSATerminal
+        from nltools.pipelines.results import RSAResult
+
+        np.random.seed(42)
+
+        n_conditions = 5
+        model_rdm = np.eye(n_conditions)
+        neural_rdm = (
+            np.eye(n_conditions) + np.random.rand(n_conditions, n_conditions) * 0.1
+        )
+        neural_rdm = (neural_rdm + neural_rdm.T) / 2
+
+        terminal = RSATerminal(model_rdm=model_rdm, method="kendall", n_permute=100)
+        result = terminal.fit_evaluate(neural_rdm)
+
+        assert isinstance(result, RSAResult)
+        assert result.method == "kendall"
+
+
+class TestISCResult:
+    """Tests for ISCResult dataclass."""
+
+    def test_repr_scalar(self):
+        """Test repr for scalar ISC."""
+        from nltools.pipelines.results import ISCResult
+
+        result = ISCResult(
+            isc=np.float64(0.5),
+            p=np.float64(0.01),
+            ci=(0.4, 0.6),
+            method="pairwise",
+            metric="median",
+            n_subjects=10,
+        )
+        r = repr(result)
+        assert "0.5" in r
+        assert "0.01" in r
+
+    def test_repr_array(self):
+        """Test repr for array ISC (voxel-wise)."""
+        from nltools.pipelines.results import ISCResult
+
+        isc = np.array([0.3, 0.5, 0.7])
+        p = np.array([0.1, 0.01, 0.001])
+        result = ISCResult(
+            isc=isc,
+            p=p,
+            ci=(np.array([0.2, 0.4, 0.6]), np.array([0.4, 0.6, 0.8])),
+            method="leave-one-out",
+            metric="mean",
+            n_subjects=5,
+        )
+        r = repr(result)
+        assert "n_voxels=3" in r
+        assert "sig_voxels=2" in r  # p < 0.05 for 2 voxels
+
+    def test_summary_scalar(self):
+        """Test summary for scalar ISC."""
+        from nltools.pipelines.results import ISCResult
+
+        result = ISCResult(
+            isc=np.float64(0.5),
+            p=np.float64(0.01),
+            ci=(0.4, 0.6),
+            method="pairwise",
+            metric="median",
+            n_subjects=10,
+        )
+        summary = result.summary()
+        assert "pairwise" in summary
+        assert "median" in summary
+        assert "10" in summary
+
+
+class TestRSAResult:
+    """Tests for RSAResult dataclass."""
+
+    def test_repr(self):
+        """Test repr for RSA result."""
+        from nltools.pipelines.results import RSAResult
+
+        result = RSAResult(
+            correlation=0.65,
+            p_value=0.001,
+            ci=(0.5, 0.8),
+            method="spearman",
+            n_conditions=8,
+        )
+        r = repr(result)
+        assert "0.65" in r
+        assert "0.001" in r
+
+    def test_summary(self):
+        """Test summary for RSA result."""
+        from nltools.pipelines.results import RSAResult
+
+        result = RSAResult(
+            correlation=0.65,
+            p_value=0.001,
+            ci=(0.5, 0.8),
+            method="spearman",
+            n_conditions=8,
+        )
+        summary = result.summary()
+        assert "spearman" in summary
+        assert "8" in summary
+        assert "0.65" in summary
