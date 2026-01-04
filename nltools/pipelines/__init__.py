@@ -43,7 +43,7 @@ from .base import (
 )
 from .cv import CVScheme as CVSchemeImpl
 from .results import CVResult, FoldResult
-from .steps import NormalizeStep, PipeStep, ReduceStep
+from .steps import AlignStep, FittedAlign, NormalizeStep, PipeStep, ReduceStep
 from .terminals import PredictTerminal
 from .multi_subject import MultiSubjectPipeline
 from .pool import PooledData, ResultDict, StatResult
@@ -62,6 +62,9 @@ __all__ = [
     "NormalizeStep",
     "ReduceStep",
     "PipeStep",
+    # Alignment (Phase 7)
+    "AlignStep",
+    "FittedAlign",
     # Terminals (Phase 3)
     "PredictTerminal",
     # Results (Phase 3)

@@ -96,6 +96,70 @@ class MultiSubjectPipeline:
 
         return self._add_step(PipeStep(transformer=transformer))
 
+    def align(
+        self,
+        method: str = "srm",
+        scheme: str = "global",
+        n_features: int | None = 50,
+        new_subject: str = "procrustes",
+        **kwargs,
+    ) -> "MultiSubjectPipeline":
+        """Add cross-subject alignment step to pipeline.
+
+        Aligns multi-subject data using SRM or HyperAlignment before
+        downstream analyses like classification or pooling.
+
+        Parameters
+        ----------
+        method : str, default='srm'
+            Alignment method:
+            - 'srm': Shared Response Model (reduces dimensionality)
+            - 'hyperalignment': Procrustes-based alignment (preserves dimensionality)
+        scheme : str, default='global'
+            Spatial scheme. Currently only 'global' is supported.
+            'searchlight' and 'piecewise' require LocalAlignment (nltools-boll).
+        n_features : int, optional
+            Number of shared features for SRM. Ignored for hyperalignment.
+        new_subject : str, default='procrustes'
+            Method for aligning held-out subjects in LOSO CV:
+            - 'procrustes': Fit new transform using shared response
+        **kwargs
+            Additional arguments passed to alignment algorithm.
+
+        Returns
+        -------
+        MultiSubjectPipeline
+            New pipeline with alignment step added.
+
+        Examples
+        --------
+        >>> # SRM alignment before classification
+        >>> result = (
+        ...     MultiSubjectPipeline(data=subjects, cv=CVScheme(scheme='loso'))
+        ...     .align(method='srm', n_features=50)
+        ...     .predict(y=labels, algorithm='svm')
+        ... )
+
+        >>> # Hyperalignment before two-stage GLM
+        >>> result = (
+        ...     bc.cv(scheme='loso')
+        ...     .align(method='hyperalignment')
+        ...     .fit(model='glm', X=designs)
+        ...     .pool(param='beta')
+        ...     .fit(model='ttest', contrast='A-B')
+        ... )
+        """
+        from .steps import AlignStep
+
+        step = AlignStep(
+            method=method,
+            scheme=scheme,
+            n_features=n_features,
+            new_subject=new_subject,
+            **kwargs,
+        )
+        return self._add_step(step)
+
     # =========================================================================
     # Terminal methods
     # =========================================================================

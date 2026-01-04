@@ -412,6 +412,241 @@ class PipeStep:
         return FittedPipe(transformer=fitted)
 
 
+# =============================================================================
+# Align Step (Cross-subject alignment)
+# =============================================================================
+
+
+@dataclass
+class FittedAlign:
+    """Fitted alignment model.
+
+    Holds a fitted SRM or HyperAlignment model and applies transformations.
+
+    Attributes
+    ----------
+    model : Any
+        Fitted SRM or HyperAlignment instance.
+    method : str
+        The alignment method used ('srm' or 'hyperalignment').
+    new_subject_method : str
+        Method for aligning held-out subjects in LOSO CV.
+    """
+
+    model: Any  # SRM or HyperAlignment instance
+    method: str
+    new_subject_method: str = "procrustes"
+
+    def transform(self, data: list[np.ndarray]) -> list[np.ndarray]:
+        """Transform subjects that were in training.
+
+        Parameters
+        ----------
+        data : list of ndarray
+            List of subject data arrays, each shape (n_voxels, n_samples).
+
+        Returns
+        -------
+        list of ndarray
+            Aligned data for each subject.
+        """
+        return self.model.transform(data)
+
+    def transform_new_subject(self, data: np.ndarray) -> np.ndarray:
+        """Align a new subject not in training (for LOSO).
+
+        Uses transform_subject() which fits a new transform for the held-out subject.
+
+        Parameters
+        ----------
+        data : np.ndarray
+            Data for the new subject, shape (n_voxels, n_samples).
+
+        Returns
+        -------
+        np.ndarray
+            Aligned data for the new subject.
+        """
+        w = self.model.transform_subject(data)
+        # Apply the transform: X_aligned = W.T @ X
+        return w.T @ data
+
+    def inverse_transform(self, data: list[np.ndarray]) -> list[np.ndarray]:
+        """Reverse alignment (only for full-rank hyperalignment).
+
+        Parameters
+        ----------
+        data : list of ndarray
+            Aligned data for each subject.
+
+        Returns
+        -------
+        list of ndarray
+            Data in original subject-specific space.
+
+        Raises
+        ------
+        NotImplementedError
+            If method is not hyperalignment (SRM is not full-rank).
+        """
+        if self.method != "hyperalignment":
+            raise NotImplementedError(
+                "Inverse transform only supported for hyperalignment"
+            )
+        # W is orthogonal, so inverse is transpose
+        return [self.model.w_[i] @ d for i, d in enumerate(data)]
+
+
+class AlignStep:
+    """Cross-subject alignment via SRM or HyperAlignment.
+
+    Wraps existing SRM and HyperAlignment algorithms for use in pipelines.
+    Currently supports 'global' scheme only. Searchlight/piecewise schemes
+    require LocalAlignment (nltools-boll epic).
+
+    Parameters
+    ----------
+    method : str, default='srm'
+        Alignment method: 'srm' or 'hyperalignment'
+    scheme : str, default='global'
+        Spatial scheme. Currently only 'global' is supported.
+        'searchlight' and 'piecewise' require LocalAlignment.
+    n_features : int, optional
+        Number of features for SRM. None for hyperalignment (full rank).
+    new_subject : str, default='procrustes'
+        Method for aligning held-out subjects in LOSO CV.
+    n_iter : int, default=10
+        Number of iterations for SRM (or 2 for hyperalignment).
+    parallel : str, optional
+        Parallelization: 'cpu', 'gpu', or None.
+    n_jobs : int, default=-1
+        Number of jobs for CPU parallelization.
+    **kwargs : dict
+        Additional arguments passed to the underlying algorithm.
+        For SRM: 'rand_seed'. For HyperAlignment: 'auto_pad'.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> # Create synthetic multi-subject data
+    >>> data = [np.random.randn(100, 50) for _ in range(5)]
+    >>> step = AlignStep(method='srm', n_features=10)
+    >>> fitted = step.fit(data)
+    >>> aligned = fitted.transform(data)
+    """
+
+    def __init__(
+        self,
+        method: str = "srm",
+        scheme: str = "global",
+        n_features: int | None = 50,
+        new_subject: str = "procrustes",
+        n_iter: int = 10,
+        parallel: str | None = "cpu",
+        n_jobs: int = -1,
+        **kwargs,
+    ):
+        if scheme not in ("global",):
+            raise NotImplementedError(
+                f"Scheme '{scheme}' not yet implemented. "
+                "Only 'global' is currently supported. "
+                "Searchlight/piecewise require LocalAlignment (nltools-boll)."
+            )
+        if method not in ("srm", "hyperalignment"):
+            raise ValueError(
+                f"Unknown method: {method}. Use 'srm' or 'hyperalignment'."
+            )
+
+        self.method = method
+        self.scheme = scheme
+        self.n_features = n_features
+        self.new_subject = new_subject
+        self.n_iter = n_iter
+        self.parallel = parallel
+        self.n_jobs = n_jobs
+        self.kwargs = kwargs
+
+    @property
+    def invertible(self) -> bool:
+        """Check if alignment is invertible.
+
+        Returns
+        -------
+        bool
+            True if method is hyperalignment (full-rank orthogonal transforms).
+        """
+        return self.method == "hyperalignment"
+
+    def fit(self, data: list[np.ndarray]) -> FittedAlign:
+        """Fit alignment model on list of subject data.
+
+        Parameters
+        ----------
+        data : list of ndarray
+            Each array has shape (n_voxels, n_samples) or (n_samples, n_voxels).
+            Will be transposed if needed to match algorithm expectations.
+
+        Returns
+        -------
+        FittedAlign
+            Fitted alignment model.
+        """
+        # Ensure data is in (voxels, samples) format for algorithms
+        processed = self._ensure_voxels_first(data)
+
+        if self.method == "srm":
+            from nltools.algorithms import SRM
+
+            model = SRM(
+                n_iter=self.n_iter,
+                features=self.n_features or 50,
+                **{k: v for k, v in self.kwargs.items() if k in ["rand_seed"]},
+            )
+            model.fit(processed, parallel=self.parallel, n_jobs=self.n_jobs)
+        else:  # hyperalignment
+            from nltools.algorithms import HyperAlignment
+
+            model = HyperAlignment(
+                n_iter=self.n_iter if self.n_iter != 10 else 2,
+                **{k: v for k, v in self.kwargs.items() if k in ["auto_pad"]},
+            )
+            model.fit(processed, parallel=self.parallel, n_jobs=self.n_jobs)
+
+        return FittedAlign(
+            model=model, method=self.method, new_subject_method=self.new_subject
+        )
+
+    def _ensure_voxels_first(self, data: list[np.ndarray]) -> list[np.ndarray]:
+        """Ensure data is in (voxels, samples) format.
+
+        SRM/HyperAlignment expect (voxels, samples) but pipelines often use
+        (samples, voxels). We detect and transpose if needed.
+
+        Parameters
+        ----------
+        data : list of ndarray
+            List of subject data arrays.
+
+        Returns
+        -------
+        list of ndarray
+            Data with shape (n_voxels, n_samples) for each subject.
+        """
+        # Heuristic: if first dim is smaller, assume it's samples (needs transpose)
+        # This works when n_samples << n_voxels (typical for fMRI)
+        # - (samples, voxels) has shape[0] < shape[1] -> transpose to (voxels, samples)
+        # - (voxels, samples) has shape[0] > shape[1] -> keep as-is
+        result = []
+        for arr in data:
+            if arr.shape[0] < arr.shape[1]:
+                # (samples, voxels) -> transpose to (voxels, samples)
+                result.append(arr.T)
+            else:
+                # Already (voxels, samples), keep as-is
+                result.append(arr)
+        return result
+
+
 __all__ = [
     "FittedNormalize",
     "NormalizeStep",
@@ -419,4 +654,6 @@ __all__ = [
     "ReduceStep",
     "FittedPipe",
     "PipeStep",
+    "FittedAlign",
+    "AlignStep",
 ]
