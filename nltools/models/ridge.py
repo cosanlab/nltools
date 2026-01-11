@@ -200,7 +200,7 @@ class Ridge(BaseModel):
                 alphas=self.alphas,
                 cv=self.cv,
                 local_alpha=self.local_alpha,
-                parallel=self.backend_,
+                parallel="gpu" if self.backend_.device in ("cuda", "mps") else "cpu",
                 fit_intercept=self.fit_intercept,
                 conservative=self.conservative,
             )
@@ -225,18 +225,8 @@ class Ridge(BaseModel):
                 self.alpha_ = float(self.alpha_[0])
         else:
             # Multiple feature spaces: use solve_banded_ridge_cv (true banded ridge)
-            # Convert backend to string for solve_banded_ridge_cv (expects 'cpu' or 'gpu', not 'numpy')
-            if isinstance(self.backend_, Backend):
-                backend_name = (
-                    self.backend_.name if hasattr(self.backend_, "name") else "cpu"
-                )
-            else:
-                backend_name = str(self.backend_)
-            # Map 'numpy' to 'cpu' for solve_banded_ridge_cv compatibility
-            if backend_name == "numpy":
-                parallel_str = "cpu"
-            else:
-                parallel_str = backend_name
+            # Convert backend device to parallel string ('cpu' or 'gpu')
+            parallel_str = "gpu" if self.backend_.device in ("cuda", "mps") else "cpu"
             result = solve_banded_ridge_cv(
                 Xs=Xs,
                 Y=y,

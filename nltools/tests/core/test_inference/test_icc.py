@@ -20,7 +20,6 @@ from nltools.backends import check_gpu_available
 class TestComputeICCVoxelwise:
     """Test basic functionality of compute_icc_voxelwise."""
 
-    @pytest.mark.tier1
     def test_basic_functionality_single_voxel(self):
         """Test basic ICC computation with single voxel."""
         np.random.seed(42)
@@ -37,7 +36,6 @@ class TestComputeICCVoxelwise:
         assert isinstance(icc_map[0], (float, np.floating))
         assert -1 <= icc_map[0] <= 1
 
-    @pytest.mark.tier1
     def test_basic_functionality_multi_voxel(self):
         """Test basic ICC computation with multiple voxels."""
         np.random.seed(42)
@@ -53,7 +51,6 @@ class TestComputeICCVoxelwise:
         assert icc_map.shape == (n_voxels,)
         assert np.all((-1 <= icc_map) & (icc_map <= 1))
 
-    @pytest.mark.tier1
     def test_all_icc_types(self):
         """Test that all ICC types work."""
         np.random.seed(42)
@@ -71,7 +68,6 @@ class TestComputeICCVoxelwise:
             assert np.all(np.isfinite(icc_map))
             assert np.all((-1 <= icc_map) & (icc_map <= 1))
 
-    @pytest.mark.tier1
     def test_correctness_vs_single_icc(self):
         """Test that voxel-wise ICC matches single-voxel compute_icc."""
         np.random.seed(42)
@@ -93,7 +89,7 @@ class TestComputeICCVoxelwise:
 
             np.testing.assert_almost_equal(icc_map[voxel_idx], icc_single, decimal=10)
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_cpu_parallel(self):
         """Test CPU parallelization (for medium-sized problems only)."""
         np.random.seed(42)
@@ -116,7 +112,7 @@ class TestComputeICCVoxelwise:
         # Results should match (within numerical precision)
         np.testing.assert_allclose(icc_single, icc_parallel, rtol=1e-5)
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_cpu_parallel_auto_n_jobs(self):
         """Test CPU parallelization with auto-detection of n_jobs."""
         np.random.seed(42)
@@ -149,7 +145,7 @@ class TestComputeICCVoxelwise:
         # Results should match (within numerical precision)
         np.testing.assert_allclose(icc_auto, icc_explicit, rtol=1e-5)
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_cpu_parallel_memory_constraint(self):
         """Test CPU parallelization respects memory constraints."""
         np.random.seed(42)
@@ -186,7 +182,7 @@ class TestComputeICCVoxelwise:
                     "exceeds memory limit" in str(warning.message) for warning in w
                 )
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_gpu_acceleration(self):
         """Test GPU acceleration (if available)."""
         if not check_gpu_available():
@@ -212,7 +208,6 @@ class TestComputeICCVoxelwise:
         # Results should match (GPU uses float32, so slightly lower precision)
         np.testing.assert_allclose(icc_cpu, icc_gpu, rtol=1e-3, atol=1e-3)
 
-    @pytest.mark.tier1
     def test_invalid_data_shape(self):
         """Test that invalid data shape raises error."""
         n_subjects = 10
@@ -224,7 +219,6 @@ class TestComputeICCVoxelwise:
         with pytest.raises(ValueError, match="must equal n_subjects \\* n_sessions"):
             compute_icc_voxelwise(data, n_subjects, n_sessions)
 
-    @pytest.mark.tier1
     def test_invalid_icc_type(self):
         """Test that invalid ICC type raises error."""
         np.random.seed(42)
@@ -236,7 +230,6 @@ class TestComputeICCVoxelwise:
         with pytest.raises(ValueError, match="icc_type must be"):
             compute_icc_voxelwise(data, n_subjects, n_sessions, icc_type="invalid")
 
-    @pytest.mark.tier1
     def test_invalid_parallel(self):
         """Test that invalid parallel option raises error."""
         np.random.seed(42)
@@ -252,7 +245,6 @@ class TestComputeICCVoxelwise:
 class TestICCCorrectness:
     """Test statistical correctness of ICC computation."""
 
-    @pytest.mark.tier1
     def test_icc1_vs_icc3_same_formula(self):
         """Test that ICC1 and ICC3 produce same results (same formula)."""
         np.random.seed(42)
@@ -272,7 +264,6 @@ class TestICCCorrectness:
         # ICC1 and ICC3 use the same formula
         np.testing.assert_almost_equal(icc1, icc3, decimal=10)
 
-    @pytest.mark.tier1
     def test_icc2_vs_icc3_relationship(self):
         """Test that ICC2 <= ICC3 when session effects exist."""
         np.random.seed(42)
@@ -306,7 +297,6 @@ class TestICCCorrectness:
             "ICC2 should be <= ICC3 when session effects exist"
         )
 
-    @pytest.mark.tier1
     def test_perfect_reliability(self):
         """Test ICC with perfect reliability (should be close to 1.0)."""
         np.random.seed(42)
@@ -333,7 +323,6 @@ class TestICCCorrectness:
             f"Perfect reliability should produce ICC > 0.95, got min={icc_map.min():.6f}"
         )
 
-    @pytest.mark.tier1
     def test_zero_reliability(self):
         """Test ICC with zero reliability (pure noise, should be near 0)."""
         np.random.seed(42)
@@ -353,7 +342,6 @@ class TestICCCorrectness:
             f"Zero reliability should produce ICC < 0.5, got max={icc_map.max():.6f}"
         )
 
-    @pytest.mark.tier1
     def test_effect_size_sensitivity(self):
         """Test that higher reliability produces higher ICC values."""
         np.random.seed(42)
@@ -393,7 +381,6 @@ class TestICCCorrectness:
 class TestICCEdgeCases:
     """Test edge cases and error handling."""
 
-    @pytest.mark.tier1
     def test_constant_data(self):
         """Test ICC with constant data (all values the same)."""
         n_subjects = 5
@@ -412,7 +399,6 @@ class TestICCEdgeCases:
             "ICC should be finite or NaN for constant data"
         )
 
-    @pytest.mark.tier1
     def test_small_sample_size(self):
         """Test ICC with minimal sample size."""
         np.random.seed(42)
@@ -429,7 +415,6 @@ class TestICCEdgeCases:
         assert icc_map.shape == (n_voxels,)
         assert np.all(np.isfinite(icc_map))
 
-    @pytest.mark.tier1
     def test_large_voxel_count(self):
         """Test ICC with large voxel count (uses vectorized, memory efficient)."""
         np.random.seed(42)
@@ -449,7 +434,6 @@ class TestICCEdgeCases:
         assert np.all((-1 <= icc_map) & (icc_map <= 1))
 
 
-@pytest.mark.tier1
 class TestICSingleVoxel:
     """Test _compute_single_icc helper function."""
 
@@ -490,7 +474,6 @@ class TestICSingleVoxel:
 class TestICCVectorized:
     """Test vectorized ICC computation."""
 
-    @pytest.mark.tier1
     def test_vectorized_matches_single_voxel(self):
         """Test that vectorized computation matches single-voxel computation."""
         np.random.seed(42)
@@ -511,7 +494,6 @@ class TestICCVectorized:
 
         np.testing.assert_almost_equal(icc_vectorized, np.array(icc_single), decimal=10)
 
-    @pytest.mark.tier1
     def test_vectorized_all_icc_types(self):
         """Test vectorized computation for all ICC types."""
         np.random.seed(42)
