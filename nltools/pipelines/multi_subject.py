@@ -293,14 +293,43 @@ class MultiSubjectPipeline:
             Target variable. For LOSO, should be (n_subjects,).
             For run-based CV, should match pooled observations.
         algorithm : str
-            Prediction algorithm.
+            Prediction algorithm. Options:
+
+            - 'ridge': Ridge regression (continuous targets)
+            - 'lasso': Lasso regression (continuous targets)
+            - 'elastic': ElasticNet regression (continuous targets)
+            - 'svr': Support Vector Regression (continuous targets)
+            - 'svm': Support Vector Classification (categorical targets)
+            - 'logistic': Logistic Regression (categorical targets)
+            - 'rf': Random Forest (auto-detects classification vs regression)
+
         **kwargs
-            Passed to model constructor.
+            Additional arguments passed to sklearn model constructor.
+            For classification (svm, logistic), use ``class_weight='balanced'``
+            to handle imbalanced classes. See sklearn documentation for options.
 
         Returns
         -------
         CVResult
             Cross-validation results.
+
+        Examples
+        --------
+        Basic regression with LOSO CV::
+
+            result = pipeline.cv('loso').predict(subject_labels, algorithm='ridge')
+
+        Classification with balanced classes::
+
+            result = pipeline.cv('loso').predict(
+                group_labels, algorithm='svm', class_weight='balanced'
+            )
+
+        Logistic regression with regularization::
+
+            result = pipeline.cv('loso').predict(
+                binary_labels, algorithm='logistic', C=0.1, class_weight='balanced'
+            )
         """
         from .terminals import PredictTerminal
 

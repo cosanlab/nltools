@@ -30,20 +30,57 @@ class PredictTerminal:
         Target variable to predict (labels or continuous values).
     algorithm : str
         Prediction algorithm. Options:
-        - 'ridge': Ridge regression (default)
-        - 'lasso': Lasso regression
-        - 'elastic': ElasticNet regression
-        - 'svr': Support Vector Regression
-        - 'svm': Support Vector Classification
-        - 'logistic': Logistic Regression
-        - 'rf': Random Forest (auto-detects classification vs regression)
+
+        **Regression** (continuous targets):
+
+        - 'ridge': Ridge regression (default) - L2 regularization
+        - 'lasso': Lasso regression - L1 regularization, sparse solutions
+        - 'elastic': ElasticNet - combined L1/L2 regularization
+        - 'svr': Support Vector Regression - kernel-based
+        - 'rf': Random Forest Regressor (auto-detected for continuous y)
+
+        **Classification** (categorical targets):
+
+        - 'svm': Support Vector Classification - kernel-based
+        - 'logistic': Logistic Regression - linear classifier
+        - 'rf': Random Forest Classifier (auto-detected for discrete y)
+
     kwargs : dict
-        Additional arguments passed to the model constructor.
+        Additional arguments passed to the sklearn model constructor.
+
+        **Common classification kwargs:**
+
+        - ``class_weight='balanced'``: Automatically adjust weights inversely
+          proportional to class frequencies. Recommended for imbalanced data.
+        - ``C``: Regularization strength (svm, logistic). Smaller = stronger.
+
+        **Common regression kwargs:**
+
+        - ``alpha``: Regularization strength (ridge, lasso, elastic).
+
+        See sklearn documentation for complete parameter lists.
 
     Examples
     --------
-    >>> terminal = PredictTerminal(y=labels, algorithm='svm', C=1.0)
-    >>> fold_result = terminal.fit_evaluate(train_X, test_X, train_idx, test_idx, stack)
+    Basic classification::
+
+        >>> terminal = PredictTerminal(y=labels, algorithm='svm', kwargs={'C': 1.0})
+
+    Balanced classification for imbalanced data::
+
+        >>> terminal = PredictTerminal(
+        ...     y=imbalanced_labels,
+        ...     algorithm='svm',
+        ...     kwargs={'class_weight': 'balanced'}
+        ... )
+
+    Logistic regression with balanced classes::
+
+        >>> terminal = PredictTerminal(
+        ...     y=binary_labels,
+        ...     algorithm='logistic',
+        ...     kwargs={'class_weight': 'balanced', 'C': 0.1}
+        ... )
     """
 
     y: NDArray

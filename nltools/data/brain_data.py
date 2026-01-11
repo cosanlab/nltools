@@ -4673,11 +4673,26 @@ class BrainDataPipeline:
 
         Args:
             y: Target variable (labels or continuous values).
-            algorithm: Prediction algorithm ('ridge', 'svm', etc.)
-            **kwargs: Additional arguments for the predictor.
+            algorithm: Prediction algorithm. Options:
+                - 'ridge': Ridge regression (continuous targets)
+                - 'lasso': Lasso regression (continuous targets)
+                - 'svr': Support Vector Regression (continuous targets)
+                - 'svm': Support Vector Classification (categorical targets)
+            **kwargs: Additional arguments passed to sklearn model constructor.
+                For classification (svm), use class_weight='balanced' to handle
+                imbalanced classes. See sklearn documentation for all options.
 
         Returns:
             BrainDataCVResult with scores, predictions, and fold information.
+
+        Examples:
+            Basic regression::
+
+                result = brain.cv(5).predict(continuous_y, algorithm='ridge', alpha=1.0)
+
+            Classification with balanced classes::
+
+                result = brain.cv(5).predict(labels, algorithm='svm', class_weight='balanced')
         """
         from nltools.pipelines.base import FittedStack
         from sklearn.linear_model import Lasso, Ridge
