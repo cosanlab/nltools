@@ -13,8 +13,8 @@ from nltools.tests.core.test_inference import (
 )
 from nltools.backends import check_gpu_available
 
-# All tests in this file are tier2 (GPU batching)
-pytestmark = pytest.mark.tier2
+# GPU batching tests are slow and require GPU hardware
+pytestmark = [pytest.mark.slow, pytest.mark.gpu]
 
 
 class TestGPUBatching:
@@ -61,6 +61,7 @@ class TestGPUBatching:
         # Larger budget should allow larger batches
         assert batch_large > batch_small
 
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_batching_correctness(self):
         """Test that GPU batching produces same results as NumPy."""
@@ -93,6 +94,7 @@ class TestGPUBatching:
             rtol=TOLERANCE_GPU_PVALUE,  # P-values accumulate more FP error
         )
 
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_batching_large_problem(self):
         """Test GPU batching with large problem that would OOM without batching."""

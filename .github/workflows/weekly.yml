@@ -1,0 +1,51 @@
+name: Weekly Comprehensive Tests
+
+on:
+  schedule:
+    # Sunday at 11pm UTC (6pm EST, 3pm PST)
+    - cron: "0 23 * * 0"
+  workflow_dispatch:
+
+jobs:
+  test-full:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ['3.11', '3.12', '3.13']
+        include:
+          # Add macOS for one Python version to catch platform-specific issues
+          - os: macos-latest
+            python-version: '3.12'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.7.6"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Lint with ruff
+        run: uv run ruff check nltools/
+
+      - name: Run all tests (including slow)
+        run: uv run pytest -n 2 -m "" --tb=short
+
+      - name: Build docs
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        run: uv run jupyter-book build docs
+
+      - name: Build package
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        run: uv build

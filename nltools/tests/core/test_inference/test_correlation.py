@@ -16,7 +16,6 @@ from nltools.tests.core.test_inference import (
 from nltools.backends import check_gpu_available
 
 
-@pytest.mark.tier1
 class TestPearsonCorrelation:
     """Test Pearson correlation helper function."""
 
@@ -70,7 +69,6 @@ class TestPearsonCorrelation:
         assert r == 0.0  # Correlation with constant is zero
 
 
-@pytest.mark.tier1
 class TestSpearmanCorrelation:
     """Test Spearman correlation helper function."""
 
@@ -127,7 +125,6 @@ class TestSpearmanCorrelation:
         assert np.isnan(r) or r == 0.0
 
 
-@pytest.mark.tier1
 class TestKendallCorrelation:
     """Test Kendall correlation helper function."""
 
@@ -186,7 +183,6 @@ class TestKendallCorrelation:
 class TestCorrelationPermutation:
     """Test correlation permutation tests."""
 
-    @pytest.mark.tier1
     @pytest.mark.parametrize("n_features", [1, 10])
     def test_basic_functionality(self, n_features):
         """Test basic correlation test with single or multiple features."""
@@ -216,7 +212,6 @@ class TestCorrelationPermutation:
             assert np.all((result["p"] >= 0) & (result["p"] <= 1))
             assert np.all((result["correlation"] >= -1) & (result["correlation"] <= 1))
 
-    @pytest.mark.tier1
     def test_deterministic_with_seed(self):
         """Test that results are deterministic with fixed seed."""
         np.random.seed(42)
@@ -229,7 +224,6 @@ class TestCorrelationPermutation:
         np.testing.assert_almost_equal(result1["correlation"], result2["correlation"])
         np.testing.assert_almost_equal(result1["p"], result2["p"])
 
-    @pytest.mark.tier1
     @pytest.mark.parametrize("n_features", [1, 5])
     def test_return_null_distribution(self, n_features):
         """Test that null distribution is returned when requested."""
@@ -251,7 +245,7 @@ class TestCorrelationPermutation:
         assert "null_dist" in result
         assert result["null_dist"].shape == expected_shape
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_significant_correlation(self):
         """Test that significant correlation is detected."""
         np.random.seed(42)
@@ -263,7 +257,7 @@ class TestCorrelationPermutation:
         assert result["p"] < 0.05  # Should be significant
         assert result["correlation"] > 0.9  # Should be strong positive
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_non_significant_correlation(self):
         """Test that non-significant correlation has high p-value."""
         np.random.seed(42)
@@ -274,7 +268,6 @@ class TestCorrelationPermutation:
 
         assert result["p"] > 0.05  # Should not be significant
 
-    @pytest.mark.tier1
     def test_spearman_metric(self):
         """Test Spearman correlation metric in permutation test."""
         np.random.seed(42)
@@ -295,7 +288,6 @@ class TestCorrelationPermutation:
         assert result["p"] < 0.05  # Should be significant (monotonic)
         assert result["correlation"] > 0.9  # Strong positive Spearman
 
-    @pytest.mark.tier1
     def test_kendall_metric(self):
         """Test Kendall correlation metric in permutation test."""
         np.random.seed(42)
@@ -318,7 +310,7 @@ class TestCorrelationPermutation:
             result["correlation"] > 0.65
         )  # Strong positive Kendall (reduced threshold for smaller sample size)
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_one_tailed_vs_two_tailed(self):
         """Test that one-tailed and two-tailed p-values differ (when not at minimum)."""
         np.random.seed(123)  # Different seed for moderate correlation
@@ -341,7 +333,7 @@ class TestCorrelationPermutation:
         if result_two["p"] > 0.01:  # Not at minimum
             assert result_one["p"] <= result_two["p"]
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_cpu_parallel_correctness(self):
         """Test CPU parallelization produces correct results."""
         np.random.seed(42)
@@ -359,7 +351,6 @@ class TestCorrelationPermutation:
         assert np.all((result["p"] >= 0) & (result["p"] <= 1))
         assert result["parallel"] == "cpu"
 
-    @pytest.mark.tier1
     def test_invalid_tail(self):
         """Test that invalid tail raises error."""
         x = np.random.randn(50)
@@ -368,7 +359,6 @@ class TestCorrelationPermutation:
         with pytest.raises(ValueError, match="tail must be 1 or 2"):
             correlation_permutation_test(x, y, tail=3)
 
-    @pytest.mark.tier1
     def test_invalid_data_shape(self):
         """Test that invalid data shape raises error."""
         x = np.random.randn(5, 5, 5)  # 3D
@@ -377,7 +367,6 @@ class TestCorrelationPermutation:
         with pytest.raises(ValueError, match="data1 must be 1D or 2D"):
             correlation_permutation_test(x, y)
 
-    @pytest.mark.tier1
     def test_mismatched_shapes(self):
         """Test that mismatched shapes raise error."""
         x = np.random.randn(50, 5)  # 5 features
@@ -386,7 +375,7 @@ class TestCorrelationPermutation:
         with pytest.raises(ValueError, match="must have same shape"):
             correlation_permutation_test(x, y)
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_backend_consistency_single_feature(self, backends):
         """Test that NumPy and PyTorch backends produce same results."""
         if len(backends) < 2:
@@ -422,7 +411,7 @@ class TestCorrelationPermutation:
             rtol=1e-5,
         )
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_backend_consistency_multi_feature(self, backends):
         """Test backend consistency for multi-feature data."""
         if len(backends) < 2:
@@ -462,7 +451,8 @@ class TestCorrelationPermutation:
             rtol=1e-5,
         )
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_batching_correctness(self):
         """Test that GPU batching produces same results as NumPy."""
@@ -497,7 +487,8 @@ class TestCorrelationPermutation:
             rtol=TOLERANCE_GPU_PVALUE,  # P-values accumulate more FP error
         )
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_vectorized_multi_feature(self):
         """Test that vectorized GPU implementation matches CPU for multi-feature data."""
@@ -529,7 +520,8 @@ class TestCorrelationPermutation:
         assert result_gpu["correlation"].shape == (50,)
         assert result_gpu["p"].shape == (50,)
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_spearman_matches_cpu(self):
         """Test that Spearman GPU implementation matches CPU for multi-feature data."""
@@ -592,7 +584,7 @@ def _generate_bivariate_normal(n_samples, correlation, random_state=None):
 class TestCorrelationPermutationStatisticalCorrectness:
     """Test statistical correctness of correlation permutation tests."""
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_null_hypothesis_pvalue_distribution(self):
         """Test that p-values are uniformly distributed under null hypothesis for all metrics."""
         n_samples = 50
@@ -626,7 +618,6 @@ class TestCorrelationPermutationStatisticalCorrectness:
                 f"KS test p-value: {ks_pvalue:.4f}"
             )
 
-    @pytest.mark.tier1
     def test_correlation_value_correctness(self):
         """Test that computed correlation values match expected values for all metrics."""
         n_samples = 100
@@ -659,7 +650,6 @@ class TestCorrelationPermutationStatisticalCorrectness:
                     f"Got {result['correlation']:.4f}"
                 )
 
-    @pytest.mark.tier1
     def test_effect_size_sensitivity(self):
         """Test that larger correlation produces lower p-values."""
         n_samples = 50
@@ -707,7 +697,6 @@ class TestCorrelationPermutationStatisticalCorrectness:
             f"Large correlation (corr=0.7) should be significant, got p={p_values[4]:.4f}"
         )
 
-    @pytest.mark.tier1
     def test_spearman_handles_monotonic_relationships(self):
         """Test that Spearman detects monotonic non-linear relationships better than Pearson."""
         n_samples = 100
@@ -741,7 +730,6 @@ class TestCorrelationPermutationStatisticalCorrectness:
             f"Pearson should detect significant relationship. p={result_pearson['p']:.4f}"
         )
 
-    @pytest.mark.tier1
     def test_kendall_handles_tied_ranks(self):
         """Test that Kendall handles tied ranks correctly."""
         n_samples = 50
@@ -772,7 +760,7 @@ class TestCorrelationPermutationStatisticalCorrectness:
             f"Spearman should detect positive relationship. Got {result_spearman['correlation']:.4f}"
         )
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_pvalue_converges_with_more_permutations(self):
         """Test that p-values stabilize (variance decreases) with more permutations."""
         n_samples = 50
@@ -834,7 +822,6 @@ class TestCorrelationPermutationStatisticalCorrectness:
         np.testing.assert_allclose(correlations[0], correlations[1], rtol=1e-10)
         np.testing.assert_allclose(correlations[1], correlations[2], rtol=1e-10)
 
-    @pytest.mark.tier1
     def test_one_tailed_vs_two_tailed(self):
         """Test that one-tailed p-value ≈ two-tailed p-value / 2 for positive correlation."""
         n_samples = 50

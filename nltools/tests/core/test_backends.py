@@ -26,7 +26,6 @@ def _torch_available():
 # ============================================================================
 
 
-@pytest.mark.tier1
 def test_numpy_backend_default():
     """NumPy backend should work without PyTorch"""
     from nltools.backends import Backend
@@ -37,7 +36,6 @@ def test_numpy_backend_default():
     assert backend.xp is np
 
 
-@pytest.mark.tier1
 def test_auto_backend_without_torch(monkeypatch):
     """Auto-selection should fall back to numpy if no GPU"""
     from nltools.backends import Backend
@@ -50,7 +48,7 @@ def test_auto_backend_without_torch(monkeypatch):
     assert backend.name == "numpy"
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
 def test_torch_backend_selection():
     """Torch backend should detect available device"""
@@ -61,7 +59,6 @@ def test_torch_backend_selection():
     assert backend.device in ["cpu", "cuda", "mps"]
 
 
-@pytest.mark.tier1
 def test_check_gpu_available():
     """GPU availability check should return bool and info dict"""
     from nltools.backends import check_gpu_available
@@ -78,7 +75,6 @@ def test_check_gpu_available():
 # ============================================================================
 
 
-@pytest.mark.tier1
 def test_numpy_to_device():
     """NumPy backend should handle array conversion"""
     from nltools.backends import Backend
@@ -92,7 +88,6 @@ def test_numpy_to_device():
     np.testing.assert_array_equal(result, arr.astype(np.float32))
 
 
-@pytest.mark.tier1
 def test_numpy_to_numpy():
     """NumPy backend to_numpy should be identity"""
     from nltools.backends import Backend
@@ -104,7 +99,7 @@ def test_numpy_to_numpy():
     assert result is arr  # Should be same object
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
 def test_torch_to_device():
     """Torch backend should convert numpy to torch tensor"""
@@ -120,7 +115,7 @@ def test_torch_to_device():
     assert result.device.type == backend.device
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
 def test_torch_to_numpy():
     """Torch backend should convert tensor back to numpy"""
@@ -140,7 +135,6 @@ def test_torch_to_numpy():
 # ============================================================================
 
 
-@pytest.mark.tier1
 def test_numpy_svd():
     """NumPy SVD should work correctly"""
     from nltools.backends import Backend
@@ -174,7 +168,7 @@ def test_numpy_matmul():
     np.testing.assert_allclose(result, expected, rtol=1e-5)
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
 def test_torch_svd_equivalence():
     """Torch SVD should match NumPy results"""
@@ -204,7 +198,7 @@ def test_torch_svd_equivalence():
     np.testing.assert_allclose(recon_torch, recon_np, rtol=1e-3)
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
 def test_mps_svd_cpu_fallback():
     """MPS SVD should use explicit CPU fallback without warnings"""
@@ -263,7 +257,7 @@ def test_mps_svd_cpu_fallback():
     np.testing.assert_allclose(s_np_result, s_np, rtol=1e-3)
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
 def test_float64_precision_warning():
     """Backend should warn when converting float64 to float32 for MPS"""
