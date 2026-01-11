@@ -60,6 +60,7 @@ def test_scale_efficient(sim_brain_data):
     assert not np.isclose(original_mean, 100.0)
 
 
+@pytest.mark.filterwarnings("ignore:Numerical issues:UserWarning")
 def test_method_chaining_efficiency(sim_brain_data):
     """Test that method chaining is efficient"""
 
@@ -107,7 +108,7 @@ def test_scale_with_different_values(sim_brain_data):
         assert scaled.data is not sim_brain_data.data
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_comparison_with_deepcopy():
     """Compare performance of shallow copy vs deep copy"""
 
@@ -211,7 +212,7 @@ def test_all_arithmetic_methods_efficient(sim_brain_data):
     assert id(result.data) != id(sim_brain_data.data), "Should have new data"
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_transform_methods_efficient():
     """Test that transform methods (scale, standardize, etc.) are efficient"""
 
@@ -348,7 +349,7 @@ def test_append_correctness():
     )
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_no_accidental_deep_copies():
     """Ensure methods aren't secretly doing deep copies internally"""
 
@@ -390,7 +391,7 @@ def test_no_accidental_deep_copies():
     )
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_chained_operations_preserve_efficiency():
     """Test that chaining multiple operations maintains object sharing"""
 

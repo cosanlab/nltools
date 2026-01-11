@@ -12,9 +12,6 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose, assert_array_equal
 
-# Mark all tests in this file as tier1 (fast integration tests)
-pytestmark = pytest.mark.tier1
-
 
 class TestBackwardCompatibility:
     """Ensure old API still works for backward compatibility."""

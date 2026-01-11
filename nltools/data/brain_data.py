@@ -361,38 +361,39 @@ class BrainData(object):
                 # Update space detection
                 self._space = self._detect_space(self.mask)
 
-                # Check if resampling is needed after updating mask
-                if not self._check_space_match(data_img, self.mask):
-                    if self._resample:
-                        # Warn about resampling
-                        self._warn_if_resampling(
-                            f"Detected template ({template_info['template']} {template_info['resolution']}mm) differs from data resolution."
-                        )
-                        # Resample data to detected mask space
-                        from nilearn.image import resample_to_img
-                        from contextlib import redirect_stdout
-                        import os
+            # Always check if resampling is needed (regardless of whether mask changed)
+            # Data might be in different space even if template matches
+            if not self._check_space_match(data_img, self.mask):
+                if self._resample:
+                    # Warn about resampling
+                    self._warn_if_resampling(
+                        f"Detected template ({template_info['template']} {template_info['resolution']}mm) differs from data resolution."
+                    )
+                    # Resample data to detected mask space
+                    from nilearn.image import resample_to_img
+                    from contextlib import redirect_stdout
+                    import os
 
-                        if not self.verbose:
-                            with open(os.devnull, "w") as devnull:
-                                with redirect_stdout(devnull):
-                                    data_img = resample_to_img(
-                                        data_img,
-                                        self.mask,
-                                        interpolation=self._get_interpolation(data_img),
-                                        copy_header=True,
-                                        force_resample=True,
-                                    )
-                        else:
-                            data_img = resample_to_img(
-                                data_img,
-                                self.mask,
-                                interpolation=self._get_interpolation(data_img),
-                                copy_header=True,
-                            )
+                    if not self.verbose:
+                        with open(os.devnull, "w") as devnull:
+                            with redirect_stdout(devnull):
+                                data_img = resample_to_img(
+                                    data_img,
+                                    self.mask,
+                                    interpolation=self._get_interpolation(data_img),
+                                    copy_header=True,
+                                    force_resample=True,
+                                )
                     else:
-                        # resample=False but spaces don't match - error will be raised in caller
-                        pass
+                        data_img = resample_to_img(
+                            data_img,
+                            self.mask,
+                            interpolation=self._get_interpolation(data_img),
+                            copy_header=True,
+                        )
+                else:
+                    # resample=False but spaces don't match - error will be raised in caller
+                    pass
 
         except Exception as e:
             # If detection fails, fall back to default template
@@ -1147,9 +1148,10 @@ class BrainData(object):
             elif key.startswith("glm_") or key.startswith("ridge_"):
                 # GLM/Ridge results - share for now (they're typically read-only)
                 setattr(new, key, value)
-            elif key in ["model_", "X_"]:
-                # Fitted model and training data - share (shouldn't be copied)
-                setattr(new, key, value)
+            elif key in ["model_", "X_", "cv_results_"]:
+                # Fitted model state - don't propagate to copies
+                # A copy represents fresh data, not a fitted model
+                pass
             else:
                 # Small attributes - deep copy to be safe
                 setattr(new, key, deepcopy(value))
@@ -1157,14 +1159,17 @@ class BrainData(object):
         return new
 
     def copy(self):
-        """Create a copy of a BrainData instance.
+        """Create a deep copy of a BrainData instance.
 
-        Note: Fitted models (model\\_, X\\_) and model results (glm_*, ridge_*)
-        are shared (not copied) to avoid pickle errors with unpicklable objects.
-        All other attributes including the data array are deep copied.
+        All attributes including data, fitted models, and results are deep copied.
+        Use this when you need a complete independent copy.
+
+        Note: For methods like apply_mask(), threshold(), etc., fitted model state
+        (model_, X_, cv_results_) is NOT propagated since the new data shape
+        would invalidate the original fit.
 
         Returns:
-            BrainData: Copied instance with shared model attributes
+            BrainData: Deep copied instance
         """
         return deepcopy(self)
 
@@ -1408,25 +1413,149 @@ class BrainData(object):
         else:
             self.to_nifti().to_filename(file_name)
 
-    def scale(self, scale_val=100.0):
-        """
-        Scale all values such that they are on the range [0, scale_val], via grand-mean scaling. This is NOT global-scaling/intensity normalization. It rescales each voxel to be a proportion of the global average * `scale_val`. This is useful for ensuring that data is on a common scale (e.g. good for multiple runs, participants, etc) and if the default value of 100 is used, can be interpreted as something akin to (but not exactly) "percent signal change." This is consistent with default behavior in AFNI and SPM.Change this value to 10000 to make consistent with FSL.
+    def scale(self, scale_val=100.0, axis=None):
+        """Scale data via mean scaling.
+
+        Two scaling modes are available:
+
+        - **Grand-mean scaling** (axis=None, default): Divides all values by the
+          global mean across all voxels and timepoints. This is consistent with
+          FSL and SPM behavior. Use scale_val=10000 for FSL-style scaling.
+
+        - **Voxel-wise scaling** (axis=0): Divides each voxel's time-series by
+          its own temporal mean. This is AFNI-style scaling and can be useful
+          when voxels have very different baseline intensities. Voxels with
+          zero or near-zero mean are set to zero to avoid NaN/Inf.
+
+        When scale_val=100 (default), the result can be interpreted as something
+        akin to (but not exactly) "percent signal change."
 
         Args:
-            scale_val: (int/float) what value to send the grand-mean to;
-                        default 100
+            scale_val: (int/float) Target value for the mean after scaling.
+                    Default 100.
+            axis: (int or None) Axis along which to compute the mean:
+                    - None: Grand-mean scaling (default, FSL/SPM style)
+                    - 0: Voxel-wise scaling (AFNI style) - each voxel scaled
+                         by its own temporal mean
+
+        Returns:
+            BrainData: New BrainData instance with scaled data.
+
+        Examples:
+            >>> # Grand-mean scaling (default)
+            >>> scaled = brain.scale(100.0)
+            >>>
+            >>> # Voxel-wise scaling (AFNI style)
+            >>> scaled = brain.scale(100.0, axis=0)
 
         """
-
         out = self._shallow_copy_with_data()
-        # Copy data array and modify in-place
         out.data = self.data.copy()
-        out.data = out.data / out.data.mean() * scale_val
+
+        if axis is None:
+            # Grand-mean scaling: divide by global mean
+            out.data = out.data / out.data.mean() * scale_val
+        elif axis == 0:
+            # Voxel-wise scaling: divide each voxel by its temporal mean
+            # Compute mean along time axis (axis=0), keeping dims for broadcasting
+            voxel_means = out.data.mean(axis=0, keepdims=True)
+
+            # Handle zero-mean voxels to avoid NaN/Inf
+            # Set zero-mean voxels to 1 temporarily, then zero out result
+            zero_mask = np.abs(voxel_means) < np.finfo(float).eps
+            voxel_means_safe = np.where(zero_mask, 1.0, voxel_means)
+
+            # Scale
+            out.data = out.data / voxel_means_safe * scale_val
+
+            # Zero out voxels that had zero mean
+            if np.any(zero_mask):
+                out.data[:, zero_mask.squeeze()] = 0.0
+        else:
+            raise ValueError(f"axis must be None or 0, got {axis}")
 
         return out
 
+    def cv(
+        self,
+        k: int = None,
+        scheme: str = "kfold",
+        split_by: str = None,
+        groups: np.ndarray = None,
+        random_state: int = None,
+        **kwargs,
+    ) -> "BrainDataPipeline":
+        """Create a cross-validation pipeline for this BrainData.
+
+        Returns a Pipeline object that enables fluent, chainable transforms
+        with cross-validation. Terminal methods like .predict() execute the
+        pipeline and return results.
+
+        Args:
+            k: Number of folds (for kfold scheme). Defaults to 5.
+            scheme: CV scheme type. Options:
+                - 'kfold': k-fold cross-validation (default)
+                - 'loro': leave-one-run-out (requires split_by='runs' or groups)
+                - 'bootstrap': bootstrap with out-of-bag test sets
+            split_by: Attribute name for group splits (e.g., 'runs').
+                If provided and groups is None, will try to get groups from
+                self.X[split_by] if self.X is a DataFrame.
+            groups: Explicit group labels for CV splits.
+            random_state: Random seed for reproducibility.
+            **kwargs: Additional arguments passed to CVScheme.
+
+        Returns:
+            BrainDataPipeline: A pipeline object for method chaining.
+
+        Examples:
+            >>> # Simple 5-fold CV with prediction
+            >>> result = brain.cv(k=5).predict(y, algorithm='ridge')
+            >>> print(f"Mean score: {result.mean_score:.3f}")
+
+            >>> # With preprocessing
+            >>> result = (brain
+            ...     .cv(k=5)
+            ...     .normalize()
+            ...     .reduce(n_components=50)
+            ...     .predict(y))
+
+            >>> # Leave-one-run-out CV
+            >>> result = brain.cv(scheme='loro', groups=run_labels).predict(y)
+
+        See Also:
+            BrainDataPipeline: For available transforms and terminal methods.
+            CVScheme: For CV scheme configuration details.
+        """
+        from nltools.pipelines.cv import CVScheme
+
+        # Handle split_by -> groups conversion
+        if groups is None and split_by is not None:
+            if hasattr(self, "X") and self.X is not None:
+                if hasattr(self.X, "__getitem__") and split_by in self.X:
+                    groups = np.array(self.X[split_by])
+
+        # Create CV scheme
+        cv_scheme = CVScheme(
+            k=k,
+            scheme=scheme,
+            split_by=split_by,
+            random_state=random_state,
+            **kwargs,
+        )
+
+        # Create and return pipeline
+        return BrainDataPipeline(self, cv=cv_scheme, groups=groups)
+
     def fit(
-        self, model=None, X=None, cv=None, inplace=True, progress_bar=None, **kwargs
+        self,
+        model=None,
+        X=None,
+        cv=None,
+        inplace=True,
+        progress_bar=None,
+        scale=True,
+        scale_value=100.0,
+        **kwargs,
     ):
         """Fit a model to brain imaging data.
 
@@ -1450,6 +1579,12 @@ class BrainData(object):
                 - If None: Uses self.verbose (default)
                 - If True: Shows progress bar for long-running operations
                 - If False: No progress bar
+            scale (bool, default=True): Apply grand-mean scaling before fitting. Calls
+                self.scale(scale_value) which divides all values by the global mean
+                and multiplies by scale_value. This puts data in percent signal change
+                units, which is standard for fMRI analysis.
+            scale_value (float, default=100.0): Target value for mean after scaling.
+                Only used if scale=True.
             **kwargs (dict): Additional arguments passed to model constructor
                 - Ridge: alpha, alphas, backend, random_state
                 - Glm: noise_model, minimize_memory, etc.
@@ -1565,6 +1700,11 @@ class BrainData(object):
                 if hasattr(target, attr):
                     delattr(target, attr)
 
+        # Apply scaling before fitting (puts data in percent signal change units)
+        if scale:
+            scaled = target.scale(scale_value)
+            target.data = scaled.data
+
         # Create model based on string
         if model == "ridge":
             # Pass progress_bar to Ridge model
@@ -1660,6 +1800,17 @@ class BrainData(object):
         from sklearn.metrics import r2_score
         from nltools.algorithms.ridge import ridge_cv, ridge_svd
 
+        # Convert backend to parallel parameter for ridge functions
+        # ridge_svd/ridge_cv expect: None, 'cpu', or 'gpu'
+        if backend in ("auto", "numpy", None):
+            parallel = "cpu"
+        elif backend == "torch":
+            parallel = "gpu"
+        elif backend in ("cpu", "gpu"):
+            parallel = backend
+        else:
+            parallel = "cpu"  # Safe default
+
         # Get alpha from model if not explicitly provided
         if alpha is None:
             alpha = self.model_.alpha if hasattr(self.model_, "alpha") else 1.0
@@ -1700,7 +1851,7 @@ class BrainData(object):
                 alphas = np.logspace(-2, 4, 20)  # Default alpha grid
 
             result = ridge_cv(
-                X, self.data, alphas=alphas, cv=cv_splitter.n_splits, backend=backend
+                X, self.data, alphas=alphas, cv=cv_splitter.n_splits, parallel=parallel
             )
 
             best_alpha = result["alpha"]
@@ -1724,7 +1875,7 @@ class BrainData(object):
             y_train, y_test = self.data[train_idx], self.data[test_idx]
 
             # Fit Ridge on training fold
-            coef = ridge_svd(X_train, y_train, alpha=alpha, parallel=backend)
+            coef = ridge_svd(X_train, y_train, alpha=alpha, parallel=parallel)
 
             # Predict on test fold
             y_pred = X_test @ coef
@@ -2099,12 +2250,15 @@ class BrainData(object):
 
         return contrast_vector
 
-    def append(self, data, **kwargs):
+    def append(self, data, ignore_attrs=False, **kwargs):
         """Append data to BrainData instance.
 
         Args:
             data: BrainData instance to append.
-            kwargs: Optional arguments passed to pandas concat.
+            ignore_attrs: (bool) If True, skip concatenation of X and Y
+                    attributes. Useful when appending images where .X or .Y
+                    have different column counts. Default False.
+            kwargs: Optional arguments passed to pandas concat for X/Y.
 
         Returns:
             BrainData: New appended BrainData instance.
@@ -2123,6 +2277,38 @@ class BrainData(object):
 
             out = self._shallow_copy_with_data()
             out.data = np.vstack([self.data, data.data])
+
+            # Handle X and Y attributes
+            if not ignore_attrs:
+                # Concatenate X if both have it
+                if (
+                    hasattr(self, "X")
+                    and self.X is not None
+                    and hasattr(data, "X")
+                    and data.X is not None
+                ):
+                    out.X = pd.concat([self.X, data.X], ignore_index=True, **kwargs)
+                elif hasattr(data, "X") and data.X is not None:
+                    # self.X is None but data.X exists - just use data.X
+                    out.X = data.X.copy()
+                # else: keep self.X (already copied in _shallow_copy_with_data)
+
+                # Concatenate Y if both have it
+                if (
+                    hasattr(self, "Y")
+                    and self.Y is not None
+                    and hasattr(data, "Y")
+                    and data.Y is not None
+                ):
+                    out.Y = pd.concat([self.Y, data.Y], ignore_index=True, **kwargs)
+                elif hasattr(data, "Y") and data.Y is not None:
+                    # self.Y is None but data.Y exists - just use data.Y
+                    out.Y = data.Y.copy()
+                # else: keep self.Y (already copied in _shallow_copy_with_data)
+            else:
+                # ignore_attrs=True: set X and Y to None to avoid confusion
+                out.X = None
+                out.Y = None
 
         return out
 
@@ -2834,11 +3020,11 @@ class BrainData(object):
             if isinstance(lower, str) and lower[-1] == "%":
                 lower = np.percentile(b.data, float(lower[:-1]))
 
-            if upper and lower:
+            if upper is not None and lower is not None:
                 b.data[(b.data < upper) & (b.data > lower)] = 0
-            elif upper:
+            elif upper is not None:
                 b.data[b.data < upper] = 0
-            elif lower:
+            elif lower is not None:
                 b.data[b.data > lower] = 0
 
             if binarize:
@@ -3437,33 +3623,109 @@ class BrainData(object):
             out.data[:, i] = interpolate(new_spacing)
         return out
 
-    def predict(self, X=None):
-        """Generate predictions using fitted model.
+    def predict(
+        self,
+        X: "np.ndarray | None" = None,
+        y: "np.ndarray | None" = None,
+        method: str = "whole_brain",
+        estimator="svm",
+        cv=5,
+        groups: "np.ndarray | None" = None,
+        roi_mask=None,
+        radius: float = 10.0,
+        scoring: str = "accuracy",
+        standardize: bool = True,
+        n_jobs: int = -1,
+        show_progress: bool = True,
+    ):
+        """Generate predictions using fitted model OR classify patterns (MVPA).
 
-        Uses the model fitted during fit() to generate predictions for new data.
-        Works with both Ridge and GLM models. If X is not provided, returns
-        predictions on the training data used in fit().
+        This method supports two prediction modes determined by which parameter
+        is provided:
+
+        1. **Timeseries prediction** (X provided): Use fitted ridge model to
+           predict voxel responses for new feature data.
+
+        2. **MVPA decoding** (y provided): Train a classifier to predict labels
+           from brain patterns using cross-validation.
 
         Args:
-            X (array-like or DataFrame, optional): Data to predict on, shape (n_samples, n_features).
-                Must have same n_features as training data.
-                If None, uses training data from fit() (stored in ``self.X_``).
+            X: Features for timeseries prediction, shape (n_samples, n_features).
+                If None and y is None, uses training data from fit().
+            y: Labels for MVPA decoding, shape (n_samples,).
+                If provided, performs pattern classification instead of
+                timeseries prediction.
+
+            # MVPA-specific parameters (only used when y is provided):
+            method: Decoding method - 'whole_brain', 'searchlight', or 'roi'.
+            estimator: Classifier to use. Can be:
+                - 'svm': LinearSVC (default)
+                - 'logistic': LogisticRegression
+                - 'ridge': RidgeClassifier
+                - 'lda': LinearDiscriminantAnalysis
+                - Any sklearn-compatible estimator with fit/predict
+            cv: Cross-validation specification. Int for k-fold or sklearn CV object.
+            groups: Group labels for CV (e.g., run IDs for leave-one-run-out).
+            roi_mask: Atlas/parcellation for ROI-based decoding.
+            radius: Searchlight radius in mm (default 10.0).
+            scoring: Metric for evaluation ('accuracy', 'balanced_accuracy', 'roc_auc').
+            standardize: Z-score features before classification (default True).
+            n_jobs: Number of parallel jobs for searchlight (-1 = all cores).
+            show_progress: Show progress bar for searchlight.
 
         Returns:
-            BrainData: Predicted brain data with shape (n_samples, n_voxels)
+            BrainData: For timeseries prediction, shape (n_samples, n_voxels).
+                For MVPA, shape (1, n_voxels) with accuracy per voxel/ROI.
 
         Raises:
-            ValueError: If fit() has not been called yet
-            ValueError: If X has wrong number of features
+            ValueError: If both X and y are provided.
+            ValueError: If fit() has not been called (for timeseries mode).
 
         Examples:
-            >>> brain_data.fit(model='ridge', alpha=1.0, X=features)
+            >>> # Timeseries prediction (encoding model)
+            >>> brain_data.fit(model='ridge', X=features)
             >>> predictions = brain_data.predict(X=new_features)
-            >>> print(predictions.shape)
-            >>>
-            >>> # Predict on training data
-            >>> train_predictions = brain_data.predict()
-            >>> print(train_predictions.shape)
+
+            >>> # MVPA decoding (pattern classification)
+            >>> # brain_data.data has shape (n_trials, n_voxels)
+            >>> accuracy = brain_data.predict(y=labels, method='searchlight')
+            >>> print(accuracy.shape)  # (1, n_voxels)
+        """
+        # Validate mutually exclusive modes
+        if X is not None and y is not None:
+            raise ValueError(
+                "Cannot specify both X and y. Use X for timeseries prediction "
+                "or y for MVPA decoding."
+            )
+
+        # Dispatch to appropriate mode
+        if y is not None:
+            return self._predict_mvpa(
+                y=y,
+                method=method,
+                estimator=estimator,
+                cv=cv,
+                groups=groups,
+                roi_mask=roi_mask,
+                radius=radius,
+                scoring=scoring,
+                standardize=standardize,
+                n_jobs=n_jobs,
+                show_progress=show_progress,
+            )
+        else:
+            return self._predict_timeseries(X=X)
+
+    def _predict_timeseries(self, X=None):
+        """Generate timeseries predictions using fitted model.
+
+        Internal method for encoding model prediction.
+
+        Args:
+            X: Features to predict on. If None, uses training data.
+
+        Returns:
+            BrainData with predicted timeseries.
         """
         from nltools.data import BrainData
 
@@ -3538,6 +3800,326 @@ class BrainData(object):
         predictions.data = y_pred
 
         return predictions
+
+    def _predict_mvpa(
+        self,
+        y: np.ndarray,
+        method: str = "whole_brain",
+        estimator="svm",
+        cv=5,
+        groups: "np.ndarray | None" = None,
+        roi_mask=None,
+        radius: float = 10.0,
+        scoring: str = "accuracy",
+        standardize: bool = True,
+        n_jobs: int = -1,
+        show_progress: bool = True,
+    ):
+        """Perform MVPA decoding using cross-validation.
+
+        Internal method for pattern classification.
+
+        Args:
+            y: Labels to predict, shape (n_samples,).
+            method: 'whole_brain', 'searchlight', or 'roi'.
+            estimator: Classifier (string shortcut or sklearn estimator).
+            cv: Cross-validation specification.
+            groups: Group labels for CV.
+            roi_mask: Atlas for ROI-based decoding.
+            radius: Searchlight radius in mm.
+            scoring: Scoring metric.
+            standardize: Whether to z-score features.
+            n_jobs: Parallel jobs for searchlight.
+            show_progress: Show progress bar.
+
+        Returns:
+            BrainData with accuracy values.
+        """
+        import warnings
+        from sklearn.model_selection import StratifiedKFold
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.pipeline import make_pipeline
+        from sklearn.base import clone
+
+        # Validate method
+        valid_methods = {"whole_brain", "searchlight", "roi"}
+        if method not in valid_methods:
+            raise ValueError(
+                f"Invalid method: {method}. Must be one of {valid_methods}"
+            )
+
+        # Emit deprecation warning for whole_brain method suggesting fluent API
+        if method == "whole_brain":
+            warnings.warn(
+                "predict(y=labels, cv=k) is deprecated for whole-brain MVPA. "
+                "Use the fluent pipeline API instead:\n"
+                "  result = brain.cv(k=5).predict(y=labels, algorithm='svm')\n"
+                "The fluent API provides richer results (per-fold scores, predictions) "
+                "and supports preprocessing chains (.normalize(), .reduce()).",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+        # Resolve estimator
+        estimator_obj = self._resolve_estimator(estimator)
+
+        # Resolve CV
+        if isinstance(cv, int):
+            cv = StratifiedKFold(n_splits=cv, shuffle=True, random_state=42)
+
+        # Validate y
+        y = np.asarray(y)
+        if y.shape[0] != self.shape[0]:
+            raise ValueError(
+                f"y has {y.shape[0]} samples but data has {self.shape[0]} samples"
+            )
+
+        # Get data as X for classification
+        X_data = self.data  # (n_samples, n_voxels)
+
+        # Build pipeline with optional standardization
+        if standardize:
+            pipe = make_pipeline(StandardScaler(), clone(estimator_obj))
+        else:
+            pipe = clone(estimator_obj)
+
+        # Dispatch by method
+        if method == "whole_brain":
+            # Use Pipeline infrastructure for whole-brain MVPA
+            accuracy = self._mvpa_whole_brain_pipeline(
+                y, estimator, cv, groups, standardize
+            )
+        elif method == "searchlight":
+            accuracy = self._mvpa_searchlight(
+                X_data, y, pipe, cv, groups, scoring, radius, n_jobs, show_progress
+            )
+        elif method == "roi":
+            if roi_mask is None:
+                raise ValueError("roi_mask required for method='roi'")
+            accuracy = self._mvpa_roi(
+                X_data, y, pipe, cv, groups, scoring, roi_mask, n_jobs, show_progress
+            )
+
+        # Wrap in BrainData
+        result = (
+            self[0].copy() if len(self.shape) > 1 and self.shape[0] > 1 else self.copy()
+        )
+        result.data = accuracy.reshape(1, -1) if accuracy.ndim == 1 else accuracy
+
+        return result
+
+    def _resolve_estimator(self, estimator):
+        """Resolve string shortcut to sklearn estimator."""
+        from sklearn.svm import LinearSVC
+        from sklearn.linear_model import LogisticRegression, RidgeClassifier
+        from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+
+        shortcuts = {
+            "svm": lambda: LinearSVC(dual="auto", max_iter=10000),
+            "logistic": lambda: LogisticRegression(max_iter=1000),
+            "ridge": lambda: RidgeClassifier(),
+            "lda": lambda: LinearDiscriminantAnalysis(),
+        }
+
+        if isinstance(estimator, str):
+            if estimator not in shortcuts:
+                raise ValueError(
+                    f"Unknown estimator: '{estimator}'. "
+                    f"Valid options: {list(shortcuts.keys())}"
+                )
+            return shortcuts[estimator]()
+
+        # Validate sklearn API
+        if not hasattr(estimator, "fit") or not hasattr(estimator, "predict"):
+            raise TypeError(
+                f"estimator must have fit() and predict() methods. "
+                f"Got: {type(estimator).__name__}"
+            )
+
+        return estimator
+
+    def _mvpa_whole_brain(self, X, y, pipe, cv, groups, scoring):
+        """Whole-brain MVPA - single accuracy across all voxels.
+
+        Legacy implementation using sklearn cross_val_score directly.
+        Kept for searchlight/ROI methods that still use sklearn pipelines.
+        """
+        from sklearn.model_selection import cross_val_score
+
+        scores = cross_val_score(pipe, X, y, cv=cv, groups=groups, scoring=scoring)
+        return np.array([np.mean(scores)])
+
+    def _mvpa_whole_brain_pipeline(self, y, estimator, cv, groups, standardize):
+        """Whole-brain MVPA using Pipeline infrastructure.
+
+        Delegates to the fluent pipeline API for whole-brain classification,
+        then extracts mean accuracy for backward compatibility.
+
+        Args:
+            y: Labels to predict.
+            estimator: Estimator name ('svm', 'logistic', etc.).
+            cv: Cross-validation splitter or int.
+            groups: Group labels for CV.
+            standardize: Whether to z-score features.
+
+        Returns:
+            np.ndarray with single mean accuracy value.
+        """
+        # Map estimator names to Pipeline algorithm names
+        estimator_map = {
+            "svm": "svm",
+            "logistic": "logistic",
+            "ridge": "ridge",
+            "lda": "logistic",  # Approximate with logistic
+        }
+
+        # Get algorithm name (pass through if not in map)
+        if isinstance(estimator, str):
+            algorithm = estimator_map.get(estimator, estimator)
+        else:
+            # Custom estimator - fall back to legacy implementation
+            from sklearn.model_selection import StratifiedKFold
+            from sklearn.preprocessing import StandardScaler
+            from sklearn.pipeline import make_pipeline
+            from sklearn.base import clone
+
+            if isinstance(cv, int):
+                cv = StratifiedKFold(n_splits=cv, shuffle=True, random_state=42)
+            if standardize:
+                pipe = make_pipeline(StandardScaler(), clone(estimator))
+            else:
+                pipe = clone(estimator)
+            return self._mvpa_whole_brain(self.data, y, pipe, cv, groups, "accuracy")
+
+        # Build CV parameters from cv argument
+        if isinstance(cv, int):
+            k = cv
+        else:
+            # For sklearn CV objects, extract n_splits
+            k = getattr(cv, "n_splits", 5)
+
+        # Build and execute pipeline
+        pipeline = self.cv(k=k, scheme="kfold", groups=groups)
+
+        # Add normalization if requested
+        if standardize:
+            pipeline = pipeline.normalize(method="zscore")
+
+        # Execute and get results
+        cv_result = pipeline.predict(y=y, algorithm=algorithm)
+
+        # Return mean accuracy as single-element array for backward compat
+        return np.array([cv_result.mean_score])
+
+    def _mvpa_searchlight(
+        self, X, y, pipe, cv, groups, scoring, radius, n_jobs, show_progress
+    ):
+        """Searchlight MVPA - accuracy per voxel neighborhood."""
+        from sklearn.model_selection import cross_val_score
+        from sklearn.base import clone
+        from joblib import Parallel, delayed
+        from nltools.neighborhoods import compute_searchlight_neighborhoods
+
+        # Get neighborhoods
+        neighborhoods = compute_searchlight_neighborhoods(
+            self.mask, radius_mm=radius, use_cache=True
+        )
+
+        def decode_sphere(center_idx, neighbor_indices):
+            """Decode within a single sphere."""
+            X_sphere = X[:, neighbor_indices]
+            if X_sphere.shape[1] < 2:  # Skip tiny neighborhoods
+                return np.nan
+            try:
+                scores = cross_val_score(
+                    clone(pipe), X_sphere, y, cv=cv, groups=groups, scoring=scoring
+                )
+                return np.mean(scores)
+            except Exception:
+                return np.nan
+
+        # Collect all neighborhoods
+        neighborhood_list = list(neighborhoods.iter_neighborhoods())
+
+        # Progress bar setup
+        if show_progress:
+            try:
+                from tqdm import tqdm
+
+                neighborhood_list = list(
+                    tqdm(
+                        neighborhood_list,
+                        desc="Searchlight",
+                        total=neighborhoods.n_voxels,
+                    )
+                )
+            except ImportError:
+                pass
+
+        # Parallel execution
+        if n_jobs == 1:
+            accuracies = [decode_sphere(c, n) for c, n in neighborhood_list]
+        else:
+            accuracies = Parallel(n_jobs=n_jobs)(
+                delayed(decode_sphere)(c, n) for c, n in neighborhood_list
+            )
+
+        return np.array(accuracies)
+
+    def _mvpa_roi(
+        self, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, show_progress
+    ):
+        """ROI-based MVPA - accuracy per ROI."""
+        from sklearn.model_selection import cross_val_score
+        from sklearn.base import clone
+        from joblib import Parallel, delayed
+        from nilearn.maskers import NiftiLabelsMasker
+
+        # Load ROI mask if path
+        if isinstance(roi_mask, (str, Path)):
+            roi_mask = nib.load(roi_mask)
+
+        # Get ROI labels
+        roi_data = roi_mask.get_fdata()
+        unique_labels = np.unique(roi_data)
+        unique_labels = unique_labels[unique_labels != 0]  # Exclude background
+
+        def decode_roi(roi_label):
+            """Decode within a single ROI."""
+            try:
+                masker = NiftiLabelsMasker(
+                    labels_img=roi_mask,
+                    labels=[roi_label],
+                    standardize=False,
+                )
+                # Extract ROI mean for each sample
+                X_roi = masker.fit_transform(self.to_nifti())
+                scores = cross_val_score(
+                    clone(pipe), X_roi, y, cv=cv, groups=groups, scoring=scoring
+                )
+                return np.mean(scores)
+            except Exception:
+                return np.nan
+
+        # Progress bar
+        iterator = unique_labels
+        if show_progress:
+            try:
+                from tqdm import tqdm
+
+                iterator = tqdm(unique_labels, desc="ROI decoding")
+            except ImportError:
+                pass
+
+        # Parallel execution
+        if n_jobs == 1:
+            accuracies = [decode_roi(label) for label in iterator]
+        else:
+            accuracies = Parallel(n_jobs=n_jobs)(
+                delayed(decode_roi)(label) for label in iterator
+            )
+
+        return np.array(accuracies)
 
     def plot(
         self,
@@ -3751,6 +4333,118 @@ class BrainData(object):
         # Return last display object or None
         return display_objects[-1] if display_objects else None
 
+    def plot_flatmap(
+        self,
+        threshold=None,
+        cmap="RdBu_r",
+        vmax=None,
+        vmin=None,
+        template="fsaverage5",
+        with_curvature=True,
+        curvature_contrast=0.5,
+        curvature_brightness=0.5,
+        colorbar=True,
+        colorbar_orientation="horizontal",
+        figsize=(12, 6),
+        title=None,
+        radius=3.0,
+        interpolation="linear",
+        axes=None,
+        save=None,
+    ):
+        """Plot brain data on cortical flatmap.
+
+        Projects MNI152 volumetric data onto an fsaverage surface and renders
+        as a 2D flattened cortical map. Uses nilearn's vol_to_surf for
+        projection and matplotlib's tripcolor for rendering.
+
+        This method provides publication-quality flatmap visualizations
+        without requiring external dependencies like pycortex.
+
+        Args:
+            threshold (float or str, optional): Values below this absolute
+                threshold are masked. Can be a float or percentile string
+                like '95%'. Defaults to None (no threshold).
+            cmap (str, optional): Matplotlib colormap for data. Defaults to
+                'RdBu_r' (diverging red-blue).
+            vmax (float, optional): Maximum value for colormap. If None,
+                uses symmetric max of absolute values.
+            vmin (float, optional): Minimum value for colormap. If None
+                and vmax is set, uses -vmax for diverging maps.
+            template (str, optional): fsaverage resolution. Options:
+                'fsaverage3' (642 vertices), 'fsaverage4' (2562),
+                'fsaverage5' (10242, default), 'fsaverage6' (40962),
+                'fsaverage' (163842, full resolution).
+            with_curvature (bool, optional): Show sulcal/gyral pattern as
+                grayscale background. Defaults to True.
+            curvature_contrast (float, optional): Contrast of curvature
+                (0=flat gray, 1=full contrast). Defaults to 0.5.
+            curvature_brightness (float, optional): Mean brightness of
+                curvature (0=dark, 1=bright). Defaults to 0.5.
+            colorbar (bool, optional): Show colorbar. Defaults to True.
+            colorbar_orientation (str, optional): 'horizontal' or 'vertical'.
+                Defaults to 'horizontal'.
+            figsize (tuple, optional): Figure size (width, height).
+                Defaults to (12, 6).
+            title (str, optional): Figure title. Defaults to None.
+            radius (float, optional): Sampling radius in mm for vol_to_surf
+                projection. Larger values provide smoother projections.
+                Defaults to 3.0.
+            interpolation (str, optional): Interpolation for vol_to_surf.
+                Options: 'linear', 'nearest'. Defaults to 'linear'.
+            axes (matplotlib.axes.Axes, optional): Existing axes to plot on.
+                If None, creates new figure. Defaults to None.
+            save (str, optional): File path to save figure. Defaults to None.
+
+        Returns:
+            matplotlib.figure.Figure: The figure containing the flatmap.
+
+        Examples:
+            >>> # Basic flatmap
+            >>> brain.plot_flatmap()
+            >>>
+            >>> # Thresholded with custom colormap
+            >>> brain.plot_flatmap(threshold=2.5, cmap='hot')
+            >>>
+            >>> # Percentile threshold, no curvature background
+            >>> brain.plot_flatmap(threshold='95%', with_curvature=False)
+            >>>
+            >>> # High resolution for publication
+            >>> fig = brain.plot_flatmap(template='fsaverage6')
+            >>> fig.savefig('flatmap.pdf', dpi=300)
+
+        Notes:
+            - Data is projected from MNI152 space to fsaverage surface space.
+              Small alignment differences are expected at boundaries.
+            - Higher resolution templates (fsaverage6, fsaverage) produce
+              sharper images but take longer to render.
+            - The flat surfaces are cached by nilearn after first download.
+        """
+        from nltools.plotting import plot_flatmap
+
+        if self.isempty:
+            raise ValueError("Cannot plot empty BrainData object")
+
+        return plot_flatmap(
+            brain=self,
+            threshold=threshold,
+            cmap=cmap,
+            vmax=vmax,
+            vmin=vmin,
+            template=template,
+            with_curvature=with_curvature,
+            curvature_contrast=curvature_contrast,
+            curvature_brightness=curvature_brightness,
+            colorbar=colorbar,
+            colorbar_orientation=colorbar_orientation,
+            figsize=figsize,
+            title=title,
+            radius=radius,
+            interpolation=interpolation,
+            axes=axes,
+            save=save,
+        )
+
     def _plot_matplotlib(
         self,
         kind,
@@ -3912,3 +4606,165 @@ class BrainData(object):
         raise NotImplementedError(
             "ttest() has been deprecated. Please use the new Model class for statistical testing."
         )
+
+
+class BrainDataPipeline:
+    """Pipeline specialized for BrainData with CV support.
+
+    Wraps the base Pipeline to handle BrainData-specific operations
+    like splitting by samples and accessing the underlying data array.
+    """
+
+    def __init__(self, brain_data: "BrainData", cv=None, groups=None):
+        from nltools.pipelines.base import FittedStack  # noqa: F401
+
+        self._brain_data = brain_data
+        self._cv = cv
+        self._groups = groups
+        self._steps = []
+
+    @property
+    def data(self):
+        """Get underlying data array."""
+        return self._brain_data.data
+
+    @property
+    def cv(self):
+        return self._cv
+
+    @property
+    def n_steps(self):
+        return len(self._steps)
+
+    def _add_step(self, step) -> "BrainDataPipeline":
+        """Add step and return new pipeline (immutable)."""
+        from copy import copy
+
+        new = copy(self)
+        new._steps = self._steps + [step]
+        return new
+
+    def normalize(self, method: str = "zscore", **kwargs) -> "BrainDataPipeline":
+        """Add normalization step."""
+        from nltools.pipelines.steps import NormalizeStep
+
+        return self._add_step(NormalizeStep(method=method, **kwargs))
+
+    def reduce(
+        self, method: str = "pca", n_components: int = None, **kwargs
+    ) -> "BrainDataPipeline":
+        """Add dimensionality reduction step."""
+        from nltools.pipelines.steps import ReduceStep
+
+        return self._add_step(
+            ReduceStep(method=method, n_components=n_components, **kwargs)
+        )
+
+    def pipe(self, transformer) -> "BrainDataPipeline":
+        """Add custom sklearn transformer."""
+        from nltools.pipelines.steps import PipeStep
+
+        return self._add_step(PipeStep(transformer=transformer))
+
+    def predict(self, y, algorithm: str = "ridge", **kwargs):
+        """Execute pipeline with CV and return prediction results.
+
+        This is a terminal method that executes the full pipeline.
+
+        Args:
+            y: Target variable (labels or continuous values).
+            algorithm: Prediction algorithm ('ridge', 'svm', etc.)
+            **kwargs: Additional arguments for the predictor.
+
+        Returns:
+            BrainDataCVResult with scores, predictions, and fold information.
+        """
+        from nltools.pipelines.base import FittedStack
+        from sklearn.linear_model import Lasso, Ridge
+        from sklearn.svm import SVC, SVR
+
+        if self._cv is None:
+            raise ValueError("predict() requires CV context")
+
+        data = self.data
+        y = np.asarray(y)
+
+        results = []
+        for train_idx, test_idx in self._cv.split(data, groups=self._groups):
+            train_data = data[train_idx]
+            test_data = data[test_idx]
+            train_y = y[train_idx]
+            test_y = y[test_idx]
+
+            fitted_stack = FittedStack()
+
+            # Apply transform steps
+            for step in self._steps:
+                fitted = step.fit(train_data)
+                fitted_stack.append(fitted)
+                train_data = fitted.transform(train_data)
+                test_data = fitted.transform(test_data)
+
+            # Fit predictor and evaluate
+            if algorithm == "ridge":
+                model = Ridge(**kwargs)
+            elif algorithm == "lasso":
+                model = Lasso(**kwargs)
+            elif algorithm == "svr":
+                model = SVR(**kwargs)
+            elif algorithm == "svm":
+                model = SVC(**kwargs)
+            else:
+                raise ValueError(f"Unknown algorithm: {algorithm}")
+
+            model.fit(train_data, train_y)
+            predictions = model.predict(test_data)
+            score = model.score(test_data, test_y)
+
+            results.append(
+                {
+                    "score": score,
+                    "predictions": predictions,
+                    "train_idx": train_idx,
+                    "test_idx": test_idx,
+                    "fitted_stack": fitted_stack,
+                }
+            )
+
+        return BrainDataCVResult(results, self)
+
+
+class BrainDataCVResult:
+    """Cross-validation results for BrainData pipelines."""
+
+    def __init__(self, fold_results: list, pipeline):
+        self.fold_results = fold_results
+        self.pipeline = pipeline
+
+    @property
+    def scores(self) -> np.ndarray:
+        """Per-fold scores."""
+        return np.array([f["score"] for f in self.fold_results])
+
+    @property
+    def mean_score(self) -> float:
+        """Mean score across folds."""
+        return self.scores.mean()
+
+    @property
+    def std_score(self) -> float:
+        """Standard deviation of scores."""
+        return self.scores.std()
+
+    @property
+    def predictions(self) -> np.ndarray:
+        """All predictions in original sample order."""
+        # Reconstruct in original order
+        n_samples = sum(len(f["test_idx"]) for f in self.fold_results)
+        preds = np.zeros(n_samples)
+        for f in self.fold_results:
+            preds[f["test_idx"]] = f["predictions"]
+        return preds
+
+    def __repr__(self):
+        return f"BrainDataCVResult(n_folds={len(self.fold_results)}, mean_score={self.mean_score:.4f})"

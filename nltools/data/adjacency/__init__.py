@@ -29,7 +29,7 @@ from nltools.utils import (
     concatenate,
     to_h5,
 )
-from .design_matrix import DesignMatrix
+from ..design_matrix import DesignMatrix
 from pathlib import Path
 from h5py import File as h5File
 import warnings
@@ -238,14 +238,14 @@ class Adjacency(object):
 
         elif isinstance(labels, (list, np.ndarray)):
             if self.is_single_matrix:
-                if len(labels) != self.square_shape()[0]:
+                if len(labels) != self.n_nodes:
                     raise ValueError(
                         "Make sure the length of labels matches the shape of data."
                     )
                 self.labels = deepcopy(labels)
             else:
                 if len(labels) != len(self):
-                    if len(labels) != self.square_shape()[0]:
+                    if len(labels) != self.n_nodes:
                         raise ValueError(
                             "Make sure length of labels either "
                             "matches the number of Adjacency "
@@ -255,9 +255,7 @@ class Adjacency(object):
                     else:
                         self.labels = list(labels) * len(self)
                 else:
-                    if np.all(
-                        np.array([len(x) for x in labels]) != self.square_shape()[0]
-                    ):
+                    if np.all(np.array([len(x) for x in labels]) != self.n_nodes):
                         raise ValueError(
                             "All lists of labels must be same length as shape of data."
                         )
@@ -266,13 +264,10 @@ class Adjacency(object):
             raise TypeError("Make sure labels is a list or numpy array.")
 
     def __repr__(self):
-        return (
-            "%s.%s(shape=%s, square_shape=%s, Y=%s, is_symmetric=%s,matrix_type=%s)"
-        ) % (
+        return "%s.%s(shape=%s, Y=%s, is_symmetric=%s, matrix_type=%s)" % (
             self.__class__.__module__,
             self.__class__.__name__,
             self.shape,
-            self.square_shape(),
             self.Y.shape,
             self.issymmetric,
             self.matrix_type,
@@ -663,11 +658,73 @@ class Adjacency(object):
 
     @property
     def shape(self):
-        """Calculate shape of data."""
+        """Return the logical shape of the adjacency matrix.
+
+        Returns:
+            tuple: For single matrix: (n_nodes, n_nodes)
+                   For stacked matrices: (n_matrices, n_nodes, n_nodes)
+                   For empty: (0, 0)
+
+        Note:
+            Use `.vector_shape` to get the internal vectorized representation shape.
+        """
+        if self.matrix_type == "empty":
+            return (0, 0)
+
+        # Compute n_nodes from vector length
+        if self.is_single_matrix:
+            vector_len = self.data.shape[0]
+        else:
+            vector_len = self.data.shape[1]
+
+        if self.issymmetric:
+            # For symmetric: vector_len = n*(n-1)/2, solve for n
+            n_nodes = int((1 + np.sqrt(1 + 8 * vector_len)) / 2)
+        else:
+            # For directed: vector_len = n*n
+            n_nodes = int(np.sqrt(vector_len))
+
+        if self.is_single_matrix:
+            return (n_nodes, n_nodes)
+        else:
+            return (len(self), n_nodes, n_nodes)
+
+    @property
+    def vector_shape(self):
+        """Return shape of internal vectorized representation.
+
+        Returns:
+            tuple: For single matrix: (vector_length,)
+                   For stacked matrices: (n_matrices, vector_length)
+
+        Note:
+            This is the raw shape of the internal data storage.
+            Use `.shape` for the logical (n_nodes, n_nodes) shape.
+        """
         return self.data.shape
 
+    @property
+    def n_nodes(self):
+        """Return the number of nodes in the adjacency matrix.
+
+        Returns:
+            int: Number of nodes (n) for an (n, n) matrix.
+        """
+        return self.shape[-1]
+
     def square_shape(self):
-        """Calculate shape of squareform data."""
+        """Calculate shape of squareform data.
+
+        .. deprecated::
+            Use `.shape` instead. This method will be removed in v0.7.0.
+        """
+        warnings.warn(
+            "square_shape() is deprecated. Use .shape instead, which now returns "
+            "(n_nodes, n_nodes) for single matrices or (n_matrices, n_nodes, n_nodes) "
+            "for stacked matrices.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if self.matrix_type == "empty":
             return np.array([])
         else:
@@ -698,13 +755,13 @@ class Adjacency(object):
             out = data.copy()
         else:
             out = self.copy()
-            if self.square_shape() != data.square_shape():
+            if self.n_nodes != data.n_nodes:
                 raise ValueError("Data is not the same shape as Adjacency instance.")
 
             out.data = np.vstack([self.data, data.data])
             out.is_single_matrix = False
             if out.Y.size:
-                out.Y = self.Y.append(data.Y)
+                out.Y = pd.concat([self.Y, data.Y], ignore_index=True)
 
         return out
 
@@ -746,6 +803,7 @@ class Adjacency(object):
         n_permute=5000,
         metric="spearman",
         ignore_diagonal=False,
+        nan_policy="omit",
         **kwargs,
     ):
         """
@@ -757,9 +815,67 @@ class Adjacency(object):
             perm_type: (str) '1d','2d', or None
             metric: (str) 'spearman','pearson','kendall'
             ignore_diagonal: (bool) only applies to 'directed' Adjacency types using
-            perm_type=None or perm_type='1d'
+                perm_type=None or perm_type='1d'
+            nan_policy: (str) How to handle NaN values. Options:
+                - 'omit': Remove NaN values pairwise before computing correlation (default)
+                - 'propagate': Allow NaN to propagate through calculations
+                - 'raise': Raise an error if NaN values are present
 
         """
+        if nan_policy not in ("omit", "propagate", "raise"):
+            raise ValueError(
+                f"nan_policy must be 'omit', 'propagate', or 'raise', got {nan_policy!r}"
+            )
+
+        def _handle_nans(arr1, arr2, nan_policy):
+            """Handle NaN values according to policy.
+
+            For 1D arrays: masks out positions where either array has NaN.
+            For 2D arrays: flattens and masks, then reshapes (for matrix perm).
+            """
+            arr1 = np.asarray(arr1)
+            arr2 = np.asarray(arr2)
+
+            # Check for NaN presence
+            has_nan1 = np.any(np.isnan(arr1))
+            has_nan2 = np.any(np.isnan(arr2))
+
+            if not has_nan1 and not has_nan2:
+                return arr1, arr2
+
+            if nan_policy == "raise":
+                if has_nan1 or has_nan2:
+                    raise ValueError(
+                        "Input contains NaN values. Use nan_policy='omit' to ignore them "
+                        "or nan_policy='propagate' to allow NaN in results."
+                    )
+            elif nan_policy == "propagate":
+                return arr1, arr2
+            elif nan_policy == "omit":
+                # For 2D matrix permutation, we can't easily mask individual elements
+                # because the permutation test permutes rows/columns together.
+                # Instead, we warn and use propagate for 2D.
+                if arr1.ndim == 2:
+                    import warnings
+
+                    warnings.warn(
+                        "NaN values detected in 2D matrix data. For perm_type='2d', "
+                        "NaN handling is limited. Consider using perm_type='1d' or None, "
+                        "or removing NaN values before calling similarity().",
+                        UserWarning,
+                    )
+                    return arr1, arr2
+
+                # For 1D: mask out NaN positions from both arrays
+                mask = ~(np.isnan(arr1) | np.isnan(arr2))
+                if not np.any(mask):
+                    raise ValueError(
+                        "All values are NaN after pairwise removal. Cannot compute similarity."
+                    )
+                return arr1[mask], arr2[mask]
+
+            return arr1, arr2
+
         data1 = self.copy()
         if not isinstance(data, Adjacency):
             data2 = Adjacency(data)
@@ -800,9 +916,12 @@ class Adjacency(object):
         if self.is_single_matrix:
             if plot:
                 plot_stacked_adjacency(self, data)
+            arr1 = _convert_data_similarity(data1, perm_type=perm_type)
+            arr2 = _convert_data_similarity(data2, perm_type=perm_type)
+            arr1, arr2 = _handle_nans(arr1, arr2, nan_policy)
             return similarity_func(
-                _convert_data_similarity(data1, perm_type=perm_type),
-                _convert_data_similarity(data2, perm_type=perm_type),
+                arr1,
+                arr2,
                 metric=metric,
                 n_permute=n_permute,
                 **kwargs,
@@ -812,30 +931,55 @@ class Adjacency(object):
                 _, a = plt.subplots(len(self))
                 for i in a:
                     plot_stacked_adjacency(self, data, ax=i)
-            return [
-                similarity_func(
-                    _convert_data_similarity(x, perm_type=perm_type),
-                    _convert_data_similarity(data2, perm_type=perm_type),
-                    metric=metric,
-                    n_permute=n_permute,
-                    **kwargs,
+            results = []
+            arr2_base = _convert_data_similarity(data2, perm_type=perm_type)
+            for x in self:
+                arr1 = _convert_data_similarity(x, perm_type=perm_type)
+                arr1_clean, arr2_clean = _handle_nans(arr1, arr2_base, nan_policy)
+                results.append(
+                    similarity_func(
+                        arr1_clean,
+                        arr2_clean,
+                        metric=metric,
+                        n_permute=n_permute,
+                        **kwargs,
+                    )
                 )
-                for x in self
-            ]
+            return results
 
-    def distance(self, metric="correlation", **kwargs):
+    def distance(self, metric="correlation", include_diag=False, **kwargs):
         """Calculate distance between images within an Adjacency() instance.
 
         Args:
             metric: (str) type of distance metric (can use any scikit learn or
-                    sciypy metric)
+                    scipy metric)
+            include_diag: (bool) whether to include the main diagonal when
+                    computing distances between adjacency matrices. Only applies
+                    to symmetric matrices. Default False (consistent with how
+                    symmetric matrices are stored without diagonal).
 
         Returns:
             dist: (Adjacency) Outputs a 2D distance matrix.
 
         """
+        if include_diag and self.issymmetric:
+            # Get square form and extract upper triangle WITH diagonal
+            squares = self.squareform()
+            if self.is_single_matrix:
+                squares = [squares]
+            # Extract upper triangle including diagonal for each matrix
+            data_with_diag = []
+            for sq in squares:
+                mask = np.triu(
+                    np.ones_like(sq, dtype=bool), k=0
+                )  # k=0 includes diagonal
+                data_with_diag.append(sq[mask])
+            data = np.array(data_with_diag)
+        else:
+            data = self.data
+
         return Adjacency(
-            pairwise_distances(self.data, metric=metric, **kwargs),
+            pairwise_distances(data, metric=metric, **kwargs),
             matrix_type="distance",
         )
 
@@ -962,21 +1106,22 @@ class Adjacency(object):
             if len(labels) != distance.shape[0]:
                 raise ValueError("Labels must be same length as distance matrix")
 
-        out = pd.DataFrame(columns=["Distance", "Group", "Type"], index=None)
+        frames = []
         for i in np.unique(labels):
-            tmp_w = pd.DataFrame(columns=out.columns, index=None)
-            tmp_w["Distance"] = distance.loc[labels == i, labels == i].values[
+            # Within-group distances (upper triangle of group i x group i)
+            within_vals = distance.loc[labels == i, labels == i].values[
                 np.triu_indices(sum(labels == i), k=1)
             ]
-            tmp_w["Type"] = "Within"
-            tmp_w["Group"] = i
-            tmp_b = pd.DataFrame(columns=out.columns, index=None)
-            tmp_b["Distance"] = distance.loc[labels != i, labels != i].values[
-                np.triu_indices(sum(labels == i), k=1)
-            ]
-            tmp_b["Type"] = "Between"
-            tmp_b["Group"] = i
-            out = out.append(tmp_w).append(tmp_b)
+            tmp_w = pd.DataFrame(
+                {"Distance": within_vals, "Type": "Within", "Group": i}
+            )
+            # Between-group distances (group i to all other groups)
+            between_vals = distance.loc[labels == i, labels != i].values.flatten()
+            tmp_b = pd.DataFrame(
+                {"Distance": between_vals, "Type": "Between", "Group": i}
+            )
+            frames.extend([tmp_w, tmp_b])
+        out = pd.concat(frames, ignore_index=True)
         f = sns.violinplot(
             x="Group",
             y="Distance",
@@ -1015,19 +1160,22 @@ class Adjacency(object):
             if len(labels) != distance.shape[0]:
                 raise ValueError("Labels must be same length as distance matrix")
 
-        out = pd.DataFrame(columns=["Distance", "Group", "Type"], index=None)
+        frames = []
         for i in np.unique(labels):
-            tmp_w = pd.DataFrame(columns=out.columns, index=None)
-            tmp_w["Distance"] = distance.loc[labels == i, labels == i].values[
+            # Within-group distances (upper triangle of group i x group i)
+            within_vals = distance.loc[labels == i, labels == i].values[
                 np.triu_indices(sum(labels == i), k=1)
             ]
-            tmp_w["Type"] = "Within"
-            tmp_w["Group"] = i
-            tmp_b = pd.DataFrame(columns=out.columns, index=None)
-            tmp_b["Distance"] = distance.loc[labels == i, labels != i].values.flatten()
-            tmp_b["Type"] = "Between"
-            tmp_b["Group"] = i
-            out = out.append(tmp_w).append(tmp_b)
+            tmp_w = pd.DataFrame(
+                {"Distance": within_vals, "Type": "Within", "Group": i}
+            )
+            # Between-group distances (group i to all other groups)
+            between_vals = distance.loc[labels == i, labels != i].values.flatten()
+            tmp_b = pd.DataFrame(
+                {"Distance": between_vals, "Type": "Between", "Group": i}
+            )
+            frames.extend([tmp_w, tmp_b])
+        out = pd.concat(frames, ignore_index=True)
         stats = {}
         for i in np.unique(labels):
             # Within group test
@@ -1196,9 +1344,9 @@ class Adjacency(object):
         if n_components not in [2, 3]:
             raise ValueError("Cannot plot {0}-d image".format(n_components))
         if labels is not None:
-            if len(labels) != self.square_shape()[0]:
+            if len(labels) != self.n_nodes:
                 raise ValueError(
-                    "Make sure labels matches the same shape as Adjaency data"
+                    "Make sure labels matches the same shape as Adjacency data"
                 )
         else:
             labels = self.labels
@@ -1362,7 +1510,7 @@ class Adjacency(object):
 
         stats = {}
         if isinstance(X, Adjacency):
-            if X.square_shape()[0] != self.square_shape()[0]:
+            if X.n_nodes != self.n_nodes:
                 raise ValueError("Adjacency instances must be the same size.")
             # Convert to numpy arrays for regression
             X_data = X.data.T
@@ -1472,6 +1620,9 @@ class Adjacency(object):
             # to match the original Adjacency data format
             if b.shape[0] == 1:
                 # Single regressor case: b is (1, n_features), transpose to (n_features,)
+                # Result is a single matrix of coefficients
+                for key in ["beta", "sigma", "t", "p", "df", "residual"]:
+                    stats[key].is_single_matrix = True
                 stats["beta"].data = b.squeeze()
                 stats["sigma"].data = stderr.squeeze()
                 stats["t"].data = t.squeeze()
@@ -1579,10 +1730,10 @@ class Adjacency(object):
                     "This function only operates on single matrix Adjacency instances."
                 )
 
-            n = data.square_shape()[0]
+            n = data.n_nodes
             if n < 4:
                 raise ValueError(
-                    "The Social Relations Model cannote be estimated when sample size is less than 4."
+                    "The Social Relations Model cannot be estimated when sample size is less than 4."
                 )
             grand_mean = data.mean()
             dat = data.squareform().copy()

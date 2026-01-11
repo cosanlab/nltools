@@ -15,7 +15,6 @@ from nltools.backends import check_gpu_available
 class TestTwoSamplePermutation:
     """Test two-sample permutation tests."""
 
-    @pytest.mark.tier1
     @pytest.mark.parametrize("n_features", [1, 10])
     def test_basic_functionality(self, n_features):
         """Test basic two-sample test with single or multiple features."""
@@ -44,7 +43,6 @@ class TestTwoSamplePermutation:
             assert result["p"].shape == (n_features,)
             assert np.all((result["p"] >= 0) & (result["p"] <= 1))
 
-    @pytest.mark.tier1
     def test_deterministic_with_seed(self):
         """Test that results are deterministic with fixed seed."""
         np.random.seed(42)
@@ -61,7 +59,6 @@ class TestTwoSamplePermutation:
         np.testing.assert_array_almost_equal(result1["mean_diff"], result2["mean_diff"])
         np.testing.assert_array_almost_equal(result1["p"], result2["p"])
 
-    @pytest.mark.tier1
     @pytest.mark.parametrize("n_features", [1, 5])
     def test_return_null_distribution(self, n_features):
         """Test that null distribution is returned when requested."""
@@ -82,7 +79,7 @@ class TestTwoSamplePermutation:
         assert "null_dist" in result
         assert result["null_dist"].shape == expected_shape
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_significant_effect(self):
         """Test that significant group difference is detected."""
         np.random.seed(42)
@@ -95,7 +92,7 @@ class TestTwoSamplePermutation:
 
         assert result["p"] < 0.05  # Should be significant
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_non_significant_effect(self):
         """Test that non-significant difference has high p-value."""
         np.random.seed(42)
@@ -108,7 +105,6 @@ class TestTwoSamplePermutation:
 
         assert result["p"] > 0.05  # Should not be significant
 
-    @pytest.mark.tier1
     def test_unequal_sample_sizes(self):
         """Test that unequal sample sizes work correctly."""
         np.random.seed(42)
@@ -122,7 +118,7 @@ class TestTwoSamplePermutation:
         assert result["mean_diff"].shape == (5,)
         assert result["p"].shape == (5,)
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_one_tailed_vs_two_tailed(self):
         """Test that one-tailed and two-tailed p-values differ."""
         np.random.seed(42)
@@ -139,7 +135,6 @@ class TestTwoSamplePermutation:
         # One-tailed should be different from two-tailed
         assert result_one["p"] != result_two["p"]
 
-    @pytest.mark.tier1
     def test_invalid_tail(self):
         """Test that invalid tail raises error."""
         data1 = np.random.randn(20)
@@ -148,7 +143,6 @@ class TestTwoSamplePermutation:
         with pytest.raises(ValueError, match="tail must be 1 or 2"):
             two_sample_permutation_test(data1, data2, tail=3)
 
-    @pytest.mark.tier1
     def test_invalid_data_shape(self):
         """Test that invalid data shape raises error."""
         data1 = np.random.randn(5, 5, 5)  # 3D
@@ -157,7 +151,6 @@ class TestTwoSamplePermutation:
         with pytest.raises(ValueError, match="data1 must be 1D to 2D"):
             two_sample_permutation_test(data1, data2)
 
-    @pytest.mark.tier1
     def test_mismatched_features(self):
         """Test that mismatched feature dimensions raise error."""
         data1 = np.random.randn(20, 5)  # 5 features
@@ -166,7 +159,7 @@ class TestTwoSamplePermutation:
         with pytest.raises(ValueError, match="must have same number of features"):
             two_sample_permutation_test(data1, data2)
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_cpu_parallel_correctness(self):
         """Test CPU parallelization produces correct results."""
         np.random.seed(42)
@@ -185,7 +178,8 @@ class TestTwoSamplePermutation:
         assert np.all((result["p"] >= 0) & (result["p"] <= 1))
         assert result["parallel"] == "cpu"
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_batching_correctness(self):
         """Test that GPU batching produces same results as NumPy."""
@@ -229,7 +223,7 @@ class TestTwoSamplePermutation:
 class TestTwoSamplePermutationStatisticalCorrectness:
     """Test statistical correctness of two-sample permutation tests."""
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_null_hypothesis_pvalue_distribution(self):
         """Test that p-values are uniformly distributed under null hypothesis."""
         n_samples1 = 30
@@ -261,7 +255,7 @@ class TestTwoSamplePermutationStatisticalCorrectness:
             f"KS test p-value: {ks_pvalue:.4f}"
         )
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_effect_size_sensitivity(self):
         """Test that larger mean difference produces lower p-values."""
         n_samples1 = 30
@@ -305,7 +299,6 @@ class TestTwoSamplePermutationStatisticalCorrectness:
             f"Large effect (mean_diff=2.0) should be significant, got p={p_values[3]:.4f}"
         )
 
-    @pytest.mark.tier1
     def test_mean_difference_correctness(self):
         """Test that computed mean difference matches expected value."""
         n_samples1 = 20  # Reduced from 30 for tier1 speed
@@ -328,7 +321,7 @@ class TestTwoSamplePermutationStatisticalCorrectness:
             result["mean_diff"], expected_diff, rtol=0.1, atol=0.1
         )
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_group_size_sensitivity(self):
         """Test that larger groups produce more stable p-values."""
         # Same effect size (mean difference = 2), different group sizes
@@ -371,7 +364,6 @@ class TestTwoSamplePermutationStatisticalCorrectness:
             f"Large n={large_n}: variance={variance_large:.6f}"
         )
 
-    @pytest.mark.tier1
     def test_one_tailed_directional_correctness(self):
         """Test that one-tailed test correctly detects directional effects."""
         n_samples1 = 20  # Reduced from 30 for tier1 speed
@@ -404,7 +396,6 @@ class TestTwoSamplePermutationStatisticalCorrectness:
             f"Negative case should have negative mean_diff. Got {result_neg['mean_diff']:.4f}"
         )
 
-    @pytest.mark.tier1
     def test_null_distribution_centered_at_zero(self):
         """Test that null distribution is centered at zero under null hypothesis."""
         n_samples1 = 20  # Reduced from 30 for tier1 speed
