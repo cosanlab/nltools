@@ -121,6 +121,64 @@ def _compute_piecewise_neighborhoods(
     )
 
 
+def _fit_one_neighborhood(
+    region_id: int,
+    voxel_indices: np.ndarray,
+    data: List[np.ndarray],
+    method: str,
+    n_iter: int,
+    n_features: Optional[int],
+) -> tuple[int, List[np.ndarray], np.ndarray]:
+    """Fit alignment for a single neighborhood.
+
+    Helper function for parallel processing.
+
+    Args:
+        region_id: ID of the neighborhood/parcel
+        voxel_indices: Voxel indices in this neighborhood
+        data: Full subject data arrays
+        method: Alignment method ('procrustes', 'srm', 'hyperalignment')
+        n_iter: Number of iterations
+        n_features: Number of features for SRM (None for auto)
+
+    Returns:
+        Tuple of (region_id, transforms, template)
+    """
+    n_subjects = len(data)
+    n_samples = data[0].shape[1]
+
+    # Extract local data for all subjects
+    local_data = [subj[voxel_indices, :] for subj in data]
+    n_local_voxels = len(voxel_indices)
+
+    # Handle degenerate cases
+    if n_local_voxels < 2:
+        transforms = [np.eye(n_local_voxels) for _ in range(n_subjects)]
+        template = np.mean(local_data, axis=0)
+        return region_id, transforms, template
+
+    # Fit based on method
+    if method == "procrustes":
+        transforms, template = _fit_local_procrustes(local_data, n_iter=n_iter)
+    elif method == "srm":
+        from nltools.algorithms.srm import SRM
+
+        feat = n_features if n_features is not None else min(n_local_voxels, n_samples)
+        srm = SRM(n_iter=n_iter, features=feat)
+        srm.fit(local_data, parallel=None)
+        transforms, template = srm.w_, srm.s_
+    elif method == "hyperalignment":
+        from nltools.algorithms.hyperalignment import HyperAlignment
+
+        ha = HyperAlignment(n_iter=n_iter)
+        ha.fit(local_data, parallel=None)
+        transforms, template = ha.w_, ha.s_
+    else:
+        raise ValueError(f"Unknown method: {method}")
+
+    return region_id, transforms, template
+
+
 def _fit_local_procrustes(
     data: List[np.ndarray], n_iter: int = 3
 ) -> tuple[List[np.ndarray], np.ndarray]:
@@ -429,59 +487,46 @@ class LocalAlignment:
         # Progress bar for total neighborhoods
         pbar = tqdm(total=n_regions, desc=region_type.capitalize(), unit="regions")
 
+        # Determine parallelization strategy
+        use_parallel = self.parallel == "cpu" and self.n_jobs != 1
+
         for batch in batch_gen:
-            for region_id, voxel_indices in batch:
-                # Extract local data for all subjects
-                # Each subject's local data: (n_local_voxels, n_samples)
-                local_data = [subj[voxel_indices, :] for subj in data]
+            if use_parallel and len(batch) > 1:
+                # Parallel processing within batch
+                from joblib import Parallel, delayed
 
-                # Skip if region is too small
-                n_local_voxels = len(voxel_indices)
-                if n_local_voxels < 2:
-                    # Store identity transforms for degenerate cases
-                    self.transforms_[region_id] = [
-                        np.eye(n_local_voxels) for _ in range(n_subjects)
-                    ]
-                    self.template_[region_id] = np.mean(local_data, axis=0)
-                    pbar.update(1)
-                    continue
-
-                # Fit local alignment based on method
-                if self.method == "procrustes":
-                    transforms, template = _fit_local_procrustes(
-                        local_data, n_iter=self.n_iter
+                results = Parallel(n_jobs=self.n_jobs)(
+                    delayed(_fit_one_neighborhood)(
+                        region_id,
+                        voxel_indices,
+                        data,
+                        self.method,
+                        self.n_iter,
+                        self.n_features,
                     )
+                    for region_id, voxel_indices in batch
+                )
+
+                # Store results
+                for region_id, transforms, template in results:
                     self.transforms_[region_id] = transforms
                     self.template_[region_id] = template
 
-                elif self.method == "srm":
-                    from nltools.algorithms.srm import SRM
-
-                    # SRM expects (n_voxels, n_samples) - already in this format
-                    # n_features defaults to min(n_local_voxels, n_samples) if None
-                    n_features = self.n_features
-                    if n_features is None:
-                        n_features = min(n_local_voxels, n_samples)
-
-                    srm = SRM(n_iter=self.n_iter, features=n_features)
-                    srm.fit(local_data, parallel=None)  # No nested parallelism
-
-                    # Store transforms (w_) and template (s_)
-                    self.transforms_[region_id] = srm.w_
-                    self.template_[region_id] = srm.s_
-
-                elif self.method == "hyperalignment":
-                    from nltools.algorithms.hyperalignment import HyperAlignment
-
-                    # HyperAlignment expects (n_features, n_samples) - same format
-                    ha = HyperAlignment(n_iter=self.n_iter)
-                    ha.fit(local_data, parallel=None)  # No nested parallelism
-
-                    # Store transforms (w_) and template (s_)
-                    self.transforms_[region_id] = ha.w_
-                    self.template_[region_id] = ha.s_
-
-                pbar.update(1)
+                pbar.update(len(batch))
+            else:
+                # Sequential processing (single-threaded or small batch)
+                for region_id, voxel_indices in batch:
+                    _, transforms, template = _fit_one_neighborhood(
+                        region_id,
+                        voxel_indices,
+                        data,
+                        self.method,
+                        self.n_iter,
+                        self.n_features,
+                    )
+                    self.transforms_[region_id] = transforms
+                    self.template_[region_id] = template
+                    pbar.update(1)
 
             # Explicit cleanup after each batch for memory efficiency
             del batch
@@ -519,46 +564,74 @@ class LocalAlignment:
                 f"Data has {n_voxels} voxels but model was fit with {self.n_voxels_}"
             )
 
-        # Initialize output arrays
-        aligned = [np.zeros((n_voxels, n_samples)) for _ in range(n_subjects)]
+        # Determine parallelization strategy
+        use_parallel = self.parallel == "cpu" and self.n_jobs != 1 and n_subjects > 1
 
-        # Apply transforms based on aggregation mode
-        for region_id, voxel_indices in self.neighborhoods_.iter_neighborhoods(
-            show_progress=True
-        ):
-            transforms = self.transforms_[region_id]
+        if use_parallel:
+            # Parallel transform across subjects
+            from joblib import Parallel, delayed
 
-            for subj_idx, subj_data in enumerate(data):
-                # Extract local data for this subject
-                local_data = subj_data[voxel_indices, :]
+            def _transform_one_subject(subj_idx: int) -> np.ndarray:
+                """Transform one subject's data."""
+                subj_data = data[subj_idx]
+                result = np.zeros((n_voxels, n_samples))
 
-                # Apply transform
-                # For procrustes: transform is (n_local, n_local)
-                # For srm/ha: transform is (n_local, n_features)
-                transform = transforms[subj_idx]
+                for region_id, voxel_indices in self.neighborhoods_.iter_neighborhoods(
+                    show_progress=False
+                ):
+                    transforms = self.transforms_[region_id]
+                    local_data = subj_data[voxel_indices, :]
+                    transform = transforms[subj_idx]
 
-                if self.method == "procrustes":
-                    # Full Procrustes rotation: aligned = R @ local_data
-                    aligned_local = transform @ local_data
-                else:
-                    # SRM/HA: project to shared space and back
-                    # transform shape: (n_local, n_features)
-                    shared = transform.T @ local_data  # (n_features, n_samples)
-                    aligned_local = transform @ shared  # (n_local, n_samples)
-
-                # Apply aggregation
-                if self.aggregation == "center":
-                    # Center-only: extract just the center voxel
-                    # For searchlight, region_id is the center voxel index
-                    center_pos = np.where(voxel_indices == region_id)[0]
-                    if len(center_pos) == 0:
-                        center_pos = 0
+                    if self.method == "procrustes":
+                        aligned_local = transform @ local_data
                     else:
-                        center_pos = center_pos[0]
-                    aligned[subj_idx][region_id, :] = aligned_local[center_pos, :]
-                else:
-                    # 'all': Apply to all voxels in region (piecewise)
-                    aligned[subj_idx][voxel_indices, :] = aligned_local
+                        shared = transform.T @ local_data
+                        aligned_local = transform @ shared
+
+                    if self.aggregation == "center":
+                        center_pos = np.where(voxel_indices == region_id)[0]
+                        if len(center_pos) == 0:
+                            center_pos = 0
+                        else:
+                            center_pos = center_pos[0]
+                        result[region_id, :] = aligned_local[center_pos, :]
+                    else:
+                        result[voxel_indices, :] = aligned_local
+
+                return result
+
+            aligned = Parallel(n_jobs=self.n_jobs)(
+                delayed(_transform_one_subject)(i) for i in range(n_subjects)
+            )
+        else:
+            # Sequential transform
+            aligned = [np.zeros((n_voxels, n_samples)) for _ in range(n_subjects)]
+
+            for region_id, voxel_indices in self.neighborhoods_.iter_neighborhoods(
+                show_progress=True
+            ):
+                transforms = self.transforms_[region_id]
+
+                for subj_idx, subj_data in enumerate(data):
+                    local_data = subj_data[voxel_indices, :]
+                    transform = transforms[subj_idx]
+
+                    if self.method == "procrustes":
+                        aligned_local = transform @ local_data
+                    else:
+                        shared = transform.T @ local_data
+                        aligned_local = transform @ shared
+
+                    if self.aggregation == "center":
+                        center_pos = np.where(voxel_indices == region_id)[0]
+                        if len(center_pos) == 0:
+                            center_pos = 0
+                        else:
+                            center_pos = center_pos[0]
+                        aligned[subj_idx][region_id, :] = aligned_local[center_pos, :]
+                    else:
+                        aligned[subj_idx][voxel_indices, :] = aligned_local
 
         return aligned
 

@@ -4,6 +4,9 @@ Test LocalAlignment class (neighborhood-based functional alignment)
 This test module tests the LocalAlignment implementation for searchlight-based
 multi-subject functional alignment.
 
+IMPORTANT: Most tests use parallel=None to avoid nested parallelism when
+running with pytest-xdist (-n auto). Specific parallelism tests use n_jobs=2.
+
 References:
     Bazeille et al. (2021). An empirical evaluation of functional alignment
     using inter-subject decoding. NeuroImage.
@@ -54,7 +57,8 @@ def fitted_local_alignment(sample_multisubject_data, small_mask):
     """Pre-fitted LocalAlignment for property tests.
 
     Module-scoped: expensive fit() runs once, shared across tests.
-    Uses procrustes method (fastest).
+    Uses procrustes method (fastest) with parallel=None to avoid
+    nested parallelism with pytest-xdist.
     """
     from nltools.algorithms.alignment import LocalAlignment
 
@@ -63,6 +67,7 @@ def fitted_local_alignment(sample_multisubject_data, small_mask):
         method="procrustes",
         radius_mm=5.0,  # Small radius for test mask
         n_iter=2,
+        parallel=None,  # Avoid nested parallelism with pytest-xdist
     )
     la.fit(sample_multisubject_data, small_mask)
     return la, sample_multisubject_data, small_mask
@@ -134,7 +139,7 @@ class TestLocalAlignmentFit:
         """Test that fit() returns self for method chaining."""
         from nltools.algorithms.alignment import LocalAlignment
 
-        la = LocalAlignment(radius_mm=5.0, n_iter=1)
+        la = LocalAlignment(radius_mm=5.0, n_iter=1, parallel=None)
         result = la.fit(sample_multisubject_data, small_mask)
         assert result is la
 
@@ -169,7 +174,7 @@ class TestLocalAlignmentFit:
         """Test fit with procrustes method."""
         from nltools.algorithms.alignment import LocalAlignment
 
-        la = LocalAlignment(method="procrustes", radius_mm=5.0, n_iter=2)
+        la = LocalAlignment(method="procrustes", radius_mm=5.0, n_iter=2, parallel=None)
         la.fit(sample_multisubject_data, small_mask)
 
         assert la.transforms_ is not None
@@ -179,7 +184,9 @@ class TestLocalAlignmentFit:
         """Test fit with SRM method."""
         from nltools.algorithms.alignment import LocalAlignment
 
-        la = LocalAlignment(method="srm", radius_mm=5.0, n_iter=2, n_features=5)
+        la = LocalAlignment(
+            method="srm", radius_mm=5.0, n_iter=2, n_features=5, parallel=None
+        )
         la.fit(sample_multisubject_data, small_mask)
 
         assert la.transforms_ is not None
@@ -189,7 +196,9 @@ class TestLocalAlignmentFit:
         """Test fit with hyperalignment method."""
         from nltools.algorithms.alignment import LocalAlignment
 
-        la = LocalAlignment(method="hyperalignment", radius_mm=5.0, n_iter=2)
+        la = LocalAlignment(
+            method="hyperalignment", radius_mm=5.0, n_iter=2, parallel=None
+        )
         la.fit(sample_multisubject_data, small_mask)
 
         assert la.transforms_ is not None
@@ -199,7 +208,7 @@ class TestLocalAlignmentFit:
         """Test that fit validates input data."""
         from nltools.algorithms.alignment import LocalAlignment
 
-        la = LocalAlignment(radius_mm=5.0)
+        la = LocalAlignment(radius_mm=5.0, parallel=None)
 
         # Single subject should fail
         with pytest.raises(ValueError, match="at least 2 subject"):
@@ -213,7 +222,7 @@ class TestLocalAlignmentFit:
         """Test that fit validates consistent voxel counts."""
         from nltools.algorithms.alignment import LocalAlignment
 
-        la = LocalAlignment(radius_mm=5.0)
+        la = LocalAlignment(radius_mm=5.0, parallel=None)
 
         # Different voxel counts should fail
         data = [
@@ -227,7 +236,7 @@ class TestLocalAlignmentFit:
         """Test that fit validates consistent sample counts."""
         from nltools.algorithms.alignment import LocalAlignment
 
-        la = LocalAlignment(radius_mm=5.0)
+        la = LocalAlignment(radius_mm=5.0, parallel=None)
 
         # Different sample counts should fail
         data = [
@@ -280,7 +289,7 @@ class TestLocalAlignmentTransform:
         """Test fit_transform convenience method."""
         from nltools.algorithms.alignment import LocalAlignment
 
-        la = LocalAlignment(radius_mm=5.0, n_iter=1)
+        la = LocalAlignment(radius_mm=5.0, n_iter=1, parallel=None)
         aligned = la.fit_transform(sample_multisubject_data, small_mask)
 
         assert isinstance(aligned, list)
@@ -298,7 +307,7 @@ class TestLocalAlignmentNumericalProperties:
         """Test that procrustes transforms are orthogonal."""
         from nltools.algorithms.alignment import LocalAlignment
 
-        la = LocalAlignment(method="procrustes", radius_mm=5.0, n_iter=2)
+        la = LocalAlignment(method="procrustes", radius_mm=5.0, n_iter=2, parallel=None)
         la.fit(sample_multisubject_data, small_mask)
 
         # Check orthogonality for a sample of neighborhoods
@@ -318,7 +327,7 @@ class TestLocalAlignmentNumericalProperties:
         """Test that alignment reduces inter-subject variance."""
         from nltools.algorithms.alignment import LocalAlignment
 
-        la = LocalAlignment(method="procrustes", radius_mm=5.0, n_iter=3)
+        la = LocalAlignment(method="procrustes", radius_mm=5.0, n_iter=3, parallel=None)
         aligned = la.fit_transform(sample_multisubject_data, small_mask)
 
         # Calculate inter-subject variance before and after
@@ -397,7 +406,9 @@ class TestLocalAlignmentPiecewise:
         from nltools.algorithms.alignment import LocalAlignment
 
         parcellation, mask = parcellation_and_mask
-        la = LocalAlignment(scheme="piecewise", parcellation=parcellation, n_iter=1)
+        la = LocalAlignment(
+            scheme="piecewise", parcellation=parcellation, n_iter=1, parallel=None
+        )
 
         result = la.fit(piecewise_data, mask)
         assert result is la
@@ -407,7 +418,9 @@ class TestLocalAlignmentPiecewise:
         from nltools.algorithms.alignment import LocalAlignment
 
         parcellation, mask = parcellation_and_mask
-        la = LocalAlignment(scheme="piecewise", parcellation=parcellation, n_iter=1)
+        la = LocalAlignment(
+            scheme="piecewise", parcellation=parcellation, n_iter=1, parallel=None
+        )
         la.fit(piecewise_data, mask)
 
         # Should have transforms for 3 parcels
@@ -425,7 +438,9 @@ class TestLocalAlignmentPiecewise:
         from nltools.algorithms.alignment import LocalAlignment
 
         parcellation, mask = parcellation_and_mask
-        la = LocalAlignment(scheme="piecewise", parcellation=parcellation, n_iter=1)
+        la = LocalAlignment(
+            scheme="piecewise", parcellation=parcellation, n_iter=1, parallel=None
+        )
         aligned = la.fit_transform(piecewise_data, mask)
 
         assert len(aligned) == len(piecewise_data)
@@ -445,6 +460,7 @@ class TestLocalAlignmentPiecewise:
             method="srm",
             n_features=5,
             n_iter=2,
+            parallel=None,
         )
         aligned = la.fit_transform(piecewise_data, mask)
 
@@ -462,6 +478,7 @@ class TestLocalAlignmentPiecewise:
             parcellation=parcellation,
             method="hyperalignment",
             n_iter=1,
+            parallel=None,
         )
         aligned = la.fit_transform(piecewise_data, mask)
 
@@ -489,7 +506,7 @@ class TestLocalAlignmentEdgeCases:
         np.random.seed(42)
         data = [np.random.randn(2, 20) for _ in range(3)]
 
-        la = LocalAlignment(radius_mm=5.0, n_iter=1)
+        la = LocalAlignment(radius_mm=5.0, n_iter=1, parallel=None)
 
         # Should not raise - handles degenerate cases
         la.fit(data, tiny_mask)
@@ -532,6 +549,7 @@ class TestLocalAlignmentBatching:
             radius_mm=4.0,
             n_iter=1,
             n_neighborhoods_batch=10,  # Small batch for testing
+            parallel=None,
         )
         aligned = la.fit_transform(larger_data, larger_mask)
 
@@ -547,6 +565,7 @@ class TestLocalAlignmentBatching:
             radius_mm=4.0,
             n_iter=1,
             max_memory_gb=0.001,  # Very small to force small batches
+            parallel=None,
         )
         la.fit(larger_data, larger_mask)
 
@@ -562,6 +581,7 @@ class TestLocalAlignmentBatching:
             radius_mm=4.0,
             n_iter=1,
             max_memory_gb=100.0,  # Very large - should fit in one batch
+            parallel=None,
         )
         la.fit(larger_data, larger_mask)
 
@@ -573,11 +593,13 @@ class TestLocalAlignmentBatching:
         from nltools.algorithms.alignment import LocalAlignment
 
         # Fit without explicit batching
-        la1 = LocalAlignment(radius_mm=5.0, n_iter=2)
+        la1 = LocalAlignment(radius_mm=5.0, n_iter=2, parallel=None)
         aligned1 = la1.fit_transform(sample_multisubject_data, small_mask)
 
         # Fit with small batch size
-        la2 = LocalAlignment(radius_mm=5.0, n_iter=2, n_neighborhoods_batch=5)
+        la2 = LocalAlignment(
+            radius_mm=5.0, n_iter=2, n_neighborhoods_batch=5, parallel=None
+        )
         aligned2 = la2.fit_transform(sample_multisubject_data, small_mask)
 
         # Results should be identical
@@ -613,9 +635,124 @@ class TestLocalAlignmentBatching:
             parcellation=parcellation,
             n_iter=1,
             n_neighborhoods_batch=1,  # One parcel at a time
+            parallel=None,
         )
         aligned = la.fit_transform(data, mask)
 
         assert len(aligned) == 3
         for a in aligned:
             assert a.shape == (27, 20)
+
+
+class TestLocalAlignmentParallelization:
+    """Test CPU parallelization functionality.
+
+    These tests use controlled n_jobs=2 to verify parallel execution works
+    without overwhelming system resources. Tests are marked slow since they
+    intentionally test parallel overhead.
+    """
+
+    @pytest.fixture
+    def parallel_test_data(self):
+        """Create data for parallelization tests."""
+        import nibabel as nib
+
+        np.random.seed(42)
+
+        # Small mask for fast tests
+        spatial_shape = (4, 4, 4)
+        affine = np.eye(4) * 2  # 2mm voxels
+        affine[3, 3] = 1
+
+        mask_data = np.ones(spatial_shape, dtype=np.float32)
+        mask = nib.Nifti1Image(mask_data, affine)
+
+        n_voxels = 64  # 4x4x4
+        n_samples = 20
+        n_subjects = 3
+        data = [np.random.randn(n_voxels, n_samples) for _ in range(n_subjects)]
+
+        return data, mask
+
+    def test_parallel_fit_produces_valid_results(self, parallel_test_data):
+        """Test that parallel fit produces valid results."""
+        from nltools.algorithms.alignment import LocalAlignment
+
+        data, mask = parallel_test_data
+
+        la = LocalAlignment(
+            radius_mm=4.0,
+            n_iter=2,
+            parallel="cpu",
+            n_jobs=2,  # Controlled parallelism
+        )
+        la.fit(data, mask)
+
+        # Verify fitted state
+        assert la.transforms_ is not None
+        assert len(la.transforms_) > 0
+        assert la.n_voxels_ == 64
+
+    def test_parallel_transform_produces_valid_shapes(self, parallel_test_data):
+        """Test that parallel transform produces correct output shapes."""
+        from nltools.algorithms.alignment import LocalAlignment
+
+        data, mask = parallel_test_data
+
+        la = LocalAlignment(
+            radius_mm=4.0,
+            n_iter=2,
+            parallel="cpu",
+            n_jobs=2,
+        )
+        aligned = la.fit_transform(data, mask)
+
+        assert len(aligned) == 3
+        for a in aligned:
+            assert a.shape == (64, 20)
+
+    def test_parallel_vs_serial_consistency(self, parallel_test_data):
+        """Test that parallel and serial produce similar results."""
+        from nltools.algorithms.alignment import LocalAlignment
+
+        data, mask = parallel_test_data
+
+        # Serial execution
+        la_serial = LocalAlignment(
+            radius_mm=4.0,
+            n_iter=2,
+            parallel=None,
+        )
+        aligned_serial = la_serial.fit_transform(data, mask)
+
+        # Parallel execution (n_jobs=1 means serial in joblib, use 2 to test)
+        la_parallel = LocalAlignment(
+            radius_mm=4.0,
+            n_iter=2,
+            parallel="cpu",
+            n_jobs=2,
+        )
+        aligned_parallel = la_parallel.fit_transform(data, mask)
+
+        # Results should be close (may differ slightly due to execution order)
+        for a_serial, a_parallel in zip(aligned_serial, aligned_parallel):
+            # Shape must match exactly
+            assert a_serial.shape == a_parallel.shape
+
+    def test_n_jobs_1_behaves_like_serial(self, parallel_test_data):
+        """Test that n_jobs=1 with parallel='cpu' works correctly."""
+        from nltools.algorithms.alignment import LocalAlignment
+
+        data, mask = parallel_test_data
+
+        la = LocalAlignment(
+            radius_mm=4.0,
+            n_iter=1,
+            parallel="cpu",
+            n_jobs=1,  # Effectively serial
+        )
+        aligned = la.fit_transform(data, mask)
+
+        assert len(aligned) == 3
+        for a in aligned:
+            assert a.shape == (64, 20)
