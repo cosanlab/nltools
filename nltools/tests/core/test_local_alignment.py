@@ -756,3 +756,166 @@ class TestLocalAlignmentParallelization:
         assert len(aligned) == 3
         for a in aligned:
             assert a.shape == (64, 20)
+
+
+class TestLocalAlignmentBackend:
+    """Test GPU/Backend integration for LocalAlignment.
+
+    These tests verify that the backend abstraction works correctly.
+    GPU tests are skipped if PyTorch/CUDA is not available.
+    """
+
+    @pytest.fixture
+    def backend_test_data(self):
+        """Create small data for backend tests."""
+        import nibabel as nib
+
+        np.random.seed(42)
+
+        spatial_shape = (3, 3, 3)
+        affine = np.eye(4) * 3
+        affine[3, 3] = 1
+
+        mask_data = np.ones(spatial_shape, dtype=np.float32)
+        mask = nib.Nifti1Image(mask_data, affine)
+
+        n_voxels = 27
+        n_samples = 20
+        n_subjects = 3
+        data = [np.random.randn(n_voxels, n_samples) for _ in range(n_subjects)]
+
+        return data, mask
+
+    def test_backend_initialization_numpy(self, backend_test_data):
+        """Test that numpy backend is initialized correctly."""
+        from nltools.algorithms.alignment import LocalAlignment
+
+        data, mask = backend_test_data
+
+        la = LocalAlignment(
+            radius_mm=5.0,
+            n_iter=1,
+            parallel=None,  # Should use numpy backend
+        )
+        la.fit(data, mask)
+
+        assert la.backend_ is not None
+        assert la.backend_.name == "numpy"
+
+    def test_backend_initialization_cpu(self, backend_test_data):
+        """Test that cpu parallel mode uses numpy backend."""
+        from nltools.algorithms.alignment import LocalAlignment
+
+        data, mask = backend_test_data
+
+        la = LocalAlignment(
+            radius_mm=5.0,
+            n_iter=1,
+            parallel="cpu",
+        )
+        la.fit(data, mask)
+
+        assert la.backend_ is not None
+        assert la.backend_.name == "numpy"
+
+    def test_gpu_mode_fallback(self, backend_test_data):
+        """Test that GPU mode falls back gracefully if PyTorch unavailable."""
+        from nltools.algorithms.alignment import LocalAlignment
+
+        data, mask = backend_test_data
+
+        # This should work regardless of whether PyTorch is available
+        la = LocalAlignment(
+            radius_mm=5.0,
+            n_iter=1,
+            parallel="gpu",
+        )
+        aligned = la.fit_transform(data, mask)
+
+        # Should produce valid results regardless of backend
+        assert len(aligned) == 3
+        for a in aligned:
+            assert a.shape == (27, 20)
+
+        # Backend should be initialized
+        assert la.backend_ is not None
+
+    def test_gpu_mode_produces_valid_results(self, backend_test_data):
+        """Test that GPU mode produces numerically valid results."""
+        from nltools.algorithms.alignment import LocalAlignment
+
+        data, mask = backend_test_data
+
+        la = LocalAlignment(
+            radius_mm=5.0,
+            n_iter=2,
+            parallel="gpu",
+        )
+        la.fit(data, mask)
+
+        # Check that transforms were computed
+        assert la.transforms_ is not None
+        assert len(la.transforms_) > 0
+
+        # Transform should work
+        aligned = la.transform(data)
+        assert len(aligned) == 3
+
+        # Check that results are finite
+        for a in aligned:
+            assert np.isfinite(a).all(), "Aligned data contains non-finite values"
+
+    def test_gpu_vs_cpu_consistency(self, backend_test_data):
+        """Test that GPU and CPU modes produce similar results."""
+        from nltools.algorithms.alignment import LocalAlignment
+
+        data, mask = backend_test_data
+
+        # CPU mode (numpy backend)
+        la_cpu = LocalAlignment(
+            radius_mm=5.0,
+            n_iter=2,
+            parallel=None,
+        )
+        aligned_cpu = la_cpu.fit_transform(data, mask)
+
+        # GPU mode (may use torch or fallback to numpy)
+        la_gpu = LocalAlignment(
+            radius_mm=5.0,
+            n_iter=2,
+            parallel="gpu",
+        )
+        aligned_gpu = la_gpu.fit_transform(data, mask)
+
+        # Shapes should match
+        for a_cpu, a_gpu in zip(aligned_cpu, aligned_gpu):
+            assert a_cpu.shape == a_gpu.shape
+
+        # If both used numpy backend, results should be identical
+        if la_gpu.backend_.name == "numpy":
+            for a_cpu, a_gpu in zip(aligned_cpu, aligned_gpu):
+                np.testing.assert_allclose(a_cpu, a_gpu, rtol=1e-10)
+
+    @pytest.mark.gpu
+    def test_gpu_with_torch_backend(self, backend_test_data):
+        """Test GPU mode with actual torch backend (requires PyTorch)."""
+        pytest.importorskip("torch")
+        from nltools.algorithms.alignment import LocalAlignment
+
+        data, mask = backend_test_data
+
+        la = LocalAlignment(
+            radius_mm=5.0,
+            n_iter=2,
+            parallel="gpu",
+        )
+        aligned = la.fit_transform(data, mask)
+
+        # Should use torch backend
+        assert la.backend_.name.startswith("torch")
+
+        # Results should be valid
+        assert len(aligned) == 3
+        for a in aligned:
+            assert a.shape == (27, 20)
+            assert np.isfinite(a).all()

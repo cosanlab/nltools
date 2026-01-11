@@ -13,12 +13,63 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union
 import numpy as np
 from scipy.linalg import orthogonal_procrustes
 
+from nltools.backends import Backend
+
 if TYPE_CHECKING:
     import nibabel as nib
 
     from nltools.neighborhoods import SphereNeighborhoods
 
 logger = logging.getLogger(__name__)
+
+
+def _orthogonal_procrustes_backend(
+    A: np.ndarray, B: np.ndarray, backend: Backend
+) -> tuple[np.ndarray, float]:
+    """GPU-compatible orthogonal Procrustes using Backend.svd().
+
+    Finds the orthogonal matrix R that minimizes ||A - B @ R||_F.
+
+    This is equivalent to scipy.linalg.orthogonal_procrustes but uses
+    the Backend abstraction for GPU acceleration.
+
+    Args:
+        A: Target matrix, shape (n, m)
+        B: Matrix to transform, shape (n, m)
+        backend: Backend instance for computations
+
+    Returns:
+        R: Orthogonal matrix, shape (m, m)
+        scale: Sum of singular values (not used, kept for compatibility)
+    """
+    if backend.name == "numpy":
+        # Use scipy for numpy backend (more efficient)
+        return orthogonal_procrustes(A, B)
+
+    # GPU path: Compute SVD of B.T @ A
+    # The solution is R = V @ U.T where U, s, V.T = svd(B.T @ A)
+    A_device = backend.to_device(A.astype(np.float32))
+    B_device = backend.to_device(B.astype(np.float32))
+
+    # M = B.T @ A
+    M = backend.matmul(B_device.T if hasattr(B_device, "T") else B_device.t(), A_device)
+
+    # SVD: M = U @ diag(s) @ Vt
+    U, s, Vt = backend.svd(M, full_matrices=False)
+
+    # R = V @ U.T = Vt.T @ U.T
+    if backend.name.startswith("torch"):
+        import torch
+
+        R = torch.matmul(
+            Vt.T if hasattr(Vt, "T") else Vt.t(), U.T if hasattr(U, "T") else U.t()
+        )
+        scale = s.sum().item()
+        return backend.to_numpy(R).astype(np.float64), scale
+    else:
+        R = Vt.T @ U.T
+        scale = s.sum()
+        return R, scale
 
 
 @dataclass
@@ -128,6 +179,7 @@ def _fit_one_neighborhood(
     method: str,
     n_iter: int,
     n_features: Optional[int],
+    backend: Optional[Backend] = None,
 ) -> tuple[int, List[np.ndarray], np.ndarray]:
     """Fit alignment for a single neighborhood.
 
@@ -140,6 +192,7 @@ def _fit_one_neighborhood(
         method: Alignment method ('procrustes', 'srm', 'hyperalignment')
         n_iter: Number of iterations
         n_features: Number of features for SRM (None for auto)
+        backend: Backend instance for GPU acceleration (None for numpy)
 
     Returns:
         Tuple of (region_id, transforms, template)
@@ -159,7 +212,9 @@ def _fit_one_neighborhood(
 
     # Fit based on method
     if method == "procrustes":
-        transforms, template = _fit_local_procrustes(local_data, n_iter=n_iter)
+        transforms, template = _fit_local_procrustes(
+            local_data, n_iter=n_iter, backend=backend
+        )
     elif method == "srm":
         from nltools.algorithms.srm import SRM
 
@@ -180,7 +235,9 @@ def _fit_one_neighborhood(
 
 
 def _fit_local_procrustes(
-    data: List[np.ndarray], n_iter: int = 3
+    data: List[np.ndarray],
+    n_iter: int = 3,
+    backend: Optional[Backend] = None,
 ) -> tuple[List[np.ndarray], np.ndarray]:
     """Fit multi-subject Procrustes alignment on local data.
 
@@ -190,6 +247,7 @@ def _fit_local_procrustes(
     Args:
         data: List of arrays, each shape (n_local_voxels, n_samples).
         n_iter: Number of refinement iterations.
+        backend: Backend instance for GPU acceleration (None for numpy/scipy).
 
     Returns:
         transforms: List of orthogonal transforms, each (n_local_voxels, n_local_voxels).
@@ -197,6 +255,10 @@ def _fit_local_procrustes(
     """
     n_subjects = len(data)
     n_voxels, n_samples = data[0].shape
+
+    # Use numpy backend if none provided
+    if backend is None:
+        backend = Backend("numpy")
 
     # Center and normalize each subject
     centered = []
@@ -217,7 +279,7 @@ def _fit_local_procrustes(
         for i, x in enumerate(centered):
             # Solve Procrustes: min ||template - x @ R.T||_F s.t. R orthogonal
             # scipy's orthogonal_procrustes: R, scale = argmin ||A - B @ R||_F
-            R, _ = orthogonal_procrustes(template.T, x.T)
+            R, _ = _orthogonal_procrustes_backend(template.T, x.T, backend)
             # R transforms x.T to align with template.T, so aligned = x.T @ R
             # But we want row-wise (voxels), so: aligned = R.T @ x
             transforms[i] = R.T
@@ -253,7 +315,10 @@ class LocalAlignment:
     aggregation : str, default='center'
         Aggregation method: 'center' (center-only, preserves orthogonality).
     parallel : str, optional
-        Parallelization: 'cpu' or None.
+        Parallelization: 'cpu', 'gpu', or None.
+        - None: Single-threaded numpy
+        - 'cpu': CPU parallelization with joblib
+        - 'gpu': GPU acceleration via PyTorch (falls back to CPU if unavailable)
     n_jobs : int, default=-1
         Number of jobs for CPU parallelization.
 
@@ -311,6 +376,7 @@ class LocalAlignment:
     )
     n_voxels_: Optional[int] = field(default=None, repr=False)
     mask_: Optional[Any] = field(default=None, repr=False)  # Nifti1Image
+    backend_: Optional[Backend] = field(default=None, repr=False)
 
     def __post_init__(self):
         """Validate parameters."""
@@ -329,6 +395,27 @@ class LocalAlignment:
             object.__setattr__(self, "aggregation", "all")
         if self.scheme == "piecewise" and self.parcellation is None:
             raise ValueError("parcellation is required for piecewise scheme")
+
+    def _init_backend(self) -> Backend:
+        """Initialize backend based on parallel setting.
+
+        Returns:
+            Backend instance configured for the requested execution mode.
+        """
+        if self.parallel is None or self.parallel == "cpu":
+            return Backend("numpy")
+        elif self.parallel == "gpu":
+            # Try GPU, gracefully fall back to CPU if unavailable
+            try:
+                backend = Backend("torch")
+                logger.info(f"Using backend: {backend.name}")
+                return backend
+            except ImportError:
+                logger.warning("PyTorch not available, falling back to numpy backend")
+                return Backend("numpy")
+        else:
+            # Unknown parallel value, use numpy
+            return Backend("numpy")
 
     def _auto_batch_size(
         self, n_subjects: int, avg_region_size: int, n_samples: int
@@ -454,6 +541,9 @@ class LocalAlignment:
         self.mask_ = mask
         self.n_voxels_ = n_voxels
 
+        # Initialize backend
+        self.backend_ = self._init_backend()
+
         # Compute neighborhoods based on scheme
         if self.scheme == "searchlight":
             self.neighborhoods_ = compute_searchlight_neighborhoods(
@@ -488,11 +578,14 @@ class LocalAlignment:
         pbar = tqdm(total=n_regions, desc=region_type.capitalize(), unit="regions")
 
         # Determine parallelization strategy
-        use_parallel = self.parallel == "cpu" and self.n_jobs != 1
+        # CPU parallel: use joblib with numpy backend (each worker gets own numpy)
+        # GPU: sequential processing with torch backend (GPU parallelizes internally)
+        use_cpu_parallel = self.parallel == "cpu" and self.n_jobs != 1
+        use_gpu = self.parallel == "gpu" and self.backend_.name.startswith("torch")
 
         for batch in batch_gen:
-            if use_parallel and len(batch) > 1:
-                # Parallel processing within batch
+            if use_cpu_parallel and len(batch) > 1:
+                # CPU parallel processing within batch (uses numpy, no backend passed)
                 from joblib import Parallel, delayed
 
                 results = Parallel(n_jobs=self.n_jobs)(
@@ -503,6 +596,7 @@ class LocalAlignment:
                         self.method,
                         self.n_iter,
                         self.n_features,
+                        None,  # Each worker uses numpy backend
                     )
                     for region_id, voxel_indices in batch
                 )
@@ -514,7 +608,9 @@ class LocalAlignment:
 
                 pbar.update(len(batch))
             else:
-                # Sequential processing (single-threaded or small batch)
+                # Sequential processing (GPU mode or single-threaded)
+                # Pass backend for GPU acceleration
+                backend_to_use = self.backend_ if use_gpu else None
                 for region_id, voxel_indices in batch:
                     _, transforms, template = _fit_one_neighborhood(
                         region_id,
@@ -523,6 +619,7 @@ class LocalAlignment:
                         self.method,
                         self.n_iter,
                         self.n_features,
+                        backend_to_use,
                     )
                     self.transforms_[region_id] = transforms
                     self.template_[region_id] = template
