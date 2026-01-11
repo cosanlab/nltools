@@ -1,12 +1,8 @@
 import numpy as np
 import pandas as pd
-import pytest
 from sklearn.model_selection import KFold
 from sklearn.model_selection._split import BaseCrossValidator
 from nltools.cross_validation import KFoldStratified
-
-
-pytestmark = pytest.mark.tier1
 
 
 def check_valid_split(train, test, n_samples=None):

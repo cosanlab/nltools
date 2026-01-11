@@ -74,3 +74,4 @@ benchmarks/results/
 
 # .beads/ runtime files ignored via .beads/.gitignore (issues.jsonl tracked)
 .github/copilot-instructions.md
+nltools/tests/data/haxby/

@@ -18,7 +18,6 @@ TOLERANCE_GPU_PVALUE = 5e-3  # 0.5% error for P-values (more FP error)
 class TestOnlineBootstrapStats:
     """Test suite for OnlineBootstrapStats class."""
 
-    @pytest.mark.tier1
     def test_online_stats_1d_array(self):
         """Test basic aggregation with 1D arrays."""
         # Create stats aggregator for 1D arrays
@@ -54,7 +53,6 @@ class TestOnlineBootstrapStats:
         # Verify CIs are reasonable
         assert np.all(result["ci_upper"] > result["ci_lower"])
 
-    @pytest.mark.tier1
     def test_online_stats_2d_array(self):
         """Test aggregation with 2D arrays (multi-feature)."""
         # Create stats for weight matrix shape (n_features, n_voxels)
@@ -80,7 +78,6 @@ class TestOnlineBootstrapStats:
         # Verify no samples stored (efficient mode)
         assert "samples" not in result
 
-    @pytest.mark.tier1
     def test_online_stats_confidence_intervals(self):
         """Test CI computation using normal approximation."""
         # Create stats aggregator
@@ -106,7 +103,6 @@ class TestOnlineBootstrapStats:
         expected_width = 2 * 1.96 * result["std"]
         assert np.allclose(ci_width, expected_width, rtol=0.01)
 
-    @pytest.mark.tier1
     def test_online_stats_sample_storage(self):
         """Test sample storage mode for exact percentile CIs."""
         # Create stats with sample storage
@@ -136,7 +132,6 @@ class TestOnlineBootstrapStats:
         assert np.allclose(result["ci_lower"], expected_lower, rtol=1e-10)
         assert np.allclose(result["ci_upper"], expected_upper, rtol=1e-10)
 
-    @pytest.mark.tier1
     def test_online_stats_numerical_stability(self):
         """Test Welford's algorithm handles large values correctly."""
         # Create stats aggregator
@@ -166,7 +161,7 @@ class TestOnlineBootstrapStats:
         assert np.allclose(result["std"], expected_std, rtol=1e-5)
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 class TestBootstrapSimpleMethods:
     """Test suite for simple bootstrap methods."""
 
@@ -265,7 +260,7 @@ class TestBootstrapSimpleMethods:
         assert "mean" in result
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 class TestBootstrapRidgeWeights:
     """Test suite for Ridge model weights bootstrap."""
 
@@ -407,7 +402,7 @@ class TestBootstrapRidgeWeights:
         assert full_size > efficient_size * 10
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 class TestBootstrapRidgePredict:
     """Test suite for Ridge model predictions bootstrap."""
 
@@ -535,7 +530,7 @@ class TestBootstrapRidgePredict:
         np.testing.assert_array_almost_equal(result1["std"], result2["std"])
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 class TestBootstrapErrorHandling:
     """Test suite for bootstrap error handling and validation."""
 
@@ -652,7 +647,7 @@ class TestBootstrapErrorHandling:
             _bootstrap_simple_cpu_parallel(data_scalar, "mean", n_samples=10)
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 class TestBootstrapPerformance:
     """
     Performance validation tests for bootstrap implementations.
@@ -837,10 +832,11 @@ class TestBootstrapPerformance:
 # ============================================================================
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 class TestBootstrapRidgeWeightsGPU:
     """Test suite for GPU-accelerated Ridge weights bootstrap."""
 
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_basic_functionality(self):
         """Test basic GPU functionality for Ridge weights bootstrap."""
@@ -882,7 +878,8 @@ class TestBootstrapRidgeWeightsGPU:
         assert not np.any(np.isnan(result["mean"]))
         assert not np.any(np.isnan(result["std"]))
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_matches_cpu(self):
         """Test that GPU results match CPU results (within tolerance)."""
@@ -925,7 +922,8 @@ class TestBootstrapRidgeWeightsGPU:
             rtol=TOLERANCE_GPU_VALUE,
         )
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_batching_correctness(self):
         """Test that GPU batching produces correct results."""
@@ -955,7 +953,8 @@ class TestBootstrapRidgeWeightsGPU:
         assert result["mean"].shape == (10, 20)
         assert not np.any(np.isnan(result["mean"]))
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_deterministic_with_seed(self):
         """Test GPU results are deterministic with same seed."""
@@ -995,7 +994,8 @@ class TestBootstrapRidgeWeightsGPU:
         np.testing.assert_allclose(result1["mean"], result2["mean"], rtol=1e-5)
         np.testing.assert_allclose(result1["std"], result2["std"], rtol=1e-5)
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_batching_prevents_oom(self):
         """Test GPU batching prevents OOM for large problems."""
@@ -1030,10 +1030,11 @@ class TestBootstrapRidgeWeightsGPU:
         assert not np.any(np.isnan(result["mean"]))
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 class TestBootstrapRidgePredictGPU:
     """Test suite for GPU-accelerated Ridge predictions bootstrap."""
 
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_basic_functionality(self):
         """Test basic GPU functionality for Ridge predictions bootstrap."""
@@ -1077,7 +1078,8 @@ class TestBootstrapRidgePredictGPU:
         assert not np.any(np.isnan(result["mean"]))
         assert not np.any(np.isnan(result["std"]))
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_matches_cpu(self):
         """Test that GPU results match CPU results (within tolerance)."""
@@ -1122,7 +1124,8 @@ class TestBootstrapRidgePredictGPU:
             rtol=TOLERANCE_GPU_VALUE,
         )
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_batching_correctness(self):
         """Test that GPU batching produces correct results."""
@@ -1154,7 +1157,8 @@ class TestBootstrapRidgePredictGPU:
         assert result["mean"].shape == (20, 20)
         assert not np.any(np.isnan(result["mean"]))
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_deterministic_with_seed(self):
         """Test GPU results are deterministic with same seed."""
@@ -1203,11 +1207,12 @@ class TestBootstrapRidgePredictGPU:
 # ============================================================================
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 class TestBootstrapRidgeWeightsStatisticalCorrectness:
     """Test statistical correctness of Ridge weights bootstrap (not just CPU/GPU consistency)."""
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_bootstrap_mean_converges_to_true_weights(self):
         """Test that bootstrap mean converges to true Ridge weights."""
@@ -1254,7 +1259,8 @@ class TestBootstrapRidgeWeightsStatisticalCorrectness:
             atol=0.1,
         )
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_bootstrap_std_increases_with_fewer_samples(self):
         """Test that bootstrap std decreases with more bootstrap samples (more precision)."""
@@ -1302,7 +1308,8 @@ class TestBootstrapRidgeWeightsStatisticalCorrectness:
             np.mean(std_ratio > 0.8) > 0.5
         )  # At least 50% should show expected pattern
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_bootstrap_ci_contains_true_weights(self):
         """Test that bootstrap confidence intervals contain true Ridge weights."""
@@ -1350,7 +1357,8 @@ class TestBootstrapRidgeWeightsStatisticalCorrectness:
         coverage = np.mean(ci_contains_true)
         assert coverage >= 0.90, f"CI coverage too low: {coverage:.2%}"
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_bootstrap_z_scores_are_reasonable(self):
         """Test that bootstrap Z-scores are statistically reasonable."""
@@ -1387,11 +1395,12 @@ class TestBootstrapRidgeWeightsStatisticalCorrectness:
         assert np.mean((result["p"] > 0.001) & (result["p"] < 0.999)) > 0.8
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 class TestBootstrapRidgePredictStatisticalCorrectness:
     """Test statistical correctness of Ridge predictions bootstrap."""
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_bootstrap_mean_converges_to_true_predictions(self):
         """Test that bootstrap mean predictions converge to true predictions."""
@@ -1442,7 +1451,8 @@ class TestBootstrapRidgePredictStatisticalCorrectness:
             atol=0.1,
         )
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_bootstrap_ci_contains_true_predictions(self):
         """Test that bootstrap CI contains true predictions."""
@@ -1492,7 +1502,8 @@ class TestBootstrapRidgePredictStatisticalCorrectness:
         coverage = np.mean(ci_contains_true)
         assert coverage >= 0.90, f"CI coverage too low: {coverage:.2%}"
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
+    @pytest.mark.gpu
     @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_gpu_bootstrap_variance_increases_with_noise(self):
         """Test that bootstrap variance increases with more noise in data."""

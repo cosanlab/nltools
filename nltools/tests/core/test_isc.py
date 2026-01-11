@@ -64,7 +64,6 @@ TOLERANCE_GPU_PVALUE = 5e-3  # 0.5% error for P-values (more FP error)
 # =============================================================================
 
 
-@pytest.mark.tier1
 def test_compute_loo_isc_single_feature_basic():
     """LOO ISC computes correlation of each subject with mean of others."""
     np.random.seed(42)
@@ -81,7 +80,6 @@ def test_compute_loo_isc_single_feature_basic():
         assert np.isclose(loo_values[i], expected)
 
 
-@pytest.mark.tier1
 def test_compute_loo_isc_voxelwise_shape():
     """Voxel-wise LOO returns (n_subjects, n_voxels) array."""
     np.random.seed(42)
@@ -97,7 +95,7 @@ def test_compute_loo_isc_voxelwise_shape():
         assert np.allclose(loo_values[:, v], voxel_loo)
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_compute_loo_isc_gpu_matches_numpy():
     """GPU LOO matches NumPy within float32 tolerance."""
     _ = pytest.importorskip("torch")
@@ -112,7 +110,6 @@ def test_compute_loo_isc_gpu_matches_numpy():
     np.testing.assert_allclose(loo_numpy, loo_gpu, rtol=TOLERANCE_GPU_VALUE, atol=1e-7)
 
 
-@pytest.mark.tier1
 def test_compute_loo_isc_deterministic():
     """LOO computation is deterministic."""
     np.random.seed(42)
@@ -124,7 +121,7 @@ def test_compute_loo_isc_deterministic():
     assert np.array_equal(loo1, loo2)
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_batch_correlation_gpu_correctness():
     """Batch correlation on GPU matches manual computation."""
     torch = pytest.importorskip("torch")
@@ -153,7 +150,6 @@ def test_batch_correlation_gpu_correctness():
 # =============================================================================
 
 
-@pytest.mark.tier1
 def test_compute_pairwise_isc_single_feature_condensed():
     """Pairwise ISC returns condensed correlation matrix."""
     np.random.seed(42)
@@ -170,7 +166,6 @@ def test_compute_pairwise_isc_single_feature_condensed():
     assert np.allclose(pairwise, expected)
 
 
-@pytest.mark.tier1
 def test_compute_pairwise_isc_voxelwise_shape():
     """Voxel-wise pairwise returns (n_pairs, n_voxels)."""
     np.random.seed(42)
@@ -186,7 +181,7 @@ def test_compute_pairwise_isc_voxelwise_shape():
         assert np.allclose(pairwise[:, v], voxel_pair)
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_compute_pairwise_isc_gpu_matches_numpy():
     """GPU pairwise matches NumPy within float32 tolerance."""
     _ = pytest.importorskip("torch")
@@ -203,7 +198,7 @@ def test_compute_pairwise_isc_gpu_matches_numpy():
     )
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_batch_corrcoef_gpu_correctness():
     """Batch corrcoef on GPU matches NumPy."""
     torch = pytest.importorskip("torch")
@@ -230,7 +225,6 @@ def test_batch_corrcoef_gpu_correctness():
 # =============================================================================
 
 
-@pytest.mark.tier1
 def test_bootstrap_loo_resamples_values():
     """LOO bootstrap resamples pre-computed LOO values."""
     loo_values = np.array([0.5, 0.6, 0.7, 0.8, 0.9])
@@ -244,7 +238,6 @@ def test_bootstrap_loo_resamples_values():
     assert -1 <= boot_median <= 1
 
 
-@pytest.mark.tier1
 def test_bootstrap_loo_fisher_z_transform():
     """LOO bootstrap with mean applies Fisher z-transform."""
     loo_values = np.array([0.5, 0.6, 0.7, 0.8, 0.9])
@@ -262,7 +255,6 @@ def test_bootstrap_loo_fisher_z_transform():
     assert np.isclose(boot_mean, expected)
 
 
-@pytest.mark.tier1
 def test_bootstrap_loo_cpu_parallel_deterministic():
     """CPU-parallel LOO bootstrap is deterministic."""
     np.random.seed(42)
@@ -279,7 +271,6 @@ def test_bootstrap_loo_cpu_parallel_deterministic():
     assert np.allclose(boot1, boot2)
 
 
-@pytest.mark.tier1
 def test_bootstrap_loo_cpu_parallel_matches_numpy():
     """CPU-parallel LOO matches sequential NumPy."""
     np.random.seed(42)
@@ -312,7 +303,6 @@ def test_bootstrap_loo_cpu_parallel_matches_numpy():
 # =============================================================================
 
 
-@pytest.mark.tier1
 def test_bootstrap_pairwise_duplicate_masking():
     """Pairwise bootstrap masks same-subject correlations as NaN."""
     # Simple 3-subject example
@@ -333,7 +323,6 @@ def test_bootstrap_pairwise_duplicate_masking():
     assert np.isclose(boot_median, 0.8)
 
 
-@pytest.mark.tier1
 def test_bootstrap_pairwise_condensed_to_square_roundtrip():
     """Condensed storage roundtrip preserves correlation values."""
     # Create correlation matrix
@@ -353,7 +342,6 @@ def test_bootstrap_pairwise_condensed_to_square_roundtrip():
     assert np.allclose(condensed, condensed_again)
 
 
-@pytest.mark.tier1
 def test_bootstrap_pairwise_cpu_parallel_deterministic():
     """CPU-parallel pairwise bootstrap is deterministic."""
     np.random.seed(42)
@@ -385,7 +373,6 @@ def test_bootstrap_pairwise_cpu_parallel_deterministic():
 # =============================================================================
 
 
-@pytest.mark.tier1
 def test_isc_permutation_test_loo_basic():
     """LOO ISC returns all expected outputs."""
     np.random.seed(42)
@@ -408,7 +395,6 @@ def test_isc_permutation_test_loo_basic():
     assert result["ci"][0] <= result["ci"][1]
 
 
-@pytest.mark.tier1
 def test_isc_permutation_test_pairwise_basic():
     """Pairwise ISC returns all expected outputs."""
     np.random.seed(42)
@@ -427,7 +413,6 @@ def test_isc_permutation_test_pairwise_basic():
     assert "ci" in result
 
 
-@pytest.mark.tier1
 def test_isc_loo_vs_pairwise_correlated():
     """LOO and pairwise ISC are different but correlated."""
     np.random.seed(42)
@@ -456,7 +441,6 @@ def test_isc_loo_vs_pairwise_correlated():
     assert np.abs(result_loo["isc"] - result_pairwise["isc"]) < 0.5
 
 
-@pytest.mark.tier1
 def test_isc_voxelwise_shape():
     """Voxel-wise ISC returns arrays per voxel."""
     np.random.seed(42)
@@ -476,7 +460,6 @@ def test_isc_voxelwise_shape():
     assert result["ci"][1].shape == (50,)
 
 
-@pytest.mark.tier1
 def test_isc_backend_consistency_numpy_cpu_parallel():
     """NumPy and CPU-parallel backends give identical results."""
     np.random.seed(42)
@@ -499,7 +482,7 @@ def test_isc_backend_consistency_numpy_cpu_parallel():
     )
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_isc_gpu_matches_cpu():
     """GPU backend matches CPU within float32 tolerance."""
     _ = pytest.importorskip("torch")
@@ -535,7 +518,6 @@ def test_isc_gpu_matches_cpu():
     )
 
 
-@pytest.mark.tier1
 def test_isc_return_null_distribution():
     """ISC with return_null=True includes bootstrap distribution."""
     np.random.seed(42)
@@ -549,7 +531,6 @@ def test_isc_return_null_distribution():
     assert result["null_dist"].shape == (100,)
 
 
-@pytest.mark.tier1
 def test_isc_circle_shift_method():
     """ISC with circle_shift method completes successfully."""
     np.random.seed(42)
@@ -563,7 +544,6 @@ def test_isc_circle_shift_method():
     assert "p" in result
 
 
-@pytest.mark.tier1
 def test_isc_phase_randomize_method():
     """ISC with phase_randomize method completes successfully."""
     np.random.seed(42)
@@ -586,7 +566,7 @@ def test_isc_phase_randomize_method():
 # =============================================================================
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_isc_matches_brainiak_loo_logic():
     """LOO ISC matches Brainiak computation pattern."""
     # Create controlled data
@@ -614,7 +594,7 @@ def test_isc_matches_brainiak_loo_logic():
     assert np.isclose(result["isc"], expected_isc)
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_isc_chen_bootstrap_correctness():
     """Bootstrap uses subject-wise resampling (Chen et al. 2016)."""
     np.random.seed(42)
@@ -642,7 +622,7 @@ def test_isc_chen_bootstrap_correctness():
 # =============================================================================
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_isc_gpu_speedup_loo():
     """GPU provides speedup for voxel-wise LOO computation."""
     torch = pytest.importorskip("torch")
@@ -682,7 +662,7 @@ def test_isc_gpu_speedup_loo():
     assert speedup > 3.0
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_isc_gpu_speedup_pairwise():
     """GPU provides speedup for voxel-wise pairwise computation."""
     torch = pytest.importorskip("torch")
@@ -727,7 +707,6 @@ def test_isc_gpu_speedup_pairwise():
 # =============================================================================
 
 
-@pytest.mark.tier1
 def test_isc_invalid_summary_statistic():
     """Invalid summary_statistic raises ValueError."""
     np.random.seed(42)
@@ -739,7 +718,6 @@ def test_isc_invalid_summary_statistic():
         )
 
 
-@pytest.mark.tier1
 def test_isc_invalid_method():
     """Invalid method raises ValueError."""
     np.random.seed(42)
@@ -749,7 +727,6 @@ def test_isc_invalid_method():
         isc_permutation_test(data, method="invalid", n_permute=100, progress_bar=False)
 
 
-@pytest.mark.tier1
 def test_isc_invalid_data_dimensions():
     """Data with wrong dimensions raises ValueError."""
     data_1d = np.random.randn(100)
@@ -758,7 +735,6 @@ def test_isc_invalid_data_dimensions():
         isc_permutation_test(data_1d, n_permute=100, progress_bar=False)
 
 
-@pytest.mark.tier1
 def test_isc_default_is_pairwise():
     """Default summary_statistic is 'pairwise'."""
     np.random.seed(42)
@@ -781,7 +757,6 @@ def test_isc_default_is_pairwise():
     assert np.isclose(result["isc"], result_explicit["isc"])
 
 
-@pytest.mark.tier1
 def test_isc_exclude_self_corr_parameter():
     """exclude_self_corr parameter controls masking of self-correlations."""
     np.random.seed(42)
@@ -822,7 +797,6 @@ def test_isc_exclude_self_corr_parameter():
     assert isinstance(result_include["isc"], (float, np.floating))
 
 
-@pytest.mark.tier1
 def test_isc_exclude_self_corr_affects_bootstrap():
     """exclude_self_corr parameter affects bootstrap distribution."""
     # Create data that will produce duplicate subjects in bootstrap
@@ -867,7 +841,6 @@ def test_isc_exclude_self_corr_affects_bootstrap():
     assert len(null_include) == 500
 
 
-@pytest.mark.tier1
 def test_isc_sim_metric_parameter():
     """sim_metric parameter allows different similarity metrics."""
     np.random.seed(42)
@@ -908,7 +881,6 @@ def test_isc_sim_metric_parameter():
     assert -1 <= result_corr["isc"] <= 1
 
 
-@pytest.mark.tier1
 def test_isc_sim_metric_affects_pairwise_computation():
     """sim_metric parameter affects pairwise ISC computation."""
     np.random.seed(42)
@@ -944,7 +916,6 @@ def test_isc_sim_metric_affects_pairwise_computation():
     assert isinstance(result_cosine["isc"], (float, np.floating))
 
 
-@pytest.mark.tier1
 def test_isc_sim_metric_gpu_warning():
     """GPU backend warns when sim_metric != 'correlation'."""
     torch = pytest.importorskip("torch")
@@ -971,7 +942,6 @@ def test_isc_sim_metric_gpu_warning():
     assert "isc" in result
 
 
-@pytest.mark.tier1
 def test_isc_exclude_self_corr_pairwise_only():
     """exclude_self_corr only applies to pairwise bootstrap."""
     np.random.seed(42)
@@ -1002,7 +972,6 @@ def test_isc_exclude_self_corr_pairwise_only():
     assert np.isclose(result_loo["isc"], result_loo_default["isc"])
 
 
-@pytest.mark.tier1
 def test_isc_sim_metric_pairwise_only():
     """sim_metric only applies to pairwise summary_statistic."""
     np.random.seed(42)
@@ -1031,7 +1000,6 @@ def test_isc_sim_metric_pairwise_only():
     assert np.isclose(result_loo_corr["isc"], result_loo_eucl["isc"])
 
 
-@pytest.mark.tier1
 def test_isc_sim_metric_spearman_basic():
     """Spearman sim_metric works and produces valid ISC results."""
     np.random.seed(42)
@@ -1054,7 +1022,6 @@ def test_isc_sim_metric_spearman_basic():
     assert -1 <= result_spearman["isc"] <= 1
 
 
-@pytest.mark.tier1
 def test_isc_sim_metric_spearman_vs_correlation():
     """Spearman and correlation produce different ISC values."""
     np.random.seed(42)
@@ -1087,7 +1054,6 @@ def test_isc_sim_metric_spearman_vs_correlation():
     assert -1 <= result_corr["isc"] <= 1
 
 
-@pytest.mark.tier1
 def test_compute_pairwise_isc_spearman_single_feature():
     """Spearman pairwise ISC matches manual computation for single feature."""
     from scipy.stats import rankdata
@@ -1108,7 +1074,6 @@ def test_compute_pairwise_isc_spearman_single_feature():
     np.testing.assert_allclose(result, expected, rtol=1e-10)
 
 
-@pytest.mark.tier1
 def test_compute_pairwise_isc_spearman_voxelwise():
     """Spearman pairwise ISC works for voxel-wise data."""
     from scipy.stats import rankdata
@@ -1134,7 +1099,7 @@ def test_compute_pairwise_isc_spearman_voxelwise():
     np.testing.assert_allclose(result[:, 0], expected_v0, rtol=1e-10)
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_compute_pairwise_isc_spearman_performance():
     """Spearman optimization works efficiently and avoids pairwise_distances overhead."""
     import time
@@ -1169,7 +1134,6 @@ def test_compute_pairwise_isc_spearman_performance():
     )
 
 
-@pytest.mark.tier1
 def test_compute_pairwise_isc_cosine_single_feature():
     """Cosine pairwise ISC matches sklearn pairwise_distances for single feature."""
     from sklearn.metrics import pairwise_distances
@@ -1190,7 +1154,6 @@ def test_compute_pairwise_isc_cosine_single_feature():
     np.testing.assert_allclose(result, expected, rtol=1e-10)
 
 
-@pytest.mark.tier1
 def test_compute_pairwise_isc_cosine_voxelwise():
     """Cosine pairwise ISC matches sklearn pairwise_distances for voxel-wise data."""
     from sklearn.metrics import pairwise_distances
@@ -1214,7 +1177,6 @@ def test_compute_pairwise_isc_cosine_voxelwise():
     np.testing.assert_allclose(result[:, 0], expected_v0, rtol=1e-10)
 
 
-@pytest.mark.tier1
 def test_isc_sim_metric_cosine_vs_correlation():
     """Cosine and correlation produce different ISC values."""
     np.random.seed(42)
@@ -1245,7 +1207,6 @@ def test_isc_sim_metric_cosine_vs_correlation():
     assert 0 <= result_cosine["isc"] <= 1
 
 
-@pytest.mark.tier1
 def test_compute_pairwise_isc_cosine_handles_zero_norm():
     """Cosine similarity handles zero-norm vectors gracefully."""
     np.random.seed(42)
@@ -1264,7 +1225,7 @@ def test_compute_pairwise_isc_cosine_handles_zero_norm():
     assert np.all(np.isfinite(result) | np.isnan(result))
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_compute_pairwise_isc_cosine_performance():
     """Cosine optimization is faster than pairwise_distances fallback."""
     import time
@@ -1298,7 +1259,6 @@ def test_compute_pairwise_isc_cosine_performance():
     )
 
 
-@pytest.mark.tier1
 def test_compute_pairwise_isc_euclidean_single_feature():
     """Euclidean pairwise ISC matches sklearn pairwise_distances for single feature."""
     from sklearn.metrics import pairwise_distances
@@ -1319,7 +1279,6 @@ def test_compute_pairwise_isc_euclidean_single_feature():
     np.testing.assert_allclose(result, expected, rtol=1e-10)
 
 
-@pytest.mark.tier1
 def test_compute_pairwise_isc_euclidean_voxelwise():
     """Euclidean pairwise ISC matches sklearn pairwise_distances for voxel-wise data."""
     from sklearn.metrics import pairwise_distances
@@ -1343,7 +1302,6 @@ def test_compute_pairwise_isc_euclidean_voxelwise():
     np.testing.assert_allclose(result[:, 0], expected_v0, rtol=1e-10)
 
 
-@pytest.mark.tier1
 def test_isc_sim_metric_euclidean_vs_correlation():
     """Euclidean and correlation produce different ISC values."""
     np.random.seed(42)
@@ -1374,7 +1332,7 @@ def test_isc_sim_metric_euclidean_vs_correlation():
     assert isinstance(result_eucl["isc"], (float, np.floating))
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 def test_compute_pairwise_isc_euclidean_performance():
     """Euclidean optimization is faster than pairwise_distances fallback."""
     import time
@@ -1458,7 +1416,7 @@ def _generate_shared_signal_isc(
 class TestISCStatisticalCorrectness:
     """Test statistical correctness of ISC permutation tests (not just CPU/GPU consistency)."""
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_null_hypothesis_pvalue_distribution(self):
         """Test that p-values are uniformly distributed under null hypothesis (ISC = 0)."""
         from scipy.stats import kstest
@@ -1499,7 +1457,6 @@ class TestISCStatisticalCorrectness:
                 f"KS test p-value: {ks_pvalue:.4f}"
             )
 
-    @pytest.mark.tier1
     def test_isc_value_correctness_loo(self):
         """Test that LOO ISC value matches expected value for known ISC structure."""
         np.random.seed(42)
@@ -1528,7 +1485,6 @@ class TestISCStatisticalCorrectness:
         )
         assert result["isc"] < 1.0, "ISC should be less than 1.0"
 
-    @pytest.mark.tier1
     def test_isc_value_correctness_pairwise(self):
         """Test that pairwise ISC value matches expected value for known ISC structure."""
         np.random.seed(42)
@@ -1556,7 +1512,6 @@ class TestISCStatisticalCorrectness:
         )
         assert result["isc"] < 1.0, "ISC should be less than 1.0"
 
-    @pytest.mark.tier1
     def test_effect_size_sensitivity(self):
         """Test that higher ISC produces lower p-values."""
         np.random.seed(42)
@@ -1611,7 +1566,6 @@ class TestISCStatisticalCorrectness:
             f"ISC=0.0: p={p_values[0]:.4f}, ISC=0.6: p={p_values[-1]:.4f}"
         )
 
-    @pytest.mark.tier1
     def test_loo_vs_pairwise_relationship(self):
         """Test that LOO and pairwise ISC are different but both detect ISC correctly."""
         np.random.seed(42)
@@ -1684,7 +1638,6 @@ class TestISCStatisticalCorrectness:
             "Pairwise ISC should increase with higher true ISC"
         )
 
-    @pytest.mark.tier1
     def test_bootstrap_method_correctness(self):
         """Test that bootstrap method produces correct null distribution."""
         np.random.seed(42)
@@ -1728,7 +1681,6 @@ class TestISCStatisticalCorrectness:
             f"CI: [{ci_lower:.4f}, {ci_upper:.4f}], Observed: {observed_isc:.4f}"
         )
 
-    @pytest.mark.tier1
     def test_circle_shift_preserves_temporal_structure(self):
         """Test that circle_shift preserves temporal autocorrelation structure."""
         np.random.seed(42)
@@ -1783,7 +1735,6 @@ class TestISCStatisticalCorrectness:
             err_msg="Circle shift should preserve autocorrelation structure",
         )
 
-    @pytest.mark.tier1
     def test_phase_randomize_preserves_power_spectrum(self):
         """Test that phase_randomize preserves power spectrum."""
         np.random.seed(42)
@@ -1838,7 +1789,6 @@ class TestISCStatisticalCorrectness:
         assert "isc" in result
         assert "p" in result
 
-    @pytest.mark.tier1
     def test_metric_correctness_median_vs_mean(self):
         """Test that median and mean metrics both detect ISC correctly."""
         np.random.seed(42)
@@ -1911,7 +1861,7 @@ class TestISCStatisticalCorrectness:
             "At least one metric should detect ISC from non-outlier subjects"
         )
 
-    @pytest.mark.tier2
+    @pytest.mark.slow
     def test_pvalue_converges_with_more_permutations(self):
         """Test that p-values stabilize with more permutations."""
         np.random.seed(42)

@@ -160,7 +160,9 @@ def resolve_template_name(template_name: str, file_type: str = "mask") -> str:
     """
     # Validate file_type
     if file_type not in ["mask", "brain", "T1"]:
-        raise ValueError(f"file_type must be 'mask', 'brain', or 'T1'. Got: {file_type}")
+        raise ValueError(
+            f"file_type must be 'mask', 'brain', or 'T1'. Got: {file_type}"
+        )
 
     # Parse template name using regex
     # Pattern: {res}mm-MNI152-2009{version}
@@ -207,7 +209,9 @@ def resolve_template_name(template_name: str, file_type: str = "mask") -> str:
 
     # Build file path
     base_path = join(dirname(__file__), "resources", "niftis", template_dir)
-    file_path = join(base_path, f"{resolution}mm-MNI152-2009{version_code}-{file_type}.nii.gz")
+    file_path = join(
+        base_path, f"{resolution}mm-MNI152-2009{version_code}-{file_type}.nii.gz"
+    )
 
     # Fallback to old naming convention for backward compatibility
     old_file_path = join(base_path, f"MNI152_{resolution}mm_{file_type}.nii.gz")

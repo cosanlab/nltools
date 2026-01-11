@@ -291,7 +291,7 @@ class TestNumpyBackend:
         np.testing.assert_array_equal(c[1], b)
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
 @pytest.mark.skipif(not _torch_available(), reason="PyTorch not available")
 class TestTorchBackend:
     """Test PyTorch CPU backend operations."""
@@ -427,7 +427,8 @@ class TestTorchBackend:
         torch.testing.assert_close(arr, arr_gpu)
 
 
-@pytest.mark.tier2
+@pytest.mark.slow
+@pytest.mark.gpu
 @pytest.mark.skipif(not _torch_cuda_available(), reason="PyTorch CUDA not available")
 class TestTorchCUDABackend:
     """Test PyTorch CUDA backend operations."""

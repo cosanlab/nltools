@@ -1,5 +1,5 @@
 # CLAUDE.md — nltools Development Guide
-*Last updated: 2025-12-18*
+*Last updated: 2025-12-19*
 
 **Note**: This project uses [bd (beads)](https://github.com/steveyegge/beads)
 for issue tracking. Use `bd` commands instead of markdown TODOs.
@@ -36,9 +36,9 @@ Build and refactor `nltools`, a neuroimaging library with a delightful and intui
 ## SUB-AGENT usage protocol
 - Always instruct them to use targeted TDD strategy
 - Never have sub-agents run full test suite unless specifically required
-- Tell them tier2 requires explicit permission (must ask before running)
+- Tell them slow tests require explicit permission (must ask before running)
 - Remind them to use `uv run` prefix for all commands
-- Always instruct them to use `-n auto` for tier1 tests (parallel by default)
+- Always instruct them to use `-n auto` for default tests (parallel by default)
 - Instruct them to create and use log files for any diagnostic work
 
 ## Testing Guidance
@@ -111,22 +111,27 @@ uv run pytest nltools/tests/ -xvs --tb=long 2>&1 | tee pytest.log
 # ❌ NEVER: Re-run pytest just to search for different patterns
 ```
 
-**ALWAYS use PARALLEL testing and require PERMISSION for tier2:**
+**Pytest Markers (simplified):**
 ```bash
-# ✅ ALWAYS: Default to -n auto for tier1 (6-7× faster)
-uv run pytest -m tier1 -n auto 2>&1 | tee pytest_tier1.log
+# Markers:
+# - @pytest.mark.slow  → Tests taking >3s (skipped by default)
+# - @pytest.mark.gpu   → Tests requiring CUDA hardware
+# - No marker          → Runs by default
 
-# ⚠️ TIER 2: NEVER run without explicit permission
-# Always ask first: "Should I run tier2 tests (~7 min)?"
-# Only after approval: uv run pytest -m tier2 -xvs --tb=long 2>&1 | tee pytest_tier2.log
+# ✅ DEFAULT: Runs all non-slow tests (~881 tests)
+uv run pytest -n auto 2>&1 | tee pytest.log
 
-# ❌ NEVER: Run tier2 without asking permission first
-uv run pytest -m tier2  # DON'T DO THIS!
+# ✅ SLOW TESTS: Require explicit permission (~197 tests, ~7 min)
+# Always ask first: "Should I run slow tests (~7 min)?"
+uv run pytest -m slow -xvs --tb=long 2>&1 | tee pytest_slow.log
 
-# Why this matters:
-# - Parallel tier1: 18s vs 2min = 6-7× speedup
-# - Log files: Run once, analyze many times = 10× token savings
-# - Tier2 cost: ~7 min should be intentional, not automatic
+# ✅ ALL TESTS: Run everything including slow
+uv run pytest -m "" -n auto 2>&1 | tee pytest_all.log
+
+# ✅ GPU TESTS: Tests requiring CUDA (~30 tests)
+uv run pytest -m gpu -xvs 2>&1 | tee pytest_gpu.log
+
+# ❌ NEVER: Run slow tests without asking permission first
 ```
 
 **Use TARGETED TEST-DRIVEN DEVELOPMENT (TDD):**
@@ -144,19 +149,17 @@ uv run pytest nltools/tests/shell/test_brain_data.py::TestBrainData::test_fit -x
 uv run pytest nltools/tests/core/test_srm.py::test_srm_fit_transform -x
 uv run pytest -k "ridge and cv" -x
 
-# ✅ DO: Run tier1 for quick regression checks (ALWAYS use -n auto!)
-uv run pytest -m tier1 -n auto  # ~18s (not 2min!)
+# ✅ DO: Run default tests for quick regression checks (ALWAYS use -n auto!)
+uv run pytest -n auto  # ~881 tests, skips slow
 
-# ✅ DO: Run by directory for regression checks (use -n auto when possible)
+# ✅ DO: Run by directory for regression checks
 uv run pytest nltools/tests/shell/ -n auto -x
 uv run pytest nltools/tests/core/ -n auto -x
 
-# ⚠️  TIER 2: ASK PERMISSION FIRST, then run (~7 min)
-# After getting approval:
-uv run pytest -m tier2 -xvs --tb=long 2>&1 | tee pytest_tier2.log
+# ⚠️ SLOW TESTS: ASK PERMISSION FIRST (~7 min)
+uv run pytest -m slow -xvs --tb=long 2>&1 | tee pytest_slow.log
 
-# ❌ AVOID: Running full suite OR tier2 without permission during rapid iteration
-# Use tier1 for fast feedback; ask about tier2 before running
+# ❌ AVOID: Running slow tests without permission during rapid iteration
 ```
 
 **CLEAN UP after tests:**
