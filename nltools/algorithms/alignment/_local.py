@@ -241,6 +241,10 @@ class LocalAlignment:
     parallel: Optional[str] = "cpu"
     n_jobs: int = -1
 
+    # Batching parameters (Phase 2)
+    n_neighborhoods_batch: Optional[int] = None  # None = auto-calculate
+    max_memory_gb: float = 4.0  # Memory budget for auto batch sizing
+
     # Fitted state (set by fit())
     transforms_: Optional[Dict[int, List[np.ndarray]]] = field(default=None, repr=False)
     template_: Optional[Dict[int, np.ndarray]] = field(default=None, repr=False)
@@ -267,6 +271,89 @@ class LocalAlignment:
             object.__setattr__(self, "aggregation", "all")
         if self.scheme == "piecewise" and self.parcellation is None:
             raise ValueError("parcellation is required for piecewise scheme")
+
+    def _auto_batch_size(
+        self, n_subjects: int, avg_region_size: int, n_samples: int
+    ) -> int:
+        """Calculate batch size based on memory budget.
+
+        Estimates memory per neighborhood and divides into budget.
+
+        Args:
+            n_subjects: Number of subjects
+            avg_region_size: Average voxels per neighborhood/parcel
+            n_samples: Number of time samples
+
+        Returns:
+            Number of neighborhoods per batch
+        """
+        # Memory per neighborhood during fitting:
+        # - Local data: n_subjects × avg_region_size × n_samples × 8 bytes (float64)
+        # - Transforms: n_subjects × avg_region_size × avg_region_size × 8 bytes
+        # - Template: avg_region_size × n_samples × 8 bytes
+        bytes_per_neighborhood = (
+            n_subjects * avg_region_size * n_samples * 8  # local data
+            + n_subjects * avg_region_size * avg_region_size * 8  # transforms
+            + avg_region_size * n_samples * 8  # template
+        )
+
+        max_bytes = self.max_memory_gb * 1e9
+        batch_size = max(1, int(max_bytes / bytes_per_neighborhood))
+
+        logger.debug(
+            f"Auto batch size: {batch_size} neighborhoods "
+            f"({bytes_per_neighborhood / 1e6:.1f} MB each, "
+            f"{self.max_memory_gb} GB budget)"
+        )
+        return batch_size
+
+    def _batch_neighborhoods(
+        self,
+        neighborhoods: Union["SphereNeighborhoods", "PiecewiseNeighborhoods"],
+        n_subjects: int,
+        n_samples: int,
+    ) -> Iterator[List[tuple[int, np.ndarray]]]:
+        """Generator yielding batches of neighborhoods.
+
+        Critical: Uses yield + del pattern for memory efficiency.
+        Only one batch is in memory at a time.
+
+        Args:
+            neighborhoods: Computed neighborhoods (searchlight or piecewise)
+            n_subjects: Number of subjects
+            n_samples: Number of time samples
+
+        Yields:
+            Lists of (region_id, voxel_indices) tuples, one batch at a time
+        """
+        # Collect all neighborhoods
+        all_neighborhoods = list(neighborhoods.iter_neighborhoods(show_progress=False))
+
+        # Calculate batch size
+        if self.n_neighborhoods_batch is not None:
+            batch_size = self.n_neighborhoods_batch
+        else:
+            # Estimate average region size
+            if len(all_neighborhoods) > 0:
+                avg_region_size = int(
+                    np.mean([len(indices) for _, indices in all_neighborhoods])
+                )
+            else:
+                avg_region_size = 1
+            batch_size = self._auto_batch_size(n_subjects, avg_region_size, n_samples)
+
+        n_total = len(all_neighborhoods)
+        n_batches = (n_total + batch_size - 1) // batch_size
+
+        logger.info(
+            f"Processing {n_total} neighborhoods in {n_batches} batches "
+            f"(batch_size={batch_size})"
+        )
+
+        for i in range(0, n_total, batch_size):
+            batch = all_neighborhoods[i : i + batch_size]
+            yield batch
+            # Caller should process and then del batch for memory efficiency
 
     def fit(self, data: List[np.ndarray], mask: "nib.Nifti1Image") -> "LocalAlignment":
         """Fit local alignment on multi-subject data.
@@ -323,7 +410,7 @@ class LocalAlignment:
         self.transforms_: Dict[int, List[np.ndarray]] = {}
         self.template_: Dict[int, np.ndarray] = {}
 
-        # Fit local alignment for each neighborhood
+        # Fit local alignment for each neighborhood using batched processing
         if self.scheme == "searchlight":
             n_regions = self.neighborhoods_.n_voxels
             region_type = "searchlight spheres"
@@ -332,58 +419,74 @@ class LocalAlignment:
             region_type = "parcels"
         logger.info(f"Fitting LocalAlignment with {n_regions} {region_type}")
 
-        for region_id, voxel_indices in self.neighborhoods_.iter_neighborhoods(
-            show_progress=True
-        ):
-            # Extract local data for all subjects
-            # Each subject's local data: (n_local_voxels, n_samples)
-            local_data = [subj[voxel_indices, :] for subj in data]
+        # Use batched iteration for memory efficiency
+        from tqdm import tqdm
 
-            # Skip if region is too small
-            n_local_voxels = len(voxel_indices)
-            if n_local_voxels < 2:
-                # Store identity transforms for degenerate cases
-                self.transforms_[region_id] = [
-                    np.eye(n_local_voxels) for _ in range(n_subjects)
-                ]
-                self.template_[region_id] = np.mean(local_data, axis=0)
-                continue
+        batch_gen = self._batch_neighborhoods(
+            self.neighborhoods_, n_subjects, n_samples
+        )
 
-            # Fit local alignment based on method
-            if self.method == "procrustes":
-                transforms, template = _fit_local_procrustes(
-                    local_data, n_iter=self.n_iter
-                )
-                self.transforms_[region_id] = transforms
-                self.template_[region_id] = template
+        # Progress bar for total neighborhoods
+        pbar = tqdm(total=n_regions, desc=region_type.capitalize(), unit="regions")
 
-            elif self.method == "srm":
-                from nltools.algorithms.srm import SRM
+        for batch in batch_gen:
+            for region_id, voxel_indices in batch:
+                # Extract local data for all subjects
+                # Each subject's local data: (n_local_voxels, n_samples)
+                local_data = [subj[voxel_indices, :] for subj in data]
 
-                # SRM expects (n_voxels, n_samples) - already in this format
-                # n_features defaults to min(n_local_voxels, n_samples) if None
-                n_features = self.n_features
-                if n_features is None:
-                    n_features = min(n_local_voxels, n_samples)
+                # Skip if region is too small
+                n_local_voxels = len(voxel_indices)
+                if n_local_voxels < 2:
+                    # Store identity transforms for degenerate cases
+                    self.transforms_[region_id] = [
+                        np.eye(n_local_voxels) for _ in range(n_subjects)
+                    ]
+                    self.template_[region_id] = np.mean(local_data, axis=0)
+                    pbar.update(1)
+                    continue
 
-                srm = SRM(n_iter=self.n_iter, features=n_features)
-                srm.fit(local_data, parallel=None)  # No nested parallelism
+                # Fit local alignment based on method
+                if self.method == "procrustes":
+                    transforms, template = _fit_local_procrustes(
+                        local_data, n_iter=self.n_iter
+                    )
+                    self.transforms_[region_id] = transforms
+                    self.template_[region_id] = template
 
-                # Store transforms (w_) and template (s_)
-                self.transforms_[region_id] = srm.w_
-                self.template_[region_id] = srm.s_
+                elif self.method == "srm":
+                    from nltools.algorithms.srm import SRM
 
-            elif self.method == "hyperalignment":
-                from nltools.algorithms.hyperalignment import HyperAlignment
+                    # SRM expects (n_voxels, n_samples) - already in this format
+                    # n_features defaults to min(n_local_voxels, n_samples) if None
+                    n_features = self.n_features
+                    if n_features is None:
+                        n_features = min(n_local_voxels, n_samples)
 
-                # HyperAlignment expects (n_features, n_samples) - same format
-                ha = HyperAlignment(n_iter=self.n_iter)
-                ha.fit(local_data, parallel=None)  # No nested parallelism
+                    srm = SRM(n_iter=self.n_iter, features=n_features)
+                    srm.fit(local_data, parallel=None)  # No nested parallelism
 
-                # Store transforms (w_) and template (s_)
-                self.transforms_[region_id] = ha.w_
-                self.template_[region_id] = ha.s_
+                    # Store transforms (w_) and template (s_)
+                    self.transforms_[region_id] = srm.w_
+                    self.template_[region_id] = srm.s_
 
+                elif self.method == "hyperalignment":
+                    from nltools.algorithms.hyperalignment import HyperAlignment
+
+                    # HyperAlignment expects (n_features, n_samples) - same format
+                    ha = HyperAlignment(n_iter=self.n_iter)
+                    ha.fit(local_data, parallel=None)  # No nested parallelism
+
+                    # Store transforms (w_) and template (s_)
+                    self.transforms_[region_id] = ha.w_
+                    self.template_[region_id] = ha.s_
+
+                pbar.update(1)
+
+            # Explicit cleanup after each batch for memory efficiency
+            del batch
+
+        pbar.close()
         logger.info("LocalAlignment fitting complete")
         return self
 

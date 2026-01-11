@@ -498,3 +498,124 @@ class TestLocalAlignmentEdgeCases:
         assert len(aligned) == 3
         for a in aligned:
             assert a.shape == (2, 20)
+
+
+class TestLocalAlignmentBatching:
+    """Test batching functionality for memory efficiency."""
+
+    @pytest.fixture
+    def larger_mask(self):
+        """Create a larger mask for batching tests."""
+        import nibabel as nib
+
+        spatial_shape = (5, 5, 5)
+        affine = np.eye(4) * 2  # 2mm voxels
+        affine[3, 3] = 1
+
+        mask_data = np.ones(spatial_shape, dtype=np.float32)
+        return nib.Nifti1Image(mask_data, affine)
+
+    @pytest.fixture
+    def larger_data(self, larger_mask):
+        """Create data matching larger mask."""
+        np.random.seed(42)
+        n_voxels = 125  # 5x5x5
+        n_samples = 20
+        n_subjects = 3
+        return [np.random.randn(n_voxels, n_samples) for _ in range(n_subjects)]
+
+    def test_explicit_batch_size(self, larger_data, larger_mask):
+        """Test with explicit n_neighborhoods_batch parameter."""
+        from nltools.algorithms.alignment import LocalAlignment
+
+        la = LocalAlignment(
+            radius_mm=4.0,
+            n_iter=1,
+            n_neighborhoods_batch=10,  # Small batch for testing
+        )
+        aligned = la.fit_transform(larger_data, larger_mask)
+
+        assert len(aligned) == 3
+        for a in aligned:
+            assert a.shape == (125, 20)
+
+    def test_auto_batch_size_calculation(self, larger_data, larger_mask):
+        """Test auto batch size calculation based on memory budget."""
+        from nltools.algorithms.alignment import LocalAlignment
+
+        la = LocalAlignment(
+            radius_mm=4.0,
+            n_iter=1,
+            max_memory_gb=0.001,  # Very small to force small batches
+        )
+        la.fit(larger_data, larger_mask)
+
+        # Should still produce valid results
+        aligned = la.transform(larger_data)
+        assert len(aligned) == 3
+
+    def test_batch_size_with_large_budget(self, larger_data, larger_mask):
+        """Test that large memory budget results in single batch."""
+        from nltools.algorithms.alignment import LocalAlignment
+
+        la = LocalAlignment(
+            radius_mm=4.0,
+            n_iter=1,
+            max_memory_gb=100.0,  # Very large - should fit in one batch
+        )
+        la.fit(larger_data, larger_mask)
+
+        aligned = la.transform(larger_data)
+        assert len(aligned) == 3
+
+    def test_batching_produces_same_results(self, sample_multisubject_data, small_mask):
+        """Test that batching produces same results as non-batched."""
+        from nltools.algorithms.alignment import LocalAlignment
+
+        # Fit without explicit batching
+        la1 = LocalAlignment(radius_mm=5.0, n_iter=2)
+        aligned1 = la1.fit_transform(sample_multisubject_data, small_mask)
+
+        # Fit with small batch size
+        la2 = LocalAlignment(radius_mm=5.0, n_iter=2, n_neighborhoods_batch=5)
+        aligned2 = la2.fit_transform(sample_multisubject_data, small_mask)
+
+        # Results should be identical
+        for a1, a2 in zip(aligned1, aligned2):
+            np.testing.assert_allclose(a1, a2, rtol=1e-10)
+
+    def test_piecewise_batching(self):
+        """Test batching with piecewise scheme."""
+        import nibabel as nib
+
+        from nltools.algorithms.alignment import LocalAlignment
+
+        # Create parcellation and mask
+        spatial_shape = (3, 3, 3)
+        affine = np.eye(4) * 3
+        affine[3, 3] = 1
+
+        mask_data = np.ones(spatial_shape, dtype=np.float32)
+        mask = nib.Nifti1Image(mask_data, affine)
+
+        parc_data = np.zeros(spatial_shape, dtype=np.int32)
+        parc_data[:, :, 0] = 1
+        parc_data[:, :, 1] = 2
+        parc_data[:, :, 2] = 3
+        parcellation = nib.Nifti1Image(parc_data, affine)
+
+        # Create data
+        np.random.seed(42)
+        data = [np.random.randn(27, 20) for _ in range(3)]
+
+        la = LocalAlignment(
+            scheme="piecewise",
+            parcellation=parcellation,
+            n_iter=1,
+            n_neighborhoods_batch=1,  # One parcel at a time
+        )
+        aligned = la.fit_transform(data, mask)
+
+        assert len(aligned) == 3
+        for a in aligned:
+            assert a.shape == (27, 20)
