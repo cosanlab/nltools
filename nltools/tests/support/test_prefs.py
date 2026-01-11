@@ -90,30 +90,28 @@ def test_template_resolution_combinations():
 
 
 def test_file_paths():
-    # Test that all paths follow the expected pattern (new naming convention)
+    # Test that all paths follow the expected pattern
     MNI_Template.template = "default"
     MNI_Template.resolution = 2
 
-    assert MNI_Template.mask.endswith("2mm-MNI152-2009fsl-mask.nii.gz")
-    assert MNI_Template.brain.endswith("2mm-MNI152-2009fsl-brain.nii.gz")
-    assert MNI_Template.plot.endswith("2mm-MNI152-2009fsl-T1.nii.gz")
+    assert MNI_Template.mask.endswith("MNI152_2mm_mask.nii.gz")
+    assert MNI_Template.brain.endswith("MNI152_2mm_brain.nii.gz")
+    assert MNI_Template.plot.endswith("MNI152_2mm_T1.nii.gz")
 
-    # Test different template (fmriprep uses 2009c variant)
+    # Test different template
     MNI_Template.template = "fmriprep"
     MNI_Template.resolution = 1
 
-    assert MNI_Template.mask.endswith("1mm-MNI152-2009c-mask.nii.gz")
-    assert MNI_Template.brain.endswith("1mm-MNI152-2009c-brain.nii.gz")
-    assert MNI_Template.plot.endswith("1mm-MNI152-2009c-T1.nii.gz")
+    assert MNI_Template.mask.endswith("MNI152_1mm_mask.nii.gz")
+    assert MNI_Template.brain.endswith("MNI152_1mm_brain.nii.gz")
+    assert MNI_Template.plot.endswith("MNI152_1mm_T1.nii.gz")
 
 
 def test_repr():
     # Test string representation
-    MNI_Template.template = "default"
-    MNI_Template.resolution = 2
     repr_str = repr(MNI_Template)
     assert "template='default'" in repr_str
     assert "resolution=2mm" in repr_str
-    assert "mask: 2mm-MNI152-2009fsl-mask.nii.gz" in repr_str
-    assert "brain: 2mm-MNI152-2009fsl-brain.nii.gz" in repr_str
-    assert "plot: 2mm-MNI152-2009fsl-T1.nii.gz" in repr_str
+    assert "mask: MNI152_2mm_mask.nii.gz" in repr_str
+    assert "brain: MNI152_2mm_brain.nii.gz" in repr_str
+    assert "plot: MNI152_2mm_T1.nii.gz" in repr_str

@@ -2,35 +2,6 @@ format: jb-book
 root: index
 
 parts:
-  # ========================================
-  # MIGRATION & DEVELOPMENT
-  # ========================================
-  - caption: Migration Guide v0.6
-    chapters:
-      - file: migration-guide
-
-  - caption: Development
-    chapters:
-      - file: contributing
-      - file: performance
-
-  # ========================================
-  # TUTORIALS
-  # ========================================
-  - caption: Getting Started
-    chapters:
-      - file: tutorials/basics/00_quickstart
-      - file: tutorials/basics/01_brain_data
-      - file: tutorials/basics/02_design_matrix
-      - file: tutorials/basics/03_adjacency
-
-  - caption: Workflow Tutorials
-    chapters:
-      - file: tutorials/workflows/01_glm
-      - file: tutorials/workflows/02_group_analysis
-      - file: tutorials/workflows/03_thresholding
-      - file: tutorials/workflows/04_rsa
-      - file: tutorials/workflows/05_decoding
 
   # ========================================
   # API REFERENCE (Simple & Modular)
@@ -75,3 +46,27 @@ parts:
       - file: api/algorithms/inference_bootstrap
       - file: api/algorithms/inference_utils
 
+  # ========================================
+  # MIGRATION & DEVELOPMENT
+  # ========================================
+  - caption: Migration Guide v0.6
+    chapters:
+      - file: migration-guide
+
+  - caption: Development
+    chapters:
+      - file: contributing
+      - file: performance
+
+  # ========================================
+  # TUTORIALS (Flat Structure - Root Level)
+  # ========================================
+  - caption: Tutorials
+    chapters:
+      - file: tutorials/01_basics
+      # TODO: Add more tutorials as they're completed
+      # - file: tutorials/02_group_analysis
+      # - file: tutorials/03_roi_analysis
+      # - file: tutorials/04_brain_data_basics
+      # - file: tutorials/05_design_matrix_basics
+      # - file: tutorials/06_hyperalignment

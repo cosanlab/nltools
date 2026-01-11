@@ -12,45 +12,8 @@ References:
 
 import numpy as np
 import pytest
-
-
-# ========== MODULE-SCOPED FIXTURES ==========
-# Reduce redundant computation by sharing fitted models across tests
-
-
-@pytest.fixture(scope="module")
-def sample_data_equal_size():
-    """Create sample data with equal-sized matrices (50 features x 20 samples).
-
-    Module-scoped: deterministic data, shared across all tests.
-    """
-    np.random.seed(42)
-    return [np.random.randn(50, 20) for _ in range(3)]
-
-
-@pytest.fixture(scope="module")
-def sample_data_different_sizes():
-    """Create sample data with different-sized matrices (for padding tests)."""
-    np.random.seed(42)
-    return [
-        np.random.randn(50, 20),  # 50 features
-        np.random.randn(45, 20),  # 45 features (needs padding)
-        np.random.randn(52, 20),  # 52 features (will be truncated to 45)
-    ]
-
-
-@pytest.fixture(scope="module")
-def fitted_hyperalignment(sample_data_equal_size):
-    """Pre-fitted HyperAlignment for property tests.
-
-    Module-scoped: expensive fit() runs once, shared across tests.
-    Returns (hyper, data) tuple.
-    """
-    from nltools.algorithms import HyperAlignment
-
-    hyper = HyperAlignment()
-    hyper.fit(sample_data_equal_size)
-    return hyper, sample_data_equal_size
+from nltools.simulator import Simulator
+from nltools.mask import create_sphere
 
 
 class TestHyperAlignmentInitialization:
@@ -86,61 +49,121 @@ class TestHyperAlignmentInitialization:
 
 
 class TestHyperAlignmentFit:
-    """Test HyperAlignment fit() method.
+    """Test HyperAlignment fit() method."""
 
-    Uses module-scoped fixtures where appropriate.
-    Consolidates property tests to reduce redundant fitting.
-    """
+    @pytest.fixture
+    def sample_data_equal_size(self):
+        """Create sample data with equal-sized matrices (50 features x 20 samples)."""
+        np.random.seed(42)
+        data = [np.random.randn(50, 20) for _ in range(3)]
+        return data
 
-    def test_fit_returns_self(self, sample_data_equal_size):
-        """Test that fit() returns self for method chaining."""
+    @pytest.fixture
+    def sample_data_different_sizes(self):
+        """Create sample data with different-sized matrices (for padding tests)."""
+        np.random.seed(42)
+        data = [
+            np.random.randn(50, 20),  # 50 features
+            np.random.randn(45, 20),  # 45 features (needs padding)
+            np.random.randn(52, 20),  # 52 features (will be truncated to 45)
+        ]
+        return data
+
+    @pytest.fixture
+    def brain_data_list(self):
+        """Create BrainData-like simulator data for integration tests."""
+        sim = Simulator()
+        y = [0, 1]
+        n_reps = 10
+        s1 = create_sphere([0, 0, 0], radius=3)
+        d1 = sim.create_data(y, 1, reps=n_reps, output_dir=None).apply_mask(s1)
+        d2 = sim.create_data(y, 2, reps=n_reps, output_dir=None).apply_mask(s1)
+        d3 = sim.create_data(y, 3, reps=n_reps, output_dir=None).apply_mask(s1)
+        return [d1.data, d2.data, d3.data]
+
+    def test_fit_basic(self, sample_data_equal_size):
+        """Test basic fit with equal-sized matrices."""
         from nltools.algorithms import HyperAlignment
 
         hyper = HyperAlignment()
-        result = hyper.fit(sample_data_equal_size)
-        assert result is hyper
+        hyper.fit(sample_data_equal_size)
 
-    def test_fitted_model_properties(self, fitted_hyperalignment):
-        """Test all properties of a fitted HyperAlignment model.
+        # Check that fit() returns self
+        assert hyper.fit(sample_data_equal_size) is hyper
 
-        Consolidates: stores_attributes, common_model_property, shapes, orthogonality.
-        Single fit(), multiple assertions.
-        """
-        hyper, data = fitted_hyperalignment
-        n_features = data[0].shape[0]
-        n_samples = data[0].shape[1]
+    def test_fit_stores_attributes(self, sample_data_equal_size):
+        """Test that fit() stores required attributes."""
+        from nltools.algorithms import HyperAlignment
 
-        # 1. Check all required attributes exist with correct types
-        assert hasattr(hyper, "w_"), "Missing w_ attribute"
-        assert hasattr(hyper, "s_"), "Missing s_ attribute"
-        assert hasattr(hyper, "disparity_"), "Missing disparity_ attribute"
-        assert hasattr(hyper, "scale_"), "Missing scale_ attribute"
+        hyper = HyperAlignment()
+        hyper.fit(sample_data_equal_size)
 
+        # Check all required attributes exist
+        assert hasattr(hyper, "w_")
+        assert hasattr(hyper, "s_")
+        assert hasattr(hyper, "disparity_")
+        assert hasattr(hyper, "scale_")
+
+        # Check attribute types and lengths
         assert isinstance(hyper.w_, list)
-        assert len(hyper.w_) == len(data)
+        assert len(hyper.w_) == len(sample_data_equal_size)
         assert isinstance(hyper.s_, np.ndarray)
         assert isinstance(hyper.disparity_, list)
-        assert len(hyper.disparity_) == len(data)
+        assert len(hyper.disparity_) == len(sample_data_equal_size)
         assert isinstance(hyper.scale_, list)
-        assert len(hyper.scale_) == len(data)
+        assert len(hyper.scale_) == len(sample_data_equal_size)
 
-        # 2. Check common_model_ property alias
+    def test_fit_common_model_property(self, sample_data_equal_size):
+        """Test that common_model_ property alias exists and matches s_."""
+        from nltools.algorithms import HyperAlignment
+
+        hyper = HyperAlignment()
+        hyper.fit(sample_data_equal_size)
+
+        # Check property exists
         assert hasattr(hyper, "common_model_")
+
+        # Check it's an alias for s_
         np.testing.assert_array_equal(hyper.common_model_, hyper.s_)
 
-        # 3. Check transformation matrix shapes (square, match feature dims)
+    def test_fit_transformation_matrix_shapes(self, sample_data_equal_size):
+        """Test that transformation matrices have correct shapes."""
+        from nltools.algorithms import HyperAlignment
+
+        hyper = HyperAlignment()
+        hyper.fit(sample_data_equal_size)
+
+        n_features = sample_data_equal_size[0].shape[0]
+
         for i, w in enumerate(hyper.w_):
+            # Each transformation should be square and match feature dimensions
             assert w.shape[0] == w.shape[1] == n_features, (
-                f"Subject {i} transformation shape {w.shape} != features {n_features}"
+                f"Subject {i} transformation shape {w.shape} doesn't match features {n_features}"
             )
 
-        # 4. Check common template shape
+    def test_fit_common_template_shape(self, sample_data_equal_size):
+        """Test that common template has correct shape."""
+        from nltools.algorithms import HyperAlignment
+
+        hyper = HyperAlignment()
+        hyper.fit(sample_data_equal_size)
+
+        n_features = sample_data_equal_size[0].shape[0]
+        n_samples = sample_data_equal_size[0].shape[1]
+
         assert hyper.s_.shape == (n_features, n_samples), (
-            f"Common template shape {hyper.s_.shape} != expected ({n_features}, {n_samples})"
+            f"Common template shape {hyper.s_.shape} doesn't match expected ({n_features}, {n_samples})"
         )
 
-        # 5. Check orthogonality (W @ W.T ≈ I)
+    def test_fit_orthogonality(self, sample_data_equal_size):
+        """Test that transformation matrices are orthogonal (W @ W.T ≈ I)."""
+        from nltools.algorithms import HyperAlignment
+
+        hyper = HyperAlignment()
+        hyper.fit(sample_data_equal_size)
+
         for i, w in enumerate(hyper.w_):
+            # Check orthogonality: W @ W.T should be close to identity
             orthogonal_check = np.dot(w, w.T)
             identity = np.eye(w.shape[0])
             np.testing.assert_almost_equal(
@@ -225,10 +248,18 @@ class TestHyperAlignmentFit:
 
 
 class TestHyperAlignmentTransform:
-    """Test HyperAlignment transform() method.
+    """Test HyperAlignment transform() method."""
 
-    Uses module-scoped fitted_hyperalignment fixture.
-    """
+    @pytest.fixture
+    def fitted_hyperalignment(self):
+        """Create fitted HyperAlignment instance with sample data."""
+        from nltools.algorithms import HyperAlignment
+
+        np.random.seed(42)
+        data = [np.random.randn(50, 20) for _ in range(3)]
+        hyper = HyperAlignment()
+        hyper.fit(data)
+        return hyper, data
 
     def test_transform_training_data(self, fitted_hyperalignment):
         """Test transform on training data."""
@@ -282,48 +313,69 @@ class TestHyperAlignmentTransform:
 
 
 class TestHyperAlignmentTransformSubject:
-    """Test HyperAlignment transform_subject() method.
+    """Test HyperAlignment transform_subject() method."""
 
-    Uses module-scoped fitted_hyperalignment fixture.
-    """
+    @pytest.fixture
+    def fitted_hyperalignment(self):
+        """Create fitted HyperAlignment instance with sample data."""
+        from nltools.algorithms import HyperAlignment
 
-    def test_transform_subject_properties(self, fitted_hyperalignment):
-        """Test all transform_subject properties in one test.
+        np.random.seed(42)
+        data = [np.random.randn(50, 20) for _ in range(3)]
+        hyper = HyperAlignment()
+        hyper.fit(data)
+        return hyper
 
-        Consolidates: basic, returns_tuple, alignment_quality tests.
-        Single transform_subject() call, multiple assertions.
-        """
-        hyper, _ = fitted_hyperalignment
+    def test_transform_subject_basic(self, fitted_hyperalignment):
+        """Test transform_subject aligns new subject to common space."""
+        hyper = fitted_hyperalignment
 
         # Create new subject data
         np.random.seed(100)
         new_subject = np.random.randn(50, 20)
 
         # Transform to common space (returns tuple)
+        transformed, R, disparity, scale = hyper.transform_subject(new_subject)
+
+        # Check output shape matches common template
+        assert transformed.shape == hyper.s_.shape, (
+            f"Transformed subject shape {transformed.shape} doesn't match template {hyper.s_.shape}"
+        )
+
+    def test_transform_subject_returns_tuple(self, fitted_hyperalignment):
+        """Test that transform_subject returns (transformed_data, transformation_matrix, disparity, scale)."""
+        hyper = fitted_hyperalignment
+
+        np.random.seed(100)
+        new_subject = np.random.randn(50, 20)
+
         result = hyper.transform_subject(new_subject)
 
-        # 1. Check returns tuple of 4 elements
-        assert isinstance(result, tuple), "Should return tuple"
-        assert len(result) == 4, "Should return 4 elements"
+        # Should return tuple of 4 elements (like procrustes function)
+        assert isinstance(result, tuple)
+        assert len(result) == 4
 
         transformed, R, disparity, scale = result
-
-        # 2. Check output types
         assert isinstance(transformed, np.ndarray)
         assert isinstance(R, np.ndarray)
         assert isinstance(disparity, (float, np.floating))
         assert isinstance(scale, (float, np.floating))
 
-        # 3. Check output shape matches common template
-        assert transformed.shape == hyper.s_.shape, (
-            f"Transformed shape {transformed.shape} != template {hyper.s_.shape}"
-        )
+    def test_transform_subject_alignment_quality(self, fitted_hyperalignment):
+        """Test that transform_subject produces aligned data."""
+        hyper = fitted_hyperalignment
 
-        # 4. Check alignment quality (transformed closer to template than original)
+        np.random.seed(100)
+        new_subject = np.random.randn(50, 20)
+
+        transformed, R, disparity, scale = hyper.transform_subject(new_subject)
+
+        # Transformed subject should be closer to common template than original
         from scipy.spatial.distance import correlation
 
         orig_dist = correlation(new_subject.flatten(), hyper.s_.flatten())
         trans_dist = correlation(transformed.flatten(), hyper.s_.flatten())
+
         assert trans_dist <= orig_dist, (
             "Transformed subject should be closer to common template than original"
         )

@@ -3,7 +3,7 @@ from nltools.simulator import Simulator, SimulateGrid
 import numpy as np
 
 
-@pytest.mark.slow
+@pytest.mark.tier2
 def test_simulator(tmpdir):
     sim = Simulator()
     sigma = 1
