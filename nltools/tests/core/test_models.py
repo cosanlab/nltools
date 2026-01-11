@@ -23,53 +23,6 @@ def _torch_available():
 
 
 # ============================================================================
-# Module-Scoped Fixtures - Reduce Redundant Computation
-# ============================================================================
-
-
-@pytest.fixture(scope="module")
-def ridge_single_target_data():
-    """Standard single-target Ridge test data.
-
-    Module-scoped: deterministic data shared across tests.
-    """
-    np.random.seed(42)
-    X = np.random.randn(100, 50).astype(np.float32)
-    y = np.random.randn(100).astype(np.float32)
-    X_test = np.random.randn(20, 50).astype(np.float32)
-    return {"X": X, "y": y, "X_test": X_test}
-
-
-@pytest.fixture(scope="module")
-def ridge_multi_target_data():
-    """Standard multi-target Ridge test data."""
-    np.random.seed(42)
-    X = np.random.randn(100, 50).astype(np.float32)
-    Y = np.random.randn(100, 5).astype(np.float32)
-    X_test = np.random.randn(20, 50).astype(np.float32)
-    return {"X": X, "Y": Y, "X_test": X_test}
-
-
-@pytest.fixture(scope="module")
-def fitted_ridge_single(ridge_single_target_data):
-    """Pre-fitted Ridge model for property tests.
-
-    Module-scoped: expensive fit() runs once.
-    """
-    model = Ridge(alpha=1.0)
-    model.fit(ridge_single_target_data["X"], ridge_single_target_data["y"])
-    return model, ridge_single_target_data
-
-
-@pytest.fixture(scope="module")
-def fitted_ridge_cv(ridge_single_target_data):
-    """Pre-fitted Ridge with CV for property tests."""
-    model = Ridge(alpha="auto", cv=3)
-    model.fit(ridge_single_target_data["X"], ridge_single_target_data["y"])
-    return model, ridge_single_target_data
-
-
-# ============================================================================
 # BaseModel Abstract Interface
 # ============================================================================
 
@@ -397,46 +350,74 @@ def test_ridge_multiple_spaces_requires_cv():
     assert model_with_pb.is_fitted_
 
 
-def test_ridge_single_target_properties(fitted_ridge_single):
-    """Test all single-target Ridge fit/predict properties.
+def test_ridge_fit_single_target():
+    """Ridge should fit single-target regression"""
+    np.random.seed(42)
+    X = np.random.randn(100, 50).astype(np.float32)
+    y = np.random.randn(100).astype(np.float32)
 
-    Consolidates: fit_single_target, predict_single_target tests.
-    Single fit(), multiple assertions.
-    """
-    model, data = fitted_ridge_single
+    model = Ridge(alpha=1.0)
+    result = model.fit(X, y)
 
-    # 1. Model should be fitted
-    assert model.is_fitted_, "Model should be fitted"
+    # Should return self
+    assert result is model
 
-    # 2. Should store coefficients with correct shape
-    assert hasattr(model, "coef_"), "Missing coef_ attribute"
-    assert model.coef_.shape == (50,), f"coef_ shape {model.coef_.shape} != (50,)"
+    # Should be fitted
+    assert model.is_fitted_
 
-    # 3. progress_bar parameter should exist
+    # Should store coefficients
+    assert hasattr(model, "coef_")
+    assert model.coef_.shape == (50,)
+    # Verify progress_bar parameter exists (defaults to False)
     assert hasattr(model, "progress_bar")
     assert model.progress_bar is False
 
-    # 4. Predictions should work and be valid
-    y_pred = model.predict(data["X_test"])
-    assert y_pred.shape == (20,), f"Prediction shape {y_pred.shape} != (20,)"
-    assert not np.isnan(y_pred).any(), "Predictions contain NaN"
-    assert not np.allclose(y_pred, 0), "Predictions are all zeros"
 
+def test_ridge_fit_multi_target():
+    """Ridge should fit multi-target regression"""
+    np.random.seed(42)
+    X = np.random.randn(100, 50).astype(np.float32)
+    Y = np.random.randn(100, 5).astype(np.float32)
 
-def test_ridge_multi_target_properties(ridge_multi_target_data):
-    """Test all multi-target Ridge fit/predict properties.
-
-    Single fit(), multiple assertions.
-    """
     model = Ridge(alpha=1.0)
-    model.fit(ridge_multi_target_data["X"], ridge_multi_target_data["Y"])
+    model.fit(X, Y)
 
-    # 1. Coefficients should be 2D with correct shape
-    assert model.coef_.shape == (50, 5), f"coef_ shape {model.coef_.shape} != (50, 5)"
+    # Coefficients should be 2D
+    assert model.coef_.shape == (50, 5)
 
-    # 2. Predictions should have correct shape
-    Y_pred = model.predict(ridge_multi_target_data["X_test"])
-    assert Y_pred.shape == (20, 5), f"Prediction shape {Y_pred.shape} != (20, 5)"
+
+def test_ridge_predict_single_target():
+    """Ridge should predict on new data"""
+    np.random.seed(42)
+    X_train = np.random.randn(100, 50).astype(np.float32)
+    y_train = np.random.randn(100).astype(np.float32)
+    X_test = np.random.randn(20, 50).astype(np.float32)
+
+    model = Ridge(alpha=1.0)
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+
+    # Check shape
+    assert y_pred.shape == (20,)
+
+    # Predictions should be reasonable (not NaN, not all zeros)
+    assert not np.isnan(y_pred).any()
+    assert not np.allclose(y_pred, 0)
+
+
+def test_ridge_predict_multi_target():
+    """Ridge should predict multiple targets"""
+    np.random.seed(42)
+    X_train = np.random.randn(100, 50).astype(np.float32)
+    Y_train = np.random.randn(100, 5).astype(np.float32)
+    X_test = np.random.randn(20, 50).astype(np.float32)
+
+    model = Ridge(alpha=1.0)
+    model.fit(X_train, Y_train)
+    Y_pred = model.predict(X_test)
+
+    # Check shape
+    assert Y_pred.shape == (20, 5)
 
 
 def test_ridge_predict_without_fit():
@@ -484,52 +465,70 @@ def test_ridge_cv_instantiation():
     assert model.cv == 5
 
 
-def test_ridge_cv_properties(fitted_ridge_cv):
-    """Test all Ridge CV fit properties.
+def test_ridge_cv_fits_and_selects_alpha():
+    """Ridge with alpha='auto' should select optimal alpha via CV"""
+    np.random.seed(42)
+    X = np.random.randn(100, 50).astype(np.float32)
+    y = np.random.randn(100).astype(np.float32)
 
-    Consolidates: cv_fits_and_selects_alpha, cv_reproducibility tests.
-    Uses pre-fitted fixture.
-    """
-    model, data = fitted_ridge_cv
+    model = Ridge(alpha="auto", cv=3)
+    model.fit(X, y)
 
-    # 1. Should have selected an alpha
-    assert hasattr(model, "alpha_"), "Missing alpha_ attribute"
-    assert isinstance(model.alpha_, float), "alpha_ should be float"
-    assert model.alpha_ > 0, "alpha_ should be positive"
+    # Should have selected an alpha
+    assert hasattr(model, "alpha_")
+    assert isinstance(model.alpha_, float)
+    assert model.alpha_ > 0
 
-    # 2. Should have CV scores
-    assert hasattr(model, "cv_scores_"), "Missing cv_scores_ attribute"
-    assert model.cv_scores_.shape[0] == 3, (
-        f"cv_scores_ n_folds {model.cv_scores_.shape[0]} != 3"
-    )
-
-    # 3. Reproducibility: same data should give same results
-    model2 = Ridge(alpha="auto", cv=3)
-    model2.fit(data["X"], data["y"])
-    assert model.alpha_ == model2.alpha_, "CV should be reproducible"
-    np.testing.assert_allclose(model.coef_, model2.coef_, rtol=1e-5)
+    # Should have CV scores
+    assert hasattr(model, "cv_scores_")
+    assert model.cv_scores_.shape[0] == 3  # n_folds
 
 
-def test_ridge_cv_alphas_parameter(ridge_single_target_data):
+def test_ridge_cv_alphas_parameter():
     """Ridge should accept custom alpha range for CV"""
+    np.random.seed(42)
+    X = np.random.randn(100, 50).astype(np.float32)
+    y = np.random.randn(100).astype(np.float32)
+
     alphas = [0.1, 1.0, 10.0]
     model = Ridge(alpha="auto", cv=3, alphas=alphas)
-    model.fit(ridge_single_target_data["X"], ridge_single_target_data["y"])
+    model.fit(X, y)
 
     # Selected alpha should be from our list
     assert model.alpha_ in alphas
 
 
-def test_ridge_cv_multi_target(ridge_multi_target_data):
+def test_ridge_cv_multi_target():
     """Ridge CV should work with multiple targets"""
+    np.random.seed(42)
+    X = np.random.randn(100, 50).astype(np.float32)
+    Y = np.random.randn(100, 5).astype(np.float32)
+
     model = Ridge(alpha="auto", cv=3)
-    model.fit(ridge_multi_target_data["X"], ridge_multi_target_data["Y"])
+    model.fit(X, Y)
 
     # Should fit all targets
     assert model.coef_.shape == (50, 5)
 
     # CV scores should include all targets
     assert model.cv_scores_.shape[2] == 5  # n_targets
+
+
+def test_ridge_cv_reproducibility():
+    """Ridge CV should give reproducible results"""
+    np.random.seed(42)
+    X = np.random.randn(100, 50).astype(np.float32)
+    y = np.random.randn(100).astype(np.float32)
+
+    # CV is deterministic, so same data should give same results
+    model1 = Ridge(alpha="auto", cv=3)
+    model1.fit(X, y)
+
+    model2 = Ridge(alpha="auto", cv=3)
+    model2.fit(X, y)
+
+    assert model1.alpha_ == model2.alpha_
+    np.testing.assert_allclose(model1.coef_, model2.coef_, rtol=1e-5)
 
 
 # ============================================================================
@@ -583,8 +582,7 @@ def test_ridge_cpu_gpu_equivalence():
     model_gpu.fit(X, y)
     pred_gpu = model_gpu.predict(X)
 
-    # Allow small numerical differences between backends
-    np.testing.assert_allclose(pred_gpu, pred_cpu, rtol=1e-3, atol=1e-6)
+    np.testing.assert_allclose(pred_gpu, pred_cpu, rtol=1e-4)
 
 
 def test_ridge_auto_backend():

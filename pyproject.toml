@@ -39,7 +39,6 @@ dev = [
     "ruff==0.14.2",
     "torch>=2.9.0",
     "tqdm>=4.67.1",
-    "ty>=0.0.4",
 ]
 
 [project.urls]
@@ -63,10 +62,9 @@ ignore = ["W292","E501", "E731", "E741"]
 
 [tool.pytest.ini_options]
 markers = [
-    "slow: Tests taking >3s (skipped by default in CI)",
-    "gpu: Tests requiring CUDA/GPU hardware",
+    "tier1: Fast core tests (<3s, run on every iteration)",
+    "tier2: Comprehensive tests (>3s, run before commits)",
 ]
-# Default: run all tests except slow ones for fast feedback
-# To run slow tests: pytest -m slow
-# To run everything: pytest -m ""
-addopts = "-m 'not slow'"
+# Default: run tier1 only for fast feedback during development and CI
+# This ensures GitHub Actions runs only fast tests by default
+addopts = "-m tier1"

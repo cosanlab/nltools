@@ -69,10 +69,6 @@ def _compute_pvalue(
     """
     validate_tail_parameter(tail)
 
-    # Ensure inputs are numpy arrays (handles Python float/int scalars)
-    obs_stat = np.asarray(obs_stat)
-    null_dist = np.asarray(null_dist)
-
     # Handle shape differences
     if null_dist.ndim == 1:
         null_dist = null_dist[:, np.newaxis]
