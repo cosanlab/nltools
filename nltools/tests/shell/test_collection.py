@@ -2955,3 +2955,170 @@ class TestBrainCollectionSelectFeature:
         # String should fail
         with pytest.raises(RuntimeError, match="_feature_names not set"):
             bc.select_feature("f0")
+
+
+class TestBrainCollectionAlign:
+    """Test BrainCollection.align() method for functional alignment."""
+
+    @pytest.fixture
+    def small_mask_for_align(self):
+        """Create a small 3D brain mask for alignment tests."""
+        spatial_shape = (3, 3, 3)
+        affine = np.eye(4) * 3  # 3mm voxels
+        affine[3, 3] = 1
+
+        mask_data = np.ones(spatial_shape, dtype=np.float32)
+        return nib.Nifti1Image(mask_data, affine)
+
+    @pytest.fixture
+    def multisubject_collection(self, small_mask_for_align):
+        """Create a multi-subject collection for alignment tests."""
+        from nltools.data.brain_data import BrainData
+
+        np.random.seed(42)
+        n_voxels = 27  # 3x3x3
+        n_samples = 20
+        n_subjects = 3
+
+        subjects = []
+        for i in range(n_subjects):
+            bd = BrainData(mask=small_mask_for_align)
+            # Data shape is (n_samples, n_voxels) for BrainData
+            bd.data = np.random.randn(n_samples, n_voxels)
+            subjects.append(bd)
+
+        metadata = pd.DataFrame({"subject": ["sub-01", "sub-02", "sub-03"]})
+        return BrainCollection(subjects, mask=small_mask_for_align, metadata=metadata)
+
+    def test_align_basic(self, multisubject_collection):
+        """Test basic alignment with default parameters."""
+        aligned = multisubject_collection.align(
+            method="procrustes",
+            radius_mm=5.0,
+            n_iter=1,
+            parallel=None,
+        )
+
+        assert isinstance(aligned, BrainCollection)
+        assert len(aligned) == len(multisubject_collection)
+
+        # Check shapes are preserved
+        for i in range(len(aligned)):
+            assert aligned[i].shape == multisubject_collection[i].shape
+
+    def test_align_preserves_metadata(self, multisubject_collection):
+        """Test that alignment preserves metadata."""
+        aligned = multisubject_collection.align(
+            method="procrustes",
+            radius_mm=5.0,
+            n_iter=1,
+            parallel=None,
+        )
+
+        assert "subject" in aligned.metadata.columns
+        assert list(aligned.metadata["subject"]) == ["sub-01", "sub-02", "sub-03"]
+
+    def test_align_return_model(self, multisubject_collection):
+        """Test align with return_model=True."""
+        from nltools.algorithms.alignment import LocalAlignment
+
+        result = multisubject_collection.align(
+            method="procrustes",
+            radius_mm=5.0,
+            n_iter=1,
+            parallel=None,
+            return_model=True,
+        )
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+
+        aligned, model = result
+        assert isinstance(aligned, BrainCollection)
+        assert isinstance(model, LocalAlignment)
+        assert model.transforms_ is not None
+
+    def test_align_with_srm(self, multisubject_collection):
+        """Test alignment with SRM method."""
+        aligned = multisubject_collection.align(
+            method="srm",
+            radius_mm=5.0,
+            n_iter=1,
+            n_features=5,
+            parallel=None,
+        )
+
+        assert isinstance(aligned, BrainCollection)
+        assert len(aligned) == 3
+
+    def test_align_with_hyperalignment(self, multisubject_collection):
+        """Test alignment with hyperalignment method."""
+        aligned = multisubject_collection.align(
+            method="hyperalignment",
+            radius_mm=5.0,
+            n_iter=1,
+            parallel=None,
+        )
+
+        assert isinstance(aligned, BrainCollection)
+        assert len(aligned) == 3
+
+    def test_align_piecewise_requires_parcellation(self, multisubject_collection):
+        """Test that piecewise scheme requires parcellation."""
+        with pytest.raises(ValueError, match="parcellation is required"):
+            multisubject_collection.align(
+                scheme="piecewise",
+                parallel=None,
+            )
+
+    def test_align_piecewise_with_parcellation(
+        self, multisubject_collection, small_mask_for_align
+    ):
+        """Test piecewise alignment with parcellation."""
+        # Create a simple parcellation (3 parcels)
+        spatial_shape = (3, 3, 3)
+        affine = np.eye(4) * 3
+        affine[3, 3] = 1
+
+        parc_data = np.zeros(spatial_shape, dtype=np.int32)
+        parc_data[:, :, 0] = 1
+        parc_data[:, :, 1] = 2
+        parc_data[:, :, 2] = 3
+        parcellation = nib.Nifti1Image(parc_data, affine)
+
+        aligned = multisubject_collection.align(
+            scheme="piecewise",
+            parcellation=parcellation,
+            n_iter=1,
+            parallel=None,
+        )
+
+        assert isinstance(aligned, BrainCollection)
+        assert len(aligned) == 3
+
+    def test_align_data_is_finite(self, multisubject_collection):
+        """Test that aligned data contains finite values."""
+        aligned = multisubject_collection.align(
+            method="procrustes",
+            radius_mm=5.0,
+            n_iter=2,
+            parallel=None,
+        )
+
+        for i in range(len(aligned)):
+            assert np.isfinite(aligned[i].data).all(), (
+                f"Subject {i} has non-finite values after alignment"
+            )
+
+    def test_align_with_cpu_parallel(self, multisubject_collection):
+        """Test alignment with CPU parallelization."""
+        aligned = multisubject_collection.align(
+            method="procrustes",
+            radius_mm=5.0,
+            n_iter=1,
+            parallel="cpu",
+            n_jobs=2,
+        )
+
+        assert isinstance(aligned, BrainCollection)
+        assert len(aligned) == 3

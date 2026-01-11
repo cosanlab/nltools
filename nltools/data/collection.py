@@ -2165,6 +2165,134 @@ class BrainCollection:
         indices = np.where(mask)[0].tolist()
         return self._subset(indices)
 
+    def align(
+        self,
+        method: str = "procrustes",
+        scheme: str = "searchlight",
+        radius_mm: float = 10.0,
+        parcellation: "nib.Nifti1Image | None" = None,
+        n_features: int | None = None,
+        n_iter: int = 3,
+        parallel: str | None = "cpu",
+        n_jobs: int = -1,
+        return_model: bool = False,
+        show_progress: bool = True,
+    ) -> "BrainCollection | tuple[BrainCollection, object]":
+        """
+        Align subjects using local functional alignment.
+
+        Performs neighborhood-based functional alignment across subjects using
+        LocalAlignment. Each subject's data is aligned to a common template space
+        using local transforms learned within searchlight spheres or parcels.
+
+        Args:
+            method: Alignment method. Options:
+                - 'procrustes': Orthogonal Procrustes (default, preserves dimensions)
+                - 'srm': Shared Response Model (dimensionality reduction)
+                - 'hyperalignment': Hyperalignment (iterative Procrustes)
+            scheme: Spatial scheme. Options:
+                - 'searchlight': Overlapping spheres with center-only aggregation
+                - 'piecewise': Non-overlapping parcels (requires parcellation)
+            radius_mm: Sphere radius in millimeters for searchlight scheme.
+            parcellation: Parcellation image for piecewise scheme (required if
+                scheme='piecewise').
+            n_features: Number of features for SRM. None uses full dimensions.
+            n_iter: Number of iterations for alignment refinement.
+            parallel: Parallelization mode. Options:
+                - None: Single-threaded
+                - 'cpu': CPU parallelization with joblib
+                - 'gpu': GPU acceleration via PyTorch
+            n_jobs: Number of parallel jobs for CPU mode (-1 = auto).
+            return_model: If True, return (aligned_collection, model) tuple for
+                fit/transform workflow with new data.
+            show_progress: Show progress bar during fitting.
+
+        Returns:
+            BrainCollection with aligned data. If return_model=True, returns
+            tuple of (aligned_collection, LocalAlignment_model).
+
+        Examples:
+            >>> # Basic searchlight alignment
+            >>> aligned_bc = bc.align(method='procrustes', radius_mm=10.0)
+
+            >>> # Piecewise alignment with parcellation
+            >>> aligned_bc = bc.align(
+            ...     scheme='piecewise',
+            ...     parcellation=parcellation_img,
+            ...     method='srm',
+            ...     n_features=50
+            ... )
+
+            >>> # Fit/transform workflow for train/test split
+            >>> aligned_train, model = train_bc.align(return_model=True)
+            >>> aligned_test = model.transform(test_data_list)
+
+            >>> # GPU-accelerated alignment
+            >>> aligned_bc = bc.align(parallel='gpu')
+
+        Notes:
+            Based on Bazeille et al. 2021 "An empirical evaluation of functional
+            alignment using inter-subject decoding". Center-only aggregation is
+            used for searchlight to preserve local orthogonality of transforms.
+
+        See Also:
+            nltools.algorithms.alignment.LocalAlignment: Underlying alignment class.
+        """
+        from nltools.algorithms.alignment import LocalAlignment
+        from .brain_data import BrainData
+
+        # Validate inputs
+        if scheme == "piecewise" and parcellation is None:
+            raise ValueError("parcellation is required for piecewise scheme")
+
+        # Extract data from collection as list of (n_voxels, n_samples) arrays
+        # BrainData.data is (n_samples, n_voxels), LocalAlignment expects (n_voxels, n_samples)
+        data_list = []
+        for i in range(self.n_images):
+            bd = self._load_item(i)
+            data = bd.data
+            if data.ndim == 1:
+                data = data[np.newaxis, :]  # (1, n_voxels)
+            # Transpose: (n_samples, n_voxels) -> (n_voxels, n_samples)
+            data_list.append(data.T)
+
+        # Create and fit LocalAlignment
+        la = LocalAlignment(
+            scheme=scheme,
+            method=method,
+            radius_mm=radius_mm,
+            parcellation=parcellation,
+            n_features=n_features,
+            n_iter=n_iter,
+            parallel=parallel,
+            n_jobs=n_jobs,
+        )
+
+        # Fit and transform
+        aligned_data = la.fit_transform(data_list, self._mask)
+
+        # Convert aligned data back to BrainCollection
+        # aligned_data is list of (n_voxels, n_samples), need (n_samples, n_voxels)
+        aligned_items = []
+        for i, aligned in enumerate(aligned_data):
+            # Transpose back: (n_voxels, n_samples) -> (n_samples, n_voxels)
+            aligned_transposed = aligned.T
+            new_bd = BrainData(mask=self._mask)
+            new_bd.data = (
+                aligned_transposed.squeeze()
+                if aligned_transposed.shape[0] == 1
+                else aligned_transposed
+            )
+            aligned_items.append(new_bd)
+
+        aligned_collection = BrainCollection(
+            aligned_items, mask=self._mask, metadata=self._metadata.copy()
+        )
+
+        if return_model:
+            return aligned_collection, la
+        return aligned_collection
+
     # =========================================================================
     # Convenience Methods (Delegators to BrainData methods)
     # =========================================================================
