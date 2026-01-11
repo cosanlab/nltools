@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union
 
 import numpy as np
 from scipy.linalg import orthogonal_procrustes
@@ -19,6 +19,106 @@ if TYPE_CHECKING:
     from nltools.neighborhoods import SphereNeighborhoods
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class PiecewiseNeighborhoods:
+    """Neighborhoods from a brain parcellation for piecewise alignment.
+
+    Unlike searchlight (overlapping spheres), piecewise uses non-overlapping
+    parcels where each voxel belongs to exactly one region.
+
+    Attributes:
+        parcel_to_voxels: Dict mapping parcel_id → array of voxel indices
+        voxel_to_parcel: Array mapping voxel_idx → parcel_id
+        n_voxels: Total number of voxels
+        n_parcels: Number of parcels (excluding background)
+    """
+
+    parcel_to_voxels: Dict[int, np.ndarray]
+    voxel_to_parcel: np.ndarray
+    n_voxels: int
+    n_parcels: int
+
+    def iter_neighborhoods(
+        self, show_progress: bool = False
+    ) -> Iterator[tuple[int, np.ndarray]]:
+        """Iterate over all parcels.
+
+        Yields:
+            Tuple of (parcel_id, voxel_indices) for each parcel
+        """
+        iterator = self.parcel_to_voxels.items()
+
+        if show_progress:
+            from tqdm import tqdm
+
+            iterator = tqdm(list(iterator), desc="Piecewise", unit="parcels")
+
+        for parcel_id, voxel_indices in iterator:
+            yield parcel_id, voxel_indices
+
+    def __repr__(self) -> str:
+        return (
+            f"PiecewiseNeighborhoods(n_voxels={self.n_voxels}, "
+            f"n_parcels={self.n_parcels})"
+        )
+
+
+def _compute_piecewise_neighborhoods(
+    parcellation: "nib.Nifti1Image",
+    mask: "nib.Nifti1Image",
+) -> PiecewiseNeighborhoods:
+    """Compute piecewise neighborhoods from a parcellation image.
+
+    Args:
+        parcellation: NIfTI image with integer labels for each parcel.
+            Background/unlabeled voxels should be 0.
+        mask: Brain mask defining the voxel space.
+
+    Returns:
+        PiecewiseNeighborhoods with parcel-to-voxel mappings.
+
+    Raises:
+        ValueError: If parcellation and mask have incompatible shapes.
+    """
+    parc_data = parcellation.get_fdata().astype(int)
+    mask_data = mask.get_fdata().astype(bool)
+
+    if parc_data.shape != mask_data.shape:
+        raise ValueError(
+            f"Parcellation shape {parc_data.shape} != mask shape {mask_data.shape}"
+        )
+
+    # Get masked voxel coordinates
+    mask_indices = np.where(mask_data.ravel())[0]
+    n_voxels = len(mask_indices)
+
+    # Map 3D coordinates to flat masked indices
+    # For each masked voxel, get its parcel label
+    parc_flat = parc_data.ravel()
+    parcel_labels = parc_flat[mask_indices]
+
+    # Build parcel → voxel mapping (excluding background label 0)
+    unique_parcels = np.unique(parcel_labels)
+    unique_parcels = unique_parcels[unique_parcels > 0]  # Exclude background
+
+    parcel_to_voxels: Dict[int, np.ndarray] = {}
+    for parcel_id in unique_parcels:
+        # Find which masked voxel indices belong to this parcel
+        voxel_indices = np.where(parcel_labels == parcel_id)[0]
+        if len(voxel_indices) > 0:
+            parcel_to_voxels[int(parcel_id)] = voxel_indices
+
+    # Build voxel → parcel mapping
+    voxel_to_parcel = parcel_labels.copy()
+
+    return PiecewiseNeighborhoods(
+        parcel_to_voxels=parcel_to_voxels,
+        voxel_to_parcel=voxel_to_parcel,
+        n_voxels=n_voxels,
+        n_parcels=len(parcel_to_voxels),
+    )
 
 
 def _fit_local_procrustes(
@@ -156,11 +256,17 @@ class LocalAlignment:
             raise ValueError(f"Unknown scheme: {self.scheme}")
         if self.method not in ("procrustes", "srm", "hyperalignment"):
             raise ValueError(f"Unknown method: {self.method}")
-        if self.aggregation not in ("center",):
+        if self.aggregation not in ("center", "all"):
             raise ValueError(
                 f"Unknown aggregation: {self.aggregation}. "
-                "Only 'center' is supported in Phase 1."
+                "Supported: 'center' (searchlight), 'all' (piecewise)."
             )
+        # Validate scheme/aggregation compatibility
+        if self.scheme == "piecewise" and self.aggregation == "center":
+            # Auto-switch to 'all' for piecewise (center-only doesn't make sense)
+            object.__setattr__(self, "aggregation", "all")
+        if self.scheme == "piecewise" and self.parcellation is None:
+            raise ValueError("parcellation is required for piecewise scheme")
 
     def fit(self, data: List[np.ndarray], mask: "nib.Nifti1Image") -> "LocalAlignment":
         """Fit local alignment on multi-subject data.
@@ -209,8 +315,8 @@ class LocalAlignment:
                 mask, radius_mm=self.radius_mm
             )
         elif self.scheme == "piecewise":
-            raise NotImplementedError(
-                "Piecewise scheme not yet implemented - see nltools-oqil.4"
+            self.neighborhoods_ = _compute_piecewise_neighborhoods(
+                self.parcellation, mask
             )
 
         # Initialize storage for transforms and templates
@@ -218,25 +324,29 @@ class LocalAlignment:
         self.template_: Dict[int, np.ndarray] = {}
 
         # Fit local alignment for each neighborhood
-        logger.info(
-            f"Fitting LocalAlignment with {self.neighborhoods_.n_voxels} neighborhoods"
-        )
+        if self.scheme == "searchlight":
+            n_regions = self.neighborhoods_.n_voxels
+            region_type = "searchlight spheres"
+        else:
+            n_regions = self.neighborhoods_.n_parcels
+            region_type = "parcels"
+        logger.info(f"Fitting LocalAlignment with {n_regions} {region_type}")
 
-        for center_idx, neighbor_indices in self.neighborhoods_.iter_neighborhoods(
+        for region_id, voxel_indices in self.neighborhoods_.iter_neighborhoods(
             show_progress=True
         ):
             # Extract local data for all subjects
-            # Each subject's local data: (n_neighbors, n_samples)
-            local_data = [subj[neighbor_indices, :] for subj in data]
+            # Each subject's local data: (n_local_voxels, n_samples)
+            local_data = [subj[voxel_indices, :] for subj in data]
 
-            # Skip if neighborhood is too small
-            n_neighbors = len(neighbor_indices)
-            if n_neighbors < 2:
+            # Skip if region is too small
+            n_local_voxels = len(voxel_indices)
+            if n_local_voxels < 2:
                 # Store identity transforms for degenerate cases
-                self.transforms_[center_idx] = [
-                    np.eye(n_neighbors) for _ in range(n_subjects)
+                self.transforms_[region_id] = [
+                    np.eye(n_local_voxels) for _ in range(n_subjects)
                 ]
-                self.template_[center_idx] = np.mean(local_data, axis=0)
+                self.template_[region_id] = np.mean(local_data, axis=0)
                 continue
 
             # Fit local alignment based on method
@@ -244,24 +354,24 @@ class LocalAlignment:
                 transforms, template = _fit_local_procrustes(
                     local_data, n_iter=self.n_iter
                 )
-                self.transforms_[center_idx] = transforms
-                self.template_[center_idx] = template
+                self.transforms_[region_id] = transforms
+                self.template_[region_id] = template
 
             elif self.method == "srm":
                 from nltools.algorithms.srm import SRM
 
                 # SRM expects (n_voxels, n_samples) - already in this format
-                # n_features defaults to min(n_neighbors, n_samples) if None
+                # n_features defaults to min(n_local_voxels, n_samples) if None
                 n_features = self.n_features
                 if n_features is None:
-                    n_features = min(n_neighbors, n_samples)
+                    n_features = min(n_local_voxels, n_samples)
 
                 srm = SRM(n_iter=self.n_iter, features=n_features)
                 srm.fit(local_data, parallel=None)  # No nested parallelism
 
                 # Store transforms (w_) and template (s_)
-                self.transforms_[center_idx] = srm.w_
-                self.template_[center_idx] = srm.s_
+                self.transforms_[region_id] = srm.w_
+                self.template_[region_id] = srm.s_
 
             elif self.method == "hyperalignment":
                 from nltools.algorithms.hyperalignment import HyperAlignment
@@ -271,8 +381,8 @@ class LocalAlignment:
                 ha.fit(local_data, parallel=None)  # No nested parallelism
 
                 # Store transforms (w_) and template (s_)
-                self.transforms_[center_idx] = ha.w_
-                self.template_[center_idx] = ha.s_
+                self.transforms_[region_id] = ha.w_
+                self.template_[region_id] = ha.s_
 
         logger.info("LocalAlignment fitting complete")
         return self
@@ -280,8 +390,10 @@ class LocalAlignment:
     def transform(self, data: List[np.ndarray]) -> List[np.ndarray]:
         """Apply local transforms to data.
 
-        Uses center-only aggregation: each voxel uses the transform from
-        the neighborhood where it was the center.
+        For searchlight scheme with center-only aggregation: each voxel uses
+        the transform from the neighborhood where it was the center.
+
+        For piecewise scheme: all voxels in each parcel use the same transform.
 
         Parameters
         ----------
@@ -307,53 +419,43 @@ class LocalAlignment:
         # Initialize output arrays
         aligned = [np.zeros((n_voxels, n_samples)) for _ in range(n_subjects)]
 
-        # Apply center-only aggregation
-        for center_idx, neighbor_indices in self.neighborhoods_.iter_neighborhoods(
+        # Apply transforms based on aggregation mode
+        for region_id, voxel_indices in self.neighborhoods_.iter_neighborhoods(
             show_progress=True
         ):
-            transforms = self.transforms_[center_idx]
-
-            # Find position of center within the neighborhood
-            center_pos = np.where(neighbor_indices == center_idx)[0]
-            if len(center_pos) == 0:
-                # Center not in its own neighborhood (shouldn't happen normally)
-                # Use first position as fallback
-                center_pos = 0
-            else:
-                center_pos = center_pos[0]
+            transforms = self.transforms_[region_id]
 
             for subj_idx, subj_data in enumerate(data):
                 # Extract local data for this subject
-                local_data = subj_data[neighbor_indices, :]
+                local_data = subj_data[voxel_indices, :]
 
                 # Apply transform
-                # For procrustes: transform is (n_neighbors, n_neighbors)
-                # For srm/ha: transform is (n_neighbors, n_features)
+                # For procrustes: transform is (n_local, n_local)
+                # For srm/ha: transform is (n_local, n_features)
                 transform = transforms[subj_idx]
 
                 if self.method == "procrustes":
                     # Full Procrustes rotation: aligned = R @ local_data
                     aligned_local = transform @ local_data
-                    # Extract center voxel value
-                    aligned[subj_idx][center_idx, :] = aligned_local[center_pos, :]
                 else:
                     # SRM/HA: project to shared space and back
-                    # transform shape: (n_neighbors, n_features)
-                    # To get aligned center voxel, we need to:
-                    # 1. Project to shared space: W.T @ local_data → (n_features, n_samples)
-                    # 2. Project back using template structure
-                    # For center-only, we just use the center row of W
-                    # to get the features, then use template to reconstruct
+                    # transform shape: (n_local, n_features)
                     shared = transform.T @ local_data  # (n_features, n_samples)
-                    # Use template row for center to weight reconstruction
-                    # Actually, simpler: aligned center = W[center_pos,:] @ shared
-                    # But W @ shared would give us back local_data-ish
-                    # For center-only: store the shared representation weighted by center
-                    # Since we want aligned output in original space dimensions,
-                    # we project back: aligned_local = W @ shared (n_neighbors, n_samples)
-                    # Then extract center
-                    aligned_local = transform @ shared
-                    aligned[subj_idx][center_idx, :] = aligned_local[center_pos, :]
+                    aligned_local = transform @ shared  # (n_local, n_samples)
+
+                # Apply aggregation
+                if self.aggregation == "center":
+                    # Center-only: extract just the center voxel
+                    # For searchlight, region_id is the center voxel index
+                    center_pos = np.where(voxel_indices == region_id)[0]
+                    if len(center_pos) == 0:
+                        center_pos = 0
+                    else:
+                        center_pos = center_pos[0]
+                    aligned[subj_idx][region_id, :] = aligned_local[center_pos, :]
+                else:
+                    # 'all': Apply to all voxels in region (piecewise)
+                    aligned[subj_idx][voxel_indices, :] = aligned_local
 
         return aligned
 
