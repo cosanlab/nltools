@@ -5,8 +5,8 @@ import numpy as np
 
 from nltools.algorithms.inference import one_sample_permutation_test
 
-# CPU parallelization tests are slow (permutation-heavy)
-pytestmark = pytest.mark.slow
+# All tests in this file are tier2 (CPU parallelization)
+pytestmark = pytest.mark.tier2
 
 
 class TestCPUParallelization:

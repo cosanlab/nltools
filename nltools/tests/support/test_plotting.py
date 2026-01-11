@@ -1,5 +1,5 @@
 """
-Test suite for surface_plot() and plot_flatmap() functions.
+Test suite for surface_plot() function.
 
 Tests follow TDD approach: write tests first, then implement functionality.
 Focuses on surface plotting functionality with intelligent hemisphere parsing.
@@ -9,13 +9,13 @@ import pytest
 import numpy as np
 import matplotlib.pyplot as plt
 from nltools.data import BrainData
-from nltools.plotting import surface_plot, plot_flatmap
+from nltools.plotting import surface_plot
 
 
-@pytest.mark.filterwarnings("ignore:Mean of empty slice:RuntimeWarning")
 class TestSurfacePlot:
     """Test surface_plot() function"""
 
+    @pytest.mark.tier1
     def test_surface_resource_paths(self):
         """Test that surface files can be located and paths are valid"""
         from nltools.plotting import _get_surface_paths
@@ -36,6 +36,7 @@ class TestSurfacePlot:
             assert key in paths, f"Missing surface key: {key}"
             assert os.path.exists(paths[key]), f"Surface file not found: {paths[key]}"
 
+    @pytest.mark.tier1
     @pytest.mark.parametrize("input_type", ["brain_data", "nibabel", "file_path"])
     def test_surface_plot_input_types(self, sim_brain_data, tmpdir, input_type):
         """Test surface_plot accepts BrainData, nibabel image, or file path"""
@@ -55,6 +56,7 @@ class TestSurfacePlot:
         assert fig is not None
         plt.close(fig)
 
+    @pytest.mark.tier1
     def test_surface_plot_invalid_input(self):
         """Test error handling for invalid input types"""
         with pytest.raises((ValueError, TypeError)):
@@ -64,6 +66,7 @@ class TestSurfacePlot:
         with pytest.raises((ValueError, TypeError)):
             surface_plot(None)
 
+    @pytest.mark.tier1
     def test_default_montage_layout(self, sim_brain_data):
         """Test default 2×2 montage structure"""
         single_image = sim_brain_data[0]
@@ -74,6 +77,7 @@ class TestSurfacePlot:
         assert len(fig.axes) == 4  # 2×2 grid
         plt.close(fig)
 
+    @pytest.mark.tier1
     def test_bilateral_surface_projection(self, sim_brain_data):
         """Test that volume projects correctly to both hemispheres"""
         from nilearn.surface import vol_to_surf
@@ -102,6 +106,7 @@ class TestSurfacePlot:
         assert left_texture.size > 0 and right_texture.size > 0
         assert len(left_texture.shape) == 1  # 1D vertex array
 
+    @pytest.mark.tier1
     def test_customization_options(self, sim_brain_data):
         """Test key customization parameters"""
         single_image = sim_brain_data[0]
@@ -123,6 +128,7 @@ class TestSurfacePlot:
         assert fig is not None
         plt.close(fig)
 
+    @pytest.mark.tier1
     @pytest.mark.parametrize("bg_map", ["curvature", "sulc", None])
     def test_background_map_options(self, sim_brain_data, bg_map):
         """Test different background map options"""
@@ -131,6 +137,7 @@ class TestSurfacePlot:
         assert fig is not None
         plt.close(fig)
 
+    @pytest.mark.tier1
     @pytest.mark.parametrize(
         "hemi,view",
         [
@@ -147,6 +154,7 @@ class TestSurfacePlot:
         assert fig is not None
         plt.close(fig)
 
+    @pytest.mark.tier1
     @pytest.mark.parametrize("surface", ["pial", "inflated", "midthickness"])
     def test_surface_mesh_types(self, sim_brain_data, surface):
         """Test different surface mesh types"""
@@ -155,18 +163,21 @@ class TestSurfacePlot:
         assert fig is not None
         plt.close(fig)
 
+    @pytest.mark.tier1
     def test_invalid_surface_type(self, sim_brain_data):
         """Test error handling for invalid surface type"""
         single_image = sim_brain_data[0]
         with pytest.raises(ValueError):
             surface_plot(single_image, surface="invalid")
 
+    @pytest.mark.tier1
     def test_empty_brain_data(self):
         """Test error handling for empty BrainData"""
         empty_brain = BrainData()
         with pytest.raises(ValueError, match="empty|Empty"):
             surface_plot(empty_brain)
 
+    @pytest.mark.tier1
     def test_multi_image_brain_data(self, sim_brain_data):
         """Test handling BrainData with multiple images"""
         # Should plot first image or mean
@@ -174,6 +185,7 @@ class TestSurfacePlot:
         assert fig is not None
         plt.close(fig)
 
+    @pytest.mark.tier1
     def test_nan_inf_handling(self, sim_brain_data):
         """Test handling of NaN and Inf values"""
         single_image = sim_brain_data[0]
@@ -186,7 +198,7 @@ class TestSurfacePlot:
         assert fig is not None
         plt.close(fig)
 
-    @pytest.mark.slow
+    @pytest.mark.tier2
     def test_save_functionality(self, sim_brain_data, tmpdir):
         """Test saving plot to file"""
         import os
@@ -198,6 +210,7 @@ class TestSurfacePlot:
         assert os.path.exists(save_path)
         plt.close(fig)
 
+    @pytest.mark.tier1
     def test_custom_axes_and_figsize(self, sim_brain_data):
         """Test custom axes and figure size"""
         single_image = sim_brain_data[0]
@@ -213,6 +226,7 @@ class TestSurfacePlot:
         assert result is not None
         plt.close(fig)
 
+    @pytest.mark.tier1
     def test_projection_parameters(self, sim_brain_data):
         """Test custom vol_to_surf parameters"""
         single_image = sim_brain_data[0]
@@ -227,181 +241,3 @@ class TestSurfacePlot:
         )
         assert fig is not None
         plt.close(fig)
-
-
-@pytest.mark.filterwarnings("ignore:Mean of empty slice:RuntimeWarning")
-class TestPlotFlatmap:
-    """Test plot_flatmap() function"""
-
-    def test_basic_flatmap(self, sim_brain_data):
-        """Test basic flatmap rendering"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(single_image)
-        assert fig is not None
-        assert hasattr(fig, "axes")
-        plt.close(fig)
-
-    @pytest.mark.parametrize("input_type", ["brain_data", "nibabel", "file_path"])
-    def test_flatmap_input_types(self, sim_brain_data, tmpdir, input_type):
-        """Test plot_flatmap accepts BrainData, nibabel image, or file path"""
-        import nibabel as nib
-
-        single_image = sim_brain_data[0]
-
-        if input_type == "brain_data":
-            fig = plot_flatmap(single_image)
-        elif input_type == "nibabel":
-            fig = plot_flatmap(single_image.to_nifti())
-        elif input_type == "file_path":
-            test_file = str(tmpdir / "test.nii.gz")
-            nib.save(single_image.to_nifti(), test_file)
-            fig = plot_flatmap(test_file)
-
-        assert fig is not None
-        plt.close(fig)
-
-    def test_flatmap_threshold_float(self, sim_brain_data):
-        """Test float threshold parameter"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(single_image, threshold=0.5)
-        assert fig is not None
-        plt.close(fig)
-
-    def test_flatmap_threshold_percentile(self, sim_brain_data):
-        """Test percentile threshold parameter"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(single_image, threshold="95%")
-        assert fig is not None
-        plt.close(fig)
-
-    def test_flatmap_colormap(self, sim_brain_data):
-        """Test custom colormap"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(single_image, cmap="hot", threshold=0.5)
-        assert fig is not None
-        plt.close(fig)
-
-    def test_flatmap_vmin_vmax(self, sim_brain_data):
-        """Test custom vmin/vmax"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(single_image, vmin=-2.0, vmax=2.0)
-        assert fig is not None
-        plt.close(fig)
-
-    def test_flatmap_without_curvature(self, sim_brain_data):
-        """Test flatmap without curvature background"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(single_image, with_curvature=False)
-        assert fig is not None
-        plt.close(fig)
-
-    def test_flatmap_curvature_parameters(self, sim_brain_data):
-        """Test curvature contrast and brightness parameters"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(
-            single_image,
-            curvature_contrast=0.8,
-            curvature_brightness=0.3,
-        )
-        assert fig is not None
-        plt.close(fig)
-
-    @pytest.mark.parametrize("orientation", ["horizontal", "vertical"])
-    def test_flatmap_colorbar_orientation(self, sim_brain_data, orientation):
-        """Test colorbar orientation options"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(
-            single_image,
-            colorbar=True,
-            colorbar_orientation=orientation,
-        )
-        assert fig is not None
-        plt.close(fig)
-
-    def test_flatmap_no_colorbar(self, sim_brain_data):
-        """Test flatmap without colorbar"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(single_image, colorbar=False)
-        assert fig is not None
-        plt.close(fig)
-
-    def test_flatmap_title(self, sim_brain_data):
-        """Test custom title"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(single_image, title="Test Flatmap")
-        assert fig is not None
-        plt.close(fig)
-
-    def test_flatmap_figsize(self, sim_brain_data):
-        """Test custom figure size"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(single_image, figsize=(14, 8))
-        assert fig.get_size_inches()[0] == pytest.approx(14, abs=0.5)
-        plt.close(fig)
-
-    def test_flatmap_custom_axes(self, sim_brain_data):
-        """Test plotting on custom axes"""
-        single_image = sim_brain_data[0]
-        fig, ax = plt.subplots(1, 1, figsize=(10, 5))
-        result = plot_flatmap(single_image, axes=ax)
-        assert result is not None
-        plt.close(fig)
-
-    @pytest.mark.slow
-    def test_flatmap_save(self, sim_brain_data, tmpdir):
-        """Test saving flatmap to file"""
-        import os
-
-        single_image = sim_brain_data[0]
-        save_path = str(tmpdir / "flatmap.png")
-        fig = plot_flatmap(single_image, save=save_path)
-        assert os.path.exists(save_path)
-        plt.close(fig)
-
-    def test_flatmap_empty_brain_data(self):
-        """Test error handling for empty BrainData"""
-        empty_brain = BrainData()
-        with pytest.raises(ValueError, match="empty|Empty"):
-            plot_flatmap(empty_brain)
-
-    def test_flatmap_multi_image_brain_data(self, sim_brain_data):
-        """Test handling BrainData with multiple images"""
-        # Should plot first image
-        fig = plot_flatmap(sim_brain_data)
-        assert fig is not None
-        plt.close(fig)
-
-    def test_flatmap_projection_parameters(self, sim_brain_data):
-        """Test custom projection parameters"""
-        single_image = sim_brain_data[0]
-        fig = plot_flatmap(
-            single_image,
-            radius=5.0,
-            interpolation="nearest",
-        )
-        assert fig is not None
-        plt.close(fig)
-
-
-class TestBrainDataPlotFlatmap:
-    """Test BrainData.plot_flatmap() method"""
-
-    def test_brain_data_plot_flatmap(self, sim_brain_data):
-        """Test BrainData.plot_flatmap() method"""
-        single_image = sim_brain_data[0]
-        fig = single_image.plot_flatmap()
-        assert fig is not None
-        plt.close(fig)
-
-    def test_brain_data_plot_flatmap_with_threshold(self, sim_brain_data):
-        """Test BrainData.plot_flatmap() with threshold"""
-        single_image = sim_brain_data[0]
-        fig = single_image.plot_flatmap(threshold=0.5, cmap="hot")
-        assert fig is not None
-        plt.close(fig)
-
-    def test_brain_data_plot_flatmap_empty(self):
-        """Test error handling for empty BrainData"""
-        empty_brain = BrainData()
-        with pytest.raises(ValueError, match="empty|Empty"):
-            empty_brain.plot_flatmap()

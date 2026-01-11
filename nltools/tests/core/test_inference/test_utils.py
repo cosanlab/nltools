@@ -22,28 +22,33 @@ from nltools.algorithms.inference.utils import (
 class TestHelperFunctions:
     """Test helper functions for correctness."""
 
+    @pytest.mark.tier1
     def test_generate_sign_flips_shape(self):
         """Test that sign flips have correct shape."""
         sign_flips = _generate_sign_flips(n_permute=100, n_samples=30, random_state=42)
         assert sign_flips.shape == (100, 30)
 
+    @pytest.mark.tier1
     def test_generate_sign_flips_values(self):
         """Test that sign flips only contain +1 and -1."""
         sign_flips = _generate_sign_flips(n_permute=100, n_samples=30, random_state=42)
         assert np.all(np.isin(sign_flips, [-1, 1]))
 
+    @pytest.mark.tier1
     def test_generate_sign_flips_deterministic(self):
         """Test that sign flips are deterministic with fixed seed."""
         sf1 = _generate_sign_flips(n_permute=100, n_samples=30, random_state=42)
         sf2 = _generate_sign_flips(n_permute=100, n_samples=30, random_state=42)
         np.testing.assert_array_equal(sf1, sf2)
 
+    @pytest.mark.tier1
     def test_generate_sign_flips_random(self):
         """Test that sign flips are different with different seeds."""
         sf1 = _generate_sign_flips(n_permute=100, n_samples=30, random_state=42)
         sf2 = _generate_sign_flips(n_permute=100, n_samples=30, random_state=43)
         assert not np.array_equal(sf1, sf2)
 
+    @pytest.mark.tier1
     def test_compute_pvalue_two_tailed(self):
         """Test two-tailed p-value computation with correction factor."""
         # With correction factor: (count + 1) / (n_permute + 1)
@@ -54,6 +59,7 @@ class TestHelperFunctions:
         # Should be moderate p-value (not extreme)
         assert 0.1 < p[0] < 0.3
 
+    @pytest.mark.tier1
     def test_compute_pvalue_one_tailed(self):
         """Test one-tailed p-value computation with correction factor."""
         np.random.seed(42)
@@ -63,6 +69,7 @@ class TestHelperFunctions:
         # With correction factor, should be slightly > 0.05
         assert 0.04 < p[0] < 0.07
 
+    @pytest.mark.tier1
     def test_compute_pvalue_extreme(self):
         """Test p-value for extreme observed statistic."""
         # Observed far from null → p-value should be minimum: 1/(n+1)
@@ -72,6 +79,7 @@ class TestHelperFunctions:
         # Minimum p-value with correction: 1/(1000+1) ≈ 0.001
         assert p[0] == 1.0 / 1001.0
 
+    @pytest.mark.tier1
     def test_compute_pvalue_multifeature(self):
         """Test p-value computation for multiple features."""
         np.random.seed(42)
@@ -83,6 +91,7 @@ class TestHelperFunctions:
         # All p-values should be valid (between 0 and 1)
         assert np.all((p > 0) & (p <= 1))
 
+    @pytest.mark.tier1
     def test_compute_pvalue_invalid_tail(self):
         """Test that invalid tail raises error."""
         null_dist = np.random.randn(100, 1)
@@ -98,6 +107,7 @@ class TestMemoryManagement:
     # CPU Memory Management Tests
     # ========================================================================
 
+    @pytest.mark.tier1
     def test_auto_n_jobs_cpu_small_data(self):
         """Test auto-detection with small data (should use many cores)."""
         n_jobs = _auto_n_jobs_cpu(
@@ -109,6 +119,7 @@ class TestMemoryManagement:
         assert n_jobs >= 1
         assert n_jobs <= multiprocessing.cpu_count()
 
+    @pytest.mark.tier1
     def test_auto_n_jobs_cpu_large_data(self):
         """Test auto-detection with large data (should limit workers)."""
         n_jobs = _auto_n_jobs_cpu(
@@ -120,6 +131,7 @@ class TestMemoryManagement:
         assert n_jobs >= 1
         assert n_jobs <= multiprocessing.cpu_count()
 
+    @pytest.mark.tier1
     def test_auto_n_jobs_cpu_respects_max_jobs(self):
         """Test that max_jobs parameter is respected."""
         max_jobs = 2
@@ -131,6 +143,7 @@ class TestMemoryManagement:
         )
         assert n_jobs <= max_jobs
 
+    @pytest.mark.tier1
     def test_verify_n_jobs_memory_constraint_allows_requested(self):
         """Test that memory constraint allows requested n_jobs when memory permits."""
         # Small data, plenty of memory
@@ -142,6 +155,7 @@ class TestMemoryManagement:
         )
         assert n_jobs == 4  # Should use requested value
 
+    @pytest.mark.tier1
     def test_verify_n_jobs_memory_constraint_reduces_workers(self):
         """Test that memory constraint reduces workers when memory is limited."""
         # Large data, limited memory
@@ -165,6 +179,7 @@ class TestMemoryManagement:
                     "exceeds memory limit" in str(warning.message) for warning in w
                 )
 
+    @pytest.mark.tier1
     def test_verify_n_jobs_memory_constraint_respects_cpu_limit(self):
         """Test that memory constraint respects CPU count limit."""
         max_cpu = multiprocessing.cpu_count()
@@ -178,6 +193,7 @@ class TestMemoryManagement:
         # Should be capped at CPU count
         assert n_jobs <= max_cpu
 
+    @pytest.mark.tier1
     def test_verify_n_jobs_memory_constraint_min_jobs(self):
         """Test that memory constraint never goes below min_jobs."""
         # Even with very restrictive memory, should use at least min_jobs=1
@@ -190,6 +206,7 @@ class TestMemoryManagement:
         )
         assert n_jobs >= 1  # Never below min_jobs
 
+    @pytest.mark.tier1
     def test_auto_n_jobs_cpu_vs_verify_consistency(self):
         """Test that auto-detection and verification use same logic."""
         data_size_mb = 2.0
@@ -214,6 +231,7 @@ class TestMemoryManagement:
         # Should use same value (no reduction needed)
         assert verified_n_jobs == auto_n_jobs
 
+    @pytest.mark.tier1
     def test_verify_n_jobs_memory_constraint_no_warning_small_reduction(self):
         """Test that small reductions don't trigger warnings."""
         # Small reduction (<20% threshold)
@@ -238,6 +256,7 @@ class TestMemoryManagement:
     # GPU Memory Management Tests
     # ========================================================================
 
+    @pytest.mark.tier1
     def test_auto_batch_size_small_problem(self):
         """Test batch size calculation for small problems."""
         # Small problem: All permutations fit in one batch
@@ -250,6 +269,7 @@ class TestMemoryManagement:
         assert batch_size >= 100  # Minimum batch size
         assert n_batches >= 1
 
+    @pytest.mark.tier1
     def test_auto_batch_size_large_problem(self):
         """Test batch size calculation for large problems."""
         # Large problem: Need multiple batches
@@ -262,6 +282,7 @@ class TestMemoryManagement:
         assert batch_size >= 100  # Minimum batch size
         assert n_batches > 1  # Should need multiple batches
 
+    @pytest.mark.tier1
     def test_auto_batch_size_memory_budget(self):
         """Test that different memory budgets produce different batch sizes."""
         # Smaller memory budget should produce smaller batches
@@ -279,6 +300,7 @@ class TestMemoryManagement:
         )
         assert batch_large >= batch_small  # More memory = larger batches
 
+    @pytest.mark.tier1
     def test_auto_batch_size_minimum(self):
         """Test that batch size never goes below minimum."""
         # Even with very restrictive memory, should use minimum batch size
@@ -290,6 +312,7 @@ class TestMemoryManagement:
         )
         assert batch_size >= 100  # Minimum batch size
 
+    @pytest.mark.tier1
     def test_auto_batch_size_maximum(self):
         """Test that batch size never exceeds n_permute."""
         batch_size, n_batches = _auto_batch_size(
@@ -305,6 +328,7 @@ class TestMemoryManagement:
     # Data Size Estimation Tests
     # ========================================================================
 
+    @pytest.mark.tier1
     def test_estimate_data_size_mb_float32(self):
         """Test data size estimation for float32 arrays."""
         data = np.random.randn(1000, 100).astype(np.float32)
@@ -313,6 +337,7 @@ class TestMemoryManagement:
         expected_size_mb = (1000 * 100 * 4) / (1024**2)
         assert abs(size_mb - expected_size_mb) < 0.1  # Within 0.1 MB
 
+    @pytest.mark.tier1
     def test_estimate_data_size_mb_float64(self):
         """Test data size estimation for float64 arrays."""
         data = np.random.randn(1000, 100).astype(np.float64)
@@ -321,6 +346,7 @@ class TestMemoryManagement:
         expected_size_mb = (1000 * 100 * 8) / (1024**2)
         assert abs(size_mb - expected_size_mb) < 0.1  # Within 0.1 MB
 
+    @pytest.mark.tier1
     def test_estimate_data_size_mb_empty(self):
         """Test data size estimation for empty arrays."""
         data = np.array([])

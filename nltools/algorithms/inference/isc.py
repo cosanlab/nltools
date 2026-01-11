@@ -1766,18 +1766,9 @@ def isc_permutation_test(
         bootstraps = []
         for i in range(n_permute):
             # Circle shift the data
-            # For 3D data (n_obs, n_subjects, n_voxels), apply per subject
-            if data.ndim == 3:
-                perm_rng = np.random.RandomState(seeds[i])
-                data_permuted = np.empty_like(data)
-                for subj in range(data.shape[1]):
-                    data_permuted[:, subj, :] = circle_shift(
-                        data[:, subj, :], random_state=perm_rng
-                    )
-            else:
-                data_permuted = circle_shift(
-                    data, random_state=np.random.RandomState(seeds[i])
-                )
+            data_permuted = circle_shift(
+                data, random_state=np.random.RandomState(seeds[i])
+            )
 
             # Recompute ISC
             if summary_statistic == "leave-one-out":
@@ -1813,18 +1804,9 @@ def isc_permutation_test(
         bootstraps = []
         for i in range(n_permute):
             # Phase randomize the data
-            # For 3D data (n_obs, n_subjects, n_voxels), apply per subject
-            if data.ndim == 3:
-                perm_rng = np.random.RandomState(seeds[i])
-                data_permuted = np.empty_like(data)
-                for subj in range(data.shape[1]):
-                    data_permuted[:, subj, :] = phase_randomize(
-                        data[:, subj, :], random_state=perm_rng
-                    )
-            else:
-                data_permuted = phase_randomize(
-                    data, random_state=np.random.RandomState(seeds[i])
-                )
+            data_permuted = phase_randomize(
+                data, random_state=np.random.RandomState(seeds[i])
+            )
 
             # Recompute ISC
             if summary_statistic == "leave-one-out":

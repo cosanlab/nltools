@@ -6,7 +6,6 @@ __all__ = [
     "DetSRM",
     "SRM",
     "HyperAlignment",
-    "LocalAlignment",
     "spm_hrf",
     "glover_hrf",
     "spm_time_derivative",
@@ -20,7 +19,6 @@ __all__ = [
 
 from .srm import DetSRM, SRM
 from .hyperalignment import HyperAlignment
-from .alignment import LocalAlignment
 from .hrf import (
     spm_hrf,
     glover_hrf,
