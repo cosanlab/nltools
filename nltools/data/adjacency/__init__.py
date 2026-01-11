@@ -1527,11 +1527,8 @@ class Adjacency(object):
             b = np.dot(np.linalg.pinv(X_data), Y_data)
             res = Y_data - np.dot(X_data, b)
 
-            # Unbiased estimator of residual standard error: sqrt(RSS / df)
-            # This is correct for both intercept and intercept-free models
-            # See GH #287 for details on why np.std(res, ddof=p) is biased
-            n, p = X_data.shape
-            sigma = np.sqrt(np.sum(res**2, axis=0) / (n - p))
+            # Standard errors - ensure sigma is always an array
+            sigma = np.std(res, axis=0, ddof=X_data.shape[1])
             if sigma.ndim == 0:
                 sigma = sigma[np.newaxis]
 
@@ -1592,11 +1589,8 @@ class Adjacency(object):
             b = np.dot(np.linalg.pinv(X_data), Y_data)
             res = Y_data - np.dot(X_data, b)
 
-            # Unbiased estimator of residual standard error: sqrt(RSS / df)
-            # This is correct for both intercept and intercept-free models
-            # See GH #287 for details on why np.std(res, ddof=p) is biased
-            n, p = X_data.shape
-            sigma = np.sqrt(np.sum(res**2, axis=0) / (n - p))
+            # Standard errors - ensure sigma is always an array
+            sigma = np.std(res, axis=0, ddof=X_data.shape[1])
             if sigma.ndim == 0:
                 sigma = sigma[np.newaxis]
 

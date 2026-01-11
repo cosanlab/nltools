@@ -2239,11 +2239,7 @@ def compute_multivariate_similarity(y, X, method="ols"):
     # OLS regression: b = (X'X)^(-1) X'y
     b = np.dot(np.linalg.pinv(X_with_intercept), y)
     res = y - np.dot(X_with_intercept, b)
-    # Unbiased estimator of residual standard error: sqrt(RSS / df)
-    # This is correct for both intercept and intercept-free models
-    # See GH #287 for details on why np.std(res, ddof=p) is biased
-    n, p = X_with_intercept.shape
-    sigma = np.sqrt(np.dot(res, res) / (n - p))
+    sigma = np.std(res, ddof=X_with_intercept.shape[1])
 
     # Compute standard errors
     XtX_inv = np.linalg.inv(np.dot(X_with_intercept.T, X_with_intercept))
