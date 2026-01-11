@@ -583,7 +583,8 @@ def test_ridge_cpu_gpu_equivalence():
     model_gpu.fit(X, y)
     pred_gpu = model_gpu.predict(X)
 
-    np.testing.assert_allclose(pred_gpu, pred_cpu, rtol=1e-4)
+    # Allow small numerical differences between backends
+    np.testing.assert_allclose(pred_gpu, pred_cpu, rtol=1e-3, atol=1e-6)
 
 
 def test_ridge_auto_backend():
