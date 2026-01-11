@@ -30,11 +30,6 @@ sphinx:
   - 'sphinx.ext.intersphinx'
 
   config:
-    # Jupytext - recognize .py files as notebooks
-    nb_custom_formats:
-      .py:
-        - jupytext.reads
-        - fmt: py:percent
     # Autosummary
     autosummary_generate: true
     autosummary_generate_overwrite: true
@@ -92,7 +87,6 @@ sphinx:
       - 'tutorials/02_Analysis/**'
       - 'tutorials/README.md'
       - 'tutorials/data/README.md'
-      - 'tutorials/TUTORIAL_UPDATE_PLAN.md'
       # Exclude old tutorial structure (moved to plans/old-tutorials/)
       - 'tutorials/01_fundamentals/**'
       - 'tutorials/02_workflows/**'

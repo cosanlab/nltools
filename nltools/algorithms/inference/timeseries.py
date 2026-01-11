@@ -82,9 +82,9 @@ def circle_shift(
     elif data.ndim == 2:
         n_samples, n_features = data.shape
         if shift_amount is None:
-            # Each feature gets an independent random shift (with replacement)
-            # This allows n_features > n_samples (e.g., more voxels than timepoints)
-            shift_amount = rng.randint(1, n_samples, size=n_features)
+            shift_amount = rng.choice(
+                np.arange(n_samples), size=n_features, replace=False
+            )
         shift_amount = np.asarray(shift_amount, dtype=int)
 
         if shift_amount.shape != (n_features,):

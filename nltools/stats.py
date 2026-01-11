@@ -1161,6 +1161,24 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
         if data_type == "BrainData":
             out["transformation_matrix"] = [x.T for x in out["transformation_matrix"]]
 
+    # Calculate Intersubject correlation on aligned components
+    if n_features is None:
+        n_features = out["common_model"].shape[1]
+
+    a = Adjacency()
+    for f in range(n_features):
+        a = a.append(
+            Adjacency(
+                1
+                - pairwise_distances(
+                    np.array([x[f, :] for x in out["transformed"]]),
+                    metric="correlation",
+                ),
+                metric="similarity",
+            )
+        )
+    out["isc"] = dict(zip(np.arange(n_features), a.mean(axis=1)))
+
     if data_type == "BrainData":
         if method == "procrustes":
             for i, x in enumerate(out["transformed"]):
@@ -1175,77 +1193,6 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
         for i, x in enumerate(out["transformation_matrix"]):
             transformation_out[i].data = x.T
         out["transformation_matrix"] = transformation_out
-
-    # Calculate Intersubject Correlation (ISC) on final transformed data
-    # ISC measures correlation along the aligned dimension:
-    #   axis=0 (align timepoints): ISC per voxel (temporal correlation)
-    #   axis=1 (align voxels): ISC per timepoint (spatial correlation)
-    #
-    # Final shapes after all formatting:
-    #   BrainData: (timepoints, voxels)
-    #   numpy: (voxels, timepoints)
-
-    a = Adjacency()
-
-    if data_type == "BrainData":
-        # BrainData transformed shape: (timepoints, voxels)
-        # For procrustes, transformed contains BrainData objects; extract .data
-        # For SRM methods, transformed contains numpy arrays after the .T
-        transformed_arrays = [
-            x.data if isinstance(x, BrainData) else x for x in out["transformed"]
-        ]
-        if axis == 0:
-            # Aligned timepoints → ISC per voxel (correlation over time)
-            n_isc = transformed_arrays[0].shape[1]  # n_voxels
-            for v in range(n_isc):
-                # Extract timecourse for voxel v from each subject
-                isc_data = np.array([x[:, v] for x in transformed_arrays])
-                a = a.append(
-                    Adjacency(
-                        1 - pairwise_distances(isc_data, metric="correlation"),
-                        matrix_type="similarity",
-                    )
-                )
-        else:  # axis == 1
-            # Aligned voxels → ISC per timepoint (spatial correlation)
-            n_isc = transformed_arrays[0].shape[0]  # n_timepoints
-            for t in range(n_isc):
-                # Extract spatial pattern at timepoint t from each subject
-                isc_data = np.array([x[t, :] for x in transformed_arrays])
-                a = a.append(
-                    Adjacency(
-                        1 - pairwise_distances(isc_data, metric="correlation"),
-                        matrix_type="similarity",
-                    )
-                )
-    else:  # numpy
-        # numpy transformed shape: (voxels, timepoints)
-        if axis == 0:
-            # Aligned timepoints → ISC per voxel (correlation over time)
-            n_isc = out["transformed"][0].shape[0]  # n_voxels
-            for v in range(n_isc):
-                # Extract timecourse for voxel v from each subject
-                isc_data = np.array([x[v, :] for x in out["transformed"]])
-                a = a.append(
-                    Adjacency(
-                        1 - pairwise_distances(isc_data, metric="correlation"),
-                        matrix_type="similarity",
-                    )
-                )
-        else:  # axis == 1
-            # Aligned voxels → ISC per timepoint (spatial correlation)
-            n_isc = out["transformed"][0].shape[1]  # n_timepoints
-            for t in range(n_isc):
-                # Extract spatial pattern at timepoint t from each subject
-                isc_data = np.array([x[:, t] for x in out["transformed"]])
-                a = a.append(
-                    Adjacency(
-                        1 - pairwise_distances(isc_data, metric="correlation"),
-                        matrix_type="similarity",
-                    )
-                )
-
-    out["isc"] = dict(zip(np.arange(n_isc), a.mean(axis=1)))
 
     return out
 
@@ -1696,7 +1643,7 @@ def _permute_isc_group(similarity_matrix, group, metric="median", random_state=N
     if not isinstance(group, np.ndarray):
         raise ValueError("group must be a numpy array.")
 
-    if len(group) != similarity_matrix.n_nodes:
+    if len(group) != similarity_matrix.square_shape()[0]:
         raise ValueError(
             "Group array must be the same length as the similarity matrix."
         )
