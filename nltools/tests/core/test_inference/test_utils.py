@@ -87,8 +87,54 @@ class TestHelperFunctions:
         """Test that invalid tail raises error."""
         null_dist = np.random.randn(100, 1)
         obs_stat = np.array([0.0])
-        with pytest.raises(ValueError, match="tail must be 1 or 2"):
+        with pytest.raises(ValueError, match="tail must be"):
             _compute_pvalue(obs_stat, null_dist, tail=3)
+
+    def test_compute_pvalue_string_tail_options(self):
+        """Test string tail options for MCP compatibility (GH #315)."""
+        np.random.seed(42)
+        null_dist = np.random.randn(1000, 1)
+        obs_stat = np.array([1.5])  # Positive value
+
+        # Test 'two' is equivalent to 2
+        p_two_str = _compute_pvalue(obs_stat, null_dist, tail="two")
+        p_two_int = _compute_pvalue(obs_stat, null_dist, tail=2)
+        assert p_two_str[0] == p_two_int[0]
+
+        # Test 'upper' gives consistent direction (null >= obs)
+        p_upper = _compute_pvalue(obs_stat, null_dist, tail="upper")
+        assert 0 < p_upper[0] < 0.15  # Should be small for positive obs
+
+        # Test 'lower' gives opposite result (null <= obs)
+        p_lower = _compute_pvalue(obs_stat, null_dist, tail="lower")
+        assert p_lower[0] > 0.85  # Should be large for positive obs
+
+        # Test -1 is equivalent to 'lower'
+        p_lower_int = _compute_pvalue(obs_stat, null_dist, tail=-1)
+        assert p_lower[0] == p_lower_int[0]
+
+    def test_compute_pvalue_consistent_direction_for_mcp(self):
+        """Test that 'upper'/'lower' give consistent direction across features.
+
+        This is the key fix for GH #315 - when doing MCP correction, all tests
+        should use the same direction regardless of observed statistic sign.
+        """
+        np.random.seed(42)
+        null_dist = np.random.randn(1000, 3)
+        # Mixed signs: positive, zero, negative
+        obs_stat = np.array([2.0, 0.0, -2.0])
+
+        # With 'upper', all tests use same comparison (null >= obs)
+        p_upper = _compute_pvalue(obs_stat, null_dist, tail="upper")
+        # Positive obs -> small p, negative obs -> large p
+        assert p_upper[0] < 0.1  # 2.0 is high, few null values exceed it
+        assert p_upper[2] > 0.9  # -2.0 is low, most null values exceed it
+
+        # With 'lower', all tests use same comparison (null <= obs)
+        p_lower = _compute_pvalue(obs_stat, null_dist, tail="lower")
+        # Positive obs -> large p, negative obs -> small p
+        assert p_lower[0] > 0.9
+        assert p_lower[2] < 0.1
 
 
 class TestMemoryManagement:

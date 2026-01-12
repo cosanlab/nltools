@@ -258,7 +258,7 @@ def two_sample_permutation_test(
     data1: np.ndarray,
     data2: np.ndarray,
     n_permute: int = 5000,
-    tail: int = 2,
+    tail: int | str = 2,
     return_null: bool = False,
     parallel: Optional[str] = "cpu",
     n_jobs: int = -1,
@@ -283,9 +283,11 @@ def two_sample_permutation_test(
             - shape (n_samples2,) for single feature
             - shape (n_samples2, n_features) for multi-feature (voxel-wise)
         n_permute (int): Number of permutations (default: 5000)
-        tail (int): Test type (default: 2)
-            - 1: One-tailed test
-            - 2: Two-tailed test
+        tail (int | str): Test type (default: 2)
+            - 'two' or 2: Two-tailed test (mean1 != mean2)
+            - 'upper' or 1: One-tailed upper (mean1 > mean2)
+            - 'lower' or -1: One-tailed lower (mean1 < mean2)
+            For MCP correction (FDR), use 'upper' or 'lower' for consistent direction.
         return_null (bool): If True, return full null distribution (default: False)
         parallel (str, optional): Parallelization method (default: 'cpu')
             - None: Single-threaded NumPy (for debugging/small problems)

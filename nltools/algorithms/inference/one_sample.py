@@ -221,7 +221,7 @@ def _one_sample_permutation_gpu_batched(
 def one_sample_permutation_test(
     data: np.ndarray,
     n_permute: int = 5000,
-    tail: int = 2,
+    tail: int | str = 2,
     return_null: bool = False,
     parallel: Optional[str] = "cpu",
     n_jobs: int = -1,
@@ -243,9 +243,11 @@ def one_sample_permutation_test(
             - shape (n_samples,) for single feature
             - shape (n_samples, n_features) for multi-feature (voxel-wise)
         n_permute (int): Number of permutations (default: 5000)
-        tail (int): Test type (default: 2)
-            - 1: One-tailed test
-            - 2: Two-tailed test
+        tail (int | str): Test type (default: 2)
+            - 'two' or 2: Two-tailed test (mean != 0)
+            - 'upper' or 1: One-tailed upper (mean > 0)
+            - 'lower' or -1: One-tailed lower (mean < 0)
+            For MCP correction (FDR), use 'upper' or 'lower' for consistent direction.
         return_null (bool): If True, return full null distribution (default: False)
         parallel (str, optional): Parallelization method (default: 'cpu')
             - None: Single-threaded NumPy (for debugging/small problems)

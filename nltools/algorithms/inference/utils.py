@@ -31,7 +31,7 @@ _generate_sign_flips = _generate_sign_flips_from_random
 def _compute_pvalue(
     obs_stat: np.ndarray,
     null_dist: np.ndarray,
-    tail: int = 2,
+    tail: int | str = 2,
 ) -> np.ndarray:
     """
     Calculate p-values from observed statistic and null distribution.
@@ -47,9 +47,10 @@ def _compute_pvalue(
         null_dist (np.ndarray): Null distribution from permutations
             - shape (n_permute,) for single feature
             - shape (n_permute, n_features) for multi-feature
-        tail (int): Test type
-            - 1: One-tailed test (obs > null)
-            - 2: Two-tailed test (|obs| > |null|)
+        tail (int | str): Test type
+            - 'two' or 2: Two-tailed test (|obs| > |null|)
+            - 'upper' or 1: One-tailed upper (null >= obs, for positive effects)
+            - 'lower' or -1: One-tailed lower (null <= obs, for negative effects)
 
     Returns:
         np.ndarray: P-value(s) with same shape as obs_stat
@@ -57,17 +58,23 @@ def _compute_pvalue(
     Examples:
         >>> obs_stat = np.array([2.5])
         >>> null_dist = np.random.randn(1000, 1)
-        >>> p = _compute_pvalue(obs_stat, null_dist, tail=2)
+        >>> p = _compute_pvalue(obs_stat, null_dist, tail='two')
         >>> 0 < p <= 1
         True
+
+        # For multiple comparisons, use explicit direction:
+        >>> p_upper = _compute_pvalue(obs_stat, null_dist, tail='upper')
+        >>> p_lower = _compute_pvalue(obs_stat, null_dist, tail='lower')
 
     Notes:
         - Uses correction factor: (count + 1) / (n_permute + 1)
         - This prevents p-value = 0 and accounts for observed value
         - Minimum p-value is 1/(n_permute + 1)
         - For two-tailed tests, uses absolute values
+        - For MCP correction (FDR, Bonferroni), use 'upper' or 'lower' to ensure
+          consistent direction across all tests. See GH #315.
     """
-    validate_tail_parameter(tail)
+    tail_normalized = validate_tail_parameter(tail)
 
     # Ensure inputs are numpy arrays (handles Python float/int scalars)
     obs_stat = np.asarray(obs_stat)
@@ -84,20 +91,16 @@ def _compute_pvalue(
     n_permute = null_dist.shape[0]
     denom = float(n_permute) + 1.0
 
-    if tail == 1:
-        # One-tailed: count how many null >= observed (if obs >= 0) or null <= observed (if obs < 0)
-        # This matches nltools.stats._calc_pvalue behavior exactly
-        # Apply correction: +1 to numerator
-        # Use np.where to handle both positive and negative observed statistics
-        mask_positive = obs_stat >= 0
-        numer = np.where(
-            mask_positive,
-            np.sum(null_dist >= obs_stat, axis=0) + 1.0,
-            np.sum(null_dist <= obs_stat, axis=0) + 1.0,
-        )
-    else:
+    if tail_normalized == "upper":
+        # One-tailed upper: count how many null >= observed
+        # Tests for positive effects (H1: statistic > 0)
+        numer = np.sum(null_dist >= obs_stat, axis=0) + 1.0
+    elif tail_normalized == "lower":
+        # One-tailed lower: count how many null <= observed
+        # Tests for negative effects (H1: statistic < 0)
+        numer = np.sum(null_dist <= obs_stat, axis=0) + 1.0
+    else:  # tail_normalized == "two"
         # Two-tailed: count how many |null| >= |observed|
-        # Apply correction: +1 to numerator
         numer = np.sum(np.abs(null_dist) >= np.abs(obs_stat), axis=0) + 1.0
 
     p_values = numer / denom

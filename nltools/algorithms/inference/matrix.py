@@ -236,7 +236,7 @@ def matrix_permutation_test(
     metric: str = "pearson",
     how: str = "upper",
     include_diag: bool = False,
-    tail: int = 2,
+    tail: int | str = 2,
     parallel: Optional[str] = "cpu",
     n_jobs: int = -1,
     return_null: bool = False,
@@ -268,7 +268,10 @@ def matrix_permutation_test(
             - 'lower': Lower triangle only
             - 'full': All elements (see include_diag)
         include_diag (bool): Include diagonal elements (only applies if how='full') (default: False)
-        tail (int): One-tailed (1) or two-tailed (2) test (default: 2)
+        tail (int | str): Test type (default: 2)
+            - 'two' or 2: Two-tailed test (r != 0)
+            - 'upper' or 1: One-tailed upper (r > 0)
+            - 'lower' or -1: One-tailed lower (r < 0)
         parallel (str, optional): Parallelization method (default: 'cpu')
             - None: Single-threaded NumPy (for debugging/small problems)
             - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)

@@ -46,17 +46,38 @@ def validate_parallel_parameter_matrix(parallel: Optional[str]) -> None:
         )
 
 
-def validate_tail_parameter(tail: int) -> None:
-    """Validate tail parameter.
+def validate_tail_parameter(tail: int | str) -> str:
+    """Validate and normalize tail parameter.
 
     Args:
-        tail: Tail parameter value
+        tail: Tail parameter value. Can be:
+            - 'two' or 2: Two-tailed test (|obs| > |null|)
+            - 'upper' or 1: One-tailed upper (obs > null, for testing positive effects)
+            - 'lower' or -1: One-tailed lower (obs < null, for testing negative effects)
+
+    Returns:
+        Normalized tail string: 'two', 'upper', or 'lower'
 
     Raises:
-        ValueError: If tail is not 1 or 2
+        ValueError: If tail is not a valid option
+
+    Notes:
+        For multiple comparisons correction (FDR, Bonferroni), use 'upper' or 'lower'
+        to ensure consistent direction across all tests. The old tail=1 behavior
+        (auto-detecting direction per test based on sign) can lead to incorrect
+        MCP-adjusted p-values. See GH #315.
     """
-    if tail not in [1, 2]:
-        raise ValueError(f"tail must be 1 or 2, got {tail}")
+    # Normalize to string
+    if tail == 2 or tail == "two":
+        return "two"
+    elif tail == 1 or tail == "upper":
+        return "upper"
+    elif tail == -1 or tail == "lower":
+        return "lower"
+    else:
+        raise ValueError(
+            f"tail must be 'two', 'upper', 'lower' (or 2, 1, -1), got {tail}"
+        )
 
 
 def validate_array_shape(
