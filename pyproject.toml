@@ -33,6 +33,7 @@ dev = [
     "jupyter-book>=1.0.4.post1",
     "jupytext>=1.18.1",
     "networkx>=3.5",
+    "poethepoet>=0.40.0",
     "pytest>=8.4",
     "pytest-xdist>=3.8.0",
     "rich>=14.2.0",
@@ -70,3 +71,7 @@ markers = [
 # To run slow tests: pytest -m slow
 # To run everything: pytest -m ""
 addopts = "-m 'not slow'"
+
+[tool.poe.tasks.lint]
+help = "Lint project with ruff and ty"
+shell  = """ruff check nltools && ty check nltools"""
