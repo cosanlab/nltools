@@ -1360,11 +1360,11 @@ class Adjacency(object):
 
         # Run MDS
         mds = MDS(
+            *args,
             n_components=n_components,
             metric=metric,
             n_jobs=n_jobs,
             dissimilarity="precomputed",
-            *args,
             **kwargs,
         )
         proj = mds.fit_transform(self.squareform())

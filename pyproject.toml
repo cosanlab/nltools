@@ -72,6 +72,11 @@ markers = [
 # To run everything: pytest -m ""
 addopts = "-m 'not slow'"
 
+[tool.ty.rules]
+# Ignore rules that produce false positives from flow analysis limitations
+unresolved-import = "ignore"           # Optional deps (cupy, bids)
+possibly-unbound-attribute = "ignore"  # Attrs set in fit() not tracked
+
 [tool.poe.tasks.lint]
 help = "Lint project with ruff and ty"
 shell  = """ruff check nltools && ty check nltools"""

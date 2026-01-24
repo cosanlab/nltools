@@ -50,12 +50,12 @@ class KFoldStratified(_BaseKFold):
             test_folds[y_sort.iloc[test_idx].index] = k
         return test_folds
 
-    def _iter_test_masks(self, X, y=None, groups=None):
+    def _iter_test_masks(self, X, y=None, groups=None):  # type: ignore[override]
         test_folds = self._make_test_folds(X, y)
         for i in range(self.n_splits):
             yield test_folds == i
 
-    def split(self, X, y, groups=None):
+    def split(self, X, y, groups=None):  # type: ignore[override]
         """Generate indices to split data into training and test set.
 
         Args:

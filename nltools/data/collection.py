@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 import nibabel as nib
 from pathlib import Path
+from collections.abc import Callable
 from typing import (
     TYPE_CHECKING,
     Iterator,
@@ -1940,7 +1941,7 @@ class BrainCollection:
 
     def map(
         self,
-        fn: callable,
+        fn: Callable,
         axis: int | str = 0,
         n_jobs: int = 1,
         show_progress: bool = True,
@@ -1990,7 +1991,7 @@ class BrainCollection:
 
     def _map_axis0(
         self,
-        fn: callable,
+        fn: Callable,
         n_jobs: int,
         show_progress: bool,
     ) -> "BrainCollection":
@@ -2023,7 +2024,7 @@ class BrainCollection:
 
     def _map_axis1(
         self,
-        fn: callable,
+        fn: Callable,
         n_jobs: int,
         show_progress: bool,
     ) -> "BrainCollection":
@@ -2084,7 +2085,7 @@ class BrainCollection:
 
     def _map_axis2(
         self,
-        fn: callable,
+        fn: Callable,
         n_jobs: int,
         show_progress: bool,
     ) -> "BrainCollection":
@@ -2120,7 +2121,7 @@ class BrainCollection:
 
     def filter(
         self,
-        predicate: callable | list | np.ndarray | "pd.Series",
+        predicate: Callable | list | np.ndarray | "pd.Series",
     ) -> "BrainCollection":
         """
         Filter collection by predicate.
@@ -2899,11 +2900,11 @@ class BrainCollection:
 
     def cv(
         self,
-        k: int = None,
+        k: int | None = None,
         scheme: str = "kfold",
-        split_by: str = None,
-        groups: np.ndarray = None,
-        random_state: int = None,
+        split_by: str | None = None,
+        groups: np.ndarray | None = None,
+        random_state: int | None = None,
         **kwargs,
     ) -> "BrainCollectionPipeline":
         """Create a cross-validation pipeline for multi-subject analysis.
@@ -4381,7 +4382,10 @@ class BrainCollectionPipeline:
     """
 
     def __init__(
-        self, brain_collection: "BrainCollection", cv=None, groups: np.ndarray = None
+        self,
+        brain_collection: "BrainCollection",
+        cv=None,
+        groups: np.ndarray | None = None,
     ):
         """Initialize pipeline wrapper.
 
@@ -4440,7 +4444,7 @@ class BrainCollectionPipeline:
         return self._add_step(NormalizeStep(method=method, **kwargs))
 
     def reduce(
-        self, method: str = "pca", n_components: int = None, **kwargs
+        self, method: str = "pca", n_components: int | None = None, **kwargs
     ) -> "BrainCollectionPipeline":
         """Add dimensionality reduction step.
 

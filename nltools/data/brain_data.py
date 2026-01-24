@@ -1478,11 +1478,11 @@ class BrainData(object):
 
     def cv(
         self,
-        k: int = None,
+        k: int | None = None,
         scheme: str = "kfold",
-        split_by: str = None,
-        groups: np.ndarray = None,
-        random_state: int = None,
+        split_by: str | None = None,
+        groups: np.ndarray | None = None,
+        random_state: int | None = None,
         **kwargs,
     ) -> "BrainDataPipeline":
         """Create a cross-validation pipeline for this BrainData.
@@ -3431,7 +3431,7 @@ class BrainData(object):
 
         out = {
             "decomposition_object": set_decomposition_algorithm(
-                *args, algorithm=algorithm, n_components=n_components, **kwargs
+                algorithm=algorithm, n_components=n_components, **kwargs
             )
         }
 
@@ -4651,7 +4651,7 @@ class BrainDataPipeline:
         return self._add_step(NormalizeStep(method=method, **kwargs))
 
     def reduce(
-        self, method: str = "pca", n_components: int = None, **kwargs
+        self, method: str = "pca", n_components: int | None = None, **kwargs
     ) -> "BrainDataPipeline":
         """Add dimensionality reduction step."""
         from nltools.pipelines.steps import ReduceStep
