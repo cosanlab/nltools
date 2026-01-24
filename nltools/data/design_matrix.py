@@ -139,9 +139,30 @@ class DesignMatrix:
         self._df = self._df.rename(dict(zip(self._df.columns, str_names)))
 
     @property
-    def empty(self) -> bool:
-        """Return True if DesignMatrix has no data."""
+    def is_empty(self) -> bool:
+        """Check if DesignMatrix has no data.
+
+        Returns:
+            bool: True if the design matrix is empty, False otherwise.
+        """
         return self._df.is_empty()
+
+    @property
+    def empty(self) -> bool:
+        """Return True if DesignMatrix has no data.
+
+        .. deprecated:: 0.6.0
+            Use :attr:`is_empty` instead.
+        """
+        import warnings
+
+        warnings.warn(
+            "empty is deprecated and will be removed in a future version. "
+            "Use is_empty instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.is_empty
 
     def __len__(self) -> int:
         """Return number of rows."""
@@ -256,6 +277,54 @@ class DesignMatrix:
         zscored_df = self._df.with_columns(zscore_exprs)
 
         return self._copy_with(zscored_df)
+
+    def standardize(
+        self, method: str = "zscore", columns: Optional[List[str]] = None
+    ) -> "DesignMatrix":
+        """Standardize columns using the specified method.
+
+        This method provides a consistent API with BrainData and Collection
+        for data normalization.
+
+        Args:
+            method: Standardization method. Options are:
+                - 'zscore': Z-score standardization (mean=0, std=1) [default]
+                - 'center': Mean centering only (mean=0)
+            columns: Columns to standardize. If None, standardize all
+                non-polynomial columns.
+
+        Returns:
+            DesignMatrix: New DesignMatrix with standardized columns.
+
+        Raises:
+            ValueError: If an invalid method is specified.
+
+        Examples:
+            >>> dm = DesignMatrix(np.random.randn(100, 3))
+            >>> dm_z = dm.standardize(method='zscore')  # z-score all columns
+            >>> dm_c = dm.standardize(method='center')  # center only
+        """
+        if method == "zscore":
+            return self.zscore(columns=columns)
+        elif method == "center":
+            # Determine which columns to center
+            if columns is None:
+                columns_to_center = self._get_data_columns(exclude_polys=True)
+            else:
+                columns_to_center = columns
+
+            # Build Polars expressions for centering: (col - mean)
+            center_exprs = [
+                (pl.col(col) - pl.col(col).mean()).alias(col)
+                for col in columns_to_center
+            ]
+
+            centered_df = self._df.with_columns(center_exprs)
+            return self._copy_with(centered_df)
+        else:
+            raise ValueError(
+                f"Invalid method '{method}'. Must be 'zscore' or 'center'."
+            )
 
     def downsample(
         self, target: float, method: str = "mean", **kwargs
@@ -1235,33 +1304,33 @@ class DesignMatrix:
             return [col for col in self.columns if col not in self.polys]
         return list(self.columns)
 
-    def _to_pandas(self) -> pd.DataFrame:
-        """
-        Convert internal Polars DataFrame to pandas (necessary for library boundaries).
+    def to_pandas(self) -> pd.DataFrame:
+        """Convert DesignMatrix to pandas DataFrame.
 
         Uses dict-based conversion to avoid pyarrow dependency. This is slightly
         slower (~10-20%) than pyarrow-based conversion but removes the dependency.
 
-        Future v0.7.0: Consider adding pyarrow for 10-100x faster conversion.
-
         Returns:
-            pd.DataFrame: Pandas DataFrame with same data and column names
-
-        Notes:
-            This conversion is NECESSARY (not an optimization target) for:
-            - downsample/upsample: stats.py functions expect pandas DataFrames
-            - heatmap: seaborn requires pandas DataFrames for plotting
-            - GLM integration: nilearn.glm.FirstLevelModel expects pandas
-
-            These are library boundaries where pandas is required by external APIs.
-            We keep DesignMatrix internal state in Polars for performance, but
-            convert at boundaries where external libraries require pandas.
+            pd.DataFrame: Pandas DataFrame with same data and column names.
 
         Examples:
-            >>> dm = DesignMatrix(...)
-            >>> pd_df = dm._to_pandas()  # For seaborn/matplotlib plotting
+            >>> dm = DesignMatrix(np.random.randn(100, 3))
+            >>> pd_df = dm.to_pandas()
+            >>> type(pd_df)
+            <class 'pandas.core.frame.DataFrame'>
         """
         return pd.DataFrame(self._df.to_dict(as_series=False))
+
+    def _to_pandas(self) -> pd.DataFrame:
+        """Internal method for pandas conversion at library boundaries.
+
+        .. deprecated:: 0.6.0
+            Use :meth:`to_pandas` instead.
+
+        Returns:
+            pd.DataFrame: Pandas DataFrame with same data and column names.
+        """
+        return self.to_pandas()
 
     def to_numpy(self) -> np.ndarray:
         """

@@ -489,9 +489,41 @@ class Adjacency(object):
         return (data, issymmetric, matrix_type, is_single_matrix)
 
     @property
-    def isempty(self):
-        """Check if Adjacency object is empty"""
-        return bool(self.matrix_type == "empty")
+    def is_empty(self) -> bool:
+        """Check if Adjacency object is empty.
+
+        Returns:
+            bool: True if the adjacency matrix is empty, False otherwise.
+        """
+        return self.matrix_type == "empty"
+
+    @property
+    def isempty(self) -> bool:
+        """Check if Adjacency object is empty.
+
+        .. deprecated:: 0.6.0
+            Use :attr:`is_empty` instead.
+        """
+        import warnings
+
+        warnings.warn(
+            "isempty is deprecated and will be removed in a future version. "
+            "Use is_empty instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.is_empty
+
+    def to_square(self):
+        """Convert adjacency back to square matrix format.
+
+        This is an alias for :meth:`squareform`.
+
+        Returns:
+            np.ndarray or list: Square matrix representation. Returns a list
+            of matrices if this object contains multiple adjacency matrices.
+        """
+        return self.squareform()
 
     def squareform(self):
         """Convert adjacency back to squareform"""
@@ -751,7 +783,7 @@ class Adjacency(object):
         if not isinstance(data, Adjacency):
             raise ValueError("Make sure data is a Adjacency instance.")
 
-        if self.isempty:
+        if self.is_empty:
             out = data.copy()
         else:
             out = self.copy()

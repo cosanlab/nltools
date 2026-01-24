@@ -692,6 +692,27 @@ Dependency = collections.namedtuple("Dependency", "package value")
 
 
 def attempt_to_import(dependency, name=None, fromlist=None):
+    """Attempt to import an optional dependency, returning None if unavailable.
+
+    This function is used to handle optional dependencies gracefully. If the
+    import fails, the function returns None rather than raising an error,
+    allowing the calling code to check and handle missing dependencies.
+
+    Args:
+        dependency: The module name to import (e.g., 'torch', 'cupy').
+        name: Optional name to store the dependency under in module_names.
+            Defaults to the dependency name.
+        fromlist: Optional list of names to import from the module.
+
+    Returns:
+        The imported module, or None if the import failed.
+
+    Examples:
+        >>> torch = attempt_to_import('torch')
+        >>> if torch is not None:
+        ...     # Use torch
+        ...     pass
+    """
     if name is None:
         name = dependency
     try:
@@ -703,6 +724,20 @@ def attempt_to_import(dependency, name=None, fromlist=None):
 
 
 def all_same(items):
+    """Check if all items in a sequence are equal to the first item.
+
+    Args:
+        items: A sequence of items to compare.
+
+    Returns:
+        bool: True if all items equal the first item, False otherwise.
+
+    Examples:
+        >>> all_same([1, 1, 1])
+        True
+        >>> all_same([1, 2, 1])
+        False
+    """
     return np.all(x == items[0] for x in items)
 
 
@@ -798,6 +833,15 @@ def _roi_func(brain, roi, algorithm, cv_dict, **kwargs):
 
 
 class AmbiguityError(Exception):
+    """Exception raised when an operation has ambiguous or conflicting inputs.
+
+    This exception is raised when a function or method receives inputs that
+    could be interpreted in multiple ways, requiring clarification from the user.
+
+    Examples:
+        >>> raise AmbiguityError("Cannot determine if data is 3D or 4D")
+    """
+
     pass
 
 

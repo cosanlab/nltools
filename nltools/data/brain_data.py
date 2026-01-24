@@ -2267,7 +2267,7 @@ class BrainData(object):
 
         data = check_brain_data(data)
 
-        if self.isempty:
+        if self.is_empty:
             # If self is empty, return copy of the data to append
             out = data._shallow_copy_with_data()
             out.data = data.data.copy()
@@ -2312,23 +2312,63 @@ class BrainData(object):
 
         return out
 
-    def empty(self):
-        """Create a copy of BrainData with empty data array"""
+    def create_empty(self):
+        """Create a copy of BrainData with empty data array.
+
+        Returns:
+            BrainData: A copy of this object with an empty data array.
+        """
         from copy import deepcopy
 
         out = deepcopy(self)
         out.data = np.array([])
         return out
 
-    @property
-    def isempty(self):
-        """Check if BrainData.data is empty"""
+    def empty(self):
+        """Create a copy of BrainData with empty data array.
 
+        .. deprecated:: 0.6.0
+            Use :meth:`create_empty` instead.
+        """
+        import warnings
+
+        warnings.warn(
+            "empty() is deprecated and will be removed in a future version. "
+            "Use create_empty() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.create_empty()
+
+    @property
+    def is_empty(self) -> bool:
+        """Check if BrainData.data is empty.
+
+        Returns:
+            bool: True if the data array is empty, False otherwise.
+        """
         if isinstance(self.data, np.ndarray):
-            boolean = False if self.data.size else True
+            return self.data.size == 0
         if isinstance(self.data, list):
-            boolean = True if not self.data else False
-        return boolean
+            return len(self.data) == 0
+        return True
+
+    @property
+    def isempty(self) -> bool:
+        """Check if BrainData.data is empty.
+
+        .. deprecated:: 0.6.0
+            Use :attr:`is_empty` instead.
+        """
+        import warnings
+
+        warnings.warn(
+            "isempty is deprecated and will be removed in a future version. "
+            "Use is_empty instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.is_empty
 
     # NOTE: uses nilearn.masking.intersect_masks
     def _check_masks(self, image):
@@ -3437,7 +3477,7 @@ class BrainData(object):
 
         if axis == "images":
             out["decomposition_object"].fit(self.data.T)
-            out["components"] = self.empty()
+            out["components"] = self.create_empty()
             out["components"].data = (
                 out["decomposition_object"].transform(self.data.T).T
             )
@@ -3445,7 +3485,7 @@ class BrainData(object):
         elif axis == "voxels":
             out["decomposition_object"].fit(self.data)
             out["weights"] = out["decomposition_object"].transform(self.data)
-            out["components"] = self.empty()
+            out["components"] = self.create_empty()
             out["components"].data = out["decomposition_object"].components_
         return out
 
@@ -4211,7 +4251,7 @@ class BrainData(object):
         import matplotlib.pyplot as plt
 
         # Validate inputs
-        if self.isempty:
+        if self.is_empty:
             raise ValueError("Cannot plot empty BrainData object")
 
         # Handle convenience threshold parameter
@@ -4422,7 +4462,7 @@ class BrainData(object):
         """
         from nltools.plotting import plot_flatmap
 
-        if self.isempty:
+        if self.is_empty:
             raise ValueError("Cannot plot empty BrainData object")
 
         return plot_flatmap(
@@ -4630,10 +4670,21 @@ class BrainDataPipeline:
 
     @property
     def cv(self):
+        """Cross-validation splitter for this pipeline.
+
+        Returns:
+            sklearn cross-validator or None: The cross-validation strategy
+            set for this pipeline, or None if not configured.
+        """
         return self._cv
 
     @property
-    def n_steps(self):
+    def n_steps(self) -> int:
+        """Number of processing steps in this pipeline.
+
+        Returns:
+            int: The count of steps added to this pipeline.
+        """
         return len(self._steps)
 
     def _add_step(self, step) -> "BrainDataPipeline":

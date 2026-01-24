@@ -25,6 +25,33 @@ from sklearn.utils import check_random_state
 
 
 class Simulator:
+    """Simulate fMRI data with realistic spatial and temporal characteristics.
+
+    This class provides methods for generating synthetic fMRI data with
+    controlled signal patterns, including Gaussian blobs, multi-subject
+    datasets, and various noise structures. Useful for testing analysis
+    pipelines and power analyses.
+
+    Args:
+        brain_mask: Path to a NIfTI brain mask file, a nibabel image object,
+            or None to use the default MNI template mask.
+        output_dir: Directory for saving generated data. Defaults to the
+            current working directory.
+        random_state: Random seed or numpy RandomState for reproducibility.
+
+    Attributes:
+        brain_mask: The brain mask image used for simulation.
+        nifti_masker: Fitted NiftiMasker for converting between 4D data and 2D arrays.
+        output_dir: Output directory path.
+        random_state: Random state for reproducible simulations.
+
+    Examples:
+        >>> from nltools.simulator import Simulator
+        >>> sim = Simulator(random_state=42)
+        >>> # Create a dataset with signal in specific regions
+        >>> data = sim.create_data(y=[1, -1, 1, -1], sigma=1, n_reps=10)
+    """
+
     def __init__(
         self, brain_mask=None, output_dir=None, random_state=None
     ):  # no scoring param
@@ -481,7 +508,37 @@ class Simulator:
                     wr.writerow(self.rep_id)
 
 
-class SimulateGrid(object):
+class SimulateGrid:
+    """Simulate 2D grid data for testing statistical methods.
+
+    Creates a 2D grid (e.g., 100x100 pixels) with optional embedded signal
+    regions and Gaussian noise. Useful for testing multiple comparison
+    correction methods, threshold selection, and visualization of
+    statistical maps.
+
+    Args:
+        grid_width: Width/height of the square grid (default: 100).
+        signal_width: Width of the embedded signal region (default: 20).
+        n_subjects: Number of simulated subjects (default: 20).
+        sigma: Standard deviation of the Gaussian noise (default: 1).
+        signal_amplitude: Amplitude of the embedded signal. If None,
+            no signal is added.
+        random_state: Random seed or numpy RandomState for reproducibility.
+
+    Attributes:
+        data: The simulated data array of shape (n_subjects, grid_width, grid_width).
+        t_values: T-statistic values after fitting.
+        p_values: P-values after fitting.
+        thresholded: Thresholded statistical map.
+        isfit: Whether fit() has been called.
+
+    Examples:
+        >>> from nltools.simulator import SimulateGrid
+        >>> sim = SimulateGrid(signal_amplitude=0.5, random_state=42)
+        >>> sim.fit(n_permute=1000)
+        >>> sim.plot()
+    """
+
     def __init__(
         self,
         grid_width=100,
