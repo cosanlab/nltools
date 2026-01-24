@@ -1350,6 +1350,70 @@ class DesignMatrix:
         """
         return self._df.to_numpy()
 
+    def write(self, file_name: str, sep: str = "\t") -> None:
+        """Write DesignMatrix to file.
+
+        Supports TSV (default), CSV, and HDF5 formats. The format is
+        automatically determined by file extension.
+
+        Args:
+            file_name: Output file path. Use .tsv, .csv, or .h5/.hdf5 extension.
+            sep: Column separator for text files (default: tab for TSV).
+                 Ignored for HDF5 files.
+
+        Returns:
+            None
+
+        Examples:
+            >>> dm = DesignMatrix(np.random.randn(100, 3), sampling_freq=1)
+            >>> dm.write("design_matrix.tsv")  # TSV format (BIDS compatible)
+            >>> dm.write("design_matrix.csv", sep=",")  # CSV format
+            >>> dm.write("design_matrix.h5")  # HDF5 format
+
+        Notes:
+            TSV format is recommended for BIDS compatibility.
+            HDF5 format preserves metadata (sampling_freq, convolved, polys).
+        """
+        from pathlib import Path
+        from ..utils import is_h5_path
+
+        if isinstance(file_name, Path):
+            file_name = str(file_name)
+
+        if is_h5_path(file_name):
+            self._write_h5(file_name)
+        else:
+            # Write as delimited text file (TSV or CSV)
+            self._df.write_csv(file_name, separator=sep)
+
+    def _write_h5(self, file_name: str) -> None:
+        """Write DesignMatrix to HDF5 file with metadata.
+
+        Args:
+            file_name: Output HDF5 file path.
+        """
+        import h5py
+
+        with h5py.File(file_name, "w") as f:
+            # Store data
+            f.create_dataset("data", data=self._df.to_numpy(), compression="gzip")
+
+            # Store column names
+            f.create_dataset(
+                "columns",
+                data=np.array(self.columns, dtype="S"),
+                compression="gzip",
+            )
+
+            # Store metadata
+            meta = f.create_group("metadata")
+            if self.sampling_freq is not None:
+                meta.attrs["sampling_freq"] = self.sampling_freq
+            meta.attrs["convolved"] = np.array(self.convolved, dtype="S")
+            meta.attrs["polys"] = np.array(self.polys, dtype="S")
+            meta.attrs["multi"] = self.multi
+            meta.attrs["obj_type"] = "design_matrix"
+
     def __array__(self, dtype=None) -> np.ndarray:
         """
         Numpy array interface - enables np.array(design_matrix) and np.asarray().

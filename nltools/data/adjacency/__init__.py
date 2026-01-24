@@ -27,6 +27,7 @@ from nltools.utils import (
     all_same,
     attempt_to_import,
     concatenate,
+    is_h5_path,
     to_h5,
 )
 from ..design_matrix import DesignMatrix
@@ -121,7 +122,7 @@ class Adjacency(object):
             to_load = str(data)
 
             # HDF5
-            if (".h5" in to_load) or (".hdf5" in to_load):
+            if is_h5_path(to_load):
                 try:
                     # Load X and Y attributes
                     with pd.HDFStore(to_load, "r") as f:
@@ -295,103 +296,57 @@ class Adjacency(object):
         for x in range(len(self)):
             yield self[x]
 
-    def __add__(self, y):
+    def _perform_arithmetic(self, y, op, op_name, reverse=False):
+        """Perform arithmetic operation with validation.
+
+        Args:
+            y: Operand (scalar or Adjacency).
+            op: Callable that performs the operation on arrays.
+            op_name: Name of operation for error messages.
+            reverse: If True, reverse operand order (y op self).
+
+        Returns:
+            New Adjacency with result.
+        """
         new = deepcopy(self)
         if isinstance(y, (int, np.integer, float, np.floating)):
-            new.data = new.data + y
+            if reverse:
+                new.data = op(y, new.data)
+            else:
+                new.data = op(new.data, y)
         elif isinstance(y, Adjacency):
             if self.shape != y.shape:
                 raise ValueError(
                     "Both Adjacency() instances need to be the same shape."
                 )
-            new.data = new.data + y.data
+            if reverse:
+                new.data = op(y.data, new.data)
+            else:
+                new.data = op(new.data, y.data)
         else:
-            raise ValueError("Can only add int, float, or Adjacency")
+            raise ValueError(f"Can only {op_name} int, float, or Adjacency")
         return new
+
+    def __add__(self, y):
+        return self._perform_arithmetic(y, np.add, "add")
 
     def __radd__(self, y):
-        new = deepcopy(self)
-        if isinstance(y, (int, np.integer, float, np.floating)):
-            new.data = y + new.data
-        elif isinstance(y, Adjacency):
-            if self.shape != y.shape:
-                raise ValueError(
-                    "Both Adjacency() instances need to be the same shape."
-                )
-            new.data = y.data + new.data
-        else:
-            raise ValueError("Can only add int, float, or Adjacency")
-        return new
+        return self._perform_arithmetic(y, np.add, "add", reverse=True)
 
     def __sub__(self, y):
-        new = deepcopy(self)
-        if isinstance(y, (int, np.integer, float, np.floating)):
-            new.data = new.data - y
-        elif isinstance(y, Adjacency):
-            if self.shape != y.shape:
-                raise ValueError(
-                    "Both Adjacency() instances need to be the same shape."
-                )
-            new.data = new.data - y.data
-        else:
-            raise ValueError("Can only subtract int, float, or Adjacency")
-        return new
+        return self._perform_arithmetic(y, np.subtract, "subtract")
 
     def __rsub__(self, y):
-        new = deepcopy(self)
-        if isinstance(y, (int, np.integer, float, np.floating)):
-            new.data = y - new.data
-        elif isinstance(y, Adjacency):
-            if self.shape != y.shape:
-                raise ValueError(
-                    "Both Adjacency() instances need to be the same shape."
-                )
-            new.data = y.data - new.data
-        else:
-            raise ValueError("Can only subtract int, float, or Adjacency")
-        return new
+        return self._perform_arithmetic(y, np.subtract, "subtract", reverse=True)
 
     def __mul__(self, y):
-        new = deepcopy(self)
-        if isinstance(y, (int, np.integer, float, np.floating)):
-            new.data = new.data * y
-        elif isinstance(y, Adjacency):
-            if self.shape != y.shape:
-                raise ValueError(
-                    "Both Adjacency() instances need to be the same shape."
-                )
-            new.data = np.multiply(new.data, y.data)
-        else:
-            raise ValueError("Can only multiply int, float, or Adjacency")
-        return new
+        return self._perform_arithmetic(y, np.multiply, "multiply")
 
     def __rmul__(self, y):
-        new = deepcopy(self)
-        if isinstance(y, (int, np.integer, float, np.floating)):
-            new.data = y * new.data
-        elif isinstance(y, Adjacency):
-            if self.shape != y.shape:
-                raise ValueError(
-                    "Both Adjacency() instances need to be the same shape."
-                )
-            new.data = np.multiply(y.data, new.data)
-        else:
-            raise ValueError("Can only multiply int, float, or Adjacency")
-        return new
+        return self._perform_arithmetic(y, np.multiply, "multiply", reverse=True)
 
     def __truediv__(self, y):
-        new = deepcopy(self)
-        if isinstance(y, (int, np.integer, float, np.floating)):
-            new.data = new.data / y
-        elif isinstance(y, Adjacency):
-            if self.shape != y.shape:
-                raise ValueError(
-                    "Both Adjacency() instances need to be the same shape."
-                )
-            new.data = np.divide(new.data, y.data)
-        else:
-            raise ValueError("Can only divide int, float, or Adjacency")
-        return new
+        return self._perform_arithmetic(y, np.divide, "divide")
 
     @staticmethod
     def _test_is_single_matrix(data):
@@ -592,101 +547,72 @@ class Adjacency(object):
                     )
         return
 
-    def mean(self, axis=0):
-        """Calculate mean of Adjacency
+    def _apply_stat(self, func, axis=0):
+        """Apply a statistical function along an axis.
 
         Args:
-            axis:  (int) calculate mean over features (0) or data (1).
-                    For data it will be on upper triangle.
+            func: Numpy function to apply (e.g., np.nanmean).
+            axis: Axis along which to apply function. 0 for across matrices,
+                  1 for across upper triangle elements.
 
         Returns:
-            mean:  float if single, adjacency if axis=0, np.array if axis=1
-                    and multiple
-
+            float if single matrix, Adjacency if axis=0 with multiple matrices,
+            np.array if axis=1 with multiple matrices.
         """
-
         if self.is_single_matrix:
-            return np.nanmean(self.data)
+            return func(self.data)
         else:
             if axis == 0:
                 return Adjacency(
-                    data=np.nanmean(self.data, axis=axis),
+                    data=func(self.data, axis=axis),
                     matrix_type=self.matrix_type + "_flat",
                 )
             elif axis == 1:
-                return np.nanmean(self.data, axis=axis)
+                return func(self.data, axis=axis)
+
+    def mean(self, axis=0):
+        """Calculate mean of Adjacency.
+
+        Args:
+            axis: Calculate mean over matrices (0) or upper triangle (1).
+
+        Returns:
+            float if single matrix, Adjacency if axis=0, np.array if axis=1.
+        """
+        return self._apply_stat(np.nanmean, axis)
 
     def sum(self, axis=0):
-        """Calculate sum of Adjacency
+        """Calculate sum of Adjacency.
 
         Args:
-            axis:  (int) calculate mean over features (0) or data (1).
-                    For data it will be on upper triangle.
+            axis: Calculate sum over matrices (0) or upper triangle (1).
 
         Returns:
-            mean:  float if single, adjacency if axis=0, np.array if axis=1
-                    and multiple
-
+            float if single matrix, Adjacency if axis=0, np.array if axis=1.
         """
-
-        if self.is_single_matrix:
-            return np.nansum(self.data)
-        else:
-            if axis == 0:
-                return Adjacency(
-                    data=np.nansum(self.data, axis=axis),
-                    matrix_type=self.matrix_type + "_flat",
-                )
-            elif axis == 1:
-                return np.nansum(self.data, axis=axis)
+        return self._apply_stat(np.nansum, axis)
 
     def std(self, axis=0):
-        """Calculate standard deviation of Adjacency
+        """Calculate standard deviation of Adjacency.
 
         Args:
-            axis:  (int) calculate std over features (0) or data (1).
-                    For data it will be on upper triangle.
+            axis: Calculate std over matrices (0) or upper triangle (1).
 
         Returns:
-            std:  float if single, adjacency if axis=0, np.array if axis=1 and
-                    multiple
-
+            float if single matrix, Adjacency if axis=0, np.array if axis=1.
         """
-
-        if self.is_single_matrix:
-            return np.nanstd(self.data)
-        else:
-            if axis == 0:
-                return Adjacency(
-                    data=np.nanstd(self.data, axis=axis),
-                    matrix_type=self.matrix_type + "_flat",
-                )
-            elif axis == 1:
-                return np.nanstd(self.data, axis=axis)
+        return self._apply_stat(np.nanstd, axis)
 
     def median(self, axis=0):
-        """Calculate median of Adjacency
+        """Calculate median of Adjacency.
 
         Args:
-            axis:  (int) calculate median over features (0) or data (1).
-                    For data it will be on upper triangle.
+            axis: Calculate median over matrices (0) or upper triangle (1).
 
         Returns:
-            mean:  float if single, adjacency if axis=0, np.array if axis=1
-                    and multiple
-
+            float if single matrix, Adjacency if axis=0, np.array if axis=1.
         """
-
-        if self.is_single_matrix:
-            return np.nanmedian(self.data)
-        else:
-            if axis == 0:
-                return Adjacency(
-                    data=np.nanmedian(self.data, axis=axis),
-                    matrix_type=self.matrix_type + "_flat",
-                )
-            elif axis == 1:
-                return np.nanmedian(self.data, axis=axis)
+        return self._apply_stat(np.nanmedian, axis)
 
     @property
     def shape(self):
@@ -811,7 +737,7 @@ class Adjacency(object):
         if isinstance(file_name, Path):
             file_name = str(file_name)
 
-        if (".h5" in file_name) or (".hdf5" in file_name):
+        if is_h5_path(file_name):
             if method == "square":
                 raise NotImplementedError(
                     'Saving as hdf5 does not support method="square"'

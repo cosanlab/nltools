@@ -154,8 +154,10 @@ def validate_data_type(data):
     elif isinstance(data, list):
         return "list"
     elif isinstance(data, (str, Path)):
+        from ..utils import is_h5_path
+
         data_str = str(data)
-        if ".h5" in data_str or ".hdf5" in data_str:
+        if is_h5_path(data_str):
             return "h5"
         elif "://" in data_str:
             return "url"

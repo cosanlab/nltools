@@ -1400,10 +1400,12 @@ class BrainData(object):
 
         """
 
+        from ..utils import is_h5_path
+
         if isinstance(file_name, Path):
             file_name = str(file_name)
 
-        if (".h5" in file_name) or (".hdf5" in file_name):
+        if is_h5_path(file_name):
             to_h5(
                 self,
                 file_name,

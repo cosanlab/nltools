@@ -75,6 +75,30 @@ def _ensure_1d_array_for_nilearn(data, nilearn_version=None):
     return data
 
 
+def is_h5_path(file_name) -> bool:
+    """Check if a file path indicates an HDF5 file.
+
+    Args:
+        file_name: Path to check (str or Path object).
+
+    Returns:
+        bool: True if the file has an HDF5 extension (.h5 or .hdf5).
+
+    Examples:
+        >>> is_h5_path("data.h5")
+        True
+        >>> is_h5_path("data.csv")
+        False
+        >>> is_h5_path(Path("results.hdf5"))
+        True
+    """
+    from pathlib import Path
+
+    if isinstance(file_name, Path):
+        file_name = str(file_name)
+    return ".h5" in file_name or ".hdf5" in file_name
+
+
 def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
     """Save BrainData or Adjacency objects to HDF5 files.
 
