@@ -265,10 +265,20 @@ def get_resource_path():
 
 def get_anatomical():
     """Get nltools default anatomical image.
-    DEPRECATED. Use MNI_Template.plot from nltools.prefs instead.
+
+    .. deprecated:: 0.6.0
+        Use ``MNI_Template.plot`` from ``nltools.prefs`` instead.
     """
+    import warnings
+
     from nltools.prefs import MNI_Template
 
+    warnings.warn(
+        "get_anatomical() is deprecated and will be removed in a future version. "
+        "Use MNI_Template.plot from nltools.prefs instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return nib.load(MNI_Template.plot)
 
 

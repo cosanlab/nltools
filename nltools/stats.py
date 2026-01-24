@@ -84,32 +84,6 @@ from sklearn.metrics import pairwise_distances
 MAX_INT = np.iinfo(np.int32).max
 
 
-def pearson(x, y):
-    """Correlates row vector x with each row vector in 2D array y.
-    From neurosynth.stats.py - author: Tal Yarkoni
-
-    .. deprecated:: 0.5.2
-        This function is deprecated and will be removed in a future version.
-        Use `scipy.stats.pearsonr` or `numpy.corrcoef` instead, or use
-        `correlation_permutation_test` from the inference module for
-        permutation-based correlation analysis.
-    """
-    warnings.warn(
-        "pearson() is deprecated and will be removed in a future version. "
-        "Use scipy.stats.pearsonr or numpy.corrcoef instead, or use "
-        "correlation_permutation_test from the inference module.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    data = np.vstack((x, y))
-    ms = data.mean(axis=1)[(slice(None, None, None), None)]
-    datam = data - ms
-    datass = np.sqrt(np.sum(datam * datam, axis=1))
-    # datass = np.sqrt(ss(datam, axis=1))
-    temp = np.dot(datam[1:], datam[0].T)
-    return temp / (datass[1:] * datass[0])
-
-
 def zscore(df):
     """zscore every column in a pandas dataframe or series.
 
@@ -668,6 +642,9 @@ def one_sample_permutation(
 ):
     """One sample permutation test using randomization.
 
+    .. deprecated:: 0.6.0
+        Use ``nltools.algorithms.inference.one_sample_permutation_test`` instead.
+
     This function is a wrapper around `nltools.algorithms.inference.one_sample_permutation_test`
     for backward compatibility. The underlying implementation provides optimized CPU parallelization
     and optional GPU acceleration.
@@ -691,6 +668,12 @@ def one_sample_permutation(
         - Identical results to the original implementation
 
     """
+    warnings.warn(
+        "one_sample_permutation is deprecated and will be removed in a future version. "
+        "Use nltools.algorithms.inference.one_sample_permutation_test instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     # Wrapper around inference module for optimized implementation
     result = one_sample_permutation_test(
         data,
@@ -721,6 +704,9 @@ def two_sample_permutation(
 ):
     """Independent sample permutation test.
 
+    .. deprecated:: 0.6.0
+        Use ``nltools.algorithms.inference.two_sample_permutation_test`` instead.
+
     This function is a wrapper around `nltools.algorithms.inference.two_sample_permutation_test`
     for backward compatibility. The underlying implementation provides optimized CPU parallelization
     and optional GPU acceleration.
@@ -743,6 +729,12 @@ def two_sample_permutation(
         - Identical results to the original implementation
 
     """
+    warnings.warn(
+        "two_sample_permutation is deprecated and will be removed in a future version. "
+        "Use nltools.algorithms.inference.two_sample_permutation_test instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     # Wrapper around inference module for optimized implementation
     result = two_sample_permutation_test(
         data1,
@@ -775,6 +767,10 @@ def correlation_permutation(
     random_state=None,
 ):
     """Compute correlation and calculate p-value using permutation methods.
+
+    .. deprecated:: 0.6.0
+        Use ``nltools.algorithms.inference.correlation_permutation_test`` or
+        ``nltools.algorithms.inference.timeseries_correlation_permutation_test`` instead.
 
     This function is a wrapper around `nltools.algorithms.inference.correlation_permutation_test`
     and `nltools.algorithms.inference.timeseries_correlation_permutation_test` for backward
@@ -810,6 +806,13 @@ def correlation_permutation(
         - Identical results to the original implementation
 
     """
+    warnings.warn(
+        "correlation_permutation is deprecated and will be removed in a future version. "
+        "Use nltools.algorithms.inference.correlation_permutation_test or "
+        "nltools.algorithms.inference.timeseries_correlation_permutation_test instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     # Wrapper around inference module for optimized implementation
     # Route to correct function based on method
     if method == "permute":
@@ -861,6 +864,9 @@ def matrix_permutation(
 ):
     """Permute 2-dimensional matrix correlation (mantel test).
 
+    .. deprecated:: 0.6.0
+        Use ``nltools.algorithms.inference.matrix_permutation_test`` instead.
+
     This function is a wrapper around `nltools.algorithms.inference.matrix_permutation_test`
     for backward compatibility. The underlying implementation provides optimized CPU parallelization.
 
@@ -893,6 +899,12 @@ def matrix_permutation(
         - Identical results to the original implementation
 
     """
+    warnings.warn(
+        "matrix_permutation is deprecated and will be removed in a future version. "
+        "Use nltools.algorithms.inference.matrix_permutation_test instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     # Wrapper around inference module for optimized implementation
     result = matrix_permutation_test(
         data1,
