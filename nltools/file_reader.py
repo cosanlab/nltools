@@ -6,24 +6,28 @@ NeuroLearn File Reading Tools
 
 __all__ = ["onsets_to_dm"]
 
+from pathlib import Path
+from typing import Any, Callable
+
 import numpy as np
-from typing import Callable
+import pandas as pd
 from nilearn.glm.first_level import make_first_level_design_matrix as make_dm
+
 from .algorithms import glover_hrf
 from .data import DesignMatrix
 
 
 def onsets_to_dm(
-    timings,
-    run_length,
-    TR,
-    hrf_model="glover",
-    drift_model=None,
-    high_pass=0.01,
-    drift_order=0,
-    fill_na=None,
-    **kwargs,
-):
+    timings: str | Path | pd.DataFrame | list[str | Path | pd.DataFrame],
+    run_length: int | list[int],
+    TR: float,
+    hrf_model: str | Callable | None = "glover",
+    drift_model: str | None = None,
+    high_pass: float = 0.01,
+    drift_order: int = 0,
+    fill_na: Any = None,
+    **kwargs: Any,
+) -> DesignMatrix | list[DesignMatrix]:
     """Read 1 or more file paths and return 1 or more design matrices.
 
     Your timing file needs have the following column names:
@@ -45,10 +49,11 @@ def onsets_to_dm(
         drift_model (str, optional): how to add drift ('cosine' or 'polynomial'). Defaults to None.
         high_pass (float, optional): high-pass frequency if drift_model='cosine'. Defaults to 0.01
         drift_order (int, optional): what order if drift_model='polynomial'. Defaults to 0.
-        fill_na (_type_, optional): _description_. Defaults to None.
+        fill_na (Any, optional): value to fill NaN entries with. Defaults to None.
 
     Returns:
-        _type_: _description_
+        DesignMatrix | list[DesignMatrix]: Single DesignMatrix if one timing file provided,
+            or list of DesignMatrices if multiple timing files provided.
     """
     if not isinstance(timings, list):
         timings = [timings]

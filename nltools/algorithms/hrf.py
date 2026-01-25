@@ -99,16 +99,16 @@ import numpy as np
 
 
 def _gamma_difference_hrf(
-    tr,
-    oversampling=16,
-    time_length=32,
-    onset=0.0,
-    delay=6,
-    undershoot=16.0,
-    dispersion=1.0,
-    u_dispersion=1.0,
-    ratio=0.167,
-):
+    tr: float,
+    oversampling: int = 16,
+    time_length: float = 32.0,
+    onset: float = 0.0,
+    delay: float = 6.0,
+    undershoot: float = 16.0,
+    dispersion: float = 1.0,
+    u_dispersion: float = 1.0,
+    ratio: float = 0.167,
+) -> np.ndarray:
     """Compute an hrf as the difference of two gamma functions
 
     Args:
@@ -162,7 +162,7 @@ def spm_hrf(
 def glover_hrf(
     tr: float,
     oversampling: int = 16,
-    time_length: int = 32,
+    time_length: float = 32.0,
     onset: float = 0.0,
 ) -> np.ndarray:
     """Implementation of the Glover hrf model.

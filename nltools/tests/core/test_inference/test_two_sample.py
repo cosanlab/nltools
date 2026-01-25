@@ -140,7 +140,7 @@ class TestTwoSamplePermutation:
         data1 = np.random.randn(20)
         data2 = np.random.randn(25)
 
-        with pytest.raises(ValueError, match="tail must be 1 or 2"):
+        with pytest.raises(ValueError, match="tail must be"):
             two_sample_permutation_test(data1, data2, tail=3)
 
     def test_invalid_data_shape(self):

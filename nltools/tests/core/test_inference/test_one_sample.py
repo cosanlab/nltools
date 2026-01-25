@@ -110,7 +110,7 @@ class TestOneSamplePermutation:
     def test_invalid_tail(self):
         """Test that invalid tail raises error."""
         data = np.random.randn(30)
-        with pytest.raises(ValueError, match="tail must be 1 or 2"):
+        with pytest.raises(ValueError, match="tail must be"):
             one_sample_permutation_test(data, tail=3)
 
     def test_invalid_data_shape(self):

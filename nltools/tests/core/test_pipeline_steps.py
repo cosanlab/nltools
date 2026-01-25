@@ -224,6 +224,71 @@ class TestPipeStep:
         assert not hasattr(original, "mean_")
 
 
+class TestBrainDataPipe:
+    """Tests for BrainData.pipe() integration with sklearn transformers."""
+
+    @pytest.fixture
+    def brain_data(self):
+        """Create a simple BrainData object for testing."""
+        import nibabel as nib
+        from nltools.data import BrainData
+
+        np.random.seed(42)
+        n_samples = 30
+        n_voxels = 50
+        spatial_shape = (10, 10, 10)
+
+        # Create mask
+        mask_data = np.zeros(spatial_shape, dtype=bool)
+        mask_data.flat[:n_voxels] = True
+
+        # Create 4D volume
+        volume_4d = np.zeros(spatial_shape + (n_samples,))
+        y_data_1d = np.random.randn(n_samples, n_voxels)
+        for t in range(n_samples):
+            volume_t = np.zeros(spatial_shape)
+            volume_t.flat[:n_voxels] = y_data_1d[t]
+            volume_4d[..., t] = volume_t
+
+        affine = np.eye(4)
+        nifti_img = nib.Nifti1Image(volume_4d, affine)
+        mask_img = nib.Nifti1Image(mask_data.astype(np.float32), affine)
+
+        return BrainData(nifti_img, mask=mask_img)
+
+    def test_pipe_with_standard_scaler(self, brain_data):
+        """Test BrainData.pipe() with StandardScaler transformer."""
+        from sklearn.preprocessing import StandardScaler
+
+        pipeline = brain_data.cv(scheme="kfold", k=3).pipe(StandardScaler())
+
+        # Verify pipe step was added
+        assert pipeline.n_steps == 1
+
+    def test_pipe_chaining(self, brain_data):
+        """Test BrainData.pipe() can be chained with other pipeline methods."""
+        from sklearn.preprocessing import StandardScaler
+
+        pipeline = (
+            brain_data.cv(scheme="kfold", k=3)
+            .normalize()
+            .pipe(StandardScaler())
+            .reduce(n_components=5)
+        )
+
+        # Verify all steps were added
+        assert pipeline.n_steps == 3
+
+    def test_pipe_with_pca(self, brain_data):
+        """Test BrainData.pipe() with PCA transformer."""
+        from sklearn.decomposition import PCA
+
+        pipeline = brain_data.cv(scheme="kfold", k=3).pipe(PCA(n_components=5))
+
+        # Verify step was added
+        assert pipeline.n_steps == 1
+
+
 class TestFittedTransforms:
     """Tests for fitted transform dataclasses."""
 
