@@ -232,19 +232,23 @@ class TestLocalAlignmentFit:
         with pytest.raises(ValueError, match="same number of voxels"):
             la.fit(data, small_mask)
 
-    def test_fit_validates_sample_count(self, small_mask):
-        """Test that fit validates consistent sample counts."""
+    def test_fit_handles_unequal_sample_counts(self, small_mask):
+        """Test that fit handles unequal sample counts via padding (GH #410)."""
         from nltools.algorithms.alignment import LocalAlignment
 
         la = LocalAlignment(radius_mm=5.0, parallel=None)
 
-        # Different sample counts should fail
+        # Different sample counts should work (underlying methods handle padding)
         data = [
             np.random.randn(27, 20),
             np.random.randn(27, 25),  # Different sample count
         ]
-        with pytest.raises(ValueError, match="same number of samples"):
-            la.fit(data, small_mask)
+        # Should not raise - underlying SRM/HyperAlignment handle padding
+        la.fit(data, small_mask)
+
+        # Verify it fitted successfully
+        assert la.transforms_ is not None
+        assert len(la.transforms_) > 0
 
 
 class TestLocalAlignmentTransform:

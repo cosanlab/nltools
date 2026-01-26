@@ -174,8 +174,8 @@ class TestSRMContract:
         with pytest.raises(ValueError, match="not enough subjects"):
             srm.fit(single_subject)
 
-    def test_fit_mismatched_timepoints(self):
-        """Test error when subjects have different timepoints."""
+    def test_fit_mismatched_timepoints_no_padding(self):
+        """Test error when subjects have different timepoints and padding disabled."""
         np.random.seed(111)
         data = [
             np.random.randn(100, 50),  # 50 timepoints
@@ -183,7 +183,7 @@ class TestSRMContract:
         ]
         srm = SRM()
         with pytest.raises(ValueError, match="Different number of samples"):
-            srm.fit(data)
+            srm.fit(data, pad_samples=False)
 
     def test_fit_insufficient_samples(self):
         """Test error when samples < features."""
@@ -536,3 +536,110 @@ class TestDetSRMContract:
         assert isinstance(detsrm.w_, list)
         assert len(detsrm.w_) == len(multi_subject_data["data"])
         assert detsrm.s_.shape == (10, multi_subject_data["timepoints"])
+
+
+# ========== UNEQUAL SAMPLE COUNT TESTS (GH #410) ==========
+
+
+class TestSRMUnequalSamples:
+    """Test SRM with unequal sample counts across subjects (GH #410)."""
+
+    @pytest.fixture
+    def unequal_sample_data(self):
+        """Create data with different sample counts per subject."""
+        np.random.seed(42)
+        n_voxels = 50
+        n_features = 10
+
+        # Different sample counts: 80, 100, 90, 110, 85
+        sample_counts = [80, 100, 90, 110, 85]
+
+        # Shared signal (using max length)
+        max_samples = max(sample_counts)
+        shared = np.random.randn(n_features, max_samples)
+
+        subjects = []
+        for n_samples in sample_counts:
+            # Random orthogonal projection
+            w = np.linalg.qr(np.random.randn(n_voxels, n_features))[0]
+            # Subject data = projection @ shared[:, :n_samples] + noise
+            data = w @ shared[:, :n_samples] + 0.01 * np.random.randn(
+                n_voxels, n_samples
+            )
+            subjects.append(data)
+
+        return {
+            "data": subjects,
+            "sample_counts": sample_counts,
+            "max_samples": max_samples,
+            "n_voxels": n_voxels,
+        }
+
+    def test_srm_unequal_samples_with_padding(self, unequal_sample_data):
+        """Test SRM fits successfully with unequal sample counts when pad_samples=True."""
+        srm = SRM(n_iter=5, features=10)
+        srm.fit(unequal_sample_data["data"], pad_samples=True, parallel=None)
+
+        # Should have fitted successfully
+        assert hasattr(srm, "w_")
+        assert hasattr(srm, "s_")
+        assert len(srm.w_) == len(unequal_sample_data["data"])
+
+        # Shared response should have max_samples columns (padded length)
+        assert srm.s_.shape[1] == unequal_sample_data["max_samples"]
+
+    def test_srm_unequal_samples_without_padding_raises(self, unequal_sample_data):
+        """Test SRM raises error with unequal samples when pad_samples=False."""
+        srm = SRM(n_iter=5, features=10)
+
+        with pytest.raises(ValueError, match="Different number of samples"):
+            srm.fit(unequal_sample_data["data"], pad_samples=False, parallel=None)
+
+    def test_srm_unequal_samples_transform(self, unequal_sample_data):
+        """Test SRM transform works with unequal sample data after fitting."""
+        srm = SRM(n_iter=5, features=10)
+        srm.fit(unequal_sample_data["data"], pad_samples=True, parallel=None)
+
+        # Transform should work on data with original (unequal) sample counts
+        transformed = srm.transform(unequal_sample_data["data"], parallel=None)
+
+        assert len(transformed) == len(unequal_sample_data["data"])
+        # Each subject's transformed data should have their original sample count
+        for i, (orig, trans) in enumerate(
+            zip(unequal_sample_data["data"], transformed)
+        ):
+            assert trans.shape[1] == orig.shape[1]
+
+    def test_srm_equal_samples_default_behavior(self, multi_subject_data):
+        """Test SRM still works with equal samples (backward compatibility)."""
+        srm = SRM(n_iter=5, features=10)
+        # Default pad_samples=True should work fine with equal samples
+        srm.fit(multi_subject_data["data"], parallel=None)
+
+        assert hasattr(srm, "w_")
+        assert hasattr(srm, "s_")
+
+    def test_srm_unequal_samples_reconstruction_quality(self, unequal_sample_data):
+        """Test that padding doesn't significantly degrade reconstruction."""
+        srm = SRM(n_iter=10, features=10)
+        srm.fit(unequal_sample_data["data"], pad_samples=True, parallel=None)
+
+        # Transform and check alignment quality
+        transformed = srm.transform(unequal_sample_data["data"], parallel=None)
+
+        # Compute mean correlation between transformed subjects
+        # (well-aligned subjects should correlate highly)
+        correlations = []
+        for i in range(len(transformed)):
+            for j in range(i + 1, len(transformed)):
+                # Use minimum length for comparison
+                min_len = min(transformed[i].shape[1], transformed[j].shape[1])
+                corr = np.corrcoef(
+                    transformed[i][:, :min_len].ravel(),
+                    transformed[j][:, :min_len].ravel(),
+                )[0, 1]
+                correlations.append(corr)
+
+        mean_corr = np.mean(correlations)
+        # Should have reasonable alignment (correlation > 0.5)
+        assert mean_corr > 0.5, f"Mean correlation {mean_corr} too low"

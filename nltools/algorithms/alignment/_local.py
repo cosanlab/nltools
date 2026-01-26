@@ -198,16 +198,27 @@ def _fit_one_neighborhood(
         Tuple of (region_id, transforms, template)
     """
     n_subjects = len(data)
-    n_samples = data[0].shape[1]
 
     # Extract local data for all subjects
     local_data = [subj[voxel_indices, :] for subj in data]
     n_local_voxels = len(voxel_indices)
 
+    # Handle unequal sample counts by zero-padding to max length
+    sample_counts = [ld.shape[1] for ld in local_data]
+    max_samples = max(sample_counts)
+    if not all(s == max_samples for s in sample_counts):
+        local_data = [
+            np.hstack([ld, np.zeros((ld.shape[0], max_samples - ld.shape[1]))])
+            if ld.shape[1] < max_samples
+            else ld
+            for ld in local_data
+        ]
+    n_samples = max_samples
+
     # Handle degenerate cases
     if n_local_voxels < 2:
         transforms = [np.eye(n_local_voxels) for _ in range(n_subjects)]
-        template = np.mean(local_data, axis=0)
+        template = np.mean(np.array(local_data), axis=0)
         return region_id, transforms, template
 
     # Fit based on method
@@ -507,7 +518,8 @@ class LocalAlignment:
         ----------
         data : List[np.ndarray]
             List of subject data arrays, each shape (n_voxels, n_samples).
-            All subjects must have the same number of samples.
+            Subjects can have different numbers of samples - the underlying
+            alignment methods (SRM, HyperAlignment) handle this via zero-padding.
         mask : Nifti1Image
             Brain mask defining the voxel space.
 
@@ -523,18 +535,16 @@ class LocalAlignment:
             raise ValueError("data must be a list of at least 2 subject arrays")
 
         n_subjects = len(data)
-        n_voxels, n_samples = data[0].shape
+        n_voxels = data[0].shape[0]
+        # Allow different sample counts - underlying methods (SRM, HyperAlignment) handle padding
+        sample_counts = [subj.shape[1] for subj in data]
+        n_samples = max(sample_counts)  # Use max for memory estimation
 
         for i, subj in enumerate(data):
             if subj.shape[0] != n_voxels:
                 raise ValueError(
                     f"All subjects must have same number of voxels. "
                     f"Subject 0 has {n_voxels}, subject {i} has {subj.shape[0]}"
-                )
-            if subj.shape[1] != n_samples:
-                raise ValueError(
-                    f"All subjects must have same number of samples. "
-                    f"Subject 0 has {n_samples}, subject {i} has {subj.shape[1]}"
                 )
 
         # Store mask and voxel count

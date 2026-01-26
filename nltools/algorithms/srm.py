@@ -212,12 +212,14 @@ class SRM(BaseEstimator, TransformerMixin):
         parallel: Optional[str] = "cpu",
         n_jobs: int = -1,
         max_gpu_memory_gb: float = 4.0,
+        pad_samples: bool = True,
     ) -> "SRM":
         """Compute the probabilistic Shared Response Model
 
         Args:
             X (list of 2D arrays, element i has shape=[voxels_i, samples]):
                 Each element in the list contains the fMRI data of one subject.
+                Subjects can have different numbers of samples if pad_samples=True.
             y: not used
             parallel (str, optional): Execution backend.
                 - None: Single-threaded NumPy (debugging/small problems)
@@ -227,6 +229,9 @@ class SRM(BaseEstimator, TransformerMixin):
                 Only used when parallel="cpu". Defaults to -1.
             max_gpu_memory_gb (float): Maximum GPU memory budget in GB (default: 4.0).
                 Only used when parallel="gpu". Defaults to 4.0.
+            pad_samples (bool): If True (default), automatically zero-pad subjects with
+                fewer samples to match the longest subject. This allows fitting SRM on
+                data with unequal numbers of time points across subjects.
 
         Returns:
             self (SRM): Fitted model
@@ -257,14 +262,35 @@ class SRM(BaseEstimator, TransformerMixin):
                 "{0:d} features.".format(self.features)
             )
 
-        # Check if all subjects have same number of TRs
-        number_trs = X[0].shape[1]
+        # Handle unequal sample counts via padding
+        sample_counts = [subj.shape[1] for subj in X]
+        max_samples = max(sample_counts)
         number_subjects = len(X)
+
+        if not all(s == max_samples for s in sample_counts):
+            if pad_samples:
+                # Zero-pad subjects to match the longest
+                X_padded = []
+                for subj in X:
+                    if subj.shape[1] < max_samples:
+                        padding = np.zeros((subj.shape[0], max_samples - subj.shape[1]))
+                        X_padded.append(np.hstack([subj, padding]))
+                    else:
+                        X_padded.append(subj)
+                X = X_padded
+                logger.info(
+                    f"Padded subjects to {max_samples} samples (original: {sample_counts})"
+                )
+            else:
+                raise ValueError(
+                    f"Different number of samples between subjects: {sample_counts}. "
+                    "Set pad_samples=True to automatically zero-pad to the longest subject."
+                )
+
+        # Validate all data is finite
         for subject in range(number_subjects):
             if X[subject] is not None:
                 assert_all_finite(X[subject])
-            if X[subject].shape[1] != number_trs:
-                raise ValueError("Different number of samples between subjects.")
 
         # Run SRM
         self.sigma_s_, self.w_, self.mu_, self.rho2_, self.s_ = self._srm(
