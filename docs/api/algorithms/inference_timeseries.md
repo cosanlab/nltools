@@ -11,6 +11,6 @@ Time-series correlation permutation tests with autocorrelation preservation.
 
 ## See Also
 
-- {doc}`../inference` - Main inference module overview
+- {doc}`inference` - Main inference module overview
 - {doc}`../../migration-guide` - Migration guide
 

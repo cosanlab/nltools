@@ -42,9 +42,6 @@ class DesignMatrix:
         convolved (list of str): Columns that have been convolved
         polys (list of str): Polynomial/nuisance columns (intercept, trends, DCT bases)
         multi (bool): True if created from multi-run concatenation
-        shape (tuple): (n_rows, n_cols)
-        columns (list of str): Column names
-        empty (bool): True if no data
 
     Examples:
         >>> # Create from numpy array

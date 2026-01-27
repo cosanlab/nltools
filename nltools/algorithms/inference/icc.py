@@ -5,6 +5,7 @@ This module provides GPU-accelerated and CPU-parallel implementations
 for computing ICC across many voxels in neuroimaging data.
 
 Typical use case:
+
 - Input: BrainData with shape (n_images, n_voxels)
   where n_images = n_subjects * n_sessions
 - Output: ICC map with shape (n_voxels,)

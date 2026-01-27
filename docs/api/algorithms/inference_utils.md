@@ -11,5 +11,5 @@ Utility functions for inference module.
 
 ## See Also
 
-- {doc}`../inference` - Main inference module overview
+- {doc}`inference` - Main inference module overview
 

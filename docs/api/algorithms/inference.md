@@ -15,7 +15,7 @@ The `nltools.algorithms.inference` module provides fast permutation testing and 
 
 ## See Also
 
-- {doc}`../migration-guide` - Migration guide from stats.py to inference module
-- {doc}`backends` - CPU/GPU backend abstraction
-- {doc}`../performance` - Performance benchmarks and optimization tips
+- {doc}`../../migration-guide` - Migration guide from stats.py to inference module
+- {doc}`../backends` - CPU/GPU backend abstraction
+- {doc}`../../performance` - Performance benchmarks and optimization tips
 

@@ -686,9 +686,11 @@ def plot_silhouette(
         ax: axis to plot (default=None)
         permutation_test: (boolean)
         n_permute: (int) number of samples for permuation test
+
     Optional keyword args:
         figsize: (list) dimensions of silhouette plot
         colors: (list) color triplets for silhouettes. Length must equal number of unique labels
+
     Returns:
         # f: heatmap
         # out: pandas dataframe of pairwise distance between conditions

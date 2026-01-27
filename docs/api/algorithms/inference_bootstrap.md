@@ -11,6 +11,6 @@ Online bootstrap statistics for memory-efficient resampling.
 
 ## See Also
 
-- {doc}`../inference` - Main inference module overview
+- {doc}`inference` - Main inference module overview
 - {doc}`../../migration-guide` - Migration guide
 

@@ -11,6 +11,6 @@ Matrix permutation tests (Mantel test) and matrix utilities.
 
 ## See Also
 
-- {doc}`../inference` - Main inference module overview
+- {doc}`inference` - Main inference module overview
 - {doc}`../../migration-guide` - Migration guide
 

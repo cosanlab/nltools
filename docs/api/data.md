@@ -4,14 +4,25 @@
 
 ```{eval-rst}
 .. autoclass:: nltools.data.BrainData
-    :members:
+    :no-members:
+    :no-index:
 
 .. autoclass:: nltools.data.BrainCollection
-    :members:
+    :no-members:
+    :no-index:
 
 .. autoclass:: nltools.data.Adjacency
-    :members:
+    :no-members:
+    :no-index:
 
 .. autoclass:: nltools.data.DesignMatrix
-    :members:
+    :no-members:
+    :no-index:
 ```
+
+See the individual class pages for full API documentation:
+
+- {doc}`data/brain_data`
+- {doc}`data/brain_collection`
+- {doc}`data/adjacency`
+- {doc}`data/design_matrix`

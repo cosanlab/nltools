@@ -32,4 +32,4 @@ Main class for representing neuroimaging data as vectors.
 - {doc}`design_matrix` - Design matrices for GLM
 - {doc}`../models` - Statistical models (Ridge, etc.)
 - {doc}`../stats` - Statistical functions
-- {doc}`../migration-guide` - Migration guide for v0.6.0 changes
+- {doc}`../../migration-guide` - Migration guide for v0.6.0 changes

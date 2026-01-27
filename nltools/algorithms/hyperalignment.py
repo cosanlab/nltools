@@ -189,7 +189,9 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
         >>> new_subject = np.random.randn(100, 50)
         >>> new_transform = hyper.transform_subject(new_subject)
 
+    Note:
         When to use parallel processing:
+
         - Use ``parallel="cpu"`` (default) for datasets with 3+ subjects to speed up
           pairwise Procrustes operations during template refinement.
         - Use ``parallel=None`` for debugging or small datasets (<3 subjects) where

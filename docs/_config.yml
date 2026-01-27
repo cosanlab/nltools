@@ -103,3 +103,4 @@ sphinx:
       - "etoc.toctree"
       - "autodoc.import_object"
       - "toc.not_readable"
+      - "myst-nb.lexer"

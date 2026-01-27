@@ -11,6 +11,6 @@ Intraclass correlation coefficient (ICC) computation.
 
 ## See Also
 
-- {doc}`../inference` - Main inference module overview
+- {doc}`inference` - Main inference module overview
 - {doc}`../../migration-guide` - Migration guide
 

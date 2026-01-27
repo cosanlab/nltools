@@ -136,10 +136,9 @@ def resolve_template_name(template_name: str, file_type: str = "mask") -> str:
     """
     Resolve a template name string to a file path.
 
-    Supports template names in the format: '{res}mm-MNI152-2009{version}'
-    where:
-        - res: resolution (1, 2, or 3)
-        - version: 'fsl' for default/, 'a' for nilearn/, 'c' for fmriprep/
+    Supports template names in the format ``'{res}mm-MNI152-2009{version}'``
+    where ``res`` is resolution (1, 2, or 3) and ``version`` is one of
+    'fsl' (default/), 'a' (nilearn/), or 'c' (fmriprep/).
 
     Args:
         template_name: Template name string (e.g., '2mm-MNI152-2009c', '3mm-MNI152-2009a')

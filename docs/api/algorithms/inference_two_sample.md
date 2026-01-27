@@ -11,6 +11,6 @@ Two-sample permutation tests for group comparisons.
 
 ## See Also
 
-- {doc}`../inference` - Main inference module overview
+- {doc}`inference` - Main inference module overview
 - {doc}`../../migration-guide` - Migration guide
 

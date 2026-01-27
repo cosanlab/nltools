@@ -31,4 +31,4 @@ Class for creating and manipulating design matrices for GLM analyses.
 - {doc}`brain_data` - Brain imaging data for GLM
 - {doc}`../algorithms` - HRF models and convolution
 - {doc}`../filereader` - Reading onset files
-- {doc}`../migration-guide` - Migration guide for v0.6.0 changes
+- {doc}`../../migration-guide` - Migration guide for v0.6.0 changes

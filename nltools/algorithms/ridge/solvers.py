@@ -160,20 +160,22 @@ def solve_banded_ridge_cv(
             - Best selection: Chooses (gamma, alpha) that maximizes CV score per target
 
         Memory efficiency strategies (Principle 2: automatic memory efficiency):
-        - Generator pattern for alpha batching (via _decompose_ridge): Processes alphas in batches
-          to avoid storing all resolution matrices simultaneously
-        - Target batching (n_targets_batch): Processes targets in chunks to fit GPU memory
-        - Y_in_cpu strategy (transfer only needed batches to GPU): Keeps large Y on CPU,
-          transfers only batches needed for computation
-        - Immediate cleanup with del statements: Explicitly frees memory after each batch
+
+            - Generator pattern for alpha batching (via _decompose_ridge): Processes alphas
+              in batches to avoid storing all resolution matrices simultaneously
+            - Target batching (n_targets_batch): Processes targets in chunks to fit GPU memory
+            - Y_in_cpu strategy: Keeps large Y on CPU, transfers only batches needed
+              for computation
+            - Immediate cleanup with del statements: Explicitly frees memory after each batch
 
         Performance:
+
             - Time complexity: O(n_iter × n_splits × (n_alphas_batch × n_features^2 + n_targets_batch × n_samples))
             - Memory complexity: O(n_features × n_targets_batch) per batch
             - GPU acceleration: ~10-100× speedup for large problems (n_features > 10K)
 
-        See `nltools.algorithms.ridge.utils._decompose_ridge()` for generator pattern details.
-        See `nltools.algorithms.ridge.DESIGN.md` for detailed algorithm explanation.
+        See ``nltools.algorithms.ridge.utils._decompose_ridge()`` for generator pattern details.
+        See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.
     """
     from .backends import set_backend, get_backend
     from .utils import (
@@ -742,20 +744,22 @@ def solve_ridge_cv(
             - Refit: Fits final model on full dataset using best alpha(s)
 
         Memory efficiency strategies (Principle 2: automatic memory efficiency):
-        - Generator pattern for alpha batching (via _decompose_ridge): Processes alphas in batches
-          to avoid storing all resolution matrices simultaneously
-        - Target batching (n_targets_batch): Processes targets in chunks to fit GPU memory
-        - Y_in_cpu strategy (transfer only needed batches to GPU): Keeps large Y on CPU,
-          transfers only batches needed for computation
-        - Immediate cleanup with del statements: Explicitly frees memory after each batch
+
+            - Generator pattern for alpha batching (via _decompose_ridge): Processes alphas
+              in batches to avoid storing all resolution matrices simultaneously
+            - Target batching (n_targets_batch): Processes targets in chunks to fit GPU memory
+            - Y_in_cpu strategy: Keeps large Y on CPU, transfers only batches needed
+              for computation
+            - Immediate cleanup with del statements: Explicitly frees memory after each batch
 
         Performance:
+
             - Time complexity: O(n_splits × (n_alphas_batch × n_features^2 + n_targets_batch × n_samples))
             - Memory complexity: O(n_features × n_targets_batch) per batch
             - GPU acceleration: ~10-100× speedup for large problems (n_features > 10K)
 
-        See `nltools.algorithms.ridge.utils._decompose_ridge()` for generator pattern details.
-        See `nltools.algorithms.ridge.DESIGN.md` for detailed algorithm explanation.
+        See ``nltools.algorithms.ridge.utils._decompose_ridge()`` for generator pattern details.
+        See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.
     """
     from .backends import set_backend, get_backend
     from .utils import _decompose_ridge, _select_best_alphas, _r2_score

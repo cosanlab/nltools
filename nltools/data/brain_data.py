@@ -121,25 +121,22 @@ class BrainData(object):
                 - File path (str/Path) to .nii/.nii.gz/.h5/.hdf5
                 - nibabel Nifti1Image object
                 - URL to download data from
-            mask: Brain mask. Can be:
-                - None (uses MNI template with auto-detection)
-                - nibabel Nifti1Image object
-                - File path (str/Path) to mask file
-                - Template name string: '{res}mm-MNI152-2009{version}'
-                  (e.g., '2mm-MNI152-2009c', '3mm-MNI152-2009a', '2mm-MNI152-2009fsl')
-                  where version: 'fsl' for default/, 'a' for nilearn/, 'c' for fmriprep/
-            masker: nilearn masker object (e.g. ROI or searchlight extractor); Default will load data as voxels
-            resample (bool, default=True): Whether to automatically resample data to mask space.
-                - If True: Data is resampled to match mask spatial characteristics (affine, shape)
-                - If False: Data must already be in mask space (faster, but may raise errors if spaces don't match)
-                - Default True preserves backward compatibility with v0.5.1 behavior
+            mask: Brain mask. Can be None (uses MNI template), a nibabel
+                Nifti1Image, a file path (str/Path) to a mask file, or a template
+                name string like ``'2mm-MNI152-2009c'`` (version: 'fsl' for
+                default/, 'a' for nilearn/, 'c' for fmriprep/).
+            masker: nilearn masker object (e.g. ROI or searchlight extractor).
+                Default will load data as voxels.
+            resample (bool, default=True): Whether to automatically resample data
+                to mask space. If True, data is resampled to match mask spatial
+                characteristics. If False, data must already be in mask space.
+                Default True preserves backward compatibility with v0.5.1.
             interpolation (str, default='auto'): Interpolation method for resampling.
-                - 'auto': Automatically detect based on data type (recommended)
-                    - Uses 'nearest' for discrete data (atlases, masks, labels)
-                    - Uses 'continuous' for continuous data (stat maps, beta images)
-                - 'nearest': Nearest-neighbor, preserves discrete values (use for atlases)
-                - 'linear': Linear interpolation
-                - 'continuous': Higher-order spline interpolation (use for stat maps)
+                Options: 'auto' (detect based on data type; uses 'nearest' for
+                discrete data like atlases/masks and 'continuous' for stat maps),
+                'nearest' (nearest-neighbor, preserves discrete values),
+                'linear' (linear interpolation),
+                'continuous' (higher-order spline, use for stat maps).
             **kwargs: Additional arguments passed to NiftiMasker.
         """
         # Import validation functions
@@ -1165,8 +1162,8 @@ class BrainData(object):
         Use this when you need a complete independent copy.
 
         Note: For methods like apply_mask(), threshold(), etc., fitted model state
-        (model_, X_, cv_results_) is NOT propagated since the new data shape
-        would invalidate the original fit.
+        (``model_``, ``X_``, ``cv_results_``) is NOT propagated since the new
+        data shape would invalidate the original fit.
 
         Returns:
             BrainData: Deep copied instance
@@ -1434,11 +1431,11 @@ class BrainData(object):
 
         Args:
             scale_val: (int/float) Target value for the mean after scaling.
-                    Default 100.
-            axis: (int or None) Axis along which to compute the mean:
-                    - None: Grand-mean scaling (default, FSL/SPM style)
-                    - 0: Voxel-wise scaling (AFNI style) - each voxel scaled
-                         by its own temporal mean
+                Default 100.
+            axis: (int or None) Axis along which to compute the mean.
+                None for grand-mean scaling (default, FSL/SPM style).
+                0 for voxel-wise scaling (AFNI style, each voxel scaled
+                by its own temporal mean).
 
         Returns:
             BrainData: New BrainData instance with scaled data.

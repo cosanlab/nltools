@@ -377,15 +377,6 @@ class BrainCollection:
             Index should match items order.
         lazy: If True (default), paths are not loaded until accessed.
 
-    Attributes:
-        shape: Tuple of (n_images, n_observations, n_voxels). n_observations is None
-            if images have variable observation counts.
-        n_images: Number of images in collection.
-        n_voxels: Number of voxels (from mask).
-        mask: The shared brain mask as nibabel image.
-        metadata: DataFrame with per-image metadata.
-        is_loaded: List of booleans indicating which images are in memory.
-
     Examples:
         >>> # Create from paths (lazy loading)
         >>> bc = BrainCollection(
@@ -964,10 +955,10 @@ class BrainCollection:
         Create BrainCollection from glob pattern.
 
         Args:
-            pattern: Glob pattern (e.g., '/data/*/func/*_bold.nii.gz').
+            pattern: Glob pattern (e.g., ``'/data/*/func/*_bold.nii.gz'``).
             mask: Shared mask (required).
             pattern_groups: Regex pattern with named groups for metadata extraction.
-                Example: r'sub-(?P<subject>\\w+)/.*run-(?P<run>\\d+)'
+                Example: ``r'sub-(?P<subject>\\w+)/.*run-(?P<run>\\d+)'``
             sort: Sort files alphabetically (default True).
 
         Returns:
@@ -2840,12 +2831,13 @@ class BrainCollection:
                 Ignored if roi_mask is provided.
             n_permute: Number of permutations/bootstrap iterations. Default 5000.
             permutation_method: Method for null distribution:
+
                 - 'bootstrap': Subject-wise bootstrap (default, Chen et al. 2016).
-                    Tests whether observed ISC differs from random groupings.
+                  Tests whether observed ISC differs from random groupings.
                 - 'circle_shift': Circular time-shift (preserves autocorrelation).
-                    Tests for temporally-locked shared signal.
+                  Tests for temporally-locked shared signal.
                 - 'phase_randomize': FFT phase randomization (preserves power spectrum).
-                    Tests for nonlinear temporal coupling.
+                  Tests for nonlinear temporal coupling.
             metric: Summary statistic for aggregating ISC values:
                 - 'median': Robust to outliers (default)
                 - 'mean': Fisher z-transformed mean
@@ -3053,12 +3045,16 @@ class BrainCollection:
 
         Returns:
             FittedBrainCollection wrapping the fitted results. Supports:
-                - .results: Access underlying BrainCollection(s) directly
-                - .betas: Convenience accessor for beta coefficients (GLM)
-                - .pool(): Aggregate across subjects for group analysis
+
+            - ``.results``: Access underlying BrainCollection(s) directly
+            - ``.betas``: Convenience accessor for beta coefficients (GLM)
+            - ``.pool()``: Aggregate across subjects for group analysis
+
             The underlying results contain:
-                - GLM: Beta coefficients (n_regressors, n_voxels) per subject
-                - Ridge: Scores or weights depending on 'output' kwarg
+
+            - GLM: Beta coefficients (n_regressors, n_voxels) per subject
+            - Ridge: Scores or weights depending on 'output' kwarg
+
             If return_stats (GLM) or output='both' (Ridge), results is a dict.
 
         Examples:
@@ -3173,9 +3169,9 @@ class BrainCollection:
             return_stats: Optional list of statistics to return as separate
                 BrainCollections. Options: 't', 'r2', 'p', 'se', 'residual'.
             return_residuals: If True, return residuals (same as return_stats=['residual']).
-            save: Dict mapping output type to path template, e.g.:
-                {'betas': 'output/{subject}_betas.nii.gz',
-                 't': 'output/{subject}_tstat.nii.gz'}
+            save: Dict mapping output type to path template, e.g.
+                ``{'betas': 'output/{subject}_betas.nii.gz',
+                't': 'output/{subject}_tstat.nii.gz'}``.
                 Supports {subject}, {session}, {idx}, and other metadata columns.
             show_progress: Show progress bar during fitting.
             by_run: If True, fit GLM separately per run and return run-level betas.
@@ -3183,16 +3179,19 @@ class BrainCollection:
                 Each subject will have (n_runs * n_conditions, n_voxels) betas.
             run_column: Column name in events identifying runs (default 'run').
             run_lengths: Number of TRs per run. Required when by_run=True.
+
                 - int: All runs have same length
-                - list[int]: Different length per run
+                - list of int: Different length per run
                 - None: Will attempt to infer equal-length runs from total scans
 
         Returns:
             BrainCollection where each BrainData has shape:
-                - (n_task_regressors, n_voxels) if by_run=False (default)
-                - (n_runs * n_task_regressors, n_voxels) if by_run=True
-            The ._design_columns attribute stores task regressor names.
-            If by_run=True, also stores ._condition_labels and ._run_labels.
+
+            - (n_task_regressors, n_voxels) if by_run=False (default)
+            - (n_runs * n_task_regressors, n_voxels) if by_run=True
+
+            The ``._design_columns`` attribute stores task regressor names.
+            If by_run=True, also stores ``._condition_labels`` and ``._run_labels``.
             If return_stats specified, returns dict with keys 'betas', 't', etc.
 
         Examples:
@@ -3739,9 +3738,9 @@ class BrainCollection:
                 - 'scores': CV R² scores per voxel (default, for encoding workflow)
                 - 'weights': Model weights (n_features, n_voxels)
                 - 'both': Dict with both 'scores' and 'weights'
-            save: Dict mapping output type to path template, e.g.:
-                {'weights': 'output/{subject}_weights.nii.gz',
-                 'scores': 'output/{subject}_scores.nii.gz'}
+            save: Dict mapping output type to path template, e.g.
+                ``{'weights': 'output/{subject}_weights.nii.gz',
+                'scores': 'output/{subject}_scores.nii.gz'}``.
                 Supports {subject}, {session}, {idx}, and other metadata columns.
             show_progress: Show progress bar during fitting.
             **ridge_kwargs: Additional arguments passed to Ridge model
@@ -3749,7 +3748,7 @@ class BrainCollection:
 
         Returns:
             BrainCollection of scores or weights, or dict with both if output='both'.
-            Each BrainData will have cv_results_ attribute when cv is used.
+            Each BrainData will have ``cv_results_`` attribute when cv is used.
 
         Examples:
             >>> # Encoding model workflow: get CV scores for group analysis
