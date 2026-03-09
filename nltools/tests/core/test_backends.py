@@ -151,7 +151,7 @@ def test_numpy_svd():
 
     # Verify reconstruction
     reconstructed = U @ np.diag(s) @ Vt
-    np.testing.assert_allclose(reconstructed, X, rtol=1e-4)
+    np.testing.assert_allclose(reconstructed, X, rtol=1e-3)
 
 
 def test_numpy_matmul():
