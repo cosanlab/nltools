@@ -2,8 +2,8 @@
 *Last updated: 2025-12-19*
 
 **Note**: This project uses Linear for issue tracking.
-Use Linear issues instead of markdown TODOs or local tracking files.
-See @AGENTS.md for workflow details.
+Use Linear issues instead of markdown TODOs or local tracking files.  
+Always use the `linear` CLI instead of any mcp servers.
 
 ## Critical Rule: Always use the `uv` environment
 All test, lint, and run commands must use the `uv` prefix (already enforced globally).  
