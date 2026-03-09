@@ -140,7 +140,8 @@ def test_numpy_svd():
     from nltools.backends import Backend
 
     backend = Backend("numpy")
-    X = np.random.randn(20, 10).astype(np.float32)
+    rng = np.random.default_rng(42)
+    X = rng.standard_normal((20, 10)).astype(np.float32)
 
     U, s, Vt = backend.svd(X)
 
@@ -149,9 +150,9 @@ def test_numpy_svd():
     assert s.shape == (10,)
     assert Vt.shape == (10, 10)
 
-    # Verify reconstruction
+    # Verify reconstruction (float32 limits precision to ~1e-6)
     reconstructed = U @ np.diag(s) @ Vt
-    np.testing.assert_allclose(reconstructed, X, rtol=1e-3)
+    np.testing.assert_allclose(reconstructed, X, rtol=1e-4)
 
 
 def test_numpy_matmul():
