@@ -4632,14 +4632,14 @@ class BrainData(object):
             ],
         }
 
-    # NOTE: Tracked in beads issue nltools-5dw for Model class refactoring
+    # NOTE: Historical follow-up for future Model-class refactoring
     def randomise(self, *args, **kwargs):
         """DEPRECATED: This method has been moved to the Model class."""
         raise NotImplementedError(
             "randomise() has been deprecated. Please use the new Model class for permutation-based inference."
         )
 
-    # NOTE: Tracked in beads issue nltools-5dw for Model class refactoring
+    # NOTE: Historical follow-up for future Model-class refactoring
     def ttest(self, *args, **kwargs):
         """DEPRECATED: This method has been moved to the Model class."""
         raise NotImplementedError(

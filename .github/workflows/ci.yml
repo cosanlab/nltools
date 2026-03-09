@@ -13,25 +13,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Check if we should skip this run (beads sync commits)
-  check-skip:
-    runs-on: ubuntu-latest
-    outputs:
-      should_skip: ${{ steps.check.outputs.should_skip }}
-    steps:
-      - name: Check commit message
-        id: check
-        run: |
-          if echo "${{ github.event.head_commit.message }}" | grep -qE "^bd (sync|daemon sync):"; then
-            echo "should_skip=true" >> $GITHUB_OUTPUT
-            echo "Skipping CI for beads sync commit"
-          else
-            echo "should_skip=false" >> $GITHUB_OUTPUT
-          fi
-
   test:
-    needs: check-skip
-    if: needs.check-skip.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

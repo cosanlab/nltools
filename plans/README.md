@@ -1,43 +1,28 @@
 # nltools Planning Documents
 
 **Last Updated**: 2025-12-18
-**Task Tracking**: Use `bd` (beads) for all task management
+**Task Tracking**: Use Linear for all active task management
 
 ---
 
 ## Task Tracking System
 
-This project uses [beads](https://github.com/steveyegge/beads) for issue tracking.
+This project now uses Linear for active issue tracking.
 
-### Quick Commands
+### Current Structure
 
-```bash
-# Find available work
-bd ready                    # Show issues ready to work (no blockers)
-bd list --status=open       # All open issues
+- Project: `nltools`
+- Milestone: `0.6.0`
+- Historical refactor phases: preserved in Linear as completed issues
+- Active cleanup and follow-up work: tracked in Linear as backlog issues
 
-# Create issues
-bd create --title="..." --type=task --priority=2
+### Reconstructed Work
 
-# Work on issues
-bd update <id> --status=in_progress
-bd close <id> --reason="explanation"
-
-# Sync with git
-bd sync
-```
-
-### Current Open Issues
-
-Run `bd list --status=open` to see current work items:
-- TODO cleanup in codebase (P2)
-- Fix test warnings and compatibility issues (P2)
-- Update migration guide and documentation (P2)
-- Review test deselection (P3)
-- Tutorial Overhaul v0.6.1 (P3)
-- Adjacency class refactoring (P3)
-- Plotting integration minimization (P3)
-- v0.7.0 Performance Enhancements (P4)
+The old beads history was reconstructed into Linear so the current project view includes:
+- Major completed v0.6.0 refactor phases
+- Release and milestone tracking for `0.6.0`
+- Remaining docs, bug, API, and tooling cleanup work
+- Historical context for how the current architecture was produced
 
 ---
 
@@ -52,7 +37,7 @@ These plans are still relevant for execution:
 
 ### Archived Plans
 
-Historical planning documents have been archived to `claude-research/archive/`:
+Historical planning documents remain in archive-style locations such as `claude-research/archive/`:
 
 - `claude-research/archive/v0.6.0-planning/` - v0.6.0 planning docs (SUMMARY, ACTION-PLAN, VERIFICATION)
 - `claude-research/archive/v0.6.0-plans/` - Migration plans, TDD plans, etc.
@@ -61,25 +46,12 @@ Historical planning documents have been archived to `claude-research/archive/`:
 
 ## Historical Record
 
-All completed v0.6.0 work has been migrated to beads as closed issues.
+The project previously used beads. That system has been removed from the repo, but its issue history was used to reconstruct:
+- completed historical refactor phases
+- remaining open cleanup work
+- release-oriented follow-ups
 
-Run `bd list --all` to see:
-- 10 historical epics documenting major features
-- 27 individual completed tasks with commit references
-- Full traceability from old task tracking system
-
-### Key Historical Epics
-
-1. Core Refactoring (nltools-0no)
-2. Code Cleanup & Efficient Copying (nltools-w38)
-3. Sklearn fit/predict API (nltools-kpb)
-4. HyperAlignment Class Extraction (nltools-5ge)
-5. SRM/DetSRM Testing (nltools-28b)
-6. Polars DesignMatrix Migration (nltools-2dl)
-7. GPU-Accelerated Inference Module (nltools-um0)
-8. Bootstrap Refactoring (nltools-8be)
-9. Stats Migration to Inference (nltools-4cv)
-10. BrainData.fit() Dataclass Integration (nltools-f98)
+The active source of truth is now Linear.
 
 ---
 
@@ -91,5 +63,5 @@ architectural decisions, and research findings.
 
 ---
 
-**Migration Note**: This project transitioned from markdown-based task tracking
-to beads on 2025-12-18. See closed beads issues for historical context.
+**Migration Note**: This project moved away from beads in March 2026.
+Historical beads data remains useful as archival context in git history, but active planning is now tracked in Linear.

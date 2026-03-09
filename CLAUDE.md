@@ -1,8 +1,8 @@
 # CLAUDE.md — nltools Development Guide
 *Last updated: 2025-12-19*
 
-**Note**: This project uses [bd (beads)](https://github.com/steveyegge/beads)
-for issue tracking. Use `bd` commands instead of markdown TODOs.
+**Note**: This project uses Linear for issue tracking.
+Use Linear issues instead of markdown TODOs or local tracking files.
 See @AGENTS.md for workflow details.
 
 ## Critical Rule: Always use the `uv` environment
@@ -25,12 +25,11 @@ Build and refactor `nltools`, a neuroimaging library with a delightful and intui
   - Imperative: `nltools/data/` (`BrainData`, `Adjacency`, `DesignMatrix`)
   - Functional: `stats.py`, `utils.py`, `algorithms/` (`ridge`, `srm`, `hyperalignment`, `inference`)
 - **Research & background**: `claude-research/` (use sub-agents to add new research here)
-- **Task tracking**: Use `bd` (beads) for all issue/task management
-  - **Find work**: `bd ready` or `bd list --status=open`
-  - **Create issues**: `bd create --title="..." --type=task --priority=2`
-  - **Update/close**: `bd update <id> --status=in_progress`, `bd close <id>`
-  - **Sync**: `bd sync` at session end
-  - **Reference**: `plans/README.md` for beads commands and archived plans
+- **Task tracking**: Use Linear for all issue/task management
+  - **Find work**: Review the `nltools` Linear project backlog and active issues
+  - **Create issues**: Open Linear issues for follow-up work, bugs, and release tasks
+  - **Update/close**: Move issues through Linear statuses as work progresses
+  - **Reference**: `plans/README.md` for the reconstructed backlog and release-plan notes
 
 
 ## SUB-AGENT usage protocol
@@ -176,13 +175,12 @@ rm -f *.csv *.nii.gz           # Remove test data artifacts (NOT in nltools/test
 
 **MANDATORY WORKFLOW:**
 
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
+1. **File issues for remaining work** - Create Linear issues for anything that needs follow-up
 2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
+3. **Update issue status** - Close finished Linear issues and update in-progress items
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
-   bd sync
    git push
    git status  # MUST show "up to date with origin"
    ```
