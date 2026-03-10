@@ -593,6 +593,14 @@ def set_algorithm(algorithm, *args, **kwargs):
     predictor_settings["algorithm"] = algorithm
 
     def load_class(import_string):
+        """Dynamically import and return a class from a dotted module path string.
+
+        Args:
+            import_string: Fully qualified class path, e.g. 'sklearn.svm.SVC'.
+
+        Returns:
+            The class object referenced by import_string.
+        """
         class_data = import_string.split(".")
         module_path = ".".join(class_data[:-1])
         class_str = class_data[-1]
@@ -680,6 +688,14 @@ def set_decomposition_algorithm(algorithm, n_components=None, *args, **kwargs):
     # NOTE: function currently located here instead of analysis.py to avoid circular imports
 
     def load_class(import_string):
+        """Dynamically import and return a class from a dotted module path string.
+
+        Args:
+            import_string: Fully qualified class path, e.g. 'sklearn.decomposition.PCA'.
+
+        Returns:
+            The class object referenced by import_string.
+        """
         class_data = import_string.split(".")
         module_path = ".".join(class_data[:-1])
         class_str = class_data[-1]
@@ -888,6 +904,17 @@ def generate_jitter(n_trials, mean_time=5, min_time=2, max_time=12, atol=0.2):
     """
 
     def generate_data(n_trials, scale=5, min_time=2, max_time=12):
+        """Draw n_trials samples from an exponential distribution clipped to [min_time, max_time].
+
+        Args:
+            n_trials: Number of accepted samples to collect.
+            scale: Scale parameter of the exponential distribution.
+            min_time: Lower bound; samples below this value are rejected.
+            max_time: Upper bound; samples above this value are rejected.
+
+        Returns:
+            List of accepted float samples of length n_trials.
+        """
         data = []
         i = 0
         while i < n_trials:

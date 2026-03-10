@@ -2419,6 +2419,17 @@ def align_states(
     target = np.array(target)
 
     def replace_zero_variance_columns(data):
+        """Replace zero-variance columns with random uniform noise.
+
+        Prevents NaN values when correlation-based distance metrics encounter
+        constant columns.
+
+        Args:
+            data: 2-D array whose columns are checked for zero variance.
+
+        Returns:
+            Array with zero-variance columns replaced by U(0, 1) random values.
+        """
         if np.any(data.std(axis=0) == 0):
             for i in np.where(data.std(axis=0) == 0)[0]:
                 data[:, i] = np.random.uniform(low=0, high=1, size=data.shape[0])

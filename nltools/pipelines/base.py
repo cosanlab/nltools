@@ -55,53 +55,33 @@ class FittedTransform(Protocol):
     A fitted transform holds the learned parameters from fitting on training
     data and can apply the transformation to new data.
 
-    Methods
-    -------
-    transform(data)
-        Apply the learned transformation to data.
-    inverse_transform(data)
-        Apply the inverse transformation (optional, may raise NotImplementedError).
-
-    Notes
-    -----
-    Not all transforms are invertible. Check the parent TransformStep's
-    `invertible` attribute or use `hasattr` before calling `inverse_transform`.
+    Note:
+        Not all transforms are invertible. Check the parent TransformStep's
+        ``invertible`` attribute or use ``hasattr`` before calling ``inverse_transform``.
     """
 
     def transform(self, data: Any) -> Any:
-        """
-        Apply the learned transformation to data.
+        """Apply the learned transformation to data.
 
-        Parameters
-        ----------
-        data : Any
-            Data to transform (typically ndarray or BrainData).
+        Args:
+            data: Data to transform (typically ndarray or BrainData).
 
-        Returns
-        -------
-        Any
+        Returns:
             Transformed data.
         """
         ...
 
     def inverse_transform(self, data: Any) -> Any:
-        """
-        Apply the inverse transformation to data.
+        """Apply the inverse transformation to data.
 
-        Parameters
-        ----------
-        data : Any
-            Data to inverse transform.
+        Args:
+            data: Data to inverse transform.
 
-        Returns
-        -------
-        Any
+        Returns:
             Data in original space.
 
-        Raises
-        ------
-        NotImplementedError
-            If the transform is not invertible.
+        Raises:
+            NotImplementedError: If the transform is not invertible.
         """
         ...
 
@@ -114,15 +94,8 @@ class TransformStep(Protocol):
     A transform step defines a transformation that can be fitted to data.
     Steps are added to a Pipeline and executed sequentially during CV.
 
-    Attributes
-    ----------
-    invertible : bool
-        Whether this transform supports inverse_transform.
-
-    Methods
-    -------
-    fit(data)
-        Fit the transform to data and return a FittedTransform.
+    Attributes:
+        invertible: Whether this transform supports inverse_transform.
 
     Examples
     --------
@@ -135,17 +108,12 @@ class TransformStep(Protocol):
     invertible: bool
 
     def fit(self, data: Any) -> FittedTransform:
-        """
-        Fit the transform to data.
+        """Fit the transform to data.
 
-        Parameters
-        ----------
-        data : Any
-            Training data to fit on.
+        Args:
+            data: Training data to fit on.
 
-        Returns
-        -------
-        FittedTransform
+        Returns:
             Fitted transform object that can transform new data.
         """
         ...
@@ -158,29 +126,18 @@ class CVScheme(Protocol):
 
     Compatible with scikit-learn CV splitters and custom implementations.
 
-    Methods
-    -------
-    split(data)
-        Generate train/test index splits.
     """
 
     def split(
         self, data: Any
     ) -> Any:  # Returns Iterator[Tuple[ndarray, ndarray]] but protocol is lenient
-        """
-        Generate train/test index splits.
+        """Generate train/test index splits.
 
-        Parameters
-        ----------
-        data : Any
-            Data to split (used to determine n_samples).
+        Args:
+            data: Data to split (used to determine n_samples).
 
-        Yields
-        ------
-        train_idx : ndarray
-            Training indices for this fold.
-        test_idx : ndarray
-            Test indices for this fold.
+        Yields:
+            Tuple of (train_idx, test_idx) arrays of indices for each fold.
         """
         ...
 
@@ -202,25 +159,16 @@ class Terminal(Protocol):
         test_idx: NDArray[np.intp],
         fitted_stack: FittedStack,
     ) -> Any:
-        """
-        Fit on training data and evaluate on test data.
+        """Fit on training data and evaluate on test data.
 
-        Parameters
-        ----------
-        train_data : Any
-            Transformed training data.
-        test_data : Any
-            Transformed test data.
-        train_idx : ndarray
-            Original training indices.
-        test_idx : ndarray
-            Original test indices.
-        fitted_stack : FittedStack
-            Stack of fitted transforms for inverse transform support.
+        Args:
+            train_data: Transformed training data.
+            test_data: Transformed test data.
+            train_idx: Original training indices.
+            test_idx: Original test indices.
+            fitted_stack: Stack of fitted transforms for inverse transform support.
 
-        Returns
-        -------
-        Any
+        Returns:
             Fold result (structure depends on terminal type).
         """
         ...
@@ -239,10 +187,8 @@ class FittedStack:
     Maintains the sequence of fitted transforms from a pipeline execution,
     enabling inverse transformation back to the original data space.
 
-    Attributes
-    ----------
-    steps : List[FittedTransform]
-        Ordered list of fitted transforms.
+    Attributes:
+        steps: Ordered list of fitted transforms.
 
     Examples
     --------
@@ -255,34 +201,25 @@ class FittedStack:
     steps: List[FittedTransform] = field(default_factory=list)
 
     def append(self, fitted_step: FittedTransform) -> None:
-        """
-        Add a fitted transform to the stack.
+        """Add a fitted transform to the stack.
 
-        Parameters
-        ----------
-        fitted_step : FittedTransform
-            Fitted transform to append.
+        Args:
+            fitted_step: Fitted transform to append.
         """
         self.steps.append(fitted_step)
 
     def inverse_transform(self, data: Any) -> Any:
-        """
-        Apply inverse transforms in reverse order.
+        """Apply inverse transforms in reverse order.
 
-        Parameters
-        ----------
-        data : Any
-            Data to inverse transform.
+        Args:
+            data: Data to inverse transform.
 
-        Returns
-        -------
-        Any
+        Returns:
             Data transformed back toward original space.
 
-        Notes
-        -----
-        Steps without `inverse_transform` are silently skipped.
-        Use `is_fully_invertible` to check if all steps support inversion.
+        Note:
+            Steps without ``inverse_transform`` are silently skipped.
+            Use ``is_fully_invertible`` to check if all steps support inversion.
         """
         for step in reversed(self.steps):
             if hasattr(step, "inverse_transform") and callable(step.inverse_transform):
@@ -291,12 +228,9 @@ class FittedStack:
 
     @property
     def is_fully_invertible(self) -> bool:
-        """
-        Check if all steps support inverse transform.
+        """Check if all steps support inverse transform.
 
-        Returns
-        -------
-        bool
+        Returns:
             True if all steps have callable inverse_transform methods.
         """
         return all(
@@ -328,38 +262,29 @@ class Pipeline:
     Pipeline instance (immutable pattern), allowing method chaining without
     side effects.
 
-    Parameters
-    ----------
-    data : Any
-        Input data (typically ndarray or BrainData).
-    cv : CVScheme, optional
-        Cross-validation scheme. Required for terminal methods like predict().
-    steps : List[TransformStep]
-        List of transform steps (typically not set directly).
+    Args:
+        data: Input data (typically ndarray or BrainData).
+        cv: Cross-validation scheme. Required for terminal methods like predict().
+        steps: List of transform steps (typically not set directly).
 
-    Attributes
-    ----------
-    _is_lazy : bool
-        Whether pipeline is in lazy evaluation mode (future feature).
+    Attributes:
+        _is_lazy: Whether pipeline is in lazy evaluation mode (future feature).
 
-    Examples
-    --------
-    >>> from sklearn.model_selection import KFold
-    >>> cv = KFold(n_splits=5)
-    >>> result = (
-    ...     Pipeline(X, cv=cv)
-    ...     .normalize(method='zscore')
-    ...     .reduce(method='pca', n_components=50)
-    ...     .predict(y, algorithm='ridge')
-    ... )
+    Examples:
+        >>> from sklearn.model_selection import KFold
+        >>> cv = KFold(n_splits=5)
+        >>> result = (
+        ...     Pipeline(X, cv=cv)
+        ...     .normalize(method='zscore')
+        ...     .reduce(method='pca', n_components=50)
+        ...     .predict(y, algorithm='ridge')
+        ... )
 
-    Notes
-    -----
-    The pipeline uses an immutable pattern: each method returns a new
-    Pipeline instance rather than modifying in place. This enables:
-    - Safe method chaining
-    - Branching pipelines from intermediate states
-    - Functional programming patterns
+    Note:
+        The pipeline uses an immutable pattern: each method returns a new
+        Pipeline instance rather than modifying in place. This enables safe method
+        chaining, branching pipelines from intermediate states, and functional
+        programming patterns.
     """
 
     data: Any
@@ -368,23 +293,17 @@ class Pipeline:
     _is_lazy: bool = field(default=False, repr=False)
 
     def _add_step(self, step: TransformStep) -> Pipeline:
-        """
-        Add a transform step and return a new pipeline.
+        """Add a transform step and return a new pipeline.
 
-        Parameters
-        ----------
-        step : TransformStep
-            Transform step to add.
+        Args:
+            step: Transform step to add.
 
-        Returns
-        -------
-        Pipeline
+        Returns:
             New pipeline instance with the step added.
 
-        Notes
-        -----
-        This method implements the immutable pattern - the original
-        pipeline is not modified.
+        Note:
+            This method implements the immutable pattern - the original
+            pipeline is not modified.
         """
         new = copy(self)
         new.steps = self.steps + [step]
@@ -395,25 +314,19 @@ class Pipeline:
     # =========================================================================
 
     def normalize(self, method: str = "zscore", **kwargs: Any) -> Pipeline:
-        """
-        Add a normalization step to the pipeline.
+        """Add a normalization step to the pipeline.
 
-        Parameters
-        ----------
-        method : str, default='zscore'
-            Normalization method. Options: 'zscore', 'minmax', 'robust'.
-        **kwargs : Any
-            Additional arguments passed to the normalizer.
+        Args:
+            method: Normalization method. Options: 'zscore', 'minmax', 'robust'.
+                Default is 'zscore'.
+            **kwargs: Additional arguments passed to the normalizer.
 
-        Returns
-        -------
-        Pipeline
+        Returns:
             New pipeline with normalization step added.
 
-        Examples
-        --------
-        >>> pipeline.normalize(method='zscore')
-        >>> pipeline.normalize(method='minmax', feature_range=(0, 1))
+        Examples:
+            >>> pipeline.normalize(method='zscore')
+            >>> pipeline.normalize(method='minmax', feature_range=(0, 1))
         """
         from .steps import NormalizeStep
 
@@ -422,27 +335,19 @@ class Pipeline:
     def reduce(
         self, method: str = "pca", n_components: Optional[int] = None, **kwargs: Any
     ) -> Pipeline:
-        """
-        Add a dimensionality reduction step to the pipeline.
+        """Add a dimensionality reduction step to the pipeline.
 
-        Parameters
-        ----------
-        method : str, default='pca'
-            Reduction method. Options: 'pca', 'ica', 'nmf', 'srm'.
-        n_components : int, optional
-            Number of components to keep.
-        **kwargs : Any
-            Additional arguments passed to the reducer.
+        Args:
+            method: Reduction method. Options: 'pca', 'ica', 'nmf', 'srm'. Default is 'pca'.
+            n_components: Number of components to keep.
+            **kwargs: Additional arguments passed to the reducer.
 
-        Returns
-        -------
-        Pipeline
+        Returns:
             New pipeline with reduction step added.
 
-        Examples
-        --------
-        >>> pipeline.reduce(method='pca', n_components=50)
-        >>> pipeline.reduce(method='srm', n_components=20, n_iter=100)
+        Examples:
+            >>> pipeline.reduce(method='pca', n_components=50)
+            >>> pipeline.reduce(method='srm', n_components=20, n_iter=100)
         """
         from .steps import ReduceStep
 
@@ -451,25 +356,19 @@ class Pipeline:
         )
 
     def pipe(self, transformer: Any) -> Pipeline:
-        """
-        Add a custom transformer to the pipeline.
+        """Add a custom transformer to the pipeline.
 
-        Parameters
-        ----------
-        transformer : Any
-            Custom transformer with fit/transform interface.
-            Must be compatible with sklearn transformers or implement
-            the TransformStep protocol.
+        Args:
+            transformer: Custom transformer with fit/transform interface.
+                Must be compatible with sklearn transformers or implement
+                the TransformStep protocol.
 
-        Returns
-        -------
-        Pipeline
+        Returns:
             New pipeline with custom step added.
 
-        Examples
-        --------
-        >>> from sklearn.decomposition import FastICA
-        >>> pipeline.pipe(FastICA(n_components=20))
+        Examples:
+            >>> from sklearn.decomposition import FastICA
+            >>> pipeline.pipe(FastICA(n_components=20))
         """
         from .steps import PipeStep
 
@@ -480,34 +379,25 @@ class Pipeline:
     # =========================================================================
 
     def predict(self, y: Any, algorithm: str = "ridge", **kwargs: Any) -> Any:
-        """
-        Execute pipeline with cross-validation and return prediction results.
+        """Execute pipeline with cross-validation and return prediction results.
 
         This is a terminal method that triggers pipeline execution.
 
-        Parameters
-        ----------
-        y : Any
-            Target variable to predict.
-        algorithm : str, default='ridge'
-            Prediction algorithm. Options: 'ridge', 'lasso', 'svr'.
-        **kwargs : Any
-            Additional arguments passed to the predictor.
+        Args:
+            y: Target variable to predict.
+            algorithm: Prediction algorithm. Options: 'ridge', 'lasso', 'svr'.
+                Default is 'ridge'.
+            **kwargs: Additional arguments passed to the predictor.
 
-        Returns
-        -------
-        CVResult
+        Returns:
             Cross-validation results containing predictions and metrics.
 
-        Raises
-        ------
-        ValueError
-            If no CV scheme is set.
+        Raises:
+            ValueError: If no CV scheme is set.
 
-        Examples
-        --------
-        >>> result = pipeline.predict(y, algorithm='ridge', alpha=1.0)
-        >>> print(result.summary())
+        Examples:
+            >>> result = pipeline.predict(y, algorithm='ridge', alpha=1.0)
+            >>> print(result.summary())
         """
         if self.cv is None:
             raise ValueError(
@@ -522,23 +412,16 @@ class Pipeline:
     # =========================================================================
 
     def _execute_cv(self, terminal: Terminal) -> Any:
-        """
-        Execute pipeline for each CV fold.
+        """Execute pipeline for each CV fold.
 
-        Parameters
-        ----------
-        terminal : Terminal
-            Terminal operation to apply after transforms.
+        Args:
+            terminal: Terminal operation to apply after transforms.
 
-        Returns
-        -------
-        CVResult
+        Returns:
             Aggregated results from all CV folds.
 
-        Raises
-        ------
-        ValueError
-            If no CV scheme is set.
+        Raises:
+            ValueError: If no CV scheme is set.
         """
         if self.cv is None:
             raise ValueError("No CV scheme set")
@@ -568,28 +451,18 @@ class Pipeline:
     def _split_data(
         self, train_idx: NDArray[np.intp], test_idx: NDArray[np.intp]
     ) -> Tuple[Any, Any]:
-        """
-        Split data by indices.
+        """Split data by indices.
 
-        Parameters
-        ----------
-        train_idx : ndarray
-            Indices for training data.
-        test_idx : ndarray
-            Indices for test data.
+        Args:
+            train_idx: Indices for training data.
+            test_idx: Indices for test data.
 
-        Returns
-        -------
-        train : Any
-            Training data subset.
-        test : Any
-            Test data subset.
+        Returns:
+            Tuple of (train, test) data subsets.
 
-        Raises
-        ------
-        NotImplementedError
-            If data type is not supported. Override in subclasses
-            for custom data types like BrainData.
+        Raises:
+            NotImplementedError: If data type is not supported. Override in subclasses
+                for custom data types like BrainData.
         """
         if isinstance(self.data, np.ndarray):
             return self.data[train_idx], self.data[test_idx]
@@ -612,12 +485,9 @@ class Pipeline:
         return len(self.steps)
 
     def copy(self) -> Pipeline:
-        """
-        Create a shallow copy of the pipeline.
+        """Create a shallow copy of the pipeline.
 
-        Returns
-        -------
-        Pipeline
+        Returns:
             New pipeline instance with same configuration.
         """
         return copy(self)

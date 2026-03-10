@@ -1775,6 +1775,16 @@ class Adjacency(object):
             """Summarize results of SRM"""
 
             def estimate_srm_stats(results, var_name, tailed=1):
+                """Compute mean estimate, standard error, t-statistic, and p-value for an SRM variance component.
+
+                Args:
+                    results: DataFrame of SRM results across groups, or Series for a single group.
+                    var_name: Name of the variance component column to summarize.
+                    tailed: Number of tails for the t-test (1 or 2).
+
+                Returns:
+                    Tuple of (estimate, standardized, se, t, p).
+                """
                 estimate = results[var_name].mean()
                 standardized = (results[var_name] / results["total_variance"]).mean()
                 se = results[var_name].std() / np.sqrt(len(results[var_name]))
@@ -1789,6 +1799,13 @@ class Adjacency(object):
                 return (estimate, standardized, se, t, p)
 
             def print_srm_stats(results, var_name, tailed=1):
+                """Print a formatted summary row for an SRM variance component across multiple groups.
+
+                Args:
+                    results: DataFrame of SRM results across groups.
+                    var_name: Name of the variance component column to print.
+                    tailed: Number of tails for the t-test (1 or 2).
+                """
                 estimate, standardized, se, t, p = estimate_srm_stats(
                     results, var_name, tailed
                 )
@@ -1797,6 +1814,14 @@ class Adjacency(object):
                 )
 
             def print_single_group_srm_stats(results, var_name):
+                """Print a formatted summary row for an SRM variance component for a single group.
+
+                Inference statistics (se, t, p) are printed as NaN since they require multiple groups.
+
+                Args:
+                    results: Series of SRM results for a single group.
+                    var_name: Name of the variance component to print.
+                """
                 estimate = results[var_name].mean()
                 standardized = (results[var_name] / results["total_variance"]).mean()
                 print(
@@ -1804,6 +1829,14 @@ class Adjacency(object):
                 )
 
             def print_srm_covariances(results, var_name):
+                """Print a formatted summary row for an SRM covariance component across multiple groups.
+
+                Uses the covariance estimate for inference and correlation as the standardized effect size.
+
+                Args:
+                    results: DataFrame of SRM results across groups.
+                    var_name: Name of the covariance component (without '_covariance' or '_correlation' suffix).
+                """
                 estimate, _, se, t, p = estimate_srm_stats(
                     results, f"{var_name}_covariance", tailed=2
                 )
@@ -1813,6 +1846,14 @@ class Adjacency(object):
                 )
 
             def print_single_srm_covariances(results, var_name):
+                """Print a formatted summary row for an SRM covariance component for a single group.
+
+                Inference statistics (se, t, p) are printed as NaN since they require multiple groups.
+
+                Args:
+                    results: Series of SRM results for a single group.
+                    var_name: Name of the covariance component (without '_covariance' or '_correlation' suffix).
+                """
                 estimate = results[f"{var_name}_covariance"].mean()
                 standardized = results[f"{var_name}_correlation"].mean()
                 print(
@@ -1859,6 +1900,14 @@ class Adjacency(object):
             """Replace missing data with row/column means and return new data and missing coordinates"""
 
             def fix_missing(data):
+                """Replace NaN off-diagonal entries with the mean of their row and column.
+
+                Args:
+                    data: Adjacency matrix with possible NaN values.
+
+                Returns:
+                    Tuple of (Adjacency with NaNs replaced, (row, col) coordinates of replaced values).
+                """
                 X = data.squareform().copy()
                 x, y = np.where(np.isnan(X))
                 for i, j in zip(x, y):

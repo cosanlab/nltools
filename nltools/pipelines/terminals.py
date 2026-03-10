@@ -24,41 +24,16 @@ class PredictTerminal:
     Fits a prediction model on training data and evaluates on test data
     within each CV fold.
 
-    Parameters
-    ----------
-    y : np.ndarray
-        Target variable to predict (labels or continuous values).
-    algorithm : str
-        Prediction algorithm. Options:
-
-        **Regression** (continuous targets):
-
-        - 'ridge': Ridge regression (default) - L2 regularization
-        - 'lasso': Lasso regression - L1 regularization, sparse solutions
-        - 'elastic': ElasticNet - combined L1/L2 regularization
-        - 'svr': Support Vector Regression - kernel-based
-        - 'rf': Random Forest Regressor (auto-detected for continuous y)
-
-        **Classification** (categorical targets):
-
-        - 'svm': Support Vector Classification - kernel-based
-        - 'logistic': Logistic Regression - linear classifier
-        - 'rf': Random Forest Classifier (auto-detected for discrete y)
-
-    kwargs : dict
-        Additional arguments passed to the sklearn model constructor.
-
-        **Common classification kwargs:**
-
-        - ``class_weight='balanced'``: Automatically adjust weights inversely
-          proportional to class frequencies. Recommended for imbalanced data.
-        - ``C``: Regularization strength (svm, logistic). Smaller = stronger.
-
-        **Common regression kwargs:**
-
-        - ``alpha``: Regularization strength (ridge, lasso, elastic).
-
-        See sklearn documentation for complete parameter lists.
+    Args:
+        y: Target variable to predict (labels or continuous values).
+        algorithm: Prediction algorithm. Regression options: 'ridge' (default, L2),
+            'lasso' (L1), 'elastic' (L1+L2), 'svr' (kernel-based), 'rf' (random forest,
+            auto-detected). Classification options: 'svm' (kernel-based), 'logistic'
+            (linear), 'rf' (auto-detected for discrete y).
+        kwargs: Additional arguments passed to the sklearn model constructor.
+            Common kwargs: ``class_weight='balanced'`` for imbalanced classification,
+            ``C`` for regularization strength (svm, logistic), ``alpha`` for
+            regularization strength (ridge, lasso, elastic).
 
     Examples
     --------
@@ -94,15 +69,11 @@ class PredictTerminal:
     def _get_model(self):
         """Get sklearn model instance based on algorithm.
 
-        Returns
-        -------
-        model
+        Returns:
             Scikit-learn estimator instance configured with kwargs.
 
-        Raises
-        ------
-        ValueError
-            If algorithm is not recognized.
+        Raises:
+            ValueError: If algorithm is not recognized.
         """
         if self.algorithm == "ridge":
             from sklearn.linear_model import Ridge
@@ -155,22 +126,14 @@ class PredictTerminal:
     ) -> "FoldResult":
         """Fit model on training data and evaluate on test data.
 
-        Parameters
-        ----------
-        train_data : np.ndarray
-            Transformed training features, shape (n_train, n_features).
-        test_data : np.ndarray
-            Transformed test features, shape (n_test, n_features).
-        train_idx : np.ndarray
-            Original indices of training samples.
-        test_idx : np.ndarray
-            Original indices of test samples.
-        fitted_stack : FittedStack
-            Stack of fitted transforms for this fold.
+        Args:
+            train_data: Transformed training features, shape (n_train, n_features).
+            test_data: Transformed test features, shape (n_test, n_features).
+            train_idx: Original indices of training samples.
+            test_idx: Original indices of test samples.
+            fitted_stack: Stack of fitted transforms for this fold.
 
-        Returns
-        -------
-        FoldResult
+        Returns:
             Result containing score, predictions, indices, and fitted stack.
         """
         from .results import FoldResult
@@ -200,14 +163,10 @@ class PredictTerminal:
 
         Useful for permutation testing.
 
-        Parameters
-        ----------
-        new_y : np.ndarray
-            New target variable.
+        Args:
+            new_y: New target variable.
 
-        Returns
-        -------
-        PredictTerminal
+        Returns:
             New terminal with updated y.
         """
         return PredictTerminal(y=new_y, algorithm=self.algorithm, kwargs=self.kwargs)
@@ -220,26 +179,14 @@ class ISCTerminal:
     Computes inter-subject correlation across subjects in the pipeline.
     Uses the ISC permutation test from nltools.algorithms.inference.isc.
 
-    Parameters
-    ----------
-    method : str
-        ISC computation method. Options:
-        - 'pairwise': Average all pairwise correlations (default)
-        - 'leave-one-out': Correlate each subject with mean of others
-    metric : str
-        Summary statistic for aggregating ISC values:
-        - 'median': Direct median (robust to outliers, default)
-        - 'mean': Fisher z-transformed mean (unbiased averaging)
-    n_permute : int
-        Number of bootstrap iterations for p-value computation.
-        Defaults to 5000.
-    parallel : str or None
-        Parallelization method:
-        - 'cpu': CPU parallelization via joblib (default)
-        - 'gpu': GPU acceleration via PyTorch
-        - None: Single-threaded NumPy
-    kwargs : dict
-        Additional arguments passed to isc_permutation_test.
+    Args:
+        method: ISC computation method: 'pairwise' (default) or 'leave-one-out'.
+        metric: Summary statistic: 'median' (default, robust) or 'mean'
+            (Fisher z-transformed).
+        n_permute: Number of bootstrap iterations for p-value computation.
+            Default is 5000.
+        parallel: Parallelization method: 'cpu' (default), 'gpu', or None.
+        kwargs: Additional arguments passed to isc_permutation_test.
 
     Examples
     --------
@@ -274,16 +221,12 @@ class ISCTerminal:
     ) -> "ISCResult":
         """Compute ISC across subjects.
 
-        Parameters
-        ----------
-        data : list of np.ndarray
-            List of subject data arrays. Each array should have shape
-            (n_observations, n_features) where n_observations is the same
-            across subjects (e.g., timepoints in fMRI).
+        Args:
+            data: List of subject data arrays. Each array should have shape
+                (n_observations, n_features) where n_observations is the same
+                across subjects (e.g., timepoints in fMRI).
 
-        Returns
-        -------
-        ISCResult
+        Returns:
             Result containing ISC values, p-values, and confidence intervals.
         """
         from ..algorithms.inference.isc import isc_permutation_test
@@ -346,21 +289,12 @@ class RSATerminal:
     Computes representational similarity analysis by correlating neural RDMs
     with a model RDM.
 
-    Parameters
-    ----------
-    model_rdm : np.ndarray
-        Model RDM to correlate with neural RDMs. Should be a symmetric
-        matrix or upper triangle (condensed form).
-    method : str
-        Correlation method. Options:
-        - 'spearman': Spearman rank correlation (default)
-        - 'pearson': Pearson correlation
-        - 'kendall': Kendall's tau
-    n_permute : int
-        Number of permutations for p-value computation.
-        Defaults to 5000.
-    kwargs : dict
-        Additional arguments passed to correlation computation.
+    Args:
+        model_rdm: Model RDM to correlate with neural RDMs. Should be a symmetric
+            matrix or upper triangle (condensed form).
+        method: Correlation method: 'spearman' (default), 'pearson', or 'kendall'.
+        n_permute: Number of permutations for p-value computation. Default is 5000.
+        kwargs: Additional arguments passed to correlation computation.
 
     Examples
     --------
@@ -402,18 +336,13 @@ class RSATerminal:
     ) -> "RSAResult":
         """Compute RSA correlation between neural and model RDMs.
 
-        Parameters
-        ----------
-        data : np.ndarray
-            Neural data to compute RDM from, or pre-computed RDM.
-            - If 2D square: Treated as RDM (will extract upper triangle)
-            - If 1D: Treated as condensed RDM
-            - If 2D non-square: Treated as (n_conditions, n_features),
-              RDM will be computed using correlation distance
+        Args:
+            data: Neural data to compute RDM from, or pre-computed RDM.
+                If 2D square, treated as RDM (upper triangle extracted). If 1D,
+                treated as condensed RDM. If 2D non-square (n_conditions, n_features),
+                RDM is computed using correlation distance.
 
-        Returns
-        -------
-        RSAResult
+        Returns:
             Result containing correlation coefficient and p-value.
         """
         from scipy.spatial.distance import squareform

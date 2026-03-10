@@ -29,14 +29,10 @@ class FittedNormalize:
     Holds the learned parameters (mean, std or min, range) and applies
     the transformation to new data.
 
-    Attributes
-    ----------
-    mean : np.ndarray
-        For zscore: the mean. For minmax: the min value.
-    std : np.ndarray
-        For zscore: the standard deviation. For minmax: the range (max - min).
-    method : str
-        The normalization method ('zscore' or 'minmax').
+    Attributes:
+        mean: For zscore: the mean. For minmax: the min value.
+        std: For zscore: the standard deviation. For minmax: the range (max - min).
+        method: The normalization method ('zscore' or 'minmax').
     """
 
     mean: np.ndarray
@@ -46,14 +42,10 @@ class FittedNormalize:
     def transform(self, data: np.ndarray) -> np.ndarray:
         """Apply normalization to data.
 
-        Parameters
-        ----------
-        data : np.ndarray
-            Data to normalize.
+        Args:
+            data: Data to normalize.
 
-        Returns
-        -------
-        np.ndarray
+        Returns:
             Normalized data.
         """
         if self.method == "zscore":
@@ -69,14 +61,10 @@ class FittedNormalize:
     def inverse_transform(self, data: np.ndarray) -> np.ndarray:
         """Reverse normalization.
 
-        Parameters
-        ----------
-        data : np.ndarray
-            Normalized data.
+        Args:
+            data: Normalized data.
 
-        Returns
-        -------
-        np.ndarray
+        Returns:
             Data in original scale.
         """
         if self.method == "zscore":
@@ -93,15 +81,11 @@ class NormalizeStep:
     Computes normalization parameters from training data and applies
     the transformation to new data.
 
-    Parameters
-    ----------
-    method : str
-        Normalization method:
-        - 'zscore': subtract mean and divide by standard deviation (default)
-        - 'minmax': scale to [0, 1] range
-    axis : int
-        Axis along which to compute statistics. Default 0 (per-feature
-        normalization, treating rows as samples).
+    Args:
+        method: Normalization method: 'zscore' (subtract mean, divide by std) or
+            'minmax' (scale to [0, 1] range). Default is 'zscore'.
+        axis: Axis along which to compute statistics. Default 0 (per-feature
+            normalization, treating rows as samples).
 
     Examples
     --------
@@ -122,20 +106,14 @@ class NormalizeStep:
     def fit(self, data: np.ndarray) -> FittedNormalize:
         """Compute normalization parameters from data.
 
-        Parameters
-        ----------
-        data : np.ndarray
-            Training data to compute parameters from.
+        Args:
+            data: Training data to compute parameters from.
 
-        Returns
-        -------
-        FittedNormalize
+        Returns:
             Fitted transform that can be applied to new data.
 
-        Raises
-        ------
-        ValueError
-            If an unknown normalization method is specified.
+        Raises:
+            ValueError: If an unknown normalization method is specified.
         """
         if self.method == "zscore":
             mean = np.mean(data, axis=self.axis, keepdims=True)
@@ -165,12 +143,9 @@ class FittedReduce:
 
     Holds the fitted sklearn model and applies transformations.
 
-    Attributes
-    ----------
-    model : Any
-        Fitted sklearn decomposition model (PCA, FastICA, etc.).
-    method : str
-        The reduction method used.
+    Attributes:
+        model: Fitted sklearn decomposition model (PCA, FastICA, etc.).
+        method: The reduction method used.
     """
 
     model: Any  # sklearn PCA, FastICA, etc.
@@ -179,14 +154,10 @@ class FittedReduce:
     def transform(self, data: np.ndarray) -> np.ndarray:
         """Apply dimensionality reduction.
 
-        Parameters
-        ----------
-        data : np.ndarray
-            Data to reduce, shape (n_samples, n_features).
+        Args:
+            data: Data to reduce, shape (n_samples, n_features).
 
-        Returns
-        -------
-        np.ndarray
+        Returns:
             Reduced data, shape (n_samples, n_components).
         """
         return self.model.transform(data)
@@ -194,20 +165,14 @@ class FittedReduce:
     def inverse_transform(self, data: np.ndarray) -> np.ndarray:
         """Reverse dimensionality reduction (reconstruct original space).
 
-        Parameters
-        ----------
-        data : np.ndarray
-            Reduced data, shape (n_samples, n_components).
+        Args:
+            data: Reduced data, shape (n_samples, n_components).
 
-        Returns
-        -------
-        np.ndarray
+        Returns:
             Reconstructed data, shape (n_samples, n_features).
 
-        Raises
-        ------
-        NotImplementedError
-            If the reduction method does not support inverse transform.
+        Raises:
+            NotImplementedError: If the reduction method does not support inverse transform.
         """
         if hasattr(self.model, "inverse_transform"):
             return self.model.inverse_transform(data)
@@ -221,17 +186,11 @@ class ReduceStep:
     Fits a dimensionality reduction model to training data and transforms
     new data to the reduced space.
 
-    Parameters
-    ----------
-    method : str
-        Reduction method:
-        - 'pca': Principal Component Analysis (default, invertible)
-        - 'ica': Independent Component Analysis (not invertible)
-    n_components : int, optional
-        Number of components to keep. If None, keeps all components
-        (or max allowed by the method).
-    random_state : int, optional
-        Random seed for reproducibility.
+    Args:
+        method: Reduction method: 'pca' (Principal Component Analysis, invertible) or
+            'ica' (Independent Component Analysis, not invertible). Default is 'pca'.
+        n_components: Number of components to keep. If None, keeps all components.
+        random_state: Random seed for reproducibility.
 
     Examples
     --------
@@ -252,9 +211,7 @@ class ReduceStep:
     def invertible(self) -> bool:
         """Check if the reduction method supports inverse transform.
 
-        Returns
-        -------
-        bool
+        Returns:
             True if method is 'pca', False otherwise.
         """
         return self.method == "pca"
@@ -262,20 +219,14 @@ class ReduceStep:
     def fit(self, data: np.ndarray) -> FittedReduce:
         """Fit reduction model to data.
 
-        Parameters
-        ----------
-        data : np.ndarray
-            Training data, shape (n_samples, n_features).
+        Args:
+            data: Training data, shape (n_samples, n_features).
 
-        Returns
-        -------
-        FittedReduce
+        Returns:
             Fitted transform that can be applied to new data.
 
-        Raises
-        ------
-        ValueError
-            If an unknown reduction method is specified.
+        Raises:
+            ValueError: If an unknown reduction method is specified.
         """
         if self.method == "pca":
             from sklearn.decomposition import PCA
@@ -305,10 +256,8 @@ class FittedPipe:
 
     Holds a fitted sklearn transformer and delegates transform calls to it.
 
-    Attributes
-    ----------
-    transformer : Any
-        Fitted sklearn-compatible transformer.
+    Attributes:
+        transformer: Fitted sklearn-compatible transformer.
     """
 
     transformer: Any
@@ -316,14 +265,10 @@ class FittedPipe:
     def transform(self, data: np.ndarray) -> np.ndarray:
         """Apply the fitted transformer.
 
-        Parameters
-        ----------
-        data : np.ndarray
-            Data to transform.
+        Args:
+            data: Data to transform.
 
-        Returns
-        -------
-        np.ndarray
+        Returns:
             Transformed data.
         """
         return self.transformer.transform(data)
@@ -331,20 +276,14 @@ class FittedPipe:
     def inverse_transform(self, data: np.ndarray) -> np.ndarray:
         """Apply inverse transform if supported.
 
-        Parameters
-        ----------
-        data : np.ndarray
-            Transformed data.
+        Args:
+            data: Transformed data.
 
-        Returns
-        -------
-        np.ndarray
+        Returns:
             Data in original space.
 
-        Raises
-        ------
-        NotImplementedError
-            If the transformer does not support inverse_transform.
+        Raises:
+            NotImplementedError: If the transformer does not support inverse_transform.
         """
         if hasattr(self.transformer, "inverse_transform"):
             return self.transformer.inverse_transform(data)
@@ -358,11 +297,9 @@ class PipeStep:
     Allows any sklearn transformer with a fit/transform interface to be
     used as a pipeline step.
 
-    Parameters
-    ----------
-    transformer : Any
-        An sklearn-compatible transformer instance. Must have fit() and
-        transform() methods. The transformer will be cloned before fitting.
+    Args:
+        transformer: An sklearn-compatible transformer instance. Must have fit() and
+            transform() methods. The transformer will be cloned before fitting.
 
     Examples
     --------
@@ -383,9 +320,7 @@ class PipeStep:
     def invertible(self) -> bool:
         """Check if the transformer supports inverse_transform.
 
-        Returns
-        -------
-        bool
+        Returns:
             True if transformer has inverse_transform method.
         """
         return hasattr(self.transformer, "inverse_transform")
@@ -396,14 +331,10 @@ class PipeStep:
         The transformer is cloned before fitting to ensure the original
         transformer instance is not modified.
 
-        Parameters
-        ----------
-        data : np.ndarray
-            Training data.
+        Args:
+            data: Training data.
 
-        Returns
-        -------
-        FittedPipe
+        Returns:
             Fitted transform wrapper.
         """
         from sklearn.base import clone
@@ -423,14 +354,10 @@ class FittedAlign:
 
     Holds a fitted SRM or HyperAlignment model and applies transformations.
 
-    Attributes
-    ----------
-    model : Any
-        Fitted SRM or HyperAlignment instance.
-    method : str
-        The alignment method used ('srm' or 'hyperalignment').
-    new_subject_method : str
-        Method for aligning held-out subjects in LOSO CV.
+    Attributes:
+        model: Fitted SRM or HyperAlignment instance.
+        method: The alignment method used ('srm' or 'hyperalignment').
+        new_subject_method: Method for aligning held-out subjects in LOSO CV.
     """
 
     model: Any  # SRM or HyperAlignment instance
@@ -440,15 +367,11 @@ class FittedAlign:
     def transform(self, data: list[np.ndarray]) -> list[np.ndarray]:
         """Transform subjects that were in training.
 
-        Parameters
-        ----------
-        data : list of ndarray
-            List of subject data arrays, each shape (n_samples, n_features).
-            Pipeline convention is (samples, features).
+        Args:
+            data: List of subject data arrays, each shape (n_samples, n_features).
+                Pipeline convention is (samples, features).
 
-        Returns
-        -------
-        list of ndarray
+        Returns:
             Aligned data for each subject, shape (n_samples, n_aligned_features).
         """
         # Pipeline uses (samples, features) convention
@@ -466,15 +389,11 @@ class FittedAlign:
 
         Uses transform_subject() which fits a new transform for the held-out subject.
 
-        Parameters
-        ----------
-        data : np.ndarray
-            Data for the new subject, shape (n_samples, n_features).
-            Pipeline convention is (samples, features).
+        Args:
+            data: Data for the new subject, shape (n_samples, n_features).
+                Pipeline convention is (samples, features).
 
-        Returns
-        -------
-        np.ndarray
+        Returns:
             Aligned data for the new subject, shape (n_samples, n_aligned_features).
         """
         # Pipeline uses (samples, features) convention
@@ -495,21 +414,15 @@ class FittedAlign:
     def inverse_transform(self, data: list[np.ndarray]) -> list[np.ndarray]:
         """Reverse alignment (only for full-rank hyperalignment).
 
-        Parameters
-        ----------
-        data : list of ndarray
-            Aligned data for each subject, shape (n_samples, n_aligned_features).
-            Pipeline convention is (samples, features).
+        Args:
+            data: Aligned data for each subject, shape (n_samples, n_aligned_features).
+                Pipeline convention is (samples, features).
 
-        Returns
-        -------
-        list of ndarray
+        Returns:
             Data in original subject-specific space, shape (n_samples, n_features).
 
-        Raises
-        ------
-        NotImplementedError
-            If method is not hyperalignment (SRM is not full-rank).
+        Raises:
+            NotImplementedError: If method is not hyperalignment (SRM is not full-rank).
         """
         if self.method != "hyperalignment":
             raise NotImplementedError(
@@ -532,26 +445,17 @@ class AlignStep:
     Currently supports 'global' scheme only. Searchlight/piecewise schemes
     require LocalAlignment (nltools-boll epic).
 
-    Parameters
-    ----------
-    method : str, default='srm'
-        Alignment method: 'srm' or 'hyperalignment'
-    scheme : str, default='global'
-        Spatial scheme. Currently only 'global' is supported.
-        'searchlight' and 'piecewise' require LocalAlignment.
-    n_features : int, optional
-        Number of features for SRM. None for hyperalignment (full rank).
-    new_subject : str, default='procrustes'
-        Method for aligning held-out subjects in LOSO CV.
-    n_iter : int, default=10
-        Number of iterations for SRM (or 2 for hyperalignment).
-    parallel : str, optional
-        Parallelization: 'cpu', 'gpu', or None.
-    n_jobs : int, default=-1
-        Number of jobs for CPU parallelization.
-    **kwargs : dict
-        Additional arguments passed to the underlying algorithm.
-        For SRM: 'rand_seed'. For HyperAlignment: 'auto_pad'.
+    Args:
+        method: Alignment method: 'srm' or 'hyperalignment'. Default is 'srm'.
+        scheme: Spatial scheme. Currently only 'global' is supported.
+            'searchlight' and 'piecewise' require LocalAlignment.
+        n_features: Number of features for SRM. None for hyperalignment (full rank).
+        new_subject: Method for aligning held-out subjects in LOSO CV. Default is 'procrustes'.
+        n_iter: Number of iterations for SRM (or 2 for hyperalignment). Default is 10.
+        parallel: Parallelization: 'cpu', 'gpu', or None.
+        n_jobs: Number of jobs for CPU parallelization. Default is -1.
+        **kwargs: Additional arguments passed to the underlying algorithm.
+            For SRM: 'rand_seed'. For HyperAlignment: 'auto_pad'.
 
     Examples
     --------
@@ -598,9 +502,7 @@ class AlignStep:
     def invertible(self) -> bool:
         """Check if alignment is invertible.
 
-        Returns
-        -------
-        bool
+        Returns:
             True if method is hyperalignment (full-rank orthogonal transforms).
         """
         return self.method == "hyperalignment"
@@ -608,15 +510,11 @@ class AlignStep:
     def fit(self, data: list[np.ndarray]) -> FittedAlign:
         """Fit alignment model on list of subject data.
 
-        Parameters
-        ----------
-        data : list of ndarray
-            Each array has shape (n_voxels, n_samples) or (n_samples, n_voxels).
-            Will be transposed if needed to match algorithm expectations.
+        Args:
+            data: Each array has shape (n_voxels, n_samples) or (n_samples, n_voxels).
+                Will be transposed if needed to match algorithm expectations.
 
-        Returns
-        -------
-        FittedAlign
+        Returns:
             Fitted alignment model.
         """
         # Ensure data is in (voxels, samples) format for algorithms
@@ -650,14 +548,10 @@ class AlignStep:
         SRM/HyperAlignment expect (voxels, samples) but pipelines use
         (samples, features) convention. Always transpose.
 
-        Parameters
-        ----------
-        data : list of ndarray
-            List of subject data arrays, each (n_samples, n_features).
+        Args:
+            data: List of subject data arrays, each (n_samples, n_features).
 
-        Returns
-        -------
-        list of ndarray
+        Returns:
             Data with shape (n_features, n_samples) for each subject.
         """
         # Pipeline convention is (samples, features)

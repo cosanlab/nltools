@@ -4808,7 +4808,7 @@ class BrainDataCVResult:
 
     @property
     def scores(self) -> np.ndarray:
-        """Per-fold scores."""
+        """Per-fold prediction scores as a numpy array."""
         return np.array([f["score"] for f in self.fold_results])
 
     @property

@@ -216,10 +216,8 @@ class Fit:
 
         Excludes private fields (starting with _).
 
-        Returns
-        -------
-        list of str
-            Names of attributes that are not None
+        Returns:
+            Names of attributes that are not None.
 
         Examples
         --------
@@ -243,16 +241,12 @@ class Fit:
     def asdict(self, include_none: bool = False) -> dict:
         """Convert to dictionary.
 
-        Parameters
-        ----------
-        include_none : bool, default=False
-            If True, include attributes with None values.
-            Private fields (starting with _) are always excluded.
+        Args:
+            include_none: If True, include attributes with None values.
+                Private fields (starting with _) are always excluded.
 
-        Returns
-        -------
-        dict
-            Dictionary of attribute names to values
+        Returns:
+            Dictionary of attribute names to values.
 
         Examples
         --------

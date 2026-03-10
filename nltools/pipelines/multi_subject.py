@@ -26,16 +26,11 @@ class MultiSubjectPipeline:
     - Run-based CV: Split runs within each subject
     - Pooling across subjects for group analyses
 
-    Parameters
-    ----------
-    data : List[np.ndarray]
-        List of subject data arrays, each shape (n_obs, n_voxels).
-    cv : CVScheme, optional
-        Cross-validation scheme configuration.
-    groups : np.ndarray, optional
-        Group labels for CV splits (e.g., run labels).
-    steps : List
-        Transform steps to apply.
+    Args:
+        data: List of subject data arrays, each shape (n_obs, n_voxels).
+        cv: Cross-validation scheme configuration.
+        groups: Group labels for CV splits (e.g., run labels).
+        steps: Transform steps to apply.
 
     Examples
     --------
@@ -56,7 +51,7 @@ class MultiSubjectPipeline:
 
     @property
     def n_subjects(self) -> int:
-        """Number of subjects."""
+        """Number of subjects in the multi-subject dataset."""
         return len(self.data)
 
     @property
@@ -109,26 +104,18 @@ class MultiSubjectPipeline:
         Aligns multi-subject data using SRM or HyperAlignment before
         downstream analyses like classification or pooling.
 
-        Parameters
-        ----------
-        method : str, default='srm'
-            Alignment method:
-            - 'srm': Shared Response Model (reduces dimensionality)
-            - 'hyperalignment': Procrustes-based alignment (preserves dimensionality)
-        scheme : str, default='global'
-            Spatial scheme. Currently only 'global' is supported.
-            'searchlight' and 'piecewise' require LocalAlignment (nltools-boll).
-        n_features : int, optional
-            Number of shared features for SRM. Ignored for hyperalignment.
-        new_subject : str, default='procrustes'
-            Method for aligning held-out subjects in LOSO CV:
-            - 'procrustes': Fit new transform using shared response
-        **kwargs
-            Additional arguments passed to alignment algorithm.
+        Args:
+            method: Alignment method: 'srm' (Shared Response Model, reduces dimensionality)
+                or 'hyperalignment' (Procrustes-based, preserves dimensionality).
+                Default is 'srm'.
+            scheme: Spatial scheme. Currently only 'global' is supported.
+                'searchlight' and 'piecewise' require LocalAlignment (nltools-boll).
+            n_features: Number of shared features for SRM. Ignored for hyperalignment.
+            new_subject: Method for aligning held-out subjects in LOSO CV.
+                Default is 'procrustes'.
+            **kwargs: Additional arguments passed to alignment algorithm.
 
-        Returns
-        -------
-        MultiSubjectPipeline
+        Returns:
             New pipeline with alignment step added.
 
         Examples
@@ -177,26 +164,18 @@ class MultiSubjectPipeline:
         Executes the pipeline and computes ISC using permutation testing.
         Data is transformed through all pipeline steps before ISC computation.
 
-        Parameters
-        ----------
-        method : str, default='pairwise'
-            ISC computation method:
-            - 'pairwise': Average all pairwise correlations
-            - 'leave-one-out': Correlate each subject with mean of others
-        metric : str, default='median'
-            Summary statistic for aggregating ISC values:
-            - 'median': Direct median (robust to outliers)
-            - 'mean': Fisher z-transformed mean
-        n_permute : int, default=5000
-            Number of bootstrap iterations for p-value computation.
-        parallel : str, default='cpu'
-            Parallelization method: 'cpu', 'gpu', or None.
-        **kwargs
-            Additional arguments passed to ISCTerminal.
+        Args:
+            method: ISC computation method: 'pairwise' (average all pairwise
+                correlations) or 'leave-one-out' (correlate each subject with mean
+                of others). Default is 'pairwise'.
+            metric: Summary statistic: 'median' (robust, default) or 'mean'
+                (Fisher z-transformed).
+            n_permute: Number of bootstrap iterations for p-value computation.
+                Default is 5000.
+            parallel: Parallelization method: 'cpu', 'gpu', or None. Default is 'cpu'.
+            **kwargs: Additional arguments passed to ISCTerminal.
 
-        Returns
-        -------
-        ISCResult
+        Returns:
             Result containing ISC values, p-values, and confidence intervals.
 
         Examples
@@ -238,21 +217,14 @@ class MultiSubjectPipeline:
         Executes the pipeline and computes RSA correlation between neural
         and model RDMs using permutation testing.
 
-        Parameters
-        ----------
-        model_rdm : np.ndarray
-            Model RDM to correlate with neural RDMs. Should be symmetric
-            matrix or upper triangle (condensed form).
-        method : str, default='spearman'
-            Correlation method: 'spearman', 'pearson', or 'kendall'.
-        n_permute : int, default=5000
-            Number of permutations for p-value computation.
-        **kwargs
-            Additional arguments passed to RSATerminal.
+        Args:
+            model_rdm: Model RDM to correlate with neural RDMs. Should be symmetric
+                matrix or upper triangle (condensed form).
+            method: Correlation method: 'spearman' (default), 'pearson', or 'kendall'.
+            n_permute: Number of permutations for p-value computation. Default is 5000.
+            **kwargs: Additional arguments passed to RSATerminal.
 
-        Returns
-        -------
-        RSAResult
+        Returns:
             Result containing correlation coefficient and p-value.
 
         Examples
@@ -287,30 +259,16 @@ class MultiSubjectPipeline:
     def predict(self, y, algorithm: str = "ridge", **kwargs):
         """Execute pipeline with CV and return prediction results.
 
-        Parameters
-        ----------
-        y : np.ndarray
-            Target variable. For LOSO, should be (n_subjects,).
-            For run-based CV, should match pooled observations.
-        algorithm : str
-            Prediction algorithm. Options:
+        Args:
+            y: Target variable. For LOSO, should be (n_subjects,). For run-based CV,
+                should match pooled observations.
+            algorithm: Prediction algorithm: 'ridge', 'lasso', 'elastic', 'svr' for
+                regression; 'svm', 'logistic', 'rf' for classification.
+            **kwargs: Additional arguments passed to sklearn model constructor.
+                For classification (svm, logistic), use ``class_weight='balanced'``
+                to handle imbalanced classes.
 
-            - 'ridge': Ridge regression (continuous targets)
-            - 'lasso': Lasso regression (continuous targets)
-            - 'elastic': ElasticNet regression (continuous targets)
-            - 'svr': Support Vector Regression (continuous targets)
-            - 'svm': Support Vector Classification (categorical targets)
-            - 'logistic': Logistic Regression (categorical targets)
-            - 'rf': Random Forest (auto-detects classification vs regression)
-
-        **kwargs
-            Additional arguments passed to sklearn model constructor.
-            For classification (svm, logistic), use ``class_weight='balanced'``
-            to handle imbalanced classes. See sklearn documentation for options.
-
-        Returns
-        -------
-        CVResult
+        Returns:
             Cross-validation results.
 
         Examples

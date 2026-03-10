@@ -541,7 +541,7 @@ class BrainCollection:
 
     @property
     def mask(self) -> nib.Nifti1Image:
-        """Shared brain mask."""
+        """Shared NIfTI brain mask image used to define the voxel space for the collection."""
         return self._mask
 
     @property
@@ -594,6 +594,14 @@ class BrainCollection:
         total_bytes = bytes_per_image * self.n_images
 
         def format_bytes(b: float) -> str:
+            """Format a byte count as a human-readable string (KB, MB, or GB).
+
+            Args:
+                b: Byte count to format.
+
+            Returns:
+                Formatted string with one decimal place and appropriate unit.
+            """
             if b >= 1e9:
                 return f"{b / 1e9:.1f} GB"
             elif b >= 1e6:
@@ -806,6 +814,16 @@ class BrainCollection:
         if isinstance(obs_key, (int, slice)):
             # Apply obs indexing via apply
             def slice_obs(bd: "BrainData") -> "BrainData":
+                """Slice observations from a BrainData object using the captured obs_key.
+
+                Handles 1-D data by temporarily expanding to 2-D before indexing.
+
+                Args:
+                    bd: BrainData object to slice.
+
+                Returns:
+                    New BrainData containing only the selected observation(s).
+                """
                 from .brain_data import BrainData
 
                 if bd.data.ndim == 1:
@@ -4533,24 +4551,16 @@ class BrainCollectionPipeline:
     ) -> "BrainCollectionCVResult":
         """Execute pipeline with CV and return prediction results.
 
-        Parameters
-        ----------
-        y : array-like
-            Target variable. For LOSO, shape should be (n_subjects,).
-        algorithm : str
-            Prediction algorithm ('ridge', 'svm', 'logistic', etc.)
-        **kwargs
-            Passed to model constructor.
+        Args:
+            y: Target variable. For LOSO, shape should be (n_subjects,).
+            algorithm: Prediction algorithm ('ridge', 'svm', 'logistic', etc.)
+            **kwargs: Passed to model constructor.
 
-        Returns
-        -------
-        BrainCollectionCVResult
+        Returns:
             Cross-validation results with scores and predictions.
 
-        Raises
-        ------
-        ValueError
-            If no CV context is set or if non-LOSO CV is used without groups.
+        Raises:
+            ValueError: If no CV context is set or if non-LOSO CV is used without groups.
         """
 
         if self._cv is None:
@@ -4780,7 +4790,7 @@ class BrainCollectionCVResult:
 
     @property
     def scores(self) -> np.ndarray:
-        """Per-fold scores."""
+        """Per-fold prediction scores as a numpy array."""
         return np.array([f["score"] for f in self.fold_results])
 
     @property
@@ -4795,7 +4805,7 @@ class BrainCollectionCVResult:
 
     @property
     def n_folds(self) -> int:
-        """Number of CV folds."""
+        """Number of cross-validation folds."""
         return len(self.fold_results)
 
     def __repr__(self):
@@ -4819,18 +4829,13 @@ class FittedBrainCollection:
     - pool() aggregates the fitted parameters
     - pool() returns PooledData for second-level analysis
 
-    Parameters
-    ----------
-    brain_collection : BrainCollection
-        The original collection that was fitted.
-    fitted_results : BrainCollection | dict
-        The fitted results. Can be:
-        - BrainCollection: Betas or scores
-        - dict: {'betas': BrainCollection, 't': BrainCollection, ...}
-    model : str
-        The model type that was fitted ('glm' or 'ridge').
-    condition_names : list of str, optional
-        Names of conditions/regressors from the design matrix.
+    Args:
+        brain_collection: The original collection that was fitted.
+        fitted_results: The fitted results. Can be a BrainCollection (betas or
+            scores) or a dict mapping stat names to BrainCollections
+            (e.g., {'betas': ..., 't': ...}).
+        model: The model type that was fitted ('glm' or 'ridge').
+        condition_names: Names of conditions/regressors from the design matrix.
 
     Examples
     --------
@@ -4871,17 +4876,13 @@ class FittedBrainCollection:
 
     @property
     def betas(self) -> "BrainCollection":
-        """Convenience accessor for beta coefficients.
+        """Convenience accessor for beta coefficients from a GLM fit.
 
-        Returns
-        -------
-        BrainCollection
+        Returns:
             Beta coefficients from GLM fit.
 
-        Raises
-        ------
-        ValueError
-            If model is not GLM or betas not available.
+        Raises:
+            ValueError: If model is not GLM or betas not available.
         """
         if isinstance(self._fitted, dict):
             if "betas" in self._fitted:
@@ -4904,24 +4905,16 @@ class FittedBrainCollection:
         Returns a PooledData object that can be passed to second-level
         statistical tests.
 
-        Parameters
-        ----------
-        param : str, default='beta'
-            Parameter to pool. Options depend on model:
-            - GLM: 'beta', 't', 'r2', 'p', 'se', 'residual'
-            - Ridge: 'scores', 'weights'
-        contrast : str, optional
-            Apply contrast before pooling. Format: 'A-B' or 'A+B'.
-            Requires condition_names to be available.
-        save : str, optional
-            Path template to save per-subject results before pooling.
-            Supports {subject}, {idx} placeholders.
-        save_fitted : bool, default=False
-            If True, save full fitted state for later repool().
+        Args:
+            param: Parameter to pool. GLM options: 'beta', 't', 'r2', 'p', 'se',
+                'residual'. Ridge options: 'scores', 'weights'. Default is 'beta'.
+            contrast: Apply contrast before pooling. Format: 'A-B' or 'A+B'.
+                Requires condition_names to be available.
+            save: Path template to save per-subject results before pooling.
+                Supports {subject}, {idx} placeholders.
+            save_fitted: If True, save full fitted state for later repool().
 
-        Returns
-        -------
-        PooledData
+        Returns:
             Pooled data ready for second-level analysis.
 
         Examples

@@ -32,22 +32,14 @@ class PooledData:
     enabling reusable second-level analyses without re-running
     the first-level computations.
 
-    Parameters
-    ----------
-    data : np.ndarray
-        Pooled data array. Shape depends on pooling:
-        - (n_subjects, n_voxels) for single parameter
-        - (n_subjects, n_conditions, n_voxels) for multi-condition
-    param : str
-        Parameter that was pooled (e.g., 'beta', 'residual', 't').
-    condition_names : List[str], optional
-        Names of conditions if multi-condition data.
-    subject_ids : List[str], optional
-        Subject identifiers.
-    fitted_state : Any, optional
-        Saved fitted models for repool() functionality.
-    save_path : str, optional
-        Path where data was saved.
+    Args:
+        data: Pooled data array. Shape is (n_subjects, n_voxels) for single
+            parameter or (n_subjects, n_conditions, n_voxels) for multi-condition.
+        param: Parameter that was pooled (e.g., 'beta', 'residual', 't').
+        condition_names: Names of conditions if multi-condition data.
+        subject_ids: Subject identifiers.
+        fitted_state: Saved fitted models for repool() functionality.
+        save_path: Path where data was saved.
 
     Examples
     --------
@@ -72,7 +64,7 @@ class PooledData:
 
     @property
     def n_subjects(self) -> int:
-        """Number of subjects."""
+        """Number of subjects in the pooled dataset (first dimension of data)."""
         return self.data.shape[0]
 
     @property
@@ -84,12 +76,12 @@ class PooledData:
 
     @property
     def n_voxels(self) -> int:
-        """Number of voxels."""
+        """Number of voxels (last dimension of data array)."""
         return self.data.shape[-1]
 
     @property
     def shape(self) -> tuple:
-        """Data shape."""
+        """Shape of the pooled data array as (n_subjects[, n_conditions], n_voxels)."""
         return self.data.shape
 
     def fit(
@@ -104,26 +96,16 @@ class PooledData:
 
         This is a terminal method - executes immediately (eager).
 
-        Parameters
-        ----------
-        model : str
-            Statistical model type:
-            - 'ttest': One-sample t-test (or two-sample with X)
-            - 'paired_ttest': Paired t-test
-            - 'anova': One-way ANOVA
-        contrast : str, optional
-            Single contrast specification (e.g., 'face-house').
-        contrasts : List[str], optional
-            Multiple contrasts - returns ResultDict.
-        X : np.ndarray, optional
-            Design matrix for two-sample tests or ANOVA.
-        **kwargs
-            Additional arguments for the statistical test.
+        Args:
+            model: Statistical model type: 'ttest' (one-sample or two-sample with X),
+                'paired_ttest', or 'anova'.
+            contrast: Single contrast specification (e.g., 'face-house').
+            contrasts: Multiple contrasts - returns ResultDict.
+            X: Design matrix for two-sample tests or ANOVA.
+            **kwargs: Additional arguments for the statistical test.
 
-        Returns
-        -------
-        StatResult or ResultDict
-            Statistical results. ResultDict if multiple contrasts.
+        Returns:
+            Statistical results. ResultDict if multiple contrasts specified.
 
         Examples
         --------
@@ -200,14 +182,10 @@ class PooledData:
     def _apply_contrast(self, contrast: str) -> NDArray:
         """Apply contrast to multi-condition data.
 
-        Parameters
-        ----------
-        contrast : str
-            Contrast specification like 'face-house' or 'A-B+C'.
+        Args:
+            contrast: Contrast specification like 'face-house' or 'A-B+C'.
 
-        Returns
-        -------
-        np.ndarray
+        Returns:
             Contrast-weighted data, shape (n_subjects, n_voxels).
         """
         if self.condition_names is None:
@@ -261,16 +239,11 @@ class PooledData:
 
         Useful for classification on pooled betas.
 
-        Parameters
-        ----------
-        k : int, optional
-            Number of folds.
-        scheme : str
-            CV scheme ('kfold', 'loso', 'loro', 'bootstrap')
+        Args:
+            k: Number of folds.
+            scheme: CV scheme ('kfold', 'loso', 'loro', 'bootstrap').
 
-        Returns
-        -------
-        Pipeline
+        Returns:
             Pipeline for classification on pooled data.
         """
         from .base import Pipeline
@@ -289,20 +262,14 @@ class PooledData:
     def repool(self, param: str) -> "PooledData":
         """Re-extract different parameter from saved fitted state.
 
-        Parameters
-        ----------
-        param : str
-            Parameter to extract (e.g., 'residual', 't').
+        Args:
+            param: Parameter to extract (e.g., 'residual', 't').
 
-        Returns
-        -------
-        PooledData
+        Returns:
             New PooledData with the requested parameter.
 
-        Raises
-        ------
-        ValueError
-            If no fitted state was saved.
+        Raises:
+            ValueError: If no fitted state was saved.
         """
         if self.fitted_state is None:
             raise ValueError(
@@ -331,10 +298,8 @@ class PooledData:
     def save(self, path: str) -> None:
         """Save pooled data to disk.
 
-        Parameters
-        ----------
-        path : str
-            Output path (directory or .npz file).
+        Args:
+            path: Output path (directory or .npz file).
         """
         import json
 
@@ -372,14 +337,10 @@ class PooledData:
     def load(cls, path: str) -> "PooledData":
         """Load pooled data from disk.
 
-        Parameters
-        ----------
-        path : str
-            Path to saved data.
+        Args:
+            path: Path to saved data.
 
-        Returns
-        -------
-        PooledData
+        Returns:
             Loaded pooled data.
         """
         import json
@@ -435,16 +396,11 @@ class StatResult:
     def threshold(self, method: str = "fdr", alpha: float = 0.05) -> "StatResult":
         """Apply multiple comparison correction.
 
-        Parameters
-        ----------
-        method : str
-            Correction method: 'fdr', 'bonferroni', 'uncorrected'.
-        alpha : float
-            Significance threshold.
+        Args:
+            method: Correction method: 'fdr', 'bonferroni', or 'uncorrected'.
+            alpha: Significance threshold.
 
-        Returns
-        -------
-        StatResult
+        Returns:
             New result with thresholded maps.
         """
         from scipy.stats import false_discovery_control
@@ -485,12 +441,9 @@ class StatResult:
     def to_nifti(self, path: str, mask=None) -> None:
         """Save as NIfTI file.
 
-        Parameters
-        ----------
-        path : str
-            Output path.
-        mask : nibabel image, optional
-            Mask to use for reconstruction.
+        Args:
+            path: Output path.
+            mask: Mask to use for reconstruction.
         """
         # Placeholder - would need mask to reconstruct 3D
         raise NotImplementedError("to_nifti requires mask integration")
@@ -518,9 +471,11 @@ class ResultDict(dict):
     def threshold_all(self, method: str = "fdr", alpha: float = 0.05) -> "ResultDict":
         """Apply thresholding to all results.
 
-        Returns
-        -------
-        ResultDict
+        Args:
+            method: Correction method: 'fdr', 'bonferroni', or 'uncorrected'.
+            alpha: Significance threshold.
+
+        Returns:
             New dict with thresholded results.
         """
         return ResultDict(

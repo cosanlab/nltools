@@ -125,7 +125,7 @@ class DesignMatrix:
 
     @property
     def columns(self) -> List[str]:
-        """Return list of column names."""
+        """Column names of the design matrix as a list of strings."""
         return self._df.columns
 
     @columns.setter

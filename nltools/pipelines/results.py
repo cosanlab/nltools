@@ -23,18 +23,12 @@ class FoldResult:
     Holds predictions, scores, and fitted transforms for one fold,
     enabling result aggregation and inverse transforms.
 
-    Attributes
-    ----------
-    score : float
-        Model score on test set (e.g., R² or accuracy).
-    predictions : np.ndarray
-        Model predictions on test set.
-    train_idx : np.ndarray
-        Indices of training samples.
-    test_idx : np.ndarray
-        Indices of test samples.
-    fitted_stack : FittedStack
-        Stack of fitted transforms for inverse transform support.
+    Attributes:
+        score: Model score on test set (e.g., R² or accuracy).
+        predictions: Model predictions on test set.
+        train_idx: Indices of training samples.
+        test_idx: Indices of test samples.
+        fitted_stack: Stack of fitted transforms for inverse transform support.
     """
 
     score: float
@@ -54,12 +48,9 @@ class CVResult:
     Aggregates results from all CV folds, providing access to scores,
     predictions, and inverse transform capability.
 
-    Parameters
-    ----------
-    fold_results : List[FoldResult]
-        Results from each CV fold.
-    pipeline : Pipeline
-        The pipeline that produced these results.
+    Args:
+        fold_results: Results from each CV fold.
+        pipeline: The pipeline that produced these results.
 
     Examples
     --------
@@ -73,7 +64,7 @@ class CVResult:
 
     @property
     def scores(self) -> NDArray[np.floating]:
-        """Per-fold scores as numpy array."""
+        """Per-fold prediction scores as a numpy array."""
         return np.array([f.score for f in self.fold_results])
 
     @property
@@ -88,7 +79,7 @@ class CVResult:
 
     @property
     def n_folds(self) -> int:
-        """Number of CV folds."""
+        """Number of cross-validation folds."""
         return len(self.fold_results)
 
     @property
@@ -121,20 +112,15 @@ class CVResult:
         Uses the fitted transforms from each fold to inverse transform
         predictions back to the original feature space.
 
-        Parameters
-        ----------
-        data : np.ndarray, optional
-            Data to inverse transform. If None, uses self.predictions.
+        Args:
+            data: Data to inverse transform. If None, uses self.predictions.
 
-        Returns
-        -------
-        np.ndarray
+        Returns:
             Data in original feature space.
 
-        Notes
-        -----
-        This applies inverse transforms fold-by-fold, using each fold's
-        fitted parameters. Not all pipelines support full inversion.
+        Note:
+            This applies inverse transforms fold-by-fold, using each fold's
+            fitted parameters. Not all pipelines support full inversion.
         """
         if data is None:
             data = self.predictions
@@ -176,22 +162,13 @@ class ISCResult:
     Holds intersubject correlation values, p-values, and confidence intervals
     from the ISC permutation test.
 
-    Attributes
-    ----------
-    isc : np.ndarray
-        ISC values. Shape depends on input:
-        - Scalar for single-feature ISC
-        - (n_voxels,) for voxel-wise ISC
-    p : np.ndarray
-        P-values (Phipson-Smyth corrected).
-    ci : tuple
-        Confidence interval (lower, upper).
-    method : str
-        ISC method used ('pairwise' or 'leave-one-out').
-    metric : str
-        Summary metric used ('median' or 'mean').
-    n_subjects : int
-        Number of subjects in the analysis.
+    Attributes:
+        isc: ISC values. Scalar for single-feature or (n_voxels,) for voxel-wise ISC.
+        p: P-values (Phipson-Smyth corrected).
+        ci: Confidence interval (lower, upper).
+        method: ISC method used ('pairwise' or 'leave-one-out').
+        metric: Summary metric used ('median' or 'mean').
+        n_subjects: Number of subjects in the analysis.
     """
 
     isc: NDArray[np.floating]
@@ -233,18 +210,12 @@ class RSAResult:
 
     Holds representational similarity analysis correlation and p-value.
 
-    Attributes
-    ----------
-    correlation : float
-        Correlation between neural RDM and model RDM.
-    p_value : float
-        P-value from permutation test.
-    ci : tuple
-        Confidence interval (lower, upper).
-    method : str
-        Correlation method used (e.g., 'spearman', 'pearson').
-    n_conditions : int
-        Number of conditions/stimuli in the RDM.
+    Attributes:
+        correlation: Correlation between neural RDM and model RDM.
+        p_value: P-value from permutation test.
+        ci: Confidence interval (lower, upper).
+        method: Correlation method used (e.g., 'spearman', 'pearson').
+        n_conditions: Number of conditions/stimuli in the RDM.
     """
 
     correlation: float
@@ -279,32 +250,20 @@ class PermutationResult:
     that are greater than or equal to the observed score (for metrics
     where higher is better, like R2 or accuracy).
 
-    Attributes
-    ----------
-    observed : CVResult
-        The result from the real (non-permuted) data.
-    null_distribution : np.ndarray
-        Array of scores from each permutation, forming the null distribution.
-    p_value : float
-        Permutation p-value: proportion of null scores >= observed score.
-    n_permutations : int
-        Number of permutations performed.
+    Attributes:
+        observed: The result from the real (non-permuted) data.
+        null_distribution: Array of scores from each permutation.
+        p_value: Permutation p-value: proportion of null scores >= observed score.
+        n_permutations: Number of permutations performed.
 
-    Examples
-    --------
-    >>> perm_result = pipeline.permutation_test(y, n_permutations=1000)
-    >>> print(f"Observed score: {perm_result.observed.mean_score:.4f}")
-    >>> print(f"p-value: {perm_result.p_value:.4f}")
-    >>> if perm_result.p_value < 0.05:
-    ...     print("Significant!")
+    Examples:
+        >>> perm_result = pipeline.permutation_test(y, n_permutations=1000)
+        >>> print(f"Observed score: {perm_result.observed.mean_score:.4f}")
+        >>> print(f"p-value: {perm_result.p_value:.4f}")
 
-    Notes
-    -----
-    The p-value calculation uses the formula:
-        p = (n_permutations_exceeding + 1) / (n_permutations + 1)
-
-    Adding 1 to both numerator and denominator ensures the p-value is
-    never exactly 0 and accounts for the observed value itself.
+    Note:
+        The p-value uses the formula ``p = (n_exceeding + 1) / (n_permutations + 1)``
+        to ensure it is never exactly 0 and accounts for the observed value itself.
     """
 
     observed: CVResult
@@ -322,16 +281,11 @@ class PermutationResult:
 
         Automatically computes the p-value from the null distribution.
 
-        Parameters
-        ----------
-        observed : CVResult
-            The result from the real (non-permuted) data.
-        null_scores : np.ndarray
-            Array of scores from each permutation.
+        Args:
+            observed: The result from the real (non-permuted) data.
+            null_scores: Array of scores from each permutation.
 
-        Returns
-        -------
-        PermutationResult
+        Returns:
             Complete permutation result with computed p-value.
         """
         n_permutations = len(null_scores)
