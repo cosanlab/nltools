@@ -10,13 +10,14 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 |----------|--------------|--------------|--------|
 | **GLM regression** | `.regress()` | `.fit(model='glm')` | **Removed** |
 | **Ridge regression** | Manual | `.fit(model='ridge')` | New |
-| **ML prediction** | `.predict()` | Use sklearn directly | Removed |
+| **ML prediction** | `.predict(algorithm='svm')` | `.predict(X=..., y=...)` | Unified API |
 | **t-tests** | `.ttest()` | Use scipy.stats | Removed |
 | **Method chaining** | `.smooth()` modifies in-place | Returns copy | Changed |
-| **Properties** | `.shape()`, `.isempty()` | `.shape`, `.isempty` | Changed |
+| **Properties** | `.shape()`, `.isempty()` | `.shape`, `.is_empty` | Changed |
 | **Cross-validation** | N/A | `.fit(..., cv=5)` | New |
 | **HyperAlignment** | Via `align()` only | `HyperAlignment` class | New |
-| **Multi-subject** | N/A | `BrainCollection` class | **New** |
+| **Multi-subject** | `Brain_Collection` | `BrainCollection` class | **New** |
+| **SRM** | N/A | `SRM` / `DetSRM` classes | **New** |
 | **GPU inference** | N/A | `inference` module | **New** |
 
 ---
@@ -299,7 +300,7 @@ adj.threshold(lower='90%')     # Keep top 10% (percentile threshold)
 | Method | Alternative | Migration Effort |
 |--------|-------------|------------------|
 | `.regress()` | `.fit(model='glm', X=design_matrix)` | **Low** |
-| `.predict(algorithm='svm')` | Use sklearn directly | Low |
+| `.predict(algorithm='svm')` | `.predict(y=labels, method='svm')` (updated API) | **Low** |
 | `.ttest()` | Use `scipy.stats.ttest_1samp()` | Low |
 | `.randomise()` | Use nilearn permutation testing | Medium |
 | `.predict_multi()` | Will return in future Model class | N/A |
@@ -309,15 +310,16 @@ adj.threshold(lower='90%')     # Keep top 10% (percentile threshold)
 
 | Class | Status | Alternative |
 |-------|--------|-------------|
-| `Brain_Collection` | Removed | Will return in v0.7.0+ |
+| `Brain_Collection` | Replaced | Use `BrainCollection` (new in v0.6.0) |
 | `Model` | Removed | Will return in v0.7.0+ |
 
-### 3. Deprecated Attributes
+### 3. Attributes
 
 | Attribute | Status | Alternative |
 |-----------|--------|-------------|
-| `.X` | Deprecated (still works) | Pass `X=` to `.fit()` |
-| `.Y` | Deprecated (still works) | Manage labels separately |
+| `.X` | Still works | Pass `X=` to `.fit()` directly (preferred) |
+| `.Y` | Still works | Manage labels separately (preferred) |
+| `.isempty` | Deprecated | Use `.is_empty` instead |
 
 ---
 
@@ -449,6 +451,14 @@ results = brain_data.predict(algorithm='svm', cv_dict={'type': 'kfolds', 'n_fold
 
 **After (v0.6.0):**
 ```python
+# Option 1: Use the unified .predict() API (recommended)
+# Timeseries prediction (encoding models)
+brain_data.predict(X=features, method='ridge', cv=5)
+
+# MVPA decoding
+brain_data.predict(y=labels, method='svm', cv=5)
+
+# Option 2: Use sklearn directly (full flexibility)
 from sklearn.svm import SVC
 from sklearn.model_selection import cross_validate
 
@@ -460,9 +470,10 @@ cv_results = cross_validate(clf, X, y, cv=5)
 
 | Aspect | Old | New | Reason |
 |--------|-----|-----|--------|
-| API | Custom wrapper | Direct sklearn | More flexible |
-| Label storage | `.Y` attribute | Separate variable | Explicit |
-| ML library | Limited algorithms | Full sklearn | More options |
+| API | `algorithm=` keyword | `method=` or `estimator=` | Clearer naming |
+| CV | `cv_dict=` | `cv=` (int or sklearn splitter) | Simpler |
+| Label storage | `.Y` attribute | `y=` argument | Explicit |
+| Fallback | N/A | Direct sklearn | Full flexibility |
 
 ---
 
@@ -503,16 +514,16 @@ dtype = brain_data.dtype()
 
 **After (v0.6.0):**
 ```python
-shape = brain_data.shape      # No parentheses
-is_empty = brain_data.isempty  # No parentheses
+shape = brain_data.shape       # No parentheses
+is_empty = brain_data.is_empty # No parentheses (note: .isempty is deprecated)
 dtype = brain_data.dtype       # No parentheses
 ```
 
 | Method | Old | New | Reason |
 |--------|-----|-----|--------|
-| `.shape()` | Method call | Property | No computation |
-| `.isempty()` | Method call | Property | No computation |
-| `.dtype()` | Method call | Property | No computation |
+| `.shape()` | Method call | `.shape` property | No computation |
+| `.isempty()` | Method call | `.is_empty` property | No computation |
+| `.dtype()` | Method call | `.dtype` property | No computation |
 
 ---
 
@@ -722,12 +733,15 @@ from nltools.data import Fit
 fit = brain.fit(X=dm, model='ridge', alpha=1.0, inplace=False)  # Returns Fit object
 assert isinstance(fit, Fit)
 assert 'weights' in fit.available()
-assert not hasattr(brain, 'ridge_weights')  # brain unchanged
+assert not hasattr(brain, 'ridge_weights')  # Data attributes NOT set on brain
+
+# Note: brain.model_ and brain.X_ are still set even with inplace=False.
+# Only the result attributes (ridge_weights, glm_betas, etc.) are kept off self.
 
 # Serialization
 import numpy as np
 np.savez('fit_results.npz', **fit.asdict())
-loaded = Fit.from_dict(np.load('fit_results.npz'))
+loaded = Fit(**{k: np.load('fit_results.npz')[k] for k in np.load('fit_results.npz').files})
 ```
 
 **Use Cases**:
@@ -810,16 +824,53 @@ See the [GPU-Accelerated Statistical Inference](#new-feature-gpu-accelerated-sta
 
 ---
 
+### Pattern 13: Shared Response Model (SRM) (NEW)
+
+**Status**: ✅ NEW (v0.6.0)
+
+**Before (v0.5.1):**
+```python
+# No built-in SRM support - used brainiak or custom implementations
+```
+
+**After (v0.6.0):**
+```python
+from nltools.algorithms import SRM, DetSRM
+
+# Probabilistic SRM
+model = SRM(n_components=50, n_iter=10)
+model.fit(subjects)             # List of (n_voxels, n_timepoints) arrays
+aligned = model.transform(subjects)  # Project to shared space
+
+# Deterministic SRM (faster, no noise model)
+det_model = DetSRM(n_components=50, n_iter=10)
+det_model.fit(subjects)
+aligned = det_model.transform(subjects)
+
+# Align a new subject to existing shared space
+new_aligned, rotation, disparity, scale = model.transform_subject(new_data)
+```
+
+| Aspect | Before | After | Benefit |
+|--------|--------|-------|---------|
+| Availability | External library | Built-in | No extra dependency |
+| API | Varies | sklearn-compatible | Composable pipelines |
+| Variants | N/A | SRM + DetSRM | Flexibility |
+
+---
+
 ## Breaking Changes Summary
 
 | Component | Change | Old API | New API | Migration Path |
 |-----------|--------|---------|---------|----------------|
 | `stats.py` | Function removed | `regress()` | `nltools.models.Glm` | Use `BrainData.fit(model='glm')` |
-| `stats.py` | Function removed | `regress_permutation()` | Inference module | Use `one_sample_permutation_test()` |
 | `stats.py` | Function removed | `correlation()` | `correlation_permutation_test()` | Import from `inference` module |
-| `stats.py` | Function deprecated | `pearson()` | `scipy.stats.pearsonr` | Use scipy or inference module |
+| `stats.py` | Function removed | `pearson()` | `scipy.stats.pearsonr` | Use scipy or inference module |
+| `stats.py` | Function deprecated | `one_sample_permutation()` | `one_sample_permutation_test()` | Import from `inference` module |
+| `stats.py` | Function deprecated | `two_sample_permutation()` | `two_sample_permutation_test()` | Import from `inference` module |
 | `DesignMatrix` | Backend changed | pandas | Polars | Automatic migration (backward compatible) |
 | `BrainData.fit()` | New parameter | `fit()` mutates | `fit(inplace=False)` returns Fit | Optional migration |
+| `BrainData.predict()` | API changed | `algorithm=`, `cv_dict=` | `method=`, `cv=` | Update keywords |
 | Import paths | Module moved | `stats.isc()` | `inference.isc_permutation_test()` | Wrapper maintained |
 | Return keys | Key renamed | `null_dist` | `null_distribution` | Wrapper handles mapping |
 
@@ -957,7 +1008,9 @@ t_stat, p_val = contrast.ttest()
 |---------|--------|-----------------|
 | HDF5 files from v0.5.1 | ✅ Fully compatible | None |
 | `.regress()` | ❌ **REMOVED** (raises error) | **Must** update to `.fit(model='glm')` |
-| `.X` and `.Y` attributes | ⚠️ Work but deprecated | Pass `X=` to `.fit()` |
+| `.predict()` | ⚠️ API changed | Update `algorithm=` → `method=`, `cv_dict=` → `cv=` |
+| `.X` and `.Y` attributes | ✅ Still work | Prefer passing `X=` to `.fit()` directly |
+| `.isempty` | ⚠️ Deprecated | Use `.is_empty` instead |
 | `.smooth()` return value | ⚠️ Changed behavior | Assign to new variable |
 
 ### Deprecation Timeline
@@ -965,8 +1018,9 @@ t_stat, p_val = contrast.ttest()
 | Feature | v0.6.0 Status | v0.7.0 Status |
 |---------|---------------|---------------|
 | `.regress()` | ❌ **Removed** (NotImplementedError) | N/A |
-| `.X` and `.Y` | Deprecated (works) | ⚠️ May be removed |
-| In-place `.smooth()` | Changed | N/A |
+| `.isempty` | ⚠️ Deprecated (use `.is_empty`) | May be removed |
+| `.X` and `.Y` | Still works | ⚠️ May be deprecated |
+| In-place `.smooth()` | Changed (returns copy) | N/A |
 
 ---
 
@@ -979,32 +1033,35 @@ try:
 except NotImplementedError as e:
     print(f"Method removed: {e}")
     # Update to: brain_data.fit(model='glm', X=design_matrix)
-
-try:
-    brain_data.predict(algorithm='svm')  # Also removed
-except NotImplementedError:
-    print("Use sklearn directly for ML")
 ```
 
-### Step 2: Check for Deprecation Warnings
+### Step 2: Update Predict API
+```python
+# OLD (v0.5.1)
+brain_data.predict(algorithm='svm', cv_dict={'type': 'kfolds', 'n_folds': 5})
+
+# NEW (v0.6.0) - updated keyword names
+brain_data.predict(y=labels, method='svm', cv=5)
+```
+
+### Step 3: Check for Deprecation Warnings
 ```python
 import warnings
-warnings.filterwarnings('default', category=FutureWarning)
+warnings.filterwarnings('default', category=DeprecationWarning)
 
-brain_data.X = design_matrix  # Still works but deprecated
-# Better: Pass X= directly to fit()
+brain_data.isempty   # Deprecated - use .is_empty instead
 ```
 
-### Step 3: Update Properties
+### Step 4: Update Properties
 ```python
 # Search your codebase for:
 # - .shape()
-# - .isempty()
+# - .isempty()  or .isempty
 # - .dtype()
 
 # Replace with:
 # - .shape
-# - .isempty
+# - .is_empty
 # - .dtype
 ```
 
@@ -1013,11 +1070,10 @@ brain_data.X = design_matrix  # Still works but deprecated
 ## Migration Checklist
 
 - [ ] Replace `.regress()` with `.fit(model='glm')`
-- [ ] Replace `.predict(algorithm=...)` with sklearn
+- [ ] Update `.predict(algorithm=...)` to `.predict(method=..., cv=...)` (new keyword API)
 - [ ] Replace `.ttest()` with `scipy.stats.ttest_1samp()`
-- [ ] Update `.shape()` → `.shape` (and `.isempty()`, `.dtype()`)
-- [ ] Update `.smooth()` to assign return value
-- [ ] Remove `.X` and `.Y` assignments (pass `X=` to `.fit()`)
+- [ ] Update `.shape()` → `.shape`, `.isempty()` → `.is_empty`, `.dtype()` → `.dtype`
+- [ ] Update `.smooth()` to assign return value (returns copy now)
 - [ ] Replace `summarize_bootstrap()` with `BrainData.bootstrap()` or `OnlineBootstrapStats`
 - [ ] Consider using new `.fit(model='ridge')` for regression
 - [ ] Consider using new CV features (`cv=5`, `alpha='auto'`)
@@ -1026,7 +1082,8 @@ brain_data.X = design_matrix  # Still works but deprecated
 - [ ] Replace `stats.pearson()` with `scipy.stats.pearsonr` or `correlation_permutation_test()`
 - [ ] Consider using `fit(inplace=False)` for immutable results and serialization
 - [ ] Consider using `BrainCollection` for multi-subject analyses (new in v0.6.0)
-- [ ] Test with `FutureWarning` → error to catch remaining issues
+- [ ] Consider using `SRM` / `DetSRM` for shared response modeling (new in v0.6.0)
+- [ ] Test with `DeprecationWarning` filters to catch remaining issues
 
 ---
 
@@ -1261,4 +1318,4 @@ result = one_sample_permutation_test(data, backend='auto')
 
 ---
 
-*Last updated: 2026-01-02 for nltools v0.6.0*
+*Last updated: 2026-03-10 for nltools v0.6.0*
