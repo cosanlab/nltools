@@ -60,10 +60,23 @@ parts:
       - file: api/crossval
       - file: api/analysis
 
+  - caption: API Pipelines
+    chapters:
+      - file: api/pipelines
+      - file: api/pipelines/pipeline
+      - file: api/pipelines/multi_subject
+      - file: api/pipelines/cv
+      - file: api/pipelines/steps
+      - file: api/pipelines/terminals
+      - file: api/pipelines/results
+
   - caption: API Utilities
     chapters:
       - file: api/utils
       - file: api/prefs
+      - file: api/simulator
+      - file: api/neighborhoods
+      - file: api/cache
 
   - caption: API Algorithms
     chapters:

@@ -351,11 +351,10 @@ class NestedCVScheme:
                 are indexed by outer_train to get inner groups.
 
         Yields:
-            Tuple of (outer_train_idx, outer_test_idx, inner_splits_iterator).
-            - outer_train_idx: Indices of samples in outer training set.
-            - outer_test_idx: Indices of samples in outer test set.
-            - inner_splits_iterator: Iterator yielding (inner_train, inner_val)
-              tuples where indices are relative to outer_train_idx.
+            Tuple of (outer_train_idx, outer_test_idx, inner_splits_iterator)
+            where outer_train_idx and outer_test_idx are arrays of sample
+            indices, and inner_splits_iterator yields (inner_train, inner_val)
+            tuples with indices relative to outer_train_idx.
 
         Example:
             >>> cv = NestedCVScheme(
