@@ -26,6 +26,20 @@ Main class for representing neuroimaging data as vectors.
     :special-members: __init__
 ```
 
+## Submodules
+
+The `BrainData` class delegates to standalone functions in focused submodules.
+Each facade method on the class calls into these modules, which can also be
+used directly:
+
+- {doc}`braindata_io` -- Loading, mask initialization, file I/O
+- {doc}`braindata_analysis` -- Similarity, thresholding, smoothing, decomposition, alignment, etc.
+- {doc}`braindata_modeling` -- Model fitting (Ridge, GLM), contrasts
+- {doc}`braindata_prediction` -- MVPA decoding, encoding model prediction
+- {doc}`braindata_bootstrap` -- Bootstrap inference
+- {doc}`braindata_plotting` -- Visualization (glass brain, flatmap, timeseries)
+- {doc}`braindata_pipeline` -- BrainDataPipeline and BrainDataCVResult
+
 ## See Also
 
 - {doc}`adjacency` - Similarity/distance matrices

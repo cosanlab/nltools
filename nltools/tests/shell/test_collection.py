@@ -2980,7 +2980,7 @@ class TestBrainCollectionAlign:
     @pytest.fixture
     def multisubject_collection(self, small_mask_for_align):
         """Create a multi-subject collection for alignment tests."""
-        from nltools.data.brain_data import BrainData
+        from nltools.data.braindata import BrainData
 
         np.random.seed(42)
         n_voxels = 27  # 3x3x3

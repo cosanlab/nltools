@@ -45,6 +45,14 @@ parts:
   - caption: API Classes
     chapters:
       - file: api/data/brain_data
+        sections:
+          - file: api/data/braindata_io
+          - file: api/data/braindata_analysis
+          - file: api/data/braindata_modeling
+          - file: api/data/braindata_prediction
+          - file: api/data/braindata_bootstrap
+          - file: api/data/braindata_plotting
+          - file: api/data/braindata_pipeline
       - file: api/data/adjacency
       - file: api/data/design_matrix
       - file: api/data/brain_collection

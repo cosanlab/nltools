@@ -29,7 +29,7 @@ from nltools.utils import attempt_to_import
 from nltools.prefs import MNI_Template
 
 if TYPE_CHECKING:
-    from .brain_data import BrainData
+    from .braindata import BrainData
 
 # Lazy imports for optional dependencies
 tqdm = attempt_to_import("tqdm", "tqdm")
@@ -420,7 +420,7 @@ class BrainCollection:
             metadata: Optional per-image metadata DataFrame.
             lazy: If True, paths are loaded on demand.
         """
-        from .brain_data import BrainData
+        from .braindata import BrainData
 
         if not items:
             raise ValueError("items cannot be empty")
@@ -516,7 +516,7 @@ class BrainCollection:
 
     def _load_item(self, idx: int) -> "BrainData":
         """Load a single item if it's a path, return BrainData."""
-        from .brain_data import BrainData
+        from .braindata import BrainData
 
         if isinstance(self._items[idx], Path):
             bd = BrainData(self._items[idx], mask=self._mask)
@@ -644,7 +644,7 @@ class BrainCollection:
         Returns:
             self (for chaining)
         """
-        from .brain_data import BrainData
+        from .braindata import BrainData
 
         if indices is None:
             indices = range(len(self._items))
@@ -773,7 +773,7 @@ class BrainCollection:
                     sliced_data = bd.data[obs_key]
 
                 # Return as BrainData with single observation
-                from .brain_data import BrainData
+                from .braindata import BrainData
 
                 result = BrainData(mask=bd.mask)
                 result.data = sliced_data
@@ -781,7 +781,7 @@ class BrainCollection:
 
             elif isinstance(obs_key, slice):
                 # Slice observations
-                from .brain_data import BrainData
+                from .braindata import BrainData
 
                 if bd.data.ndim == 1:
                     sliced_data = bd.data[np.newaxis, :][obs_key]
@@ -824,7 +824,7 @@ class BrainCollection:
                 Returns:
                     New BrainData containing only the selected observation(s).
                 """
-                from .brain_data import BrainData
+                from .braindata import BrainData
 
                 if bd.data.ndim == 1:
                     data = bd.data[np.newaxis, :]
@@ -1040,7 +1040,7 @@ class BrainCollection:
             >>> # Split with explicit counts
             >>> bc = BrainCollection.from_stacked(bd, splits=[100, 100, 150])
         """
-        from .brain_data import BrainData
+        from .braindata import BrainData
 
         if splits is None and n_images is None:
             raise ValueError("Must provide either splits or n_images")
@@ -1101,7 +1101,7 @@ class BrainCollection:
         batch_size: int | None = None,
     ) -> "BrainData":
         """Aggregate across images (axis=0) using streaming algorithm."""
-        from .brain_data import BrainData
+        from .braindata import BrainData
 
         # Ensure all sample counts are known
         for i in range(len(self)):
@@ -1195,7 +1195,7 @@ class BrainCollection:
 
     def _aggregate_axis1(self, func: str) -> "BrainCollection":
         """Aggregate across observations (axis=1) per image."""
-        from .brain_data import BrainData
+        from .braindata import BrainData
 
         agg_func = getattr(np, func)
         new_items = []
@@ -1429,7 +1429,7 @@ class BrainCollection:
             >>> stacked.shape
             (300, 50000)  # 3 images * 100 obs each
         """
-        from .brain_data import BrainData
+        from .braindata import BrainData
 
         # Collect all data
         all_data = []
@@ -1609,7 +1609,7 @@ class BrainCollection:
             >>> sig_mask = p_val.data < 0.05
         """
         from scipy import stats
-        from .brain_data import BrainData
+        from .braindata import BrainData
 
         axis = self._normalize_axis(axis)
         if axis != 0:
@@ -1660,7 +1660,7 @@ class BrainCollection:
             >>> t_stat, p_val = group1.ttest2(group2, equal_var=False)  # Welch's
         """
         from scipy import stats
-        from .brain_data import BrainData
+        from .braindata import BrainData
 
         # Validate mask compatibility
         if self._mask.shape != other._mask.shape:
@@ -1744,7 +1744,7 @@ class BrainCollection:
             >>> result = bc.permutation_test(parallel='gpu')
         """
         from nltools.algorithms.inference import one_sample_permutation_test
-        from .brain_data import BrainData
+        from .braindata import BrainData
 
         # Get tensor - requires uniform observation counts
         tensor = self.to_tensor()  # (n_images, n_obs, n_voxels)
@@ -1840,7 +1840,7 @@ class BrainCollection:
             >>> diff_bd, p_bd = result['mean_diff'], result['p']
         """
         from nltools.algorithms.inference import two_sample_permutation_test
-        from .brain_data import BrainData
+        from .braindata import BrainData
 
         # Validate mask compatibility
         if self._mask.shape != other._mask.shape:
@@ -1942,7 +1942,7 @@ class BrainCollection:
             >>> f_stat, p_val = bc.anova(groups)
         """
         from scipy import stats
-        from .brain_data import BrainData
+        from .braindata import BrainData
 
         # Resolve groups
         if isinstance(groups, str):
@@ -2092,7 +2092,7 @@ class BrainCollection:
         show_progress: bool,
     ) -> "BrainCollection":
         """Map function over timepoints (axis=1)."""
-        from .brain_data import BrainData
+        from .braindata import BrainData
 
         # Ensure all sample counts known and uniform
         for i in range(len(self)):
@@ -2153,7 +2153,7 @@ class BrainCollection:
         show_progress: bool,
     ) -> "BrainCollection":
         """Map function over voxels (axis=2) per image."""
-        from .brain_data import BrainData
+        from .braindata import BrainData
 
         indices = range(self.n_images)
         if show_progress and tqdm is not None:
@@ -2303,7 +2303,7 @@ class BrainCollection:
             nltools.algorithms.alignment.LocalAlignment: Underlying alignment class.
         """
         from nltools.algorithms.alignment import LocalAlignment
-        from .brain_data import BrainData
+        from .braindata import BrainData
 
         # Validate inputs
         if scheme == "piecewise" and parcellation is None:
@@ -2683,7 +2683,7 @@ class BrainCollection:
         Returns:
             BrainData with ISC values in brain space.
         """
-        from .brain_data import BrainData
+        from .braindata import BrainData
 
         mode = extraction_info["mode"]
 
