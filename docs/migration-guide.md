@@ -200,37 +200,62 @@ stats = adj.regress(dm)  # Works! Converts dm.to_numpy() internally
 ## Breaking Changes
 
 (braindata-mask-handling)=
-### BrainData Mask Handling When Saving/Loading
+### BrainData Mask Handling
 
 **Status**: ⚠️ Behavior clarification (v0.6.0)
 
-When saving BrainData to NIfTI and reloading, you must pass the same mask to preserve the shape:
+#### How masks work
+
+When you create a `BrainData` without specifying a mask, nltools **auto-detects** the best matching built-in MNI template based on the data's voxel resolution (1mm, 2mm, or 3mm) and resamples the data to fit if necessary. This means most users never need to think about masks at all:
 
 ```python
 from nltools.data import BrainData
 
-# Original data
-brain = BrainData(nifti_file, mask=some_mask)
-print(brain.shape)  # (100, 50000)
-
-# Save to NIfTI
-brain.to_nifti('/tmp/brain.nii.gz')
-
-# ❌ WRONG: Reloading without mask uses different default mask
-reloaded = BrainData('/tmp/brain.nii.gz')
-# ValueError: operands could not be broadcast together with shapes (39912,) (50000,)
-
-# ✅ CORRECT: Pass the same mask when reloading
-reloaded = BrainData('/tmp/brain.nii.gz', mask=brain.mask)
-print(reloaded.shape)  # (100, 50000) - matches original
+# Just pass a nifti file — mask is auto-detected from resolution
+brain = BrainData('sub-01_bold.nii.gz')
+# Auto-detects 2mm MNI template, resamples if needed
 ```
 
-**Why this happens**: The default mask is computed from the data, which may differ from the original mask used to create the BrainData object. This is especially important when:
-- Working with ROI masks
-- Saving/loading intermediate results
-- Comparing data across sessions
+Available built-in templates span three families (`default`, `nilearn`, `fmriprep`) at resolutions of 1mm, 2mm, and 3mm. The default is `2mm-default`.
 
-**Best practice**: Always save both the data and mask together, or use HDF5 format which preserves the mask:
+#### Manual control over templates
+
+You can choose a specific template by name, or pass any nifti file or nibabel object as the mask:
+
+```python
+# Pick a specific built-in template by name
+brain = BrainData('sub-01_bold.nii.gz', mask='2mm-MNI152-2009c')   # fmriprep 2mm
+brain = BrainData('sub-01_bold.nii.gz', mask='3mm-MNI152-2009a')   # nilearn 3mm
+
+# Or change the global default (affects all future BrainData)
+from nltools.prefs import MNI_Template
+MNI_Template.template = 'fmriprep'  # 'default', 'nilearn', or 'fmriprep'
+MNI_Template.resolution = 1          # 1, 2, or 3
+
+# Or pass any nifti file / nibabel object as a custom mask
+brain = BrainData('sub-01_bold.nii.gz', mask='my_roi_mask.nii.gz')
+brain = BrainData('sub-01_bold.nii.gz', mask=nibabel_img)
+```
+
+#### Gotcha: custom masks and save/reload
+
+If you use a **custom mask** (not a built-in template), you must pass the same mask when reloading from NIfTI — otherwise auto-detection will pick a built-in template with a different voxel count:
+
+```python
+# Custom ROI mask — 50,000 voxels
+brain = BrainData(nifti_file, mask='my_roi.nii.gz')
+brain.to_nifti('/tmp/brain.nii.gz')
+
+# ❌ WRONG: auto-detection picks a built-in template → shape mismatch
+reloaded = BrainData('/tmp/brain.nii.gz')
+
+# ✅ CORRECT: pass the same custom mask
+reloaded = BrainData('/tmp/brain.nii.gz', mask='my_roi.nii.gz')
+```
+
+This is **not** an issue when using the default auto-detected templates, since the same template will be selected on reload.
+
+**Best practice** when using custom masks — save both, or use HDF5:
 ```python
 # Option 1: Save mask separately
 brain.to_nifti('/tmp/brain.nii.gz')
@@ -238,7 +263,7 @@ brain.mask.to_filename('/tmp/mask.nii.gz')
 
 # Option 2: Use HDF5 (preserves mask automatically)
 brain.write('/tmp/brain.h5')
-reloaded = BrainData.read('/tmp/brain.h5')  # Mask preserved
+reloaded = BrainData('/tmp/brain.h5')  # Mask preserved
 ```
 
 ---
