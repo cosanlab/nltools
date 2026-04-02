@@ -20,10 +20,111 @@ Main class for representing neuroimaging data as vectors.
 
 ```{eval-rst}
 .. autoclass:: nltools.data.BrainData
-    :members:
-    :undoc-members:
+    :no-members:
     :show-inheritance:
-    :special-members: __init__
+```
+
+### Constructor
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainData.__init__
+```
+
+### Properties
+
+```{eval-rst}
+.. autoattribute:: nltools.data.BrainData.shape
+.. autoattribute:: nltools.data.BrainData.dtype
+.. autoattribute:: nltools.data.BrainData.is_empty
+```
+
+### Data I/O
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainData.to_nifti
+.. automethod:: nltools.data.BrainData.resample_to
+.. automethod:: nltools.data.BrainData.write
+.. automethod:: nltools.data.BrainData.upload_neurovault
+```
+
+### Data Manipulation
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainData.copy
+.. automethod:: nltools.data.BrainData.append
+.. automethod:: nltools.data.BrainData.create_empty
+.. automethod:: nltools.data.BrainData.mean
+.. automethod:: nltools.data.BrainData.median
+.. automethod:: nltools.data.BrainData.std
+.. automethod:: nltools.data.BrainData.sum
+.. automethod:: nltools.data.BrainData.astype
+```
+
+### Preprocessing
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainData.scale
+.. automethod:: nltools.data.BrainData.standardize
+.. automethod:: nltools.data.BrainData.smooth
+.. automethod:: nltools.data.BrainData.filter
+.. automethod:: nltools.data.BrainData.detrend
+.. automethod:: nltools.data.BrainData.threshold
+.. automethod:: nltools.data.BrainData.r_to_z
+.. automethod:: nltools.data.BrainData.z_to_r
+.. automethod:: nltools.data.BrainData.find_spikes
+.. automethod:: nltools.data.BrainData.temporal_resample
+```
+
+### Masking and ROI Extraction
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainData.apply_mask
+.. automethod:: nltools.data.BrainData.extract_roi
+.. automethod:: nltools.data.BrainData.regions
+```
+
+### Similarity and Distance
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainData.similarity
+.. automethod:: nltools.data.BrainData.distance
+.. automethod:: nltools.data.BrainData.multivariate_similarity
+.. automethod:: nltools.data.BrainData.transform_pairwise
+.. automethod:: nltools.data.BrainData.icc
+```
+
+### Decomposition and Alignment
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainData.decompose
+.. automethod:: nltools.data.BrainData.align
+```
+
+### Statistical Modeling
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainData.fit
+.. automethod:: nltools.data.BrainData.compute_contrasts
+.. automethod:: nltools.data.BrainData.cv
+```
+
+### Prediction and Decoding
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainData.predict
+```
+
+### Bootstrap Inference
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainData.bootstrap
+```
+
+### Visualization
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainData.plot
+.. automethod:: nltools.data.BrainData.plot_flatmap
 ```
 
 ## Submodules
