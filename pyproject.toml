@@ -29,7 +29,6 @@ dependencies = [
 # Installed by default when using uv install
 [dependency-groups]
 dev = [
-    "git-cliff>=2.12.0",
     "ipywidgets>=8.1.7",
     "jupyter-book>=1.0.4.post1",
     "jupytext>=1.18.1",
@@ -82,10 +81,3 @@ possibly-unbound-attribute = "ignore"  # Attrs set in fit() not tracked
 help = "Lint project with ruff and ty"
 shell  = """ruff check nltools && ty check nltools"""
 
-[tool.poe.tasks.changelog]
-help = "Generate changelog from conventional commits"
-cmd = "git-cliff --output docs/changelog.md"
-
-[tool.poe.tasks.setup-hooks]
-help = "Configure git to use shared hooks (enforces conventional commits)"
-cmd = "git config core.hooksPath .githooks"
