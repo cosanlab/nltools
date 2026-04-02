@@ -38,28 +38,35 @@ def predict(
 
     Args:
         bd: BrainData instance.
-        X: Features for timeseries prediction, shape (n_samples, n_features).
-            If None and y is None, uses training data from fit().
-        y: Labels for MVPA decoding, shape (n_samples,).
+        X (array-like, optional): Features for timeseries prediction, shape
+            (n_samples, n_features). If None and y is None, uses training
+            data from fit().
+        y (array-like, optional): Labels for MVPA decoding, shape (n_samples,).
             If provided, performs pattern classification instead of
             timeseries prediction.
 
-        # MVPA-specific parameters (only used when y is provided):
-        method: Decoding method - 'whole_brain', 'searchlight', or 'roi'.
-        estimator: Classifier to use. Can be:
+        MVPA-specific parameters (only used when y is provided):
+
+        method (str): Decoding method - 'whole_brain', 'searchlight', or 'roi'.
+        estimator (str or sklearn estimator): Classifier to use. Can be:
             - 'svm': LinearSVC (default)
             - 'logistic': LogisticRegression
             - 'ridge': RidgeClassifier
             - 'lda': LinearDiscriminantAnalysis
             - Any sklearn-compatible estimator with fit/predict
-        cv: Cross-validation specification. Int for k-fold or sklearn CV object.
-        groups: Group labels for CV (e.g., run IDs for leave-one-run-out).
-        roi_mask: Atlas/parcellation for ROI-based decoding.
-        radius: Searchlight radius in mm (default 10.0).
-        scoring: Metric for evaluation ('accuracy', 'balanced_accuracy', 'roc_auc').
-        standardize: Z-score features before classification (default True).
-        n_jobs: Number of parallel jobs for searchlight (-1 = all cores).
-        show_progress: Show progress bar for searchlight.
+        cv (int or sklearn CV splitter): Cross-validation specification.
+            Int for k-fold or sklearn CV object.
+        groups (array-like, optional): Group labels for CV (e.g., run IDs
+            for leave-one-run-out).
+        roi_mask (Nifti1Image or str, optional): Atlas/parcellation for
+            ROI-based decoding.
+        radius (float): Searchlight radius in mm. Default: 10.0.
+        scoring (str): Metric for evaluation ('accuracy',
+            'balanced_accuracy', 'roc_auc').
+        standardize (bool): Z-score features before classification.
+            Default: True.
+        n_jobs (int): Number of parallel jobs for searchlight (-1 = all cores).
+        show_progress (bool): Show progress bar for searchlight.
 
     Returns:
         BrainData: For timeseries prediction, shape (n_samples, n_voxels).
@@ -109,11 +116,12 @@ def predict(
 def predict_timeseries(bd, X=None):
     """Generate timeseries predictions using fitted model.
 
-    Internal method for encoding model prediction.
+    Internal function for encoding model prediction.
 
     Args:
         bd: BrainData instance.
-        X: Features to predict on. If None, uses training data.
+        X (array-like, optional): Features to predict on. If None, uses
+            training data.
 
     Returns:
         BrainData with predicted timeseries.
@@ -206,21 +214,22 @@ def predict_mvpa(
 ):
     """Perform MVPA decoding using cross-validation.
 
-    Internal method for pattern classification.
+    Internal function for pattern classification.
 
     Args:
         bd: BrainData instance.
-        y: Labels to predict, shape (n_samples,).
-        method: 'whole_brain', 'searchlight', or 'roi'.
-        estimator: Classifier (string shortcut or sklearn estimator).
-        cv: Cross-validation specification.
-        groups: Group labels for CV.
-        roi_mask: Atlas for ROI-based decoding.
-        radius: Searchlight radius in mm.
-        scoring: Scoring metric.
-        standardize: Whether to z-score features.
-        n_jobs: Parallel jobs for searchlight.
-        show_progress: Show progress bar.
+        y (array-like): Labels to predict, shape (n_samples,).
+        method (str): 'whole_brain', 'searchlight', or 'roi'.
+        estimator (str or sklearn estimator): Classifier (string shortcut
+            or sklearn estimator).
+        cv (int or sklearn CV splitter): Cross-validation specification.
+        groups (array-like, optional): Group labels for CV.
+        roi_mask (Nifti1Image or str, optional): Atlas for ROI-based decoding.
+        radius (float): Searchlight radius in mm.
+        scoring (str): Scoring metric.
+        standardize (bool): Whether to z-score features.
+        n_jobs (int): Parallel jobs for searchlight.
+        show_progress (bool): Show progress bar.
 
     Returns:
         BrainData with accuracy values.

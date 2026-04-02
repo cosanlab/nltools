@@ -33,16 +33,17 @@ __all__ = ["BrainData", "BrainDataPipeline", "BrainDataCVResult"]
 class BrainData(object):
     """
     BrainData is a class to represent neuroimaging data in python as a vector
-    rather than a 3-dimensional matrix.This makes it easier to perform data
+    rather than a 3-dimensional matrix. This makes it easier to perform data
     manipulation and analyses.
 
     Args:
         data: nibabel data instance or list of files
         Y: Pandas DataFrame of training labels
         X: Pandas DataFrame Design Matrix for running univariate models
-        mask: binary nifiti file to mask brain data
-        **kwargs: Additional keyword arguments to pass to the prediction
-                algorithm
+        mask: binary nifti file to mask brain data
+        masker: nilearn masker object (e.g., ROI or searchlight extractor).
+            Default uses voxel-level masking.
+        **kwargs: Additional keyword arguments passed to NiftiMasker
 
     """
 
@@ -295,7 +296,11 @@ class BrainData(object):
         load_from_file(self, data)
 
     def to_nifti(self):
-        """Convert BrainData Instance into Nifti Object"""
+        """Convert BrainData Instance into Nifti Object.
+
+        Returns:
+            nibabel.Nifti1Image: Brain data as a NIfTI image.
+        """
         from .io import to_nifti
 
         return to_nifti(self)
@@ -332,7 +337,8 @@ class BrainData(object):
         """Write out BrainData object to Nifti or HDF5 File.
 
         Args:
-            file_name: (str) name of nifti file including path
+            file_name (str or Path): Output file path (.nii/.nii.gz for NIfTI,
+                .h5/.hdf5 for HDF5).
 
         """
         from .io import write_brain_data
@@ -386,6 +392,7 @@ class BrainData(object):
             other: The other operand.
             operation: The operation function (e.g., np.add, np.subtract).
             operation_name: Name of the operation for error messages.
+            inplace (bool): If True, modify in-place. Default: False.
 
         Returns:
             BrainData: Result of the operation.
@@ -1064,7 +1071,11 @@ class BrainData(object):
         return to_fit_dataclass(self, model)
 
     def regress(self, design_matrix=None, noise_model="ols", mode=None, **kwargs):
-        """Deprecated: Use fit(model='glm', X=design_matrix) instead."""
+        """Deprecated: Use fit(model='glm', X=design_matrix) instead.
+
+        .. deprecated:: 0.6.0
+            Use :meth:`fit` with ``model='glm'`` instead.
+        """
         from .modeling import regress
 
         return regress(
@@ -1227,7 +1238,7 @@ class BrainData(object):
         return out
 
     def empty(self):
-        """Create a copy of BrainData with empty data array.
+        """Deprecated: Create a copy of BrainData with empty data array.
 
         .. deprecated:: 0.6.0
             Use :meth:`create_empty` instead.
@@ -1299,7 +1310,7 @@ class BrainData(object):
                     ['correlation','dot_product','cosine']
 
         Returns:
-            pexp: (list) Outputs a vector of pattern expression values
+            float or np.ndarray: Similarity value(s).
         """
         from .analysis import similarity
 
@@ -1313,7 +1324,7 @@ class BrainData(object):
                     metric supported by cdist)
 
         Returns:
-            dist: (Adjacency) Outputs a 2D distance matrix.
+            Adjacency: Pairwise distance matrix.
         """
         from .analysis import distance
 
@@ -1325,6 +1336,7 @@ class BrainData(object):
 
         Args:
             images: BrainData instance of weight map
+            method (str): Regression method. Default: 'ols'.
 
         Returns:
             out: dictionary of regression statistics in BrainData
@@ -1443,6 +1455,10 @@ class BrainData(object):
     def filter(self, sampling_freq=None, high_pass=None, low_pass=None, **kwargs):
         """Apply butterworth filter to data. Wraps nilearn.signal.clean.
 
+        Note:
+            Unlike nilearn's default, does not detrend or standardize. Pass
+            detrend=True or standardize=True via kwargs to enable.
+
         Args:
             sampling_freq: Sampling freq in hertz (i.e. 1 / TR)
             high_pass: High pass cutoff frequency
@@ -1466,11 +1482,15 @@ class BrainData(object):
         """Standardize BrainData() instance.
 
         Args:
-            axis: 0 for observations 1 for voxels
-            method: ['center','zscore']
+            axis (int): Axis along which to standardize. 0 standardizes each
+                voxel across observations (default). 1 standardizes each
+                observation across voxels.
+            method (str): Standardization method. 'center' subtracts the mean
+                (default). 'zscore' subtracts the mean and divides by standard
+                deviation.
 
         Returns:
-            BrainData Instance
+            BrainData: Standardized BrainData instance.
         """
         from .analysis import standardize
 
@@ -1691,10 +1711,10 @@ class BrainData(object):
         """Identify spikes from Time Series Data.
 
         Args:
-            global_spike_cutoff: (int,None) cutoff to identify spikes in global signal
-                                 in standard deviations.
-            diff_spike_cutoff: (int,None) cutoff to identify spikes in average frame difference
-                                 in standard deviations.
+            global_spike_cutoff (int or None): cutoff to identify spikes in global signal
+                in standard deviations, or None to skip.
+            diff_spike_cutoff (int or None): cutoff to identify spikes in average frame
+                difference in standard deviations, or None to skip.
 
         Returns:
             pandas dataframe with spikes as indicator variables
@@ -1976,7 +1996,35 @@ class BrainData(object):
         axes=None,
         save=None,
     ):
-        """Plot brain data on cortical flatmap."""
+        """Plot brain data on cortical flatmap.
+
+        Args:
+            threshold (float, optional): Values below this absolute threshold
+                are masked.
+            cmap (str): Matplotlib colormap for data. Default: 'RdBu_r'.
+            vmax (float, optional): Maximum value for colormap.
+            vmin (float, optional): Minimum value for colormap.
+            template (str): Freesurfer surface resolution. Default: 'fsaverage5'.
+            with_curvature (bool): Show sulcal/gyral pattern. Default: True.
+            curvature_contrast (float): Contrast of curvature overlay.
+                Default: 0.5.
+            curvature_brightness (float): Mean brightness of curvature overlay.
+                Default: 0.5.
+            colorbar (bool): Show colorbar. Default: True.
+            colorbar_orientation (str): 'horizontal' or 'vertical'.
+                Default: 'horizontal'.
+            figsize (tuple): Figure size as (width, height). Default: (12, 6).
+            title (str, optional): Figure title.
+            radius (float): Sampling radius in mm for vol_to_surf projection.
+                Default: 3.0.
+            interpolation (str): Interpolation method for vol_to_surf.
+                Default: 'linear'.
+            axes (matplotlib.axes.Axes, optional): Existing axes to plot on.
+            save (str, optional): File path to save figure.
+
+        Returns:
+            matplotlib.figure.Figure
+        """
         from .plotting import plot_flatmap_brain
 
         return plot_flatmap_brain(
@@ -2025,14 +2073,22 @@ class BrainData(object):
 
     # NOTE: Historical follow-up for future Model-class refactoring
     def randomise(self, *args, **kwargs):
-        """DEPRECATED: This method has been moved to the Model class."""
+        """DEPRECATED: This method has been moved to the Model class.
+
+        .. deprecated:: 0.6.0
+            Use the Model class for permutation-based inference.
+        """
         raise NotImplementedError(
             "randomise() has been deprecated. Please use the new Model class for permutation-based inference."
         )
 
     # NOTE: Historical follow-up for future Model-class refactoring
     def ttest(self, *args, **kwargs):
-        """DEPRECATED: This method has been moved to the Model class."""
+        """DEPRECATED: This method has been moved to the Model class.
+
+        .. deprecated:: 0.6.0
+            Use the Model class for statistical testing.
+        """
         raise NotImplementedError(
             "ttest() has been deprecated. Please use the new Model class for statistical testing."
         )

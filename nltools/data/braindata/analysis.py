@@ -44,11 +44,13 @@ def similarity(bd, image, method="correlation"):
     BrainData or Nibabel image
 
     Args:
+        bd: BrainData instance.
         image: (BrainData, nifti)  image to evaluate similarity
         method: (str) Type of similarity
-                ['correlation','dot_product','cosine']
+                ['correlation', 'pearson', 'rank_correlation', 'spearman', 'dot_product', 'cosine']
+
     Returns:
-        pexp: (list) Outputs a vector of pattern expression values
+        np.ndarray: Similarity values.
 
     """
     from nltools.stats import compute_similarity
@@ -76,9 +78,11 @@ def distance(bd, metric="euclidean", **kwargs):
     """Calculate distance between images within a BrainData() instance.
 
     Args:
+        bd: BrainData instance.
         metric: (str) type of distance metric (can use any scipy.spatial.distance
                 metric supported by cdist, e.g., 'euclidean', 'cityblock', 'cosine',
                 'correlation', 'hamming', 'jaccard', etc.)
+        **kwargs: Additional arguments passed to scipy.spatial.distance.cdist.
 
     Returns:
         dist: (Adjacency) Outputs a 2D distance matrix.
@@ -101,6 +105,7 @@ def multivariate_similarity(bd, images, method="ols"):
     Args:
         bd: BrainData instance of data to be applied
         images: BrainData instance of weight map
+        method (str): Regression method. Default: 'ols'.
 
     Returns:
         out: dictionary of regression statistics in BrainData
@@ -133,6 +138,7 @@ def apply_mask(bd, mask, resample_mask_to_brain=False):
     resampled into the BrainData space, then set resample_mask_to_brain=True.
 
     Args:
+        bd: BrainData instance.
         mask: (BrainData or nifti object) mask to apply to BrainData object.
         resample_mask_to_brain: (bool) Will resample mask to brain space before applying mask (default=False).
 
@@ -193,6 +199,7 @@ def extract_roi(bd, mask, metric="mean", n_components=None):
     when dealing with labeled atlases (multiple ROIs).
 
     Args:
+        bd: BrainData instance.
         mask: BrainData, nibabel image, or file path. Can be:
 
               - Binary mask (extracts from single ROI)
@@ -360,6 +367,7 @@ def icc(
     icc2/3:  x_ij = mu + alpha_i + beta_j + (ab)_ij + epsilon_ij
 
     Args:
+        bd: BrainData instance.
         n_subjects: Number of subjects in the data
         n_sessions: Number of sessions per subject
         icc_type: Type of ICC to calculate
@@ -428,7 +436,8 @@ def detrend_data(bd, method="linear"):
     """Remove linear trend from each voxel
 
     Args:
-        type: ('linear','constant', optional) type of detrending
+        bd: BrainData instance.
+        method: ('linear','constant', optional) type of detrending
 
     Returns:
         out: (BrainData) detrended BrainData instance
@@ -447,7 +456,14 @@ def detrend_data(bd, method="linear"):
 
 def r_to_z(bd):
     """Apply Fisher's r to z transformation to each element of the data
-    object."""
+    object.
+
+    Args:
+        bd: BrainData instance.
+
+    Returns:
+        BrainData: Transformed BrainData instance.
+    """
     from nltools.stats import fisher_r_to_z
 
     out = bd._shallow_copy_with_data()
@@ -457,7 +473,14 @@ def r_to_z(bd):
 
 
 def z_to_r(bd):
-    """Convert z score back into r value for each element of data object"""
+    """Convert z score back into r value for each element of data object.
+
+    Args:
+        bd: BrainData instance.
+
+    Returns:
+        BrainData: Transformed BrainData instance.
+    """
     from nltools.stats import fisher_z_to_r
 
     out = bd._shallow_copy_with_data()
@@ -473,9 +496,10 @@ def filter_data(bd, sampling_freq=None, high_pass=None, low_pass=None, **kwargs)
     implementation, but this can be overridden using kwargs.
 
     Args:
-        sampling_freq: Sampling freq in hertz (i.e. 1 / TR)
-        high_pass: High pass cutoff frequency
-        low_pass: Low pass cutoff frequency
+        bd: BrainData instance.
+        sampling_freq: Sampling freq in hertz (i.e. 1 / TR). Default: None.
+        high_pass: High pass cutoff frequency. Default: None.
+        low_pass: Low pass cutoff frequency. Default: None.
         **kwargs: Additional arguments passed to nilearn.signal.clean
                   Common options:
                   - confounds: Confound timeseries to remove
@@ -495,7 +519,7 @@ def filter_data(bd, sampling_freq=None, high_pass=None, low_pass=None, **kwargs)
     if sampling_freq is None:
         raise ValueError("Need to provide sampling rate (TR)!")
     if high_pass is None and low_pass is None:
-        raise ValueError("high_pass and/or low_pass cutoff must beprovided!")
+        raise ValueError("high_pass and/or low_pass cutoff must be provided!")
 
     standardize = kwargs.get("standardize", False)
     detrend = kwargs.get("detrend", False)
@@ -518,11 +542,12 @@ def standardize(bd, axis=0, method="center"):
     """Standardize BrainData() instance.
 
     Args:
-        axis: 0 for observations 1 for voxels
-        method: ['center','zscore']
+        bd: BrainData instance.
+        axis: 0 for observations 1 for voxels (default: 0)
+        method: ['center','zscore'] (default: 'center')
 
     Returns:
-        BrainData Instance
+        BrainData: Standardized BrainData instance.
 
     """
     from sklearn.preprocessing import scale
@@ -562,6 +587,7 @@ def scale_data(bd, scale_val=100.0, axis=None):
     akin to (but not exactly) "percent signal change."
 
     Args:
+        bd: BrainData instance.
         scale_val: (int/float) Target value for the mean after scaling.
             Default 100.
         axis: (int or None) Axis along which to compute the mean.
@@ -629,6 +655,7 @@ def threshold_data(
         lower: (float or str) Lower cutoff for thresholding. If string
                 will interpret as percentile; can be None for one-sided
                 thresholding.
+        bd: BrainData instance.
         binarize (bool): return binarized image respecting thresholds if
                 provided, otherwise binarize on every non-zero value;
                 default False
@@ -726,6 +753,7 @@ def regions(
     """Extract brain connected regions into separate regions.
 
     Args:
+        bd: BrainData instance.
         min_region_size (int): Minimum volume in mm3 for a region to be
                             kept.
         extract_type (str): Type of extraction method
@@ -744,7 +772,7 @@ def regions(
                             'local_regions'.
         is_mask (bool): Whether the BrainData instance should be treated
                         as a boolean mask and if so, calls
-                        connected_label_regions instead.
+                        connected_label_regions instead. Default: False.
 
     Returns:
         BrainData: BrainData instance with extracted ROIs as data.
@@ -764,12 +792,13 @@ def regions(
 
 
 def transform_pairwise_data(bd):
-    """Extract brain connected regions into separate regions.
+    """Transform BrainData into pairwise comparisons.
 
     Args:
+        bd: BrainData instance.
 
     Returns:
-        BrainData: BrainData instance tranformed into pairwise comparisons
+        BrainData: BrainData instance transformed into pairwise comparisons.
     """
     import pandas as pd
 
@@ -787,11 +816,14 @@ def decompose(bd, algorithm="pca", axis="voxels", n_components=None, *args, **kw
     """Decompose BrainData object
 
     Args:
+        bd: BrainData instance.
         algorithm: (str) Algorithm to perform decomposition
                     types=['pca','ica','nnmf','fa','dictionary','kernelpca']
         axis: dimension to decompose ['voxels','images']
         n_components: (int) number of components. If None then retain
-                    as many as possible.
+                    as many as possible (default: None).
+        **kwargs: Additional keyword arguments passed to the decomposition algorithm.
+
     Returns:
         output: a dictionary of decomposition parameters
     """
@@ -823,15 +855,17 @@ def align(bd, target, method="procrustes", axis=0, *args, **kwargs):
     using hyperalignment, `target` image can be another subject or an
     already estimated common model. When using SRM, `target` must be a previously
     estimated common model stored as a numpy array. Transformed data can be back
-    projected to original data using Tranformation matrix.
+    projected to original data using Transformation matrix.
 
     See nltools.stats.align for aligning multiple BrainData instances
 
     Args:
+        bd: BrainData instance.
         target: (BrainData) object to align to.
         method: (str) alignment method to use
             ['probabilistic_srm','deterministic_srm','procrustes']
-        axis: (int) axis to align on
+        axis: (int) axis to align on (default: 0)
+        **kwargs: Additional keyword arguments passed to the alignment function.
 
     Returns:
         out: (dict) a dictionary containing transformed object,
@@ -916,7 +950,9 @@ def smooth(bd, fwhm):
     """Apply spatial smoothing using nilearn smooth_img()
 
     Args:
+        bd: BrainData instance.
         fwhm: (float) full width half maximum of gaussian spatial filter
+
     Returns:
         BrainData instance (copy with smoothed data)
     """
@@ -945,12 +981,14 @@ def find_spikes_data(bd, global_spike_cutoff=3, diff_spike_cutoff=3):
     """Function to identify spikes from Time Series Data
 
     Args:
+        bd: BrainData instance.
         global_spike_cutoff: (int,None) cutoff to identify spikes in global signal
                              in standard deviations, None indicates do not calculate.
         diff_spike_cutoff: (int,None) cutoff to identify spikes in average frame difference
                              in standard deviations, None indicates do not calculate.
+
     Returns:
-        pandas dataframe with spikes as indicator variables
+        pd.DataFrame: DataFrame with spikes as indicator variables.
     """
     from nltools.stats import find_spikes
 
@@ -970,9 +1008,10 @@ def temporal_resample(bd, sampling_freq=None, target=None, target_type="hz"):
     Note: this function can use quite a bit of RAM.
 
     Args:
-        sampling_freq:  (float) sampling frequency of data in hertz
-        target: (float) upsampling target
-        target_type: (str) type of target can be [samples,seconds,hz]
+        bd: BrainData instance.
+        sampling_freq: (float) sampling frequency of data in hertz (default: None)
+        target: (float) upsampling target (default: None)
+        target_type: (str) type of target can be [samples,seconds,hz] (default: 'hz')
 
     Returns:
         upsampled BrainData instance

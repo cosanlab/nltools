@@ -122,7 +122,9 @@ def get_interpolation(bd, img):
         img: nibabel image to check (used when interpolation='auto')
 
     Returns:
-        str: 'nearest', 'linear', or 'continuous'
+        str: Interpolation method. When 'auto', resolves to 'nearest' or
+            'continuous' based on data type. Otherwise returns the instance's
+            configured interpolation setting.
     """
     if bd._interpolation == "auto":
         return _detect_interpolation(img)
@@ -366,7 +368,7 @@ def warn_if_resampling(bd, context=""):
 
     Args:
         bd: BrainData instance.
-        context: Optional context string to include in warning message.
+        context (str): Context string to include in warning. Default: empty string.
     """
     if bd._resample and bd.verbose:
         base_msg = "Resampling data to match mask space (resample=True)."
@@ -723,7 +725,14 @@ def load_from_file(bd, data):
 
 
 def to_nifti(bd):
-    """Convert BrainData Instance into Nifti Object"""
+    """Convert BrainData instance to a nibabel NIfTI image.
+
+    Args:
+        bd: BrainData instance.
+
+    Returns:
+        nibabel.Nifti1Image: Brain data in volumetric NIfTI format.
+    """
     return bd.nifti_masker.inverse_transform(bd.data)
 
 
@@ -879,8 +888,8 @@ def write_brain_data(bd, file_name):
 
     Args:
         bd: BrainData instance.
-        file_name: (str) name of nifti file including path
-
+        file_name (str or Path): Output file path. Supports .nii/.nii.gz (NIfTI)
+            and .h5/.hdf5 (HDF5) formats.
     """
     from nltools.utils import is_h5_path, to_h5
 
@@ -907,21 +916,22 @@ def upload_neurovault(
     img_modality=None,
     **kwargs,
 ):
-    """Upload Data to Neurovault.  Will add any columns in bd.X to image
-        metadata. Index will be used as image name.
+    """Upload data to NeuroVault.
+
+    Adds any columns in bd.X to image metadata. Index will be used as image name.
 
     Args:
         bd: BrainData instance.
-        access_token: (str, Required) Neurovault api access token
-        collection_name: (str, Optional) name of new collection to create
-        collection_id: (int, Optional) neurovault collection_id if adding images
-                        to existing collection
-        img_type: (str, Required) Neurovault map_type
-        img_modality: (str, Required) Neurovault image modality
+        access_token (str): NeuroVault API access token. Required.
+        collection_name (str, optional): Name of new collection to create.
+        collection_id (int, optional): NeuroVault collection ID if adding images
+            to an existing collection.
+        img_type (str): NeuroVault map type. Required.
+        img_modality (str): NeuroVault image modality. Required.
+        **kwargs: Additional keyword arguments passed to the NeuroVault API.
 
     Returns:
-        collection: (pd.DataFrame) neurovault collection information
-
+        dict: NeuroVault collection information.
     """
     from pynv import Client
 

@@ -27,7 +27,7 @@ def bootstrap(
         n_samples: (int) Number of bootstrap iterations. Default: 5000
         save_boots: (bool) If True, store all bootstrap samples (memory intensive).
                    Default: False
-        n_jobs: (int) Number of CPU cores for parallelization. -1 means all CPUs.
+        n_jobs: (int) Number of CPU cores for parallelization. Default: -1 (all CPUs).
         random_state: (int, optional) Random seed for reproducibility
         percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
         X_test: (np.ndarray, optional) Test features for 'predict' bootstrap.
@@ -36,7 +36,9 @@ def bootstrap(
                 If 'torch' and GPU available, uses optimized GPU acceleration with
                 inline Ridge computation (no CPU round-trips). Default: None (CPU).
         max_gpu_memory_gb: (float) Maximum GPU memory to use in GB. Default: 4.0
-        **kwargs: Additional parameters (currently unused, reserved for future extensions)
+        **kwargs: Additional keyword arguments passed to the underlying bootstrap
+            computation functions. Also accepts ``backend`` (str) and
+            ``max_gpu_memory_gb`` (float).
 
     Returns:
         BrainData or dict:

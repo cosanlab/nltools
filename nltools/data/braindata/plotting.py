@@ -29,15 +29,18 @@ def plot_brain(
         kind (str): Visualization type ('glass', 'slices', 'timeseries', 'histogram').
         thr_upper (str/float, optional): Upper threshold.
         thr_lower (str/float, optional): Lower threshold.
-        threshold (float, optional): Convenience parameter.
+        threshold (float, optional): Convenience parameter. If positive,
+            sets thr_upper (shows values above threshold). If negative,
+            sets thr_lower (shows values below threshold).
         cut_coords (list, optional): Cut coordinates for multi-slice views.
         cmap (str, optional): Colormap name.
-        bg_img: Background image.
-        ax: Matplotlib axis.
+        bg_img (Nifti1Image or str, optional): Background image for slice views.
+        ax (matplotlib.axes.Axes, optional): Matplotlib axis to plot on.
         title (str, optional): Plot title.
-        colorbar (bool): Whether to show colorbar.
+        colorbar (bool): Whether to show colorbar. Default: True.
         save (str, optional): Path to save figure(s).
-        stat (str): Statistic for timeseries plots.
+        stat (str): Statistic for timeseries plots. Valid options:
+            'mean', 'median', 'std'.
         **kwargs: Additional arguments passed to nilearn plot functions.
 
     Returns:
@@ -192,22 +195,27 @@ def plot_flatmap_brain(
 
     Args:
         bd: BrainData instance.
-        threshold: Values below this absolute threshold are masked.
-        cmap: Matplotlib colormap for data.
-        vmax: Maximum value for colormap.
-        vmin: Minimum value for colormap.
-        template: fsaverage resolution.
-        with_curvature: Show sulcal/gyral pattern.
-        curvature_contrast: Contrast of curvature.
-        curvature_brightness: Mean brightness of curvature.
-        colorbar: Show colorbar.
-        colorbar_orientation: 'horizontal' or 'vertical'.
-        figsize: Figure size.
-        title: Figure title.
-        radius: Sampling radius in mm for vol_to_surf.
-        interpolation: Interpolation for vol_to_surf.
-        axes: Existing axes to plot on.
-        save: File path to save figure.
+        threshold (float, optional): Values below this absolute threshold
+            are masked.
+        cmap (str): Matplotlib colormap for data. Default: 'RdBu_r'.
+        vmax (float, optional): Maximum value for colormap.
+        vmin (float, optional): Minimum value for colormap.
+        template (str): fsaverage resolution. Default: 'fsaverage5'.
+        with_curvature (bool): Show sulcal/gyral pattern. Default: True.
+        curvature_contrast (float): Contrast of curvature. Default: 0.5.
+        curvature_brightness (float): Mean brightness of curvature.
+            Default: 0.5.
+        colorbar (bool): Show colorbar. Default: True.
+        colorbar_orientation (str): 'horizontal' or 'vertical'.
+            Default: 'horizontal'.
+        figsize (tuple): Figure size. Default: (12, 6).
+        title (str, optional): Figure title.
+        radius (float): Sampling radius in mm for vol_to_surf.
+            Default: 3.0.
+        interpolation (str): Interpolation for vol_to_surf.
+            Default: 'linear'.
+        axes (matplotlib.axes.Axes, optional): Existing axes to plot on.
+        save (str, optional): File path to save figure.
 
     Returns:
         matplotlib.figure.Figure
@@ -325,7 +333,7 @@ def auto_select_colormap(data):
     """Auto-select colormap based on data characteristics.
 
     Args:
-        data: numpy array of brain data
+        data (np.ndarray): numpy array of brain data
 
     Returns:
         str: Colormap name

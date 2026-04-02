@@ -129,7 +129,8 @@ def fit(
         BrainData or Fit: If ``inplace=True``, returns bd (fitted BrainData).
             If ``inplace=False``, returns Fit dataclass with results.
 
-    Attributes (when inplace=True):
+    Attributes:
+        The following are set on bd when ``inplace=True``:
 
         ``model_`` (BaseModel): Fitted model instance (Ridge, Glm, etc.)
         ``X_`` (ndarray): Training data X, stored for predict() default
@@ -288,6 +289,10 @@ def fit_ridge(bd, X, cv=None, **kwargs):
         X (ndarray): Training features
         cv (int, 'auto', or sklearn CV splitter, optional): Cross-validation specification
         **kwargs (dict): Additional arguments for CV (alpha, alphas, backend, etc.)
+
+    Note:
+        Sets ridge_weights, ridge_fitted_values, ridge_scores, and
+        cv_results_ (if cv provided) on bd.
     """
     # Perform cross-validation if requested
     if cv is not None:
@@ -457,6 +462,10 @@ def fit_glm(bd, X):
     Args:
         bd: BrainData instance.
         X: Design matrix (DataFrame or DesignMatrix).
+
+    Note:
+        Sets glm_betas, glm_t, glm_p, glm_se, glm_residual, glm_predicted,
+        glm_r2, and design_matrix on bd.
     """
     from nltools.data.design_matrix import DesignMatrix
     from nltools.data import BrainData

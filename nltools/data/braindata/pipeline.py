@@ -11,6 +11,14 @@ class BrainDataPipeline:
     """
 
     def __init__(self, brain_data, cv=None, groups=None):
+        """Initialize a BrainDataPipeline.
+
+        Args:
+            brain_data: BrainData instance to build the pipeline on.
+            cv: Cross-validation splitter (e.g., CVScheme instance) or None.
+            groups (array-like, optional): Group labels for CV splits
+                (e.g., run IDs for leave-one-run-out).
+        """
         from nltools.pipelines.base import FittedStack  # noqa: F401
 
         self._brain_data = brain_data
@@ -51,7 +59,15 @@ class BrainDataPipeline:
         return new
 
     def normalize(self, method: str = "zscore", **kwargs) -> "BrainDataPipeline":
-        """Add normalization step."""
+        """Add normalization step.
+
+        Args:
+            method (str): Normalization method. Default: 'zscore'.
+            **kwargs: Additional arguments passed to NormalizeStep.
+
+        Returns:
+            BrainDataPipeline: New pipeline with the normalization step appended.
+        """
         from nltools.pipelines.steps import NormalizeStep
 
         return self._add_step(NormalizeStep(method=method, **kwargs))
@@ -59,7 +75,16 @@ class BrainDataPipeline:
     def reduce(
         self, method: str = "pca", n_components: int | None = None, **kwargs
     ) -> "BrainDataPipeline":
-        """Add dimensionality reduction step."""
+        """Add dimensionality reduction step.
+
+        Args:
+            method (str): Reduction method (e.g., 'pca'). Default: 'pca'.
+            n_components (int, optional): Number of components to keep.
+            **kwargs: Additional arguments passed to ReduceStep.
+
+        Returns:
+            BrainDataPipeline: New pipeline with the reduction step appended.
+        """
         from nltools.pipelines.steps import ReduceStep
 
         return self._add_step(
@@ -67,7 +92,15 @@ class BrainDataPipeline:
         )
 
     def pipe(self, transformer) -> "BrainDataPipeline":
-        """Add custom sklearn transformer."""
+        """Add custom sklearn transformer.
+
+        Args:
+            transformer: An sklearn-compatible transformer with
+                fit/transform methods.
+
+        Returns:
+            BrainDataPipeline: New pipeline with the custom step appended.
+        """
         from nltools.pipelines.steps import PipeStep
 
         return self._add_step(PipeStep(transformer=transformer))
@@ -159,6 +192,15 @@ class BrainDataCVResult:
     """Cross-validation results for BrainData pipelines."""
 
     def __init__(self, fold_results: list, pipeline):
+        """Initialize cross-validation results.
+
+        Args:
+            fold_results (list): List of dicts, one per fold, each containing
+                'score', 'predictions', 'train_idx', 'test_idx', and
+                'fitted_stack'.
+            pipeline (BrainDataPipeline): The pipeline that produced these
+                results.
+        """
         self.fold_results = fold_results
         self.pipeline = pipeline
 
