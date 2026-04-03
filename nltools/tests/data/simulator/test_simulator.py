@@ -1,5 +1,5 @@
 import pytest
-from nltools.simulator import Simulator, SimulateGrid
+from nltools.data.simulator import Simulator, SimulateGrid
 import numpy as np
 
 

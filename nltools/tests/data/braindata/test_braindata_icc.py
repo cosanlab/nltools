@@ -47,7 +47,7 @@ class TestBrainDataICC:
     @pytest.mark.slow
     def test_correctness_vs_single_voxel(self):
         """Test that BrainData.icc() matches single-voxel compute_icc."""
-        from nltools.simulator import Simulator
+        from nltools.data.simulator import Simulator
 
         # Create test data: 10 subjects × 5 sessions
         n_subjects = 10
@@ -73,7 +73,7 @@ class TestBrainDataICC:
 
     def test_all_icc_types(self):
         """Test that all ICC types work with BrainData."""
-        from nltools.simulator import Simulator
+        from nltools.data.simulator import Simulator
 
         n_subjects = 5
         n_sessions = 3
@@ -96,7 +96,7 @@ class TestBrainDataICC:
 
     def test_cpu_parallel(self):
         """Test CPU parallelization with BrainData (for medium-sized problems)."""
-        from nltools.simulator import Simulator
+        from nltools.data.simulator import Simulator
 
         n_subjects = 5
         n_sessions = 3
@@ -132,7 +132,7 @@ class TestBrainDataICC:
 
     def test_invalid_shape(self):
         """Test that invalid shape raises error."""
-        from nltools.simulator import Simulator
+        from nltools.data.simulator import Simulator
 
         n_subjects = 5
         n_sessions = 3
@@ -151,7 +151,7 @@ class TestBrainDataICC:
     @pytest.mark.slow
     def test_return_type(self):
         """Test that ICC returns BrainData object."""
-        from nltools.simulator import Simulator
+        from nltools.data.simulator import Simulator
 
         n_subjects = 5
         n_sessions = 3
@@ -168,7 +168,7 @@ class TestBrainDataICC:
 
     def test_perfect_reliability(self):
         """Test ICC with perfect reliability data."""
-        from nltools.simulator import Simulator
+        from nltools.data.simulator import Simulator
 
         n_subjects = 5
         n_sessions = 3

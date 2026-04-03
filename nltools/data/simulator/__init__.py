@@ -46,7 +46,7 @@ class Simulator:
         random_state: Random state for reproducible simulations.
 
     Examples:
-        >>> from nltools.simulator import Simulator
+        >>> from nltools.data.simulator import Simulator
         >>> sim = Simulator(random_state=42)
         >>> # Create a dataset with signal in specific regions
         >>> data = sim.create_data(y=[1, -1, 1, -1], sigma=1, n_reps=10)
@@ -533,7 +533,7 @@ class SimulateGrid:
         isfit: Whether fit() has been called.
 
     Examples:
-        >>> from nltools.simulator import SimulateGrid
+        >>> from nltools.data.simulator import SimulateGrid
         >>> sim = SimulateGrid(signal_amplitude=0.5, random_state=42)
         >>> sim.fit(n_permute=1000)
         >>> sim.plot()

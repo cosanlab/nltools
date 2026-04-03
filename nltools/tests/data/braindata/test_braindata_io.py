@@ -16,7 +16,7 @@ class TestBrainDataIO:
     )
     def test_load(self, tmpdir):
         """Test loading BrainData from various sources and formats."""
-        from nltools.simulator import Simulator
+        from nltools.data.simulator import Simulator
         from pathlib import Path
         import nibabel as nb
 

@@ -23,7 +23,7 @@ import pytest
 import numpy as np
 import pandas as pd
 from sklearn.metrics import pairwise_distances
-from nltools.simulator import Simulator
+from nltools.data.simulator import Simulator
 from nltools.data import Adjacency, DesignMatrix, BrainData
 import os
 import importlib.util

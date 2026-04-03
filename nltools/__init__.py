@@ -1,7 +1,6 @@
 __all__ = [
     "data",
     "datasets",
-    "analysis",
     "cross_validation",
     "plotting",
     "stats",
@@ -16,6 +15,7 @@ __all__ = [
     "Adjacency",
     "DesignMatrix",
     "Simulator",
+    "SimulateGrid",
     "MNI_Template",
     "expand_mask",
     "collapse_mask",
@@ -24,13 +24,14 @@ __all__ = [
     "DetSRM",
 ]
 
-from .analysis import Roc
 from .data import (
     BrainData,
     Adjacency,
     DesignMatrix,
+    Simulator,
+    SimulateGrid,
+    Roc,
 )
-from .simulator import Simulator
 from .prefs import MNI_Template
 from .version import __version__
 from .mask import expand_mask, collapse_mask, create_sphere

@@ -35,7 +35,7 @@ from nltools.stats import (
 )
 from nltools.algorithms.inference.timeseries import circle_shift, phase_randomize
 from nltools.algorithms.inference.utils import _compute_pvalue
-from nltools.simulator import Simulator
+from nltools.data.simulator import Simulator
 from nltools.mask import create_sphere
 from scipy.spatial.distance import squareform
 

@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 
 from nltools.data import BrainData
-from nltools.simulator import Simulator
+from nltools.data.simulator import Simulator
 
 
 class TestBrainDataPrediction:
