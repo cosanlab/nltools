@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, List, Optional, Union
 import polars as pl
 
 if TYPE_CHECKING:
-    from nltools.data.design_matrix import DesignMatrix
+    from nltools.data.designmatrix import DesignMatrix
 
 
 def append(
@@ -44,7 +44,7 @@ def append(
         TypeError: If items to append are not DesignMatrix instances.
         ValueError: If sampling frequencies do not match or axis is invalid.
     """
-    from nltools.data.design_matrix import DesignMatrix
+    from nltools.data.designmatrix import DesignMatrix
 
     # Normalize to list
     to_append = [other] if not isinstance(other, list) else other

@@ -1,4 +1,4 @@
-# `nltools.data.design_matrix.regressors`
+# `nltools.data.designmatrix.regressors`
 
 **HRF Convolution and Polynomial Regressors**
 
@@ -6,7 +6,7 @@ Standalone functions for HRF convolution, Legendre polynomial drift terms,
 and DCT high-pass filter basis functions.
 
 ```{eval-rst}
-.. automodule:: nltools.data.design_matrix.regressors
+.. automodule:: nltools.data.designmatrix.regressors
     :members:
     :undoc-members:
 ```

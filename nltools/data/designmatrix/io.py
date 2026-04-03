@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
-    from nltools.data.design_matrix import DesignMatrix
+    from nltools.data.designmatrix import DesignMatrix
 
 
 def heatmap(dm: DesignMatrix, figsize: tuple = (8, 6), **kwargs):

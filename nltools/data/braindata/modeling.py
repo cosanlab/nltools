@@ -467,7 +467,7 @@ def fit_glm(bd, X):
         Sets glm_betas, glm_t, glm_p, glm_se, glm_residual, glm_predicted,
         glm_r2, and design_matrix on bd.
     """
-    from nltools.data.design_matrix import DesignMatrix
+    from nltools.data.designmatrix import DesignMatrix
     from nltools.data import BrainData
 
     # Ensure X is DesignMatrix

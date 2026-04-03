@@ -30,7 +30,7 @@ from nltools.utils import (
     is_h5_path,
     to_h5,
 )
-from ..design_matrix import DesignMatrix
+from ..designmatrix import DesignMatrix
 from pathlib import Path
 from h5py import File as h5File
 import warnings

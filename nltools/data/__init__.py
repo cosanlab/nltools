@@ -4,7 +4,7 @@ nltools data types.
 
 from .braindata import BrainData
 from .adjacency import Adjacency
-from .design_matrix import DesignMatrix
+from .designmatrix import DesignMatrix
 from .fit_results import Fit
 from .collection import BrainCollection
 

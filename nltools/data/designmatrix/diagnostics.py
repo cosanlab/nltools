@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Union
 import numpy as np
 
 if TYPE_CHECKING:
-    from nltools.data.design_matrix import DesignMatrix
+    from nltools.data.designmatrix import DesignMatrix
 
 
 def vif(dm: DesignMatrix, exclude_polys: bool = True) -> np.ndarray | None:

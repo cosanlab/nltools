@@ -3963,7 +3963,7 @@ class BrainCollection:
             return None
 
         # Shared DesignMatrix (Polars-based, doesn't inherit from pd.DataFrame)
-        from .design_matrix import DesignMatrix
+        from .designmatrix import DesignMatrix
 
         if isinstance(X, DesignMatrix):
             return None

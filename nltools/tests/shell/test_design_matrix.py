@@ -20,7 +20,7 @@ import pytest
 import numpy as np
 import pandas as pd
 import polars as pl
-from nltools.data.design_matrix import DesignMatrix
+from nltools.data.designmatrix import DesignMatrix
 
 
 # ============================================================================

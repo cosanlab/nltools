@@ -12,7 +12,7 @@ import numpy as np
 import polars as pl
 
 if TYPE_CHECKING:
-    from nltools.data.design_matrix import DesignMatrix
+    from nltools.data.designmatrix import DesignMatrix
 
 
 def zscore(dm: DesignMatrix, columns: Optional[List[str]] = None) -> DesignMatrix:

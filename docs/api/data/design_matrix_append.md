@@ -1,4 +1,4 @@
-# `nltools.data.design_matrix.append`
+# `nltools.data.designmatrix.append`
 
 **Multi-Run Concatenation**
 
@@ -6,7 +6,7 @@ Standalone functions for horizontal and vertical concatenation of design matrice
 including multi-run separation logic.
 
 ```{eval-rst}
-.. automodule:: nltools.data.design_matrix.append
+.. automodule:: nltools.data.designmatrix.append
     :members:
     :undoc-members:
 ```

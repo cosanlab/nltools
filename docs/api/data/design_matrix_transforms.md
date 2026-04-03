@@ -1,11 +1,11 @@
-# `nltools.data.design_matrix.transforms`
+# `nltools.data.designmatrix.transforms`
 
 **Data Transformations**
 
 Standalone functions for z-scoring, standardization, downsampling, and upsampling.
 
 ```{eval-rst}
-.. automodule:: nltools.data.design_matrix.transforms
+.. automodule:: nltools.data.designmatrix.transforms
     :members:
     :undoc-members:
 ```
