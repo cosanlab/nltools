@@ -208,9 +208,9 @@ def sim_adjacency_directed():
 
 
 def _get_test_data_path(request, filename):
-    """Get path to test data file in nltools/tests/data/."""
+    """Get path to test fixture file in nltools/tests/fixtures/."""
     tests_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(tests_dir, "data", filename)
+    return os.path.join(tests_dir, "fixtures", filename)
 
 
 @pytest.fixture(scope="module")
