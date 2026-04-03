@@ -26,7 +26,6 @@ from typing import (
 )
 
 from nltools.utils import attempt_to_import
-from nltools.prefs import MNI_Template
 
 # Re-exports from submodules (used by external code / tests)
 from .io import _resolve_save_path  # noqa: F401
@@ -185,12 +184,14 @@ class BrainCollection:
         elif isinstance(mask, (str, Path)):
             path = Path(mask)
             if path.exists():
-                return nib.load(path)
+                return nib.load(path)  # type: ignore[return-value]
             # Try as template name
             try:
-                template = MNI_Template(mask)
-                return nib.load(template.mask_path)
-            except Exception:
+                from nltools.prefs import resolve_template_name
+
+                mask_path = resolve_template_name(str(mask), file_type="mask")
+                return nib.load(mask_path)  # type: ignore[return-value]
+            except (ValueError, FileNotFoundError):
                 raise ValueError(
                     f"mask must be a path to a nifti file or a valid template name. "
                     f"Got: {mask}"
@@ -222,16 +223,18 @@ class BrainCollection:
             return 1
         return bd.data.shape[0]
 
-    def _load_item(self, idx: int) -> "BrainData":
+    def _load_item(self, idx: int) -> BrainData:
         """Load a single item if it's a path, return BrainData."""
         from ..braindata import BrainData
 
-        if isinstance(self._items[idx], Path):
-            bd = BrainData(self._items[idx], mask=self._mask)
+        item = self._items[idx]
+        if isinstance(item, Path):
+            bd = BrainData(item, mask=self._mask)
             self._items[idx] = bd
             self._is_loaded[idx] = True
             self._sample_counts[idx] = self._get_n_obs(bd)
-        return self._items[idx]
+            return bd
+        return item  # type: ignore[return-value]
 
     # =========================================================================
     # Properties
@@ -332,10 +335,9 @@ class BrainCollection:
         Returns:
             self (for chaining)
         """
-        if indices is None:
-            indices = range(len(self._items))
+        idx_iter = range(len(self._items)) if indices is None else indices
 
-        for idx in indices:
+        for idx in idx_iter:
             self._load_item(idx)
 
         return self
@@ -354,10 +356,9 @@ class BrainCollection:
         """
         from ..braindata import BrainData
 
-        if indices is None:
-            indices = range(len(self._items))
+        idx_iter = range(len(self._items)) if indices is None else indices
 
-        for idx in indices:
+        for idx in idx_iter:
             item = self._items[idx]
             if isinstance(item, BrainData) and hasattr(item, "_source_path"):
                 # Can only unload if we know the original path
@@ -701,7 +702,7 @@ class BrainCollection:
     # =========================================================================
 
     def _normalize_axis(
-        self, axis: int | str | tuple[int, ...]
+        self, axis: int | str | tuple[int | str, ...]
     ) -> int | tuple[int, ...]:
         """Convert axis name to integer."""
         if isinstance(axis, str):
@@ -712,7 +713,9 @@ class BrainCollection:
                 )
             return _AXIS_NAMES[axis.lower()]
         if isinstance(axis, tuple):
-            return tuple(self._normalize_axis(a) for a in axis)
+            return tuple(  # type: ignore[return-value]
+                self._normalize_axis(a) for a in axis
+            )
         return axis
 
     def _aggregate_axis0(
@@ -2123,7 +2126,7 @@ class BrainCollection:
         by_run: bool = False,
         run_column: str = "run",
         run_lengths: int | list[int] | None = None,
-    ) -> "BrainCollection":
+    ) -> "BrainCollection | dict[str, BrainCollection]":
         """
         Fit GLM to each subject in collection.
 
@@ -2235,7 +2238,7 @@ class BrainCollection:
         by_run: bool = False,
         run_column: str = "run",
         run_lengths: int | list[int] | None = None,
-    ) -> "BrainCollection":
+    ) -> "BrainCollection | dict[str, BrainCollection]":
         """
         Build design matrices from events and fit GLM to each subject.
 
@@ -2322,7 +2325,7 @@ class BrainCollection:
     def _resolve_confounds(
         self,
         confounds: str | list[pd.DataFrame | Path | str] | None,
-    ) -> list[pd.DataFrame | Path | str | None] | None:
+    ) -> list[pd.DataFrame | Path | str] | None:
         """Resolve confounds argument to per-subject list.
 
         Args:

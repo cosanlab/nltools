@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     import torch
 
 
-def _pearson_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+def _pearson_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray | float:
     """
     Compute Pearson correlation coefficient(s).
 
@@ -58,7 +58,7 @@ def _pearson_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     return correlations
 
 
-def _spearman_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+def _spearman_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray | float:
     """
     Compute Spearman rank correlation coefficient(s).
 
@@ -112,7 +112,7 @@ def _spearman_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     return correlations
 
 
-def _kendall_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+def _kendall_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray | float:
     """
     Compute Kendall rank correlation coefficient(s).
 

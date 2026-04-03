@@ -5,14 +5,14 @@ following himalaya's implementation patterns.
 """
 
 import numpy as np
-from typing import Optional, Union, List, Iterator, Tuple
+from typing import Optional, List, Iterator, Tuple
 from sklearn.utils import check_random_state
 
 
 def generate_dirichlet_samples(
     n_samples: int,
     n_kernels: int,
-    concentration: Union[float, List[float]] = [0.1, 1.0],
+    concentration: float | List[float] = [0.1, 1.0],
     random_state: Optional[int] = None,
 ) -> np.ndarray:
     """Generate samples from a Dirichlet distribution.
@@ -47,13 +47,13 @@ def generate_dirichlet_samples(
     """
     random_generator = check_random_state(random_state)
 
-    concentration = np.atleast_1d(concentration)
-    n_concentrations = len(concentration)
+    concentration_arr = np.atleast_1d(concentration)
+    n_concentrations = len(concentration_arr)
     n_samples_per_concentration = int(np.ceil(n_samples / float(n_concentrations)))
 
     # Generate the gammas
     gammas = []
-    for conc in concentration:
+    for conc in concentration_arr:
         if conc == np.inf:
             # Equal weights for all spaces
             gamma = np.full(n_kernels, fill_value=1.0 / n_kernels)[None]

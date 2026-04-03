@@ -247,7 +247,7 @@ def _circle_shift_gpu(
     data: np.ndarray,
     shift_amount: Union[int, np.ndarray],
     backend: Backend,
-) -> np.ndarray:
+) -> "np.ndarray | torch.Tensor":
     """
     GPU-accelerated circular shift for time-series data.
 

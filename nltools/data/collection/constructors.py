@@ -217,6 +217,7 @@ def from_stacked(
             )
         splits = [n_total // n_images] * n_images
 
+    assert splits is not None  # guaranteed by the n_images branch above
     if sum(splits) != n_total:
         raise ValueError(
             f"splits sum ({sum(splits)}) must equal total observations ({n_total})"

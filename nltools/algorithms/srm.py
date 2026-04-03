@@ -379,12 +379,12 @@ class SRM(BaseEstimator, TransformerMixin):
             )
         else:
             # Single-threaded transform
-            s = [None] * len(X)
+            s: list[np.ndarray | None] = [None] * len(X)
             for subject in range(len(X)):
                 if X[subject] is not None:
                     s[subject] = self.w_[subject].T.dot(X[subject])
 
-        return s
+        return s  # type: ignore[return-value]
 
     def _init_structures(self, data, subjects):
         """Initializes data structures for SRM and preprocess the data.
@@ -923,11 +923,11 @@ class DetSRM(BaseEstimator, TransformerMixin):
             )
         else:
             # Single-threaded transform
-            s = [None] * len(X)
+            s: list[np.ndarray | None] = [None] * len(X)
             for subject in range(len(X)):
                 s[subject] = self.w_[subject].T.dot(X[subject])
 
-        return s
+        return s  # type: ignore[return-value]
 
     def _objective_function(self, data, w, s):
         """Calculate the objective function

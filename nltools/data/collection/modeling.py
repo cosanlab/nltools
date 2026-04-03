@@ -261,6 +261,7 @@ def _fit_glm_by_run(
     result.data = stacked_betas
     result._design_columns = task_columns
 
+    assert task_columns is not None  # set on first run iteration
     return result, task_columns, condition_labels, run_labels
 
 
@@ -471,7 +472,7 @@ def fit_glm(
     by_run: bool = False,
     run_column: str = "run",
     run_lengths: int | list[int] | None = None,
-) -> "BrainCollection":
+) -> "BrainCollection | dict[str, BrainCollection]":
     """
     Fit GLM to each subject in collection.
 
@@ -759,7 +760,7 @@ def fit_from_events(
     by_run: bool = False,
     run_column: str = "run",
     run_lengths: int | list[int] | None = None,
-) -> "BrainCollection":
+) -> "BrainCollection | dict[str, BrainCollection]":
     """
     Build design matrices from events and fit GLM to each subject.
 
@@ -1006,7 +1007,7 @@ def fit_glm_internal(
 def resolve_confounds(
     bc,
     confounds: str | list[pd.DataFrame | Path | str] | None,
-) -> list[pd.DataFrame | Path | str | None] | None:
+) -> list[pd.DataFrame | Path | str] | None:
     """Resolve confounds argument to per-subject list.
 
     Args:
