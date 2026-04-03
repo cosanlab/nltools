@@ -2865,22 +2865,6 @@ class TestBrainData:
             decimal=2,
         )
 
-    # ==================== Deprecated Methods ====================
-
-    def test_ttest(self, sim_brain_data):
-        """Test that deprecated ttest method raises NotImplementedError."""
-        with pytest.raises(NotImplementedError, match="ttest.*deprecated.*Model class"):
-            sim_brain_data.ttest()
-
-    def test_randomise(self, sim_brain_data):
-        """Test that deprecated randomise method raises NotImplementedError."""
-        sim_brain_data.X = pd.DataFrame({"Intercept": np.ones(len(sim_brain_data.Y))})
-
-        with pytest.raises(
-            NotImplementedError, match="randomise.*deprecated.*Model class"
-        ):
-            sim_brain_data.randomise(n_permute=10)
-
     def test_bootstrap(self, sim_brain_data):
         """Test bootstrap with mean/std."""
         masked = sim_brain_data.apply_mask(

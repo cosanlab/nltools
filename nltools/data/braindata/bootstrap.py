@@ -2,6 +2,8 @@
 
 import numpy as np
 
+from .utils import shallow_copy
+
 
 def bootstrap(
     bd,
@@ -96,7 +98,7 @@ def bootstrap(
         >>> # Returns: {'mean': array, 'std': array, 'Z': array, 'p': array,
         >>> #           'ci_lower': array, 'ci_upper': array}
         >>> # Convert to BrainData if needed:
-        >>> mean_brain = brain._shallow_copy_with_data()
+        >>> mean_brain = shallow_copy(brain)
         >>> mean_brain.data = result['mean']
     """
     from nltools.algorithms.inference.bootstrap import (
@@ -294,7 +296,7 @@ def convert_bootstrap_results_to_brain_data(
         out = {}
         for key in ["mean", "std", "Z", "p", "ci_lower", "ci_upper"]:
             if key in result:
-                out[key] = bd._shallow_copy_with_data()
+                out[key] = shallow_copy(bd)
                 # Reshape 1D arrays to 2D (1, n_voxels) for BrainData
                 data_2d = (
                     result[key] if result[key].ndim == 2 else result[key].reshape(1, -1)
@@ -308,12 +310,12 @@ def convert_bootstrap_results_to_brain_data(
         out = {}
         for key in ["mean", "std", "Z", "p", "ci_lower", "ci_upper"]:
             if key in result:
-                out[key] = bd._shallow_copy_with_data()
+                out[key] = shallow_copy(bd)
                 out[key].data = result[key]
         return out
     else:
         # Return BrainData with mean (for simple stats)
-        boot_mean = bd._shallow_copy_with_data()
+        boot_mean = shallow_copy(bd)
         # Reshape 1D arrays to 2D (1, n_voxels) for BrainData
         mean_2d = (
             result["mean"]

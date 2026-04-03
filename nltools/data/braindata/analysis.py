@@ -8,6 +8,8 @@ alignment, smoothing, and other analytical operations.
 
 import numpy as np
 
+from .utils import shallow_copy
+
 
 def check_masks(bd, image):
     """Check to make sure masks are the same for each dataset and if not create a union mask
@@ -157,7 +159,7 @@ def apply_mask(bd, mask, resample_mask_to_brain=False):
 
     from nltools.utils import check_brain_data, check_brain_data_is_single
 
-    masked = bd._shallow_copy_with_data()
+    masked = shallow_copy(bd)
     mask = check_brain_data(mask)
     if not check_brain_data_is_single(mask):
         raise ValueError("Mask must be a single image")
@@ -183,7 +185,9 @@ def apply_mask(bd, mask, resample_mask_to_brain=False):
     masked.mask = mask_img
     affine = mask_img.affine
     masked._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
-    masked._space = masked._detect_space(mask_img)
+    from .io import detect_space
+
+    masked._space = detect_space(masked, mask_img)
 
     # Preserve 1D output for single images (backward compatibility)
     if (len(masked.shape) > 1) & (masked.shape[0] == 1):
@@ -425,7 +429,7 @@ def icc(
     )
 
     # Return as BrainData object (shape: (1, n_voxels))
-    out = bd._shallow_copy_with_data()
+    out = shallow_copy(bd)
     out.data = icc_map[np.newaxis, :]  # (1, n_voxels)
     out.X = pd.DataFrame()
     out.Y = pd.DataFrame()
@@ -448,7 +452,7 @@ def detrend_data(bd, method="linear"):
     if len(bd.shape) == 1:
         raise ValueError("Make sure there is more than one image in order to detrend.")
 
-    out = bd._shallow_copy_with_data()
+    out = shallow_copy(bd)
     # Copy data and detrend
     out.data = detrend(bd.data.copy(), type=method, axis=0)
     return out
@@ -466,7 +470,7 @@ def r_to_z(bd):
     """
     from nltools.stats import fisher_r_to_z
 
-    out = bd._shallow_copy_with_data()
+    out = shallow_copy(bd)
     # fisher_r_to_z creates a new array
     out.data = fisher_r_to_z(bd.data)
     return out
@@ -483,7 +487,7 @@ def z_to_r(bd):
     """
     from nltools.stats import fisher_z_to_r
 
-    out = bd._shallow_copy_with_data()
+    out = shallow_copy(bd)
     # fisher_z_to_r creates a new array
     out.data = fisher_z_to_r(bd.data)
     return out
@@ -525,7 +529,7 @@ def filter_data(bd, sampling_freq=None, high_pass=None, low_pass=None, **kwargs)
     detrend = kwargs.get("detrend", False)
 
     # Optimized: Use shallow copy instead of deepcopy
-    out = bd._shallow_copy_with_data()
+    out = shallow_copy(bd)
     out.data = clean(
         bd.data,
         t_r=1.0 / sampling_freq,
@@ -558,7 +562,7 @@ def standardize(bd, axis=0, method="center"):
         )
 
     # Optimized: Use shallow copy instead of deepcopy
-    out = bd._shallow_copy_with_data()
+    out = shallow_copy(bd)
     if method == "zscore":
         with_std = True
     elif method == "center":
@@ -606,7 +610,7 @@ def scale_data(bd, scale_val=100.0, axis=None):
         >>> scaled = brain.scale(100.0, axis=0)
 
     """
-    out = bd._shallow_copy_with_data()
+    out = shallow_copy(bd)
     out.data = bd.data.copy()
 
     if axis is None:
@@ -701,7 +705,7 @@ def threshold_data(
             threshold_val = np.percentile(b.data, float(threshold_val[:-1]))
 
         # Use nilearn's cluster thresholding
-        out = bd._shallow_copy_with_data()
+        out = shallow_copy(bd)
         thresholded_img = threshold_img(
             b.to_nifti(),
             threshold=threshold_val,
@@ -805,7 +809,7 @@ def transform_pairwise_data(bd):
     from nltools.stats import transform_pairwise
 
     # Optimized: Use shallow copy instead of deepcopy
-    out = bd._shallow_copy_with_data()
+    out = shallow_copy(bd)
     out.data, new_Y = transform_pairwise(bd.data, bd.Y)
     out.Y = pd.DataFrame(new_Y)
     out.Y.replace(-1, 0, inplace=True)
@@ -961,7 +965,7 @@ def smooth(bd, fwhm):
     from nltools.utils import check_brain_data_is_single
 
     # Optimized: Use shallow copy instead of deepcopy, single conversion path
-    out = bd._shallow_copy_with_data()
+    out = shallow_copy(bd)
 
     # Single conversion: data -> nifti -> smooth -> data
     nifti = bd.to_nifti()
@@ -1019,7 +1023,7 @@ def temporal_resample(bd, sampling_freq=None, target=None, target_type="hz"):
     from scipy.interpolate import pchip
 
     # Optimized: Use shallow copy instead of deepcopy
-    out = bd._shallow_copy_with_data()
+    out = shallow_copy(bd)
 
     if target_type == "samples":
         n_samples = target

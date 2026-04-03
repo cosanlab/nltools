@@ -1,0 +1,126 @@
+"""Shared helpers for BrainData submodules.
+
+These are internal utilities used by the facade and submodules — not part of the
+public API.
+"""
+
+from copy import deepcopy
+
+import numpy as np
+import pandas as pd
+
+from nltools.utils import check_brain_data_is_single
+
+
+def shallow_copy(bd):
+    """Create a shallow copy of a BrainData for efficient method chaining.
+
+    Creates a new BrainData instance that shares immutable objects (mask,
+    nifti_masker) but copies mutable attributes.  The data array is NOT
+    copied — callers should handle data copying as needed.
+
+    Args:
+        bd: BrainData instance to copy.
+
+    Returns:
+        BrainData: New instance with shared/copied attributes.
+    """
+    from . import BrainData
+
+    new = BrainData.__new__(BrainData)
+
+    for key, value in bd.__dict__.items():
+        if key == "data":
+            new.data = bd.data  # reference only
+        elif key in ("mask", "nifti_masker", "masker"):
+            setattr(new, key, value)
+        elif key in ("X", "Y", "design_matrix"):
+            if value is not None:
+                if hasattr(value, "copy"):
+                    setattr(new, key, value.copy())
+                else:
+                    setattr(new, key, deepcopy(value))
+            else:
+                setattr(new, key, None)
+        elif key.startswith("glm_") or key.startswith("ridge_"):
+            setattr(new, key, value)
+        elif key in ("model_", "X_", "cv_results_"):
+            pass  # fitted model state — don't propagate
+        else:
+            setattr(new, key, deepcopy(value))
+
+    return new
+
+
+def perform_arithmetic(
+    bd, other, operation, operation_name, inplace=False, reverse=False
+):
+    """Perform an arithmetic operation with validation.
+
+    Args:
+        bd: BrainData instance (left operand unless *reverse* is True).
+        other: The other operand (scalar, BrainData, or array).
+        operation: Numpy ufunc (e.g. ``np.add``, ``np.subtract``).
+        operation_name: Human-readable name for error messages.
+        inplace: If True, mutate *bd* in place.
+        reverse: If True, reverse operand order (for ``__rsub__`` etc.).
+
+    Returns:
+        BrainData: Result of the operation.
+    """
+    from .validation import validate_arithmetic_operand, validate_brain_data_shapes
+
+    new = bd if inplace else shallow_copy(bd)
+    operand_type = validate_arithmetic_operand(other, operation_name)
+
+    if operand_type == "scalar":
+        if reverse:
+            new.data = operation(other, bd.data)
+        else:
+            new.data = operation(bd.data, other)
+    elif operand_type == "brain_data":
+        validate_brain_data_shapes(bd, other, operation_name)
+        if reverse:
+            new.data = operation(other.data, bd.data)
+        else:
+            new.data = operation(bd.data, other.data)
+    elif operand_type == "array":
+        if len(other) != len(bd):
+            raise ValueError(
+                f"Vector {operation_name} requires that the length of the vector "
+                f"({len(other)}) match the number of images ({len(bd)})"
+            )
+        new.data = np.dot(bd.data.T, other).T
+
+    return new
+
+
+def apply_func(bd, stat_func, axis=0):
+    """Apply a statistical function to BrainData's ``.data`` attribute.
+
+    If *axis* is 0, returns a BrainData with the statistic computed across
+    samples (e.g. within a voxel over time).  If *axis* is 1, returns a numpy
+    array with the statistic computed across features (e.g. across voxels
+    within a single time-point).
+
+    Args:
+        bd: BrainData instance.
+        stat_func: Callable accepting an array and an ``axis`` kwarg.
+        axis: 0 = across images, 1 = within images.
+
+    Returns:
+        float | np.ndarray | BrainData
+    """
+    if check_brain_data_is_single(bd):
+        return stat_func(bd.data)
+
+    if axis == 1:
+        return stat_func(bd.data, axis=1)
+    elif axis == 0:
+        out = shallow_copy(bd)
+        out.data = stat_func(bd.data, axis=0)
+        out.X = pd.DataFrame()
+        out.Y = pd.DataFrame()
+        return out
+    else:
+        raise ValueError("axis must be 0 or 1")

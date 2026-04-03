@@ -7,6 +7,8 @@ cross-validation, GLM estimation, Ridge regression, and contrast computation.
 
 import numpy as np
 
+from .utils import shallow_copy
+
 
 def cv(
     bd,
@@ -303,17 +305,17 @@ def fit_ridge(bd, X, cv=None, **kwargs):
 
     # Extract weights as BrainData
     # Ridge.coef_ is already (n_features, n_voxels) - no transpose needed
-    bd.ridge_weights = bd._shallow_copy_with_data()
+    bd.ridge_weights = shallow_copy(bd)
     bd.ridge_weights.data = bd.model_.coef_
 
     # Compute fitted values
     fitted = bd.model_.predict(X)
-    bd.ridge_fitted_values = bd._shallow_copy_with_data()
+    bd.ridge_fitted_values = shallow_copy(bd)
     bd.ridge_fitted_values.data = fitted
 
     # Compute R-squared scores per voxel (using model's score method which now returns per-voxel)
     scores = bd.model_.score(X, bd.data)  # (n_voxels,)
-    bd.ridge_scores = bd._shallow_copy_with_data()
+    bd.ridge_scores = shallow_copy(bd)
     bd.ridge_scores.data = scores.reshape(1, -1)  # (1, n_voxels)
 
 
@@ -440,7 +442,7 @@ def compute_ridge_cv(bd, X, cv, alpha=None, alphas=None, backend="auto", **kwarg
     mean_scores = fold_scores.mean(axis=0)  # (n_voxels,)
 
     # Store predictions as BrainData
-    cv_predictions_brain = bd._shallow_copy_with_data()
+    cv_predictions_brain = shallow_copy(bd)
     cv_predictions_brain.data = cv_predictions
 
     # Package results

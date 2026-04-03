@@ -9,6 +9,8 @@ import warnings
 
 import numpy as np
 
+from .utils import shallow_copy
+
 
 def predict(
     bd,
@@ -192,7 +194,7 @@ def predict_timeseries(bd, X=None):
         y_pred = bd.model_.predict(X)
 
     # Wrap in BrainData
-    predictions = bd._shallow_copy_with_data()
+    predictions = shallow_copy(bd)
     predictions.data = y_pred
 
     return predictions
