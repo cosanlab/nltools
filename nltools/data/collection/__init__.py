@@ -28,8 +28,17 @@ from typing import (
 from nltools.utils import attempt_to_import
 from nltools.prefs import MNI_Template
 
+# Re-exports from submodules (used by external code / tests)
+from .io import _resolve_save_path  # noqa: F401
+from .modeling import _build_subject_design_matrix, _fit_glm_by_run  # noqa: F401
+from .pipeline import (  # noqa: F401
+    BrainCollectionPipeline,
+    BrainCollectionCVResult,
+    FittedBrainCollection,
+)
+
 if TYPE_CHECKING:
-    from .braindata import BrainData
+    from ..braindata import BrainData
 
 # Lazy imports for optional dependencies
 tqdm = attempt_to_import("tqdm", "tqdm")
@@ -50,307 +59,6 @@ _AXIS_NAMES = {
     "space": 2,
     "spatial": 2,
 }
-
-
-# =============================================================================
-# Helper Functions for fit_glm / fit_ridge
-# =============================================================================
-
-
-def _resolve_save_path(
-    template: str,
-    metadata_row: pd.Series,
-    idx: int,
-) -> Path:
-    """Resolve a template path using metadata values.
-
-    Replaces {column_name} placeholders with values from metadata.
-    Falls back to {idx} for the subject index.
-
-    Args:
-        template: Path template with {placeholders}, e.g., 'output/{subject}_betas.nii.gz'
-        metadata_row: Series with metadata for this subject
-        idx: Subject index (used for {idx} placeholder)
-
-    Returns:
-        Resolved Path object
-
-    Raises:
-        KeyError: If placeholder not found in metadata and not 'idx'
-
-    Example:
-        >>> row = pd.Series({'subject': 'sub-01', 'session': 'ses-01'})
-        >>> _resolve_save_path('out/{subject}_{session}.nii.gz', row, 0)
-        PosixPath('out/sub-01_ses-01.nii.gz')
-    """
-    import re
-
-    result = template
-
-    # Find all {placeholder} patterns
-    placeholders = re.findall(r"\{(\w+)\}", template)
-
-    for placeholder in placeholders:
-        if placeholder == "idx":
-            value = str(idx)
-        elif placeholder in metadata_row.index:
-            value = str(metadata_row[placeholder])
-        else:
-            available = list(metadata_row.index) + ["idx"]
-            raise KeyError(
-                f"Placeholder '{{{placeholder}}}' not found in metadata. "
-                f"Available: {available}"
-            )
-        result = result.replace(f"{{{placeholder}}}", value)
-
-    path = Path(result)
-
-    # Create parent directories if needed
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-    return path
-
-
-def _build_subject_design_matrix(
-    events: pd.DataFrame,
-    n_scans: int,
-    t_r: float,
-    confounds: pd.DataFrame | Path | str | None = None,
-    confound_columns: list[str] | None = None,
-    hrf_model: str = "spm",
-    drift_model: str = "cosine",
-    high_pass: float = 0.01,
-) -> tuple[pd.DataFrame, list[str]]:
-    """Build complete design matrix for a subject.
-
-    Combines task design (from events) with subject-specific confounds.
-
-    Args:
-        events: Task events DataFrame with 'onset', 'duration', 'trial_type' columns
-        n_scans: Number of scans/timepoints
-        t_r: Repetition time in seconds
-        confounds: Subject confounds - DataFrame, path to TSV, or None
-        confound_columns: Which confound columns to include (None = all)
-        hrf_model: HRF model for task regressors ('spm', 'glover', etc.)
-        drift_model: Drift model ('cosine', 'polynomial', None)
-        high_pass: High-pass filter cutoff in Hz
-
-    Returns:
-        Tuple of:
-            - design_matrix: Complete design matrix (task + confounds + drift)
-            - task_columns: List of task regressor column names
-
-    Example:
-        >>> events = pd.DataFrame({
-        ...     'onset': [0, 10, 20],
-        ...     'duration': [2, 2, 2],
-        ...     'trial_type': ['face', 'house', 'face']
-        ... })
-        >>> dm, task_cols = _build_subject_design_matrix(events, 100, 2.0)
-        >>> print(task_cols)
-        ['face', 'house']
-    """
-    from nilearn.glm.first_level import make_first_level_design_matrix
-
-    # Create frame times
-    frame_times = np.arange(n_scans) * t_r
-
-    # Build task design matrix
-    task_dm = make_first_level_design_matrix(
-        frame_times=frame_times,
-        events=events,
-        hrf_model=hrf_model,
-        drift_model=drift_model,
-        high_pass=high_pass,
-    )
-
-    # Identify task columns (everything except drift and constant)
-    drift_cols = [
-        c for c in task_dm.columns if c.startswith("drift_") or c == "constant"
-    ]
-    task_columns = [c for c in task_dm.columns if c not in drift_cols]
-
-    # Load confounds if provided
-    if confounds is not None:
-        if isinstance(confounds, (str, Path)):
-            confounds_path = Path(confounds)
-            if not confounds_path.exists():
-                raise FileNotFoundError(f"Confounds file not found: {confounds_path}")
-            # Detect separator (TSV vs CSV)
-            sep = "\t" if confounds_path.suffix in [".tsv", ".txt"] else ","
-            confounds_df = pd.read_csv(confounds_path, sep=sep)
-        else:
-            confounds_df = confounds
-
-        # Select columns if specified
-        if confound_columns is not None:
-            missing = set(confound_columns) - set(confounds_df.columns)
-            if missing:
-                raise ValueError(
-                    f"Confound columns not found: {missing}. "
-                    f"Available: {list(confounds_df.columns)}"
-                )
-            confounds_df = confounds_df[confound_columns]
-
-        # Validate length
-        if len(confounds_df) != n_scans:
-            raise ValueError(
-                f"Confounds have {len(confounds_df)} rows but data has {n_scans} scans. "
-                "Lengths must match."
-            )
-
-        # Handle NaN values in confounds (common for first few rows of derivatives)
-        confounds_df = confounds_df.fillna(0)
-
-        # Align confounds index with design matrix frame_times index
-        confounds_df.index = task_dm.index
-
-        # Concatenate: task_dm already has drift and constant, add confounds before them
-        # Reorder: task | confounds | drift | constant
-        full_dm = pd.concat(
-            [task_dm[task_columns], confounds_df, task_dm[drift_cols]],
-            axis=1,
-        )
-    else:
-        full_dm = task_dm
-
-    return full_dm, task_columns
-
-
-def _fit_glm_by_run(
-    bd: "BrainData",
-    events: pd.DataFrame,
-    runs: list,
-    run_column: str,
-    run_lengths: int | list[int] | None,
-    t_r: float,
-    confounds: pd.DataFrame | None,
-    confound_columns: list[str] | None,
-    hrf_model: str,
-    drift_model: str,
-    high_pass: float,
-    scale: bool,
-    scale_value: float,
-) -> tuple["BrainData", list[str], list[str], list]:
-    """Fit GLM separately for each run and stack betas.
-
-    Args:
-        bd: Subject's BrainData (concatenated timeseries)
-        events: Events DataFrame with run column
-        runs: Unique run identifiers (sorted)
-        run_column: Column name for run identifier
-        run_lengths: TRs per run (int for uniform, list for variable, None to infer)
-        t_r: Repetition time
-        confounds: Subject confounds (concatenated) or None
-        confound_columns: Columns to extract from confounds
-        hrf_model: HRF model for design matrix
-        drift_model: Drift model
-        high_pass: High-pass filter cutoff
-        scale: Whether to apply percent signal change scaling
-        scale_value: Scaling value
-
-    Returns:
-        Tuple of:
-            - BrainData with stacked run-level betas (n_runs * n_conditions, n_voxels)
-            - task_columns: List of condition names
-            - condition_labels: Condition label for each beta row
-            - run_labels: Run label for each beta row
-    """
-    n_scans = bd.shape[0]
-    n_runs = len(runs)
-
-    # Resolve run lengths
-    if run_lengths is None:
-        # Try to infer equal-length runs
-        if n_scans % n_runs != 0:
-            raise ValueError(
-                f"Cannot infer run lengths: {n_scans} scans not evenly divisible by "
-                f"{n_runs} runs. Please provide run_lengths parameter."
-            )
-        run_length_list = [n_scans // n_runs] * n_runs
-    elif isinstance(run_lengths, int):
-        run_length_list = [run_lengths] * n_runs
-    else:
-        run_length_list = list(run_lengths)
-
-    # Validate total matches
-    if sum(run_length_list) != n_scans:
-        raise ValueError(
-            f"run_lengths sum ({sum(run_length_list)}) does not match "
-            f"total scans ({n_scans})"
-        )
-
-    # Calculate run start indices
-    run_starts = [0]
-    for length in run_length_list[:-1]:
-        run_starts.append(run_starts[-1] + length)
-
-    # Storage for run-level results
-    all_betas = []
-    condition_labels = []
-    run_labels = []
-    task_columns = None
-
-    for run_idx, run_id in enumerate(runs):
-        # Get run boundaries
-        start_tr = run_starts[run_idx]
-        end_tr = start_tr + run_length_list[run_idx]
-        n_run_scans = run_length_list[run_idx]
-
-        # Slice data for this run
-        run_bd = bd[start_tr:end_tr]
-
-        # Filter events to this run and adjust onsets (assuming run-relative onsets)
-        run_events = events[events[run_column] == run_id].copy()
-        # Remove run column for design matrix building
-        run_events = run_events.drop(columns=[run_column])
-
-        # Slice confounds if provided
-        run_confounds = None
-        if confounds is not None:
-            run_confounds = confounds.iloc[start_tr:end_tr].reset_index(drop=True)
-
-        # Build design matrix for this run
-        dm, task_cols = _build_subject_design_matrix(
-            events=run_events,
-            n_scans=n_run_scans,
-            t_r=t_r,
-            confounds=run_confounds,
-            confound_columns=confound_columns,
-            hrf_model=hrf_model,
-            drift_model=drift_model,
-            high_pass=high_pass,
-        )
-
-        # Store task columns from first run
-        if task_columns is None:
-            task_columns = task_cols
-
-        # Apply scaling if requested
-        if scale:
-            run_bd = run_bd.scale(scale_value)
-
-        # Fit GLM
-        run_bd.fit(model="glm", X=dm)
-
-        # Extract task betas only
-        task_indices = [dm.columns.get_loc(col) for col in task_cols]
-        run_betas = run_bd.glm_betas.data[task_indices, :]
-
-        # Store betas and labels
-        all_betas.append(run_betas)
-        condition_labels.extend(task_cols)
-        run_labels.extend([run_id] * len(task_cols))
-
-    # Stack all run betas
-    stacked_betas = np.vstack(all_betas)
-
-    # Create output BrainData
-    result = bd[0].copy()
-    result.data = stacked_betas
-    result._design_columns = task_columns
-
-    return result, task_columns, condition_labels, run_labels
 
 
 class BrainCollection:
@@ -420,7 +128,7 @@ class BrainCollection:
             metadata: Optional per-image metadata DataFrame.
             lazy: If True, paths are loaded on demand.
         """
-        from .braindata import BrainData
+        from ..braindata import BrainData
 
         if not items:
             raise ValueError("items cannot be empty")
@@ -516,7 +224,7 @@ class BrainCollection:
 
     def _load_item(self, idx: int) -> "BrainData":
         """Load a single item if it's a path, return BrainData."""
-        from .braindata import BrainData
+        from ..braindata import BrainData
 
         if isinstance(self._items[idx], Path):
             bd = BrainData(self._items[idx], mask=self._mask)
@@ -644,7 +352,7 @@ class BrainCollection:
         Returns:
             self (for chaining)
         """
-        from .braindata import BrainData
+        from ..braindata import BrainData
 
         if indices is None:
             indices = range(len(self._items))
@@ -773,7 +481,7 @@ class BrainCollection:
                     sliced_data = bd.data[obs_key]
 
                 # Return as BrainData with single observation
-                from .braindata import BrainData
+                from ..braindata import BrainData
 
                 result = BrainData(mask=bd.mask)
                 result.data = sliced_data
@@ -781,7 +489,7 @@ class BrainCollection:
 
             elif isinstance(obs_key, slice):
                 # Slice observations
-                from .braindata import BrainData
+                from ..braindata import BrainData
 
                 if bd.data.ndim == 1:
                     sliced_data = bd.data[np.newaxis, :][obs_key]
@@ -824,7 +532,7 @@ class BrainCollection:
                 Returns:
                     New BrainData containing only the selected observation(s).
                 """
-                from .braindata import BrainData
+                from ..braindata import BrainData
 
                 if bd.data.ndim == 1:
                     data = bd.data[np.newaxis, :]
@@ -911,54 +619,20 @@ class BrainCollection:
             ...     space='MNI152NLin2009cAsym'
             ... )
         """
-        # Import pybids
-        bids_module = attempt_to_import("bids", "bids")
-        if bids_module is None:
-            raise ImportError(
-                "pybids required for BIDS loading. Install with: pip install pybids"
-            )
-        BIDSLayout = bids_module.BIDSLayout
+        from .constructors import from_bids
 
-        # Create layout if path provided
-        if isinstance(layout, (str, Path)):
-            layout = BIDSLayout(layout, validate=False)
-
-        # Build filter dict
-        filters = {"extension": extension, "suffix": suffix}
-        if task is not None:
-            filters["task"] = task
-        if subject is not None:
-            filters["subject"] = subject
-        if session is not None:
-            filters["session"] = session
-        if run is not None:
-            filters["run"] = run
-        if space is not None:
-            filters["space"] = space
-        filters.update(bids_filters)
-
-        # Get files
-        files = layout.get(return_type="file", **filters)
-        if not files:
-            raise ValueError(f"No files found matching filters: {filters}")
-
-        # Extract metadata
-        metadata_rows = []
-        for f in files:
-            bf = layout.get_file(f)
-            entities = bf.get_entities() if bf else {}
-            metadata_rows.append(
-                {
-                    "subject": entities.get("subject"),
-                    "session": entities.get("session"),
-                    "run": entities.get("run"),
-                    "task": entities.get("task"),
-                    "space": entities.get("space"),
-                }
-            )
-
-        metadata = pd.DataFrame(metadata_rows)
-        return cls(files, mask=mask, metadata=metadata)
+        return from_bids(
+            layout,
+            mask,
+            task=task,
+            subject=subject,
+            session=session,
+            run=run,
+            space=space,
+            suffix=suffix,
+            extension=extension,
+            **bids_filters,
+        )
 
     @classmethod
     def from_glob(
@@ -989,31 +663,9 @@ class BrainCollection:
             ...     pattern_groups=r'sub-(?P<subject>\\w+)'
             ... )
         """
-        import glob
-        import re
+        from .constructors import from_glob
 
-        files = glob.glob(pattern, recursive=True)
-        if not files:
-            raise ValueError(f"No files found matching pattern: {pattern}")
-
-        if sort:
-            files = sorted(files)
-
-        # Extract metadata from paths
-        metadata = None
-        if pattern_groups is not None:
-            if isinstance(pattern_groups, str):
-                regex = re.compile(pattern_groups)
-                metadata_rows = []
-                for f in files:
-                    match = regex.search(f)
-                    if match:
-                        metadata_rows.append(match.groupdict())
-                    else:
-                        metadata_rows.append({})
-                metadata = pd.DataFrame(metadata_rows)
-
-        return cls(files, mask=mask, metadata=metadata)
+        return from_glob(pattern, mask, pattern_groups=pattern_groups, sort=sort)
 
     @classmethod
     def from_stacked(
@@ -1040,41 +692,9 @@ class BrainCollection:
             >>> # Split with explicit counts
             >>> bc = BrainCollection.from_stacked(bd, splits=[100, 100, 150])
         """
-        from .braindata import BrainData
+        from .constructors import from_stacked
 
-        if splits is None and n_images is None:
-            raise ValueError("Must provide either splits or n_images")
-        if splits is not None and n_images is not None:
-            raise ValueError("Cannot provide both splits and n_images")
-
-        data = brain_data.data
-        if data.ndim == 1:
-            data = data[np.newaxis, :]
-
-        n_total = data.shape[0]
-
-        if n_images is not None:
-            if n_total % n_images != 0:
-                raise ValueError(
-                    f"Cannot evenly split {n_total} observations into {n_images} images"
-                )
-            splits = [n_total // n_images] * n_images
-
-        if sum(splits) != n_total:
-            raise ValueError(
-                f"splits sum ({sum(splits)}) must equal total observations ({n_total})"
-            )
-
-        # Split data
-        items = []
-        idx = 0
-        for count in splits:
-            bd = BrainData(mask=brain_data.mask)
-            bd.data = data[idx : idx + count]
-            items.append(bd)
-            idx += count
-
-        return cls(items, mask=brain_data.mask)
+        return from_stacked(brain_data, splits=splits, n_images=n_images)
 
     # =========================================================================
     # Axis Operations (to be implemented in nltools-cyb)
@@ -1101,7 +721,7 @@ class BrainCollection:
         batch_size: int | None = None,
     ) -> "BrainData":
         """Aggregate across images (axis=0) using streaming algorithm."""
-        from .braindata import BrainData
+        from ..braindata import BrainData
 
         # Ensure all sample counts are known
         for i in range(len(self)):
@@ -1195,7 +815,7 @@ class BrainCollection:
 
     def _aggregate_axis1(self, func: str) -> "BrainCollection":
         """Aggregate across observations (axis=1) per image."""
-        from .braindata import BrainData
+        from ..braindata import BrainData
 
         agg_func = getattr(np, func)
         new_items = []
@@ -1429,7 +1049,7 @@ class BrainCollection:
             >>> stacked.shape
             (300, 50000)  # 3 images * 100 obs each
         """
-        from .braindata import BrainData
+        from ..braindata import BrainData
 
         # Collect all data
         all_data = []
@@ -1478,27 +1098,9 @@ class BrainCollection:
             >>> for i, bd in enumerate(bc):
             ...     bd.write(f"output/{bc.metadata.loc[i, 'filename']}")
         """
-        from pathlib import Path
+        from .io import write
 
-        directory = Path(directory)
-        directory.mkdir(parents=True, exist_ok=True)
-
-        written_paths = []
-        for i in range(len(self)):
-            bd = self._load_item(i)
-            file_name = pattern.format(i=i)
-            file_path = directory / file_name
-            bd.write(str(file_path))
-            written_paths.append(file_path)
-
-        # Write metadata if requested
-        if metadata_file is not None and not self._metadata.empty:
-            # Add file paths to metadata
-            metadata_out = self._metadata.copy()
-            metadata_out["file_path"] = [str(p) for p in written_paths]
-            metadata_out.to_csv(directory / metadata_file, index=False)
-
-        return written_paths
+        return write(self, directory, pattern, metadata_file)
 
     def iter_batches(
         self,
@@ -1608,30 +1210,9 @@ class BrainCollection:
             >>> # Threshold significant voxels
             >>> sig_mask = p_val.data < 0.05
         """
-        from scipy import stats
-        from .braindata import BrainData
+        from .inference import ttest
 
-        axis = self._normalize_axis(axis)
-        if axis != 0:
-            raise ValueError(
-                "ttest only supports axis=0 (across images). "
-                "For per-image tests, use apply()."
-            )
-
-        # Get tensor - requires uniform observation counts
-        tensor = self.to_tensor()  # (n_images, n_obs, n_voxels)
-
-        # Compute t-test across axis 0
-        t_stat_arr, p_val_arr = stats.ttest_1samp(tensor, popmean, axis=0)
-
-        # Package as BrainData
-        t_stat = BrainData(mask=self._mask)
-        t_stat.data = t_stat_arr
-
-        p_val = BrainData(mask=self._mask)
-        p_val.data = p_val_arr
-
-        return t_stat, p_val
+        return ttest(self, popmean, axis)
 
     def ttest2(
         self,
@@ -1659,40 +1240,9 @@ class BrainCollection:
             >>> t_stat, p_val = patients.ttest2(controls)
             >>> t_stat, p_val = group1.ttest2(group2, equal_var=False)  # Welch's
         """
-        from scipy import stats
-        from .braindata import BrainData
+        from .inference import ttest2
 
-        # Validate mask compatibility
-        if self._mask.shape != other._mask.shape:
-            raise ValueError(
-                f"Collections must have same mask shape. "
-                f"Got {self._mask.shape} and {other._mask.shape}."
-            )
-
-        # Get tensors
-        tensor1 = self.to_tensor()  # (n1, n_obs, n_voxels)
-        tensor2 = other.to_tensor()  # (n2, n_obs, n_voxels)
-
-        # Check obs counts match
-        if tensor1.shape[1] != tensor2.shape[1]:
-            raise ValueError(
-                f"Collections must have same observation count per image. "
-                f"Got {tensor1.shape[1]} and {tensor2.shape[1]}."
-            )
-
-        # Compute two-sample t-test across axis 0
-        t_stat_arr, p_val_arr = stats.ttest_ind(
-            tensor1, tensor2, axis=0, equal_var=equal_var
-        )
-
-        # Package as BrainData
-        t_stat = BrainData(mask=self._mask)
-        t_stat.data = t_stat_arr
-
-        p_val = BrainData(mask=self._mask)
-        p_val.data = p_val_arr
-
-        return t_stat, p_val
+        return ttest2(self, other, equal_var)
 
     def permutation_test(
         self,
@@ -1743,63 +1293,18 @@ class BrainCollection:
             >>> # With GPU acceleration
             >>> result = bc.permutation_test(parallel='gpu')
         """
-        from nltools.algorithms.inference import one_sample_permutation_test
-        from .braindata import BrainData
+        from .inference import permutation_test
 
-        # Get tensor - requires uniform observation counts
-        tensor = self.to_tensor()  # (n_images, n_obs, n_voxels)
-        n_images, n_obs, n_voxels = tensor.shape
-
-        # For each observation/timepoint, run permutation test across images
-        mean_results = []
-        p_results = []
-        null_dists = [] if return_null else None
-
-        iterator = range(n_obs)
-        if tqdm is not None:
-            iterator = tqdm.tqdm(iterator, desc="Permutation tests")
-
-        for obs_idx in iterator:
-            # Data for this observation: (n_images, n_voxels)
-            data = tensor[:, obs_idx, :]
-
-            result = one_sample_permutation_test(
-                data,
-                n_permute=n_permute,
-                tail=tail,
-                return_null=return_null,
-                parallel=parallel,
-                n_jobs=n_jobs,
-                max_gpu_memory_gb=max_gpu_memory_gb,
-                random_state=random_state,
-            )
-
-            mean_results.append(result["mean"])
-            p_results.append(result["p"])
-            if return_null:
-                null_dists.append(result["null_dist"])
-
-        # Stack results: (n_obs, n_voxels)
-        mean_arr = np.vstack(mean_results)
-        p_arr = np.vstack(p_results)
-
-        # Package as BrainData
-        mean_bd = BrainData(mask=self._mask)
-        mean_bd.data = mean_arr if n_obs > 1 else mean_arr.squeeze()
-
-        p_bd = BrainData(mask=self._mask)
-        p_bd.data = p_arr if n_obs > 1 else p_arr.squeeze()
-
-        result_dict = {
-            "mean": mean_bd,
-            "p": p_bd,
-            "parallel": parallel,
-        }
-
-        if return_null:
-            result_dict["null_dist"] = np.array(null_dists)
-
-        return result_dict
+        return permutation_test(
+            self,
+            n_permute,
+            tail,
+            parallel,
+            n_jobs,
+            max_gpu_memory_gb,
+            random_state,
+            return_null,
+        )
 
     def permutation_test2(
         self,
@@ -1839,77 +1344,19 @@ class BrainCollection:
             >>> result = patients.permutation_test2(controls)
             >>> diff_bd, p_bd = result['mean_diff'], result['p']
         """
-        from nltools.algorithms.inference import two_sample_permutation_test
-        from .braindata import BrainData
+        from .inference import permutation_test2
 
-        # Validate mask compatibility
-        if self._mask.shape != other._mask.shape:
-            raise ValueError(
-                f"Collections must have same mask shape. "
-                f"Got {self._mask.shape} and {other._mask.shape}."
-            )
-
-        # Get tensors
-        tensor1 = self.to_tensor()  # (n1, n_obs, n_voxels)
-        tensor2 = other.to_tensor()  # (n2, n_obs, n_voxels)
-
-        if tensor1.shape[1] != tensor2.shape[1]:
-            raise ValueError(
-                f"Collections must have same observation count. "
-                f"Got {tensor1.shape[1]} and {tensor2.shape[1]}."
-            )
-
-        n_obs = tensor1.shape[1]
-
-        diff_results = []
-        p_results = []
-        null_dists = [] if return_null else None
-
-        iterator = range(n_obs)
-        if tqdm is not None:
-            iterator = tqdm.tqdm(iterator, desc="Two-sample permutation tests")
-
-        for obs_idx in iterator:
-            data1 = tensor1[:, obs_idx, :]  # (n1, n_voxels)
-            data2 = tensor2[:, obs_idx, :]  # (n2, n_voxels)
-
-            result = two_sample_permutation_test(
-                data1,
-                data2,
-                n_permute=n_permute,
-                tail=tail,
-                return_null=return_null,
-                parallel=parallel,
-                n_jobs=n_jobs,
-                max_gpu_memory_gb=max_gpu_memory_gb,
-                random_state=random_state,
-            )
-
-            diff_results.append(result["mean_diff"])
-            p_results.append(result["p"])
-            if return_null:
-                null_dists.append(result["null_dist"])
-
-        # Stack results
-        diff_arr = np.vstack(diff_results)
-        p_arr = np.vstack(p_results)
-
-        diff_bd = BrainData(mask=self._mask)
-        diff_bd.data = diff_arr if n_obs > 1 else diff_arr.squeeze()
-
-        p_bd = BrainData(mask=self._mask)
-        p_bd.data = p_arr if n_obs > 1 else p_arr.squeeze()
-
-        result_dict = {
-            "mean_diff": diff_bd,
-            "p": p_bd,
-            "parallel": parallel,
-        }
-
-        if return_null:
-            result_dict["null_dist"] = np.array(null_dists)
-
-        return result_dict
+        return permutation_test2(
+            self,
+            other,
+            n_permute,
+            tail,
+            parallel,
+            n_jobs,
+            max_gpu_memory_gb,
+            random_state,
+            return_null,
+        )
 
     def anova(
         self,
@@ -1941,62 +1388,9 @@ class BrainCollection:
             >>> groups = ['control'] * 10 + ['patient'] * 15
             >>> f_stat, p_val = bc.anova(groups)
         """
-        from scipy import stats
-        from .braindata import BrainData
+        from .inference import anova
 
-        # Resolve groups
-        if isinstance(groups, str):
-            if groups not in self._metadata.columns:
-                raise KeyError(
-                    f"Column '{groups}' not found in metadata. "
-                    f"Available: {list(self._metadata.columns)}"
-                )
-            group_labels = self._metadata[groups].values
-        else:
-            group_labels = np.asarray(groups)
-            if len(group_labels) != self.n_images:
-                raise ValueError(
-                    f"groups length ({len(group_labels)}) must match "
-                    f"n_images ({self.n_images})"
-                )
-
-        # Get tensor
-        tensor = self.to_tensor()  # (n_images, n_obs, n_voxels)
-        n_images, n_obs, n_voxels = tensor.shape
-
-        # Get unique groups
-        unique_groups = np.unique(group_labels)
-        if len(unique_groups) < 2:
-            raise ValueError("ANOVA requires at least 2 groups")
-
-        # Compute F-test for each observation
-        f_results = []
-        p_results = []
-
-        for obs_idx in range(n_obs):
-            data = tensor[:, obs_idx, :]  # (n_images, n_voxels)
-
-            # Split by groups
-            group_data = [data[group_labels == g] for g in unique_groups]
-
-            # F-test across groups
-            f_stat_arr, p_val_arr = stats.f_oneway(*group_data)
-
-            f_results.append(f_stat_arr)
-            p_results.append(p_val_arr)
-
-        # Stack results
-        f_arr = np.vstack(f_results) if n_obs > 1 else np.array(f_results[0])
-        p_arr = np.vstack(p_results) if n_obs > 1 else np.array(p_results[0])
-
-        # Package as BrainData
-        f_stat = BrainData(mask=self._mask)
-        f_stat.data = f_arr
-
-        p_val = BrainData(mask=self._mask)
-        p_val.data = p_arr
-
-        return f_stat, p_val
+        return anova(self, groups)
 
     # =========================================================================
     # Transformation Methods
@@ -2041,16 +1435,9 @@ class BrainCollection:
             >>> # Parallel processing
             >>> bc.map(expensive_fn, n_jobs=-1)
         """
-        axis = self._normalize_axis(axis)
+        from .transforms import map_collection
 
-        if axis == 0:
-            return self._map_axis0(fn, n_jobs, show_progress)
-        elif axis == 1:
-            return self._map_axis1(fn, n_jobs, show_progress)
-        elif axis == 2:
-            return self._map_axis2(fn, n_jobs, show_progress)
-        else:
-            raise ValueError(f"Invalid axis: {axis}. Must be 0, 1, or 2.")
+        return map_collection(self, fn, axis, n_jobs, show_progress)
 
     def _map_axis0(
         self,
@@ -2059,31 +1446,9 @@ class BrainCollection:
         show_progress: bool,
     ) -> "BrainCollection":
         """Map function over images (axis=0)."""
-        from joblib import Parallel, delayed
+        from .transforms import map_axis0
 
-        indices = range(self.n_images)
-
-        if n_jobs == 1:
-            # Sequential processing
-            if show_progress and tqdm is not None:
-                indices = tqdm.tqdm(indices, desc="Mapping over images")
-
-            results = []
-            for i in indices:
-                bd = self._load_item(i)
-                results.append(fn(bd))
-        else:
-            # Parallel processing
-            def _process(i):
-                bd = self._load_item(i)
-                return fn(bd)
-
-            if show_progress and tqdm is not None:
-                indices = tqdm.tqdm(indices, desc="Mapping over images")
-
-            results = Parallel(n_jobs=n_jobs)(delayed(_process)(i) for i in indices)
-
-        return BrainCollection(results, mask=self._mask, metadata=self._metadata)
+        return map_axis0(self, fn, n_jobs, show_progress)
 
     def _map_axis1(
         self,
@@ -2092,59 +1457,9 @@ class BrainCollection:
         show_progress: bool,
     ) -> "BrainCollection":
         """Map function over timepoints (axis=1)."""
-        from .braindata import BrainData
+        from .transforms import map_axis1
 
-        # Ensure all sample counts known and uniform
-        for i in range(len(self)):
-            if self._sample_counts[i] is None:
-                self._load_item(i)
-
-        unique_counts = set(self._sample_counts)
-        if len(unique_counts) > 1:
-            raise ValueError(
-                f"map(axis=1) requires uniform observation counts. "
-                f"Found: {sorted(unique_counts)}"
-            )
-
-        n_obs = self._sample_counts[0]
-        indices = range(n_obs)
-
-        if show_progress and tqdm is not None:
-            indices = tqdm.tqdm(indices, desc="Mapping over timepoints")
-
-        # For each timepoint, create a BrainCollection slice and apply fn
-        results_per_t = []
-        for t in indices:
-            # Get timepoint slice: bc[:, t] returns BrainCollection with 1 obs each
-            t_slice = self[:, t]
-            result = fn(t_slice)
-            results_per_t.append(result)
-
-        # results_per_t is list of BrainData (one per timepoint)
-        # Need to reassemble into images
-        # Each result should be a BrainData with shape (n_voxels,) or similar
-        # Stack them back into (n_obs, n_voxels) per image
-
-        # If fn returns BrainData, stack across timepoints
-        if isinstance(results_per_t[0], BrainData):
-            # Reassemble: each image gets data from all timepoints
-            new_items = []
-            for img_idx in range(self.n_images):
-                img_data = []
-                for t in range(n_obs):
-                    # results_per_t[t] is result for timepoint t
-                    # If it's a single BrainData (reduced), extract scalar per image
-                    if hasattr(results_per_t[t], "data"):
-                        img_data.append(results_per_t[t].data)
-                stacked = np.vstack(img_data) if len(img_data) > 1 else img_data[0]
-                new_bd = BrainData(mask=self._mask)
-                new_bd.data = stacked
-                new_items.append(new_bd)
-            return BrainCollection(new_items, mask=self._mask, metadata=self._metadata)
-        else:
-            raise TypeError(
-                f"map(axis=1) function must return BrainData, got {type(results_per_t[0])}"
-            )
+        return map_axis1(self, fn, n_jobs, show_progress)
 
     def _map_axis2(
         self,
@@ -2153,34 +1468,9 @@ class BrainCollection:
         show_progress: bool,
     ) -> "BrainCollection":
         """Map function over voxels (axis=2) per image."""
-        from .braindata import BrainData
+        from .transforms import map_axis2
 
-        indices = range(self.n_images)
-        if show_progress and tqdm is not None:
-            indices = tqdm.tqdm(indices, desc="Mapping over voxels")
-
-        results = []
-        for i in indices:
-            bd = self._load_item(i)
-            data = bd.data
-            if data.ndim == 1:
-                data = data[np.newaxis, :]
-
-            # Apply fn to each voxel's timeseries (each column)
-            # fn receives (n_obs,) array, returns (n_obs,) or scalar
-            transformed_cols = []
-            for v in range(data.shape[1]):
-                transformed_cols.append(fn(data[:, v]))
-
-            transformed = np.column_stack(transformed_cols)
-
-            new_bd = BrainData(mask=self._mask)
-            new_bd.data = (
-                transformed.squeeze() if transformed.shape[0] == 1 else transformed
-            )
-            results.append(new_bd)
-
-        return BrainCollection(results, mask=self._mask, metadata=self._metadata)
+        return map_axis2(self, fn, n_jobs, show_progress)
 
     def filter(
         self,
@@ -2209,25 +1499,9 @@ class BrainCollection:
             >>> # Filter by metadata condition
             >>> bc.filter(bc.metadata['group'] == 'control')
         """
-        if callable(predicate):
-            # Apply predicate to each image
-            mask = []
-            for i in range(self.n_images):
-                bd = self._load_item(i)
-                mask.append(bool(predicate(bd)))
-            mask = np.array(mask)
-        elif isinstance(predicate, pd.Series):
-            mask = predicate.values.astype(bool)
-        else:
-            mask = np.asarray(predicate, dtype=bool)
+        from .transforms import filter_collection
 
-        if len(mask) != self.n_images:
-            raise ValueError(
-                f"Predicate length ({len(mask)}) must match n_images ({self.n_images})"
-            )
-
-        indices = np.where(mask)[0].tolist()
-        return self._subset(indices)
+        return filter_collection(self, predicate)
 
     def align(
         self,
@@ -2302,60 +1576,21 @@ class BrainCollection:
         See Also:
             nltools.algorithms.alignment.LocalAlignment: Underlying alignment class.
         """
-        from nltools.algorithms.alignment import LocalAlignment
-        from .braindata import BrainData
+        from .transforms import align
 
-        # Validate inputs
-        if scheme == "piecewise" and parcellation is None:
-            raise ValueError("parcellation is required for piecewise scheme")
-
-        # Extract data from collection as list of (n_voxels, n_samples) arrays
-        # BrainData.data is (n_samples, n_voxels), LocalAlignment expects (n_voxels, n_samples)
-        data_list = []
-        for i in range(self.n_images):
-            bd = self._load_item(i)
-            data = bd.data
-            if data.ndim == 1:
-                data = data[np.newaxis, :]  # (1, n_voxels)
-            # Transpose: (n_samples, n_voxels) -> (n_voxels, n_samples)
-            data_list.append(data.T)
-
-        # Create and fit LocalAlignment
-        la = LocalAlignment(
-            scheme=scheme,
-            method=method,
-            radius_mm=radius_mm,
-            parcellation=parcellation,
-            n_features=n_features,
-            n_iter=n_iter,
-            parallel=parallel,
-            n_jobs=n_jobs,
+        return align(
+            self,
+            method,
+            scheme,
+            radius_mm,
+            parcellation,
+            n_features,
+            n_iter,
+            parallel,
+            n_jobs,
+            return_model,
+            show_progress,
         )
-
-        # Fit and transform
-        aligned_data = la.fit_transform(data_list, self._mask)
-
-        # Convert aligned data back to BrainCollection
-        # aligned_data is list of (n_voxels, n_samples), need (n_samples, n_voxels)
-        aligned_items = []
-        for i, aligned in enumerate(aligned_data):
-            # Transpose back: (n_voxels, n_samples) -> (n_samples, n_voxels)
-            aligned_transposed = aligned.T
-            new_bd = BrainData(mask=self._mask)
-            new_bd.data = (
-                aligned_transposed.squeeze()
-                if aligned_transposed.shape[0] == 1
-                else aligned_transposed
-            )
-            aligned_items.append(new_bd)
-
-        aligned_collection = BrainCollection(
-            aligned_items, mask=self._mask, metadata=self._metadata.copy()
-        )
-
-        if return_model:
-            return aligned_collection, la
-        return aligned_collection
 
     # =========================================================================
     # Convenience Methods (Delegators to BrainData methods)
@@ -2389,12 +1624,9 @@ class BrainCollection:
             >>> bc.standardize(method='zscore')  # Z-score each image
             >>> bc.standardize(axis=1)  # Standardize across voxels
         """
-        return self.map(
-            lambda bd: bd.standardize(axis=axis, method=method),
-            axis=0,
-            n_jobs=n_jobs,
-            show_progress=show_progress,
-        )
+        from .transforms import standardize
+
+        return standardize(self, axis, method, n_jobs, show_progress)
 
     def smooth(
         self,
@@ -2418,12 +1650,9 @@ class BrainCollection:
         Examples:
             >>> bc.smooth(fwhm=6)  # 6mm FWHM smoothing
         """
-        return self.map(
-            lambda bd: bd.smooth(fwhm),
-            axis=0,
-            n_jobs=n_jobs,
-            show_progress=show_progress,
-        )
+        from .transforms import smooth
+
+        return smooth(self, fwhm, n_jobs, show_progress)
 
     def threshold(
         self,
@@ -2455,13 +1684,10 @@ class BrainCollection:
             >>> bc.threshold(upper='95%')  # Keep top 5%
             >>> bc.threshold(lower=2, binarize=True)  # Binary mask
         """
-        return self.map(
-            lambda bd: bd.threshold(
-                upper=upper, lower=lower, binarize=binarize, coerce_nan=coerce_nan
-            ),
-            axis=0,
-            n_jobs=n_jobs,
-            show_progress=show_progress,
+        from .transforms import threshold
+
+        return threshold(
+            self, upper, lower, binarize, coerce_nan, n_jobs, show_progress
         )
 
     def detrend(
@@ -2487,12 +1713,9 @@ class BrainCollection:
             >>> bc.detrend()  # Remove linear trend
             >>> bc.detrend(method='constant')  # Remove mean only
         """
-        return self.map(
-            lambda bd: bd.detrend(method=method),
-            axis=0,
-            n_jobs=n_jobs,
-            show_progress=show_progress,
-        )
+        from .transforms import detrend
+
+        return detrend(self, method, n_jobs, show_progress)
 
     # =========================================================================
     # ISC (Intersubject Correlation) Methods
@@ -2527,20 +1750,9 @@ class BrainCollection:
                     - 'roi_mask': ROI mask if mode='roi'
                     - 'neighborhoods': SphereNeighborhoods if mode='searchlight'
         """
-        n_obs = self.shape[1]
-        if n_obs is None:
-            raise ValueError(
-                "ISC requires uniform observation counts across subjects. "
-                f"Got variable counts: {[bd.shape[0] for bd in self]}"
-            )
+        from .inference import extract_for_isc
 
-        # Determine extraction mode
-        if roi_mask is not None:
-            return self._extract_roi(roi_mask, show_progress)
-        elif radius is not None:
-            return self._extract_searchlight(radius, show_progress)
-        else:
-            return self._extract_voxelwise(show_progress)
+        return extract_for_isc(self, roi_mask, radius, show_progress)
 
     def _extract_roi(
         self,
@@ -2548,49 +1760,9 @@ class BrainCollection:
         show_progress: bool = True,
     ) -> tuple[np.ndarray, dict]:
         """Extract mean signal per ROI."""
-        from nilearn.maskers import NiftiLabelsMasker
+        from .inference import extract_roi
 
-        # Load ROI mask if path
-        if isinstance(roi_mask, (str, Path)):
-            roi_mask = nib.load(roi_mask)
-
-        # Create masker
-        masker = NiftiLabelsMasker(
-            labels_img=roi_mask,
-            standardize=False,
-            resampling_target="data",
-        )
-
-        n_subjects = len(self)
-        n_obs = self.shape[1]
-
-        # Get number of ROIs from first subject
-        first_img = self[0].to_nifti()
-        first_signals = masker.fit_transform(first_img)
-        n_rois = first_signals.shape[1]
-
-        # Preallocate output: (n_obs, n_subjects, n_rois)
-        extracted = np.zeros((n_obs, n_subjects, n_rois), dtype=np.float32)
-        extracted[:, 0, :] = first_signals
-
-        # Extract remaining subjects
-        iterator = range(1, n_subjects)
-        if show_progress:
-            iterator = tqdm.tqdm(iterator, desc="Extracting ROIs", unit="subjects")
-
-        for i in iterator:
-            img = self[i].to_nifti()
-            signals = masker.transform(img)
-            extracted[:, i, :] = signals
-
-        extraction_info = {
-            "mode": "roi",
-            "n_features": n_rois,
-            "roi_mask": roi_mask,
-            "masker": masker,
-        }
-
-        return extracted, extraction_info
+        return extract_roi(self, roi_mask, show_progress)
 
     def _extract_searchlight(
         self,
@@ -2598,73 +1770,18 @@ class BrainCollection:
         show_progress: bool = True,
     ) -> tuple[np.ndarray, dict]:
         """Extract mean signal per searchlight sphere."""
-        from nltools.neighborhoods import compute_searchlight_neighborhoods
+        from .inference import extract_searchlight
 
-        n_subjects = len(self)
-        n_obs = self.shape[1]
-        n_voxels = self.n_voxels
-
-        # Get cached neighborhoods
-        neighborhoods = compute_searchlight_neighborhoods(
-            self._mask, radius_mm=radius, use_cache=True
-        )
-
-        # Preallocate output: (n_obs, n_subjects, n_voxels)
-        extracted = np.zeros((n_obs, n_subjects, n_voxels), dtype=np.float32)
-
-        # Extract each subject
-        iterator = range(n_subjects)
-        if show_progress:
-            iterator = tqdm.tqdm(
-                iterator, desc="Extracting searchlight", unit="subjects"
-            )
-
-        for subj_idx in iterator:
-            bd = self[subj_idx]
-            data = bd.data  # (n_obs, n_voxels)
-
-            # Compute mean per sphere neighborhood
-            for voxel_idx, neighbor_indices in neighborhoods.iter_neighborhoods():
-                extracted[:, subj_idx, voxel_idx] = data[:, neighbor_indices].mean(
-                    axis=1
-                )
-
-        extraction_info = {
-            "mode": "searchlight",
-            "n_features": n_voxels,
-            "radius": radius,
-            "neighborhoods": neighborhoods,
-        }
-
-        return extracted, extraction_info
+        return extract_searchlight(self, radius, show_progress)
 
     def _extract_voxelwise(
         self,
         show_progress: bool = True,
     ) -> tuple[np.ndarray, dict]:
         """Extract raw voxel data."""
-        n_subjects = len(self)
-        n_obs = self.shape[1]
-        n_voxels = self.n_voxels
+        from .inference import extract_voxelwise
 
-        # Preallocate output: (n_obs, n_subjects, n_voxels)
-        extracted = np.zeros((n_obs, n_subjects, n_voxels), dtype=np.float32)
-
-        # Extract each subject
-        iterator = range(n_subjects)
-        if show_progress:
-            iterator = tqdm.tqdm(iterator, desc="Extracting voxels", unit="subjects")
-
-        for subj_idx in iterator:
-            bd = self[subj_idx]
-            extracted[:, subj_idx, :] = bd.data
-
-        extraction_info = {
-            "mode": "voxelwise",
-            "n_features": n_voxels,
-        }
-
-        return extracted, extraction_info
+        return extract_voxelwise(self, show_progress)
 
     def _project_to_brain(
         self,
@@ -2683,25 +1800,9 @@ class BrainCollection:
         Returns:
             BrainData with ISC values in brain space.
         """
-        from .braindata import BrainData
+        from .inference import project_to_brain
 
-        mode = extraction_info["mode"]
-
-        if mode == "roi":
-            # For ROI mode, values are per-ROI, not per-voxel
-            # Return a BrainData with ROI values directly (not expanded to voxels)
-            result = BrainData(mask=self._mask)
-            result.data = values
-            return result
-
-        elif mode in ("searchlight", "voxelwise"):
-            # Direct assignment
-            result = BrainData(mask=self._mask)
-            result.data = values
-            return result
-
-        else:
-            raise ValueError(f"Unknown extraction mode: {mode}")
+        return project_to_brain(self, values, extraction_info)
 
     def isc(
         self,
@@ -2758,62 +1859,11 @@ class BrainCollection:
             For permutation testing, see BrainCollection.isc_test() (requires
             discussion of statistical methodology first).
         """
-        from nltools.algorithms.inference.isc import (
-            _compute_loo_isc,
-            _compute_pairwise_isc,
+        from .inference import isc
+
+        return isc(
+            self, method, roi_mask, radius, metric, parallel, n_jobs, show_progress
         )
-
-        # Extract data
-        extracted, extraction_info = self._extract_for_isc(
-            roi_mask=roi_mask,
-            radius=radius,
-            show_progress=show_progress,
-        )
-
-        # Data is (n_obs, n_subjects, n_features)
-        # ISC functions expect this shape
-
-        # Compute ISC
-        if method == "loo":
-            # LOO ISC: (n_subjects, n_features)
-            backend = "torch" if parallel == "gpu" else "numpy"
-            loo_values = _compute_loo_isc(extracted, backend=backend)
-
-            # Aggregate across subjects
-            if metric == "median":
-                isc_values = np.median(loo_values, axis=0)
-            elif metric == "mean":
-                z = np.arctanh(np.clip(loo_values, -0.9999, 0.9999))
-                isc_values = np.tanh(np.mean(z, axis=0))
-            else:
-                raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
-
-        elif method == "pairwise":
-            # Pairwise ISC: (n_pairs, n_features)
-            pairwise = _compute_pairwise_isc(extracted, backend="numpy")
-
-            # Aggregate across pairs
-            if metric == "median":
-                isc_values = np.nanmedian(pairwise, axis=0)
-            elif metric == "mean":
-                z = np.arctanh(np.clip(pairwise, -0.9999, 0.9999))
-                isc_values = np.tanh(np.nanmean(z, axis=0))
-            else:
-                raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
-
-        else:
-            raise ValueError(f"method must be 'loo' or 'pairwise', got {method}")
-
-        # Project back to brain space
-        isc_brain = self._project_to_brain(isc_values, extraction_info)
-
-        return {
-            "isc": isc_brain,
-            "method": method,
-            "extraction": extraction_info["mode"],
-            "n_subjects": len(self),
-            "extraction_info": extraction_info,
-        }
 
     def isc_test(
         self,
@@ -2912,55 +1962,24 @@ class BrainCollection:
             correlations, part I: nonparametric approaches to inter-subject
             correlation analysis at the group level. NeuroImage, 142, 248-259.
         """
-        from nltools.algorithms.inference.isc import isc_permutation_test
+        from .inference import isc_test
 
-        # Map method names
-        summary_statistic = "leave-one-out" if method == "loo" else method
-
-        # Extract data
-        extracted, extraction_info = self._extract_for_isc(
-            roi_mask=roi_mask,
-            radius=radius,
-            show_progress=show_progress,
+        return isc_test(
+            self,
+            method,
+            roi_mask,
+            radius,
+            n_permute,
+            permutation_method,
+            metric,
+            tail,
+            ci_percentile,
+            parallel,
+            n_jobs,
+            random_state,
+            return_null,
+            show_progress,
         )
-
-        # Run permutation test
-        result = isc_permutation_test(
-            data=extracted,
-            n_permute=n_permute,
-            metric=metric,
-            summary_statistic=summary_statistic,
-            method=permutation_method,
-            ci_percentile=ci_percentile,
-            tail=tail,
-            return_null=return_null,
-            progress_bar=show_progress,
-            parallel=parallel,
-            n_jobs=n_jobs,
-            random_state=random_state,
-        )
-
-        # Project results to brain space
-        isc_brain = self._project_to_brain(result["isc"], extraction_info)
-        p_brain = self._project_to_brain(result["p"], extraction_info)
-        ci_lower = self._project_to_brain(result["ci"][0], extraction_info)
-        ci_upper = self._project_to_brain(result["ci"][1], extraction_info)
-
-        output = {
-            "isc": isc_brain,
-            "p": p_brain,
-            "ci": (ci_lower, ci_upper),
-            "method": method,
-            "permutation_method": permutation_method,
-            "extraction": extraction_info["mode"],
-            "n_subjects": len(self),
-            "n_permute": n_permute,
-        }
-
-        if return_null:
-            output["null_dist"] = result.get("null_dist")
-
-        return output
 
     def cv(
         self,
@@ -3010,23 +2029,9 @@ class BrainCollection:
             BrainCollectionPipeline: For available transforms and terminals.
             CVScheme: For CV scheme configuration details.
         """
-        from nltools.pipelines.cv import CVScheme
+        from .modeling import cv
 
-        # Handle split_by -> groups conversion from metadata
-        if groups is None and split_by is not None:
-            if self.metadata is not None and split_by in self.metadata.columns:
-                groups = np.array(self.metadata[split_by])
-
-        # Create CV scheme
-        cv_scheme = CVScheme(
-            k=k,
-            scheme=scheme,
-            split_by=split_by,
-            random_state=random_state,
-            **kwargs,
-        )
-
-        return BrainCollectionPipeline(self, cv=cv_scheme, groups=groups)
+        return cv(self, k, scheme, split_by, groups, random_state, **kwargs)
 
     def fit(
         self,
@@ -3096,51 +2101,9 @@ class BrainCollection:
             fit_glm: Legacy GLM fitting (use fit_from_events instead)
             fit_ridge: Legacy Ridge fitting (use fit(..., model='ridge') instead)
         """
-        if model == "glm":
-            results = self._fit_glm(
-                X=X,
-                scale=scale,
-                scale_value=scale_value,
-                show_progress=show_progress,
-                **kwargs,
-            )
-            # Extract condition names from results
-            condition_names = None
-            if isinstance(results, dict):
-                betas = results.get("betas")
-                if betas is not None and hasattr(betas, "_design_columns"):
-                    condition_names = betas._design_columns
-            elif hasattr(results, "_design_columns"):
-                condition_names = results._design_columns
+        from .modeling import fit
 
-            return FittedBrainCollection(
-                brain_collection=self,
-                fitted_results=results,
-                model=model,
-                condition_names=condition_names,
-            )
-        elif model == "ridge":
-            # Handle cv default for Ridge
-            if cv is None:
-                output = kwargs.get("output", "scores")
-                if output in ("scores", "both"):
-                    cv = 5  # Default for scores
-            results = self.fit_ridge(
-                X=X,
-                cv=cv,
-                scale=scale,
-                scale_value=scale_value,
-                show_progress=show_progress,
-                **kwargs,
-            )
-            return FittedBrainCollection(
-                brain_collection=self,
-                fitted_results=results,
-                model=model,
-                condition_names=None,  # Ridge doesn't have condition names
-            )
-        else:
-            raise ValueError(f"Unknown model: '{model}'. Supported: 'glm', 'ridge'")
+        return fit(self, model, X, cv, scale, scale_value, show_progress, **kwargs)
 
     def fit_glm(
         self,
@@ -3232,194 +2195,27 @@ class BrainCollection:
             ...     confound_columns=['trans_x', 'trans_y', 'trans_z', 'rot_x', 'rot_y', 'rot_z']
             ... )
         """
-        # Handle return_residuals shorthand
-        if return_residuals and return_stats is None:
-            return_stats = ["residual"]
-        elif return_residuals and "residual" not in return_stats:
-            return_stats = list(return_stats) + ["residual"]
+        from .modeling import fit_glm
 
-        # Validate return_stats
-        valid_stats = {"t", "r2", "p", "se", "residual"}
-        if return_stats is not None:
-            invalid = set(return_stats) - valid_stats
-            if invalid:
-                raise ValueError(
-                    f"Invalid return_stats: {invalid}. Valid options: {valid_stats}"
-                )
-
-        # Validate by_run parameters
-        if by_run:
-            if run_column not in events.columns:
-                raise ValueError(
-                    f"by_run=True requires '{run_column}' column in events. "
-                    f"Available columns: {list(events.columns)}"
-                )
-            runs = sorted(events[run_column].unique())
-            if return_stats is not None:
-                raise NotImplementedError(
-                    "return_stats is not yet supported with by_run=True. "
-                    "Only beta coefficients are returned."
-                )
-        else:
-            runs = None
-
-        # Resolve confounds to per-subject list
-        confounds_list = self._resolve_confounds(confounds)
-
-        # Progress bar setup
-        iterator = range(len(self))
-        if show_progress and tqdm is not None:
-            iterator = tqdm.tqdm(iterator, desc="Fitting GLM", unit="subject")
-
-        # Storage for results
-        beta_data_list = []
-        beta_metadata = []
-        stat_data = {stat: [] for stat in (return_stats or [])}
-        task_columns = None  # Will be set on first subject
-        # For by_run mode: store labels (same for all subjects)
-        all_condition_labels = None
-        all_run_labels = None
-
-        for i in iterator:
-            # Load subject data
-            bd = self._load_item(i)
-            metadata_row = self._metadata.iloc[i]
-            n_scans = bd.shape[0]
-
-            # Get subject-specific confounds
-            subj_confounds = confounds_list[i] if confounds_list else None
-
-            if by_run:
-                # ===== BY_RUN MODE: Fit GLM separately per run =====
-                # Load confounds as DataFrame for slicing
-                if subj_confounds is not None:
-                    if isinstance(subj_confounds, (str, Path)):
-                        conf_path = Path(subj_confounds)
-                        sep = "\t" if conf_path.suffix in [".tsv", ".txt"] else ","
-                        subj_confounds = pd.read_csv(conf_path, sep=sep)
-                        if confound_columns:
-                            subj_confounds = subj_confounds[confound_columns]
-                        subj_confounds = subj_confounds.fillna(0)
-
-                task_betas, task_cols, cond_labels, run_lbls = _fit_glm_by_run(
-                    bd=bd,
-                    events=events,
-                    runs=runs,
-                    run_column=run_column,
-                    run_lengths=run_lengths,
-                    t_r=t_r,
-                    confounds=subj_confounds,
-                    confound_columns=confound_columns,
-                    hrf_model=hrf_model,
-                    drift_model=drift_model,
-                    high_pass=high_pass,
-                    scale=scale,
-                    scale_value=scale_value,
-                )
-
-                # Store task columns and labels from first subject
-                if task_columns is None:
-                    task_columns = task_cols
-                    all_condition_labels = cond_labels
-                    all_run_labels = run_lbls
-
-            else:
-                # ===== STANDARD MODE: Single GLM per subject =====
-                # Build design matrix
-                dm, task_cols = _build_subject_design_matrix(
-                    events=events,
-                    n_scans=n_scans,
-                    t_r=t_r,
-                    confounds=subj_confounds,
-                    confound_columns=confound_columns,
-                    hrf_model=hrf_model,
-                    drift_model=drift_model,
-                    high_pass=high_pass,
-                )
-
-                # Store task columns for later
-                if task_columns is None:
-                    task_columns = task_cols
-
-                # Apply scaling if requested
-                if scale:
-                    bd = bd.scale(scale_value)
-
-                # Fit GLM
-                bd.fit(model="glm", X=dm)
-
-                # Extract task betas only (not confounds/drift)
-                task_indices = [dm.columns.get_loc(col) for col in task_cols]
-                task_betas_data = bd.glm_betas.data[task_indices, :]
-
-                # Create BrainData for task betas by copying structure
-                task_betas = bd[0].copy()
-                task_betas.data = task_betas_data
-                task_betas._design_columns = task_cols  # Store for contrast parsing
-
-            # Save if requested
-            if save and "betas" in save:
-                save_path = _resolve_save_path(save["betas"], metadata_row, i)
-                task_betas.write(str(save_path))
-
-            beta_data_list.append(task_betas)
-            beta_metadata.append(metadata_row.to_dict())
-
-            # Extract optional stats (standard mode only, validated earlier)
-            if return_stats:
-                for stat in return_stats:
-                    if stat == "t":
-                        stat_data_arr = bd.glm_t.data[task_indices, :]
-                    elif stat == "p":
-                        stat_data_arr = bd.glm_p.data[task_indices, :]
-                    elif stat == "se":
-                        stat_data_arr = bd.glm_se.data[task_indices, :]
-                    elif stat == "r2":
-                        stat_data_arr = bd.glm_r2.data  # Shape (1, n_voxels)
-                    elif stat == "residual":
-                        stat_data_arr = (
-                            bd.glm_residual.data
-                        )  # Shape (n_scans, n_voxels)
-
-                    # Create BrainData by copying structure
-                    stat_bd = bd[0].copy()
-                    stat_bd.data = stat_data_arr
-
-                    if save and stat in save:
-                        save_path = _resolve_save_path(save[stat], metadata_row, i)
-                        stat_bd.write(str(save_path))
-
-                    stat_data[stat].append(stat_bd)
-
-            # Unload to free memory (only works for path-based collections)
-            self.unload([i])
-
-        # Build result collection
-        beta_collection = BrainCollection(
-            beta_data_list,
-            mask=self.mask,
-            metadata=pd.DataFrame(beta_metadata),
+        return fit_glm(
+            self,
+            events,
+            t_r,
+            confounds,
+            confound_columns,
+            hrf_model,
+            drift_model,
+            high_pass,
+            scale,
+            scale_value,
+            return_stats,
+            return_residuals,
+            save,
+            show_progress,
+            by_run,
+            run_column,
+            run_lengths,
         )
-        beta_collection._design_columns = task_columns
-
-        # Store run-level labels for MVPA workflows
-        if by_run:
-            beta_collection._condition_labels = all_condition_labels
-            beta_collection._run_labels = all_run_labels
-
-        # Return based on what was requested
-        if return_stats:
-            result = {"betas": beta_collection}
-            for stat in return_stats:
-                stat_collection = BrainCollection(
-                    stat_data[stat],
-                    mask=self.mask,
-                    metadata=pd.DataFrame(beta_metadata),
-                )
-                result[stat] = stat_collection
-            return result
-
-        return beta_collection
 
     def fit_from_events(
         self,
@@ -3501,23 +2297,26 @@ class BrainCollection:
             fit: Unified fit method that accepts pre-built design matrices
             _fit_glm: Internal method for design matrix-based fitting
         """
-        return self.fit_glm(
-            events=events,
-            t_r=t_r,
-            confounds=confounds,
-            confound_columns=confound_columns,
-            hrf_model=hrf_model,
-            drift_model=drift_model,
-            high_pass=high_pass,
-            scale=scale,
-            scale_value=scale_value,
-            return_stats=return_stats,
-            return_residuals=return_residuals,
-            save=save,
-            show_progress=show_progress,
-            by_run=by_run,
-            run_column=run_column,
-            run_lengths=run_lengths,
+        from .modeling import fit_from_events
+
+        return fit_from_events(
+            self,
+            events,
+            t_r,
+            confounds,
+            confound_columns,
+            hrf_model,
+            drift_model,
+            high_pass,
+            scale,
+            scale_value,
+            return_stats,
+            return_residuals,
+            save,
+            show_progress,
+            by_run,
+            run_column,
+            run_lengths,
         )
 
     def _resolve_confounds(
@@ -3535,29 +2334,9 @@ class BrainCollection:
         Returns:
             List of confounds (one per subject) or None
         """
-        if confounds is None:
-            return None
+        from .modeling import resolve_confounds
 
-        if isinstance(confounds, str):
-            # It's a metadata column name
-            if confounds not in self._metadata.columns:
-                raise KeyError(
-                    f"Confounds column '{confounds}' not found in metadata. "
-                    f"Available: {list(self._metadata.columns)}"
-                )
-            return list(self._metadata[confounds])
-
-        if isinstance(confounds, list):
-            if len(confounds) != len(self):
-                raise ValueError(
-                    f"confounds list length ({len(confounds)}) must match "
-                    f"collection length ({len(self)})"
-                )
-            return confounds
-
-        raise TypeError(
-            f"confounds must be str, list, or None, got {type(confounds).__name__}"
-        )
+        return resolve_confounds(self, confounds)
 
     def _fit_glm(
         self,
@@ -3589,136 +2368,20 @@ class BrainCollection:
         Returns:
             BrainCollection of betas, or dict with betas + requested stats.
         """
-        # Validate return_stats
-        valid_stats = {"t", "r2", "p", "se", "residual"}
-        if return_stats is not None:
-            invalid = set(return_stats) - valid_stats
-            if invalid:
-                raise ValueError(
-                    f"Invalid return_stats: {invalid}. Valid options: {valid_stats}"
-                )
+        from .modeling import fit_glm_internal
 
-        # Resolve X to per-subject list (or None if shared)
-        X_list = self._resolve_X(X)
-
-        # Progress bar setup
-        iterator = range(len(self))
-        if show_progress and tqdm is not None:
-            iterator = tqdm.tqdm(iterator, desc="Fitting GLM", unit="subject")
-
-        # Storage for results
-        beta_data_list = []
-        beta_metadata = []
-        stat_data = {stat: [] for stat in (return_stats or [])}
-        design_columns = None  # Will be set on first subject
-
-        for i in iterator:
-            # Load subject data
-            bd = self._load_item(i)
-            metadata_row = self._metadata.iloc[i]
-
-            # Get subject-specific design matrix
-            X_subj = X_list[i] if X_list else X
-
-            # Load from file if needed
-            if isinstance(X_subj, (str, Path)):
-                X_subj = self._load_design_matrix(X_subj)
-
-            # Convert array to DataFrame if needed
-            if isinstance(X_subj, np.ndarray):
-                X_subj = pd.DataFrame(
-                    X_subj, columns=[f"col_{j}" for j in range(X_subj.shape[1])]
-                )
-
-            # Store design columns for result metadata
-            if design_columns is None:
-                design_columns = list(X_subj.columns)
-
-            # Validate shapes match
-            if X_subj.shape[0] != bd.shape[0]:
-                raise ValueError(
-                    f"Subject {i}: X has {X_subj.shape[0]} samples but data has "
-                    f"{bd.shape[0]} samples. Shapes must match."
-                )
-
-            # Apply scaling if requested (scale=False since we scale here)
-            if scale:
-                bd = bd.scale(scale_value)
-
-            # Fit GLM using BrainData.fit()
-            bd.fit(model="glm", X=X_subj, scale=False)
-
-            # Extract betas
-            betas = bd[0].copy()
-            betas.data = bd.glm_betas.data
-            betas._design_columns = design_columns
-
-            # Save if requested
-            if save and "betas" in save:
-                save_path = _resolve_save_path(save["betas"], metadata_row, i)
-                betas.write(str(save_path))
-
-            beta_data_list.append(betas)
-            beta_metadata.append(metadata_row.to_dict())
-
-            # Extract optional stats
-            if return_stats:
-                for stat in return_stats:
-                    if stat == "t":
-                        stat_bd = bd[0].copy()
-                        stat_bd.data = bd.glm_t.data
-                    elif stat == "p":
-                        stat_bd = bd[0].copy()
-                        stat_bd.data = bd.glm_p.data
-                    elif stat == "se":
-                        stat_bd = bd[0].copy()
-                        stat_bd.data = bd.glm_se.data
-                    elif stat == "r2":
-                        stat_bd = bd[0].copy()
-                        stat_bd.data = bd.glm_r2.data
-                    elif stat == "residual":
-                        stat_bd = bd[0].copy()
-                        stat_bd.data = bd.glm_residual.data
-
-                    stat_bd._design_columns = design_columns
-
-                    if save and stat in save:
-                        save_path = _resolve_save_path(save[stat], metadata_row, i)
-                        stat_bd.write(str(save_path))
-
-                    stat_data[stat].append(stat_bd)
-
-        # Build result collection
-        result_metadata = pd.DataFrame(beta_metadata)
-        beta_collection = BrainCollection(
-            beta_data_list, mask=self._mask, metadata=result_metadata, lazy=False
+        return fit_glm_internal(
+            self, X, scale, scale_value, return_stats, save, show_progress
         )
-        beta_collection._design_columns = design_columns
-
-        # Return stats if requested
-        if return_stats:
-            result = {"betas": beta_collection}
-            for stat, data_list in stat_data.items():
-                stat_collection = BrainCollection(
-                    data_list, mask=self._mask, metadata=result_metadata, lazy=False
-                )
-                stat_collection._design_columns = design_columns
-                result[stat] = stat_collection
-            return result
-
-        return beta_collection
 
     def _load_design_matrix(self, path: str | Path) -> pd.DataFrame:
         """Load design matrix from a file path.
 
         Supports common formats: .csv, .tsv, .txt
         """
-        path = Path(path)
-        if not path.exists():
-            raise FileNotFoundError(f"Design matrix file not found: {path}")
+        from .modeling import load_design_matrix
 
-        sep = "\t" if path.suffix in [".tsv", ".txt"] else ","
-        return pd.read_csv(path, sep=sep)
+        return load_design_matrix(self, path)
 
     def fit_ridge(
         self,
@@ -3784,148 +2447,20 @@ class BrainCollection:
             >>> # Get weights only (no CV needed)
             >>> weights = bc.fit_ridge(X=features, alpha=1.0, output='weights', cv=None)
         """
-        # Validate output parameter
-        valid_outputs = {"scores", "weights", "both"}
-        if output not in valid_outputs:
-            raise ValueError(
-                f"Invalid output: '{output}'. Valid options: {valid_outputs}"
-            )
+        from .modeling import fit_ridge
 
-        # CV is required for scores
-        if output in ("scores", "both") and cv is None:
-            raise ValueError(
-                f"cv must be specified when output='{output}'. "
-                "Set cv=5 (or another int) to compute cross-validated scores, "
-                "or use output='weights' if you only need model weights."
-            )
-
-        # Resolve X to per-subject list (returns None if shared array)
-        X_list = self._resolve_X(X)
-
-        # Progress bar setup
-        iterator = range(len(self))
-        if show_progress and tqdm is not None:
-            iterator = tqdm.tqdm(iterator, desc="Fitting Ridge", unit="subject")
-
-        # Storage for results based on output type
-        need_weights = output in ("weights", "both")
-        need_scores = output in ("scores", "both")
-
-        weight_data_list = [] if need_weights else None
-        score_data_list = [] if need_scores else None
-        result_metadata = []
-        cv_results_list = []
-        feature_names = None
-
-        for i in iterator:
-            # Load subject data
-            bd = self._load_item(i)
-            metadata_row = self._metadata.iloc[i]
-
-            # Get subject features
-            X_subj = X_list[i] if X_list else X
-
-            # Load from file if needed
-            if isinstance(X_subj, (str, Path)):
-                X_subj = self._load_features(X_subj)
-
-            # Extract feature names if available
-            if feature_names is None and hasattr(X_subj, "columns"):
-                feature_names = list(X_subj.columns)
-
-            # Apply scaling if requested
-            if scale:
-                bd = bd.scale(scale_value)
-
-            # Fit ridge
-            bd.fit(model="ridge", X=X_subj, alpha=alpha, cv=cv, **ridge_kwargs)
-
-            result_metadata.append(metadata_row.to_dict())
-
-            # Store CV results if available
-            cv_result = None
-            if hasattr(bd, "cv_results_") and bd.cv_results_ is not None:
-                cv_result = bd.cv_results_
-                cv_results_list.append(cv_result)
-
-            # Extract weights if needed
-            if need_weights:
-                weights_data = bd.ridge_weights.data
-                weights = bd[0].copy()
-                weights.data = weights_data
-                if feature_names:
-                    weights._feature_names = feature_names
-                if cv_result:
-                    weights.cv_results_ = cv_result
-
-                if save and "weights" in save:
-                    save_path = _resolve_save_path(save["weights"], metadata_row, i)
-                    weights.write(str(save_path))
-
-                weight_data_list.append(weights)
-
-            # Extract scores if needed
-            if need_scores:
-                scores_data = bd.ridge_scores.data
-                scores = bd[0].copy()
-                scores.data = scores_data
-                if cv_result:
-                    scores.cv_results_ = cv_result
-
-                if save and "scores" in save:
-                    save_path = _resolve_save_path(save["scores"], metadata_row, i)
-                    scores.write(str(save_path))
-
-                score_data_list.append(scores)
-
-            # Unload to free memory (only works for path-based collections)
-            self.unload([i])
-
-        # Build result collection(s)
-        result_meta_df = pd.DataFrame(result_metadata)
-
-        if output == "weights":
-            weight_collection = BrainCollection(
-                weight_data_list,
-                mask=self.mask,
-                metadata=result_meta_df,
-            )
-            if feature_names:
-                weight_collection._feature_names = feature_names
-            if cv_results_list:
-                weight_collection.cv_results_ = cv_results_list
-            return weight_collection
-
-        elif output == "scores":
-            score_collection = BrainCollection(
-                score_data_list,
-                mask=self.mask,
-                metadata=result_meta_df,
-            )
-            if cv_results_list:
-                score_collection.cv_results_ = cv_results_list
-            return score_collection
-
-        else:  # output == "both"
-            weight_collection = BrainCollection(
-                weight_data_list,
-                mask=self.mask,
-                metadata=result_meta_df,
-            )
-            if feature_names:
-                weight_collection._feature_names = feature_names
-            if cv_results_list:
-                weight_collection.cv_results_ = cv_results_list
-
-            score_collection = BrainCollection(
-                score_data_list,
-                mask=self.mask,
-                metadata=result_meta_df,
-            )
-            if cv_results_list:
-                score_collection.cv_results_ = cv_results_list
-
-            return {"weights": weight_collection, "scores": score_collection}
+        return fit_ridge(
+            self,
+            X,
+            alpha,
+            cv,
+            scale,
+            scale_value,
+            output,
+            save,
+            show_progress,
+            **ridge_kwargs,
+        )
 
     def _resolve_X(
         self,
@@ -3951,63 +2486,18 @@ class BrainCollection:
             list | None: Per-subject list if X varies by subject, None if shared.
                 Caller should use: `X_subj = X_list[i] if X_list else X`
         """
-        if X is None:
-            raise ValueError("X must be provided")
+        from .modeling import resolve_X
 
-        # Shared array - return None to signal no per-subject list
-        if isinstance(X, np.ndarray):
-            return None
-
-        # Shared DataFrame - return None to signal shared
-        if isinstance(X, pd.DataFrame):
-            return None
-
-        # Shared DesignMatrix (Polars-based, doesn't inherit from pd.DataFrame)
-        from .designmatrix import DesignMatrix
-
-        if isinstance(X, DesignMatrix):
-            return None
-
-        # Metadata column name - return list of file paths
-        if isinstance(X, str):
-            if X not in self._metadata.columns:
-                raise KeyError(
-                    f"Column '{X}' not found in metadata. "
-                    f"Available: {list(self._metadata.columns)}"
-                )
-            return list(self._metadata[X])
-
-        # Per-subject list - validate length
-        if isinstance(X, list):
-            if len(X) != len(self):
-                raise ValueError(
-                    f"X list length ({len(X)}) must match "
-                    f"collection length ({len(self)})"
-                )
-            return X
-
-        raise TypeError(
-            f"X must be np.ndarray, DataFrame, DesignMatrix, str, or list, "
-            f"got {type(X).__name__}"
-        )
+        return resolve_X(self, X)
 
     def _load_features(self, path: str | Path) -> np.ndarray:
         """Load features from a file path.
 
         Supports common formats: .npy, .csv, .tsv, .txt
         """
-        path = Path(path)
-        if not path.exists():
-            raise FileNotFoundError(f"Feature file not found: {path}")
+        from .modeling import load_features
 
-        suffix = path.suffix.lower()
-        if suffix == ".npy":
-            return np.load(path)
-        elif suffix in [".csv", ".tsv", ".txt"]:
-            sep = "\t" if suffix in [".tsv", ".txt"] else ","
-            return pd.read_csv(path, sep=sep).values
-        else:
-            raise ValueError(f"Unsupported feature file format: {suffix}")
+        return load_features(self, path)
 
     def predict(
         self,
@@ -4079,95 +2569,23 @@ class BrainCollection:
             >>> weights = bc.fit_ridge(X=features, output='weights')
             >>> predictions = weights.predict(X=new_features)
         """
-        # Validate mutually exclusive modes
-        if X is not None and y is not None:
-            raise ValueError(
-                "Cannot specify both X and y. Use X for timeseries prediction "
-                "or y for MVPA decoding."
-            )
+        from .prediction import predict
 
-        # Infer y from _condition_labels if available
-        if y is None and X is None:
-            if hasattr(self, "_condition_labels") and self._condition_labels:
-                y = np.array(self._condition_labels)
-            else:
-                raise ValueError(
-                    "Must provide X for timeseries prediction or y for MVPA. "
-                    "If using fit_glm(by_run=True), y can be inferred from "
-                    "_condition_labels."
-                )
-
-        # Infer groups from _run_labels if available
-        if y is not None and groups is None:
-            if hasattr(self, "_run_labels") and self._run_labels:
-                groups = np.array(self._run_labels)
-
-        # Progress bar setup
-        iterator = range(len(self))
-        if show_progress and tqdm is not None:
-            desc = "Predicting (MVPA)" if y is not None else "Predicting (timeseries)"
-            iterator = tqdm.tqdm(iterator, desc=desc, unit="subject")
-
-        # Resolve per-subject features if X is provided
-        X_list = None
-        shared_X = None
-        if X is not None:
-            X_resolved = self._resolve_X(X)
-            if X_resolved is None:
-                # Shared features
-                shared_X = X
-            else:
-                X_list = X_resolved
-
-        # Storage for results
-        result_data_list = []
-        result_metadata = []
-
-        for i in iterator:
-            # Load subject data
-            bd = self._load_item(i)
-            metadata_row = self._metadata.iloc[i]
-
-            if X is not None:
-                # Timeseries prediction mode
-                if X_list is not None:
-                    subj_X = X_list[i]
-                    if isinstance(subj_X, (str, Path)):
-                        subj_X = self._load_features(subj_X)
-                else:
-                    subj_X = shared_X
-
-                result = bd.predict(X=subj_X)
-            else:
-                # MVPA mode
-                result = bd.predict(
-                    y=y,
-                    method=method,
-                    estimator=estimator,
-                    cv=cv,
-                    groups=groups,
-                    roi_mask=roi_mask,
-                    radius=radius,
-                    scoring=scoring,
-                    standardize=standardize,
-                    n_jobs=n_jobs,
-                    show_progress=False,  # Disable per-subject progress
-                )
-
-            result_data_list.append(result)
-            result_metadata.append(metadata_row.to_dict())
-
-            # Unload to free memory
-            self.unload([i])
-
-        # Build result collection
-        result_collection = BrainCollection(
-            result_data_list,
-            mask=self.mask,
-            metadata=pd.DataFrame(result_metadata),
+        return predict(
+            self,
+            X,
+            y,
+            method,
+            estimator,
+            cv,
+            groups,
+            roi_mask,
+            radius,
+            scoring,
+            standardize,
+            n_jobs,
+            show_progress,
         )
-
-        return result_collection
 
     def compute_contrasts(
         self,
@@ -4211,26 +2629,9 @@ class BrainCollection:
             ... })
             >>> face_vs_house_ttest = contrasts["face_vs_house"].ttest()
         """
-        # Validate that this collection has design columns
-        if not hasattr(self, "_design_columns") or self._design_columns is None:
-            raise RuntimeError(
-                "No design columns found. This method requires a BrainCollection "
-                "created by fit_glm() which stores the task regressor names."
-            )
+        from .prediction import compute_contrasts
 
-        design_columns = self._design_columns
-
-        # Handle dict of contrasts
-        if isinstance(contrasts, dict):
-            results = {}
-            for name, contrast_spec in contrasts.items():
-                results[name] = self._compute_single_contrast(
-                    contrast_spec, design_columns
-                )
-            return results
-
-        # Single contrast
-        return self._compute_single_contrast(contrasts, design_columns)
+        return compute_contrasts(self, contrasts)
 
     def _compute_single_contrast(
         self,
@@ -4246,45 +2647,9 @@ class BrainCollection:
         Returns:
             BrainCollection with contrast values for each subject
         """
-        # Parse contrast to numeric vector
-        if isinstance(contrast, str):
-            contrast_vector = self._parse_contrast_string(contrast, design_columns)
-        else:
-            contrast_vector = np.asarray(contrast)
+        from .prediction import compute_single_contrast
 
-        # Validate contrast vector length
-        n_regressors = len(design_columns)
-        if len(contrast_vector) != n_regressors:
-            raise ValueError(
-                f"Contrast vector length ({len(contrast_vector)}) must match "
-                f"number of regressors ({n_regressors}). "
-                f"Regressors: {design_columns}"
-            )
-
-        # Compute contrast for each subject
-        contrast_data_list = []
-        for i in range(len(self)):
-            bd = self._load_item(i)
-
-            # Compute weighted sum of betas
-            # bd.data has shape (n_regressors, n_voxels)
-            contrast_values = np.zeros(bd.shape[1])
-            for j, weight in enumerate(contrast_vector):
-                if weight != 0:
-                    contrast_values += weight * bd.data[j, :]
-
-            # Create BrainData with contrast values
-            contrast_bd = bd[0].copy()
-            contrast_bd.data = contrast_values
-
-            contrast_data_list.append(contrast_bd)
-
-        # Build result collection
-        return BrainCollection(
-            contrast_data_list,
-            mask=self.mask,
-            metadata=self._metadata.copy(),
-        )
+        return compute_single_contrast(self, contrast, design_columns)
 
     def _parse_contrast_string(
         self,
@@ -4303,43 +2668,9 @@ class BrainCollection:
         Raises:
             ValueError: If column name not found in design_columns
         """
-        import re
+        from .prediction import parse_contrast_string
 
-        # Initialize contrast vector
-        contrast_vector = np.zeros(len(design_columns))
-
-        # Split by + and - (keeping the operators)
-        tokens = re.split(r"(\+|\-)", contrast_str)
-        tokens = [t.strip() for t in tokens if t.strip()]
-
-        # Process tokens
-        sign = 1  # Start with positive
-        for token in tokens:
-            if token == "+":
-                sign = 1
-            elif token == "-":
-                sign = -1
-            else:
-                # Parse coefficient and variable
-                if "*" in token:
-                    coef_str, var_name = token.split("*")
-                    coef = float(coef_str.strip())
-                    var_name = var_name.strip()
-                else:
-                    coef = 1.0
-                    var_name = token
-
-                # Find column index
-                if var_name in design_columns:
-                    idx = design_columns.index(var_name)
-                    contrast_vector[idx] = sign * coef
-                else:
-                    raise ValueError(
-                        f"Column '{var_name}' not found in design columns. "
-                        f"Available: {design_columns}"
-                    )
-
-        return contrast_vector
+        return parse_contrast_string(self, contrast_str, design_columns)
 
     def select_feature(
         self,
@@ -4378,723 +2709,6 @@ class BrainCollection:
             >>> # By name (if features had column names)
             >>> face_weights = weights.select_feature("face_response")
         """
-        # Resolve feature name to index
-        if isinstance(feature, str):
-            if not hasattr(self, "_feature_names") or self._feature_names is None:
-                raise RuntimeError(
-                    "Cannot select feature by name: _feature_names not set. "
-                    "Use integer index or pass features with column names to fit_ridge()."
-                )
-            if feature not in self._feature_names:
-                raise KeyError(
-                    f"Feature '{feature}' not found. Available: {self._feature_names}"
-                )
-            feature_idx = self._feature_names.index(feature)
-        else:
-            feature_idx = feature
+        from .prediction import select_feature
 
-        # Extract feature weights for each subject
-        feature_data_list = []
-        for i in range(len(self)):
-            bd = self._load_item(i)
-
-            # Validate index
-            if feature_idx < 0 or feature_idx >= bd.shape[0]:
-                raise IndexError(
-                    f"Feature index {feature_idx} out of range for subject {i} "
-                    f"with {bd.shape[0]} features."
-                )
-
-            # Extract single feature's weights
-            feature_values = bd.data[feature_idx, :]
-
-            # Create BrainData with feature weights
-            feature_bd = bd[0].copy()
-            feature_bd.data = feature_values
-
-            feature_data_list.append(feature_bd)
-
-        # Build result collection
-        return BrainCollection(
-            feature_data_list,
-            mask=self.mask,
-            metadata=self._metadata.copy(),
-        )
-
-
-# =============================================================================
-# Pipeline Classes for BrainCollection
-# =============================================================================
-
-
-class BrainCollectionPipeline:
-    """Pipeline for BrainCollection with multi-subject CV support.
-
-    Wraps BrainCollection to provide fluent pipeline API with LOSO
-    and run-based cross-validation.
-
-    This class enables method chaining for preprocessing and prediction
-    with proper cross-validation semantics for multi-subject neuroimaging
-    analyses.
-
-    Attributes:
-        n_subjects: Number of subjects/images in the collection.
-        cv: The cross-validation scheme configuration.
-        n_steps: Number of transform steps in the pipeline.
-
-    Examples:
-        >>> # Leave-one-subject-out with preprocessing
-        >>> result = (bc
-        ...     .cv(scheme='loso')
-        ...     .normalize()
-        ...     .reduce(n_components=50)
-        ...     .predict(labels, algorithm='svm'))
-        >>> print(f"Mean accuracy: {result.mean_score:.2%}")
-    """
-
-    def __init__(
-        self,
-        brain_collection: "BrainCollection",
-        cv=None,
-        groups: np.ndarray | None = None,
-    ):
-        """Initialize pipeline wrapper.
-
-        Args:
-            brain_collection: BrainCollection to wrap.
-            cv: CVScheme configuration.
-            groups: Group labels for CV splits.
-        """
-        self._bc = brain_collection
-        self._cv = cv
-        self._groups = groups
-        self._steps = []
-
-    @property
-    def n_subjects(self) -> int:
-        """Number of subjects/images."""
-        return self._bc.n_images
-
-    @property
-    def cv(self):
-        """Cross-validation scheme."""
-        return self._cv
-
-    @property
-    def n_steps(self) -> int:
-        """Number of transform steps."""
-        return len(self._steps)
-
-    def _add_step(self, step) -> "BrainCollectionPipeline":
-        """Add step and return new pipeline (immutable).
-
-        Args:
-            step: Transform step to add.
-
-        Returns:
-            New pipeline with step added.
-        """
-        from copy import copy
-
-        new = copy(self)
-        new._steps = self._steps + [step]
-        return new
-
-    def normalize(self, method: str = "zscore", **kwargs) -> "BrainCollectionPipeline":
-        """Add normalization step.
-
-        Args:
-            method: Normalization method ('zscore', 'minmax').
-            **kwargs: Additional arguments for NormalizeStep.
-
-        Returns:
-            New pipeline with normalization step added.
-        """
-        from nltools.pipelines.steps import NormalizeStep
-
-        return self._add_step(NormalizeStep(method=method, **kwargs))
-
-    def reduce(
-        self, method: str = "pca", n_components: int | None = None, **kwargs
-    ) -> "BrainCollectionPipeline":
-        """Add dimensionality reduction step.
-
-        Args:
-            method: Reduction method ('pca', 'ica').
-            n_components: Number of components to keep.
-            **kwargs: Additional arguments for ReduceStep.
-
-        Returns:
-            New pipeline with reduction step added.
-        """
-        from nltools.pipelines.steps import ReduceStep
-
-        return self._add_step(
-            ReduceStep(method=method, n_components=n_components, **kwargs)
-        )
-
-    def pipe(self, transformer) -> "BrainCollectionPipeline":
-        """Add custom sklearn transformer.
-
-        Args:
-            transformer: sklearn-compatible transformer with fit/transform interface.
-
-        Returns:
-            New pipeline with custom step added.
-        """
-        from nltools.pipelines.steps import PipeStep
-
-        return self._add_step(PipeStep(transformer=transformer))
-
-    def predict(
-        self, y, algorithm: str = "ridge", **kwargs
-    ) -> "BrainCollectionCVResult":
-        """Execute pipeline with CV and return prediction results.
-
-        Args:
-            y: Target variable. For LOSO, shape should be (n_subjects,).
-            algorithm: Prediction algorithm ('ridge', 'svm', 'logistic', etc.)
-            **kwargs: Passed to model constructor.
-
-        Returns:
-            Cross-validation results with scores and predictions.
-
-        Raises:
-            ValueError: If no CV context is set or if non-LOSO CV is used without groups.
-        """
-
-        if self._cv is None:
-            raise ValueError("predict() requires CV context")
-
-        y = np.asarray(y)
-
-        # Get data as list of numpy arrays
-        brain_data_list = self._bc.to_list()
-        subject_data = [bd.data for bd in brain_data_list]
-
-        if self._cv.is_loso:
-            return self._execute_loso(subject_data, y, algorithm, kwargs)
-        else:
-            return self._execute_pooled_cv(subject_data, y, algorithm, kwargs)
-
-    def _execute_loso(
-        self, subject_data: list, y: np.ndarray, algorithm: str, model_kwargs: dict
-    ) -> "BrainCollectionCVResult":
-        """Execute leave-one-subject-out CV.
-
-        Args:
-            subject_data: List of arrays, one per subject.
-            y: Target labels.
-            algorithm: Prediction algorithm name.
-            model_kwargs: Kwargs passed to model constructor.
-
-        Returns:
-            Cross-validation results.
-        """
-        from nltools.pipelines.base import FittedStack
-
-        results = []
-        n_subjects = len(subject_data)
-
-        for held_out_idx in range(n_subjects):
-            # Split subjects
-            train_subjects = [
-                subject_data[i] for i in range(n_subjects) if i != held_out_idx
-            ]
-            test_subject = subject_data[held_out_idx]
-
-            fitted_stack = FittedStack()
-
-            # Pool training data
-            train_pooled = np.vstack(train_subjects)
-            test_data = (
-                test_subject if test_subject.ndim == 2 else test_subject[np.newaxis, :]
-            )
-
-            # Apply transforms
-            for step in self._steps:
-                fitted = step.fit(train_pooled)
-                fitted_stack.append(fitted)
-                train_pooled = fitted.transform(train_pooled)
-                test_data = fitted.transform(test_data)
-
-            # Handle y based on shape
-            if y.shape[0] == n_subjects:
-                # One label per subject
-                train_y = np.concatenate(
-                    [
-                        np.full(subject_data[i].shape[0], y[i])
-                        for i in range(n_subjects)
-                        if i != held_out_idx
-                    ]
-                )
-                test_y = np.full(test_data.shape[0], y[held_out_idx])
-            else:
-                # Labels match observations - need proper indexing
-                obs_per_subj = [s.shape[0] for s in subject_data]
-                cumsum = np.cumsum([0] + obs_per_subj)
-                train_mask = np.ones(sum(obs_per_subj), dtype=bool)
-                train_mask[cumsum[held_out_idx] : cumsum[held_out_idx + 1]] = False
-                train_y = y[train_mask]
-                test_y = y[cumsum[held_out_idx] : cumsum[held_out_idx + 1]]
-
-            # Get model
-            model = self._get_model(algorithm, model_kwargs)
-            model.fit(train_pooled, train_y)
-
-            predictions = model.predict(test_data)
-            score = model.score(test_data, test_y)
-
-            train_idx = np.arange(len(train_y))
-            test_idx = np.arange(len(train_y), len(train_y) + len(test_y))
-
-            results.append(
-                {
-                    "score": score,
-                    "predictions": predictions,
-                    "train_idx": train_idx,
-                    "test_idx": test_idx,
-                    "fitted_stack": fitted_stack,
-                    "held_out_subject": held_out_idx,
-                }
-            )
-
-        return BrainCollectionCVResult(results, self)
-
-    def _execute_pooled_cv(
-        self, subject_data: list, y: np.ndarray, algorithm: str, model_kwargs: dict
-    ) -> "BrainCollectionCVResult":
-        """Execute CV on pooled data.
-
-        Args:
-            subject_data: List of arrays, one per subject.
-            y: Target labels.
-            algorithm: Prediction algorithm name.
-            model_kwargs: Kwargs passed to model constructor.
-
-        Returns:
-            Cross-validation results.
-
-        Raises:
-            ValueError: If groups parameter is not set.
-        """
-        from nltools.pipelines.base import FittedStack
-
-        # Pool all data
-        pooled_data = np.vstack(subject_data)
-
-        if self._groups is None:
-            raise ValueError("Non-LOSO CV requires groups parameter")
-
-        results = []
-
-        for train_idx, test_idx in self._cv.split(pooled_data, groups=self._groups):
-            fitted_stack = FittedStack()
-
-            train_data = pooled_data[train_idx]
-            test_data = pooled_data[test_idx]
-            train_y = y[train_idx]
-            test_y = y[test_idx]
-
-            # Apply transforms
-            for step in self._steps:
-                fitted = step.fit(train_data)
-                fitted_stack.append(fitted)
-                train_data = fitted.transform(train_data)
-                test_data = fitted.transform(test_data)
-
-            # Fit and evaluate
-            model = self._get_model(algorithm, model_kwargs)
-            model.fit(train_data, train_y)
-
-            predictions = model.predict(test_data)
-            score = model.score(test_data, test_y)
-
-            results.append(
-                {
-                    "score": score,
-                    "predictions": predictions,
-                    "train_idx": train_idx,
-                    "test_idx": test_idx,
-                    "fitted_stack": fitted_stack,
-                }
-            )
-
-        return BrainCollectionCVResult(results, self)
-
-    def _get_model(self, algorithm: str, kwargs: dict):
-        """Get sklearn model instance.
-
-        Args:
-            algorithm: Algorithm name.
-            kwargs: Model constructor arguments.
-
-        Returns:
-            Sklearn estimator instance.
-
-        Raises:
-            ValueError: If algorithm is unknown.
-        """
-        if algorithm == "ridge":
-            from sklearn.linear_model import Ridge
-
-            return Ridge(**kwargs)
-        elif algorithm == "lasso":
-            from sklearn.linear_model import Lasso
-
-            return Lasso(**kwargs)
-        elif algorithm == "svm":
-            from sklearn.svm import SVC
-
-            return SVC(**kwargs)
-        elif algorithm == "svr":
-            from sklearn.svm import SVR
-
-            return SVR(**kwargs)
-        elif algorithm == "logistic":
-            from sklearn.linear_model import LogisticRegression
-
-            return LogisticRegression(**kwargs)
-        else:
-            raise ValueError(f"Unknown algorithm: {algorithm}")
-
-    def __repr__(self):
-        """Return string representation."""
-        return f"BrainCollectionPipeline(n_subjects={self.n_subjects}, n_steps={self.n_steps})"
-
-
-class BrainCollectionCVResult:
-    """Cross-validation results for BrainCollection pipelines.
-
-    Contains fold-by-fold results from cross-validated prediction,
-    with convenience properties for accessing scores and predictions.
-
-    Attributes:
-        fold_results: List of dictionaries with per-fold results.
-        pipeline: The pipeline that generated these results.
-        scores: Per-fold prediction scores.
-        mean_score: Mean score across all folds.
-        std_score: Standard deviation of scores.
-        n_folds: Number of CV folds.
-    """
-
-    def __init__(self, fold_results: list, pipeline: BrainCollectionPipeline):
-        """Initialize CV results.
-
-        Args:
-            fold_results: List of fold result dictionaries.
-            pipeline: The pipeline that generated these results.
-        """
-        self.fold_results = fold_results
-        self.pipeline = pipeline
-
-    @property
-    def scores(self) -> np.ndarray:
-        """Per-fold prediction scores as a numpy array."""
-        return np.array([f["score"] for f in self.fold_results])
-
-    @property
-    def mean_score(self) -> float:
-        """Mean score across folds."""
-        return float(self.scores.mean())
-
-    @property
-    def std_score(self) -> float:
-        """Standard deviation of scores."""
-        return float(self.scores.std())
-
-    @property
-    def n_folds(self) -> int:
-        """Number of cross-validation folds."""
-        return len(self.fold_results)
-
-    def __repr__(self):
-        """Return string representation."""
-        return f"BrainCollectionCVResult(n_folds={self.n_folds}, mean_score={self.mean_score:.4f})"
-
-
-# =============================================================================
-# FittedBrainCollection: Wrapper for chaining pool() after fit()
-# =============================================================================
-
-
-class FittedBrainCollection:
-    """Wrapper for fitted BrainCollection enabling pool() chaining.
-
-    This class wraps the results of bc.fit() and provides the .pool()
-    method for aggregating across subjects.
-
-    The execution model:
-    - fit() executes immediately (eager)
-    - pool() aggregates the fitted parameters
-    - pool() returns PooledData for second-level analysis
-
-    Args:
-        brain_collection: The original collection that was fitted.
-        fitted_results: The fitted results. Can be a BrainCollection (betas or
-            scores) or a dict mapping stat names to BrainCollections
-            (e.g., {'betas': ..., 't': ...}).
-        model: The model type that was fitted ('glm' or 'ridge').
-        condition_names: Names of conditions/regressors from the design matrix.
-
-    Examples
-    --------
-    >>> fitted = bc.fit(model='glm', X=dm)
-    >>> pool = fitted.pool(param='beta')
-    >>> result = pool.fit(model='ttest', contrast='A-B')
-    """
-
-    def __init__(
-        self,
-        brain_collection: "BrainCollection",
-        fitted_results: "BrainCollection | dict[str, BrainCollection]",
-        model: str,
-        condition_names: list[str] | None = None,
-    ):
-        self._bc = brain_collection
-        self._fitted = fitted_results
-        self._model = model
-        self._condition_names = condition_names
-
-    @property
-    def n_subjects(self) -> int:
-        """Number of subjects in the fitted collection."""
-        if isinstance(self._fitted, dict):
-            # Get from first value in dict
-            first = next(iter(self._fitted.values()))
-            return len(first)
-        return len(self._fitted)
-
-    @property
-    def results(self) -> "BrainCollection | dict[str, BrainCollection]":
-        """Access the fitted results directly.
-
-        Returns the underlying BrainCollection or dict of BrainCollections.
-        Use this for backward compatibility or when pool() is not needed.
-        """
-        return self._fitted
-
-    @property
-    def betas(self) -> "BrainCollection":
-        """Convenience accessor for beta coefficients from a GLM fit.
-
-        Returns:
-            Beta coefficients from GLM fit.
-
-        Raises:
-            ValueError: If model is not GLM or betas not available.
-        """
-        if isinstance(self._fitted, dict):
-            if "betas" in self._fitted:
-                return self._fitted["betas"]
-            raise ValueError("No 'betas' key in fitted results dict")
-        if self._model == "glm":
-            return self._fitted
-        raise ValueError(f"'betas' not available for model='{self._model}'")
-
-    def pool(
-        self,
-        param: str = "beta",
-        contrast: str | None = None,
-        save: str | None = None,
-        save_fitted: bool = False,
-    ):
-        """Pool fitted parameters across subjects.
-
-        Aggregates per-subject fitted results for group-level analysis.
-        Returns a PooledData object that can be passed to second-level
-        statistical tests.
-
-        Args:
-            param: Parameter to pool. GLM options: 'beta', 't', 'r2', 'p', 'se',
-                'residual'. Ridge options: 'scores', 'weights'. Default is 'beta'.
-            contrast: Apply contrast before pooling. Format: 'A-B' or 'A+B'.
-                Requires condition_names to be available.
-            save: Path template to save per-subject results before pooling.
-                Supports {subject}, {idx} placeholders.
-            save_fitted: If True, save full fitted state for later repool().
-
-        Returns:
-            Pooled data ready for second-level analysis.
-
-        Examples
-        --------
-        >>> pool = bc.fit(model='glm', X=designs).pool(param='beta')
-        >>> result = pool.fit(model='ttest', contrast='face-house')
-
-        >>> # Pool t-statistics instead of betas
-        >>> pool = bc.fit(model='glm', X=dm, return_stats=['t']).pool(param='t')
-        """
-        from nltools.pipelines.pool import PooledData
-
-        # Determine what data to pool
-        if isinstance(self._fitted, dict):
-            # Results include multiple stats
-            param_key = param if param != "beta" else "betas"
-            if param_key not in self._fitted:
-                available = list(self._fitted.keys())
-                raise ValueError(
-                    f"Parameter '{param}' not found. Available: {available}"
-                )
-            data_to_pool = self._fitted[param_key]
-        else:
-            # Single BrainCollection result
-            if param not in ("beta", "betas", "scores", "weights"):
-                raise ValueError(
-                    f"Parameter '{param}' not available. For GLM stats, "
-                    "use return_stats=['t', 'p', ...] in fit()."
-                )
-            data_to_pool = self._fitted
-
-        # Extract data as array: (n_subjects, n_conditions, n_voxels)
-        # Each item in data_to_pool is a BrainData with shape (n_conditions, n_voxels)
-        pooled_list = []
-        for i in range(len(data_to_pool)):
-            bd = data_to_pool[i]
-            pooled_list.append(bd.data)
-
-        pooled_array = np.stack(pooled_list)
-
-        # Apply contrast if specified
-        if contrast is not None:
-            pooled_array = self._apply_contrast(pooled_array, contrast)
-
-        # Save per-subject if requested
-        if save:
-            self._save_per_subject(save)
-
-        # Get subject IDs from metadata if available
-        subject_ids = None
-        if self._bc.metadata is not None and "subject" in self._bc.metadata.columns:
-            subject_ids = list(self._bc.metadata["subject"])
-
-        # Get condition names from fitted results if available
-        condition_names = self._condition_names
-        if condition_names is None and hasattr(data_to_pool, "_design_columns"):
-            condition_names = data_to_pool._design_columns
-
-        return PooledData(
-            data=pooled_array,
-            param=param,
-            condition_names=condition_names,
-            subject_ids=subject_ids,
-            mask=self._bc.mask,
-            fitted_state=self._fitted if save_fitted else None,
-            save_path=save,
-        )
-
-    def _apply_contrast(self, data: np.ndarray, contrast: str) -> np.ndarray:
-        """Apply contrast weights to pooled data.
-
-        Parameters
-        ----------
-        data : np.ndarray
-            Shape (n_subjects, n_conditions, n_voxels).
-        contrast : str
-            Contrast specification like 'A-B' or 'A+B'.
-
-        Returns
-        -------
-        np.ndarray
-            Shape (n_subjects, n_voxels) after contrast.
-        """
-        if self._condition_names is None:
-            raise ValueError(
-                "Cannot apply contrast: condition_names not available. "
-                "Ensure fit() received a design matrix with column names."
-            )
-
-        # Parse contrast string
-        contrast_weights = self._parse_contrast(contrast)
-
-        # Apply contrast: weighted sum across conditions
-        result = np.zeros((data.shape[0], data.shape[2]))  # (n_subjects, n_voxels)
-        for i, (cond, weight) in enumerate(contrast_weights.items()):
-            if cond not in self._condition_names:
-                raise ValueError(
-                    f"Condition '{cond}' not in conditions: {self._condition_names}"
-                )
-            idx = self._condition_names.index(cond)
-            result += weight * data[:, idx, :]
-
-        return result
-
-    def _parse_contrast(self, contrast: str) -> dict[str, float]:
-        """Parse contrast string into weights dict.
-
-        Examples:
-        - 'A-B' -> {'A': 1.0, 'B': -1.0}
-        - 'A+B' -> {'A': 1.0, 'B': 1.0}
-        - '2*A-B' -> {'A': 2.0, 'B': -1.0}
-        """
-        import re
-
-        weights = {}
-        # Split by + or - keeping the delimiter
-        parts = re.split(r"(\+|-)", contrast)
-
-        sign = 1.0
-        for part in parts:
-            part = part.strip()
-            if part == "+":
-                sign = 1.0
-            elif part == "-":
-                sign = -1.0
-            elif part:
-                # Check for coefficient
-                match = re.match(r"(\d*\.?\d*)\*?(.+)", part)
-                if match:
-                    coef_str, name = match.groups()
-                    coef = float(coef_str) if coef_str else 1.0
-                    weights[name.strip()] = sign * coef
-                else:
-                    weights[part] = sign
-
-        return weights
-
-    def _save_per_subject(self, save_dir: str) -> None:
-        """Save each subject's fitted results."""
-        save_path = Path(save_dir)
-        save_path.mkdir(parents=True, exist_ok=True)
-
-        data_to_save = (
-            self._fitted
-            if not isinstance(self._fitted, dict)
-            else self._fitted.get("betas", next(iter(self._fitted.values())))
-        )
-
-        for i in range(len(data_to_save)):
-            bd = data_to_save[i]
-            subj_path = save_path / f"subj{i + 1:02d}.nii.gz"
-            bd.write(str(subj_path))
-
-    def __repr__(self) -> str:
-        if isinstance(self._fitted, dict):
-            keys = list(self._fitted.keys())
-            return (
-                f"FittedBrainCollection(n_subjects={self.n_subjects}, "
-                f"model='{self._model}', outputs={keys})"
-            )
-        return (
-            f"FittedBrainCollection(n_subjects={self.n_subjects}, "
-            f"model='{self._model}')"
-        )
-
-    # Delegate common operations to underlying results for backward compatibility
-    def __len__(self) -> int:
-        return self.n_subjects
-
-    def __getitem__(self, key):
-        """Allow indexing into fitted results."""
-        if isinstance(self._fitted, dict):
-            if isinstance(key, str):
-                return self._fitted[key]
-            # Numeric index - apply to all values
-            return {k: v[key] for k, v in self._fitted.items()}
-        return self._fitted[key]
-
-    def __iter__(self):
-        """Iterate over fitted results."""
-        if isinstance(self._fitted, dict):
-            return iter(self._fitted)
-        return iter(self._fitted)
+        return select_feature(self, feature)
