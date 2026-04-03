@@ -54,6 +54,11 @@ parts:
           - file: api/data/braindata_plotting
           - file: api/data/braindata_pipeline
       - file: api/data/adjacency
+        sections:
+          - file: api/data/adjacency_stats
+          - file: api/data/adjacency_modeling
+          - file: api/data/adjacency_plotting
+          - file: api/data/adjacency_io
       - file: api/data/design_matrix
         sections:
           - file: api/data/design_matrix_transforms
