@@ -55,6 +55,12 @@ parts:
           - file: api/data/braindata_pipeline
       - file: api/data/adjacency
       - file: api/data/design_matrix
+        sections:
+          - file: api/data/design_matrix_transforms
+          - file: api/data/design_matrix_regressors
+          - file: api/data/design_matrix_append
+          - file: api/data/design_matrix_diagnostics
+          - file: api/data/design_matrix_io
       - file: api/data/brain_collection
       - file: api/models
 

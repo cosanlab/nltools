@@ -33,8 +33,16 @@ def append(
         axis (int): 0 for row-wise (vertical), 1 for column-wise (horizontal).
         keep_separate (bool): Whether to separate polynomial columns across runs (only axis=0).
         unique_cols (list of str, optional): Additional columns to keep separated (supports wildcards).
-        fill_na (int or float): Value to fill NaN values during vertical concatenation.
-        verbose (bool): Print messages about polynomial separation.
+        fill_na (int or float): Value to fill NaN values during vertical
+            concatenation. Default: 0.
+        verbose (bool): Print messages about polynomial separation. Default: False.
+
+    Returns:
+        DesignMatrix: Concatenated design matrix.
+
+    Raises:
+        TypeError: If items to append are not DesignMatrix instances.
+        ValueError: If sampling frequencies do not match or axis is invalid.
     """
     from nltools.data.design_matrix import DesignMatrix
 
@@ -64,6 +72,17 @@ def append_horizontal(
 ) -> DesignMatrix:
     """
     Horizontal concatenation (axis=1) - add columns from other matrices.
+
+    Args:
+        dm: Base DesignMatrix instance.
+        to_append (list of DesignMatrix): Matrices whose columns to add.
+        fill_na (int or float): Value to fill NaN/null entries with.
+
+    Returns:
+        DesignMatrix: New DesignMatrix with columns from all matrices.
+
+    Raises:
+        ValueError: If matrices have different row counts.
     """
     # Check all have same number of rows
     if not all(elem.shape[0] == dm.shape[0] for elem in to_append):
@@ -103,6 +122,18 @@ def append_vertical(
 ) -> DesignMatrix:
     """
     Vertical concatenation (axis=0) - stack rows, with optional polynomial separation.
+
+    Args:
+        dm: Base DesignMatrix instance.
+        to_append (list of DesignMatrix): Matrices to stack below dm.
+        keep_separate (bool): Whether to separate polynomial columns across runs.
+        unique_cols (list of str, optional): Additional columns to keep separated
+            (supports wildcards).
+        fill_na (int or float): Value to fill NaN/null entries with.
+        verbose (bool): Print messages about polynomial separation.
+
+    Returns:
+        DesignMatrix: New DesignMatrix with rows from all matrices.
     """
     # Simple case: keep_separate=False - just stack rows
     if not keep_separate:
@@ -138,6 +169,9 @@ def match_column_pattern(columns: List[str], pattern: str) -> List[str]:
             - 'motion*' matches motion_x, motion_y
             - '*_motion' matches x_motion, y_motion
             - 'exact' matches only 'exact'
+
+    Returns:
+        list of str: Column names matching the pattern.
     """
     if pattern.endswith("*"):
         prefix = pattern[:-1]
@@ -153,8 +187,11 @@ def get_starting_run_idx(dm: DesignMatrix) -> int:
     """
     Determine next run index for multi-run appending.
 
+    Args:
+        dm: DesignMatrix instance to inspect.
+
     Returns:
-        int: Next run index (0 if not multi-run, max_existing_idx + 1 otherwise)
+        int: Next run index (0 if not multi-run, max_existing_idx + 1 otherwise).
     """
     if not dm.multi:
         return 0
@@ -220,8 +257,20 @@ def append_vertical_with_separation(
     """
     Vertical concatenation with automatic polynomial separation.
 
-    This creates run-specific columns (e.g., 0_poly_0, 1_poly_0) that are
+    Creates run-specific columns (e.g., 0_poly_0, 1_poly_0) that are
     active only in their respective runs (sparse representation).
+
+    Args:
+        dm: Base DesignMatrix instance.
+        to_append (list of DesignMatrix): Matrices to stack below dm.
+        unique_cols (list of str, optional): Additional columns to keep separated
+            (supports wildcards).
+        fill_na (int or float): Value to fill NaN/null entries with.
+        verbose (bool): Print messages about polynomial separation.
+
+    Returns:
+        DesignMatrix: Concatenated DesignMatrix with run-separated polynomial columns
+            and multi=True.
     """
     # Handle two cases differently:
     # 1. Self is NOT multi: process all DMs with sequential numbering

@@ -130,8 +130,17 @@ def add_poly(
 
     Args:
         dm: DesignMatrix to add polynomials to.
-        order (int): Polynomial order (0=intercept, 1=linear, 2=quadratic, ...)
-        include_lower (bool): If True, include all orders from 0 to order
+        order (int): Polynomial order (0=intercept, 1=linear, 2=quadratic, ...).
+            Default: 0.
+        include_lower (bool): If True, include all orders from 0 to order.
+            Default: True.
+
+    Returns:
+        DesignMatrix: New DesignMatrix with polynomial columns appended.
+
+    Raises:
+        ValueError: If order < 0 or if ambiguous polynomials exist from a
+            previous append operation.
     """
     from scipy.special import legendre
 
@@ -195,8 +204,15 @@ def add_dct_basis(
 
     Args:
         dm: DesignMatrix to add DCT basis to.
-        duration (float): Filter duration in seconds
-        drop (int): Number of low-frequency bases to drop
+        duration (float): Filter duration in seconds. Default: 180.
+        drop (int): Number of low-frequency bases to drop. Default: 0.
+
+    Returns:
+        DesignMatrix: New DesignMatrix with DCT basis columns appended.
+
+    Raises:
+        ValueError: If sampling_freq is not set or if ambiguous cosine bases
+            exist from a previous append operation.
     """
     from nltools.stats import make_cosine_basis
 

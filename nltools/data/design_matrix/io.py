@@ -5,10 +5,17 @@ Standalone functions extracted from DesignMatrix methods.
 Each takes a DesignMatrix instance (`dm`) as its first argument.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import numpy as np
 
+if TYPE_CHECKING:
+    from nltools.data.design_matrix import DesignMatrix
 
-def heatmap(dm, figsize: tuple = (8, 6), **kwargs):
+
+def heatmap(dm: DesignMatrix, figsize: tuple = (8, 6), **kwargs):
     """
     Visualize design matrix as heatmap (SPM-style).
 
@@ -17,11 +24,11 @@ def heatmap(dm, figsize: tuple = (8, 6), **kwargs):
 
     Args:
         dm: DesignMatrix instance.
-        figsize (tuple, default=(8, 6)): Figure size (width, height) in inches
-        **kwargs: Additional keyword arguments passed to seaborn.heatmap()
+        figsize (tuple): Figure size (width, height) in inches. Default: (8, 6).
+        **kwargs: Additional keyword arguments passed to seaborn.heatmap().
 
     Returns:
-        matplotlib.axes.Axes: The axes object containing the heatmap
+        matplotlib.axes.Axes: The axes object containing the heatmap.
 
     Examples:
         >>> dm = DesignMatrix(np.random.randn(100, 3), columns=['a', 'b', 'c'])
@@ -55,7 +62,7 @@ def heatmap(dm, figsize: tuple = (8, 6), **kwargs):
     return ax
 
 
-def to_pandas(dm):
+def to_pandas(dm: DesignMatrix):
     """Convert DesignMatrix to pandas DataFrame.
 
     Uses dict-based conversion to avoid pyarrow dependency. This is slightly
@@ -78,7 +85,7 @@ def to_pandas(dm):
     return pd.DataFrame(dm._df.to_dict(as_series=False))
 
 
-def _to_pandas(dm):
+def _to_pandas(dm: DesignMatrix):
     """Internal method for pandas conversion at library boundaries.
 
     .. deprecated:: 0.6.0
@@ -93,7 +100,7 @@ def _to_pandas(dm):
     return to_pandas(dm)
 
 
-def to_numpy(dm) -> np.ndarray:
+def to_numpy(dm: DesignMatrix) -> np.ndarray:
     """
     Convert DesignMatrix to numpy array.
 
@@ -115,7 +122,7 @@ def to_numpy(dm) -> np.ndarray:
     return dm._df.to_numpy()
 
 
-def write(dm, file_name: str, sep: str = "\t") -> None:
+def write(dm: DesignMatrix, file_name: str, sep: str = "\t") -> None:
     """Write DesignMatrix to file.
 
     Supports TSV (default), CSV, and HDF5 formats. The format is
@@ -154,12 +161,15 @@ def write(dm, file_name: str, sep: str = "\t") -> None:
         dm._df.write_csv(file_name, separator=sep)
 
 
-def write_h5(dm, file_name: str) -> None:
+def write_h5(dm: DesignMatrix, file_name: str) -> None:
     """Write DesignMatrix to HDF5 file with metadata.
 
     Args:
         dm: DesignMatrix instance.
-        file_name: Output HDF5 file path.
+        file_name (str): Output HDF5 file path.
+
+    Returns:
+        None
     """
     import h5py
 

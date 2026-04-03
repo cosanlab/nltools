@@ -209,14 +209,31 @@ class DesignMatrix:
     # ==================== Simple Transformations ====================
 
     def fillna(self, value: Union[int, float]) -> "DesignMatrix":
-        """Fill NaN/null values with specified value."""
+        """Fill NaN/null values with specified value.
+
+        Fills both Polars null (None) and NaN values to match pandas
+        user expectations.
+
+        Args:
+            value (int or float): Value to replace NaN/null entries with.
+
+        Returns:
+            DesignMatrix: New DesignMatrix with NaN/null values replaced.
+        """
         # Polars distinguishes between null (None) and NaN
         # Fill both to match pandas/user expectations
         filled_df = self._df.fill_null(value).fill_nan(value)
         return self._copy_with(filled_df)
 
     def drop(self, columns: List[str]) -> "DesignMatrix":
-        """Drop specified columns."""
+        """Drop specified columns.
+
+        Args:
+            columns (list of str): Column names to remove.
+
+        Returns:
+            DesignMatrix: New DesignMatrix without the specified columns.
+        """
         dropped_df = self._df.drop(columns)
         return self._copy_with(dropped_df)
 
@@ -371,8 +388,13 @@ class DesignMatrix:
         Add Legendre polynomial drift terms.
 
         Args:
-            order (int): Polynomial order (0=intercept, 1=linear, 2=quadratic, ...)
-            include_lower (bool): If True, include all orders from 0 to order
+            order (int): Polynomial order (0=intercept, 1=linear, 2=quadratic, ...).
+                Default: 0.
+            include_lower (bool): If True, include all orders from 0 to order.
+                Default: True.
+
+        Returns:
+            DesignMatrix: New DesignMatrix with polynomial columns appended.
         """
         from .regressors import add_poly
 
@@ -383,8 +405,11 @@ class DesignMatrix:
         Add discrete cosine transform basis functions (high-pass filter).
 
         Args:
-            duration (float): Filter duration in seconds
-            drop (int): Number of low-frequency bases to drop
+            duration (float): Filter duration in seconds. Default: 180.
+            drop (int): Number of low-frequency bases to drop. Default: 0.
+
+        Returns:
+            DesignMatrix: New DesignMatrix with DCT basis columns appended.
         """
         from .regressors import add_dct_basis
 
@@ -405,12 +430,19 @@ class DesignMatrix:
         Concatenate design matrices.
 
         Args:
-            dm (DesignMatrix or list of DesignMatrix): Design matrix/matrices to append
-            axis (int): 0 for row-wise (vertical), 1 for column-wise (horizontal)
-            keep_separate (bool): Whether to separate polynomial columns across runs (only axis=0)
-            unique_cols (list of str, optional): Additional columns to keep separated (supports wildcards)
-            fill_na (int or float): Value to fill NaN values during vertical concatenation
-            verbose (bool): Print messages about polynomial separation
+            dm (DesignMatrix or list of DesignMatrix): Design matrix/matrices to append.
+            axis (int): 0 for row-wise (vertical), 1 for column-wise (horizontal).
+                Default: 0.
+            keep_separate (bool): Whether to separate polynomial columns across runs
+                (only applies when axis=0). Default: True.
+            unique_cols (list of str, optional): Additional columns to keep separated
+                (supports wildcards).
+            fill_na (int or float): Value to fill NaN values during vertical
+                concatenation. Default: 0.
+            verbose (bool): Print messages about polynomial separation. Default: False.
+
+        Returns:
+            DesignMatrix: Concatenated design matrix.
         """
         from .append import append
 
@@ -423,6 +455,13 @@ class DesignMatrix:
     ) -> "DesignMatrix":
         """
         Horizontal concatenation (axis=1) - add columns from other matrices.
+
+        Args:
+            to_append (list of DesignMatrix): Matrices whose columns to add.
+            fill_na (int or float): Value to fill NaN/null entries with.
+
+        Returns:
+            DesignMatrix: New DesignMatrix with columns from all matrices.
         """
         from .append import append_horizontal
 
@@ -438,6 +477,17 @@ class DesignMatrix:
     ) -> "DesignMatrix":
         """
         Vertical concatenation (axis=0) - stack rows, with optional polynomial separation.
+
+        Args:
+            to_append (list of DesignMatrix): Matrices to stack below self.
+            keep_separate (bool): Whether to separate polynomial columns across runs.
+            unique_cols (list of str, optional): Additional columns to keep separated
+                (supports wildcards).
+            fill_na (int or float): Value to fill NaN/null entries with.
+            verbose (bool): Print messages about polynomial separation.
+
+        Returns:
+            DesignMatrix: New DesignMatrix with rows from all matrices.
         """
         from .append import append_vertical
 
@@ -450,11 +500,14 @@ class DesignMatrix:
         Match columns against pattern with wildcard support.
 
         Args:
-            columns (list of str): Column names to search
-            pattern (str): Pattern to match (supports '*' as wildcard)
+            columns (list of str): Column names to search.
+            pattern (str): Pattern to match (supports '*' as wildcard).
                 - 'motion*' matches motion_x, motion_y
                 - '*_motion' matches x_motion, y_motion
                 - 'exact' matches only 'exact'
+
+        Returns:
+            list of str: Column names matching the pattern.
         """
         from .append import match_column_pattern
 
@@ -498,8 +551,18 @@ class DesignMatrix:
         """
         Vertical concatenation with automatic polynomial separation.
 
-        This creates run-specific columns (e.g., 0_poly_0, 1_poly_0) that are
+        Creates run-specific columns (e.g., 0_poly_0, 1_poly_0) that are
         active only in their respective runs (sparse representation).
+
+        Args:
+            to_append (list of DesignMatrix): Matrices to stack below self.
+            unique_cols (list of str, optional): Additional columns to keep separated
+                (supports wildcards).
+            fill_na (int or float): Value to fill NaN/null entries with.
+            verbose (bool): Print messages about polynomial separation.
+
+        Returns:
+            DesignMatrix: Concatenated DesignMatrix with run-separated polynomial columns.
         """
         from .append import append_vertical_with_separation
 
@@ -509,7 +572,7 @@ class DesignMatrix:
 
     # ==================== Diagnostics ====================
 
-    def vif(self, exclude_polys: bool = True) -> np.ndarray:
+    def vif(self, exclude_polys: bool = True) -> np.ndarray | None:
         """
         Compute variance inflation factor for each column.
 
@@ -517,10 +580,14 @@ class DesignMatrix:
         (same method as Matlab and R).
 
         Args:
-            exclude_polys (bool): Skip polynomial columns (default True)
+            exclude_polys (bool): Skip polynomial columns. Default: True.
 
         Returns:
-            np.ndarray: VIF values for each non-polynomial column
+            np.ndarray: VIF values for each included column. Returns None if the
+                correlation matrix is singular (perfect collinearity detected).
+
+        Raises:
+            ValueError: If the DesignMatrix has only 1 column.
         """
         from .diagnostics import vif
 
@@ -652,8 +719,12 @@ class DesignMatrix:
         All methods that transform data should use this helper.
 
         Args:
-            new_df (pl.DataFrame): New underlying data
-            **metadata_updates: Metadata attributes to override (e.g., convolved=['stim'])
+            new_df (pl.DataFrame): New underlying data.
+            **metadata_updates: Metadata attributes to override
+                (e.g., convolved=['stim']).
+
+        Returns:
+            DesignMatrix: New DesignMatrix with updated data and metadata.
         """
         # Start with current metadata
         metadata = self._get_metadata()
@@ -673,7 +744,11 @@ class DesignMatrix:
         return new_dm
 
     def _get_metadata(self) -> dict:
-        """Extract metadata as dict (for copying)."""
+        """Extract metadata as dict (for copying).
+
+        Returns:
+            dict: Dictionary with keys 'sampling_freq', 'convolved', 'polys', 'multi'.
+        """
         return {
             "sampling_freq": self.sampling_freq,
             "convolved": self.convolved.copy(),
@@ -790,7 +865,10 @@ class DesignMatrix:
         """Write DesignMatrix to HDF5 file with metadata.
 
         Args:
-            file_name: Output HDF5 file path.
+            file_name (str): Output HDF5 file path.
+
+        Returns:
+            None
         """
         from .io import write_h5
 

@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from nltools.data.design_matrix import DesignMatrix
 
 
-def vif(dm: DesignMatrix, exclude_polys: bool = True) -> np.ndarray:
+def vif(dm: DesignMatrix, exclude_polys: bool = True) -> np.ndarray | None:
     """
     Compute variance inflation factor for each column.
 
@@ -18,11 +18,15 @@ def vif(dm: DesignMatrix, exclude_polys: bool = True) -> np.ndarray:
     (same method as Matlab and R).
 
     Args:
-        dm: DesignMatrix instance
-        exclude_polys (bool): Skip polynomial columns (default True)
+        dm: DesignMatrix instance.
+        exclude_polys (bool): Skip polynomial columns. Default: True.
 
     Returns:
-        np.ndarray: VIF values for each non-polynomial column
+        np.ndarray: VIF values for each included column. Returns None if the
+            correlation matrix is singular (perfect collinearity detected).
+
+    Raises:
+        ValueError: If the DesignMatrix has only 1 column.
     """
     import polars.selectors as cs
 
@@ -84,11 +88,14 @@ def clean(
     of correlated pair, drops duplicates.
 
     Args:
-        dm: DesignMatrix instance
-        fill_na (int, float, or None): Fill NaN values before checking correlations (default 0)
-        exclude_polys (bool): Skip polynomial columns from correlation check
-        thresh (float): Correlation threshold (drop if abs(r) >= thresh, default 0.95)
-        verbose (bool): Print dropped column names
+        dm: DesignMatrix instance.
+        fill_na (int, float, or None): Fill NaN values before checking correlations.
+            Default: 0.
+        exclude_polys (bool): Skip polynomial columns from correlation check.
+            Default: False.
+        thresh (float): Correlation threshold (drop if abs(r) >= thresh).
+            Default: 0.95.
+        verbose (bool): Print dropped column names. Default: True.
 
     Returns:
         DesignMatrix: Cleaned matrix with highly correlated columns removed
@@ -178,11 +185,11 @@ def details(dm: DesignMatrix) -> str:
     Return human-readable metadata summary.
 
     Args:
-        dm: DesignMatrix instance
+        dm: DesignMatrix instance.
 
     Returns:
         str: Formatted string showing sampling_freq, shape, convolved columns,
-            and polynomial columns
+            and polynomial columns.
     """
     lines = [
         f"DesignMatrix(sampling_freq={dm.sampling_freq}, shape={dm.shape})",

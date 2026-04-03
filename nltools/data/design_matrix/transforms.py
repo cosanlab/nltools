@@ -104,17 +104,22 @@ def downsample(dm: DesignMatrix, target: float, **kwargs) -> DesignMatrix:
     Args:
         dm: DesignMatrix instance to transform.
         target (float): Target sampling frequency in Hz (must be < current
-            sampling_freq)
-        **kwargs: Additional keyword arguments. Supports:
-            method (str): Aggregation method - 'mean' or 'median'
-                (default: 'mean')
+            sampling_freq).
+        **kwargs: Additional keyword arguments:
+
+            - **method** (str): Aggregation method - 'mean' or 'median'.
+              Default: 'mean'.
 
     Returns:
-        DesignMatrix: Downsampled DesignMatrix with updated sampling_freq
+        DesignMatrix: Downsampled DesignMatrix with updated sampling_freq.
+
+    Raises:
+        ValueError: If sampling_freq is not set, target >= current sampling_freq,
+            or method is invalid.
 
     Examples:
         >>> dm = DesignMatrix({"a": list(range(100))}, sampling_freq=1.0)
-        >>> dm_down = downsample(dm, target=0.5)  # 1 Hz → 0.5 Hz (100 → 50 samples)
+        >>> dm_down = downsample(dm, target=0.5)  # 1 Hz -> 0.5 Hz (100 -> 50 samples)
     """
     method = kwargs.pop("method", "mean")
 
@@ -186,11 +191,15 @@ def upsample(
         **kwargs: Reserved for future extensions
 
     Returns:
-        DesignMatrix: Upsampled DesignMatrix with updated sampling_freq
+        DesignMatrix: Upsampled DesignMatrix with updated sampling_freq.
+
+    Raises:
+        ValueError: If sampling_freq is not set, target <= current sampling_freq,
+            or method is invalid.
 
     Examples:
         >>> dm = DesignMatrix({"a": list(range(10))}, sampling_freq=1.0)
-        >>> dm_up = upsample(dm, target=2.0)  # 1 Hz → 2 Hz (10 → 19 samples)
+        >>> dm_up = upsample(dm, target=2.0)  # 1 Hz -> 2 Hz (10 -> 19 samples)
     """
     from scipy.interpolate import interp1d
 
