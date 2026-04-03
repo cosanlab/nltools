@@ -79,7 +79,7 @@ class BrainData(object):
             **kwargs: Additional arguments passed to NiftiMasker.
         """
         # Import validation functions
-        from ..validation import validate_data_type
+        from .validation import validate_data_type
 
         # Import I/O functions
         from .io import (
@@ -399,7 +399,7 @@ class BrainData(object):
         Returns:
             BrainData: Result of the operation.
         """
-        from ..validation import (
+        from .validation import (
             validate_arithmetic_operand,
             validate_brain_data_shapes,
         )
@@ -543,7 +543,7 @@ class BrainData(object):
         """Right subtract from BrainData."""
         # For right subtraction, we need to reverse the operands
         new = self._shallow_copy_with_data()
-        from ..validation import (
+        from .validation import (
             validate_arithmetic_operand,
             validate_brain_data_shapes,
         )
@@ -1178,7 +1178,7 @@ class BrainData(object):
         Returns:
             BrainData: New appended BrainData instance.
         """
-        from ..validation import validate_append_shapes
+        from .validation import validate_append_shapes
 
         data = check_brain_data(data)
 

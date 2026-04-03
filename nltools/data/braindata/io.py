@@ -391,7 +391,7 @@ def load_from_list(bd, data_list):
     from nilearn.image import resample_to_img
     from contextlib import redirect_stdout
     from nltools.utils import concatenate
-    from nltools.data.validation import validate_list_data
+    from nltools.data.braindata.validation import validate_list_data
 
     list_type = validate_list_data(data_list)
 

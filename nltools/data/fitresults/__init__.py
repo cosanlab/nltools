@@ -140,7 +140,7 @@ class Fit:
     **Creating a Fit object (Ridge without CV):**
 
     >>> import numpy as np
-    >>> from nltools.data.fit_results import Fit
+    >>> from nltools.data.fitresults import Fit
     >>> fit = Fit(
     ...     fitted_values=np.random.randn(100, 1000),
     ...     weights=np.random.randn(5, 1000),
@@ -222,7 +222,7 @@ class Fit:
         Examples
         --------
         >>> import numpy as np
-        >>> from nltools.data.fit_results import Fit
+        >>> from nltools.data.fitresults import Fit
         >>> fit = Fit(
         ...     fitted_values=np.random.randn(100, 1000),
         ...     weights=np.random.randn(5, 1000)
@@ -251,7 +251,7 @@ class Fit:
         Examples
         --------
         >>> import numpy as np
-        >>> from nltools.data.fit_results import Fit
+        >>> from nltools.data.fitresults import Fit
         >>> fit = Fit(
         ...     fitted_values=np.random.randn(100, 1000),
         ...     weights=np.random.randn(5, 1000),

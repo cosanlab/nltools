@@ -154,7 +154,7 @@ def validate_data_type(data):
     elif isinstance(data, list):
         return "list"
     elif isinstance(data, (str, Path)):
-        from ..utils import is_h5_path
+        from nltools.utils import is_h5_path
 
         data_str = str(data)
         if is_h5_path(data_str):

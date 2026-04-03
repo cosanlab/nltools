@@ -1687,7 +1687,7 @@ class TestBrainData:
 
     def test_fit_inplace_false_returns_fit_dataclass_ridge(self, sim_brain_data):
         """Test inplace=False returns Fit dataclass for Ridge."""
-        from nltools.data.fit_results import Fit
+        from nltools.data.fitresults import Fit
         import numpy as np
 
         # Use a fresh copy to avoid contamination from previous tests
@@ -1745,7 +1745,7 @@ class TestBrainData:
     @pytest.mark.slow
     def test_fit_inplace_false_returns_fit_dataclass_ridge_cv(self, sim_brain_data):
         """Test inplace=False returns Fit dataclass with CV results for Ridge."""
-        from nltools.data.fit_results import Fit
+        from nltools.data.fitresults import Fit
         import numpy as np
 
         # Use a fresh copy to avoid contamination
@@ -1776,7 +1776,7 @@ class TestBrainData:
     @pytest.mark.slow
     def test_fit_inplace_false_returns_fit_dataclass_glm(self, sim_brain_data):
         """Test inplace=False returns Fit dataclass for GLM."""
-        from nltools.data.fit_results import Fit
+        from nltools.data.fitresults import Fit
         import numpy as np
         import pandas as pd
 
@@ -1843,7 +1843,7 @@ class TestBrainData:
 
     def test_fit_inplace_false_serialization(self, sim_brain_data):
         """Test Fit dataclass serialization roundtrip."""
-        from nltools.data.fit_results import Fit
+        from nltools.data.fitresults import Fit
         import numpy as np
         import tempfile
         import os
@@ -2011,7 +2011,7 @@ class TestBrainData:
 
     def test_fit_scale_inplace_false(self, sim_brain_data):
         """Test fit() with scale=True and inplace=False doesn't modify original."""
-        from nltools.data.fit_results import Fit
+        from nltools.data.fitresults import Fit
 
         X = np.random.randn(len(sim_brain_data), 10)
         original_data = sim_brain_data.data.copy()

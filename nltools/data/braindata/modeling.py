@@ -544,7 +544,7 @@ def to_fit_dataclass(bd, model):
     Returns:
         Fit: Dataclass containing fit results
     """
-    from nltools.data.fit_results import Fit
+    from nltools.data.fitresults import Fit
 
     if model == "ridge":
         # Extract Ridge results

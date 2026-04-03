@@ -1,4 +1,4 @@
-"""Tests for Fit dataclass (fit_results.py).
+"""Tests for Fit dataclass (fitresults/).
 
 This module tests the Fit dataclass which is an immutable container for
 model fitting results. Tests cover creation, immutability, introspection
@@ -10,7 +10,7 @@ from dataclasses import FrozenInstanceError
 import numpy as np
 import pytest
 
-from nltools.data.fit_results import Fit
+from nltools.data.fitresults import Fit
 
 
 class TestFitCreation:
