@@ -86,16 +86,6 @@ class TestAdjacency:
     def test_squareform(self, sim_adjacency_multiple):
         """Test vector → matrix → vector conversion preserves data."""
         assert len(sim_adjacency_multiple.squareform()) == len(sim_adjacency_multiple)
-        # square_shape() is deprecated, test that it still works but warns
-        import warnings
-
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            sq_shape = sim_adjacency_multiple[0].square_shape()
-            assert len(w) == 1
-            assert issubclass(w[0].category, DeprecationWarning)
-            assert "deprecated" in str(w[0].message).lower()
-        assert sim_adjacency_multiple[0].squareform().shape == sq_shape
 
     def test_shape_property(self, sim_adjacency_single, sim_adjacency_multiple):
         """Test shape property returns (n_nodes, n_nodes) for single, (n, n_nodes, n_nodes) for stacked."""

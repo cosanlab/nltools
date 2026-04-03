@@ -2,21 +2,29 @@
 This data class is for working with similarity/dissimilarity matrices
 """
 
-import os
-import pandas as pd
-import numpy as np
+import warnings
 from copy import deepcopy
-from sklearn.metrics.pairwise import pairwise_distances
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+from h5py import File as h5File
 from scipy.spatial.distance import squareform
+from sklearn.metrics.pairwise import pairwise_distances
+
 from nltools.utils import (
     all_same,
     attempt_to_import,
     concatenate,
     is_h5_path,
 )
-from pathlib import Path
-from h5py import File as h5File
-import warnings
+
+from .utils import (
+    apply_stat,
+    import_single_data,
+    perform_arithmetic,
+    test_is_single_matrix,
+)
 
 # Optional dependencies
 nx = attempt_to_import("networkx", "nx")
@@ -79,13 +87,12 @@ class Adjacency(object):
                 symmetric_all = []
                 matrix_type_all = []
                 for d in data:
-                    # CSV or array/dataframe
                     (
                         data_tmp,
                         issymmetric_tmp,
                         matrix_type_tmp,
                         _,
-                    ) = self._import_single_data(d, matrix_type=matrix_type)
+                    ) = import_single_data(d, matrix_type=matrix_type)
                     d_all.append(data_tmp)
                     symmetric_all.append(issymmetric_tmp)
                     matrix_type_all.append(matrix_type_tmp)
@@ -175,20 +182,18 @@ class Adjacency(object):
                             self.issymmetric,
                             self.matrix_type,
                             self.is_single_matrix,
-                        ) = self._import_single_data(
-                            self.data, matrix_type=self.matrix_type
-                        )
+                        ) = import_single_data(self.data, matrix_type=self.matrix_type)
 
                         return
 
-            # CSV or array/dateframe
+            # CSV or array/dataframe
             else:
                 (
                     self.data,
                     self.issymmetric,
                     self.matrix_type,
                     self.is_single_matrix,
-                ) = self._import_single_data(data, matrix_type=matrix_type)
+                ) = import_single_data(data, matrix_type=matrix_type)
 
         # CSV or array/dataframe
         else:
@@ -197,7 +202,7 @@ class Adjacency(object):
                 self.issymmetric,
                 self.matrix_type,
                 self.is_single_matrix,
-            ) = self._import_single_data(data, matrix_type=matrix_type)
+            ) = import_single_data(data, matrix_type=matrix_type)
 
         # Setup Y dataframe
         if Y is None:
@@ -247,6 +252,39 @@ class Adjacency(object):
         else:
             raise TypeError("Make sure labels is a list or numpy array.")
 
+    # ── Dunders (alphabetical) ──────────────────────────────────────────
+
+    def __add__(self, y):
+        return perform_arithmetic(self, y, np.add, "add")
+
+    def __getitem__(self, index):
+        new = self.copy()
+        if isinstance(index, (int, np.integer)):
+            new.data = np.array(self.data[index, :]).squeeze()
+            new.is_single_matrix = True
+        else:
+            new.data = np.array(self.data[index, :]).squeeze()
+            new.is_single_matrix = test_is_single_matrix(new.data)
+        if not self.Y.empty:
+            new.Y = self.Y.iloc[index]
+        return new
+
+    def __iter__(self):
+        for x in range(len(self)):
+            yield self[x]
+
+    def __len__(self):
+        if self.is_single_matrix:
+            return 1
+        else:
+            return self.data.shape[0]
+
+    def __mul__(self, y):
+        return perform_arithmetic(self, y, np.multiply, "multiply")
+
+    def __radd__(self, y):
+        return perform_arithmetic(self, y, np.add, "add", reverse=True)
+
     def __repr__(self):
         return "%s.%s(shape=%s, Y=%s, is_symmetric=%s, matrix_type=%s)" % (
             self.__class__.__module__,
@@ -257,174 +295,19 @@ class Adjacency(object):
             self.matrix_type,
         )
 
-    def __getitem__(self, index):
-        new = self.copy()
-        if isinstance(index, (int, np.integer)):
-            new.data = np.array(self.data[index, :]).squeeze()
-            new.is_single_matrix = True
-        else:
-            new.data = np.array(self.data[index, :]).squeeze()
-            new.is_single_matrix = self._test_is_single_matrix(new.data)
-        if not self.Y.empty:
-            new.Y = self.Y.iloc[index]
-        return new
-
-    def __len__(self):
-        if self.is_single_matrix:
-            return 1
-        else:
-            return self.data.shape[0]
-
-    def __iter__(self):
-        for x in range(len(self)):
-            yield self[x]
-
-    def _perform_arithmetic(self, y, op, op_name, reverse=False):
-        """Perform arithmetic operation with validation.
-
-        Args:
-            y: Operand (scalar or Adjacency).
-            op: Callable that performs the operation on arrays.
-            op_name: Name of operation for error messages.
-            reverse: If True, reverse operand order (y op self).
-
-        Returns:
-            New Adjacency with result.
-        """
-        new = deepcopy(self)
-        if isinstance(y, (int, np.integer, float, np.floating)):
-            if reverse:
-                new.data = op(y, new.data)
-            else:
-                new.data = op(new.data, y)
-        elif isinstance(y, Adjacency):
-            if self.shape != y.shape:
-                raise ValueError(
-                    "Both Adjacency() instances need to be the same shape."
-                )
-            if reverse:
-                new.data = op(y.data, new.data)
-            else:
-                new.data = op(new.data, y.data)
-        else:
-            raise ValueError(f"Can only {op_name} int, float, or Adjacency")
-        return new
-
-    def __add__(self, y):
-        return self._perform_arithmetic(y, np.add, "add")
-
-    def __radd__(self, y):
-        return self._perform_arithmetic(y, np.add, "add", reverse=True)
-
-    def __sub__(self, y):
-        return self._perform_arithmetic(y, np.subtract, "subtract")
+    def __rmul__(self, y):
+        return perform_arithmetic(self, y, np.multiply, "multiply", reverse=True)
 
     def __rsub__(self, y):
-        return self._perform_arithmetic(y, np.subtract, "subtract", reverse=True)
+        return perform_arithmetic(self, y, np.subtract, "subtract", reverse=True)
 
-    def __mul__(self, y):
-        return self._perform_arithmetic(y, np.multiply, "multiply")
-
-    def __rmul__(self, y):
-        return self._perform_arithmetic(y, np.multiply, "multiply", reverse=True)
+    def __sub__(self, y):
+        return perform_arithmetic(self, y, np.subtract, "subtract")
 
     def __truediv__(self, y):
-        return self._perform_arithmetic(y, np.divide, "divide")
+        return perform_arithmetic(self, y, np.divide, "divide")
 
-    @staticmethod
-    def _test_is_single_matrix(data):
-        """Static method because it belongs to the class, ie is only invoked via self.test_single_matrix or Adjacency.test_single_matrix and requires no self argument."""
-        return len(data.shape) == 1
-
-    def _import_single_data(self, data, matrix_type=None):
-        """Helper function to import single data matrix."""
-
-        if isinstance(data, str) or isinstance(data, Path):
-            if os.path.isfile(data):
-                data = pd.read_csv(data)
-            else:
-                raise ValueError("Make sure you have specified a valid file path.")
-
-        if matrix_type is not None:
-            if matrix_type.lower() == "distance_flat":
-                matrix_type = "distance"
-                data = np.array(data)
-                issymmetric = True
-                is_single_matrix = self._test_is_single_matrix(data)
-            elif matrix_type.lower() == "similarity_flat":
-                matrix_type = "similarity"
-                data = np.array(data)
-                issymmetric = True
-                is_single_matrix = self._test_is_single_matrix(data)
-            elif matrix_type.lower() == "directed_flat":
-                matrix_type = "directed"
-                data = np.array(data).flatten()
-                issymmetric = False
-                is_single_matrix = self._test_is_single_matrix(data)
-            elif matrix_type.lower() in ["distance", "similarity", "directed"]:
-                if data.shape[0] != data.shape[1]:
-                    raise ValueError("Data matrix must be square")
-                data = np.array(data)
-                matrix_type = matrix_type.lower()
-                if matrix_type in ["distance", "similarity"]:
-                    issymmetric = True
-                    data = data[np.triu_indices(data.shape[0], k=1)]
-                else:
-                    issymmetric = False
-                    if isinstance(data, pd.DataFrame):
-                        data = data.values.flatten()
-                    elif isinstance(data, np.ndarray):
-                        data = data.flatten()
-                is_single_matrix = True
-        else:
-            if len(data.shape) == 1:  # Single Vector
-                try:
-                    data = squareform(data)
-                except ValueError:
-                    print(
-                        "Data is not flattened upper triangle from "
-                        "similarity/distance matrix or flattened directed "
-                        "matrix."
-                    )
-                is_single_matrix = True
-            elif data.shape[0] == data.shape[1]:  # Square Matrix
-                is_single_matrix = True
-            else:  # Rectangular Matrix
-                data_all = deepcopy(data)
-                try:
-                    data = squareform(data_all[0, :])
-                except ValueError:
-                    print(
-                        "Data is not flattened upper triangle from multiple "
-                        "similarity/distance matrices or flattened directed "
-                        "matrices."
-                    )
-                is_single_matrix = False
-
-            # Test if matrix is symmetrical
-            if np.all(
-                data[np.triu_indices(data.shape[0], k=1)]
-                == data.T[np.triu_indices(data.shape[0], k=1)]
-            ):
-                issymmetric = True
-            else:
-                issymmetric = False
-
-            # Determine matrix type
-            if issymmetric:
-                if np.sum(np.diag(data)) == 0:
-                    matrix_type = "distance"
-                elif np.sum(np.diag(data)) == data.shape[0]:
-                    matrix_type = "similarity"
-                data = data[np.triu_indices(data.shape[0], k=1)]
-            else:
-                matrix_type = "directed"
-                data = data.flatten()
-
-            if not is_single_matrix:
-                data = data_all
-
-        return (data, issymmetric, matrix_type, is_single_matrix)
+    # ── Properties (alphabetical) ───────────────────────────────────────
 
     @property
     def is_empty(self) -> bool:
@@ -436,132 +319,13 @@ class Adjacency(object):
         return self.matrix_type == "empty"
 
     @property
-    def isempty(self) -> bool:
-        """Check if Adjacency object is empty.
-
-        .. deprecated:: 0.6.0
-            Use :attr:`is_empty` instead.
-        """
-        import warnings
-
-        warnings.warn(
-            "isempty is deprecated and will be removed in a future version. "
-            "Use is_empty instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.is_empty
-
-    def to_square(self):
-        """Convert adjacency back to square matrix format.
-
-        This is an alias for :meth:`squareform`.
+    def n_nodes(self):
+        """Return the number of nodes in the adjacency matrix.
 
         Returns:
-            np.ndarray or list: Square matrix representation. Returns a list
-            of matrices if this object contains multiple adjacency matrices.
+            int: Number of nodes (n) for an (n, n) matrix.
         """
-        return self.squareform()
-
-    def squareform(self):
-        """Convert adjacency back to squareform"""
-        if self.issymmetric:
-            if self.is_single_matrix:
-                return squareform(self.data)
-            else:
-                return [squareform(x.data) for x in self]
-        else:
-            if self.is_single_matrix:
-                return self.data.reshape(
-                    int(np.sqrt(self.data.shape[0])), int(np.sqrt(self.data.shape[0]))
-                )
-            else:
-                return [
-                    x.data.reshape(
-                        int(np.sqrt(x.data.shape[0])), int(np.sqrt(x.data.shape[0]))
-                    )
-                    for x in self
-                ]
-
-    def plot(self, limit=3, axes=None, *args, **kwargs):
-        """Create Heatmap of Adjacency Matrix
-
-        Can pass in any sns.heatmap argument
-
-        Args:
-            limit: (int) number of heatmaps to plot if object contains multiple adjacencies (default: 3)
-            axes: matplotlib axis handle
-        """
-        from .plotting import plot
-
-        return plot(self, limit, axes, *args, **kwargs)
-
-    def _apply_stat(self, func, axis=0):
-        """Apply a statistical function along an axis.
-
-        Args:
-            func: Numpy function to apply (e.g., np.nanmean).
-            axis: Axis along which to apply function. 0 for across matrices,
-                  1 for across upper triangle elements.
-
-        Returns:
-            float if single matrix, Adjacency if axis=0 with multiple matrices,
-            np.array if axis=1 with multiple matrices.
-        """
-        if self.is_single_matrix:
-            return func(self.data)
-        else:
-            if axis == 0:
-                return Adjacency(
-                    data=func(self.data, axis=axis),
-                    matrix_type=self.matrix_type + "_flat",
-                )
-            elif axis == 1:
-                return func(self.data, axis=axis)
-
-    def mean(self, axis=0):
-        """Calculate mean of Adjacency.
-
-        Args:
-            axis: Calculate mean over matrices (0) or upper triangle (1).
-
-        Returns:
-            float if single matrix, Adjacency if axis=0, np.array if axis=1.
-        """
-        return self._apply_stat(np.nanmean, axis)
-
-    def sum(self, axis=0):
-        """Calculate sum of Adjacency.
-
-        Args:
-            axis: Calculate sum over matrices (0) or upper triangle (1).
-
-        Returns:
-            float if single matrix, Adjacency if axis=0, np.array if axis=1.
-        """
-        return self._apply_stat(np.nansum, axis)
-
-    def std(self, axis=0):
-        """Calculate standard deviation of Adjacency.
-
-        Args:
-            axis: Calculate std over matrices (0) or upper triangle (1).
-
-        Returns:
-            float if single matrix, Adjacency if axis=0, np.array if axis=1.
-        """
-        return self._apply_stat(np.nanstd, axis)
-
-    def median(self, axis=0):
-        """Calculate median of Adjacency.
-
-        Args:
-            axis: Calculate median over matrices (0) or upper triangle (1).
-
-        Returns:
-            float if single matrix, Adjacency if axis=0, np.array if axis=1.
-        """
-        return self._apply_stat(np.nanmedian, axis)
+        return self.shape[-1]
 
     @property
     def shape(self):
@@ -610,39 +374,7 @@ class Adjacency(object):
         """
         return self.data.shape
 
-    @property
-    def n_nodes(self):
-        """Return the number of nodes in the adjacency matrix.
-
-        Returns:
-            int: Number of nodes (n) for an (n, n) matrix.
-        """
-        return self.shape[-1]
-
-    def square_shape(self):
-        """Calculate shape of squareform data.
-
-        .. deprecated::
-            Use `.shape` instead. This method will be removed in v0.7.0.
-        """
-        warnings.warn(
-            "square_shape() is deprecated. Use .shape instead, which now returns "
-            "(n_nodes, n_nodes) for single matrices or (n_matrices, n_nodes, n_nodes) "
-            "for stacked matrices.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        if self.matrix_type == "empty":
-            return np.array([])
-        else:
-            if self.is_single_matrix:
-                return self.squareform().shape
-            else:
-                return self[0].squareform().shape
-
-    def copy(self):
-        """Create a copy of Adjacency object."""
-        return deepcopy(self)
+    # ── Public methods (alphabetical) ───────────────────────────────────
 
     def append(self, data):
         """Append data to Adjacency instance
@@ -671,193 +403,6 @@ class Adjacency(object):
                 out.Y = pd.concat([self.Y, data.Y], ignore_index=True)
 
         return out
-
-    def write(self, file_name, method="long"):
-        """Write out Adjacency object to csv file.
-
-        Args:
-            file_name (str):  name of file name to write
-            method (str):     method to write out data ['long','square']
-
-        """
-        from .io import write
-
-        return write(self, file_name, method)
-
-    def similarity(
-        self,
-        data,
-        plot=False,
-        perm_type="2d",
-        n_permute=5000,
-        metric="spearman",
-        ignore_diagonal=False,
-        nan_policy="omit",
-        **kwargs,
-    ):
-        """
-        Calculate similarity between two Adjacency matrices. Default is to use spearman
-        correlation and permutation test.
-
-        Args:
-            data (Adjacency or array): Adjacency data, or 1-d array same size as self.data
-            perm_type: (str) '1d','2d', or None
-            metric: (str) 'spearman','pearson','kendall'
-            ignore_diagonal: (bool) only applies to 'directed' Adjacency types using
-                perm_type=None or perm_type='1d'
-            nan_policy: (str) How to handle NaN values. Options:
-                - 'omit': Remove NaN values pairwise before computing correlation (default)
-                - 'propagate': Allow NaN to propagate through calculations
-                - 'raise': Raise an error if NaN values are present
-
-        """
-        from .stats import similarity
-
-        return similarity(
-            self,
-            data,
-            plot=plot,
-            perm_type=perm_type,
-            n_permute=n_permute,
-            metric=metric,
-            ignore_diagonal=ignore_diagonal,
-            nan_policy=nan_policy,
-            **kwargs,
-        )
-
-    def distance(self, metric="correlation", include_diag=False, **kwargs):
-        """Calculate distance between images within an Adjacency() instance.
-
-        Args:
-            metric: (str) type of distance metric (can use any scikit learn or
-                    scipy metric)
-            include_diag: (bool) whether to include the main diagonal when
-                    computing distances between adjacency matrices. Only applies
-                    to symmetric matrices. Default False (consistent with how
-                    symmetric matrices are stored without diagonal).
-
-        Returns:
-            dist: (Adjacency) Outputs a 2D distance matrix.
-
-        """
-        if include_diag and self.issymmetric:
-            # Get square form and extract upper triangle WITH diagonal
-            squares = self.squareform()
-            if self.is_single_matrix:
-                squares = [squares]
-            # Extract upper triangle including diagonal for each matrix
-            data_with_diag = []
-            for sq in squares:
-                mask = np.triu(
-                    np.ones_like(sq, dtype=bool), k=0
-                )  # k=0 includes diagonal
-                data_with_diag.append(sq[mask])
-            data = np.array(data_with_diag)
-        else:
-            data = self.data
-
-        return Adjacency(
-            pairwise_distances(data, metric=metric, **kwargs),
-            matrix_type="distance",
-        )
-
-    def r_to_z(self):
-        """Apply Fisher's r to z transformation to each element of the data
-        object."""
-        from .stats import r_to_z
-
-        return r_to_z(self)
-
-    def z_to_r(self):
-        """Convert z score back into r value for each element of data object"""
-        from .stats import z_to_r
-
-        return z_to_r(self)
-
-    def threshold(self, upper=None, lower=None, binarize=False):
-        """Threshold Adjacency instance. Provide upper and lower values or
-           percentages to perform two-sided thresholding. Binarize will return
-           a mask image respecting thresholds if provided, otherwise respecting
-           every non-zero value.
-
-        Args:
-            upper: (float or str) Upper cutoff for thresholding. If string
-                    will interpret as percentile; can be None for one-sided
-                    thresholding.
-            lower: (float or str) Lower cutoff for thresholding. If string
-                    will interpret as percentile; can be None for one-sided
-                    thresholding.
-            binarize (bool): return binarized image respecting thresholds if
-                    provided, otherwise binarize on every non-zero value;
-                    default False
-
-        Returns:
-            Adjacency: thresholded Adjacency instance
-
-        """
-        from .stats import threshold
-
-        return threshold(self, upper, lower, binarize)
-
-    def to_graph(self):
-        """Convert Adjacency into networkx graph.  only works on
-        single_matrix for now."""
-        from .io import to_graph
-
-        return to_graph(self)
-
-    def ttest(self, permutation=False, **kwargs):
-        """Calculate ttest across samples.
-
-        Args:
-            permutation: (bool) Run ttest as permutation. Note this can be very slow.
-
-        Returns:
-            out: (dict) contains Adjacency instances of t values (or mean if
-                 running permutation) and Adjacency instance of p values.
-
-        """
-        from .stats import ttest
-
-        return ttest(self, permutation, **kwargs)
-
-    def plot_label_distance(self, labels=None, ax=None):
-        """Create a violin plot indicating within and between label distance
-
-        Args:
-            labels (np.array):  numpy array of labels to plot
-
-        Returns:
-            f: violin plot handles
-
-        """
-        from .stats import plot_label_distance
-
-        return plot_label_distance(self, labels, ax)
-
-    def stats_label_distance(self, labels=None, n_permute=5000, n_jobs=-1):
-        """Calculate permutation tests on within and between label distance.
-
-        Args:
-            labels (np.array):  numpy array of labels to plot
-            n_permute (int): number of permutations to run (default=5000)
-
-        Returns:
-            dict:  dictionary of within and between group differences
-                    and p-values
-
-        """
-        from .stats import stats_label_distance
-
-        return stats_label_distance(self, labels, n_permute, n_jobs)
-
-    def plot_silhouette(
-        self, labels=None, ax=None, permutation_test=True, n_permute=5000, **kwargs
-    ):
-        """Create a silhouette plot"""
-        from .stats import plot_silhouette
-
-        return plot_silhouette(self, labels, ax, permutation_test, n_permute, **kwargs)
 
     def bootstrap(
         self,
@@ -899,23 +444,160 @@ class Adjacency(object):
             self, stat, n_samples, save_boots, n_jobs, random_state, percentiles
         )
 
-    def _convert_bootstrap_results_to_adjacency(self, result, save_boots=False):
-        """Convert bootstrap results dictionary to Adjacency format.
+    def cluster_summary(self, clusters=None, metric="mean", summary="within"):
+        """Provide summaries of clusters within Adjacency matrices.
 
-        Helper method to convert numpy arrays from bootstrap functions into
-        Adjacency objects.
+        Computes mean/median of within and between cluster values. Requires a
+        list of cluster ids indicating the row/column of each cluster.
 
         Args:
-            result: (dict) Result dictionary from bootstrap function with keys:
-                    'mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper', and optionally 'samples'
-            save_boots: (bool) If True, include 'samples' key in output
+            clusters: (list) list of cluster labels
+            metric: (str) method to summarize mean or median. If 'None" then return all r values
+            summary: (str) summarize within cluster or between clusters
 
         Returns:
-            dict: Dictionary with Adjacency objects for each statistic
-        """
-        from .modeling import convert_bootstrap_results_to_adjacency
+            dict: within cluster means
 
-        return convert_bootstrap_results_to_adjacency(self, result, save_boots)
+        """
+        from .stats import cluster_summary
+
+        return cluster_summary(self, clusters, metric, summary)
+
+    def copy(self):
+        """Create a copy of Adjacency object."""
+        return deepcopy(self)
+
+    def distance(self, metric="correlation", include_diag=False, **kwargs):
+        """Calculate distance between images within an Adjacency() instance.
+
+        Args:
+            metric: (str) type of distance metric (can use any scikit learn or
+                    scipy metric)
+            include_diag: (bool) whether to include the main diagonal when
+                    computing distances between adjacency matrices. Only applies
+                    to symmetric matrices. Default False (consistent with how
+                    symmetric matrices are stored without diagonal).
+
+        Returns:
+            dist: (Adjacency) Outputs a 2D distance matrix.
+
+        """
+        if include_diag and self.issymmetric:
+            # Get square form and extract upper triangle WITH diagonal
+            squares = self.squareform()
+            if self.is_single_matrix:
+                squares = [squares]
+            # Extract upper triangle including diagonal for each matrix
+            data_with_diag = []
+            for sq in squares:
+                mask = np.triu(
+                    np.ones_like(sq, dtype=bool), k=0
+                )  # k=0 includes diagonal
+                data_with_diag.append(sq[mask])
+            data = np.array(data_with_diag)
+        else:
+            data = self.data
+
+        return Adjacency(
+            pairwise_distances(data, metric=metric, **kwargs),
+            matrix_type="distance",
+        )
+
+    def distance_to_similarity(self, metric="correlation", beta=1):
+        """Convert distance matrix to similarity matrix.
+
+        Note: currently only implemented for correlation and euclidean.
+
+        Args:
+            metric: (str) Can only be correlation or euclidean
+            beta: (float) parameter to scale exponential function (default: 1) for euclidean
+
+        Returns:
+            out: (Adjacency) Adjacency object
+
+        """
+        if self.matrix_type == "distance":
+            if metric == "correlation":
+                return Adjacency(1 - self.squareform(), matrix_type="similarity")
+            elif metric == "euclidean":
+                return Adjacency(
+                    np.exp(-beta * self.squareform() / self.squareform().std()),
+                    labels=self.labels,
+                    matrix_type="similarity",
+                )
+            else:
+                raise ValueError('metric can only be ["correlation","euclidean"]')
+        else:
+            raise ValueError("Matrix is not a distance matrix.")
+
+    def generate_permutations(self, n_perm, random_state=None):
+        """
+        Generate n_perm permutated versions of Adjacency in a lazy fashion.
+
+        Args:
+            n_perm (int): number of permutations
+            random_state (int, np.random.seed, optional): random seed for reproducibility.
+
+        Examples:
+            >>> for perm in adj.generate_permutations(1000):
+            >>>     out = neural_distance_mat.similarity(perm)
+            >>>     ...
+
+        Yields:
+            Adjacency: permuted version of self
+        """
+        from .modeling import generate_permutations
+
+        return generate_permutations(self, n_perm, random_state)
+
+    def mean(self, axis=0):
+        """Calculate mean of Adjacency.
+
+        Args:
+            axis: Calculate mean over matrices (0) or upper triangle (1).
+
+        Returns:
+            float if single matrix, Adjacency if axis=0, np.array if axis=1.
+        """
+        return apply_stat(self, np.nanmean, axis)
+
+    def median(self, axis=0):
+        """Calculate median of Adjacency.
+
+        Args:
+            axis: Calculate median over matrices (0) or upper triangle (1).
+
+        Returns:
+            float if single matrix, Adjacency if axis=0, np.array if axis=1.
+        """
+        return apply_stat(self, np.nanmedian, axis)
+
+    def plot(self, limit=3, axes=None, *args, **kwargs):
+        """Create Heatmap of Adjacency Matrix
+
+        Can pass in any sns.heatmap argument
+
+        Args:
+            limit: (int) number of heatmaps to plot if object contains multiple adjacencies (default: 3)
+            axes: matplotlib axis handle
+        """
+        from .plotting import plot
+
+        return plot(self, limit, axes, *args, **kwargs)
+
+    def plot_label_distance(self, labels=None, ax=None):
+        """Create a violin plot indicating within and between label distance
+
+        Args:
+            labels (np.array):  numpy array of labels to plot
+
+        Returns:
+            f: violin plot handles
+
+        """
+        from .stats import plot_label_distance
+
+        return plot_label_distance(self, labels, ax)
 
     def plot_mds(
         self,
@@ -962,51 +644,20 @@ class Adjacency(object):
             **kwargs,
         )
 
-    def distance_to_similarity(self, metric="correlation", beta=1):
-        """Convert distance matrix to similarity matrix.
+    def plot_silhouette(
+        self, labels=None, ax=None, permutation_test=True, n_permute=5000, **kwargs
+    ):
+        """Create a silhouette plot"""
+        from .stats import plot_silhouette
 
-        Note: currently only implemented for correlation and euclidean.
+        return plot_silhouette(self, labels, ax, permutation_test, n_permute, **kwargs)
 
-        Args:
-            metric: (str) Can only be correlation or euclidean
-            beta: (float) parameter to scale exponential function (default: 1) for euclidean
+    def r_to_z(self):
+        """Apply Fisher's r to z transformation to each element of the data
+        object."""
+        from .stats import r_to_z
 
-        Returns:
-            out: (Adjacency) Adjacency object
-
-        """
-        if self.matrix_type == "distance":
-            if metric == "correlation":
-                return Adjacency(1 - self.squareform(), matrix_type="similarity")
-            elif metric == "euclidean":
-                return Adjacency(
-                    np.exp(-beta * self.squareform() / self.squareform().std()),
-                    labels=self.labels,
-                    matrix_type="similarity",
-                )
-            else:
-                raise ValueError('metric can only be ["correlation","euclidean"]')
-        else:
-            raise ValueError("Matrix is not a distance matrix.")
-
-    def cluster_summary(self, clusters=None, metric="mean", summary="within"):
-        """This function provides summaries of clusters within Adjacency matrices.
-
-        It can compute mean/median of within and between cluster values. Requires a
-        list of cluster ids indicating the row/column of each cluster.
-
-        Args:
-            clusters: (list) list of cluster labels
-            metric: (str) method to summarize mean or median. If 'None" then return all r values
-            summary: (str) summarize within cluster or between clusters
-
-        Returns:
-            dict: (dict) within cluster means
-
-        """
-        from .stats import cluster_summary
-
-        return cluster_summary(self, clusters, metric, summary)
+        return r_to_z(self)
 
     def regress(self, X, mode="ols", **kwargs):
         """Run a regression on an adjacency instance.
@@ -1023,6 +674,47 @@ class Adjacency(object):
         from .modeling import regress
 
         return regress(self, X, mode, **kwargs)
+
+    def similarity(
+        self,
+        data,
+        plot=False,
+        perm_type="2d",
+        n_permute=5000,
+        metric="spearman",
+        ignore_diagonal=False,
+        nan_policy="omit",
+        **kwargs,
+    ):
+        """
+        Calculate similarity between two Adjacency matrices. Default is to use spearman
+        correlation and permutation test.
+
+        Args:
+            data (Adjacency or array): Adjacency data, or 1-d array same size as self.data
+            perm_type: (str) '1d','2d', or None
+            metric: (str) 'spearman','pearson','kendall'
+            ignore_diagonal: (bool) only applies to 'directed' Adjacency types using
+                perm_type=None or perm_type='1d'
+            nan_policy: (str) How to handle NaN values. Options:
+                - 'omit': Remove NaN values pairwise before computing correlation (default)
+                - 'propagate': Allow NaN to propagate through calculations
+                - 'raise': Raise an error if NaN values are present
+
+        """
+        from .stats import similarity
+
+        return similarity(
+            self,
+            data,
+            plot=plot,
+            perm_type=perm_type,
+            n_permute=n_permute,
+            metric=metric,
+            ignore_diagonal=ignore_diagonal,
+            nan_policy=nan_policy,
+            **kwargs,
+        )
 
     def social_relations_model(self, summarize_results=True, nan_replace=True):
         """Estimate the social relations model from a matrix for a round-robin design.
@@ -1061,23 +753,136 @@ class Adjacency(object):
 
         return social_relations_model(self, summarize_results, nan_replace)
 
-    def generate_permutations(self, n_perm, random_state=None):
-        """
-        Generate n_perm permutated versions of Adjacency in a lazy fashion. Useful for iterating against.
+    def squareform(self):
+        """Convert adjacency back to squareform"""
+        if self.issymmetric:
+            if self.is_single_matrix:
+                return squareform(self.data)
+            else:
+                return [squareform(x.data) for x in self]
+        else:
+            if self.is_single_matrix:
+                return self.data.reshape(
+                    int(np.sqrt(self.data.shape[0])), int(np.sqrt(self.data.shape[0]))
+                )
+            else:
+                return [
+                    x.data.reshape(
+                        int(np.sqrt(x.data.shape[0])), int(np.sqrt(x.data.shape[0]))
+                    )
+                    for x in self
+                ]
 
+    def stats_label_distance(self, labels=None, n_permute=5000, n_jobs=-1):
+        """Calculate permutation tests on within and between label distance.
 
         Args:
-            n_perm (int): number of permutations
-            random_state (int, np.random.seed, optional): random seed for reproducibility. Defaults to None.
+            labels (np.array):  numpy array of labels to plot
+            n_permute (int): number of permutations to run (default=5000)
 
-        Examples:
-            >>> for perm in adj.generate_permutations(1000):
-            >>>     out = neural_distance_mat.similarity(perm)
-            >>>     ...
+        Returns:
+            dict:  dictionary of within and between group differences
+                    and p-values
 
-        Yields:
-            Adjacency: permuted version of self
         """
-        from .modeling import generate_permutations
+        from .stats import stats_label_distance
 
-        return generate_permutations(self, n_perm, random_state)
+        return stats_label_distance(self, labels, n_permute, n_jobs)
+
+    def std(self, axis=0):
+        """Calculate standard deviation of Adjacency.
+
+        Args:
+            axis: Calculate std over matrices (0) or upper triangle (1).
+
+        Returns:
+            float if single matrix, Adjacency if axis=0, np.array if axis=1.
+        """
+        return apply_stat(self, np.nanstd, axis)
+
+    def sum(self, axis=0):
+        """Calculate sum of Adjacency.
+
+        Args:
+            axis: Calculate sum over matrices (0) or upper triangle (1).
+
+        Returns:
+            float if single matrix, Adjacency if axis=0, np.array if axis=1.
+        """
+        return apply_stat(self, np.nansum, axis)
+
+    def threshold(self, upper=None, lower=None, binarize=False):
+        """Threshold Adjacency instance. Provide upper and lower values or
+           percentages to perform two-sided thresholding. Binarize will return
+           a mask image respecting thresholds if provided, otherwise respecting
+           every non-zero value.
+
+        Args:
+            upper: (float or str) Upper cutoff for thresholding. If string
+                    will interpret as percentile; can be None for one-sided
+                    thresholding.
+            lower: (float or str) Lower cutoff for thresholding. If string
+                    will interpret as percentile; can be None for one-sided
+                    thresholding.
+            binarize (bool): return binarized image respecting thresholds if
+                    provided, otherwise binarize on every non-zero value;
+                    default False
+
+        Returns:
+            Adjacency: thresholded Adjacency instance
+
+        """
+        from .stats import threshold
+
+        return threshold(self, upper, lower, binarize)
+
+    def to_graph(self):
+        """Convert Adjacency into networkx graph.  only works on
+        single_matrix for now."""
+        from .io import to_graph
+
+        return to_graph(self)
+
+    def to_square(self):
+        """Convert adjacency back to square matrix format.
+
+        This is an alias for :meth:`squareform`.
+
+        Returns:
+            np.ndarray or list: Square matrix representation. Returns a list
+            of matrices if this object contains multiple adjacency matrices.
+        """
+        return self.squareform()
+
+    def ttest(self, permutation=False, **kwargs):
+        """Calculate ttest across samples.
+
+        Args:
+            permutation: (bool) Run ttest as permutation. Note this can be very slow.
+
+        Returns:
+            out: (dict) contains Adjacency instances of t values (or mean if
+                 running permutation) and Adjacency instance of p values.
+
+        """
+        from .stats import ttest
+
+        return ttest(self, permutation, **kwargs)
+
+    def write(self, file_name, method="long"):
+        """Write out Adjacency object to csv file.
+
+        Args:
+            file_name (str):  name of file name to write
+            method (str):     method to write out data ['long','square']
+
+        """
+        from .io import write
+
+        return write(self, file_name, method)
+
+    def z_to_r(self):
+        """Convert z score back into r value for each element of data object"""
+        from .stats import z_to_r
+
+        return z_to_r(self)
