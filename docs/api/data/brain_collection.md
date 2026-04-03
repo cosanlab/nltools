@@ -4,7 +4,7 @@ Multi-subject data container for group-level neuroimaging analyses.
 
 ## Overview
 
-`BrainCollection` is a container class for working with data from multiple subjects or runs. It provides 3-axis indexing (images × timepoints × voxels), lazy loading for memory efficiency, and integrated methods for group inference, encoding models, and inter-subject correlation analysis.
+`BrainCollection` is a container class for working with data from multiple subjects or runs. It provides 3-axis indexing (images x timepoints x voxels), lazy loading for memory efficiency, and integrated methods for group inference, encoding models, and inter-subject correlation analysis.
 
 ## Key Features
 
@@ -48,67 +48,136 @@ X = np.random.randn(bc[0].shape[0], 10)  # (timepoints, features)
 result = bc.fit_ridge(X=X, cv=3)
 ```
 
-## Construction Methods
-
-| Method | Use Case |
-|--------|----------|
-| `BrainCollection(data, mask)` | From list of BrainData or file paths |
-| `BrainCollection.from_glob(pattern, mask)` | From glob pattern matching files |
-| `BrainCollection.from_bids(layout, mask)` | From pybids BIDSLayout |
-| `BrainCollection.from_stacked(brain_data, axis)` | Split stacked BrainData |
-
-## Main Methods
-
-### Aggregation
-
-| Method | Description |
-|--------|-------------|
-| `mean(axis)` | Mean across specified axis |
-| `std(axis)` | Standard deviation across axis |
-| `sum(axis)` | Sum across axis |
-
-### Group Inference
-
-| Method | Description |
-|--------|-------------|
-| `ttest()` | One-sample t-test vs zero |
-| `ttest2(other)` | Two-sample t-test |
-| `permutation_test(n_permute)` | Non-parametric permutation test |
-| `anova(*groups)` | One-way ANOVA |
-
-### Encoding/Decoding
-
-| Method | Description |
-|--------|-------------|
-| `fit_ridge(X, cv)` | Fit ridge regression for each subject |
-| `fit_glm(events, t_r)` | Fit first-level GLM for each subject |
-| `predict(X)` | Generate predictions from fitted model |
-| `compute_contrasts(contrast)` | Compute contrasts from fitted GLM |
-
-### ISC (Inter-Subject Correlation)
-
-| Method | Description |
-|--------|-------------|
-| `isc(method)` | Compute inter-subject correlation |
-| `isc_test(n_permute)` | ISC with permutation testing |
-
-### Transformations
-
-| Method | Description |
-|--------|-------------|
-| `map(func, axis)` | Apply function to each element |
-| `filter(predicate)` | Filter based on condition |
-| `apply(func)` | Apply function returning scalar |
-
 ## API Reference
 
 ```{eval-rst}
 .. autoclass:: nltools.data.BrainCollection
-    :members:
-    :undoc-members:
+    :no-members:
     :show-inheritance:
-    :special-members: __init__, __getitem__, __len__
 ```
+
+### Constructor
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainCollection.__init__
+```
+
+### Properties
+
+```{eval-rst}
+.. autoattribute:: nltools.data.BrainCollection.n_images
+.. autoattribute:: nltools.data.BrainCollection.n_voxels
+.. autoattribute:: nltools.data.BrainCollection.mask
+.. autoattribute:: nltools.data.BrainCollection.metadata
+.. autoattribute:: nltools.data.BrainCollection.is_loaded
+.. autoattribute:: nltools.data.BrainCollection.shape
+```
+
+### Data Access & Indexing
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainCollection.__getitem__
+.. automethod:: nltools.data.BrainCollection.__len__
+.. automethod:: nltools.data.BrainCollection.__iter__
+.. automethod:: nltools.data.BrainCollection.iter_batches
+```
+
+### Loading
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainCollection.load
+.. automethod:: nltools.data.BrainCollection.unload
+.. automethod:: nltools.data.BrainCollection.memory_estimate
+```
+
+### Aggregation
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainCollection.mean
+.. automethod:: nltools.data.BrainCollection.std
+.. automethod:: nltools.data.BrainCollection.var
+.. automethod:: nltools.data.BrainCollection.sum
+.. automethod:: nltools.data.BrainCollection.min
+.. automethod:: nltools.data.BrainCollection.max
+.. automethod:: nltools.data.BrainCollection.median
+```
+
+### Conversion
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainCollection.to_tensor
+.. automethod:: nltools.data.BrainCollection.to_list
+.. automethod:: nltools.data.BrainCollection.to_stacked
+```
+
+### Constructors
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainCollection.from_bids
+.. automethod:: nltools.data.BrainCollection.from_glob
+.. automethod:: nltools.data.BrainCollection.from_stacked
+```
+
+### Transforms
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainCollection.map
+.. automethod:: nltools.data.BrainCollection.filter
+.. automethod:: nltools.data.BrainCollection.align
+.. automethod:: nltools.data.BrainCollection.standardize
+.. automethod:: nltools.data.BrainCollection.smooth
+.. automethod:: nltools.data.BrainCollection.threshold
+.. automethod:: nltools.data.BrainCollection.detrend
+```
+
+### Inference
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainCollection.ttest
+.. automethod:: nltools.data.BrainCollection.ttest2
+.. automethod:: nltools.data.BrainCollection.permutation_test
+.. automethod:: nltools.data.BrainCollection.permutation_test2
+.. automethod:: nltools.data.BrainCollection.anova
+.. automethod:: nltools.data.BrainCollection.isc
+.. automethod:: nltools.data.BrainCollection.isc_test
+```
+
+### Modeling
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainCollection.cv
+.. automethod:: nltools.data.BrainCollection.fit
+.. automethod:: nltools.data.BrainCollection.fit_glm
+.. automethod:: nltools.data.BrainCollection.fit_from_events
+.. automethod:: nltools.data.BrainCollection.fit_ridge
+```
+
+### Prediction
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainCollection.predict
+.. automethod:: nltools.data.BrainCollection.compute_contrasts
+.. automethod:: nltools.data.BrainCollection.select_feature
+```
+
+### I/O
+
+```{eval-rst}
+.. automethod:: nltools.data.BrainCollection.write
+```
+
+## Submodules
+
+The implementation is organized into functional submodules. These contain the
+standalone functions that back the methods above:
+
+- {doc}`collection_constructors` -- `from_bids`, `from_glob`, `from_stacked`
+- {doc}`collection_transforms` -- `map`, `filter`, `align`, `standardize`, `smooth`, `threshold`, `detrend`
+- {doc}`collection_inference` -- `ttest`, `permutation_test`, `anova`, `isc`, `isc_test`
+- {doc}`collection_modeling` -- `fit`, `fit_glm`, `fit_ridge`, `fit_from_events`, `cv`
+- {doc}`collection_prediction` -- `predict`, `compute_contrasts`
+- {doc}`collection_io` -- `write`
+- {doc}`collection_pipeline` -- `BrainCollectionPipeline`, `BrainCollectionCVResult`, `FittedBrainCollection`
 
 ## See Also
 

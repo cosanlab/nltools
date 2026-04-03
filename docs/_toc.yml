@@ -67,6 +67,14 @@ parts:
           - file: api/data/design_matrix_diagnostics
           - file: api/data/design_matrix_io
       - file: api/data/brain_collection
+        sections:
+          - file: api/data/collection_constructors
+          - file: api/data/collection_transforms
+          - file: api/data/collection_inference
+          - file: api/data/collection_modeling
+          - file: api/data/collection_prediction
+          - file: api/data/collection_io
+          - file: api/data/collection_pipeline
       - file: api/models
 
   - caption: API Functions

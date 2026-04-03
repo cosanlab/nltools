@@ -16,8 +16,10 @@ from nltools.utils import (
     check_brain_data,
     check_brain_data_is_single,
 )
+from typing import TYPE_CHECKING
 
-from .pipeline import BrainDataPipeline, BrainDataCVResult
+if TYPE_CHECKING:
+    from .pipeline import BrainDataPipeline
 
 warnings.filterwarnings("ignore", category=UserWarning, module="nilearn")
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="nilearn")
@@ -27,7 +29,7 @@ nx = attempt_to_import("networkx", "nx")
 tables = attempt_to_import("tables")
 MAX_INT = np.iinfo(np.int32).max
 
-__all__ = ["BrainData", "BrainDataPipeline", "BrainDataCVResult"]
+__all__ = ["BrainData"]
 
 
 class BrainData(object):
