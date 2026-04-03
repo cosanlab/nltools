@@ -325,19 +325,6 @@ class TestDesignMatrixDataAccess:
         assert dm_empty.is_empty is True
         assert dm_full.is_empty is False
 
-    def test_empty_property_deprecated(self):
-        """The deprecated .empty property should still work but warn."""
-        import warnings
-
-        dm = DesignMatrix(sampling_freq=1)
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            result = dm.empty
-            assert result is True
-            assert len(w) == 1
-            assert issubclass(w[0].category, DeprecationWarning)
-            assert "is_empty" in str(w[0].message)
-
     def test_len_returns_number_of_rows(self):
         """
         len(dm) should return number of rows (like pandas).

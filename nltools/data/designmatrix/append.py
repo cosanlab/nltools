@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING, List, Optional, Union
 
 import polars as pl
 
+from .utils import copy_with
+
 if TYPE_CHECKING:
     from nltools.data.designmatrix import DesignMatrix
 
@@ -109,7 +111,7 @@ def append_horizontal(
         if elem.polys:
             all_polys.extend(elem.polys)
 
-    return dm._copy_with(new_df, polys=all_polys)
+    return copy_with(dm, new_df, polys=all_polys)
 
 
 def append_vertical(
@@ -153,7 +155,7 @@ def append_vertical(
                     if p not in all_polys:
                         all_polys.append(p)
 
-        return dm._copy_with(new_df, polys=all_polys)
+        return copy_with(dm, new_df, polys=all_polys)
 
     # Complex case: keep_separate=True - separate polynomial columns across runs
     return append_vertical_with_separation(dm, to_append, unique_cols, fill_na, verbose)
@@ -337,4 +339,4 @@ def append_vertical_with_separation(
     result_df = result_df.fill_null(fill_na)
 
     # Return with updated metadata
-    return dm._copy_with(result_df, polys=all_new_polys, multi=True)
+    return copy_with(dm, result_df, polys=all_new_polys, multi=True)

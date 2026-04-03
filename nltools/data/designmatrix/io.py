@@ -38,7 +38,7 @@ def heatmap(dm: DesignMatrix, figsize: tuple = (8, 6), **kwargs):
     import seaborn as sns
 
     # Convert to pandas for seaborn (which expects pandas DataFrames)
-    df_for_plot = _to_pandas(dm)
+    df_for_plot = to_pandas(dm)
 
     # Create figure and axis
     fig, ax = plt.subplots(figsize=figsize)
@@ -83,21 +83,6 @@ def to_pandas(dm: DesignMatrix):
     import pandas as pd
 
     return pd.DataFrame(dm._df.to_dict(as_series=False))
-
-
-def _to_pandas(dm: DesignMatrix):
-    """Internal method for pandas conversion at library boundaries.
-
-    .. deprecated:: 0.6.0
-        Use :func:`to_pandas` instead.
-
-    Args:
-        dm: DesignMatrix instance.
-
-    Returns:
-        pd.DataFrame: Pandas DataFrame with same data and column names.
-    """
-    return to_pandas(dm)
 
 
 def to_numpy(dm: DesignMatrix) -> np.ndarray:

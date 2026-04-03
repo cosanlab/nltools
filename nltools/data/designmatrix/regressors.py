@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING, List, Optional, Union
 import numpy as np
 import polars as pl
 
+from .utils import copy_with, get_data_columns
+
 if TYPE_CHECKING:
     from . import DesignMatrix
 
@@ -56,7 +58,7 @@ def convolve(
     # Determine which columns to convolve
     if columns is None:
         # Default: all columns except polynomials
-        columns_to_convolve = dm._get_data_columns(exclude_polys=True)
+        columns_to_convolve = get_data_columns(dm, exclude_polys=True)
     else:
         columns_to_convolve = columns
 
@@ -117,7 +119,7 @@ def convolve(
         new_df = dm._df.drop(columns_to_convolve).with_columns(convolved_series)
 
     # Update metadata
-    return dm._copy_with(new_df, convolved=columns_to_convolve)
+    return copy_with(dm, new_df, convolved=columns_to_convolve)
 
 
 def add_poly(
@@ -191,7 +193,7 @@ def add_poly(
     new_polys.extend(new_poly_cols.keys())
 
     # Return new DesignMatrix with updated data and metadata
-    return dm._copy_with(new_df, polys=new_polys)
+    return copy_with(dm, new_df, polys=new_polys)
 
 
 def add_dct_basis(
@@ -272,4 +274,4 @@ def add_dct_basis(
     new_polys.extend(new_basis_cols.keys())
 
     # Return new DesignMatrix with updated data and metadata
-    return dm._copy_with(new_df, polys=new_polys)
+    return copy_with(dm, new_df, polys=new_polys)

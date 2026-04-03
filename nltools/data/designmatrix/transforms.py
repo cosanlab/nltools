@@ -1,7 +1,7 @@
 """Standalone transform functions for DesignMatrix.
 
 Each function takes a DesignMatrix instance as the first argument (`dm`)
-and returns a new DesignMatrix via `dm._copy_with(...)`.
+and returns a new DesignMatrix via `copy_with(dm,...)`.
 """
 
 from __future__ import annotations
@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, List, Optional
 
 import numpy as np
 import polars as pl
+
+from .utils import copy_with, get_data_columns
 
 if TYPE_CHECKING:
     from nltools.data.designmatrix import DesignMatrix
@@ -30,7 +32,7 @@ def zscore(dm: DesignMatrix, columns: Optional[List[str]] = None) -> DesignMatri
     # Determine which columns to z-score
     if columns is None:
         # Default: all columns except polynomials
-        columns_to_zscore = dm._get_data_columns(exclude_polys=True)
+        columns_to_zscore = get_data_columns(dm, exclude_polys=True)
     else:
         columns_to_zscore = columns
 
@@ -45,7 +47,7 @@ def zscore(dm: DesignMatrix, columns: Optional[List[str]] = None) -> DesignMatri
     # (automatically preserves untouched columns - idiomatic Polars pattern)
     zscored_df = dm._df.with_columns(zscore_exprs)
 
-    return dm._copy_with(zscored_df)
+    return copy_with(dm, zscored_df)
 
 
 def standardize(
@@ -82,7 +84,7 @@ def standardize(
     elif method == "center":
         # Determine which columns to center
         if columns is None:
-            columns_to_center = dm._get_data_columns(exclude_polys=True)
+            columns_to_center = get_data_columns(dm, exclude_polys=True)
         else:
             columns_to_center = columns
 
@@ -92,7 +94,7 @@ def standardize(
         ]
 
         centered_df = dm._df.with_columns(center_exprs)
-        return dm._copy_with(centered_df)
+        return copy_with(dm, centered_df)
     else:
         raise ValueError(f"Invalid method '{method}'. Must be 'zscore' or 'center'.")
 
@@ -157,7 +159,7 @@ def downsample(dm: DesignMatrix, target: float, **kwargs) -> DesignMatrix:
     df_with_idx = dm._df.with_columns(idx.alias("_group_idx"))
 
     # Get all data columns
-    data_cols = dm._get_data_columns(exclude_polys=False)
+    data_cols = get_data_columns(dm, exclude_polys=False)
 
     # Group by index and aggregate
     if method == "mean":
@@ -173,7 +175,7 @@ def downsample(dm: DesignMatrix, target: float, **kwargs) -> DesignMatrix:
             .drop("_group_idx")
         )
 
-    return dm._copy_with(downsampled_df, sampling_freq=target)
+    return copy_with(dm, downsampled_df, sampling_freq=target)
 
 
 def upsample(
@@ -227,7 +229,7 @@ def upsample(
     new_indices = np.arange(0, dm.shape[0] - 1, step_size)
 
     # Get all data columns (including polynomials - upsample everything)
-    data_cols = dm._get_data_columns(exclude_polys=False)
+    data_cols = get_data_columns(dm, exclude_polys=False)
 
     # Interpolate each column using scipy (matches stats.upsample)
     upsampled_data = {}
@@ -243,4 +245,4 @@ def upsample(
     # Create new Polars DataFrame
     upsampled_df = pl.DataFrame(upsampled_data)
 
-    return dm._copy_with(upsampled_df, sampling_freq=target)
+    return copy_with(dm, upsampled_df, sampling_freq=target)

@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, Union
 
 import numpy as np
 
+from .utils import copy_with, get_data_columns
+
 if TYPE_CHECKING:
     from nltools.data.designmatrix import DesignMatrix
 
@@ -116,7 +118,7 @@ def clean(
 
     # Determine which columns to check for correlation
     if exclude_polys:
-        cols_to_check = result._get_data_columns(exclude_polys=True)
+        cols_to_check = get_data_columns(result, exclude_polys=True)
     else:
         cols_to_check = list(result.columns)
 
@@ -173,7 +175,7 @@ def clean(
         new_polys = [p for p in result.polys if p not in remove]
 
         # Return cleaned matrix
-        return result._copy_with(new_df, polys=new_polys)
+        return copy_with(result, new_df, polys=new_polys)
     else:
         if verbose:
             print("Dropping columns not needed...skipping")

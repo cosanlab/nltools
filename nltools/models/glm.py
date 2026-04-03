@@ -253,7 +253,7 @@ class Glm(BaseModel):
         # Handle single design matrix
         if not isinstance(design_matrices, list):
             if isinstance(design_matrices, DesignMatrix):
-                return design_matrices._to_pandas()
+                return design_matrices.to_pandas()
             else:
                 return design_matrices
 
@@ -261,7 +261,7 @@ class Glm(BaseModel):
         converted = []
         for dm in design_matrices:
             if isinstance(dm, DesignMatrix):
-                converted.append(dm._to_pandas())
+                converted.append(dm.to_pandas())
             else:
                 converted.append(dm)
 
