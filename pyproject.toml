@@ -79,5 +79,13 @@ possibly-unbound-attribute = "ignore"  # Attrs set in fit() not tracked
 
 [tool.poe.tasks.lint]
 help = "Lint project with ruff and ty"
-shell  = """ruff check nltools && ty check nltools"""
+shell  = """ruff check nltools --fix && ty check nltools"""
+
+[tool.poe.tasks.docs-build]
+help = "Build jupyter-book docs"
+shell = """jupyter-book clean docs -a && jupyter-book build docs/"""
+
+[tool.poe.tasks.docs-preview]
+help = "Serve built docs"
+shell = """python -c "import webbrowser; webbrowser.open('http://localhost:8000')" && python -m http.server 8000 -d docs/_build/html/"""
 

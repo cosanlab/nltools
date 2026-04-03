@@ -16,38 +16,30 @@ Documentation and tutorials are available at https://nltools.org
 
 ## Installation
 
-Method 1 (stable)
+```
+uv add nltools
+```
 
-   ```
-   pip install nltools
-   ```
+or
 
-Method 2 (bleeding edge)
-
-   ```
-   pip install git+https://github.com/cosanlab/nltools
-   ```
+```
+pip install nltools
+```
 
 ## Development
 
 Project management is handled by `uv` which will automatically install development dependencies along side core dependencies, configure a virtual environment, and install `nltools` into that environment in editable mode.
 
-Run all tests: `uv run pytest`
+```
+git clone https://github.com/cosanlab/nltools  
+uv sync  
+```
 
-Run specific test: `uv run pytest -k test_name`
-
-Run linting: `uv run ruff check`
-
-Fix linting: `uv run ruff check --fix`
-
-Build docs locally: `uv run jupyter-book build docs/` 
-
-Add or remove dependencies: `uv add/remove packagename`
-
-Add or remove development dependencies: `uv add/remove --dev packagename`
-
-Build package locally: `uv build`
-
-## Preprocessing
-
-Nltools has minimal routines for pre-processing data. For more complete pre-processing pipelines please see our [cosanlab_preproc](https://github.com/cosanlab/cosanlab_preproc) library built with `nipype`.
+- Build docs: `uv run poe docs-build` 
+- Preview built-docs: `uv run poe docs-preview` 
+- Run linting: `uv run poe lint`
+- Run all tests: `uv run pytest`
+- Run specific test: `uv run pytest -k test_name`
+- Add or remove dependencies: `uv add/remove packagename`
+- Add or remove development dependencies: `uv add/remove --dev packagename`
+- Build package locally: `uv build`
