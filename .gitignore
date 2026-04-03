@@ -79,3 +79,4 @@ nltools/tests/data/haxby/
 # Dolt database files (added by bd init)
 .dolt/
 *.db
+old-tutorials/
