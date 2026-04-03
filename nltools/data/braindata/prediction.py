@@ -454,7 +454,7 @@ def mvpa_searchlight(
     from sklearn.base import clone
     from sklearn.model_selection import cross_val_score
 
-    from nltools.neighborhoods import compute_searchlight_neighborhoods
+    from .neighborhoods import compute_searchlight_neighborhoods
 
     # Get neighborhoods
     neighborhoods = compute_searchlight_neighborhoods(

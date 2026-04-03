@@ -9,7 +9,7 @@ is deterministic and can be cached for reuse across analyses.
 
 Example:
     >>> import nibabel as nib
-    >>> from nltools.neighborhoods import compute_searchlight_neighborhoods
+    >>> from nltools.data.braindata.neighborhoods import compute_searchlight_neighborhoods
     >>>
     >>> mask = nib.load("mask.nii.gz")
     >>> neighborhoods = compute_searchlight_neighborhoods(mask, radius_mm=10.0)

@@ -1,15 +1,15 @@
-"""Tests for nltools.neighborhoods module."""
+"""Tests for nltools.data.braindata.neighborhoods module."""
 
 import numpy as np
 import nibabel as nib
 import pytest
 from scipy import sparse
 
-from nltools.neighborhoods import (
+from nltools.data.braindata.neighborhoods import (
     SphereNeighborhoods,
     compute_searchlight_neighborhoods,
 )
-from nltools.cache import CacheManager, hash_mask, clear_cache
+from nltools.data.braindata.cache import CacheManager, hash_mask, clear_cache
 
 
 # =============================================================================

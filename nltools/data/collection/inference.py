@@ -824,7 +824,7 @@ def extract_searchlight(
     show_progress: bool = True,
 ) -> tuple[np.ndarray, dict]:
     """Extract mean signal per searchlight sphere."""
-    from nltools.neighborhoods import compute_searchlight_neighborhoods
+    from nltools.data.braindata.neighborhoods import compute_searchlight_neighborhoods
     from nltools.utils import attempt_to_import
 
     tqdm = attempt_to_import("tqdm", "tqdm")

@@ -5,7 +5,7 @@ be reused across various computationally expensive operations like searchlight
 neighborhoods, ISC, and SRM.
 
 Example:
-    >>> from nltools.cache import CacheManager, hash_mask
+    >>> from nltools.data.braindata.cache import CacheManager, hash_mask
     >>> import nibabel as nib
     >>>
     >>> # Hash a mask for cache key generation

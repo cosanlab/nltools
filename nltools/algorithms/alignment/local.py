@@ -18,7 +18,7 @@ from nltools.backends import Backend
 if TYPE_CHECKING:
     import nibabel as nib
 
-    from nltools.neighborhoods import SphereNeighborhoods
+    from nltools.data.braindata.neighborhoods import SphereNeighborhoods
 
 logger = logging.getLogger(__name__)
 
@@ -528,7 +528,7 @@ class LocalAlignment:
         self : LocalAlignment
             Fitted alignment model.
         """
-        from nltools.neighborhoods import compute_searchlight_neighborhoods
+        from nltools.data.braindata.neighborhoods import compute_searchlight_neighborhoods
 
         # Validate inputs
         if not isinstance(data, list) or len(data) < 2:
