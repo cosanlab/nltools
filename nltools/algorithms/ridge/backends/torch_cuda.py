@@ -17,7 +17,7 @@ if not torch.cuda.is_available():
         pytest.skip("PyTorch with CUDA is not available.")
     raise RuntimeError("PyTorch with CUDA is not available.")
 
-from ._utils import _dtype_to_str, warn_if_not_float32
+from .utils import _dtype_to_str, warn_if_not_float32
 
 ###############################################################################
 # Backend name

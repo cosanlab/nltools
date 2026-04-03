@@ -5,7 +5,7 @@ import warnings
 from typing import Tuple, Dict, Optional
 from scipy.stats import norm
 
-from .._validation import (
+from ..validation import (
     validate_bootstrap_method,
     validate_bootstrap_data,
     validate_percentiles,
@@ -13,7 +13,7 @@ from .._validation import (
     validate_array_shape_range,
     validate_shape_compatibility,
 )
-from .._random import generate_bootstrap_indices
+from ..random import generate_bootstrap_indices
 
 
 # Constants for supported methods
@@ -509,7 +509,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
     """
     from joblib import Parallel, delayed
     from tqdm import tqdm
-    from .._validation import validate_array_shape, validate_array_shape_range
+    from ..validation import validate_array_shape, validate_array_shape_range
 
     # Input validation
     X = np.asarray(X, dtype=np.float64)
@@ -661,7 +661,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
     """
     from joblib import Parallel, delayed
     from tqdm import tqdm
-    from .._validation import validate_shape_compatibility, validate_array_shape
+    from ..validation import validate_shape_compatibility, validate_array_shape
 
     # Input validation
     X = np.asarray(X, dtype=np.float64)
@@ -813,7 +813,7 @@ def _bootstrap_ridge_weights_gpu_batched(
     import torch
     from tqdm import tqdm
     from nltools.backends import auto_select_backend
-    from .._validation import validate_array_shape_range
+    from ..validation import validate_array_shape_range
 
     # Input validation
     X = np.asarray(X, dtype=np.float32)
@@ -987,7 +987,7 @@ def _bootstrap_ridge_predict_gpu_batched(
     import torch
     from tqdm import tqdm
     from nltools.backends import auto_select_backend
-    from .._validation import validate_array_shape, validate_array_shape_range
+    from ..validation import validate_array_shape, validate_array_shape_range
 
     # Input validation
     X = np.asarray(X, dtype=np.float32)

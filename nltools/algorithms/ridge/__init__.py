@@ -38,7 +38,7 @@ from .utils import (
 )
 
 # Backward compatibility (legacy API)
-from ._core import (
+from .core import (
     ridge_svd,
     ridge_cv,
 )

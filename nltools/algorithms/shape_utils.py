@@ -14,7 +14,7 @@ Usage:
     shape handling and matrix operations.
 
     Example:
-        >>> from nltools.algorithms._shape_utils import extract_triangle_elements
+        >>> from nltools.algorithms.shape_utils import extract_triangle_elements
         >>> matrix = np.arange(16).reshape(4, 4)
         >>> upper = extract_triangle_elements(matrix, triangle='upper')
 """

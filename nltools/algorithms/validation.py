@@ -8,7 +8,7 @@ Usage:
     input parameters. They provide consistent error messages and behavior.
 
     Example:
-        >>> from nltools.algorithms._validation import validate_parallel_parameter
+        >>> from nltools.algorithms.validation import validate_parallel_parameter
         >>> validate_parallel_parameter("cpu")  # OK
         >>> validate_parallel_parameter("invalid")  # Raises ValueError
 """

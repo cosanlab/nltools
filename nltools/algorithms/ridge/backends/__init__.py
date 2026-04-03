@@ -19,7 +19,7 @@ Examples
 >>> U, s, Vt = backend.svd(X_gpu)  # GPU-accelerated
 """
 
-from ._utils import (
+from .utils import (
     ALL_BACKENDS,
     set_backend,
     get_backend,

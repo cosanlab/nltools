@@ -13,8 +13,8 @@ from scipy.spatial.distance import squareform, pdist
 from scipy.stats import t as t_dist
 
 from .utils import _compute_pvalue
-from .._shape_utils import extract_triangle_elements, permute_matrix_symmetric
-from .._validation import (
+from ..shape_utils import extract_triangle_elements, permute_matrix_symmetric
+from ..validation import (
     validate_how_parameter,
     validate_metric_parameter,
     validate_tail_parameter,

@@ -4,6 +4,6 @@ This module provides LocalAlignment for searchlight and piecewise
 functional alignment across subjects.
 """
 
-from ._local import LocalAlignment
+from .local import LocalAlignment
 
 __all__ = ["LocalAlignment"]

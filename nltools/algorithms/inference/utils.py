@@ -7,8 +7,8 @@ permutation test implementations.
 
 import numpy as np
 from typing import Optional
-from .._random import generate_sign_flips as _generate_sign_flips_from_random
-from .._validation import validate_tail_parameter
+from ..random import generate_sign_flips as _generate_sign_flips_from_random
+from ..validation import validate_tail_parameter
 
 
 # ============================================================================

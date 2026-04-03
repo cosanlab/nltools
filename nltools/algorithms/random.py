@@ -13,7 +13,7 @@ Usage:
     deterministic behavior when using parallel processing.
 
     Example:
-        >>> from nltools.algorithms._random import generate_seeds
+        >>> from nltools.algorithms.random import generate_seeds
         >>> seeds = generate_seeds(100, random_state=42)
         >>> # Use seeds in parallel workers for deterministic results
 """

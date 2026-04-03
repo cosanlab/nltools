@@ -551,7 +551,7 @@ class TestDtypeUtils:
 
     def test_dtype_to_str_numpy(self):
         """Test dtype conversion for numpy dtypes."""
-        from nltools.algorithms.ridge.backends._utils import _dtype_to_str
+        from nltools.algorithms.ridge.backends.utils import _dtype_to_str
 
         assert _dtype_to_str(np.float32) == "float32"
         assert _dtype_to_str(np.float64) == "float64"
@@ -562,7 +562,7 @@ class TestDtypeUtils:
     def test_dtype_to_str_torch(self):
         """Test dtype conversion for torch dtypes."""
         import torch
-        from nltools.algorithms.ridge.backends._utils import _dtype_to_str
+        from nltools.algorithms.ridge.backends.utils import _dtype_to_str
 
         assert _dtype_to_str(torch.float32) == "float32"
         assert _dtype_to_str(torch.float64) == "float64"
