@@ -51,10 +51,10 @@ def _tables_available():
     return importlib.util.find_spec("tables") is not None
 
 
-@pytest.fixture(scope="module", params=["2mm"])
-def sim_brain_data():
+@pytest.fixture(scope="session", params=["2mm"])
+def _sim_brain_data_source(request):
+    """Expensive creation of simulated brain data — done once per session."""
     np.random.seed(0)
-    # MNI_Template["resolution"] = request.params
     sim = Simulator()
     sigma = 1
     y = [0, 1]
@@ -64,6 +64,12 @@ def sim_brain_data():
         {"Intercept": np.ones(len(dat.Y)), "X1": np.array(dat.Y).flatten()}, index=None
     )
     return dat
+
+
+@pytest.fixture()
+def sim_brain_data(_sim_brain_data_source):
+    """Fresh deep copy of simulated brain data for each test."""
+    return _sim_brain_data_source.copy()
 
 
 @pytest.fixture(scope="function")
@@ -203,8 +209,7 @@ def sim_adjacency_directed():
 
 def _get_test_data_path(request, filename):
     """Get path to test data file in nltools/tests/data/."""
-    test_file_dir = os.path.dirname(request.module.__file__)
-    tests_dir = os.path.dirname(test_file_dir)
+    tests_dir = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(tests_dir, "data", filename)
 
 
@@ -242,122 +247,6 @@ def old_h5_adj_double(request):
 def new_h5_adj_double(request):
     """Path to new-format double adjacency H5 file."""
     return _get_test_data_path(request, "new_double.h5")
-
-
-@pytest.fixture(scope="module")
-def regress_result(sim_brain_data):
-    # Create labels based on actual data shape
-    n_conditions = sim_brain_data.shape[0]
-    labels = ["condition_" + str(i) for i in range(n_conditions)]
-    # Make face and house special indices for testing
-    if n_conditions >= 4:
-        labels[3] = "face"
-    if n_conditions >= 5:
-        labels[4] = "house"
-
-    # 64 "TRs"
-    fake_timeseries = BrainData([sim_brain_data] * 8)
-
-    return {
-        "z_score": sim_brain_data,
-        "t": sim_brain_data.copy(),
-        "p": sim_brain_data.copy(),
-        "beta": sim_brain_data.copy(),
-        "se": sim_brain_data.copy(),
-        "rsquared": sim_brain_data.copy()[0],  # 1 value per voxel
-        "residual": fake_timeseries - fake_timeseries.mean(),
-        "predicted": fake_timeseries,
-        "labels": labels,
-    }
-
-
-@pytest.fixture(scope="function")
-def small_brain_data_for_cv():
-    """Fast fixture for CV testing: 24 samples, 10 features, 5 voxels.
-
-    Designed for integration tests - small enough to run in <0.1s per test.
-    24 samples divisible by 3 for clean 3-fold CV.
-    """
-    import nibabel as nib
-
-    np.random.seed(42)
-
-    # Create synthetic brain data with 5 voxels arranged in a tiny 3D volume
-    # Shape: (2, 2, 2) spatial dimensions with 1 non-zero voxel gives us flexibility
-    # We'll create 24 timepoints (samples) with 5 active voxels
-    # Use a simple mask approach
-    spatial_shape = (3, 2, 1)  # Small 3D volume with 6 voxels total
-    n_samples = 24
-    n_voxels = 5
-
-    # Create 4D data: (3, 2, 1, 24) but we'll only use 5 voxels
-    # Create mask: first 5 voxels are active
-    mask_data = np.zeros(spatial_shape, dtype=bool)
-    mask_data.flat[:n_voxels] = True
-
-    # Create random data for active voxels
-    y_data_1d = np.random.randn(n_samples, n_voxels)
-
-    # Construct 4D volume
-    volume_4d = np.zeros(spatial_shape + (n_samples,))
-    for t in range(n_samples):
-        volume_t = np.zeros(spatial_shape)
-        volume_t.flat[:n_voxels] = y_data_1d[t]
-        volume_4d[..., t] = volume_t
-
-    # Create nibabel image with identity affine
-    affine = np.eye(4)
-    nifti_img = nib.Nifti1Image(volume_4d, affine)
-    mask_img = nib.Nifti1Image(mask_data.astype(np.float32), affine)
-
-    # Create BrainData from nibabel image with mask
-    brain_data = BrainData(nifti_img, mask=mask_img)
-
-    # Create corresponding features
-    X = np.random.randn(n_samples, 10)
-
-    return brain_data, X
-
-
-@pytest.fixture(scope="function")
-def tiny_brain_data_for_cv():
-    """Minimal fixture for error/edge case testing: 6 samples, 5 features, 3 voxels.
-
-    Used for testing insufficient samples errors and validation logic.
-    """
-    import nibabel as nib
-
-    np.random.seed(42)
-
-    # Small 3D volume
-    spatial_shape = (2, 2, 1)
-    n_samples = 6
-    n_voxels = 3
-
-    # Create mask: first 3 voxels active
-    mask_data = np.zeros(spatial_shape, dtype=bool)
-    mask_data.flat[:n_voxels] = True
-
-    # Create random data
-    y_data_1d = np.random.randn(n_samples, n_voxels)
-
-    # Construct 4D volume
-    volume_4d = np.zeros(spatial_shape + (n_samples,))
-    for t in range(n_samples):
-        volume_t = np.zeros(spatial_shape)
-        volume_t.flat[:n_voxels] = y_data_1d[t]
-        volume_4d[..., t] = volume_t
-
-    # Create nibabel images
-    affine = np.eye(4)
-    nifti_img = nib.Nifti1Image(volume_4d, affine)
-    mask_img = nib.Nifti1Image(mask_data.astype(np.float32), affine)
-
-    # Create BrainData
-    brain_data = BrainData(nifti_img, mask=mask_img)
-    X = np.random.randn(n_samples, 5)
-
-    return brain_data, X
 
 
 # ============================================================================

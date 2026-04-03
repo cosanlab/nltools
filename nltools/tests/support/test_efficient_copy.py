@@ -12,6 +12,7 @@ import numpy as np
 import time
 from copy import deepcopy
 from nltools.data import BrainData
+from nltools.data.braindata.utils import shallow_copy
 from nltools.mask import create_sphere
 import pandas as pd
 
@@ -20,7 +21,7 @@ def test_shallow_copy_with_data(sim_brain_data):
     """Test that _shallow_copy_with_data works correctly"""
 
     # Create shallow copy
-    copied = sim_brain_data._shallow_copy_with_data()
+    copied = shallow_copy(sim_brain_data)
 
     # Should share mask and nifti_masker
     assert copied.mask is sim_brain_data.mask
@@ -123,7 +124,7 @@ def test_comparison_with_deepcopy():
 
     # Measure shallow copy time
     start = time.time()
-    shallow_copied = brain._shallow_copy_with_data()
+    shallow_copied = shallow_copy(brain)
     shallow_time = time.time() - start
 
     # Shallow copy should be much faster
@@ -143,7 +144,7 @@ def test_shallow_copy_is_truly_shallow(sim_brain_data):
     sim_brain_data.test_X = pd.DataFrame({"col1": [1, 2, 3]})
 
     # Create shallow copy
-    copied = sim_brain_data._shallow_copy_with_data()
+    copied = shallow_copy(sim_brain_data)
 
     # These should be SHARED (same object in memory)
     assert id(copied.mask) == id(sim_brain_data.mask), "mask should be shared"
