@@ -8,6 +8,8 @@ import pytest
 from nltools.algorithms.ridge.solvers import solve_banded_ridge_cv
 from nltools.algorithms.ridge.utils import generate_dirichlet_samples
 
+pytestmark = pytest.mark.slow
+
 
 def test_generate_dirichlet_samples():
     """Test Dirichlet sampling utility."""

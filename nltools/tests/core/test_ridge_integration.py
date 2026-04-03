@@ -12,6 +12,8 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose, assert_array_equal
 
+pytestmark = pytest.mark.slow
+
 
 class TestBackwardCompatibility:
     """Ensure old API still works for backward compatibility."""

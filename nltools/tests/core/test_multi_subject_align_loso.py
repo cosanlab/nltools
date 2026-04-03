@@ -11,9 +11,10 @@ passing them the list of training subjects instead of concatenated data.
 
 import numpy as np
 import pytest
-
 from nltools.pipelines.cv import CVScheme
 from nltools.pipelines.multi_subject import MultiSubjectPipeline
+
+pytestmark = pytest.mark.slow
 
 
 class TestMultiSubjectAlignLOSO:

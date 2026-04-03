@@ -14,6 +14,7 @@ def test_simulator(tmpdir):
     assert len(dat.Y) == n_reps * len(y)
 
 
+@pytest.mark.slow
 def test_simulategrid_fpr(tmpdir):
     grid_width = 10
     n_subjects = 25
@@ -40,6 +41,7 @@ def test_simulategrid_fpr(tmpdir):
     assert np.sum(simulation.multiple_fp > 0) / n_simulations <= (thresh + 0.03)
 
 
+@pytest.mark.slow
 def test_simulategrid_fdr(tmpdir):
     grid_width = 100
     n_subjects = 25

@@ -319,6 +319,7 @@ class TestAdjacency:
             > 0.5
         )
 
+    @pytest.mark.slow
     def test_similarity_matrix_permutation(self):
         """Test similarity with 2D matrix permutation."""
         # Create a positive definite covariance matrix
@@ -335,6 +336,7 @@ class TestAdjacency:
         stats = x.similarity(y, perm_type=None)
         assert (stats["correlation"] > 0.4) & (stats["correlation"] < 0.85)
 
+    @pytest.mark.slow
     def test_directed_similarity(self):
         """Test similarity for directed matrices."""
         # Create a positive definite covariance matrix
@@ -449,6 +451,7 @@ class TestAdjacency:
         with pytest.raises(ValueError, match="nan_policy must be"):
             x.similarity(y, perm_type=None, nan_policy="invalid")
 
+    @pytest.mark.slow
     def test_similarity_nan_handling_perm_types(self):
         """Test NaN handling works with all perm_type options (#432).
 
@@ -491,6 +494,7 @@ class TestAdjacency:
 
     # ==================== Statistical Methods ====================
 
+    @pytest.mark.slow
     def test_ttest(self, sim_adjacency_multiple):
         """Test t-test with and without permutation."""
         out = sim_adjacency_multiple.ttest()
@@ -504,6 +508,7 @@ class TestAdjacency:
         assert out["t"].shape[0] == sim_adjacency_multiple.shape[1]
         assert out["p"].shape[0] == sim_adjacency_multiple.shape[1]
 
+    @pytest.mark.slow
     def test_bootstrap(self, sim_adjacency_multiple):
         """Test bootstrap resampling."""
         n_samples = 50
@@ -519,6 +524,7 @@ class TestAdjacency:
         assert isinstance(boot["Z"], Adjacency)
         assert isinstance(boot["std"], Adjacency)
 
+    @pytest.mark.slow
     def test_bootstrap_save_boots(self, sim_adjacency_multiple):
         """Test bootstrap with save_boots parameter."""
         n_samples = 50
@@ -530,6 +536,7 @@ class TestAdjacency:
         assert "samples" in result
         assert result["samples"].shape[0] == n_samples
 
+    @pytest.mark.slow
     def test_bootstrap_all_simple_stats(self, sim_adjacency_multiple):
         """Test all simple stats work."""
         n_samples = 50
@@ -542,6 +549,7 @@ class TestAdjacency:
             assert "Z" in boot
             assert isinstance(boot["Z"], Adjacency)
 
+    @pytest.mark.slow
     def test_bootstrap_reproducibility(self, sim_adjacency_multiple):
         """Test same random_state produces identical results."""
         n_samples = 50

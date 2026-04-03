@@ -9,6 +9,8 @@ import numpy as np
 import pytest
 from nltools.models import BaseModel, Ridge
 
+pytestmark = pytest.mark.slow
+
 
 # ============================================================================
 # Helper Functions

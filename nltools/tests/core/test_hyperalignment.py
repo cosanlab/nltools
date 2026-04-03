@@ -13,6 +13,8 @@ References:
 import numpy as np
 import pytest
 
+pytestmark = pytest.mark.slow
+
 
 # ========== MODULE-SCOPED FIXTURES ==========
 # Reduce redundant computation by sharing fitted models across tests

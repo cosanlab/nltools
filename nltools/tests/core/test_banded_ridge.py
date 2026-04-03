@@ -11,6 +11,8 @@ import pytest
 import numpy as np
 from sklearn.model_selection import KFold
 
+pytestmark = pytest.mark.slow
+
 
 def _torch_available():
     """Check if PyTorch is available."""

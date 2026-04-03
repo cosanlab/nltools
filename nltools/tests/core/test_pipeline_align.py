@@ -8,8 +8,9 @@ Tests cover:
 
 import numpy as np
 import pytest
-
 from nltools.pipelines.steps import AlignStep, FittedAlign
+
+pytestmark = pytest.mark.slow
 
 
 class TestAlignStep:

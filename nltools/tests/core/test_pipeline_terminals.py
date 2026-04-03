@@ -8,10 +8,11 @@ Tests cover:
 
 import numpy as np
 import pytest
-
 from nltools.pipelines.base import FittedStack
 from nltools.pipelines.results import CVResult, FoldResult
 from nltools.pipelines.terminals import PredictTerminal
+
+pytestmark = pytest.mark.slow
 
 
 class TestFoldResult:

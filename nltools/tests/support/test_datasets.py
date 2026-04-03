@@ -151,6 +151,7 @@ class TestDeprecatedFunctions:
 class TestIntegration:
     """Integration tests that require network access"""
 
+    @pytest.mark.slow
     def test_real_collection_download(self):
         """Test downloading a real collection (requires internet)"""
         try:

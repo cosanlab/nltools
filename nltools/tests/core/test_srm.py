@@ -12,6 +12,8 @@ import numpy as np
 from nltools.algorithms.srm import SRM, DetSRM
 from sklearn.exceptions import NotFittedError
 
+pytestmark = pytest.mark.slow
+
 
 # ========== FIXTURES ==========
 # Module-scoped fixtures reduce redundant computation across tests
