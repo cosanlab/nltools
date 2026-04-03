@@ -113,7 +113,7 @@ def expand_mask(mask, custom_mask=None):
     tmp = []
     for i in np.nonzero(np.unique(mask.data))[0]:
         tmp.append((mask.data == i) * 1)
-    out = mask.empty()
+    out = mask.create_empty()
     out.data = np.array(tmp)
     return out
 
@@ -142,7 +142,7 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
 
     if len(mask.shape) > 1:
         if len(mask) > 1:
-            out = mask.empty()
+            out = mask.create_empty()
 
             # Create list of masks and find any overlaps
             m_list = []

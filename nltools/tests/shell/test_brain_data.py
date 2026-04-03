@@ -2663,7 +2663,7 @@ class TestBrainData:
         # Basic sanity checks
         assert isinstance(result, BrainData)
         assert result.shape == brain.shape
-        assert not result.isempty
+        assert not result.is_empty
 
     # ==================== Similarity & Analysis ====================
 

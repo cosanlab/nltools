@@ -12,10 +12,7 @@ __all__ = ["DesignMatrix"]
 import numpy as np
 import pandas as pd
 import polars as pl
-from polars import selectors as cs
 from typing import Union, List, Optional
-from scipy.special import legendre
-from ..stats import make_cosine_basis
 
 
 class DesignMatrix:
@@ -255,25 +252,9 @@ class DesignMatrix:
         Returns:
             DesignMatrix: New DesignMatrix with standardized columns
         """
-        # Determine which columns to z-score
-        if columns is None:
-            # Default: all columns except polynomials
-            columns_to_zscore = self._get_data_columns(exclude_polys=True)
-        else:
-            columns_to_zscore = columns
+        from .transforms import zscore
 
-        # Build Polars expressions for z-scoring
-        # For each column: (col - mean) / std
-        zscore_exprs = [
-            ((pl.col(col) - pl.col(col).mean()) / pl.col(col).std()).alias(col)
-            for col in columns_to_zscore
-        ]
-
-        # Use .with_columns() to replace only the zscored columns
-        # (automatically preserves untouched columns - idiomatic Polars pattern)
-        zscored_df = self._df.with_columns(zscore_exprs)
-
-        return self._copy_with(zscored_df)
+        return zscore(self, columns)
 
     def standardize(
         self, method: str = "zscore", columns: Optional[List[str]] = None
@@ -301,27 +282,9 @@ class DesignMatrix:
             >>> dm_z = dm.standardize(method='zscore')  # z-score all columns
             >>> dm_c = dm.standardize(method='center')  # center only
         """
-        if method == "zscore":
-            return self.zscore(columns=columns)
-        elif method == "center":
-            # Determine which columns to center
-            if columns is None:
-                columns_to_center = self._get_data_columns(exclude_polys=True)
-            else:
-                columns_to_center = columns
+        from .transforms import standardize
 
-            # Build Polars expressions for centering: (col - mean)
-            center_exprs = [
-                (pl.col(col) - pl.col(col).mean()).alias(col)
-                for col in columns_to_center
-            ]
-
-            centered_df = self._df.with_columns(center_exprs)
-            return self._copy_with(centered_df)
-        else:
-            raise ValueError(
-                f"Invalid method '{method}'. Must be 'zscore' or 'center'."
-            )
+        return standardize(self, columns, method)
 
     def downsample(
         self, target: float, method: str = "mean", **kwargs
@@ -341,57 +304,9 @@ class DesignMatrix:
             >>> dm = DesignMatrix({"a": list(range(100))}, sampling_freq=1.0)
             >>> dm_down = dm.downsample(target=0.5)  # 1 Hz → 0.5 Hz (100 → 50 samples)
         """
-        if self.sampling_freq is None:
-            raise ValueError(
-                "DesignMatrix must have sampling_freq set for downsampling. "
-                "Specify sampling_freq when creating: DesignMatrix(..., sampling_freq=0.5)"
-            )
+        from .transforms import downsample
 
-        if target >= self.sampling_freq:
-            raise ValueError(
-                f"Downsampling target ({target} Hz) must be less than current sampling_freq "
-                f"({self.sampling_freq} Hz). For upsampling, use .upsample() instead."
-            )
-
-        if method not in ("mean", "median"):
-            raise ValueError("method must be 'mean' or 'median'")
-
-        # Calculate n_samples (number of original samples per downsampled sample)
-        # This replicates stats.downsample() logic: n_samples = sampling_freq / target
-        n_samples = self.sampling_freq / target
-
-        # Create grouping indices: [0,0,..., 1,1,..., 2,2,...] with n_samples repetitions
-        # This replicates: np.repeat(np.arange(1, data.shape[0] / n_samples, 1), n_samples)
-        # Note: stats.downsample starts at 1, but we start at 0 (doesn't affect grouping)
-        n_groups = int(self.shape[0] / n_samples)
-        idx = pl.Series(np.repeat(np.arange(n_groups), int(n_samples)))
-
-        # Handle remainder samples (last incomplete group)
-        if self.shape[0] > len(idx):
-            remainder = pl.Series(np.repeat(idx[-1] + 1, self.shape[0] - len(idx)))
-            idx = pl.concat([idx, remainder])
-
-        # Add grouping index to dataframe
-        df_with_idx = self._df.with_columns(idx.alias("_group_idx"))
-
-        # Get all data columns
-        data_cols = self._get_data_columns(exclude_polys=False)
-
-        # Group by index and aggregate
-        if method == "mean":
-            downsampled_df = (
-                df_with_idx.group_by("_group_idx", maintain_order=True)
-                .agg([pl.col(col).mean() for col in data_cols])
-                .drop("_group_idx")
-            )
-        else:  # median
-            downsampled_df = (
-                df_with_idx.group_by("_group_idx", maintain_order=True)
-                .agg([pl.col(col).median() for col in data_cols])
-                .drop("_group_idx")
-            )
-
-        return self._copy_with(downsampled_df, sampling_freq=target)
+        return downsample(self, target, method=method, **kwargs)
 
     def upsample(
         self, target: float, method: str = "linear", **kwargs
@@ -411,49 +326,9 @@ class DesignMatrix:
             >>> dm = DesignMatrix({"a": list(range(10))}, sampling_freq=1.0)
             >>> dm_up = dm.upsample(target=2.0)  # 1 Hz → 2 Hz (10 → 19 samples)
         """
-        from scipy.interpolate import interp1d
+        from .transforms import upsample
 
-        if self.sampling_freq is None:
-            raise ValueError(
-                "DesignMatrix must have sampling_freq set for upsampling. "
-                "Specify sampling_freq when creating: DesignMatrix(..., sampling_freq=0.5)"
-            )
-
-        if target <= self.sampling_freq:
-            raise ValueError(
-                f"Upsampling target ({target} Hz) must be greater than current sampling_freq "
-                f"({self.sampling_freq} Hz). For downsampling, use .downsample() instead."
-            )
-
-        if method not in ("linear", "nearest"):
-            raise ValueError("method must be 'linear' or 'nearest'")
-
-        # Calculate step size (this matches stats.upsample logic)
-        # For hz target_type: n_samples = sampling_freq / target
-        step_size = self.sampling_freq / target
-
-        # Create original and new index arrays (matches stats.upsample)
-        orig_indices = np.arange(0, self.shape[0], 1)
-        new_indices = np.arange(0, self.shape[0] - 1, step_size)
-
-        # Get all data columns (including polynomials - upsample everything)
-        data_cols = self._get_data_columns(exclude_polys=False)
-
-        # Interpolate each column using scipy (matches stats.upsample)
-        upsampled_data = {}
-        for col in data_cols:
-            col_data = self._df[col].to_numpy()
-
-            # Create interpolation function
-            interpolate = interp1d(orig_indices, col_data, kind=method)
-
-            # Interpolate to new indices
-            upsampled_data[col] = interpolate(new_indices)
-
-        # Create new Polars DataFrame
-        upsampled_df = pl.DataFrame(upsampled_data)
-
-        return self._copy_with(upsampled_df, sampling_freq=target)
+        return upsample(self, target, method, **kwargs)
 
     # ==================== Convolution ====================
 
@@ -485,79 +360,9 @@ class DesignMatrix:
             >>> kernels = np.array([[1.0, 0.5], [0.5, 1.0]]).T  # 2 kernels
             >>> dm_conv = dm.convolve(conv_func=kernels)  # Creates col_c0, col_c1
         """
-        from ..algorithms.hrf import glover_hrf
+        from .regressors import convolve
 
-        if self.sampling_freq is None:
-            raise ValueError(
-                "DesignMatrix must have sampling_freq set for convolution. "
-                "Specify sampling_freq when creating: DesignMatrix(..., sampling_freq=0.5)"
-            )
-
-        # Determine which columns to convolve
-        if columns is None:
-            # Default: all columns except polynomials
-            columns_to_convolve = self._get_data_columns(exclude_polys=True)
-        else:
-            columns_to_convolve = columns
-
-        # Get the convolution kernel
-        if isinstance(conv_func, str):
-            if conv_func != "hrf":
-                raise ValueError(
-                    f"String conv_func must be 'hrf', got '{conv_func}'. "
-                    "Use conv_func='hrf' or provide a numpy array. "
-                    "Tip: Use nltools.utils.glover_hrf() to generate custom HRFs."
-                )
-            # Generate Glover HRF at this sampling frequency
-            # TR = 1 / sampling_freq
-            conv_func = glover_hrf(1.0 / self.sampling_freq, oversampling=1.0)
-        elif isinstance(conv_func, np.ndarray):
-            if len(conv_func.shape) > 2:
-                raise ValueError(
-                    f"HRF function must be 1D (shape: (samples,)) or 2D (shape: (samples, n_kernels)). "
-                    f"Got shape: {conv_func.shape}. "
-                    "Tip: Use nltools.utils.glover_hrf() to generate HRFs."
-                )
-        else:
-            raise TypeError(
-                f"conv_func must be 'hrf' (str) or numpy array, got {type(conv_func).__name__}. "
-                "Tip: Use conv_func='hrf' for canonical HRF."
-            )
-
-        # Perform convolution
-        n_rows = self.shape[0]
-
-        if len(conv_func.shape) == 1:
-            # Single kernel: keep original column names (replace in-place)
-            convolved_series = []
-            for col in columns_to_convolve:
-                # Convert to numpy for convolution operation
-                # NECESSARY: np.convolve requires numpy arrays (no Polars equivalent)
-                col_data = self._df[col].to_numpy()
-                convolved = np.convolve(col_data, conv_func)[:n_rows]
-                convolved_series.append(pl.Series(col, convolved))
-
-            # Use .with_columns() to replace only convolved columns
-            # (automatically preserves non-convolved columns and column order)
-            new_df = self._df.with_columns(convolved_series)
-
-        else:
-            # Multiple kernels: shape is (samples, n_kernels)
-            n_kernels = conv_func.shape[1]
-            convolved_series = []
-
-            for col in columns_to_convolve:
-                col_data = self._df[col].to_numpy()
-                for k_idx in range(n_kernels):
-                    kernel = conv_func[:, k_idx]
-                    convolved = np.convolve(col_data, kernel)[:n_rows]
-                    convolved_series.append(pl.Series(f"{col}_c{k_idx}", convolved))
-
-            # Drop original columns, add convolved variants (idiomatic Polars pattern)
-            new_df = self._df.drop(columns_to_convolve).with_columns(convolved_series)
-
-        # Update metadata
-        return self._copy_with(new_df, convolved=columns_to_convolve)
+        return convolve(self, conv_func, columns)
 
     # ==================== Polynomial/Basis Functions ====================
 
@@ -569,54 +374,9 @@ class DesignMatrix:
             order (int): Polynomial order (0=intercept, 1=linear, 2=quadratic, ...)
             include_lower (bool): If True, include all orders from 0 to order
         """
-        if order < 0:
-            raise ValueError(
-                f"Polynomial order must be >= 0, got {order}. "
-                "Common orders: 0 (intercept only), 1 (linear trend), 2 (quadratic), 3 (cubic)."
-            )
+        from .regressors import add_poly
 
-        # Check for ambiguous polynomials from previous append operations
-        if self.polys and any(elem.count("_") == 2 for elem in self.polys):
-            raise ValueError(
-                "This Design Matrix contains polynomial terms that were kept "
-                "separate from a previous append operation. This makes it ambiguous "
-                "for adding polynomial terms. Try calling .add_poly() on each "
-                "separate Design Matrix before appending them instead."
-            )
-
-        # Determine which polynomials to add
-        if include_lower:
-            orders_to_add = range(order + 1)
-        else:
-            orders_to_add = [order]
-
-        # Check if we already have these polynomials (idempotent)
-        new_poly_cols = {}
-        for i in orders_to_add:
-            poly_name = f"poly_{i}"
-            if poly_name in self.polys:
-                print(f"Design Matrix already has {i}th order polynomial...skipping")
-            else:
-                # Create normalized Legendre polynomial over [-1, 1]
-                norm_order = np.linspace(-1, 1, self.shape[0])
-                poly_values = legendre(i)(norm_order)
-                new_poly_cols[poly_name] = poly_values
-
-        # If no new polynomials to add, return self unchanged
-        if not new_poly_cols:
-            return self
-
-        # Add new polynomial columns using Polars .with_columns()
-        new_df = self._df.with_columns(
-            [pl.Series(name, values) for name, values in new_poly_cols.items()]
-        )
-
-        # Update polys metadata
-        new_polys = self.polys.copy() if self.polys else []
-        new_polys.extend(new_poly_cols.keys())
-
-        # Return new DesignMatrix with updated data and metadata
-        return self._copy_with(new_df, polys=new_polys)
+        return add_poly(self, order, include_lower)
 
     def add_dct_basis(self, duration: float = 180, drop: int = 0) -> "DesignMatrix":
         """
@@ -626,65 +386,9 @@ class DesignMatrix:
             duration (float): Filter duration in seconds
             drop (int): Number of low-frequency bases to drop
         """
-        if self.sampling_freq is None:
-            raise ValueError(
-                "DesignMatrix must have sampling_freq set for DCT basis functions. "
-                "Specify sampling_freq when creating: DesignMatrix(..., sampling_freq=0.5)"
-            )
+        from .regressors import add_dct_basis
 
-        # Check for ambiguous cosine bases from previous append operations
-        if self.polys and any(
-            elem.count("_") == 2 and "cosine" in elem for elem in self.polys
-        ):
-            raise ValueError(
-                "This Design Matrix contains cosine bases that were kept "
-                "separate from a previous append operation. This makes it ambiguous "
-                "for adding polynomial terms. Try calling .add_dct_basis() on each "
-                "separate Design Matrix before appending them instead."
-            )
-
-        # Create DCT basis matrix using stats function
-        basis_mat = make_cosine_basis(
-            self.shape[0], 1.0 / self.sampling_freq, duration, drop=drop
-        )
-
-        # Generate column names (cosine_1, cosine_2, ...)
-        # Note: If drop > 0, numbering starts from drop+1 to reflect original indices
-        # e.g., drop=2 -> cosine_3, cosine_4, ... (skipped cosine_1, cosine_2)
-        basis_col_names = [f"cosine_{drop + i + 1}" for i in range(basis_mat.shape[1])]
-
-        # Check which bases we don't already have (idempotent)
-        if self.polys:
-            basis_to_add = [name for name in basis_col_names if name not in self.polys]
-        else:
-            basis_to_add = basis_col_names
-
-        # If no new bases to add, return self unchanged
-        if not basis_to_add:
-            print("All basis functions already exist...skipping")
-            return self
-
-        # Print message if only adding some bases
-        if len(basis_to_add) < len(basis_col_names):
-            print("Some basis functions already exist...skipping")
-
-        # Add new cosine basis columns
-        # Only add the columns we don't already have
-        new_basis_cols = {}
-        for i, name in enumerate(basis_col_names):
-            if name in basis_to_add:
-                new_basis_cols[name] = basis_mat[:, i]
-
-        new_df = self._df.with_columns(
-            [pl.Series(name, values) for name, values in new_basis_cols.items()]
-        )
-
-        # Update polys metadata
-        new_polys = self.polys.copy() if self.polys else []
-        new_polys.extend(new_basis_cols.keys())
-
-        # Return new DesignMatrix with updated data and metadata
-        return self._copy_with(new_df, polys=new_polys)
+        return add_dct_basis(self, duration, drop)
 
     # ==================== Concatenation ====================
 
@@ -708,25 +412,9 @@ class DesignMatrix:
             fill_na (int or float): Value to fill NaN values during vertical concatenation
             verbose (bool): Print messages about polynomial separation
         """
-        # Normalize to list
-        to_append = [dm] if not isinstance(dm, list) else dm
+        from .append import append
 
-        # Validate all are DesignMatrix with same sampling_freq
-        if not all(isinstance(elem, DesignMatrix) for elem in to_append):
-            raise TypeError("All items to append must be DesignMatrix objects")
-        if not all(elem.sampling_freq == self.sampling_freq for elem in to_append):
-            raise ValueError(
-                "All Design Matrices must have the same sampling frequency!"
-            )
-
-        if axis == 1:
-            return self._append_horizontal(to_append, fill_na)
-        elif axis == 0:
-            return self._append_vertical(
-                to_append, keep_separate, unique_cols, fill_na, verbose
-            )
-        else:
-            raise ValueError("axis must be 0 (vertical) or 1 (horizontal)")
+        return append(self, dm, axis, keep_separate, unique_cols, fill_na, verbose)
 
     def _append_horizontal(
         self,
@@ -736,32 +424,9 @@ class DesignMatrix:
         """
         Horizontal concatenation (axis=1) - add columns from other matrices.
         """
-        # Check all have same number of rows
-        if not all(elem.shape[0] == self.shape[0] for elem in to_append):
-            raise ValueError("All Design Matrices must have the same number of rows!")
+        from .append import append_horizontal
 
-        # Warn about duplicate column names
-        all_columns = set(self.columns)
-        for elem in to_append:
-            if not all_columns.isdisjoint(elem.columns):
-                print("Duplicate column names detected. Will be repeated.")
-            all_columns.update(elem.columns)
-
-        # Use Polars hstack to concatenate DataFrames horizontally
-        dfs_to_stack = [self._df] + [elem._df for elem in to_append]
-        new_df = pl.concat(dfs_to_stack, how="horizontal")
-
-        # Fill NaN if requested
-        if fill_na is not None:
-            new_df = new_df.fill_null(fill_na)
-
-        # Combine polys metadata from all matrices
-        all_polys = self.polys.copy() if self.polys else []
-        for elem in to_append:
-            if elem.polys:
-                all_polys.extend(elem.polys)
-
-        return self._copy_with(new_df, polys=all_polys)
+        return append_horizontal(self, to_append, fill_na)
 
     def _append_vertical(
         self,
@@ -774,29 +439,10 @@ class DesignMatrix:
         """
         Vertical concatenation (axis=0) - stack rows, with optional polynomial separation.
         """
-        # Simple case: keep_separate=False - just stack rows
-        if not keep_separate:
-            dfs_to_stack = [self._df] + [elem._df for elem in to_append]
-            new_df = pl.concat(dfs_to_stack, how="vertical")
+        from .append import append_vertical
 
-            # Fill NaN if requested
-            if fill_na is not None:
-                new_df = new_df.fill_null(fill_na)
-
-            # Combine polys metadata (no separation)
-            all_polys = self.polys.copy() if self.polys else []
-            for elem in to_append:
-                if elem.polys:
-                    # Add new polys we don't already have
-                    for p in elem.polys:
-                        if p not in all_polys:
-                            all_polys.append(p)
-
-            return self._copy_with(new_df, polys=all_polys)
-
-        # Complex case: keep_separate=True - separate polynomial columns across runs
-        return self._append_vertical_with_separation(
-            to_append, unique_cols, fill_na, verbose
+        return append_vertical(
+            self, to_append, keep_separate, unique_cols, fill_na, verbose
         )
 
     def _match_column_pattern(self, columns: List[str], pattern: str) -> List[str]:
@@ -810,14 +456,9 @@ class DesignMatrix:
                 - '*_motion' matches x_motion, y_motion
                 - 'exact' matches only 'exact'
         """
-        if pattern.endswith("*"):
-            prefix = pattern[:-1]
-            return [c for c in columns if c.startswith(prefix)]
-        elif pattern.startswith("*"):
-            suffix = pattern[1:]
-            return [c for c in columns if c.endswith(suffix)]
-        else:
-            return [c for c in columns if c == pattern]
+        from .append import match_column_pattern
+
+        return match_column_pattern(columns, pattern)
 
     def _get_starting_run_idx(self) -> int:
         """
@@ -826,19 +467,9 @@ class DesignMatrix:
         Returns:
             int: Next run index (0 if not multi-run, max_existing_idx + 1 otherwise)
         """
-        if not self.multi:
-            return 0
+        from .append import get_starting_run_idx
 
-        # Find max run index from column names like "0_poly_0", "1_motion_x"
-        max_idx = -1
-        for col in self.columns:
-            if "_" in col:
-                first_part = col.split("_")[0]
-                if first_part.isdigit():
-                    idx = int(first_part)
-                    max_idx = max(max_idx, idx)
-
-        return max_idx + 1 if max_idx >= 0 else 0
+        return get_starting_run_idx(self)
 
     def _identify_columns_to_separate(
         self, all_dms: List["DesignMatrix"], unique_cols: Optional[List[str]]
@@ -853,27 +484,9 @@ class DesignMatrix:
         Returns:
             set: Column names that should be separated with run prefixes
         """
-        cols_to_sep = set()
+        from .append import identify_columns_to_separate
 
-        # Add polynomial columns from non-multi DMs only
-        # (Multi-run DMs already have separated polynomials)
-        for dm in all_dms:
-            if dm.polys and not dm.multi:
-                cols_to_sep.update(dm.polys)
-
-        # Add unique_cols with wildcard matching
-        if unique_cols:
-            # Collect all column names across all DMs
-            all_column_names = set()
-            for dm in all_dms:
-                all_column_names.update(dm.columns)
-
-            # Match each pattern
-            for pattern in unique_cols:
-                matched = self._match_column_pattern(list(all_column_names), pattern)
-                cols_to_sep.update(matched)
-
-        return cols_to_sep
+        return identify_columns_to_separate(self, all_dms, unique_cols)
 
     def _append_vertical_with_separation(
         self,
@@ -888,74 +501,11 @@ class DesignMatrix:
         This creates run-specific columns (e.g., 0_poly_0, 1_poly_0) that are
         active only in their respective runs (sparse representation).
         """
-        # Handle two cases differently:
-        # 1. Self is NOT multi: process all DMs with sequential numbering
-        # 2. Self IS multi: keep self unchanged, only process to_append DMs
+        from .append import append_vertical_with_separation
 
-        if not self.multi:
-            # Case 1: Standard multi-run creation
-            all_dms = [self] + to_append
-            cols_to_sep = self._identify_columns_to_separate(all_dms, unique_cols)
-
-            if verbose and cols_to_sep:
-                print(f"Separating columns across runs: {sorted(cols_to_sep)}")
-
-            processed_dfs = []
-            all_new_polys = []
-
-            for i, dm in enumerate(all_dms):
-                # Build rename mapping for separated columns
-                rename_map = {
-                    col: f"{i}_{col}" for col in dm.columns if col in cols_to_sep
-                }
-
-                # Rename and collect
-                processed_df = dm._df.rename(rename_map) if rename_map else dm._df
-                processed_dfs.append(processed_df)
-
-                # Track renamed polys
-                for poly in dm.polys:
-                    if poly in rename_map:
-                        all_new_polys.append(rename_map[poly])
-
-        else:
-            # Case 2: Appending to existing multi-run DM
-            start_idx = self._get_starting_run_idx()
-            cols_to_sep = self._identify_columns_to_separate(to_append, unique_cols)
-
-            if verbose and cols_to_sep:
-                print(f"Separating columns across runs: {sorted(cols_to_sep)}")
-
-            # Keep self's DataFrame unchanged
-            processed_dfs = [self._df]
-            all_new_polys = self.polys.copy() if self.polys else []
-
-            # Process only the DMs being appended
-            for i, dm in enumerate(to_append):
-                run_idx = start_idx + i
-
-                # Build rename mapping for separated columns
-                rename_map = {
-                    col: f"{run_idx}_{col}" for col in dm.columns if col in cols_to_sep
-                }
-
-                # Rename and collect
-                processed_df = dm._df.rename(rename_map) if rename_map else dm._df
-                processed_dfs.append(processed_df)
-
-                # Track renamed polys
-                for poly in dm.polys:
-                    if poly in rename_map:
-                        all_new_polys.append(rename_map[poly])
-
-        # Concatenate with diagonal (auto-fills missing columns with null)
-        result_df = pl.concat(processed_dfs, how="diagonal")
-
-        # Fill nulls with fill_na value (creates sparse separation)
-        result_df = result_df.fill_null(fill_na)
-
-        # Return with updated metadata
-        return self._copy_with(result_df, polys=all_new_polys, multi=True)
+        return append_vertical_with_separation(
+            self, to_append, unique_cols, fill_na, verbose
+        )
 
     # ==================== Diagnostics ====================
 
@@ -972,48 +522,9 @@ class DesignMatrix:
         Returns:
             np.ndarray: VIF values for each non-polynomial column
         """
-        if self.shape[1] <= 1:
-            raise ValueError(
-                "Can't compute VIF with only 1 column! "
-                "VIF measures multicollinearity and requires at least 2 columns. "
-                f"Your DesignMatrix has shape {self.shape}."
-            )
+        from .diagnostics import vif
 
-        # Determine which columns to include (using polars selectors for declarative filtering)
-        if exclude_polys and self.polys:
-            # Use polars selector: "select all columns except polynomial terms"
-            subset_df = self._df.select(cs.exclude(self.polys))
-        elif exclude_polys:
-            # No polys to exclude, use all columns
-            subset_df = self._df
-        else:
-            # Always exclude intercept (poly_0) columns even when exclude_polys=False
-            cols_to_use = [c for c in self.columns if "poly_0" not in c]
-            subset_df = self._df.select(cols_to_use)
-
-        # Edge case: single column has VIF = 1 (no multicollinearity)
-        if subset_df.shape[1] == 1:
-            return np.array([1.0])
-
-        # Convert to numpy for correlation matrix and linear algebra
-        # NECESSARY: Polars doesn't have correlation matrix or matrix inversion
-        data_array = subset_df.to_numpy()
-
-        # Compute correlation matrix
-        corr_matrix = np.corrcoef(data_array, rowvar=False)
-
-        # Compute VIF = diagonal of inverse correlation matrix
-        try:
-            inv_corr = np.linalg.inv(corr_matrix)
-            return np.diag(inv_corr)
-        except np.linalg.LinAlgError:
-            # Matrix is singular - perfect collinearity detected
-            # Return None and warn user (matches old behavior)
-            print(
-                "ERROR: Cannot compute VIF! Design Matrix is singular because it has "
-                "some perfectly correlated or duplicated columns. Using .clean() may help."
-            )
-            return None
+        return vif(self, exclude_polys)
 
     def clean(
         self,
@@ -1037,84 +548,9 @@ class DesignMatrix:
         Returns:
             DesignMatrix: Cleaned matrix with highly correlated columns removed
         """
-        # Check for duplicate column names
-        if len(self.columns) != len(set(self.columns)):
-            raise ValueError(
-                "Duplicate column names detected. Using .clean() with duplicate "
-                "columns is not supported as it can produce unexpected results."
-            )
+        from .diagnostics import clean
 
-        # Start with a copy
-        result = self
-
-        # Fill NaN if requested
-        if fill_na is not None:
-            result = result.fillna(fill_na)
-
-        # Determine which columns to check for correlation
-        if exclude_polys:
-            cols_to_check = result._get_data_columns(exclude_polys=True)
-        else:
-            cols_to_check = list(result.columns)
-
-        if len(cols_to_check) <= 1:
-            if verbose:
-                print("Only 1 column to check...skipping")
-            return result
-
-        # Compute pairwise correlations and identify columns to drop
-        keep = []
-        remove = []
-
-        # Convert to numpy for pairwise correlation computation
-        # NECESSARY: More efficient than Polars for this operation
-        subset_df = result._df.select(cols_to_check)
-        data_array = subset_df.to_numpy()
-
-        # Check each pair of columns
-        for i in range(len(cols_to_check)):
-            col_i = cols_to_check[i]
-            col_i_data = data_array[:, i]
-
-            for j in range(i + 1, len(cols_to_check)):
-                col_j = cols_to_check[j]
-                col_j_data = data_array[:, j]
-
-                # Skip if already marked for removal or keeping
-                if col_j in keep or col_j in remove:
-                    continue
-
-                # Check for constant arrays (avoid correlation warnings)
-                if np.var(col_i_data) == 0 or np.var(col_j_data) == 0:
-                    r = 0.0
-                else:
-                    # Compute correlation
-                    r = np.abs(np.corrcoef(col_i_data, col_j_data)[0, 1])
-
-                # Mark for removal if correlation exceeds threshold
-                if r >= thresh and col_i not in keep and col_i not in remove:
-                    if verbose:
-                        print(
-                            f"{col_i} and {col_j} correlated at {r:.2f} which is >= "
-                            f"threshold of {thresh}. Dropping {col_j}"
-                        )
-                    keep.append(col_i)
-                    remove.append(col_j)
-
-        # Drop correlated columns
-        if remove:
-            # Drop from DataFrame
-            new_df = result._df.drop(remove)
-
-            # Update polys metadata
-            new_polys = [p for p in result.polys if p not in remove]
-
-            # Return cleaned matrix
-            return result._copy_with(new_df, polys=new_polys)
-        else:
-            if verbose:
-                print("Dropping columns not needed...skipping")
-            return result
+        return clean(self, fill_na, exclude_polys, thresh, verbose)
 
     # ==================== Utilities ====================
 
@@ -1126,17 +562,9 @@ class DesignMatrix:
             str: Formatted string showing sampling_freq, shape, convolved columns,
                 and polynomial columns
         """
-        lines = [
-            f"DesignMatrix(sampling_freq={self.sampling_freq}, shape={self.shape})",
-        ]
+        from .diagnostics import details
 
-        if self.convolved:
-            lines.append(f"  convolved: {self.convolved}")
-
-        if self.polys:
-            lines.append(f"  polys: {self.polys}")
-
-        return "\n".join(lines)
+        return details(self)
 
     def replace_data(
         self,
@@ -1206,32 +634,9 @@ class DesignMatrix:
             >>> dm = DesignMatrix(np.random.randn(100, 3), columns=['a', 'b', 'c'])
             >>> dm.heatmap()
         """
-        import matplotlib.pyplot as plt
-        import seaborn as sns
+        from .io import heatmap
 
-        # Convert to pandas for seaborn (which expects pandas DataFrames)
-        df_for_plot = self._to_pandas()
-
-        # Create figure and axis
-        fig, ax = plt.subplots(figsize=figsize)
-
-        # Set default heatmap parameters
-        heatmap_kwargs = {
-            "cmap": "RdBu_r",
-            "center": 0,
-            "cbar_kws": {"label": "Value"},
-            "yticklabels": False,  # Too many rows for labels typically
-        }
-        heatmap_kwargs.update(kwargs)
-
-        # Create heatmap
-        sns.heatmap(df_for_plot, ax=ax, **heatmap_kwargs)
-
-        # Set labels
-        ax.set_xlabel("Regressors")
-        ax.set_ylabel("Time (TRs)")
-
-        return ax
+        return heatmap(self, figsize, **kwargs)
 
     # ==================== Internal Helpers ====================
 
@@ -1316,7 +721,9 @@ class DesignMatrix:
             >>> type(pd_df)
             <class 'pandas.core.frame.DataFrame'>
         """
-        return pd.DataFrame(self._df.to_dict(as_series=False))
+        from .io import to_pandas
+
+        return to_pandas(self)
 
     def _to_pandas(self) -> pd.DataFrame:
         """Internal method for pandas conversion at library boundaries.
@@ -1327,7 +734,9 @@ class DesignMatrix:
         Returns:
             pd.DataFrame: Pandas DataFrame with same data and column names.
         """
-        return self.to_pandas()
+        from .io import _to_pandas
+
+        return _to_pandas(self)
 
     def to_numpy(self) -> np.ndarray:
         """
@@ -1345,7 +754,9 @@ class DesignMatrix:
             >>> arr.shape
             (3, 2)
         """
-        return self._df.to_numpy()
+        from .io import to_numpy
+
+        return to_numpy(self)
 
     def write(self, file_name: str, sep: str = "\t") -> None:
         """Write DesignMatrix to file.
@@ -1371,17 +782,9 @@ class DesignMatrix:
             TSV format is recommended for BIDS compatibility.
             HDF5 format preserves metadata (sampling_freq, convolved, polys).
         """
-        from pathlib import Path
-        from ..utils import is_h5_path
+        from .io import write
 
-        if isinstance(file_name, Path):
-            file_name = str(file_name)
-
-        if is_h5_path(file_name):
-            self._write_h5(file_name)
-        else:
-            # Write as delimited text file (TSV or CSV)
-            self._df.write_csv(file_name, separator=sep)
+        return write(self, file_name, sep)
 
     def _write_h5(self, file_name: str) -> None:
         """Write DesignMatrix to HDF5 file with metadata.
@@ -1389,27 +792,9 @@ class DesignMatrix:
         Args:
             file_name: Output HDF5 file path.
         """
-        import h5py
+        from .io import write_h5
 
-        with h5py.File(file_name, "w") as f:
-            # Store data
-            f.create_dataset("data", data=self._df.to_numpy(), compression="gzip")
-
-            # Store column names
-            f.create_dataset(
-                "columns",
-                data=np.array(self.columns, dtype="S"),
-                compression="gzip",
-            )
-
-            # Store metadata
-            meta = f.create_group("metadata")
-            if self.sampling_freq is not None:
-                meta.attrs["sampling_freq"] = self.sampling_freq
-            meta.attrs["convolved"] = np.array(self.convolved, dtype="S")
-            meta.attrs["polys"] = np.array(self.polys, dtype="S")
-            meta.attrs["multi"] = self.multi
-            meta.attrs["obj_type"] = "design_matrix"
+        return write_h5(self, file_name)
 
     def __array__(self, dtype=None) -> np.ndarray:
         """

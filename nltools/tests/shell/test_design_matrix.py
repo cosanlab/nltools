@@ -121,7 +121,7 @@ class TestDesignMatrixConstruction:
 
         Expected behavior:
         - Shape (0, 0) for empty matrix
-        - .empty property returns True
+        - .is_empty property returns True
         - Metadata still accessible
 
         Use case: Initialize empty, then add columns iteratively
@@ -129,7 +129,7 @@ class TestDesignMatrixConstruction:
         dm = DesignMatrix(sampling_freq=2)
 
         assert dm.shape == (0, 0)
-        assert dm.empty is True
+        assert dm.is_empty is True
         assert dm.sampling_freq == 2
 
     def test_column_names_are_always_strings(self):
@@ -311,9 +311,9 @@ class TestDesignMatrixDataAccess:
 
         assert dm.columns == ["x", "y"]
 
-    def test_empty_property(self):
+    def test_is_empty_property(self):
         """
-        .empty should return True if no data, False otherwise.
+        .is_empty should return True if no data, False otherwise.
 
         Expected behavior:
         - Empty DesignMatrix returns True
@@ -322,8 +322,21 @@ class TestDesignMatrixDataAccess:
         dm_empty = DesignMatrix(sampling_freq=1)
         dm_full = DesignMatrix({"a": [1]}, sampling_freq=1)
 
-        assert dm_empty.empty is True
-        assert dm_full.empty is False
+        assert dm_empty.is_empty is True
+        assert dm_full.is_empty is False
+
+    def test_empty_property_deprecated(self):
+        """The deprecated .empty property should still work but warn."""
+        import warnings
+
+        dm = DesignMatrix(sampling_freq=1)
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = dm.empty
+            assert result is True
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert "is_empty" in str(w[0].message)
 
     def test_len_returns_number_of_rows(self):
         """
