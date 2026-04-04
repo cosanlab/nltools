@@ -181,11 +181,13 @@ def detect_and_update_mask(bd, data_img):
         return data_img
 
     try:
-        from nltools.utils import detect_best_matching_template
+        from nltools.prefs import MNI_Template
 
         # Detect template from data
-        template_info = detect_best_matching_template(
-            data_img, prefer_exact_match=True, resample_enabled=bd._resample
+        template_info = MNI_Template.match_resolution(
+            data_img.affine,
+            prefer_exact=True,
+            warn_resample=bd._resample,
         )
 
         # Store detected template info

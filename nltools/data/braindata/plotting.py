@@ -47,7 +47,7 @@ def plot_brain(
         Display or matplotlib Figure.
     """
     from nilearn.plotting import plot_glass_brain, plot_stat_map
-    from nltools.utils import get_mni_from_img_resolution
+    from nltools.prefs import MNI_Template
     import matplotlib.pyplot as plt
 
     # Validate inputs
@@ -133,7 +133,7 @@ def plot_brain(
         # Background image selection (respects MNI_Template)
         if bg_img is None:
             try:
-                bg_img = get_mni_from_img_resolution(obj, img_type="brain")
+                bg_img = MNI_Template.get_bg_image(obj.nifti_masker.affine_)
             except ValueError as e:
                 # Handle non-isometric voxels gracefully
                 if "isometric" in str(e).lower():

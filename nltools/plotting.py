@@ -36,9 +36,9 @@ from nilearn.plotting import (
     plot_surf_stat_map,
 )
 from nilearn.surface import vol_to_surf
+from nltools.prefs import MNI_Template
 from nltools.utils import (
     attempt_to_import,
-    get_mni_from_img_resolution,
     get_resource_path,
 )
 import warnings
@@ -231,7 +231,7 @@ def plot_t_brain(
                 cut_coords=c,
                 display_mode=v,
                 cmap=cmap,
-                bg_img=get_mni_from_img_resolution(obj, img_type="brain"),
+                bg_img=MNI_Template.get_bg_image(obj.nifti_masker.affine_),
                 **kwargs,
             )
     elif how == "glass":
@@ -250,7 +250,7 @@ def plot_t_brain(
                 cut_coords=c,
                 display_mode=v,
                 cmap=cmap,
-                bg_img=get_mni_from_img_resolution(obj, img_type="brain"),
+                bg_img=MNI_Template.get_bg_image(obj.nifti_masker.affine_),
                 **kwargs,
             )
     del obj
@@ -335,7 +335,7 @@ def plot_brain(
                 cut_coords=c,
                 display_mode=v,
                 cmap=cmap,
-                bg_img=get_mni_from_img_resolution(obj, img_type="brain"),
+                bg_img=MNI_Template.get_bg_image(obj.nifti_masker.affine_),
                 **kwargs,
             )
             if save:
@@ -358,7 +358,7 @@ def plot_brain(
                 cut_coords=c,
                 display_mode=v,
                 cmap=cmap,
-                bg_img=get_mni_from_img_resolution(obj, img_type="brain"),
+                bg_img=MNI_Template.get_bg_image(obj.nifti_masker.affine_),
                 **kwargs,
             )
             if save:

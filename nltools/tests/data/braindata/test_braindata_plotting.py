@@ -9,7 +9,6 @@ import pytest
 import numpy as np
 from nltools.data import BrainData
 from nltools.prefs import MNI_Template
-from nltools.utils import get_mni_from_img_resolution
 
 
 class TestBrainDataPlotting:
@@ -125,14 +124,11 @@ class TestBrainDataPlotting:
             single_image.plot(kind="invalid")
 
     def test_plot_uses_template_resolution_matcher(self, sim_brain_data):
-        """Test that plot uses get_mni_from_img_resolution() which respects MNI_Template"""
+        """Test that plot uses MNI_Template.get_bg_image() which respects MNI_Template"""
         single_image = sim_brain_data[0]
-        # Verify that plot uses the same logic as get_mni_from_img_resolution
-        expected_bg = get_mni_from_img_resolution(single_image, img_type="brain")
-        # plot() should use this same function internally
-        # This ensures consistency with MNI_Template settings
-        assert expected_bg is not None  # Verify function works
-        result = single_image.plot()  # Should use same logic
+        expected_bg = MNI_Template.get_bg_image(single_image.nifti_masker.affine_)
+        assert expected_bg is not None
+        result = single_image.plot()
         assert result is not None
 
     # ==================== Phase 3: Robustness Tests ====================
