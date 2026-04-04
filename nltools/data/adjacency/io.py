@@ -13,7 +13,7 @@ def write(adj, file_name, method="long"):
         method (str):     method to write out data ['long','square']
 
     """
-    from nltools.utils import is_h5_path, to_h5
+    from nltools.io import is_h5_path, to_h5
 
     if method not in ["long", "square"]:
         raise ValueError('Make sure method is ["long","square"].')
