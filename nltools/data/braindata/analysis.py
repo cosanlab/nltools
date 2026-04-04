@@ -831,13 +831,25 @@ def decompose(bd, algorithm="pca", axis="voxels", n_components=None, *args, **kw
     Returns:
         output: a dictionary of decomposition parameters
     """
-    from nltools.utils import set_decomposition_algorithm
+    import importlib
 
-    out = {
-        "decomposition_object": set_decomposition_algorithm(
-            algorithm=algorithm, n_components=n_components, **kwargs
-        )
+    _decomposition_algs = {
+        "pca": "sklearn.decomposition.PCA",
+        "ica": "sklearn.decomposition.FastICA",
+        "nnmf": "sklearn.decomposition.NMF",
+        "fa": "sklearn.decomposition.FactorAnalysis",
+        "dictionary": "sklearn.decomposition.DictionaryLearning",
+        "kernelpca": "sklearn.decomposition.KernelPCA",
     }
+    if algorithm not in _decomposition_algs:
+        raise ValueError(
+            f"Invalid decomposition algorithm '{algorithm}'. "
+            f"Valid options: {list(_decomposition_algs)}"
+        )
+    module_path, class_name = _decomposition_algs[algorithm].rsplit(".", 1)
+    alg_class = getattr(importlib.import_module(module_path), class_name)
+
+    out = {"decomposition_object": alg_class(n_components, **kwargs)}
 
     if axis == "images":
         out["decomposition_object"].fit(bd.data.T)

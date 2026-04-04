@@ -528,7 +528,9 @@ class LocalAlignment:
         self : LocalAlignment
             Fitted alignment model.
         """
-        from nltools.data.braindata.neighborhoods import compute_searchlight_neighborhoods
+        from nltools.data.braindata.neighborhoods import (
+            compute_searchlight_neighborhoods,
+        )
 
         # Validate inputs
         if not isinstance(data, list) or len(data) < 2:
