@@ -12,10 +12,8 @@ import warnings  # noqa: F401
 import numpy as np
 import pandas as pd
 from copy import deepcopy
-from nltools.utils import (
-    attempt_to_import,
-    check_brain_data,
-)
+from nltools.utils import attempt_to_import
+from .utils import check_brain_data
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:

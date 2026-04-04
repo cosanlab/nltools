@@ -16,8 +16,6 @@ __all__ = [
     "is_h5_path",
     "to_h5",
     "load_brain_data_h5",
-    "check_brain_data",
-    "check_brain_data_is_single",
 ]
 
 import collections
@@ -108,43 +106,6 @@ def concatenate(data):
     else:
         raise ValueError("Make sure all objects in the list are the same type.")
     return out
-
-
-# ---------------------------------------------------------------------------
-# BrainData validation helpers
-# ---------------------------------------------------------------------------
-
-
-def check_brain_data(data, mask=None):
-    """Check if data is a BrainData Instance."""
-    from nltools.data import BrainData
-
-    if not isinstance(data, BrainData):
-        if isinstance(data, nib.Nifti1Image):
-            data = BrainData(data, mask=mask)
-        else:
-            raise ValueError("Make sure data is a BrainData instance.")
-    else:
-        if mask is not None:
-            data = data.apply_mask(mask)
-    return data
-
-
-def check_brain_data_is_single(data):
-    """Logical test if BrainData instance is a single image
-
-    Args:
-        data: brain data
-
-    Returns:
-        (bool)
-
-    """
-    data = check_brain_data(data)
-    if len(data.shape) > 1:
-        return False
-    else:
-        return True
 
 
 # ---------------------------------------------------------------------------

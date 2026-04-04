@@ -56,7 +56,7 @@ def similarity(bd, image, method="correlation"):
 
     """
     from nltools.stats import compute_similarity
-    from nltools.utils import check_brain_data
+    from .utils import check_brain_data
 
     supported_metrics = [
         "correlation",
@@ -116,7 +116,7 @@ def multivariate_similarity(bd, images, method="ols"):
     """
     # Notes:  Should add ridge, and lasso, elastic net options options
     from nltools.stats import compute_multivariate_similarity
-    from nltools.utils import check_brain_data
+    from .utils import check_brain_data
 
     if len(bd.shape) > 1:
         raise ValueError("This method can only decompose a single brain image.")
@@ -157,7 +157,7 @@ def apply_mask(bd, mask, resample_mask_to_brain=False):
     from nilearn.maskers import NiftiMasker
     from nilearn.masking import apply_mask as nilearn_apply_mask
 
-    from nltools.utils import check_brain_data, check_brain_data_is_single
+    from .utils import check_brain_data, check_brain_data_is_single
 
     masked = shallow_copy(bd)
     mask = check_brain_data(mask)
@@ -234,7 +234,7 @@ def extract_roi(bd, mask, metric="mean", n_components=None):
     """
     from nilearn.maskers import NiftiLabelsMasker
 
-    from nltools.utils import check_brain_data, check_brain_data_is_single
+    from .utils import check_brain_data, check_brain_data_is_single
 
     metrics = ["mean", "median", "pca"]
     if metric not in metrics:
@@ -301,7 +301,7 @@ def extract_roi(bd, mask, metric="mean", n_components=None):
 
         elif metric == "pca":
             # For PCA, we need to extract raw data and then apply PCA
-            from nltools.utils import check_brain_data_is_single
+            from .utils import check_brain_data_is_single
 
             if check_brain_data_is_single(bd):
                 raise ValueError("Cannot run PCA on a single image")
@@ -896,7 +896,7 @@ def align(bd, target, method="procrustes", axis=0, *args, **kwargs):
             >>> original_data = np.dot(out['transformed'].data,out['transformation_matrix'].T)
     """
     from nltools.stats import procrustes
-    from nltools.utils import check_brain_data
+    from .utils import check_brain_data
 
     if method not in ["probabilistic_srm", "deterministic_srm", "procrustes"]:
         raise ValueError(
@@ -974,7 +974,7 @@ def smooth(bd, fwhm):
     """
     from nilearn.image import smooth_img
 
-    from nltools.utils import check_brain_data_is_single
+    from .utils import check_brain_data_is_single
 
     # Optimized: Use shallow copy instead of deepcopy, single conversion path
     out = shallow_copy(bd)

@@ -6,10 +6,37 @@ public API.
 
 from copy import deepcopy
 
+import nibabel as nib
 import numpy as np
 import pandas as pd
 
-from nltools.utils import check_brain_data_is_single
+
+def check_brain_data(data, mask=None):
+    """Check if data is a BrainData Instance, coercing Nifti1Image if needed."""
+    from . import BrainData
+
+    if not isinstance(data, BrainData):
+        if isinstance(data, nib.Nifti1Image):
+            data = BrainData(data, mask=mask)
+        else:
+            raise ValueError("Make sure data is a BrainData instance.")
+    else:
+        if mask is not None:
+            data = data.apply_mask(mask)
+    return data
+
+
+def check_brain_data_is_single(data):
+    """Logical test if BrainData instance is a single image.
+
+    Args:
+        data: brain data
+
+    Returns:
+        (bool)
+    """
+    data = check_brain_data(data)
+    return len(data.shape) <= 1
 
 
 def shallow_copy(bd):

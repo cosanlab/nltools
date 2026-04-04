@@ -1,4 +1,4 @@
-from nltools.utils import check_brain_data, check_brain_data_is_single
+from nltools.data.braindata.utils import check_brain_data, check_brain_data_is_single
 from nltools.mask import create_sphere
 from nltools.data import BrainData
 import numpy as np
