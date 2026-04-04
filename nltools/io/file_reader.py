@@ -13,8 +13,8 @@ import numpy as np
 import pandas as pd
 from nilearn.glm.first_level import make_first_level_design_matrix as make_dm
 
-from .algorithms import glover_hrf
-from .data import DesignMatrix
+from nltools.algorithms import glover_hrf
+from nltools.data import DesignMatrix
 
 
 def onsets_to_dm(

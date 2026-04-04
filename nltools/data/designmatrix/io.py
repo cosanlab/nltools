@@ -134,7 +134,7 @@ def write(dm: DesignMatrix, file_name: str, sep: str = "\t") -> None:
     """
     from pathlib import Path
 
-    from nltools.utils import is_h5_path
+    from nltools.io import is_h5_path
 
     if isinstance(file_name, Path):
         file_name = str(file_name)

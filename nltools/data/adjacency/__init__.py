@@ -12,11 +12,11 @@ from h5py import File as h5File
 from scipy.spatial.distance import squareform
 from sklearn.metrics.pairwise import pairwise_distances
 
+from nltools.io import is_h5_path
 from nltools.utils import (
     all_same,
     attempt_to_import,
     concatenate,
-    is_h5_path,
 )
 
 from .utils import (

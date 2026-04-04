@@ -604,7 +604,7 @@ def load_from_h5(bd, file_path, mask):
         mask: User-specified mask (to determine if we should load mask from file).
     """
     from nilearn.maskers import NiftiMasker
-    from nltools.utils import load_brain_data_h5
+    from nltools.io import load_brain_data_h5
 
     # Load data using utility function
     h5_data = load_brain_data_h5(file_path, mask)
@@ -893,7 +893,7 @@ def write_brain_data(bd, file_name):
         file_name (str or Path): Output file path. Supports .nii/.nii.gz (NIfTI)
             and .h5/.hdf5 (HDF5) formats.
     """
-    from nltools.utils import is_h5_path, to_h5
+    from nltools.io import is_h5_path, to_h5
 
     if isinstance(file_name, Path):
         file_name = str(file_name)

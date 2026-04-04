@@ -1,5 +1,5 @@
 from nltools.data import DesignMatrix
-from nltools.file_reader import onsets_to_dm
+from nltools.io import onsets_to_dm
 from nltools.utils import get_resource_path
 import numpy as np
 import pandas as pd

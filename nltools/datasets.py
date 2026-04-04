@@ -24,7 +24,7 @@ import sys
 import logging
 from pathlib import Path
 from nltools.data import BrainData
-from nltools.file_reader import onsets_to_dm
+from nltools.io import onsets_to_dm
 
 # Core dependencies
 from nilearn.datasets import fetch_neurovault_ids
