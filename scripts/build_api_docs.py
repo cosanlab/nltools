@@ -54,7 +54,7 @@ MODULES: list[tuple[str, str]] = [
     ("nltools.data.adjacency.modeling", "data/adjacency_modeling.md"),
     ("nltools.data.adjacency.plotting", "data/adjacency_plotting.md"),
     ("nltools.data.adjacency.io", "data/adjacency_io.md"),
-    ("nltools.data.designmatrix", "data/design_matrix.md"),
+    ("nltools.data.designmatrix.DesignMatrix", "data/design_matrix.md"),
     ("nltools.data.designmatrix.transforms", "data/design_matrix_transforms.md"),
     ("nltools.data.designmatrix.regressors", "data/design_matrix_regressors.md"),
     ("nltools.data.designmatrix.append", "data/design_matrix_append.md"),
@@ -119,8 +119,13 @@ def postprocess(text: str) -> str:
     # Move the first Parameters section (constructor args) before the summary tables.
     # griffe2md puts it after the summaries when merge_init_into_class is used.
     # Must run before Attributes detail removal to match reliably.
+    # Match the table: header row, separator, then data rows (starting with `).
     params_match = re.search(
-        r"\n(\*\*Parameters:\*\*\n\n(?:.*\n)*?)\n{2,}", text
+        r"\n(\*\*Parameters:\*\*\n\n"
+        r"Name \|.*\n"
+        r"----.*\n"
+        r"(?:`.*\n)*)",
+        text,
     )
     if params_match:
         params_block = params_match.group(1)
