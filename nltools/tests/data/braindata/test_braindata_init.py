@@ -405,7 +405,7 @@ class TestBrainDataInit:
         from nltools.prefs import resolve_template_name
 
         # Try to use 3mm with fmriprep (not supported - only 1mm and 2mm)
-        with pytest.raises(ValueError, match="Resolution 3mm is not supported"):
+        with pytest.raises(ValueError, match="Resolution 3mm not supported"):
             resolve_template_name("3mm-MNI152-2009c", file_type="mask")
 
     def test_init_mask_template_name_string_file_type_brain(self):

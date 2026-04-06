@@ -9,7 +9,7 @@ def setup_function():
     object.__setattr__(MNI_Template, "template", "default")
     object.__setattr__(MNI_Template, "resolution", 2)
     # Re-resolve paths after direct attribute setting
-    MNI_Template._validate_and_resolve()
+    MNI_Template._update_paths()
 
 
 def test_change_resolution():
@@ -32,7 +32,7 @@ def test_change_resolution():
     assert "2mm" in MNI_Template.brain
 
     # Test invalid resolution for default template
-    with pytest.raises(ValueError, match="Resolution 1mm is not supported"):
+    with pytest.raises(ValueError, match="Resolution 1mm not supported"):
         MNI_Template.resolution = 1
 
 
@@ -71,7 +71,7 @@ def test_template_resolution_combinations():
         # Reset to default first to avoid validation errors
         object.__setattr__(MNI_Template, "template", template)
         object.__setattr__(MNI_Template, "resolution", resolution)
-        MNI_Template._validate_and_resolve()
+        MNI_Template._update_paths()
 
         assert MNI_Template.template == template
         assert MNI_Template.resolution == resolution

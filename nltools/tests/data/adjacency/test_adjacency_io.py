@@ -92,10 +92,7 @@ class TestAdjacencyIO:
         assert np.allclose(b_new.data, b_new_written.data)
         new_file.unlink()
 
-    def test_graph_directed(self, sim_adjacency_directed):
-        """Test conversion to directed graph."""
-        assert isinstance(sim_adjacency_directed.to_graph(), nx.DiGraph)
-
-    def test_graph_single(self, sim_adjacency_single):
-        """Test conversion to undirected graph."""
+    def test_graph_conversion(self, sim_adjacency_single, sim_adjacency_directed):
+        """Test conversion to NetworkX graph (directed and undirected)."""
         assert isinstance(sim_adjacency_single.to_graph(), nx.Graph)
+        assert isinstance(sim_adjacency_directed.to_graph(), nx.DiGraph)
