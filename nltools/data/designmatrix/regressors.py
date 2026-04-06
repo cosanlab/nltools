@@ -7,6 +7,7 @@ a new DesignMatrix with the requested transformation applied.
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, List, Optional, Union
 
 import numpy as np
@@ -167,12 +168,29 @@ def add_poly(
     else:
         orders_to_add = [order]
 
+    # Detect existing intercept columns (constant, poly_0, or any all-ones poly)
+    _has_intercept = False
+    if dm.polys:
+        for p in dm.polys:
+            col_vals = dm[p].to_numpy().flatten()
+            if np.allclose(col_vals, 1.0):
+                _has_intercept = True
+                break
+
     # Check if we already have these polynomials (idempotent)
     new_poly_cols = {}
     for i in orders_to_add:
         poly_name = f"poly_{i}"
         if poly_name in dm.polys:
-            print(f"Design Matrix already has {i}th order polynomial...skipping")
+            warnings.warn(
+                f"Design Matrix already has {i}th order polynomial...skipping",
+                stacklevel=3,
+            )
+        elif i == 0 and _has_intercept:
+            warnings.warn(
+                "Design Matrix already has an intercept column...skipping poly_0",
+                stacklevel=3,
+            )
         else:
             # Create normalized Legendre polynomial over [-1, 1]
             norm_order = np.linspace(-1, 1, dm.shape[0])
@@ -251,12 +269,11 @@ def add_dct_basis(
 
     # If no new bases to add, return dm unchanged
     if not basis_to_add:
-        print("All basis functions already exist...skipping")
+        warnings.warn("All basis functions already exist...skipping", stacklevel=3)
         return dm
 
-    # Print message if only adding some bases
     if len(basis_to_add) < len(basis_col_names):
-        print("Some basis functions already exist...skipping")
+        warnings.warn("Some basis functions already exist...skipping", stacklevel=3)
 
     # Add new cosine basis columns
     # Only add the columns we don't already have
