@@ -31,20 +31,9 @@ __all__ = ["BrainData"]
 
 
 class BrainData(object):
-    """
-    BrainData is a class to represent neuroimaging data in python as a vector
+    """BrainData is a class to represent neuroimaging data in python as a vector
     rather than a 3-dimensional matrix. This makes it easier to perform data
     manipulation and analyses.
-
-    Args:
-        data: nibabel data instance or list of files
-        Y: Pandas DataFrame of training labels
-        X: Pandas DataFrame Design Matrix for running univariate models
-        mask: binary nifti file to mask brain data
-        masker: nilearn masker object (e.g., ROI or searchlight extractor).
-            Default uses voxel-level masking.
-        **kwargs: Additional keyword arguments passed to NiftiMasker
-
     """
 
     def __init__(self, data=None, Y=None, X=None, mask=None, masker=None, **kwargs):

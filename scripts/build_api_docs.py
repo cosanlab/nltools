@@ -13,6 +13,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -40,7 +41,7 @@ MODULES: list[tuple[str, str]] = [
     ("nltools.backends", "backends.md"),
     # --- data classes ---
     ("nltools.data", "data.md"),
-    ("nltools.data.braindata", "data/brain_data.md"),
+    ("nltools.data.braindata.BrainData", "data/brain_data.md"),
     ("nltools.data.braindata.io", "data/braindata_io.md"),
     ("nltools.data.braindata.analysis", "data/braindata_analysis.md"),
     ("nltools.data.braindata.modeling", "data/braindata_modeling.md"),
@@ -90,6 +91,61 @@ MODULES: list[tuple[str, str]] = [
 ]
 
 
+def postprocess(text: str) -> str:
+    """Fix griffe2md output quirks.
+
+    - Insert newline between concatenated headings (e.g. ``### Attributes#### foo``)
+    - Shorten dotpath anchors in summary table links to match short heading IDs
+    - Rename 'Functions' summary/category heading to 'Methods' for class pages
+    """
+    # Fix concatenated headings: "### Foo#### Bar" -> "### Foo\n\n#### Bar"
+    text = re.sub(r"(#{2,6} .+?)(#{2,6} )", r"\1\n\n\2", text)
+
+    # Shorten anchor links: (#pkg.mod.Class.method) -> (#method)
+    # Only in summary table rows: [`name`](#full.dotpath.name)
+    text = re.sub(
+        r"\[`(\w+)`\]\(#[\w.]+\.(\w+)\)",
+        r"[`\1`](#\2)",
+        text,
+    )
+
+    # Rename "Functions" to "Methods" in category headings and summary labels
+    text = re.sub(r"^(#{2,6}) Functions$", r"\1 Methods", text, flags=re.MULTILINE)
+    text = re.sub(r"^\*\*Functions:\*\*$", "**Methods:**", text, flags=re.MULTILINE)
+
+    # Remove "Bases: object" (noise for classes that only inherit from object)
+    text = re.sub(r"\nBases: <code>\[object\]\(#object\)</code>\n", "\n", text)
+
+    # Move the first Parameters section (constructor args) before the summary tables.
+    # griffe2md puts it after the summaries when merge_init_into_class is used.
+    # Must run before Attributes detail removal to match reliably.
+    params_match = re.search(
+        r"\n(\*\*Parameters:\*\*\n\n(?:.*\n)*?)\n{2,}", text
+    )
+    if params_match:
+        params_block = params_match.group(1)
+        text = text[: params_match.start()] + "\n" + text[params_match.end() :]
+        first_summary = re.search(r"\*\*(Methods|Functions|Attributes):\*\*", text)
+        if first_summary:
+            text = (
+                text[: first_summary.start()]
+                + params_block
+                + "\n\n"
+                + text[first_summary.start() :]
+            )
+
+    # Remove the entire Attributes detail section (heading + individual entries).
+    # The summary table is enough. Keep everything from "### Methods" onward.
+    text = re.sub(
+        r"\n*^#{2,6} Attributes\n.*?(?=^#{2,6} Methods$)",
+        "\n\n",
+        text,
+        flags=re.MULTILINE | re.DOTALL,
+    )
+
+    return text
+
+
 def generate(module: str, output: Path) -> bool:
     """Run griffe2md for a single module and write to output path."""
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -114,6 +170,11 @@ def generate(module: str, output: Path) -> bool:
         if not output.exists():
             print(f"  FAILED: {module} → {output}", file=sys.stderr)
             return False
+    # Apply post-processing
+    if output.exists():
+        text = output.read_text()
+        text = postprocess(text)
+        output.write_text(text)
     return True
 
 

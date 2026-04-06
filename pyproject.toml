@@ -136,4 +136,7 @@ filters = ["!^_"]
 docstring_section_style = "table"
 summary = true
 show_docstring_raises = false
+show_root_full_path = false
+show_root_members_full_path = false
+show_object_full_path = false
 
