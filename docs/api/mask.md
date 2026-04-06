@@ -1,49 +1,103 @@
-# `nltools.mask`
+## `nltools.mask`
 
-Functions for creating, manipulating, and applying brain masks.
+NeuroLearn Mask Classes
+=======================
 
-## Overview
+Classes to represent masks
 
-The `nltools.mask` module provides tools for working with brain masks and ROIs. These functions extend nilearn's masking capabilities with convenient wrappers for common neuroimaging tasks like sphere creation, mask expansion, and ROI manipulation.
+**Functions:**
 
-## Key Functions
+Name | Description
+---- | -----------
+[`collapse_mask`](#nltools.mask.collapse_mask) | collapse separate masks into one mask with multiple integers
+[`create_sphere`](#nltools.mask.create_sphere) | Generate a set of spheres in the brain mask space
+[`expand_mask`](#nltools.mask.expand_mask) | expand a mask with multiple integers into separate binary masks
+[`roi_to_brain`](#nltools.mask.roi_to_brain) | This function will create convert an expanded binary mask of ROIs
 
-**Mask Creation**
-- `create_sphere()` - Create spherical ROI masks from coordinates
-- `expand_mask()` - Convert masked vector back to full brain image
-- `collapse_mask()` - Extract data from image using mask
 
-**Mask Manipulation**
-- `roi_to_brain()` - Convert ROI to BrainData object
-- `threshold()` - Threshold masks by intensity
 
-## Quick Start
+### Attributes
+
+### Functions#### `nltools.mask.collapse_mask`
 
 ```python
-from nltools.mask import create_sphere, expand_mask
-from nltools.prefs import MNI_Template
-
-# Create 10mm sphere at coordinates
-mask = create_sphere([0, 0, 0], radius=10, mask=MNI_Template.mask)
-
-# Apply mask to extract data
-data_vector = collapse_mask(brain_image, mask)
-
-# Convert back to full brain
-brain_image = expand_mask(data_vector, mask)
+collapse_mask(mask, auto_label = True, custom_mask = None)
 ```
 
-## Full API Reference
+collapse separate masks into one mask with multiple integers
+    overlapping areas are ignored
 
-```{eval-rst}
-.. automodule:: nltools.mask
-    :members:
-    :undoc-members:
-    :show-inheritance:
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`mask` |  | nibabel or BrainData instance | *required*
+`custom_mask` |  | nibabel instance or string to file path; optional | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`out` |  | BrainData instance of a mask with different integers indicating different masks
+
+#### `nltools.mask.create_sphere`
+
+```python
+create_sphere(coordinates, radius = 5, mask = None)
 ```
 
-## See Also
+Generate a set of spheres in the brain mask space
 
-- {doc}`data/brain_data` - BrainData.apply_mask() and .extract_roi()
-- {doc}`prefs` - MNI template resources
-- nilearn.masking - Underlying masking functions
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`radius` |  | vector of radius.  Will create multiple spheres if     len(radius) > 1 | <code>5</code>
+`centers` |  | a vector of sphere centers of the form [px, py, pz] or     [[px1, py1, pz1], ..., [pxn, pyn, pzn]] | *required*
+
+#### `nltools.mask.expand_mask`
+
+```python
+expand_mask(mask, custom_mask = None)
+```
+
+expand a mask with multiple integers into separate binary masks
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`mask` |  | nibabel or BrainData instance | *required*
+`custom_mask` |  | nibabel instance or string to file path; optional | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`out` |  | BrainData instance of multiple binary masks
+
+#### `nltools.mask.roi_to_brain`
+
+```python
+roi_to_brain(data, mask_x)
+```
+
+This function will create convert an expanded binary mask of ROIs
+(see expand_mask) based on a vector of of values. The dataframe of values
+must correspond to ROI numbers.
+
+This is useful for populating a parcellation scheme by a vector of Values
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` |  | Pandas series, dataframe, list, np.array of ROI by observation | *required*
+`mask_x` |  | an expanded binary mask | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`out` |  | (BrainData) BrainData instance where each ROI is now populated  with a value
+

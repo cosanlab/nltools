@@ -1,334 +1,1415 @@
-# `nltools.models`
+## `nltools.models`
 
-**Scikit-learn Compatible Model Classes for Neuroimaging**
+Model classes for neuroimaging analysis.
 
-Provides sklearn-compatible model classes for common neuroimaging analyses.
-Starting with Ridge regression, with GPU acceleration and cross-validation support.
+Provides sklearn-compatible APIs for common neuroimaging analyses.
 
-```{eval-rst}
-.. automodule:: nltools.models
-    :members:
-    :undoc-members:
-    :show-inheritance:
-```
+**Modules:**
 
-## Quick Start
+Name | Description
+---- | -----------
+[`base`](#nltools.models.base) | Base classes for nltools models.
+[`glm`](#nltools.models.glm) | GLM model for neuroimaging data.
+[`ridge`](#nltools.models.ridge) | Ridge regression model for neuroimaging data.
 
-```python
-from nltools.models import Ridge
-import numpy as np
+**Classes:**
 
-# Load your data
-X = np.random.randn(100, 50000)  # samples × voxels
-y = np.random.randn(100)          # target values
+Name | Description
+---- | -----------
+[`BaseModel`](#nltools.models.BaseModel) | Abstract base class for all nltools models.
+[`Glm`](#nltools.models.Glm) | General Linear Model for fMRI data analysis with sklearn-compatible API.
+[`Ridge`](#nltools.models.Ridge) | Ridge regression with optional GPU acceleration and banded ridge support.
 
-# Fit ridge regression with automatic alpha selection
-model = Ridge(alpha='auto', cv=5, backend='auto')
-model.fit(X, y)
 
-# Make predictions
-y_pred = model.predict(X)
-r2_score = model.score(X, y)
 
-print(f"Selected alpha: {model.alpha_}")
-print(f"R² score: {r2_score:.3f}")
-```
-
-## Ridge Regression
-
-The `Ridge` class provides ridge regression with:
-- Automatic or manual alpha (regularization) selection
-- Cross-validation for hyperparameter tuning
-- GPU acceleration via PyTorch backends
-- Single and multi-target regression
-- sklearn-compatible API
-
-### Basic Usage
-
-**Fixed alpha:**
-```python
-from nltools.models import Ridge
-
-# Single target
-model = Ridge(alpha=1.0)
-model.fit(X_train, y_train)
-predictions = model.predict(X_test)
-
-# Multi-target (e.g., predict multiple ROIs)
-Y_train = np.random.randn(100, 5)  # 5 targets
-model = Ridge(alpha=1.0)
-model.fit(X_train, Y_train)
-predictions = model.predict(X_test)  # shape: (n_samples, 5)
-```
-
-**Automatic alpha selection:**
-```python
-# Let cross-validation select optimal alpha
-model = Ridge(alpha='auto', cv=5)
-model.fit(X_train, y_train)
-
-print(f"Selected alpha: {model.alpha_}")
-print(f"CV scores: {model.cv_scores_.mean()}")
-```
-
-**Custom alpha range:**
-```python
-# Specify alpha values to test
-alphas = [0.01, 0.1, 1.0, 10.0, 100.0]
-model = Ridge(alpha='auto', cv=5, alphas=alphas)
-model.fit(X_train, y_train)
-```
-
-### GPU Acceleration
-
-Ridge regression supports GPU acceleration for large-scale problems:
+### Classes#### `nltools.models.BaseModel`
 
 ```python
-# Automatic GPU detection
-model = Ridge(alpha=1.0, backend='auto')
-model.fit(X_train, y_train)
-
-# Force GPU (if available)
-model = Ridge(alpha=1.0, backend='torch')
-
-# Force CPU
-model = Ridge(alpha=1.0, backend='numpy')
+BaseModel()
 ```
 
-**When to use GPU:**
-- Large datasets (> 30M elements, e.g., 300 samples × 100k voxels)
-- Cross-validation (multiplies effective problem size)
-- Multi-target regression (many voxels/ROIs)
+Bases: <code>[ABC](#abc.ABC)</code>
 
-See [Performance Guide](../performance.md) for detailed benchmarks.
+Abstract base class for all nltools models.
 
-### Brain Data Integration
+Follows scikit-learn API conventions:
+- fit(X, y) trains the model and returns self
+- predict(X) generates predictions
+- score(X, y) evaluates model performance
 
-Use Ridge with nltools BrainData:
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`n_features_in_`](#nltools.models.BaseModel.n_features_in_) | <code>[int](#int)</code> | Number of features seen during fit
+[`n_samples_`](#nltools.models.BaseModel.n_samples_) | <code>[int](#int)</code> | Number of samples seen during fit
+[`is_fitted_`](#nltools.models.BaseModel.is_fitted_) | <code>[bool](#bool)</code> | Whether the model has been fitted
+
+**Functions:**
+
+Name | Description
+---- | -----------
+[`fit`](#nltools.models.BaseModel.fit) | Fit the model to training data.
+[`predict`](#nltools.models.BaseModel.predict) | Generate predictions for new data.
+[`score`](#nltools.models.BaseModel.score) | Evaluate model performance.
+
+
+
+##### Attributes###### `nltools.models.BaseModel.is_fitted_`
 
 ```python
-from nltools import BrainData
-from nltools.models import Ridge
-
-# Load brain data
-brain = BrainData('task_fmri.nii.gz')
-
-# Create feature matrix (e.g., stimulus features)
-features = np.random.randn(brain.shape()[0], 10)
-
-# Fit encoding model
-model = Ridge(alpha='auto', cv=5, backend='auto')
-model.fit(features, brain.data)  # brain.data = samples × voxels
-
-# Coefficients show feature weights for each voxel
-print(f"Coefficients shape: {model.coef_.shape}")
-# (10, n_voxels) - each feature weight across all voxels
+is_fitted_ = False
 ```
 
-### Encoding Models
 
-Ridge is commonly used for encoding models in neuroimaging:
+
+##### Functions###### `nltools.models.BaseModel.fit`
 
 ```python
-from nltools import BrainData
-from nltools.models import Ridge
-import numpy as np
-
-# Load fMRI data
-brain = BrainData('movie_fmri.nii.gz')  # 1000 TRs × 50k voxels
-
-# Create semantic features from movie annotations
-# (e.g., valence, arousal, social features)
-semantic_features = np.random.randn(1000, 20)
-
-# Fit encoding model with GPU acceleration
-model = Ridge(alpha='auto', cv=5, backend='auto')
-model.fit(semantic_features, brain.data)
-
-# Interpret: which features predict each brain region?
-# model.coef_ shape: (20 features, 50k voxels)
-
-# Predict brain activity from new features
-new_clip_features = np.random.randn(100, 20)
-predicted_brain = model.predict(new_clip_features)
-# Shape: (100, 50k voxels)
+fit(X, y)
 ```
 
-### Decoding Models
+Fit the model to training data.
 
-Ridge can also be used for decoding (predict features from brain):
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>ndarray of shape (n_samples, n_features)</code> | Training data | *required*
+`y` | <code>ndarray of shape (n_samples,) or (n_samples, n_targets)</code> | Target values | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`BaseModel` |  | Fitted model instance
+
+###### `nltools.models.BaseModel.predict`
 
 ```python
-from nltools.models import Ridge
-
-# Flip X and y to decode features from brain activity
-# X = brain activity (samples × voxels)
-# y = behavioral/stimulus features to decode
-
-model = Ridge(alpha='auto', cv=5)
-model.fit(brain.data, behavior_scores)  # Decode behavior from brain
-
-# Predict behavior from new brain scans
-predicted_behavior = model.predict(new_brain_data)
+predict(X)
 ```
 
-## Comparison with scikit-learn
+Generate predictions for new data.
 
-Ridge is fully compatible with scikit-learn's API:
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>ndarray of shape (n_samples, n_features)</code> | Data to predict on | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`ndarray` |  | Predicted values
+
+###### `nltools.models.BaseModel.score`
 
 ```python
-from nltools.models import Ridge as NLToolsRidge
-from sklearn.linear_model import Ridge as SklearnRidge
-
-# Both have the same interface
-model_nl = NLToolsRidge(alpha=1.0)
-model_sk = SklearnRidge(alpha=1.0, fit_intercept=False, solver='svd')
-
-# Fit and predict work the same way
-model_nl.fit(X, y)
-model_sk.fit(X, y)
-
-predictions_nl = model_nl.predict(X_test)
-predictions_sk = model_sk.predict(X_test)
-
-# Results match (within numerical precision)
-np.testing.assert_allclose(predictions_nl, predictions_sk, rtol=1e-4)
+score(X, y)
 ```
 
-**Advantages of nltools Ridge:**
-- GPU acceleration for large neuroimaging datasets
-- Automatic alpha selection via cross-validation
-- Multi-target vectorization optimized for voxel-wise analysis
-- Integrated with nltools BrainData workflow
+Evaluate model performance.
 
-## BaseModel
+**Parameters:**
 
-All model classes inherit from `BaseModel`, which provides:
-- Consistent sklearn-compatible interface
-- Input validation for neuroimaging data
-- Fitted state tracking
-- Shape checking and error messages
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>ndarray of shape (n_samples, n_features)</code> | Test data | *required*
+`y` | <code>ndarray of shape (n_samples,) or (n_samples, n_targets)</code> | True values | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`float` |  | Model performance metric
+
+#### `nltools.models.Glm`
 
 ```python
-from nltools.models import BaseModel
-
-# All models follow this interface
-class CustomModel(BaseModel):
-    def fit(self, X, y):
-        # Your fitting logic
-        super().fit(X, y)  # Sets fitted state
-        return self
-
-    def predict(self, X):
-        self._check_is_fitted()  # Validates model is fitted
-        X = self._validate_X(X, reset=False)  # Validates features match
-        # Your prediction logic
-        return predictions
-
-    def score(self, X, y):
-        # Your scoring logic (e.g., R²)
-        return score
+Glm(t_r = None, noise_model = 'ols', smoothing_fwhm = None, mask = None, progress_bar = False, **kwargs)
 ```
 
-## Migration from v0.5.1
+Bases: <code>[BaseModel](#nltools.models.base.BaseModel)</code>
 
-If you used deprecated `BrainData.predict()`:
+General Linear Model for fMRI data analysis with sklearn-compatible API.
 
-**Before (v0.5.1):**
+Wraps nilearn.glm.first_level.FirstLevelModel using composition pattern,
+similar to how BrainData holds masker objects. Provides sklearn-style
+interface (fit/predict/score) while exposing full nilearn GLM functionality.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`t_r` | <code>[float](#float)</code> | Repetition time (TR) in seconds. If None, will be inferred from data. | <code>None</code>
+`noise_model` | <code>str, default='ols'</code> | Noise model for temporal autocorrelation ('ols' or 'ar1').<br>- 'ols': Ordinary Least Squares (assumes independent errors) - 'ar1': Autoregressive AR(1) model (accounts for temporal correlation) | <code>'ols'</code>
+`smoothing_fwhm` | <code>[float](#float)</code> | Full-Width at Half Maximum (FWHM) in mm for spatial smoothing. If None, no smoothing is applied. | <code>None</code>
+`mask` | <code>[Nifti1Image](#Nifti1Image)</code> | Mask image defining voxels to include in analysis. If None, uses MNI template mask (default, like BrainData). | <code>None</code>
+`**kwargs` |  | Additional arguments passed to nilearn FirstLevelModel. | <code>{}</code>
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`is_fitted_`](#nltools.models.Glm.is_fitted_) | <code>[bool](#bool)</code> | Whether the model has been fitted
+
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
+Access fitted results via properties: ``glm_``, ``residuals``, ``design_matrices_``
+
+</details>
+
+**Examples:**
+
+```pycon
+>>> from nltools.models import GLMModel
+>>> from nilearn.glm.first_level import make_first_level_design_matrix
+>>> import pandas as pd
+>>> import numpy as np
+>>> from nibabel import Nifti1Image
+>>>
+>>> # Create synthetic fMRI data
+>>> n_scans = 100
+>>> fmri_data = np.random.randn(n_scans, 20, 20, 20)
+>>> img = Nifti1Image(fmri_data.T, np.eye(4))
+>>>
+>>> # Create design matrix
+>>> frame_times = np.arange(n_scans) * 2.0
+>>> events = pd.DataFrame({
+...     'onset': [10, 30, 50, 70],
+...     'duration': [1, 1, 1, 1],
+...     'trial_type': ['task', 'task', 'task', 'task']
+... })
+>>> design_matrix = make_first_level_design_matrix(frame_times, events)
+>>>
+>>> # Fit GLM
+>>> model = GLMModel(t_r=2.0, noise_model='ar1')
+>>> model.fit(img, design_matrices=design_matrix)
+>>>
+>>> # Compute contrast
+>>> task_effect = model.compute_contrast('task', output_type='stat')
+>>>
+>>> # Get fitted values
+>>> fitted_values = model.predict()
+>>>
+>>> # Access residuals
+>>> residuals = model.residuals
+```
+
+<details class="notes" open markdown="1">
+<summary>Notes</summary>
+
+Unlike Ridge which works with 2D arrays (samples × features), GLMModel
+works with 4D neuroimaging data (x × y × z × time) and design matrices.
+Therefore, it does not use BaseModel's input validation methods.
+
+The predict() method follows sklearn's LinearRegression semantics:
+- predict() returns fitted values (predictions on training data)
+- predict(X) would generate predictions with new design matrix (future feature)
+
+For advanced use cases, access the internal FirstLevelModel via the
+``glm_`` property to use any nilearn-specific functionality.
+
+</details>
+
+**Functions:**
+
+Name | Description
+---- | -----------
+[`compute_contrast`](#nltools.models.Glm.compute_contrast) | Compute contrast using nilearn for accurate statistical inference.
+[`fit`](#nltools.models.Glm.fit) | Fit GLM to fMRI data.
+[`predict`](#nltools.models.Glm.predict) | Generate predictions from fitted GLM.
+[`score`](#nltools.models.Glm.score) | Return mean R² across voxels and runs.
+
+
+
+##### Attributes###### `nltools.models.Glm.design_matrices_`
+
 ```python
-from nltools import BrainData
-
-brain = BrainData('data.nii.gz')
-brain.X = design_matrix
-brain.Y = target_values
-
-# Deprecated method
-results = brain.predict(
-    algorithm='ridge',
-    cv_dict={'type': 'kfolds', 'n_folds': 5}
-)
+design_matrices_
 ```
 
-**After (v0.6.0):**
-```python
-from nltools import BrainData
-from nltools.models import Ridge
+Design matrices used in fitting.
 
-brain = BrainData('data.nii.gz')
+**Returns:**
 
-# Use Ridge model directly
-model = Ridge(alpha='auto', cv=5, backend='auto')
-model.fit(brain.data, target_values)
-predictions = model.predict(brain.data)
-```
+Type | Description
+---- | -----------
+ | list of DataFrame: Design matrices for each run
 
-## Performance Tips
-
-### Memory Optimization
-
-Ridge automatically uses float32 for memory efficiency:
+###### `nltools.models.Glm.glm_`
 
 ```python
-# Input data is automatically converted to float32
-X_float64 = np.random.randn(100, 50000)  # float64 (8 bytes/element)
-model = Ridge(alpha=1.0)
-model.fit(X_float64, y)  # Internally uses float32 (4 bytes/element)
+glm_
 ```
 
-### Backend Selection
+Access internal FirstLevelModel for advanced use.
 
-For optimal performance:
+Provides direct access to the wrapped nilearn FirstLevelModel
+instance for advanced users who need functionality not exposed
+by the sklearn-compatible interface.
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`FirstLevelModel` |  | Internal nilearn FirstLevelModel instance
+
+**Examples:**
+
+```pycon
+>>> # Access nilearn-specific attributes
+>>> model.glm_.labels_
+>>> model.glm_.results_
+>>>
+>>> # Use nilearn-specific methods
+>>> model.glm_.generate_report()
+```
+
+###### `nltools.models.Glm.is_fitted_`
 
 ```python
-from nltools.models import Ridge
-
-# Small datasets (< 10M elements): NumPy is faster
-model_small = Ridge(alpha=1.0, backend='numpy')
-
-# Large datasets (> 30M elements): GPU is faster
-model_large = Ridge(alpha=1.0, backend='torch')
-
-# Let nltools decide based on problem size
-model_auto = Ridge(alpha=1.0, backend='auto')
+is_fitted_ = False
 ```
 
-### Cross-Validation Performance
-
-Cross-validation multiplies computational cost. Use GPU for CV when possible:
+###### `nltools.models.Glm.mask`
 
 ```python
-# Without CV: 100 samples × 50k features = 5M elements (CPU okay)
-model_no_cv = Ridge(alpha=1.0, backend='numpy')
-
-# With 5-fold CV: 5× 100 samples × 50k features = 25M elements (GPU better)
-model_cv = Ridge(alpha='auto', cv=5, backend='auto')
+mask = nib.load(MNI_Template.mask)
 ```
 
-## API Reference
+###### `nltools.models.Glm.noise_model`
 
-See the full API documentation above for details on:
-- `BaseModel` - Abstract base class
-- `Ridge` - Ridge regression with GPU support
+```python
+noise_model = noise_model
+```
 
-### Key Classes
+###### `nltools.models.Glm.progress_bar`
 
-**`BaseModel`**
-- Abstract base class for all models
-- Provides sklearn-compatible interface
-- Input validation and state management
+```python
+progress_bar = progress_bar
+```
 
-**`Ridge(alpha=1.0, cv=None, alphas=None, backend='numpy', random_state=None)`**
-- Ridge regression with optional GPU acceleration
-- Parameters:
-  - `alpha`: Regularization strength or 'auto' for CV selection
-  - `cv`: Number of cross-validation folds (required if alpha='auto')
-  - `alphas`: Custom alpha values to test during CV
-  - `backend`: 'numpy', 'torch', or 'auto'
-  - `random_state`: Random seed (for future compatibility)
+###### `nltools.models.Glm.residuals`
 
-## See Also
+```python
+residuals
+```
 
-- [Performance Guide](../performance.md) - Benchmarks and optimization tips
-- [Backends API](backends.md) - GPU acceleration details
-- [Algorithms API](algorithms.md) - Lower-level ridge regression functions
-- [Migration Guide](../migration-guide.md) - Upgrading from v0.5.1
+Residuals from fitted GLM.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | list of Nifti1Image: Residual images for each run (observed - predicted)
+
+###### `nltools.models.Glm.smoothing_fwhm`
+
+```python
+smoothing_fwhm = smoothing_fwhm
+```
+
+###### `nltools.models.Glm.t_r`
+
+```python
+t_r = t_r
+```
+
+
+
+##### Functions###### `nltools.models.Glm.compute_contrast`
+
+```python
+compute_contrast(contrast_def, output_type = 'stat')
+```
+
+Compute contrast using nilearn for accurate statistical inference.
+
+This is the primary method for extracting results from a fitted GLM.
+Delegates to nilearn's FirstLevelModel.compute_contrast() for proper
+statistical inference with correct degrees of freedom, etc.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`contrast_def` | <code>str, array-like, or dict</code> | Contrast specification: - str: Regressor name (e.g., 'task') - array-like: Contrast vector (e.g., [1, -1, 0, 0]) - dict: Multiple contrasts with names as keys | *required*
+`output_type` | <code>str, default='stat'</code> | Type of output to return: - 'stat': T-statistic map (default) - 'z_score': Z-score map - 'p_value': P-value map - 'effect_size': Effect size (beta) map - 'effect_variance': Variance of effect size - 'all': Dictionary with all output types | <code>'stat'</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | Nifti1Image or dict: Contrast map(s). If output_type='all', returns dict with all maps.
+
+**Examples:**
+
+```pycon
+>>> # After fitting model
+>>> model.fit(img, design_matrices=design_matrix)
+>>>
+>>> # Simple contrast by name
+>>> t_map = model.compute_contrast('task')
+>>>
+>>> # Contrast vector
+>>> contrast_map = model.compute_contrast([1, -1, 0])
+>>>
+>>> # Get all outputs
+>>> results = model.compute_contrast('task', output_type='all')
+>>> t_map = results['stat']
+>>> p_map = results['p_value']
+```
+
+###### `nltools.models.Glm.fit`
+
+```python
+fit(X, y = None, design_matrices = None, events = None, **kwargs)
+```
+
+Fit GLM to fMRI data.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>Nifti1Image or list of Nifti1Image</code> | 4D fMRI image(s) to fit. Can be single run or list of runs. | *required*
+`y` | <code>None</code> | Not used, present for sklearn API compatibility. | <code>None</code>
+`design_matrices` | <code>DataFrame, DesignMatrix, or list of DataFrame/DesignMatrix</code> | Design matrix or list of design matrices (one per run). Each should have shape (n_scans, n_regressors). Accepts both pandas DataFrames and nltools DesignMatrix objects. | <code>None</code>
+`events` | <code>DataFrame or list of DataFrame</code> | Event specifications for automatic design matrix creation. Alternative to providing design_matrices directly. | <code>None</code>
+`**kwargs` |  | Additional arguments passed to FirstLevelModel.fit() | <code>{}</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`GLMModel` |  | Fitted model instance (for method chaining)
+
+<details class="notes" open markdown="1">
+<summary>Notes</summary>
+
+Unlike BaseModel's fit(), this method does not validate X as a 2D array
+because GLM works with 4D neuroimaging data. Input validation is
+delegated to nilearn's FirstLevelModel.
+
+DesignMatrix objects are automatically converted to pandas DataFrames
+for nilearn compatibility. The conversion is done at this boundary to
+keep DesignMatrix Polars-native while maintaining nilearn integration.
+
+</details>
+
+###### `nltools.models.Glm.predict`
+
+```python
+predict(X = None)
+```
+
+Generate predictions from fitted GLM.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>DataFrame or None, default=None</code> | Design matrix for generating predictions.<br>- If None: returns fitted values (predictions on training data) - If DataFrame: generates predictions using new design matrix   (not yet implemented) | <code>None</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | list of Nifti1Image: Predicted brain activity for each run
+
+<details class="notes" open markdown="1">
+<summary>Notes</summary>
+
+Follows sklearn's LinearRegression semantics where predict() without
+arguments returns fitted values (like calling predict(X_train)).
+
+Future enhancement will support predict(X=new_design_matrix) to
+generate predictions with different experimental designs.
+
+</details>
+
+###### `nltools.models.Glm.score`
+
+```python
+score(X = None, y = None)
+```
+
+Return mean R² across voxels and runs.
+
+Computes average coefficient of determination (R²) from the fitted GLM.
+Higher values indicate better model fit.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>None</code> | Not used, present for sklearn API compatibility. | <code>None</code>
+`y` | <code>None</code> | Not used, present for sklearn API compatibility. | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`float` |  | Mean R² across all voxels and runs. Range: [0, 1], higher is better.
+
+<details class="notes" open markdown="1">
+<summary>Notes</summary>
+
+Extracts R² values from nilearn's FirstLevelModel.r_square attribute,
+which returns a list of Nifti1Image objects (one per run).
+Computes the mean across all non-NaN voxels and all runs.
+
+For voxel-wise R² maps, access `glm_.r_square` directly.
+
+</details>
+
+**Examples:**
+
+```pycon
+>>> brain.fit(model='glm', X=design_matrix)
+>>> r2 = brain.model_.score()
+>>> print(f"Mean R²: {r2:.3f}")
+```
+
+#### `nltools.models.Ridge`
+
+```python
+Ridge(alpha = 1.0, cv = None, alphas = None, n_iter = 100, concentration = [0.1, 1.0], backend = 'numpy', local_alpha = True, fit_intercept = False, conservative = False, random_state = None, progress_bar = False)
+```
+
+Bases: <code>[BaseModel](#nltools.models.base.BaseModel)</code>
+
+Ridge regression with optional GPU acceleration and banded ridge support.
+
+Wraps nltools SVD-based ridge regression algorithms with
+scikit-learn compatible API. Supports single and multi-target
+regression with optional GPU acceleration via PyTorch.
+
+    Supports both regular ridge (single feature space) and banded ridge
+    (multiple feature spaces). The model automatically detects the input type:
+    - Array X: Single feature space → uses solve_ridge_cv
+    - List X: Multiple feature spaces → uses solve_banded_ridge_cv (true banded/group ridge)
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`alpha` | <code>float or 'auto', default=1.0</code> | Regularization strength. If 'auto', uses cross-validation to select optimal alpha from alphas parameter. | <code>1.0</code>
+`cv` | <code>int or None, default=None</code> | Number of cross-validation folds (only used if alpha='auto') | <code>None</code>
+`alphas` | <code>array-like or None, default=None</code> | Alpha values to try during cross-validation. Defaults to [0.1, 1.0, 10.0] if None. | <code>None</code>
+`n_iter` | <code>int, default=100</code> | Number of random search iterations. Only used when X is a list (multiple feature spaces). Ignored for single feature space. | <code>100</code>
+`concentration` | <code>float or list, default=[0.1, 1.0]</code> | Concentration parameters for Dirichlet sampling. Only used when X is a list (multiple feature spaces). - A value of 1 corresponds to uniform sampling over the simplex. - A value of infinity corresponds to equal weights. - If a list, samples cycle through the list. | <code>[0.1, 1.0]</code>
+`backend` | <code>str or Backend, default='numpy'</code> | Computational backend ('numpy', 'torch', or 'auto') | <code>'numpy'</code>
+`local_alpha` | <code>bool, default=True</code> | If True, select best alpha independently for each target. If False, select single best alpha for all targets. | <code>True</code>
+`fit_intercept` | <code>bool, default=False</code> | Whether to fit an intercept. | <code>False</code>
+`conservative` | <code>bool, default=False</code> | If True, select largest alpha within 1 std of best score (more regularization). | <code>False</code>
+`random_state` | <code>int or None, default=None</code> | Random seed for reproducibility (used for CV splits and random search) | <code>None</code>
+`progress_bar` | <code>bool, default=False</code> | Whether to display progress bar during banded ridge fitting (when X is a list). Requires tqdm. Not used for single feature space ridge regression. | <code>False</code>
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`coef_`](#nltools.models.Ridge.coef_) | <code>ndarray of shape (n_features,) or (n_features, n_targets</code> | Ridge coefficients
+[`alpha_`](#nltools.models.Ridge.alpha_) | <code>[float](#float) or [ndarray](#ndarray)</code> | Alpha value(s) used (selected via CV if alpha='auto')
+[`cv_scores_`](#nltools.models.Ridge.cv_scores_) | <code>[ndarray](#ndarray)</code> | Cross-validation scores (only if alpha='auto')
+[`deltas_`](#nltools.models.Ridge.deltas_) | <code>[ndarray](#ndarray) or None</code> | Feature space weights (only if X was a list) Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
+[`backend_`](#nltools.models.Ridge.backend_) | <code>[Backend](#nltools.backends.Backend)</code> | Backend instance used for computation
+
+**Examples:**
+
+```pycon
+>>> from nltools.models import Ridge
+>>> import numpy as np
+>>> X = np.random.randn(100, 50)
+>>> y = np.random.randn(100)
+>>> model = Ridge(alpha=1.0)
+>>> model.fit(X, y)
+Ridge(alpha=1.0, backend='numpy')
+>>> y_pred = model.predict(X)
+>>>
+>>> # Banded ridge with multiple feature spaces (automatic detection)
+>>> X1 = np.random.randn(100, 30)
+>>> X2 = np.random.randn(100, 20)
+>>> model = Ridge(alpha='auto', cv=5, n_iter=50)
+>>> model.fit([X1, X2], y)
+>>> print(f"Feature space weights: {model.deltas_}")
+```
+
+**Functions:**
+
+Name | Description
+---- | -----------
+[`fit`](#nltools.models.Ridge.fit) | Fit ridge regression model.
+[`predict`](#nltools.models.Ridge.predict) | Predict using the ridge model.
+[`score`](#nltools.models.Ridge.score) | Return the coefficient of determination R^2 of the prediction.
+
+
+
+##### Attributes###### `nltools.models.Ridge.alpha`
+
+```python
+alpha = alpha
+```
+
+###### `nltools.models.Ridge.alphas`
+
+```python
+alphas = alphas if alphas is not None else [0.1, 1.0, 10.0]
+```
+
+###### `nltools.models.Ridge.backend`
+
+```python
+backend = backend
+```
+
+###### `nltools.models.Ridge.concentration`
+
+```python
+concentration = concentration
+```
+
+###### `nltools.models.Ridge.conservative`
+
+```python
+conservative = conservative
+```
+
+###### `nltools.models.Ridge.cv`
+
+```python
+cv = cv
+```
+
+###### `nltools.models.Ridge.fit_intercept`
+
+```python
+fit_intercept = fit_intercept
+```
+
+###### `nltools.models.Ridge.is_fitted_`
+
+```python
+is_fitted_ = False
+```
+
+###### `nltools.models.Ridge.local_alpha`
+
+```python
+local_alpha = local_alpha
+```
+
+###### `nltools.models.Ridge.n_iter`
+
+```python
+n_iter = n_iter
+```
+
+###### `nltools.models.Ridge.progress_bar`
+
+```python
+progress_bar = progress_bar
+```
+
+###### `nltools.models.Ridge.random_state`
+
+```python
+random_state = random_state
+```
+
+
+
+##### Functions###### `nltools.models.Ridge.fit`
+
+```python
+fit(X, y)
+```
+
+Fit ridge regression model.
+
+Supports both regular ridge (single feature space) and banded ridge
+(multiple feature spaces). If X is a list, banded ridge is used.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>ndarray of shape (n_samples, n_features) or list of arrays</code> | Training data. If list, each element is a feature space for banded ridge. | *required*
+`y` | <code>ndarray of shape (n_samples,) or (n_samples, n_targets)</code> | Target values | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`Ridge` |  | Fitted model instance
+
+###### `nltools.models.Ridge.predict`
+
+```python
+predict(X)
+```
+
+Predict using the ridge model.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>ndarray of shape (n_samples, n_features)</code> | Samples to predict | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | ndarray of shape (n_samples,) or (n_samples, n_targets): Predicted values
+
+###### `nltools.models.Ridge.score`
+
+```python
+score(X, y)
+```
+
+Return the coefficient of determination R^2 of the prediction.
+
+For multi-target regression (y is 2D), returns per-target R² scores.
+For single-target regression (y is 1D), returns a scalar R².
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>ndarray of shape (n_samples, n_features)</code> | Test samples | *required*
+`y` | <code>ndarray of shape (n_samples,) or (n_samples, n_targets)</code> | True values for X | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | float or ndarray: - If y is 1D: scalar R² - If y is 2D: array of shape (n_targets,) with per-target R² scores
+
+
+
+### Modules#### `nltools.models.base`
+
+Base classes for nltools models.
+
+Provides sklearn-compatible API for neuroimaging analysis.
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`BaseModel`](#nltools.models.base.BaseModel) | Abstract base class for all nltools models.
+
+
+
+##### Classes###### `nltools.models.base.BaseModel`
+
+```python
+BaseModel()
+```
+
+Bases: <code>[ABC](#abc.ABC)</code>
+
+Abstract base class for all nltools models.
+
+Follows scikit-learn API conventions:
+- fit(X, y) trains the model and returns self
+- predict(X) generates predictions
+- score(X, y) evaluates model performance
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`n_features_in_`](#nltools.models.base.BaseModel.n_features_in_) | <code>[int](#int)</code> | Number of features seen during fit
+[`n_samples_`](#nltools.models.base.BaseModel.n_samples_) | <code>[int](#int)</code> | Number of samples seen during fit
+[`is_fitted_`](#nltools.models.base.BaseModel.is_fitted_) | <code>[bool](#bool)</code> | Whether the model has been fitted
+
+**Functions:**
+
+Name | Description
+---- | -----------
+[`fit`](#nltools.models.base.BaseModel.fit) | Fit the model to training data.
+[`predict`](#nltools.models.base.BaseModel.predict) | Generate predictions for new data.
+[`score`](#nltools.models.base.BaseModel.score) | Evaluate model performance.
+
+
+
+####### Attributes######## `nltools.models.base.BaseModel.is_fitted_`
+
+```python
+is_fitted_ = False
+```
+
+
+
+####### Functions######## `nltools.models.base.BaseModel.fit`
+
+```python
+fit(X, y)
+```
+
+Fit the model to training data.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>ndarray of shape (n_samples, n_features)</code> | Training data | *required*
+`y` | <code>ndarray of shape (n_samples,) or (n_samples, n_targets)</code> | Target values | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`BaseModel` |  | Fitted model instance
+
+######## `nltools.models.base.BaseModel.predict`
+
+```python
+predict(X)
+```
+
+Generate predictions for new data.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>ndarray of shape (n_samples, n_features)</code> | Data to predict on | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`ndarray` |  | Predicted values
+
+######## `nltools.models.base.BaseModel.score`
+
+```python
+score(X, y)
+```
+
+Evaluate model performance.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>ndarray of shape (n_samples, n_features)</code> | Test data | *required*
+`y` | <code>ndarray of shape (n_samples,) or (n_samples, n_targets)</code> | True values | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`float` |  | Model performance metric
+
+#### `nltools.models.glm`
+
+GLM model for neuroimaging data.
+
+Wraps nilearn.glm.first_level.FirstLevelModel with sklearn-compatible API.
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`Glm`](#nltools.models.glm.Glm) | General Linear Model for fMRI data analysis with sklearn-compatible API.
+
+
+
+##### Attributes
+
+##### Classes###### `nltools.models.glm.Glm`
+
+```python
+Glm(t_r = None, noise_model = 'ols', smoothing_fwhm = None, mask = None, progress_bar = False, **kwargs)
+```
+
+Bases: <code>[BaseModel](#nltools.models.base.BaseModel)</code>
+
+General Linear Model for fMRI data analysis with sklearn-compatible API.
+
+Wraps nilearn.glm.first_level.FirstLevelModel using composition pattern,
+similar to how BrainData holds masker objects. Provides sklearn-style
+interface (fit/predict/score) while exposing full nilearn GLM functionality.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`t_r` | <code>[float](#float)</code> | Repetition time (TR) in seconds. If None, will be inferred from data. | <code>None</code>
+`noise_model` | <code>str, default='ols'</code> | Noise model for temporal autocorrelation ('ols' or 'ar1').<br>- 'ols': Ordinary Least Squares (assumes independent errors) - 'ar1': Autoregressive AR(1) model (accounts for temporal correlation) | <code>'ols'</code>
+`smoothing_fwhm` | <code>[float](#float)</code> | Full-Width at Half Maximum (FWHM) in mm for spatial smoothing. If None, no smoothing is applied. | <code>None</code>
+`mask` | <code>[Nifti1Image](#Nifti1Image)</code> | Mask image defining voxels to include in analysis. If None, uses MNI template mask (default, like BrainData). | <code>None</code>
+`**kwargs` |  | Additional arguments passed to nilearn FirstLevelModel. | <code>{}</code>
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`is_fitted_`](#nltools.models.glm.Glm.is_fitted_) | <code>[bool](#bool)</code> | Whether the model has been fitted
+
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
+Access fitted results via properties: ``glm_``, ``residuals``, ``design_matrices_``
+
+</details>
+
+**Examples:**
+
+```pycon
+>>> from nltools.models import GLMModel
+>>> from nilearn.glm.first_level import make_first_level_design_matrix
+>>> import pandas as pd
+>>> import numpy as np
+>>> from nibabel import Nifti1Image
+>>>
+>>> # Create synthetic fMRI data
+>>> n_scans = 100
+>>> fmri_data = np.random.randn(n_scans, 20, 20, 20)
+>>> img = Nifti1Image(fmri_data.T, np.eye(4))
+>>>
+>>> # Create design matrix
+>>> frame_times = np.arange(n_scans) * 2.0
+>>> events = pd.DataFrame({
+...     'onset': [10, 30, 50, 70],
+...     'duration': [1, 1, 1, 1],
+...     'trial_type': ['task', 'task', 'task', 'task']
+... })
+>>> design_matrix = make_first_level_design_matrix(frame_times, events)
+>>>
+>>> # Fit GLM
+>>> model = GLMModel(t_r=2.0, noise_model='ar1')
+>>> model.fit(img, design_matrices=design_matrix)
+>>>
+>>> # Compute contrast
+>>> task_effect = model.compute_contrast('task', output_type='stat')
+>>>
+>>> # Get fitted values
+>>> fitted_values = model.predict()
+>>>
+>>> # Access residuals
+>>> residuals = model.residuals
+```
+
+<details class="notes" open markdown="1">
+<summary>Notes</summary>
+
+Unlike Ridge which works with 2D arrays (samples × features), GLMModel
+works with 4D neuroimaging data (x × y × z × time) and design matrices.
+Therefore, it does not use BaseModel's input validation methods.
+
+The predict() method follows sklearn's LinearRegression semantics:
+- predict() returns fitted values (predictions on training data)
+- predict(X) would generate predictions with new design matrix (future feature)
+
+For advanced use cases, access the internal FirstLevelModel via the
+``glm_`` property to use any nilearn-specific functionality.
+
+</details>
+
+**Functions:**
+
+Name | Description
+---- | -----------
+[`compute_contrast`](#nltools.models.glm.Glm.compute_contrast) | Compute contrast using nilearn for accurate statistical inference.
+[`fit`](#nltools.models.glm.Glm.fit) | Fit GLM to fMRI data.
+[`predict`](#nltools.models.glm.Glm.predict) | Generate predictions from fitted GLM.
+[`score`](#nltools.models.glm.Glm.score) | Return mean R² across voxels and runs.
+
+
+
+####### Attributes######## `nltools.models.glm.Glm.design_matrices_`
+
+```python
+design_matrices_
+```
+
+Design matrices used in fitting.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | list of DataFrame: Design matrices for each run
+
+######## `nltools.models.glm.Glm.glm_`
+
+```python
+glm_
+```
+
+Access internal FirstLevelModel for advanced use.
+
+Provides direct access to the wrapped nilearn FirstLevelModel
+instance for advanced users who need functionality not exposed
+by the sklearn-compatible interface.
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`FirstLevelModel` |  | Internal nilearn FirstLevelModel instance
+
+**Examples:**
+
+```pycon
+>>> # Access nilearn-specific attributes
+>>> model.glm_.labels_
+>>> model.glm_.results_
+>>>
+>>> # Use nilearn-specific methods
+>>> model.glm_.generate_report()
+```
+
+######## `nltools.models.glm.Glm.is_fitted_`
+
+```python
+is_fitted_ = False
+```
+
+######## `nltools.models.glm.Glm.mask`
+
+```python
+mask = nib.load(MNI_Template.mask)
+```
+
+######## `nltools.models.glm.Glm.noise_model`
+
+```python
+noise_model = noise_model
+```
+
+######## `nltools.models.glm.Glm.progress_bar`
+
+```python
+progress_bar = progress_bar
+```
+
+######## `nltools.models.glm.Glm.residuals`
+
+```python
+residuals
+```
+
+Residuals from fitted GLM.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | list of Nifti1Image: Residual images for each run (observed - predicted)
+
+######## `nltools.models.glm.Glm.smoothing_fwhm`
+
+```python
+smoothing_fwhm = smoothing_fwhm
+```
+
+######## `nltools.models.glm.Glm.t_r`
+
+```python
+t_r = t_r
+```
+
+
+
+####### Functions######## `nltools.models.glm.Glm.compute_contrast`
+
+```python
+compute_contrast(contrast_def, output_type = 'stat')
+```
+
+Compute contrast using nilearn for accurate statistical inference.
+
+This is the primary method for extracting results from a fitted GLM.
+Delegates to nilearn's FirstLevelModel.compute_contrast() for proper
+statistical inference with correct degrees of freedom, etc.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`contrast_def` | <code>str, array-like, or dict</code> | Contrast specification: - str: Regressor name (e.g., 'task') - array-like: Contrast vector (e.g., [1, -1, 0, 0]) - dict: Multiple contrasts with names as keys | *required*
+`output_type` | <code>str, default='stat'</code> | Type of output to return: - 'stat': T-statistic map (default) - 'z_score': Z-score map - 'p_value': P-value map - 'effect_size': Effect size (beta) map - 'effect_variance': Variance of effect size - 'all': Dictionary with all output types | <code>'stat'</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | Nifti1Image or dict: Contrast map(s). If output_type='all', returns dict with all maps.
+
+**Examples:**
+
+```pycon
+>>> # After fitting model
+>>> model.fit(img, design_matrices=design_matrix)
+>>>
+>>> # Simple contrast by name
+>>> t_map = model.compute_contrast('task')
+>>>
+>>> # Contrast vector
+>>> contrast_map = model.compute_contrast([1, -1, 0])
+>>>
+>>> # Get all outputs
+>>> results = model.compute_contrast('task', output_type='all')
+>>> t_map = results['stat']
+>>> p_map = results['p_value']
+```
+
+######## `nltools.models.glm.Glm.fit`
+
+```python
+fit(X, y = None, design_matrices = None, events = None, **kwargs)
+```
+
+Fit GLM to fMRI data.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>Nifti1Image or list of Nifti1Image</code> | 4D fMRI image(s) to fit. Can be single run or list of runs. | *required*
+`y` | <code>None</code> | Not used, present for sklearn API compatibility. | <code>None</code>
+`design_matrices` | <code>DataFrame, DesignMatrix, or list of DataFrame/DesignMatrix</code> | Design matrix or list of design matrices (one per run). Each should have shape (n_scans, n_regressors). Accepts both pandas DataFrames and nltools DesignMatrix objects. | <code>None</code>
+`events` | <code>DataFrame or list of DataFrame</code> | Event specifications for automatic design matrix creation. Alternative to providing design_matrices directly. | <code>None</code>
+`**kwargs` |  | Additional arguments passed to FirstLevelModel.fit() | <code>{}</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`GLMModel` |  | Fitted model instance (for method chaining)
+
+<details class="notes" open markdown="1">
+<summary>Notes</summary>
+
+Unlike BaseModel's fit(), this method does not validate X as a 2D array
+because GLM works with 4D neuroimaging data. Input validation is
+delegated to nilearn's FirstLevelModel.
+
+DesignMatrix objects are automatically converted to pandas DataFrames
+for nilearn compatibility. The conversion is done at this boundary to
+keep DesignMatrix Polars-native while maintaining nilearn integration.
+
+</details>
+
+######## `nltools.models.glm.Glm.predict`
+
+```python
+predict(X = None)
+```
+
+Generate predictions from fitted GLM.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>DataFrame or None, default=None</code> | Design matrix for generating predictions.<br>- If None: returns fitted values (predictions on training data) - If DataFrame: generates predictions using new design matrix   (not yet implemented) | <code>None</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | list of Nifti1Image: Predicted brain activity for each run
+
+<details class="notes" open markdown="1">
+<summary>Notes</summary>
+
+Follows sklearn's LinearRegression semantics where predict() without
+arguments returns fitted values (like calling predict(X_train)).
+
+Future enhancement will support predict(X=new_design_matrix) to
+generate predictions with different experimental designs.
+
+</details>
+
+######## `nltools.models.glm.Glm.score`
+
+```python
+score(X = None, y = None)
+```
+
+Return mean R² across voxels and runs.
+
+Computes average coefficient of determination (R²) from the fitted GLM.
+Higher values indicate better model fit.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>None</code> | Not used, present for sklearn API compatibility. | <code>None</code>
+`y` | <code>None</code> | Not used, present for sklearn API compatibility. | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`float` |  | Mean R² across all voxels and runs. Range: [0, 1], higher is better.
+
+<details class="notes" open markdown="1">
+<summary>Notes</summary>
+
+Extracts R² values from nilearn's FirstLevelModel.r_square attribute,
+which returns a list of Nifti1Image objects (one per run).
+Computes the mean across all non-NaN voxels and all runs.
+
+For voxel-wise R² maps, access `glm_.r_square` directly.
+
+</details>
+
+**Examples:**
+
+```pycon
+>>> brain.fit(model='glm', X=design_matrix)
+>>> r2 = brain.model_.score()
+>>> print(f"Mean R²: {r2:.3f}")
+```
+
+#### `nltools.models.ridge`
+
+Ridge regression model for neuroimaging data.
+
+Wraps nltools.algorithms.ridge with sklearn-compatible API.
+Supports both regular ridge (single feature space) and banded ridge
+(multiple feature spaces) with optional random search over feature weights.
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`Ridge`](#nltools.models.ridge.Ridge) | Ridge regression with optional GPU acceleration and banded ridge support.
+
+
+
+##### Classes###### `nltools.models.ridge.Ridge`
+
+```python
+Ridge(alpha = 1.0, cv = None, alphas = None, n_iter = 100, concentration = [0.1, 1.0], backend = 'numpy', local_alpha = True, fit_intercept = False, conservative = False, random_state = None, progress_bar = False)
+```
+
+Bases: <code>[BaseModel](#nltools.models.base.BaseModel)</code>
+
+Ridge regression with optional GPU acceleration and banded ridge support.
+
+Wraps nltools SVD-based ridge regression algorithms with
+scikit-learn compatible API. Supports single and multi-target
+regression with optional GPU acceleration via PyTorch.
+
+    Supports both regular ridge (single feature space) and banded ridge
+    (multiple feature spaces). The model automatically detects the input type:
+    - Array X: Single feature space → uses solve_ridge_cv
+    - List X: Multiple feature spaces → uses solve_banded_ridge_cv (true banded/group ridge)
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`alpha` | <code>float or 'auto', default=1.0</code> | Regularization strength. If 'auto', uses cross-validation to select optimal alpha from alphas parameter. | <code>1.0</code>
+`cv` | <code>int or None, default=None</code> | Number of cross-validation folds (only used if alpha='auto') | <code>None</code>
+`alphas` | <code>array-like or None, default=None</code> | Alpha values to try during cross-validation. Defaults to [0.1, 1.0, 10.0] if None. | <code>None</code>
+`n_iter` | <code>int, default=100</code> | Number of random search iterations. Only used when X is a list (multiple feature spaces). Ignored for single feature space. | <code>100</code>
+`concentration` | <code>float or list, default=[0.1, 1.0]</code> | Concentration parameters for Dirichlet sampling. Only used when X is a list (multiple feature spaces). - A value of 1 corresponds to uniform sampling over the simplex. - A value of infinity corresponds to equal weights. - If a list, samples cycle through the list. | <code>[0.1, 1.0]</code>
+`backend` | <code>str or Backend, default='numpy'</code> | Computational backend ('numpy', 'torch', or 'auto') | <code>'numpy'</code>
+`local_alpha` | <code>bool, default=True</code> | If True, select best alpha independently for each target. If False, select single best alpha for all targets. | <code>True</code>
+`fit_intercept` | <code>bool, default=False</code> | Whether to fit an intercept. | <code>False</code>
+`conservative` | <code>bool, default=False</code> | If True, select largest alpha within 1 std of best score (more regularization). | <code>False</code>
+`random_state` | <code>int or None, default=None</code> | Random seed for reproducibility (used for CV splits and random search) | <code>None</code>
+`progress_bar` | <code>bool, default=False</code> | Whether to display progress bar during banded ridge fitting (when X is a list). Requires tqdm. Not used for single feature space ridge regression. | <code>False</code>
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`coef_`](#nltools.models.ridge.Ridge.coef_) | <code>ndarray of shape (n_features,) or (n_features, n_targets</code> | Ridge coefficients
+[`alpha_`](#nltools.models.ridge.Ridge.alpha_) | <code>[float](#float) or [ndarray](#ndarray)</code> | Alpha value(s) used (selected via CV if alpha='auto')
+[`cv_scores_`](#nltools.models.ridge.Ridge.cv_scores_) | <code>[ndarray](#ndarray)</code> | Cross-validation scores (only if alpha='auto')
+[`deltas_`](#nltools.models.ridge.Ridge.deltas_) | <code>[ndarray](#ndarray) or None</code> | Feature space weights (only if X was a list) Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
+[`backend_`](#nltools.models.ridge.Ridge.backend_) | <code>[Backend](#nltools.backends.Backend)</code> | Backend instance used for computation
+
+**Examples:**
+
+```pycon
+>>> from nltools.models import Ridge
+>>> import numpy as np
+>>> X = np.random.randn(100, 50)
+>>> y = np.random.randn(100)
+>>> model = Ridge(alpha=1.0)
+>>> model.fit(X, y)
+Ridge(alpha=1.0, backend='numpy')
+>>> y_pred = model.predict(X)
+>>>
+>>> # Banded ridge with multiple feature spaces (automatic detection)
+>>> X1 = np.random.randn(100, 30)
+>>> X2 = np.random.randn(100, 20)
+>>> model = Ridge(alpha='auto', cv=5, n_iter=50)
+>>> model.fit([X1, X2], y)
+>>> print(f"Feature space weights: {model.deltas_}")
+```
+
+**Functions:**
+
+Name | Description
+---- | -----------
+[`fit`](#nltools.models.ridge.Ridge.fit) | Fit ridge regression model.
+[`predict`](#nltools.models.ridge.Ridge.predict) | Predict using the ridge model.
+[`score`](#nltools.models.ridge.Ridge.score) | Return the coefficient of determination R^2 of the prediction.
+
+
+
+####### Attributes######## `nltools.models.ridge.Ridge.alpha`
+
+```python
+alpha = alpha
+```
+
+######## `nltools.models.ridge.Ridge.alphas`
+
+```python
+alphas = alphas if alphas is not None else [0.1, 1.0, 10.0]
+```
+
+######## `nltools.models.ridge.Ridge.backend`
+
+```python
+backend = backend
+```
+
+######## `nltools.models.ridge.Ridge.concentration`
+
+```python
+concentration = concentration
+```
+
+######## `nltools.models.ridge.Ridge.conservative`
+
+```python
+conservative = conservative
+```
+
+######## `nltools.models.ridge.Ridge.cv`
+
+```python
+cv = cv
+```
+
+######## `nltools.models.ridge.Ridge.fit_intercept`
+
+```python
+fit_intercept = fit_intercept
+```
+
+######## `nltools.models.ridge.Ridge.is_fitted_`
+
+```python
+is_fitted_ = False
+```
+
+######## `nltools.models.ridge.Ridge.local_alpha`
+
+```python
+local_alpha = local_alpha
+```
+
+######## `nltools.models.ridge.Ridge.n_iter`
+
+```python
+n_iter = n_iter
+```
+
+######## `nltools.models.ridge.Ridge.progress_bar`
+
+```python
+progress_bar = progress_bar
+```
+
+######## `nltools.models.ridge.Ridge.random_state`
+
+```python
+random_state = random_state
+```
+
+
+
+####### Functions######## `nltools.models.ridge.Ridge.fit`
+
+```python
+fit(X, y)
+```
+
+Fit ridge regression model.
+
+Supports both regular ridge (single feature space) and banded ridge
+(multiple feature spaces). If X is a list, banded ridge is used.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>ndarray of shape (n_samples, n_features) or list of arrays</code> | Training data. If list, each element is a feature space for banded ridge. | *required*
+`y` | <code>ndarray of shape (n_samples,) or (n_samples, n_targets)</code> | Target values | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`Ridge` |  | Fitted model instance
+
+######## `nltools.models.ridge.Ridge.predict`
+
+```python
+predict(X)
+```
+
+Predict using the ridge model.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>ndarray of shape (n_samples, n_features)</code> | Samples to predict | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | ndarray of shape (n_samples,) or (n_samples, n_targets): Predicted values
+
+######## `nltools.models.ridge.Ridge.score`
+
+```python
+score(X, y)
+```
+
+Return the coefficient of determination R^2 of the prediction.
+
+For multi-target regression (y is 2D), returns per-target R² scores.
+For single-target regression (y is 1D), returns a scalar R².
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>ndarray of shape (n_samples, n_features)</code> | Test samples | *required*
+`y` | <code>ndarray of shape (n_samples,) or (n_samples, n_targets)</code> | True values for X | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | float or ndarray: - If y is 1D: scalar R² - If y is 2D: array of shape (n_targets,) with per-target R² scores
+
+
+
+##### Functions

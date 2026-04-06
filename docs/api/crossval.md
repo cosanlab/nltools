@@ -1,54 +1,72 @@
-# `nltools.cross_validation`
+## `nltools.cross_validation`
 
-Cross-validation utilities for neuroimaging analyses.
+Cross-Validation Data Classes
+=============================
 
-## Overview
+Scikit-learn compatible classes for performing various
+types of cross-validation
 
-The `nltools.cross_validation` module provides `KFoldStratified`, a scikit-learn compatible cross-validation splitter that stratifies continuous regression targets. Unlike sklearn's `StratifiedKFold` which only works with discrete class labels, `KFoldStratified` works with continuous targets by sorting values and distributing them evenly across folds.
+**Classes:**
 
-## Key Functions
+Name | Description
+---- | -----------
+[`KFoldStratified`](#nltools.cross_validation.KFoldStratified) | K-Folds cross validation iterator which stratifies continuous data
 
-**KFoldStratified** - Stratified K-fold cross-validation for continuous targets
-- Stratifies continuous regression targets by sorting and distributing evenly
-- Compatible with sklearn BaseCrossValidator API
-- Works with sklearn's cross_val_score and other utilities
-- Unlike sklearn's StratifiedKFold, supports continuous targets (not just discrete classes)
 
-## Quick Start
+
+### Classes#### `nltools.cross_validation.KFoldStratified`
 
 ```python
-from nltools.cross_validation import KFoldStratified
-from sklearn.model_selection import cross_val_score
-from sklearn.linear_model import LinearRegression
-import numpy as np
-
-# Create stratified K-fold CV for continuous targets
-cv = KFoldStratified(n_splits=5)
-
-# Use with sklearn utilities
-X = np.random.randn(100, 10)
-y = np.random.randn(100)  # Continuous target
-model = LinearRegression()
-
-scores = cross_val_score(model, X, y, cv=cv, scoring='r2')
-
-# Use with BrainData.fit()
-from nltools.data import BrainData
-data = BrainData('images.nii.gz')
-data.fit(model='ridge', X=design_matrix, cv=cv)  # Pass CV object directly
+KFoldStratified(n_splits = 3, shuffle = False, random_state = None)
 ```
 
-## Full API Reference
+Bases: <code>[_BaseKFold](#sklearn.model_selection._split._BaseKFold)</code>
 
-```{eval-rst}
-.. automodule:: nltools.cross_validation
-    :members:
-    :undoc-members:
-    :show-inheritance:
+K-Folds cross validation iterator which stratifies continuous data
+(unlike scikit-learn equivalent).
+
+Provides train/test indices to split data in train test sets. Split
+dataset into k consecutive folds while ensuring that same subject is
+held out within each fold.  Each fold is then used a validation set
+once while the k - 1 remaining folds form the training set.
+Extension of KFold from scikit-learn cross_validation model
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_splits` |  | int, default=3 Number of folds. Must be at least 2. | <code>3</code>
+`shuffle` |  | boolean, optional Whether to shuffle the data before splitting into batches. | <code>False</code>
+`random_state` |  | None, int or RandomState Pseudo-random number generator state used for random sampling. If None, use default numpy RNG for shuffling | <code>None</code>
+
+**Functions:**
+
+Name | Description
+---- | -----------
+[`split`](#nltools.cross_validation.KFoldStratified.split) | Generate indices to split data into training and test set.
+
+
+
+##### Functions###### `nltools.cross_validation.KFoldStratified.split`
+
+```python
+split(X, y, groups = None)
 ```
 
-## See Also
+Generate indices to split data into training and test set.
 
-- {doc}`data/brain_data` - BrainData.fit() with cv parameter
-- {doc}`models` - Ridge and other models
-- sklearn.model_selection - scikit-learn CV tools
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X ` |  | array-like, shape (n_samples, n_features) Training data, where n_samples is the number of samples and n_features is the number of features. Note that providing ``y`` is sufficient to generate the splits and hence ``np.zeros(n_samples)`` may be used as a placeholder for ``X`` instead of actual training data. | *required*
+`y ` |  | array-like, shape (n_samples,) The target variable for supervised learning problems. Stratification is done based on the y labels. | *required*
+`groups ` |  | (object) Always ignored, exists for compatibility. | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`train` |  | (ndarray) The training set indices for that split.
+`test` |  | (ndarray) The testing set indices for that split.
+

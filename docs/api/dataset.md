@@ -1,53 +1,197 @@
-# `nltools.datasets`
+## `nltools.datasets`
 
-Dataset loading utilities and example data.
+NeuroLearn datasets
+===================
 
-## Overview
+Functions to help download datasets from Neurovault and other sources.
 
-The `nltools.datasets` module provides functions for downloading and loading example neuroimaging datasets. These datasets are useful for testing, tutorials, and reproducing published analyses.
+**Functions:**
 
-## Available Datasets
+Name | Description
+---- | -----------
+[`download_collection`](#nltools.datasets.download_collection) | Download images and metadata from Neurovault collection.
+[`download_nifti`](#nltools.datasets.download_nifti) | Download an image from a URL to a nifti file.
+[`fetch_emotion_ratings`](#nltools.datasets.fetch_emotion_ratings) | Download and load emotion rating dataset from Neurovault.
+[`fetch_haxby`](#nltools.datasets.fetch_haxby) | Download and load Haxby2001 dataset from nilearn.
+[`fetch_neurovault_collection`](#nltools.datasets.fetch_neurovault_collection) | Download images and metadata from a Neurovault collection.
+[`fetch_pain`](#nltools.datasets.fetch_pain) | Download and load pain dataset from Neurovault.
+[`get_collection_image_metadata`](#nltools.datasets.get_collection_image_metadata) | Get image metadata associated with collection.
 
-**fetch_pain** - Pain anticipation dataset
-- Multisubject fMRI data
-- Pain anticipation task
-- Useful for prediction and classification examples
 
-**fetch_emotion** - Emotion regulation dataset
-- fMRI data from emotion regulation task
-- Multiple conditions
-- Good for GLM and contrast examples
 
-**get_resource_path** - Access package resources
-- Get paths to built-in masks and templates
-- Access example data files
+### Classes
 
-## Quick Start
+### Functions#### `nltools.datasets.download_collection`
 
 ```python
-from nltools.datasets import fetch_pain, fetch_emotion
-
-# Load pain dataset
-pain_data = fetch_pain()
-print(pain_data.shape)  # (n_voxels, n_images)
-
-# Load emotion dataset
-emotion_data = fetch_emotion()
-
-# Use in analyses
-pain_data.fit(model='ridge', X=design_matrix)
+download_collection(collection = None, data_dir = None, overwrite = False, resume = True, verbose = 1)
 ```
 
-## Full API Reference
+Download images and metadata from Neurovault collection.
 
-```{eval-rst}
-.. automodule:: nltools.datasets
-    :members:
-    :undoc-members:
-    :show-inheritance:
+.. deprecated::
+    This function is deprecated and will be removed in a future version.
+    Please use fetch_neurovault_collection instead.
+
+#### `nltools.datasets.download_nifti`
+
+```python
+download_nifti(url, data_dir = None)
 ```
 
-## See Also
+Download an image from a URL to a nifti file.
 
-- {doc}`data/brain_data` - BrainData class for loaded datasets
-- {doc}`prefs` - MNI template resources
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`url` | <code>[str](#str)</code> | URL of the image to download | *required*
+`data_dir` | <code>[str](#str)</code> | Directory to save the file. If None, uses current directory. | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`str` |  | Path to the downloaded file
+
+#### `nltools.datasets.fetch_emotion_ratings`
+
+```python
+fetch_emotion_ratings(data_dir = None, verbose = 1)
+```
+
+Download and load emotion rating dataset from Neurovault.
+
+This downloads the Chang et al. (2015) emotion ratings dataset from
+Neurovault collection 1964.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data_dir` | <code>[str](#str)</code> | Path of the data directory. Used to force data storage in a specified location. Default: None | <code>None</code>
+`verbose` | <code>[int](#int)</code> | Verbosity level. Default: 1 | <code>1</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`BrainData` |  | BrainData object with downloaded data. X=metadata
+
+<details class="references" open markdown="1">
+<summary>References</summary>
+
+Chang, L. J., Gianaros, P. J., Manuck, S. B., Krishnan, A., & Wager, T. D. (2015).
+A sensitive and specific neural signature for picture-induced negative affect.
+PLoS biology, 13(6), e1002180.
+
+</details>
+
+#### `nltools.datasets.fetch_haxby`
+
+```python
+fetch_haxby(n_subjects = 1, data_dir = None, verbose = 1, mask = 'haxby_mask', resample = False)
+```
+
+Download and load Haxby2001 dataset from nilearn.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_subjects` | <code>int, None, or 'all'</code> | Which subject to load (1-6), or None/'all' for all subjects. Default: 1. - `n_subjects=1`: Returns all runs for subject 1 - `n_subjects=2`: Returns all runs for subject 2 - `n_subjects=None` or `'all'`: Returns all runs for all subjects (nested lists) | <code>1</code>
+`data_dir` | <code>[str](#str)</code> | Directory to store downloaded data. Default: None | <code>None</code>
+`verbose` | <code>[int](#int)</code> | Verbosity level. Default: 1 | <code>1</code>
+`mask` | <code>str, nibabel.Nifti1Image, or None, default="haxby_mask"</code> | Brain mask to use. - `"haxby_mask"`: Use the default mask provided with the Haxby dataset (default) - `None`: Use default MNI template mask - Other: Passed directly to BrainData (file path, nibabel object, etc.) | <code>'haxby_mask'</code>
+`resample` | <code>bool, default=False</code> | Whether to automatically resample data to mask space. See BrainData.__init__() for details. | <code>False</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`tuple` |  | - If n_subjects is int: (list of BrainData, list of DesignMatrix) - all runs for that subject - If n_subjects is None or 'all': (list of lists of BrainData, list of lists of DesignMatrix)   First level: subjects, second level: runs per subject
+
+**Examples:**
+
+```pycon
+>>> # Load all runs for subject 1
+>>> brain_data, design_matrix = fetch_haxby(n_subjects=1)
+>>> len(brain_data)  # Number of runs
+>>>
+>>> # Load all runs for subject 2
+>>> brain_data, design_matrix = fetch_haxby(n_subjects=2)
+>>>
+>>> # Load all runs for all subjects
+>>> brain_data_nested, design_matrix_nested = fetch_haxby(n_subjects='all')
+>>> len(brain_data_nested)  # Number of subjects
+>>> len(brain_data_nested[0])  # Number of runs for first subject
+```
+
+#### `nltools.datasets.fetch_neurovault_collection`
+
+```python
+fetch_neurovault_collection(collection_id, data_dir = None, verbose = 1)
+```
+
+Download images and metadata from a Neurovault collection.
+
+This function uses the modern nilearn API to download collections from Neurovault.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`collection_id` | <code>[int](#int)</code> | Neurovault collection ID | *required*
+`data_dir` | <code>[str](#str)</code> | Directory to store downloaded data. If None, uses nilearn's default data directory. | <code>None</code>
+`verbose` | <code>[int](#int)</code> | Verbosity level. Default: 1 | <code>1</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`tuple` |  | (metadata DataFrame, list of image file paths)
+
+#### `nltools.datasets.fetch_pain`
+
+```python
+fetch_pain(data_dir = None, verbose = 1)
+```
+
+Download and load pain dataset from Neurovault.
+
+This downloads the Chang et al. (2015) pain dataset from Neurovault collection 504.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data_dir` | <code>[str](#str)</code> | Path of the data directory. Used to force data storage in a specified location. Default: None | <code>None</code>
+`verbose` | <code>[int](#int)</code> | Verbosity level. Default: 1 | <code>1</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`BrainData` |  | BrainData object with downloaded data. X=metadata
+
+<details class="references" open markdown="1">
+<summary>References</summary>
+
+Chang, L. J., Gianaros, P. J., Manuck, S. B., Krishnan, A., & Wager, T. D. (2015).
+A sensitive and specific neural signature for picture-induced negative affect.
+PLoS biology, 13(6), e1002180.
+
+</details>
+
+#### `nltools.datasets.get_collection_image_metadata`
+
+```python
+get_collection_image_metadata(collection = None, data_dir = None, limit = 10)
+```
+
+Get image metadata associated with collection.
+
+.. deprecated::
+    This function is deprecated and will be removed in a future version.
+    Please use fetch_neurovault_collection instead.
+

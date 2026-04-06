@@ -1,0 +1,117 @@
+version: 1
+project:
+  title: nltools
+  authors:
+    - name: Luke J. Chang
+    - name: Eshin Jolly
+  github: cosanlab/nltools
+  toc:
+    - file: index.md
+    - title: Migration Guide v0.6
+      children:
+        - file: migration-guide.md
+    - title: Basic Tutorials
+      children:
+        - file: tutorials/basics/00_quickstart
+        - file: tutorials/basics/01_brain_data
+        - file: tutorials/basics/02_design_matrix
+        - file: tutorials/basics/03_adjacency
+        - file: tutorials/basics/04_brain_collection
+    - title: Workflow Tutorials
+      children:
+        - file: tutorials/workflows/01_glm
+        - file: tutorials/workflows/02_group_analysis
+        - file: tutorials/workflows/04_rsa
+        - file: tutorials/workflows/05_decoding
+        - file: tutorials/workflows/06_pipeline_basics
+        - file: tutorials/workflows/07_two_stage_glm
+        - file: tutorials/workflows/08_encoding_models
+        - file: tutorials/workflows/08_multi_subject_decoding
+        - file: tutorials/workflows/09_isc_analysis
+        - file: tutorials/workflows/10_rsa_analysis
+    - title: API Classes
+      children:
+        - file: api/data/brain_data.md
+          children:
+            - file: api/data/braindata_io.md
+            - file: api/data/braindata_analysis.md
+            - file: api/data/braindata_modeling.md
+            - file: api/data/braindata_prediction.md
+            - file: api/data/braindata_bootstrap.md
+            - file: api/data/braindata_plotting.md
+            - file: api/data/braindata_pipeline.md
+        - file: api/data/adjacency.md
+          children:
+            - file: api/data/adjacency_stats.md
+            - file: api/data/adjacency_modeling.md
+            - file: api/data/adjacency_plotting.md
+            - file: api/data/adjacency_io.md
+        - file: api/data/design_matrix.md
+          children:
+            - file: api/data/design_matrix_transforms.md
+            - file: api/data/design_matrix_regressors.md
+            - file: api/data/design_matrix_append.md
+            - file: api/data/design_matrix_diagnostics.md
+            - file: api/data/design_matrix_io.md
+        - file: api/data/brain_collection.md
+          children:
+            - file: api/data/collection_constructors.md
+            - file: api/data/collection_transforms.md
+            - file: api/data/collection_inference.md
+            - file: api/data/collection_modeling.md
+            - file: api/data/collection_prediction.md
+            - file: api/data/collection_io.md
+            - file: api/data/collection_pipeline.md
+        - file: api/models.md
+    - title: API Functions
+      children:
+        - file: api/stats.md
+        - file: api/plotting.md
+        - file: api/mask.md
+        - file: api/filereader.md
+        - file: api/dataset.md
+        - file: api/crossval.md
+        - file: api/analysis.md
+    - title: API Pipelines
+      children:
+        - file: api/pipelines.md
+        - file: api/pipelines/pipeline.md
+        - file: api/pipelines/multi_subject.md
+        - file: api/pipelines/cv.md
+        - file: api/pipelines/steps.md
+        - file: api/pipelines/terminals.md
+        - file: api/pipelines/results.md
+    - title: API Utilities
+      children:
+        - file: api/utils.md
+        - file: api/prefs.md
+        - file: api/simulator.md
+        - file: api/neighborhoods.md
+        - file: api/cache.md
+    - title: API Algorithms
+      children:
+        - file: api/algorithms.md
+        - file: api/backends.md
+    - title: API Inference
+      children:
+        - file: api/algorithms/inference.md
+        - file: api/algorithms/inference_one_sample.md
+        - file: api/algorithms/inference_two_sample.md
+        - file: api/algorithms/inference_correlation.md
+        - file: api/algorithms/inference_timeseries.md
+        - file: api/algorithms/inference_matrix.md
+        - file: api/algorithms/inference_isc.md
+        - file: api/algorithms/inference_icc.md
+        - file: api/algorithms/inference_bootstrap.md
+        - file: api/algorithms/inference_utils.md
+    - title: Development
+      children:
+        - file: contributing.md
+        - file: performance.md
+        - file: changelog.md
+site:
+  options:
+    logo: ''
+    logo_text: nltools
+    folders: true
+  template: book-theme

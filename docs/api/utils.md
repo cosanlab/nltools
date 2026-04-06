@@ -1,62 +1,100 @@
-# `nltools.utils`
+## `nltools.utils`
 
-Helper functions for data validation, file operations, and common tasks.
+NeuroLearn Utilities
+====================
 
-## Overview
+Cross-cutting utilities used across the nltools package.
 
-The `nltools.utils` module provides utility functions that support the core functionality of nltools. These include data validation, type checking, file path resolution, concatenation helpers, and bootstrap utilities.
+**Functions:**
 
-## Key Functions
+Name | Description
+---- | -----------
+[`all_same`](#nltools.utils.all_same) | Check if all items in a sequence are equal to the first item.
+[`attempt_to_import`](#nltools.utils.attempt_to_import) | Attempt to import an optional dependency, returning None if unavailable.
+[`concatenate`](#nltools.utils.concatenate) | Concatenate a list of BrainData() or Adjacency() objects
+[`get_resource_path`](#nltools.utils.get_resource_path) | Get path to nltools resource directory.
 
-**Data Validation**
-- `check_brain_data()` - Validate BrainData instances
-- `check_brain_data_is_single()` - Check for single image
-- `check_square_numpy_matrix()` - Validate square matrices
 
-**File Operations**
-- `get_resource_path()` - Resolve paths to package resources
-- `attempt_to_import()` - Safe optional dependency import
 
-**Data Manipulation**
-- `concatenate()` - Concatenate BrainData objects
-- `set_decomposition_algorithm()` - Configure decomposition backend
+### Attributes
 
-**Bootstrap Utilities**
-- `_bootstrap_apply_func()` - Apply function to bootstrap samples
-
-**HDF5 Support**
-- `to_h5()` - Write data to HDF5 format
-
-## Quick Start
+### Functions#### `nltools.utils.all_same`
 
 ```python
-from nltools.utils import (
-    check_brain_data,
-    concatenate,
-    get_resource_path
-)
-
-# Validate BrainData
-check_brain_data(data)
-
-# Concatenate multiple BrainData objects
-combined = concatenate([data1, data2, data3])
-
-# Get path to package resource
-mask_path = get_resource_path('MNI152_T1_2mm_brain_mask.nii.gz')
+all_same(items)
 ```
 
-## Full API Reference
+Check if all items in a sequence are equal to the first item.
 
-```{eval-rst}
-.. automodule:: nltools.utils
-    :members:
-    :undoc-members:
-    :show-inheritance:
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`items` |  | A sequence of items to compare. | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`bool` |  | True if all items equal the first item, False otherwise.
+
+**Examples:**
+
+```pycon
+>>> all_same([1, 1, 1])
+True
+>>> all_same([1, 2, 1])
+False
 ```
 
-## See Also
+#### `nltools.utils.attempt_to_import`
 
-- {doc}`data/brain_data` - Main data class
-- {doc}`stats` - Statistical functions
-- {doc}`prefs` - MNI template preferences
+```python
+attempt_to_import(dependency, name = None, fromlist = None)
+```
+
+Attempt to import an optional dependency, returning None if unavailable.
+
+This function is used to handle optional dependencies gracefully. If the
+import fails, the function returns None rather than raising an error,
+allowing the calling code to check and handle missing dependencies.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dependency` |  | The module name to import (e.g., 'torch', 'cupy'). | *required*
+`name` |  | Optional name to store the dependency under in module_names. Defaults to the dependency name. | <code>None</code>
+`fromlist` |  | Optional list of names to import from the module. | <code>None</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | The imported module, or None if the import failed.
+
+**Examples:**
+
+```pycon
+>>> torch = attempt_to_import('torch')
+>>> if torch is not None:
+...     # Use torch
+...     pass
+```
+
+#### `nltools.utils.concatenate`
+
+```python
+concatenate(data)
+```
+
+Concatenate a list of BrainData() or Adjacency() objects
+
+#### `nltools.utils.get_resource_path`
+
+```python
+get_resource_path()
+```
+
+Get path to nltools resource directory.
+

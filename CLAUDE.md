@@ -33,6 +33,21 @@ Classes are **facades and glue** — all real logic lives in pure functions.
 - Don't repeat logic — extract shared helpers as functions where most useful and import them. Prefer a single source of truth over duplicated code.
 - **No underscore-prefixed module names** (e.g. `validation.py` not `_validation.py`). Leading underscores are fine for internal functions/methods, just not filenames.
 
+## Documentation
+
+Jupyter Book v2 (mystmd). API docs auto-generated via `griffe2md` (Google-style docstrings).
+
+```bash
+uv run poe docs-generate   # regenerate API docs only
+uv run poe docs-build      # generate + myst build --site
+uv run poe docs-preview    # myst start (live preview)
+uv run poe docs-clean      # rm _build
+```
+
+- Config: `docs/myst.yml` (TOC + site), `[tool.griffe2md]` in `pyproject.toml`
+- API generation script: `scripts/build_api_docs.py`
+- Tutorials: `docs/tutorials/` — MyST Markdown with `{code-cell}` directives
+
 ## Sub-agents
 - Instruct to use `uv run`, `symbex`, targeted TDD, `-n auto`, log files
 - Slow tests require explicit user permission

@@ -29,8 +29,9 @@ dependencies = [
 # Installed by default when using uv install
 [dependency-groups]
 dev = [
+    "griffe2md>=1.3.0",
     "ipywidgets>=8.1.7",
-    "jupyter-book>=1.0.4.post1",
+    "jupyter-book>=2.1.4",
     "jupytext>=1.18.1",
     "networkx>=3.5",
     "poethepoet>=0.40.0",
@@ -105,11 +106,34 @@ too-many-positional-arguments = "ignore" # seaborn deprecated positional args
 help = "Lint project with ruff and ty"
 shell  = """ruff check nltools --fix && ty check nltools"""
 
+[tool.poe.tasks.docs-clean]
+help = "Clean out built docs for debugging"
+shell = """rm -r docs/_build"""
+
+[tool.poe.tasks.docs-generate]
+help = "Generate API docs from source with griffe2md"
+shell = """python scripts/build_api_docs.py"""
+
 [tool.poe.tasks.docs-build]
-help = "Build jupyter-book docs"
-shell = """jupyter-book clean docs -a && jupyter-book build docs/"""
+help = "Generate API docs then build MyST site"
+shell = """python scripts/build_api_docs.py && cd docs && myst build --site"""
 
 [tool.poe.tasks.docs-preview]
-help = "Serve built docs"
-shell = """python -c "import webbrowser; webbrowser.open('http://localhost:8000')" && python -m http.server 8000 -d docs/_build/html/"""
+help = "Live preview docs"
+shell = """cd docs && myst start"""
+
+[tool.griffe2md]
+docstring_style = "google"
+show_docstring_examples = true
+show_signature_annotations = true
+separate_signature = true
+merge_init_into_class = true
+group_by_category = true
+show_category_heading = true
+members_order = "alphabetical"
+heading_level = 2
+filters = ["!^_"]
+docstring_section_style = "table"
+summary = true
+show_docstring_raises = false
 

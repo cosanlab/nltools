@@ -1,145 +1,224 @@
-# `nltools.backends`
+## `nltools.backends`
 
-**Backend Abstraction for CPU/GPU Operations**
+Backend abstraction for CPU/GPU operations.
 
-Provides transparent CPU/GPU acceleration for ridge regression and other algorithms.
-Supports NumPy (CPU), PyTorch (CUDA/MPS/CPU), and automatic backend selection.
+Supports NumPy (CPU-only) and PyTorch (CPU/CUDA/MPS) backends for
+linear algebra operations. Enables transparent acceleration while
+maintaining NumPy-first development.
 
-```{eval-rst}
-.. automodule:: nltools.backends
-    :members:
-    :undoc-members:
-    :show-inheritance:
-```
+**Classes:**
 
-## Quick Start
+Name | Description
+---- | -----------
+[`Backend`](#nltools.backends.Backend) | Backend abstraction for numerical operations.
 
-```python
-from nltools.backends import Backend, check_gpu_available
+**Functions:**
 
-# Check GPU availability
-available, info = check_gpu_available()
-print(f"GPU available: {available}")
-print(f"Device: {info['device']}")
+Name | Description
+---- | -----------
+[`assert_array_almost_equal`](#nltools.backends.assert_array_almost_equal) | Test array equality with automatic precision adjustment for MPS backend.
+[`auto_select_backend`](#nltools.backends.auto_select_backend) | Automatically select backend based on problem size.
+[`check_gpu_available`](#nltools.backends.check_gpu_available) | Check if GPU acceleration is available.
 
-# Use backends
-backend_cpu = Backend('numpy')
-backend_gpu = Backend('torch')  # Auto-detects cuda/mps
-backend_auto = Backend('auto')  # Smart selection
-```
 
-## Backend Selection
 
-The `Backend` class provides three modes:
-
-### NumPy Backend (CPU-only)
-```python
-from nltools.backends import Backend
-
-backend = Backend('numpy')
-# Always uses CPU with NumPy arrays
-# Best for small to medium problems
-```
-
-### PyTorch Backend (GPU-accelerated)
-```python
-backend = Backend('torch')
-# Automatically detects best device:
-#   - CUDA (NVIDIA GPUs)
-#   - MPS (Apple Silicon)
-#   - CPU (fallback)
-```
-
-### Auto Selection (Recommended)
-```python
-backend = Backend('auto')
-# Tries PyTorch if available, falls back to NumPy
-# Use auto_select_backend() for problem-size heuristics
-```
-
-## Advanced: Problem-Size Heuristics
-
-For optimal performance, use `auto_select_backend()` which selects based on problem size:
+### Classes#### `nltools.backends.Backend`
 
 ```python
-from nltools.backends import auto_select_backend
-
-# Automatically choose backend based on data dimensions
-n_samples, n_features, cv_folds = 300, 100000, 5
-backend = auto_select_backend(n_samples, n_features, cv=cv_folds)
-
-print(f"Selected backend: {backend.name}")
-# For large problems with CV, likely selects GPU if available
+Backend(backend: str = 'numpy')
 ```
 
-**Selection criteria:**
-- **Small problems** (< 10M elements): Use NumPy (GPU overhead not worth it)
-- **Large problems** (> 30M elements): Use GPU if available
-- **Cross-validation**: Prefer GPU even for medium problems
+Backend abstraction for numerical operations.
 
-## Usage in Algorithms
+Provides a unified interface for NumPy and PyTorch operations,
+enabling transparent GPU acceleration when available.
 
-The backend system is designed for seamless integration with nltools algorithms:
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`backend` | <code>[str](#str)</code> | Backend type: 'numpy', 'torch', or 'auto' - 'numpy': CPU-only using NumPy - 'torch': PyTorch with automatic device detection (cuda/mps/cpu) - 'auto': Automatically select best available backend | <code>'numpy'</code>
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`name`](#nltools.backends.Backend.name) | <code>[str](#str)</code> | Backend identifier (e.g., 'numpy', 'torch-cuda', 'torch-mps')
+[`device`](#nltools.backends.Backend.device) | <code>[str](#str)</code> | Device type ('cpu', 'cuda', or 'mps')
+[`xp`](#nltools.backends.Backend.xp) | <code>[module](#module)</code> | Array library module (numpy or torch)
+
+**Functions:**
+
+Name | Description
+---- | -----------
+[`matmul`](#nltools.backends.Backend.matmul) | Matrix multiplication.
+[`svd`](#nltools.backends.Backend.svd) | Compute Singular Value Decomposition.
+[`to_device`](#nltools.backends.Backend.to_device) | Transfer array to backend device.
+[`to_numpy`](#nltools.backends.Backend.to_numpy) | Convert array back to NumPy.
+
+
+
+##### Functions###### `nltools.backends.Backend.matmul`
 
 ```python
-from nltools.algorithms.ridge import ridge_svd
-import numpy as np
-
-X = np.random.randn(300, 50000)
-y = np.random.randn(300)
-
-# Explicit backend selection
-coef_cpu = ridge_svd(X, y, backend='numpy')
-coef_gpu = ridge_svd(X, y, backend='torch')
-
-# Automatic selection
-coef_auto = ridge_svd(X, y, backend='auto')
+matmul(A, B)
 ```
 
-## Performance Considerations
+Matrix multiplication.
 
-### When to Use GPU Acceleration
+**Parameters:**
 
-**Use GPU (`backend='torch'`) when:**
-- Problem size > 30M elements (e.g., 300 samples × 100k features)
-- Running cross-validation (multiplies effective problem size)
-- Fitting many models in a loop
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`A` | <code>[array](#array)</code> | First matrix | *required*
+`B` | <code>[array](#array)</code> | Second matrix | *required*
 
-**Use CPU (`backend='numpy'`) when:**
-- Problem size < 10M elements
-- GPU not available
-- Prototyping on small datasets
+**Returns:**
 
-### Memory Management
+Name | Type | Description
+---- | ---- | -----------
+`array` |  | Result of A @ B
 
-Both backends use float32 precision for memory efficiency:
+###### `nltools.backends.Backend.svd`
 
 ```python
-# Data automatically converted to float32
-X_float64 = np.random.randn(100, 50000)  # float64
-backend = Backend('torch')
-X_device = backend.to_device(X_float64)  # Converted to float32
+svd(X, full_matrices = False)
 ```
 
-### Important Limitations
+Compute Singular Value Decomposition.
 
-**MPS (Apple Silicon) Limitation:**
-- PyTorch's SVD is not fully optimized for MPS devices
-- Falls back to CPU for SVD operations
-- You may see warnings about CPU fallback
-- Performance may not exceed NumPy on Apple Silicon
+**Parameters:**
 
-**For Apple Silicon users:** NumPy with Accelerate framework may be faster than PyTorch until MPS SVD support improves.
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>[array](#array)</code> | Input matrix (n_samples, n_features) | *required*
+`full_matrices` | <code>bool, default=False</code> | If False, returns reduced SVD | <code>False</code>
 
-## API Reference
+**Returns:**
 
-See the full API documentation above for details on:
-- `Backend` class and methods
-- `check_gpu_available()` function
-- `auto_select_backend()` function
+Name | Type | Description
+---- | ---- | -----------
+`tuple` |  | (U, s, Vt) where: - U (array): Left singular vectors - s (array): Singular values - Vt (array): Right singular vectors (transposed)
 
-## See Also
+###### `nltools.backends.Backend.to_device`
 
-- [Performance Guide](../performance.md) - Detailed benchmarks and recommendations
-- {ref}`Ridge Regression <ridge-regression>` - Usage in algorithms
-- {doc}`algorithms` - Complete algorithms documentation
+```python
+to_device(arr: np.ndarray)
+```
+
+Transfer array to backend device.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`arr` | <code>[ndarray](#numpy.ndarray)</code> | Input numpy array | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`array` |  | Array on device (numpy array or torch tensor)
+
+###### `nltools.backends.Backend.to_numpy`
+
+```python
+to_numpy(arr)
+```
+
+Convert array back to NumPy.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`arr` | <code>[ndarray](#numpy.ndarray) or [Tensor](#torch.Tensor)</code> | Array to convert | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | np.ndarray: NumPy array
+
+
+
+### Functions#### `nltools.backends.assert_array_almost_equal`
+
+```python
+assert_array_almost_equal(x, y, decimal = 6, err_msg = '', verbose = True, backend = None)
+```
+
+Test array equality with automatic precision adjustment for MPS backend.
+
+This utility automatically reduces precision expectations for torch-mps backend
+due to float32 precision limitations, preventing test failures while maintaining
+realistic precision checks for other backends.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`x` |  | First array to compare | *required*
+`y` |  | Second array to compare | *required*
+`decimal` |  | Desired decimal precision (default: 6) | <code>6</code>
+`err_msg` |  | Error message prefix | <code>''</code>
+`verbose` |  | Whether to print detailed error messages | <code>True</code>
+`backend` |  | Backend instance (optional). If None, attempts to detect from x/y. | <code>None</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | None (raises AssertionError if arrays don't match)
+
+#### `nltools.backends.auto_select_backend`
+
+```python
+auto_select_backend(n_samples: int, n_features: int, cv: int = 1) -> Backend
+```
+
+Automatically select backend based on problem size.
+
+Uses heuristics to decide between NumPy (CPU) and PyTorch (GPU)
+based on the computational workload. Small problems use NumPy
+to avoid GPU transfer overhead. Large problems prefer GPU when
+available.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_samples` | <code>[int](#int)</code> | Number of samples in dataset | *required*
+`n_features` | <code>[int](#int)</code> | Number of features in dataset | *required*
+`cv` | <code>int, default=1</code> | Number of cross-validation folds (multiplies effective size) | <code>1</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`Backend` | <code>[Backend](#nltools.backends.Backend)</code> | Selected backend instance
+
+<details class="notes" open markdown="1">
+<summary>Notes</summary>
+
+Selection criteria:
+- Small problems (< 10M elements): Use NumPy
+- Large problems (> 30M elements): Use GPU if available
+- Cross-validation: Prefer GPU even for medium problems
+
+</details>
+
+#### `nltools.backends.check_gpu_available`
+
+```python
+check_gpu_available() -> Tuple[bool, Dict[str, Any]]
+```
+
+Check if GPU acceleration is available.
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`tuple` | <code>[Tuple](#typing.Tuple)[[bool](#bool), [Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]]</code> | (available, info) where: - available (bool): True if GPU (CUDA or MPS) is available - info (dict): Dictionary with keys:     - 'backend': 'torch' or 'numpy'     - 'device': 'cpu', 'cuda', or 'mps'     - 'device_name': Human-readable device name
+

@@ -1,16 +1,60 @@
-# `nltools.data.collection.io`
+## `nltools.data.collection.io`
 
-**File I/O**
+I/O functions for BrainCollection.
 
-Functions for writing BrainCollection data to disk, including path resolution
-and output format handling.
+Provides save path resolution and write functionality extracted from BrainCollection.
 
-```{eval-rst}
-.. automodule:: nltools.data.collection.io
-    :members:
-    :undoc-members:
+**Functions:**
+
+Name | Description
+---- | -----------
+[`write`](#nltools.data.collection.io.write) | Write all images in collection to files.
+
+
+
+### Classes
+
+### Functions#### `nltools.data.collection.io.write`
+
+```python
+write(bc: 'BrainCollection', directory: 'str | Path', pattern: str = 'image_{i:04d}.nii.gz', metadata_file: str | None = 'metadata.csv') -> list['Path']
 ```
 
-## See Also
+Write all images in collection to files.
 
-- {doc}`brain_collection` -- BrainCollection class reference
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bc` | <code>'BrainCollection'</code> | BrainCollection to write. | *required*
+`directory` | <code>'str \| Path'</code> | Output directory path. Will be created if it doesn't exist. | *required*
+`pattern` | <code>[str](#str)</code> | Filename pattern with {i} placeholder for image index. Default: "image_{i:04d}.nii.gz" produces image_0000.nii.gz, etc. | <code>'image_{i:04d}.nii.gz'</code>
+`metadata_file` | <code>[str](#str) \| None</code> | Optional filename for metadata CSV. Set to None to skip. Default: "metadata.csv" | <code>'metadata.csv'</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[list](#list)['Path']</code> | List of paths to written files.
+
+**Examples:**
+
+```pycon
+>>> bc = BrainCollection([bd1, bd2, bd3], mask=mask)
+>>> paths = write(bc, "output/")
+>>> # Creates: output/image_0000.nii.gz, image_0001.nii.gz, etc.
+```
+
+```pycon
+>>> # Custom pattern
+>>> write(bc, "output/", pattern="sub-{i:02d}_bold.nii.gz")
+>>> # Creates: output/sub-00_bold.nii.gz, sub-01_bold.nii.gz, etc.
+```
+
+```pycon
+>>> # With BIDS-style naming using metadata
+>>> bc.metadata["filename"] = [f"sub-{s}_bold.nii.gz" for s in subjects]
+>>> for i, bd in enumerate(bc):
+...     bd.write(f"output/{bc.metadata.loc[i, 'filename']}")
+```
+
