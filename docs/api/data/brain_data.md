@@ -20,7 +20,6 @@ Name | Type | Description | Default
 `interpolation` | <code>str, default='auto'</code> | Interpolation method for resampling. Options: 'auto' (detect based on data type; uses 'nearest' for discrete data like atlases/masks and 'continuous' for stat maps), 'nearest' (nearest-neighbor, preserves discrete values), 'linear' (linear interpolation), 'continuous' (higher-order spline, use for stat maps). | *required*
 `**kwargs` |  | Additional arguments passed to NiftiMasker. | <code>{}</code>
 
-
 **Methods:**
 
 Name | Description

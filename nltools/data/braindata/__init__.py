@@ -34,37 +34,35 @@ class BrainData(object):
     """BrainData is a class to represent neuroimaging data in python as a vector
     rather than a 3-dimensional matrix. This makes it easier to perform data
     manipulation and analyses.
+
+    Args:
+        data: Neuroimaging data. Can be:
+            - None (empty BrainData)
+            - BrainData object
+            - List of BrainData objects or file paths
+            - File path (str/Path) to .nii/.nii.gz/.h5/.hdf5
+            - nibabel Nifti1Image object
+            - URL to download data from
+        mask: Brain mask. Can be None (uses MNI template), a nibabel
+            Nifti1Image, a file path (str/Path) to a mask file, or a template
+            name string like ``'2mm-MNI152-2009c'`` (version: 'fsl' for
+            default/, 'a' for nilearn/, 'c' for fmriprep/).
+        masker: nilearn masker object (e.g. ROI or searchlight extractor).
+            Default will load data as voxels.
+        resample (bool, default=True): Whether to automatically resample data
+            to mask space. If True, data is resampled to match mask spatial
+            characteristics. If False, data must already be in mask space.
+            Default True preserves backward compatibility with v0.5.1.
+        interpolation (str, default='auto'): Interpolation method for resampling.
+            Options: 'auto' (detect based on data type; uses 'nearest' for
+            discrete data like atlases/masks and 'continuous' for stat maps),
+            'nearest' (nearest-neighbor, preserves discrete values),
+            'linear' (linear interpolation),
+            'continuous' (higher-order spline, use for stat maps).
+        **kwargs: Additional arguments passed to NiftiMasker.
     """
 
     def __init__(self, data=None, Y=None, X=None, mask=None, masker=None, **kwargs):
-        """Initialize BrainData object.
-
-        Args:
-            data: Neuroimaging data. Can be:
-                - None (empty BrainData)
-                - BrainData object
-                - List of BrainData objects or file paths
-                - File path (str/Path) to .nii/.nii.gz/.h5/.hdf5
-                - nibabel Nifti1Image object
-                - URL to download data from
-            mask: Brain mask. Can be None (uses MNI template), a nibabel
-                Nifti1Image, a file path (str/Path) to a mask file, or a template
-                name string like ``'2mm-MNI152-2009c'`` (version: 'fsl' for
-                default/, 'a' for nilearn/, 'c' for fmriprep/).
-            masker: nilearn masker object (e.g. ROI or searchlight extractor).
-                Default will load data as voxels.
-            resample (bool, default=True): Whether to automatically resample data
-                to mask space. If True, data is resampled to match mask spatial
-                characteristics. If False, data must already be in mask space.
-                Default True preserves backward compatibility with v0.5.1.
-            interpolation (str, default='auto'): Interpolation method for resampling.
-                Options: 'auto' (detect based on data type; uses 'nearest' for
-                discrete data like atlases/masks and 'continuous' for stat maps),
-                'nearest' (nearest-neighbor, preserves discrete values),
-                'linear' (linear interpolation),
-                'continuous' (higher-order spline, use for stat maps).
-            **kwargs: Additional arguments passed to NiftiMasker.
-        """
         from .validation import validate_data_type
         from .io import (
             initialize_mask,

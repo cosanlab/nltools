@@ -116,29 +116,6 @@ def postprocess(text: str) -> str:
     # Remove "Bases: object" (noise for classes that only inherit from object)
     text = re.sub(r"\nBases: <code>\[object\]\(#object\)</code>\n", "\n", text)
 
-    # Move the first Parameters section (constructor args) before the summary tables.
-    # griffe2md puts it after the summaries when merge_init_into_class is used.
-    # Must run before Attributes detail removal to match reliably.
-    # Match the table: header row, separator, then data rows (starting with `).
-    params_match = re.search(
-        r"\n(\*\*Parameters:\*\*\n\n"
-        r"Name \|.*\n"
-        r"----.*\n"
-        r"(?:`.*\n)*)",
-        text,
-    )
-    if params_match:
-        params_block = params_match.group(1)
-        text = text[: params_match.start()] + "\n" + text[params_match.end() :]
-        first_summary = re.search(r"\*\*(Methods|Functions|Attributes):\*\*", text)
-        if first_summary:
-            text = (
-                text[: first_summary.start()]
-                + params_block
-                + "\n\n"
-                + text[first_summary.start() :]
-            )
-
     # Remove the entire Attributes detail section (heading + individual entries).
     # The summary table is enough. Keep everything from "### Methods" onward.
     text = re.sub(
