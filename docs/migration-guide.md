@@ -8,10 +8,12 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 
 | Category | v0.5.1 (Old) | v0.6.0 (New) | Status |
 |----------|--------------|--------------|--------|
-| **GLM regression** | `.regress()` | `.fit(model='glm')` | **Removed** |
+| **Class names** | `Brain_Data`, `Design_Matrix` | `BrainData`, `DesignMatrix` | **Renamed** |
+| **Import paths** | `nltools.file_reader`, `nltools.simulator`, `nltools.external` | `nltools.io`, `nltools.data`, `nltools.algorithms` | **Moved** |
+| **GLM regression** | `.regress()` | `.fit(model='glm')` | **Deprecated** |
 | **Ridge regression** | Manual | `.fit(model='ridge')` | New |
 | **ML prediction** | `.predict(algorithm='svm')` | `.predict(X=..., y=...)` | Unified API |
-| **t-tests** | `.ttest()` | Use scipy.stats | Removed |
+| **t-tests** | `BrainData.ttest()` | Use `scipy.stats.ttest_1samp()` | **Removed** |
 | **Method chaining** | `.smooth()` modifies in-place | Returns copy | Changed |
 | **Properties** | `.shape()`, `.isempty()` | `.shape`, `.is_empty` | Changed |
 | **Cross-validation** | N/A | `.fit(..., cv=5)` | New |
@@ -19,6 +21,89 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Multi-subject** | `Brain_Collection` | `BrainCollection` class | **New** |
 | **SRM** | N/A | `SRM` / `DetSRM` classes | **New** |
 | **GPU inference** | N/A | `inference` module | **New** |
+
+---
+
+## Class Renames
+
+**Status**: **BREAKING** — no backward-compatibility aliases exist
+
+All data classes now follow PEP 8 naming conventions. The old names are **not available** — using them will raise `ImportError`.
+
+| v0.5.1 (Old) | v0.6.0 (New) |
+|---------------|--------------|
+| `Brain_Data` | `BrainData` |
+| `Design_Matrix` | `DesignMatrix` |
+| `Brain_Collection` | `BrainCollection` |
+
+**Find and replace in your codebase:**
+```bash
+# sed/sd commands for bulk rename
+sd 'Brain_Data' 'BrainData' **/*.py **/*.ipynb
+sd 'Design_Matrix' 'DesignMatrix' **/*.py **/*.ipynb
+sd 'Brain_Collection' 'BrainCollection' **/*.py **/*.ipynb
+```
+
+**Import examples:**
+```python
+# OLD (v0.5.1) — these will raise ImportError in v0.6.0
+from nltools.data import Brain_Data, Design_Matrix
+from nltools import Brain_Data
+
+# NEW (v0.6.0)
+from nltools.data import BrainData, DesignMatrix
+from nltools import BrainData
+```
+
+---
+
+## Import Path Changes
+
+**Status**: **BREAKING** — old module paths no longer exist
+
+Several modules have been reorganized. The old import paths will raise `ModuleNotFoundError`.
+
+| v0.5.1 Import | v0.6.0 Import | Status |
+|----------------|---------------|--------|
+| `from nltools.simulator import Simulator` | `from nltools import Simulator` | Moved to `nltools.data.simulator` |
+| `from nltools.simulator import SimulateGrid` | `from nltools import SimulateGrid` | Moved to `nltools.data.simulator` |
+| `from nltools.file_reader import onsets_to_dm` | `from nltools.io import onsets_to_dm` | Moved to `nltools.io.file_reader` |
+| `from nltools.external import glover_hrf` | `from nltools.algorithms.hrf import glover_hrf` | Moved to `nltools.algorithms` |
+| `from nltools.utils import get_anatomical` | **Removed** | Use `nilearn.datasets.load_mni152_brain_mask()` |
+| `from nltools.stats import regress` | **Removed** | Use `BrainData.fit(model='glm')` |
+
+**Example migrations:**
+```python
+# OLD: glover_hrf
+from nltools.external import glover_hrf
+# NEW:
+from nltools.algorithms.hrf import glover_hrf
+
+# OLD: onsets_to_dm
+from nltools.file_reader import onsets_to_dm
+# NEW:
+from nltools.io import onsets_to_dm
+
+# OLD: get_anatomical (removed entirely)
+from nltools.utils import get_anatomical
+anat = get_anatomical()
+# NEW: use nilearn directly
+from nilearn.datasets import load_mni152_template
+anat = load_mni152_template(resolution=2)
+
+# OLD: Simulator / SimulateGrid
+from nltools.simulator import Simulator, SimulateGrid
+# NEW:
+from nltools import Simulator, SimulateGrid
+# or: from nltools.data import Simulator, SimulateGrid
+```
+
+**Unchanged imports** (these still work as before):
+- `from nltools.stats import fdr, fisher_r_to_z, zscore, find_spikes, threshold`
+- `from nltools.stats import one_sample_permutation` (deprecated wrapper, still works)
+- `from nltools.plotting import component_viewer`
+- `from nltools.mask import roi_to_brain, expand_mask, create_sphere`
+- `from nltools.data import Adjacency` (name unchanged)
 
 ---
 
@@ -324,12 +409,16 @@ adj.threshold(lower='90%')     # Keep top 10% (percentile threshold)
 
 | Method | Alternative | Migration Effort |
 |--------|-------------|------------------|
-| `.regress()` | `.fit(model='glm', X=design_matrix)` | **Low** |
+| `.regress()` | `.fit(model='glm', X=design_matrix)` — deprecated wrapper still works in v0.6.0 | **Low** |
 | `.predict(algorithm='svm')` | `.predict(y=labels, method='svm')` (updated API) | **Low** |
-| `.ttest()` | Use `scipy.stats.ttest_1samp()` | Low |
+| `BrainData.ttest()` | Use `scipy.stats.ttest_1samp()` — **fully removed**, no wrapper | **Medium** |
 | `.randomise()` | Use nilearn permutation testing | Medium |
 | `.predict_multi()` | Will return in future Model class | N/A |
 | `summarize_bootstrap()` | `BrainData.bootstrap()` or `OnlineBootstrapStats` | **Low** |
+
+:::{note}
+`Adjacency.ttest()` and `BrainCollection.ttest()` still exist — only the `BrainData.ttest()` method was removed.
+:::
 
 ### 2. Removed Classes
 
@@ -1094,15 +1183,29 @@ brain_data.isempty   # Deprecated - use .is_empty instead
 
 ## Migration Checklist
 
-- [ ] Replace `.regress()` with `.fit(model='glm')`
+### Must fix (will crash)
+
+- [ ] Rename `Brain_Data` → `BrainData`, `Design_Matrix` → `DesignMatrix` everywhere
+- [ ] Update `from nltools.file_reader import ...` → `from nltools.io import ...`
+- [ ] Update `from nltools.external import glover_hrf` → `from nltools.algorithms.hrf import glover_hrf`
+- [ ] Update `from nltools.simulator import ...` → `from nltools import ...` or `from nltools.data import ...`
+- [ ] Remove `from nltools.utils import get_anatomical` — use `nilearn.datasets.load_mni152_template()`
+- [ ] Remove `from nltools.stats import regress` — use `BrainData.fit(model='glm')`
+- [ ] Replace `BrainData.ttest()` with `scipy.stats.ttest_1samp()`
+
+### Should fix (deprecated or changed behavior)
+
+- [ ] Replace `.regress()` with `.fit(model='glm')` (deprecated wrapper still works for now)
 - [ ] Update `.predict(algorithm=...)` to `.predict(method=..., cv=...)` (new keyword API)
-- [ ] Replace `.ttest()` with `scipy.stats.ttest_1samp()`
 - [ ] Update `.shape()` → `.shape`, `.isempty()` → `.is_empty`, `.dtype()` → `.dtype`
 - [ ] Update `.smooth()` to assign return value (returns copy now)
 - [ ] Replace `summarize_bootstrap()` with `BrainData.bootstrap()` or `OnlineBootstrapStats`
+
+### Optional (new features to consider)
+
 - [ ] Consider using new `.fit(model='ridge')` for regression
 - [ ] Consider using new CV features (`cv=5`, `alpha='auto'`)
-- [ ] Migrate `isc()`, `isc_group()` to `isc_permutation_test()`, `isc_group_permutation_test()` (optional - wrappers maintained)
+- [ ] Migrate `isc()`, `isc_group()` to `isc_permutation_test()`, `isc_group_permutation_test()` (optional — wrappers maintained)
 - [ ] Replace `stats.correlation()` with `correlation_permutation_test()` from inference module
 - [ ] Replace `stats.pearson()` with `scipy.stats.pearsonr` or `correlation_permutation_test()`
 - [ ] Consider using `fit(inplace=False)` for immutable results and serialization
@@ -1343,4 +1446,4 @@ result = one_sample_permutation_test(data, backend='auto')
 
 ---
 
-*Last updated: 2026-03-10 for nltools v0.6.0*
+*Last updated: 2026-04-06 for nltools v0.6.0*
