@@ -393,7 +393,7 @@ class TestPlotFlatmap:
         fig = plot_flatmap(
             single_image,
             radius=5.0,
-            interpolation="nearest",
+            interpolation="nearest_most_frequent",
         )
         assert fig is not None
         plt.close(fig)

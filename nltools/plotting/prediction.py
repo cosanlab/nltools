@@ -1,0 +1,105 @@
+"""Model output visualization — ROC, SVM margin, regression, and logistic plots."""
+
+__all__ = [
+    "dist_from_hyperplane_plot",
+    "scatterplot",
+    "probability_plot",
+    "roc_plot",
+]
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+def dist_from_hyperplane_plot(stats_output):
+    """Plot SVM Classification Distance from Hyperplane
+
+    Args:
+        stats_output: a pandas file with prediction output
+
+    Returns:
+        fig: Will return a seaborn plot of distance from hyperplane
+
+    """
+
+    if "dist_from_hyperplane_xval" in stats_output.columns:
+        sns.catplot(
+            "subject_id",
+            "dist_from_hyperplane_xval",
+            hue="Y",
+            data=stats_output,
+            kind="point",
+        )
+    else:
+        sns.catplot(
+            "subject_id",
+            "dist_from_hyperplane_all",
+            hue="Y",
+            data=stats_output,
+            kind="point",
+        )
+    plt.xlabel("Subject", fontsize=16)
+    plt.ylabel("Distance from Hyperplane", fontsize=16)
+    plt.title("Classification", fontsize=18)
+    return
+
+
+def scatterplot(stats_output):
+    """Plot Prediction Scatterplot
+
+    Args:
+        stats_output: a pandas file with prediction output
+
+    Returns:
+        fig: Will return a seaborn scatterplot
+
+    """
+
+    if "yfit_xval" in stats_output.columns:
+        sns.lmplot(x="Y", y="yfit_xval", data=stats_output)
+    else:
+        sns.lmplot(x="Y", y="yfit_all", data=stats_output)
+    plt.xlabel("Y", fontsize=16)
+    plt.ylabel("Predicted Value", fontsize=16)
+    plt.title("Prediction", fontsize=18)
+    return
+
+
+def probability_plot(stats_output):
+    """Plot Classification Probability
+
+    Args:
+        stats_output: a pandas file with prediction output
+
+    Returns:
+        fig: Will return a seaborn scatterplot
+
+    """
+    if "Probability_xval" in stats_output.columns:
+        sns.lmplot("Y", "Probability_xval", data=stats_output, logistic=True)
+    else:
+        sns.lmplot("Y", "Probability_all", data=stats_output, logistic=True)
+    plt.xlabel("Y", fontsize=16)
+    plt.ylabel("Predicted Probability", fontsize=16)
+    plt.title("Prediction", fontsize=18)
+    return
+
+
+def roc_plot(fpr, tpr):
+    """Plot 1-Specificity by Sensitivity
+
+    Args:
+        fpr: false positive rate from Roc.calculate
+        tpr: true positive rate from Roc.calculate
+
+    Returns:
+        fig: Will return a matplotlib ROC plot
+
+    """
+
+    plt.figure()
+    plt.plot(fpr, tpr, color="red", linewidth=3)
+    plt.xlabel("(1 - Specificity)", fontsize=16)
+    plt.ylabel("Sensitivity", fontsize=16)
+    plt.title("ROC Plot", fontsize=18)
+    return
