@@ -26,6 +26,10 @@ By the end of this tutorial, you will be able to:
 - **Group operations**: aggregation, inference, and modeling applied across subjects in parallel
 
 ```{code-cell} python3
+import os
+
+os.environ["TQDM_DISABLE"] = "1"  # Suppress progress bars in tutorial output
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
