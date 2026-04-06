@@ -9,7 +9,6 @@ Adjacency is a class to represent Adjacency matrices as a vector rather
 than a 2-dimensional matrix. This makes it easier to perform data
 manipulation and analyses.
 
-
 **Parameters:**
 
 Name | Type | Description | Default
@@ -18,7 +17,6 @@ Name | Type | Description | Default
 `matrix_type` |  | (str) type of matrix.  Possible values include:         ['distance','similarity','directed','distance_flat',         'similarity_flat','directed_flat'] | <code>None</code>
 `Y` |  | Pandas DataFrame of training labels | <code>None</code>
 `**kwargs` |  | Additional keyword arguments | <code>{}</code>
-
 
 **Methods:**
 

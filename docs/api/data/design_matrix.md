@@ -9,7 +9,6 @@ Polars-based design matrix for experimental designs in neuroimaging.
 Wraps a Polars DataFrame with neuroimaging-specific metadata and methods.
 Uses composition pattern (not subclassing) for clean metadata preservation.
 
-
 **Parameters:**
 
 Name | Type | Description | Default
@@ -19,7 +18,6 @@ Name | Type | Description | Default
 `columns` | <code>list of str</code> | Column names (used with ndarray input) | <code>None</code>
 `convolved` | <code>list of str</code> | Names of convolved columns (tracked internally) | <code>None</code>
 `polys` | <code>list of str</code> | Names of polynomial columns (tracked internally) | <code>None</code>
-
 
 **Attributes:**
 
