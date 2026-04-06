@@ -542,18 +542,22 @@ def filter_data(bd, sampling_freq=None, high_pass=None, low_pass=None, **kwargs)
     return out
 
 
-def standardize(bd, axis=0, method="center"):
+def standardize(bd, axis=0, method="center", verbose=True):
     """Standardize BrainData() instance.
 
     Args:
         bd: BrainData instance.
         axis: 0 for observations 1 for voxels (default: 0)
         method: ['center','zscore'] (default: 'center')
+        verbose: If False, suppress sklearn numerical warnings that occur
+            when voxels have near-zero variance. (default: True)
 
     Returns:
         BrainData: Standardized BrainData instance.
 
     """
+    import warnings
+
     from sklearn.preprocessing import scale
 
     if axis == 1 and len(bd.shape) == 1:
@@ -569,7 +573,15 @@ def standardize(bd, axis=0, method="center"):
         with_std = False
     else:
         raise ValueError('method must be ["center","zscore"')
-    out.data = scale(bd.data, axis=axis, with_std=with_std)
+
+    if verbose:
+        out.data = scale(bd.data, axis=axis, with_std=with_std)
+    else:
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message="Numerical issues", category=UserWarning
+            )
+            out.data = scale(bd.data, axis=axis, with_std=with_std)
     return out
 
 

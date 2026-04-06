@@ -401,6 +401,7 @@ def standardize(
     method: str = "center",
     n_jobs: int = 1,
     show_progress: bool = True,
+    verbose: bool = True,
 ) -> "BrainCollection":
     """
     Standardize each image.
@@ -415,6 +416,7 @@ def standardize(
         method: 'center' (subtract mean) or 'zscore' (subtract mean, divide std)
         n_jobs: Number of parallel jobs.
         show_progress: Show progress bar.
+        verbose: If False, suppress sklearn numerical warnings. Default: True.
 
     Returns:
         BrainCollection with standardized images.
@@ -425,7 +427,7 @@ def standardize(
         >>> bc.standardize(axis=1)  # Standardize across voxels
     """
     return bc.map(
-        lambda bd: bd.standardize(axis=axis, method=method),
+        lambda bd: bd.standardize(axis=axis, method=method, verbose=verbose),
         axis=0,
         n_jobs=n_jobs,
         show_progress=show_progress,

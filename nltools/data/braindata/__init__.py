@@ -1183,7 +1183,7 @@ class BrainData(object):
 
         return smooth(self, fwhm)
 
-    def standardize(self, axis=0, method="center"):
+    def standardize(self, axis=0, method="center", verbose=True):
         """Standardize BrainData() instance.
 
         Args:
@@ -1191,13 +1191,15 @@ class BrainData(object):
                 1 standardizes each observation across voxels.
             method (str): 'center' subtracts the mean (default).
                 'zscore' subtracts the mean and divides by standard deviation.
+            verbose (bool): If False, suppress sklearn numerical warnings that
+                occur when voxels have near-zero variance. Default: True.
 
         Returns:
             BrainData: Standardized BrainData instance.
         """
         from .analysis import standardize
 
-        return standardize(self, axis=axis, method=method)
+        return standardize(self, axis=axis, method=method, verbose=verbose)
 
     def std(self, axis=0):
         """Get standard deviation of each voxel or image.

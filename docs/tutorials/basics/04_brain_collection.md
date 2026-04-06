@@ -181,7 +181,7 @@ Apply preprocessing to all subjects at once:
 
 ```{code-cell} python3
 # Standardize each subject (mean-center per voxel)
-bc_centered = bc.standardize(axis=0, method="center", show_progress=False)
+bc_centered = bc.standardize(axis=0, method="center", show_progress=False, verbose=False)
 print(f"Centered: {bc_centered.shape}")
 
 # Smooth all subjects
@@ -196,7 +196,7 @@ Apply any function to each subject:
 ```{code-cell} python3
 # Z-score each subject independently
 bc_zscored = bc.map(
-    lambda bd: bd.standardize(method="zscore"),
+    lambda bd: bd.standardize(method="zscore", verbose=False),
     axis=0,
     show_progress=False,
 )

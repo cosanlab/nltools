@@ -140,7 +140,7 @@ print(f"Difference map: {difference.shape}")
 `standardize()` operates per-voxel across images by default. Use `method='zscore'` for full z-scoring (subtract mean and divide by std), or `method='center'` (default) for mean-centering only.
 
 ```{code-cell} python3
-z_scored = data.standardize(method="zscore")
+z_scored = data.standardize(method="zscore", verbose=False)
 print(f"Z-scored mean: {z_scored.mean().data.mean():.6f}")
 print(f"Z-scored std: {z_scored.std().data.mean():.4f}")
 ```
@@ -174,7 +174,7 @@ print(f"Mask voxels: {binary_mask.data.sum():.0f}")
 Preprocessing methods return new `BrainData` objects, so you can chain them:
 
 ```{code-cell} python3
-result = data.smooth(fwhm=6).standardize(method="zscore").mean().threshold(upper="95%")
+result = data.smooth(fwhm=6).standardize(method="zscore", verbose=False).mean().threshold(upper="95%")
 print(f"Chained result: {result.shape}")
 ```
 
