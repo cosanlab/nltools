@@ -27,7 +27,10 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.fft import fft, fftfreq
-from nltools.stats import two_sample_permutation, one_sample_permutation
+from nltools.algorithms.inference import (
+    one_sample_permutation_test,
+    two_sample_permutation_test,
+)
 from nilearn.plotting import (
     plot_glass_brain,
     plot_stat_map,
@@ -567,7 +570,7 @@ def plot_mean_label_distance(
             # Between group test
             tmp1 = out.loc[(out["Group"] == i) & (out["Type"] == "Within"), "Distance"]
             tmp2 = out.loc[(out["Group"] == i) & (out["Type"] == "Between"), "Distance"]
-            stats[str(i)] = two_sample_permutation(tmp1, tmp2, n_permute=n_permute)
+            stats[str(i)] = two_sample_permutation_test(tmp1, tmp2, n_permute=n_permute)
         return (f, stats)
     else:
         return f
@@ -656,8 +659,8 @@ def plot_between_label_distance(
                 tmp2 = out.loc[
                     (out["Group"] == i) & (out["Comparison"] == j), "Distance"
                 ]
-                s = two_sample_permutation(tmp1, tmp2, n_permute=n_permute)
-                mn_dist_out.loc[i, j] = s["mean"]
+                s = two_sample_permutation_test(tmp1, tmp2, n_permute=n_permute)
+                mn_dist_out.loc[i, j] = s["mean_diff"]
                 p_dist_out.loc[i, j] = s["p"]
         sns.heatmap(mn_dist_out, ax=ax, square=True, **kwargs)
         sns.heatmap(
@@ -775,7 +778,7 @@ def plot_silhouette(
             temp.loc[labelInd, "label"] = label
             temp.loc[labelInd, "mean"] = np.mean(data)
             if np.mean(data) > 0:  # Only test positive mean silhouette scores
-                statsout = one_sample_permutation(data, n_permute=n_permute)
+                statsout = one_sample_permutation_test(data, n_permute=n_permute)
                 temp["p"] = statsout["p"]
             else:
                 temp["p"] = 999

@@ -43,7 +43,10 @@ def similarity(
 
     """
     from nltools.data.adjacency import Adjacency
-    from nltools.stats import correlation_permutation, matrix_permutation
+    from nltools.algorithms.inference import (
+        correlation_permutation_test,
+        matrix_permutation_test,
+    )
     from nltools.plotting import plot_stacked_adjacency
 
     if nan_policy not in ("omit", "propagate", "raise"):
@@ -106,11 +109,11 @@ def similarity(
 
     if perm_type is None:
         n_permute = 0
-        similarity_func = correlation_permutation
+        similarity_func = correlation_permutation_test
     elif perm_type == "1d":
-        similarity_func = correlation_permutation
+        similarity_func = correlation_permutation_test
     elif perm_type == "2d":
-        similarity_func = matrix_permutation
+        similarity_func = matrix_permutation_test
     else:
         raise ValueError("perm_type must be ['1d','2d', or None']")
 
@@ -255,7 +258,7 @@ def ttest(adj, permutation=False, **kwargs):
     from copy import deepcopy
 
     from nltools.data.adjacency import Adjacency
-    from nltools.stats import one_sample_permutation
+    from nltools.algorithms.inference import one_sample_permutation_test
 
     if adj.is_single_matrix:
         raise ValueError("t-test cannot be run on single matrices.")
@@ -264,7 +267,7 @@ def ttest(adj, permutation=False, **kwargs):
         t = []
         p = []
         for i in range(adj.data.shape[1]):
-            stats = one_sample_permutation(adj.data[:, i], **kwargs)
+            stats = one_sample_permutation_test(adj.data[:, i], **kwargs)
             t.append(stats["mean"])
             p.append(stats["p"])
         t = Adjacency(np.array(t))
@@ -348,7 +351,7 @@ def stats_label_distance(adj, labels=None, n_permute=5000, n_jobs=-1):
     import pandas as pd
     from copy import deepcopy
 
-    from nltools.stats import two_sample_permutation
+    from nltools.algorithms.inference import two_sample_permutation_test
 
     if not adj.is_single_matrix:
         raise ValueError("This function only works on single adjacency matrices.")
@@ -378,7 +381,7 @@ def stats_label_distance(adj, labels=None, n_permute=5000, n_jobs=-1):
         # Within group test
         tmp1 = out.loc[(out["Group"] == i) & (out["Type"] == "Within"), "Distance"]
         tmp2 = out.loc[(out["Group"] == i) & (out["Type"] == "Between"), "Distance"]
-        stats[str(i)] = two_sample_permutation(
+        stats[str(i)] = two_sample_permutation_test(
             tmp1, tmp2, n_permute=n_permute, n_jobs=n_jobs
         )
     return stats

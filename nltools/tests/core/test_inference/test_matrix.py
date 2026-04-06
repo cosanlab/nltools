@@ -923,10 +923,9 @@ class TestMatrixUtilitiesIntegration:
         # Results should be different
         assert not np.allclose(result_bias["dcorr"], result_no_bias["dcorr"], atol=1e-6)
 
-    def test_backward_compatibility_import_from_stats(self):
-        """Test that functions can still be imported from stats.py for backward compatibility."""
-        # After migration, these should still be importable from stats.py
-        from nltools.stats import double_center, u_center, distance_correlation
+    def test_backward_compatibility_import_from_inference(self):
+        """Test that functions can be imported from the inference module."""
+        from nltools.algorithms.inference import double_center, u_center, distance_correlation
 
         assert callable(double_center)
         assert callable(u_center)

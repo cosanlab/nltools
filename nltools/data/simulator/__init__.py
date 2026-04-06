@@ -17,7 +17,8 @@ import matplotlib.pyplot as plt
 from nilearn.maskers import NiftiMasker
 from scipy.stats import multivariate_normal, binom, ttest_1samp
 from nltools.data import BrainData
-from nltools.stats import fdr, one_sample_permutation
+from nltools.stats import fdr
+from nltools.algorithms.inference import one_sample_permutation_test
 from nltools.prefs import MNI_Template
 import csv
 from copy import deepcopy
@@ -625,7 +626,7 @@ class SimulateGrid:
         flattened = data.reshape(self.grid_width * self.grid_width, self.n_subjects)
         stats_all = []
         for i in range(flattened.shape[0]):
-            stats = one_sample_permutation(flattened[i, :])
+            stats = one_sample_permutation_test(flattened[i, :])
             stats_all.append(stats)
         mean = np.reshape(
             np.array([x["mean"] for x in stats_all]), (self.grid_width, self.grid_width)

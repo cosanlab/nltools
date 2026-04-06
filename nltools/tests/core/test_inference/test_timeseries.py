@@ -351,7 +351,7 @@ class TestTimeseriesCorrelation:
         from nltools.algorithms.inference.timeseries import (
             timeseries_correlation_permutation_test,
         )
-        from nltools.stats import correlation_permutation as stats_correlation
+        from nltools.algorithms.inference import correlation_permutation_test as stats_correlation
 
         np.random.seed(42)
         x = np.random.randn(100)
@@ -397,7 +397,7 @@ class TestTimeseriesCorrelation:
         from nltools.algorithms.inference.timeseries import (
             timeseries_correlation_permutation_test,
         )
-        from nltools.stats import correlation_permutation as stats_correlation
+        from nltools.algorithms.inference import correlation_permutation_test as stats_correlation
 
         np.random.seed(42)
         x = np.random.randn(100)
