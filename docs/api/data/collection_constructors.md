@@ -1,23 +1,25 @@
-## `nltools.data.collection.constructors`
+## `constructors`
 
 Constructor functions for BrainCollection.
 
 Standalone functions that create BrainCollection instances from various sources
 (BIDS datasets, glob patterns, stacked BrainData).
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`from_bids`](#nltools.data.collection.constructors.from_bids) | Create BrainCollection from a BIDS dataset.
-[`from_glob`](#nltools.data.collection.constructors.from_glob) | Create BrainCollection from glob pattern.
-[`from_stacked`](#nltools.data.collection.constructors.from_stacked) | Create BrainCollection by splitting a stacked BrainData.
+[`from_bids`](#from_bids) | Create BrainCollection from a BIDS dataset.
+[`from_glob`](#from_glob) | Create BrainCollection from glob pattern.
+[`from_stacked`](#from_stacked) | Create BrainCollection by splitting a stacked BrainData.
 
 
 
 ### Classes
 
-### Functions#### `nltools.data.collection.constructors.from_bids`
+### Methods
+
+#### `from_bids`
 
 ```python
 from_bids(layout: Any, mask: 'nib.Nifti1Image | Path | str', *, task: str | None = None, subject: str | list[str] | None = None, session: str | list[str] | None = None, run: int | list[int] | None = None, space: str | None = None, suffix: str = 'bold', extension: str = 'nii.gz', **bids_filters: str) -> 'BrainCollection'
@@ -59,7 +61,7 @@ Type | Description
 ... )
 ```
 
-#### `nltools.data.collection.constructors.from_glob`
+#### `from_glob`
 
 ```python
 from_glob(pattern: str, mask: 'nib.Nifti1Image | Path | str', *, pattern_groups: 'dict[str, int] | str | None' = None, sort: bool = True) -> 'BrainCollection'
@@ -92,7 +94,7 @@ Type | Description
 ... )
 ```
 
-#### `nltools.data.collection.constructors.from_stacked`
+#### `from_stacked`
 
 ```python
 from_stacked(brain_data: 'BrainData', splits: list[int] | None = None, n_images: int | None = None) -> 'BrainCollection'

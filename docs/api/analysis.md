@@ -1,4 +1,4 @@
-## `nltools.data.roc`
+## `roc`
 
 NeuroLearn Analysis Tools
 =========================
@@ -9,17 +9,18 @@ machine-learning analyses on imaging data
 
 Name | Description
 ---- | -----------
-[`Roc`](#nltools.data.roc.Roc) | Roc Class
+[`Roc`](#Roc) | Roc Class
 
 
 
-### Classes#### `nltools.data.roc.Roc`
+### Classes
+
+#### `Roc`
 
 ```python
 Roc(input_values = None, binary_outcome = None, threshold_type = 'optimal_overall', forced_choice = None, **kwargs)
 ```
 
-Bases: <code>[object](#object)</code>
 
 Roc Class
 
@@ -37,52 +38,26 @@ Name | Type | Description | Default
 `threshold_type` |  | ['optimal_overall', 'optimal_balanced',             'minimum_sdt_bias'] | <code>'optimal_overall'</code>
 `**kwargs` |  | Additional keyword arguments to pass to the prediction         algorithm | <code>{}</code>
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`calculate`](#nltools.data.roc.Roc.calculate) | Calculate Receiver Operating Characteristic plot (ROC) for
-[`plot`](#nltools.data.roc.Roc.plot) | Create ROC Plot
-[`summary`](#nltools.data.roc.Roc.summary) | Display a formatted summary of ROC analysis.
+[`calculate`](#calculate) | Calculate Receiver Operating Characteristic plot (ROC) for
+[`plot`](#plot) | Create ROC Plot
+[`summary`](#summary) | Display a formatted summary of ROC analysis.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`binary_outcome`](#nltools.data.roc.Roc.binary_outcome) |  | 
-[`forced_choice`](#nltools.data.roc.Roc.forced_choice) |  | 
-[`input_values`](#nltools.data.roc.Roc.input_values) |  | 
-[`threshold_type`](#nltools.data.roc.Roc.threshold_type) |  | 
+[`binary_outcome`](#binary_outcome) |  | 
+[`forced_choice`](#forced_choice) |  | 
+[`input_values`](#input_values) |  | 
+[`threshold_type`](#threshold_type) |  | 
 
+##### Methods
 
-
-##### Attributes###### `nltools.data.roc.Roc.binary_outcome`
-
-```python
-binary_outcome = deepcopy(binary_outcome)
-```
-
-###### `nltools.data.roc.Roc.forced_choice`
-
-```python
-forced_choice = deepcopy(forced_choice)
-```
-
-###### `nltools.data.roc.Roc.input_values`
-
-```python
-input_values = deepcopy(input_values)
-```
-
-###### `nltools.data.roc.Roc.threshold_type`
-
-```python
-threshold_type = deepcopy(threshold_type)
-```
-
-
-
-##### Functions###### `nltools.data.roc.Roc.calculate`
+###### `calculate`
 
 ```python
 calculate(input_values = None, binary_outcome = None, criterion_values = None, threshold_type = 'optimal_overall', forced_choice = None, balanced_acc = False)
@@ -103,7 +78,7 @@ Name | Type | Description | Default
 `balanced_acc` |  | balanced accuracy for single-interval classification             (bool). THIS IS NOT COMPLETELY IMPLEMENTED BECAUSE             IT AFFECTS ACCURACY ESTIMATES, BUT NOT P-VALUES OR             THRESHOLD AT WHICH TO EVALUATE SENS/SPEC | <code>False</code>
 `**kwargs` |  | Additional keyword arguments to pass to the prediction             algorithm | *required*
 
-###### `nltools.data.roc.Roc.plot`
+###### `plot`
 
 ```python
 plot(plot_method = 'gaussian', balanced_acc = False, **kwargs)
@@ -128,7 +103,7 @@ Type | Description
 ---- | -----------
  | fig
 
-###### `nltools.data.roc.Roc.summary`
+###### `summary`
 
 ```python
 summary()
@@ -138,4 +113,4 @@ Display a formatted summary of ROC analysis.
 
 
 
-### Functions
+### Methods

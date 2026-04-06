@@ -1,21 +1,23 @@
-## `nltools.algorithms.inference.two_sample`
+## `two_sample`
 
 Two-sample permutation test implementations.
 
 This module provides CPU-parallel and GPU-batched implementations
 of the two-sample permutation test (group permutation test).
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`two_sample_permutation_test`](#nltools.algorithms.inference.two_sample.two_sample_permutation_test) | Two-sample permutation test using group label shuffling.
+[`two_sample_permutation_test`](#two_sample_permutation_test) | Two-sample permutation test using group label shuffling.
 
 
 
 ### Classes
 
-### Functions#### `nltools.algorithms.inference.two_sample.two_sample_permutation_test`
+### Methods
+
+#### `two_sample_permutation_test`
 
 ```python
 two_sample_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict

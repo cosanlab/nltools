@@ -1,4 +1,4 @@
-## `nltools.cross_validation`
+## `cross_validation`
 
 Cross-Validation Data Classes
 =============================
@@ -10,11 +10,13 @@ types of cross-validation
 
 Name | Description
 ---- | -----------
-[`KFoldStratified`](#nltools.cross_validation.KFoldStratified) | K-Folds cross validation iterator which stratifies continuous data
+[`KFoldStratified`](#KFoldStratified) | K-Folds cross validation iterator which stratifies continuous data
 
 
 
-### Classes#### `nltools.cross_validation.KFoldStratified`
+### Classes
+
+#### `KFoldStratified`
 
 ```python
 KFoldStratified(n_splits = 3, shuffle = False, random_state = None)
@@ -39,15 +41,17 @@ Name | Type | Description | Default
 `shuffle` |  | boolean, optional Whether to shuffle the data before splitting into batches. | <code>False</code>
 `random_state` |  | None, int or RandomState Pseudo-random number generator state used for random sampling. If None, use default numpy RNG for shuffling | <code>None</code>
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`split`](#nltools.cross_validation.KFoldStratified.split) | Generate indices to split data into training and test set.
+[`split`](#split) | Generate indices to split data into training and test set.
 
 
 
-##### Functions###### `nltools.cross_validation.KFoldStratified.split`
+##### Methods
+
+###### `split`
 
 ```python
 split(X, y, groups = None)

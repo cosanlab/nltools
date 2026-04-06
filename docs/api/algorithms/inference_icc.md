@@ -1,4 +1,4 @@
-## `nltools.algorithms.inference.icc`
+## `icc`
 
 Voxel-wise Intraclass Correlation Coefficient (ICC) computation.
 
@@ -25,19 +25,15 @@ assessing rater reliability. Psychological bulletin, 86(2), 420.
 
 </details>
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`compute_icc_voxelwise`](#nltools.algorithms.inference.icc.compute_icc_voxelwise) | Compute voxel-wise ICC across many voxels.
+[`compute_icc_voxelwise`](#compute_icc_voxelwise) | Compute voxel-wise ICC across many voxels.
 
+### Methods
 
-
-### Attributes
-
-### Classes
-
-### Functions#### `nltools.algorithms.inference.icc.compute_icc_voxelwise`
+#### `compute_icc_voxelwise`
 
 ```python
 compute_icc_voxelwise(data: np.ndarray, n_subjects: int, n_sessions: int, icc_type: Literal['icc1', 'icc2', 'icc3'] = 'icc2', parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, backend: Optional[Backend] = None) -> np.ndarray

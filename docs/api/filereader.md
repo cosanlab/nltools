@@ -1,19 +1,21 @@
-## `nltools.io.file_reader`
+## `file_reader`
 
 NeuroLearn File Reading Tools
 =============================
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`onsets_to_dm`](#nltools.io.file_reader.onsets_to_dm) | Read 1 or more file paths and return 1 or more design matrices.
+[`onsets_to_dm`](#onsets_to_dm) | Read 1 or more file paths and return 1 or more design matrices.
 
 
 
 ### Classes
 
-### Functions#### `nltools.io.file_reader.onsets_to_dm`
+### Methods
+
+#### `onsets_to_dm`
 
 ```python
 onsets_to_dm(timings: str | Path | pd.DataFrame | list[str | Path | pd.DataFrame], run_length: int | list[int], TR: float, hrf_model: str | Callable | None = 'glover', drift_model: str | None = None, high_pass: float = 0.01, drift_order: int = 0, fill_na: Any = None, **kwargs: Any) -> DesignMatrix | list[DesignMatrix]

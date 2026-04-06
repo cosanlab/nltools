@@ -1,22 +1,24 @@
-## `nltools.data.adjacency.modeling`
+## `modeling`
 
 Standalone modeling/inference functions for Adjacency matrices.
 
 Each function takes an Adjacency instance as its first argument (`adj`).
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`bootstrap`](#nltools.data.adjacency.modeling.bootstrap) | Bootstrap statistics using efficient online algorithms.
-[`convert_bootstrap_results_to_adjacency`](#nltools.data.adjacency.modeling.convert_bootstrap_results_to_adjacency) | Convert bootstrap results dictionary to Adjacency format.
-[`generate_permutations`](#nltools.data.adjacency.modeling.generate_permutations) | Generate n_perm permutated versions of Adjacency in a lazy fashion. Useful for iterating against.
-[`regress`](#nltools.data.adjacency.modeling.regress) | Run a regression on an adjacency instance.
-[`social_relations_model`](#nltools.data.adjacency.modeling.social_relations_model) | Estimate the social relations model from a matrix for a round-robin design.
+[`bootstrap`](#bootstrap) | Bootstrap statistics using efficient online algorithms.
+[`convert_bootstrap_results_to_adjacency`](#convert_bootstrap_results_to_adjacency) | Convert bootstrap results dictionary to Adjacency format.
+[`generate_permutations`](#generate_permutations) | Generate n_perm permutated versions of Adjacency in a lazy fashion. Useful for iterating against.
+[`regress`](#regress) | Run a regression on an adjacency instance.
+[`social_relations_model`](#social_relations_model) | Estimate the social relations model from a matrix for a round-robin design.
 
 
 
-### Functions#### `nltools.data.adjacency.modeling.bootstrap`
+### Methods
+
+#### `bootstrap`
 
 ```python
 bootstrap(adj, stat, n_samples = 5000, save_boots = False, n_jobs = -1, random_state = None, percentiles = (2.5, 97.5))
@@ -54,7 +56,7 @@ Name | Type | Description
 >>> assert isinstance(boot['mean'], Adjacency)
 ```
 
-#### `nltools.data.adjacency.modeling.convert_bootstrap_results_to_adjacency`
+#### `convert_bootstrap_results_to_adjacency`
 
 ```python
 convert_bootstrap_results_to_adjacency(adj, result, save_boots = False)
@@ -79,7 +81,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dict` |  | Dictionary with Adjacency objects for each statistic
 
-#### `nltools.data.adjacency.modeling.generate_permutations`
+#### `generate_permutations`
 
 ```python
 generate_permutations(adj, n_perm, random_state = None)
@@ -109,7 +111,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `Adjacency` |  | permuted version of adj
 
-#### `nltools.data.adjacency.modeling.regress`
+#### `regress`
 
 ```python
 regress(adj, X, mode = 'ols', **kwargs)
@@ -133,7 +135,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `stats` |  | (dict) dictionary of stats outputs.
 
-#### `nltools.data.adjacency.modeling.social_relations_model`
+#### `social_relations_model`
 
 ```python
 social_relations_model(adj, summarize_results = True, nan_replace = True)

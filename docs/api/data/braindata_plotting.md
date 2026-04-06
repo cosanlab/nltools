@@ -1,20 +1,22 @@
-## `nltools.data.braindata.plotting`
+## `plotting`
 
 BrainData plotting functions.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`auto_select_colormap`](#nltools.data.braindata.plotting.auto_select_colormap) | Auto-select colormap based on data characteristics.
-[`plot_brain`](#nltools.data.braindata.plotting.plot_brain) | Plot BrainData instance using nilearn visualization or matplotlib.
-[`plot_flatmap_brain`](#nltools.data.braindata.plotting.plot_flatmap_brain) | Plot brain data on cortical flatmap.
-[`plot_matplotlib`](#nltools.data.braindata.plotting.plot_matplotlib) | Plot using matplotlib (timeseries or histogram).
-[`prepare_save_paths`](#nltools.data.braindata.plotting.prepare_save_paths) | Prepare save paths for multiple plot outputs.
+[`auto_select_colormap`](#auto_select_colormap) | Auto-select colormap based on data characteristics.
+[`plot_brain`](#plot_brain) | Plot BrainData instance using nilearn visualization or matplotlib.
+[`plot_flatmap_brain`](#plot_flatmap_brain) | Plot brain data on cortical flatmap.
+[`plot_matplotlib`](#plot_matplotlib) | Plot using matplotlib (timeseries or histogram).
+[`prepare_save_paths`](#prepare_save_paths) | Prepare save paths for multiple plot outputs.
 
 
 
-### Functions#### `nltools.data.braindata.plotting.auto_select_colormap`
+### Methods
+
+#### `auto_select_colormap`
 
 ```python
 auto_select_colormap(data)
@@ -34,7 +36,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `str` |  | Colormap name
 
-#### `nltools.data.braindata.plotting.plot_brain`
+#### `plot_brain`
 
 ```python
 plot_brain(bd, kind = 'glass', thr_upper = None, thr_lower = None, threshold = None, cut_coords = None, cmap = None, bg_img = None, ax = None, title = None, colorbar = True, save = None, stat = 'mean', **kwargs)
@@ -67,7 +69,7 @@ Type | Description
 ---- | -----------
  | Display or matplotlib Figure.
 
-#### `nltools.data.braindata.plotting.plot_flatmap_brain`
+#### `plot_flatmap_brain`
 
 ```python
 plot_flatmap_brain(bd, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius = 3.0, interpolation = 'linear', axes = None, save = None)
@@ -103,7 +105,7 @@ Type | Description
 ---- | -----------
  | matplotlib.figure.Figure
 
-#### `nltools.data.braindata.plotting.plot_matplotlib`
+#### `plot_matplotlib`
 
 ```python
 plot_matplotlib(bd, kind, stat = 'mean', ax = None, title = None, save = None)
@@ -128,7 +130,7 @@ Type | Description
 ---- | -----------
  | matplotlib.figure.Figure
 
-#### `nltools.data.braindata.plotting.prepare_save_paths`
+#### `prepare_save_paths`
 
 ```python
 prepare_save_paths(save)

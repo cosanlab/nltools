@@ -1,4 +1,4 @@
-## `nltools.algorithms.inference.correlation`
+## `correlation`
 
 Correlation permutation test implementations.
 
@@ -6,19 +6,15 @@ This module provides CPU-parallel and GPU-batched implementations
 of correlation permutation tests for assessing statistical significance
 of correlations.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`correlation_permutation_test`](#nltools.algorithms.inference.correlation.correlation_permutation_test) | Correlation permutation test.
+[`correlation_permutation_test`](#correlation_permutation_test) | Correlation permutation test.
 
+### Methods
 
-
-### Attributes
-
-### Classes
-
-### Functions#### `nltools.algorithms.inference.correlation.correlation_permutation_test`
+#### `correlation_permutation_test`
 
 ```python
 correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict

@@ -1,27 +1,29 @@
-## `nltools.data.designmatrix.append`
+## `append`
 
 Standalone functions for DesignMatrix concatenation operations.
 
 These functions implement the append/concatenation logic extracted from
 DesignMatrix methods, following the "functional core" pattern.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`append`](#nltools.data.designmatrix.append.append) | Concatenate design matrices.
-[`append_horizontal`](#nltools.data.designmatrix.append.append_horizontal) | Horizontal concatenation (axis=1) - add columns from other matrices.
-[`append_vertical`](#nltools.data.designmatrix.append.append_vertical) | Vertical concatenation (axis=0) - stack rows, with optional polynomial separation.
-[`append_vertical_with_separation`](#nltools.data.designmatrix.append.append_vertical_with_separation) | Vertical concatenation with automatic polynomial separation.
-[`get_starting_run_idx`](#nltools.data.designmatrix.append.get_starting_run_idx) | Determine next run index for multi-run appending.
-[`identify_columns_to_separate`](#nltools.data.designmatrix.append.identify_columns_to_separate) | Identify which columns need run-specific separation.
-[`match_column_pattern`](#nltools.data.designmatrix.append.match_column_pattern) | Match columns against pattern with wildcard support.
+[`append`](#append) | Concatenate design matrices.
+[`append_horizontal`](#append_horizontal) | Horizontal concatenation (axis=1) - add columns from other matrices.
+[`append_vertical`](#append_vertical) | Vertical concatenation (axis=0) - stack rows, with optional polynomial separation.
+[`append_vertical_with_separation`](#append_vertical_with_separation) | Vertical concatenation with automatic polynomial separation.
+[`get_starting_run_idx`](#get_starting_run_idx) | Determine next run index for multi-run appending.
+[`identify_columns_to_separate`](#identify_columns_to_separate) | Identify which columns need run-specific separation.
+[`match_column_pattern`](#match_column_pattern) | Match columns against pattern with wildcard support.
 
 
 
 ### Classes
 
-### Functions#### `nltools.data.designmatrix.append.append`
+### Methods
+
+#### `append`
 
 ```python
 append(dm: DesignMatrix, other: Union[DesignMatrix, List[DesignMatrix]], axis: int = 0, keep_separate: bool = True, unique_cols: Optional[List[str]] = None, fill_na: Union[int, float] = 0, verbose: bool = False) -> DesignMatrix
@@ -47,7 +49,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Concatenated design matrix.
 
-#### `nltools.data.designmatrix.append.append_horizontal`
+#### `append_horizontal`
 
 ```python
 append_horizontal(dm: DesignMatrix, to_append: List[DesignMatrix], fill_na: Union[int, float]) -> DesignMatrix
@@ -69,7 +71,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with columns from all matrices.
 
-#### `nltools.data.designmatrix.append.append_vertical`
+#### `append_vertical`
 
 ```python
 append_vertical(dm: DesignMatrix, to_append: List[DesignMatrix], keep_separate: bool, unique_cols: Optional[List[str]], fill_na: Union[int, float], verbose: bool) -> DesignMatrix
@@ -94,7 +96,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with rows from all matrices.
 
-#### `nltools.data.designmatrix.append.append_vertical_with_separation`
+#### `append_vertical_with_separation`
 
 ```python
 append_vertical_with_separation(dm: DesignMatrix, to_append: List[DesignMatrix], unique_cols: Optional[List[str]], fill_na: Union[int, float], verbose: bool) -> DesignMatrix
@@ -121,7 +123,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Concatenated DesignMatrix with run-separated polynomial columns and multi=True.
 
-#### `nltools.data.designmatrix.append.get_starting_run_idx`
+#### `get_starting_run_idx`
 
 ```python
 get_starting_run_idx(dm: DesignMatrix) -> int
@@ -141,7 +143,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `int` | <code>[int](#int)</code> | Next run index (0 if not multi-run, max_existing_idx + 1 otherwise).
 
-#### `nltools.data.designmatrix.append.identify_columns_to_separate`
+#### `identify_columns_to_separate`
 
 ```python
 identify_columns_to_separate(dm: DesignMatrix, all_dms: List[DesignMatrix], unique_cols: Optional[List[str]]) -> set
@@ -163,7 +165,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `set` | <code>[set](#set)</code> | Column names that should be separated with run prefixes.
 
-#### `nltools.data.designmatrix.append.match_column_pattern`
+#### `match_column_pattern`
 
 ```python
 match_column_pattern(columns: List[str], pattern: str) -> List[str]

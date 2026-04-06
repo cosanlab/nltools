@@ -1,4 +1,4 @@
-## `nltools.data.braindata.cache`
+## `cache`
 
 Disk-based caching infrastructure for expensive computations.
 
@@ -31,19 +31,21 @@ neighborhoods, ISC, and SRM.
 
 Name | Description
 ---- | -----------
-[`CacheManager`](#nltools.data.braindata.cache.CacheManager) | Manages disk-based caching for expensive computations.
+[`CacheManager`](#CacheManager) | Manages disk-based caching for expensive computations.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`clear_cache`](#nltools.data.braindata.cache.clear_cache) | Clear the nltools cache.
-[`get_cache_dir`](#nltools.data.braindata.cache.get_cache_dir) | Get the nltools cache directory.
-[`hash_mask`](#nltools.data.braindata.cache.hash_mask) | Compute a stable hash for a NIfTI mask image.
+[`clear_cache`](#clear_cache) | Clear the nltools cache.
+[`get_cache_dir`](#get_cache_dir) | Get the nltools cache directory.
+[`hash_mask`](#hash_mask) | Compute a stable hash for a NIfTI mask image.
 
 
 
-### Classes#### `nltools.data.braindata.cache.CacheManager`
+### Classes
+
+#### `CacheManager`
 
 ```python
 CacheManager(category: str = 'general')
@@ -76,42 +78,28 @@ Name | Type | Description | Default
 
 </details>
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`clear`](#nltools.data.braindata.cache.CacheManager.clear) | Clear all cached files in this category.
-[`delete`](#nltools.data.braindata.cache.CacheManager.delete) | Delete a cached file.
-[`exists`](#nltools.data.braindata.cache.CacheManager.exists) | Check if a cache key exists.
-[`get_path`](#nltools.data.braindata.cache.CacheManager.get_path) | Get the file path for a cache key.
-[`list_keys`](#nltools.data.braindata.cache.CacheManager.list_keys) | List all cached keys in this category.
-[`load`](#nltools.data.braindata.cache.CacheManager.load) | Load cached data.
-[`save`](#nltools.data.braindata.cache.CacheManager.save) | Save arrays to cache.
+[`clear`](#clear) | Clear all cached files in this category.
+[`delete`](#delete) | Delete a cached file.
+[`exists`](#exists) | Check if a cache key exists.
+[`get_path`](#get_path) | Get the file path for a cache key.
+[`list_keys`](#list_keys) | List all cached keys in this category.
+[`load`](#load) | Load cached data.
+[`save`](#save) | Save arrays to cache.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`cache_dir`](#nltools.data.braindata.cache.CacheManager.cache_dir) |  | 
-[`category`](#nltools.data.braindata.cache.CacheManager.category) |  | 
+[`cache_dir`](#cache_dir) |  | 
+[`category`](#category) |  | 
 
+##### Methods
 
-
-##### Attributes###### `nltools.data.braindata.cache.CacheManager.cache_dir`
-
-```python
-cache_dir = get_cache_dir() / category
-```
-
-###### `nltools.data.braindata.cache.CacheManager.category`
-
-```python
-category = category
-```
-
-
-
-##### Functions###### `nltools.data.braindata.cache.CacheManager.clear`
+###### `clear`
 
 ```python
 clear() -> int
@@ -125,7 +113,7 @@ Type | Description
 ---- | -----------
 <code>[int](#int)</code> | Number of files deleted
 
-###### `nltools.data.braindata.cache.CacheManager.delete`
+###### `delete`
 
 ```python
 delete(key: str, ext: str = '.npz') -> bool
@@ -146,7 +134,7 @@ Type | Description
 ---- | -----------
 <code>[bool](#bool)</code> | True if file was deleted, False if it didn't exist
 
-###### `nltools.data.braindata.cache.CacheManager.exists`
+###### `exists`
 
 ```python
 exists(key: str, ext: str = '.npz') -> bool
@@ -167,7 +155,7 @@ Type | Description
 ---- | -----------
 <code>[bool](#bool)</code> | True if cached file exists
 
-###### `nltools.data.braindata.cache.CacheManager.get_path`
+###### `get_path`
 
 ```python
 get_path(key: str, ext: str = '.npz') -> Path
@@ -188,7 +176,7 @@ Type | Description
 ---- | -----------
 <code>[Path](#pathlib.Path)</code> | Path to the cache file
 
-###### `nltools.data.braindata.cache.CacheManager.list_keys`
+###### `list_keys`
 
 ```python
 list_keys(ext: str = '.npz') -> list[str]
@@ -208,7 +196,7 @@ Type | Description
 ---- | -----------
 <code>[list](#list)[[str](#str)]</code> | List of cache keys (without extension)
 
-###### `nltools.data.braindata.cache.CacheManager.load`
+###### `load`
 
 ```python
 load(key: str) -> dict | None
@@ -228,7 +216,7 @@ Type | Description
 ---- | -----------
 <code>[dict](#dict) \| None</code> | Dictionary of cached arrays, or None if not cached
 
-###### `nltools.data.braindata.cache.CacheManager.save`
+###### `save`
 
 ```python
 save(key: str, compressed: bool = True, **arrays: bool) -> Path
@@ -252,7 +240,9 @@ Type | Description
 
 
 
-### Functions#### `nltools.data.braindata.cache.clear_cache`
+### Methods
+
+#### `clear_cache`
 
 ```python
 clear_cache(category: str | None = None) -> int
@@ -272,7 +262,7 @@ Type | Description
 ---- | -----------
 <code>[int](#int)</code> | Number of files deleted
 
-#### `nltools.data.braindata.cache.get_cache_dir`
+#### `get_cache_dir`
 
 ```python
 get_cache_dir() -> Path
@@ -288,7 +278,7 @@ Type | Description
 ---- | -----------
 <code>[Path](#pathlib.Path)</code> | Path to cache directory
 
-#### `nltools.data.braindata.cache.hash_mask`
+#### `hash_mask`
 
 ```python
 hash_mask(mask_img: 'Nifti1Image') -> str

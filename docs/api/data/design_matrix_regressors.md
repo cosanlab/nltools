@@ -1,23 +1,25 @@
-## `nltools.data.designmatrix.regressors`
+## `regressors`
 
 Standalone regressor functions for DesignMatrix.
 
 Each function takes a DesignMatrix as its first argument (`dm`) and returns
 a new DesignMatrix with the requested transformation applied.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`add_dct_basis`](#nltools.data.designmatrix.regressors.add_dct_basis) | Add discrete cosine transform basis functions (high-pass filter).
-[`add_poly`](#nltools.data.designmatrix.regressors.add_poly) | Add Legendre polynomial drift terms.
-[`convolve`](#nltools.data.designmatrix.regressors.convolve) | Convolve columns with HRF or custom kernel.
+[`add_dct_basis`](#add_dct_basis) | Add discrete cosine transform basis functions (high-pass filter).
+[`add_poly`](#add_poly) | Add Legendre polynomial drift terms.
+[`convolve`](#convolve) | Convolve columns with HRF or custom kernel.
 
 
 
 ### Classes
 
-### Functions#### `nltools.data.designmatrix.regressors.add_dct_basis`
+### Methods
+
+#### `add_dct_basis`
 
 ```python
 add_dct_basis(dm: DesignMatrix, duration: float = 180, drop: int = 0) -> DesignMatrix
@@ -39,7 +41,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with DCT basis columns appended.
 
-#### `nltools.data.designmatrix.regressors.add_poly`
+#### `add_poly`
 
 ```python
 add_poly(dm: DesignMatrix, order: int = 0, include_lower: bool = True) -> DesignMatrix
@@ -61,7 +63,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with polynomial columns appended.
 
-#### `nltools.data.designmatrix.regressors.convolve`
+#### `convolve`
 
 ```python
 convolve(dm: DesignMatrix, conv_func: Union[str, np.ndarray] = 'hrf', columns: Optional[List[str]] = None) -> DesignMatrix

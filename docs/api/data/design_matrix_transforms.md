@@ -1,24 +1,26 @@
-## `nltools.data.designmatrix.transforms`
+## `transforms`
 
 Standalone transform functions for DesignMatrix.
 
 Each function takes a DesignMatrix instance as the first argument (`dm`)
 and returns a new DesignMatrix via `copy_with(dm,...)`.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`downsample`](#nltools.data.designmatrix.transforms.downsample) | Reduce temporal resolution to target frequency using Polars-native operations.
-[`standardize`](#nltools.data.designmatrix.transforms.standardize) | Standardize columns using the specified method.
-[`upsample`](#nltools.data.designmatrix.transforms.upsample) | Increase temporal resolution to target frequency using Polars-native interpolation.
-[`zscore`](#nltools.data.designmatrix.transforms.zscore) | Z-score standardize columns (mean=0, std=1).
+[`downsample`](#downsample) | Reduce temporal resolution to target frequency using Polars-native operations.
+[`standardize`](#standardize) | Standardize columns using the specified method.
+[`upsample`](#upsample) | Increase temporal resolution to target frequency using Polars-native interpolation.
+[`zscore`](#zscore) | Z-score standardize columns (mean=0, std=1).
 
 
 
 ### Classes
 
-### Functions#### `nltools.data.designmatrix.transforms.downsample`
+### Methods
+
+#### `downsample`
 
 ```python
 downsample(dm: DesignMatrix, target: float, **kwargs: float) -> DesignMatrix
@@ -47,7 +49,7 @@ Name | Type | Description
 >>> dm_down = downsample(dm, target=0.5)  # 1 Hz -> 0.5 Hz (100 -> 50 samples)
 ```
 
-#### `nltools.data.designmatrix.transforms.standardize`
+#### `standardize`
 
 ```python
 standardize(dm: DesignMatrix, columns: Optional[List[str]] = None, method: str = 'zscore') -> DesignMatrix
@@ -80,7 +82,7 @@ Name | Type | Description
 >>> dm_c = standardize(dm, method='center')  # center only
 ```
 
-#### `nltools.data.designmatrix.transforms.upsample`
+#### `upsample`
 
 ```python
 upsample(dm: DesignMatrix, target: float, method: str = 'linear', **kwargs: str) -> DesignMatrix
@@ -110,7 +112,7 @@ Name | Type | Description
 >>> dm_up = upsample(dm, target=2.0)  # 1 Hz -> 2 Hz (10 -> 19 samples)
 ```
 
-#### `nltools.data.designmatrix.transforms.zscore`
+#### `zscore`
 
 ```python
 zscore(dm: DesignMatrix, columns: Optional[List[str]] = None) -> DesignMatrix

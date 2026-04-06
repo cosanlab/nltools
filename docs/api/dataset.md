@@ -1,27 +1,29 @@
-## `nltools.datasets`
+## `datasets`
 
 NeuroLearn datasets
 ===================
 
 Functions to help download datasets from Neurovault and other sources.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`download_collection`](#nltools.datasets.download_collection) | Download images and metadata from Neurovault collection.
-[`download_nifti`](#nltools.datasets.download_nifti) | Download an image from a URL to a nifti file.
-[`fetch_emotion_ratings`](#nltools.datasets.fetch_emotion_ratings) | Download and load emotion rating dataset from Neurovault.
-[`fetch_haxby`](#nltools.datasets.fetch_haxby) | Download and load Haxby2001 dataset from nilearn.
-[`fetch_neurovault_collection`](#nltools.datasets.fetch_neurovault_collection) | Download images and metadata from a Neurovault collection.
-[`fetch_pain`](#nltools.datasets.fetch_pain) | Download and load pain dataset from Neurovault.
-[`get_collection_image_metadata`](#nltools.datasets.get_collection_image_metadata) | Get image metadata associated with collection.
+[`download_collection`](#download_collection) | Download images and metadata from Neurovault collection.
+[`download_nifti`](#download_nifti) | Download an image from a URL to a nifti file.
+[`fetch_emotion_ratings`](#fetch_emotion_ratings) | Download and load emotion rating dataset from Neurovault.
+[`fetch_haxby`](#fetch_haxby) | Download and load Haxby2001 dataset from nilearn.
+[`fetch_neurovault_collection`](#fetch_neurovault_collection) | Download images and metadata from a Neurovault collection.
+[`fetch_pain`](#fetch_pain) | Download and load pain dataset from Neurovault.
+[`get_collection_image_metadata`](#get_collection_image_metadata) | Get image metadata associated with collection.
 
 
 
 ### Classes
 
-### Functions#### `nltools.datasets.download_collection`
+### Methods
+
+#### `download_collection`
 
 ```python
 download_collection(collection = None, data_dir = None, overwrite = False, resume = True, verbose = 1)
@@ -33,7 +35,7 @@ Download images and metadata from Neurovault collection.
     This function is deprecated and will be removed in a future version.
     Please use fetch_neurovault_collection instead.
 
-#### `nltools.datasets.download_nifti`
+#### `download_nifti`
 
 ```python
 download_nifti(url, data_dir = None)
@@ -54,7 +56,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `str` |  | Path to the downloaded file
 
-#### `nltools.datasets.fetch_emotion_ratings`
+#### `fetch_emotion_ratings`
 
 ```python
 fetch_emotion_ratings(data_dir = None, verbose = 1)
@@ -87,7 +89,7 @@ PLoS biology, 13(6), e1002180.
 
 </details>
 
-#### `nltools.datasets.fetch_haxby`
+#### `fetch_haxby`
 
 ```python
 fetch_haxby(n_subjects = 1, data_dir = None, verbose = 1, mask = 'haxby_mask', resample = False)
@@ -127,7 +129,7 @@ Name | Type | Description
 >>> len(brain_data_nested[0])  # Number of runs for first subject
 ```
 
-#### `nltools.datasets.fetch_neurovault_collection`
+#### `fetch_neurovault_collection`
 
 ```python
 fetch_neurovault_collection(collection_id, data_dir = None, verbose = 1)
@@ -151,7 +153,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `tuple` |  | (metadata DataFrame, list of image file paths)
 
-#### `nltools.datasets.fetch_pain`
+#### `fetch_pain`
 
 ```python
 fetch_pain(data_dir = None, verbose = 1)
@@ -183,7 +185,7 @@ PLoS biology, 13(6), e1002180.
 
 </details>
 
-#### `nltools.datasets.get_collection_image_metadata`
+#### `get_collection_image_metadata`
 
 ```python
 get_collection_image_metadata(collection = None, data_dir = None, limit = 10)

@@ -1,17 +1,19 @@
-## `nltools.data.braindata.bootstrap`
+## `bootstrap`
 
 Bootstrap functions extracted from BrainData methods.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`bootstrap`](#nltools.data.braindata.bootstrap.bootstrap) | Bootstrap statistics using efficient online algorithms.
-[`convert_bootstrap_results_to_brain_data`](#nltools.data.braindata.bootstrap.convert_bootstrap_results_to_brain_data) | Convert bootstrap results dictionary to BrainData format.
+[`bootstrap`](#bootstrap) | Bootstrap statistics using efficient online algorithms.
+[`convert_bootstrap_results_to_brain_data`](#convert_bootstrap_results_to_brain_data) | Convert bootstrap results dictionary to BrainData format.
 
 
 
-### Functions#### `nltools.data.braindata.bootstrap.bootstrap`
+### Methods
+
+#### `bootstrap`
 
 ```python
 bootstrap(bd, stat, n_samples = 5000, save_boots = False, n_jobs = -1, random_state = None, percentiles = (2.5, 97.5), X_test = None, **kwargs)
@@ -109,7 +111,7 @@ This method replaces the deprecated `summarize_bootstrap()` function from
 
 </details>
 
-#### `nltools.data.braindata.bootstrap.convert_bootstrap_results_to_brain_data`
+#### `convert_bootstrap_results_to_brain_data`
 
 ```python
 convert_bootstrap_results_to_brain_data(bd, result, save_boots = False, return_dict = False)

@@ -1,24 +1,22 @@
-## `nltools.mask`
+## `mask`
 
 NeuroLearn Mask Classes
 =======================
 
 Classes to represent masks
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`collapse_mask`](#nltools.mask.collapse_mask) | collapse separate masks into one mask with multiple integers
-[`create_sphere`](#nltools.mask.create_sphere) | Generate a set of spheres in the brain mask space
-[`expand_mask`](#nltools.mask.expand_mask) | expand a mask with multiple integers into separate binary masks
-[`roi_to_brain`](#nltools.mask.roi_to_brain) | This function will create convert an expanded binary mask of ROIs
+[`collapse_mask`](#collapse_mask) | collapse separate masks into one mask with multiple integers
+[`create_sphere`](#create_sphere) | Generate a set of spheres in the brain mask space
+[`expand_mask`](#expand_mask) | expand a mask with multiple integers into separate binary masks
+[`roi_to_brain`](#roi_to_brain) | This function will create convert an expanded binary mask of ROIs
 
+### Methods
 
-
-### Attributes
-
-### Functions#### `nltools.mask.collapse_mask`
+#### `collapse_mask`
 
 ```python
 collapse_mask(mask, auto_label = True, custom_mask = None)
@@ -40,7 +38,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `out` |  | BrainData instance of a mask with different integers indicating different masks
 
-#### `nltools.mask.create_sphere`
+#### `create_sphere`
 
 ```python
 create_sphere(coordinates, radius = 5, mask = None)
@@ -55,7 +53,7 @@ Name | Type | Description | Default
 `radius` |  | vector of radius.  Will create multiple spheres if     len(radius) > 1 | <code>5</code>
 `centers` |  | a vector of sphere centers of the form [px, py, pz] or     [[px1, py1, pz1], ..., [pxn, pyn, pzn]] | *required*
 
-#### `nltools.mask.expand_mask`
+#### `expand_mask`
 
 ```python
 expand_mask(mask, custom_mask = None)
@@ -76,7 +74,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `out` |  | BrainData instance of multiple binary masks
 
-#### `nltools.mask.roi_to_brain`
+#### `roi_to_brain`
 
 ```python
 roi_to_brain(data, mask_x)

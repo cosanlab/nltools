@@ -1,4 +1,4 @@
-## `nltools.algorithms.inference.utils`
+## `utils`
 
 Utility functions for permutation testing.
 
@@ -9,16 +9,6 @@ permutation test implementations.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`EPSILON`](#nltools.algorithms.inference.utils.EPSILON) |  | 
+[`EPSILON`](#EPSILON) |  | 
 
-
-
-### Attributes#### `nltools.algorithms.inference.utils.EPSILON`
-
-```python
-EPSILON = 1e-10
-```
-
-
-
-### Functions
+### Methods

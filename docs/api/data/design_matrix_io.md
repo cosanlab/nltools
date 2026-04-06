@@ -1,25 +1,27 @@
-## `nltools.data.designmatrix.io`
+## `io`
 
 DesignMatrix I/O and visualization functions.
 
 Standalone functions extracted from DesignMatrix methods.
 Each takes a DesignMatrix instance (`dm`) as its first argument.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`heatmap`](#nltools.data.designmatrix.io.heatmap) | Visualize design matrix as heatmap (SPM-style).
-[`to_numpy`](#nltools.data.designmatrix.io.to_numpy) | Convert DesignMatrix to numpy array.
-[`to_pandas`](#nltools.data.designmatrix.io.to_pandas) | Convert DesignMatrix to pandas DataFrame.
-[`write`](#nltools.data.designmatrix.io.write) | Write DesignMatrix to file.
-[`write_h5`](#nltools.data.designmatrix.io.write_h5) | Write DesignMatrix to HDF5 file with metadata.
+[`heatmap`](#heatmap) | Visualize design matrix as heatmap (SPM-style).
+[`to_numpy`](#to_numpy) | Convert DesignMatrix to numpy array.
+[`to_pandas`](#to_pandas) | Convert DesignMatrix to pandas DataFrame.
+[`write`](#write) | Write DesignMatrix to file.
+[`write_h5`](#write_h5) | Write DesignMatrix to HDF5 file with metadata.
 
 
 
 ### Classes
 
-### Functions#### `nltools.data.designmatrix.io.heatmap`
+### Methods
+
+#### `heatmap`
 
 ```python
 heatmap(dm: DesignMatrix, figsize: tuple = (8, 6), **kwargs: tuple)
@@ -51,7 +53,7 @@ Type | Description
 >>> heatmap(dm)
 ```
 
-#### `nltools.data.designmatrix.io.to_numpy`
+#### `to_numpy`
 
 ```python
 to_numpy(dm: DesignMatrix) -> np.ndarray
@@ -83,7 +85,7 @@ Type | Description
 (3, 2)
 ```
 
-#### `nltools.data.designmatrix.io.to_pandas`
+#### `to_pandas`
 
 ```python
 to_pandas(dm: DesignMatrix)
@@ -115,7 +117,7 @@ Type | Description
 <class 'pandas.core.frame.DataFrame'>
 ```
 
-#### `nltools.data.designmatrix.io.write`
+#### `write`
 
 ```python
 write(dm: DesignMatrix, file_name: str, sep: str = '\t') -> None
@@ -157,7 +159,7 @@ HDF5 format preserves metadata (sampling_freq, convolved, polys).
 
 </details>
 
-#### `nltools.data.designmatrix.io.write_h5`
+#### `write_h5`
 
 ```python
 write_h5(dm: DesignMatrix, file_name: str) -> None

@@ -1,4 +1,4 @@
-## `nltools.pipelines.terminals`
+## `terminals`
 
 Terminal operations for nltools pipelines.
 
@@ -10,13 +10,15 @@ within cross-validation folds.
 
 Name | Description
 ---- | -----------
-[`ISCTerminal`](#nltools.pipelines.terminals.ISCTerminal) | ISC terminal for multi-subject pipelines.
-[`PredictTerminal`](#nltools.pipelines.terminals.PredictTerminal) | Prediction/classification terminal for CV pipelines.
-[`RSATerminal`](#nltools.pipelines.terminals.RSATerminal) | RSA terminal for multi-subject pipelines.
+[`ISCTerminal`](#ISCTerminal) | ISC terminal for multi-subject pipelines.
+[`PredictTerminal`](#PredictTerminal) | Prediction/classification terminal for CV pipelines.
+[`RSATerminal`](#RSATerminal) | RSA terminal for multi-subject pipelines.
 
 
 
-### Classes#### `nltools.pipelines.terminals.ISCTerminal`
+### Classes
+
+#### `ISCTerminal`
 
 ```python
 ISCTerminal(method: str = 'pairwise', metric: str = 'median', n_permute: int = 5000, parallel: str = 'cpu', kwargs: Dict[str, Any] = dict()) -> None
@@ -43,57 +45,25 @@ Examples
 >>> result = terminal.fit_evaluate(data_list)
 >>> print(f"ISC: {result.isc:.3f}, p: {result.p:.3f}")
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#nltools.pipelines.terminals.ISCTerminal.fit_evaluate) | Compute ISC across subjects.
+[`fit_evaluate`](#fit_evaluate) | Compute ISC across subjects.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`kwargs`](#nltools.pipelines.terminals.ISCTerminal.kwargs) | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | 
-[`method`](#nltools.pipelines.terminals.ISCTerminal.method) | <code>[str](#str)</code> | 
-[`metric`](#nltools.pipelines.terminals.ISCTerminal.metric) | <code>[str](#str)</code> | 
-[`n_permute`](#nltools.pipelines.terminals.ISCTerminal.n_permute) | <code>[int](#int)</code> | 
-[`parallel`](#nltools.pipelines.terminals.ISCTerminal.parallel) | <code>[str](#str)</code> | 
+[`kwargs`](#kwargs) | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | 
+[`method`](#method) | <code>[str](#str)</code> | 
+[`metric`](#metric) | <code>[str](#str)</code> | 
+[`n_permute`](#n_permute) | <code>[int](#int)</code> | 
+[`parallel`](#parallel) | <code>[str](#str)</code> | 
 
+##### Methods
 
-
-##### Attributes###### `nltools.pipelines.terminals.ISCTerminal.kwargs`
-
-```python
-kwargs: Dict[str, Any] = field(default_factory=dict)
-```
-
-###### `nltools.pipelines.terminals.ISCTerminal.method`
-
-```python
-method: str = 'pairwise'
-```
-
-###### `nltools.pipelines.terminals.ISCTerminal.metric`
-
-```python
-metric: str = 'median'
-```
-
-###### `nltools.pipelines.terminals.ISCTerminal.n_permute`
-
-```python
-n_permute: int = 5000
-```
-
-###### `nltools.pipelines.terminals.ISCTerminal.parallel`
-
-```python
-parallel: str = 'cpu'
-```
-
-
-
-##### Functions###### `nltools.pipelines.terminals.ISCTerminal.fit_evaluate`
+###### `fit_evaluate`
 
 ```python
 fit_evaluate(data: list, **kwargs: list) -> 'ISCResult'
@@ -113,7 +83,7 @@ Type | Description
 ---- | -----------
 <code>'ISCResult'</code> | Result containing ISC values, p-values, and confidence intervals.
 
-#### `nltools.pipelines.terminals.PredictTerminal`
+#### `PredictTerminal`
 
 ```python
 PredictTerminal(y: NDArray, algorithm: str = 'ridge', kwargs: Dict[str, Any] = dict()) -> None
@@ -154,44 +124,24 @@ Logistic regression with balanced classes::
     ...     kwargs={'class_weight': 'balanced', 'C': 0.1}
     ... )
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#nltools.pipelines.terminals.PredictTerminal.fit_evaluate) | Fit model on training data and evaluate on test data.
-[`with_y`](#nltools.pipelines.terminals.PredictTerminal.with_y) | Create copy with different target variable.
+[`fit_evaluate`](#fit_evaluate) | Fit model on training data and evaluate on test data.
+[`with_y`](#with_y) | Create copy with different target variable.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`algorithm`](#nltools.pipelines.terminals.PredictTerminal.algorithm) | <code>[str](#str)</code> | 
-[`kwargs`](#nltools.pipelines.terminals.PredictTerminal.kwargs) | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | 
-[`y`](#nltools.pipelines.terminals.PredictTerminal.y) | <code>[NDArray](#numpy.typing.NDArray)</code> | 
+[`algorithm`](#algorithm) | <code>[str](#str)</code> | 
+[`kwargs`](#kwargs) | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | 
+[`y`](#y) | <code>[NDArray](#numpy.typing.NDArray)</code> | 
 
+##### Methods
 
-
-##### Attributes###### `nltools.pipelines.terminals.PredictTerminal.algorithm`
-
-```python
-algorithm: str = 'ridge'
-```
-
-###### `nltools.pipelines.terminals.PredictTerminal.kwargs`
-
-```python
-kwargs: Dict[str, Any] = field(default_factory=dict)
-```
-
-###### `nltools.pipelines.terminals.PredictTerminal.y`
-
-```python
-y: NDArray
-```
-
-
-
-##### Functions###### `nltools.pipelines.terminals.PredictTerminal.fit_evaluate`
+###### `fit_evaluate`
 
 ```python
 fit_evaluate(train_data: NDArray, test_data: NDArray, train_idx: NDArray[np.intp], test_idx: NDArray[np.intp], fitted_stack: Any) -> 'FoldResult'
@@ -215,7 +165,7 @@ Type | Description
 ---- | -----------
 <code>'FoldResult'</code> | Result containing score, predictions, indices, and fitted stack.
 
-###### `nltools.pipelines.terminals.PredictTerminal.with_y`
+###### `with_y`
 
 ```python
 with_y(new_y: NDArray) -> 'PredictTerminal'
@@ -237,7 +187,7 @@ Type | Description
 ---- | -----------
 <code>'PredictTerminal'</code> | New terminal with updated y.
 
-#### `nltools.pipelines.terminals.RSATerminal`
+#### `RSATerminal`
 
 ```python
 RSATerminal(model_rdm: NDArray, method: str = 'spearman', n_permute: int = 5000, kwargs: Dict[str, Any] = dict()) -> None
@@ -264,50 +214,24 @@ Examples
 >>> terminal = RSATerminal(model_rdm=model, method='spearman')
 >>> result = terminal.fit_evaluate(neural_rdm)
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#nltools.pipelines.terminals.RSATerminal.fit_evaluate) | Compute RSA correlation between neural and model RDMs.
+[`fit_evaluate`](#fit_evaluate) | Compute RSA correlation between neural and model RDMs.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`kwargs`](#nltools.pipelines.terminals.RSATerminal.kwargs) | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | 
-[`method`](#nltools.pipelines.terminals.RSATerminal.method) | <code>[str](#str)</code> | 
-[`model_rdm`](#nltools.pipelines.terminals.RSATerminal.model_rdm) | <code>[NDArray](#numpy.typing.NDArray)</code> | 
-[`n_permute`](#nltools.pipelines.terminals.RSATerminal.n_permute) | <code>[int](#int)</code> | 
+[`kwargs`](#kwargs) | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | 
+[`method`](#method) | <code>[str](#str)</code> | 
+[`model_rdm`](#model_rdm) | <code>[NDArray](#numpy.typing.NDArray)</code> | 
+[`n_permute`](#n_permute) | <code>[int](#int)</code> | 
 
+##### Methods
 
-
-##### Attributes###### `nltools.pipelines.terminals.RSATerminal.kwargs`
-
-```python
-kwargs: Dict[str, Any] = field(default_factory=dict)
-```
-
-###### `nltools.pipelines.terminals.RSATerminal.method`
-
-```python
-method: str = 'spearman'
-```
-
-###### `nltools.pipelines.terminals.RSATerminal.model_rdm`
-
-```python
-model_rdm: NDArray
-```
-
-###### `nltools.pipelines.terminals.RSATerminal.n_permute`
-
-```python
-n_permute: int = 5000
-```
-
-
-
-##### Functions###### `nltools.pipelines.terminals.RSATerminal.fit_evaluate`
+###### `fit_evaluate`
 
 ```python
 fit_evaluate(data: NDArray, **kwargs: NDArray) -> 'RSAResult'

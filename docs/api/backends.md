@@ -1,4 +1,4 @@
-## `nltools.backends`
+## `backends`
 
 Backend abstraction for CPU/GPU operations.
 
@@ -10,19 +10,21 @@ maintaining NumPy-first development.
 
 Name | Description
 ---- | -----------
-[`Backend`](#nltools.backends.Backend) | Backend abstraction for numerical operations.
+[`Backend`](#Backend) | Backend abstraction for numerical operations.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`assert_array_almost_equal`](#nltools.backends.assert_array_almost_equal) | Test array equality with automatic precision adjustment for MPS backend.
-[`auto_select_backend`](#nltools.backends.auto_select_backend) | Automatically select backend based on problem size.
-[`check_gpu_available`](#nltools.backends.check_gpu_available) | Check if GPU acceleration is available.
+[`assert_array_almost_equal`](#assert_array_almost_equal) | Test array equality with automatic precision adjustment for MPS backend.
+[`auto_select_backend`](#auto_select_backend) | Automatically select backend based on problem size.
+[`check_gpu_available`](#check_gpu_available) | Check if GPU acceleration is available.
 
 
 
-### Classes#### `nltools.backends.Backend`
+### Classes
+
+#### `Backend`
 
 ```python
 Backend(backend: str = 'numpy')
@@ -43,22 +45,24 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`name`](#nltools.backends.Backend.name) | <code>[str](#str)</code> | Backend identifier (e.g., 'numpy', 'torch-cuda', 'torch-mps')
-[`device`](#nltools.backends.Backend.device) | <code>[str](#str)</code> | Device type ('cpu', 'cuda', or 'mps')
-[`xp`](#nltools.backends.Backend.xp) | <code>[module](#module)</code> | Array library module (numpy or torch)
+[`name`](#name) | <code>[str](#str)</code> | Backend identifier (e.g., 'numpy', 'torch-cuda', 'torch-mps')
+[`device`](#device) | <code>[str](#str)</code> | Device type ('cpu', 'cuda', or 'mps')
+[`xp`](#xp) | <code>[module](#module)</code> | Array library module (numpy or torch)
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`matmul`](#nltools.backends.Backend.matmul) | Matrix multiplication.
-[`svd`](#nltools.backends.Backend.svd) | Compute Singular Value Decomposition.
-[`to_device`](#nltools.backends.Backend.to_device) | Transfer array to backend device.
-[`to_numpy`](#nltools.backends.Backend.to_numpy) | Convert array back to NumPy.
+[`matmul`](#matmul) | Matrix multiplication.
+[`svd`](#svd) | Compute Singular Value Decomposition.
+[`to_device`](#to_device) | Transfer array to backend device.
+[`to_numpy`](#to_numpy) | Convert array back to NumPy.
 
 
 
-##### Functions###### `nltools.backends.Backend.matmul`
+##### Methods
+
+###### `matmul`
 
 ```python
 matmul(A, B)
@@ -79,7 +83,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `array` |  | Result of A @ B
 
-###### `nltools.backends.Backend.svd`
+###### `svd`
 
 ```python
 svd(X, full_matrices = False)
@@ -100,7 +104,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `tuple` |  | (U, s, Vt) where: - U (array): Left singular vectors - s (array): Singular values - Vt (array): Right singular vectors (transposed)
 
-###### `nltools.backends.Backend.to_device`
+###### `to_device`
 
 ```python
 to_device(arr: np.ndarray)
@@ -120,7 +124,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `array` |  | Array on device (numpy array or torch tensor)
 
-###### `nltools.backends.Backend.to_numpy`
+###### `to_numpy`
 
 ```python
 to_numpy(arr)
@@ -142,7 +146,9 @@ Type | Description
 
 
 
-### Functions#### `nltools.backends.assert_array_almost_equal`
+### Methods
+
+#### `assert_array_almost_equal`
 
 ```python
 assert_array_almost_equal(x, y, decimal = 6, err_msg = '', verbose = True, backend = None)
@@ -171,7 +177,7 @@ Type | Description
 ---- | -----------
  | None (raises AssertionError if arrays don't match)
 
-#### `nltools.backends.auto_select_backend`
+#### `auto_select_backend`
 
 ```python
 auto_select_backend(n_samples: int, n_features: int, cv: int = 1) -> Backend
@@ -208,7 +214,7 @@ Selection criteria:
 
 </details>
 
-#### `nltools.backends.check_gpu_available`
+#### `check_gpu_available`
 
 ```python
 check_gpu_available() -> Tuple[bool, Dict[str, Any]]

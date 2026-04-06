@@ -1,33 +1,31 @@
-## `nltools.plotting`
+## `plotting`
 
 NeuroLearn Plotting Tools
 =========================
 
 Numerous functions to plot data
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`dist_from_hyperplane_plot`](#nltools.plotting.dist_from_hyperplane_plot) | Plot SVM Classification Distance from Hyperplane
-[`plot_between_label_distance`](#nltools.plotting.plot_between_label_distance) | Create a heatmap indicating average between label distance
-[`plot_brain`](#nltools.plotting.plot_brain) | More complete brain plotting of a BrainData instance
-[`plot_flatmap`](#nltools.plotting.plot_flatmap) | Plot brain data on cortical flatmap.
-[`plot_interactive_brain`](#nltools.plotting.plot_interactive_brain) | This function leverages nilearn's new javascript based brain viewer functions to create interactive plotting functionality.
-[`plot_mean_label_distance`](#nltools.plotting.plot_mean_label_distance) | Create a violin plot indicating within and between label distance.
-[`plot_silhouette`](#nltools.plotting.plot_silhouette) | Create a silhouette plot indicating between relative to within label distance
-[`plot_stacked_adjacency`](#nltools.plotting.plot_stacked_adjacency) | Create stacked adjacency to illustrate similarity.
-[`plot_t_brain`](#nltools.plotting.plot_t_brain) | Takes a brain data object and computes a 1 sample t-test across it's first axis. If a list is provided will compute difference between brain data objects in list (i.e. paired samples t-test).
-[`probability_plot`](#nltools.plotting.probability_plot) | Plot Classification Probability
-[`roc_plot`](#nltools.plotting.roc_plot) | Plot 1-Specificity by Sensitivity
-[`scatterplot`](#nltools.plotting.scatterplot) | Plot Prediction Scatterplot
-[`surface_plot`](#nltools.plotting.surface_plot) | Plot neuroimaging data on cortical surface.
+[`dist_from_hyperplane_plot`](#dist_from_hyperplane_plot) | Plot SVM Classification Distance from Hyperplane
+[`plot_between_label_distance`](#plot_between_label_distance) | Create a heatmap indicating average between label distance
+[`plot_brain`](#plot_brain) | More complete brain plotting of a BrainData instance
+[`plot_flatmap`](#plot_flatmap) | Plot brain data on cortical flatmap.
+[`plot_interactive_brain`](#plot_interactive_brain) | This function leverages nilearn's new javascript based brain viewer functions to create interactive plotting functionality.
+[`plot_mean_label_distance`](#plot_mean_label_distance) | Create a violin plot indicating within and between label distance.
+[`plot_silhouette`](#plot_silhouette) | Create a silhouette plot indicating between relative to within label distance
+[`plot_stacked_adjacency`](#plot_stacked_adjacency) | Create stacked adjacency to illustrate similarity.
+[`plot_t_brain`](#plot_t_brain) | Takes a brain data object and computes a 1 sample t-test across it's first axis. If a list is provided will compute difference between brain data objects in list (i.e. paired samples t-test).
+[`probability_plot`](#probability_plot) | Plot Classification Probability
+[`roc_plot`](#roc_plot) | Plot 1-Specificity by Sensitivity
+[`scatterplot`](#scatterplot) | Plot Prediction Scatterplot
+[`surface_plot`](#surface_plot) | Plot neuroimaging data on cortical surface.
 
+### Methods
 
-
-### Attributes
-
-### Functions#### `nltools.plotting.dist_from_hyperplane_plot`
+#### `dist_from_hyperplane_plot`
 
 ```python
 dist_from_hyperplane_plot(stats_output)
@@ -47,7 +45,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `fig` |  | Will return a seaborn plot of distance from hyperplane
 
-#### `nltools.plotting.plot_between_label_distance`
+#### `plot_between_label_distance`
 
 ```python
 plot_between_label_distance(distance, labels, ax = None, permutation_test = True, n_permute = 5000, fontsize = 18, **kwargs)
@@ -73,7 +71,7 @@ Returns:
     mn_dist_out: (optional if permutation_test=True) average difference in distance between conditions
     p_dist_out: (optional if permutation_test=True) p-value for difference in distance between conditions
 
-#### `nltools.plotting.plot_brain`
+#### `plot_brain`
 
 ```python
 plot_brain(objIn, how = 'full', thr_upper = None, thr_lower = None, save = False, verbose = False, **kwargs)
@@ -92,7 +90,7 @@ Name | Type | Description | Default
 `save` | <code>[str](#str)</code> | if a string file name or path is provided plots will be saved into this directory appended with the orientation they belong to | <code>False</code>
 `kwargs` |  | optionals args to nilearn plot functions (e.g. vmax) | <code>{}</code>
 
-#### `nltools.plotting.plot_flatmap`
+#### `plot_flatmap`
 
 ```python
 plot_flatmap(brain, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius = 3.0, interpolation = 'linear', axes = None, save = None)
@@ -177,7 +175,7 @@ High resolution for publication:
 
 </details>
 
-#### `nltools.plotting.plot_interactive_brain`
+#### `plot_interactive_brain`
 
 ```python
 plot_interactive_brain(brain, threshold = 1e-06, surface = False, percentile_threshold = False, anatomical = None, **kwargs)
@@ -201,7 +199,7 @@ Type | Description
 ---- | -----------
  | interactive brain viewer widget
 
-#### `nltools.plotting.plot_mean_label_distance`
+#### `plot_mean_label_distance`
 
 ```python
 plot_mean_label_distance(distance, labels, ax = None, permutation_test = False, n_permute = 5000, fontsize = 18, **kwargs)
@@ -224,7 +222,7 @@ Returns:
     f: heatmap
     stats: (optional if permutation_test=True) permutation results
 
-#### `nltools.plotting.plot_silhouette`
+#### `plot_silhouette`
 
 ```python
 plot_silhouette(distance, labels, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
@@ -260,7 +258,7 @@ Type | Description
  | # mn_dist_out: (optional if permutation_test=True) average difference in distance between conditions
  | # p_dist_out: (optional if permutation_test=True) p-value for difference in distance between conditions
 
-#### `nltools.plotting.plot_stacked_adjacency`
+#### `plot_stacked_adjacency`
 
 ```python
 plot_stacked_adjacency(adjacency1, adjacency2, normalize = True, **kwargs)
@@ -282,7 +280,7 @@ Type | Description
 ---- | -----------
  | matplotlib figure
 
-#### `nltools.plotting.plot_t_brain`
+#### `plot_t_brain`
 
 ```python
 plot_t_brain(objIn, how = 'full', thr = 'unc', alpha = None, nperm = None, cut_coords = [], **kwargs)
@@ -298,7 +296,7 @@ Args:
     cut_coords (list): x,y,z coords to plot brain slice
     kwargs: optionals args to nilearn plot functions (e.g. vmax)
 
-#### `nltools.plotting.probability_plot`
+#### `probability_plot`
 
 ```python
 probability_plot(stats_output)
@@ -318,7 +316,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `fig` |  | Will return a seaborn scatterplot
 
-#### `nltools.plotting.roc_plot`
+#### `roc_plot`
 
 ```python
 roc_plot(fpr, tpr)
@@ -339,7 +337,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `fig` |  | Will return a matplotlib ROC plot
 
-#### `nltools.plotting.scatterplot`
+#### `scatterplot`
 
 ```python
 scatterplot(stats_output)
@@ -359,7 +357,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `fig` |  | Will return a seaborn scatterplot
 
-#### `nltools.plotting.surface_plot`
+#### `surface_plot`
 
 ```python
 surface_plot(brain, surface = 'inflated', bg_map = 'curvature', hemi = 'both', view = 'montage', threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, darkness = None, bg_on_data = False, colorbar = False, figsize = (10, 10), n_samples = 1, radius = 0.0, interpolation = 'linear', engine = 'matplotlib', axes = None, save = None, **kwargs)

@@ -34,9 +34,6 @@ In nltools, `BrainData` holds **y** and `DesignMatrix` holds **X**. Fitting the 
 import warnings
 warnings.filterwarnings("ignore")
 
-import matplotlib
-matplotlib.use("Agg")
-
 import numpy as np
 import matplotlib.pyplot as plt
 

@@ -1,17 +1,19 @@
-## `nltools.data.adjacency.plotting`
+## `plotting`
 
 Plotting functions for Adjacency matrices.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`plot`](#nltools.data.adjacency.plotting.plot) | Create Heatmap of Adjacency Matrix.
-[`plot_mds`](#nltools.data.adjacency.plotting.plot_mds) | Plot Multidimensional Scaling.
+[`plot`](#plot) | Create Heatmap of Adjacency Matrix.
+[`plot_mds`](#plot_mds) | Plot Multidimensional Scaling.
 
 
 
-### Functions#### `nltools.data.adjacency.plotting.plot`
+### Methods
+
+#### `plot`
 
 ```python
 plot(adj, limit = 3, axes = None, *args, **kwargs)
@@ -35,7 +37,7 @@ Type | Description
 ---- | -----------
  | None
 
-#### `nltools.data.adjacency.plotting.plot_mds`
+#### `plot_mds`
 
 ```python
 plot_mds(adj, n_components = 2, metric = True, labels = None, labels_color = None, cmap = None, n_jobs = -1, view = (30, 20), figsize = None, ax = None, *args, **kwargs)

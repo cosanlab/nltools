@@ -1,20 +1,22 @@
-## `nltools.data.collection.io`
+## `io`
 
 I/O functions for BrainCollection.
 
 Provides save path resolution and write functionality extracted from BrainCollection.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`write`](#nltools.data.collection.io.write) | Write all images in collection to files.
+[`write`](#write) | Write all images in collection to files.
 
 
 
 ### Classes
 
-### Functions#### `nltools.data.collection.io.write`
+### Methods
+
+#### `write`
 
 ```python
 write(bc: 'BrainCollection', directory: 'str | Path', pattern: str = 'image_{i:04d}.nii.gz', metadata_file: str | None = 'metadata.csv') -> list['Path']

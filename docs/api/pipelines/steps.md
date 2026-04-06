@@ -1,4 +1,4 @@
-## `nltools.pipelines.steps`
+## `steps`
 
 Transform steps for nltools pipelines.
 
@@ -14,18 +14,20 @@ Each step follows the fit/transform pattern:
 
 Name | Description
 ---- | -----------
-[`AlignStep`](#nltools.pipelines.steps.AlignStep) | Cross-subject alignment via SRM or HyperAlignment.
-[`FittedAlign`](#nltools.pipelines.steps.FittedAlign) | Fitted alignment model.
-[`FittedNormalize`](#nltools.pipelines.steps.FittedNormalize) | Fitted normalization transform.
-[`FittedPipe`](#nltools.pipelines.steps.FittedPipe) | Fitted sklearn transformer wrapper.
-[`FittedReduce`](#nltools.pipelines.steps.FittedReduce) | Fitted dimensionality reduction transform.
-[`NormalizeStep`](#nltools.pipelines.steps.NormalizeStep) | Normalization transform step.
-[`PipeStep`](#nltools.pipelines.steps.PipeStep) | Wrapper for sklearn-compatible transformers.
-[`ReduceStep`](#nltools.pipelines.steps.ReduceStep) | Dimensionality reduction step.
+[`AlignStep`](#AlignStep) | Cross-subject alignment via SRM or HyperAlignment.
+[`FittedAlign`](#FittedAlign) | Fitted alignment model.
+[`FittedNormalize`](#FittedNormalize) | Fitted normalization transform.
+[`FittedPipe`](#FittedPipe) | Fitted sklearn transformer wrapper.
+[`FittedReduce`](#FittedReduce) | Fitted dimensionality reduction transform.
+[`NormalizeStep`](#NormalizeStep) | Normalization transform step.
+[`PipeStep`](#PipeStep) | Wrapper for sklearn-compatible transformers.
+[`ReduceStep`](#ReduceStep) | Dimensionality reduction step.
 
 
 
-### Classes#### `nltools.pipelines.steps.AlignStep`
+### Classes
+
+#### `AlignStep`
 
 ```python
 AlignStep(method: str = 'srm', scheme: str = 'global', n_features: int | None = 50, new_subject: str = 'procrustes', n_iter: int = 10, parallel: str | None = 'cpu', n_jobs: int = -1, **kwargs: int)
@@ -59,93 +61,29 @@ Examples
 >>> fitted = step.fit(data)
 >>> aligned = fitted.transform(data)
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`fit`](#nltools.pipelines.steps.AlignStep.fit) | Fit alignment model on list of subject data.
+[`fit`](#fit) | Fit alignment model on list of subject data.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#nltools.pipelines.steps.AlignStep.invertible) | <code>[bool](#bool)</code> | Check if alignment is invertible.
-[`kwargs`](#nltools.pipelines.steps.AlignStep.kwargs) |  | 
-[`method`](#nltools.pipelines.steps.AlignStep.method) |  | 
-[`n_features`](#nltools.pipelines.steps.AlignStep.n_features) |  | 
-[`n_iter`](#nltools.pipelines.steps.AlignStep.n_iter) |  | 
-[`n_jobs`](#nltools.pipelines.steps.AlignStep.n_jobs) |  | 
-[`new_subject`](#nltools.pipelines.steps.AlignStep.new_subject) |  | 
-[`parallel`](#nltools.pipelines.steps.AlignStep.parallel) |  | 
-[`scheme`](#nltools.pipelines.steps.AlignStep.scheme) |  | 
+[`invertible`](#invertible) | <code>[bool](#bool)</code> | Check if alignment is invertible.
+[`kwargs`](#kwargs) |  | 
+[`method`](#method) |  | 
+[`n_features`](#n_features) |  | 
+[`n_iter`](#n_iter) |  | 
+[`n_jobs`](#n_jobs) |  | 
+[`new_subject`](#new_subject) |  | 
+[`parallel`](#parallel) |  | 
+[`scheme`](#scheme) |  | 
 
+##### Methods
 
-
-##### Attributes###### `nltools.pipelines.steps.AlignStep.invertible`
-
-```python
-invertible: bool
-```
-
-Check if alignment is invertible.
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[bool](#bool)</code> | True if method is hyperalignment (full-rank orthogonal transforms).
-
-###### `nltools.pipelines.steps.AlignStep.kwargs`
-
-```python
-kwargs = kwargs
-```
-
-###### `nltools.pipelines.steps.AlignStep.method`
-
-```python
-method = method
-```
-
-###### `nltools.pipelines.steps.AlignStep.n_features`
-
-```python
-n_features = n_features
-```
-
-###### `nltools.pipelines.steps.AlignStep.n_iter`
-
-```python
-n_iter = n_iter
-```
-
-###### `nltools.pipelines.steps.AlignStep.n_jobs`
-
-```python
-n_jobs = n_jobs
-```
-
-###### `nltools.pipelines.steps.AlignStep.new_subject`
-
-```python
-new_subject = new_subject
-```
-
-###### `nltools.pipelines.steps.AlignStep.parallel`
-
-```python
-parallel = parallel
-```
-
-###### `nltools.pipelines.steps.AlignStep.scheme`
-
-```python
-scheme = scheme
-```
-
-
-
-##### Functions###### `nltools.pipelines.steps.AlignStep.fit`
+###### `fit`
 
 ```python
 fit(data: list[np.ndarray]) -> FittedAlign
@@ -165,7 +103,7 @@ Type | Description
 ---- | -----------
 <code>[FittedAlign](#nltools.pipelines.steps.FittedAlign)</code> | Fitted alignment model.
 
-#### `nltools.pipelines.steps.FittedAlign`
+#### `FittedAlign`
 
 ```python
 FittedAlign(model: Any, method: str, new_subject_method: str = 'procrustes') -> None
@@ -179,41 +117,21 @@ Holds a fitted SRM or HyperAlignment model and applies transformations.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`model`](#nltools.pipelines.steps.FittedAlign.model) | <code>[Any](#typing.Any)</code> | Fitted SRM or HyperAlignment instance.
-[`method`](#nltools.pipelines.steps.FittedAlign.method) | <code>[str](#str)</code> | The alignment method used ('srm' or 'hyperalignment').
-[`new_subject_method`](#nltools.pipelines.steps.FittedAlign.new_subject_method) | <code>[str](#str)</code> | Method for aligning held-out subjects in LOSO CV.
+[`model`](#model) | <code>[Any](#typing.Any)</code> | Fitted SRM or HyperAlignment instance.
+[`method`](#method) | <code>[str](#str)</code> | The alignment method used ('srm' or 'hyperalignment').
+[`new_subject_method`](#new_subject_method) | <code>[str](#str)</code> | Method for aligning held-out subjects in LOSO CV.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#nltools.pipelines.steps.FittedAlign.inverse_transform) | Reverse alignment (only for full-rank hyperalignment).
-[`transform`](#nltools.pipelines.steps.FittedAlign.transform) | Transform subjects that were in training.
-[`transform_new_subject`](#nltools.pipelines.steps.FittedAlign.transform_new_subject) | Align a new subject not in training (for LOSO).
+[`inverse_transform`](#inverse_transform) | Reverse alignment (only for full-rank hyperalignment).
+[`transform`](#transform) | Transform subjects that were in training.
+[`transform_new_subject`](#transform_new_subject) | Align a new subject not in training (for LOSO).
 
+##### Methods
 
-
-##### Attributes###### `nltools.pipelines.steps.FittedAlign.method`
-
-```python
-method: str
-```
-
-###### `nltools.pipelines.steps.FittedAlign.model`
-
-```python
-model: Any
-```
-
-###### `nltools.pipelines.steps.FittedAlign.new_subject_method`
-
-```python
-new_subject_method: str = 'procrustes'
-```
-
-
-
-##### Functions###### `nltools.pipelines.steps.FittedAlign.inverse_transform`
+###### `inverse_transform`
 
 ```python
 inverse_transform(data: list[np.ndarray]) -> list[np.ndarray]
@@ -233,7 +151,7 @@ Type | Description
 ---- | -----------
 <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Data in original subject-specific space, shape (n_samples, n_features).
 
-###### `nltools.pipelines.steps.FittedAlign.transform`
+###### `transform`
 
 ```python
 transform(data: list[np.ndarray]) -> list[np.ndarray]
@@ -253,7 +171,7 @@ Type | Description
 ---- | -----------
 <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Aligned data for each subject, shape (n_samples, n_aligned_features).
 
-###### `nltools.pipelines.steps.FittedAlign.transform_new_subject`
+###### `transform_new_subject`
 
 ```python
 transform_new_subject(data: np.ndarray) -> np.ndarray
@@ -275,7 +193,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Aligned data for the new subject, shape (n_samples, n_aligned_features).
 
-#### `nltools.pipelines.steps.FittedNormalize`
+#### `FittedNormalize`
 
 ```python
 FittedNormalize(mean: np.ndarray, std: np.ndarray, method: str) -> None
@@ -290,40 +208,20 @@ the transformation to new data.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`mean`](#nltools.pipelines.steps.FittedNormalize.mean) | <code>[ndarray](#numpy.ndarray)</code> | For zscore: the mean. For minmax: the min value.
-[`std`](#nltools.pipelines.steps.FittedNormalize.std) | <code>[ndarray](#numpy.ndarray)</code> | For zscore: the standard deviation. For minmax: the range (max - min).
-[`method`](#nltools.pipelines.steps.FittedNormalize.method) | <code>[str](#str)</code> | The normalization method ('zscore' or 'minmax').
+[`mean`](#mean) | <code>[ndarray](#numpy.ndarray)</code> | For zscore: the mean. For minmax: the min value.
+[`std`](#std) | <code>[ndarray](#numpy.ndarray)</code> | For zscore: the standard deviation. For minmax: the range (max - min).
+[`method`](#method) | <code>[str](#str)</code> | The normalization method ('zscore' or 'minmax').
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#nltools.pipelines.steps.FittedNormalize.inverse_transform) | Reverse normalization.
-[`transform`](#nltools.pipelines.steps.FittedNormalize.transform) | Apply normalization to data.
+[`inverse_transform`](#inverse_transform) | Reverse normalization.
+[`transform`](#transform) | Apply normalization to data.
 
+##### Methods
 
-
-##### Attributes###### `nltools.pipelines.steps.FittedNormalize.mean`
-
-```python
-mean: np.ndarray
-```
-
-###### `nltools.pipelines.steps.FittedNormalize.method`
-
-```python
-method: str
-```
-
-###### `nltools.pipelines.steps.FittedNormalize.std`
-
-```python
-std: np.ndarray
-```
-
-
-
-##### Functions###### `nltools.pipelines.steps.FittedNormalize.inverse_transform`
+###### `inverse_transform`
 
 ```python
 inverse_transform(data: np.ndarray) -> np.ndarray
@@ -343,7 +241,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Data in original scale.
 
-###### `nltools.pipelines.steps.FittedNormalize.transform`
+###### `transform`
 
 ```python
 transform(data: np.ndarray) -> np.ndarray
@@ -363,7 +261,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Normalized data.
 
-#### `nltools.pipelines.steps.FittedPipe`
+#### `FittedPipe`
 
 ```python
 FittedPipe(transformer: Any) -> None
@@ -377,26 +275,18 @@ Holds a fitted sklearn transformer and delegates transform calls to it.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`transformer`](#nltools.pipelines.steps.FittedPipe.transformer) | <code>[Any](#typing.Any)</code> | Fitted sklearn-compatible transformer.
+[`transformer`](#transformer) | <code>[Any](#typing.Any)</code> | Fitted sklearn-compatible transformer.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#nltools.pipelines.steps.FittedPipe.inverse_transform) | Apply inverse transform if supported.
-[`transform`](#nltools.pipelines.steps.FittedPipe.transform) | Apply the fitted transformer.
+[`inverse_transform`](#inverse_transform) | Apply inverse transform if supported.
+[`transform`](#transform) | Apply the fitted transformer.
 
+##### Methods
 
-
-##### Attributes###### `nltools.pipelines.steps.FittedPipe.transformer`
-
-```python
-transformer: Any
-```
-
-
-
-##### Functions###### `nltools.pipelines.steps.FittedPipe.inverse_transform`
+###### `inverse_transform`
 
 ```python
 inverse_transform(data: np.ndarray) -> np.ndarray
@@ -416,7 +306,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Data in original space.
 
-###### `nltools.pipelines.steps.FittedPipe.transform`
+###### `transform`
 
 ```python
 transform(data: np.ndarray) -> np.ndarray
@@ -436,7 +326,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Transformed data.
 
-#### `nltools.pipelines.steps.FittedReduce`
+#### `FittedReduce`
 
 ```python
 FittedReduce(model: Any, method: str) -> None
@@ -450,33 +340,19 @@ Holds the fitted sklearn model and applies transformations.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`model`](#nltools.pipelines.steps.FittedReduce.model) | <code>[Any](#typing.Any)</code> | Fitted sklearn decomposition model (PCA, FastICA, etc.).
-[`method`](#nltools.pipelines.steps.FittedReduce.method) | <code>[str](#str)</code> | The reduction method used.
+[`model`](#model) | <code>[Any](#typing.Any)</code> | Fitted sklearn decomposition model (PCA, FastICA, etc.).
+[`method`](#method) | <code>[str](#str)</code> | The reduction method used.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#nltools.pipelines.steps.FittedReduce.inverse_transform) | Reverse dimensionality reduction (reconstruct original space).
-[`transform`](#nltools.pipelines.steps.FittedReduce.transform) | Apply dimensionality reduction.
+[`inverse_transform`](#inverse_transform) | Reverse dimensionality reduction (reconstruct original space).
+[`transform`](#transform) | Apply dimensionality reduction.
 
+##### Methods
 
-
-##### Attributes###### `nltools.pipelines.steps.FittedReduce.method`
-
-```python
-method: str
-```
-
-###### `nltools.pipelines.steps.FittedReduce.model`
-
-```python
-model: Any
-```
-
-
-
-##### Functions###### `nltools.pipelines.steps.FittedReduce.inverse_transform`
+###### `inverse_transform`
 
 ```python
 inverse_transform(data: np.ndarray) -> np.ndarray
@@ -496,7 +372,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Reconstructed data, shape (n_samples, n_features).
 
-###### `nltools.pipelines.steps.FittedReduce.transform`
+###### `transform`
 
 ```python
 transform(data: np.ndarray) -> np.ndarray
@@ -516,7 +392,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Reduced data, shape (n_samples, n_components).
 
-#### `nltools.pipelines.steps.NormalizeStep`
+#### `NormalizeStep`
 
 ```python
 NormalizeStep(method: str = 'zscore', axis: int = 0, invertible: bool = True) -> None
@@ -545,43 +421,23 @@ Examples
 >>> np.allclose(data, restored)
 True
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`fit`](#nltools.pipelines.steps.NormalizeStep.fit) | Compute normalization parameters from data.
+[`fit`](#fit) | Compute normalization parameters from data.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`axis`](#nltools.pipelines.steps.NormalizeStep.axis) | <code>[int](#int)</code> | 
-[`invertible`](#nltools.pipelines.steps.NormalizeStep.invertible) | <code>[bool](#bool)</code> | 
-[`method`](#nltools.pipelines.steps.NormalizeStep.method) | <code>[str](#str)</code> | 
+[`axis`](#axis) | <code>[int](#int)</code> | 
+[`invertible`](#invertible) | <code>[bool](#bool)</code> | 
+[`method`](#method) | <code>[str](#str)</code> | 
 
+##### Methods
 
-
-##### Attributes###### `nltools.pipelines.steps.NormalizeStep.axis`
-
-```python
-axis: int = 0
-```
-
-###### `nltools.pipelines.steps.NormalizeStep.invertible`
-
-```python
-invertible: bool = True
-```
-
-###### `nltools.pipelines.steps.NormalizeStep.method`
-
-```python
-method: str = 'zscore'
-```
-
-
-
-##### Functions###### `nltools.pipelines.steps.NormalizeStep.fit`
+###### `fit`
 
 ```python
 fit(data: np.ndarray) -> FittedNormalize
@@ -601,7 +457,7 @@ Type | Description
 ---- | -----------
 <code>[FittedNormalize](#nltools.pipelines.steps.FittedNormalize)</code> | Fitted transform that can be applied to new data.
 
-#### `nltools.pipelines.steps.PipeStep`
+#### `PipeStep`
 
 ```python
 PipeStep(transformer: Any = None) -> None
@@ -630,44 +486,22 @@ Examples
 >>> np.allclose(data, restored)
 True
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`fit`](#nltools.pipelines.steps.PipeStep.fit) | Fit transformer to data.
+[`fit`](#fit) | Fit transformer to data.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#nltools.pipelines.steps.PipeStep.invertible) | <code>[bool](#bool)</code> | Check if the transformer supports inverse_transform.
-[`transformer`](#nltools.pipelines.steps.PipeStep.transformer) | <code>[Any](#typing.Any)</code> | 
+[`invertible`](#invertible) | <code>[bool](#bool)</code> | Check if the transformer supports inverse_transform.
+[`transformer`](#transformer) | <code>[Any](#typing.Any)</code> | 
 
+##### Methods
 
-
-##### Attributes###### `nltools.pipelines.steps.PipeStep.invertible`
-
-```python
-invertible: bool
-```
-
-Check if the transformer supports inverse_transform.
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[bool](#bool)</code> | True if transformer has inverse_transform method.
-
-###### `nltools.pipelines.steps.PipeStep.transformer`
-
-```python
-transformer: Any = None
-```
-
-
-
-##### Functions###### `nltools.pipelines.steps.PipeStep.fit`
+###### `fit`
 
 ```python
 fit(data: np.ndarray) -> FittedPipe
@@ -690,7 +524,7 @@ Type | Description
 ---- | -----------
 <code>[FittedPipe](#nltools.pipelines.steps.FittedPipe)</code> | Fitted transform wrapper.
 
-#### `nltools.pipelines.steps.ReduceStep`
+#### `ReduceStep`
 
 ```python
 ReduceStep(method: str = 'pca', n_components: Optional[int] = None, random_state: Optional[int] = None) -> None
@@ -719,58 +553,24 @@ Examples
 >>> reduced.shape
 (100, 10)
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`fit`](#nltools.pipelines.steps.ReduceStep.fit) | Fit reduction model to data.
+[`fit`](#fit) | Fit reduction model to data.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#nltools.pipelines.steps.ReduceStep.invertible) | <code>[bool](#bool)</code> | Check if the reduction method supports inverse transform.
-[`method`](#nltools.pipelines.steps.ReduceStep.method) | <code>[str](#str)</code> | 
-[`n_components`](#nltools.pipelines.steps.ReduceStep.n_components) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`random_state`](#nltools.pipelines.steps.ReduceStep.random_state) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`invertible`](#invertible) | <code>[bool](#bool)</code> | Check if the reduction method supports inverse transform.
+[`method`](#method) | <code>[str](#str)</code> | 
+[`n_components`](#n_components) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`random_state`](#random_state) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
 
+##### Methods
 
-
-##### Attributes###### `nltools.pipelines.steps.ReduceStep.invertible`
-
-```python
-invertible: bool
-```
-
-Check if the reduction method supports inverse transform.
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[bool](#bool)</code> | True if method is 'pca', False otherwise.
-
-###### `nltools.pipelines.steps.ReduceStep.method`
-
-```python
-method: str = 'pca'
-```
-
-###### `nltools.pipelines.steps.ReduceStep.n_components`
-
-```python
-n_components: Optional[int] = None
-```
-
-###### `nltools.pipelines.steps.ReduceStep.random_state`
-
-```python
-random_state: Optional[int] = None
-```
-
-
-
-##### Functions###### `nltools.pipelines.steps.ReduceStep.fit`
+###### `fit`
 
 ```python
 fit(data: np.ndarray) -> FittedReduce

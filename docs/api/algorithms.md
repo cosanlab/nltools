@@ -1,4 +1,4 @@
-## `nltools.algorithms`
+## `algorithms`
 
 External functions
 
@@ -6,41 +6,43 @@ External functions
 
 Name | Description
 ---- | -----------
-[`alignment`](#nltools.algorithms.alignment) | Local (neighborhood-based) functional alignment algorithms.
-[`hrf`](#nltools.algorithms.hrf) | Hemodynamic Response Functions (HRFs) for fMRI analysis, implemented by NiPy.
-[`hyperalignment`](#nltools.algorithms.hyperalignment) | HyperAlignment: Multi-subject cortical surface alignment using iterative Procrustes refinement.
-[`inference`](#nltools.algorithms.inference) | GPU-accelerated statistical inference for neuroimaging.
-[`random`](#nltools.algorithms.random) | Shared random state utilities for algorithms module.
-[`ridge`](#nltools.algorithms.ridge) | Ridge regression algorithms and utilities.
-[`shape_utils`](#nltools.algorithms.shape_utils) | Shared shape manipulation utilities for algorithms module.
-[`srm`](#nltools.algorithms.srm) | Shared Response Model (SRM) for multi-subject fMRI alignment.
-[`validation`](#nltools.algorithms.validation) | Shared validation utilities for algorithms module.
+[`alignment`](#alignment) | Local (neighborhood-based) functional alignment algorithms.
+[`hrf`](#hrf) | Hemodynamic Response Functions (HRFs) for fMRI analysis, implemented by NiPy.
+[`hyperalignment`](#hyperalignment) | HyperAlignment: Multi-subject cortical surface alignment using iterative Procrustes refinement.
+[`inference`](#inference) | GPU-accelerated statistical inference for neuroimaging.
+[`random`](#random) | Shared random state utilities for algorithms module.
+[`ridge`](#ridge) | Ridge regression algorithms and utilities.
+[`shape_utils`](#shape_utils) | Shared shape manipulation utilities for algorithms module.
+[`srm`](#srm) | Shared Response Model (SRM) for multi-subject fMRI alignment.
+[`validation`](#validation) | Shared validation utilities for algorithms module.
 
 **Classes:**
 
 Name | Description
 ---- | -----------
-[`DetSRM`](#nltools.algorithms.DetSRM) | Deterministic Shared Response Model (DetSRM)
-[`HyperAlignment`](#nltools.algorithms.HyperAlignment) | Hyperalignment using iterative Procrustes alignment.
-[`LocalAlignment`](#nltools.algorithms.LocalAlignment) | Local (neighborhood-based) functional alignment across subjects.
-[`SRM`](#nltools.algorithms.SRM) | Probabilistic Shared Response Model (SRM)
+[`DetSRM`](#DetSRM) | Deterministic Shared Response Model (DetSRM)
+[`HyperAlignment`](#HyperAlignment) | Hyperalignment using iterative Procrustes alignment.
+[`LocalAlignment`](#LocalAlignment) | Local (neighborhood-based) functional alignment across subjects.
+[`SRM`](#SRM) | Probabilistic Shared Response Model (SRM)
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`glover_hrf`](#nltools.algorithms.glover_hrf) | Implementation of the Glover hrf model.
-[`glover_time_derivative`](#nltools.algorithms.glover_time_derivative) | Implementation of the flover time derivative hrf (dhrf) model.
-[`one_sample_permutation_test`](#nltools.algorithms.one_sample_permutation_test) | One-sample permutation test using sign-flipping.
-[`ridge_cv`](#nltools.algorithms.ridge_cv) | Ridge regression with cross-validation for hyperparameter selection.
-[`ridge_svd`](#nltools.algorithms.ridge_svd) | Solve ridge regression using Singular Value Decomposition.
-[`spm_dispersion_derivative`](#nltools.algorithms.spm_dispersion_derivative) | Implementation of the SPM dispersion derivative hrf model.
-[`spm_hrf`](#nltools.algorithms.spm_hrf) | Implementation of the SPM hrf model.
-[`spm_time_derivative`](#nltools.algorithms.spm_time_derivative) | Implementation of the SPM time derivative hrf (dhrf) model.
+[`glover_hrf`](#glover_hrf) | Implementation of the Glover hrf model.
+[`glover_time_derivative`](#glover_time_derivative) | Implementation of the flover time derivative hrf (dhrf) model.
+[`one_sample_permutation_test`](#one_sample_permutation_test) | One-sample permutation test using sign-flipping.
+[`ridge_cv`](#ridge_cv) | Ridge regression with cross-validation for hyperparameter selection.
+[`ridge_svd`](#ridge_svd) | Solve ridge regression using Singular Value Decomposition.
+[`spm_dispersion_derivative`](#spm_dispersion_derivative) | Implementation of the SPM dispersion derivative hrf model.
+[`spm_hrf`](#spm_hrf) | Implementation of the SPM hrf model.
+[`spm_time_derivative`](#spm_time_derivative) | Implementation of the SPM time derivative hrf (dhrf) model.
 
 
 
-### Classes#### `nltools.algorithms.DetSRM`
+### Classes
+
+#### `DetSRM`
 
 ```python
 DetSRM(n_iter: int = 10, features: int = 50, rand_seed: int = 0) -> None
@@ -67,9 +69,9 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`w_`](#nltools.algorithms.DetSRM.w_) | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
-[`s_`](#nltools.algorithms.DetSRM.s_) | <code>array, shape=[features, samples]</code> | The shared response.
-[`random_state_`](#nltools.algorithms.DetSRM.random_state_) | <code>`RandomState`</code> | Random number generator initialized using rand_seed
+[`w_`](#w_) | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
+[`s_`](#s_) | <code>array, shape=[features, samples]</code> | The shared response.
+[`random_state_`](#random_state_) | <code>`RandomState`</code> | Random number generator initialized using rand_seed
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -113,37 +115,17 @@ Basic multi-subject DetSRM fitting:
 >>> s = detsrm.s_  # Shared response
 ```
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`fit`](#nltools.algorithms.DetSRM.fit) | Compute the Deterministic Shared Response Model
-[`transform`](#nltools.algorithms.DetSRM.transform) | Use the model to transform data to the Shared Response subspace
-[`transform_subject`](#nltools.algorithms.DetSRM.transform_subject) | Transform a new subject using the existing model.
+[`fit`](#fit) | Compute the Deterministic Shared Response Model
+[`transform`](#transform) | Use the model to transform data to the Shared Response subspace
+[`transform_subject`](#transform_subject) | Transform a new subject using the existing model.
 
+##### Methods
 
-
-##### Attributes###### `nltools.algorithms.DetSRM.features`
-
-```python
-features = features
-```
-
-###### `nltools.algorithms.DetSRM.n_iter`
-
-```python
-n_iter = n_iter
-```
-
-###### `nltools.algorithms.DetSRM.rand_seed`
-
-```python
-rand_seed = rand_seed
-```
-
-
-
-##### Functions###### `nltools.algorithms.DetSRM.fit`
+###### `fit`
 
 ```python
 fit(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> DetSRM
@@ -167,7 +149,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `self` | <code>[DetSRM](#nltools.algorithms.srm.DetSRM)</code> | Fitted model
 
-###### `nltools.algorithms.DetSRM.transform`
+###### `transform`
 
 ```python
 transform(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[np.ndarray]
@@ -190,7 +172,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `s` | <code>list of 2D arrays, element i has shape=[features_i, samples_i]</code> | Shared responses from input data (X)
 
-###### `nltools.algorithms.DetSRM.transform_subject`
+###### `transform_subject`
 
 ```python
 transform_subject(X: np.ndarray) -> np.ndarray
@@ -211,7 +193,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `w` | <code>2D array, shape=[voxels, features]</code> | Orthogonal mapping `W_{new}` for new subject
 
-#### `nltools.algorithms.HyperAlignment`
+#### `HyperAlignment`
 
 ```python
 HyperAlignment(n_iter: int = 2, auto_pad: bool = True) -> None
@@ -240,10 +222,10 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`w_`](#nltools.algorithms.HyperAlignment.w_) | <code>list of ndarray, element i has shape=[features_i, features]</code> | The transformation matrices (rotation + reflection) for each subject.
-[`s_`](#nltools.algorithms.HyperAlignment.s_) | <code>ndarray, shape=[features, samples]</code> | The aligned common template (shared response).
-[`disparity_`](#nltools.algorithms.HyperAlignment.disparity_) | <code>list of float</code> | Disparity (sum of squared differences) for each subject.
-[`scale_`](#nltools.algorithms.HyperAlignment.scale_) | <code>list of float</code> | Scale factors for each subject.
+[`w_`](#w_) | <code>list of ndarray, element i has shape=[features_i, features]</code> | The transformation matrices (rotation + reflection) for each subject.
+[`s_`](#s_) | <code>ndarray, shape=[features, samples]</code> | The aligned common template (shared response).
+[`disparity_`](#disparity_) | <code>list of float</code> | Disparity (sum of squared differences) for each subject.
+[`scale_`](#scale_) | <code>list of float</code> | Scale factors for each subject.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -302,13 +284,13 @@ human ventral temporal cortex. Neuron, 72(2), 404-416.
 
 </details>
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`fit`](#nltools.algorithms.HyperAlignment.fit) | Fit hyperalignment model to data.
-[`transform`](#nltools.algorithms.HyperAlignment.transform) | Transform data to common space using fitted transformations.
-[`transform_subject`](#nltools.algorithms.HyperAlignment.transform_subject) | Align a new subject to the common space.
+[`fit`](#fit) | Fit hyperalignment model to data.
+[`transform`](#transform) | Transform data to common space using fitted transformations.
+[`transform_subject`](#transform_subject) | Align a new subject to the common space.
 
 **Parameters:**
 
@@ -317,31 +299,9 @@ Name | Type | Description | Default
 `n_iter` | <code>int, default=2</code> | Number of template refinement iterations | <code>2</code>
 `auto_pad` | <code>bool, default=True</code> | Whether to automatically pad matrices to same size | <code>True</code>
 
+##### Methods
 
-
-##### Attributes###### `nltools.algorithms.HyperAlignment.auto_pad`
-
-```python
-auto_pad = auto_pad
-```
-
-###### `nltools.algorithms.HyperAlignment.common_model_`
-
-```python
-common_model_
-```
-
-Alias for ``s_`` (common template).
-
-###### `nltools.algorithms.HyperAlignment.n_iter`
-
-```python
-n_iter = n_iter
-```
-
-
-
-##### Functions###### `nltools.algorithms.HyperAlignment.fit`
+###### `fit`
 
 ```python
 fit(data: List[np.ndarray], parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> HyperAlignment
@@ -363,7 +323,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `self` | <code>[HyperAlignment](#nltools.algorithms.hyperalignment.HyperAlignment)</code> | Fitted model
 
-###### `nltools.algorithms.HyperAlignment.transform`
+###### `transform`
 
 ```python
 transform(data: List[np.ndarray], parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[np.ndarray]
@@ -385,7 +345,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `transformed` | <code>list of ndarray</code> | List of transformed data matrices in common space
 
-###### `nltools.algorithms.HyperAlignment.transform_subject`
+###### `transform_subject`
 
 ```python
 transform_subject(subject_data: np.ndarray) -> Tuple[np.ndarray, np.ndarray, float, float]
@@ -408,7 +368,7 @@ Name | Type | Description
 `disparity` | <code>[float](#float)</code> | Alignment quality (sum of squared differences)
 `scale` | <code>[float](#float)</code> | Scale factor used
 
-#### `nltools.algorithms.LocalAlignment`
+#### `LocalAlignment`
 
 ```python
 LocalAlignment(scheme: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, parcellation: Optional[Any] = None, n_features: Optional[int] = None, n_iter: int = 3, aggregation: str = 'center', parallel: Optional[str] = 'cpu', n_jobs: int = -1, n_neighborhoods_batch: Optional[int] = None, max_memory_gb: float = 4.0, transforms_: Optional[Dict[int, List[np.ndarray]]] = None, template_: Optional[Dict[int, np.ndarray]] = None, neighborhoods_: Optional[Union['SphereNeighborhoods', Dict[int, np.ndarray]]] = None, n_voxels_: Optional[int] = None, mask_: Optional[Any] = None, backend_: Optional[Backend] = None) -> None
@@ -474,143 +434,39 @@ Based on Bazeille et al. 2021 "An empirical evaluation of functional
 alignment using inter-subject decoding". Center-only aggregation is
 used to preserve local orthogonality of transforms.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`fit`](#nltools.algorithms.LocalAlignment.fit) | Fit local alignment on multi-subject data.
-[`fit_transform`](#nltools.algorithms.LocalAlignment.fit_transform) | Fit alignment and transform data in one step.
-[`transform`](#nltools.algorithms.LocalAlignment.transform) | Apply local transforms to data.
+[`fit`](#fit) | Fit local alignment on multi-subject data.
+[`fit_transform`](#fit_transform) | Fit alignment and transform data in one step.
+[`transform`](#transform) | Apply local transforms to data.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`aggregation`](#nltools.algorithms.LocalAlignment.aggregation) | <code>[str](#str)</code> | 
-[`backend_`](#nltools.algorithms.LocalAlignment.backend_) | <code>[Optional](#typing.Optional)[[Backend](#nltools.backends.Backend)]</code> | 
-[`mask_`](#nltools.algorithms.LocalAlignment.mask_) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
-[`max_memory_gb`](#nltools.algorithms.LocalAlignment.max_memory_gb) | <code>[float](#float)</code> | 
-[`method`](#nltools.algorithms.LocalAlignment.method) | <code>[str](#str)</code> | 
-[`n_features`](#nltools.algorithms.LocalAlignment.n_features) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`n_iter`](#nltools.algorithms.LocalAlignment.n_iter) | <code>[int](#int)</code> | 
-[`n_jobs`](#nltools.algorithms.LocalAlignment.n_jobs) | <code>[int](#int)</code> | 
-[`n_neighborhoods_batch`](#nltools.algorithms.LocalAlignment.n_neighborhoods_batch) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`n_voxels_`](#nltools.algorithms.LocalAlignment.n_voxels_) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`neighborhoods_`](#nltools.algorithms.LocalAlignment.neighborhoods_) | <code>[Optional](#typing.Optional)[[Union](#typing.Union)['SphereNeighborhoods', [Dict](#typing.Dict)[[int](#int), [ndarray](#numpy.ndarray)]]]</code> | 
-[`parallel`](#nltools.algorithms.LocalAlignment.parallel) | <code>[Optional](#typing.Optional)[[str](#str)]</code> | 
-[`parcellation`](#nltools.algorithms.LocalAlignment.parcellation) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
-[`radius_mm`](#nltools.algorithms.LocalAlignment.radius_mm) | <code>[float](#float)</code> | 
-[`scheme`](#nltools.algorithms.LocalAlignment.scheme) | <code>[str](#str)</code> | 
-[`template_`](#nltools.algorithms.LocalAlignment.template_) | <code>[Optional](#typing.Optional)[[Dict](#typing.Dict)[[int](#int), [ndarray](#numpy.ndarray)]]</code> | 
-[`transforms_`](#nltools.algorithms.LocalAlignment.transforms_) | <code>[Optional](#typing.Optional)[[Dict](#typing.Dict)[[int](#int), [List](#typing.List)[[ndarray](#numpy.ndarray)]]]</code> | 
+[`aggregation`](#aggregation) | <code>[str](#str)</code> | 
+[`backend_`](#backend_) | <code>[Optional](#typing.Optional)[[Backend](#nltools.backends.Backend)]</code> | 
+[`mask_`](#mask_) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
+[`max_memory_gb`](#max_memory_gb) | <code>[float](#float)</code> | 
+[`method`](#method) | <code>[str](#str)</code> | 
+[`n_features`](#n_features) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`n_iter`](#n_iter) | <code>[int](#int)</code> | 
+[`n_jobs`](#n_jobs) | <code>[int](#int)</code> | 
+[`n_neighborhoods_batch`](#n_neighborhoods_batch) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`n_voxels_`](#n_voxels_) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`neighborhoods_`](#neighborhoods_) | <code>[Optional](#typing.Optional)[[Union](#typing.Union)['SphereNeighborhoods', [Dict](#typing.Dict)[[int](#int), [ndarray](#numpy.ndarray)]]]</code> | 
+[`parallel`](#parallel) | <code>[Optional](#typing.Optional)[[str](#str)]</code> | 
+[`parcellation`](#parcellation) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
+[`radius_mm`](#radius_mm) | <code>[float](#float)</code> | 
+[`scheme`](#scheme) | <code>[str](#str)</code> | 
+[`template_`](#template_) | <code>[Optional](#typing.Optional)[[Dict](#typing.Dict)[[int](#int), [ndarray](#numpy.ndarray)]]</code> | 
+[`transforms_`](#transforms_) | <code>[Optional](#typing.Optional)[[Dict](#typing.Dict)[[int](#int), [List](#typing.List)[[ndarray](#numpy.ndarray)]]]</code> | 
 
+##### Methods
 
-
-##### Attributes###### `nltools.algorithms.LocalAlignment.aggregation`
-
-```python
-aggregation: str = 'center'
-```
-
-###### `nltools.algorithms.LocalAlignment.backend_`
-
-```python
-backend_: Optional[Backend] = field(default=None, repr=False)
-```
-
-###### `nltools.algorithms.LocalAlignment.mask_`
-
-```python
-mask_: Optional[Any] = field(default=None, repr=False)
-```
-
-###### `nltools.algorithms.LocalAlignment.max_memory_gb`
-
-```python
-max_memory_gb: float = 4.0
-```
-
-###### `nltools.algorithms.LocalAlignment.method`
-
-```python
-method: str = 'procrustes'
-```
-
-###### `nltools.algorithms.LocalAlignment.n_features`
-
-```python
-n_features: Optional[int] = None
-```
-
-###### `nltools.algorithms.LocalAlignment.n_iter`
-
-```python
-n_iter: int = 3
-```
-
-###### `nltools.algorithms.LocalAlignment.n_jobs`
-
-```python
-n_jobs: int = -1
-```
-
-###### `nltools.algorithms.LocalAlignment.n_neighborhoods_batch`
-
-```python
-n_neighborhoods_batch: Optional[int] = None
-```
-
-###### `nltools.algorithms.LocalAlignment.n_voxels_`
-
-```python
-n_voxels_: Optional[int] = field(default=None, repr=False)
-```
-
-###### `nltools.algorithms.LocalAlignment.neighborhoods_`
-
-```python
-neighborhoods_: Optional[Union['SphereNeighborhoods', Dict[int, np.ndarray]]] = field(default=None, repr=False)
-```
-
-###### `nltools.algorithms.LocalAlignment.parallel`
-
-```python
-parallel: Optional[str] = 'cpu'
-```
-
-###### `nltools.algorithms.LocalAlignment.parcellation`
-
-```python
-parcellation: Optional[Any] = None
-```
-
-###### `nltools.algorithms.LocalAlignment.radius_mm`
-
-```python
-radius_mm: float = 10.0
-```
-
-###### `nltools.algorithms.LocalAlignment.scheme`
-
-```python
-scheme: str = 'searchlight'
-```
-
-###### `nltools.algorithms.LocalAlignment.template_`
-
-```python
-template_: Optional[Dict[int, np.ndarray]] = field(default=None, repr=False)
-```
-
-###### `nltools.algorithms.LocalAlignment.transforms_`
-
-```python
-transforms_: Optional[Dict[int, List[np.ndarray]]] = field(default=None, repr=False)
-```
-
-
-
-##### Functions###### `nltools.algorithms.LocalAlignment.fit`
+###### `fit`
 
 ```python
 fit(data: List[np.ndarray], mask: 'nib.Nifti1Image') -> 'LocalAlignment'
@@ -632,7 +488,7 @@ Returns
 self : LocalAlignment
     Fitted alignment model.
 
-###### `nltools.algorithms.LocalAlignment.fit_transform`
+###### `fit_transform`
 
 ```python
 fit_transform(data: List[np.ndarray], mask: 'nib.Nifti1Image') -> List[np.ndarray]
@@ -652,7 +508,7 @@ Returns
 List[np.ndarray]
     Aligned data for each subject.
 
-###### `nltools.algorithms.LocalAlignment.transform`
+###### `transform`
 
 ```python
 transform(data: List[np.ndarray]) -> List[np.ndarray]
@@ -675,7 +531,7 @@ Returns
 List[np.ndarray]
     Aligned data for each subject, shape (n_voxels, n_samples).
 
-#### `nltools.algorithms.SRM`
+#### `SRM`
 
 ```python
 SRM(n_iter: int = 10, features: int = 50, rand_seed: int = 0) -> None
@@ -702,12 +558,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`w_`](#nltools.algorithms.SRM.w_) | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
-[`s_`](#nltools.algorithms.SRM.s_) | <code>array, shape=[features, samples]</code> | The shared response.
-[`sigma_s_`](#nltools.algorithms.SRM.sigma_s_) | <code>array, shape=[features, features]</code> | The covariance of the shared response Normal distribution.
-[`mu_`](#nltools.algorithms.SRM.mu_) | <code>list of array, element i has shape=[voxels_i]</code> | The voxel means over the samples for each subject.
-[`rho2_`](#nltools.algorithms.SRM.rho2_) | <code>array, shape=[subjects]</code> | The estimated noise variance :math:`\rho_i^2` for each subject
-[`random_state_`](#nltools.algorithms.SRM.random_state_) | <code>`RandomState`</code> | Random number generator initialized using rand_seed
+[`w_`](#w_) | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
+[`s_`](#s_) | <code>array, shape=[features, samples]</code> | The shared response.
+[`sigma_s_`](#sigma_s_) | <code>array, shape=[features, features]</code> | The covariance of the shared response Normal distribution.
+[`mu_`](#mu_) | <code>list of array, element i has shape=[voxels_i]</code> | The voxel means over the samples for each subject.
+[`rho2_`](#rho2_) | <code>array, shape=[subjects]</code> | The estimated noise variance :math:`\rho_i^2` for each subject
+[`random_state_`](#random_state_) | <code>`RandomState`</code> | Random number generator initialized using rand_seed
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -751,37 +607,17 @@ Basic multi-subject SRM fitting:
 >>> s = srm.s_  # Shared response
 ```
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`fit`](#nltools.algorithms.SRM.fit) | Compute the probabilistic Shared Response Model
-[`transform`](#nltools.algorithms.SRM.transform) | Use the model to transform matrix to Shared Response space
-[`transform_subject`](#nltools.algorithms.SRM.transform_subject) | Transform a new subject using the existing model.
+[`fit`](#fit) | Compute the probabilistic Shared Response Model
+[`transform`](#transform) | Use the model to transform matrix to Shared Response space
+[`transform_subject`](#transform_subject) | Transform a new subject using the existing model.
 
+##### Methods
 
-
-##### Attributes###### `nltools.algorithms.SRM.features`
-
-```python
-features = features
-```
-
-###### `nltools.algorithms.SRM.n_iter`
-
-```python
-n_iter = n_iter
-```
-
-###### `nltools.algorithms.SRM.rand_seed`
-
-```python
-rand_seed = rand_seed
-```
-
-
-
-##### Functions###### `nltools.algorithms.SRM.fit`
+###### `fit`
 
 ```python
 fit(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, pad_samples: bool = True) -> SRM
@@ -806,7 +642,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `self` | <code>[SRM](#nltools.algorithms.srm.SRM)</code> | Fitted model
 
-###### `nltools.algorithms.SRM.transform`
+###### `transform`
 
 ```python
 transform(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[np.ndarray]
@@ -829,7 +665,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `s` | <code>list of 2D arrays, element i has shape=[features_i, samples_i]</code> | Shared responses from input data (X)
 
-###### `nltools.algorithms.SRM.transform_subject`
+###### `transform_subject`
 
 ```python
 transform_subject(X: np.ndarray) -> np.ndarray
@@ -852,7 +688,9 @@ Name | Type | Description
 
 
 
-### Functions#### `nltools.algorithms.glover_hrf`
+### Methods
+
+#### `glover_hrf`
 
 ```python
 glover_hrf(tr: float, oversampling: int = 16, time_length: float = 32.0, onset: float = 0.0) -> np.ndarray
@@ -875,7 +713,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `hrf` | <code>[ndarray](#numpy.ndarray)</code> | array of shape(length / tr * oversampling, float), hrf sampling on the oversampled time grid
 
-#### `nltools.algorithms.glover_time_derivative`
+#### `glover_time_derivative`
 
 ```python
 glover_time_derivative(tr: float, oversampling: int = 16, time_length: float = 32.0, onset: float = 0.0) -> np.ndarray
@@ -898,7 +736,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dhrf` | <code>[ndarray](#numpy.ndarray)</code> | array of shape(length / tr, float),   dhrf sampling on the provided grid
 
-#### `nltools.algorithms.one_sample_permutation_test`
+#### `one_sample_permutation_test`
 
 ```python
 one_sample_permutation_test(data: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
@@ -968,7 +806,7 @@ Name | Type | Description
 
 </details>
 
-#### `nltools.algorithms.ridge_cv`
+#### `ridge_cv`
 
 ```python
 ridge_cv(X: np.ndarray, y: np.ndarray, alphas: Optional[np.ndarray] = None, cv: int = 5, parallel: Optional[str] = 'cpu', max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
@@ -1018,7 +856,7 @@ Name | Type | Description
 
 </details>
 
-#### `nltools.algorithms.ridge_svd`
+#### `ridge_svd`
 
 ```python
 ridge_svd(X: np.ndarray, y: np.ndarray, alpha: float = 1.0, parallel: Optional[str] = None, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> np.ndarray
@@ -1102,7 +940,7 @@ Type | Description
 
 </details>
 
-#### `nltools.algorithms.spm_dispersion_derivative`
+#### `spm_dispersion_derivative`
 
 ```python
 spm_dispersion_derivative(tr: float, oversampling: int = 16, time_length: float = 32.0, onset: float = 0.0) -> np.ndarray
@@ -1125,7 +963,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dhrf` | <code>[ndarray](#numpy.ndarray)</code> | array of shape(length / tr * oversampling, float),   dhrf sampling on the oversampled time grid
 
-#### `nltools.algorithms.spm_hrf`
+#### `spm_hrf`
 
 ```python
 spm_hrf(tr: float, oversampling: int = 16, time_length: float = 32.0, onset: float = 0.0) -> np.ndarray
@@ -1148,7 +986,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `hrf` | <code>[ndarray](#numpy.ndarray)</code> | array of shape(length / tr * oversampling, float), hrf sampling on the oversampled time grid
 
-#### `nltools.algorithms.spm_time_derivative`
+#### `spm_time_derivative`
 
 ```python
 spm_time_derivative(tr: float, oversampling: int = 16, time_length: float = 32.0, onset: float = 0.0) -> np.ndarray
@@ -1173,7 +1011,9 @@ Name | Type | Description
 
 
 
-### Modules#### `nltools.algorithms.alignment`
+### Modules
+
+#### `alignment`
 
 Local (neighborhood-based) functional alignment algorithms.
 
@@ -1184,17 +1024,19 @@ functional alignment across subjects.
 
 Name | Description
 ---- | -----------
-[`local`](#nltools.algorithms.alignment.local) | LocalAlignment: Neighborhood-based functional alignment.
+[`local`](#local) | LocalAlignment: Neighborhood-based functional alignment.
 
 **Classes:**
 
 Name | Description
 ---- | -----------
-[`LocalAlignment`](#nltools.algorithms.alignment.LocalAlignment) | Local (neighborhood-based) functional alignment across subjects.
+[`LocalAlignment`](#LocalAlignment) | Local (neighborhood-based) functional alignment across subjects.
 
 
 
-##### Classes###### `nltools.algorithms.alignment.LocalAlignment`
+##### Classes
+
+###### `LocalAlignment`
 
 ```python
 LocalAlignment(scheme: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, parcellation: Optional[Any] = None, n_features: Optional[int] = None, n_iter: int = 3, aggregation: str = 'center', parallel: Optional[str] = 'cpu', n_jobs: int = -1, n_neighborhoods_batch: Optional[int] = None, max_memory_gb: float = 4.0, transforms_: Optional[Dict[int, List[np.ndarray]]] = None, template_: Optional[Dict[int, np.ndarray]] = None, neighborhoods_: Optional[Union['SphereNeighborhoods', Dict[int, np.ndarray]]] = None, n_voxels_: Optional[int] = None, mask_: Optional[Any] = None, backend_: Optional[Backend] = None) -> None
@@ -1260,135 +1102,137 @@ Based on Bazeille et al. 2021 "An empirical evaluation of functional
 alignment using inter-subject decoding". Center-only aggregation is
 used to preserve local orthogonality of transforms.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`fit`](#nltools.algorithms.alignment.LocalAlignment.fit) | Fit local alignment on multi-subject data.
-[`fit_transform`](#nltools.algorithms.alignment.LocalAlignment.fit_transform) | Fit alignment and transform data in one step.
-[`transform`](#nltools.algorithms.alignment.LocalAlignment.transform) | Apply local transforms to data.
+[`fit`](#fit) | Fit local alignment on multi-subject data.
+[`fit_transform`](#fit_transform) | Fit alignment and transform data in one step.
+[`transform`](#transform) | Apply local transforms to data.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`aggregation`](#nltools.algorithms.alignment.LocalAlignment.aggregation) | <code>[str](#str)</code> | 
-[`backend_`](#nltools.algorithms.alignment.LocalAlignment.backend_) | <code>[Optional](#typing.Optional)[[Backend](#nltools.backends.Backend)]</code> | 
-[`mask_`](#nltools.algorithms.alignment.LocalAlignment.mask_) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
-[`max_memory_gb`](#nltools.algorithms.alignment.LocalAlignment.max_memory_gb) | <code>[float](#float)</code> | 
-[`method`](#nltools.algorithms.alignment.LocalAlignment.method) | <code>[str](#str)</code> | 
-[`n_features`](#nltools.algorithms.alignment.LocalAlignment.n_features) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`n_iter`](#nltools.algorithms.alignment.LocalAlignment.n_iter) | <code>[int](#int)</code> | 
-[`n_jobs`](#nltools.algorithms.alignment.LocalAlignment.n_jobs) | <code>[int](#int)</code> | 
-[`n_neighborhoods_batch`](#nltools.algorithms.alignment.LocalAlignment.n_neighborhoods_batch) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`n_voxels_`](#nltools.algorithms.alignment.LocalAlignment.n_voxels_) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`neighborhoods_`](#nltools.algorithms.alignment.LocalAlignment.neighborhoods_) | <code>[Optional](#typing.Optional)[[Union](#typing.Union)['SphereNeighborhoods', [Dict](#typing.Dict)[[int](#int), [ndarray](#numpy.ndarray)]]]</code> | 
-[`parallel`](#nltools.algorithms.alignment.LocalAlignment.parallel) | <code>[Optional](#typing.Optional)[[str](#str)]</code> | 
-[`parcellation`](#nltools.algorithms.alignment.LocalAlignment.parcellation) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
-[`radius_mm`](#nltools.algorithms.alignment.LocalAlignment.radius_mm) | <code>[float](#float)</code> | 
-[`scheme`](#nltools.algorithms.alignment.LocalAlignment.scheme) | <code>[str](#str)</code> | 
-[`template_`](#nltools.algorithms.alignment.LocalAlignment.template_) | <code>[Optional](#typing.Optional)[[Dict](#typing.Dict)[[int](#int), [ndarray](#numpy.ndarray)]]</code> | 
-[`transforms_`](#nltools.algorithms.alignment.LocalAlignment.transforms_) | <code>[Optional](#typing.Optional)[[Dict](#typing.Dict)[[int](#int), [List](#typing.List)[[ndarray](#numpy.ndarray)]]]</code> | 
+[`aggregation`](#aggregation) | <code>[str](#str)</code> | 
+[`backend_`](#backend_) | <code>[Optional](#typing.Optional)[[Backend](#nltools.backends.Backend)]</code> | 
+[`mask_`](#mask_) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
+[`max_memory_gb`](#max_memory_gb) | <code>[float](#float)</code> | 
+[`method`](#method) | <code>[str](#str)</code> | 
+[`n_features`](#n_features) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`n_iter`](#n_iter) | <code>[int](#int)</code> | 
+[`n_jobs`](#n_jobs) | <code>[int](#int)</code> | 
+[`n_neighborhoods_batch`](#n_neighborhoods_batch) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`n_voxels_`](#n_voxels_) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`neighborhoods_`](#neighborhoods_) | <code>[Optional](#typing.Optional)[[Union](#typing.Union)['SphereNeighborhoods', [Dict](#typing.Dict)[[int](#int), [ndarray](#numpy.ndarray)]]]</code> | 
+[`parallel`](#parallel) | <code>[Optional](#typing.Optional)[[str](#str)]</code> | 
+[`parcellation`](#parcellation) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
+[`radius_mm`](#radius_mm) | <code>[float](#float)</code> | 
+[`scheme`](#scheme) | <code>[str](#str)</code> | 
+[`template_`](#template_) | <code>[Optional](#typing.Optional)[[Dict](#typing.Dict)[[int](#int), [ndarray](#numpy.ndarray)]]</code> | 
+[`transforms_`](#transforms_) | <code>[Optional](#typing.Optional)[[Dict](#typing.Dict)[[int](#int), [List](#typing.List)[[ndarray](#numpy.ndarray)]]]</code> | 
 
 
 
-####### Attributes######## `nltools.algorithms.alignment.LocalAlignment.aggregation`
+####### Attributes##
+
+###### `aggregation`
 
 ```python
 aggregation: str = 'center'
 ```
 
-######## `nltools.algorithms.alignment.LocalAlignment.backend_`
+######## `backend_`
 
 ```python
 backend_: Optional[Backend] = field(default=None, repr=False)
 ```
 
-######## `nltools.algorithms.alignment.LocalAlignment.mask_`
+######## `mask_`
 
 ```python
 mask_: Optional[Any] = field(default=None, repr=False)
 ```
 
-######## `nltools.algorithms.alignment.LocalAlignment.max_memory_gb`
+######## `max_memory_gb`
 
 ```python
 max_memory_gb: float = 4.0
 ```
 
-######## `nltools.algorithms.alignment.LocalAlignment.method`
+######## `method`
 
 ```python
 method: str = 'procrustes'
 ```
 
-######## `nltools.algorithms.alignment.LocalAlignment.n_features`
+######## `n_features`
 
 ```python
 n_features: Optional[int] = None
 ```
 
-######## `nltools.algorithms.alignment.LocalAlignment.n_iter`
+######## `n_iter`
 
 ```python
 n_iter: int = 3
 ```
 
-######## `nltools.algorithms.alignment.LocalAlignment.n_jobs`
+######## `n_jobs`
 
 ```python
 n_jobs: int = -1
 ```
 
-######## `nltools.algorithms.alignment.LocalAlignment.n_neighborhoods_batch`
+######## `n_neighborhoods_batch`
 
 ```python
 n_neighborhoods_batch: Optional[int] = None
 ```
 
-######## `nltools.algorithms.alignment.LocalAlignment.n_voxels_`
+######## `n_voxels_`
 
 ```python
 n_voxels_: Optional[int] = field(default=None, repr=False)
 ```
 
-######## `nltools.algorithms.alignment.LocalAlignment.neighborhoods_`
+######## `neighborhoods_`
 
 ```python
 neighborhoods_: Optional[Union['SphereNeighborhoods', Dict[int, np.ndarray]]] = field(default=None, repr=False)
 ```
 
-######## `nltools.algorithms.alignment.LocalAlignment.parallel`
+######## `parallel`
 
 ```python
 parallel: Optional[str] = 'cpu'
 ```
 
-######## `nltools.algorithms.alignment.LocalAlignment.parcellation`
+######## `parcellation`
 
 ```python
 parcellation: Optional[Any] = None
 ```
 
-######## `nltools.algorithms.alignment.LocalAlignment.radius_mm`
+######## `radius_mm`
 
 ```python
 radius_mm: float = 10.0
 ```
 
-######## `nltools.algorithms.alignment.LocalAlignment.scheme`
+######## `scheme`
 
 ```python
 scheme: str = 'searchlight'
 ```
 
-######## `nltools.algorithms.alignment.LocalAlignment.template_`
+######## `template_`
 
 ```python
 template_: Optional[Dict[int, np.ndarray]] = field(default=None, repr=False)
 ```
 
-######## `nltools.algorithms.alignment.LocalAlignment.transforms_`
+######## `transforms_`
 
 ```python
 transforms_: Optional[Dict[int, List[np.ndarray]]] = field(default=None, repr=False)
@@ -1396,7 +1240,9 @@ transforms_: Optional[Dict[int, List[np.ndarray]]] = field(default=None, repr=Fa
 
 
 
-####### Functions######## `nltools.algorithms.alignment.LocalAlignment.fit`
+####### Functions##
+
+###### `fit`
 
 ```python
 fit(data: List[np.ndarray], mask: 'nib.Nifti1Image') -> 'LocalAlignment'
@@ -1418,7 +1264,7 @@ Returns
 self : LocalAlignment
     Fitted alignment model.
 
-######## `nltools.algorithms.alignment.LocalAlignment.fit_transform`
+######## `fit_transform`
 
 ```python
 fit_transform(data: List[np.ndarray], mask: 'nib.Nifti1Image') -> List[np.ndarray]
@@ -1438,7 +1284,7 @@ Returns
 List[np.ndarray]
     Aligned data for each subject.
 
-######## `nltools.algorithms.alignment.LocalAlignment.transform`
+######## `transform`
 
 ```python
 transform(data: List[np.ndarray]) -> List[np.ndarray]
@@ -1463,7 +1309,9 @@ List[np.ndarray]
 
 
 
-##### Modules###### `nltools.algorithms.alignment.local`
+##### Modules
+
+###### `local`
 
 LocalAlignment: Neighborhood-based functional alignment.
 
@@ -1474,13 +1322,15 @@ Uses center-only aggregation to preserve orthogonality of local transforms.
 
 Name | Description
 ---- | -----------
-[`LocalAlignment`](#nltools.algorithms.alignment.local.LocalAlignment) | Local (neighborhood-based) functional alignment across subjects.
+[`LocalAlignment`](#LocalAlignment) | Local (neighborhood-based) functional alignment across subjects.
 
 
 
 ####### Attributes
 
-####### Classes######## `nltools.algorithms.alignment.local.LocalAlignment`
+####### Classes##
+
+###### `LocalAlignment`
 
 ```python
 LocalAlignment(scheme: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, parcellation: Optional[Any] = None, n_features: Optional[int] = None, n_iter: int = 3, aggregation: str = 'center', parallel: Optional[str] = 'cpu', n_jobs: int = -1, n_neighborhoods_batch: Optional[int] = None, max_memory_gb: float = 4.0, transforms_: Optional[Dict[int, List[np.ndarray]]] = None, template_: Optional[Dict[int, np.ndarray]] = None, neighborhoods_: Optional[Union['SphereNeighborhoods', Dict[int, np.ndarray]]] = None, n_voxels_: Optional[int] = None, mask_: Optional[Any] = None, backend_: Optional[Backend] = None) -> None
@@ -1546,135 +1396,137 @@ Based on Bazeille et al. 2021 "An empirical evaluation of functional
 alignment using inter-subject decoding". Center-only aggregation is
 used to preserve local orthogonality of transforms.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`fit`](#nltools.algorithms.alignment.local.LocalAlignment.fit) | Fit local alignment on multi-subject data.
-[`fit_transform`](#nltools.algorithms.alignment.local.LocalAlignment.fit_transform) | Fit alignment and transform data in one step.
-[`transform`](#nltools.algorithms.alignment.local.LocalAlignment.transform) | Apply local transforms to data.
+[`fit`](#fit) | Fit local alignment on multi-subject data.
+[`fit_transform`](#fit_transform) | Fit alignment and transform data in one step.
+[`transform`](#transform) | Apply local transforms to data.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`aggregation`](#nltools.algorithms.alignment.local.LocalAlignment.aggregation) | <code>[str](#str)</code> | 
-[`backend_`](#nltools.algorithms.alignment.local.LocalAlignment.backend_) | <code>[Optional](#typing.Optional)[[Backend](#nltools.backends.Backend)]</code> | 
-[`mask_`](#nltools.algorithms.alignment.local.LocalAlignment.mask_) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
-[`max_memory_gb`](#nltools.algorithms.alignment.local.LocalAlignment.max_memory_gb) | <code>[float](#float)</code> | 
-[`method`](#nltools.algorithms.alignment.local.LocalAlignment.method) | <code>[str](#str)</code> | 
-[`n_features`](#nltools.algorithms.alignment.local.LocalAlignment.n_features) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`n_iter`](#nltools.algorithms.alignment.local.LocalAlignment.n_iter) | <code>[int](#int)</code> | 
-[`n_jobs`](#nltools.algorithms.alignment.local.LocalAlignment.n_jobs) | <code>[int](#int)</code> | 
-[`n_neighborhoods_batch`](#nltools.algorithms.alignment.local.LocalAlignment.n_neighborhoods_batch) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`n_voxels_`](#nltools.algorithms.alignment.local.LocalAlignment.n_voxels_) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`neighborhoods_`](#nltools.algorithms.alignment.local.LocalAlignment.neighborhoods_) | <code>[Optional](#typing.Optional)[[Union](#typing.Union)['SphereNeighborhoods', [Dict](#typing.Dict)[[int](#int), [ndarray](#numpy.ndarray)]]]</code> | 
-[`parallel`](#nltools.algorithms.alignment.local.LocalAlignment.parallel) | <code>[Optional](#typing.Optional)[[str](#str)]</code> | 
-[`parcellation`](#nltools.algorithms.alignment.local.LocalAlignment.parcellation) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
-[`radius_mm`](#nltools.algorithms.alignment.local.LocalAlignment.radius_mm) | <code>[float](#float)</code> | 
-[`scheme`](#nltools.algorithms.alignment.local.LocalAlignment.scheme) | <code>[str](#str)</code> | 
-[`template_`](#nltools.algorithms.alignment.local.LocalAlignment.template_) | <code>[Optional](#typing.Optional)[[Dict](#typing.Dict)[[int](#int), [ndarray](#numpy.ndarray)]]</code> | 
-[`transforms_`](#nltools.algorithms.alignment.local.LocalAlignment.transforms_) | <code>[Optional](#typing.Optional)[[Dict](#typing.Dict)[[int](#int), [List](#typing.List)[[ndarray](#numpy.ndarray)]]]</code> | 
+[`aggregation`](#aggregation) | <code>[str](#str)</code> | 
+[`backend_`](#backend_) | <code>[Optional](#typing.Optional)[[Backend](#nltools.backends.Backend)]</code> | 
+[`mask_`](#mask_) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
+[`max_memory_gb`](#max_memory_gb) | <code>[float](#float)</code> | 
+[`method`](#method) | <code>[str](#str)</code> | 
+[`n_features`](#n_features) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`n_iter`](#n_iter) | <code>[int](#int)</code> | 
+[`n_jobs`](#n_jobs) | <code>[int](#int)</code> | 
+[`n_neighborhoods_batch`](#n_neighborhoods_batch) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`n_voxels_`](#n_voxels_) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`neighborhoods_`](#neighborhoods_) | <code>[Optional](#typing.Optional)[[Union](#typing.Union)['SphereNeighborhoods', [Dict](#typing.Dict)[[int](#int), [ndarray](#numpy.ndarray)]]]</code> | 
+[`parallel`](#parallel) | <code>[Optional](#typing.Optional)[[str](#str)]</code> | 
+[`parcellation`](#parcellation) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
+[`radius_mm`](#radius_mm) | <code>[float](#float)</code> | 
+[`scheme`](#scheme) | <code>[str](#str)</code> | 
+[`template_`](#template_) | <code>[Optional](#typing.Optional)[[Dict](#typing.Dict)[[int](#int), [ndarray](#numpy.ndarray)]]</code> | 
+[`transforms_`](#transforms_) | <code>[Optional](#typing.Optional)[[Dict](#typing.Dict)[[int](#int), [List](#typing.List)[[ndarray](#numpy.ndarray)]]]</code> | 
 
 
 
-######### Attributes########## `nltools.algorithms.alignment.local.LocalAlignment.aggregation`
+######### Attributes####
+
+###### `aggregation`
 
 ```python
 aggregation: str = 'center'
 ```
 
-########## `nltools.algorithms.alignment.local.LocalAlignment.backend_`
+########## `backend_`
 
 ```python
 backend_: Optional[Backend] = field(default=None, repr=False)
 ```
 
-########## `nltools.algorithms.alignment.local.LocalAlignment.mask_`
+########## `mask_`
 
 ```python
 mask_: Optional[Any] = field(default=None, repr=False)
 ```
 
-########## `nltools.algorithms.alignment.local.LocalAlignment.max_memory_gb`
+########## `max_memory_gb`
 
 ```python
 max_memory_gb: float = 4.0
 ```
 
-########## `nltools.algorithms.alignment.local.LocalAlignment.method`
+########## `method`
 
 ```python
 method: str = 'procrustes'
 ```
 
-########## `nltools.algorithms.alignment.local.LocalAlignment.n_features`
+########## `n_features`
 
 ```python
 n_features: Optional[int] = None
 ```
 
-########## `nltools.algorithms.alignment.local.LocalAlignment.n_iter`
+########## `n_iter`
 
 ```python
 n_iter: int = 3
 ```
 
-########## `nltools.algorithms.alignment.local.LocalAlignment.n_jobs`
+########## `n_jobs`
 
 ```python
 n_jobs: int = -1
 ```
 
-########## `nltools.algorithms.alignment.local.LocalAlignment.n_neighborhoods_batch`
+########## `n_neighborhoods_batch`
 
 ```python
 n_neighborhoods_batch: Optional[int] = None
 ```
 
-########## `nltools.algorithms.alignment.local.LocalAlignment.n_voxels_`
+########## `n_voxels_`
 
 ```python
 n_voxels_: Optional[int] = field(default=None, repr=False)
 ```
 
-########## `nltools.algorithms.alignment.local.LocalAlignment.neighborhoods_`
+########## `neighborhoods_`
 
 ```python
 neighborhoods_: Optional[Union['SphereNeighborhoods', Dict[int, np.ndarray]]] = field(default=None, repr=False)
 ```
 
-########## `nltools.algorithms.alignment.local.LocalAlignment.parallel`
+########## `parallel`
 
 ```python
 parallel: Optional[str] = 'cpu'
 ```
 
-########## `nltools.algorithms.alignment.local.LocalAlignment.parcellation`
+########## `parcellation`
 
 ```python
 parcellation: Optional[Any] = None
 ```
 
-########## `nltools.algorithms.alignment.local.LocalAlignment.radius_mm`
+########## `radius_mm`
 
 ```python
 radius_mm: float = 10.0
 ```
 
-########## `nltools.algorithms.alignment.local.LocalAlignment.scheme`
+########## `scheme`
 
 ```python
 scheme: str = 'searchlight'
 ```
 
-########## `nltools.algorithms.alignment.local.LocalAlignment.template_`
+########## `template_`
 
 ```python
 template_: Optional[Dict[int, np.ndarray]] = field(default=None, repr=False)
 ```
 
-########## `nltools.algorithms.alignment.local.LocalAlignment.transforms_`
+########## `transforms_`
 
 ```python
 transforms_: Optional[Dict[int, List[np.ndarray]]] = field(default=None, repr=False)
@@ -1682,7 +1534,9 @@ transforms_: Optional[Dict[int, List[np.ndarray]]] = field(default=None, repr=Fa
 
 
 
-######### Functions########## `nltools.algorithms.alignment.local.LocalAlignment.fit`
+######### Functions####
+
+###### `fit`
 
 ```python
 fit(data: List[np.ndarray], mask: 'nib.Nifti1Image') -> 'LocalAlignment'
@@ -1704,7 +1558,7 @@ Returns
 self : LocalAlignment
     Fitted alignment model.
 
-########## `nltools.algorithms.alignment.local.LocalAlignment.fit_transform`
+########## `fit_transform`
 
 ```python
 fit_transform(data: List[np.ndarray], mask: 'nib.Nifti1Image') -> List[np.ndarray]
@@ -1724,7 +1578,7 @@ Returns
 List[np.ndarray]
     Aligned data for each subject.
 
-########## `nltools.algorithms.alignment.local.LocalAlignment.transform`
+########## `transform`
 
 ```python
 transform(data: List[np.ndarray]) -> List[np.ndarray]
@@ -1747,7 +1601,7 @@ Returns
 List[np.ndarray]
     Aligned data for each subject, shape (n_voxels, n_samples).
 
-#### `nltools.algorithms.hrf`
+#### `hrf`
 
 Hemodynamic Response Functions (HRFs) for fMRI analysis, implemented by NiPy.
 
@@ -1843,19 +1697,21 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`glover_hrf`](#nltools.algorithms.hrf.glover_hrf) | Implementation of the Glover hrf model.
-[`glover_time_derivative`](#nltools.algorithms.hrf.glover_time_derivative) | Implementation of the flover time derivative hrf (dhrf) model.
-[`spm_dispersion_derivative`](#nltools.algorithms.hrf.spm_dispersion_derivative) | Implementation of the SPM dispersion derivative hrf model.
-[`spm_hrf`](#nltools.algorithms.hrf.spm_hrf) | Implementation of the SPM hrf model.
-[`spm_time_derivative`](#nltools.algorithms.hrf.spm_time_derivative) | Implementation of the SPM time derivative hrf (dhrf) model.
+[`glover_hrf`](#glover_hrf) | Implementation of the Glover hrf model.
+[`glover_time_derivative`](#glover_time_derivative) | Implementation of the flover time derivative hrf (dhrf) model.
+[`spm_dispersion_derivative`](#spm_dispersion_derivative) | Implementation of the SPM dispersion derivative hrf model.
+[`spm_hrf`](#spm_hrf) | Implementation of the SPM hrf model.
+[`spm_time_derivative`](#spm_time_derivative) | Implementation of the SPM time derivative hrf (dhrf) model.
 
 
 
-##### Functions###### `nltools.algorithms.hrf.glover_hrf`
+##### Methods
+
+###### `glover_hrf`
 
 ```python
 glover_hrf(tr: float, oversampling: int = 16, time_length: float = 32.0, onset: float = 0.0) -> np.ndarray
@@ -1878,7 +1734,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `hrf` | <code>[ndarray](#numpy.ndarray)</code> | array of shape(length / tr * oversampling, float), hrf sampling on the oversampled time grid
 
-###### `nltools.algorithms.hrf.glover_time_derivative`
+###### `glover_time_derivative`
 
 ```python
 glover_time_derivative(tr: float, oversampling: int = 16, time_length: float = 32.0, onset: float = 0.0) -> np.ndarray
@@ -1901,7 +1757,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dhrf` | <code>[ndarray](#numpy.ndarray)</code> | array of shape(length / tr, float),   dhrf sampling on the provided grid
 
-###### `nltools.algorithms.hrf.spm_dispersion_derivative`
+###### `spm_dispersion_derivative`
 
 ```python
 spm_dispersion_derivative(tr: float, oversampling: int = 16, time_length: float = 32.0, onset: float = 0.0) -> np.ndarray
@@ -1924,7 +1780,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dhrf` | <code>[ndarray](#numpy.ndarray)</code> | array of shape(length / tr * oversampling, float),   dhrf sampling on the oversampled time grid
 
-###### `nltools.algorithms.hrf.spm_hrf`
+###### `spm_hrf`
 
 ```python
 spm_hrf(tr: float, oversampling: int = 16, time_length: float = 32.0, onset: float = 0.0) -> np.ndarray
@@ -1947,7 +1803,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `hrf` | <code>[ndarray](#numpy.ndarray)</code> | array of shape(length / tr * oversampling, float), hrf sampling on the oversampled time grid
 
-###### `nltools.algorithms.hrf.spm_time_derivative`
+###### `spm_time_derivative`
 
 ```python
 spm_time_derivative(tr: float, oversampling: int = 16, time_length: float = 32.0, onset: float = 0.0) -> np.ndarray
@@ -1970,7 +1826,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dhrf` | <code>[ndarray](#numpy.ndarray)</code> | array of shape(length / tr, float),   dhrf sampling on the provided grid
 
-#### `nltools.algorithms.hyperalignment`
+#### `hyperalignment`
 
 HyperAlignment: Multi-subject cortical surface alignment using iterative Procrustes refinement.
 
@@ -2021,11 +1877,13 @@ human ventral temporal cortex. Neuron, 72(2), 404-416.
 
 Name | Description
 ---- | -----------
-[`HyperAlignment`](#nltools.algorithms.hyperalignment.HyperAlignment) | Hyperalignment using iterative Procrustes alignment.
+[`HyperAlignment`](#HyperAlignment) | Hyperalignment using iterative Procrustes alignment.
 
 
 
-##### Classes###### `nltools.algorithms.hyperalignment.HyperAlignment`
+##### Classes
+
+###### `HyperAlignment`
 
 ```python
 HyperAlignment(n_iter: int = 2, auto_pad: bool = True) -> None
@@ -2054,10 +1912,10 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`w_`](#nltools.algorithms.hyperalignment.HyperAlignment.w_) | <code>list of ndarray, element i has shape=[features_i, features]</code> | The transformation matrices (rotation + reflection) for each subject.
-[`s_`](#nltools.algorithms.hyperalignment.HyperAlignment.s_) | <code>ndarray, shape=[features, samples]</code> | The aligned common template (shared response).
-[`disparity_`](#nltools.algorithms.hyperalignment.HyperAlignment.disparity_) | <code>list of float</code> | Disparity (sum of squared differences) for each subject.
-[`scale_`](#nltools.algorithms.hyperalignment.HyperAlignment.scale_) | <code>list of float</code> | Scale factors for each subject.
+[`w_`](#w_) | <code>list of ndarray, element i has shape=[features_i, features]</code> | The transformation matrices (rotation + reflection) for each subject.
+[`s_`](#s_) | <code>ndarray, shape=[features, samples]</code> | The aligned common template (shared response).
+[`disparity_`](#disparity_) | <code>list of float</code> | Disparity (sum of squared differences) for each subject.
+[`scale_`](#scale_) | <code>list of float</code> | Scale factors for each subject.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -2116,13 +1974,13 @@ human ventral temporal cortex. Neuron, 72(2), 404-416.
 
 </details>
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`fit`](#nltools.algorithms.hyperalignment.HyperAlignment.fit) | Fit hyperalignment model to data.
-[`transform`](#nltools.algorithms.hyperalignment.HyperAlignment.transform) | Transform data to common space using fitted transformations.
-[`transform_subject`](#nltools.algorithms.hyperalignment.HyperAlignment.transform_subject) | Align a new subject to the common space.
+[`fit`](#fit) | Fit hyperalignment model to data.
+[`transform`](#transform) | Transform data to common space using fitted transformations.
+[`transform_subject`](#transform_subject) | Align a new subject to the common space.
 
 **Parameters:**
 
@@ -2133,13 +1991,15 @@ Name | Type | Description | Default
 
 
 
-####### Attributes######## `nltools.algorithms.hyperalignment.HyperAlignment.auto_pad`
+####### Attributes##
+
+###### `auto_pad`
 
 ```python
 auto_pad = auto_pad
 ```
 
-######## `nltools.algorithms.hyperalignment.HyperAlignment.common_model_`
+######## `common_model_`
 
 ```python
 common_model_
@@ -2147,7 +2007,7 @@ common_model_
 
 Alias for ``s_`` (common template).
 
-######## `nltools.algorithms.hyperalignment.HyperAlignment.n_iter`
+######## `n_iter`
 
 ```python
 n_iter = n_iter
@@ -2155,7 +2015,9 @@ n_iter = n_iter
 
 
 
-####### Functions######## `nltools.algorithms.hyperalignment.HyperAlignment.fit`
+####### Functions##
+
+###### `fit`
 
 ```python
 fit(data: List[np.ndarray], parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> HyperAlignment
@@ -2177,7 +2039,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `self` | <code>[HyperAlignment](#nltools.algorithms.hyperalignment.HyperAlignment)</code> | Fitted model
 
-######## `nltools.algorithms.hyperalignment.HyperAlignment.transform`
+######## `transform`
 
 ```python
 transform(data: List[np.ndarray], parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[np.ndarray]
@@ -2199,7 +2061,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `transformed` | <code>list of ndarray</code> | List of transformed data matrices in common space
 
-######## `nltools.algorithms.hyperalignment.HyperAlignment.transform_subject`
+######## `transform_subject`
 
 ```python
 transform_subject(subject_data: np.ndarray) -> Tuple[np.ndarray, np.ndarray, float, float]
@@ -2222,7 +2084,7 @@ Name | Type | Description
 `disparity` | <code>[float](#float)</code> | Alignment quality (sum of squared differences)
 `scale` | <code>[float](#float)</code> | Scale factor used
 
-#### `nltools.algorithms.inference`
+#### `inference`
 
 GPU-accelerated statistical inference for neuroimaging.
 
@@ -2294,43 +2156,45 @@ with BrainData objects, see nltools.data.brain_data.
 
 Name | Description
 ---- | -----------
-[`bootstrap`](#nltools.algorithms.inference.bootstrap) | Bootstrap inference utilities with CPU/GPU support.
-[`correlation`](#nltools.algorithms.inference.correlation) | Correlation permutation test implementations.
-[`icc`](#nltools.algorithms.inference.icc) | Voxel-wise Intraclass Correlation Coefficient (ICC) computation.
-[`isc`](#nltools.algorithms.inference.isc) | Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
-[`matrix`](#nltools.algorithms.inference.matrix) | Matrix permutation test implementations (Mantel test).
-[`one_sample`](#nltools.algorithms.inference.one_sample) | One-sample permutation test implementations.
-[`timeseries`](#nltools.algorithms.inference.timeseries) | Time-series permutation test implementations.
-[`two_sample`](#nltools.algorithms.inference.two_sample) | Two-sample permutation test implementations.
-[`utils`](#nltools.algorithms.inference.utils) | Utility functions for permutation testing.
+[`bootstrap`](#bootstrap) | Bootstrap inference utilities with CPU/GPU support.
+[`correlation`](#correlation) | Correlation permutation test implementations.
+[`icc`](#icc) | Voxel-wise Intraclass Correlation Coefficient (ICC) computation.
+[`isc`](#isc) | Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
+[`matrix`](#matrix) | Matrix permutation test implementations (Mantel test).
+[`one_sample`](#one_sample) | One-sample permutation test implementations.
+[`timeseries`](#timeseries) | Time-series permutation test implementations.
+[`two_sample`](#two_sample) | Two-sample permutation test implementations.
+[`utils`](#utils) | Utility functions for permutation testing.
 
 **Classes:**
 
 Name | Description
 ---- | -----------
-[`OnlineBootstrapStats`](#nltools.algorithms.inference.OnlineBootstrapStats) | Memory-efficient online statistics aggregator for bootstrap samples.
+[`OnlineBootstrapStats`](#OnlineBootstrapStats) | Memory-efficient online statistics aggregator for bootstrap samples.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`circle_shift`](#nltools.algorithms.inference.circle_shift) | Circular shift for time-series data.
-[`compute_icc_voxelwise`](#nltools.algorithms.inference.compute_icc_voxelwise) | Compute voxel-wise ICC across many voxels.
-[`correlation_permutation_test`](#nltools.algorithms.inference.correlation_permutation_test) | Correlation permutation test.
-[`distance_correlation`](#nltools.algorithms.inference.distance_correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
-[`double_center`](#nltools.algorithms.inference.double_center) | Double center a 2d array.
-[`isc_group_permutation_test`](#nltools.algorithms.inference.isc_group_permutation_test) | Compute ISC difference between groups with permutation testing.
-[`isc_permutation_test`](#nltools.algorithms.inference.isc_permutation_test) | Compute intersubject correlation with permutation testing.
-[`matrix_permutation_test`](#nltools.algorithms.inference.matrix_permutation_test) | Matrix permutation test (Mantel test) for correlating two square matrices.
-[`one_sample_permutation_test`](#nltools.algorithms.inference.one_sample_permutation_test) | One-sample permutation test using sign-flipping.
-[`phase_randomize`](#nltools.algorithms.inference.phase_randomize) | FFT-based phase randomization for time-series data.
-[`timeseries_correlation_permutation_test`](#nltools.algorithms.inference.timeseries_correlation_permutation_test) | Time-series correlation permutation test.
-[`two_sample_permutation_test`](#nltools.algorithms.inference.two_sample_permutation_test) | Two-sample permutation test using group label shuffling.
-[`u_center`](#nltools.algorithms.inference.u_center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
+[`circle_shift`](#circle_shift) | Circular shift for time-series data.
+[`compute_icc_voxelwise`](#compute_icc_voxelwise) | Compute voxel-wise ICC across many voxels.
+[`correlation_permutation_test`](#correlation_permutation_test) | Correlation permutation test.
+[`distance_correlation`](#distance_correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
+[`double_center`](#double_center) | Double center a 2d array.
+[`isc_group_permutation_test`](#isc_group_permutation_test) | Compute ISC difference between groups with permutation testing.
+[`isc_permutation_test`](#isc_permutation_test) | Compute intersubject correlation with permutation testing.
+[`matrix_permutation_test`](#matrix_permutation_test) | Matrix permutation test (Mantel test) for correlating two square matrices.
+[`one_sample_permutation_test`](#one_sample_permutation_test) | One-sample permutation test using sign-flipping.
+[`phase_randomize`](#phase_randomize) | FFT-based phase randomization for time-series data.
+[`timeseries_correlation_permutation_test`](#timeseries_correlation_permutation_test) | Time-series correlation permutation test.
+[`two_sample_permutation_test`](#two_sample_permutation_test) | Two-sample permutation test using group label shuffling.
+[`u_center`](#u_center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
 
 
 
-##### Classes###### `nltools.algorithms.inference.OnlineBootstrapStats`
+##### Classes
+
+###### `OnlineBootstrapStats`
 
 ```python
 OnlineBootstrapStats(shape: Tuple[int, ...], save_samples: bool = False, percentiles: Tuple[float, float] = (2.5, 97.5))
@@ -2361,64 +2225,66 @@ Name | Type | Description | Default
 dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
 ```
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`get_results`](#nltools.algorithms.inference.OnlineBootstrapStats.get_results) | Compute final bootstrap statistics.
-[`update`](#nltools.algorithms.inference.OnlineBootstrapStats.update) | Update statistics with a new bootstrap sample.
+[`get_results`](#get_results) | Compute final bootstrap statistics.
+[`update`](#update) | Update statistics with a new bootstrap sample.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`M2`](#nltools.algorithms.inference.OnlineBootstrapStats.M2) |  | 
-[`mean`](#nltools.algorithms.inference.OnlineBootstrapStats.mean) |  | 
-[`n`](#nltools.algorithms.inference.OnlineBootstrapStats.n) |  | 
-[`percentiles`](#nltools.algorithms.inference.OnlineBootstrapStats.percentiles) |  | 
-[`samples`](#nltools.algorithms.inference.OnlineBootstrapStats.samples) |  | 
-[`save_samples`](#nltools.algorithms.inference.OnlineBootstrapStats.save_samples) |  | 
-[`shape`](#nltools.algorithms.inference.OnlineBootstrapStats.shape) |  | 
+[`M2`](#M2) |  | 
+[`mean`](#mean) |  | 
+[`n`](#n) |  | 
+[`percentiles`](#percentiles) |  | 
+[`samples`](#samples) |  | 
+[`save_samples`](#save_samples) |  | 
+[`shape`](#shape) |  | 
 
 
 
-####### Attributes######## `nltools.algorithms.inference.OnlineBootstrapStats.M2`
+####### Attributes##
+
+###### `M2`
 
 ```python
 M2 = np.zeros(shape, dtype=(np.float64))
 ```
 
-######## `nltools.algorithms.inference.OnlineBootstrapStats.mean`
+######## `mean`
 
 ```python
 mean = np.zeros(shape, dtype=(np.float64))
 ```
 
-######## `nltools.algorithms.inference.OnlineBootstrapStats.n`
+######## `n`
 
 ```python
 n = 0
 ```
 
-######## `nltools.algorithms.inference.OnlineBootstrapStats.percentiles`
+######## `percentiles`
 
 ```python
 percentiles = percentiles
 ```
 
-######## `nltools.algorithms.inference.OnlineBootstrapStats.samples`
+######## `samples`
 
 ```python
 samples = [] if save_samples else None
 ```
 
-######## `nltools.algorithms.inference.OnlineBootstrapStats.save_samples`
+######## `save_samples`
 
 ```python
 save_samples = save_samples
 ```
 
-######## `nltools.algorithms.inference.OnlineBootstrapStats.shape`
+######## `shape`
 
 ```python
 shape = shape
@@ -2426,7 +2292,9 @@ shape = shape
 
 
 
-####### Functions######## `nltools.algorithms.inference.OnlineBootstrapStats.get_results`
+####### Functions##
+
+###### `get_results`
 
 ```python
 get_results() -> Dict[str, np.ndarray]
@@ -2504,7 +2372,7 @@ The deprecated `summarize_bootstrap()` function can be replaced with this class:
 >>> if 'samples' in result:
 ...     equivalent_result['samples'] = result['samples']
 
-######## `nltools.algorithms.inference.OnlineBootstrapStats.update`
+######## `update`
 
 ```python
 update(sample: np.ndarray) -> None
@@ -2522,7 +2390,9 @@ Name | Type | Description | Default
 
 
 
-##### Functions###### `nltools.algorithms.inference.circle_shift`
+##### Methods
+
+###### `circle_shift`
 
 ```python
 circle_shift(data: np.ndarray, shift_amount: Optional[Union[int, np.ndarray]] = None, random_state: Optional[Union[int, np.random.RandomState]] = None) -> np.ndarray
@@ -2566,7 +2436,7 @@ array([[ 4, 30],
        [ 3, 20]])
 ```
 
-###### `nltools.algorithms.inference.compute_icc_voxelwise`
+###### `compute_icc_voxelwise`
 
 ```python
 compute_icc_voxelwise(data: np.ndarray, n_subjects: int, n_sessions: int, icc_type: Literal['icc1', 'icc2', 'icc3'] = 'icc2', parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, backend: Optional[Backend] = None) -> np.ndarray
@@ -2616,7 +2486,7 @@ Type | Description
 True
 ```
 
-###### `nltools.algorithms.inference.correlation_permutation_test`
+###### `correlation_permutation_test`
 
 ```python
 correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
@@ -2694,7 +2564,7 @@ Name | Type | Description
 
 </details>
 
-###### `nltools.algorithms.inference.distance_correlation`
+###### `distance_correlation`
 
 ```python
 distance_correlation(x: np.ndarray, y: np.ndarray, bias_corrected: bool = True, ttest: bool = False) -> dict
@@ -2747,7 +2617,7 @@ True
 True
 ```
 
-###### `nltools.algorithms.inference.double_center`
+###### `double_center`
 
 ```python
 double_center(mat: np.ndarray) -> np.ndarray
@@ -2781,7 +2651,7 @@ True
 True
 ```
 
-###### `nltools.algorithms.inference.isc_group_permutation_test`
+###### `isc_group_permutation_test`
 
 ```python
 isc_group_permutation_test(group1: np.ndarray, group2: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', method: Literal['permute', 'bootstrap'] = 'permute', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', ci_percentile: float = 95, tail: Literal[1, 2] = 2, parallel: Optional[Literal['cpu', 'gpu']] = 'cpu', n_jobs: int = -1, random_state: Optional[int] = None, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation') -> Dict[str, Any]
@@ -2863,7 +2733,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 
 </details>
 
-###### `nltools.algorithms.inference.isc_permutation_test`
+###### `isc_permutation_test`
 
 ```python
 isc_permutation_test(data: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', method: Literal['bootstrap', 'circle_shift', 'phase_randomize'] = 'bootstrap', ci_percentile: float = 95, tail: Literal[1, 2] = 2, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation', parallel: Optional[Literal['cpu', 'gpu']] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> Dict[str, Any]
@@ -2947,7 +2817,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 
 </details>
 
-###### `nltools.algorithms.inference.matrix_permutation_test`
+###### `matrix_permutation_test`
 
 ```python
 matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, parallel: Optional[str] = 'cpu', n_jobs: int = -1, return_null: bool = False, random_state: Optional[int] = None) -> dict
@@ -3021,7 +2891,7 @@ regression approach. Cancer Research, 27(2), 209-220.
 >>> print(f"Correlation: {result['correlation']:.3f}, p = {result['p']:.4f}")
 ```
 
-###### `nltools.algorithms.inference.one_sample_permutation_test`
+###### `one_sample_permutation_test`
 
 ```python
 one_sample_permutation_test(data: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
@@ -3091,7 +2961,7 @@ Name | Type | Description
 
 </details>
 
-###### `nltools.algorithms.inference.phase_randomize`
+###### `phase_randomize`
 
 ```python
 phase_randomize(data: np.ndarray, backend: Optional[str] = None, random_state: Optional[Union[int, np.random.RandomState]] = None) -> np.ndarray
@@ -3155,7 +3025,7 @@ True
 >>> x_rand_gpu = phase_randomize(x_large, backend='torch', random_state=42)
 ```
 
-###### `nltools.algorithms.inference.timeseries_correlation_permutation_test`
+###### `timeseries_correlation_permutation_test`
 
 ```python
 timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int = 2, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, return_null: bool = False, random_state: Optional[Union[int, np.random.RandomState]] = None) -> dict
@@ -3227,7 +3097,7 @@ True
 
 </details>
 
-###### `nltools.algorithms.inference.two_sample_permutation_test`
+###### `two_sample_permutation_test`
 
 ```python
 two_sample_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
@@ -3300,7 +3170,7 @@ Name | Type | Description
 
 </details>
 
-###### `nltools.algorithms.inference.u_center`
+###### `u_center`
 
 ```python
 u_center(mat: np.ndarray) -> np.ndarray
@@ -3334,7 +3204,9 @@ True
 
 
 
-##### Modules###### `nltools.algorithms.inference.bootstrap`
+##### Modules
+
+###### `bootstrap`
 
 Bootstrap inference utilities with CPU/GPU support.
 
@@ -3342,24 +3214,26 @@ Bootstrap inference utilities with CPU/GPU support.
 
 Name | Description
 ---- | -----------
-[`OnlineBootstrapStats`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats) | Memory-efficient online statistics aggregator for bootstrap samples.
+[`OnlineBootstrapStats`](#OnlineBootstrapStats) | Memory-efficient online statistics aggregator for bootstrap samples.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`FITTED_METHODS`](#nltools.algorithms.inference.bootstrap.FITTED_METHODS) |  | 
-[`SIMPLE_METHODS`](#nltools.algorithms.inference.bootstrap.SIMPLE_METHODS) |  | 
+[`FITTED_METHODS`](#FITTED_METHODS) |  | 
+[`SIMPLE_METHODS`](#SIMPLE_METHODS) |  | 
 
 
 
-####### Attributes######## `nltools.algorithms.inference.bootstrap.FITTED_METHODS`
+####### Attributes##
+
+###### `FITTED_METHODS`
 
 ```python
 FITTED_METHODS = ['weights', 'predict']
 ```
 
-######## `nltools.algorithms.inference.bootstrap.SIMPLE_METHODS`
+######## `SIMPLE_METHODS`
 
 ```python
 SIMPLE_METHODS = ['mean', 'median', 'std', 'sum', 'min', 'max']
@@ -3367,7 +3241,9 @@ SIMPLE_METHODS = ['mean', 'median', 'std', 'sum', 'min', 'max']
 
 
 
-####### Classes######## `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats`
+####### Classes##
+
+###### `OnlineBootstrapStats`
 
 ```python
 OnlineBootstrapStats(shape: Tuple[int, ...], save_samples: bool = False, percentiles: Tuple[float, float] = (2.5, 97.5))
@@ -3398,64 +3274,66 @@ Name | Type | Description | Default
 dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
 ```
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`get_results`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.get_results) | Compute final bootstrap statistics.
-[`update`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.update) | Update statistics with a new bootstrap sample.
+[`get_results`](#get_results) | Compute final bootstrap statistics.
+[`update`](#update) | Update statistics with a new bootstrap sample.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`M2`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.M2) |  | 
-[`mean`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.mean) |  | 
-[`n`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.n) |  | 
-[`percentiles`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.percentiles) |  | 
-[`samples`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.samples) |  | 
-[`save_samples`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.save_samples) |  | 
-[`shape`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.shape) |  | 
+[`M2`](#M2) |  | 
+[`mean`](#mean) |  | 
+[`n`](#n) |  | 
+[`percentiles`](#percentiles) |  | 
+[`samples`](#samples) |  | 
+[`save_samples`](#save_samples) |  | 
+[`shape`](#shape) |  | 
 
 
 
-######### Attributes########## `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.M2`
+######### Attributes####
+
+###### `M2`
 
 ```python
 M2 = np.zeros(shape, dtype=(np.float64))
 ```
 
-########## `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.mean`
+########## `mean`
 
 ```python
 mean = np.zeros(shape, dtype=(np.float64))
 ```
 
-########## `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.n`
+########## `n`
 
 ```python
 n = 0
 ```
 
-########## `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.percentiles`
+########## `percentiles`
 
 ```python
 percentiles = percentiles
 ```
 
-########## `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.samples`
+########## `samples`
 
 ```python
 samples = [] if save_samples else None
 ```
 
-########## `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.save_samples`
+########## `save_samples`
 
 ```python
 save_samples = save_samples
 ```
 
-########## `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.shape`
+########## `shape`
 
 ```python
 shape = shape
@@ -3463,7 +3341,9 @@ shape = shape
 
 
 
-######### Functions########## `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.get_results`
+######### Functions####
+
+###### `get_results`
 
 ```python
 get_results() -> Dict[str, np.ndarray]
@@ -3541,7 +3421,7 @@ The deprecated `summarize_bootstrap()` function can be replaced with this class:
 >>> if 'samples' in result:
 ...     equivalent_result['samples'] = result['samples']
 
-########## `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.update`
+########## `update`
 
 ```python
 update(sample: np.ndarray) -> None
@@ -3559,7 +3439,9 @@ Name | Type | Description | Default
 
 
 
-####### Functions###### `nltools.algorithms.inference.correlation`
+####### Functions
+
+###### `correlation`
 
 Correlation permutation test implementations.
 
@@ -3567,11 +3449,11 @@ This module provides CPU-parallel and GPU-batched implementations
 of correlation permutation tests for assessing statistical significance
 of correlations.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`correlation_permutation_test`](#nltools.algorithms.inference.correlation.correlation_permutation_test) | Correlation permutation test.
+[`correlation_permutation_test`](#correlation_permutation_test) | Correlation permutation test.
 
 
 
@@ -3579,7 +3461,9 @@ Name | Description
 
 ####### Classes
 
-####### Functions######## `nltools.algorithms.inference.correlation.correlation_permutation_test`
+####### Functions##
+
+###### `correlation_permutation_test`
 
 ```python
 correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
@@ -3657,7 +3541,7 @@ Name | Type | Description
 
 </details>
 
-###### `nltools.algorithms.inference.icc`
+###### `icc`
 
 Voxel-wise Intraclass Correlation Coefficient (ICC) computation.
 
@@ -3684,11 +3568,11 @@ assessing rater reliability. Psychological bulletin, 86(2), 420.
 
 </details>
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`compute_icc_voxelwise`](#nltools.algorithms.inference.icc.compute_icc_voxelwise) | Compute voxel-wise ICC across many voxels.
+[`compute_icc_voxelwise`](#compute_icc_voxelwise) | Compute voxel-wise ICC across many voxels.
 
 
 
@@ -3696,7 +3580,9 @@ Name | Description
 
 ####### Classes
 
-####### Functions######## `nltools.algorithms.inference.icc.compute_icc_voxelwise`
+####### Functions##
+
+###### `compute_icc_voxelwise`
 
 ```python
 compute_icc_voxelwise(data: np.ndarray, n_subjects: int, n_sessions: int, icc_type: Literal['icc1', 'icc2', 'icc3'] = 'icc2', parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, backend: Optional[Backend] = None) -> np.ndarray
@@ -3746,7 +3632,7 @@ Type | Description
 True
 ```
 
-###### `nltools.algorithms.inference.isc`
+###### `isc`
 
 Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
 
@@ -3786,18 +3672,20 @@ structure but is O(n²) in subjects.
 
 </details>
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`isc_group_permutation_test`](#nltools.algorithms.inference.isc.isc_group_permutation_test) | Compute ISC difference between groups with permutation testing.
-[`isc_permutation_test`](#nltools.algorithms.inference.isc.isc_permutation_test) | Compute intersubject correlation with permutation testing.
+[`isc_group_permutation_test`](#isc_group_permutation_test) | Compute ISC difference between groups with permutation testing.
+[`isc_permutation_test`](#isc_permutation_test) | Compute intersubject correlation with permutation testing.
 
 
 
 ####### Attributes
 
-####### Functions######## `nltools.algorithms.inference.isc.isc_group_permutation_test`
+####### Functions##
+
+###### `isc_group_permutation_test`
 
 ```python
 isc_group_permutation_test(group1: np.ndarray, group2: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', method: Literal['permute', 'bootstrap'] = 'permute', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', ci_percentile: float = 95, tail: Literal[1, 2] = 2, parallel: Optional[Literal['cpu', 'gpu']] = 'cpu', n_jobs: int = -1, random_state: Optional[int] = None, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation') -> Dict[str, Any]
@@ -3879,7 +3767,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 
 </details>
 
-######## `nltools.algorithms.inference.isc.isc_permutation_test`
+######## `isc_permutation_test`
 
 ```python
 isc_permutation_test(data: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', method: Literal['bootstrap', 'circle_shift', 'phase_randomize'] = 'bootstrap', ci_percentile: float = 95, tail: Literal[1, 2] = 2, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation', parallel: Optional[Literal['cpu', 'gpu']] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> Dict[str, Any]
@@ -3963,7 +3851,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 
 </details>
 
-###### `nltools.algorithms.inference.matrix`
+###### `matrix`
 
 Matrix permutation test implementations (Mantel test).
 
@@ -3971,24 +3859,26 @@ This module provides CPU-parallel implementations of matrix permutation tests
 for testing correlation between two square matrices, as well as matrix utility
 functions for distance correlation and matrix centering operations.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`distance_correlation`](#nltools.algorithms.inference.matrix.distance_correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
-[`double_center`](#nltools.algorithms.inference.matrix.double_center) | Double center a 2d array.
-[`matrix_permutation_test`](#nltools.algorithms.inference.matrix.matrix_permutation_test) | Matrix permutation test (Mantel test) for correlating two square matrices.
-[`u_center`](#nltools.algorithms.inference.matrix.u_center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
+[`distance_correlation`](#distance_correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
+[`double_center`](#double_center) | Double center a 2d array.
+[`matrix_permutation_test`](#matrix_permutation_test) | Matrix permutation test (Mantel test) for correlating two square matrices.
+[`u_center`](#u_center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`MAX_INT`](#nltools.algorithms.inference.matrix.MAX_INT) |  | 
+[`MAX_INT`](#MAX_INT) |  | 
 
 
 
-####### Attributes######## `nltools.algorithms.inference.matrix.MAX_INT`
+####### Attributes##
+
+###### `MAX_INT`
 
 ```python
 MAX_INT = np.iinfo(np.int32).max
@@ -3996,7 +3886,9 @@ MAX_INT = np.iinfo(np.int32).max
 
 
 
-####### Functions######## `nltools.algorithms.inference.matrix.distance_correlation`
+####### Functions##
+
+###### `distance_correlation`
 
 ```python
 distance_correlation(x: np.ndarray, y: np.ndarray, bias_corrected: bool = True, ttest: bool = False) -> dict
@@ -4049,7 +3941,7 @@ True
 True
 ```
 
-######## `nltools.algorithms.inference.matrix.double_center`
+######## `double_center`
 
 ```python
 double_center(mat: np.ndarray) -> np.ndarray
@@ -4083,7 +3975,7 @@ True
 True
 ```
 
-######## `nltools.algorithms.inference.matrix.matrix_permutation_test`
+######## `matrix_permutation_test`
 
 ```python
 matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, parallel: Optional[str] = 'cpu', n_jobs: int = -1, return_null: bool = False, random_state: Optional[int] = None) -> dict
@@ -4157,7 +4049,7 @@ regression approach. Cancer Research, 27(2), 209-220.
 >>> print(f"Correlation: {result['correlation']:.3f}, p = {result['p']:.4f}")
 ```
 
-######## `nltools.algorithms.inference.matrix.u_center`
+######## `u_center`
 
 ```python
 u_center(mat: np.ndarray) -> np.ndarray
@@ -4189,24 +4081,26 @@ Name | Type | Description
 True
 ```
 
-###### `nltools.algorithms.inference.one_sample`
+###### `one_sample`
 
 One-sample permutation test implementations.
 
 This module provides CPU-parallel and GPU-batched implementations
 of the one-sample permutation test (sign-flipping test).
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`one_sample_permutation_test`](#nltools.algorithms.inference.one_sample.one_sample_permutation_test) | One-sample permutation test using sign-flipping.
+[`one_sample_permutation_test`](#one_sample_permutation_test) | One-sample permutation test using sign-flipping.
 
 
 
 ####### Classes
 
-####### Functions######## `nltools.algorithms.inference.one_sample.one_sample_permutation_test`
+####### Functions##
+
+###### `one_sample_permutation_test`
 
 ```python
 one_sample_permutation_test(data: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
@@ -4276,7 +4170,7 @@ Name | Type | Description
 
 </details>
 
-###### `nltools.algorithms.inference.timeseries`
+###### `timeseries`
 
 Time-series permutation test implementations.
 
@@ -4299,19 +4193,21 @@ Surrogate data for hypothesis testing of physical systems. Physics Reports, 748,
 
 </details>
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`circle_shift`](#nltools.algorithms.inference.timeseries.circle_shift) | Circular shift for time-series data.
-[`phase_randomize`](#nltools.algorithms.inference.timeseries.phase_randomize) | FFT-based phase randomization for time-series data.
-[`timeseries_correlation_permutation_test`](#nltools.algorithms.inference.timeseries.timeseries_correlation_permutation_test) | Time-series correlation permutation test.
+[`circle_shift`](#circle_shift) | Circular shift for time-series data.
+[`phase_randomize`](#phase_randomize) | FFT-based phase randomization for time-series data.
+[`timeseries_correlation_permutation_test`](#timeseries_correlation_permutation_test) | Time-series correlation permutation test.
 
 
 
 ####### Classes
 
-####### Functions######## `nltools.algorithms.inference.timeseries.circle_shift`
+####### Functions##
+
+###### `circle_shift`
 
 ```python
 circle_shift(data: np.ndarray, shift_amount: Optional[Union[int, np.ndarray]] = None, random_state: Optional[Union[int, np.random.RandomState]] = None) -> np.ndarray
@@ -4355,7 +4251,7 @@ array([[ 4, 30],
        [ 3, 20]])
 ```
 
-######## `nltools.algorithms.inference.timeseries.phase_randomize`
+######## `phase_randomize`
 
 ```python
 phase_randomize(data: np.ndarray, backend: Optional[str] = None, random_state: Optional[Union[int, np.random.RandomState]] = None) -> np.ndarray
@@ -4419,7 +4315,7 @@ True
 >>> x_rand_gpu = phase_randomize(x_large, backend='torch', random_state=42)
 ```
 
-######## `nltools.algorithms.inference.timeseries.timeseries_correlation_permutation_test`
+######## `timeseries_correlation_permutation_test`
 
 ```python
 timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int = 2, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, return_null: bool = False, random_state: Optional[Union[int, np.random.RandomState]] = None) -> dict
@@ -4491,24 +4387,26 @@ True
 
 </details>
 
-###### `nltools.algorithms.inference.two_sample`
+###### `two_sample`
 
 Two-sample permutation test implementations.
 
 This module provides CPU-parallel and GPU-batched implementations
 of the two-sample permutation test (group permutation test).
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`two_sample_permutation_test`](#nltools.algorithms.inference.two_sample.two_sample_permutation_test) | Two-sample permutation test using group label shuffling.
+[`two_sample_permutation_test`](#two_sample_permutation_test) | Two-sample permutation test using group label shuffling.
 
 
 
 ####### Classes
 
-####### Functions######## `nltools.algorithms.inference.two_sample.two_sample_permutation_test`
+####### Functions##
+
+###### `two_sample_permutation_test`
 
 ```python
 two_sample_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
@@ -4581,7 +4479,7 @@ Name | Type | Description
 
 </details>
 
-###### `nltools.algorithms.inference.utils`
+###### `utils`
 
 Utility functions for permutation testing.
 
@@ -4592,11 +4490,13 @@ permutation test implementations.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`EPSILON`](#nltools.algorithms.inference.utils.EPSILON) |  | 
+[`EPSILON`](#EPSILON) |  | 
 
 
 
-####### Attributes######## `nltools.algorithms.inference.utils.EPSILON`
+####### Attributes##
+
+###### `EPSILON`
 
 ```python
 EPSILON = 1e-10
@@ -4604,7 +4504,9 @@ EPSILON = 1e-10
 
 
 
-####### Functions#### `nltools.algorithms.random`
+####### Functions
+
+#### `random`
 
 Shared random state utilities for algorithms module.
 
@@ -4633,18 +4535,20 @@ Example:
 
 </details>
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`generate_bootstrap_indices`](#nltools.algorithms.random.generate_bootstrap_indices) | Generate bootstrap indices deterministically for resampling.
-[`generate_seeds`](#nltools.algorithms.random.generate_seeds) | Generate random seeds for deterministic parallelization.
-[`generate_sign_flips`](#nltools.algorithms.random.generate_sign_flips) | Generate random sign-flip matrix for one-sample permutation tests.
-[`get_random_state`](#nltools.algorithms.random.get_random_state) | Get RandomState instance from seed.
+[`generate_bootstrap_indices`](#generate_bootstrap_indices) | Generate bootstrap indices deterministically for resampling.
+[`generate_seeds`](#generate_seeds) | Generate random seeds for deterministic parallelization.
+[`generate_sign_flips`](#generate_sign_flips) | Generate random sign-flip matrix for one-sample permutation tests.
+[`get_random_state`](#get_random_state) | Get RandomState instance from seed.
 
 
 
-##### Functions###### `nltools.algorithms.random.generate_bootstrap_indices`
+##### Methods
+
+###### `generate_bootstrap_indices`
 
 ```python
 generate_bootstrap_indices(n_samples: int, n_bootstrap: int, random_state: Optional[int] = None) -> np.ndarray
@@ -4688,7 +4592,7 @@ array([23, 45, 23, 67, ...])  # Some repeated (sampling with replacement)
 
 </details>
 
-###### `nltools.algorithms.random.generate_seeds`
+###### `generate_seeds`
 
 ```python
 generate_seeds(n_permute: int, random_state: Optional[int] = None) -> np.ndarray
@@ -4722,7 +4626,7 @@ Type | Description
 True
 ```
 
-###### `nltools.algorithms.random.generate_sign_flips`
+###### `generate_sign_flips`
 
 ```python
 generate_sign_flips(n_permute: int, n_samples: int, random_state: Optional[int] = None) -> np.ndarray
@@ -4772,7 +4676,7 @@ True
 
 </details>
 
-###### `nltools.algorithms.random.get_random_state`
+###### `get_random_state`
 
 ```python
 get_random_state(random_state: Optional[int] = None)
@@ -4799,7 +4703,7 @@ Uses sklearn.utils.check_random_state for consistency
 
 </details>
 
-#### `nltools.algorithms.ridge`
+#### `ridge`
 
 Ridge regression algorithms and utilities.
 
@@ -4827,40 +4731,32 @@ Features:
 
 Name | Description
 ---- | -----------
-[`backends`](#nltools.algorithms.ridge.backends) | Backend abstraction for ridge regression.
-[`core`](#nltools.algorithms.ridge.core) | Ridge regression algorithms using SVD decomposition.
-[`solvers`](#nltools.algorithms.ridge.solvers) | Ridge regression solvers with cross-validation.
-[`utils`](#nltools.algorithms.ridge.utils) | Utility functions for ridge regression.
+[`backends`](#backends) | Backend abstraction for ridge regression.
+[`core`](#core) | Ridge regression algorithms using SVD decomposition.
+[`solvers`](#solvers) | Ridge regression solvers with cross-validation.
+[`utils`](#utils) | Utility functions for ridge regression.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`generate_dirichlet_samples`](#nltools.algorithms.ridge.generate_dirichlet_samples) | Generate samples from a Dirichlet distribution.
-[`get_backend`](#nltools.algorithms.ridge.get_backend) | Get the current backend module.
-[`ridge_cv`](#nltools.algorithms.ridge.ridge_cv) | Ridge regression with cross-validation for hyperparameter selection.
-[`ridge_svd`](#nltools.algorithms.ridge.ridge_svd) | Solve ridge regression using Singular Value Decomposition.
-[`set_backend`](#nltools.algorithms.ridge.set_backend) | Set the backend using a global variable, and return the backend module.
-[`solve_banded_ridge_cv`](#nltools.algorithms.ridge.solve_banded_ridge_cv) | Solve banded ridge regression with cross-validation using random search.
-[`solve_ridge_cv`](#nltools.algorithms.ridge.solve_ridge_cv) | Solve ridge regression with cross-validation.
+[`generate_dirichlet_samples`](#generate_dirichlet_samples) | Generate samples from a Dirichlet distribution.
+[`get_backend`](#get_backend) | Get the current backend module.
+[`ridge_cv`](#ridge_cv) | Ridge regression with cross-validation for hyperparameter selection.
+[`ridge_svd`](#ridge_svd) | Solve ridge regression using Singular Value Decomposition.
+[`set_backend`](#set_backend) | Set the backend using a global variable, and return the backend module.
+[`solve_banded_ridge_cv`](#solve_banded_ridge_cv) | Solve banded ridge regression with cross-validation using random search.
+[`solve_ridge_cv`](#solve_ridge_cv) | Solve ridge regression with cross-validation.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`ALL_BACKENDS`](#nltools.algorithms.ridge.ALL_BACKENDS) |  | 
+[`ALL_BACKENDS`](#ALL_BACKENDS) |  | 
 
+##### Methods
 
-
-##### Attributes###### `nltools.algorithms.ridge.ALL_BACKENDS`
-
-```python
-ALL_BACKENDS = ['numpy', 'torch', 'torch_cuda']
-```
-
-
-
-##### Functions###### `nltools.algorithms.ridge.generate_dirichlet_samples`
+###### `generate_dirichlet_samples`
 
 ```python
 generate_dirichlet_samples(n_samples: int, n_kernels: int, concentration: float | List[float] = [0.1, 1.0], random_state: Optional[int] = None) -> np.ndarray
@@ -4899,7 +4795,7 @@ Type | Description
 True
 ```
 
-###### `nltools.algorithms.ridge.get_backend`
+###### `get_backend`
 
 ```python
 get_backend()
@@ -4922,7 +4818,7 @@ Name | Type | Description
 'numpy'
 ```
 
-###### `nltools.algorithms.ridge.ridge_cv`
+###### `ridge_cv`
 
 ```python
 ridge_cv(X: np.ndarray, y: np.ndarray, alphas: Optional[np.ndarray] = None, cv: int = 5, parallel: Optional[str] = 'cpu', max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
@@ -4972,7 +4868,7 @@ Name | Type | Description
 
 </details>
 
-###### `nltools.algorithms.ridge.ridge_svd`
+###### `ridge_svd`
 
 ```python
 ridge_svd(X: np.ndarray, y: np.ndarray, alpha: float = 1.0, parallel: Optional[str] = None, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> np.ndarray
@@ -5056,7 +4952,7 @@ Type | Description
 
 </details>
 
-###### `nltools.algorithms.ridge.set_backend`
+###### `set_backend`
 
 ```python
 set_backend(backend, on_error = 'raise')
@@ -5086,7 +4982,7 @@ Name | Type | Description
 'numpy'
 ```
 
-###### `nltools.algorithms.ridge.solve_banded_ridge_cv`
+###### `solve_banded_ridge_cv`
 
 ```python
 solve_banded_ridge_cv(Xs: List[np.ndarray], Y: np.ndarray, n_iter: Union[int, np.ndarray] = 100, concentration: Union[float, List[float]] = [0.1, 1.0], alphas: Union[float, np.ndarray, List[float]] = [0.1, 1.0, 10.0], cv: Union[int, BaseCrossValidator] = 5, local_alpha: bool = True, n_targets_batch: Optional[int] = None, n_targets_batch_refit: Optional[int] = None, n_alphas_batch: Optional[int] = None, Y_in_cpu: bool = True, score_func: Optional[Callable[[np.ndarray, np.ndarray], np.ndarray]] = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, jitter_alphas: bool = False, return_weights: bool = True, diagonalize_method: str = 'svd', warn: bool = True, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> Dict[str, Any]
@@ -5195,7 +5091,7 @@ See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.
 
 </details>
 
-###### `nltools.algorithms.ridge.solve_ridge_cv`
+###### `solve_ridge_cv`
 
 ```python
 solve_ridge_cv(X: np.ndarray, Y: np.ndarray, alphas: Union[float, np.ndarray, List[float]] = [0.1, 1.0, 10.0], cv: Union[int, BaseCrossValidator] = 5, local_alpha: bool = True, n_targets_batch: Optional[int] = None, n_targets_batch_refit: Optional[int] = None, n_alphas_batch: Optional[int] = None, Y_in_cpu: bool = True, score_func: Optional[Callable[[np.ndarray, np.ndarray], np.ndarray]] = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> Dict[str, Any]
@@ -5279,7 +5175,9 @@ See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.
 
 
 
-##### Modules###### `nltools.algorithms.ridge.backends`
+##### Modules
+
+###### `backends`
 
 Backend abstraction for ridge regression.
 
@@ -5305,28 +5203,30 @@ Examples
 
 Name | Description
 ---- | -----------
-[`numpy`](#nltools.algorithms.ridge.backends.numpy) | The "numpy" CPU backend, based on NumPy.
-[`torch`](#nltools.algorithms.ridge.backends.torch) | The "torch" CPU backend, based on PyTorch.
-[`torch_cuda`](#nltools.algorithms.ridge.backends.torch_cuda) | The "torch_cuda" GPU backend, based on PyTorch.
-[`utils`](#nltools.algorithms.ridge.backends.utils) | Backend utilities for ridge regression.
+[`numpy`](#numpy) | The "numpy" CPU backend, based on NumPy.
+[`torch`](#torch) | The "torch" CPU backend, based on PyTorch.
+[`torch_cuda`](#torch_cuda) | The "torch_cuda" GPU backend, based on PyTorch.
+[`utils`](#utils) | Backend utilities for ridge regression.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`get_backend`](#nltools.algorithms.ridge.backends.get_backend) | Get the current backend module.
-[`set_backend`](#nltools.algorithms.ridge.backends.set_backend) | Set the backend using a global variable, and return the backend module.
-[`warn_if_not_float32`](#nltools.algorithms.ridge.backends.warn_if_not_float32) | Warn if dtype is not float32.
+[`get_backend`](#get_backend) | Get the current backend module.
+[`set_backend`](#set_backend) | Set the backend using a global variable, and return the backend module.
+[`warn_if_not_float32`](#warn_if_not_float32) | Warn if dtype is not float32.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`ALL_BACKENDS`](#nltools.algorithms.ridge.backends.ALL_BACKENDS) |  | 
+[`ALL_BACKENDS`](#ALL_BACKENDS) |  | 
 
 
 
-####### Attributes######## `nltools.algorithms.ridge.backends.ALL_BACKENDS`
+####### Attributes##
+
+###### `ALL_BACKENDS`
 
 ```python
 ALL_BACKENDS = ['numpy', 'torch', 'torch_cuda']
@@ -5334,7 +5234,9 @@ ALL_BACKENDS = ['numpy', 'torch', 'torch_cuda']
 
 
 
-####### Functions######## `nltools.algorithms.ridge.backends.get_backend`
+####### Functions##
+
+###### `get_backend`
 
 ```python
 get_backend()
@@ -5357,7 +5259,7 @@ Name | Type | Description
 'numpy'
 ```
 
-######## `nltools.algorithms.ridge.backends.set_backend`
+######## `set_backend`
 
 ```python
 set_backend(backend, on_error = 'raise')
@@ -5387,7 +5289,7 @@ Name | Type | Description
 'numpy'
 ```
 
-######## `nltools.algorithms.ridge.backends.warn_if_not_float32`
+######## `warn_if_not_float32`
 
 ```python
 warn_if_not_float32(dtype)
@@ -5416,7 +5318,9 @@ Name | Type | Description | Default
 
 
 
-####### Modules######## `nltools.algorithms.ridge.backends.numpy`
+####### Modules##
+
+###### `numpy`
 
 The "numpy" CPU backend, based on NumPy.
 
@@ -5424,381 +5328,383 @@ To use this backend, call ``nltools.algorithms.ridge.backends.set_backend("numpy
 
 This is the default backend and is always available.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`asarray`](#nltools.algorithms.ridge.backends.numpy.asarray) | Convert input to numpy array.
-[`asarray_like`](#nltools.algorithms.ridge.backends.numpy.asarray_like) | Convert x to array with same dtype as ref.
-[`check_arrays`](#nltools.algorithms.ridge.backends.numpy.check_arrays) | Convert all inputs to arrays with consistent dtype.
-[`full_like`](#nltools.algorithms.ridge.backends.numpy.full_like) | Create array filled with value, with same shape and dtype as reference array.
-[`is_in_gpu`](#nltools.algorithms.ridge.backends.numpy.is_in_gpu) | Check if array is in GPU (always False for numpy backend).
-[`ones_like`](#nltools.algorithms.ridge.backends.numpy.ones_like) | Create array of ones with same shape and dtype as reference array.
-[`svd`](#nltools.algorithms.ridge.backends.numpy.svd) | Compute singular value decomposition.
-[`to_cpu`](#nltools.algorithms.ridge.backends.numpy.to_cpu) | Transfer array to CPU (no-op for numpy arrays).
-[`to_gpu`](#nltools.algorithms.ridge.backends.numpy.to_gpu) | Transfer array to GPU (no-op for numpy backend).
-[`to_numpy`](#nltools.algorithms.ridge.backends.numpy.to_numpy) | Convert array to numpy (no-op for numpy arrays).
-[`zeros_like`](#nltools.algorithms.ridge.backends.numpy.zeros_like) | Create array of zeros with same shape and dtype as reference array.
+[`asarray`](#asarray) | Convert input to numpy array.
+[`asarray_like`](#asarray_like) | Convert x to array with same dtype as ref.
+[`check_arrays`](#check_arrays) | Convert all inputs to arrays with consistent dtype.
+[`full_like`](#full_like) | Create array filled with value, with same shape and dtype as reference array.
+[`is_in_gpu`](#is_in_gpu) | Check if array is in GPU (always False for numpy backend).
+[`ones_like`](#ones_like) | Create array of ones with same shape and dtype as reference array.
+[`svd`](#svd) | Compute singular value decomposition.
+[`to_cpu`](#to_cpu) | Transfer array to CPU (no-op for numpy arrays).
+[`to_gpu`](#to_gpu) | Transfer array to GPU (no-op for numpy backend).
+[`to_numpy`](#to_numpy) | Convert array to numpy (no-op for numpy arrays).
+[`zeros_like`](#zeros_like) | Create array of zeros with same shape and dtype as reference array.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`abs`](#nltools.algorithms.ridge.backends.numpy.abs) |  | 
-[`all`](#nltools.algorithms.ridge.backends.numpy.all) |  | 
-[`any`](#nltools.algorithms.ridge.backends.numpy.any) |  | 
-[`arange`](#nltools.algorithms.ridge.backends.numpy.arange) |  | 
-[`argmax`](#nltools.algorithms.ridge.backends.numpy.argmax) |  | 
-[`atleast_1d`](#nltools.algorithms.ridge.backends.numpy.atleast_1d) |  | 
-[`bool`](#nltools.algorithms.ridge.backends.numpy.bool) |  | 
-[`clip`](#nltools.algorithms.ridge.backends.numpy.clip) |  | 
-[`concatenate`](#nltools.algorithms.ridge.backends.numpy.concatenate) |  | 
-[`copy`](#nltools.algorithms.ridge.backends.numpy.copy) |  | 
-[`eigh`](#nltools.algorithms.ridge.backends.numpy.eigh) |  | 
-[`einsum`](#nltools.algorithms.ridge.backends.numpy.einsum) |  | 
-[`exp`](#nltools.algorithms.ridge.backends.numpy.exp) |  | 
-[`expand_dims`](#nltools.algorithms.ridge.backends.numpy.expand_dims) |  | 
-[`eye`](#nltools.algorithms.ridge.backends.numpy.eye) |  | 
-[`finfo`](#nltools.algorithms.ridge.backends.numpy.finfo) |  | 
-[`flatnonzero`](#nltools.algorithms.ridge.backends.numpy.flatnonzero) |  | 
-[`flip`](#nltools.algorithms.ridge.backends.numpy.flip) |  | 
-[`float32`](#nltools.algorithms.ridge.backends.numpy.float32) |  | 
-[`float64`](#nltools.algorithms.ridge.backends.numpy.float64) |  | 
-[`full`](#nltools.algorithms.ridge.backends.numpy.full) |  | 
-[`inf`](#nltools.algorithms.ridge.backends.numpy.inf) |  | 
-[`int32`](#nltools.algorithms.ridge.backends.numpy.int32) |  | 
-[`isin`](#nltools.algorithms.ridge.backends.numpy.isin) |  | 
-[`isinf`](#nltools.algorithms.ridge.backends.numpy.isinf) |  | 
-[`isnan`](#nltools.algorithms.ridge.backends.numpy.isnan) |  | 
-[`log`](#nltools.algorithms.ridge.backends.numpy.log) |  | 
-[`logspace`](#nltools.algorithms.ridge.backends.numpy.logspace) |  | 
-[`matmul`](#nltools.algorithms.ridge.backends.numpy.matmul) |  | 
-[`max`](#nltools.algorithms.ridge.backends.numpy.max) |  | 
-[`mean`](#nltools.algorithms.ridge.backends.numpy.mean) |  | 
-[`min`](#nltools.algorithms.ridge.backends.numpy.min) |  | 
-[`name`](#nltools.algorithms.ridge.backends.numpy.name) |  | 
-[`nan`](#nltools.algorithms.ridge.backends.numpy.nan) |  | 
-[`norm`](#nltools.algorithms.ridge.backends.numpy.norm) |  | 
-[`power`](#nltools.algorithms.ridge.backends.numpy.power) |  | 
-[`prod`](#nltools.algorithms.ridge.backends.numpy.prod) |  | 
-[`rand`](#nltools.algorithms.ridge.backends.numpy.rand) |  | 
-[`randn`](#nltools.algorithms.ridge.backends.numpy.randn) |  | 
-[`searchsorted`](#nltools.algorithms.ridge.backends.numpy.searchsorted) |  | 
-[`sign`](#nltools.algorithms.ridge.backends.numpy.sign) |  | 
-[`sort`](#nltools.algorithms.ridge.backends.numpy.sort) |  | 
-[`sqrt`](#nltools.algorithms.ridge.backends.numpy.sqrt) |  | 
-[`stack`](#nltools.algorithms.ridge.backends.numpy.stack) |  | 
-[`std`](#nltools.algorithms.ridge.backends.numpy.std) |  | 
-[`sum`](#nltools.algorithms.ridge.backends.numpy.sum) |  | 
-[`tanh`](#nltools.algorithms.ridge.backends.numpy.tanh) |  | 
-[`transpose`](#nltools.algorithms.ridge.backends.numpy.transpose) |  | 
-[`unique`](#nltools.algorithms.ridge.backends.numpy.unique) |  | 
-[`use_scipy`](#nltools.algorithms.ridge.backends.numpy.use_scipy) |  | 
-[`zeros`](#nltools.algorithms.ridge.backends.numpy.zeros) |  | 
+[`abs`](#abs) |  | 
+[`all`](#all) |  | 
+[`any`](#any) |  | 
+[`arange`](#arange) |  | 
+[`argmax`](#argmax) |  | 
+[`atleast_1d`](#atleast_1d) |  | 
+[`bool`](#bool) |  | 
+[`clip`](#clip) |  | 
+[`concatenate`](#concatenate) |  | 
+[`copy`](#copy) |  | 
+[`eigh`](#eigh) |  | 
+[`einsum`](#einsum) |  | 
+[`exp`](#exp) |  | 
+[`expand_dims`](#expand_dims) |  | 
+[`eye`](#eye) |  | 
+[`finfo`](#finfo) |  | 
+[`flatnonzero`](#flatnonzero) |  | 
+[`flip`](#flip) |  | 
+[`float32`](#float32) |  | 
+[`float64`](#float64) |  | 
+[`full`](#full) |  | 
+[`inf`](#inf) |  | 
+[`int32`](#int32) |  | 
+[`isin`](#isin) |  | 
+[`isinf`](#isinf) |  | 
+[`isnan`](#isnan) |  | 
+[`log`](#log) |  | 
+[`logspace`](#logspace) |  | 
+[`matmul`](#matmul) |  | 
+[`max`](#max) |  | 
+[`mean`](#mean) |  | 
+[`min`](#min) |  | 
+[`name`](#name) |  | 
+[`nan`](#nan) |  | 
+[`norm`](#norm) |  | 
+[`power`](#power) |  | 
+[`prod`](#prod) |  | 
+[`rand`](#rand) |  | 
+[`randn`](#randn) |  | 
+[`searchsorted`](#searchsorted) |  | 
+[`sign`](#sign) |  | 
+[`sort`](#sort) |  | 
+[`sqrt`](#sqrt) |  | 
+[`stack`](#stack) |  | 
+[`std`](#std) |  | 
+[`sum`](#sum) |  | 
+[`tanh`](#tanh) |  | 
+[`transpose`](#transpose) |  | 
+[`unique`](#unique) |  | 
+[`use_scipy`](#use_scipy) |  | 
+[`zeros`](#zeros) |  | 
 
 
 
-######### Attributes########## `nltools.algorithms.ridge.backends.numpy.abs`
+######### Attributes####
+
+###### `abs`
 
 ```python
 abs = np.abs
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.all`
+########## `all`
 
 ```python
 all = np.all
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.any`
+########## `any`
 
 ```python
 any = np.any
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.arange`
+########## `arange`
 
 ```python
 arange = np.arange
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.argmax`
+########## `argmax`
 
 ```python
 argmax = np.argmax
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.atleast_1d`
+########## `atleast_1d`
 
 ```python
 atleast_1d = np.atleast_1d
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.bool`
+########## `bool`
 
 ```python
 bool = np.bool_
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.clip`
+########## `clip`
 
 ```python
 clip = np.clip
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.concatenate`
+########## `concatenate`
 
 ```python
 concatenate = np.concatenate
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.copy`
+########## `copy`
 
 ```python
 copy = np.copy
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.eigh`
+########## `eigh`
 
 ```python
 eigh = linalg.eigh
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.einsum`
+########## `einsum`
 
 ```python
 einsum = np.einsum
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.exp`
+########## `exp`
 
 ```python
 exp = np.exp
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.expand_dims`
+########## `expand_dims`
 
 ```python
 expand_dims = np.expand_dims
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.eye`
+########## `eye`
 
 ```python
 eye = np.eye
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.finfo`
+########## `finfo`
 
 ```python
 finfo = np.finfo
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.flatnonzero`
+########## `flatnonzero`
 
 ```python
 flatnonzero = np.flatnonzero
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.flip`
+########## `flip`
 
 ```python
 flip = np.flip
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.float32`
+########## `float32`
 
 ```python
 float32 = np.float32
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.float64`
+########## `float64`
 
 ```python
 float64 = np.float64
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.full`
+########## `full`
 
 ```python
 full = np.full
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.inf`
+########## `inf`
 
 ```python
 inf = np.inf
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.int32`
+########## `int32`
 
 ```python
 int32 = np.int32
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.isin`
+########## `isin`
 
 ```python
 isin = np.isin
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.isinf`
+########## `isinf`
 
 ```python
 isinf = np.isinf
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.isnan`
+########## `isnan`
 
 ```python
 isnan = np.isnan
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.log`
+########## `log`
 
 ```python
 log = np.log
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.logspace`
+########## `logspace`
 
 ```python
 logspace = np.logspace
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.matmul`
+########## `matmul`
 
 ```python
 matmul = np.matmul
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.max`
+########## `max`
 
 ```python
 max = np.max
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.mean`
+########## `mean`
 
 ```python
 mean = np.mean
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.min`
+########## `min`
 
 ```python
 min = np.min
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.name`
+########## `name`
 
 ```python
 name = 'numpy'
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.nan`
+########## `nan`
 
 ```python
 nan = np.nan
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.norm`
+########## `norm`
 
 ```python
 norm = linalg.norm
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.power`
+########## `power`
 
 ```python
 power = np.power
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.prod`
+########## `prod`
 
 ```python
 prod = np.prod
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.rand`
+########## `rand`
 
 ```python
 rand = np.random.rand
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.randn`
+########## `randn`
 
 ```python
 randn = np.random.randn
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.searchsorted`
+########## `searchsorted`
 
 ```python
 searchsorted = np.searchsorted
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.sign`
+########## `sign`
 
 ```python
 sign = np.sign
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.sort`
+########## `sort`
 
 ```python
 sort = np.sort
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.sqrt`
+########## `sqrt`
 
 ```python
 sqrt = np.sqrt
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.stack`
+########## `stack`
 
 ```python
 stack = np.stack
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.std`
+########## `std`
 
 ```python
 std = np.std
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.sum`
+########## `sum`
 
 ```python
 sum = np.sum
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.tanh`
+########## `tanh`
 
 ```python
 tanh = np.tanh
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.transpose`
+########## `transpose`
 
 ```python
 transpose = np.transpose
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.unique`
+########## `unique`
 
 ```python
 unique = np.unique
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.use_scipy`
+########## `use_scipy`
 
 ```python
 use_scipy = True
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.zeros`
+########## `zeros`
 
 ```python
 zeros = np.zeros
@@ -5806,7 +5712,9 @@ zeros = np.zeros
 
 
 
-######### Functions########## `nltools.algorithms.ridge.backends.numpy.asarray`
+######### Functions####
+
+###### `asarray`
 
 ```python
 asarray(a, dtype = None, order = None, device = None)
@@ -5842,7 +5750,7 @@ array([1, 2, 3])
 array([1., 2., 3.], dtype=float32)
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.asarray_like`
+########## `asarray_like`
 
 ```python
 asarray_like(x, ref)
@@ -5874,7 +5782,7 @@ Name | Type | Description
 array([4., 5., 6.], dtype=float32)
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.check_arrays`
+########## `check_arrays`
 
 ```python
 check_arrays(*all_inputs)
@@ -5909,7 +5817,7 @@ Name | Type | Description
 True
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.full_like`
+########## `full_like`
 
 ```python
 full_like(array, fill_value, shape = None, dtype = None, device = None)
@@ -5946,7 +5854,7 @@ array([[42., 42.],
        [42., 42.]])
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.is_in_gpu`
+########## `is_in_gpu`
 
 ```python
 is_in_gpu(array)
@@ -5978,7 +5886,7 @@ Name | Type | Description
 False
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.ones_like`
+########## `ones_like`
 
 ```python
 ones_like(array, shape = None, dtype = None, device = None)
@@ -6014,7 +5922,7 @@ array([[1., 1., 1.],
        [1., 1., 1.]])
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.svd`
+########## `svd`
 
 ```python
 svd(X, full_matrices = True)
@@ -6049,7 +5957,7 @@ Name | Type | Description
 ((10, 5), (5,), (5, 5))
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.to_cpu`
+########## `to_cpu`
 
 ```python
 to_cpu(array)
@@ -6082,7 +5990,7 @@ Name | Type | Description
 True
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.to_gpu`
+########## `to_gpu`
 
 ```python
 to_gpu(array, device = None)
@@ -6116,7 +6024,7 @@ Name | Type | Description
 True
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.to_numpy`
+########## `to_numpy`
 
 ```python
 to_numpy(array)
@@ -6150,7 +6058,7 @@ Name | Type | Description
 True
 ```
 
-########## `nltools.algorithms.ridge.backends.numpy.zeros_like`
+########## `zeros_like`
 
 ```python
 zeros_like(array, shape = None, dtype = None, device = None)
@@ -6189,7 +6097,7 @@ array([[0., 0., 0., 0.],
        [0., 0., 0., 0.]])
 ```
 
-######## `nltools.algorithms.ridge.backends.torch`
+######## `torch`
 
 The "torch" CPU backend, based on PyTorch.
 
@@ -6197,302 +6105,304 @@ To use this backend, call ``nltools.algorithms.ridge.backends.set_backend("torch
 
 Requires PyTorch to be installed.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`asarray`](#nltools.algorithms.ridge.backends.torch.asarray) | Convert input to tensor.
-[`asarray_like`](#nltools.algorithms.ridge.backends.torch.asarray_like) | Convert x to tensor with same dtype and device as ref.
-[`atleast_1d`](#nltools.algorithms.ridge.backends.torch.atleast_1d) | Ensure array is at least 1D.
-[`check_arrays`](#nltools.algorithms.ridge.backends.torch.check_arrays) | Convert all inputs to tensors with consistent dtype and device.
-[`copy`](#nltools.algorithms.ridge.backends.torch.copy) | Create a copy of tensor.
-[`flatnonzero`](#nltools.algorithms.ridge.backends.torch.flatnonzero) | Return indices of non-zero elements in flattened array.
-[`flip`](#nltools.algorithms.ridge.backends.torch.flip) | Flip array along specified axis.
-[`full_like`](#nltools.algorithms.ridge.backends.torch.full_like) | Create tensor filled with value, with same properties as reference.
-[`is_in_gpu`](#nltools.algorithms.ridge.backends.torch.is_in_gpu) | Check if tensor is on GPU.
-[`isin`](#nltools.algorithms.ridge.backends.torch.isin) | Element-wise test for membership.
-[`max`](#nltools.algorithms.ridge.backends.torch.max) | Compute maximum.
-[`min`](#nltools.algorithms.ridge.backends.torch.min) | Compute minimum.
-[`norm`](#nltools.algorithms.ridge.backends.torch.norm) | Compute matrix or vector norm.
-[`ones_like`](#nltools.algorithms.ridge.backends.torch.ones_like) | Create tensor of ones with same properties as reference.
-[`searchsorted`](#nltools.algorithms.ridge.backends.torch.searchsorted) | Find indices where elements should be inserted to maintain order.
-[`sort`](#nltools.algorithms.ridge.backends.torch.sort) | Sort array along specified axis.
-[`svd`](#nltools.algorithms.ridge.backends.torch.svd) | Compute SVD (backward compatible).
-[`to_cpu`](#nltools.algorithms.ridge.backends.torch.to_cpu) | Transfer tensor to CPU.
-[`to_gpu`](#nltools.algorithms.ridge.backends.torch.to_gpu) | Transfer tensor to GPU (no-op for CPU backend).
-[`to_numpy`](#nltools.algorithms.ridge.backends.torch.to_numpy) | Convert tensor to numpy array.
-[`transpose`](#nltools.algorithms.ridge.backends.torch.transpose) | Transpose tensor.
-[`zeros`](#nltools.algorithms.ridge.backends.torch.zeros) | Create tensor of zeros.
-[`zeros_like`](#nltools.algorithms.ridge.backends.torch.zeros_like) | Create tensor of zeros with same properties as reference.
+[`asarray`](#asarray) | Convert input to tensor.
+[`asarray_like`](#asarray_like) | Convert x to tensor with same dtype and device as ref.
+[`atleast_1d`](#atleast_1d) | Ensure array is at least 1D.
+[`check_arrays`](#check_arrays) | Convert all inputs to tensors with consistent dtype and device.
+[`copy`](#copy) | Create a copy of tensor.
+[`flatnonzero`](#flatnonzero) | Return indices of non-zero elements in flattened array.
+[`flip`](#flip) | Flip array along specified axis.
+[`full_like`](#full_like) | Create tensor filled with value, with same properties as reference.
+[`is_in_gpu`](#is_in_gpu) | Check if tensor is on GPU.
+[`isin`](#isin) | Element-wise test for membership.
+[`max`](#max) | Compute maximum.
+[`min`](#min) | Compute minimum.
+[`norm`](#norm) | Compute matrix or vector norm.
+[`ones_like`](#ones_like) | Create tensor of ones with same properties as reference.
+[`searchsorted`](#searchsorted) | Find indices where elements should be inserted to maintain order.
+[`sort`](#sort) | Sort array along specified axis.
+[`svd`](#svd) | Compute SVD (backward compatible).
+[`to_cpu`](#to_cpu) | Transfer tensor to CPU.
+[`to_gpu`](#to_gpu) | Transfer tensor to GPU (no-op for CPU backend).
+[`to_numpy`](#to_numpy) | Convert tensor to numpy array.
+[`transpose`](#transpose) | Transpose tensor.
+[`zeros`](#zeros) | Create tensor of zeros.
+[`zeros_like`](#zeros_like) | Create tensor of zeros with same properties as reference.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`abs`](#nltools.algorithms.ridge.backends.torch.abs) |  | 
-[`all`](#nltools.algorithms.ridge.backends.torch.all) |  | 
-[`any`](#nltools.algorithms.ridge.backends.torch.any) |  | 
-[`arange`](#nltools.algorithms.ridge.backends.torch.arange) |  | 
-[`argmax`](#nltools.algorithms.ridge.backends.torch.argmax) |  | 
-[`bool`](#nltools.algorithms.ridge.backends.torch.bool) |  | 
-[`clip`](#nltools.algorithms.ridge.backends.torch.clip) |  | 
-[`concatenate`](#nltools.algorithms.ridge.backends.torch.concatenate) |  | 
-[`eigh`](#nltools.algorithms.ridge.backends.torch.eigh) |  | 
-[`einsum`](#nltools.algorithms.ridge.backends.torch.einsum) |  | 
-[`exp`](#nltools.algorithms.ridge.backends.torch.exp) |  | 
-[`expand_dims`](#nltools.algorithms.ridge.backends.torch.expand_dims) |  | 
-[`eye`](#nltools.algorithms.ridge.backends.torch.eye) |  | 
-[`finfo`](#nltools.algorithms.ridge.backends.torch.finfo) |  | 
-[`float32`](#nltools.algorithms.ridge.backends.torch.float32) |  | 
-[`float64`](#nltools.algorithms.ridge.backends.torch.float64) |  | 
-[`full`](#nltools.algorithms.ridge.backends.torch.full) |  | 
-[`inf`](#nltools.algorithms.ridge.backends.torch.inf) |  | 
-[`int32`](#nltools.algorithms.ridge.backends.torch.int32) |  | 
-[`isinf`](#nltools.algorithms.ridge.backends.torch.isinf) |  | 
-[`isnan`](#nltools.algorithms.ridge.backends.torch.isnan) |  | 
-[`log`](#nltools.algorithms.ridge.backends.torch.log) |  | 
-[`logspace`](#nltools.algorithms.ridge.backends.torch.logspace) |  | 
-[`matmul`](#nltools.algorithms.ridge.backends.torch.matmul) |  | 
-[`mean`](#nltools.algorithms.ridge.backends.torch.mean) |  | 
-[`name`](#nltools.algorithms.ridge.backends.torch.name) |  | 
-[`nan`](#nltools.algorithms.ridge.backends.torch.nan) |  | 
-[`power`](#nltools.algorithms.ridge.backends.torch.power) |  | 
-[`prod`](#nltools.algorithms.ridge.backends.torch.prod) |  | 
-[`rand`](#nltools.algorithms.ridge.backends.torch.rand) |  | 
-[`randn`](#nltools.algorithms.ridge.backends.torch.randn) |  | 
-[`sign`](#nltools.algorithms.ridge.backends.torch.sign) |  | 
-[`sqrt`](#nltools.algorithms.ridge.backends.torch.sqrt) |  | 
-[`stack`](#nltools.algorithms.ridge.backends.torch.stack) |  | 
-[`std`](#nltools.algorithms.ridge.backends.torch.std) |  | 
-[`sum`](#nltools.algorithms.ridge.backends.torch.sum) |  | 
-[`tanh`](#nltools.algorithms.ridge.backends.torch.tanh) |  | 
-[`unique`](#nltools.algorithms.ridge.backends.torch.unique) |  | 
+[`abs`](#abs) |  | 
+[`all`](#all) |  | 
+[`any`](#any) |  | 
+[`arange`](#arange) |  | 
+[`argmax`](#argmax) |  | 
+[`bool`](#bool) |  | 
+[`clip`](#clip) |  | 
+[`concatenate`](#concatenate) |  | 
+[`eigh`](#eigh) |  | 
+[`einsum`](#einsum) |  | 
+[`exp`](#exp) |  | 
+[`expand_dims`](#expand_dims) |  | 
+[`eye`](#eye) |  | 
+[`finfo`](#finfo) |  | 
+[`float32`](#float32) |  | 
+[`float64`](#float64) |  | 
+[`full`](#full) |  | 
+[`inf`](#inf) |  | 
+[`int32`](#int32) |  | 
+[`isinf`](#isinf) |  | 
+[`isnan`](#isnan) |  | 
+[`log`](#log) |  | 
+[`logspace`](#logspace) |  | 
+[`matmul`](#matmul) |  | 
+[`mean`](#mean) |  | 
+[`name`](#name) |  | 
+[`nan`](#nan) |  | 
+[`power`](#power) |  | 
+[`prod`](#prod) |  | 
+[`rand`](#rand) |  | 
+[`randn`](#randn) |  | 
+[`sign`](#sign) |  | 
+[`sqrt`](#sqrt) |  | 
+[`stack`](#stack) |  | 
+[`std`](#std) |  | 
+[`sum`](#sum) |  | 
+[`tanh`](#tanh) |  | 
+[`unique`](#unique) |  | 
 
 
 
-######### Attributes########## `nltools.algorithms.ridge.backends.torch.abs`
+######### Attributes####
+
+###### `abs`
 
 ```python
 abs = torch.abs
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.all`
+########## `all`
 
 ```python
 all = torch.all
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.any`
+########## `any`
 
 ```python
 any = torch.any
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.arange`
+########## `arange`
 
 ```python
 arange = torch.arange
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.argmax`
+########## `argmax`
 
 ```python
 argmax = torch.argmax
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.bool`
+########## `bool`
 
 ```python
 bool = torch.bool
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.clip`
+########## `clip`
 
 ```python
 clip = torch.clamp
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.concatenate`
+########## `concatenate`
 
 ```python
 concatenate = torch.cat
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.eigh`
+########## `eigh`
 
 ```python
 eigh = torch.linalg.eigh
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.einsum`
+########## `einsum`
 
 ```python
 einsum = torch.einsum
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.exp`
+########## `exp`
 
 ```python
 exp = torch.exp
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.expand_dims`
+########## `expand_dims`
 
 ```python
 expand_dims = torch.unsqueeze
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.eye`
+########## `eye`
 
 ```python
 eye = torch.eye
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.finfo`
+########## `finfo`
 
 ```python
 finfo = torch.finfo
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.float32`
+########## `float32`
 
 ```python
 float32 = torch.float32
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.float64`
+########## `float64`
 
 ```python
 float64 = torch.float64
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.full`
+########## `full`
 
 ```python
 full = torch.full
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.inf`
+########## `inf`
 
 ```python
 inf = torch.tensor(float('inf'))
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.int32`
+########## `int32`
 
 ```python
 int32 = torch.int32
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.isinf`
+########## `isinf`
 
 ```python
 isinf = torch.isinf
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.isnan`
+########## `isnan`
 
 ```python
 isnan = torch.isnan
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.log`
+########## `log`
 
 ```python
 log = torch.log
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.logspace`
+########## `logspace`
 
 ```python
 logspace = torch.logspace
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.matmul`
+########## `matmul`
 
 ```python
 matmul = torch.matmul
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.mean`
+########## `mean`
 
 ```python
 mean = torch.mean
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.name`
+########## `name`
 
 ```python
 name = 'torch'
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.nan`
+########## `nan`
 
 ```python
 nan = torch.tensor(float('nan'))
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.power`
+########## `power`
 
 ```python
 power = torch.pow
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.prod`
+########## `prod`
 
 ```python
 prod = torch.prod
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.rand`
+########## `rand`
 
 ```python
 rand = torch.rand
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.randn`
+########## `randn`
 
 ```python
 randn = torch.randn
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.sign`
+########## `sign`
 
 ```python
 sign = torch.sign
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.sqrt`
+########## `sqrt`
 
 ```python
 sqrt = torch.sqrt
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.stack`
+########## `stack`
 
 ```python
 stack = torch.stack
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.std`
+########## `std`
 
 ```python
 std = torch.std
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.sum`
+########## `sum`
 
 ```python
 sum = torch.sum
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.tanh`
+########## `tanh`
 
 ```python
 tanh = torch.tanh
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.unique`
+########## `unique`
 
 ```python
 unique = torch.unique
@@ -6500,7 +6410,9 @@ unique = torch.unique
 
 
 
-######### Functions########## `nltools.algorithms.ridge.backends.torch.asarray`
+######### Functions####
+
+###### `asarray`
 
 ```python
 asarray(x, dtype = None, device = 'cpu')
@@ -6536,7 +6448,7 @@ Name | Type | Description
 torch.float32
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.asarray_like`
+########## `asarray_like`
 
 ```python
 asarray_like(x, ref)
@@ -6569,7 +6481,7 @@ Name | Type | Description
 torch.float32
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.atleast_1d`
+########## `atleast_1d`
 
 ```python
 atleast_1d(array)
@@ -6599,7 +6511,7 @@ Name | Type | Description
 torch.Size([1])
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.check_arrays`
+########## `check_arrays`
 
 ```python
 check_arrays(*all_inputs)
@@ -6633,7 +6545,7 @@ Name | Type | Description
 True
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.copy`
+########## `copy`
 
 ```python
 copy(x)
@@ -6666,7 +6578,7 @@ Name | Type | Description
 tensor(1)
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.flatnonzero`
+########## `flatnonzero`
 
 ```python
 flatnonzero(x)
@@ -6697,7 +6609,7 @@ Name | Type | Description
 tensor([1, 3, 5])
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.flip`
+########## `flip`
 
 ```python
 flip(array, axis = 0)
@@ -6730,7 +6642,7 @@ tensor([[3, 4],
         [1, 2]])
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.full_like`
+########## `full_like`
 
 ```python
 full_like(array, fill_value, shape = None, dtype = None, device = None)
@@ -6767,7 +6679,7 @@ tensor([[42., 42.],
         [42., 42.]])
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.is_in_gpu`
+########## `is_in_gpu`
 
 ```python
 is_in_gpu(array)
@@ -6798,7 +6710,7 @@ Name | Type | Description
 False
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.isin`
+########## `isin`
 
 ```python
 isin(x, y)
@@ -6828,7 +6740,7 @@ Currently uses NumPy for computation (may be optimized in future).
 
 </details>
 
-########## `nltools.algorithms.ridge.backends.torch.max`
+########## `max`
 
 ```python
 max(*args, **kwargs)
@@ -6860,7 +6772,7 @@ Name | Type | Description
 tensor([3, 5])
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.min`
+########## `min`
 
 ```python
 min(*args, **kwargs)
@@ -6892,7 +6804,7 @@ Name | Type | Description
 tensor([1, 2])
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.norm`
+########## `norm`
 
 ```python
 norm(x, ord = 'fro', axis = None, keepdims = False)
@@ -6927,7 +6839,7 @@ Name | Type | Description
 tensor(5.4772)
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.ones_like`
+########## `ones_like`
 
 ```python
 ones_like(array, shape = None, dtype = None, device = None)
@@ -6963,7 +6875,7 @@ tensor([[1., 1., 1.],
         [1., 1., 1.]])
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.searchsorted`
+########## `searchsorted`
 
 ```python
 searchsorted(x, y)
@@ -6993,7 +6905,7 @@ Currently uses NumPy for computation (may be optimized in future).
 
 </details>
 
-########## `nltools.algorithms.ridge.backends.torch.sort`
+########## `sort`
 
 ```python
 sort(array, axis = -1)
@@ -7025,7 +6937,7 @@ Name | Type | Description
 tensor([1, 2, 3])
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.svd`
+########## `svd`
 
 ```python
 svd(X, full_matrices = True)
@@ -7049,7 +6961,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `tuple` |  | (U, s, Vh) where: - U: Left singular vectors. - s: Singular values. - Vh: Right singular vectors (transposed).
 
-########## `nltools.algorithms.ridge.backends.torch.to_cpu`
+########## `to_cpu`
 
 ```python
 to_cpu(array)
@@ -7082,7 +6994,7 @@ Name | Type | Description
 'cpu'
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.to_gpu`
+########## `to_gpu`
 
 ```python
 to_gpu(array, device = None)
@@ -7115,7 +7027,7 @@ Name | Type | Description
 True
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.to_numpy`
+########## `to_numpy`
 
 ```python
 to_numpy(array)
@@ -7148,7 +7060,7 @@ Name | Type | Description
 <class 'numpy.ndarray'>
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.transpose`
+########## `transpose`
 
 ```python
 transpose(a, axes = None)
@@ -7182,7 +7094,7 @@ tensor([[1, 3],
         [2, 4]])
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.zeros`
+########## `zeros`
 
 ```python
 zeros(shape, dtype = 'float32', device = 'cpu')
@@ -7215,7 +7127,7 @@ tensor([[0., 0., 0.],
         [0., 0., 0.]])
 ```
 
-########## `nltools.algorithms.ridge.backends.torch.zeros_like`
+########## `zeros_like`
 
 ```python
 zeros_like(array, shape = None, dtype = None, device = None)
@@ -7251,7 +7163,7 @@ tensor([[0., 0., 0.],
         [0., 0., 0.]])
 ```
 
-######## `nltools.algorithms.ridge.backends.torch_cuda`
+######## `torch_cuda`
 
 The "torch_cuda" GPU backend, based on PyTorch.
 
@@ -7259,290 +7171,292 @@ To use this backend, call ``nltools.algorithms.ridge.backends.set_backend("torch
 
 Requires PyTorch with CUDA to be installed.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`asarray`](#nltools.algorithms.ridge.backends.torch_cuda.asarray) | Convert input to CUDA tensor.
-[`asarray_like`](#nltools.algorithms.ridge.backends.torch_cuda.asarray_like) | Convert x to tensor with same dtype and device as ref.
-[`atleast_1d`](#nltools.algorithms.ridge.backends.torch_cuda.atleast_1d) | Ensure array is at least 1D.
-[`check_arrays`](#nltools.algorithms.ridge.backends.torch_cuda.check_arrays) | Convert all inputs to CUDA tensors with consistent dtype and device.
-[`copy`](#nltools.algorithms.ridge.backends.torch_cuda.copy) | Create a copy of tensor.
-[`flatnonzero`](#nltools.algorithms.ridge.backends.torch_cuda.flatnonzero) | Return indices of non-zero elements in flattened array.
-[`flip`](#nltools.algorithms.ridge.backends.torch_cuda.flip) | Flip array along specified axis.
-[`full_like`](#nltools.algorithms.ridge.backends.torch_cuda.full_like) | Create tensor filled with value, with same properties as reference.
-[`is_in_gpu`](#nltools.algorithms.ridge.backends.torch_cuda.is_in_gpu) | Check if tensor is on GPU.
-[`isin`](#nltools.algorithms.ridge.backends.torch_cuda.isin) | Element-wise test for membership.
-[`max`](#nltools.algorithms.ridge.backends.torch_cuda.max) | Compute maximum.
-[`min`](#nltools.algorithms.ridge.backends.torch_cuda.min) | Compute minimum.
-[`norm`](#nltools.algorithms.ridge.backends.torch_cuda.norm) | Compute matrix or vector norm.
-[`ones_like`](#nltools.algorithms.ridge.backends.torch_cuda.ones_like) | Create tensor of ones with same properties as reference.
-[`rand`](#nltools.algorithms.ridge.backends.torch_cuda.rand) | Create random tensor on CUDA.
-[`randn`](#nltools.algorithms.ridge.backends.torch_cuda.randn) | Create random tensor on CUDA.
-[`searchsorted`](#nltools.algorithms.ridge.backends.torch_cuda.searchsorted) | Find indices where elements should be inserted to maintain order.
-[`sort`](#nltools.algorithms.ridge.backends.torch_cuda.sort) | Sort array along specified axis.
-[`svd`](#nltools.algorithms.ridge.backends.torch_cuda.svd) | Compute SVD (backward compatible).
-[`to_cpu`](#nltools.algorithms.ridge.backends.torch_cuda.to_cpu) | Transfer tensor from GPU to CPU.
-[`to_gpu`](#nltools.algorithms.ridge.backends.torch_cuda.to_gpu) | Transfer tensor to GPU.
-[`to_numpy`](#nltools.algorithms.ridge.backends.torch_cuda.to_numpy) | Convert tensor to numpy array.
-[`transpose`](#nltools.algorithms.ridge.backends.torch_cuda.transpose) | Transpose tensor.
-[`zeros`](#nltools.algorithms.ridge.backends.torch_cuda.zeros) | Create tensor of zeros on CUDA.
-[`zeros_like`](#nltools.algorithms.ridge.backends.torch_cuda.zeros_like) | Create tensor of zeros with same properties as reference.
+[`asarray`](#asarray) | Convert input to CUDA tensor.
+[`asarray_like`](#asarray_like) | Convert x to tensor with same dtype and device as ref.
+[`atleast_1d`](#atleast_1d) | Ensure array is at least 1D.
+[`check_arrays`](#check_arrays) | Convert all inputs to CUDA tensors with consistent dtype and device.
+[`copy`](#copy) | Create a copy of tensor.
+[`flatnonzero`](#flatnonzero) | Return indices of non-zero elements in flattened array.
+[`flip`](#flip) | Flip array along specified axis.
+[`full_like`](#full_like) | Create tensor filled with value, with same properties as reference.
+[`is_in_gpu`](#is_in_gpu) | Check if tensor is on GPU.
+[`isin`](#isin) | Element-wise test for membership.
+[`max`](#max) | Compute maximum.
+[`min`](#min) | Compute minimum.
+[`norm`](#norm) | Compute matrix or vector norm.
+[`ones_like`](#ones_like) | Create tensor of ones with same properties as reference.
+[`rand`](#rand) | Create random tensor on CUDA.
+[`randn`](#randn) | Create random tensor on CUDA.
+[`searchsorted`](#searchsorted) | Find indices where elements should be inserted to maintain order.
+[`sort`](#sort) | Sort array along specified axis.
+[`svd`](#svd) | Compute SVD (backward compatible).
+[`to_cpu`](#to_cpu) | Transfer tensor from GPU to CPU.
+[`to_gpu`](#to_gpu) | Transfer tensor to GPU.
+[`to_numpy`](#to_numpy) | Convert tensor to numpy array.
+[`transpose`](#transpose) | Transpose tensor.
+[`zeros`](#zeros) | Create tensor of zeros on CUDA.
+[`zeros_like`](#zeros_like) | Create tensor of zeros with same properties as reference.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`abs`](#nltools.algorithms.ridge.backends.torch_cuda.abs) |  | 
-[`all`](#nltools.algorithms.ridge.backends.torch_cuda.all) |  | 
-[`any`](#nltools.algorithms.ridge.backends.torch_cuda.any) |  | 
-[`arange`](#nltools.algorithms.ridge.backends.torch_cuda.arange) |  | 
-[`argmax`](#nltools.algorithms.ridge.backends.torch_cuda.argmax) |  | 
-[`bool`](#nltools.algorithms.ridge.backends.torch_cuda.bool) |  | 
-[`clip`](#nltools.algorithms.ridge.backends.torch_cuda.clip) |  | 
-[`concatenate`](#nltools.algorithms.ridge.backends.torch_cuda.concatenate) |  | 
-[`eigh`](#nltools.algorithms.ridge.backends.torch_cuda.eigh) |  | 
-[`einsum`](#nltools.algorithms.ridge.backends.torch_cuda.einsum) |  | 
-[`exp`](#nltools.algorithms.ridge.backends.torch_cuda.exp) |  | 
-[`expand_dims`](#nltools.algorithms.ridge.backends.torch_cuda.expand_dims) |  | 
-[`eye`](#nltools.algorithms.ridge.backends.torch_cuda.eye) |  | 
-[`finfo`](#nltools.algorithms.ridge.backends.torch_cuda.finfo) |  | 
-[`float32`](#nltools.algorithms.ridge.backends.torch_cuda.float32) |  | 
-[`float64`](#nltools.algorithms.ridge.backends.torch_cuda.float64) |  | 
-[`full`](#nltools.algorithms.ridge.backends.torch_cuda.full) |  | 
-[`inf`](#nltools.algorithms.ridge.backends.torch_cuda.inf) |  | 
-[`int32`](#nltools.algorithms.ridge.backends.torch_cuda.int32) |  | 
-[`isinf`](#nltools.algorithms.ridge.backends.torch_cuda.isinf) |  | 
-[`isnan`](#nltools.algorithms.ridge.backends.torch_cuda.isnan) |  | 
-[`log`](#nltools.algorithms.ridge.backends.torch_cuda.log) |  | 
-[`logspace`](#nltools.algorithms.ridge.backends.torch_cuda.logspace) |  | 
-[`matmul`](#nltools.algorithms.ridge.backends.torch_cuda.matmul) |  | 
-[`mean`](#nltools.algorithms.ridge.backends.torch_cuda.mean) |  | 
-[`name`](#nltools.algorithms.ridge.backends.torch_cuda.name) |  | 
-[`nan`](#nltools.algorithms.ridge.backends.torch_cuda.nan) |  | 
-[`power`](#nltools.algorithms.ridge.backends.torch_cuda.power) |  | 
-[`prod`](#nltools.algorithms.ridge.backends.torch_cuda.prod) |  | 
-[`sign`](#nltools.algorithms.ridge.backends.torch_cuda.sign) |  | 
-[`sqrt`](#nltools.algorithms.ridge.backends.torch_cuda.sqrt) |  | 
-[`stack`](#nltools.algorithms.ridge.backends.torch_cuda.stack) |  | 
-[`std`](#nltools.algorithms.ridge.backends.torch_cuda.std) |  | 
-[`sum`](#nltools.algorithms.ridge.backends.torch_cuda.sum) |  | 
-[`tanh`](#nltools.algorithms.ridge.backends.torch_cuda.tanh) |  | 
-[`unique`](#nltools.algorithms.ridge.backends.torch_cuda.unique) |  | 
+[`abs`](#abs) |  | 
+[`all`](#all) |  | 
+[`any`](#any) |  | 
+[`arange`](#arange) |  | 
+[`argmax`](#argmax) |  | 
+[`bool`](#bool) |  | 
+[`clip`](#clip) |  | 
+[`concatenate`](#concatenate) |  | 
+[`eigh`](#eigh) |  | 
+[`einsum`](#einsum) |  | 
+[`exp`](#exp) |  | 
+[`expand_dims`](#expand_dims) |  | 
+[`eye`](#eye) |  | 
+[`finfo`](#finfo) |  | 
+[`float32`](#float32) |  | 
+[`float64`](#float64) |  | 
+[`full`](#full) |  | 
+[`inf`](#inf) |  | 
+[`int32`](#int32) |  | 
+[`isinf`](#isinf) |  | 
+[`isnan`](#isnan) |  | 
+[`log`](#log) |  | 
+[`logspace`](#logspace) |  | 
+[`matmul`](#matmul) |  | 
+[`mean`](#mean) |  | 
+[`name`](#name) |  | 
+[`nan`](#nan) |  | 
+[`power`](#power) |  | 
+[`prod`](#prod) |  | 
+[`sign`](#sign) |  | 
+[`sqrt`](#sqrt) |  | 
+[`stack`](#stack) |  | 
+[`std`](#std) |  | 
+[`sum`](#sum) |  | 
+[`tanh`](#tanh) |  | 
+[`unique`](#unique) |  | 
 
 
 
-######### Attributes########## `nltools.algorithms.ridge.backends.torch_cuda.abs`
+######### Attributes####
+
+###### `abs`
 
 ```python
 abs = torch.abs
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.all`
+########## `all`
 
 ```python
 all = torch.all
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.any`
+########## `any`
 
 ```python
 any = torch.any
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.arange`
+########## `arange`
 
 ```python
 arange = torch.arange
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.argmax`
+########## `argmax`
 
 ```python
 argmax = torch.argmax
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.bool`
+########## `bool`
 
 ```python
 bool = torch.bool
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.clip`
+########## `clip`
 
 ```python
 clip = torch.clamp
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.concatenate`
+########## `concatenate`
 
 ```python
 concatenate = torch.cat
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.eigh`
+########## `eigh`
 
 ```python
 eigh = torch.linalg.eigh
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.einsum`
+########## `einsum`
 
 ```python
 einsum = torch.einsum
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.exp`
+########## `exp`
 
 ```python
 exp = torch.exp
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.expand_dims`
+########## `expand_dims`
 
 ```python
 expand_dims = torch.unsqueeze
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.eye`
+########## `eye`
 
 ```python
 eye = torch.eye
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.finfo`
+########## `finfo`
 
 ```python
 finfo = torch.finfo
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.float32`
+########## `float32`
 
 ```python
 float32 = torch.float32
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.float64`
+########## `float64`
 
 ```python
 float64 = torch.float64
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.full`
+########## `full`
 
 ```python
 full = torch.full
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.inf`
+########## `inf`
 
 ```python
 inf = torch.tensor(float('inf'))
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.int32`
+########## `int32`
 
 ```python
 int32 = torch.int32
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.isinf`
+########## `isinf`
 
 ```python
 isinf = torch.isinf
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.isnan`
+########## `isnan`
 
 ```python
 isnan = torch.isnan
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.log`
+########## `log`
 
 ```python
 log = torch.log
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.logspace`
+########## `logspace`
 
 ```python
 logspace = torch.logspace
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.matmul`
+########## `matmul`
 
 ```python
 matmul = torch.matmul
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.mean`
+########## `mean`
 
 ```python
 mean = torch.mean
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.name`
+########## `name`
 
 ```python
 name = 'torch_cuda'
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.nan`
+########## `nan`
 
 ```python
 nan = torch.tensor(float('nan'))
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.power`
+########## `power`
 
 ```python
 power = torch.pow
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.prod`
+########## `prod`
 
 ```python
 prod = torch.prod
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.sign`
+########## `sign`
 
 ```python
 sign = torch.sign
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.sqrt`
+########## `sqrt`
 
 ```python
 sqrt = torch.sqrt
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.stack`
+########## `stack`
 
 ```python
 stack = torch.stack
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.std`
+########## `std`
 
 ```python
 std = torch.std
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.sum`
+########## `sum`
 
 ```python
 sum = torch.sum
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.tanh`
+########## `tanh`
 
 ```python
 tanh = torch.tanh
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.unique`
+########## `unique`
 
 ```python
 unique = torch.unique
@@ -7550,7 +7464,9 @@ unique = torch.unique
 
 
 
-######### Functions########## `nltools.algorithms.ridge.backends.torch_cuda.asarray`
+######### Functions####
+
+###### `asarray`
 
 ```python
 asarray(x, dtype = None, device = 'cuda')
@@ -7585,7 +7501,7 @@ Name | Type | Description
 'cuda'
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.asarray_like`
+########## `asarray_like`
 
 ```python
 asarray_like(x, ref)
@@ -7618,7 +7534,7 @@ Name | Type | Description
 torch.float32
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.atleast_1d`
+########## `atleast_1d`
 
 ```python
 atleast_1d(array)
@@ -7648,7 +7564,7 @@ Name | Type | Description
 torch.Size([1])
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.check_arrays`
+########## `check_arrays`
 
 ```python
 check_arrays(*all_inputs)
@@ -7684,7 +7600,7 @@ Name | Type | Description
 'cuda'
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.copy`
+########## `copy`
 
 ```python
 copy(x)
@@ -7717,7 +7633,7 @@ Name | Type | Description
 tensor(1)
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.flatnonzero`
+########## `flatnonzero`
 
 ```python
 flatnonzero(x)
@@ -7748,7 +7664,7 @@ Name | Type | Description
 tensor([1, 3, 5])
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.flip`
+########## `flip`
 
 ```python
 flip(array, axis = 0)
@@ -7781,7 +7697,7 @@ tensor([[3, 4],
         [1, 2]])
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.full_like`
+########## `full_like`
 
 ```python
 full_like(array, fill_value, shape = None, dtype = None, device = None)
@@ -7818,7 +7734,7 @@ tensor([[42., 42.],
         [42., 42.]])
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.is_in_gpu`
+########## `is_in_gpu`
 
 ```python
 is_in_gpu(array)
@@ -7849,7 +7765,7 @@ Name | Type | Description
 False
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.isin`
+########## `isin`
 
 ```python
 isin(x, y)
@@ -7879,7 +7795,7 @@ Currently uses NumPy for computation (may be optimized in future).
 
 </details>
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.max`
+########## `max`
 
 ```python
 max(*args, **kwargs)
@@ -7911,7 +7827,7 @@ Name | Type | Description
 tensor([3, 5])
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.min`
+########## `min`
 
 ```python
 min(*args, **kwargs)
@@ -7943,7 +7859,7 @@ Name | Type | Description
 tensor([1, 2])
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.norm`
+########## `norm`
 
 ```python
 norm(x, ord = 'fro', axis = None, keepdims = False)
@@ -7978,7 +7894,7 @@ Name | Type | Description
 tensor(5.4772)
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.ones_like`
+########## `ones_like`
 
 ```python
 ones_like(array, shape = None, dtype = None, device = None)
@@ -8014,7 +7930,7 @@ tensor([[1., 1., 1.],
         [1., 1., 1.]])
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.rand`
+########## `rand`
 
 ```python
 rand(*args, **kwargs)
@@ -8045,7 +7961,7 @@ Name | Type | Description
 'cuda'
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.randn`
+########## `randn`
 
 ```python
 randn(*args, **kwargs)
@@ -8076,7 +7992,7 @@ Name | Type | Description
 'cuda'
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.searchsorted`
+########## `searchsorted`
 
 ```python
 searchsorted(x, y)
@@ -8106,7 +8022,7 @@ Currently uses NumPy for computation (may be optimized in future).
 
 </details>
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.sort`
+########## `sort`
 
 ```python
 sort(array, axis = -1)
@@ -8138,7 +8054,7 @@ Name | Type | Description
 tensor([1, 2, 3])
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.svd`
+########## `svd`
 
 ```python
 svd(X, full_matrices = True)
@@ -8162,7 +8078,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `tuple` |  | (U, s, Vh) where: - U: Left singular vectors. - s: Singular values. - Vh: Right singular vectors (transposed).
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.to_cpu`
+########## `to_cpu`
 
 ```python
 to_cpu(array)
@@ -8194,7 +8110,7 @@ Name | Type | Description
 'cpu'
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.to_gpu`
+########## `to_gpu`
 
 ```python
 to_gpu(array, device = 'cuda')
@@ -8228,7 +8144,7 @@ Name | Type | Description
 'cuda'
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.to_numpy`
+########## `to_numpy`
 
 ```python
 to_numpy(array)
@@ -8261,7 +8177,7 @@ Name | Type | Description
 <class 'numpy.ndarray'>
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.transpose`
+########## `transpose`
 
 ```python
 transpose(a, axes = None)
@@ -8295,7 +8211,7 @@ tensor([[1, 3],
         [2, 4]])
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.zeros`
+########## `zeros`
 
 ```python
 zeros(shape, dtype = 'float32', device = 'cuda')
@@ -8326,7 +8242,7 @@ Name | Type | Description
 'cuda'
 ```
 
-########## `nltools.algorithms.ridge.backends.torch_cuda.zeros_like`
+########## `zeros_like`
 
 ```python
 zeros_like(array, shape = None, dtype = None, device = None)
@@ -8362,36 +8278,38 @@ tensor([[0., 0., 0.],
         [0., 0., 0.]])
 ```
 
-######## `nltools.algorithms.ridge.backends.utils`
+######## `utils`
 
 Backend utilities for ridge regression.
 
 Provides backend switching and utility functions following himalaya's approach.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`get_backend`](#nltools.algorithms.ridge.backends.utils.get_backend) | Get the current backend module.
-[`set_backend`](#nltools.algorithms.ridge.backends.utils.set_backend) | Set the backend using a global variable, and return the backend module.
-[`warn_if_not_float32`](#nltools.algorithms.ridge.backends.utils.warn_if_not_float32) | Warn if dtype is not float32.
+[`get_backend`](#get_backend) | Get the current backend module.
+[`set_backend`](#set_backend) | Set the backend using a global variable, and return the backend module.
+[`warn_if_not_float32`](#warn_if_not_float32) | Warn if dtype is not float32.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`ALL_BACKENDS`](#nltools.algorithms.ridge.backends.utils.ALL_BACKENDS) |  | 
-[`CURRENT_BACKEND`](#nltools.algorithms.ridge.backends.utils.CURRENT_BACKEND) |  | 
+[`ALL_BACKENDS`](#ALL_BACKENDS) |  | 
+[`CURRENT_BACKEND`](#CURRENT_BACKEND) |  | 
 
 
 
-######### Attributes########## `nltools.algorithms.ridge.backends.utils.ALL_BACKENDS`
+######### Attributes####
+
+###### `ALL_BACKENDS`
 
 ```python
 ALL_BACKENDS = ['numpy', 'torch', 'torch_cuda']
 ```
 
-########## `nltools.algorithms.ridge.backends.utils.CURRENT_BACKEND`
+########## `CURRENT_BACKEND`
 
 ```python
 CURRENT_BACKEND = 'numpy'
@@ -8399,7 +8317,9 @@ CURRENT_BACKEND = 'numpy'
 
 
 
-######### Functions########## `nltools.algorithms.ridge.backends.utils.get_backend`
+######### Functions####
+
+###### `get_backend`
 
 ```python
 get_backend()
@@ -8422,7 +8342,7 @@ Name | Type | Description
 'numpy'
 ```
 
-########## `nltools.algorithms.ridge.backends.utils.set_backend`
+########## `set_backend`
 
 ```python
 set_backend(backend, on_error = 'raise')
@@ -8452,7 +8372,7 @@ Name | Type | Description
 'numpy'
 ```
 
-########## `nltools.algorithms.ridge.backends.utils.warn_if_not_float32`
+########## `warn_if_not_float32`
 
 ```python
 warn_if_not_float32(dtype)
@@ -8479,7 +8399,7 @@ Name | Type | Description | Default
 
 </details>
 
-###### `nltools.algorithms.ridge.core`
+###### `core`
 
 Ridge regression algorithms using SVD decomposition.
 
@@ -8527,18 +8447,20 @@ himalaya is licensed under BSD-3-Clause: https://github.com/gallantlab/himalaya
 
 </details>
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`ridge_cv`](#nltools.algorithms.ridge.core.ridge_cv) | Ridge regression with cross-validation for hyperparameter selection.
-[`ridge_svd`](#nltools.algorithms.ridge.core.ridge_svd) | Solve ridge regression using Singular Value Decomposition.
+[`ridge_cv`](#ridge_cv) | Ridge regression with cross-validation for hyperparameter selection.
+[`ridge_svd`](#ridge_svd) | Solve ridge regression using Singular Value Decomposition.
 
 
 
 ####### Classes
 
-####### Functions######## `nltools.algorithms.ridge.core.ridge_cv`
+####### Functions##
+
+###### `ridge_cv`
 
 ```python
 ridge_cv(X: np.ndarray, y: np.ndarray, alphas: Optional[np.ndarray] = None, cv: int = 5, parallel: Optional[str] = 'cpu', max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
@@ -8588,7 +8510,7 @@ Name | Type | Description
 
 </details>
 
-######## `nltools.algorithms.ridge.core.ridge_svd`
+######## `ridge_svd`
 
 ```python
 ridge_svd(X: np.ndarray, y: np.ndarray, alpha: float = 1.0, parallel: Optional[str] = None, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> np.ndarray
@@ -8672,7 +8594,7 @@ Type | Description
 
 </details>
 
-###### `nltools.algorithms.ridge.solvers`
+###### `solvers`
 
 Ridge regression solvers with cross-validation.
 
@@ -8686,16 +8608,18 @@ Follows himalaya's implementation patterns:
 - Per-target or global alpha selection
 - Random search over feature space weights (Dirichlet sampling)
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`solve_banded_ridge_cv`](#nltools.algorithms.ridge.solvers.solve_banded_ridge_cv) | Solve banded ridge regression with cross-validation using random search.
-[`solve_ridge_cv`](#nltools.algorithms.ridge.solvers.solve_ridge_cv) | Solve ridge regression with cross-validation.
+[`solve_banded_ridge_cv`](#solve_banded_ridge_cv) | Solve banded ridge regression with cross-validation using random search.
+[`solve_ridge_cv`](#solve_ridge_cv) | Solve ridge regression with cross-validation.
 
 
 
-####### Functions######## `nltools.algorithms.ridge.solvers.solve_banded_ridge_cv`
+####### Functions##
+
+###### `solve_banded_ridge_cv`
 
 ```python
 solve_banded_ridge_cv(Xs: List[np.ndarray], Y: np.ndarray, n_iter: Union[int, np.ndarray] = 100, concentration: Union[float, List[float]] = [0.1, 1.0], alphas: Union[float, np.ndarray, List[float]] = [0.1, 1.0, 10.0], cv: Union[int, BaseCrossValidator] = 5, local_alpha: bool = True, n_targets_batch: Optional[int] = None, n_targets_batch_refit: Optional[int] = None, n_alphas_batch: Optional[int] = None, Y_in_cpu: bool = True, score_func: Optional[Callable[[np.ndarray, np.ndarray], np.ndarray]] = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, jitter_alphas: bool = False, return_weights: bool = True, diagonalize_method: str = 'svd', warn: bool = True, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> Dict[str, Any]
@@ -8804,7 +8728,7 @@ See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.
 
 </details>
 
-######## `nltools.algorithms.ridge.solvers.solve_ridge_cv`
+######## `solve_ridge_cv`
 
 ```python
 solve_ridge_cv(X: np.ndarray, Y: np.ndarray, alphas: Union[float, np.ndarray, List[float]] = [0.1, 1.0, 10.0], cv: Union[int, BaseCrossValidator] = 5, local_alpha: bool = True, n_targets_batch: Optional[int] = None, n_targets_batch_refit: Optional[int] = None, n_alphas_batch: Optional[int] = None, Y_in_cpu: bool = True, score_func: Optional[Callable[[np.ndarray, np.ndarray], np.ndarray]] = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> Dict[str, Any]
@@ -8886,22 +8810,24 @@ See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.
 
 </details>
 
-###### `nltools.algorithms.ridge.utils`
+###### `utils`
 
 Utility functions for ridge regression.
 
 Contains helper functions for batching, decomposition, and other utilities
 following himalaya's implementation patterns.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`generate_dirichlet_samples`](#nltools.algorithms.ridge.utils.generate_dirichlet_samples) | Generate samples from a Dirichlet distribution.
+[`generate_dirichlet_samples`](#generate_dirichlet_samples) | Generate samples from a Dirichlet distribution.
 
 
 
-####### Functions######## `nltools.algorithms.ridge.utils.generate_dirichlet_samples`
+####### Functions##
+
+###### `generate_dirichlet_samples`
 
 ```python
 generate_dirichlet_samples(n_samples: int, n_kernels: int, concentration: float | List[float] = [0.1, 1.0], random_state: Optional[int] = None) -> np.ndarray
@@ -8940,7 +8866,7 @@ Type | Description
 True
 ```
 
-#### `nltools.algorithms.shape_utils`
+#### `shape_utils`
 
 Shared shape manipulation utilities for algorithms module.
 
@@ -8970,18 +8896,20 @@ Example:
 
 </details>
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`batch_or_skip`](#nltools.algorithms.shape_utils.batch_or_skip) | Apply batch or skip if dimension is 1.
-[`ensure_2d`](#nltools.algorithms.shape_utils.ensure_2d) | Ensure array is 2D, adding dimension if needed.
-[`extract_triangle_elements`](#nltools.algorithms.shape_utils.extract_triangle_elements) | Extract triangle elements from square matrix.
-[`permute_matrix_symmetric`](#nltools.algorithms.shape_utils.permute_matrix_symmetric) | Apply symmetric row+column permutation to square matrix.
+[`batch_or_skip`](#batch_or_skip) | Apply batch or skip if dimension is 1.
+[`ensure_2d`](#ensure_2d) | Ensure array is 2D, adding dimension if needed.
+[`extract_triangle_elements`](#extract_triangle_elements) | Extract triangle elements from square matrix.
+[`permute_matrix_symmetric`](#permute_matrix_symmetric) | Apply symmetric row+column permutation to square matrix.
 
 
 
-##### Functions###### `nltools.algorithms.shape_utils.batch_or_skip`
+##### Methods
+
+###### `batch_or_skip`
 
 ```python
 batch_or_skip(array: np.ndarray, batch: slice, axis: int) -> np.ndarray
@@ -9022,7 +8950,7 @@ array([1.0])
 (5,)
 ```
 
-###### `nltools.algorithms.shape_utils.ensure_2d`
+###### `ensure_2d`
 
 ```python
 ensure_2d(array: np.ndarray, name: str = 'array') -> np.ndarray
@@ -9054,7 +8982,7 @@ Type | Description
 (2, 2)
 ```
 
-###### `nltools.algorithms.shape_utils.extract_triangle_elements`
+###### `extract_triangle_elements`
 
 ```python
 extract_triangle_elements(matrix: np.ndarray, triangle: str = 'upper', include_diag: bool = False) -> np.ndarray
@@ -9084,7 +9012,7 @@ Type | Description
 array([ 1,  2,  3,  6,  7, 11])
 ```
 
-###### `nltools.algorithms.shape_utils.permute_matrix_symmetric`
+###### `permute_matrix_symmetric`
 
 ```python
 permute_matrix_symmetric(matrix: np.ndarray, permutation: np.ndarray) -> np.ndarray
@@ -9120,7 +9048,7 @@ array([[8, 6, 7],
        [5, 3, 4]])
 ```
 
-#### `nltools.algorithms.srm`
+#### `srm`
 
 Shared Response Model (SRM) for multi-subject fMRI alignment.
 
@@ -9201,404 +9129,12 @@ limitations under the License.
 
 Name | Description
 ---- | -----------
-[`DetSRM`](#nltools.algorithms.srm.DetSRM) | Deterministic Shared Response Model (DetSRM)
-[`SRM`](#nltools.algorithms.srm.SRM) | Probabilistic Shared Response Model (SRM)
+[`DetSRM`](#DetSRM) | Deterministic Shared Response Model (DetSRM)
+[`SRM`](#SRM) | Probabilistic Shared Response Model (SRM)
 
+##### Methods
 
-
-##### Attributes
-
-##### Classes###### `nltools.algorithms.srm.DetSRM`
-
-```python
-DetSRM(n_iter: int = 10, features: int = 50, rand_seed: int = 0) -> None
-```
-
-Bases: <code>[BaseEstimator](#sklearn.base.BaseEstimator)</code>, <code>[TransformerMixin](#sklearn.base.TransformerMixin)</code>
-
-Deterministic Shared Response Model (DetSRM)
-
-Given multi-subject data, factorize it as a shared response S among all
-subjects and an orthogonal transform W per subject:
-
-.. math:: X_i \approx W_i S, \forall i=1 \dots N
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`n_iter` | <code>int, default=10</code> | Number of iterations to run the algorithm. | <code>10</code>
-`features` | <code>int, default=50</code> | Number of features to compute. | <code>50</code>
-`rand_seed` | <code>int, default=0</code> | Seed for initializing the random number generator. | <code>0</code>
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`w_`](#nltools.algorithms.srm.DetSRM.w_) | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
-[`s_`](#nltools.algorithms.srm.DetSRM.s_) | <code>array, shape=[features, samples]</code> | The shared response.
-[`random_state_`](#nltools.algorithms.srm.DetSRM.random_state_) | <code>`RandomState`</code> | Random number generator initialized using rand_seed
-
-<details class="note" open markdown="1">
-<summary>Note</summary>
-
-The number of voxels may be different between subjects. However, the
-number of samples must be the same across subjects.
-
-The Deterministic Shared Response Model is approximated using the
-Block Coordinate Descent (BCD) algorithm proposed in [Chen2015]_.
-
-This is a single node version.
-
-The run-time complexity is :math:`O(I (V T K + V K^2))` and the memory
-complexity is :math:`O(V T)` with I - the number of iterations, V - the
-sum of voxels from all subjects, T - the number of samples, K - the
-number of features (typically, :math:`V \gg T \gg K`), and N - the
-number of subjects.
-
-</details>
-
-**Examples:**
-
-Basic multi-subject DetSRM fitting:
-
-```pycon
->>> from nltools.algorithms import DetSRM
->>> import numpy as np
->>>
->>> # Create sample data (3 subjects)
->>> data = [np.random.randn(100, 50) for _ in range(3)]
->>>
->>> # Fit DetSRM with CPU parallelization (default)
->>> detsrm = DetSRM(n_iter=10, features=50)
->>> detsrm.fit(data, parallel="cpu", n_jobs=-1)
->>>
->>> # Transform to shared response space
->>> shared_responses = detsrm.transform(data)
->>>
->>> # Access fitted model components
->>> w = detsrm.w_  # Subject-specific transforms
->>> s = detsrm.s_  # Shared response
-```
-
-**Functions:**
-
-Name | Description
----- | -----------
-[`fit`](#nltools.algorithms.srm.DetSRM.fit) | Compute the Deterministic Shared Response Model
-[`transform`](#nltools.algorithms.srm.DetSRM.transform) | Use the model to transform data to the Shared Response subspace
-[`transform_subject`](#nltools.algorithms.srm.DetSRM.transform_subject) | Transform a new subject using the existing model.
-
-
-
-####### Attributes######## `nltools.algorithms.srm.DetSRM.features`
-
-```python
-features = features
-```
-
-######## `nltools.algorithms.srm.DetSRM.n_iter`
-
-```python
-n_iter = n_iter
-```
-
-######## `nltools.algorithms.srm.DetSRM.rand_seed`
-
-```python
-rand_seed = rand_seed
-```
-
-
-
-####### Functions######## `nltools.algorithms.srm.DetSRM.fit`
-
-```python
-fit(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> DetSRM
-```
-
-Compute the Deterministic Shared Response Model
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples]</code> | Each element in the list contains the fMRI data of one subject. | *required*
-`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used | <code>None</code>
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
-`max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory budget in GB (default: 4.0). Only used when parallel="gpu". Defaults to 4.0. | <code>4.0</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`self` | <code>[DetSRM](#nltools.algorithms.srm.DetSRM)</code> | Fitted model
-
-######## `nltools.algorithms.srm.DetSRM.transform`
-
-```python
-transform(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[np.ndarray]
-```
-
-Use the model to transform data to the Shared Response subspace
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples_i]</code> | Each element in the list contains the fMRI data of one subject. | *required*
-`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used | <code>None</code>
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`s` | <code>list of 2D arrays, element i has shape=[features_i, samples_i]</code> | Shared responses from input data (X)
-
-######## `nltools.algorithms.srm.DetSRM.transform_subject`
-
-```python
-transform_subject(X: np.ndarray) -> np.ndarray
-```
-
-Transform a new subject using the existing model.
-The subject is assumed to have recieved equivalent stimulation
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>2D array, shape=[voxels, timepoints]</code> | The fMRI data of the new subject. | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`w` | <code>2D array, shape=[voxels, features]</code> | Orthogonal mapping `W_{new}` for new subject
-
-###### `nltools.algorithms.srm.SRM`
-
-```python
-SRM(n_iter: int = 10, features: int = 50, rand_seed: int = 0) -> None
-```
-
-Bases: <code>[BaseEstimator](#sklearn.base.BaseEstimator)</code>, <code>[TransformerMixin](#sklearn.base.TransformerMixin)</code>
-
-Probabilistic Shared Response Model (SRM)
-
-Given multi-subject data, factorize it as a shared response S among all
-subjects and an orthogonal transform W per subject:
-
-.. math:: X_i \approx W_i S, \forall i=1 \dots N
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`n_iter` | <code>int, default=10</code> | Number of iterations to run the algorithm. | <code>10</code>
-`features` | <code>int, default=50</code> | Number of features to compute. | <code>50</code>
-`rand_seed` | <code>int, default=0</code> | Seed for initializing the random number generator. | <code>0</code>
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`w_`](#nltools.algorithms.srm.SRM.w_) | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
-[`s_`](#nltools.algorithms.srm.SRM.s_) | <code>array, shape=[features, samples]</code> | The shared response.
-[`sigma_s_`](#nltools.algorithms.srm.SRM.sigma_s_) | <code>array, shape=[features, features]</code> | The covariance of the shared response Normal distribution.
-[`mu_`](#nltools.algorithms.srm.SRM.mu_) | <code>list of array, element i has shape=[voxels_i]</code> | The voxel means over the samples for each subject.
-[`rho2_`](#nltools.algorithms.srm.SRM.rho2_) | <code>array, shape=[subjects]</code> | The estimated noise variance :math:`\rho_i^2` for each subject
-[`random_state_`](#nltools.algorithms.srm.SRM.random_state_) | <code>`RandomState`</code> | Random number generator initialized using rand_seed
-
-<details class="note" open markdown="1">
-<summary>Note</summary>
-
-The number of voxels may be different between subjects. However, the
-number of samples must be the same across subjects.
-
-The probabilistic Shared Response Model is approximated using the
-Expectation Maximization (EM) algorithm proposed in [Chen2015]_. The
-implementation follows the optimizations published in [Anderson2016]_.
-
-This is a single node version.
-
-The run-time complexity is :math:`O(I (V T K + V K^2 + K^3))` and the
-memory complexity is :math:`O(V T)` with I - the number of iterations,
-V - the sum of voxels from all subjects, T - the number of samples, and
-K - the number of features (typically, :math:`V \gg T \gg K`).
-
-</details>
-
-**Examples:**
-
-Basic multi-subject SRM fitting:
-
-```pycon
->>> from nltools.algorithms import SRM
->>> import numpy as np
->>>
->>> # Create sample data (3 subjects)
->>> data = [np.random.randn(100, 50) for _ in range(3)]
->>>
->>> # Fit SRM with CPU parallelization (default)
->>> srm = SRM(n_iter=10, features=50)
->>> srm.fit(data, parallel="cpu", n_jobs=-1)
->>>
->>> # Transform to shared response space
->>> shared_responses = srm.transform(data)
->>>
->>> # Access fitted model components
->>> w = srm.w_  # Subject-specific transforms
->>> s = srm.s_  # Shared response
-```
-
-**Functions:**
-
-Name | Description
----- | -----------
-[`fit`](#nltools.algorithms.srm.SRM.fit) | Compute the probabilistic Shared Response Model
-[`transform`](#nltools.algorithms.srm.SRM.transform) | Use the model to transform matrix to Shared Response space
-[`transform_subject`](#nltools.algorithms.srm.SRM.transform_subject) | Transform a new subject using the existing model.
-
-
-
-####### Attributes######## `nltools.algorithms.srm.SRM.features`
-
-```python
-features = features
-```
-
-######## `nltools.algorithms.srm.SRM.n_iter`
-
-```python
-n_iter = n_iter
-```
-
-######## `nltools.algorithms.srm.SRM.rand_seed`
-
-```python
-rand_seed = rand_seed
-```
-
-
-
-####### Functions######## `nltools.algorithms.srm.SRM.fit`
-
-```python
-fit(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, pad_samples: bool = True) -> SRM
-```
-
-Compute the probabilistic Shared Response Model
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples]</code> | Each element in the list contains the fMRI data of one subject. Subjects can have different numbers of samples if pad_samples=True. | *required*
-`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used | <code>None</code>
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
-`max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory budget in GB (default: 4.0). Only used when parallel="gpu". Defaults to 4.0. | <code>4.0</code>
-`pad_samples` | <code>[bool](#bool)</code> | If True (default), automatically zero-pad subjects with fewer samples to match the longest subject. This allows fitting SRM on data with unequal numbers of time points across subjects. | <code>True</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`self` | <code>[SRM](#nltools.algorithms.srm.SRM)</code> | Fitted model
-
-######## `nltools.algorithms.srm.SRM.transform`
-
-```python
-transform(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[np.ndarray]
-```
-
-Use the model to transform matrix to Shared Response space
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples_i]</code> | Each element in the list contains the fMRI data of one subject. Note that number of voxels and samples can vary across subjects. | *required*
-`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used (as it is unsupervised learning) | <code>None</code>
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`s` | <code>list of 2D arrays, element i has shape=[features_i, samples_i]</code> | Shared responses from input data (X)
-
-######## `nltools.algorithms.srm.SRM.transform_subject`
-
-```python
-transform_subject(X: np.ndarray) -> np.ndarray
-```
-
-Transform a new subject using the existing model.
-The subject is assumed to have recieved equivalent stimulation
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>2D array, shape=[voxels, timepoints]</code> | The fMRI data of the new subject. | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`w` | <code>2D array, shape=[voxels, features]</code> | Orthogonal mapping `W_{new}` for new subject
-
-#### `nltools.algorithms.validation`
-
-Shared validation utilities for algorithms module.
-
-This module provides common validation functions to reduce code duplication
-and ensure consistent error handling across the algorithms module.
-
-<details class="usage" open markdown="1">
-<summary>Usage</summary>
-
-These functions are used throughout the algorithms module to validate
-input parameters. They provide consistent error messages and behavior.
-
-Example:
-    >>> from nltools.algorithms.validation import validate_parallel_parameter
-    >>> validate_parallel_parameter("cpu")  # OK
-    >>> validate_parallel_parameter("invalid")  # Raises ValueError
-
-</details>
-
-**Functions:**
-
-Name | Description
----- | -----------
-[`validate_alpha`](#nltools.algorithms.validation.validate_alpha) | Validate regularization parameter alpha.
-[`validate_array_shape`](#nltools.algorithms.validation.validate_array_shape) | Validate array dimensionality.
-[`validate_array_shape_range`](#nltools.algorithms.validation.validate_array_shape_range) | Validate array dimensionality is within a range.
-[`validate_bootstrap_data`](#nltools.algorithms.validation.validate_bootstrap_data) | Validate input data for bootstrapping.
-[`validate_bootstrap_method`](#nltools.algorithms.validation.validate_bootstrap_method) | Validate bootstrap method name.
-[`validate_how_parameter`](#nltools.algorithms.validation.validate_how_parameter) | Validate 'how' parameter for matrix operations.
-[`validate_isc_parameters`](#nltools.algorithms.validation.validate_isc_parameters) | Validate ISC parameter values.
-[`validate_metric_parameter`](#nltools.algorithms.validation.validate_metric_parameter) | Validate metric parameter.
-[`validate_n_samples`](#nltools.algorithms.validation.validate_n_samples) | Validate number of samples.
-[`validate_parallel_parameter`](#nltools.algorithms.validation.validate_parallel_parameter) | Validate parallel parameter.
-[`validate_parallel_parameter_matrix`](#nltools.algorithms.validation.validate_parallel_parameter_matrix) | Validate parallel parameter for matrix operations.
-[`validate_percentiles`](#nltools.algorithms.validation.validate_percentiles) | Validate percentile values for confidence intervals.
-[`validate_same_first_dimension`](#nltools.algorithms.validation.validate_same_first_dimension) | Validate two arrays have same first dimension.
-[`validate_same_shape`](#nltools.algorithms.validation.validate_same_shape) | Validate two arrays have same shape.
-[`validate_shape_compatibility`](#nltools.algorithms.validation.validate_shape_compatibility) | Validate that X and y have compatible shapes for regression.
-[`validate_square_matrix`](#nltools.algorithms.validation.validate_square_matrix) | Validate matrix is square.
-[`validate_tail_parameter`](#nltools.algorithms.validation.validate_tail_parameter) | Validate and normalize tail parameter.
-
-
-
-##### Functions###### `nltools.algorithms.validation.validate_alpha`
+###### `validate_alpha`
 
 ```python
 validate_alpha(alpha: float, name: str = 'alpha') -> None
@@ -9613,7 +9149,7 @@ Name | Type | Description | Default
 `alpha` | <code>[float](#float)</code> | Regularization parameter | *required*
 `name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'alpha'</code>
 
-###### `nltools.algorithms.validation.validate_array_shape`
+###### `validate_array_shape`
 
 ```python
 validate_array_shape(array: np.ndarray, expected_ndim: int, name: str = 'array') -> None
@@ -9629,7 +9165,7 @@ Name | Type | Description | Default
 `expected_ndim` | <code>[int](#int)</code> | Expected number of dimensions | *required*
 `name` | <code>[str](#str)</code> | Name of array for error message | <code>'array'</code>
 
-###### `nltools.algorithms.validation.validate_array_shape_range`
+###### `validate_array_shape_range`
 
 ```python
 validate_array_shape_range(array: np.ndarray, min_ndim: int, max_ndim: int, name: str = 'array') -> None
@@ -9646,7 +9182,7 @@ Name | Type | Description | Default
 `max_ndim` | <code>[int](#int)</code> | Maximum number of dimensions (inclusive) | *required*
 `name` | <code>[str](#str)</code> | Name of array for error message | <code>'array'</code>
 
-###### `nltools.algorithms.validation.validate_bootstrap_data`
+###### `validate_bootstrap_data`
 
 ```python
 validate_bootstrap_data(data: np.ndarray, method: str) -> None
@@ -9661,7 +9197,7 @@ Name | Type | Description | Default
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Data to validate | *required*
 `method` | <code>[str](#str)</code> | Bootstrap method | *required*
 
-###### `nltools.algorithms.validation.validate_bootstrap_method`
+###### `validate_bootstrap_method`
 
 ```python
 validate_bootstrap_method(method: str, simple_methods: list[str], fitted_methods: list[str]) -> None
@@ -9677,7 +9213,7 @@ Name | Type | Description | Default
 `simple_methods` | <code>[list](#list)[[str](#str)]</code> | List of simple method names | *required*
 `fitted_methods` | <code>[list](#list)[[str](#str)]</code> | List of fitted method names | *required*
 
-###### `nltools.algorithms.validation.validate_how_parameter`
+###### `validate_how_parameter`
 
 ```python
 validate_how_parameter(how: str) -> None
@@ -9691,7 +9227,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `how` | <code>[str](#str)</code> | How parameter value | *required*
 
-###### `nltools.algorithms.validation.validate_isc_parameters`
+###### `validate_isc_parameters`
 
 ```python
 validate_isc_parameters(metric: str, summary_statistic: str, method: Optional[str] = None) -> None
@@ -9707,7 +9243,7 @@ Name | Type | Description | Default
 `summary_statistic` | <code>[str](#str)</code> | ISC computation method | *required*
 `method` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Resampling method (optional) | <code>None</code>
 
-###### `nltools.algorithms.validation.validate_metric_parameter`
+###### `validate_metric_parameter`
 
 ```python
 validate_metric_parameter(metric: str, allowed: list[str], name: str = 'metric') -> None
@@ -9723,7 +9259,7 @@ Name | Type | Description | Default
 `allowed` | <code>[list](#list)[[str](#str)]</code> | List of allowed metric values | *required*
 `name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'metric'</code>
 
-###### `nltools.algorithms.validation.validate_n_samples`
+###### `validate_n_samples`
 
 ```python
 validate_n_samples(n_samples: int, min_samples: int = 2, name: str = 'n_samples') -> None
@@ -9739,7 +9275,7 @@ Name | Type | Description | Default
 `min_samples` | <code>[int](#int)</code> | Minimum required samples | <code>2</code>
 `name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'n_samples'</code>
 
-###### `nltools.algorithms.validation.validate_parallel_parameter`
+###### `validate_parallel_parameter`
 
 ```python
 validate_parallel_parameter(parallel: Optional[str]) -> None
@@ -9753,7 +9289,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallel parameter value | *required*
 
-###### `nltools.algorithms.validation.validate_parallel_parameter_matrix`
+###### `validate_parallel_parameter_matrix`
 
 ```python
 validate_parallel_parameter_matrix(parallel: Optional[str]) -> None
@@ -9767,7 +9303,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallel parameter value | *required*
 
-###### `nltools.algorithms.validation.validate_percentiles`
+###### `validate_percentiles`
 
 ```python
 validate_percentiles(percentiles: Tuple[float, float]) -> None
@@ -9781,7 +9317,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `percentiles` | <code>[Tuple](#typing.Tuple)[[float](#float), [float](#float)]</code> | Percentile values (lower, upper) | *required*
 
-###### `nltools.algorithms.validation.validate_same_first_dimension`
+###### `validate_same_first_dimension`
 
 ```python
 validate_same_first_dimension(array1: np.ndarray, array2: np.ndarray, name1: str = 'array1', name2: str = 'array2') -> None
@@ -9798,7 +9334,7 @@ Name | Type | Description | Default
 `name1` | <code>[str](#str)</code> | Name of first array for error message | <code>'array1'</code>
 `name2` | <code>[str](#str)</code> | Name of second array for error message | <code>'array2'</code>
 
-###### `nltools.algorithms.validation.validate_same_shape`
+###### `validate_same_shape`
 
 ```python
 validate_same_shape(array1: np.ndarray, array2: np.ndarray, name1: str = 'array1', name2: str = 'array2') -> None
@@ -9815,7 +9351,7 @@ Name | Type | Description | Default
 `name1` | <code>[str](#str)</code> | Name of first array for error message | <code>'array1'</code>
 `name2` | <code>[str](#str)</code> | Name of second array for error message | <code>'array2'</code>
 
-###### `nltools.algorithms.validation.validate_shape_compatibility`
+###### `validate_shape_compatibility`
 
 ```python
 validate_shape_compatibility(X: np.ndarray, y: np.ndarray, X_name: str = 'X', y_name: str = 'y') -> None
@@ -9832,7 +9368,7 @@ Name | Type | Description | Default
 `X_name` | <code>[str](#str)</code> | Name of X for error message | <code>'X'</code>
 `y_name` | <code>[str](#str)</code> | Name of y for error message | <code>'y'</code>
 
-###### `nltools.algorithms.validation.validate_square_matrix`
+###### `validate_square_matrix`
 
 ```python
 validate_square_matrix(matrix: np.ndarray, name: str = 'matrix') -> None
@@ -9847,7 +9383,7 @@ Name | Type | Description | Default
 `matrix` | <code>[ndarray](#numpy.ndarray)</code> | Matrix to validate | *required*
 `name` | <code>[str](#str)</code> | Name of matrix for error message | <code>'matrix'</code>
 
-###### `nltools.algorithms.validation.validate_tail_parameter`
+###### `validate_tail_parameter`
 
 ```python
 validate_tail_parameter(tail: int | str) -> str

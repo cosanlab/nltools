@@ -1,26 +1,28 @@
-## `nltools.data.adjacency.stats`
+## `stats`
 
 Standalone statistical functions for Adjacency matrices.
 
 Each function takes an Adjacency instance as its first argument (`adj`).
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`cluster_summary`](#nltools.data.adjacency.stats.cluster_summary) | This function provides summaries of clusters within Adjacency matrices.
-[`plot_label_distance`](#nltools.data.adjacency.stats.plot_label_distance) | Create a violin plot indicating within and between label distance
-[`plot_silhouette`](#nltools.data.adjacency.stats.plot_silhouette) | Create a silhouette plot.
-[`r_to_z`](#nltools.data.adjacency.stats.r_to_z) | Apply Fisher's r to z transformation to each element of the data object.
-[`similarity`](#nltools.data.adjacency.stats.similarity) | Calculate similarity between two Adjacency matrices. Default is to use spearman
-[`stats_label_distance`](#nltools.data.adjacency.stats.stats_label_distance) | Calculate permutation tests on within and between label distance.
-[`threshold`](#nltools.data.adjacency.stats.threshold) | Threshold Adjacency instance. Provide upper and lower values or
-[`ttest`](#nltools.data.adjacency.stats.ttest) | Calculate ttest across samples.
-[`z_to_r`](#nltools.data.adjacency.stats.z_to_r) | Convert z score back into r value for each element of data object.
+[`cluster_summary`](#cluster_summary) | This function provides summaries of clusters within Adjacency matrices.
+[`plot_label_distance`](#plot_label_distance) | Create a violin plot indicating within and between label distance
+[`plot_silhouette`](#plot_silhouette) | Create a silhouette plot.
+[`r_to_z`](#r_to_z) | Apply Fisher's r to z transformation to each element of the data object.
+[`similarity`](#similarity) | Calculate similarity between two Adjacency matrices. Default is to use spearman
+[`stats_label_distance`](#stats_label_distance) | Calculate permutation tests on within and between label distance.
+[`threshold`](#threshold) | Threshold Adjacency instance. Provide upper and lower values or
+[`ttest`](#ttest) | Calculate ttest across samples.
+[`z_to_r`](#z_to_r) | Convert z score back into r value for each element of data object.
 
 
 
-### Functions#### `nltools.data.adjacency.stats.cluster_summary`
+### Methods
+
+#### `cluster_summary`
 
 ```python
 cluster_summary(adj, clusters = None, metric = 'mean', summary = 'within')
@@ -46,7 +48,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dict` |  | (dict) within cluster means
 
-#### `nltools.data.adjacency.stats.plot_label_distance`
+#### `plot_label_distance`
 
 ```python
 plot_label_distance(adj, labels = None, ax = None)
@@ -67,7 +69,7 @@ Type | Description
 ---- | -----------
  | None
 
-#### `nltools.data.adjacency.stats.plot_silhouette`
+#### `plot_silhouette`
 
 ```python
 plot_silhouette(adj, labels = None, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
@@ -91,7 +93,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dict` |  | Silhouette plot results including scores and optional permutation p-value.
 
-#### `nltools.data.adjacency.stats.r_to_z`
+#### `r_to_z`
 
 ```python
 r_to_z(adj)
@@ -111,7 +113,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `Adjacency` |  | New Adjacency with z-transformed values.
 
-#### `nltools.data.adjacency.stats.similarity`
+#### `similarity`
 
 ```python
 similarity(adj, data, plot = False, perm_type = '2d', n_permute = 5000, metric = 'spearman', ignore_diagonal = False, nan_policy = 'omit', **kwargs)
@@ -139,7 +141,7 @@ Type | Description
 ---- | -----------
  | dict or list: Correlation result dict with keys 'r' and 'p', or a list of such dicts when adj contains multiple matrices.
 
-#### `nltools.data.adjacency.stats.stats_label_distance`
+#### `stats_label_distance`
 
 ```python
 stats_label_distance(adj, labels = None, n_permute = 5000, n_jobs = -1)
@@ -161,7 +163,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dict` |  | dictionary of within and between group differences     and p-values
 
-#### `nltools.data.adjacency.stats.threshold`
+#### `threshold`
 
 ```python
 threshold(adj, upper = None, lower = None, binarize = False)
@@ -187,7 +189,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `Adjacency` |  | thresholded Adjacency instance
 
-#### `nltools.data.adjacency.stats.ttest`
+#### `ttest`
 
 ```python
 ttest(adj, permutation = False, **kwargs)
@@ -208,7 +210,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `out` |  | (dict) contains Adjacency instances of t values (or mean if  running permutation) and Adjacency instance of p values.
 
-#### `nltools.data.adjacency.stats.z_to_r`
+#### `z_to_r`
 
 ```python
 z_to_r(adj)

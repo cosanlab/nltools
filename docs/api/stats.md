@@ -1,55 +1,51 @@
-## `nltools.stats`
+## `stats`
 
 NeuroLearn Statistics Tools
 ===========================
 
 Tools to help with statistical analyses.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`align`](#nltools.stats.align) | Align subject data into a common response model. This function is a convenience wrapper around `HyperAlignment` and `SRM` classes
-[`align_states`](#nltools.stats.align_states) | Align state weight maps using hungarian algorithm by minimizing pairwise distance between group states.This function uses the Hungarian algorithm for state alignment, which is different from aligning multiple subjects' data.
-[`calc_bpm`](#nltools.stats.calc_bpm) | Calculate instantaneous BPM from beat to beat interval
-[`compute_icc`](#nltools.stats.compute_icc) | Compute intraclass correlation coefficient (ICC).
-[`compute_multivariate_similarity`](#nltools.stats.compute_multivariate_similarity) | Compute multivariate similarity via OLS regression.
-[`compute_similarity`](#nltools.stats.compute_similarity) | Compute similarity between two data arrays.
-[`correlation_permutation`](#nltools.stats.correlation_permutation) | Compute correlation and calculate p-value using permutation methods.
-[`distance_correlation`](#nltools.stats.distance_correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
-[`double_center`](#nltools.stats.double_center) | Double center a 2d array.
-[`downsample`](#nltools.stats.downsample) | Downsample Polars or pandas DataFrame/Series to a new target frequency or number of samples using averaging.
-[`fdr`](#nltools.stats.fdr) | Determine FDR threshold given a p value array and desired false
-[`find_spikes`](#nltools.stats.find_spikes) | Function to identify spikes from fMRI Time Series Data
-[`fisher_r_to_z`](#nltools.stats.fisher_r_to_z) | Use Fisher transformation to convert correlation to z score
-[`fisher_z_to_r`](#nltools.stats.fisher_z_to_r) | Use Fisher transformation to convert correlation to z score
-[`holm_bonf`](#nltools.stats.holm_bonf) | Compute corrected p-values based on the Holm-Bonferroni method, i.e. step-down procedure applying iteratively less correction to highest p-values. A bit more conservative than fdr, but much more powerful thanvanilla bonferroni.
-[`isc`](#nltools.stats.isc) | Compute pairwise intersubject correlation from observations by subjects array.
-[`isc_group`](#nltools.stats.isc_group) | Compute difference in intersubject correlation between groups.
-[`isfc`](#nltools.stats.isfc) | Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices
-[`isps`](#nltools.stats.isps) | Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array)
-[`make_cosine_basis`](#nltools.stats.make_cosine_basis) | Create a series of cosine basis functions for a discrete cosine
-[`matrix_permutation`](#nltools.stats.matrix_permutation) | Permute 2-dimensional matrix correlation (mantel test).
-[`multi_threshold`](#nltools.stats.multi_threshold) | Threshold test image by multiple p-values from p image.
-[`one_sample_permutation`](#nltools.stats.one_sample_permutation) | One sample permutation test using randomization.
-[`procrustes`](#nltools.stats.procrustes) | Procrustes analysis, a similarity test for two data sets. For more comprehensive procrustes-based alignment tasks, use `HyperAlignment` and `align()` instead.
-[`procrustes_distance`](#nltools.stats.procrustes_distance) | Use procrustes super-position to perform a similarity test between 2 matrices. Matrices need to match in size on their first dimension only, as the smaller matrix on the second dimension will be padded with zeros. After aligning two matrices using the procrustes transformation, use the computed disparity between them (sum of squared error of elements) as a similarity metric. Shuffle the rows of one of the matrices and recompute the disparity to perform inference (Peres-Neto & Jackson, 2001).
-[`threshold`](#nltools.stats.threshold) | Threshold test image by p-value from p image.
-[`transform_pairwise`](#nltools.stats.transform_pairwise) | Transforms data into pairs with balanced labels for ranking
-[`trim`](#nltools.stats.trim) | Trim a Polars or pandas DataFrame/Series by replacing outlier values with NaNs.
-[`two_sample_permutation`](#nltools.stats.two_sample_permutation) | Independent sample permutation test.
-[`u_center`](#nltools.stats.u_center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
-[`upsample`](#nltools.stats.upsample) | Upsample Polars or pandas DataFrame/Series to a new target frequency or number of samples using interpolation.
-[`winsorize`](#nltools.stats.winsorize) | Winsorize a Polars or pandas DataFrame/Series with the largest/lowest value not considered outlier.
-[`zscore`](#nltools.stats.zscore) | zscore every column in a pandas dataframe or series.
+[`align`](#align) | Align subject data into a common response model. This function is a convenience wrapper around `HyperAlignment` and `SRM` classes
+[`align_states`](#align_states) | Align state weight maps using hungarian algorithm by minimizing pairwise distance between group states.This function uses the Hungarian algorithm for state alignment, which is different from aligning multiple subjects' data.
+[`calc_bpm`](#calc_bpm) | Calculate instantaneous BPM from beat to beat interval
+[`compute_icc`](#compute_icc) | Compute intraclass correlation coefficient (ICC).
+[`compute_multivariate_similarity`](#compute_multivariate_similarity) | Compute multivariate similarity via OLS regression.
+[`compute_similarity`](#compute_similarity) | Compute similarity between two data arrays.
+[`correlation_permutation`](#correlation_permutation) | Compute correlation and calculate p-value using permutation methods.
+[`distance_correlation`](#distance_correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
+[`double_center`](#double_center) | Double center a 2d array.
+[`downsample`](#downsample) | Downsample Polars or pandas DataFrame/Series to a new target frequency or number of samples using averaging.
+[`fdr`](#fdr) | Determine FDR threshold given a p value array and desired false
+[`find_spikes`](#find_spikes) | Function to identify spikes from fMRI Time Series Data
+[`fisher_r_to_z`](#fisher_r_to_z) | Use Fisher transformation to convert correlation to z score
+[`fisher_z_to_r`](#fisher_z_to_r) | Use Fisher transformation to convert correlation to z score
+[`holm_bonf`](#holm_bonf) | Compute corrected p-values based on the Holm-Bonferroni method, i.e. step-down procedure applying iteratively less correction to highest p-values. A bit more conservative than fdr, but much more powerful thanvanilla bonferroni.
+[`isc`](#isc) | Compute pairwise intersubject correlation from observations by subjects array.
+[`isc_group`](#isc_group) | Compute difference in intersubject correlation between groups.
+[`isfc`](#isfc) | Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices
+[`isps`](#isps) | Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array)
+[`make_cosine_basis`](#make_cosine_basis) | Create a series of cosine basis functions for a discrete cosine
+[`matrix_permutation`](#matrix_permutation) | Permute 2-dimensional matrix correlation (mantel test).
+[`multi_threshold`](#multi_threshold) | Threshold test image by multiple p-values from p image.
+[`one_sample_permutation`](#one_sample_permutation) | One sample permutation test using randomization.
+[`procrustes`](#procrustes) | Procrustes analysis, a similarity test for two data sets. For more comprehensive procrustes-based alignment tasks, use `HyperAlignment` and `align()` instead.
+[`procrustes_distance`](#procrustes_distance) | Use procrustes super-position to perform a similarity test between 2 matrices. Matrices need to match in size on their first dimension only, as the smaller matrix on the second dimension will be padded with zeros. After aligning two matrices using the procrustes transformation, use the computed disparity between them (sum of squared error of elements) as a similarity metric. Shuffle the rows of one of the matrices and recompute the disparity to perform inference (Peres-Neto & Jackson, 2001).
+[`threshold`](#threshold) | Threshold test image by p-value from p image.
+[`transform_pairwise`](#transform_pairwise) | Transforms data into pairs with balanced labels for ranking
+[`trim`](#trim) | Trim a Polars or pandas DataFrame/Series by replacing outlier values with NaNs.
+[`two_sample_permutation`](#two_sample_permutation) | Independent sample permutation test.
+[`u_center`](#u_center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
+[`upsample`](#upsample) | Upsample Polars or pandas DataFrame/Series to a new target frequency or number of samples using interpolation.
+[`winsorize`](#winsorize) | Winsorize a Polars or pandas DataFrame/Series with the largest/lowest value not considered outlier.
+[`zscore`](#zscore) | zscore every column in a pandas dataframe or series.
 
+### Methods
 
-
-### Attributes
-
-### Classes
-
-### Functions#### `nltools.stats.align`
+#### `align`
 
 ```python
 align(data, method = 'deterministic_srm', n_features = None, axis = 0, *args, **kwargs)
@@ -90,7 +86,7 @@ Name | Type | Description
 - Project aligned data into original data:
     >>> original_data = [np.dot(t.data,tm.T) for t,tm in zip(out['transformed'], out['transformation_matrix'])]
 
-#### `nltools.stats.align_states`
+#### `align_states`
 
 ```python
 align_states(reference, target, metric = 'correlation', return_index = False, replace_zero_variance = False)
@@ -111,7 +107,7 @@ Name | Type | Description | Default
 Returns:
     ordered_weights: (list) a list of reordered state X pattern matrices
 
-#### `nltools.stats.calc_bpm`
+#### `calc_bpm`
 
 ```python
 calc_bpm(beat_interval, sampling_freq)
@@ -132,7 +128,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `bpm` |  | (float) beats per minute for time interval
 
-#### `nltools.stats.compute_icc`
+#### `compute_icc`
 
 ```python
 compute_icc(Y, icc_type = 'icc2')
@@ -172,7 +168,7 @@ Name | Type | Description
 True
 ```
 
-#### `nltools.stats.compute_multivariate_similarity`
+#### `compute_multivariate_similarity`
 
 ```python
 compute_multivariate_similarity(y, X, method = 'ols')
@@ -213,7 +209,7 @@ True
 (6,)  # 5 predictors + intercept
 ```
 
-#### `nltools.stats.compute_similarity`
+#### `compute_similarity`
 
 ```python
 compute_similarity(data1, data2, method = 'correlation')
@@ -248,7 +244,7 @@ Type | Description
 (10, 5)
 ```
 
-#### `nltools.stats.correlation_permutation`
+#### `correlation_permutation`
 
 ```python
 correlation_permutation(data1, data2, method = 'permute', n_permute = 5000, metric = 'spearman', tail = 2, n_jobs = -1, return_perms = False, random_state = None)
@@ -297,7 +293,7 @@ This function uses the optimized inference module implementation which provides:
 
 </details>
 
-#### `nltools.stats.distance_correlation`
+#### `distance_correlation`
 
 ```python
 distance_correlation(x: np.ndarray, y: np.ndarray, bias_corrected: bool = True, ttest: bool = False) -> dict
@@ -350,7 +346,7 @@ True
 True
 ```
 
-#### `nltools.stats.double_center`
+#### `double_center`
 
 ```python
 double_center(mat: np.ndarray) -> np.ndarray
@@ -384,7 +380,7 @@ True
 True
 ```
 
-#### `nltools.stats.downsample`
+#### `downsample`
 
 ```python
 downsample(data, sampling_freq = None, target = None, target_type = 'samples', method = 'mean')
@@ -408,7 +404,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `out` |  | (pl.DataFrame, pl.Series) downsampled data (same type as input)
 
-#### `nltools.stats.fdr`
+#### `fdr`
 
 ```python
 fdr(p, q = 0.05)
@@ -430,7 +426,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `fdr_p` |  | (float) p-value threshold based on independence or positive     dependence
 
-#### `nltools.stats.find_spikes`
+#### `find_spikes`
 
 ```python
 find_spikes(data, global_spike_cutoff = 3, diff_spike_cutoff = 3)
@@ -449,7 +445,7 @@ Name | Type | Description | Default
 Returns:
     Polars DataFrame with spikes as indicator variables
 
-#### `nltools.stats.fisher_r_to_z`
+#### `fisher_r_to_z`
 
 ```python
 fisher_r_to_z(r)
@@ -476,7 +472,7 @@ Clips r values to (-1, 1) range to avoid invalid arctanh inputs
 
 </details>
 
-#### `nltools.stats.fisher_z_to_r`
+#### `fisher_z_to_r`
 
 ```python
 fisher_z_to_r(z)
@@ -484,7 +480,7 @@ fisher_z_to_r(z)
 
 Use Fisher transformation to convert correlation to z score
 
-#### `nltools.stats.holm_bonf`
+#### `holm_bonf`
 
 ```python
 holm_bonf(p, alpha = 0.05)
@@ -505,7 +501,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `bonf_p` |  | (float) p-value threshold based on bonferroni     step-down procedure
 
-#### `nltools.stats.isc`
+#### `isc`
 
 ```python
 isc(data, n_samples = 5000, metric = 'median', method = 'bootstrap', ci_percentile = 95, exclude_self_corr = True, return_null = False, tail = 2, n_jobs = -1, random_state = None, sim_metric = 'correlation')
@@ -566,7 +562,7 @@ which provides optimized implementations with CPU-parallel and GPU acceleration 
 Performance improvements: 4-8× speedup for CPU-parallel operations, 10-100× speedup
 for GPU operations. See `nltools.algorithms.inference.isc.isc_permutation_test` for details.
 
-#### `nltools.stats.isc_group`
+#### `isc_group`
 
 ```python
 isc_group(group1, group2, n_samples = 5000, metric = 'median', method = 'permute', ci_percentile = 95, exclude_self_corr = True, return_null = False, tail = 2, n_jobs = -1, random_state = None)
@@ -629,7 +625,7 @@ Performance improvements:
 - 10-30× speedup with GPU backend for voxel-wise LOO computation
 - More memory efficient (no Adjacency object overhead)
 
-#### `nltools.stats.isfc`
+#### `isfc`
 
 ```python
 isfc(data, method = 'average', n_jobs = -1)
@@ -671,7 +667,7 @@ CPU parallelization is available via joblib when n_jobs > 1 or n_jobs=-1,
 providing 4-8× speedup on multi-core machines. Each subject's ISFC computation
 is independent and can be parallelized efficiently.
 
-#### `nltools.stats.isps`
+#### `isps`
 
 ```python
 isps(data, sampling_freq = 0.5, low_cut = 0.04, high_cut = 0.07, order = 5, pairwise = False)
@@ -722,7 +718,7 @@ Type | Description
 ---- | -----------
  | dictionary with mean phase angle, vector length, and rayleigh statistic
 
-#### `nltools.stats.make_cosine_basis`
+#### `make_cosine_basis`
 
 ```python
 make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale = True, drop = 0)
@@ -750,7 +746,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `out` | <code>[ndarray](#ndarray)</code> | nsamples x number of basis sets numpy array
 
-#### `nltools.stats.matrix_permutation`
+#### `matrix_permutation`
 
 ```python
 matrix_permutation(data1, data2, n_permute = 5000, metric = 'spearman', how = 'upper', include_diag = False, tail = 2, n_jobs = -1, return_perms = False, random_state = None)
@@ -797,7 +793,7 @@ This function uses the optimized inference module implementation which provides:
 
 </details>
 
-#### `nltools.stats.multi_threshold`
+#### `multi_threshold`
 
 ```python
 multi_threshold(t_map, p_map, thresh)
@@ -830,7 +826,7 @@ This function provides unique cumulative threshold map functionality:
 
 </details>
 
-#### `nltools.stats.one_sample_permutation`
+#### `one_sample_permutation`
 
 ```python
 one_sample_permutation(data, n_permute = 5000, tail = 2, n_jobs = -1, return_perms = False, random_state = None)
@@ -872,7 +868,7 @@ This function uses the optimized inference module implementation which provides:
 
 </details>
 
-#### `nltools.stats.procrustes`
+#### `procrustes`
 
 ```python
 procrustes(data1, data2)
@@ -911,7 +907,7 @@ Name | Type | Description
 `R` |  | (N, N) ndarray The matrix solution of the orthogonal Procrustes problem. Minimizes the Frobenius norm of dot(data1, R) - data2, subject to dot(R.T, R) == I.
 `scale` |  | float Sum of the singular values of ``dot(data1.T, data2)``.
 
-#### `nltools.stats.procrustes_distance`
+#### `procrustes_distance`
 
 ```python
 procrustes_distance(mat1, mat2, n_permute = 5000, tail = 2, n_jobs = -1, random_state = None)
@@ -936,7 +932,7 @@ Name | Type | Description
 `similarity` | <code>[float](#float)</code> | similarity between matrices bounded between 0 and 1
 `pval` | <code>[float](#float)</code> | permuted p-value
 
-#### `nltools.stats.threshold`
+#### `threshold`
 
 ```python
 threshold(stat, p, thr = 0.05, return_mask = False)
@@ -971,7 +967,7 @@ This function provides unique functionality not available in nilearn:
 
 </details>
 
-#### `nltools.stats.transform_pairwise`
+#### `transform_pairwise`
 
 ```python
 transform_pairwise(X, y)
@@ -1003,7 +999,7 @@ Name | Type | Description
 `X_trans` |  | (np.array), shape (k, n_feaures) Data as pairs, where k = n_samples * (n_samples-1)) / 2 if grouping values were not passed. If grouping variables exist, then returns values computed for each group.
 `y_trans` |  | (np.array), shape (k,) Output class labels, where classes have values {-1, +1} If y was shape (n_samples, 2), then returns (k, 2) with groups on the second dimension.
 
-#### `nltools.stats.trim`
+#### `trim`
 
 ```python
 trim(data, cutoff = None)
@@ -1021,7 +1017,7 @@ Name | Type | Description | Default
 Returns:
     out: (pl.DataFrame, pl.Series) trimmed data (same type as input)
 
-#### `nltools.stats.two_sample_permutation`
+#### `two_sample_permutation`
 
 ```python
 two_sample_permutation(data1, data2, n_permute = 5000, tail = 2, n_jobs = -1, return_perms = False, random_state = None)
@@ -1060,7 +1056,7 @@ This function uses the optimized inference module implementation which provides:
 
 </details>
 
-#### `nltools.stats.u_center`
+#### `u_center`
 
 ```python
 u_center(mat: np.ndarray) -> np.ndarray
@@ -1092,7 +1088,7 @@ Name | Type | Description
 True
 ```
 
-#### `nltools.stats.upsample`
+#### `upsample`
 
 ```python
 upsample(data, sampling_freq = None, target = None, target_type = 'samples', method = 'linear')
@@ -1113,7 +1109,7 @@ Name | Type | Description | Default
 Returns:
     upsampled Polars DataFrame or Series (same type as input)
 
-#### `nltools.stats.winsorize`
+#### `winsorize`
 
 ```python
 winsorize(data, cutoff = None, replace_with_cutoff = True)
@@ -1132,7 +1128,7 @@ Name | Type | Description | Default
 Returns:
     out: (pl.DataFrame, pl.Series) winsorized data (same type as input)
 
-#### `nltools.stats.zscore`
+#### `zscore`
 
 ```python
 zscore(df)

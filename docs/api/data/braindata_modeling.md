@@ -1,27 +1,29 @@
-## `nltools.data.braindata.modeling`
+## `modeling`
 
 BrainData modeling functions.
 
 Standalone functions extracted from BrainData class methods for model fitting,
 cross-validation, GLM estimation, Ridge regression, and contrast computation.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`compute_contrasts`](#nltools.data.braindata.modeling.compute_contrasts) | Compute contrasts from fitted GLM results.
-[`compute_ridge_cv`](#nltools.data.braindata.modeling.compute_ridge_cv) | Compute cross-validation results for Ridge regression.
-[`cv`](#nltools.data.braindata.modeling.cv) | Create a cross-validation pipeline for this BrainData.
-[`fit`](#nltools.data.braindata.modeling.fit) | Fit a model to brain imaging data.
-[`fit_glm`](#nltools.data.braindata.modeling.fit_glm) | Fit GLM model and extract results (same logic as current regress()).
-[`fit_ridge`](#nltools.data.braindata.modeling.fit_ridge) | Fit Ridge model and extract results.
-[`parse_contrast_string`](#nltools.data.braindata.modeling.parse_contrast_string) | Parse a contrast string into a numeric contrast vector.
-[`regress`](#nltools.data.braindata.modeling.regress) | Deprecated: Use fit(model='glm', X=design_matrix) instead.
-[`to_fit_dataclass`](#nltools.data.braindata.modeling.to_fit_dataclass) | Convert BrainData fit results to Fit dataclass.
+[`compute_contrasts`](#compute_contrasts) | Compute contrasts from fitted GLM results.
+[`compute_ridge_cv`](#compute_ridge_cv) | Compute cross-validation results for Ridge regression.
+[`cv`](#cv) | Create a cross-validation pipeline for this BrainData.
+[`fit`](#fit) | Fit a model to brain imaging data.
+[`fit_glm`](#fit_glm) | Fit GLM model and extract results (same logic as current regress()).
+[`fit_ridge`](#fit_ridge) | Fit Ridge model and extract results.
+[`parse_contrast_string`](#parse_contrast_string) | Parse a contrast string into a numeric contrast vector.
+[`regress`](#regress) | Deprecated: Use fit(model='glm', X=design_matrix) instead.
+[`to_fit_dataclass`](#to_fit_dataclass) | Convert BrainData fit results to Fit dataclass.
 
 
 
-### Functions#### `nltools.data.braindata.modeling.compute_contrasts`
+### Methods
+
+#### `compute_contrasts`
 
 ```python
 compute_contrasts(bd, contrasts, contrast_type = 't')
@@ -82,7 +84,7 @@ Type | Description
 
 </details>
 
-#### `nltools.data.braindata.modeling.compute_ridge_cv`
+#### `compute_ridge_cv`
 
 ```python
 compute_ridge_cv(bd, X, cv, alpha = None, alphas = None, backend = 'auto', **kwargs)
@@ -108,7 +110,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dict` |  | Dictionary containing: - 'scores': (n_folds, n_voxels) array of R-squared per fold - 'mean_score': (n_voxels,) array of mean R-squared across folds - 'predictions': BrainData of out-of-fold predictions - 'folds': (n_samples,) array of fold indices - 'best_alpha': Selected alpha (if alpha selection performed) - 'alpha_scores': (n_folds, n_alphas, n_voxels) array (if alpha selection)
 
-#### `nltools.data.braindata.modeling.cv`
+#### `cv`
 
 ```python
 cv(bd, k = None, scheme = 'kfold', split_by = None, groups = None, random_state = None, **kwargs)
@@ -168,7 +170,7 @@ CVScheme: For CV scheme configuration details.
 
 </details>
 
-#### `nltools.data.braindata.modeling.fit`
+#### `fit`
 
 ```python
 fit(bd, model = None, X = None, cv = None, inplace = True, progress_bar = None, scale = True, scale_value = 100.0, **kwargs)
@@ -204,20 +206,20 @@ Type | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`The`](#nltools.data.braindata.modeling.fit.The) | <code>following are set on bd when ``inplace=True``</code> | 
+[`The`](#The) | <code>following are set on bd when ``inplace=True``</code> | 
 [```model_```](#nltools.data.braindata.modeling.fit.``model_``) | <code>[BaseModel](#BaseModel)</code> | Fitted model instance (Ridge, Glm, etc.)
 [```X_```](#nltools.data.braindata.modeling.fit.``X_``) | <code>[ndarray](#ndarray)</code> | Training data X, stored for predict() default
 [```cv_results_```](#nltools.data.braindata.modeling.fit.``cv_results_``) | <code>[dict](#dict)</code> | Cross-validation results dict with keys 'scores',
-[`glm_betas`](#nltools.data.braindata.modeling.fit.glm_betas) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Beta coefficients (for model='glm')
-[`glm_t`](#nltools.data.braindata.modeling.fit.glm_t) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | T-statistics (for model='glm')
-[`glm_p`](#nltools.data.braindata.modeling.fit.glm_p) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | P-values (for model='glm')
-[`glm_se`](#nltools.data.braindata.modeling.fit.glm_se) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Standard errors (for model='glm')
-[`glm_residual`](#nltools.data.braindata.modeling.fit.glm_residual) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Residuals (for model='glm')
-[`glm_predicted`](#nltools.data.braindata.modeling.fit.glm_predicted) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Fitted values (for model='glm')
-[`glm_r2`](#nltools.data.braindata.modeling.fit.glm_r2) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | R-squared values (for model='glm')
-[`ridge_weights`](#nltools.data.braindata.modeling.fit.ridge_weights) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Model coefficients (for model='ridge')
-[`ridge_fitted_values`](#nltools.data.braindata.modeling.fit.ridge_fitted_values) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Fitted values (for model='ridge')
-[`ridge_scores`](#nltools.data.braindata.modeling.fit.ridge_scores) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | R-squared scores (for model='ridge')
+[`glm_betas`](#glm_betas) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Beta coefficients (for model='glm')
+[`glm_t`](#glm_t) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | T-statistics (for model='glm')
+[`glm_p`](#glm_p) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | P-values (for model='glm')
+[`glm_se`](#glm_se) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Standard errors (for model='glm')
+[`glm_residual`](#glm_residual) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Residuals (for model='glm')
+[`glm_predicted`](#glm_predicted) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Fitted values (for model='glm')
+[`glm_r2`](#glm_r2) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | R-squared values (for model='glm')
+[`ridge_weights`](#ridge_weights) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Model coefficients (for model='ridge')
+[`ridge_fitted_values`](#ridge_fitted_values) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Fitted values (for model='ridge')
+[`ridge_scores`](#ridge_scores) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | R-squared scores (for model='ridge')
 
 **Examples:**
 
@@ -240,7 +242,7 @@ Name | Type | Description
 >>> assert 't_stats' in fit_glm.available()
 ```
 
-#### `nltools.data.braindata.modeling.fit_glm`
+#### `fit_glm`
 
 ```python
 fit_glm(bd, X)
@@ -263,7 +265,7 @@ glm_r2, and design_matrix on bd.
 
 </details>
 
-#### `nltools.data.braindata.modeling.fit_ridge`
+#### `fit_ridge`
 
 ```python
 fit_ridge(bd, X, cv = None, **kwargs)
@@ -288,7 +290,7 @@ cv_results_ (if cv provided) on bd.
 
 </details>
 
-#### `nltools.data.braindata.modeling.parse_contrast_string`
+#### `parse_contrast_string`
 
 ```python
 parse_contrast_string(bd, contrast_str)
@@ -309,7 +311,7 @@ Type | Description
 ---- | -----------
  | np.array: Numeric contrast vector
 
-#### `nltools.data.braindata.modeling.regress`
+#### `regress`
 
 ```python
 regress(bd, design_matrix = None, noise_model = 'ols', mode = None, **kwargs)
@@ -327,7 +329,7 @@ Name | Type | Description | Default
 `mode` |  | Mode (unused, raises error). | <code>None</code>
 `**kwargs` |  | Additional arguments (unused, raises error). | <code>{}</code>
 
-#### `nltools.data.braindata.modeling.to_fit_dataclass`
+#### `to_fit_dataclass`
 
 ```python
 to_fit_dataclass(bd, model)

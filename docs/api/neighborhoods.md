@@ -1,4 +1,4 @@
-## `nltools.data.braindata.neighborhoods`
+## `neighborhoods`
 
 Spatial neighborhood computation for neuroimaging analyses.
 
@@ -30,17 +30,19 @@ is deterministic and can be cached for reuse across analyses.
 
 Name | Description
 ---- | -----------
-[`SphereNeighborhoods`](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) | Precomputed sphere neighborhoods for a brain mask.
+[`SphereNeighborhoods`](#SphereNeighborhoods) | Precomputed sphere neighborhoods for a brain mask.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`compute_searchlight_neighborhoods`](#nltools.data.braindata.neighborhoods.compute_searchlight_neighborhoods) | Compute sphere neighborhoods for all voxels in a brain mask.
+[`compute_searchlight_neighborhoods`](#compute_searchlight_neighborhoods) | Compute sphere neighborhoods for all voxels in a brain mask.
 
 
 
-### Classes#### `nltools.data.braindata.neighborhoods.SphereNeighborhoods`
+### Classes
+
+#### `SphereNeighborhoods`
 
 ```python
 SphereNeighborhoods(adjacency: sparse.csr_matrix, mask_hash: str, radius_mm: float, n_voxels: int) -> None
@@ -56,10 +58,10 @@ iteration over neighborhoods for searchlight-style analyses.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`adjacency`](#nltools.data.braindata.neighborhoods.SphereNeighborhoods.adjacency) | <code>[csr_matrix](#scipy.sparse.csr_matrix)</code> | Sparse CSR matrix (n_voxels, n_voxels) where adjacency[i, j] is True if voxel j is within radius of voxel i
-[`mask_hash`](#nltools.data.braindata.neighborhoods.SphereNeighborhoods.mask_hash) | <code>[str](#str)</code> | Hash of the source mask for validation
-[`radius_mm`](#nltools.data.braindata.neighborhoods.SphereNeighborhoods.radius_mm) | <code>[float](#float)</code> | Radius in millimeters
-[`n_voxels`](#nltools.data.braindata.neighborhoods.SphereNeighborhoods.n_voxels) | <code>[int](#int)</code> | Number of voxels in the mask
+[`adjacency`](#adjacency) | <code>[csr_matrix](#scipy.sparse.csr_matrix)</code> | Sparse CSR matrix (n_voxels, n_voxels) where adjacency[i, j] is True if voxel j is within radius of voxel i
+[`mask_hash`](#mask_hash) | <code>[str](#str)</code> | Hash of the source mask for validation
+[`radius_mm`](#radius_mm) | <code>[float](#float)</code> | Radius in millimeters
+[`n_voxels`](#n_voxels) | <code>[int](#int)</code> | Number of voxels in the mask
 
 <details class="example" open markdown="1">
 <summary>Example</summary>
@@ -73,67 +75,17 @@ Name | Type | Description
 
 </details>
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`get_neighborhood_size`](#nltools.data.braindata.neighborhoods.SphereNeighborhoods.get_neighborhood_size) | Get the number of voxels in a neighborhood.
-[`get_neighbors`](#nltools.data.braindata.neighborhoods.SphereNeighborhoods.get_neighbors) | Get indices of all voxels in the neighborhood of a given voxel.
-[`iter_neighborhoods`](#nltools.data.braindata.neighborhoods.SphereNeighborhoods.iter_neighborhoods) | Iterate over all neighborhoods.
+[`get_neighborhood_size`](#get_neighborhood_size) | Get the number of voxels in a neighborhood.
+[`get_neighbors`](#get_neighbors) | Get indices of all voxels in the neighborhood of a given voxel.
+[`iter_neighborhoods`](#iter_neighborhoods) | Iterate over all neighborhoods.
 
+##### Methods
 
-
-##### Attributes###### `nltools.data.braindata.neighborhoods.SphereNeighborhoods.adjacency`
-
-```python
-adjacency: sparse.csr_matrix
-```
-
-###### `nltools.data.braindata.neighborhoods.SphereNeighborhoods.mask_hash`
-
-```python
-mask_hash: str
-```
-
-###### `nltools.data.braindata.neighborhoods.SphereNeighborhoods.max_size`
-
-```python
-max_size: int
-```
-
-Maximum neighborhood size.
-
-###### `nltools.data.braindata.neighborhoods.SphereNeighborhoods.mean_size`
-
-```python
-mean_size: float
-```
-
-Mean neighborhood size in voxels.
-
-###### `nltools.data.braindata.neighborhoods.SphereNeighborhoods.min_size`
-
-```python
-min_size: int
-```
-
-Minimum neighborhood size.
-
-###### `nltools.data.braindata.neighborhoods.SphereNeighborhoods.n_voxels`
-
-```python
-n_voxels: int
-```
-
-###### `nltools.data.braindata.neighborhoods.SphereNeighborhoods.radius_mm`
-
-```python
-radius_mm: float
-```
-
-
-
-##### Functions###### `nltools.data.braindata.neighborhoods.SphereNeighborhoods.get_neighborhood_size`
+###### `get_neighborhood_size`
 
 ```python
 get_neighborhood_size(voxel_idx: int) -> int
@@ -153,7 +105,7 @@ Type | Description
 ---- | -----------
 <code>[int](#int)</code> | Number of voxels in the neighborhood
 
-###### `nltools.data.braindata.neighborhoods.SphereNeighborhoods.get_neighbors`
+###### `get_neighbors`
 
 ```python
 get_neighbors(voxel_idx: int) -> np.ndarray
@@ -173,7 +125,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Array of voxel indices within radius of the center voxel
 
-###### `nltools.data.braindata.neighborhoods.SphereNeighborhoods.iter_neighborhoods`
+###### `iter_neighborhoods`
 
 ```python
 iter_neighborhoods(show_progress: bool = False) -> Iterator[tuple[int, np.ndarray]]
@@ -195,7 +147,9 @@ Name | Type | Description | Default
 
 
 
-### Functions#### `nltools.data.braindata.neighborhoods.compute_searchlight_neighborhoods`
+### Methods
+
+#### `compute_searchlight_neighborhoods`
 
 ```python
 compute_searchlight_neighborhoods(mask_img: 'Nifti1Image', radius_mm: float = 10.0, use_cache: bool = True) -> SphereNeighborhoods

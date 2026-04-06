@@ -1,30 +1,32 @@
-## `nltools.data.collection.transforms`
+## `transforms`
 
 BrainCollection transform functions.
 
 Extracted from BrainCollection methods — each function takes a BrainCollection
 as its first argument (``bc``) instead of ``self``.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`align`](#nltools.data.collection.transforms.align) | Align subjects using local functional alignment.
-[`detrend`](#nltools.data.collection.transforms.detrend) | Remove trend from each image.
-[`filter_collection`](#nltools.data.collection.transforms.filter_collection) | Filter collection by predicate.
-[`map_axis0`](#nltools.data.collection.transforms.map_axis0) | Map function over images (axis=0).
-[`map_axis1`](#nltools.data.collection.transforms.map_axis1) | Map function over timepoints (axis=1).
-[`map_axis2`](#nltools.data.collection.transforms.map_axis2) | Map function over voxels (axis=2) per image.
-[`map_collection`](#nltools.data.collection.transforms.map_collection) | Apply function across specified axis.
-[`smooth`](#nltools.data.collection.transforms.smooth) | Spatially smooth each image.
-[`standardize`](#nltools.data.collection.transforms.standardize) | Standardize each image.
-[`threshold`](#nltools.data.collection.transforms.threshold) | Threshold each image.
+[`align`](#align) | Align subjects using local functional alignment.
+[`detrend`](#detrend) | Remove trend from each image.
+[`filter_collection`](#filter_collection) | Filter collection by predicate.
+[`map_axis0`](#map_axis0) | Map function over images (axis=0).
+[`map_axis1`](#map_axis1) | Map function over timepoints (axis=1).
+[`map_axis2`](#map_axis2) | Map function over voxels (axis=2) per image.
+[`map_collection`](#map_collection) | Apply function across specified axis.
+[`smooth`](#smooth) | Spatially smooth each image.
+[`standardize`](#standardize) | Standardize each image.
+[`threshold`](#threshold) | Threshold each image.
 
 
 
 ### Classes
 
-### Functions#### `nltools.data.collection.transforms.align`
+### Methods
+
+#### `align`
 
 ```python
 align(bc: 'BrainCollection', method: str = 'procrustes', scheme: str = 'searchlight', radius_mm: float = 10.0, parcellation: 'nib.Nifti1Image | None' = None, n_features: int | None = None, n_iter: int = 3, parallel: str | None = 'cpu', n_jobs: int = -1, return_model: bool = False, show_progress: bool = True) -> 'BrainCollection | tuple[BrainCollection, object]'
@@ -103,7 +105,7 @@ nltools.algorithms.alignment.LocalAlignment: Underlying alignment class.
 
 </details>
 
-#### `nltools.data.collection.transforms.detrend`
+#### `detrend`
 
 ```python
 detrend(bc: 'BrainCollection', method: str = 'linear', n_jobs: int = 1, show_progress: bool = True) -> 'BrainCollection'
@@ -135,7 +137,7 @@ Type | Description
 >>> bc.detrend(method='constant')  # Remove mean only
 ```
 
-#### `nltools.data.collection.transforms.filter_collection`
+#### `filter_collection`
 
 ```python
 filter_collection(bc: 'BrainCollection', predicate: 'Callable | list | np.ndarray') -> 'BrainCollection'
@@ -174,7 +176,7 @@ Type | Description
 >>> bc.filter(bc.metadata['group'] == 'control')
 ```
 
-#### `nltools.data.collection.transforms.map_axis0`
+#### `map_axis0`
 
 ```python
 map_axis0(bc: 'BrainCollection', fn: Callable, n_jobs: int, show_progress: bool) -> 'BrainCollection'
@@ -182,7 +184,7 @@ map_axis0(bc: 'BrainCollection', fn: Callable, n_jobs: int, show_progress: bool)
 
 Map function over images (axis=0).
 
-#### `nltools.data.collection.transforms.map_axis1`
+#### `map_axis1`
 
 ```python
 map_axis1(bc: 'BrainCollection', fn: Callable, n_jobs: int, show_progress: bool) -> 'BrainCollection'
@@ -190,7 +192,7 @@ map_axis1(bc: 'BrainCollection', fn: Callable, n_jobs: int, show_progress: bool)
 
 Map function over timepoints (axis=1).
 
-#### `nltools.data.collection.transforms.map_axis2`
+#### `map_axis2`
 
 ```python
 map_axis2(bc: 'BrainCollection', fn: Callable, n_jobs: int, show_progress: bool) -> 'BrainCollection'
@@ -198,7 +200,7 @@ map_axis2(bc: 'BrainCollection', fn: Callable, n_jobs: int, show_progress: bool)
 
 Map function over voxels (axis=2) per image.
 
-#### `nltools.data.collection.transforms.map_collection`
+#### `map_collection`
 
 ```python
 map_collection(bc: 'BrainCollection', fn: Callable, axis: int | str = 0, n_jobs: int = 1, show_progress: bool = True) -> 'BrainCollection'
@@ -243,7 +245,7 @@ Type | Description
 >>> bc.map(expensive_fn, n_jobs=-1)
 ```
 
-#### `nltools.data.collection.transforms.smooth`
+#### `smooth`
 
 ```python
 smooth(bc: 'BrainCollection', fwhm: float, n_jobs: int = 1, show_progress: bool = True) -> 'BrainCollection'
@@ -274,10 +276,10 @@ Type | Description
 >>> bc.smooth(fwhm=6)  # 6mm FWHM smoothing
 ```
 
-#### `nltools.data.collection.transforms.standardize`
+#### `standardize`
 
 ```python
-standardize(bc: 'BrainCollection', axis: int = 0, method: str = 'center', n_jobs: int = 1, show_progress: bool = True) -> 'BrainCollection'
+standardize(bc: 'BrainCollection', axis: int = 0, method: str = 'center', n_jobs: int = 1, show_progress: bool = True, verbose: bool = True) -> 'BrainCollection'
 ```
 
 Standardize each image.
@@ -293,6 +295,7 @@ Name | Type | Description | Default
 `method` | <code>[str](#str)</code> | 'center' (subtract mean) or 'zscore' (subtract mean, divide std) | <code>'center'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>1</code>
 `show_progress` | <code>[bool](#bool)</code> | Show progress bar. | <code>True</code>
+`verbose` | <code>[bool](#bool)</code> | If False, suppress sklearn numerical warnings. Default: True. | <code>True</code>
 
 **Returns:**
 
@@ -308,7 +311,7 @@ Type | Description
 >>> bc.standardize(axis=1)  # Standardize across voxels
 ```
 
-#### `nltools.data.collection.transforms.threshold`
+#### `threshold`
 
 ```python
 threshold(bc: 'BrainCollection', upper: float | str | None = None, lower: float | str | None = None, binarize: bool = False, coerce_nan: bool = True, n_jobs: int = 1, show_progress: bool = True) -> 'BrainCollection'

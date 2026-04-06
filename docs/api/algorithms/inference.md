@@ -1,4 +1,4 @@
-## `nltools.algorithms.inference`
+## `inference`
 
 GPU-accelerated statistical inference for neuroimaging.
 
@@ -70,43 +70,45 @@ with BrainData objects, see nltools.data.brain_data.
 
 Name | Description
 ---- | -----------
-[`bootstrap`](#nltools.algorithms.inference.bootstrap) | Bootstrap inference utilities with CPU/GPU support.
-[`correlation`](#nltools.algorithms.inference.correlation) | Correlation permutation test implementations.
-[`icc`](#nltools.algorithms.inference.icc) | Voxel-wise Intraclass Correlation Coefficient (ICC) computation.
-[`isc`](#nltools.algorithms.inference.isc) | Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
-[`matrix`](#nltools.algorithms.inference.matrix) | Matrix permutation test implementations (Mantel test).
-[`one_sample`](#nltools.algorithms.inference.one_sample) | One-sample permutation test implementations.
-[`timeseries`](#nltools.algorithms.inference.timeseries) | Time-series permutation test implementations.
-[`two_sample`](#nltools.algorithms.inference.two_sample) | Two-sample permutation test implementations.
-[`utils`](#nltools.algorithms.inference.utils) | Utility functions for permutation testing.
+[`bootstrap`](#bootstrap) | Bootstrap inference utilities with CPU/GPU support.
+[`correlation`](#correlation) | Correlation permutation test implementations.
+[`icc`](#icc) | Voxel-wise Intraclass Correlation Coefficient (ICC) computation.
+[`isc`](#isc) | Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
+[`matrix`](#matrix) | Matrix permutation test implementations (Mantel test).
+[`one_sample`](#one_sample) | One-sample permutation test implementations.
+[`timeseries`](#timeseries) | Time-series permutation test implementations.
+[`two_sample`](#two_sample) | Two-sample permutation test implementations.
+[`utils`](#utils) | Utility functions for permutation testing.
 
 **Classes:**
 
 Name | Description
 ---- | -----------
-[`OnlineBootstrapStats`](#nltools.algorithms.inference.OnlineBootstrapStats) | Memory-efficient online statistics aggregator for bootstrap samples.
+[`OnlineBootstrapStats`](#OnlineBootstrapStats) | Memory-efficient online statistics aggregator for bootstrap samples.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`circle_shift`](#nltools.algorithms.inference.circle_shift) | Circular shift for time-series data.
-[`compute_icc_voxelwise`](#nltools.algorithms.inference.compute_icc_voxelwise) | Compute voxel-wise ICC across many voxels.
-[`correlation_permutation_test`](#nltools.algorithms.inference.correlation_permutation_test) | Correlation permutation test.
-[`distance_correlation`](#nltools.algorithms.inference.distance_correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
-[`double_center`](#nltools.algorithms.inference.double_center) | Double center a 2d array.
-[`isc_group_permutation_test`](#nltools.algorithms.inference.isc_group_permutation_test) | Compute ISC difference between groups with permutation testing.
-[`isc_permutation_test`](#nltools.algorithms.inference.isc_permutation_test) | Compute intersubject correlation with permutation testing.
-[`matrix_permutation_test`](#nltools.algorithms.inference.matrix_permutation_test) | Matrix permutation test (Mantel test) for correlating two square matrices.
-[`one_sample_permutation_test`](#nltools.algorithms.inference.one_sample_permutation_test) | One-sample permutation test using sign-flipping.
-[`phase_randomize`](#nltools.algorithms.inference.phase_randomize) | FFT-based phase randomization for time-series data.
-[`timeseries_correlation_permutation_test`](#nltools.algorithms.inference.timeseries_correlation_permutation_test) | Time-series correlation permutation test.
-[`two_sample_permutation_test`](#nltools.algorithms.inference.two_sample_permutation_test) | Two-sample permutation test using group label shuffling.
-[`u_center`](#nltools.algorithms.inference.u_center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
+[`circle_shift`](#circle_shift) | Circular shift for time-series data.
+[`compute_icc_voxelwise`](#compute_icc_voxelwise) | Compute voxel-wise ICC across many voxels.
+[`correlation_permutation_test`](#correlation_permutation_test) | Correlation permutation test.
+[`distance_correlation`](#distance_correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
+[`double_center`](#double_center) | Double center a 2d array.
+[`isc_group_permutation_test`](#isc_group_permutation_test) | Compute ISC difference between groups with permutation testing.
+[`isc_permutation_test`](#isc_permutation_test) | Compute intersubject correlation with permutation testing.
+[`matrix_permutation_test`](#matrix_permutation_test) | Matrix permutation test (Mantel test) for correlating two square matrices.
+[`one_sample_permutation_test`](#one_sample_permutation_test) | One-sample permutation test using sign-flipping.
+[`phase_randomize`](#phase_randomize) | FFT-based phase randomization for time-series data.
+[`timeseries_correlation_permutation_test`](#timeseries_correlation_permutation_test) | Time-series correlation permutation test.
+[`two_sample_permutation_test`](#two_sample_permutation_test) | Two-sample permutation test using group label shuffling.
+[`u_center`](#u_center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
 
 
 
-### Classes#### `nltools.algorithms.inference.OnlineBootstrapStats`
+### Classes
+
+#### `OnlineBootstrapStats`
 
 ```python
 OnlineBootstrapStats(shape: Tuple[int, ...], save_samples: bool = False, percentiles: Tuple[float, float] = (2.5, 97.5))
@@ -137,72 +139,28 @@ Name | Type | Description | Default
 dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
 ```
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`get_results`](#nltools.algorithms.inference.OnlineBootstrapStats.get_results) | Compute final bootstrap statistics.
-[`update`](#nltools.algorithms.inference.OnlineBootstrapStats.update) | Update statistics with a new bootstrap sample.
+[`get_results`](#get_results) | Compute final bootstrap statistics.
+[`update`](#update) | Update statistics with a new bootstrap sample.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`M2`](#nltools.algorithms.inference.OnlineBootstrapStats.M2) |  | 
-[`mean`](#nltools.algorithms.inference.OnlineBootstrapStats.mean) |  | 
-[`n`](#nltools.algorithms.inference.OnlineBootstrapStats.n) |  | 
-[`percentiles`](#nltools.algorithms.inference.OnlineBootstrapStats.percentiles) |  | 
-[`samples`](#nltools.algorithms.inference.OnlineBootstrapStats.samples) |  | 
-[`save_samples`](#nltools.algorithms.inference.OnlineBootstrapStats.save_samples) |  | 
-[`shape`](#nltools.algorithms.inference.OnlineBootstrapStats.shape) |  | 
+[`M2`](#M2) |  | 
+[`mean`](#mean) |  | 
+[`n`](#n) |  | 
+[`percentiles`](#percentiles) |  | 
+[`samples`](#samples) |  | 
+[`save_samples`](#save_samples) |  | 
+[`shape`](#shape) |  | 
 
+##### Methods
 
-
-##### Attributes###### `nltools.algorithms.inference.OnlineBootstrapStats.M2`
-
-```python
-M2 = np.zeros(shape, dtype=(np.float64))
-```
-
-###### `nltools.algorithms.inference.OnlineBootstrapStats.mean`
-
-```python
-mean = np.zeros(shape, dtype=(np.float64))
-```
-
-###### `nltools.algorithms.inference.OnlineBootstrapStats.n`
-
-```python
-n = 0
-```
-
-###### `nltools.algorithms.inference.OnlineBootstrapStats.percentiles`
-
-```python
-percentiles = percentiles
-```
-
-###### `nltools.algorithms.inference.OnlineBootstrapStats.samples`
-
-```python
-samples = [] if save_samples else None
-```
-
-###### `nltools.algorithms.inference.OnlineBootstrapStats.save_samples`
-
-```python
-save_samples = save_samples
-```
-
-###### `nltools.algorithms.inference.OnlineBootstrapStats.shape`
-
-```python
-shape = shape
-```
-
-
-
-##### Functions###### `nltools.algorithms.inference.OnlineBootstrapStats.get_results`
+###### `get_results`
 
 ```python
 get_results() -> Dict[str, np.ndarray]
@@ -280,7 +238,7 @@ The deprecated `summarize_bootstrap()` function can be replaced with this class:
 >>> if 'samples' in result:
 ...     equivalent_result['samples'] = result['samples']
 
-###### `nltools.algorithms.inference.OnlineBootstrapStats.update`
+###### `update`
 
 ```python
 update(sample: np.ndarray) -> None
@@ -298,7 +256,9 @@ Name | Type | Description | Default
 
 
 
-### Functions#### `nltools.algorithms.inference.circle_shift`
+### Methods
+
+#### `circle_shift`
 
 ```python
 circle_shift(data: np.ndarray, shift_amount: Optional[Union[int, np.ndarray]] = None, random_state: Optional[Union[int, np.random.RandomState]] = None) -> np.ndarray
@@ -342,7 +302,7 @@ array([[ 4, 30],
        [ 3, 20]])
 ```
 
-#### `nltools.algorithms.inference.compute_icc_voxelwise`
+#### `compute_icc_voxelwise`
 
 ```python
 compute_icc_voxelwise(data: np.ndarray, n_subjects: int, n_sessions: int, icc_type: Literal['icc1', 'icc2', 'icc3'] = 'icc2', parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, backend: Optional[Backend] = None) -> np.ndarray
@@ -392,7 +352,7 @@ Type | Description
 True
 ```
 
-#### `nltools.algorithms.inference.correlation_permutation_test`
+#### `correlation_permutation_test`
 
 ```python
 correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
@@ -470,7 +430,7 @@ Name | Type | Description
 
 </details>
 
-#### `nltools.algorithms.inference.distance_correlation`
+#### `distance_correlation`
 
 ```python
 distance_correlation(x: np.ndarray, y: np.ndarray, bias_corrected: bool = True, ttest: bool = False) -> dict
@@ -523,7 +483,7 @@ True
 True
 ```
 
-#### `nltools.algorithms.inference.double_center`
+#### `double_center`
 
 ```python
 double_center(mat: np.ndarray) -> np.ndarray
@@ -557,7 +517,7 @@ True
 True
 ```
 
-#### `nltools.algorithms.inference.isc_group_permutation_test`
+#### `isc_group_permutation_test`
 
 ```python
 isc_group_permutation_test(group1: np.ndarray, group2: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', method: Literal['permute', 'bootstrap'] = 'permute', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', ci_percentile: float = 95, tail: Literal[1, 2] = 2, parallel: Optional[Literal['cpu', 'gpu']] = 'cpu', n_jobs: int = -1, random_state: Optional[int] = None, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation') -> Dict[str, Any]
@@ -639,7 +599,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 
 </details>
 
-#### `nltools.algorithms.inference.isc_permutation_test`
+#### `isc_permutation_test`
 
 ```python
 isc_permutation_test(data: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', method: Literal['bootstrap', 'circle_shift', 'phase_randomize'] = 'bootstrap', ci_percentile: float = 95, tail: Literal[1, 2] = 2, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation', parallel: Optional[Literal['cpu', 'gpu']] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> Dict[str, Any]
@@ -723,7 +683,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 
 </details>
 
-#### `nltools.algorithms.inference.matrix_permutation_test`
+#### `matrix_permutation_test`
 
 ```python
 matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, parallel: Optional[str] = 'cpu', n_jobs: int = -1, return_null: bool = False, random_state: Optional[int] = None) -> dict
@@ -797,7 +757,7 @@ regression approach. Cancer Research, 27(2), 209-220.
 >>> print(f"Correlation: {result['correlation']:.3f}, p = {result['p']:.4f}")
 ```
 
-#### `nltools.algorithms.inference.one_sample_permutation_test`
+#### `one_sample_permutation_test`
 
 ```python
 one_sample_permutation_test(data: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
@@ -867,7 +827,7 @@ Name | Type | Description
 
 </details>
 
-#### `nltools.algorithms.inference.phase_randomize`
+#### `phase_randomize`
 
 ```python
 phase_randomize(data: np.ndarray, backend: Optional[str] = None, random_state: Optional[Union[int, np.random.RandomState]] = None) -> np.ndarray
@@ -931,7 +891,7 @@ True
 >>> x_rand_gpu = phase_randomize(x_large, backend='torch', random_state=42)
 ```
 
-#### `nltools.algorithms.inference.timeseries_correlation_permutation_test`
+#### `timeseries_correlation_permutation_test`
 
 ```python
 timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int = 2, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, return_null: bool = False, random_state: Optional[Union[int, np.random.RandomState]] = None) -> dict
@@ -1003,7 +963,7 @@ True
 
 </details>
 
-#### `nltools.algorithms.inference.two_sample_permutation_test`
+#### `two_sample_permutation_test`
 
 ```python
 two_sample_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
@@ -1076,7 +1036,7 @@ Name | Type | Description
 
 </details>
 
-#### `nltools.algorithms.inference.u_center`
+#### `u_center`
 
 ```python
 u_center(mat: np.ndarray) -> np.ndarray
@@ -1110,7 +1070,9 @@ True
 
 
 
-### Modules#### `nltools.algorithms.inference.bootstrap`
+### Modules
+
+#### `bootstrap`
 
 Bootstrap inference utilities with CPU/GPU support.
 
@@ -1118,224 +1080,18 @@ Bootstrap inference utilities with CPU/GPU support.
 
 Name | Description
 ---- | -----------
-[`OnlineBootstrapStats`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats) | Memory-efficient online statistics aggregator for bootstrap samples.
+[`OnlineBootstrapStats`](#OnlineBootstrapStats) | Memory-efficient online statistics aggregator for bootstrap samples.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`FITTED_METHODS`](#nltools.algorithms.inference.bootstrap.FITTED_METHODS) |  | 
-[`SIMPLE_METHODS`](#nltools.algorithms.inference.bootstrap.SIMPLE_METHODS) |  | 
+[`FITTED_METHODS`](#FITTED_METHODS) |  | 
+[`SIMPLE_METHODS`](#SIMPLE_METHODS) |  | 
 
+##### Methods
 
-
-##### Attributes###### `nltools.algorithms.inference.bootstrap.FITTED_METHODS`
-
-```python
-FITTED_METHODS = ['weights', 'predict']
-```
-
-###### `nltools.algorithms.inference.bootstrap.SIMPLE_METHODS`
-
-```python
-SIMPLE_METHODS = ['mean', 'median', 'std', 'sum', 'min', 'max']
-```
-
-
-
-##### Classes###### `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats`
-
-```python
-OnlineBootstrapStats(shape: Tuple[int, ...], save_samples: bool = False, percentiles: Tuple[float, float] = (2.5, 97.5))
-```
-
-Memory-efficient online statistics aggregator for bootstrap samples.
-
-Uses Welford's algorithm for numerically stable online computation of
-mean and variance. Optionally stores all samples for exact percentile CIs.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`shape` | <code>[Tuple](#typing.Tuple)[[int](#int), ...]</code> | Shape of each bootstrap sample. | *required*
-`save_samples` | <code>[bool](#bool)</code> | If True, store all samples for exact percentile confidence intervals. If False, use normal approximation (much more memory efficient). Defaults to False. | <code>False</code>
-`percentiles` | <code>[Tuple](#typing.Tuple)[[float](#float), [float](#float)]</code> | Percentiles for confidence intervals (e.g., (2.5, 97.5) for 95% CI). Defaults to (2.5, 97.5). | <code>(2.5, 97.5)</code>
-
-**Examples:**
-
-```pycon
->>> stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
->>> for i in range(1000):
-...     sample = np.random.randn(100)
-...     stats.update(sample)
->>> results = stats.get_results()
->>> print(results.keys())
-dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
-```
-
-**Functions:**
-
-Name | Description
----- | -----------
-[`get_results`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.get_results) | Compute final bootstrap statistics.
-[`update`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.update) | Update statistics with a new bootstrap sample.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`M2`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.M2) |  | 
-[`mean`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.mean) |  | 
-[`n`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.n) |  | 
-[`percentiles`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.percentiles) |  | 
-[`samples`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.samples) |  | 
-[`save_samples`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.save_samples) |  | 
-[`shape`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.shape) |  | 
-
-
-
-####### Attributes######## `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.M2`
-
-```python
-M2 = np.zeros(shape, dtype=(np.float64))
-```
-
-######## `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.mean`
-
-```python
-mean = np.zeros(shape, dtype=(np.float64))
-```
-
-######## `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.n`
-
-```python
-n = 0
-```
-
-######## `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.percentiles`
-
-```python
-percentiles = percentiles
-```
-
-######## `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.samples`
-
-```python
-samples = [] if save_samples else None
-```
-
-######## `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.save_samples`
-
-```python
-save_samples = save_samples
-```
-
-######## `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.shape`
-
-```python
-shape = shape
-```
-
-
-
-####### Functions######## `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.get_results`
-
-```python
-get_results() -> Dict[str, np.ndarray]
-```
-
-Compute final bootstrap statistics.
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | Dictionary containing:
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'mean': Bootstrap mean
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'std': Bootstrap standard deviation
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'Z': Z-scores (mean/std)
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'p': Two-tailed p-values
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_lower': Lower confidence bound
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_upper': Upper confidence bound
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'samples': All samples (only if save_samples=True)
-
-Examples:
-**Basic usage:**
->>> stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
->>> for i in range(1000):
-...     sample = np.random.randn(100)
-...     stats.update(sample)
->>> results = stats.get_results()
->>> print(results.keys())
-dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
-
-**Replacing summarize_bootstrap() from nltools.stats:**
-The deprecated `summarize_bootstrap()` function can be replaced with this class:
-
-**Old API (deprecated):**
->>> from nltools.stats import summarize_bootstrap
->>> bootstrap_samples = BrainData(list_of_samples)  # Multiple samples
->>> result = summarize_bootstrap(bootstrap_samples, save_weights=False)
->>> # Returns: {'mean': BrainData, 'Z': BrainData, 'p': BrainData}
-
-**New API (recommended):**
->>> from nltools.algorithms.inference.bootstrap import OnlineBootstrapStats
->>> from nltools.data import BrainData
->>>
->>> # Initialize with shape matching your data
->>> stats = OnlineBootstrapStats(
-...     shape=(bootstrap_samples.shape[1],),  # Number of voxels/features
-...     save_samples=False,  # Set True if you need 'samples' key
-...     percentiles=(2.5, 97.5)  # For confidence intervals
-... )
->>>
->>> # Update with each bootstrap sample
->>> for sample in bootstrap_samples:  # Iterate over samples
-...     stats.update(sample.data)  # Pass 1D array of voxel values
->>>
->>> # Get results (equivalent to summarize_bootstrap output)
->>> result = stats.get_results()
->>> # Returns: {'mean': array, 'std': array, 'Z': array, 'p': array,
->>> #           'ci_lower': array, 'ci_upper': array}
->>>
->>> # Convert to BrainData if needed (reproduce old API format)
->>> mean_brain = bootstrap_samples[0].copy()
->>> mean_brain.data = result['mean']
->>> z_brain = bootstrap_samples[0].copy()
->>> z_brain.data = result['Z']
->>> p_brain = bootstrap_samples[0].copy()
->>> p_brain.data = result['p']
->>>
->>> # Result equivalent to old summarize_bootstrap():
->>> equivalent_result = {
-...     'mean': mean_brain,
-...     'Z': z_brain,
-...     'p': p_brain
-... }
->>> # Optionally include samples if save_samples=True:
->>> if 'samples' in result:
-...     equivalent_result['samples'] = result['samples']
-
-######## `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.update`
-
-```python
-update(sample: np.ndarray) -> None
-```
-
-Update statistics with a new bootstrap sample.
-
-Uses Welford's algorithm for numerical stability.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`sample` | <code>[ndarray](#numpy.ndarray)</code> | New bootstrap sample with shape matching self.shape. | *required*
-
-
-
-##### Functions#### `nltools.algorithms.inference.correlation`
+#### `correlation`
 
 Correlation permutation test implementations.
 
@@ -1343,19 +1099,15 @@ This module provides CPU-parallel and GPU-batched implementations
 of correlation permutation tests for assessing statistical significance
 of correlations.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`correlation_permutation_test`](#nltools.algorithms.inference.correlation.correlation_permutation_test) | Correlation permutation test.
+[`correlation_permutation_test`](#correlation_permutation_test) | Correlation permutation test.
 
+##### Methods
 
-
-##### Attributes
-
-##### Classes
-
-##### Functions###### `nltools.algorithms.inference.correlation.correlation_permutation_test`
+###### `correlation_permutation_test`
 
 ```python
 correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
@@ -1433,7 +1185,7 @@ Name | Type | Description
 
 </details>
 
-#### `nltools.algorithms.inference.icc`
+#### `icc`
 
 Voxel-wise Intraclass Correlation Coefficient (ICC) computation.
 
@@ -1460,19 +1212,15 @@ assessing rater reliability. Psychological bulletin, 86(2), 420.
 
 </details>
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`compute_icc_voxelwise`](#nltools.algorithms.inference.icc.compute_icc_voxelwise) | Compute voxel-wise ICC across many voxels.
+[`compute_icc_voxelwise`](#compute_icc_voxelwise) | Compute voxel-wise ICC across many voxels.
 
+##### Methods
 
-
-##### Attributes
-
-##### Classes
-
-##### Functions###### `nltools.algorithms.inference.icc.compute_icc_voxelwise`
+###### `compute_icc_voxelwise`
 
 ```python
 compute_icc_voxelwise(data: np.ndarray, n_subjects: int, n_sessions: int, icc_type: Literal['icc1', 'icc2', 'icc3'] = 'icc2', parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, backend: Optional[Backend] = None) -> np.ndarray
@@ -1522,7 +1270,7 @@ Type | Description
 True
 ```
 
-#### `nltools.algorithms.inference.isc`
+#### `isc`
 
 Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
 
@@ -1562,18 +1310,16 @@ structure but is O(n²) in subjects.
 
 </details>
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`isc_group_permutation_test`](#nltools.algorithms.inference.isc.isc_group_permutation_test) | Compute ISC difference between groups with permutation testing.
-[`isc_permutation_test`](#nltools.algorithms.inference.isc.isc_permutation_test) | Compute intersubject correlation with permutation testing.
+[`isc_group_permutation_test`](#isc_group_permutation_test) | Compute ISC difference between groups with permutation testing.
+[`isc_permutation_test`](#isc_permutation_test) | Compute intersubject correlation with permutation testing.
 
+##### Methods
 
-
-##### Attributes
-
-##### Functions###### `nltools.algorithms.inference.isc.isc_group_permutation_test`
+###### `isc_group_permutation_test`
 
 ```python
 isc_group_permutation_test(group1: np.ndarray, group2: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', method: Literal['permute', 'bootstrap'] = 'permute', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', ci_percentile: float = 95, tail: Literal[1, 2] = 2, parallel: Optional[Literal['cpu', 'gpu']] = 'cpu', n_jobs: int = -1, random_state: Optional[int] = None, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation') -> Dict[str, Any]
@@ -1655,7 +1401,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 
 </details>
 
-###### `nltools.algorithms.inference.isc.isc_permutation_test`
+###### `isc_permutation_test`
 
 ```python
 isc_permutation_test(data: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', method: Literal['bootstrap', 'circle_shift', 'phase_randomize'] = 'bootstrap', ci_percentile: float = 95, tail: Literal[1, 2] = 2, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation', parallel: Optional[Literal['cpu', 'gpu']] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> Dict[str, Any]
@@ -1739,7 +1485,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 
 </details>
 
-#### `nltools.algorithms.inference.matrix`
+#### `matrix`
 
 Matrix permutation test implementations (Mantel test).
 
@@ -1747,32 +1493,24 @@ This module provides CPU-parallel implementations of matrix permutation tests
 for testing correlation between two square matrices, as well as matrix utility
 functions for distance correlation and matrix centering operations.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`distance_correlation`](#nltools.algorithms.inference.matrix.distance_correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
-[`double_center`](#nltools.algorithms.inference.matrix.double_center) | Double center a 2d array.
-[`matrix_permutation_test`](#nltools.algorithms.inference.matrix.matrix_permutation_test) | Matrix permutation test (Mantel test) for correlating two square matrices.
-[`u_center`](#nltools.algorithms.inference.matrix.u_center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
+[`distance_correlation`](#distance_correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
+[`double_center`](#double_center) | Double center a 2d array.
+[`matrix_permutation_test`](#matrix_permutation_test) | Matrix permutation test (Mantel test) for correlating two square matrices.
+[`u_center`](#u_center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`MAX_INT`](#nltools.algorithms.inference.matrix.MAX_INT) |  | 
+[`MAX_INT`](#MAX_INT) |  | 
 
+##### Methods
 
-
-##### Attributes###### `nltools.algorithms.inference.matrix.MAX_INT`
-
-```python
-MAX_INT = np.iinfo(np.int32).max
-```
-
-
-
-##### Functions###### `nltools.algorithms.inference.matrix.distance_correlation`
+###### `distance_correlation`
 
 ```python
 distance_correlation(x: np.ndarray, y: np.ndarray, bias_corrected: bool = True, ttest: bool = False) -> dict
@@ -1825,7 +1563,7 @@ True
 True
 ```
 
-###### `nltools.algorithms.inference.matrix.double_center`
+###### `double_center`
 
 ```python
 double_center(mat: np.ndarray) -> np.ndarray
@@ -1859,7 +1597,7 @@ True
 True
 ```
 
-###### `nltools.algorithms.inference.matrix.matrix_permutation_test`
+###### `matrix_permutation_test`
 
 ```python
 matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, parallel: Optional[str] = 'cpu', n_jobs: int = -1, return_null: bool = False, random_state: Optional[int] = None) -> dict
@@ -1933,7 +1671,7 @@ regression approach. Cancer Research, 27(2), 209-220.
 >>> print(f"Correlation: {result['correlation']:.3f}, p = {result['p']:.4f}")
 ```
 
-###### `nltools.algorithms.inference.matrix.u_center`
+###### `u_center`
 
 ```python
 u_center(mat: np.ndarray) -> np.ndarray
@@ -1965,24 +1703,26 @@ Name | Type | Description
 True
 ```
 
-#### `nltools.algorithms.inference.one_sample`
+#### `one_sample`
 
 One-sample permutation test implementations.
 
 This module provides CPU-parallel and GPU-batched implementations
 of the one-sample permutation test (sign-flipping test).
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`one_sample_permutation_test`](#nltools.algorithms.inference.one_sample.one_sample_permutation_test) | One-sample permutation test using sign-flipping.
+[`one_sample_permutation_test`](#one_sample_permutation_test) | One-sample permutation test using sign-flipping.
 
 
 
 ##### Classes
 
-##### Functions###### `nltools.algorithms.inference.one_sample.one_sample_permutation_test`
+##### Methods
+
+###### `one_sample_permutation_test`
 
 ```python
 one_sample_permutation_test(data: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
@@ -2052,7 +1792,7 @@ Name | Type | Description
 
 </details>
 
-#### `nltools.algorithms.inference.timeseries`
+#### `timeseries`
 
 Time-series permutation test implementations.
 
@@ -2075,19 +1815,21 @@ Surrogate data for hypothesis testing of physical systems. Physics Reports, 748,
 
 </details>
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`circle_shift`](#nltools.algorithms.inference.timeseries.circle_shift) | Circular shift for time-series data.
-[`phase_randomize`](#nltools.algorithms.inference.timeseries.phase_randomize) | FFT-based phase randomization for time-series data.
-[`timeseries_correlation_permutation_test`](#nltools.algorithms.inference.timeseries.timeseries_correlation_permutation_test) | Time-series correlation permutation test.
+[`circle_shift`](#circle_shift) | Circular shift for time-series data.
+[`phase_randomize`](#phase_randomize) | FFT-based phase randomization for time-series data.
+[`timeseries_correlation_permutation_test`](#timeseries_correlation_permutation_test) | Time-series correlation permutation test.
 
 
 
 ##### Classes
 
-##### Functions###### `nltools.algorithms.inference.timeseries.circle_shift`
+##### Methods
+
+###### `circle_shift`
 
 ```python
 circle_shift(data: np.ndarray, shift_amount: Optional[Union[int, np.ndarray]] = None, random_state: Optional[Union[int, np.random.RandomState]] = None) -> np.ndarray
@@ -2131,7 +1873,7 @@ array([[ 4, 30],
        [ 3, 20]])
 ```
 
-###### `nltools.algorithms.inference.timeseries.phase_randomize`
+###### `phase_randomize`
 
 ```python
 phase_randomize(data: np.ndarray, backend: Optional[str] = None, random_state: Optional[Union[int, np.random.RandomState]] = None) -> np.ndarray
@@ -2195,7 +1937,7 @@ True
 >>> x_rand_gpu = phase_randomize(x_large, backend='torch', random_state=42)
 ```
 
-###### `nltools.algorithms.inference.timeseries.timeseries_correlation_permutation_test`
+###### `timeseries_correlation_permutation_test`
 
 ```python
 timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int = 2, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, return_null: bool = False, random_state: Optional[Union[int, np.random.RandomState]] = None) -> dict
@@ -2267,24 +2009,26 @@ True
 
 </details>
 
-#### `nltools.algorithms.inference.two_sample`
+#### `two_sample`
 
 Two-sample permutation test implementations.
 
 This module provides CPU-parallel and GPU-batched implementations
 of the two-sample permutation test (group permutation test).
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`two_sample_permutation_test`](#nltools.algorithms.inference.two_sample.two_sample_permutation_test) | Two-sample permutation test using group label shuffling.
+[`two_sample_permutation_test`](#two_sample_permutation_test) | Two-sample permutation test using group label shuffling.
 
 
 
 ##### Classes
 
-##### Functions###### `nltools.algorithms.inference.two_sample.two_sample_permutation_test`
+##### Methods
+
+###### `two_sample_permutation_test`
 
 ```python
 two_sample_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
@@ -2357,7 +2101,7 @@ Name | Type | Description
 
 </details>
 
-#### `nltools.algorithms.inference.utils`
+#### `utils`
 
 Utility functions for permutation testing.
 
@@ -2368,16 +2112,6 @@ permutation test implementations.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`EPSILON`](#nltools.algorithms.inference.utils.EPSILON) |  | 
+[`EPSILON`](#EPSILON) |  | 
 
-
-
-##### Attributes###### `nltools.algorithms.inference.utils.EPSILON`
-
-```python
-EPSILON = 1e-10
-```
-
-
-
-##### Functions
+##### Methods

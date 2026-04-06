@@ -1,26 +1,28 @@
-## `nltools.data.braindata.prediction`
+## `prediction`
 
 BrainData prediction functions.
 
 Standalone functions extracted from BrainData class methods for timeseries
 prediction (encoding models) and MVPA decoding (pattern classification).
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`mvpa_roi`](#nltools.data.braindata.prediction.mvpa_roi) | ROI-based MVPA - accuracy per ROI.
-[`mvpa_searchlight`](#nltools.data.braindata.prediction.mvpa_searchlight) | Searchlight MVPA - accuracy per voxel neighborhood.
-[`mvpa_whole_brain`](#nltools.data.braindata.prediction.mvpa_whole_brain) | Whole-brain MVPA - single accuracy across all voxels.
-[`mvpa_whole_brain_pipeline`](#nltools.data.braindata.prediction.mvpa_whole_brain_pipeline) | Whole-brain MVPA using Pipeline infrastructure.
-[`predict`](#nltools.data.braindata.prediction.predict) | Generate predictions using fitted model OR classify patterns (MVPA).
-[`predict_mvpa`](#nltools.data.braindata.prediction.predict_mvpa) | Perform MVPA decoding using cross-validation.
-[`predict_timeseries`](#nltools.data.braindata.prediction.predict_timeseries) | Generate timeseries predictions using fitted model.
-[`resolve_estimator`](#nltools.data.braindata.prediction.resolve_estimator) | Resolve string shortcut to sklearn estimator.
+[`mvpa_roi`](#mvpa_roi) | ROI-based MVPA - accuracy per ROI.
+[`mvpa_searchlight`](#mvpa_searchlight) | Searchlight MVPA - accuracy per voxel neighborhood.
+[`mvpa_whole_brain`](#mvpa_whole_brain) | Whole-brain MVPA - single accuracy across all voxels.
+[`mvpa_whole_brain_pipeline`](#mvpa_whole_brain_pipeline) | Whole-brain MVPA using Pipeline infrastructure.
+[`predict`](#predict) | Generate predictions using fitted model OR classify patterns (MVPA).
+[`predict_mvpa`](#predict_mvpa) | Perform MVPA decoding using cross-validation.
+[`predict_timeseries`](#predict_timeseries) | Generate timeseries predictions using fitted model.
+[`resolve_estimator`](#resolve_estimator) | Resolve string shortcut to sklearn estimator.
 
 
 
-### Functions#### `nltools.data.braindata.prediction.mvpa_roi`
+### Methods
+
+#### `mvpa_roi`
 
 ```python
 mvpa_roi(bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, show_progress)
@@ -49,7 +51,7 @@ Type | Description
 ---- | -----------
  | np.ndarray of accuracy values per ROI.
 
-#### `nltools.data.braindata.prediction.mvpa_searchlight`
+#### `mvpa_searchlight`
 
 ```python
 mvpa_searchlight(bd, X, y, pipe, cv, groups, scoring, radius, n_jobs, show_progress)
@@ -78,7 +80,7 @@ Type | Description
 ---- | -----------
  | np.ndarray of accuracy values per voxel.
 
-#### `nltools.data.braindata.prediction.mvpa_whole_brain`
+#### `mvpa_whole_brain`
 
 ```python
 mvpa_whole_brain(bd, X, y, pipe, cv, groups, scoring)
@@ -107,7 +109,7 @@ Type | Description
 ---- | -----------
  | np.ndarray with single mean accuracy value.
 
-#### `nltools.data.braindata.prediction.mvpa_whole_brain_pipeline`
+#### `mvpa_whole_brain_pipeline`
 
 ```python
 mvpa_whole_brain_pipeline(bd, y, estimator, cv, groups, standardize)
@@ -135,7 +137,7 @@ Type | Description
 ---- | -----------
  | np.ndarray with single mean accuracy value.
 
-#### `nltools.data.braindata.prediction.predict`
+#### `predict`
 
 ```python
 predict(bd, X = None, y = None, method = 'whole_brain', estimator = 'svm', cv = 5, groups = None, roi_mask = None, radius = 10.0, scoring = 'accuracy', standardize = True, n_jobs = -1, show_progress = True)
@@ -192,7 +194,7 @@ Name | Type | Description
 >>> print(accuracy.shape)  # (1, n_voxels)
 ```
 
-#### `nltools.data.braindata.prediction.predict_mvpa`
+#### `predict_mvpa`
 
 ```python
 predict_mvpa(bd, y, method = 'whole_brain', estimator = 'svm', cv = 5, groups = None, roi_mask = None, radius = 10.0, scoring = 'accuracy', standardize = True, n_jobs = -1, show_progress = True)
@@ -225,7 +227,7 @@ Type | Description
 ---- | -----------
  | BrainData with accuracy values.
 
-#### `nltools.data.braindata.prediction.predict_timeseries`
+#### `predict_timeseries`
 
 ```python
 predict_timeseries(bd, X = None)
@@ -248,7 +250,7 @@ Type | Description
 ---- | -----------
  | BrainData with predicted timeseries.
 
-#### `nltools.data.braindata.prediction.resolve_estimator`
+#### `resolve_estimator`
 
 ```python
 resolve_estimator(bd, estimator)

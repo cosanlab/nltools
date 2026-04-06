@@ -1326,7 +1326,7 @@ Type | Description
 #### `standardize`
 
 ```python
-standardize(axis: int = 0, method: str = 'center', n_jobs: int = 1, show_progress: bool = True) -> 'BrainCollection'
+standardize(axis: int = 0, method: str = 'center', n_jobs: int = 1, show_progress: bool = True, verbose: bool = True) -> 'BrainCollection'
 ```
 
 Standardize each image.
@@ -1341,6 +1341,7 @@ Name | Type | Description | Default
 `method` | <code>[str](#str)</code> | 'center' (subtract mean) or 'zscore' (subtract mean, divide std) | <code>'center'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>1</code>
 `show_progress` | <code>[bool](#bool)</code> | Show progress bar. | <code>True</code>
+`verbose` | <code>[bool](#bool)</code> | If False, suppress sklearn numerical warnings that occur when voxels have near-zero variance. Default: True. | <code>True</code>
 
 **Returns:**
 

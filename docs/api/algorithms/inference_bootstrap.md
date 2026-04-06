@@ -1,4 +1,4 @@
-## `nltools.algorithms.inference.bootstrap`
+## `bootstrap`
 
 Bootstrap inference utilities with CPU/GPU support.
 
@@ -6,128 +6,18 @@ Bootstrap inference utilities with CPU/GPU support.
 
 Name | Description
 ---- | -----------
-[`OnlineBootstrapStats`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats) | Memory-efficient online statistics aggregator for bootstrap samples.
+[`OnlineBootstrapStats`](#OnlineBootstrapStats) | Memory-efficient online statistics aggregator for bootstrap samples.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`FITTED_METHODS`](#nltools.algorithms.inference.bootstrap.FITTED_METHODS) |  | 
-[`SIMPLE_METHODS`](#nltools.algorithms.inference.bootstrap.SIMPLE_METHODS) |  | 
+[`FITTED_METHODS`](#FITTED_METHODS) |  | 
+[`SIMPLE_METHODS`](#SIMPLE_METHODS) |  | 
 
+##### Methods
 
-
-### Attributes#### `nltools.algorithms.inference.bootstrap.FITTED_METHODS`
-
-```python
-FITTED_METHODS = ['weights', 'predict']
-```
-
-#### `nltools.algorithms.inference.bootstrap.SIMPLE_METHODS`
-
-```python
-SIMPLE_METHODS = ['mean', 'median', 'std', 'sum', 'min', 'max']
-```
-
-
-
-### Classes#### `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats`
-
-```python
-OnlineBootstrapStats(shape: Tuple[int, ...], save_samples: bool = False, percentiles: Tuple[float, float] = (2.5, 97.5))
-```
-
-Memory-efficient online statistics aggregator for bootstrap samples.
-
-Uses Welford's algorithm for numerically stable online computation of
-mean and variance. Optionally stores all samples for exact percentile CIs.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`shape` | <code>[Tuple](#typing.Tuple)[[int](#int), ...]</code> | Shape of each bootstrap sample. | *required*
-`save_samples` | <code>[bool](#bool)</code> | If True, store all samples for exact percentile confidence intervals. If False, use normal approximation (much more memory efficient). Defaults to False. | <code>False</code>
-`percentiles` | <code>[Tuple](#typing.Tuple)[[float](#float), [float](#float)]</code> | Percentiles for confidence intervals (e.g., (2.5, 97.5) for 95% CI). Defaults to (2.5, 97.5). | <code>(2.5, 97.5)</code>
-
-**Examples:**
-
-```pycon
->>> stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
->>> for i in range(1000):
-...     sample = np.random.randn(100)
-...     stats.update(sample)
->>> results = stats.get_results()
->>> print(results.keys())
-dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
-```
-
-**Functions:**
-
-Name | Description
----- | -----------
-[`get_results`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.get_results) | Compute final bootstrap statistics.
-[`update`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.update) | Update statistics with a new bootstrap sample.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`M2`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.M2) |  | 
-[`mean`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.mean) |  | 
-[`n`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.n) |  | 
-[`percentiles`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.percentiles) |  | 
-[`samples`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.samples) |  | 
-[`save_samples`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.save_samples) |  | 
-[`shape`](#nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.shape) |  | 
-
-
-
-##### Attributes###### `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.M2`
-
-```python
-M2 = np.zeros(shape, dtype=(np.float64))
-```
-
-###### `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.mean`
-
-```python
-mean = np.zeros(shape, dtype=(np.float64))
-```
-
-###### `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.n`
-
-```python
-n = 0
-```
-
-###### `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.percentiles`
-
-```python
-percentiles = percentiles
-```
-
-###### `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.samples`
-
-```python
-samples = [] if save_samples else None
-```
-
-###### `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.save_samples`
-
-```python
-save_samples = save_samples
-```
-
-###### `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.shape`
-
-```python
-shape = shape
-```
-
-
-
-##### Functions###### `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.get_results`
+###### `get_results`
 
 ```python
 get_results() -> Dict[str, np.ndarray]
@@ -205,7 +95,7 @@ The deprecated `summarize_bootstrap()` function can be replaced with this class:
 >>> if 'samples' in result:
 ...     equivalent_result['samples'] = result['samples']
 
-###### `nltools.algorithms.inference.bootstrap.OnlineBootstrapStats.update`
+###### `update`
 
 ```python
 update(sample: np.ndarray) -> None
@@ -223,4 +113,4 @@ Name | Type | Description | Default
 
 
 
-### Functions
+### Methods

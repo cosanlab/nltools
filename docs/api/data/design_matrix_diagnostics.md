@@ -1,20 +1,22 @@
-## `nltools.data.designmatrix.diagnostics`
+## `diagnostics`
 
 Diagnostic and utility functions for DesignMatrix.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`clean`](#nltools.data.designmatrix.diagnostics.clean) | Remove highly correlated columns.
-[`details`](#nltools.data.designmatrix.diagnostics.details) | Return human-readable metadata summary.
-[`vif`](#nltools.data.designmatrix.diagnostics.vif) | Compute variance inflation factor for each column.
+[`clean`](#clean) | Remove highly correlated columns.
+[`details`](#details) | Return human-readable metadata summary.
+[`vif`](#vif) | Compute variance inflation factor for each column.
 
 
 
 ### Classes
 
-### Functions#### `nltools.data.designmatrix.diagnostics.clean`
+### Methods
+
+#### `clean`
 
 ```python
 clean(dm: DesignMatrix, fill_na: Union[int, float, None] = 0, exclude_polys: bool = False, thresh: float = 0.95, verbose: bool = True) -> DesignMatrix
@@ -41,7 +43,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Cleaned matrix with highly correlated columns removed
 
-#### `nltools.data.designmatrix.diagnostics.details`
+#### `details`
 
 ```python
 details(dm: DesignMatrix) -> str
@@ -61,7 +63,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `str` | <code>[str](#str)</code> | Formatted string showing sampling_freq, shape, convolved columns, and polynomial columns.
 
-#### `nltools.data.designmatrix.diagnostics.vif`
+#### `vif`
 
 ```python
 vif(dm: DesignMatrix, exclude_polys: bool = True) -> np.ndarray | None

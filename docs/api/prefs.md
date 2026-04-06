@@ -1,30 +1,20 @@
-## `nltools.prefs`
+## `prefs`
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`resolve_template_name`](#nltools.prefs.resolve_template_name) | Resolve a template name string to a file path.
+[`resolve_template_name`](#resolve_template_name) | Resolve a template name string to a file path.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`MNI_Template`](#nltools.prefs.MNI_Template) |  | 
+[`MNI_Template`](#MNI_Template) |  | 
 
+### Methods
 
-
-### Attributes#### `nltools.prefs.MNI_Template`
-
-```python
-MNI_Template = MNI_Template_Factory()
-```
-
-
-
-### Classes
-
-### Functions#### `nltools.prefs.resolve_template_name`
+#### `resolve_template_name`
 
 ```python
 resolve_template_name(template_name: str, file_type: str = 'mask') -> str

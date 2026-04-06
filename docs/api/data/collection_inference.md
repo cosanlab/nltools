@@ -1,32 +1,34 @@
-## `nltools.data.collection.inference`
+## `inference`
 
 BrainCollection inference functions.
 
 Extracted from BrainCollection methods — each function takes a BrainCollection
 as its first argument (``bc``) instead of ``self``.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`anova`](#nltools.data.collection.inference.anova) | One-way ANOVA across groups defined by metadata.
-[`extract_for_isc`](#nltools.data.collection.inference.extract_for_isc) | Extract data for ISC computation.
-[`extract_roi`](#nltools.data.collection.inference.extract_roi) | Extract mean signal per ROI.
-[`extract_searchlight`](#nltools.data.collection.inference.extract_searchlight) | Extract mean signal per searchlight sphere.
-[`extract_voxelwise`](#nltools.data.collection.inference.extract_voxelwise) | Extract raw voxel data.
-[`isc`](#nltools.data.collection.inference.isc) | Compute intersubject correlation (ISC) across the collection.
-[`isc_test`](#nltools.data.collection.inference.isc_test) | Compute ISC with permutation testing for statistical inference.
-[`permutation_test`](#nltools.data.collection.inference.permutation_test) | One-sample permutation test across images (sign-flipping).
-[`permutation_test2`](#nltools.data.collection.inference.permutation_test2) | Two-sample permutation test between collections.
-[`project_to_brain`](#nltools.data.collection.inference.project_to_brain) | Project ISC values back to brain space.
-[`ttest`](#nltools.data.collection.inference.ttest) | One-sample t-test across images.
-[`ttest2`](#nltools.data.collection.inference.ttest2) | Two-sample t-test between collections.
+[`anova`](#anova) | One-way ANOVA across groups defined by metadata.
+[`extract_for_isc`](#extract_for_isc) | Extract data for ISC computation.
+[`extract_roi`](#extract_roi) | Extract mean signal per ROI.
+[`extract_searchlight`](#extract_searchlight) | Extract mean signal per searchlight sphere.
+[`extract_voxelwise`](#extract_voxelwise) | Extract raw voxel data.
+[`isc`](#isc) | Compute intersubject correlation (ISC) across the collection.
+[`isc_test`](#isc_test) | Compute ISC with permutation testing for statistical inference.
+[`permutation_test`](#permutation_test) | One-sample permutation test across images (sign-flipping).
+[`permutation_test2`](#permutation_test2) | Two-sample permutation test between collections.
+[`project_to_brain`](#project_to_brain) | Project ISC values back to brain space.
+[`ttest`](#ttest) | One-sample t-test across images.
+[`ttest2`](#ttest2) | Two-sample t-test between collections.
 
 
 
 ### Classes
 
-### Functions#### `nltools.data.collection.inference.anova`
+### Methods
+
+#### `anova`
 
 ```python
 anova(bc: 'BrainCollection', groups: str | list | np.ndarray) -> tuple
@@ -63,7 +65,7 @@ Type | Description
 >>> f_stat, p_val = bc.anova(groups)
 ```
 
-#### `nltools.data.collection.inference.extract_for_isc`
+#### `extract_for_isc`
 
 ```python
 extract_for_isc(bc: 'BrainCollection', roi_mask: 'nib.Nifti1Image | Path | str | None' = None, radius: float | None = 6.0, show_progress: bool = True) -> tuple[np.ndarray, dict]
@@ -89,7 +91,7 @@ Type | Description
 ---- | -----------
 <code>[tuple](#tuple)[[ndarray](#numpy.ndarray), [dict](#dict)]</code> | Tuple of: - extracted_data: Array of shape (n_obs, n_subjects, n_features) - extraction_info: Dict with metadata for projection back:     - 'mode': 'roi', 'searchlight', or 'voxelwise'     - 'n_features': Number of features     - 'roi_mask': ROI mask if mode='roi'     - 'neighborhoods': SphereNeighborhoods if mode='searchlight'
 
-#### `nltools.data.collection.inference.extract_roi`
+#### `extract_roi`
 
 ```python
 extract_roi(bc: 'BrainCollection', roi_mask: 'nib.Nifti1Image | Path | str', show_progress: bool = True) -> tuple[np.ndarray, dict]
@@ -97,7 +99,7 @@ extract_roi(bc: 'BrainCollection', roi_mask: 'nib.Nifti1Image | Path | str', sho
 
 Extract mean signal per ROI.
 
-#### `nltools.data.collection.inference.extract_searchlight`
+#### `extract_searchlight`
 
 ```python
 extract_searchlight(bc: 'BrainCollection', radius: float, show_progress: bool = True) -> tuple[np.ndarray, dict]
@@ -105,7 +107,7 @@ extract_searchlight(bc: 'BrainCollection', radius: float, show_progress: bool = 
 
 Extract mean signal per searchlight sphere.
 
-#### `nltools.data.collection.inference.extract_voxelwise`
+#### `extract_voxelwise`
 
 ```python
 extract_voxelwise(bc: 'BrainCollection', show_progress: bool = True) -> tuple[np.ndarray, dict]
@@ -113,7 +115,7 @@ extract_voxelwise(bc: 'BrainCollection', show_progress: bool = True) -> tuple[np
 
 Extract raw voxel data.
 
-#### `nltools.data.collection.inference.isc`
+#### `isc`
 
 ```python
 isc(bc: 'BrainCollection', method: str = 'loo', roi_mask: 'nib.Nifti1Image | Path | str | None' = None, radius: float | None = 6.0, metric: str = 'median', parallel: str = 'cpu', n_jobs: int = -1, show_progress: bool = True) -> dict
@@ -169,7 +171,7 @@ discussion of statistical methodology first).
 
 </details>
 
-#### `nltools.data.collection.inference.isc_test`
+#### `isc_test`
 
 ```python
 isc_test(bc: 'BrainCollection', method: str = 'loo', roi_mask: 'nib.Nifti1Image | Path | str | None' = None, radius: float | None = 6.0, n_permute: int = 5000, permutation_method: str = 'bootstrap', metric: str = 'median', tail: int = 2, ci_percentile: float = 95, parallel: str = 'cpu', n_jobs: int = -1, random_state: int | None = None, return_null: bool = False, show_progress: bool = True) -> dict
@@ -254,7 +256,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 
 </details>
 
-#### `nltools.data.collection.inference.permutation_test`
+#### `permutation_test`
 
 ```python
 permutation_test(bc: 'BrainCollection', n_permute: int = 5000, tail: int = 2, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None, return_null: bool = False) -> dict
@@ -300,7 +302,7 @@ Type | Description
 >>> result = bc.permutation_test(parallel='gpu')
 ```
 
-#### `nltools.data.collection.inference.permutation_test2`
+#### `permutation_test2`
 
 ```python
 permutation_test2(bc: 'BrainCollection', other: 'BrainCollection', n_permute: int = 5000, tail: int = 2, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None, return_null: bool = False) -> dict
@@ -338,7 +340,7 @@ Type | Description
 >>> diff_bd, p_bd = result['mean_diff'], result['p']
 ```
 
-#### `nltools.data.collection.inference.project_to_brain`
+#### `project_to_brain`
 
 ```python
 project_to_brain(bc: 'BrainCollection', values: np.ndarray, extraction_info: dict)
@@ -360,7 +362,7 @@ Type | Description
 ---- | -----------
  | BrainData with ISC values in brain space.
 
-#### `nltools.data.collection.inference.ttest`
+#### `ttest`
 
 ```python
 ttest(bc: 'BrainCollection', popmean: float = 0.0, axis: int | str = 0) -> tuple
@@ -399,7 +401,7 @@ Type | Description
 >>> sig_mask = p_val.data < 0.05
 ```
 
-#### `nltools.data.collection.inference.ttest2`
+#### `ttest2`
 
 ```python
 ttest2(bc: 'BrainCollection', other: 'BrainCollection', equal_var: bool = True) -> tuple

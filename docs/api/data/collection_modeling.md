@@ -1,30 +1,32 @@
-## `nltools.data.collection.modeling`
+## `modeling`
 
 Modeling functions extracted from BrainCollection.
 
 Contains GLM fitting, Ridge fitting, design matrix building, and related helpers.
 All BrainCollection methods converted to functions taking `bc` as first argument.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`cv`](#nltools.data.collection.modeling.cv) | Create a cross-validation pipeline for multi-subject analysis.
-[`fit`](#nltools.data.collection.modeling.fit) | Fit a model to each subject in the collection.
-[`fit_from_events`](#nltools.data.collection.modeling.fit_from_events) | Build design matrices from events and fit GLM to each subject.
-[`fit_glm`](#nltools.data.collection.modeling.fit_glm) | Fit GLM to each subject in collection.
-[`fit_glm_internal`](#nltools.data.collection.modeling.fit_glm_internal) | Internal GLM fitting with design matrix input.
-[`fit_ridge`](#nltools.data.collection.modeling.fit_ridge) | Fit ridge regression to each subject in collection.
-[`load_design_matrix`](#nltools.data.collection.modeling.load_design_matrix) | Load design matrix from a file path.
-[`load_features`](#nltools.data.collection.modeling.load_features) | Load features from a file path.
-[`resolve_X`](#nltools.data.collection.modeling.resolve_X) | Resolve design/feature matrix X to per-subject list.
-[`resolve_confounds`](#nltools.data.collection.modeling.resolve_confounds) | Resolve confounds argument to per-subject list.
+[`cv`](#cv) | Create a cross-validation pipeline for multi-subject analysis.
+[`fit`](#fit) | Fit a model to each subject in the collection.
+[`fit_from_events`](#fit_from_events) | Build design matrices from events and fit GLM to each subject.
+[`fit_glm`](#fit_glm) | Fit GLM to each subject in collection.
+[`fit_glm_internal`](#fit_glm_internal) | Internal GLM fitting with design matrix input.
+[`fit_ridge`](#fit_ridge) | Fit ridge regression to each subject in collection.
+[`load_design_matrix`](#load_design_matrix) | Load design matrix from a file path.
+[`load_features`](#load_features) | Load features from a file path.
+[`resolve_X`](#resolve_X) | Resolve design/feature matrix X to per-subject list.
+[`resolve_confounds`](#resolve_confounds) | Resolve confounds argument to per-subject list.
 
 
 
 ### Classes
 
-### Functions#### `nltools.data.collection.modeling.cv`
+### Methods
+
+#### `cv`
 
 ```python
 cv(bc, k: int | None = None, scheme: str = 'kfold', split_by: str | None = None, groups: np.ndarray | None = None, random_state: int | None = None, **kwargs: int | None) -> 'BrainCollectionPipeline'
@@ -83,7 +85,7 @@ CVScheme: For CV scheme configuration details.
 
 </details>
 
-#### `nltools.data.collection.modeling.fit`
+#### `fit`
 
 ```python
 fit(bc, model: str, X: 'pd.DataFrame | np.ndarray | str | list', cv: int | None = None, scale: bool = True, scale_value: float = 100.0, show_progress: bool = True, **kwargs: bool) -> 'FittedBrainCollection'
@@ -149,7 +151,7 @@ fit_ridge: Legacy Ridge fitting (use fit(..., model='ridge') instead)
 
 </details>
 
-#### `nltools.data.collection.modeling.fit_from_events`
+#### `fit_from_events`
 
 ```python
 fit_from_events(bc, events: pd.DataFrame, t_r: float, confounds: str | list[pd.DataFrame | Path | str] | None = None, confound_columns: list[str] | None = None, hrf_model: str = 'spm', drift_model: str = 'cosine', high_pass: float = 0.01, scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, return_residuals: bool = False, save: dict[str, str] | None = None, show_progress: bool = True, by_run: bool = False, run_column: str = 'run', run_lengths: int | list[int] | None = None) -> 'BrainCollection | dict[str, BrainCollection]'
@@ -221,7 +223,7 @@ _fit_glm: Internal method for design matrix-based fitting
 
 </details>
 
-#### `nltools.data.collection.modeling.fit_glm`
+#### `fit_glm`
 
 ```python
 fit_glm(bc, events: pd.DataFrame, t_r: float, confounds: str | list[pd.DataFrame | Path | str] | None = None, confound_columns: list[str] | None = None, hrf_model: str = 'spm', drift_model: str = 'cosine', high_pass: float = 0.01, scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, return_residuals: bool = False, save: dict[str, str] | None = None, show_progress: bool = True, by_run: bool = False, run_column: str = 'run', run_lengths: int | list[int] | None = None) -> 'BrainCollection | dict[str, BrainCollection]'
@@ -293,7 +295,7 @@ Type | Description
 ... )
 ```
 
-#### `nltools.data.collection.modeling.fit_glm_internal`
+#### `fit_glm_internal`
 
 ```python
 fit_glm_internal(bc, X: 'pd.DataFrame | np.ndarray | str | list', scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, save: dict[str, str] | None = None, show_progress: bool = True) -> 'BrainCollection | dict[str, BrainCollection]'
@@ -322,7 +324,7 @@ Type | Description
 ---- | -----------
 <code>'BrainCollection \| dict[str, BrainCollection]'</code> | BrainCollection of betas, or dict with betas + requested stats.
 
-#### `nltools.data.collection.modeling.fit_ridge`
+#### `fit_ridge`
 
 ```python
 fit_ridge(bc, X: 'np.ndarray | str | list', alpha: float | str = 1.0, cv: int | None = 5, scale: bool = True, scale_value: float = 100.0, output: str = 'scores', save: dict[str, str] | None = None, show_progress: bool = True, **ridge_kwargs: bool) -> 'BrainCollection | dict[str, BrainCollection]'
@@ -381,7 +383,7 @@ Type | Description
 >>> weights = bc.fit_ridge(X=features, alpha=1.0, output='weights', cv=None)
 ```
 
-#### `nltools.data.collection.modeling.load_design_matrix`
+#### `load_design_matrix`
 
 ```python
 load_design_matrix(bc, path: str | Path) -> pd.DataFrame
@@ -404,7 +406,7 @@ Type | Description
 ---- | -----------
 <code>[DataFrame](#pandas.DataFrame)</code> | DataFrame with design matrix contents.
 
-#### `nltools.data.collection.modeling.load_features`
+#### `load_features`
 
 ```python
 load_features(bc, path: str | Path) -> np.ndarray
@@ -427,7 +429,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | NumPy array of feature values.
 
-#### `nltools.data.collection.modeling.resolve_X`
+#### `resolve_X`
 
 ```python
 resolve_X(bc, X: 'np.ndarray | pd.DataFrame | str | list | None') -> list | None
@@ -454,7 +456,7 @@ Type | Description
 ---- | -----------
 <code>[list](#list) \| None</code> | list | None: Per-subject list if X varies by subject, None if shared. Caller should use: `X_subj = X_list[i] if X_list else X`
 
-#### `nltools.data.collection.modeling.resolve_confounds`
+#### `resolve_confounds`
 
 ```python
 resolve_confounds(bc, confounds: str | list[pd.DataFrame | Path | str] | None) -> list[pd.DataFrame | Path | str] | None

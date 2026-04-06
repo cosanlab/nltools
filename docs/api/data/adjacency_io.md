@@ -1,17 +1,19 @@
-## `nltools.data.adjacency.io`
+## `io`
 
 I/O functions for Adjacency objects.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`to_graph`](#nltools.data.adjacency.io.to_graph) | Convert Adjacency into networkx graph.
-[`write`](#nltools.data.adjacency.io.write) | Write out Adjacency object to csv file.
+[`to_graph`](#to_graph) | Convert Adjacency into networkx graph.
+[`write`](#write) | Write out Adjacency object to csv file.
 
 
 
-### Functions#### `nltools.data.adjacency.io.to_graph`
+### Methods
+
+#### `to_graph`
 
 ```python
 to_graph(adj)
@@ -33,7 +35,7 @@ Type | Description
 ---- | -----------
  | networkx.Graph or networkx.DiGraph: Graph representation of the adjacency matrix. Uses DiGraph for directed matrices.
 
-#### `nltools.data.adjacency.io.write`
+#### `write`
 
 ```python
 write(adj, file_name, method = 'long')

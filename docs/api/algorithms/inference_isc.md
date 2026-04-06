@@ -1,4 +1,4 @@
-## `nltools.algorithms.inference.isc`
+## `isc`
 
 Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
 
@@ -38,18 +38,16 @@ structure but is O(n²) in subjects.
 
 </details>
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`isc_group_permutation_test`](#nltools.algorithms.inference.isc.isc_group_permutation_test) | Compute ISC difference between groups with permutation testing.
-[`isc_permutation_test`](#nltools.algorithms.inference.isc.isc_permutation_test) | Compute intersubject correlation with permutation testing.
+[`isc_group_permutation_test`](#isc_group_permutation_test) | Compute ISC difference between groups with permutation testing.
+[`isc_permutation_test`](#isc_permutation_test) | Compute intersubject correlation with permutation testing.
 
+### Methods
 
-
-### Attributes
-
-### Functions#### `nltools.algorithms.inference.isc.isc_group_permutation_test`
+#### `isc_group_permutation_test`
 
 ```python
 isc_group_permutation_test(group1: np.ndarray, group2: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', method: Literal['permute', 'bootstrap'] = 'permute', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', ci_percentile: float = 95, tail: Literal[1, 2] = 2, parallel: Optional[Literal['cpu', 'gpu']] = 'cpu', n_jobs: int = -1, random_state: Optional[int] = None, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation') -> Dict[str, Any]
@@ -131,7 +129,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 
 </details>
 
-#### `nltools.algorithms.inference.isc.isc_permutation_test`
+#### `isc_permutation_test`
 
 ```python
 isc_permutation_test(data: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', method: Literal['bootstrap', 'circle_shift', 'phase_randomize'] = 'bootstrap', ci_percentile: float = 95, tail: Literal[1, 2] = 2, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation', parallel: Optional[Literal['cpu', 'gpu']] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> Dict[str, Any]

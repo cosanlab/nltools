@@ -1,4 +1,4 @@
-## `nltools.pipelines.base`
+## `base`
 
 Pipeline base infrastructure for nltools.
 
@@ -21,34 +21,16 @@ Example
 
 Name | Description
 ---- | -----------
-[`CVScheme`](#nltools.pipelines.base.CVScheme) | Protocol for cross-validation schemes.
-[`FittedStack`](#nltools.pipelines.base.FittedStack) | Collection of fitted transforms for inverse transform support.
-[`FittedTransform`](#nltools.pipelines.base.FittedTransform) | Protocol for fitted transform objects.
-[`Pipeline`](#nltools.pipelines.base.Pipeline) | Base pipeline for chained transforms with optional cross-validation.
-[`Terminal`](#nltools.pipelines.base.Terminal) | Protocol for terminal operations that end a pipeline.
-[`TransformStep`](#nltools.pipelines.base.TransformStep) | Protocol for pipeline transform steps.
+[`CVScheme`](#CVScheme) | Protocol for cross-validation schemes.
+[`FittedStack`](#FittedStack) | Collection of fitted transforms for inverse transform support.
+[`FittedTransform`](#FittedTransform) | Protocol for fitted transform objects.
+[`Pipeline`](#Pipeline) | Base pipeline for chained transforms with optional cross-validation.
+[`Terminal`](#Terminal) | Protocol for terminal operations that end a pipeline.
+[`TransformStep`](#TransformStep) | Protocol for pipeline transform steps.
 
+##### Methods
 
-
-### Attributes
-
-### Classes#### `nltools.pipelines.base.CVScheme`
-
-Bases: <code>[Protocol](#typing.Protocol)</code>
-
-Protocol for cross-validation schemes.
-
-Compatible with scikit-learn CV splitters and custom implementations.
-
-**Functions:**
-
-Name | Description
----- | -----------
-[`split`](#nltools.pipelines.base.CVScheme.split) | Generate train/test index splits.
-
-
-
-##### Functions###### `nltools.pipelines.base.CVScheme.split`
+###### `split`
 
 ```python
 split(data: Any) -> Any
@@ -68,7 +50,7 @@ Type | Description
 ---- | -----------
 <code>[Any](#typing.Any)</code> | Tuple of (train_idx, test_idx) arrays of indices for each fold.
 
-#### `nltools.pipelines.base.FittedStack`
+#### `FittedStack`
 
 ```python
 FittedStack(steps: List[FittedTransform] = list()) -> None
@@ -83,7 +65,7 @@ enabling inverse transformation back to the original data space.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`steps`](#nltools.pipelines.base.FittedStack.steps) | <code>[List](#typing.List)[[FittedTransform](#nltools.pipelines.base.FittedTransform)]</code> | Ordered list of fitted transforms.
+[`steps`](#steps) | <code>[List](#typing.List)[[FittedTransform](#nltools.pipelines.base.FittedTransform)]</code> | Ordered list of fitted transforms.
 
 Examples
 --------
@@ -92,38 +74,16 @@ Examples
 >>> stack.append(fitted_normalize)
 >>> original_space = stack.inverse_transform(predictions)
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`append`](#nltools.pipelines.base.FittedStack.append) | Add a fitted transform to the stack.
-[`inverse_transform`](#nltools.pipelines.base.FittedStack.inverse_transform) | Apply inverse transforms in reverse order.
+[`append`](#append) | Add a fitted transform to the stack.
+[`inverse_transform`](#inverse_transform) | Apply inverse transforms in reverse order.
 
+##### Methods
 
-
-##### Attributes###### `nltools.pipelines.base.FittedStack.is_fully_invertible`
-
-```python
-is_fully_invertible: bool
-```
-
-Check if all steps support inverse transform.
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[bool](#bool)</code> | True if all steps have callable inverse_transform methods.
-
-###### `nltools.pipelines.base.FittedStack.steps`
-
-```python
-steps: List[FittedTransform] = field(default_factory=list)
-```
-
-
-
-##### Functions###### `nltools.pipelines.base.FittedStack.append`
+###### `append`
 
 ```python
 append(fitted_step: FittedTransform) -> None
@@ -137,7 +97,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `fitted_step` | <code>[FittedTransform](#nltools.pipelines.base.FittedTransform)</code> | Fitted transform to append. | *required*
 
-###### `nltools.pipelines.base.FittedStack.inverse_transform`
+###### `inverse_transform`
 
 ```python
 inverse_transform(data: Any) -> Any
@@ -165,7 +125,7 @@ Use ``is_fully_invertible`` to check if all steps support inversion.
 
 </details>
 
-#### `nltools.pipelines.base.FittedTransform`
+#### `FittedTransform`
 
 Bases: <code>[Protocol](#typing.Protocol)</code>
 
@@ -182,16 +142,18 @@ Not all transforms are invertible. Check the parent TransformStep's
 
 </details>
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#nltools.pipelines.base.FittedTransform.inverse_transform) | Apply the inverse transformation to data.
-[`transform`](#nltools.pipelines.base.FittedTransform.transform) | Apply the learned transformation to data.
+[`inverse_transform`](#inverse_transform) | Apply the inverse transformation to data.
+[`transform`](#transform) | Apply the learned transformation to data.
 
 
 
-##### Functions###### `nltools.pipelines.base.FittedTransform.inverse_transform`
+##### Methods
+
+###### `inverse_transform`
 
 ```python
 inverse_transform(data: Any) -> Any
@@ -211,7 +173,7 @@ Type | Description
 ---- | -----------
 <code>[Any](#typing.Any)</code> | Data in original space.
 
-###### `nltools.pipelines.base.FittedTransform.transform`
+###### `transform`
 
 ```python
 transform(data: Any) -> Any
@@ -231,7 +193,7 @@ Type | Description
 ---- | -----------
 <code>[Any](#typing.Any)</code> | Transformed data.
 
-#### `nltools.pipelines.base.Pipeline`
+#### `Pipeline`
 
 ```python
 Pipeline(data: Any, cv: Optional[CVScheme] = None, steps: List[TransformStep] = list(), _is_lazy: bool = False) -> None
@@ -256,7 +218,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`_is_lazy`](#nltools.pipelines.base.Pipeline._is_lazy) | <code>[bool](#bool)</code> | Whether pipeline is in lazy evaluation mode (future feature).
+[`_is_lazy`](#_is_lazy) | <code>[bool](#bool)</code> | Whether pipeline is in lazy evaluation mode (future feature).
 
 **Examples:**
 
@@ -281,47 +243,19 @@ programming patterns.
 
 </details>
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`copy`](#nltools.pipelines.base.Pipeline.copy) | Create a shallow copy of the pipeline.
-[`normalize`](#nltools.pipelines.base.Pipeline.normalize) | Add a normalization step to the pipeline.
-[`pipe`](#nltools.pipelines.base.Pipeline.pipe) | Add a custom transformer to the pipeline.
-[`predict`](#nltools.pipelines.base.Pipeline.predict) | Execute pipeline with cross-validation and return prediction results.
-[`reduce`](#nltools.pipelines.base.Pipeline.reduce) | Add a dimensionality reduction step to the pipeline.
+[`copy`](#copy) | Create a shallow copy of the pipeline.
+[`normalize`](#normalize) | Add a normalization step to the pipeline.
+[`pipe`](#pipe) | Add a custom transformer to the pipeline.
+[`predict`](#predict) | Execute pipeline with cross-validation and return prediction results.
+[`reduce`](#reduce) | Add a dimensionality reduction step to the pipeline.
 
+##### Methods
 
-
-##### Attributes###### `nltools.pipelines.base.Pipeline.cv`
-
-```python
-cv: Optional[CVScheme] = None
-```
-
-###### `nltools.pipelines.base.Pipeline.data`
-
-```python
-data: Any
-```
-
-###### `nltools.pipelines.base.Pipeline.n_steps`
-
-```python
-n_steps: int
-```
-
-Return number of transform steps.
-
-###### `nltools.pipelines.base.Pipeline.steps`
-
-```python
-steps: List[TransformStep] = field(default_factory=list)
-```
-
-
-
-##### Functions###### `nltools.pipelines.base.Pipeline.copy`
+###### `copy`
 
 ```python
 copy() -> Pipeline
@@ -335,7 +269,7 @@ Type | Description
 ---- | -----------
 <code>[Pipeline](#nltools.pipelines.base.Pipeline)</code> | New pipeline instance with same configuration.
 
-###### `nltools.pipelines.base.Pipeline.normalize`
+###### `normalize`
 
 ```python
 normalize(method: str = 'zscore', **kwargs: Any) -> Pipeline
@@ -363,7 +297,7 @@ Type | Description
 >>> pipeline.normalize(method='minmax', feature_range=(0, 1))
 ```
 
-###### `nltools.pipelines.base.Pipeline.pipe`
+###### `pipe`
 
 ```python
 pipe(transformer: Any) -> Pipeline
@@ -390,7 +324,7 @@ Type | Description
 >>> pipeline.pipe(FastICA(n_components=20))
 ```
 
-###### `nltools.pipelines.base.Pipeline.predict`
+###### `predict`
 
 ```python
 predict(y: Any, algorithm: str = 'ridge', **kwargs: Any) -> Any
@@ -421,7 +355,7 @@ Type | Description
 >>> print(result.summary())
 ```
 
-###### `nltools.pipelines.base.Pipeline.reduce`
+###### `reduce`
 
 ```python
 reduce(method: str = 'pca', n_components: Optional[int] = None, **kwargs: Any) -> Pipeline
@@ -450,7 +384,7 @@ Type | Description
 >>> pipeline.reduce(method='srm', n_components=20, n_iter=100)
 ```
 
-#### `nltools.pipelines.base.Terminal`
+#### `Terminal`
 
 Bases: <code>[Protocol](#typing.Protocol)</code>
 
@@ -459,15 +393,17 @@ Protocol for terminal operations that end a pipeline.
 Terminals perform the final computation (e.g., prediction, similarity)
 and produce results for each CV fold.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#nltools.pipelines.base.Terminal.fit_evaluate) | Fit on training data and evaluate on test data.
+[`fit_evaluate`](#fit_evaluate) | Fit on training data and evaluate on test data.
 
 
 
-##### Functions###### `nltools.pipelines.base.Terminal.fit_evaluate`
+##### Methods
+
+###### `fit_evaluate`
 
 ```python
 fit_evaluate(train_data: Any, test_data: Any, train_idx: NDArray[np.intp], test_idx: NDArray[np.intp], fitted_stack: FittedStack) -> Any
@@ -491,7 +427,7 @@ Type | Description
 ---- | -----------
 <code>[Any](#typing.Any)</code> | Fold result (structure depends on terminal type).
 
-#### `nltools.pipelines.base.TransformStep`
+#### `TransformStep`
 
 Bases: <code>[Protocol](#typing.Protocol)</code>
 
@@ -504,7 +440,7 @@ Steps are added to a Pipeline and executed sequentially during CV.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#nltools.pipelines.base.TransformStep.invertible) | <code>[bool](#bool)</code> | Whether this transform supports inverse_transform.
+[`invertible`](#invertible) | <code>[bool](#bool)</code> | Whether this transform supports inverse_transform.
 
 Examples
 --------
@@ -513,23 +449,15 @@ Examples
 ...     def fit(self, data):
 ...         return MyFittedTransform(learned_params)
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`fit`](#nltools.pipelines.base.TransformStep.fit) | Fit the transform to data.
+[`fit`](#fit) | Fit the transform to data.
 
+##### Methods
 
-
-##### Attributes###### `nltools.pipelines.base.TransformStep.invertible`
-
-```python
-invertible: bool
-```
-
-
-
-##### Functions###### `nltools.pipelines.base.TransformStep.fit`
+###### `fit`
 
 ```python
 fit(data: Any) -> FittedTransform

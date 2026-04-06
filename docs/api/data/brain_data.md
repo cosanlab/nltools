@@ -853,7 +853,7 @@ Type | Description
 #### `standardize`
 
 ```python
-standardize(axis = 0, method = 'center')
+standardize(axis = 0, method = 'center', verbose = True)
 ```
 
 Standardize BrainData() instance.
@@ -864,6 +864,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `axis` | <code>[int](#int)</code> | 0 standardizes each voxel across observations (default). 1 standardizes each observation across voxels. | <code>0</code>
 `method` | <code>[str](#str)</code> | 'center' subtracts the mean (default). 'zscore' subtracts the mean and divides by standard deviation. | <code>'center'</code>
+`verbose` | <code>[bool](#bool)</code> | If False, suppress sklearn numerical warnings that occur when voxels have near-zero variance. Default: True. | <code>True</code>
 
 **Returns:**
 

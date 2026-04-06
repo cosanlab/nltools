@@ -1,4 +1,4 @@
-## `nltools.data.braindata.analysis`
+## `analysis`
 
 BrainData analysis functions.
 
@@ -6,35 +6,37 @@ Standalone functions extracted from BrainData class methods for similarity,
 distance, masking, ROI extraction, ICC, filtering, thresholding, decomposition,
 alignment, smoothing, and other analytical operations.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`align`](#nltools.data.braindata.analysis.align) | Align BrainData instance to target object using functional alignment
-[`apply_mask`](#nltools.data.braindata.analysis.apply_mask) | Mask BrainData instance using nilearn functionality.
-[`check_masks`](#nltools.data.braindata.analysis.check_masks) | Check to make sure masks are the same for each dataset and if not create a union mask
-[`decompose`](#nltools.data.braindata.analysis.decompose) | Decompose BrainData object
-[`detrend_data`](#nltools.data.braindata.analysis.detrend_data) | Remove linear trend from each voxel
-[`distance`](#nltools.data.braindata.analysis.distance) | Calculate distance between images within a BrainData() instance.
-[`extract_roi`](#nltools.data.braindata.analysis.extract_roi) | Extract activity from mask or ROI atlas using NiftiLabelsMasker.
-[`filter_data`](#nltools.data.braindata.analysis.filter_data) | Apply butterworth filter to data. Wraps nilearn.signal.clean.
-[`find_spikes_data`](#nltools.data.braindata.analysis.find_spikes_data) | Function to identify spikes from Time Series Data
-[`icc`](#nltools.data.braindata.analysis.icc) | Calculate voxel-wise intraclass correlation coefficient for data within
-[`multivariate_similarity`](#nltools.data.braindata.analysis.multivariate_similarity) | Predict spatial distribution of BrainData() instance from linear
-[`r_to_z`](#nltools.data.braindata.analysis.r_to_z) | Apply Fisher's r to z transformation to each element of the data
-[`regions`](#nltools.data.braindata.analysis.regions) | Extract brain connected regions into separate regions.
-[`scale_data`](#nltools.data.braindata.analysis.scale_data) | Scale data via mean scaling.
-[`similarity`](#nltools.data.braindata.analysis.similarity) | Calculate similarity of BrainData() instance with single
-[`smooth`](#nltools.data.braindata.analysis.smooth) | Apply spatial smoothing using nilearn smooth_img()
-[`standardize`](#nltools.data.braindata.analysis.standardize) | Standardize BrainData() instance.
-[`temporal_resample`](#nltools.data.braindata.analysis.temporal_resample) | Resample BrainData timeseries to a new target frequency or number of samples
-[`threshold_data`](#nltools.data.braindata.analysis.threshold_data) | Threshold BrainData instance with optional cluster filtering.
-[`transform_pairwise_data`](#nltools.data.braindata.analysis.transform_pairwise_data) | Transform BrainData into pairwise comparisons.
-[`z_to_r`](#nltools.data.braindata.analysis.z_to_r) | Convert z score back into r value for each element of data object.
+[`align`](#align) | Align BrainData instance to target object using functional alignment
+[`apply_mask`](#apply_mask) | Mask BrainData instance using nilearn functionality.
+[`check_masks`](#check_masks) | Check to make sure masks are the same for each dataset and if not create a union mask
+[`decompose`](#decompose) | Decompose BrainData object
+[`detrend_data`](#detrend_data) | Remove linear trend from each voxel
+[`distance`](#distance) | Calculate distance between images within a BrainData() instance.
+[`extract_roi`](#extract_roi) | Extract activity from mask or ROI atlas using NiftiLabelsMasker.
+[`filter_data`](#filter_data) | Apply butterworth filter to data. Wraps nilearn.signal.clean.
+[`find_spikes_data`](#find_spikes_data) | Function to identify spikes from Time Series Data
+[`icc`](#icc) | Calculate voxel-wise intraclass correlation coefficient for data within
+[`multivariate_similarity`](#multivariate_similarity) | Predict spatial distribution of BrainData() instance from linear
+[`r_to_z`](#r_to_z) | Apply Fisher's r to z transformation to each element of the data
+[`regions`](#regions) | Extract brain connected regions into separate regions.
+[`scale_data`](#scale_data) | Scale data via mean scaling.
+[`similarity`](#similarity) | Calculate similarity of BrainData() instance with single
+[`smooth`](#smooth) | Apply spatial smoothing using nilearn smooth_img()
+[`standardize`](#standardize) | Standardize BrainData() instance.
+[`temporal_resample`](#temporal_resample) | Resample BrainData timeseries to a new target frequency or number of samples
+[`threshold_data`](#threshold_data) | Threshold BrainData instance with optional cluster filtering.
+[`transform_pairwise_data`](#transform_pairwise_data) | Transform BrainData into pairwise comparisons.
+[`z_to_r`](#z_to_r) | Convert z score back into r value for each element of data object.
 
 
 
-### Functions#### `nltools.data.braindata.analysis.align`
+### Methods
+
+#### `align`
 
 ```python
 align(bd, target, method = 'procrustes', axis = 0, *args, **kwargs)
@@ -75,7 +77,7 @@ Name | Type | Description
 - Project aligned data into original data:
     >>> original_data = np.dot(out['transformed'].data,out['transformation_matrix'].T)
 
-#### `nltools.data.braindata.analysis.apply_mask`
+#### `apply_mask`
 
 ```python
 apply_mask(bd, mask, resample_mask_to_brain = False)
@@ -109,7 +111,7 @@ Cython-optimized code with better validation and memory management.
 
 </details>
 
-#### `nltools.data.braindata.analysis.check_masks`
+#### `check_masks`
 
 ```python
 check_masks(bd, image)
@@ -130,7 +132,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `tuple` |  | (data2, image2) arrays with compatible masks
 
-#### `nltools.data.braindata.analysis.decompose`
+#### `decompose`
 
 ```python
 decompose(bd, algorithm = 'pca', axis = 'voxels', n_components = None, *args, **kwargs)
@@ -154,7 +156,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `output` |  | a dictionary of decomposition parameters
 
-#### `nltools.data.braindata.analysis.detrend_data`
+#### `detrend_data`
 
 ```python
 detrend_data(bd, method = 'linear')
@@ -175,7 +177,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `out` |  | (BrainData) detrended BrainData instance
 
-#### `nltools.data.braindata.analysis.distance`
+#### `distance`
 
 ```python
 distance(bd, metric = 'euclidean', **kwargs)
@@ -197,7 +199,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dist` |  | (Adjacency) Outputs a 2D distance matrix.
 
-#### `nltools.data.braindata.analysis.extract_roi`
+#### `extract_roi`
 
 ```python
 extract_roi(bd, mask, metric = 'mean', n_components = None)
@@ -235,7 +237,7 @@ Type | Description
 >>> components = brain.extract_roi(mask, metric='pca', n_components=5)
 ```
 
-#### `nltools.data.braindata.analysis.filter_data`
+#### `filter_data`
 
 ```python
 filter_data(bd, sampling_freq = None, high_pass = None, low_pass = None, **kwargs)
@@ -269,7 +271,7 @@ nilearn.signal.clean documentation for all available options
 
 </details>
 
-#### `nltools.data.braindata.analysis.find_spikes_data`
+#### `find_spikes_data`
 
 ```python
 find_spikes_data(bd, global_spike_cutoff = 3, diff_spike_cutoff = 3)
@@ -291,7 +293,7 @@ Type | Description
 ---- | -----------
  | pd.DataFrame: DataFrame with spikes as indicator variables.
 
-#### `nltools.data.braindata.analysis.icc`
+#### `icc`
 
 ```python
 icc(bd, n_subjects, n_sessions, icc_type = 'icc2', parallel = None, n_jobs = -1, max_gpu_memory_gb = 4.0)
@@ -349,7 +351,7 @@ subject2_session1, ...]
 
 </details>
 
-#### `nltools.data.braindata.analysis.multivariate_similarity`
+#### `multivariate_similarity`
 
 ```python
 multivariate_similarity(bd, images, method = 'ols')
@@ -372,7 +374,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `out` |  | dictionary of regression statistics in BrainData instances {'beta','t','p','df','residual'}
 
-#### `nltools.data.braindata.analysis.r_to_z`
+#### `r_to_z`
 
 ```python
 r_to_z(bd)
@@ -393,7 +395,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `BrainData` |  | Transformed BrainData instance.
 
-#### `nltools.data.braindata.analysis.regions`
+#### `regions`
 
 ```python
 regions(bd, min_region_size = 1350, extract_type = 'local_regions', smoothing_fwhm = 6, is_mask = False)
@@ -417,7 +419,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `BrainData` |  | BrainData instance with extracted ROIs as data.
 
-#### `nltools.data.braindata.analysis.scale_data`
+#### `scale_data`
 
 ```python
 scale_data(bd, scale_val = 100.0, axis = None)
@@ -463,7 +465,7 @@ Name | Type | Description
 >>> scaled = brain.scale(100.0, axis=0)
 ```
 
-#### `nltools.data.braindata.analysis.similarity`
+#### `similarity`
 
 ```python
 similarity(bd, image, method = 'correlation')
@@ -486,7 +488,7 @@ Type | Description
 ---- | -----------
  | np.ndarray: Similarity values.
 
-#### `nltools.data.braindata.analysis.smooth`
+#### `smooth`
 
 ```python
 smooth(bd, fwhm)
@@ -507,10 +509,10 @@ Type | Description
 ---- | -----------
  | BrainData instance (copy with smoothed data)
 
-#### `nltools.data.braindata.analysis.standardize`
+#### `standardize`
 
 ```python
-standardize(bd, axis = 0, method = 'center')
+standardize(bd, axis = 0, method = 'center', verbose = True)
 ```
 
 Standardize BrainData() instance.
@@ -522,6 +524,7 @@ Name | Type | Description | Default
 `bd` |  | BrainData instance. | *required*
 `axis` |  | 0 for observations 1 for voxels (default: 0) | <code>0</code>
 `method` |  | ['center','zscore'] (default: 'center') | <code>'center'</code>
+`verbose` |  | If False, suppress sklearn numerical warnings that occur when voxels have near-zero variance. (default: True) | <code>True</code>
 
 **Returns:**
 
@@ -529,7 +532,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `BrainData` |  | Standardized BrainData instance.
 
-#### `nltools.data.braindata.analysis.temporal_resample`
+#### `temporal_resample`
 
 ```python
 temporal_resample(bd, sampling_freq = None, target = None, target_type = 'hz')
@@ -556,7 +559,7 @@ Type | Description
 ---- | -----------
  | upsampled BrainData instance
 
-#### `nltools.data.braindata.analysis.threshold_data`
+#### `threshold_data`
 
 ```python
 threshold_data(bd, upper = None, lower = None, binarize = False, coerce_nan = True, cluster_threshold = 0)
@@ -594,7 +597,7 @@ Band-pass filtering (unique nltools feature) preserved when cluster_threshold=0.
 
 </details>
 
-#### `nltools.data.braindata.analysis.transform_pairwise_data`
+#### `transform_pairwise_data`
 
 ```python
 transform_pairwise_data(bd)
@@ -614,7 +617,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `BrainData` |  | BrainData instance transformed into pairwise comparisons.
 
-#### `nltools.data.braindata.analysis.z_to_r`
+#### `z_to_r`
 
 ```python
 z_to_r(bd)

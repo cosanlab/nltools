@@ -1,4 +1,4 @@
-## `nltools.algorithms.inference.timeseries`
+## `timeseries`
 
 Time-series permutation test implementations.
 
@@ -21,19 +21,21 @@ Surrogate data for hypothesis testing of physical systems. Physics Reports, 748,
 
 </details>
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`circle_shift`](#nltools.algorithms.inference.timeseries.circle_shift) | Circular shift for time-series data.
-[`phase_randomize`](#nltools.algorithms.inference.timeseries.phase_randomize) | FFT-based phase randomization for time-series data.
-[`timeseries_correlation_permutation_test`](#nltools.algorithms.inference.timeseries.timeseries_correlation_permutation_test) | Time-series correlation permutation test.
+[`circle_shift`](#circle_shift) | Circular shift for time-series data.
+[`phase_randomize`](#phase_randomize) | FFT-based phase randomization for time-series data.
+[`timeseries_correlation_permutation_test`](#timeseries_correlation_permutation_test) | Time-series correlation permutation test.
 
 
 
 ### Classes
 
-### Functions#### `nltools.algorithms.inference.timeseries.circle_shift`
+### Methods
+
+#### `circle_shift`
 
 ```python
 circle_shift(data: np.ndarray, shift_amount: Optional[Union[int, np.ndarray]] = None, random_state: Optional[Union[int, np.random.RandomState]] = None) -> np.ndarray
@@ -77,7 +79,7 @@ array([[ 4, 30],
        [ 3, 20]])
 ```
 
-#### `nltools.algorithms.inference.timeseries.phase_randomize`
+#### `phase_randomize`
 
 ```python
 phase_randomize(data: np.ndarray, backend: Optional[str] = None, random_state: Optional[Union[int, np.random.RandomState]] = None) -> np.ndarray
@@ -141,7 +143,7 @@ True
 >>> x_rand_gpu = phase_randomize(x_large, backend='torch', random_state=42)
 ```
 
-#### `nltools.algorithms.inference.timeseries.timeseries_correlation_permutation_test`
+#### `timeseries_correlation_permutation_test`
 
 ```python
 timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int = 2, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, return_null: bool = False, random_state: Optional[Union[int, np.random.RandomState]] = None) -> dict

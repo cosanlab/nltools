@@ -1,4 +1,4 @@
-## `nltools.pipelines.multi_subject`
+## `multi_subject`
 
 Multi-subject pipeline for cross-subject analyses.
 
@@ -9,11 +9,13 @@ supporting leave-one-subject-out (LOSO) and run-based CV schemes.
 
 Name | Description
 ---- | -----------
-[`MultiSubjectPipeline`](#nltools.pipelines.multi_subject.MultiSubjectPipeline) | Pipeline for multi-subject neuroimaging analyses.
+[`MultiSubjectPipeline`](#MultiSubjectPipeline) | Pipeline for multi-subject neuroimaging analyses.
 
 
 
-### Classes#### `nltools.pipelines.multi_subject.MultiSubjectPipeline`
+### Classes
+
+#### `MultiSubjectPipeline`
 
 ```python
 MultiSubjectPipeline(data: List[NDArray], cv: Optional[Any] = None, groups: Optional[NDArray[np.intp]] = None, steps: List[Any] = list(), _is_lazy: bool = False) -> None
@@ -45,74 +47,32 @@ Examples
 >>> pipeline = MultiSubjectPipeline(subject_data, cv=CVScheme(scheme='loro'), groups=runs)
 >>> result = pipeline.predict(y)
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`align`](#nltools.pipelines.multi_subject.MultiSubjectPipeline.align) | Add cross-subject alignment step to pipeline.
-[`isc`](#nltools.pipelines.multi_subject.MultiSubjectPipeline.isc) | Compute inter-subject correlation across subjects.
-[`normalize`](#nltools.pipelines.multi_subject.MultiSubjectPipeline.normalize) | Add normalization step (per-subject).
-[`pipe`](#nltools.pipelines.multi_subject.MultiSubjectPipeline.pipe) | Add custom sklearn transformer.
-[`predict`](#nltools.pipelines.multi_subject.MultiSubjectPipeline.predict) | Execute pipeline with CV and return prediction results.
-[`reduce`](#nltools.pipelines.multi_subject.MultiSubjectPipeline.reduce) | Add dimensionality reduction step.
-[`rsa`](#nltools.pipelines.multi_subject.MultiSubjectPipeline.rsa) | Compute representational similarity analysis.
+[`align`](#align) | Add cross-subject alignment step to pipeline.
+[`isc`](#isc) | Compute inter-subject correlation across subjects.
+[`normalize`](#normalize) | Add normalization step (per-subject).
+[`pipe`](#pipe) | Add custom sklearn transformer.
+[`predict`](#predict) | Execute pipeline with CV and return prediction results.
+[`reduce`](#reduce) | Add dimensionality reduction step.
+[`rsa`](#rsa) | Compute representational similarity analysis.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`cv`](#nltools.pipelines.multi_subject.MultiSubjectPipeline.cv) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
-[`data`](#nltools.pipelines.multi_subject.MultiSubjectPipeline.data) | <code>[List](#typing.List)[[NDArray](#numpy.typing.NDArray)]</code> | 
-[`groups`](#nltools.pipelines.multi_subject.MultiSubjectPipeline.groups) | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | 
-[`n_steps`](#nltools.pipelines.multi_subject.MultiSubjectPipeline.n_steps) | <code>[int](#int)</code> | Number of transform steps.
-[`n_subjects`](#nltools.pipelines.multi_subject.MultiSubjectPipeline.n_subjects) | <code>[int](#int)</code> | Number of subjects in the multi-subject dataset.
-[`steps`](#nltools.pipelines.multi_subject.MultiSubjectPipeline.steps) | <code>[List](#typing.List)[[Any](#typing.Any)]</code> | 
+[`cv`](#cv) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
+[`data`](#data) | <code>[List](#typing.List)[[NDArray](#numpy.typing.NDArray)]</code> | 
+[`groups`](#groups) | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | 
+[`n_steps`](#n_steps) | <code>[int](#int)</code> | Number of transform steps.
+[`n_subjects`](#n_subjects) | <code>[int](#int)</code> | Number of subjects in the multi-subject dataset.
+[`steps`](#steps) | <code>[List](#typing.List)[[Any](#typing.Any)]</code> | 
 
+##### Methods
 
-
-##### Attributes###### `nltools.pipelines.multi_subject.MultiSubjectPipeline.cv`
-
-```python
-cv: Optional[Any] = None
-```
-
-###### `nltools.pipelines.multi_subject.MultiSubjectPipeline.data`
-
-```python
-data: List[NDArray]
-```
-
-###### `nltools.pipelines.multi_subject.MultiSubjectPipeline.groups`
-
-```python
-groups: Optional[NDArray[np.intp]] = None
-```
-
-###### `nltools.pipelines.multi_subject.MultiSubjectPipeline.n_steps`
-
-```python
-n_steps: int
-```
-
-Number of transform steps.
-
-###### `nltools.pipelines.multi_subject.MultiSubjectPipeline.n_subjects`
-
-```python
-n_subjects: int
-```
-
-Number of subjects in the multi-subject dataset.
-
-###### `nltools.pipelines.multi_subject.MultiSubjectPipeline.steps`
-
-```python
-steps: List[Any] = field(default_factory=list)
-```
-
-
-
-##### Functions###### `nltools.pipelines.multi_subject.MultiSubjectPipeline.align`
+###### `align`
 
 ```python
 align(method: str = 'srm', scheme: str = 'global', n_features: int | None = 50, new_subject: str = 'procrustes', **kwargs: str) -> 'MultiSubjectPipeline'
@@ -157,7 +117,7 @@ Examples
 ...     .fit(model='ttest', contrast='A-B')
 ... )
 
-###### `nltools.pipelines.multi_subject.MultiSubjectPipeline.isc`
+###### `isc`
 
 ```python
 isc(method: str = 'pairwise', metric: str = 'median', n_permute: int = 5000, parallel: str = 'cpu', **kwargs: str)
@@ -193,7 +153,7 @@ Examples
 ... )
 >>> print(f"ISC: {result.isc:.3f}, p: {result.p:.3f}")
 
-###### `nltools.pipelines.multi_subject.MultiSubjectPipeline.normalize`
+###### `normalize`
 
 ```python
 normalize(method: str = 'zscore', **kwargs: str) -> 'MultiSubjectPipeline'
@@ -201,7 +161,7 @@ normalize(method: str = 'zscore', **kwargs: str) -> 'MultiSubjectPipeline'
 
 Add normalization step (per-subject).
 
-###### `nltools.pipelines.multi_subject.MultiSubjectPipeline.pipe`
+###### `pipe`
 
 ```python
 pipe(transformer) -> 'MultiSubjectPipeline'
@@ -209,7 +169,7 @@ pipe(transformer) -> 'MultiSubjectPipeline'
 
 Add custom sklearn transformer.
 
-###### `nltools.pipelines.multi_subject.MultiSubjectPipeline.predict`
+###### `predict`
 
 ```python
 predict(y, algorithm: str = 'ridge', **kwargs: str)
@@ -249,7 +209,7 @@ Logistic regression with regularization::
         binary_labels, algorithm='logistic', C=0.1, class_weight='balanced'
     )
 
-###### `nltools.pipelines.multi_subject.MultiSubjectPipeline.reduce`
+###### `reduce`
 
 ```python
 reduce(method: str = 'pca', n_components: Optional[int] = None, **kwargs: Optional[int]) -> 'MultiSubjectPipeline'
@@ -257,7 +217,7 @@ reduce(method: str = 'pca', n_components: Optional[int] = None, **kwargs: Option
 
 Add dimensionality reduction step.
 
-###### `nltools.pipelines.multi_subject.MultiSubjectPipeline.rsa`
+###### `rsa`
 
 ```python
 rsa(model_rdm: NDArray, method: str = 'spearman', n_permute: int = 5000, **kwargs: int)

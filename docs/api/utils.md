@@ -1,24 +1,22 @@
-## `nltools.utils`
+## `utils`
 
 NeuroLearn Utilities
 ====================
 
 Cross-cutting utilities used across the nltools package.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`all_same`](#nltools.utils.all_same) | Check if all items in a sequence are equal to the first item.
-[`attempt_to_import`](#nltools.utils.attempt_to_import) | Attempt to import an optional dependency, returning None if unavailable.
-[`concatenate`](#nltools.utils.concatenate) | Concatenate a list of BrainData() or Adjacency() objects
-[`get_resource_path`](#nltools.utils.get_resource_path) | Get path to nltools resource directory.
+[`all_same`](#all_same) | Check if all items in a sequence are equal to the first item.
+[`attempt_to_import`](#attempt_to_import) | Attempt to import an optional dependency, returning None if unavailable.
+[`concatenate`](#concatenate) | Concatenate a list of BrainData() or Adjacency() objects
+[`get_resource_path`](#get_resource_path) | Get path to nltools resource directory.
 
+### Methods
 
-
-### Attributes
-
-### Functions#### `nltools.utils.all_same`
+#### `all_same`
 
 ```python
 all_same(items)
@@ -47,7 +45,7 @@ True
 False
 ```
 
-#### `nltools.utils.attempt_to_import`
+#### `attempt_to_import`
 
 ```python
 attempt_to_import(dependency, name = None, fromlist = None)
@@ -82,7 +80,7 @@ Type | Description
 ...     pass
 ```
 
-#### `nltools.utils.concatenate`
+#### `concatenate`
 
 ```python
 concatenate(data)
@@ -90,7 +88,7 @@ concatenate(data)
 
 Concatenate a list of BrainData() or Adjacency() objects
 
-#### `nltools.utils.get_resource_path`
+#### `get_resource_path`
 
 ```python
 get_resource_path()

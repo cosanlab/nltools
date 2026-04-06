@@ -1,25 +1,27 @@
-## `nltools.data.collection.prediction`
+## `prediction`
 
 Prediction functions extracted from BrainCollection.
 
 Contains predict, compute_contrasts, select_feature, and related helpers.
 All BrainCollection methods converted to functions taking `bc` as first argument.
 
-**Functions:**
+**Methods:**
 
 Name | Description
 ---- | -----------
-[`compute_contrasts`](#nltools.data.collection.prediction.compute_contrasts) | Compute contrasts from fitted GLM beta coefficients.
-[`compute_single_contrast`](#nltools.data.collection.prediction.compute_single_contrast) | Compute a single contrast across all subjects.
-[`parse_contrast_string`](#nltools.data.collection.prediction.parse_contrast_string) | Parse a contrast string into a numeric contrast vector.
-[`predict`](#nltools.data.collection.prediction.predict) | Generate predictions for each subject in collection.
-[`select_feature`](#nltools.data.collection.prediction.select_feature) | Select a single feature's weights across all subjects.
+[`compute_contrasts`](#compute_contrasts) | Compute contrasts from fitted GLM beta coefficients.
+[`compute_single_contrast`](#compute_single_contrast) | Compute a single contrast across all subjects.
+[`parse_contrast_string`](#parse_contrast_string) | Parse a contrast string into a numeric contrast vector.
+[`predict`](#predict) | Generate predictions for each subject in collection.
+[`select_feature`](#select_feature) | Select a single feature's weights across all subjects.
 
 
 
 ### Classes
 
-### Functions#### `nltools.data.collection.prediction.compute_contrasts`
+### Methods
+
+#### `compute_contrasts`
 
 ```python
 compute_contrasts(bc, contrasts: 'str | dict | np.ndarray | list') -> 'BrainCollection | dict[str, BrainCollection]'
@@ -66,7 +68,7 @@ Type | Description
 >>> face_vs_house_ttest = contrasts["face_vs_house"].ttest()
 ```
 
-#### `nltools.data.collection.prediction.compute_single_contrast`
+#### `compute_single_contrast`
 
 ```python
 compute_single_contrast(bc, contrast: 'str | np.ndarray | list', design_columns: list[str]) -> 'BrainCollection'
@@ -88,7 +90,7 @@ Type | Description
 ---- | -----------
 <code>'BrainCollection'</code> | BrainCollection with contrast values for each subject
 
-#### `nltools.data.collection.prediction.parse_contrast_string`
+#### `parse_contrast_string`
 
 ```python
 parse_contrast_string(bc, contrast_str: str, design_columns: list[str]) -> np.ndarray
@@ -110,7 +112,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Numeric contrast vector
 
-#### `nltools.data.collection.prediction.predict`
+#### `predict`
 
 ```python
 predict(bc, X: 'np.ndarray | str | list | None' = None, y: 'np.ndarray | None' = None, method: str = 'whole_brain', estimator: str = 'svm', cv: str = 5, groups: 'np.ndarray | None' = None, roi_mask: 'np.ndarray | None' = None, radius: float = 10.0, scoring: str = 'accuracy', standardize: bool = True, n_jobs: int = -1, show_progress: bool = True) -> 'BrainCollection'
@@ -177,7 +179,7 @@ Type | Description
 >>> predictions = weights.predict(X=new_features)
 ```
 
-#### `nltools.data.collection.prediction.select_feature`
+#### `select_feature`
 
 ```python
 select_feature(bc, feature: 'int | str') -> 'BrainCollection'
