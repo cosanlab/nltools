@@ -43,7 +43,7 @@ def similarity(
 
     """
     from nltools.data.adjacency import Adjacency
-    from nltools.algorithms.inference import (
+    from nltools.stats import (
         correlation_permutation_test,
         matrix_permutation_test,
     )
@@ -258,7 +258,7 @@ def ttest(adj, permutation=False, **kwargs):
     from copy import deepcopy
 
     from nltools.data.adjacency import Adjacency
-    from nltools.algorithms.inference import one_sample_permutation_test
+    from nltools.stats import one_sample_permutation_test
 
     if adj.is_single_matrix:
         raise ValueError("t-test cannot be run on single matrices.")
@@ -351,7 +351,7 @@ def stats_label_distance(adj, labels=None, n_permute=5000, n_jobs=-1):
     import pandas as pd
     from copy import deepcopy
 
-    from nltools.algorithms.inference import two_sample_permutation_test
+    from nltools.stats import two_sample_permutation_test
 
     if not adj.is_single_matrix:
         raise ValueError("This function only works on single adjacency matrices.")

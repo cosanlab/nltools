@@ -27,7 +27,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.fft import fft, fftfreq
-from nltools.algorithms.inference import (
+from nltools.stats import (
     one_sample_permutation_test,
     two_sample_permutation_test,
 )

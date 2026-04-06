@@ -4,10 +4,8 @@ import pytest
 import numpy as np
 from scipy.stats import kstest, multivariate_normal
 
-from nltools.algorithms.inference.correlation import (
-    correlation_permutation_test,
-    _pearson_correlation,
-)
+from nltools.stats import correlation_permutation_test
+from nltools.algorithms.inference.correlation import _pearson_correlation
 from nltools.tests.core.test_inference import (
     N_PERMUTE_BACKEND,
     TOLERANCE_GPU_VALUE,

@@ -18,7 +18,7 @@ from nilearn.maskers import NiftiMasker
 from scipy.stats import multivariate_normal, binom, ttest_1samp
 from nltools.data import BrainData
 from nltools.stats import fdr
-from nltools.algorithms.inference import one_sample_permutation_test
+from nltools.stats import one_sample_permutation_test
 from nltools.prefs import MNI_Template
 import csv
 from copy import deepcopy

@@ -1718,7 +1718,7 @@ class TestISCStatisticalCorrectness:
 
         # Verify autocorrelation is preserved in circle_shifted data
         # (by checking that circle_shift function preserves it)
-        from nltools.algorithms.inference.timeseries import circle_shift
+        from nltools.stats import circle_shift
 
         shifted_data = circle_shift(data, random_state=42)
         autocorr_shifted = []
@@ -1759,7 +1759,7 @@ class TestISCStatisticalCorrectness:
             power_orig.append(np.abs(fft_orig) ** 2)
 
         # Verify phase_randomize preserves power spectrum
-        from nltools.algorithms.inference.timeseries import phase_randomize
+        from nltools.stats import phase_randomize
 
         randomized_data = phase_randomize(data, random_state=42)
         power_rand = []

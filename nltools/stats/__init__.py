@@ -29,6 +29,18 @@ from .correlation import (
 )
 from .alignment import align, procrustes, procrustes_distance, align_states
 from .intersubject import isc, isc_group, isfc, isps
+from .permutation import (
+    one_sample_permutation_test,
+    two_sample_permutation_test,
+    correlation_permutation_test,
+    timeseries_correlation_permutation_test,
+    circle_shift,
+    phase_randomize,
+    matrix_permutation_test,
+    double_center,
+    u_center,
+    distance_correlation,
+)
 
 __all__ = [
     # corrections
@@ -63,4 +75,15 @@ __all__ = [
     "isc_group",
     "isfc",
     "isps",
+    # permutation
+    "one_sample_permutation_test",
+    "two_sample_permutation_test",
+    "correlation_permutation_test",
+    "timeseries_correlation_permutation_test",
+    "circle_shift",
+    "phase_randomize",
+    "matrix_permutation_test",
+    "double_center",
+    "u_center",
+    "distance_correlation",
 ]

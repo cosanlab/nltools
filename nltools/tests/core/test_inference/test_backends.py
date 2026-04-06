@@ -3,7 +3,7 @@
 import pytest
 import numpy as np
 
-from nltools.algorithms.inference import one_sample_permutation_test
+from nltools.stats import one_sample_permutation_test
 from nltools.tests.core.test_inference import (
     N_PERMUTE_BACKEND,
 )

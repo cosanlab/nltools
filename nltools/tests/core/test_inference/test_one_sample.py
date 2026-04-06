@@ -7,7 +7,7 @@ Tests both basic functionality and statistical correctness.
 import pytest
 import numpy as np
 
-from nltools.algorithms.inference import one_sample_permutation_test
+from nltools.stats import one_sample_permutation_test
 
 
 class TestOneSamplePermutation:

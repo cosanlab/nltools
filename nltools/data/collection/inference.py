@@ -186,7 +186,7 @@ def permutation_test(
         >>> # With GPU acceleration
         >>> result = bc.permutation_test(parallel='gpu')
     """
-    from nltools.algorithms.inference import one_sample_permutation_test
+    from nltools.stats import one_sample_permutation_test
     from nltools.utils import attempt_to_import
     from ..braindata import BrainData
 
@@ -287,7 +287,7 @@ def permutation_test2(
         >>> result = patients.permutation_test2(controls)
         >>> diff_bd, p_bd = result['mean_diff'], result['p']
     """
-    from nltools.algorithms.inference import two_sample_permutation_test
+    from nltools.stats import two_sample_permutation_test
     from nltools.utils import attempt_to_import
     from ..braindata import BrainData
 

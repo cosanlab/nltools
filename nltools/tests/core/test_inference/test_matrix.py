@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 from scipy.stats import kstest
 
-from nltools.algorithms.inference import matrix_permutation_test
+from nltools.stats import matrix_permutation_test
 
 
 class TestMatrixHelpers:
@@ -560,7 +560,7 @@ class TestDoubleCenter:
 
     def test_double_center_basic(self):
         """Test basic double-centering operation."""
-        from nltools.algorithms.inference.matrix import double_center
+        from nltools.stats import double_center
 
         # Create a simple matrix
         mat = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float)
@@ -573,7 +573,7 @@ class TestDoubleCenter:
 
     def test_double_center_symmetric(self):
         """Test double-centering on symmetric matrix."""
-        from nltools.algorithms.inference.matrix import double_center
+        from nltools.stats import double_center
 
         np.random.seed(42)
         mat = np.random.randn(5, 5)
@@ -588,7 +588,7 @@ class TestDoubleCenter:
 
     def test_double_center_raises_on_1d(self):
         """Test that double_center raises error on 1D input."""
-        from nltools.algorithms.inference.matrix import double_center
+        from nltools.stats import double_center
 
         with pytest.raises(ValueError, match="Array should be 2d"):
             double_center(np.array([1, 2, 3]))
@@ -599,7 +599,7 @@ class TestUCenter:
 
     def test_u_center_basic(self):
         """Test basic u-centering operation."""
-        from nltools.algorithms.inference.matrix import u_center
+        from nltools.stats import u_center
 
         np.random.seed(42)
         mat = np.random.randn(5, 5)
@@ -612,7 +612,7 @@ class TestUCenter:
 
     def test_u_center_symmetric(self):
         """Test u-centering on symmetric matrix."""
-        from nltools.algorithms.inference.matrix import u_center
+        from nltools.stats import u_center
 
         np.random.seed(42)
         mat = np.random.randn(5, 5)
@@ -627,7 +627,7 @@ class TestUCenter:
 
     def test_u_center_diagonal_zero(self):
         """Test that u_center sets diagonal to zero."""
-        from nltools.algorithms.inference.matrix import u_center
+        from nltools.stats import u_center
 
         mat = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float)
         result = u_center(mat)
@@ -637,7 +637,7 @@ class TestUCenter:
 
     def test_u_center_raises_on_1d(self):
         """Test that u_center raises error on 1D input."""
-        from nltools.algorithms.inference.matrix import u_center
+        from nltools.stats import u_center
 
         with pytest.raises(ValueError, match="Array should be 2d"):
             u_center(np.array([1, 2, 3]))
@@ -648,7 +648,7 @@ class TestDistanceCorrelation:
 
     def test_distance_correlation_basic(self):
         """Test basic distance correlation computation."""
-        from nltools.algorithms.inference.matrix import distance_correlation
+        from nltools.stats import distance_correlation
 
         np.random.seed(42)
         n = 20
@@ -663,7 +663,7 @@ class TestDistanceCorrelation:
 
     def test_distance_correlation_bias_corrected(self):
         """Test distance correlation with bias correction."""
-        from nltools.algorithms.inference.matrix import distance_correlation
+        from nltools.stats import distance_correlation
 
         np.random.seed(42)
         n = 20
@@ -680,7 +680,7 @@ class TestDistanceCorrelation:
 
     def test_distance_correlation_with_ttest(self):
         """Test distance correlation with t-test."""
-        from nltools.algorithms.inference.matrix import distance_correlation
+        from nltools.stats import distance_correlation
 
         np.random.seed(42)
         n = 20
@@ -698,7 +698,7 @@ class TestDistanceCorrelation:
 
     def test_distance_correlation_1d_arrays(self):
         """Test distance correlation with 1D arrays."""
-        from nltools.algorithms.inference.matrix import distance_correlation
+        from nltools.stats import distance_correlation
 
         np.random.seed(42)
         n = 20
@@ -712,7 +712,7 @@ class TestDistanceCorrelation:
 
     def test_distance_correlation_independent(self):
         """Test distance correlation with independent data."""
-        from nltools.algorithms.inference.matrix import distance_correlation
+        from nltools.stats import distance_correlation
 
         np.random.seed(42)
         n = 20
@@ -727,7 +727,7 @@ class TestDistanceCorrelation:
 
     def test_distance_correlation_ttest_requires_bias_corrected(self):
         """Test that ttest requires bias_corrected=True."""
-        from nltools.algorithms.inference.matrix import distance_correlation
+        from nltools.stats import distance_correlation
 
         np.random.seed(42)
         n = 20
@@ -739,7 +739,7 @@ class TestDistanceCorrelation:
 
     def test_distance_correlation_raises_on_3d(self):
         """Test that distance_correlation raises error on 3D input."""
-        from nltools.algorithms.inference.matrix import distance_correlation
+        from nltools.stats import distance_correlation
 
         np.random.seed(42)
         x = np.random.randn(5, 5, 5)
@@ -891,7 +891,7 @@ class TestMatrixUtilitiesIntegration:
 
     def test_double_center_vs_u_center(self):
         """Test that double_center and u_center produce different results."""
-        from nltools.algorithms.inference.matrix import double_center, u_center
+        from nltools.stats import double_center, u_center
 
         np.random.seed(42)
         mat = np.random.randn(5, 5)
@@ -907,7 +907,7 @@ class TestMatrixUtilitiesIntegration:
 
     def test_distance_correlation_uses_centering(self):
         """Test that distance_correlation correctly uses centering functions."""
-        from nltools.algorithms.inference.matrix import distance_correlation
+        from nltools.stats import distance_correlation
 
         np.random.seed(42)
         n = 20
@@ -925,7 +925,7 @@ class TestMatrixUtilitiesIntegration:
 
     def test_backward_compatibility_import_from_inference(self):
         """Test that functions can be imported from the inference module."""
-        from nltools.algorithms.inference import double_center, u_center, distance_correlation
+        from nltools.stats import double_center, u_center, distance_correlation
 
         assert callable(double_center)
         assert callable(u_center)

@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 from scipy.stats import kstest
 
-from nltools.algorithms.inference import two_sample_permutation_test
+from nltools.stats import two_sample_permutation_test
 from nltools.tests.core.test_inference import (
     TOLERANCE_GPU_VALUE,
     TOLERANCE_GPU_PVALUE,
