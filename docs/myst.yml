@@ -12,12 +12,7 @@ project:
         - file: migration-guide.md
         - file: dartbrains-migration.md
     - file: tutorials/index
-    - title: API Classes
-      children:
-        - file: api/data/brain_data.md
-        - file: api/data/adjacency.md
-        - file: api/data/design_matrix.md
-        - file: api/data/brain_collection.md
+    - file: api/data/index.md
     - title: API Class Modules
       children:
         - title: BrainData
