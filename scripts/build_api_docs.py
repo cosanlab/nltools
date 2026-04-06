@@ -49,7 +49,7 @@ MODULES: list[tuple[str, str]] = [
     ("nltools.data.braindata.bootstrap", "data/braindata_bootstrap.md"),
     ("nltools.data.braindata.plotting", "data/braindata_plotting.md"),
     ("nltools.data.braindata.pipeline", "data/braindata_pipeline.md"),
-    ("nltools.data.adjacency", "data/adjacency.md"),
+    ("nltools.data.adjacency.Adjacency", "data/adjacency.md"),
     ("nltools.data.adjacency.stats", "data/adjacency_stats.md"),
     ("nltools.data.adjacency.modeling", "data/adjacency_modeling.md"),
     ("nltools.data.adjacency.plotting", "data/adjacency_plotting.md"),
