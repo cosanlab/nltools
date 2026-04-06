@@ -116,11 +116,11 @@ shell = """python scripts/build_api_docs.py"""
 
 [tool.poe.tasks.docs-build]
 help = "Generate API docs then build MyST site"
-shell = """python scripts/build_api_docs.py && cd docs && myst build --site"""
+shell = """python scripts/build_api_docs.py && cd docs && myst build --site --execute"""
 
 [tool.poe.tasks.docs-preview]
 help = "Live preview docs"
-shell = """cd docs && myst start"""
+shell = """cd docs && myst start --execute"""
 
 [tool.griffe2md]
 docstring_style = "google"
