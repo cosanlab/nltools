@@ -12,7 +12,6 @@ project:
         - file: migration-guide.md
     - title: Basic Tutorials
       children:
-        - file: tutorials/basics/00_quickstart
         - file: tutorials/basics/01_brain_data
         - file: tutorials/basics/02_design_matrix
         - file: tutorials/basics/03_adjacency
@@ -32,6 +31,12 @@ project:
     - title: API Classes
       children:
         - file: api/data/brain_data.md
+        - file: api/data/adjacency.md
+        - file: api/data/design_matrix.md
+        - file: api/data/brain_collection.md
+    - title: API Class Functions
+      children:
+        - title: BrainData
           children:
             - file: api/data/braindata_io.md
             - file: api/data/braindata_analysis.md
@@ -40,20 +45,20 @@ project:
             - file: api/data/braindata_bootstrap.md
             - file: api/data/braindata_plotting.md
             - file: api/data/braindata_pipeline.md
-        - file: api/data/adjacency.md
+        - title: Adjacency
           children:
             - file: api/data/adjacency_stats.md
             - file: api/data/adjacency_modeling.md
             - file: api/data/adjacency_plotting.md
             - file: api/data/adjacency_io.md
-        - file: api/data/design_matrix.md
+        - title: DesignMatrix
           children:
             - file: api/data/design_matrix_transforms.md
             - file: api/data/design_matrix_regressors.md
             - file: api/data/design_matrix_append.md
             - file: api/data/design_matrix_diagnostics.md
             - file: api/data/design_matrix_io.md
-        - file: api/data/brain_collection.md
+        - title: BrainCollection
           children:
             - file: api/data/collection_constructors.md
             - file: api/data/collection_transforms.md
