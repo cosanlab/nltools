@@ -14,7 +14,7 @@ from scipy.stats import t as t_dist
 
 from .utils import _compute_pvalue
 from ..shape_utils import extract_triangle_elements, permute_matrix_symmetric
-from ..validation import (
+from .validation import (
     validate_how_parameter,
     validate_metric_parameter,
     validate_tail_parameter,

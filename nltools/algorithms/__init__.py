@@ -18,9 +18,7 @@ __all__ = [
     "ridge",  # Export ridge module for advanced usage
 ]
 
-from .srm import DetSRM, SRM
-from .hyperalignment import HyperAlignment
-from .alignment import LocalAlignment
+from .alignment import LocalAlignment, HyperAlignment, SRM, DetSRM
 from .hrf import (
     spm_hrf,
     glover_hrf,

@@ -11,7 +11,7 @@ from sklearn.utils import check_random_state
 
 from nltools.backends import Backend
 from .utils import _generate_sign_flips, _compute_pvalue, _auto_batch_size
-from ..validation import (
+from .validation import (
     validate_tail_parameter,
     validate_parallel_parameter,
     validate_array_shape_range,

@@ -12,7 +12,7 @@ from sklearn.metrics import pairwise_distances
 from sklearn.utils import check_random_state
 
 from ..algorithms.inference.utils import _compute_pvalue
-from ..algorithms.srm import SRM, DetSRM
+from ..algorithms.alignment import SRM, DetSRM
 
 
 def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kwargs):

@@ -993,7 +993,7 @@ class TestSRMWorkflow:
         Tests that SRM can fit on multi-subject VTC betas and transform
         data to shared space with correct dimensionality.
         """
-        from nltools.algorithms.srm import SRM
+        from nltools.algorithms.alignment import SRM
 
         betas = haxby_all_betas["betas"]
         n_runs = haxby_all_betas["n_runs"]
@@ -1049,7 +1049,7 @@ class TestSRMWorkflow:
         """
         from sklearn.svm import SVC
         from sklearn.preprocessing import StandardScaler
-        from nltools.algorithms.srm import SRM
+        from nltools.algorithms.alignment import SRM
 
         betas = haxby_all_betas["betas"]
         categories = haxby_all_betas["categories"]
@@ -1118,7 +1118,7 @@ class TestSRMWorkflow:
         """
         from sklearn.svm import SVC
         from sklearn.preprocessing import StandardScaler
-        from nltools.algorithms.srm import SRM
+        from nltools.algorithms.alignment import SRM
 
         betas = haxby_all_betas["betas"]
         categories = haxby_all_betas["categories"]

@@ -9,7 +9,7 @@ Based on research documented in claude-guidelines/srm-hyperalignment-testing-str
 
 import pytest
 import numpy as np
-from nltools.algorithms.srm import SRM, DetSRM
+from nltools.algorithms.alignment import SRM, DetSRM
 from sklearn.exceptions import NotFittedError
 
 pytestmark = pytest.mark.slow

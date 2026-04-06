@@ -227,14 +227,14 @@ def _fit_one_neighborhood(
             local_data, n_iter=n_iter, backend=backend
         )
     elif method == "srm":
-        from nltools.algorithms.srm import SRM
+        from .srm import SRM
 
         feat = n_features if n_features is not None else min(n_local_voxels, n_samples)
         srm = SRM(n_iter=n_iter, features=feat)
         srm.fit(local_data, parallel=None)
         transforms, template = srm.w_, srm.s_
     elif method == "hyperalignment":
-        from nltools.algorithms.hyperalignment import HyperAlignment
+        from .hyperalignment import HyperAlignment
 
         ha = HyperAlignment(n_iter=n_iter)
         ha.fit(local_data, parallel=None)
