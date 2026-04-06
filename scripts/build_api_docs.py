@@ -60,7 +60,7 @@ MODULES: list[tuple[str, str]] = [
     ("nltools.data.designmatrix.append", "data/design_matrix_append.md"),
     ("nltools.data.designmatrix.diagnostics", "data/design_matrix_diagnostics.md"),
     ("nltools.data.designmatrix.io", "data/design_matrix_io.md"),
-    ("nltools.data.collection", "data/brain_collection.md"),
+    ("nltools.data.collection.BrainCollection", "data/brain_collection.md"),
     ("nltools.data.collection.constructors", "data/collection_constructors.md"),
     ("nltools.data.collection.transforms", "data/collection_transforms.md"),
     ("nltools.data.collection.inference", "data/collection_inference.md"),
