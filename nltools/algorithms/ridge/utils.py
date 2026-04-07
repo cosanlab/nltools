@@ -4,9 +4,14 @@ Contains helper functions for batching, decomposition, and other utilities
 following himalaya's implementation patterns.
 """
 
+from __future__ import annotations
+
 import numpy as np
-from typing import Optional, List, Iterator, Tuple
+from typing import TYPE_CHECKING, Optional, List, Iterator, Tuple
 from sklearn.utils import check_random_state
+
+if TYPE_CHECKING:
+    from nltools.backends import Backend
 
 
 def generate_dirichlet_samples(
@@ -121,6 +126,7 @@ def _decompose_ridge(
     alphas: np.ndarray,
     n_alphas_batch: Optional[int] = None,
     method: str = "svd",
+    backend: Backend | None = None,
 ) -> Iterator[Tuple[np.ndarray, slice]]:
     """Generator that yields resolution matrices for ridge predictions.
 
@@ -162,9 +168,6 @@ def _decompose_ridge(
         - Uses generator pattern for memory efficiency (Principle 2: automatic memory efficiency)
         - Each batch is automatically cleaned up after yielding
     """
-    from .backends import get_backend
-
-    backend = get_backend()
 
     # Default: process all alphas at once
     if n_alphas_batch is None:
@@ -204,6 +207,7 @@ def _select_best_alphas(
     scores: np.ndarray,
     alphas: np.ndarray,
     local_alpha: bool,
+    backend: Backend | None = None,
     conservative: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Select best alphas from cross-validation scores.
@@ -228,25 +232,26 @@ def _select_best_alphas(
         - Follows himalaya's implementation pattern
         - Adds small epsilon bias toward larger alphas (more regularization) when scores are tied
     """
-    from .backends import get_backend
 
-    backend = get_backend()
+    # Ensure scores and alphas are on the same device
+    scores = backend.asarray(scores)
+    alphas = backend.asarray(alphas)
 
     # Average scores over CV splits
     # Shape: (n_alphas, n_targets)
-    scores_mean = backend.mean(scores, axis=0)
+    scores_mean = backend.xp.mean(scores, axis=0)
 
     # Add tiny epsilon slope to prefer larger alphas when scores are equal
     # This provides a principled tiebreaker toward more regularization
-    scores_mean = scores_mean + (backend.log(alphas) * 1e-10)[:, None]
+    scores_mean = scores_mean + (backend.xp.log(alphas) * 1e-10)[:, None]
 
     if local_alpha:
         # Select best alpha independently for each target
-        alphas_argmax = backend.argmax(scores_mean, axis=0)
+        alphas_argmax = backend.xp.argmax(scores_mean, axis=0)
 
         if conservative:
             # Conservative: take largest alpha within 1 std of best
-            scores_std = backend.std(scores, axis=0)
+            scores_std = backend.xp.std(scores, axis=0)
             best_scores = scores_mean[alphas_argmax, np.arange(len(alphas_argmax))]
             threshold = (
                 best_scores - scores_std[alphas_argmax, np.arange(len(alphas_argmax))]
@@ -256,9 +261,10 @@ def _select_best_alphas(
             beats_threshold = scores_mean > threshold[None, :]
             # Bias toward larger alphas
             beats_threshold = (
-                beats_threshold.astype(np.float32) + backend.log(alphas)[:, None] * 1e-4
+                beats_threshold.astype(np.float32)
+                + backend.xp.log(alphas)[:, None] * 1e-4
             )
-            alphas_argmax = backend.argmax(beats_threshold, axis=0)
+            alphas_argmax = backend.xp.argmax(beats_threshold, axis=0)
 
     else:
         # Global: select single best alpha for all targets
@@ -268,8 +274,8 @@ def _select_best_alphas(
             )
 
         # Mean over targets, then argmax over alphas
-        global_scores = backend.mean(scores_mean, axis=1)
-        best_alpha_idx = backend.argmax(global_scores)
+        global_scores = backend.xp.mean(scores_mean, axis=1)
+        best_alpha_idx = backend.xp.argmax(global_scores)
 
         # Broadcast to all targets
         alphas_argmax = backend.full(
@@ -282,7 +288,9 @@ def _select_best_alphas(
     return alphas_argmax, best_scores_mean
 
 
-def _r2_score(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
+def _r2_score(
+    y_true: np.ndarray, y_pred: np.ndarray, backend: Backend = None
+) -> np.ndarray:
     """Compute R² score (coefficient of determination).
 
     Backend-agnostic implementation that works with NumPy, PyTorch, etc.
@@ -300,23 +308,19 @@ def _r2_score(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
         - SS_res = sum((y_true - y_pred)^2)  # Residual sum of squares
         - SS_tot = sum((y_true - y_mean)^2)  # Total sum of squares
     """
-    from .backends import get_backend
-
-    backend = get_backend()
-
     # Handle both 2D and 3D predictions (with alpha dimension)
     if len(y_pred.shape) == 3:
         # Shape: (n_alphas, n_samples, n_targets)
-        ss_res = backend.sum((y_true[None, :, :] - y_pred) ** 2, axis=1)
-        ss_tot = backend.sum(
-            (y_true[None, :, :] - backend.mean(y_true, axis=0)[None, None, :]) ** 2,
+        ss_res = backend.xp.sum((y_true[None, :, :] - y_pred) ** 2, axis=1)
+        ss_tot = backend.xp.sum(
+            (y_true[None, :, :] - backend.xp.mean(y_true, axis=0)[None, None, :]) ** 2,
             axis=1,
         )
     else:
         # Shape: (n_samples, n_targets)
-        ss_res = backend.sum((y_true - y_pred) ** 2, axis=0)
-        ss_tot = backend.sum(
-            (y_true - backend.mean(y_true, axis=0)[None, :]) ** 2, axis=0
+        ss_res = backend.xp.sum((y_true - y_pred) ** 2, axis=0)
+        ss_tot = backend.xp.sum(
+            (y_true - backend.xp.mean(y_true, axis=0)[None, :]) ** 2, axis=0
         )
 
     # R² = 1 - SS_res / SS_tot

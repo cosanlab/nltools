@@ -478,15 +478,11 @@ class TestScoring:
 
         def neg_mse(y_true, y_pred):
             """Negative MSE (to maximize)."""
-            backend_module = __import__(
-                "nltools.algorithms.ridge.backends",
-                fromlist=["get_backend"],
-            ).get_backend()
             # Handle 3D predictions (n_alphas, n_samples, n_targets)
             if len(y_pred.shape) == 3:
-                mse = backend_module.mean((y_true[None, :, :] - y_pred) ** 2, axis=1)
+                mse = np.mean((y_true[None, :, :] - y_pred) ** 2, axis=1)
             else:
-                mse = backend_module.mean((y_true - y_pred) ** 2, axis=0)
+                mse = np.mean((y_true - y_pred) ** 2, axis=0)
             return -mse
 
         np.random.seed(42)

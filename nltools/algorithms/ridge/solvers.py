@@ -11,11 +11,24 @@ Follows himalaya's implementation patterns:
 - Random search over feature space weights (Dirichlet sampling)
 """
 
+from __future__ import annotations
+
 import numpy as np
 import warnings
 from typing import Optional, Union, List, Callable, Any, Dict
 from sklearn.model_selection import KFold, BaseCrossValidator
 from sklearn.utils import check_random_state
+
+
+def _resolve_backend(parallel):
+    """Convert parallel='cpu'|'gpu'|None to a Backend instance."""
+    from nltools.backends import Backend
+
+    if parallel in (None, "cpu"):
+        return Backend("numpy")
+    if parallel == "gpu":
+        return Backend("torch")  # auto-detects cuda/mps/cpu
+    raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got: {parallel!r}")
 
 
 def solve_banded_ridge_cv(
@@ -177,7 +190,6 @@ def solve_banded_ridge_cv(
         See ``nltools.algorithms.ridge.utils._decompose_ridge()`` for generator pattern details.
         See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.
     """
-    from .backends import set_backend, get_backend
     from .utils import (
         _decompose_ridge,
         _select_best_alphas,
@@ -185,56 +197,8 @@ def solve_banded_ridge_cv(
         generate_dirichlet_samples,
     )
 
-    # Set backend (convert parallel to backend with graceful fallback)
-    # Validate parallel parameter first
-    if parallel is not None and parallel not in ["cpu", "gpu"]:
-        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got: {parallel!r}")
-
-    # Convert None to "cpu" for consistency
-    if parallel is None:
-        parallel = "cpu"
-
-    if isinstance(parallel, str):
-        # Map parallel to backend name with graceful fallback
-        if parallel == "cpu":
-            backend_name = "numpy"
-        elif parallel == "gpu":
-            # Try torch_cuda first, but gracefully fallback to numpy if unavailable
-            try:
-                # Check if CUDA is available
-                import torch
-
-                if torch.cuda.is_available():
-                    backend_name = "torch_cuda"
-                elif (
-                    hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
-                ):
-                    # MPS available, use torch backend (handles MPS gracefully)
-                    backend_name = "torch"
-                else:
-                    # No GPU available, fallback to CPU
-                    backend_name = "numpy"
-            except ImportError:
-                # PyTorch not installed, fallback to CPU
-                backend_name = "numpy"
-            except Exception:
-                # Any other error, fallback to CPU
-                backend_name = "numpy"
-
-            # Try to set the backend, with graceful fallback
-            try:
-                set_backend(backend_name, on_error="raise")
-            except Exception:
-                # If backend setup fails, fallback to numpy
-                backend_name = "numpy"
-                set_backend(backend_name)
-        else:
-            # This should never happen due to validation above, but kept for safety
-            raise ValueError(f"parallel must be 'cpu' or 'gpu', got: {parallel!r}")
-    else:
-        backend_name = str(parallel)
-
-    backend = get_backend()
+    backend = _resolve_backend(parallel)
+    xp = backend.xp
 
     # Validate inputs
     if not Xs:
@@ -305,8 +269,8 @@ def solve_banded_ridge_cv(
     # Handle intercept
     X_offset, Y_offset = None, None
     if fit_intercept:
-        X_offset = backend.mean(X, axis=0)
-        Y_offset = backend.mean(Y, axis=0)
+        X_offset = xp.mean(X, axis=0)
+        Y_offset = xp.mean(Y, axis=0)
         X = X - X_offset[None, :]
         Y = Y - Y_offset[None, :]
 
@@ -320,7 +284,7 @@ def solve_banded_ridge_cv(
 
     # Set score function
     if score_func is None:
-        score_func = _r2_score
+        score_func = lambda y_true, y_pred: _r2_score(y_true, y_pred, backend=backend)
 
     # Setup cross-validation
     if isinstance(cv, int):
@@ -363,7 +327,7 @@ def solve_banded_ridge_cv(
     for ii, gamma in enumerate(progress_iter):
         # Scale each feature space by sqrt(gamma)
         for kk in range(n_spaces):
-            X[:, slices[kk]] *= backend.sqrt(gamma[kk])
+            X[:, slices[kk]] *= xp.sqrt(gamma[kk])
 
         # Jitter alphas if requested
         if jitter_alphas:
@@ -375,6 +339,9 @@ def solve_banded_ridge_cv(
 
         # Cross-validation loop
         for jj, (train_idx, val_idx) in enumerate(cv.split(X)):
+            # Keep CPU copies for indexing CPU-resident Y
+            train_idx_cpu = train_idx
+            val_idx_cpu = val_idx
             train_idx = backend.asarray(train_idx)
             val_idx = backend.asarray(val_idx)
             X_train = X[train_idx]
@@ -382,7 +349,7 @@ def solve_banded_ridge_cv(
 
             # Handle intercept per fold
             if fit_intercept:
-                X_train_mean = backend.mean(X_train, axis=0)
+                X_train_mean = xp.mean(X_train, axis=0)
                 X_train = X_train - X_train_mean[None, :]
                 X_val = X_val - X_train_mean[None, :]
 
@@ -394,6 +361,7 @@ def solve_banded_ridge_cv(
                 alphas,
                 n_alphas_batch=n_alphas_batch,
                 method=diagonalize_method,
+                backend=backend,
             ):
                 # Compute X_val @ matrices for predictions
                 # matrices shape: (n_alphas_batch, n_features, n_train_samples)
@@ -404,9 +372,11 @@ def solve_banded_ridge_cv(
                 for start in range(0, n_targets, n_targets_batch):
                     batch = slice(start, start + n_targets_batch)
 
-                    # Get Y batches (transfer to GPU if needed)
-                    Y_train_batch = Y[:, batch][train_idx]
-                    Y_val_batch = Y[:, batch][val_idx]
+                    # Get Y batches — use CPU indices when Y is on CPU
+                    y_train = train_idx_cpu if Y_in_cpu else train_idx
+                    y_val = val_idx_cpu if Y_in_cpu else val_idx
+                    Y_train_batch = Y[:, batch][y_train]
+                    Y_val_batch = Y[:, batch][y_val]
 
                     if Y_in_cpu:
                         Y_train_batch = backend.to_gpu(Y_train_batch, device=device)
@@ -414,7 +384,7 @@ def solve_banded_ridge_cv(
 
                     # Handle intercept per fold
                     if fit_intercept:
-                        Y_train_mean = backend.mean(Y_train_batch, axis=0)
+                        Y_train_mean = xp.mean(Y_train_batch, axis=0)
                         Y_train_batch = Y_train_batch - Y_train_mean[None, :]
                         Y_val_batch = Y_val_batch - Y_train_mean[None, :]
 
@@ -435,7 +405,7 @@ def solve_banded_ridge_cv(
 
         # Select best alphas for this gamma
         alphas_argmax, cv_scores_ii = _select_best_alphas(
-            scores, alphas, local_alpha, conservative
+            scores, alphas, local_alpha, backend=backend, conservative=conservative
         )
         cv_scores[ii, :] = backend.to_cpu(cv_scores_ii)
 
@@ -464,7 +434,7 @@ def solve_banded_ridge_cv(
                 update_indices = backend.to_cpu(update_indices)
             if len(update_indices) > 0:
                 # Refit weights only for alphas used by at least one target
-                used_alphas = backend.unique(best_alphas[mask])
+                used_alphas = xp.unique(best_alphas[mask])
                 primal_weights = backend.zeros_like(
                     X, shape=(n_features, len(update_indices)), device="cpu"
                 )
@@ -474,6 +444,7 @@ def solve_banded_ridge_cv(
                     alphas=used_alphas,
                     n_alphas_batch=min(len(used_alphas), n_alphas_batch),
                     method=diagonalize_method,
+                    backend=backend,
                 ):
                     for start in range(0, len(update_indices), n_targets_batch_refit):
                         batch = slice(start, start + n_targets_batch_refit)
@@ -485,21 +456,21 @@ def solve_banded_ridge_cv(
                         weights = backend.matmul(matrix, Y_batch)
 
                         # Select alphas corresponding to best cv_score
-                        alphas_indices = backend.searchsorted(
+                        alphas_indices = xp.searchsorted(
                             used_alphas, best_alphas[mask][batch]
                         )
                         # Mask targets whose selected alphas are outside the alpha batch
-                        mask2 = backend.isin(
+                        mask2 = xp.isin(
                             alphas_indices,
-                            backend.arange(len(used_alphas))[alpha_batch],
+                            xp.arange(len(used_alphas))[alpha_batch],
                         )
                         # Get indices in alpha_batch
-                        alphas_indices = backend.searchsorted(
-                            backend.arange(len(used_alphas))[alpha_batch],
+                        alphas_indices = xp.searchsorted(
+                            xp.arange(len(used_alphas))[alpha_batch],
                             alphas_indices[mask2],
                         )
                         # Update corresponding weights
-                        mask_target = backend.arange(weights.shape[2])
+                        mask_target = xp.arange(weights.shape[2])
                         mask_target = backend.to_gpu(mask_target)[mask2]
                         tmp = weights[alphas_indices, :, mask_target]
                         primal_weights[:, batch][:, backend.to_cpu(mask2)] = (
@@ -513,9 +484,7 @@ def solve_banded_ridge_cv(
                 # We want to use the primal weights on the unscaled features Xs,
                 # not on the scaled features (sqrt(gamma) * Xs)
                 for kk in range(n_spaces):
-                    primal_weights[slices[kk]] *= backend.to_cpu(
-                        backend.sqrt(gamma[kk])
-                    )
+                    primal_weights[slices[kk]] *= backend.to_cpu(xp.sqrt(gamma[kk]))
 
                 coefs[:, backend.to_cpu(mask)] = primal_weights
                 del primal_weights
@@ -526,22 +495,16 @@ def solve_banded_ridge_cv(
 
         # Reset scaling for next iteration
         for kk in range(n_spaces):
-            X[:, slices[kk]] /= backend.sqrt(gamma[kk])
+            X[:, slices[kk]] /= xp.sqrt(gamma[kk])
 
     # Compute deltas: log(gamma / alpha)
-    deltas = backend.log(best_gammas / best_alphas[None, :])
+    deltas = xp.log(best_gammas / best_alphas[None, :])
 
     # Convert to numpy
-    if hasattr(backend, "to_numpy"):
-        deltas = backend.to_numpy(deltas)
-        cv_scores = backend.to_numpy(cv_scores)
-        if coefs is not None:
-            coefs = backend.to_numpy(coefs)
-    else:
-        deltas = np.asarray(deltas)
-        cv_scores = np.asarray(cv_scores)
-        if coefs is not None:
-            coefs = np.asarray(coefs)
+    deltas = backend.to_numpy(deltas)
+    cv_scores = backend.to_numpy(cv_scores)
+    if coefs is not None:
+        coefs = backend.to_numpy(coefs)
 
     # Compute intercept if requested
     intercept = None
@@ -552,7 +515,7 @@ def solve_banded_ridge_cv(
     result = {
         "deltas": deltas,
         "cv_scores": cv_scores,
-        "parallel": backend_name,
+        "parallel": backend.name,
     }
 
     if return_weights:
@@ -591,12 +554,16 @@ def _refit_banded_ridge(
     """
     from .utils import _decompose_ridge
 
+    xp = backend.xp
     n_samples, n_features = X.shape
     n_targets = Y.shape[1]
     device = getattr(X, "device", None)
 
+    # Ensure best_alphas is on the backend device
+    best_alphas = backend.asarray(best_alphas)
+
     # Get unique alphas to minimize computation
-    unique_alphas = backend.unique(best_alphas)
+    unique_alphas = xp.unique(best_alphas)
     unique_alphas = backend.asarray(unique_alphas)
 
     # Storage for coefficients
@@ -604,7 +571,10 @@ def _refit_banded_ridge(
 
     # Refit for each unique alpha
     for matrices, alpha_batch in _decompose_ridge(
-        X, unique_alphas, n_alphas_batch=min(len(unique_alphas), n_alphas_batch)
+        X,
+        unique_alphas,
+        n_alphas_batch=min(len(unique_alphas), n_alphas_batch),
+        backend=backend,
     ):
         # Batch over targets
         for start in range(0, n_targets, n_targets_batch):
@@ -617,9 +587,9 @@ def _refit_banded_ridge(
             batch_alphas = unique_alphas[alpha_batch]
 
             # Find which targets use these alphas
-            mask = backend.isin(target_alphas, batch_alphas)
+            mask = xp.isin(target_alphas, batch_alphas)
 
-            if not backend.any(mask):
+            if not xp.any(mask):
                 continue
 
             # Get Y for this batch
@@ -638,7 +608,7 @@ def _refit_banded_ridge(
                     continue
 
                 # Find index of this target's alpha in batch_alphas
-                alpha_idx = backend.searchsorted(batch_alphas, target_alpha)
+                alpha_idx = xp.searchsorted(batch_alphas, target_alpha)
                 alpha_idx = int(backend.to_cpu(alpha_idx))
 
                 # Get weights for this alpha
@@ -761,59 +731,10 @@ def solve_ridge_cv(
         See ``nltools.algorithms.ridge.utils._decompose_ridge()`` for generator pattern details.
         See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.
     """
-    from .backends import set_backend, get_backend
     from .utils import _decompose_ridge, _select_best_alphas, _r2_score
 
-    # Set backend (convert parallel to backend with graceful fallback)
-    # Validate parallel parameter first
-    if parallel is not None and parallel not in ["cpu", "gpu"]:
-        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got: {parallel!r}")
-
-    # Convert None to "cpu" for consistency
-    if parallel is None:
-        parallel = "cpu"
-
-    if isinstance(parallel, str):
-        # Map parallel to backend name with graceful fallback
-        if parallel == "cpu":
-            backend_name = "numpy"
-        elif parallel == "gpu":
-            # Try torch_cuda first, but gracefully fallback to numpy if unavailable
-            try:
-                # Check if CUDA is available
-                import torch
-
-                if torch.cuda.is_available():
-                    backend_name = "torch_cuda"
-                elif (
-                    hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
-                ):
-                    # MPS available, use torch backend (handles MPS gracefully)
-                    backend_name = "torch"
-                else:
-                    # No GPU available, fallback to CPU
-                    backend_name = "numpy"
-            except ImportError:
-                # PyTorch not installed, fallback to CPU
-                backend_name = "numpy"
-            except Exception:
-                # Any other error, fallback to CPU
-                backend_name = "numpy"
-
-            # Try to set the backend, with graceful fallback
-            try:
-                set_backend(backend_name, on_error="raise")
-            except Exception:
-                # If backend setup fails, fallback to numpy
-                backend_name = "numpy"
-                set_backend(backend_name)
-        else:
-            # This should never happen due to validation above, but kept for safety
-            raise ValueError(f"parallel must be 'cpu' or 'gpu', got: {parallel!r}")
-    else:
-        backend_name = str(parallel)
-
-    backend = get_backend()
+    backend = _resolve_backend(parallel)
+    xp = backend.xp
 
     # Validate inputs
     X = backend.asarray(X)
@@ -837,8 +758,8 @@ def solve_ridge_cv(
     # Handle intercept
     X_offset, Y_offset = None, None
     if fit_intercept:
-        X_offset = backend.mean(X, axis=0)
-        Y_offset = backend.mean(Y, axis=0)
+        X_offset = xp.mean(X, axis=0)
+        Y_offset = xp.mean(Y, axis=0)
         X = X - X_offset[None, :]
         Y = Y - Y_offset[None, :]
 
@@ -852,7 +773,7 @@ def solve_ridge_cv(
 
     # Set score function
     if score_func is None:
-        score_func = _r2_score
+        score_func = lambda y_true, y_pred: _r2_score(y_true, y_pred, backend=backend)
 
     # Setup cross-validation
     if isinstance(cv, int):
@@ -868,7 +789,9 @@ def solve_ridge_cv(
 
     # Cross-validation loop
     for split_idx, (train_idx, val_idx) in enumerate(cv.split(X)):
-        # Get train/val splits
+        # Get train/val splits — keep CPU copies for indexing CPU-resident Y
+        train_idx_cpu = train_idx
+        val_idx_cpu = val_idx
         train_idx = backend.asarray(train_idx)
         val_idx = backend.asarray(val_idx)
 
@@ -877,7 +800,7 @@ def solve_ridge_cv(
 
         # Handle intercept per fold
         if fit_intercept:
-            X_train_mean = backend.mean(X_train, axis=0)
+            X_train_mean = xp.mean(X_train, axis=0)
             X_train = X_train - X_train_mean[None, :]
             X_val = X_val - X_train_mean[None, :]
 
@@ -885,7 +808,10 @@ def solve_ridge_cv(
         # _decompose_ridge yields (resolution_matrices, alpha_indices) pairs
         # This avoids storing all resolution matrices simultaneously (memory efficient)
         for matrices, alpha_batch in _decompose_ridge(
-            X_train, alphas, n_alphas_batch=n_alphas_batch
+            X_train,
+            alphas,
+            n_alphas_batch=n_alphas_batch,
+            backend=backend,
         ):
             # Compute X_val @ matrices for predictions
             # matrices shape: (n_alphas_batch, n_features, n_train_samples)
@@ -896,9 +822,11 @@ def solve_ridge_cv(
             for start in range(0, n_targets, n_targets_batch):
                 batch = slice(start, start + n_targets_batch)
 
-                # Get Y batches (transfer to GPU if needed)
-                Y_train_batch = Y[:, batch][train_idx]
-                Y_val_batch = Y[:, batch][val_idx]
+                # Get Y batches — use CPU indices when Y is on CPU
+                y_train = train_idx_cpu if Y_in_cpu else train_idx
+                y_val = val_idx_cpu if Y_in_cpu else val_idx
+                Y_train_batch = Y[:, batch][y_train]
+                Y_val_batch = Y[:, batch][y_val]
 
                 if Y_in_cpu:
                     Y_train_batch = backend.to_gpu(Y_train_batch, device=device)
@@ -906,7 +834,7 @@ def solve_ridge_cv(
 
                 # Handle intercept per fold
                 if fit_intercept:
-                    Y_train_mean = backend.mean(Y_train_batch, axis=0)
+                    Y_train_mean = xp.mean(Y_train_batch, axis=0)
                     Y_train_batch = Y_train_batch - Y_train_mean[None, :]
                     Y_val_batch = Y_val_batch - Y_train_mean[None, :]
 
@@ -927,7 +855,7 @@ def solve_ridge_cv(
 
     # Select best alphas
     alphas_argmax, best_scores = _select_best_alphas(
-        scores, alphas, local_alpha, conservative
+        scores, alphas, local_alpha, backend=backend, conservative=conservative
     )
 
     # Convert to numpy for indexing
@@ -948,20 +876,14 @@ def solve_ridge_cv(
     )
 
     # Convert to numpy
-    if hasattr(backend, "to_numpy"):
-        best_alphas = backend.to_numpy(best_alphas)
-        coefs = backend.to_numpy(coefs)
-        scores = backend.to_numpy(scores)
-    else:
-        # Already numpy (numpy backend)
-        best_alphas = np.asarray(best_alphas)
-        coefs = np.asarray(coefs)
-        scores = np.asarray(scores)
+    best_alphas = backend.to_numpy(best_alphas)
+    coefs = backend.to_numpy(coefs)
+    scores = backend.to_numpy(scores)
 
     # Return dict with consistent keys
     return {
         "best_alphas": best_alphas,
         "coefs": coefs,
         "cv_scores": scores,
-        "parallel": backend_name,
+        "parallel": backend.name,
     }

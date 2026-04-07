@@ -197,80 +197,55 @@ def _torch_available():
 
 
 class TestBackendManagement:
-    """Test backend switching and management."""
+    """Test backend selection via parallel parameter."""
 
-    def test_import_backend_functions(self):
-        """Backend management functions should be importable."""
-        from nltools.algorithms.ridge import set_backend, get_backend, ALL_BACKENDS
+    def test_cpu_backend(self):
+        """parallel='cpu' should use numpy backend."""
+        from nltools.algorithms.ridge import solve_ridge_cv
 
-        assert callable(set_backend)
-        assert callable(get_backend)
-        assert isinstance(ALL_BACKENDS, (list, tuple))
-        assert "numpy" in ALL_BACKENDS
+        np.random.seed(42)
+        X = np.random.randn(50, 20)
+        Y = np.random.randn(50, 5)
 
-    def test_backend_switching(self):
-        """Should be able to switch backends."""
-        from nltools.algorithms.ridge import set_backend, get_backend
+        result = solve_ridge_cv(X, Y, alphas=[1.0], cv=2, parallel="cpu")
+        assert result["parallel"] == "numpy"
 
-        # Set to numpy
-        set_backend("numpy")
-        backend = get_backend()
-        assert backend.name == "numpy"
+    def test_none_defaults_to_cpu(self):
+        """parallel=None should default to numpy backend."""
+        from nltools.algorithms.ridge import solve_ridge_cv
 
-        # Try to set to torch (may not be available)
-        try:
-            set_backend("torch")
-            backend = get_backend()
-            assert backend.name == "torch"
-        except ImportError:
-            pytest.skip("PyTorch not available")
+        np.random.seed(42)
+        X = np.random.randn(50, 20)
+        Y = np.random.randn(50, 5)
 
-        # Set back to numpy
-        set_backend("numpy")
-        backend = get_backend()
-        assert backend.name == "numpy"
-
-    def test_numpy_backend_always_available(self):
-        """NumPy backend should always be available."""
-        from nltools.algorithms.ridge import set_backend, get_backend
-
-        set_backend("numpy")
-        backend = get_backend()
-        assert backend.name == "numpy"
+        result = solve_ridge_cv(X, Y, alphas=[1.0], cv=2, parallel=None)
+        assert result["parallel"] == "numpy"
 
     @pytest.mark.skipif(
         not _torch_available(), reason="PyTorch not available for backend testing"
     )
     def test_backend_consistency(self):
-        """Results should be consistent across backends."""
-        from nltools.algorithms.ridge import solve_ridge_cv, set_backend
+        """Results should be consistent across cpu and gpu backends."""
+        from nltools.algorithms.ridge import solve_ridge_cv
 
         np.random.seed(42)
         X = np.random.randn(50, 30)
         Y = np.random.randn(50, 5)
         alphas = [1.0]
 
-        # NumPy backend
-        set_backend("numpy")
-        result_np = solve_ridge_cv(X, Y, alphas=alphas, cv=2)
-        best_alphas_np = result_np["best_alphas"]
-        coefs_np = result_np["coefs"]
-        scores_np = result_np["cv_scores"]
+        # CPU backend
+        result_cpu = solve_ridge_cv(X, Y, alphas=alphas, cv=2, parallel="cpu")
+        coefs_cpu = result_cpu["coefs"]
+        scores_cpu = result_cpu["cv_scores"]
 
-        # Torch backend
-        set_backend("torch")
-        result_torch = solve_ridge_cv(X, Y, alphas=alphas, cv=2)
-        best_alphas_torch = result_torch["best_alphas"]
-        coefs_torch = result_torch["coefs"]
-        scores_torch = result_torch["cv_scores"]
+        # GPU backend (will use torch-cpu/mps/cuda depending on hardware)
+        result_gpu = solve_ridge_cv(X, Y, alphas=alphas, cv=2, parallel="gpu")
+        coefs_gpu = result_gpu["coefs"]
+        scores_gpu = result_gpu["cv_scores"]
 
         # Results should be close (allowing for numerical differences)
-        assert_array_equal(best_alphas_np, best_alphas_torch)
-        assert_allclose(coefs_np, coefs_torch, rtol=1e-4, atol=1e-6)
-        assert_allclose(scores_np, scores_torch, rtol=1e-4, atol=1e-6)
-
-        # Reset to numpy
-        set_backend("numpy")
+        assert_allclose(coefs_cpu, coefs_gpu, rtol=1e-4, atol=1e-6)
+        assert_allclose(scores_cpu, scores_gpu, rtol=1e-4, atol=1e-6)
 
 
 class TestImportPaths:
@@ -282,14 +257,6 @@ class TestImportPaths:
 
         assert callable(solve_ridge_cv)
         assert callable(solve_banded_ridge_cv)
-
-    def test_import_backends(self):
-        """Import backend management."""
-        from nltools.algorithms.ridge import set_backend, get_backend, ALL_BACKENDS
-
-        assert callable(set_backend)
-        assert callable(get_backend)
-        assert isinstance(ALL_BACKENDS, (list, tuple))
 
     def test_import_utilities(self):
         """Import utility functions."""
@@ -311,8 +278,6 @@ class TestImportPaths:
 
         assert hasattr(ridge, "solve_ridge_cv")
         assert hasattr(ridge, "solve_banded_ridge_cv")
-        assert hasattr(ridge, "set_backend")
-        assert hasattr(ridge, "get_backend")
 
 
 class TestEdgeCases:

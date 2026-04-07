@@ -445,3 +445,435 @@ def test_auto_selection_without_gpu():
     # This should always work
     backend = auto_select_backend(n_samples=1000, n_features=100000)
     assert backend.name in ["numpy", "torch-cpu", "torch-cuda", "torch-mps"]
+
+
+# ============================================================================
+# dtype_to_str
+# ============================================================================
+
+
+class TestDtypeToStr:
+    """Test static dtype normalization method."""
+
+    def test_string_passthrough(self):
+        from nltools.backends import Backend
+
+        assert Backend.dtype_to_str("float32") == "float32"
+        assert Backend.dtype_to_str("float64") == "float64"
+        assert Backend.dtype_to_str("int32") == "int32"
+
+    def test_none_passthrough(self):
+        from nltools.backends import Backend
+
+        assert Backend.dtype_to_str(None) is None
+
+    def test_numpy_dtype(self):
+        from nltools.backends import Backend
+
+        assert Backend.dtype_to_str(np.float32) == "float32"
+        assert Backend.dtype_to_str(np.float64) == "float64"
+        assert Backend.dtype_to_str(np.int32) == "int32"
+
+    def test_numpy_dtype_instance(self):
+        from nltools.backends import Backend
+
+        arr = np.array([1.0], dtype=np.float32)
+        assert Backend.dtype_to_str(arr.dtype) == "float32"
+
+    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+    def test_torch_dtype(self):
+        import torch
+        from nltools.backends import Backend
+
+        assert Backend.dtype_to_str(torch.float32) == "float32"
+        assert Backend.dtype_to_str(torch.float64) == "float64"
+        assert Backend.dtype_to_str(torch.int32) == "int32"
+
+
+# ============================================================================
+# asarray / asarray_like / check_arrays
+# ============================================================================
+
+
+class TestAsarray:
+    """Test universal array conversion."""
+
+    def test_from_list(self):
+        from nltools.backends import Backend
+
+        backend = Backend("numpy")
+        result = backend.asarray([1, 2, 3], dtype="float32")
+        assert isinstance(result, np.ndarray)
+        assert result.dtype == np.float32
+
+    def test_from_numpy(self):
+        from nltools.backends import Backend
+
+        backend = Backend("numpy")
+        arr = np.array([1, 2, 3], dtype=np.float64)
+        result = backend.asarray(arr, dtype="float32")
+        assert result.dtype == np.float32
+
+    def test_preserves_dtype_if_none(self):
+        from nltools.backends import Backend
+
+        backend = Backend("numpy")
+        arr = np.array([1, 2, 3], dtype=np.float64)
+        result = backend.asarray(arr)
+        assert result.dtype == np.float64
+
+    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+    def test_torch_from_numpy(self):
+        import torch
+        from nltools.backends import Backend
+
+        backend = Backend("torch")
+        arr = np.array([1, 2, 3], dtype=np.float32)
+        result = backend.asarray(arr)
+        assert isinstance(result, torch.Tensor)
+
+    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+    def test_torch_from_list(self):
+        import torch
+        from nltools.backends import Backend
+
+        backend = Backend("torch")
+        result = backend.asarray([1.0, 2.0, 3.0], dtype="float32")
+        assert isinstance(result, torch.Tensor)
+        assert result.dtype == torch.float32
+
+
+class TestAsarrayLike:
+    """Test array conversion matching a reference."""
+
+    def test_numpy_matches_ref(self):
+        from nltools.backends import Backend
+
+        backend = Backend("numpy")
+        ref = np.array([1.0], dtype=np.float32)
+        result = backend.asarray_like([4, 5, 6], ref)
+        assert result.dtype == np.float32
+
+    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+    def test_torch_matches_ref(self):
+        import torch
+        from nltools.backends import Backend
+
+        backend = Backend("torch")
+        ref = torch.tensor([1.0], dtype=torch.float32)
+        result = backend.asarray_like([4, 5, 6], ref)
+        assert isinstance(result, torch.Tensor)
+        assert result.dtype == torch.float32
+        assert result.device == ref.device
+
+
+class TestCheckArrays:
+    """Test multi-array dtype/device coercion."""
+
+    def test_coerces_dtype(self):
+        from nltools.backends import Backend
+
+        backend = Backend("numpy")
+        arr1 = np.array([1, 2], dtype=np.float32)
+        arr2 = np.array([3, 4], dtype=np.float64)
+        results = backend.check_arrays(arr1, arr2)
+        assert results[0].dtype == np.float32
+        assert results[1].dtype == np.float32
+
+    def test_none_passthrough(self):
+        from nltools.backends import Backend
+
+        backend = Backend("numpy")
+        arr1 = np.array([1, 2], dtype=np.float32)
+        results = backend.check_arrays(arr1, None)
+        assert results[0].dtype == np.float32
+        assert results[1] is None
+
+    def test_list_of_arrays(self):
+        from nltools.backends import Backend
+
+        backend = Backend("numpy")
+        arr1 = np.array([1, 2], dtype=np.float32)
+        arr_list = [
+            np.array([3, 4], dtype=np.float64),
+            np.array([5, 6], dtype=np.float64),
+        ]
+        results = backend.check_arrays(arr1, arr_list)
+        assert results[0].dtype == np.float32
+        for arr in results[1]:
+            assert arr.dtype == np.float32
+
+    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+    def test_torch_coerces_dtype_and_device(self):
+        import torch
+        from nltools.backends import Backend
+
+        backend = Backend("torch")
+        arr1 = np.array([1, 2], dtype=np.float32)
+        arr2 = np.array([3, 4], dtype=np.float64)
+        results = backend.check_arrays(arr1, arr2)
+        assert isinstance(results[0], torch.Tensor)
+        assert results[0].dtype == torch.float32
+        assert results[1].dtype == torch.float32
+
+
+# ============================================================================
+# Array Creation with Shape Override
+# ============================================================================
+
+
+class TestArrayCreation:
+    """Test zeros_like, ones_like, full_like with shape override."""
+
+    def test_zeros_like_same_shape(self):
+        from nltools.backends import Backend
+
+        backend = Backend("numpy")
+        arr = np.array([1, 2, 3], dtype=np.float32)
+        result = backend.zeros_like(arr)
+        assert result.shape == (3,)
+        assert result.dtype == np.float32
+        np.testing.assert_array_equal(result, [0, 0, 0])
+
+    def test_zeros_like_different_shape(self):
+        from nltools.backends import Backend
+
+        backend = Backend("numpy")
+        arr = np.array([1, 2, 3], dtype=np.float32)
+        result = backend.zeros_like(arr, shape=(5, 4))
+        assert result.shape == (5, 4)
+        assert result.dtype == np.float32
+
+    def test_ones_like_different_shape(self):
+        from nltools.backends import Backend
+
+        backend = Backend("numpy")
+        arr = np.array([1, 2, 3], dtype=np.float32)
+        result = backend.ones_like(arr, shape=(2, 3))
+        assert result.shape == (2, 3)
+        np.testing.assert_array_equal(result, np.ones((2, 3)))
+
+    def test_full_like_different_shape(self):
+        from nltools.backends import Backend
+
+        backend = Backend("numpy")
+        arr = np.array([1, 2, 3], dtype=np.float32)
+        result = backend.full_like(arr, 42.0, shape=(2, 2))
+        assert result.shape == (2, 2)
+        np.testing.assert_array_equal(result, np.full((2, 2), 42.0))
+
+    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+    def test_torch_zeros_like_different_shape(self):
+        import torch
+        from nltools.backends import Backend
+
+        backend = Backend("torch")
+        arr = torch.tensor([1, 2, 3], dtype=torch.float32)
+        result = backend.zeros_like(arr, shape=(5, 4))
+        assert isinstance(result, torch.Tensor)
+        assert result.shape == (5, 4)
+        assert result.dtype == torch.float32
+
+    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+    def test_torch_full_like_different_shape(self):
+        import torch
+        from nltools.backends import Backend
+
+        backend = Backend("torch")
+        arr = torch.tensor([1, 2, 3], dtype=torch.float32)
+        result = backend.full_like(arr, 7.0, shape=(3, 3))
+        assert result.shape == (3, 3)
+        assert torch.all(result == 7.0)
+
+
+# ============================================================================
+# Device Transfer
+# ============================================================================
+
+
+class TestDeviceTransferOps:
+    """Test to_cpu and to_gpu methods."""
+
+    def test_numpy_to_cpu_noop(self):
+        from nltools.backends import Backend
+
+        backend = Backend("numpy")
+        arr = np.array([1, 2, 3])
+        result = backend.to_cpu(arr)
+        assert result is arr
+
+    def test_numpy_to_gpu_noop(self):
+        from nltools.backends import Backend
+
+        backend = Backend("numpy")
+        arr = np.array([1, 2, 3])
+        result = backend.to_gpu(arr)
+        assert result is arr
+
+    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+    def test_torch_to_cpu(self):
+        import torch
+        from nltools.backends import Backend
+
+        backend = Backend("torch")
+        tensor = torch.tensor([1.0, 2.0, 3.0])
+        result = backend.to_cpu(tensor)
+        assert result.device.type == "cpu"
+
+    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+    def test_torch_to_numpy_from_tensor(self):
+        from nltools.backends import Backend
+
+        backend = Backend("torch")
+        arr = np.array([1.0, 2.0, 3.0], dtype=np.float32)
+        tensor = backend.to_device(arr)
+        result = backend.to_numpy(tensor)
+        assert isinstance(result, np.ndarray)
+
+
+# ============================================================================
+# Compat Ops (differ between numpy and torch)
+# ============================================================================
+
+
+class TestCompatOps:
+    """Test operations that differ between numpy and torch."""
+
+    def test_numpy_concatenate(self):
+        from nltools.backends import Backend
+
+        backend = Backend("numpy")
+        a = np.array([1, 2])
+        b = np.array([3, 4])
+        result = backend.concatenate([a, b], axis=0)
+        np.testing.assert_array_equal(result, [1, 2, 3, 4])
+
+    def test_numpy_expand_dims(self):
+        from nltools.backends import Backend
+
+        backend = Backend("numpy")
+        arr = np.array([1, 2, 3])
+        result = backend.expand_dims(arr, axis=0)
+        assert result.shape == (1, 3)
+
+    def test_numpy_copy(self):
+        from nltools.backends import Backend
+
+        backend = Backend("numpy")
+        arr = np.array([1, 2, 3])
+        result = backend.copy(arr)
+        assert np.array_equal(result, arr)
+        result[0] = 99
+        assert arr[0] == 1  # original unchanged
+
+    def test_numpy_flatnonzero(self):
+        from nltools.backends import Backend
+
+        backend = Backend("numpy")
+        arr = np.array([0, 1, 0, 2, 0])
+        result = backend.flatnonzero(arr)
+        np.testing.assert_array_equal(result, [1, 3])
+
+    def test_numpy_sort(self):
+        from nltools.backends import Backend
+
+        backend = Backend("numpy")
+        arr = np.array([3, 1, 2])
+        result = backend.sort(arr)
+        np.testing.assert_array_equal(result, [1, 2, 3])
+
+    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+    def test_torch_concatenate(self):
+        import torch
+        from nltools.backends import Backend
+
+        backend = Backend("torch")
+        a = torch.tensor([1, 2])
+        b = torch.tensor([3, 4])
+        result = backend.concatenate([a, b], axis=0)
+        assert torch.equal(result, torch.tensor([1, 2, 3, 4]))
+
+    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+    def test_torch_expand_dims(self):
+        import torch
+        from nltools.backends import Backend
+
+        backend = Backend("torch")
+        arr = torch.tensor([1, 2, 3])
+        result = backend.expand_dims(arr, axis=0)
+        assert result.shape == (1, 3)
+
+    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+    def test_torch_copy(self):
+        import torch
+        from nltools.backends import Backend
+
+        backend = Backend("torch")
+        arr = torch.tensor([1, 2, 3])
+        result = backend.copy(arr)
+        assert torch.equal(result, arr)
+        result[0] = 99
+        assert arr[0] == 1
+
+    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+    def test_torch_flatnonzero(self):
+        import torch
+        from nltools.backends import Backend
+
+        backend = Backend("torch")
+        arr = torch.tensor([0, 1, 0, 2, 0])
+        result = backend.flatnonzero(arr)
+        assert torch.equal(result, torch.tensor([1, 3]))
+
+    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+    def test_torch_sort(self):
+        import torch
+        from nltools.backends import Backend
+
+        backend = Backend("torch")
+        arr = torch.tensor([3, 1, 2])
+        result = backend.sort(arr)
+        assert torch.equal(result, torch.tensor([1, 2, 3]))
+
+
+# ============================================================================
+# 3D SVD
+# ============================================================================
+
+
+class TestSVD3D:
+    """Test SVD with 3D input arrays."""
+
+    def test_numpy_3d_svd(self):
+        from nltools.backends import Backend
+
+        backend = Backend("numpy")
+        rng = np.random.default_rng(42)
+        X = rng.standard_normal((3, 10, 5)).astype(np.float32)
+
+        U, s, Vt = backend.svd(X, full_matrices=False)
+
+        assert U.shape == (3, 10, 5)
+        assert s.shape == (3, 5)
+        assert Vt.shape == (3, 5, 5)
+
+        # Verify reconstruction for each matrix
+        for i in range(3):
+            reconstructed = U[i] @ np.diag(s[i]) @ Vt[i]
+            np.testing.assert_allclose(reconstructed, X[i], rtol=1e-4)
+
+    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+    def test_torch_3d_svd(self):
+        import torch
+        from nltools.backends import Backend
+
+        backend = Backend("torch")
+        rng = np.random.default_rng(42)
+        X_np = rng.standard_normal((3, 10, 5)).astype(np.float32)
+        X = torch.from_numpy(X_np).to(backend._torch_device)
+
+        U, s, Vt = backend.svd(X, full_matrices=False)
+
+        assert U.shape == (3, 10, 5)
+        assert s.shape == (3, 5)
+        assert Vt.shape == (3, 5, 5)
