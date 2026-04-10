@@ -27,7 +27,7 @@ from .correlation import (
     _spearman_correlation,
     _kendall_correlation,
 )
-from nltools.backends import Backend
+from nltools.algorithms.backends import Backend
 
 if TYPE_CHECKING:
     import torch
@@ -156,7 +156,7 @@ def phase_randomize(
 
     # Handle GPU backend
     if backend == "torch":
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend_obj = Backend("torch")
         return _phase_randomize_gpu(data, backend_obj, rng)

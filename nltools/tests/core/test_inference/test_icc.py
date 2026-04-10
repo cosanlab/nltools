@@ -14,7 +14,7 @@ from nltools.algorithms.inference.icc import (
     _compute_icc_vectorized,
 )
 from nltools.stats import compute_icc
-from nltools.backends import check_gpu_available
+from nltools.algorithms.backends import check_gpu_available
 
 
 class TestComputeICCVoxelwise:

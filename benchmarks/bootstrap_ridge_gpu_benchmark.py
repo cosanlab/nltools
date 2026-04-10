@@ -39,7 +39,7 @@ from nltools.algorithms.inference.bootstrap import (
     _bootstrap_ridge_predict_cpu_parallel,
     _bootstrap_ridge_predict_gpu_batched,
 )
-from nltools.backends import Backend, check_gpu_available
+from nltools.algorithms.backends import Backend, check_gpu_available
 
 
 def benchmark_ridge_bootstrap(

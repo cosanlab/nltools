@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union
 import numpy as np
 from scipy.linalg import orthogonal_procrustes
 
-from nltools.backends import Backend
+from nltools.algorithms.backends import Backend
 
 if TYPE_CHECKING:
     import nibabel as nib

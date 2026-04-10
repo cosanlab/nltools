@@ -8,7 +8,7 @@ in this directory and subdirectories.
 import pytest
 import numpy as np
 
-from nltools.backends import check_gpu_available
+from nltools.algorithms.backends import check_gpu_available
 
 
 @pytest.fixture

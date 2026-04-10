@@ -220,9 +220,7 @@ def roi_to_brain(data, mask_x):
 
     if arr.ndim == 1:
         if len(arr) != len(mask_x):
-            raise ValueError(
-                "Data must have the same number of rows as mask has ROIs."
-            )
+            raise ValueError("Data must have the same number of rows as mask has ROIs.")
         out = mask_x[0].copy()
         out.data = np.zeros(out.data.shape)
         for roi in range(len(mask_x)):

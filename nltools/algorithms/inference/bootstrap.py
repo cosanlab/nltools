@@ -803,7 +803,7 @@ def _bootstrap_ridge_weights_gpu_batched(
     """
     import torch
     from tqdm import tqdm
-    from nltools.backends import auto_select_backend
+    from nltools.algorithms.backends import auto_select_backend
     from .validation import validate_array_shape_range
 
     # Input validation
@@ -977,7 +977,7 @@ def _bootstrap_ridge_predict_gpu_batched(
     """
     import torch
     from tqdm import tqdm
-    from nltools.backends import auto_select_backend
+    from nltools.algorithms.backends import auto_select_backend
     from .validation import validate_array_shape, validate_array_shape_range
 
     # Input validation

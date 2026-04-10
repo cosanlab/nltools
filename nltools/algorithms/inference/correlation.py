@@ -6,12 +6,13 @@ of correlation permutation tests for assessing statistical significance
 of correlations.
 """
 
+import warnings
 import numpy as np
 from typing import Optional, TYPE_CHECKING
 from sklearn.utils import check_random_state
 from scipy.stats import rankdata, kendalltau
 
-from nltools.backends import Backend
+from nltools.algorithms.backends import Backend
 from .utils import _compute_pvalue, _auto_batch_size, EPSILON
 
 if TYPE_CHECKING:
@@ -391,6 +392,15 @@ def _correlation_permutation_gpu_batched(
 
     n_samples, n_features = data1.shape
 
+    # Kendall is dispatched to the CPU parallel path upstream (see
+    # correlation_permutation_test). Guard here so any direct internal caller
+    # gets a clear error instead of hitting an incomplete GPU path.
+    if metric not in ("pearson", "spearman"):
+        raise NotImplementedError(
+            f"_correlation_permutation_gpu_batched does not implement metric={metric!r}. "
+            "Call correlation_permutation_test, which routes non-GPU metrics to CPU."
+        )
+
     # Convert to float32 for GPU efficiency
     data1 = data1.astype(np.float32)
     data2 = data2.astype(np.float32)
@@ -439,18 +449,6 @@ def _correlation_permutation_gpu_batched(
             data2_ranked, dim=0, unbiased=False
         )
         obs_corr = backend.to_numpy(numerator / (denominator + EPSILON))
-    elif metric == "kendall":
-        # Kendall not implemented on GPU yet - use CPU function
-        corr_func = _kendall_correlation
-        if n_features == 1:
-            obs_corr = corr_func(data1[:, 0], data2[:, 0])
-            obs_corr = np.array([obs_corr])
-        else:
-            obs_corr = np.array(
-                [corr_func(data1[:, i], data2[:, i]) for i in range(n_features)]
-            )
-    else:
-        raise NotImplementedError(f"Metric '{metric}' not yet implemented")
 
     # Accumulate null distribution across batches
     null_dist_list = []
@@ -582,37 +580,13 @@ def _correlation_permutation_gpu_batched(
             )  # (current_batch_size, n_features)
             batch_corrs = backend.to_numpy(batch_corrs)
         else:
-            # Kendall not vectorized yet - fall back to CPU loop
-            corr_func = _kendall_correlation
-            batch_corrs = []
-            for feat_idx in range(n_features):
-                # Get data for this feature
-                feat_data1 = data1_device[:, feat_idx]  # (n_samples,)
-                feat_data2 = data2_device[:, feat_idx]  # (n_samples,)
-
-                # Permute data1 for all permutations in batch
-                perm_data1 = feat_data1[
-                    batch_indices_device
-                ]  # (current_batch_size, n_samples)
-
-                # Compute correlations (call CPU function for now)
-                # Convert back to numpy for correlation computation
-                perm_data1_np = backend.to_numpy(perm_data1)
-                feat_data2_np = backend.to_numpy(feat_data2)
-
-                correlations = []
-                for b in range(current_batch_size):
-                    corr = corr_func(perm_data1_np[b], feat_data2_np)
-                    correlations.append(
-                        corr[0] if isinstance(corr, np.ndarray) else corr
-                    )
-
-                batch_corrs.append(np.array(correlations))
-
-            # Stack correlations: (current_batch_size, n_features)
-            batch_corrs = np.array(
-                batch_corrs
-            ).T  # Transpose to get (current_batch_size, n_features)
+            # Kendall is routed to the CPU parallel path by correlation_permutation_test
+            # before ever reaching this function. Keep this as a defensive guard so
+            # future direct callers get a clear error instead of a silent slow path.
+            raise NotImplementedError(
+                f"_correlation_permutation_gpu_batched does not implement metric={metric!r}. "
+                "Call correlation_permutation_test, which routes non-GPU metrics to CPU."
+            )
 
         null_dist_list.append(batch_corrs)
 
@@ -776,12 +750,17 @@ def correlation_permutation_test(
 
     n_samples, n_features = data1.shape
 
-    # GPU backend supports Pearson and Spearman (Kendall still uses CPU fallback)
+    # GPU path supports Pearson and Spearman only. For Kendall, fall through
+    # to the CPU-parallel path so user code with parallel='gpu' still works.
+    # True GPU Kendall tau-b kernel tracked in EJO-453.
     if parallel == "gpu" and metric == "kendall":
-        raise NotImplementedError(
-            "Kendall correlation on GPU not yet implemented. "
-            "Use parallel='cpu' or parallel=None for Kendall correlation."
+        warnings.warn(
+            "Kendall correlation is not implemented on GPU; falling back to "
+            "parallel='cpu'. Use parallel='cpu' explicitly to silence this warning.",
+            UserWarning,
+            stacklevel=2,
         )
+        parallel = "cpu"
 
     # Decide execution mode based on parallel parameter
     if parallel == "cpu" or parallel is None:

@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Optional, List, Iterator, Tuple
 from sklearn.utils import check_random_state
 
 if TYPE_CHECKING:
-    from nltools.backends import Backend
+    from nltools.algorithms.backends import Backend
 
 
 def generate_dirichlet_samples(

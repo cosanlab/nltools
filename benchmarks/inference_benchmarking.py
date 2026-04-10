@@ -41,7 +41,7 @@ from nltools.algorithms.inference import (
     isc_permutation_test,
     isc_group_permutation_test,
 )
-from nltools.backends import check_gpu_available
+from nltools.algorithms.backends import check_gpu_available
 
 # Try to import visualization libraries
 try:

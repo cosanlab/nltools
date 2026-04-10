@@ -28,7 +28,7 @@ def _torch_available():
 
 def test_numpy_backend_default():
     """NumPy backend should work without PyTorch"""
-    from nltools.backends import Backend
+    from nltools.algorithms.backends import Backend
 
     backend = Backend("numpy")
     assert backend.name == "numpy"
@@ -38,7 +38,7 @@ def test_numpy_backend_default():
 
 def test_auto_backend_without_torch(monkeypatch):
     """Auto-selection should fall back to numpy if no GPU"""
-    from nltools.backends import Backend
+    from nltools.algorithms.backends import Backend
     import sys
 
     # Mock torch unavailable
@@ -52,16 +52,43 @@ def test_auto_backend_without_torch(monkeypatch):
 @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
 def test_torch_backend_selection():
     """Torch backend should detect available device"""
-    from nltools.backends import Backend
+    from nltools.algorithms.backends import Backend
 
     backend = Backend("torch")
     assert backend.name.startswith("torch-")
     assert backend.device in ["cpu", "cuda", "mps"]
 
 
+def test_resolve_backend_from_string():
+    """resolve_backend should accept string identifiers"""
+    from nltools.algorithms.backends import resolve_backend, Backend
+
+    assert isinstance(resolve_backend("numpy"), Backend)
+    assert resolve_backend("numpy").name == "numpy"
+    assert resolve_backend(None).name == "numpy"
+    assert resolve_backend("cpu").name == "numpy"
+
+
+def test_resolve_backend_passthrough():
+    """resolve_backend should return Backend instances unchanged (no re-init)"""
+    from nltools.algorithms.backends import resolve_backend, Backend
+
+    existing = Backend("numpy")
+    result = resolve_backend(existing)
+    assert result is existing  # identity, not a copy
+
+
+def test_resolve_backend_invalid():
+    """resolve_backend should reject unknown strings"""
+    from nltools.algorithms.backends import resolve_backend
+
+    with pytest.raises(ValueError, match="parallel"):
+        resolve_backend("bogus")
+
+
 def test_check_gpu_available():
     """GPU availability check should return bool and info dict"""
-    from nltools.backends import check_gpu_available
+    from nltools.algorithms.backends import check_gpu_available
 
     available, info = check_gpu_available()
     assert isinstance(available, bool)
@@ -77,7 +104,7 @@ def test_check_gpu_available():
 
 def test_numpy_to_device():
     """NumPy backend should handle array conversion"""
-    from nltools.backends import Backend
+    from nltools.algorithms.backends import Backend
 
     backend = Backend("numpy")
     arr = np.random.randn(10, 5)
@@ -90,7 +117,7 @@ def test_numpy_to_device():
 
 def test_numpy_to_numpy():
     """NumPy backend to_numpy should be identity"""
-    from nltools.backends import Backend
+    from nltools.algorithms.backends import Backend
 
     backend = Backend("numpy")
     arr = np.random.randn(10, 5).astype(np.float32)
@@ -104,7 +131,7 @@ def test_numpy_to_numpy():
 def test_torch_to_device():
     """Torch backend should convert numpy to torch tensor"""
     import torch
-    from nltools.backends import Backend
+    from nltools.algorithms.backends import Backend
 
     backend = Backend("torch")
     arr = np.random.randn(10, 5)
@@ -119,7 +146,7 @@ def test_torch_to_device():
 @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
 def test_torch_to_numpy():
     """Torch backend should convert tensor back to numpy"""
-    from nltools.backends import Backend
+    from nltools.algorithms.backends import Backend
 
     backend = Backend("torch")
     arr = np.random.randn(10, 5)
@@ -137,7 +164,7 @@ def test_torch_to_numpy():
 
 def test_numpy_svd():
     """NumPy SVD should work correctly"""
-    from nltools.backends import Backend
+    from nltools.algorithms.backends import Backend
 
     backend = Backend("numpy")
     rng = np.random.default_rng(42)
@@ -157,7 +184,7 @@ def test_numpy_svd():
 
 def test_numpy_matmul():
     """NumPy matmul should work correctly"""
-    from nltools.backends import Backend
+    from nltools.algorithms.backends import Backend
 
     backend = Backend("numpy")
     A = np.random.randn(10, 5).astype(np.float32)
@@ -173,7 +200,7 @@ def test_numpy_matmul():
 @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
 def test_torch_svd_equivalence():
     """Torch SVD should match NumPy results"""
-    from nltools.backends import Backend
+    from nltools.algorithms.backends import Backend
 
     np.random.seed(42)
     X = np.random.randn(20, 10).astype(np.float32)
@@ -204,7 +231,7 @@ def test_torch_svd_equivalence():
 def test_mps_svd_cpu_fallback():
     """MPS SVD should use explicit CPU fallback without warnings"""
     import torch
-    from nltools.backends import Backend
+    from nltools.algorithms.backends import Backend
 
     # Skip if MPS not available
     if not (hasattr(torch.backends, "mps") and torch.backends.mps.is_available()):
@@ -264,17 +291,19 @@ def test_float64_precision_warning():
     """Backend should warn when converting float64 to float32 for MPS"""
     import torch
     import warnings
-    from nltools.backends import Backend
+    from nltools.algorithms.backends import Backend
 
     # Skip if MPS not available
     if not (hasattr(torch.backends, "mps") and torch.backends.mps.is_available()):
         pytest.skip("MPS not available")
 
     # Reset warning flags
-    import nltools.backends
+    import nltools.algorithms.backends
 
-    nltools.backends._already_warned_mps_init[0] = True  # Suppress init warning
-    nltools.backends._already_warned_float64[0] = (
+    nltools.algorithms.backends._already_warned_mps_init[0] = (
+        True  # Suppress init warning
+    )
+    nltools.algorithms.backends._already_warned_float64[0] = (
         False  # Allow float64 conversion warning
     )
 
@@ -313,16 +342,16 @@ def test_mps_backend_warning():
     """MPS backend should warn about precision limitations on initialization"""
     import torch
     import warnings
-    from nltools.backends import Backend
+    from nltools.algorithms.backends import Backend
 
     # Skip if MPS not available
     if not (hasattr(torch.backends, "mps") and torch.backends.mps.is_available()):
         pytest.skip("MPS not available")
 
     # Reset warning flag
-    import nltools.backends
+    import nltools.algorithms.backends
 
-    nltools.backends._already_warned_mps_init[0] = False
+    nltools.algorithms.backends._already_warned_mps_init[0] = False
 
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
@@ -343,7 +372,7 @@ def test_assert_array_almost_equal_precision_adjustment():
     """assert_array_almost_equal should auto-adjust precision for MPS"""
     import torch
     import warnings
-    from nltools.backends import Backend, assert_array_almost_equal
+    from nltools.algorithms.backends import Backend, assert_array_almost_equal
 
     # Skip if MPS not available
     if not _torch_available():
@@ -383,7 +412,7 @@ def test_assert_array_almost_equal_precision_adjustment():
 @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
 def test_torch_matmul_equivalence():
     """Torch matmul should match NumPy results"""
-    from nltools.backends import Backend
+    from nltools.algorithms.backends import Backend
 
     np.random.seed(42)
     A = np.random.randn(10, 5).astype(np.float32)
@@ -410,7 +439,7 @@ def test_torch_matmul_equivalence():
 
 def test_small_dataset_uses_numpy():
     """Small datasets should use NumPy even if GPU available"""
-    from nltools.backends import auto_select_backend
+    from nltools.algorithms.backends import auto_select_backend
 
     # Small problem
     backend = auto_select_backend(n_samples=100, n_features=1000)
@@ -420,7 +449,7 @@ def test_small_dataset_uses_numpy():
 
 def test_large_dataset_considers_gpu():
     """Large datasets should consider GPU if available"""
-    from nltools.backends import auto_select_backend
+    from nltools.algorithms.backends import auto_select_backend
 
     backend = auto_select_backend(n_samples=300, n_features=100000)
 
@@ -430,7 +459,7 @@ def test_large_dataset_considers_gpu():
 
 def test_cv_enables_gpu():
     """Cross-validation should prefer GPU even for medium datasets"""
-    from nltools.backends import auto_select_backend
+    from nltools.algorithms.backends import auto_select_backend
 
     backend = auto_select_backend(n_samples=200, n_features=30000, cv=5)
 
@@ -440,7 +469,7 @@ def test_cv_enables_gpu():
 
 def test_auto_selection_without_gpu():
     """Auto-selection should work without GPU"""
-    from nltools.backends import auto_select_backend
+    from nltools.algorithms.backends import auto_select_backend
 
     # This should always work
     backend = auto_select_backend(n_samples=1000, n_features=100000)
@@ -456,26 +485,26 @@ class TestDtypeToStr:
     """Test static dtype normalization method."""
 
     def test_string_passthrough(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         assert Backend.dtype_to_str("float32") == "float32"
         assert Backend.dtype_to_str("float64") == "float64"
         assert Backend.dtype_to_str("int32") == "int32"
 
     def test_none_passthrough(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         assert Backend.dtype_to_str(None) is None
 
     def test_numpy_dtype(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         assert Backend.dtype_to_str(np.float32) == "float32"
         assert Backend.dtype_to_str(np.float64) == "float64"
         assert Backend.dtype_to_str(np.int32) == "int32"
 
     def test_numpy_dtype_instance(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         arr = np.array([1.0], dtype=np.float32)
         assert Backend.dtype_to_str(arr.dtype) == "float32"
@@ -483,7 +512,7 @@ class TestDtypeToStr:
     @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
     def test_torch_dtype(self):
         import torch
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         assert Backend.dtype_to_str(torch.float32) == "float32"
         assert Backend.dtype_to_str(torch.float64) == "float64"
@@ -499,7 +528,7 @@ class TestAsarray:
     """Test universal array conversion."""
 
     def test_from_list(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("numpy")
         result = backend.asarray([1, 2, 3], dtype="float32")
@@ -507,7 +536,7 @@ class TestAsarray:
         assert result.dtype == np.float32
 
     def test_from_numpy(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("numpy")
         arr = np.array([1, 2, 3], dtype=np.float64)
@@ -515,7 +544,7 @@ class TestAsarray:
         assert result.dtype == np.float32
 
     def test_preserves_dtype_if_none(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("numpy")
         arr = np.array([1, 2, 3], dtype=np.float64)
@@ -525,7 +554,7 @@ class TestAsarray:
     @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
     def test_torch_from_numpy(self):
         import torch
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("torch")
         arr = np.array([1, 2, 3], dtype=np.float32)
@@ -535,7 +564,7 @@ class TestAsarray:
     @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
     def test_torch_from_list(self):
         import torch
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("torch")
         result = backend.asarray([1.0, 2.0, 3.0], dtype="float32")
@@ -547,7 +576,7 @@ class TestAsarrayLike:
     """Test array conversion matching a reference."""
 
     def test_numpy_matches_ref(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("numpy")
         ref = np.array([1.0], dtype=np.float32)
@@ -557,7 +586,7 @@ class TestAsarrayLike:
     @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
     def test_torch_matches_ref(self):
         import torch
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("torch")
         ref = torch.tensor([1.0], dtype=torch.float32)
@@ -571,7 +600,7 @@ class TestCheckArrays:
     """Test multi-array dtype/device coercion."""
 
     def test_coerces_dtype(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("numpy")
         arr1 = np.array([1, 2], dtype=np.float32)
@@ -581,7 +610,7 @@ class TestCheckArrays:
         assert results[1].dtype == np.float32
 
     def test_none_passthrough(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("numpy")
         arr1 = np.array([1, 2], dtype=np.float32)
@@ -590,7 +619,7 @@ class TestCheckArrays:
         assert results[1] is None
 
     def test_list_of_arrays(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("numpy")
         arr1 = np.array([1, 2], dtype=np.float32)
@@ -606,7 +635,7 @@ class TestCheckArrays:
     @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
     def test_torch_coerces_dtype_and_device(self):
         import torch
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("torch")
         arr1 = np.array([1, 2], dtype=np.float32)
@@ -626,7 +655,7 @@ class TestArrayCreation:
     """Test zeros_like, ones_like, full_like with shape override."""
 
     def test_zeros_like_same_shape(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("numpy")
         arr = np.array([1, 2, 3], dtype=np.float32)
@@ -636,7 +665,7 @@ class TestArrayCreation:
         np.testing.assert_array_equal(result, [0, 0, 0])
 
     def test_zeros_like_different_shape(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("numpy")
         arr = np.array([1, 2, 3], dtype=np.float32)
@@ -645,7 +674,7 @@ class TestArrayCreation:
         assert result.dtype == np.float32
 
     def test_ones_like_different_shape(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("numpy")
         arr = np.array([1, 2, 3], dtype=np.float32)
@@ -654,7 +683,7 @@ class TestArrayCreation:
         np.testing.assert_array_equal(result, np.ones((2, 3)))
 
     def test_full_like_different_shape(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("numpy")
         arr = np.array([1, 2, 3], dtype=np.float32)
@@ -665,7 +694,7 @@ class TestArrayCreation:
     @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
     def test_torch_zeros_like_different_shape(self):
         import torch
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("torch")
         arr = torch.tensor([1, 2, 3], dtype=torch.float32)
@@ -677,7 +706,7 @@ class TestArrayCreation:
     @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
     def test_torch_full_like_different_shape(self):
         import torch
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("torch")
         arr = torch.tensor([1, 2, 3], dtype=torch.float32)
@@ -695,7 +724,7 @@ class TestDeviceTransferOps:
     """Test to_cpu and to_gpu methods."""
 
     def test_numpy_to_cpu_noop(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("numpy")
         arr = np.array([1, 2, 3])
@@ -703,7 +732,7 @@ class TestDeviceTransferOps:
         assert result is arr
 
     def test_numpy_to_gpu_noop(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("numpy")
         arr = np.array([1, 2, 3])
@@ -713,7 +742,7 @@ class TestDeviceTransferOps:
     @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
     def test_torch_to_cpu(self):
         import torch
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("torch")
         tensor = torch.tensor([1.0, 2.0, 3.0])
@@ -722,7 +751,7 @@ class TestDeviceTransferOps:
 
     @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
     def test_torch_to_numpy_from_tensor(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("torch")
         arr = np.array([1.0, 2.0, 3.0], dtype=np.float32)
@@ -740,7 +769,7 @@ class TestCompatOps:
     """Test operations that differ between numpy and torch."""
 
     def test_numpy_concatenate(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("numpy")
         a = np.array([1, 2])
@@ -749,7 +778,7 @@ class TestCompatOps:
         np.testing.assert_array_equal(result, [1, 2, 3, 4])
 
     def test_numpy_expand_dims(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("numpy")
         arr = np.array([1, 2, 3])
@@ -757,7 +786,7 @@ class TestCompatOps:
         assert result.shape == (1, 3)
 
     def test_numpy_copy(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("numpy")
         arr = np.array([1, 2, 3])
@@ -767,7 +796,7 @@ class TestCompatOps:
         assert arr[0] == 1  # original unchanged
 
     def test_numpy_flatnonzero(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("numpy")
         arr = np.array([0, 1, 0, 2, 0])
@@ -775,7 +804,7 @@ class TestCompatOps:
         np.testing.assert_array_equal(result, [1, 3])
 
     def test_numpy_sort(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("numpy")
         arr = np.array([3, 1, 2])
@@ -785,7 +814,7 @@ class TestCompatOps:
     @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
     def test_torch_concatenate(self):
         import torch
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("torch")
         a = torch.tensor([1, 2])
@@ -796,7 +825,7 @@ class TestCompatOps:
     @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
     def test_torch_expand_dims(self):
         import torch
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("torch")
         arr = torch.tensor([1, 2, 3])
@@ -806,7 +835,7 @@ class TestCompatOps:
     @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
     def test_torch_copy(self):
         import torch
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("torch")
         arr = torch.tensor([1, 2, 3])
@@ -818,7 +847,7 @@ class TestCompatOps:
     @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
     def test_torch_flatnonzero(self):
         import torch
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("torch")
         arr = torch.tensor([0, 1, 0, 2, 0])
@@ -828,7 +857,7 @@ class TestCompatOps:
     @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
     def test_torch_sort(self):
         import torch
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("torch")
         arr = torch.tensor([3, 1, 2])
@@ -845,7 +874,7 @@ class TestSVD3D:
     """Test SVD with 3D input arrays."""
 
     def test_numpy_3d_svd(self):
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("numpy")
         rng = np.random.default_rng(42)
@@ -865,7 +894,7 @@ class TestSVD3D:
     @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
     def test_torch_3d_svd(self):
         import torch
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         backend = Backend("torch")
         rng = np.random.default_rng(42)

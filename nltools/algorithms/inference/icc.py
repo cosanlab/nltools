@@ -24,7 +24,7 @@ References:
 import numpy as np
 from typing import Optional, Literal, TYPE_CHECKING
 
-from nltools.backends import Backend
+from nltools.algorithms.backends import Backend
 from .utils import EPSILON
 
 if TYPE_CHECKING:

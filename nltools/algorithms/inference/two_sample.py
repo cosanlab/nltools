@@ -9,7 +9,7 @@ import numpy as np
 from typing import Optional
 from sklearn.utils import check_random_state
 
-from nltools.backends import Backend
+from nltools.algorithms.backends import Backend
 from .utils import _compute_pvalue, _auto_batch_size
 from .validation import (
     validate_tail_parameter,

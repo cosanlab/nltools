@@ -36,9 +36,7 @@ def _as_square_ndarray(distance):
     else:
         arr = np.asarray(distance)
     if arr.ndim != 2 or arr.shape[0] != arr.shape[1]:
-        raise ValueError(
-            f"distance must be a square matrix; got shape {arr.shape}"
-        )
+        raise ValueError(f"distance must be a square matrix; got shape {arr.shape}")
     return arr.astype(float)
 
 
@@ -202,9 +200,7 @@ def plot_between_label_distance(
         for j in unique:
             mask_j = labels_arr == j
             if i == j:
-                vals = arr[np.ix_(mask_i, mask_i)][
-                    np.triu_indices(mask_i.sum(), k=1)
-                ]
+                vals = arr[np.ix_(mask_i, mask_i)][np.triu_indices(mask_i.sum(), k=1)]
             else:
                 vals = arr[np.ix_(mask_i, mask_j)].ravel()
             long_rows.append(
@@ -218,9 +214,11 @@ def plot_between_label_distance(
             )
     long_df = pl.concat(long_rows, how="vertical")
 
-    within_mean_df = long_df.group_by(["Group", "Comparison"]).agg(
-        pl.col("Distance").mean().alias("mean_distance")
-    ).rename({"Group": "label1", "Comparison": "label2"})
+    within_mean_df = (
+        long_df.group_by(["Group", "Comparison"])
+        .agg(pl.col("Distance").mean().alias("mean_distance"))
+        .rename({"Group": "label1", "Comparison": "label2"})
+    )
 
     if ax is None:
         _, ax = plt.subplots(1)
@@ -243,9 +241,7 @@ def plot_between_label_distance(
                     (pl.col("Group") == i) & (pl.col("Comparison") == j)
                 )["Distance"].to_numpy()
                 if i == j or len(within_i) == 0 or len(between_ij) == 0:
-                    mean_diff_rows.append(
-                        {"label1": i, "label2": j, "mean_diff": 0.0}
-                    )
+                    mean_diff_rows.append({"label1": i, "label2": j, "mean_diff": 0.0})
                     p_rows.append({"label1": i, "label2": j, "p": 1.0})
                     continue
                 s = two_sample_permutation_test(
@@ -370,9 +366,7 @@ def plot_silhouette(
     rows = []
     for cluster in unique:
         cluster_vals = sil[labels_arr == cluster]
-        rows.append(
-            {"label": cluster, "mean_silhouette": float(cluster_vals.mean())}
-        )
+        rows.append({"label": cluster, "mean_silhouette": float(cluster_vals.mean())})
     out = pl.DataFrame(rows)
 
     if permutation_test:

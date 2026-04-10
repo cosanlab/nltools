@@ -189,7 +189,7 @@ memory_torch = memory_numpy * 2  # ~1.6 GB (rough estimate)
 
 #### GPU Not Detected
 ```python
-from nltools.backends import check_gpu_available
+from nltools.algorithms.backends import check_gpu_available
 
 available, info = check_gpu_available()
 if not available:
@@ -251,7 +251,7 @@ and will fall back to run on the CPU.
 import time
 import numpy as np
 from nltools.algorithms.ridge import ridge_svd
-from nltools.backends import Backend
+from nltools.algorithms.backends import Backend
 
 X = np.random.randn(300, 100000)
 y = np.random.randn(300)

@@ -9,7 +9,7 @@ from nltools.tests.core.test_inference import (
     TOLERANCE_GPU_VALUE,
     TOLERANCE_GPU_PVALUE,
 )
-from nltools.backends import check_gpu_available
+from nltools.algorithms.backends import check_gpu_available
 
 # GPU batching tests are slow and require GPU hardware
 pytestmark = [pytest.mark.slow, pytest.mark.gpu]

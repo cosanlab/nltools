@@ -581,6 +581,45 @@ class Backend:
             return torch.sort(array, dim=axis).values
 
 
+def resolve_backend(parallel):
+    """Coerce a backend specifier into a :class:`Backend` instance.
+
+    Accepts the values callers typically thread through the algorithms
+    package (``None``/``"cpu"`` → numpy, ``"gpu"``/``"torch"`` → torch,
+    ``"numpy"``/``"auto"`` → their direct :class:`Backend` constructors).
+    Existing :class:`Backend` instances are returned unchanged — this is
+    the main reason to prefer ``resolve_backend`` over constructing a new
+    ``Backend(...)`` at each call site: it avoids repeated device
+    detection/torch imports when a backend has already been chosen upstream.
+
+    Args:
+        parallel: Backend specifier. One of:
+
+            - ``None`` or ``"cpu"``: numpy backend.
+            - ``"numpy"``, ``"torch"``, ``"auto"``: forwarded to ``Backend(...)``.
+            - ``"gpu"``: alias for ``"torch"`` (auto-detects cuda/mps/cpu).
+            - An existing :class:`Backend` instance (returned as-is).
+
+    Returns:
+        Backend: Resolved backend instance.
+
+    Raises:
+        ValueError: If ``parallel`` is a string not in the accepted set.
+    """
+    if isinstance(parallel, Backend):
+        return parallel
+    if parallel in (None, "cpu"):
+        return Backend("numpy")
+    if parallel == "gpu":
+        return Backend("torch")
+    if parallel in ("numpy", "torch", "auto"):
+        return Backend(parallel)
+    raise ValueError(
+        f"parallel must be None, 'cpu', 'gpu', 'numpy', 'torch', 'auto', "
+        f"or a Backend instance; got: {parallel!r}"
+    )
+
+
 def assert_array_almost_equal(x, y, decimal=6, err_msg="", verbose=True, backend=None):
     """Test array equality with automatic precision adjustment for MPS backend.
 

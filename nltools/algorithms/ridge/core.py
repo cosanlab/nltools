@@ -32,7 +32,7 @@ References:
 
 import numpy as np
 from typing import Optional
-from nltools.backends import Backend
+from nltools.algorithms.backends import resolve_backend
 
 
 def ridge_svd(
@@ -120,29 +120,9 @@ def ridge_svd(
     X = np.asarray(X, dtype=np.float32)
     y = np.asarray(y, dtype=np.float32)
 
-    # Handle backend (convert parallel to backend with graceful fallback)
-    if parallel is None:
-        backend = Backend("numpy")
-    elif isinstance(parallel, Backend):
-        backend = parallel
-    elif isinstance(parallel, str):
-        if parallel == "cpu":
-            backend = Backend("numpy")
-        elif parallel == "gpu":
-            # Try GPU, but gracefully fallback to CPU if unavailable
-            try:
-                backend = Backend("torch")
-                # If Backend("torch") succeeded but ended up on CPU (no GPU available),
-                # that's fine - Backend handles this gracefully
-            except Exception:
-                # If Backend initialization fails, fallback to CPU
-                backend = Backend("numpy")
-        else:
-            raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got: {parallel}")
-    else:
-        raise ValueError(
-            f"parallel must be None, 'cpu', 'gpu', or Backend instance, got: {type(parallel)}"
-        )
+    # Convert parallel ('cpu'/'gpu'/None) or pass-through Backend instance.
+    # For graceful GPU-to-CPU fallback when torch is missing, use parallel='auto'.
+    backend = resolve_backend(parallel)
 
     # Check dimensions
     if X.ndim != 2:
@@ -263,22 +243,8 @@ def ridge_cv(
     X = np.asarray(X, dtype=np.float32)
     y = np.asarray(y, dtype=np.float32)
 
-    # Setup backend (convert parallel to backend with graceful fallback)
-    if parallel is None:
-        backend = Backend("numpy")
-    elif parallel == "cpu":
-        backend = Backend("numpy")
-    elif parallel == "gpu":
-        # Try GPU, but gracefully fallback to CPU if unavailable
-        try:
-            backend = Backend("torch")
-            # If Backend("torch") succeeded but ended up on CPU (no GPU available),
-            # that's fine - Backend handles this gracefully
-        except Exception:
-            # If Backend initialization fails, fallback to CPU
-            backend = Backend("numpy")
-    else:
-        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got: {parallel}")
+    # Convert parallel ('cpu'/'gpu'/None) or pass-through Backend instance.
+    backend = resolve_backend(parallel)
 
     # Determine if single or multi-target
     single_target = y.ndim == 1

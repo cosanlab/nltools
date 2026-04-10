@@ -89,9 +89,7 @@ class TestPlotSilhouette:
 
     def test_with_permutation_adds_p_column(self, well_separated_distance):
         distance, labels = well_separated_distance
-        out = plot_silhouette(
-            distance, labels, permutation_test=True, n_permute=200
-        )
+        out = plot_silhouette(distance, labels, permutation_test=True, n_permute=200)
         assert isinstance(out, pl.DataFrame)
         assert "p" in out.columns
 

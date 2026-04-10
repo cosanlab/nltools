@@ -19,16 +19,7 @@ from typing import Optional, Union, List, Callable, Any, Dict
 from sklearn.model_selection import KFold, BaseCrossValidator
 from sklearn.utils import check_random_state
 
-
-def _resolve_backend(parallel):
-    """Convert parallel='cpu'|'gpu'|None to a Backend instance."""
-    from nltools.backends import Backend
-
-    if parallel in (None, "cpu"):
-        return Backend("numpy")
-    if parallel == "gpu":
-        return Backend("torch")  # auto-detects cuda/mps/cpu
-    raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got: {parallel!r}")
+from ..backends import resolve_backend
 
 
 def solve_banded_ridge_cv(
@@ -197,7 +188,7 @@ def solve_banded_ridge_cv(
         generate_dirichlet_samples,
     )
 
-    backend = _resolve_backend(parallel)
+    backend = resolve_backend(parallel)
     xp = backend.xp
 
     # Validate inputs
@@ -733,7 +724,7 @@ def solve_ridge_cv(
     """
     from .utils import _decompose_ridge, _select_best_alphas, _r2_score
 
-    backend = _resolve_backend(parallel)
+    backend = resolve_backend(parallel)
     xp = backend.xp
 
     # Validate inputs

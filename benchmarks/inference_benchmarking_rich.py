@@ -120,7 +120,7 @@ from nltools.algorithms.inference import (  # noqa: E402
     isc_permutation_test,
     isc_group_permutation_test,
 )
-from nltools.backends import check_gpu_available  # noqa: E402
+from nltools.algorithms.backends import check_gpu_available  # noqa: E402
 
 # Also patch after import in case modules were already loaded
 try:

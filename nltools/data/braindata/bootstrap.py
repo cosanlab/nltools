@@ -102,7 +102,11 @@ def bootstrap(
         _bootstrap_ridge_predict_gpu_batched,
     )
     from nltools.data import DesignMatrix
-    from nltools.backends import Backend, check_gpu_available, auto_select_backend
+    from nltools.algorithms.backends import (
+        Backend,
+        check_gpu_available,
+        auto_select_backend,
+    )
 
     # Extract backend parameter from kwargs
     backend = kwargs.pop("backend", None)

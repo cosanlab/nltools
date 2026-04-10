@@ -38,7 +38,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from nltools.algorithms.ridge import ridge_svd, ridge_cv
-from nltools.backends import Backend, check_gpu_available
+from nltools.algorithms.backends import Backend, check_gpu_available
 
 # Try to import tqdm for progress bars
 try:

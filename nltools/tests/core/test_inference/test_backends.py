@@ -7,7 +7,7 @@ from nltools.stats import one_sample_permutation_test
 from nltools.tests.core.test_inference import (
     N_PERMUTE_BACKEND,
 )
-from nltools.backends import check_gpu_available
+from nltools.algorithms.backends import check_gpu_available
 
 
 class TestBackends:

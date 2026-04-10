@@ -13,7 +13,7 @@ from ..algorithms.ridge.solvers import (
     solve_ridge_cv,
     solve_banded_ridge_cv,
 )
-from ..backends import Backend
+from ..algorithms.backends import resolve_backend
 
 
 class Ridge(BaseModel):
@@ -160,11 +160,8 @@ class Ridge(BaseModel):
             y_was_1d = True
             y = y[:, np.newaxis]  # Convert to 2D for uniform processing
 
-        # Set up backend
-        if isinstance(self.backend, str):
-            self.backend_ = Backend(self.backend)
-        else:
-            self.backend_ = self.backend
+        # Set up backend (accepts string spec or existing Backend instance)
+        self.backend_ = resolve_backend(self.backend)
 
         # Handle fixed alpha case
         if self.alpha != "auto":

@@ -8,7 +8,7 @@ from nltools.algorithms.inference.bootstrap import (
     _bootstrap_ridge_weights_cpu_parallel,
     _bootstrap_ridge_predict_cpu_parallel,
 )
-from nltools.backends import check_gpu_available
+from nltools.algorithms.backends import check_gpu_available
 
 # GPU tolerance constants (from test_inference.py)
 TOLERANCE_GPU_VALUE = 1e-3  # 0.1% error for computed values
@@ -843,7 +843,7 @@ class TestBootstrapRidgeWeightsGPU:
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_weights_gpu_batched,
         )
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         np.random.seed(42)
         X = np.random.randn(50, 10)  # 50 samples, 10 features
@@ -886,7 +886,7 @@ class TestBootstrapRidgeWeightsGPU:
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_weights_gpu_batched,
         )
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         np.random.seed(42)
         X = np.random.randn(50, 10)
@@ -930,7 +930,7 @@ class TestBootstrapRidgeWeightsGPU:
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_weights_gpu_batched,
         )
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         np.random.seed(42)
         X = np.random.randn(50, 10)
@@ -961,7 +961,7 @@ class TestBootstrapRidgeWeightsGPU:
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_weights_gpu_batched,
         )
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         np.random.seed(42)
         X = np.random.randn(50, 10)
@@ -1002,7 +1002,7 @@ class TestBootstrapRidgeWeightsGPU:
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_weights_gpu_batched,
         )
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         np.random.seed(42)
 
@@ -1041,7 +1041,7 @@ class TestBootstrapRidgePredictGPU:
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_predict_gpu_batched,
         )
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         np.random.seed(42)
         X = np.random.randn(50, 10)  # Training features
@@ -1086,7 +1086,7 @@ class TestBootstrapRidgePredictGPU:
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_predict_gpu_batched,
         )
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         np.random.seed(42)
         X = np.random.randn(50, 10)
@@ -1132,7 +1132,7 @@ class TestBootstrapRidgePredictGPU:
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_predict_gpu_batched,
         )
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         np.random.seed(42)
         X = np.random.randn(50, 10)
@@ -1165,7 +1165,7 @@ class TestBootstrapRidgePredictGPU:
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_predict_gpu_batched,
         )
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         np.random.seed(42)
         X = np.random.randn(50, 10)
@@ -1220,7 +1220,7 @@ class TestBootstrapRidgeWeightsStatisticalCorrectness:
             _bootstrap_ridge_weights_gpu_batched,
         )
         from nltools.algorithms.ridge import ridge_svd
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         np.random.seed(42)
 
@@ -1267,7 +1267,7 @@ class TestBootstrapRidgeWeightsStatisticalCorrectness:
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_weights_gpu_batched,
         )
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         np.random.seed(42)
 
@@ -1317,7 +1317,7 @@ class TestBootstrapRidgeWeightsStatisticalCorrectness:
             _bootstrap_ridge_weights_gpu_batched,
         )
         from nltools.algorithms.ridge import ridge_svd
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         np.random.seed(42)
 
@@ -1365,7 +1365,7 @@ class TestBootstrapRidgeWeightsStatisticalCorrectness:
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_weights_gpu_batched,
         )
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         np.random.seed(42)
 
@@ -1408,7 +1408,7 @@ class TestBootstrapRidgePredictStatisticalCorrectness:
             _bootstrap_ridge_predict_gpu_batched,
         )
         from nltools.algorithms.ridge import ridge_svd
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         np.random.seed(42)
 
@@ -1460,7 +1460,7 @@ class TestBootstrapRidgePredictStatisticalCorrectness:
             _bootstrap_ridge_predict_gpu_batched,
         )
         from nltools.algorithms.ridge import ridge_svd
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         np.random.seed(42)
 
@@ -1510,7 +1510,7 @@ class TestBootstrapRidgePredictStatisticalCorrectness:
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_predict_gpu_batched,
         )
-        from nltools.backends import Backend
+        from nltools.algorithms.backends import Backend
 
         np.random.seed(42)
 

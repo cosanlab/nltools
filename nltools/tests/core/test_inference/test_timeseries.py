@@ -16,7 +16,7 @@ from nltools.tests.core.test_inference import (
     TOLERANCE_GPU_VALUE,
     TOLERANCE_GPU_PVALUE,
 )
-from nltools.backends import Backend
+from nltools.algorithms.backends import Backend
 
 
 class TestCircleShift:
@@ -165,7 +165,7 @@ class TestPhaseRandomize:
     def test_backend_consistency_torch_1d(self):
         """Test that phase_randomize works with torch backend for 1D data."""
         pytest.importorskip("torch")
-        from nltools.backends import check_gpu_available
+        from nltools.algorithms.backends import check_gpu_available
 
         if not check_gpu_available()[0]:
             pytest.skip("GPU not available")
@@ -183,7 +183,7 @@ class TestPhaseRandomize:
     def test_backend_consistency_torch_2d(self):
         """Test that phase_randomize works with torch backend for 2D data."""
         pytest.importorskip("torch")
-        from nltools.backends import check_gpu_available
+        from nltools.algorithms.backends import check_gpu_available
 
         if not check_gpu_available()[0]:
             pytest.skip("GPU not available")
@@ -202,7 +202,7 @@ class TestPhaseRandomize:
     def test_backend_consistency_torch_vs_numpy(self):
         """Test that torch and numpy backends produce similar results."""
         pytest.importorskip("torch")
-        from nltools.backends import check_gpu_available
+        from nltools.algorithms.backends import check_gpu_available
 
         if not check_gpu_available()[0]:
             pytest.skip("GPU not available")

@@ -38,7 +38,7 @@ MODULES: list[tuple[str, str]] = [
     ("nltools.data.braindata.neighborhoods", "neighborhoods.md"),
     ("nltools.data.braindata.cache", "cache.md"),
     ("nltools.models", "models.md"),
-    ("nltools.backends", "backends.md"),
+    ("nltools.algorithms.backends", "backends.md"),
     # --- data classes ---
     ("nltools.data", "data.md"),
     ("nltools.data.braindata.BrainData", "data/brain_data.md"),
