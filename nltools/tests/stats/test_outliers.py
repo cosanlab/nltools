@@ -21,39 +21,94 @@ class TestWinsorize:
         else:
             out = out.values.squeeze()
         expected = np.array(
-            [92, 19, 101, 58, 101, 91, 26, 78, 10, 13,
-             -5, 101, 86, 85, 15, 89, 89, 28, -5, 41]
+            [
+                92,
+                19,
+                101,
+                58,
+                101,
+                91,
+                26,
+                78,
+                10,
+                13,
+                -5,
+                101,
+                86,
+                85,
+                15,
+                89,
+                89,
+                28,
+                -5,
+                41,
+            ]
         )
         assert np.sum(out == expected) == 20
 
     def test_std_replace_with_nearest(self, outlier_data):
         """Winsorize by std, replacing outliers with nearest non-outlier."""
-        out = winsorize(
-            outlier_data, cutoff={"std": [2, 2]}, replace_with_cutoff=False
-        )
+        out = winsorize(outlier_data, cutoff={"std": [2, 2]}, replace_with_cutoff=False)
         if isinstance(out, pl.DataFrame):
             out = out.to_numpy().squeeze()
         else:
             out = out.values.squeeze()
         expected = np.array(
-            [92, 19, 101, 58, 101, 91, 26, 78, 10, 13,
-             -40, 101, 86, 85, 15, 89, 89, 28, -5, 41]
+            [
+                92,
+                19,
+                101,
+                58,
+                101,
+                91,
+                26,
+                78,
+                10,
+                13,
+                -40,
+                101,
+                86,
+                85,
+                15,
+                89,
+                89,
+                28,
+                -5,
+                41,
+            ]
         )
         assert np.sum(out == expected) == 20
 
     def test_std_replace_with_cutoff(self, outlier_data):
         """Winsorize by std, replacing outliers with cutoff values."""
-        out = winsorize(
-            outlier_data, cutoff={"std": [2, 2]}, replace_with_cutoff=True
-        )
+        out = winsorize(outlier_data, cutoff={"std": [2, 2]}, replace_with_cutoff=True)
         if isinstance(out, pl.DataFrame):
             out = out.to_numpy().squeeze()
         else:
             out = out.values.squeeze()
         expected = np.array(
-            [92.0, 19.0, 101.0, 58.0, 556.97961997, 91.0, 26.0, 78.0,
-             10.0, 13.0, -40.0, 101.0, 86.0, 85.0, 15.0, 89.0, 89.0,
-             28.0, -5.0, 41.0]
+            [
+                92.0,
+                19.0,
+                101.0,
+                58.0,
+                556.97961997,
+                91.0,
+                26.0,
+                78.0,
+                10.0,
+                13.0,
+                -40.0,
+                101.0,
+                86.0,
+                85.0,
+                15.0,
+                89.0,
+                89.0,
+                28.0,
+                -5.0,
+                41.0,
+            ]
         )
         assert np.round(np.mean(out)) == np.round(np.mean(expected))
 

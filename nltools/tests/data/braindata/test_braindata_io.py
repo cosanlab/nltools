@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from nltools.data import BrainData
-from nltools.prefs import MNI_Template
+from nltools.templates import get_brainspace
 from nltools.tests.conftest import _tables_available
 
 
@@ -27,7 +27,7 @@ class TestBrainDataIO:
         output_dir = str(tmpdir)
         dat = sim.create_data(y, sigma, reps=n_reps, output_dir=output_dir)
 
-        # Shape depends on MNI_Template.resolution
+        # Shape depends on current brain-space resolution
         # 2mm: shape_3d = (91, 109, 91), shape_2d = (6, 238955)
         # 3mm: shape_3d = (60, 72, 60), shape_2d = (6, 71020)
 
@@ -74,10 +74,10 @@ class TestBrainDataIO:
         # case the mask argument takes precedence so we warn the user
         with pytest.warns(UserWarning):
             bb = BrainData(
-                os.path.join(tmpdir.join("test_write.h5")), mask=MNI_Template.mask
+                os.path.join(tmpdir.join("test_write.h5")), mask=get_brainspace().mask
             )
             assert os.path.abspath(bb.mask.get_filename()) == os.path.abspath(
-                MNI_Template.mask
+                get_brainspace().mask
             )
 
     @pytest.mark.skipif(
@@ -123,7 +123,7 @@ class TestBrainDataIO:
         brain_source = BrainData(source_data, mask=mask_3mm, resample=False)
 
         # Create target image (2mm, same as MNI template)
-        mask_img = nib.load(MNI_Template.mask)
+        mask_img = nib.load(get_brainspace().mask)
 
         # Resample
         brain_resampled = brain_source.resample_to(img=mask_img)
@@ -152,7 +152,7 @@ class TestBrainDataIO:
 
         # Save target image to file
         target_path = str(tmpdir.join("target.nii.gz"))
-        mask_img = nib.load(MNI_Template.mask)
+        mask_img = nib.load(get_brainspace().mask)
         mask_img.to_filename(target_path)
 
         # Resample
@@ -166,7 +166,7 @@ class TestBrainDataIO:
         """Test resampling to specified isotropic resolution."""
 
         # Create source BrainData (2mm)
-        mask_img = nib.load(MNI_Template.mask)
+        mask_img = nib.load(get_brainspace().mask)
         source_data = nib.Nifti1Image(
             np.random.randn(*mask_img.shape + (10,)), affine=mask_img.affine
         )
@@ -189,7 +189,7 @@ class TestBrainDataIO:
         """Test error when both img and resolution are provided."""
 
         # Create BrainData with matching mask
-        mask_img = nib.load(MNI_Template.mask)
+        mask_img = nib.load(get_brainspace().mask)
         source_data = nib.Nifti1Image(
             np.random.randn(*mask_img.shape), affine=mask_img.affine
         )
@@ -202,7 +202,7 @@ class TestBrainDataIO:
         """Test error when neither img nor resolution is provided."""
 
         # Create BrainData with matching mask
-        mask_img = nib.load(MNI_Template.mask)
+        mask_img = nib.load(get_brainspace().mask)
         source_data = nib.Nifti1Image(
             np.random.randn(*mask_img.shape), affine=mask_img.affine
         )
@@ -215,7 +215,7 @@ class TestBrainDataIO:
         """Test error with invalid img type."""
 
         # Create BrainData with matching mask
-        mask_img = nib.load(MNI_Template.mask)
+        mask_img = nib.load(get_brainspace().mask)
         source_data = nib.Nifti1Image(
             np.random.randn(*mask_img.shape), affine=mask_img.affine
         )
@@ -228,7 +228,7 @@ class TestBrainDataIO:
         """Test that X and Y metadata are preserved after resampling."""
 
         # Create BrainData with matching mask
-        mask_img = nib.load(MNI_Template.mask)
+        mask_img = nib.load(get_brainspace().mask)
         source_data = nib.Nifti1Image(
             np.random.randn(*mask_img.shape + (5,)), affine=mask_img.affine
         )
@@ -249,7 +249,7 @@ class TestBrainDataIO:
         """Test resampling to same space produces similar results."""
 
         # Create BrainData
-        mask_img = nib.load(MNI_Template.mask)
+        mask_img = nib.load(get_brainspace().mask)
         source_data = nib.Nifti1Image(
             np.random.randn(*mask_img.shape + (5,)), affine=mask_img.affine
         )
@@ -351,7 +351,7 @@ class TestBrainDataIO:
         )
 
         # Resample to 2mm template
-        mask_2mm = nib.load(MNI_Template.mask)
+        mask_2mm = nib.load(get_brainspace().mask)
         brain_resampled = brain.resample_to(img=mask_2mm)
 
         # Values should still be discrete after resampling

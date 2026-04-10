@@ -47,7 +47,7 @@ def plot_brain(
         Display or matplotlib Figure.
     """
     from nilearn.plotting import plot_glass_brain, plot_stat_map
-    from nltools.prefs import MNI_Template
+    from nltools.templates import get_bg_image, get_brainspace
     import matplotlib.pyplot as plt
 
     # Validate inputs
@@ -130,25 +130,23 @@ def plot_brain(
             plt.savefig(save_paths["glass"], bbox_inches="tight")
 
     elif kind == "slices":
-        # Background image selection (respects MNI_Template)
+        # Background image selection (respects current brain space)
         if bg_img is None:
             try:
-                bg_img = MNI_Template.get_bg_image(obj.nifti_masker.affine_)
+                bg_img = get_bg_image(obj.nifti_masker.affine_)
             except ValueError as e:
                 # Handle non-isometric voxels gracefully
-                if "isometric" in str(e).lower():
-                    # Use default MNI template as fallback
-                    from nltools.prefs import MNI_Template
-
+                if "isotropic" in str(e).lower() or "isometric" in str(e).lower():
+                    cfg = get_brainspace()
                     warnings.warn(
                         f"Non-isometric voxels detected: {str(e)}. "
-                        f"Using default MNI152 template ({MNI_Template.template}, "
-                        f"{MNI_Template.resolution}mm) as background image. "
+                        f"Using default MNI152 template ({cfg.template}, "
+                        f"{cfg.resolution}mm) as background image. "
                         f"To use a custom background, provide bg_img parameter.",
                         UserWarning,
                         stacklevel=2,
                     )
-                    bg_img = MNI_Template.brain
+                    bg_img = cfg.brain
                 else:
                     # Re-raise if it's a different ValueError
                     raise

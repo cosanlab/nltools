@@ -47,8 +47,26 @@ def outlier_data():
     """DataFrame with known outlier values for winsorize/trim tests."""
     return pd.DataFrame(
         [
-            92, 19, 101, 58, 1053, 91, 26, 78, 10, 13,
-            -40, 101, 86, 85, 15, 89, 89, 28, -5, 41,
+            92,
+            19,
+            101,
+            58,
+            1053,
+            91,
+            26,
+            78,
+            10,
+            13,
+            -40,
+            101,
+            86,
+            85,
+            15,
+            89,
+            89,
+            28,
+            -5,
+            41,
         ]
     )
 

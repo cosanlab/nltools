@@ -9,31 +9,17 @@ Functions to help download datasets from Neurovault and other sources.
 
 Name | Description
 ---- | -----------
-[`download_collection`](#download_collection) | Download images and metadata from Neurovault collection.
 [`download_nifti`](#download_nifti) | Download an image from a URL to a nifti file.
 [`fetch_emotion_ratings`](#fetch_emotion_ratings) | Download and load emotion rating dataset from Neurovault.
 [`fetch_haxby`](#fetch_haxby) | Download and load Haxby2001 dataset from nilearn.
 [`fetch_neurovault_collection`](#fetch_neurovault_collection) | Download images and metadata from a Neurovault collection.
 [`fetch_pain`](#fetch_pain) | Download and load pain dataset from Neurovault.
-[`get_collection_image_metadata`](#get_collection_image_metadata) | Get image metadata associated with collection.
 
 
 
 ### Classes
 
 ### Methods
-
-#### `download_collection`
-
-```python
-download_collection(collection = None, data_dir = None, overwrite = False, resume = True, verbose = 1)
-```
-
-Download images and metadata from Neurovault collection.
-
-.. deprecated::
-    This function is deprecated and will be removed in a future version.
-    Please use fetch_neurovault_collection instead.
 
 #### `download_nifti`
 
@@ -184,16 +170,4 @@ A sensitive and specific neural signature for picture-induced negative affect.
 PLoS biology, 13(6), e1002180.
 
 </details>
-
-#### `get_collection_image_metadata`
-
-```python
-get_collection_image_metadata(collection = None, data_dir = None, limit = 10)
-```
-
-Get image metadata associated with collection.
-
-.. deprecated::
-    This function is deprecated and will be removed in a future version.
-    Please use fetch_neurovault_collection instead.
 

@@ -7,7 +7,7 @@ __all__ = [
     "stats",
     "utils",
     "mask",
-    "prefs",
+    "templates",
     "__version__",
     "Roc",
     "BrainData",
@@ -15,7 +15,11 @@ __all__ = [
     "DesignMatrix",
     "Simulator",
     "SimulateGrid",
-    "MNI_Template",
+    "BrainSpaceConfig",
+    "get_brainspace",
+    "set_brainspace",
+    "reset_brainspace",
+    "with_brainspace",
     "expand_mask",
     "collapse_mask",
     "create_sphere",
@@ -31,7 +35,13 @@ from .data import (
     SimulateGrid,
     Roc,
 )
-from .prefs import MNI_Template
+from .templates import (
+    BrainSpaceConfig,
+    get_brainspace,
+    set_brainspace,
+    reset_brainspace,
+    with_brainspace,
+)
 from .version import __version__
 from .mask import expand_mask, collapse_mask, create_sphere
 from .algorithms import SRM, DetSRM

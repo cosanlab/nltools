@@ -9,7 +9,7 @@ import nibabel as nib
 import warnings
 from .base import BaseModel
 from nilearn.glm.first_level import FirstLevelModel
-from nltools.prefs import MNI_Template
+from nltools.templates import get_brainspace
 
 
 class Glm(BaseModel):
@@ -108,7 +108,7 @@ class Glm(BaseModel):
 
         # Initialize mask (use MNI template if not provided, like BrainData)
         if mask is None:
-            self.mask = nib.load(MNI_Template.mask)
+            self.mask = nib.load(get_brainspace().mask)
         else:
             self.mask = mask
 

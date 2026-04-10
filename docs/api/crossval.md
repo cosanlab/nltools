@@ -54,7 +54,7 @@ Name | Description
 ###### `split`
 
 ```python
-split(X, y, groups = None)
+split(X, y = None, groups = None)
 ```
 
 Generate indices to split data into training and test set.

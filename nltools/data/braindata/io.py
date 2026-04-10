@@ -65,7 +65,7 @@ def initialize_mask(bd, mask, **kwargs):
     """
     import nibabel as nib
     from nilearn.maskers import NiftiMasker
-    from nltools.prefs import MNI_Template
+    from nltools.templates import get_brainspace
 
     # Store whether mask was None (for auto-detection later)
     bd._mask_was_none = mask is None
@@ -73,14 +73,14 @@ def initialize_mask(bd, mask, **kwargs):
     if mask is None:
         # For empty BrainData or when data not yet loaded, use default template
         # Template will be auto-detected during data loading if data is provided
-        bd.mask = nib.load(MNI_Template.mask)
+        bd.mask = nib.load(get_brainspace().mask)
         bd._detected_template = None  # Will be set during data loading if needed
     elif isinstance(mask, (str, Path)):
         mask_str = str(mask)
         # Check if it's a template name string (format: {res}mm-MNI152-2009{version})
         if re.match(r"^\d+mm-MNI152-2009[acfsl]+$", mask_str):
             # Resolve template name to file path
-            from nltools.prefs import resolve_template_name
+            from nltools.templates import resolve_template_name
 
             mask_path = resolve_template_name(mask_str, file_type="mask")
             bd.mask = nib.load(mask_path)
@@ -181,10 +181,10 @@ def detect_and_update_mask(bd, data_img):
         return data_img
 
     try:
-        from nltools.prefs import MNI_Template
+        from nltools.templates import match_resolution
 
         # Detect template from data
-        template_info = MNI_Template.match_resolution(
+        template_info = match_resolution(
             data_img.affine,
             prefer_exact=True,
             warn_resample=bd._resample,
@@ -194,11 +194,11 @@ def detect_and_update_mask(bd, data_img):
         bd._detected_template = template_info
 
         # Load detected template mask
-        detected_mask = nib.load(template_info["mask_path"])
+        detected_mask = nib.load(template_info.mask_path)
 
         # Check if detected mask differs from current mask
         current_mask_path = bd.mask.get_filename()
-        detected_mask_path = template_info["mask_path"]
+        detected_mask_path = template_info.mask_path
 
         if current_mask_path != detected_mask_path:
             # Update mask to detected template
@@ -225,7 +225,7 @@ def detect_and_update_mask(bd, data_img):
                 # Warn about resampling
                 warn_if_resampling(
                     bd,
-                    f"Detected template ({template_info['template']} {template_info['resolution']}mm) differs from data resolution.",
+                    f"Detected template ({template_info.template} {template_info.resolution}mm) differs from data resolution.",
                 )
                 # Resample data to detected mask space
                 from nilearn.image import resample_to_img
@@ -257,7 +257,7 @@ def detect_and_update_mask(bd, data_img):
         # This maintains backward compatibility
         warnings.warn(
             f"Failed to auto-detect template from data: {e}. "
-            f"Using default template (MNI_Template.mask).",
+            f"Using default template (get_brainspace().mask).",
             UserWarning,
             stacklevel=3,
         )
@@ -309,7 +309,7 @@ def detect_space(bd, mask):
         str: 'mni' if mask is MNI template, 'native' otherwise
     """
     import nibabel as nib
-    from nltools.prefs import MNI_Template
+    from nltools.templates import get_brainspace
 
     # Get mask filename if available
     mask_filename = mask.get_filename()
@@ -319,7 +319,7 @@ def detect_space(bd, mask):
     if mask_filename is None:
         # Compare affine matrix with MNI template
         try:
-            mni_mask = nib.load(MNI_Template.mask)
+            mni_mask = nib.load(get_brainspace().mask)
             if np.allclose(mask.affine, mni_mask.affine, rtol=1e-3):
                 return "mni"
         except Exception:
@@ -328,7 +328,7 @@ def detect_space(bd, mask):
 
     # Normalize paths for comparison
     mask_path = str(Path(mask_filename).resolve())
-    mni_mask_path = str(Path(MNI_Template.mask).resolve())
+    mni_mask_path = str(Path(get_brainspace().mask).resolve())
 
     # Check if mask path matches MNI template path
     if mask_path == mni_mask_path:
@@ -336,7 +336,7 @@ def detect_space(bd, mask):
 
     # Check if affine matches MNI template affine (for cases where mask is loaded differently)
     try:
-        mni_mask = nib.load(MNI_Template.mask)
+        mni_mask = nib.load(get_brainspace().mask)
         if np.allclose(mask.affine, mni_mask.affine, rtol=1e-3):
             return "mni"
     except Exception:
@@ -531,7 +531,7 @@ def load_from_brain_data(bd, brain_data, mask=None):
             # Check if it's a template name string
             if re.match(r"^\d+mm-MNI152-2009[acfsl]+$", mask_str):
                 # Resolve template name to file path
-                from nltools.prefs import resolve_template_name
+                from nltools.templates import resolve_template_name
 
                 new_mask = nib.load(resolve_template_name(mask_str, file_type="mask"))
             else:

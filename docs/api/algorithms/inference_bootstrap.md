@@ -48,16 +48,7 @@ Examples:
 >>> print(results.keys())
 dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
 
-**Replacing summarize_bootstrap() from nltools.stats:**
-The deprecated `summarize_bootstrap()` function can be replaced with this class:
-
-**Old API (deprecated):**
->>> from nltools.stats import summarize_bootstrap
->>> bootstrap_samples = BrainData(list_of_samples)  # Multiple samples
->>> result = summarize_bootstrap(bootstrap_samples, save_weights=False)
->>> # Returns: {'mean': BrainData, 'Z': BrainData, 'p': BrainData}
-
-**New API (recommended):**
+**Usage:**
 >>> from nltools.algorithms.inference.bootstrap import OnlineBootstrapStats
 >>> from nltools.data import BrainData
 >>>

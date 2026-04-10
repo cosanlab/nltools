@@ -2,13 +2,13 @@
 Test suite for BrainData.plot() method.
 
 Tests follow TDD approach: write tests first, then implement functionality.
-Focuses on plotting functionality, MNI_Template integration, and user-friendly defaults.
+Focuses on plotting functionality, brain-space integration, and user-friendly defaults.
 """
 
 import pytest
 import numpy as np
 from nltools.data import BrainData
-from nltools.prefs import MNI_Template
+from nltools.templates import get_brainspace, with_brainspace
 
 
 class TestBrainDataPlotting:
@@ -64,21 +64,11 @@ class TestBrainDataPlotting:
         assert result is not None
 
     def test_plot_respects_template_changes(self, minimal_brain_data):
-        """Test that plot respects MNI_Template changes"""
+        """Test that plot respects brain-space changes."""
         single_image = minimal_brain_data[0]
-
-        original_template = MNI_Template.template
-        original_resolution = MNI_Template.resolution
-
-        try:
-            if 2 in MNI_Template._supported_combinations.get("nilearn", []):
-                MNI_Template.template = "nilearn"
-                MNI_Template.resolution = 2
-                result = single_image.plot()
-                assert result is not None
-        finally:
-            MNI_Template.template = original_template
-            MNI_Template.resolution = original_resolution
+        with with_brainspace(template="nilearn", resolution=2):
+            result = single_image.plot()
+            assert result is not None
 
     def test_plot_empty_brain_data(self):
         """Test error handling for empty BrainData"""
@@ -137,10 +127,9 @@ class TestBrainDataPlotting:
     def test_plot_custom_bg_img_nibabel(self, minimal_brain_data):
         """Test custom background image as nibabel image"""
         import nibabel as nib
-        from nltools.prefs import MNI_Template
 
         single_image = minimal_brain_data[0]
-        custom_bg = nib.load(MNI_Template.brain)
+        custom_bg = nib.load(get_brainspace().brain)
         result = single_image.plot(bg_img=custom_bg)
         assert result is not None
 

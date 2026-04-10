@@ -187,7 +187,7 @@ class BrainCollection:
                 return nib.Nifti1Image.from_filename(str(path))
             # Try as template name
             try:
-                from nltools.prefs import resolve_template_name
+                from nltools.templates import resolve_template_name
 
                 mask_path = resolve_template_name(str(mask), file_type="mask")
                 return nib.Nifti1Image.from_filename(str(mask_path))

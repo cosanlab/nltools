@@ -14,6 +14,8 @@ Name | Description
 [`expand_mask`](#expand_mask) | expand a mask with multiple integers into separate binary masks
 [`roi_to_brain`](#roi_to_brain) | This function will create convert an expanded binary mask of ROIs
 
+
+
 ### Methods
 
 #### `collapse_mask`

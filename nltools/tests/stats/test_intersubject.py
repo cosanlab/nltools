@@ -12,7 +12,9 @@ class TestISC:
 
     @pytest.mark.parametrize("method", ["bootstrap", "circle_shift", "phase_randomize"])
     @pytest.mark.parametrize("metric", ["median", "mean"])
-    def test_isc_methods_and_metrics(self, multisubject_correlated_data, method, metric):
+    def test_isc_methods_and_metrics(
+        self, multisubject_correlated_data, method, metric
+    ):
         """ISC with various methods and aggregation metrics."""
         stats = isc(
             multisubject_correlated_data,
@@ -56,9 +58,12 @@ class TestISCGroup:
         group2 = data[:, 5:]
 
         stats = isc_group(
-            group1, group2,
-            metric=metric, method=method,
-            return_null=True, n_samples=n_samples,
+            group1,
+            group2,
+            metric=metric,
+            method=method,
+            return_null=True,
+            n_samples=n_samples,
         )
         np.testing.assert_almost_equal(stats["isc_group_difference"], diff, decimal=0)
         assert 0 < stats["p"] < 1
@@ -75,7 +80,9 @@ class TestISFC:
         isfc_mean = np.array(isfc_out).mean(axis=0)
         assert len(isfc_out) == 10
         assert isfc_mean.shape == (5, 5)
-        np.testing.assert_almost_equal(np.array(isfc_out).mean(axis=0).mean(), 0, decimal=1)
+        np.testing.assert_almost_equal(
+            np.array(isfc_out).mean(axis=0).mean(), 0, decimal=1
+        )
 
     def test_isfc_parallelization(self, sub_roi_data):
         """Serial and parallel ISFC should give identical results."""
@@ -129,7 +136,9 @@ class TestISPS:
         # Desynchronize middle portion
         simulation[50:150, :] = np.random.randn(100, simulation.shape[1]) * 5
 
-        stats = isps(simulation, low_cut=0.05, high_cut=0.2, sampling_freq=sampling_freq)
+        stats = isps(
+            simulation, low_cut=0.05, high_cut=0.2, sampling_freq=sampling_freq
+        )
 
         assert stats["average_angle"].shape == time.shape
         assert stats["vector_length"].shape == time.shape

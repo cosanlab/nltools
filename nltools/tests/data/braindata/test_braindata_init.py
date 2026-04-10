@@ -5,7 +5,7 @@ import nibabel as nib
 import pytest
 
 from nltools.data import BrainData
-from nltools.prefs import MNI_Template
+from nltools.templates import get_brainspace
 
 
 class TestBrainDataInit:
@@ -22,7 +22,7 @@ class TestBrainDataInit:
         )
 
         # Explicitly use 2mm mask (new behavior: mask=None would auto-detect 3mm)
-        mask_img = nib.load(MNI_Template.mask)
+        mask_img = nib.load(get_brainspace().mask)
 
         # With verbose=True, should show resampling warning
         with warnings.catch_warnings(record=True) as w:
@@ -56,7 +56,7 @@ class TestBrainDataInit:
         """Test no resampling when resample=False and spaces match."""
 
         # Create data in same space as mask
-        mask_img = nib.load(MNI_Template.mask)
+        mask_img = nib.load(get_brainspace().mask)
         data_same_space = nib.Nifti1Image(
             np.random.randn(*mask_img.shape + (10,)), affine=mask_img.affine
         )
@@ -148,8 +148,8 @@ class TestBrainDataInit:
 
         # Should auto-detect and use 3mm template (not default 2mm)
         assert brain.shape[1] == 71020  # Exact voxel count for default 3mm
-        assert brain._detected_template["resolution"] == 3
-        assert brain._detected_template["template"] == "default"
+        assert brain._detected_template.resolution == 3
+        assert brain._detected_template.template == "default"
 
     def test_init_resample_true_list_of_files(self, tmpdir):
         """Test resampling works with list of files."""
@@ -190,13 +190,13 @@ class TestBrainDataInit:
 
         # Should be resampled to auto-detected template space (3mm)
         assert brain.shape == (2, 71020)  # Exact voxel count for default 3mm
-        assert brain._detected_template["resolution"] == 3
+        assert brain._detected_template.resolution == 3
 
     def test_init_resample_true_matched_spaces_no_resample(self):
         """Test that resample=True skips resampling when spaces already match."""
 
         # Create data in same space as default mask
-        mask_img = nib.load(MNI_Template.mask)
+        mask_img = nib.load(get_brainspace().mask)
         data_same_space = nib.Nifti1Image(
             np.random.randn(*mask_img.shape + (10,)), affine=mask_img.affine
         )
@@ -362,10 +362,10 @@ class TestBrainDataInit:
 
     def test_init_from_brain_data_with_template_name_string(self):
         """Test initialization from BrainData with template name string override."""
-        from nltools.prefs import MNI_Template
+        from nltools.templates import get_brainspace
 
         # Create original BrainData (2mm) using actual MNI152 affine
-        default_mask = nib.load(MNI_Template.mask)
+        default_mask = nib.load(get_brainspace().mask)
         data_2mm = nib.Nifti1Image(
             np.random.randn(91, 109, 91, 10), affine=default_mask.affine
         )
@@ -402,7 +402,7 @@ class TestBrainDataInit:
 
     def test_init_mask_template_name_string_unsupported_resolution(self):
         """Test that unsupported resolution for template raises error."""
-        from nltools.prefs import resolve_template_name
+        from nltools.templates import resolve_template_name
 
         # Try to use 3mm with fmriprep (not supported - only 1mm and 2mm)
         with pytest.raises(ValueError, match="Resolution 3mm not supported"):
@@ -410,7 +410,7 @@ class TestBrainDataInit:
 
     def test_init_mask_template_name_string_file_type_brain(self):
         """Test resolve_template_name with file_type='brain'."""
-        from nltools.prefs import resolve_template_name
+        from nltools.templates import resolve_template_name
 
         mask_path = resolve_template_name("2mm-MNI152-2009c", file_type="mask")
         brain_path = resolve_template_name("2mm-MNI152-2009c", file_type="brain")
@@ -421,7 +421,7 @@ class TestBrainDataInit:
 
     def test_init_mask_template_name_string_file_type_t1(self):
         """Test resolve_template_name with file_type='T1'."""
-        from nltools.prefs import resolve_template_name
+        from nltools.templates import resolve_template_name
 
         mask_path = resolve_template_name("2mm-MNI152-2009c", file_type="mask")
         t1_path = resolve_template_name("2mm-MNI152-2009c", file_type="T1")
@@ -432,7 +432,7 @@ class TestBrainDataInit:
 
     def test_init_mask_template_name_string_invalid_file_type(self):
         """Test that invalid file_type raises error."""
-        from nltools.prefs import resolve_template_name
+        from nltools.templates import resolve_template_name
 
         with pytest.raises(ValueError, match="file_type must be"):
             resolve_template_name("2mm-MNI152-2009c", file_type="invalid")
@@ -480,7 +480,7 @@ class TestBrainDataInit:
 
     def test_all_template_voxel_counts_via_resolve_template_name(self):
         """Test voxel counts via resolve_template_name for all templates."""
-        from nltools.prefs import resolve_template_name
+        from nltools.templates import resolve_template_name
 
         # Define expected voxel counts for all supported templates
         expected_voxel_counts = {
@@ -507,10 +507,10 @@ class TestBrainDataInit:
 
     def test_init_mask_none_auto_detect_2mm(self):
         """Test automatic template detection for 2mm data."""
-        from nltools.prefs import MNI_Template
+        from nltools.templates import get_brainspace
 
         # Create 2mm data (matches default template) using actual MNI152 affine
-        default_mask = nib.load(MNI_Template.mask)
+        default_mask = nib.load(get_brainspace().mask)
         data_2mm = nib.Nifti1Image(
             np.random.randn(91, 109, 91, 10), affine=default_mask.affine
         )
@@ -521,8 +521,8 @@ class TestBrainDataInit:
         assert brain.shape[1] == 238955  # Exact voxel count for default 2mm
         assert np.allclose(np.abs(brain.mask.affine[0, 0]), 2.0, rtol=1e-3)
         assert hasattr(brain, "_detected_template")
-        assert brain._detected_template["resolution"] == 2
-        assert brain._detected_template["template"] == "default"
+        assert brain._detected_template.resolution == 2
+        assert brain._detected_template.template == "default"
 
     def test_init_mask_none_auto_detect_3mm(self):
         """Test automatic template detection for 3mm data."""
@@ -537,8 +537,8 @@ class TestBrainDataInit:
         # Should detect and use 3mm template with exact voxel count
         assert brain.shape[1] == 71020  # Exact voxel count for default 3mm
         assert np.allclose(np.abs(brain.mask.affine[0, 0]), 3.0, rtol=1e-3)
-        assert brain._detected_template["resolution"] == 3
-        assert brain._detected_template["template"] == "default"
+        assert brain._detected_template.resolution == 3
+        assert brain._detected_template.template == "default"
 
     @pytest.mark.slow
     def test_init_mask_none_auto_detect_1mm(self):
@@ -554,14 +554,14 @@ class TestBrainDataInit:
         # Should detect and use 1mm nilearn template with exact voxel count
         assert np.allclose(np.abs(brain.mask.affine[0, 0]), 1.0, rtol=1e-3)
         assert brain.shape[1] == 1886539  # Exact voxel count for nilearn 1mm
-        assert brain._detected_template["resolution"] == 1
-        assert brain._detected_template["template"] == "nilearn"
+        assert brain._detected_template.resolution == 1
+        assert brain._detected_template.template == "nilearn"
 
     def test_init_mask_none_resample_false_exact_match(self):
         """Test auto-detection with resample=False requires exact match."""
 
         # Create 2mm data that exactly matches template
-        mask_2mm = nib.load(MNI_Template.mask)  # Get exact template
+        mask_2mm = nib.load(get_brainspace().mask)  # Get exact template
         data_2mm = nib.Nifti1Image(
             np.random.randn(*mask_2mm.shape + (10,)), affine=mask_2mm.affine
         )
@@ -668,10 +668,10 @@ class TestBrainDataInit:
 
     def test_init_from_brain_data(self):
         """Test initialization from another BrainData object."""
-        from nltools.prefs import MNI_Template
+        from nltools.templates import get_brainspace
 
         # Create original BrainData using actual MNI152 affine
-        default_mask = nib.load(MNI_Template.mask)
+        default_mask = nib.load(get_brainspace().mask)
         data_2mm = nib.Nifti1Image(
             np.random.randn(91, 109, 91, 10), affine=default_mask.affine
         )
@@ -687,10 +687,10 @@ class TestBrainDataInit:
 
     def test_init_from_brain_data_with_mask_override(self):
         """Test initialization from BrainData with mask override."""
-        from nltools.prefs import MNI_Template
+        from nltools.templates import get_brainspace
 
         # Create original BrainData (2mm) using actual MNI152 affine
-        default_mask = nib.load(MNI_Template.mask)
+        default_mask = nib.load(get_brainspace().mask)
         data_2mm = nib.Nifti1Image(
             np.random.randn(91, 109, 91, 10), affine=default_mask.affine
         )
@@ -731,10 +731,10 @@ class TestBrainDataInit:
 
     def test_init_from_brain_data_resample_false_error(self):
         """Test that resample=False raises error when masks don't match."""
-        from nltools.prefs import MNI_Template
+        from nltools.templates import get_brainspace
 
         # Create original BrainData (2mm) using actual MNI152 affine to avoid resampling warning
-        default_mask = nib.load(MNI_Template.mask)
+        default_mask = nib.load(get_brainspace().mask)
         data_2mm = nib.Nifti1Image(
             np.random.randn(91, 109, 91, 10), affine=default_mask.affine
         )
@@ -794,7 +794,7 @@ class TestBrainDataInit:
     def test_init_resample_single_vs_multi_image(self):
         """Test resampling works for both single and multi-image data."""
 
-        mask_img = nib.load(MNI_Template.mask)
+        mask_img = nib.load(get_brainspace().mask)
 
         # Single image
         data_single = nib.Nifti1Image(

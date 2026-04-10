@@ -313,9 +313,15 @@ brain = BrainData('sub-01_bold.nii.gz', mask='2mm-MNI152-2009c')   # fmriprep 2m
 brain = BrainData('sub-01_bold.nii.gz', mask='3mm-MNI152-2009a')   # nilearn 3mm
 
 # Or change the global default (affects all future BrainData)
-from nltools.prefs import MNI_Template
-MNI_Template.template = 'fmriprep'  # 'default', 'nilearn', or 'fmriprep'
-MNI_Template.resolution = 1          # 1, 2, or 3
+import nltools
+nltools.set_brainspace(template='fmriprep', resolution=1)
+
+# Scope a change to a block (context manager)
+with nltools.with_brainspace(template='nilearn', resolution=2):
+    brain = BrainData('sub-01_bold.nii.gz')
+
+# Inspect the current config
+print(nltools.get_brainspace())
 
 # Or pass any nifti file / nibabel object as a custom mask
 brain = BrainData('sub-01_bold.nii.gz', mask='my_roi_mask.nii.gz')

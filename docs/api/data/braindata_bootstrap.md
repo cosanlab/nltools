@@ -81,16 +81,9 @@ Type | Description
 <details class="note" open markdown="1">
 <summary>Note</summary>
 
-This method replaces the deprecated `summarize_bootstrap()` function from
-`nltools.stats`. To reproduce `summarize_bootstrap()` functionality:
+This method replaces the removed `summarize_bootstrap()` function.
 
-**Old API (deprecated):**
->>> from nltools.stats import summarize_bootstrap
->>> bootstrap_samples = BrainData(list_of_samples)  # Multiple samples
->>> result = summarize_bootstrap(bootstrap_samples, save_weights=False)
->>> # Returns: {'mean': BrainData, 'Z': BrainData, 'p': BrainData}
-
-**New API (recommended):**
+**New API:**
 >>> # Option 1: Use BrainData.bootstrap() for generating bootstrap samples
 >>> boot = brain.bootstrap(stat='mean', n_samples=1000, save_boots=False)
 >>> # Returns BrainData with bootstrap mean

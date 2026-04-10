@@ -19,7 +19,9 @@ class TestFisherTransform:
     def test_roundtrip(self):
         """Fisher r→z→r should recover original value."""
         for r in np.arange(0, 1, 0.05):
-            np.testing.assert_almost_equal(r, fisher_z_to_r(fisher_r_to_z(r)), decimal=3)
+            np.testing.assert_almost_equal(
+                r, fisher_z_to_r(fisher_r_to_z(r)), decimal=3
+            )
 
 
 class TestComputeSimilarity:
@@ -201,7 +203,9 @@ class TestComputeICC:
         Y = np.zeros((10, 5))
         for i in range(10):
             for j in range(5):
-                Y[i, j] = subject_effects[i] + session_effects[j] + np.random.randn() * 0.1
+                Y[i, j] = (
+                    subject_effects[i] + session_effects[j] + np.random.randn() * 0.1
+                )
         icc1 = compute_icc(Y, icc_type="icc1")
         icc2 = compute_icc(Y, icc_type="icc2")
         assert icc2 <= icc1 + 1e-10
@@ -221,8 +225,12 @@ class TestComputeICC:
         icc1_manual = (MSR - MSE) / (MSR + (k - 1) * MSE)
         icc2_manual = (MSR - MSE) / (MSR + (k - 1) * MSE + k * (MSC - MSE) / n)
 
-        np.testing.assert_almost_equal(compute_icc(Y, icc_type="icc1"), icc1_manual, decimal=10)
-        np.testing.assert_almost_equal(compute_icc(Y, icc_type="icc2"), icc2_manual, decimal=10)
+        np.testing.assert_almost_equal(
+            compute_icc(Y, icc_type="icc1"), icc1_manual, decimal=10
+        )
+        np.testing.assert_almost_equal(
+            compute_icc(Y, icc_type="icc2"), icc2_manual, decimal=10
+        )
 
     def test_icc_effect_size_sensitivity(self):
         """Higher reliability should produce higher ICC values."""

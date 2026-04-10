@@ -33,7 +33,7 @@ MODULES: list[tuple[str, str]] = [
     ("nltools.cross_validation", "crossval.md"),
     ("nltools.data.roc", "analysis.md"),
     ("nltools.utils", "utils.md"),
-    ("nltools.prefs", "prefs.md"),
+    ("nltools.templates", "templates.md"),
     ("nltools.data.simulator", "simulator.md"),
     ("nltools.data.braindata.neighborhoods", "neighborhoods.md"),
     ("nltools.data.braindata.cache", "cache.md"),

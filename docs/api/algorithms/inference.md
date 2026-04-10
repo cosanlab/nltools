@@ -79,6 +79,7 @@ Name | Description
 [`timeseries`](#timeseries) | Time-series permutation test implementations.
 [`two_sample`](#two_sample) | Two-sample permutation test implementations.
 [`utils`](#utils) | Utility functions for permutation testing.
+[`validation`](#validation) | Shared validation utilities for algorithms module.
 
 **Classes:**
 
@@ -191,16 +192,7 @@ Examples:
 >>> print(results.keys())
 dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
 
-**Replacing summarize_bootstrap() from nltools.stats:**
-The deprecated `summarize_bootstrap()` function can be replaced with this class:
-
-**Old API (deprecated):**
->>> from nltools.stats import summarize_bootstrap
->>> bootstrap_samples = BrainData(list_of_samples)  # Multiple samples
->>> result = summarize_bootstrap(bootstrap_samples, save_weights=False)
->>> # Returns: {'mean': BrainData, 'Z': BrainData, 'p': BrainData}
-
-**New API (recommended):**
+**Usage:**
 >>> from nltools.algorithms.inference.bootstrap import OnlineBootstrapStats
 >>> from nltools.data import BrainData
 >>>
@@ -2115,3 +2107,329 @@ Name | Type | Description
 [`EPSILON`](#EPSILON) |  | 
 
 ##### Methods
+
+#### `validation`
+
+Shared validation utilities for algorithms module.
+
+This module provides common validation functions to reduce code duplication
+and ensure consistent error handling across the algorithms module.
+
+<details class="usage" open markdown="1">
+<summary>Usage</summary>
+
+These functions are used throughout the algorithms module to validate
+input parameters. They provide consistent error messages and behavior.
+
+Example:
+    >>> from nltools.algorithms.validation import validate_parallel_parameter
+    >>> validate_parallel_parameter("cpu")  # OK
+    >>> validate_parallel_parameter("invalid")  # Raises ValueError
+
+</details>
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`validate_alpha`](#validate_alpha) | Validate regularization parameter alpha.
+[`validate_array_shape`](#validate_array_shape) | Validate array dimensionality.
+[`validate_array_shape_range`](#validate_array_shape_range) | Validate array dimensionality is within a range.
+[`validate_bootstrap_data`](#validate_bootstrap_data) | Validate input data for bootstrapping.
+[`validate_bootstrap_method`](#validate_bootstrap_method) | Validate bootstrap method name.
+[`validate_how_parameter`](#validate_how_parameter) | Validate 'how' parameter for matrix operations.
+[`validate_isc_parameters`](#validate_isc_parameters) | Validate ISC parameter values.
+[`validate_metric_parameter`](#validate_metric_parameter) | Validate metric parameter.
+[`validate_n_samples`](#validate_n_samples) | Validate number of samples.
+[`validate_parallel_parameter`](#validate_parallel_parameter) | Validate parallel parameter.
+[`validate_parallel_parameter_matrix`](#validate_parallel_parameter_matrix) | Validate parallel parameter for matrix operations.
+[`validate_percentiles`](#validate_percentiles) | Validate percentile values for confidence intervals.
+[`validate_same_first_dimension`](#validate_same_first_dimension) | Validate two arrays have same first dimension.
+[`validate_same_shape`](#validate_same_shape) | Validate two arrays have same shape.
+[`validate_shape_compatibility`](#validate_shape_compatibility) | Validate that X and y have compatible shapes for regression.
+[`validate_square_matrix`](#validate_square_matrix) | Validate matrix is square.
+[`validate_tail_parameter`](#validate_tail_parameter) | Validate and normalize tail parameter.
+
+
+
+##### Methods
+
+###### `validate_alpha`
+
+```python
+validate_alpha(alpha: float, name: str = 'alpha') -> None
+```
+
+Validate regularization parameter alpha.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`alpha` | <code>[float](#float)</code> | Regularization parameter | *required*
+`name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'alpha'</code>
+
+###### `validate_array_shape`
+
+```python
+validate_array_shape(array: np.ndarray, expected_ndim: int, name: str = 'array') -> None
+```
+
+Validate array dimensionality.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`array` | <code>[ndarray](#numpy.ndarray)</code> | Array to validate | *required*
+`expected_ndim` | <code>[int](#int)</code> | Expected number of dimensions | *required*
+`name` | <code>[str](#str)</code> | Name of array for error message | <code>'array'</code>
+
+###### `validate_array_shape_range`
+
+```python
+validate_array_shape_range(array: np.ndarray, min_ndim: int, max_ndim: int, name: str = 'array') -> None
+```
+
+Validate array dimensionality is within a range.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`array` | <code>[ndarray](#numpy.ndarray)</code> | Array to validate | *required*
+`min_ndim` | <code>[int](#int)</code> | Minimum number of dimensions (inclusive) | *required*
+`max_ndim` | <code>[int](#int)</code> | Maximum number of dimensions (inclusive) | *required*
+`name` | <code>[str](#str)</code> | Name of array for error message | <code>'array'</code>
+
+###### `validate_bootstrap_data`
+
+```python
+validate_bootstrap_data(data: np.ndarray, method: str) -> None
+```
+
+Validate input data for bootstrapping.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[ndarray](#numpy.ndarray)</code> | Data to validate | *required*
+`method` | <code>[str](#str)</code> | Bootstrap method | *required*
+
+###### `validate_bootstrap_method`
+
+```python
+validate_bootstrap_method(method: str, simple_methods: list[str], fitted_methods: list[str]) -> None
+```
+
+Validate bootstrap method name.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` | <code>[str](#str)</code> | Method name to validate | *required*
+`simple_methods` | <code>[list](#list)[[str](#str)]</code> | List of simple method names | *required*
+`fitted_methods` | <code>[list](#list)[[str](#str)]</code> | List of fitted method names | *required*
+
+###### `validate_how_parameter`
+
+```python
+validate_how_parameter(how: str) -> None
+```
+
+Validate 'how' parameter for matrix operations.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`how` | <code>[str](#str)</code> | How parameter value | *required*
+
+###### `validate_isc_parameters`
+
+```python
+validate_isc_parameters(metric: str, summary_statistic: str, method: Optional[str] = None) -> None
+```
+
+Validate ISC parameter values.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`metric` | <code>[str](#str)</code> | Summary statistic metric | *required*
+`summary_statistic` | <code>[str](#str)</code> | ISC computation method | *required*
+`method` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Resampling method (optional) | <code>None</code>
+
+###### `validate_metric_parameter`
+
+```python
+validate_metric_parameter(metric: str, allowed: list[str], name: str = 'metric') -> None
+```
+
+Validate metric parameter.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`metric` | <code>[str](#str)</code> | Metric parameter value | *required*
+`allowed` | <code>[list](#list)[[str](#str)]</code> | List of allowed metric values | *required*
+`name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'metric'</code>
+
+###### `validate_n_samples`
+
+```python
+validate_n_samples(n_samples: int, min_samples: int = 2, name: str = 'n_samples') -> None
+```
+
+Validate number of samples.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_samples` | <code>[int](#int)</code> | Number of samples | *required*
+`min_samples` | <code>[int](#int)</code> | Minimum required samples | <code>2</code>
+`name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'n_samples'</code>
+
+###### `validate_parallel_parameter`
+
+```python
+validate_parallel_parameter(parallel: Optional[str]) -> None
+```
+
+Validate parallel parameter.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallel parameter value | *required*
+
+###### `validate_parallel_parameter_matrix`
+
+```python
+validate_parallel_parameter_matrix(parallel: Optional[str]) -> None
+```
+
+Validate parallel parameter for matrix operations.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallel parameter value | *required*
+
+###### `validate_percentiles`
+
+```python
+validate_percentiles(percentiles: Tuple[float, float]) -> None
+```
+
+Validate percentile values for confidence intervals.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`percentiles` | <code>[Tuple](#typing.Tuple)[[float](#float), [float](#float)]</code> | Percentile values (lower, upper) | *required*
+
+###### `validate_same_first_dimension`
+
+```python
+validate_same_first_dimension(array1: np.ndarray, array2: np.ndarray, name1: str = 'array1', name2: str = 'array2') -> None
+```
+
+Validate two arrays have same first dimension.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`array1` | <code>[ndarray](#numpy.ndarray)</code> | First array | *required*
+`array2` | <code>[ndarray](#numpy.ndarray)</code> | Second array | *required*
+`name1` | <code>[str](#str)</code> | Name of first array for error message | <code>'array1'</code>
+`name2` | <code>[str](#str)</code> | Name of second array for error message | <code>'array2'</code>
+
+###### `validate_same_shape`
+
+```python
+validate_same_shape(array1: np.ndarray, array2: np.ndarray, name1: str = 'array1', name2: str = 'array2') -> None
+```
+
+Validate two arrays have same shape.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`array1` | <code>[ndarray](#numpy.ndarray)</code> | First array | *required*
+`array2` | <code>[ndarray](#numpy.ndarray)</code> | Second array | *required*
+`name1` | <code>[str](#str)</code> | Name of first array for error message | <code>'array1'</code>
+`name2` | <code>[str](#str)</code> | Name of second array for error message | <code>'array2'</code>
+
+###### `validate_shape_compatibility`
+
+```python
+validate_shape_compatibility(X: np.ndarray, y: np.ndarray, X_name: str = 'X', y_name: str = 'y') -> None
+```
+
+Validate that X and y have compatible shapes for regression.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>[ndarray](#numpy.ndarray)</code> | Feature matrix | *required*
+`y` | <code>[ndarray](#numpy.ndarray)</code> | Target vector or matrix | *required*
+`X_name` | <code>[str](#str)</code> | Name of X for error message | <code>'X'</code>
+`y_name` | <code>[str](#str)</code> | Name of y for error message | <code>'y'</code>
+
+###### `validate_square_matrix`
+
+```python
+validate_square_matrix(matrix: np.ndarray, name: str = 'matrix') -> None
+```
+
+Validate matrix is square.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`matrix` | <code>[ndarray](#numpy.ndarray)</code> | Matrix to validate | *required*
+`name` | <code>[str](#str)</code> | Name of matrix for error message | <code>'matrix'</code>
+
+###### `validate_tail_parameter`
+
+```python
+validate_tail_parameter(tail: int | str) -> str
+```
+
+Validate and normalize tail parameter.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`tail` | <code>[int](#int) \| [str](#str)</code> | Tail parameter value. Can be: - 'two' or 2: Two-tailed test (|obs| > |null|) - 'upper' or 1: One-tailed upper (obs > null, for testing positive effects) - 'lower' or -1: One-tailed lower (obs < null, for testing negative effects) | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[str](#str)</code> | Normalized tail string: 'two', 'upper', or 'lower'
+
+<details class="notes" open markdown="1">
+<summary>Notes</summary>
+
+For multiple comparisons correction (FDR, Bonferroni), use 'upper' or 'lower'
+to ensure consistent direction across all tests. The old tail=1 behavior
+(auto-detecting direction per test based on sign) can lead to incorrect
+MCP-adjusted p-values. See GH #315.
+
+</details>
+

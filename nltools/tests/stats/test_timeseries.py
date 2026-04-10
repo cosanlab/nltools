@@ -71,7 +71,9 @@ class TestMakeCosineBasis:
     def test_basic_output_shape(self):
         """Cosine basis should return correct shape."""
         n_timepoints = 100
-        basis = make_cosine_basis(n_timepoints, sampling_freq=1, filter_length=128, drop=0)
+        basis = make_cosine_basis(
+            n_timepoints, sampling_freq=1, filter_length=128, drop=0
+        )
         assert basis.shape[0] == n_timepoints
         assert basis.shape[1] >= 1
 

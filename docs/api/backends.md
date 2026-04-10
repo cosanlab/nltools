@@ -53,14 +53,208 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
+[`asarray`](#asarray) | Convert input to a backend array.
+[`asarray_like`](#asarray_like) | Convert *x* to an array matching *ref*'s dtype (and device for torch).
+[`check_arrays`](#check_arrays) | Coerce all inputs to the same dtype (and device) as the first.
+[`concatenate`](#concatenate) | Concatenate arrays along an axis.
+[`copy`](#copy) | Return an independent copy of the array.
+[`dtype_to_str`](#dtype_to_str) | Normalize a dtype (numpy, torch, or string) to its string name.
+[`expand_dims`](#expand_dims) | Insert a new axis.
+[`flatnonzero`](#flatnonzero) | Return indices of non-zero elements in the flattened array.
+[`full`](#full) | Create array filled with *fill_value*.
+[`full_like`](#full_like) | Create array filled with *fill_value*, optionally with a different shape.
 [`matmul`](#matmul) | Matrix multiplication.
+[`ones_like`](#ones_like) | Create ones array, optionally with a different shape.
+[`sort`](#sort) | Sort along an axis, returning values only.
 [`svd`](#svd) | Compute Singular Value Decomposition.
+[`to_cpu`](#to_cpu) | Transfer array to CPU. No-op for numpy.
 [`to_device`](#to_device) | Transfer array to backend device.
+[`to_gpu`](#to_gpu) | Transfer array to GPU. No-op for numpy.
 [`to_numpy`](#to_numpy) | Convert array back to NumPy.
-
-
+[`zeros_like`](#zeros_like) | Create zeros array, optionally with a different shape.
 
 ##### Methods
+
+###### `asarray`
+
+```python
+asarray(x, dtype = None, device = None)
+```
+
+Convert input to a backend array.
+
+Handles numpy arrays, lists, and torch tensors. Places result on
+the backend's device (or an explicit *device*).
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`x` |  | Input data (array-like, tensor, list). | *required*
+`dtype` |  | Desired dtype as string, numpy, or torch dtype. If None, inferred from input. | <code>None</code>
+`device` |  | Target device string (e.g. "cpu", "cuda"). Ignored for numpy backend. If None, uses the backend's default device. | <code>None</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | Backend array (numpy ndarray or torch Tensor).
+
+###### `asarray_like`
+
+```python
+asarray_like(x, ref)
+```
+
+Convert *x* to an array matching *ref*'s dtype (and device for torch).
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`x` |  | Input data. | *required*
+`ref` |  | Reference array whose dtype/device to match. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | Backend array with same dtype/device as ref.
+
+###### `check_arrays`
+
+```python
+check_arrays(*inputs)
+```
+
+Coerce all inputs to the same dtype (and device) as the first.
+
+None values are passed through. Lists of arrays are converted
+element-wise.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`*inputs` |  | Arrays, lists of arrays, or None. | <code>()</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`list` |  | Converted arrays in the same order as inputs.
+
+###### `concatenate`
+
+```python
+concatenate(arrays, axis = 0)
+```
+
+Concatenate arrays along an axis.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`arrays` |  | Sequence of arrays. | *required*
+`axis` |  | Axis to concatenate along (default 0). | <code>0</code>
+
+###### `copy`
+
+```python
+copy(array)
+```
+
+Return an independent copy of the array.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`array` |  | Input array. | *required*
+
+###### `dtype_to_str`
+
+```python
+dtype_to_str(dtype)
+```
+
+Normalize a dtype (numpy, torch, or string) to its string name.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dtype` |  | Data type to convert (str, numpy dtype, torch dtype, or None). | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | str or None: e.g. "float32", "float64", or None if input was None.
+
+###### `expand_dims`
+
+```python
+expand_dims(array, axis)
+```
+
+Insert a new axis.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`array` |  | Input array. | *required*
+`axis` |  | Position of the new axis. | *required*
+
+###### `flatnonzero`
+
+```python
+flatnonzero(array)
+```
+
+Return indices of non-zero elements in the flattened array.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`array` |  | Input array. | *required*
+
+###### `full`
+
+```python
+full(shape, fill_value, dtype = None)
+```
+
+Create array filled with *fill_value*.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`shape` |  | Output shape (int or tuple). | *required*
+`fill_value` |  | Scalar fill value. | *required*
+`dtype` |  | Output dtype. If None, inferred by the backend. | <code>None</code>
+
+###### `full_like`
+
+```python
+full_like(array, fill_value, shape = None, dtype = None, device = None)
+```
+
+Create array filled with *fill_value*, optionally with a different shape.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`array` |  | Reference array for dtype inference. | *required*
+`fill_value` |  | Scalar fill value. | *required*
+`shape` |  | Output shape. If None, uses array.shape. | <code>None</code>
+`dtype` |  | Output dtype. If None, uses array.dtype. | <code>None</code>
+`device` |  | Target device (torch only). If None, uses array's device. | <code>None</code>
 
 ###### `matmul`
 
@@ -83,6 +277,38 @@ Name | Type | Description
 ---- | ---- | -----------
 `array` |  | Result of A @ B
 
+###### `ones_like`
+
+```python
+ones_like(array, shape = None, dtype = None, device = None)
+```
+
+Create ones array, optionally with a different shape.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`array` |  | Reference array for dtype inference. | *required*
+`shape` |  | Output shape. If None, uses array.shape. | <code>None</code>
+`dtype` |  | Output dtype. If None, uses array.dtype. | <code>None</code>
+`device` |  | Target device (torch only). If None, uses array's device. | <code>None</code>
+
+###### `sort`
+
+```python
+sort(array, axis = -1)
+```
+
+Sort along an axis, returning values only.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`array` |  | Input array. | *required*
+`axis` |  | Axis to sort along (default -1). | <code>-1</code>
+
 ###### `svd`
 
 ```python
@@ -104,6 +330,26 @@ Name | Type | Description
 ---- | ---- | -----------
 `tuple` |  | (U, s, Vt) where: - U (array): Left singular vectors - s (array): Singular values - Vt (array): Right singular vectors (transposed)
 
+###### `to_cpu`
+
+```python
+to_cpu(array)
+```
+
+Transfer array to CPU. No-op for numpy.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`array` |  | Input array or tensor. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | Array on CPU.
+
 ###### `to_device`
 
 ```python
@@ -124,6 +370,27 @@ Name | Type | Description
 ---- | ---- | -----------
 `array` |  | Array on device (numpy array or torch tensor)
 
+###### `to_gpu`
+
+```python
+to_gpu(array, device = None)
+```
+
+Transfer array to GPU. No-op for numpy.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`array` |  | Input array or tensor. | *required*
+`device` |  | Target device (defaults to backend's device). | <code>None</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | Array on GPU device.
+
 ###### `to_numpy`
 
 ```python
@@ -143,6 +410,23 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
  | np.ndarray: NumPy array
+
+###### `zeros_like`
+
+```python
+zeros_like(array, shape = None, dtype = None, device = None)
+```
+
+Create zeros array, optionally with a different shape.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`array` |  | Reference array for dtype inference. | *required*
+`shape` |  | Output shape. If None, uses array.shape. | <code>None</code>
+`dtype` |  | Output dtype. If None, uses array.dtype. | <code>None</code>
+`device` |  | Target device (torch only). If None, uses array's device. | <code>None</code>
 
 
 

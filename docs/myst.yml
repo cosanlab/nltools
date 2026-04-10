@@ -68,7 +68,7 @@ project:
     - title: API Utilities
       children:
         - file: api/utils.md
-        - file: api/prefs.md
+        - file: api/templates.md
         - file: api/simulator.md
         - file: api/neighborhoods.md
         - file: api/cache.md

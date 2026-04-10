@@ -12,6 +12,64 @@ Name | Description
 [`SimulateGrid`](#SimulateGrid) | Simulate 2D grid data for testing statistical methods.
 [`Simulator`](#Simulator) | Simulate fMRI data with realistic spatial and temporal characteristics.
 
+
+
+### Classes
+
+#### `SimulateGrid`
+
+```python
+SimulateGrid(grid_width = 100, signal_width = 20, n_subjects = 20, sigma = 1, signal_amplitude = None, random_state = None)
+```
+
+Simulate 2D grid data for testing statistical methods.
+
+Creates a 2D grid (e.g., 100x100 pixels) with optional embedded signal
+regions and Gaussian noise. Useful for testing multiple comparison
+correction methods, threshold selection, and visualization of
+statistical maps.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`grid_width` |  | Width/height of the square grid (default: 100). | <code>100</code>
+`signal_width` |  | Width of the embedded signal region (default: 20). | <code>20</code>
+`n_subjects` |  | Number of simulated subjects (default: 20). | <code>20</code>
+`sigma` |  | Standard deviation of the Gaussian noise (default: 1). | <code>1</code>
+`signal_amplitude` |  | Amplitude of the embedded signal. If None, no signal is added. | <code>None</code>
+`random_state` |  | Random seed or numpy RandomState for reproducibility. | <code>None</code>
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`data`](#data) |  | The simulated data array of shape (n_subjects, grid_width, grid_width).
+[`t_values`](#t_values) |  | T-statistic values after fitting.
+[`p_values`](#p_values) |  | P-values after fitting.
+[`thresholded`](#thresholded) |  | Thresholded statistical map.
+[`isfit`](#isfit) |  | Whether fit() has been called.
+
+**Examples:**
+
+```pycon
+>>> from nltools.data.simulator import SimulateGrid
+>>> sim = SimulateGrid(signal_amplitude=0.5, random_state=42)
+>>> sim.fit(n_permute=1000)
+>>> sim.plot()
+```
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`add_signal`](#add_signal) | Add rectangular signal to self.data
+[`create_mask`](#create_mask) | Create a mask for where the signal is located in grid.
+[`fit`](#fit) | Run ttest on self.data
+[`plot_grid_simulation`](#plot_grid_simulation) | Create a plot of the simulations
+[`run_multiple_simulations`](#run_multiple_simulations) | This method will run multiple simulations to calculate overall false positive rate
+[`threshold_simulation`](#threshold_simulation) | Threshold simulation
+
 ##### Methods
 
 ###### `add_signal`

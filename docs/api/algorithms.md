@@ -6,15 +6,12 @@ External functions
 
 Name | Description
 ---- | -----------
-[`alignment`](#alignment) | Local (neighborhood-based) functional alignment algorithms.
+[`alignment`](#alignment) | Multi-subject functional alignment algorithms.
 [`hrf`](#hrf) | Hemodynamic Response Functions (HRFs) for fMRI analysis, implemented by NiPy.
-[`hyperalignment`](#hyperalignment) | HyperAlignment: Multi-subject cortical surface alignment using iterative Procrustes refinement.
 [`inference`](#inference) | GPU-accelerated statistical inference for neuroimaging.
 [`random`](#random) | Shared random state utilities for algorithms module.
 [`ridge`](#ridge) | Ridge regression algorithms and utilities.
 [`shape_utils`](#shape_utils) | Shared shape manipulation utilities for algorithms module.
-[`srm`](#srm) | Shared Response Model (SRM) for multi-subject fMRI alignment.
-[`validation`](#validation) | Shared validation utilities for algorithms module.
 
 **Classes:**
 
@@ -147,7 +144,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`self` | <code>[DetSRM](#nltools.algorithms.srm.DetSRM)</code> | Fitted model
+`self` | <code>[DetSRM](#nltools.algorithms.alignment.srm.DetSRM)</code> | Fitted model
 
 ###### `transform`
 
@@ -321,7 +318,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`self` | <code>[HyperAlignment](#nltools.algorithms.hyperalignment.HyperAlignment)</code> | Fitted model
+`self` | <code>[HyperAlignment](#nltools.algorithms.alignment.hyperalignment.HyperAlignment)</code> | Fitted model
 
 ###### `transform`
 
@@ -640,12 +637,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`self` | <code>[SRM](#nltools.algorithms.srm.SRM)</code> | Fitted model
+`self` | <code>[SRM](#nltools.algorithms.alignment.srm.SRM)</code> | Fitted model
 
 ###### `transform`
 
 ```python
-transform(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[np.ndarray]
+transform(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[Optional[np.ndarray]]
 ```
 
 Use the model to transform matrix to Shared Response space
@@ -1015,26 +1012,410 @@ Name | Type | Description
 
 #### `alignment`
 
-Local (neighborhood-based) functional alignment algorithms.
+Multi-subject functional alignment algorithms.
 
-This module provides LocalAlignment for searchlight and piecewise
-functional alignment across subjects.
+This package provides algorithms for aligning functional data across subjects:
+
+- **LocalAlignment**: Searchlight/piecewise alignment (Bazeille et al. 2021)
+- **HyperAlignment**: Iterative Procrustes alignment (Haxby et al. 2011)
+- **SRM** / **DetSRM**: Shared Response Model (Chen et al. 2015)
 
 **Modules:**
 
 Name | Description
 ---- | -----------
+[`hyperalignment`](#hyperalignment) | HyperAlignment: Multi-subject cortical surface alignment using iterative Procrustes refinement.
 [`local`](#local) | LocalAlignment: Neighborhood-based functional alignment.
+[`srm`](#srm) | Shared Response Model (SRM) for multi-subject fMRI alignment.
 
 **Classes:**
 
 Name | Description
 ---- | -----------
+[`DetSRM`](#DetSRM) | Deterministic Shared Response Model (DetSRM)
+[`HyperAlignment`](#HyperAlignment) | Hyperalignment using iterative Procrustes alignment.
 [`LocalAlignment`](#LocalAlignment) | Local (neighborhood-based) functional alignment across subjects.
+[`SRM`](#SRM) | Probabilistic Shared Response Model (SRM)
 
 
 
 ##### Classes
+
+###### `DetSRM`
+
+```python
+DetSRM(n_iter: int = 10, features: int = 50, rand_seed: int = 0) -> None
+```
+
+Bases: <code>[BaseEstimator](#sklearn.base.BaseEstimator)</code>, <code>[TransformerMixin](#sklearn.base.TransformerMixin)</code>
+
+Deterministic Shared Response Model (DetSRM)
+
+Given multi-subject data, factorize it as a shared response S among all
+subjects and an orthogonal transform W per subject:
+
+.. math:: X_i \approx W_i S, \forall i=1 \dots N
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_iter` | <code>int, default=10</code> | Number of iterations to run the algorithm. | <code>10</code>
+`features` | <code>int, default=50</code> | Number of features to compute. | <code>50</code>
+`rand_seed` | <code>int, default=0</code> | Seed for initializing the random number generator. | <code>0</code>
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`w_`](#w_) | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
+[`s_`](#s_) | <code>array, shape=[features, samples]</code> | The shared response.
+[`random_state_`](#random_state_) | <code>`RandomState`</code> | Random number generator initialized using rand_seed
+
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
+The number of voxels may be different between subjects. However, the
+number of samples must be the same across subjects.
+
+The Deterministic Shared Response Model is approximated using the
+Block Coordinate Descent (BCD) algorithm proposed in [Chen2015]_.
+
+This is a single node version.
+
+The run-time complexity is :math:`O(I (V T K + V K^2))` and the memory
+complexity is :math:`O(V T)` with I - the number of iterations, V - the
+sum of voxels from all subjects, T - the number of samples, K - the
+number of features (typically, :math:`V \gg T \gg K`), and N - the
+number of subjects.
+
+</details>
+
+**Examples:**
+
+Basic multi-subject DetSRM fitting:
+
+```pycon
+>>> from nltools.algorithms import DetSRM
+>>> import numpy as np
+>>>
+>>> # Create sample data (3 subjects)
+>>> data = [np.random.randn(100, 50) for _ in range(3)]
+>>>
+>>> # Fit DetSRM with CPU parallelization (default)
+>>> detsrm = DetSRM(n_iter=10, features=50)
+>>> detsrm.fit(data, parallel="cpu", n_jobs=-1)
+>>>
+>>> # Transform to shared response space
+>>> shared_responses = detsrm.transform(data)
+>>>
+>>> # Access fitted model components
+>>> w = detsrm.w_  # Subject-specific transforms
+>>> s = detsrm.s_  # Shared response
+```
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#fit) | Compute the Deterministic Shared Response Model
+[`transform`](#transform) | Use the model to transform data to the Shared Response subspace
+[`transform_subject`](#transform_subject) | Transform a new subject using the existing model.
+
+
+
+####### Attributes##
+
+###### `features`
+
+```python
+features = features
+```
+
+######## `n_iter`
+
+```python
+n_iter = n_iter
+```
+
+######## `rand_seed`
+
+```python
+rand_seed = rand_seed
+```
+
+
+
+####### Functions##
+
+###### `fit`
+
+```python
+fit(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> DetSRM
+```
+
+Compute the Deterministic Shared Response Model
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples]</code> | Each element in the list contains the fMRI data of one subject. | *required*
+`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used | <code>None</code>
+`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
+`max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory budget in GB (default: 4.0). Only used when parallel="gpu". Defaults to 4.0. | <code>4.0</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`self` | <code>[DetSRM](#nltools.algorithms.alignment.srm.DetSRM)</code> | Fitted model
+
+######## `transform`
+
+```python
+transform(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[np.ndarray]
+```
+
+Use the model to transform data to the Shared Response subspace
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples_i]</code> | Each element in the list contains the fMRI data of one subject. | *required*
+`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used | <code>None</code>
+`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`s` | <code>list of 2D arrays, element i has shape=[features_i, samples_i]</code> | Shared responses from input data (X)
+
+######## `transform_subject`
+
+```python
+transform_subject(X: np.ndarray) -> np.ndarray
+```
+
+Transform a new subject using the existing model.
+The subject is assumed to have recieved equivalent stimulation
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>2D array, shape=[voxels, timepoints]</code> | The fMRI data of the new subject. | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`w` | <code>2D array, shape=[voxels, features]</code> | Orthogonal mapping `W_{new}` for new subject
+
+###### `HyperAlignment`
+
+```python
+HyperAlignment(n_iter: int = 2, auto_pad: bool = True) -> None
+```
+
+Bases: <code>[BaseEstimator](#sklearn.base.BaseEstimator)</code>, <code>[TransformerMixin](#sklearn.base.TransformerMixin)</code>
+
+Hyperalignment using iterative Procrustes alignment.
+
+Three-stage iterative process for aligning multi-subject data:
+1. Create initial average template
+2. Refine template through n_iter iterations
+3. Final alignment of all subjects to refined template
+
+This implements the Procrustes-based hyperalignment method commonly
+used in multi-subject neuroimaging analysis.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_iter` | <code>int, default=2</code> | Number of template refinement iterations (stages 1-2). | <code>2</code>
+`auto_pad` | <code>bool, default=True</code> | If True, automatically zero-pad matrices to standardize sizes. If False, caller must ensure all matrices have same dimensions. | <code>True</code>
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`w_`](#w_) | <code>list of ndarray, element i has shape=[features_i, features]</code> | The transformation matrices (rotation + reflection) for each subject.
+[`s_`](#s_) | <code>ndarray, shape=[features, samples]</code> | The aligned common template (shared response).
+[`disparity_`](#disparity_) | <code>list of float</code> | Disparity (sum of squared differences) for each subject.
+[`scale_`](#scale_) | <code>list of float</code> | Scale factors for each subject.
+
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
+``common_model_`` property provides alias for ``s_`` (backward compatibility).
+
+</details>
+
+**Examples:**
+
+Basic multi-subject alignment:
+
+```pycon
+>>> from nltools.algorithms import HyperAlignment
+>>> import numpy as np
+>>>
+>>> # Create sample data (3 subjects)
+>>> data = [np.random.randn(100, 50) for _ in range(3)]
+>>>
+>>> # Fit hyperalignment with CPU parallelization (default)
+>>> hyper = HyperAlignment(n_iter=2)
+>>> hyper.fit(data, parallel="cpu", n_jobs=-1)
+>>>
+>>> # Transform to common space
+>>> aligned = hyper.transform(data)
+>>>
+>>> # Access common template
+>>> template = hyper.s_  # or hyper.common_model_
+>>>
+>>> # Align a new subject
+>>> new_subject = np.random.randn(100, 50)
+>>> new_transform = hyper.transform_subject(new_subject)
+```
+
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
+When to use parallel processing:
+
+- Use ``parallel="cpu"`` (default) for datasets with 3+ subjects to speed up
+  pairwise Procrustes operations during template refinement.
+- Use ``parallel=None`` for debugging or small datasets (<3 subjects) where
+  parallelization overhead isn't beneficial.
+- Parallel processing is most beneficial when subjects have many voxels
+  (>10K) and template refinement requires multiple iterations.
+
+</details>
+
+<details class="references" open markdown="1">
+<summary>References</summary>
+
+Haxby, J. V., Guntupalli, J. S., Connolly, A. C., Halchenko, Y. O.,
+Conroy, B. R., Gobbini, M. I., ... & Ramadge, P. J. (2011).
+A common, high-dimensional model of the representational space in
+human ventral temporal cortex. Neuron, 72(2), 404-416.
+
+</details>
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#fit) | Fit hyperalignment model to data.
+[`transform`](#transform) | Transform data to common space using fitted transformations.
+[`transform_subject`](#transform_subject) | Align a new subject to the common space.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_iter` | <code>int, default=2</code> | Number of template refinement iterations | <code>2</code>
+`auto_pad` | <code>bool, default=True</code> | Whether to automatically pad matrices to same size | <code>True</code>
+
+
+
+####### Attributes##
+
+###### `auto_pad`
+
+```python
+auto_pad = auto_pad
+```
+
+######## `common_model_`
+
+```python
+common_model_
+```
+
+Alias for ``s_`` (common template).
+
+######## `n_iter`
+
+```python
+n_iter = n_iter
+```
+
+
+
+####### Functions##
+
+###### `fit`
+
+```python
+fit(data: List[np.ndarray], parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> HyperAlignment
+```
+
+Fit hyperalignment model to data.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>list of ndarray</code> | List of data matrices, each with shape (n_features, n_samples). Different subjects can have different numbers of features if auto_pad=True. | *required*
+`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`self` | <code>[HyperAlignment](#nltools.algorithms.alignment.hyperalignment.HyperAlignment)</code> | Fitted model
+
+######## `transform`
+
+```python
+transform(data: List[np.ndarray], parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[np.ndarray]
+```
+
+Transform data to common space using fitted transformations.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>list of ndarray</code> | List of data matrices to transform. Should be the same data used for fitting (or have compatible dimensions). | *required*
+`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`transformed` | <code>list of ndarray</code> | List of transformed data matrices in common space
+
+######## `transform_subject`
+
+```python
+transform_subject(subject_data: np.ndarray) -> Tuple[np.ndarray, np.ndarray, float, float]
+```
+
+Align a new subject to the common space.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`subject_data` | <code>([ndarray](#ndarray), [shape](#shape)([n_features](#n_features), [n_samples](#n_samples)))</code> | Data from a new subject to align to the common template | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`transformed` | <code>[ndarray](#ndarray)</code> | Aligned data in common space
+`R` | <code>[ndarray](#ndarray)</code> | Transformation matrix used
+`disparity` | <code>[float](#float)</code> | Alignment quality (sum of squared differences)
+`scale` | <code>[float](#float)</code> | Scale factor used
 
 ###### `LocalAlignment`
 
@@ -1307,9 +1688,446 @@ Returns
 List[np.ndarray]
     Aligned data for each subject, shape (n_voxels, n_samples).
 
+###### `SRM`
+
+```python
+SRM(n_iter: int = 10, features: int = 50, rand_seed: int = 0) -> None
+```
+
+Bases: <code>[BaseEstimator](#sklearn.base.BaseEstimator)</code>, <code>[TransformerMixin](#sklearn.base.TransformerMixin)</code>
+
+Probabilistic Shared Response Model (SRM)
+
+Given multi-subject data, factorize it as a shared response S among all
+subjects and an orthogonal transform W per subject:
+
+.. math:: X_i \approx W_i S, \forall i=1 \dots N
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_iter` | <code>int, default=10</code> | Number of iterations to run the algorithm. | <code>10</code>
+`features` | <code>int, default=50</code> | Number of features to compute. | <code>50</code>
+`rand_seed` | <code>int, default=0</code> | Seed for initializing the random number generator. | <code>0</code>
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`w_`](#w_) | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
+[`s_`](#s_) | <code>array, shape=[features, samples]</code> | The shared response.
+[`sigma_s_`](#sigma_s_) | <code>array, shape=[features, features]</code> | The covariance of the shared response Normal distribution.
+[`mu_`](#mu_) | <code>list of array, element i has shape=[voxels_i]</code> | The voxel means over the samples for each subject.
+[`rho2_`](#rho2_) | <code>array, shape=[subjects]</code> | The estimated noise variance :math:`\rho_i^2` for each subject
+[`random_state_`](#random_state_) | <code>`RandomState`</code> | Random number generator initialized using rand_seed
+
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
+The number of voxels may be different between subjects. However, the
+number of samples must be the same across subjects.
+
+The probabilistic Shared Response Model is approximated using the
+Expectation Maximization (EM) algorithm proposed in [Chen2015]_. The
+implementation follows the optimizations published in [Anderson2016]_.
+
+This is a single node version.
+
+The run-time complexity is :math:`O(I (V T K + V K^2 + K^3))` and the
+memory complexity is :math:`O(V T)` with I - the number of iterations,
+V - the sum of voxels from all subjects, T - the number of samples, and
+K - the number of features (typically, :math:`V \gg T \gg K`).
+
+</details>
+
+**Examples:**
+
+Basic multi-subject SRM fitting:
+
+```pycon
+>>> from nltools.algorithms import SRM
+>>> import numpy as np
+>>>
+>>> # Create sample data (3 subjects)
+>>> data = [np.random.randn(100, 50) for _ in range(3)]
+>>>
+>>> # Fit SRM with CPU parallelization (default)
+>>> srm = SRM(n_iter=10, features=50)
+>>> srm.fit(data, parallel="cpu", n_jobs=-1)
+>>>
+>>> # Transform to shared response space
+>>> shared_responses = srm.transform(data)
+>>>
+>>> # Access fitted model components
+>>> w = srm.w_  # Subject-specific transforms
+>>> s = srm.s_  # Shared response
+```
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#fit) | Compute the probabilistic Shared Response Model
+[`transform`](#transform) | Use the model to transform matrix to Shared Response space
+[`transform_subject`](#transform_subject) | Transform a new subject using the existing model.
+
+
+
+####### Attributes##
+
+###### `features`
+
+```python
+features = features
+```
+
+######## `n_iter`
+
+```python
+n_iter = n_iter
+```
+
+######## `rand_seed`
+
+```python
+rand_seed = rand_seed
+```
+
+
+
+####### Functions##
+
+###### `fit`
+
+```python
+fit(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, pad_samples: bool = True) -> SRM
+```
+
+Compute the probabilistic Shared Response Model
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples]</code> | Each element in the list contains the fMRI data of one subject. Subjects can have different numbers of samples if pad_samples=True. | *required*
+`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used | <code>None</code>
+`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
+`max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory budget in GB (default: 4.0). Only used when parallel="gpu". Defaults to 4.0. | <code>4.0</code>
+`pad_samples` | <code>[bool](#bool)</code> | If True (default), automatically zero-pad subjects with fewer samples to match the longest subject. This allows fitting SRM on data with unequal numbers of time points across subjects. | <code>True</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`self` | <code>[SRM](#nltools.algorithms.alignment.srm.SRM)</code> | Fitted model
+
+######## `transform`
+
+```python
+transform(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[Optional[np.ndarray]]
+```
+
+Use the model to transform matrix to Shared Response space
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples_i]</code> | Each element in the list contains the fMRI data of one subject. Note that number of voxels and samples can vary across subjects. | *required*
+`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used (as it is unsupervised learning) | <code>None</code>
+`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`s` | <code>list of 2D arrays, element i has shape=[features_i, samples_i]</code> | Shared responses from input data (X)
+
+######## `transform_subject`
+
+```python
+transform_subject(X: np.ndarray) -> np.ndarray
+```
+
+Transform a new subject using the existing model.
+The subject is assumed to have recieved equivalent stimulation
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>2D array, shape=[voxels, timepoints]</code> | The fMRI data of the new subject. | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`w` | <code>2D array, shape=[voxels, features]</code> | Orthogonal mapping `W_{new}` for new subject
+
 
 
 ##### Modules
+
+###### `hyperalignment`
+
+HyperAlignment: Multi-subject cortical surface alignment using iterative Procrustes refinement.
+
+Hyperalignment finds a common representational space across subjects by iteratively
+refining pairwise Procrustes transformations. Unlike simple alignment, hyperalignment
+preserves both spatial structure and representational similarity.
+
+<details class="algorithm-overview" open markdown="1">
+<summary>Algorithm overview</summary>
+
+1. Initialize template (first subject or group average)
+2. For each iteration:
+   - Align each subject to template (Procrustes transformation)
+   - Update template (average in aligned space)
+3. Converge when transformations stabilize or max iterations reached
+4. Final alignment: Apply learned transformations to all subjects
+
+</details>
+
+<details class="performance" open markdown="1">
+<summary>Performance</summary>
+
+- Time complexity: O(n_iter × n_subjects² × n_voxels × n_samples)
+- Memory complexity: O(n_subjects × n_voxels × n_features)
+- Parallelization: ~4-8× speedup with CPU-parallel (parallel="cpu")
+- Most beneficial when subjects have many voxels (>10K) and multiple iterations
+
+</details>
+
+<details class="when-to-use-hyperalignment" open markdown="1">
+<summary>When to use hyperalignment</summary>
+
+- Multi-subject alignment preserving spatial structure
+- Alternative to SRM when spatial structure is important
+- See `nltools.algorithms.srm.SRM` for dimension-reduction approach
+- See `nltools.stats.procrustes()` for single-subject alignment
+
+</details>
+
+This module implements the hyperalignment technique described in:
+
+Haxby, J. V., Guntupalli, J. S., Connolly, A. C., Halchenko, Y. O.,
+Conroy, B. R., Gobbini, M. I., ... & Ramadge, P. J. (2011).
+A common, high-dimensional model of the representational space in
+human ventral temporal cortex. Neuron, 72(2), 404-416.
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`HyperAlignment`](#HyperAlignment) | Hyperalignment using iterative Procrustes alignment.
+
+
+
+####### Classes##
+
+###### `HyperAlignment`
+
+```python
+HyperAlignment(n_iter: int = 2, auto_pad: bool = True) -> None
+```
+
+Bases: <code>[BaseEstimator](#sklearn.base.BaseEstimator)</code>, <code>[TransformerMixin](#sklearn.base.TransformerMixin)</code>
+
+Hyperalignment using iterative Procrustes alignment.
+
+Three-stage iterative process for aligning multi-subject data:
+1. Create initial average template
+2. Refine template through n_iter iterations
+3. Final alignment of all subjects to refined template
+
+This implements the Procrustes-based hyperalignment method commonly
+used in multi-subject neuroimaging analysis.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_iter` | <code>int, default=2</code> | Number of template refinement iterations (stages 1-2). | <code>2</code>
+`auto_pad` | <code>bool, default=True</code> | If True, automatically zero-pad matrices to standardize sizes. If False, caller must ensure all matrices have same dimensions. | <code>True</code>
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`w_`](#w_) | <code>list of ndarray, element i has shape=[features_i, features]</code> | The transformation matrices (rotation + reflection) for each subject.
+[`s_`](#s_) | <code>ndarray, shape=[features, samples]</code> | The aligned common template (shared response).
+[`disparity_`](#disparity_) | <code>list of float</code> | Disparity (sum of squared differences) for each subject.
+[`scale_`](#scale_) | <code>list of float</code> | Scale factors for each subject.
+
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
+``common_model_`` property provides alias for ``s_`` (backward compatibility).
+
+</details>
+
+**Examples:**
+
+Basic multi-subject alignment:
+
+```pycon
+>>> from nltools.algorithms import HyperAlignment
+>>> import numpy as np
+>>>
+>>> # Create sample data (3 subjects)
+>>> data = [np.random.randn(100, 50) for _ in range(3)]
+>>>
+>>> # Fit hyperalignment with CPU parallelization (default)
+>>> hyper = HyperAlignment(n_iter=2)
+>>> hyper.fit(data, parallel="cpu", n_jobs=-1)
+>>>
+>>> # Transform to common space
+>>> aligned = hyper.transform(data)
+>>>
+>>> # Access common template
+>>> template = hyper.s_  # or hyper.common_model_
+>>>
+>>> # Align a new subject
+>>> new_subject = np.random.randn(100, 50)
+>>> new_transform = hyper.transform_subject(new_subject)
+```
+
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
+When to use parallel processing:
+
+- Use ``parallel="cpu"`` (default) for datasets with 3+ subjects to speed up
+  pairwise Procrustes operations during template refinement.
+- Use ``parallel=None`` for debugging or small datasets (<3 subjects) where
+  parallelization overhead isn't beneficial.
+- Parallel processing is most beneficial when subjects have many voxels
+  (>10K) and template refinement requires multiple iterations.
+
+</details>
+
+<details class="references" open markdown="1">
+<summary>References</summary>
+
+Haxby, J. V., Guntupalli, J. S., Connolly, A. C., Halchenko, Y. O.,
+Conroy, B. R., Gobbini, M. I., ... & Ramadge, P. J. (2011).
+A common, high-dimensional model of the representational space in
+human ventral temporal cortex. Neuron, 72(2), 404-416.
+
+</details>
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#fit) | Fit hyperalignment model to data.
+[`transform`](#transform) | Transform data to common space using fitted transformations.
+[`transform_subject`](#transform_subject) | Align a new subject to the common space.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_iter` | <code>int, default=2</code> | Number of template refinement iterations | <code>2</code>
+`auto_pad` | <code>bool, default=True</code> | Whether to automatically pad matrices to same size | <code>True</code>
+
+
+
+######### Attributes####
+
+###### `auto_pad`
+
+```python
+auto_pad = auto_pad
+```
+
+########## `common_model_`
+
+```python
+common_model_
+```
+
+Alias for ``s_`` (common template).
+
+########## `n_iter`
+
+```python
+n_iter = n_iter
+```
+
+
+
+######### Functions####
+
+###### `fit`
+
+```python
+fit(data: List[np.ndarray], parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> HyperAlignment
+```
+
+Fit hyperalignment model to data.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>list of ndarray</code> | List of data matrices, each with shape (n_features, n_samples). Different subjects can have different numbers of features if auto_pad=True. | *required*
+`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`self` | <code>[HyperAlignment](#nltools.algorithms.alignment.hyperalignment.HyperAlignment)</code> | Fitted model
+
+########## `transform`
+
+```python
+transform(data: List[np.ndarray], parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[np.ndarray]
+```
+
+Transform data to common space using fitted transformations.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>list of ndarray</code> | List of data matrices to transform. Should be the same data used for fitting (or have compatible dimensions). | *required*
+`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`transformed` | <code>list of ndarray</code> | List of transformed data matrices in common space
+
+########## `transform_subject`
+
+```python
+transform_subject(subject_data: np.ndarray) -> Tuple[np.ndarray, np.ndarray, float, float]
+```
+
+Align a new subject to the common space.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`subject_data` | <code>([ndarray](#ndarray), [shape](#shape)([n_features](#n_features), [n_samples](#n_samples)))</code> | Data from a new subject to align to the common template | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`transformed` | <code>[ndarray](#ndarray)</code> | Aligned data in common space
+`R` | <code>[ndarray](#ndarray)</code> | Transformation matrix used
+`disparity` | <code>[float](#float)</code> | Alignment quality (sum of squared differences)
+`scale` | <code>[float](#float)</code> | Scale factor used
 
 ###### `local`
 
@@ -1601,6 +2419,450 @@ Returns
 List[np.ndarray]
     Aligned data for each subject, shape (n_voxels, n_samples).
 
+###### `srm`
+
+Shared Response Model (SRM) for multi-subject fMRI alignment.
+
+SRM finds a shared low-dimensional representation across subjects while
+allowing subject-specific transformations. This enables cross-subject
+analyses while preserving individual variability.
+
+<details class="algorithm-overview" open markdown="1">
+<summary>Algorithm overview</summary>
+
+1. Initialize subject-specific transforms W_i (random orthogonal matrices)
+2. Iteratively optimize using Expectation-Maximization (EM):
+   - E-step: Update shared response S (group average in shared space)
+   - M-step: Update subject transforms W_i (solve Procrustes problem)
+   - Update noise variance rho_i^2 per subject
+   - Compute likelihood (measure of fit)
+3. Converge when likelihood stabilizes or max iterations reached
+
+</details>
+
+<details class="performance" open markdown="1">
+<summary>Performance</summary>
+
+- Time complexity: O(n_iter × (n_subjects × n_voxels × n_features × n_samples + n_features^3))
+- Memory complexity: O(n_subjects × n_voxels × n_features)
+- Parallelization: ~4-8× speedup with CPU-parallel (parallel="cpu")
+- GPU acceleration: Falls back to CPU (not yet implemented)
+
+</details>
+
+<details class="when-to-use-srm" open markdown="1">
+<summary>When to use SRM</summary>
+
+- Multi-subject alignment preserving representational structure
+- Cross-subject analysis requiring shared response space
+- Alternative to hyperalignment when spatial structure is less important
+- See `nltools.algorithms.hyperalignment.HyperAlignment` for spatial-preserving alignment
+
+</details>
+
+The implementations are based on the following publications:
+
+Chen, P. H. C., Chen, J., Yeshurun, Y., Hasson, U., Haxby, J., & Ramadge,
+P. J. (2015). A reduced-dimension fMRI shared response model. In Advances
+in Neural Information Processing Systems (pp. 460-468).
+
+Anderson, M. J., Capota, M., Turek, J. S., Zhu, X., Willke, T. L., Wang,
+Y., & Norman, K. A. (2016, December). Enabling factor analysis on
+thousand-subject neuroimaging datasets. In Big Data (Big Data),
+2016 IEEE International Conference on (pp. 1151-1160). IEEE.
+
+References
+----------
+.. [Chen2015] Chen, P. H. C., Chen, J., Yeshurun, Y., Hasson, U., Haxby, J.,
+   & Ramadge, P. J. (2015). A reduced-dimension fMRI shared response model.
+   In Advances in Neural Information Processing Systems (pp. 460-468).
+
+.. [Anderson2016] Anderson, M. J., Capota, M., Turek, J. S., Zhu, X.,
+   Willke, T. L., Wang, Y., & Norman, K. A. (2016, December). Enabling
+   factor analysis on thousand-subject neuroimaging datasets. In Big Data
+   (Big Data), 2016 IEEE International Conference on (pp. 1151-1160). IEEE.
+
+Copyright 2016 Intel Corporation
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`DetSRM`](#DetSRM) | Deterministic Shared Response Model (DetSRM)
+[`SRM`](#SRM) | Probabilistic Shared Response Model (SRM)
+
+
+
+####### Attributes
+
+####### Classes##
+
+###### `DetSRM`
+
+```python
+DetSRM(n_iter: int = 10, features: int = 50, rand_seed: int = 0) -> None
+```
+
+Bases: <code>[BaseEstimator](#sklearn.base.BaseEstimator)</code>, <code>[TransformerMixin](#sklearn.base.TransformerMixin)</code>
+
+Deterministic Shared Response Model (DetSRM)
+
+Given multi-subject data, factorize it as a shared response S among all
+subjects and an orthogonal transform W per subject:
+
+.. math:: X_i \approx W_i S, \forall i=1 \dots N
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_iter` | <code>int, default=10</code> | Number of iterations to run the algorithm. | <code>10</code>
+`features` | <code>int, default=50</code> | Number of features to compute. | <code>50</code>
+`rand_seed` | <code>int, default=0</code> | Seed for initializing the random number generator. | <code>0</code>
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`w_`](#w_) | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
+[`s_`](#s_) | <code>array, shape=[features, samples]</code> | The shared response.
+[`random_state_`](#random_state_) | <code>`RandomState`</code> | Random number generator initialized using rand_seed
+
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
+The number of voxels may be different between subjects. However, the
+number of samples must be the same across subjects.
+
+The Deterministic Shared Response Model is approximated using the
+Block Coordinate Descent (BCD) algorithm proposed in [Chen2015]_.
+
+This is a single node version.
+
+The run-time complexity is :math:`O(I (V T K + V K^2))` and the memory
+complexity is :math:`O(V T)` with I - the number of iterations, V - the
+sum of voxels from all subjects, T - the number of samples, K - the
+number of features (typically, :math:`V \gg T \gg K`), and N - the
+number of subjects.
+
+</details>
+
+**Examples:**
+
+Basic multi-subject DetSRM fitting:
+
+```pycon
+>>> from nltools.algorithms import DetSRM
+>>> import numpy as np
+>>>
+>>> # Create sample data (3 subjects)
+>>> data = [np.random.randn(100, 50) for _ in range(3)]
+>>>
+>>> # Fit DetSRM with CPU parallelization (default)
+>>> detsrm = DetSRM(n_iter=10, features=50)
+>>> detsrm.fit(data, parallel="cpu", n_jobs=-1)
+>>>
+>>> # Transform to shared response space
+>>> shared_responses = detsrm.transform(data)
+>>>
+>>> # Access fitted model components
+>>> w = detsrm.w_  # Subject-specific transforms
+>>> s = detsrm.s_  # Shared response
+```
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#fit) | Compute the Deterministic Shared Response Model
+[`transform`](#transform) | Use the model to transform data to the Shared Response subspace
+[`transform_subject`](#transform_subject) | Transform a new subject using the existing model.
+
+
+
+######### Attributes####
+
+###### `features`
+
+```python
+features = features
+```
+
+########## `n_iter`
+
+```python
+n_iter = n_iter
+```
+
+########## `rand_seed`
+
+```python
+rand_seed = rand_seed
+```
+
+
+
+######### Functions####
+
+###### `fit`
+
+```python
+fit(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> DetSRM
+```
+
+Compute the Deterministic Shared Response Model
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples]</code> | Each element in the list contains the fMRI data of one subject. | *required*
+`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used | <code>None</code>
+`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
+`max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory budget in GB (default: 4.0). Only used when parallel="gpu". Defaults to 4.0. | <code>4.0</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`self` | <code>[DetSRM](#nltools.algorithms.alignment.srm.DetSRM)</code> | Fitted model
+
+########## `transform`
+
+```python
+transform(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[np.ndarray]
+```
+
+Use the model to transform data to the Shared Response subspace
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples_i]</code> | Each element in the list contains the fMRI data of one subject. | *required*
+`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used | <code>None</code>
+`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`s` | <code>list of 2D arrays, element i has shape=[features_i, samples_i]</code> | Shared responses from input data (X)
+
+########## `transform_subject`
+
+```python
+transform_subject(X: np.ndarray) -> np.ndarray
+```
+
+Transform a new subject using the existing model.
+The subject is assumed to have recieved equivalent stimulation
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>2D array, shape=[voxels, timepoints]</code> | The fMRI data of the new subject. | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`w` | <code>2D array, shape=[voxels, features]</code> | Orthogonal mapping `W_{new}` for new subject
+
+######## `SRM`
+
+```python
+SRM(n_iter: int = 10, features: int = 50, rand_seed: int = 0) -> None
+```
+
+Bases: <code>[BaseEstimator](#sklearn.base.BaseEstimator)</code>, <code>[TransformerMixin](#sklearn.base.TransformerMixin)</code>
+
+Probabilistic Shared Response Model (SRM)
+
+Given multi-subject data, factorize it as a shared response S among all
+subjects and an orthogonal transform W per subject:
+
+.. math:: X_i \approx W_i S, \forall i=1 \dots N
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_iter` | <code>int, default=10</code> | Number of iterations to run the algorithm. | <code>10</code>
+`features` | <code>int, default=50</code> | Number of features to compute. | <code>50</code>
+`rand_seed` | <code>int, default=0</code> | Seed for initializing the random number generator. | <code>0</code>
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`w_`](#w_) | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
+[`s_`](#s_) | <code>array, shape=[features, samples]</code> | The shared response.
+[`sigma_s_`](#sigma_s_) | <code>array, shape=[features, features]</code> | The covariance of the shared response Normal distribution.
+[`mu_`](#mu_) | <code>list of array, element i has shape=[voxels_i]</code> | The voxel means over the samples for each subject.
+[`rho2_`](#rho2_) | <code>array, shape=[subjects]</code> | The estimated noise variance :math:`\rho_i^2` for each subject
+[`random_state_`](#random_state_) | <code>`RandomState`</code> | Random number generator initialized using rand_seed
+
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
+The number of voxels may be different between subjects. However, the
+number of samples must be the same across subjects.
+
+The probabilistic Shared Response Model is approximated using the
+Expectation Maximization (EM) algorithm proposed in [Chen2015]_. The
+implementation follows the optimizations published in [Anderson2016]_.
+
+This is a single node version.
+
+The run-time complexity is :math:`O(I (V T K + V K^2 + K^3))` and the
+memory complexity is :math:`O(V T)` with I - the number of iterations,
+V - the sum of voxels from all subjects, T - the number of samples, and
+K - the number of features (typically, :math:`V \gg T \gg K`).
+
+</details>
+
+**Examples:**
+
+Basic multi-subject SRM fitting:
+
+```pycon
+>>> from nltools.algorithms import SRM
+>>> import numpy as np
+>>>
+>>> # Create sample data (3 subjects)
+>>> data = [np.random.randn(100, 50) for _ in range(3)]
+>>>
+>>> # Fit SRM with CPU parallelization (default)
+>>> srm = SRM(n_iter=10, features=50)
+>>> srm.fit(data, parallel="cpu", n_jobs=-1)
+>>>
+>>> # Transform to shared response space
+>>> shared_responses = srm.transform(data)
+>>>
+>>> # Access fitted model components
+>>> w = srm.w_  # Subject-specific transforms
+>>> s = srm.s_  # Shared response
+```
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#fit) | Compute the probabilistic Shared Response Model
+[`transform`](#transform) | Use the model to transform matrix to Shared Response space
+[`transform_subject`](#transform_subject) | Transform a new subject using the existing model.
+
+
+
+######### Attributes####
+
+###### `features`
+
+```python
+features = features
+```
+
+########## `n_iter`
+
+```python
+n_iter = n_iter
+```
+
+########## `rand_seed`
+
+```python
+rand_seed = rand_seed
+```
+
+
+
+######### Functions####
+
+###### `fit`
+
+```python
+fit(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, pad_samples: bool = True) -> SRM
+```
+
+Compute the probabilistic Shared Response Model
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples]</code> | Each element in the list contains the fMRI data of one subject. Subjects can have different numbers of samples if pad_samples=True. | *required*
+`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used | <code>None</code>
+`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
+`max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory budget in GB (default: 4.0). Only used when parallel="gpu". Defaults to 4.0. | <code>4.0</code>
+`pad_samples` | <code>[bool](#bool)</code> | If True (default), automatically zero-pad subjects with fewer samples to match the longest subject. This allows fitting SRM on data with unequal numbers of time points across subjects. | <code>True</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`self` | <code>[SRM](#nltools.algorithms.alignment.srm.SRM)</code> | Fitted model
+
+########## `transform`
+
+```python
+transform(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[Optional[np.ndarray]]
+```
+
+Use the model to transform matrix to Shared Response space
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples_i]</code> | Each element in the list contains the fMRI data of one subject. Note that number of voxels and samples can vary across subjects. | *required*
+`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used (as it is unsupervised learning) | <code>None</code>
+`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`s` | <code>list of 2D arrays, element i has shape=[features_i, samples_i]</code> | Shared responses from input data (X)
+
+########## `transform_subject`
+
+```python
+transform_subject(X: np.ndarray) -> np.ndarray
+```
+
+Transform a new subject using the existing model.
+The subject is assumed to have recieved equivalent stimulation
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>2D array, shape=[voxels, timepoints]</code> | The fMRI data of the new subject. | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`w` | <code>2D array, shape=[voxels, features]</code> | Orthogonal mapping `W_{new}` for new subject
+
 #### `hrf`
 
 Hemodynamic Response Functions (HRFs) for fMRI analysis, implemented by NiPy.
@@ -1826,264 +3088,6 @@ Name | Type | Description
 ---- | ---- | -----------
 `dhrf` | <code>[ndarray](#numpy.ndarray)</code> | array of shape(length / tr, float),   dhrf sampling on the provided grid
 
-#### `hyperalignment`
-
-HyperAlignment: Multi-subject cortical surface alignment using iterative Procrustes refinement.
-
-Hyperalignment finds a common representational space across subjects by iteratively
-refining pairwise Procrustes transformations. Unlike simple alignment, hyperalignment
-preserves both spatial structure and representational similarity.
-
-<details class="algorithm-overview" open markdown="1">
-<summary>Algorithm overview</summary>
-
-1. Initialize template (first subject or group average)
-2. For each iteration:
-   - Align each subject to template (Procrustes transformation)
-   - Update template (average in aligned space)
-3. Converge when transformations stabilize or max iterations reached
-4. Final alignment: Apply learned transformations to all subjects
-
-</details>
-
-<details class="performance" open markdown="1">
-<summary>Performance</summary>
-
-- Time complexity: O(n_iter × n_subjects² × n_voxels × n_samples)
-- Memory complexity: O(n_subjects × n_voxels × n_features)
-- Parallelization: ~4-8× speedup with CPU-parallel (parallel="cpu")
-- Most beneficial when subjects have many voxels (>10K) and multiple iterations
-
-</details>
-
-<details class="when-to-use-hyperalignment" open markdown="1">
-<summary>When to use hyperalignment</summary>
-
-- Multi-subject alignment preserving spatial structure
-- Alternative to SRM when spatial structure is important
-- See `nltools.algorithms.srm.SRM` for dimension-reduction approach
-- See `nltools.stats.procrustes()` for single-subject alignment
-
-</details>
-
-This module implements the hyperalignment technique described in:
-
-Haxby, J. V., Guntupalli, J. S., Connolly, A. C., Halchenko, Y. O.,
-Conroy, B. R., Gobbini, M. I., ... & Ramadge, P. J. (2011).
-A common, high-dimensional model of the representational space in
-human ventral temporal cortex. Neuron, 72(2), 404-416.
-
-**Classes:**
-
-Name | Description
----- | -----------
-[`HyperAlignment`](#HyperAlignment) | Hyperalignment using iterative Procrustes alignment.
-
-
-
-##### Classes
-
-###### `HyperAlignment`
-
-```python
-HyperAlignment(n_iter: int = 2, auto_pad: bool = True) -> None
-```
-
-Bases: <code>[BaseEstimator](#sklearn.base.BaseEstimator)</code>, <code>[TransformerMixin](#sklearn.base.TransformerMixin)</code>
-
-Hyperalignment using iterative Procrustes alignment.
-
-Three-stage iterative process for aligning multi-subject data:
-1. Create initial average template
-2. Refine template through n_iter iterations
-3. Final alignment of all subjects to refined template
-
-This implements the Procrustes-based hyperalignment method commonly
-used in multi-subject neuroimaging analysis.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`n_iter` | <code>int, default=2</code> | Number of template refinement iterations (stages 1-2). | <code>2</code>
-`auto_pad` | <code>bool, default=True</code> | If True, automatically zero-pad matrices to standardize sizes. If False, caller must ensure all matrices have same dimensions. | <code>True</code>
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`w_`](#w_) | <code>list of ndarray, element i has shape=[features_i, features]</code> | The transformation matrices (rotation + reflection) for each subject.
-[`s_`](#s_) | <code>ndarray, shape=[features, samples]</code> | The aligned common template (shared response).
-[`disparity_`](#disparity_) | <code>list of float</code> | Disparity (sum of squared differences) for each subject.
-[`scale_`](#scale_) | <code>list of float</code> | Scale factors for each subject.
-
-<details class="note" open markdown="1">
-<summary>Note</summary>
-
-``common_model_`` property provides alias for ``s_`` (backward compatibility).
-
-</details>
-
-**Examples:**
-
-Basic multi-subject alignment:
-
-```pycon
->>> from nltools.algorithms import HyperAlignment
->>> import numpy as np
->>>
->>> # Create sample data (3 subjects)
->>> data = [np.random.randn(100, 50) for _ in range(3)]
->>>
->>> # Fit hyperalignment with CPU parallelization (default)
->>> hyper = HyperAlignment(n_iter=2)
->>> hyper.fit(data, parallel="cpu", n_jobs=-1)
->>>
->>> # Transform to common space
->>> aligned = hyper.transform(data)
->>>
->>> # Access common template
->>> template = hyper.s_  # or hyper.common_model_
->>>
->>> # Align a new subject
->>> new_subject = np.random.randn(100, 50)
->>> new_transform = hyper.transform_subject(new_subject)
-```
-
-<details class="note" open markdown="1">
-<summary>Note</summary>
-
-When to use parallel processing:
-
-- Use ``parallel="cpu"`` (default) for datasets with 3+ subjects to speed up
-  pairwise Procrustes operations during template refinement.
-- Use ``parallel=None`` for debugging or small datasets (<3 subjects) where
-  parallelization overhead isn't beneficial.
-- Parallel processing is most beneficial when subjects have many voxels
-  (>10K) and template refinement requires multiple iterations.
-
-</details>
-
-<details class="references" open markdown="1">
-<summary>References</summary>
-
-Haxby, J. V., Guntupalli, J. S., Connolly, A. C., Halchenko, Y. O.,
-Conroy, B. R., Gobbini, M. I., ... & Ramadge, P. J. (2011).
-A common, high-dimensional model of the representational space in
-human ventral temporal cortex. Neuron, 72(2), 404-416.
-
-</details>
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit`](#fit) | Fit hyperalignment model to data.
-[`transform`](#transform) | Transform data to common space using fitted transformations.
-[`transform_subject`](#transform_subject) | Align a new subject to the common space.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`n_iter` | <code>int, default=2</code> | Number of template refinement iterations | <code>2</code>
-`auto_pad` | <code>bool, default=True</code> | Whether to automatically pad matrices to same size | <code>True</code>
-
-
-
-####### Attributes##
-
-###### `auto_pad`
-
-```python
-auto_pad = auto_pad
-```
-
-######## `common_model_`
-
-```python
-common_model_
-```
-
-Alias for ``s_`` (common template).
-
-######## `n_iter`
-
-```python
-n_iter = n_iter
-```
-
-
-
-####### Functions##
-
-###### `fit`
-
-```python
-fit(data: List[np.ndarray], parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> HyperAlignment
-```
-
-Fit hyperalignment model to data.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>list of ndarray</code> | List of data matrices, each with shape (n_features, n_samples). Different subjects can have different numbers of features if auto_pad=True. | *required*
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`self` | <code>[HyperAlignment](#nltools.algorithms.hyperalignment.HyperAlignment)</code> | Fitted model
-
-######## `transform`
-
-```python
-transform(data: List[np.ndarray], parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[np.ndarray]
-```
-
-Transform data to common space using fitted transformations.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>list of ndarray</code> | List of data matrices to transform. Should be the same data used for fitting (or have compatible dimensions). | *required*
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`transformed` | <code>list of ndarray</code> | List of transformed data matrices in common space
-
-######## `transform_subject`
-
-```python
-transform_subject(subject_data: np.ndarray) -> Tuple[np.ndarray, np.ndarray, float, float]
-```
-
-Align a new subject to the common space.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`subject_data` | <code>([ndarray](#ndarray), [shape](#shape)([n_features](#n_features), [n_samples](#n_samples)))</code> | Data from a new subject to align to the common template | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`transformed` | <code>[ndarray](#ndarray)</code> | Aligned data in common space
-`R` | <code>[ndarray](#ndarray)</code> | Transformation matrix used
-`disparity` | <code>[float](#float)</code> | Alignment quality (sum of squared differences)
-`scale` | <code>[float](#float)</code> | Scale factor used
-
 #### `inference`
 
 GPU-accelerated statistical inference for neuroimaging.
@@ -2165,6 +3169,7 @@ Name | Description
 [`timeseries`](#timeseries) | Time-series permutation test implementations.
 [`two_sample`](#two_sample) | Two-sample permutation test implementations.
 [`utils`](#utils) | Utility functions for permutation testing.
+[`validation`](#validation) | Shared validation utilities for algorithms module.
 
 **Classes:**
 
@@ -2325,16 +3330,7 @@ Examples:
 >>> print(results.keys())
 dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
 
-**Replacing summarize_bootstrap() from nltools.stats:**
-The deprecated `summarize_bootstrap()` function can be replaced with this class:
-
-**Old API (deprecated):**
->>> from nltools.stats import summarize_bootstrap
->>> bootstrap_samples = BrainData(list_of_samples)  # Multiple samples
->>> result = summarize_bootstrap(bootstrap_samples, save_weights=False)
->>> # Returns: {'mean': BrainData, 'Z': BrainData, 'p': BrainData}
-
-**New API (recommended):**
+**Usage:**
 >>> from nltools.algorithms.inference.bootstrap import OnlineBootstrapStats
 >>> from nltools.data import BrainData
 >>>
@@ -3374,16 +4370,7 @@ Examples:
 >>> print(results.keys())
 dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
 
-**Replacing summarize_bootstrap() from nltools.stats:**
-The deprecated `summarize_bootstrap()` function can be replaced with this class:
-
-**Old API (deprecated):**
->>> from nltools.stats import summarize_bootstrap
->>> bootstrap_samples = BrainData(list_of_samples)  # Multiple samples
->>> result = summarize_bootstrap(bootstrap_samples, save_weights=False)
->>> # Returns: {'mean': BrainData, 'Z': BrainData, 'p': BrainData}
-
-**New API (recommended):**
+**Usage:**
 >>> from nltools.algorithms.inference.bootstrap import OnlineBootstrapStats
 >>> from nltools.data import BrainData
 >>>
@@ -4506,6 +5493,331 @@ EPSILON = 1e-10
 
 ####### Functions
 
+###### `validation`
+
+Shared validation utilities for algorithms module.
+
+This module provides common validation functions to reduce code duplication
+and ensure consistent error handling across the algorithms module.
+
+<details class="usage" open markdown="1">
+<summary>Usage</summary>
+
+These functions are used throughout the algorithms module to validate
+input parameters. They provide consistent error messages and behavior.
+
+Example:
+    >>> from nltools.algorithms.validation import validate_parallel_parameter
+    >>> validate_parallel_parameter("cpu")  # OK
+    >>> validate_parallel_parameter("invalid")  # Raises ValueError
+
+</details>
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`validate_alpha`](#validate_alpha) | Validate regularization parameter alpha.
+[`validate_array_shape`](#validate_array_shape) | Validate array dimensionality.
+[`validate_array_shape_range`](#validate_array_shape_range) | Validate array dimensionality is within a range.
+[`validate_bootstrap_data`](#validate_bootstrap_data) | Validate input data for bootstrapping.
+[`validate_bootstrap_method`](#validate_bootstrap_method) | Validate bootstrap method name.
+[`validate_how_parameter`](#validate_how_parameter) | Validate 'how' parameter for matrix operations.
+[`validate_isc_parameters`](#validate_isc_parameters) | Validate ISC parameter values.
+[`validate_metric_parameter`](#validate_metric_parameter) | Validate metric parameter.
+[`validate_n_samples`](#validate_n_samples) | Validate number of samples.
+[`validate_parallel_parameter`](#validate_parallel_parameter) | Validate parallel parameter.
+[`validate_parallel_parameter_matrix`](#validate_parallel_parameter_matrix) | Validate parallel parameter for matrix operations.
+[`validate_percentiles`](#validate_percentiles) | Validate percentile values for confidence intervals.
+[`validate_same_first_dimension`](#validate_same_first_dimension) | Validate two arrays have same first dimension.
+[`validate_same_shape`](#validate_same_shape) | Validate two arrays have same shape.
+[`validate_shape_compatibility`](#validate_shape_compatibility) | Validate that X and y have compatible shapes for regression.
+[`validate_square_matrix`](#validate_square_matrix) | Validate matrix is square.
+[`validate_tail_parameter`](#validate_tail_parameter) | Validate and normalize tail parameter.
+
+
+
+####### Functions##
+
+###### `validate_alpha`
+
+```python
+validate_alpha(alpha: float, name: str = 'alpha') -> None
+```
+
+Validate regularization parameter alpha.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`alpha` | <code>[float](#float)</code> | Regularization parameter | *required*
+`name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'alpha'</code>
+
+######## `validate_array_shape`
+
+```python
+validate_array_shape(array: np.ndarray, expected_ndim: int, name: str = 'array') -> None
+```
+
+Validate array dimensionality.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`array` | <code>[ndarray](#numpy.ndarray)</code> | Array to validate | *required*
+`expected_ndim` | <code>[int](#int)</code> | Expected number of dimensions | *required*
+`name` | <code>[str](#str)</code> | Name of array for error message | <code>'array'</code>
+
+######## `validate_array_shape_range`
+
+```python
+validate_array_shape_range(array: np.ndarray, min_ndim: int, max_ndim: int, name: str = 'array') -> None
+```
+
+Validate array dimensionality is within a range.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`array` | <code>[ndarray](#numpy.ndarray)</code> | Array to validate | *required*
+`min_ndim` | <code>[int](#int)</code> | Minimum number of dimensions (inclusive) | *required*
+`max_ndim` | <code>[int](#int)</code> | Maximum number of dimensions (inclusive) | *required*
+`name` | <code>[str](#str)</code> | Name of array for error message | <code>'array'</code>
+
+######## `validate_bootstrap_data`
+
+```python
+validate_bootstrap_data(data: np.ndarray, method: str) -> None
+```
+
+Validate input data for bootstrapping.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[ndarray](#numpy.ndarray)</code> | Data to validate | *required*
+`method` | <code>[str](#str)</code> | Bootstrap method | *required*
+
+######## `validate_bootstrap_method`
+
+```python
+validate_bootstrap_method(method: str, simple_methods: list[str], fitted_methods: list[str]) -> None
+```
+
+Validate bootstrap method name.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` | <code>[str](#str)</code> | Method name to validate | *required*
+`simple_methods` | <code>[list](#list)[[str](#str)]</code> | List of simple method names | *required*
+`fitted_methods` | <code>[list](#list)[[str](#str)]</code> | List of fitted method names | *required*
+
+######## `validate_how_parameter`
+
+```python
+validate_how_parameter(how: str) -> None
+```
+
+Validate 'how' parameter for matrix operations.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`how` | <code>[str](#str)</code> | How parameter value | *required*
+
+######## `validate_isc_parameters`
+
+```python
+validate_isc_parameters(metric: str, summary_statistic: str, method: Optional[str] = None) -> None
+```
+
+Validate ISC parameter values.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`metric` | <code>[str](#str)</code> | Summary statistic metric | *required*
+`summary_statistic` | <code>[str](#str)</code> | ISC computation method | *required*
+`method` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Resampling method (optional) | <code>None</code>
+
+######## `validate_metric_parameter`
+
+```python
+validate_metric_parameter(metric: str, allowed: list[str], name: str = 'metric') -> None
+```
+
+Validate metric parameter.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`metric` | <code>[str](#str)</code> | Metric parameter value | *required*
+`allowed` | <code>[list](#list)[[str](#str)]</code> | List of allowed metric values | *required*
+`name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'metric'</code>
+
+######## `validate_n_samples`
+
+```python
+validate_n_samples(n_samples: int, min_samples: int = 2, name: str = 'n_samples') -> None
+```
+
+Validate number of samples.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_samples` | <code>[int](#int)</code> | Number of samples | *required*
+`min_samples` | <code>[int](#int)</code> | Minimum required samples | <code>2</code>
+`name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'n_samples'</code>
+
+######## `validate_parallel_parameter`
+
+```python
+validate_parallel_parameter(parallel: Optional[str]) -> None
+```
+
+Validate parallel parameter.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallel parameter value | *required*
+
+######## `validate_parallel_parameter_matrix`
+
+```python
+validate_parallel_parameter_matrix(parallel: Optional[str]) -> None
+```
+
+Validate parallel parameter for matrix operations.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallel parameter value | *required*
+
+######## `validate_percentiles`
+
+```python
+validate_percentiles(percentiles: Tuple[float, float]) -> None
+```
+
+Validate percentile values for confidence intervals.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`percentiles` | <code>[Tuple](#typing.Tuple)[[float](#float), [float](#float)]</code> | Percentile values (lower, upper) | *required*
+
+######## `validate_same_first_dimension`
+
+```python
+validate_same_first_dimension(array1: np.ndarray, array2: np.ndarray, name1: str = 'array1', name2: str = 'array2') -> None
+```
+
+Validate two arrays have same first dimension.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`array1` | <code>[ndarray](#numpy.ndarray)</code> | First array | *required*
+`array2` | <code>[ndarray](#numpy.ndarray)</code> | Second array | *required*
+`name1` | <code>[str](#str)</code> | Name of first array for error message | <code>'array1'</code>
+`name2` | <code>[str](#str)</code> | Name of second array for error message | <code>'array2'</code>
+
+######## `validate_same_shape`
+
+```python
+validate_same_shape(array1: np.ndarray, array2: np.ndarray, name1: str = 'array1', name2: str = 'array2') -> None
+```
+
+Validate two arrays have same shape.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`array1` | <code>[ndarray](#numpy.ndarray)</code> | First array | *required*
+`array2` | <code>[ndarray](#numpy.ndarray)</code> | Second array | *required*
+`name1` | <code>[str](#str)</code> | Name of first array for error message | <code>'array1'</code>
+`name2` | <code>[str](#str)</code> | Name of second array for error message | <code>'array2'</code>
+
+######## `validate_shape_compatibility`
+
+```python
+validate_shape_compatibility(X: np.ndarray, y: np.ndarray, X_name: str = 'X', y_name: str = 'y') -> None
+```
+
+Validate that X and y have compatible shapes for regression.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>[ndarray](#numpy.ndarray)</code> | Feature matrix | *required*
+`y` | <code>[ndarray](#numpy.ndarray)</code> | Target vector or matrix | *required*
+`X_name` | <code>[str](#str)</code> | Name of X for error message | <code>'X'</code>
+`y_name` | <code>[str](#str)</code> | Name of y for error message | <code>'y'</code>
+
+######## `validate_square_matrix`
+
+```python
+validate_square_matrix(matrix: np.ndarray, name: str = 'matrix') -> None
+```
+
+Validate matrix is square.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`matrix` | <code>[ndarray](#numpy.ndarray)</code> | Matrix to validate | *required*
+`name` | <code>[str](#str)</code> | Name of matrix for error message | <code>'matrix'</code>
+
+######## `validate_tail_parameter`
+
+```python
+validate_tail_parameter(tail: int | str) -> str
+```
+
+Validate and normalize tail parameter.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`tail` | <code>[int](#int) \| [str](#str)</code> | Tail parameter value. Can be: - 'two' or 2: Two-tailed test (|obs| > |null|) - 'upper' or 1: One-tailed upper (obs > null, for testing positive effects) - 'lower' or -1: One-tailed lower (obs < null, for testing negative effects) | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[str](#str)</code> | Normalized tail string: 'two', 'upper', or 'lower'
+
+<details class="notes" open markdown="1">
+<summary>Notes</summary>
+
+For multiple comparisons correction (FDR, Bonferroni), use 'upper' or 'lower'
+to ensure consistent direction across all tests. The old tail=1 behavior
+(auto-detecting direction per test based on sign) can lead to incorrect
+MCP-adjusted p-values. See GH #315.
+
+</details>
+
 #### `random`
 
 Shared random state utilities for algorithms module.
@@ -4707,23 +6019,20 @@ Uses sklearn.utils.check_random_state for consistency
 
 Ridge regression algorithms and utilities.
 
-This package contains ridge regression implementations and backend abstractions.
+This package contains ridge regression implementations with GPU acceleration.
 
 Features:
-- Backend abstraction (NumPy, PyTorch CPU, PyTorch GPU)
 - Cross-validation with per-target or global alpha selection
 - Memory-efficient batching for large-scale problems
-- GPU acceleration (10-100× speedup on large datasets)
+- GPU acceleration (10-100x speedup on large datasets)
 - Banded ridge for multiple feature spaces
 
 <details class="quick-start" open markdown="1">
 <summary>Quick Start</summary>
 
->>> from nltools.algorithms.ridge import solve_ridge_cv, set_backend
->>> set_backend("auto")  # Use GPU if available
 >>> X = np.random.randn(100, 50)
 >>> Y = np.random.randn(100, 10)
->>> alphas, coefs, scores = solve_ridge_cv(X, Y, alphas=[0.1, 1.0, 10.0])
+>>> result = solve_ridge_cv(X, Y, alphas=[0.1, 1.0, 10.0])
 
 </details>
 
@@ -4731,7 +6040,6 @@ Features:
 
 Name | Description
 ---- | -----------
-[`backends`](#backends) | Backend abstraction for ridge regression.
 [`core`](#core) | Ridge regression algorithms using SVD decomposition.
 [`solvers`](#solvers) | Ridge regression solvers with cross-validation.
 [`utils`](#utils) | Utility functions for ridge regression.
@@ -4741,18 +6049,12 @@ Name | Description
 Name | Description
 ---- | -----------
 [`generate_dirichlet_samples`](#generate_dirichlet_samples) | Generate samples from a Dirichlet distribution.
-[`get_backend`](#get_backend) | Get the current backend module.
 [`ridge_cv`](#ridge_cv) | Ridge regression with cross-validation for hyperparameter selection.
 [`ridge_svd`](#ridge_svd) | Solve ridge regression using Singular Value Decomposition.
-[`set_backend`](#set_backend) | Set the backend using a global variable, and return the backend module.
 [`solve_banded_ridge_cv`](#solve_banded_ridge_cv) | Solve banded ridge regression with cross-validation using random search.
 [`solve_ridge_cv`](#solve_ridge_cv) | Solve ridge regression with cross-validation.
 
-**Attributes:**
 
-Name | Type | Description
----- | ---- | -----------
-[`ALL_BACKENDS`](#ALL_BACKENDS) |  | 
 
 ##### Methods
 
@@ -4793,29 +6095,6 @@ Type | Description
 >>> # Each row sums to 1
 >>> np.allclose(gammas.sum(axis=1), 1.0)
 True
-```
-
-###### `get_backend`
-
-```python
-get_backend()
-```
-
-Get the current backend module.
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`module` |  | Module of the backend (e.g., numpy, torch backend module).
-
-**Examples:**
-
-```pycon
->>> from nltools.algorithms.ridge.backends import get_backend
->>> backend = get_backend()
->>> backend.name
-'numpy'
 ```
 
 ###### `ridge_cv`
@@ -4951,36 +6230,6 @@ Type | Description
 - See `nltools.algorithms.ridge.utils._decompose_ridge()` for generator pattern
 
 </details>
-
-###### `set_backend`
-
-```python
-set_backend(backend, on_error = 'raise')
-```
-
-Set the backend using a global variable, and return the backend module.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`backend` |  | Name or module of the backend. Must be one of: "numpy", "torch", "torch_cuda". | *required*
-`on_error` |  | What to do if backend fails to load. Options: - "raise": Raise an exception (default). - "warn": Warn and keep previous backend. | <code>'raise'</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`module` |  | Module of the backend (e.g., numpy, torch backend module).
-
-**Examples:**
-
-```pycon
->>> from nltools.algorithms.ridge.backends import set_backend
->>> backend = set_backend("numpy")
->>> backend.name
-'numpy'
-```
 
 ###### `solve_banded_ridge_cv`
 
@@ -5176,3228 +6425,6 @@ See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.
 
 
 ##### Modules
-
-###### `backends`
-
-Backend abstraction for ridge regression.
-
-This module provides a module-based backend system following himalaya's approach.
-Supports NumPy (CPU), PyTorch CPU, and PyTorch CUDA backends.
-
-The backend can be switched at runtime to leverage different computational backends
-(CPU or GPU) without changing code.
-
-Examples
---------
->>> from nltools.algorithms.ridge.backends import set_backend, get_backend
->>> backend = set_backend("numpy")  # Use NumPy (default)
->>> backend.name
-'numpy'
-
->>> # Switch to GPU (if available)
->>> backend = set_backend("torch_cuda")
->>> X_gpu = backend.asarray(X, device="cuda")
->>> U, s, Vt = backend.svd(X_gpu)  # GPU-accelerated
-
-**Modules:**
-
-Name | Description
----- | -----------
-[`numpy`](#numpy) | The "numpy" CPU backend, based on NumPy.
-[`torch`](#torch) | The "torch" CPU backend, based on PyTorch.
-[`torch_cuda`](#torch_cuda) | The "torch_cuda" GPU backend, based on PyTorch.
-[`utils`](#utils) | Backend utilities for ridge regression.
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`get_backend`](#get_backend) | Get the current backend module.
-[`set_backend`](#set_backend) | Set the backend using a global variable, and return the backend module.
-[`warn_if_not_float32`](#warn_if_not_float32) | Warn if dtype is not float32.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`ALL_BACKENDS`](#ALL_BACKENDS) |  | 
-
-
-
-####### Attributes##
-
-###### `ALL_BACKENDS`
-
-```python
-ALL_BACKENDS = ['numpy', 'torch', 'torch_cuda']
-```
-
-
-
-####### Functions##
-
-###### `get_backend`
-
-```python
-get_backend()
-```
-
-Get the current backend module.
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`module` |  | Module of the backend (e.g., numpy, torch backend module).
-
-**Examples:**
-
-```pycon
->>> from nltools.algorithms.ridge.backends import get_backend
->>> backend = get_backend()
->>> backend.name
-'numpy'
-```
-
-######## `set_backend`
-
-```python
-set_backend(backend, on_error = 'raise')
-```
-
-Set the backend using a global variable, and return the backend module.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`backend` |  | Name or module of the backend. Must be one of: "numpy", "torch", "torch_cuda". | *required*
-`on_error` |  | What to do if backend fails to load. Options: - "raise": Raise an exception (default). - "warn": Warn and keep previous backend. | <code>'raise'</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`module` |  | Module of the backend (e.g., numpy, torch backend module).
-
-**Examples:**
-
-```pycon
->>> from nltools.algorithms.ridge.backends import set_backend
->>> backend = set_backend("numpy")
->>> backend.name
-'numpy'
-```
-
-######## `warn_if_not_float32`
-
-```python
-warn_if_not_float32(dtype)
-```
-
-Warn if dtype is not float32.
-
-GPU backends are much faster with single precision (float32). This function
-warns the user once if they are using a different dtype, encouraging them
-to cast to float32 for better performance.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dtype` |  | Data type to check. Can be any dtype object or string. | *required*
-
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
-
-- Warning is only shown once per session (uses internal flag).
-- Only warns for GPU backends (checked via get_backend()).
-- Warning is suppressed if dtype is already float32.
-
-</details>
-
-
-
-####### Modules##
-
-###### `numpy`
-
-The "numpy" CPU backend, based on NumPy.
-
-To use this backend, call ``nltools.algorithms.ridge.backends.set_backend("numpy")``.
-
-This is the default backend and is always available.
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`asarray`](#asarray) | Convert input to numpy array.
-[`asarray_like`](#asarray_like) | Convert x to array with same dtype as ref.
-[`check_arrays`](#check_arrays) | Convert all inputs to arrays with consistent dtype.
-[`full_like`](#full_like) | Create array filled with value, with same shape and dtype as reference array.
-[`is_in_gpu`](#is_in_gpu) | Check if array is in GPU (always False for numpy backend).
-[`ones_like`](#ones_like) | Create array of ones with same shape and dtype as reference array.
-[`svd`](#svd) | Compute singular value decomposition.
-[`to_cpu`](#to_cpu) | Transfer array to CPU (no-op for numpy arrays).
-[`to_gpu`](#to_gpu) | Transfer array to GPU (no-op for numpy backend).
-[`to_numpy`](#to_numpy) | Convert array to numpy (no-op for numpy arrays).
-[`zeros_like`](#zeros_like) | Create array of zeros with same shape and dtype as reference array.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`abs`](#abs) |  | 
-[`all`](#all) |  | 
-[`any`](#any) |  | 
-[`arange`](#arange) |  | 
-[`argmax`](#argmax) |  | 
-[`atleast_1d`](#atleast_1d) |  | 
-[`bool`](#bool) |  | 
-[`clip`](#clip) |  | 
-[`concatenate`](#concatenate) |  | 
-[`copy`](#copy) |  | 
-[`eigh`](#eigh) |  | 
-[`einsum`](#einsum) |  | 
-[`exp`](#exp) |  | 
-[`expand_dims`](#expand_dims) |  | 
-[`eye`](#eye) |  | 
-[`finfo`](#finfo) |  | 
-[`flatnonzero`](#flatnonzero) |  | 
-[`flip`](#flip) |  | 
-[`float32`](#float32) |  | 
-[`float64`](#float64) |  | 
-[`full`](#full) |  | 
-[`inf`](#inf) |  | 
-[`int32`](#int32) |  | 
-[`isin`](#isin) |  | 
-[`isinf`](#isinf) |  | 
-[`isnan`](#isnan) |  | 
-[`log`](#log) |  | 
-[`logspace`](#logspace) |  | 
-[`matmul`](#matmul) |  | 
-[`max`](#max) |  | 
-[`mean`](#mean) |  | 
-[`min`](#min) |  | 
-[`name`](#name) |  | 
-[`nan`](#nan) |  | 
-[`norm`](#norm) |  | 
-[`power`](#power) |  | 
-[`prod`](#prod) |  | 
-[`rand`](#rand) |  | 
-[`randn`](#randn) |  | 
-[`searchsorted`](#searchsorted) |  | 
-[`sign`](#sign) |  | 
-[`sort`](#sort) |  | 
-[`sqrt`](#sqrt) |  | 
-[`stack`](#stack) |  | 
-[`std`](#std) |  | 
-[`sum`](#sum) |  | 
-[`tanh`](#tanh) |  | 
-[`transpose`](#transpose) |  | 
-[`unique`](#unique) |  | 
-[`use_scipy`](#use_scipy) |  | 
-[`zeros`](#zeros) |  | 
-
-
-
-######### Attributes####
-
-###### `abs`
-
-```python
-abs = np.abs
-```
-
-########## `all`
-
-```python
-all = np.all
-```
-
-########## `any`
-
-```python
-any = np.any
-```
-
-########## `arange`
-
-```python
-arange = np.arange
-```
-
-########## `argmax`
-
-```python
-argmax = np.argmax
-```
-
-########## `atleast_1d`
-
-```python
-atleast_1d = np.atleast_1d
-```
-
-########## `bool`
-
-```python
-bool = np.bool_
-```
-
-########## `clip`
-
-```python
-clip = np.clip
-```
-
-########## `concatenate`
-
-```python
-concatenate = np.concatenate
-```
-
-########## `copy`
-
-```python
-copy = np.copy
-```
-
-########## `eigh`
-
-```python
-eigh = linalg.eigh
-```
-
-########## `einsum`
-
-```python
-einsum = np.einsum
-```
-
-########## `exp`
-
-```python
-exp = np.exp
-```
-
-########## `expand_dims`
-
-```python
-expand_dims = np.expand_dims
-```
-
-########## `eye`
-
-```python
-eye = np.eye
-```
-
-########## `finfo`
-
-```python
-finfo = np.finfo
-```
-
-########## `flatnonzero`
-
-```python
-flatnonzero = np.flatnonzero
-```
-
-########## `flip`
-
-```python
-flip = np.flip
-```
-
-########## `float32`
-
-```python
-float32 = np.float32
-```
-
-########## `float64`
-
-```python
-float64 = np.float64
-```
-
-########## `full`
-
-```python
-full = np.full
-```
-
-########## `inf`
-
-```python
-inf = np.inf
-```
-
-########## `int32`
-
-```python
-int32 = np.int32
-```
-
-########## `isin`
-
-```python
-isin = np.isin
-```
-
-########## `isinf`
-
-```python
-isinf = np.isinf
-```
-
-########## `isnan`
-
-```python
-isnan = np.isnan
-```
-
-########## `log`
-
-```python
-log = np.log
-```
-
-########## `logspace`
-
-```python
-logspace = np.logspace
-```
-
-########## `matmul`
-
-```python
-matmul = np.matmul
-```
-
-########## `max`
-
-```python
-max = np.max
-```
-
-########## `mean`
-
-```python
-mean = np.mean
-```
-
-########## `min`
-
-```python
-min = np.min
-```
-
-########## `name`
-
-```python
-name = 'numpy'
-```
-
-########## `nan`
-
-```python
-nan = np.nan
-```
-
-########## `norm`
-
-```python
-norm = linalg.norm
-```
-
-########## `power`
-
-```python
-power = np.power
-```
-
-########## `prod`
-
-```python
-prod = np.prod
-```
-
-########## `rand`
-
-```python
-rand = np.random.rand
-```
-
-########## `randn`
-
-```python
-randn = np.random.randn
-```
-
-########## `searchsorted`
-
-```python
-searchsorted = np.searchsorted
-```
-
-########## `sign`
-
-```python
-sign = np.sign
-```
-
-########## `sort`
-
-```python
-sort = np.sort
-```
-
-########## `sqrt`
-
-```python
-sqrt = np.sqrt
-```
-
-########## `stack`
-
-```python
-stack = np.stack
-```
-
-########## `std`
-
-```python
-std = np.std
-```
-
-########## `sum`
-
-```python
-sum = np.sum
-```
-
-########## `tanh`
-
-```python
-tanh = np.tanh
-```
-
-########## `transpose`
-
-```python
-transpose = np.transpose
-```
-
-########## `unique`
-
-```python
-unique = np.unique
-```
-
-########## `use_scipy`
-
-```python
-use_scipy = True
-```
-
-########## `zeros`
-
-```python
-zeros = np.zeros
-```
-
-
-
-######### Functions####
-
-###### `asarray`
-
-```python
-asarray(a, dtype = None, order = None, device = None)
-```
-
-Convert input to numpy array.
-
-Universal converter that can handle numpy arrays, lists, torch tensors,
-cupy arrays, and other array types. Attempts multiple conversion strategies.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`a` |  | Input data (array-like). Can be numpy array, list, torch tensor, cupy array, or other array-like object. | *required*
-`dtype` |  | Desired data type. If None, inferred from input. | <code>None</code>
-`order` |  | Memory layout ('C' for C-order, 'F' for Fortran-order). | <code>None</code>
-`device` |  | Ignored parameter (for compatibility with torch backends). | <code>None</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`ndarray` |  | NumPy array representation of input.
-
-**Examples:**
-
-```pycon
->>> import numpy as np
->>> asarray([1, 2, 3])
-array([1, 2, 3])
->>> asarray([1, 2, 3], dtype=np.float32)
-array([1., 2., 3.], dtype=float32)
-```
-
-########## `asarray_like`
-
-```python
-asarray_like(x, ref)
-```
-
-Convert x to array with same dtype as ref.
-
-Convenience function to ensure dtype consistency with a reference array.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`x` |  | Input data (array-like). | *required*
-`ref` |  | Reference array for dtype inference. | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`ndarray` |  | Array with same dtype as ref.
-
-**Examples:**
-
-```pycon
->>> import numpy as np
->>> ref = np.array([1, 2, 3], dtype=np.float32)
->>> asarray_like([4, 5, 6], ref)
-array([4., 5., 6.], dtype=float32)
-```
-
-########## `check_arrays`
-
-```python
-check_arrays(*all_inputs)
-```
-
-Convert all inputs to arrays with consistent dtype.
-
-Changes all inputs into arrays (or list of arrays) using the same precision
-as the first input. Some arrays can be None. Useful for ensuring dtype
-consistency across multiple inputs.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`*all_inputs` |  | Input arrays or lists of arrays. Can include None values. | <code>()</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`list` |  | List of arrays with consistent dtype (matching first input).
-
-**Examples:**
-
-```pycon
->>> import numpy as np
->>> arr1 = np.array([1, 2], dtype=np.float32)
->>> arr2 = np.array([3, 4], dtype=np.float64)
->>> result = check_arrays(arr1, arr2)
->>> result[1].dtype == np.float32  # Converted to match first
-True
-```
-
-########## `full_like`
-
-```python
-full_like(array, fill_value, shape = None, dtype = None, device = None)
-```
-
-Create array filled with value, with same shape and dtype as reference array.
-
-Extended version of numpy.full_like with additional shape parameter.
-Allows creating arrays with different shape but same dtype as reference.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Reference array for dtype inference. | *required*
-`fill_value` |  | Scalar value to fill array with. | *required*
-`shape` |  | Shape of output array. If None, uses array.shape. | <code>None</code>
-`dtype` |  | Data type of output. If None, uses array.dtype. | <code>None</code>
-`device` |  | Ignored parameter (for compatibility with torch backends). | <code>None</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`ndarray` |  | Array filled with fill_value, with specified shape and dtype.
-
-**Examples:**
-
-```pycon
->>> import numpy as np
->>> arr = np.array([1, 2, 3])
->>> full_like(arr, 42, shape=(2, 2))
-array([[42., 42.],
-       [42., 42.]])
-```
-
-########## `is_in_gpu`
-
-```python
-is_in_gpu(array)
-```
-
-Check if array is in GPU (always False for numpy backend).
-
-Provides consistent interface for backend-agnostic code. Since numpy arrays
-are always on CPU, this always returns False.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Input numpy array. | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`bool` |  | Always False for numpy backend.
-
-**Examples:**
-
-```pycon
->>> import numpy as np
->>> arr = np.array([1, 2, 3])
->>> is_in_gpu(arr)
-False
-```
-
-########## `ones_like`
-
-```python
-ones_like(array, shape = None, dtype = None, device = None)
-```
-
-Create array of ones with same shape and dtype as reference array.
-
-Extended version of numpy.ones_like with additional shape parameter.
-Allows creating arrays with different shape but same dtype as reference.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Reference array for dtype inference. | *required*
-`shape` |  | Shape of output array. If None, uses array.shape. | <code>None</code>
-`dtype` |  | Data type of output. If None, uses array.dtype. | <code>None</code>
-`device` |  | Ignored parameter (for compatibility with torch backends). | <code>None</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`ndarray` |  | Array of ones with specified shape and dtype.
-
-**Examples:**
-
-```pycon
->>> import numpy as np
->>> arr = np.array([1, 2, 3])
->>> ones_like(arr, shape=(2, 3))
-array([[1., 1., 1.],
-       [1., 1., 1.]])
-```
-
-########## `svd`
-
-```python
-svd(X, full_matrices = True)
-```
-
-Compute singular value decomposition.
-
-Computes SVD for 2D or 3D arrays. For 3D arrays, computes SVD for each
-matrix along the first dimension.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` |  | Input matrix, shape (n_samples, n_features) for 2D, or (n_matrices, n_samples, n_features) for 3D. | *required*
-`full_matrices` |  | Whether to compute full U and V matrices. If False, computes only the necessary columns. | <code>True</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`tuple` |  | (U, s, Vt) where: - U: Left singular vectors, shape (n_samples, n_samples) or (n_samples, min(n_samples, n_features)). - s: Singular values, shape (min(n_samples, n_features),). - Vt: Right singular vectors (transposed), shape (min(n_samples, n_features), n_features) or (n_features, n_features).
- |  | For 3D input, returns stacked arrays with shape (n_matrices, ...).
-
-**Examples:**
-
-```pycon
->>> import numpy as np
->>> X = np.random.randn(10, 5)
->>> U, s, Vt = svd(X, full_matrices=False)
->>> U.shape, s.shape, Vt.shape
-((10, 5), (5,), (5, 5))
-```
-
-########## `to_cpu`
-
-```python
-to_cpu(array)
-```
-
-Transfer array to CPU (no-op for numpy arrays).
-
-Provides consistent interface for backend-agnostic code. Since numpy arrays
-are always on CPU, this is a no-op.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Input numpy array. | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`ndarray` |  | The input array unchanged (already on CPU).
-
-**Examples:**
-
-```pycon
->>> import numpy as np
->>> arr = np.array([1, 2, 3])
->>> result = to_cpu(arr)
->>> result is arr  # Same object
-True
-```
-
-########## `to_gpu`
-
-```python
-to_gpu(array, device = None)
-```
-
-Transfer array to GPU (no-op for numpy backend).
-
-Provides consistent interface for backend-agnostic code. Since numpy backend
-doesn't support GPU, this is a no-op.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Input numpy array. | *required*
-`device` |  | Ignored parameter (for compatibility with torch backends). | <code>None</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`ndarray` |  | The input array unchanged (numpy doesn't support GPU).
-
-**Examples:**
-
-```pycon
->>> import numpy as np
->>> arr = np.array([1, 2, 3])
->>> result = to_gpu(arr)
->>> result is arr  # Same object
-True
-```
-
-########## `to_numpy`
-
-```python
-to_numpy(array)
-```
-
-Convert array to numpy (no-op for numpy arrays).
-
-This function is a no-op for numpy arrays, but provides a consistent interface
-for backend-agnostic code. Other backends (torch, torch_cuda) override this
-to convert their arrays to numpy.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Input array (numpy ndarray). | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`ndarray` |  | The input array unchanged (no conversion needed).
-
-**Examples:**
-
-```pycon
->>> import numpy as np
->>> arr = np.array([1, 2, 3])
->>> result = to_numpy(arr)
->>> result is arr  # Same object (no copy)
-True
-```
-
-########## `zeros_like`
-
-```python
-zeros_like(array, shape = None, dtype = None, device = None)
-```
-
-Create array of zeros with same shape and dtype as reference array.
-
-Extended version of numpy.zeros_like with additional shape parameter.
-Allows creating arrays with different shape but same dtype as reference.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Reference array for dtype inference. | *required*
-`shape` |  | Shape of output array. If None, uses array.shape. | <code>None</code>
-`dtype` |  | Data type of output. If None, uses array.dtype. | <code>None</code>
-`device` |  | Ignored parameter (for compatibility with torch backends). | <code>None</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`ndarray` |  | Array of zeros with specified shape and dtype.
-
-**Examples:**
-
-```pycon
->>> import numpy as np
->>> arr = np.array([1, 2, 3])
->>> zeros_like(arr, shape=(5, 4))
-array([[0., 0., 0., 0.],
-       [0., 0., 0., 0.],
-       [0., 0., 0., 0.],
-       [0., 0., 0., 0.],
-       [0., 0., 0., 0.]])
-```
-
-######## `torch`
-
-The "torch" CPU backend, based on PyTorch.
-
-To use this backend, call ``nltools.algorithms.ridge.backends.set_backend("torch")``.
-
-Requires PyTorch to be installed.
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`asarray`](#asarray) | Convert input to tensor.
-[`asarray_like`](#asarray_like) | Convert x to tensor with same dtype and device as ref.
-[`atleast_1d`](#atleast_1d) | Ensure array is at least 1D.
-[`check_arrays`](#check_arrays) | Convert all inputs to tensors with consistent dtype and device.
-[`copy`](#copy) | Create a copy of tensor.
-[`flatnonzero`](#flatnonzero) | Return indices of non-zero elements in flattened array.
-[`flip`](#flip) | Flip array along specified axis.
-[`full_like`](#full_like) | Create tensor filled with value, with same properties as reference.
-[`is_in_gpu`](#is_in_gpu) | Check if tensor is on GPU.
-[`isin`](#isin) | Element-wise test for membership.
-[`max`](#max) | Compute maximum.
-[`min`](#min) | Compute minimum.
-[`norm`](#norm) | Compute matrix or vector norm.
-[`ones_like`](#ones_like) | Create tensor of ones with same properties as reference.
-[`searchsorted`](#searchsorted) | Find indices where elements should be inserted to maintain order.
-[`sort`](#sort) | Sort array along specified axis.
-[`svd`](#svd) | Compute SVD (backward compatible).
-[`to_cpu`](#to_cpu) | Transfer tensor to CPU.
-[`to_gpu`](#to_gpu) | Transfer tensor to GPU (no-op for CPU backend).
-[`to_numpy`](#to_numpy) | Convert tensor to numpy array.
-[`transpose`](#transpose) | Transpose tensor.
-[`zeros`](#zeros) | Create tensor of zeros.
-[`zeros_like`](#zeros_like) | Create tensor of zeros with same properties as reference.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`abs`](#abs) |  | 
-[`all`](#all) |  | 
-[`any`](#any) |  | 
-[`arange`](#arange) |  | 
-[`argmax`](#argmax) |  | 
-[`bool`](#bool) |  | 
-[`clip`](#clip) |  | 
-[`concatenate`](#concatenate) |  | 
-[`eigh`](#eigh) |  | 
-[`einsum`](#einsum) |  | 
-[`exp`](#exp) |  | 
-[`expand_dims`](#expand_dims) |  | 
-[`eye`](#eye) |  | 
-[`finfo`](#finfo) |  | 
-[`float32`](#float32) |  | 
-[`float64`](#float64) |  | 
-[`full`](#full) |  | 
-[`inf`](#inf) |  | 
-[`int32`](#int32) |  | 
-[`isinf`](#isinf) |  | 
-[`isnan`](#isnan) |  | 
-[`log`](#log) |  | 
-[`logspace`](#logspace) |  | 
-[`matmul`](#matmul) |  | 
-[`mean`](#mean) |  | 
-[`name`](#name) |  | 
-[`nan`](#nan) |  | 
-[`power`](#power) |  | 
-[`prod`](#prod) |  | 
-[`rand`](#rand) |  | 
-[`randn`](#randn) |  | 
-[`sign`](#sign) |  | 
-[`sqrt`](#sqrt) |  | 
-[`stack`](#stack) |  | 
-[`std`](#std) |  | 
-[`sum`](#sum) |  | 
-[`tanh`](#tanh) |  | 
-[`unique`](#unique) |  | 
-
-
-
-######### Attributes####
-
-###### `abs`
-
-```python
-abs = torch.abs
-```
-
-########## `all`
-
-```python
-all = torch.all
-```
-
-########## `any`
-
-```python
-any = torch.any
-```
-
-########## `arange`
-
-```python
-arange = torch.arange
-```
-
-########## `argmax`
-
-```python
-argmax = torch.argmax
-```
-
-########## `bool`
-
-```python
-bool = torch.bool
-```
-
-########## `clip`
-
-```python
-clip = torch.clamp
-```
-
-########## `concatenate`
-
-```python
-concatenate = torch.cat
-```
-
-########## `eigh`
-
-```python
-eigh = torch.linalg.eigh
-```
-
-########## `einsum`
-
-```python
-einsum = torch.einsum
-```
-
-########## `exp`
-
-```python
-exp = torch.exp
-```
-
-########## `expand_dims`
-
-```python
-expand_dims = torch.unsqueeze
-```
-
-########## `eye`
-
-```python
-eye = torch.eye
-```
-
-########## `finfo`
-
-```python
-finfo = torch.finfo
-```
-
-########## `float32`
-
-```python
-float32 = torch.float32
-```
-
-########## `float64`
-
-```python
-float64 = torch.float64
-```
-
-########## `full`
-
-```python
-full = torch.full
-```
-
-########## `inf`
-
-```python
-inf = torch.tensor(float('inf'))
-```
-
-########## `int32`
-
-```python
-int32 = torch.int32
-```
-
-########## `isinf`
-
-```python
-isinf = torch.isinf
-```
-
-########## `isnan`
-
-```python
-isnan = torch.isnan
-```
-
-########## `log`
-
-```python
-log = torch.log
-```
-
-########## `logspace`
-
-```python
-logspace = torch.logspace
-```
-
-########## `matmul`
-
-```python
-matmul = torch.matmul
-```
-
-########## `mean`
-
-```python
-mean = torch.mean
-```
-
-########## `name`
-
-```python
-name = 'torch'
-```
-
-########## `nan`
-
-```python
-nan = torch.tensor(float('nan'))
-```
-
-########## `power`
-
-```python
-power = torch.pow
-```
-
-########## `prod`
-
-```python
-prod = torch.prod
-```
-
-########## `rand`
-
-```python
-rand = torch.rand
-```
-
-########## `randn`
-
-```python
-randn = torch.randn
-```
-
-########## `sign`
-
-```python
-sign = torch.sign
-```
-
-########## `sqrt`
-
-```python
-sqrt = torch.sqrt
-```
-
-########## `stack`
-
-```python
-stack = torch.stack
-```
-
-########## `std`
-
-```python
-std = torch.std
-```
-
-########## `sum`
-
-```python
-sum = torch.sum
-```
-
-########## `tanh`
-
-```python
-tanh = torch.tanh
-```
-
-########## `unique`
-
-```python
-unique = torch.unique
-```
-
-
-
-######### Functions####
-
-###### `asarray`
-
-```python
-asarray(x, dtype = None, device = 'cpu')
-```
-
-Convert input to tensor.
-
-Universal converter that handles numpy arrays, lists, torch tensors, and
-other array types. Attempts to preserve dtype and device information.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`x` |  | Input data (array-like). Can be numpy array, list, torch tensor, or other array-like object. | *required*
-`dtype` |  | Desired data type. If None, inferred from input. | <code>None</code>
-`device` |  | Device to place tensor on (default: "cpu"). | <code>'cpu'</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | PyTorch tensor representation of input.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> import numpy as np
->>> arr = np.array([1, 2, 3])
->>> tensor = asarray(arr, dtype=torch.float32)
->>> tensor.dtype
-torch.float32
-```
-
-########## `asarray_like`
-
-```python
-asarray_like(x, ref)
-```
-
-Convert x to tensor with same dtype and device as ref.
-
-Convenience function to ensure dtype and device consistency with a
-reference tensor.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`x` |  | Input data (array-like). | *required*
-`ref` |  | Reference tensor for dtype and device inference. | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Tensor with same dtype and device as ref.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> ref = torch.tensor([1, 2, 3], dtype=torch.float32)
->>> asarray_like([4, 5, 6], ref).dtype
-torch.float32
-```
-
-########## `atleast_1d`
-
-```python
-atleast_1d(array)
-```
-
-Ensure array is at least 1D.
-
-Converts 0D scalars to 1D arrays. Higher-dimensional arrays are unchanged.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Input tensor (can be 0D scalar or higher). | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Tensor with at least 1 dimension.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> atleast_1d(torch.tensor(5.0)).shape
-torch.Size([1])
-```
-
-########## `check_arrays`
-
-```python
-check_arrays(*all_inputs)
-```
-
-Convert all inputs to tensors with consistent dtype and device.
-
-Changes all inputs into Tensors (or list of Tensors) using the same
-precision and device as the first input. Some tensors can be None.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`*all_inputs` |  | Input arrays or lists of arrays. Can include None values. | <code>()</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`list` |  | List of tensors with consistent dtype and device (matching first input).
-
-**Examples:**
-
-```pycon
->>> import torch
->>> arr1 = torch.tensor([1, 2], dtype=torch.float32)
->>> arr2 = torch.tensor([3, 4], dtype=torch.float64)
->>> result = check_arrays(arr1, arr2)
->>> result[1].dtype == torch.float32  # Converted to match first
-True
-```
-
-########## `copy`
-
-```python
-copy(x)
-```
-
-Create a copy of tensor.
-
-Creates a deep copy of the tensor with independent memory.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`x` |  | Input tensor. | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Copy of input tensor.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> arr = torch.tensor([1, 2, 3])
->>> arr_copy = copy(arr)
->>> arr_copy[0] = 99
->>> arr[0]  # Original unchanged
-tensor(1)
-```
-
-########## `flatnonzero`
-
-```python
-flatnonzero(x)
-```
-
-Return indices of non-zero elements in flattened array.
-
-Finds all non-zero elements in the flattened version of the tensor.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`x` |  | Input tensor. | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | 1D tensor containing indices of non-zero elements.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> arr = torch.tensor([[0, 1, 0], [2, 0, 3]])
->>> flatnonzero(arr)
-tensor([1, 3, 5])
-```
-
-########## `flip`
-
-```python
-flip(array, axis = 0)
-```
-
-Flip array along specified axis.
-
-Reverses the order of elements along the given axis.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Input tensor. | *required*
-`axis` |  | Axis along which to flip (default: 0). | <code>0</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Flipped tensor.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> arr = torch.tensor([[1, 2], [3, 4]])
->>> flip(arr, axis=0)
-tensor([[3, 4],
-        [1, 2]])
-```
-
-########## `full_like`
-
-```python
-full_like(array, fill_value, shape = None, dtype = None, device = None)
-```
-
-Create tensor filled with value, with same properties as reference.
-
-Extended version of torch.full_like with additional shape parameter.
-Allows creating tensors with different shape but same dtype and device.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Reference tensor for dtype and device inference. | *required*
-`fill_value` |  | Scalar value to fill tensor with. | *required*
-`shape` |  | Shape of output. If None, uses array.shape. | <code>None</code>
-`dtype` |  | Data type. If None, uses array.dtype. | <code>None</code>
-`device` |  | Device. If None, uses array.device. | <code>None</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Tensor filled with fill_value, with specified shape, dtype, and device.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> ref = torch.tensor([1, 2, 3])
->>> full_like(ref, 42, shape=(2, 2))
-tensor([[42., 42.],
-        [42., 42.]])
-```
-
-########## `is_in_gpu`
-
-```python
-is_in_gpu(array)
-```
-
-Check if tensor is on GPU.
-
-Determines whether tensor is located on a CUDA device.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Input tensor (PyTorch Tensor). | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`bool` |  | True if tensor is on CUDA device, False otherwise.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> cpu_tensor = torch.tensor([1, 2, 3])
->>> is_in_gpu(cpu_tensor)
-False
-```
-
-########## `isin`
-
-```python
-isin(x, y)
-```
-
-Element-wise test for membership.
-
-Tests whether each element of x is in y. Returns boolean tensor.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`x` |  | Input tensor to test. | *required*
-`y` |  | Set of values to test membership against. | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Boolean tensor indicating membership.
-
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
-
-Currently uses NumPy for computation (may be optimized in future).
-
-</details>
-
-########## `max`
-
-```python
-max(*args, **kwargs)
-```
-
-Compute maximum.
-
-Computes maximum value, returning only the values (not indices).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`*args` |  | Positional arguments passed to torch.max. | <code>()</code>
-`**kwargs` |  | Keyword arguments passed to torch.max. | <code>{}</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Maximum values (not indices).
-
-**Examples:**
-
-```pycon
->>> import torch
->>> arr = torch.tensor([[1, 5], [3, 2]])
->>> max(arr, dim=0)
-tensor([3, 5])
-```
-
-########## `min`
-
-```python
-min(*args, **kwargs)
-```
-
-Compute minimum.
-
-Computes minimum value, returning only the values (not indices).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`*args` |  | Positional arguments passed to torch.min. | <code>()</code>
-`**kwargs` |  | Keyword arguments passed to torch.min. | <code>{}</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Minimum values (not indices).
-
-**Examples:**
-
-```pycon
->>> import torch
->>> arr = torch.tensor([[1, 5], [3, 2]])
->>> min(arr, dim=0)
-tensor([1, 2])
-```
-
-########## `norm`
-
-```python
-norm(x, ord = 'fro', axis = None, keepdims = False)
-```
-
-Compute matrix or vector norm.
-
-Computes various types of norms (Frobenius, vector norms, etc.) along
-specified axes.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`x` |  | Input tensor. | *required*
-`ord` |  | Order of norm. Can be "fro" (Frobenius), int (vector norm), etc. | <code>'fro'</code>
-`axis` |  | Axis or axes along which to compute norm. If None, computes overall norm. | <code>None</code>
-`keepdims` |  | Whether to keep dimensions in result. | <code>False</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Norm of x.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> arr = torch.tensor([[1, 2], [3, 4]])
->>> norm(arr, ord="fro")
-tensor(5.4772)
-```
-
-########## `ones_like`
-
-```python
-ones_like(array, shape = None, dtype = None, device = None)
-```
-
-Create tensor of ones with same properties as reference.
-
-Extended version of torch.ones_like with additional shape parameter.
-Allows creating tensors with different shape but same dtype and device.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Reference tensor for dtype and device inference. | *required*
-`shape` |  | Shape of output. If None, uses array.shape. | <code>None</code>
-`dtype` |  | Data type. If None, uses array.dtype. | <code>None</code>
-`device` |  | Device. If None, uses array.device. | <code>None</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Tensor of ones with specified shape, dtype, and device.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> ref = torch.tensor([1, 2, 3])
->>> ones_like(ref, shape=(2, 3))
-tensor([[1., 1., 1.],
-        [1., 1., 1.]])
-```
-
-########## `searchsorted`
-
-```python
-searchsorted(x, y)
-```
-
-Find indices where elements should be inserted to maintain order.
-
-Finds insertion points for elements of y into sorted array x.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`x` |  | Sorted 1D tensor. | *required*
-`y` |  | Values to find insertion points for. | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Indices where elements should be inserted.
-
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
-
-Currently uses NumPy for computation (may be optimized in future).
-
-</details>
-
-########## `sort`
-
-```python
-sort(array, axis = -1)
-```
-
-Sort array along specified axis.
-
-Sorts elements along the given axis in ascending order.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Input tensor. | *required*
-`axis` |  | Axis along which to sort (default: -1, last axis). | <code>-1</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Sorted tensor (values only, not indices).
-
-**Examples:**
-
-```pycon
->>> import torch
->>> arr = torch.tensor([3, 1, 2])
->>> sort(arr)
-tensor([1, 2, 3])
-```
-
-########## `svd`
-
-```python
-svd(X, full_matrices = True)
-```
-
-Compute SVD (backward compatible).
-
-Computes singular value decomposition for PyTorch versions < 1.8.
-Uses torch.svd instead of torch.linalg.svd.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` |  | Input tensor (2D). | *required*
-`full_matrices` |  | Whether to compute full U and V matrices. | <code>True</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`tuple` |  | (U, s, Vh) where: - U: Left singular vectors. - s: Singular values. - Vh: Right singular vectors (transposed).
-
-########## `to_cpu`
-
-```python
-to_cpu(array)
-```
-
-Transfer tensor to CPU.
-
-Moves tensor from GPU to CPU if necessary. If already on CPU, returns
-unchanged.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Input tensor (PyTorch Tensor). | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Tensor on CPU device.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> tensor = torch.tensor([1, 2, 3])
->>> cpu_tensor = to_cpu(tensor)
->>> cpu_tensor.device.type
-'cpu'
-```
-
-########## `to_gpu`
-
-```python
-to_gpu(array, device = None)
-```
-
-Transfer tensor to GPU (no-op for CPU backend).
-
-For CPU backend, this is a no-op and returns the input unchanged.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Input tensor (PyTorch Tensor). | *required*
-`device` |  | Ignored parameter (for compatibility with torch_cuda backend). | <code>None</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Input tensor (unchanged for CPU backend).
-
-**Examples:**
-
-```pycon
->>> import torch
->>> tensor = torch.tensor([1, 2, 3])
->>> result = to_gpu(tensor)
->>> result is tensor  # Same object
-True
-```
-
-########## `to_numpy`
-
-```python
-to_numpy(array)
-```
-
-Convert tensor to numpy array.
-
-Transfers tensor to CPU and converts to NumPy array. If input is already
-a NumPy array, returns it unchanged.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Input tensor (PyTorch Tensor). | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`ndarray` |  | NumPy array representation of tensor.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> tensor = torch.tensor([1, 2, 3])
->>> arr = to_numpy(tensor)
->>> type(arr)
-<class 'numpy.ndarray'>
-```
-
-########## `transpose`
-
-```python
-transpose(a, axes = None)
-```
-
-Transpose tensor.
-
-Transposes tensor along specified axes or swaps last two dimensions if
-axes is None.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`a` |  | Input tensor. | *required*
-`axes` |  | Permutation of axes. If None, swaps last two dimensions. | <code>None</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Transposed tensor.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> arr = torch.tensor([[1, 2], [3, 4]])
->>> transpose(arr)
-tensor([[1, 3],
-        [2, 4]])
-```
-
-########## `zeros`
-
-```python
-zeros(shape, dtype = 'float32', device = 'cpu')
-```
-
-Create tensor of zeros.
-
-Creates a new tensor filled with zeros on specified device.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`shape` |  | Shape of output tensor. Can be int or tuple. | *required*
-`dtype` |  | Data type (default: "float32"). | <code>'float32'</code>
-`device` |  | Device to place tensor on (default: "cpu"). | <code>'cpu'</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Tensor filled with zeros.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> zeros((2, 3))
-tensor([[0., 0., 0.],
-        [0., 0., 0.]])
-```
-
-########## `zeros_like`
-
-```python
-zeros_like(array, shape = None, dtype = None, device = None)
-```
-
-Create tensor of zeros with same properties as reference.
-
-Extended version of torch.zeros_like with additional shape parameter.
-Allows creating tensors with different shape but same dtype and device.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Reference tensor for dtype and device inference. | *required*
-`shape` |  | Shape of output. If None, uses array.shape. | <code>None</code>
-`dtype` |  | Data type. If None, uses array.dtype. | <code>None</code>
-`device` |  | Device. If None, uses array.device. | <code>None</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Tensor of zeros with specified shape, dtype, and device.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> ref = torch.tensor([1, 2, 3])
->>> zeros_like(ref, shape=(2, 3))
-tensor([[0., 0., 0.],
-        [0., 0., 0.]])
-```
-
-######## `torch_cuda`
-
-The "torch_cuda" GPU backend, based on PyTorch.
-
-To use this backend, call ``nltools.algorithms.ridge.backends.set_backend("torch_cuda")``.
-
-Requires PyTorch with CUDA to be installed.
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`asarray`](#asarray) | Convert input to CUDA tensor.
-[`asarray_like`](#asarray_like) | Convert x to tensor with same dtype and device as ref.
-[`atleast_1d`](#atleast_1d) | Ensure array is at least 1D.
-[`check_arrays`](#check_arrays) | Convert all inputs to CUDA tensors with consistent dtype and device.
-[`copy`](#copy) | Create a copy of tensor.
-[`flatnonzero`](#flatnonzero) | Return indices of non-zero elements in flattened array.
-[`flip`](#flip) | Flip array along specified axis.
-[`full_like`](#full_like) | Create tensor filled with value, with same properties as reference.
-[`is_in_gpu`](#is_in_gpu) | Check if tensor is on GPU.
-[`isin`](#isin) | Element-wise test for membership.
-[`max`](#max) | Compute maximum.
-[`min`](#min) | Compute minimum.
-[`norm`](#norm) | Compute matrix or vector norm.
-[`ones_like`](#ones_like) | Create tensor of ones with same properties as reference.
-[`rand`](#rand) | Create random tensor on CUDA.
-[`randn`](#randn) | Create random tensor on CUDA.
-[`searchsorted`](#searchsorted) | Find indices where elements should be inserted to maintain order.
-[`sort`](#sort) | Sort array along specified axis.
-[`svd`](#svd) | Compute SVD (backward compatible).
-[`to_cpu`](#to_cpu) | Transfer tensor from GPU to CPU.
-[`to_gpu`](#to_gpu) | Transfer tensor to GPU.
-[`to_numpy`](#to_numpy) | Convert tensor to numpy array.
-[`transpose`](#transpose) | Transpose tensor.
-[`zeros`](#zeros) | Create tensor of zeros on CUDA.
-[`zeros_like`](#zeros_like) | Create tensor of zeros with same properties as reference.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`abs`](#abs) |  | 
-[`all`](#all) |  | 
-[`any`](#any) |  | 
-[`arange`](#arange) |  | 
-[`argmax`](#argmax) |  | 
-[`bool`](#bool) |  | 
-[`clip`](#clip) |  | 
-[`concatenate`](#concatenate) |  | 
-[`eigh`](#eigh) |  | 
-[`einsum`](#einsum) |  | 
-[`exp`](#exp) |  | 
-[`expand_dims`](#expand_dims) |  | 
-[`eye`](#eye) |  | 
-[`finfo`](#finfo) |  | 
-[`float32`](#float32) |  | 
-[`float64`](#float64) |  | 
-[`full`](#full) |  | 
-[`inf`](#inf) |  | 
-[`int32`](#int32) |  | 
-[`isinf`](#isinf) |  | 
-[`isnan`](#isnan) |  | 
-[`log`](#log) |  | 
-[`logspace`](#logspace) |  | 
-[`matmul`](#matmul) |  | 
-[`mean`](#mean) |  | 
-[`name`](#name) |  | 
-[`nan`](#nan) |  | 
-[`power`](#power) |  | 
-[`prod`](#prod) |  | 
-[`sign`](#sign) |  | 
-[`sqrt`](#sqrt) |  | 
-[`stack`](#stack) |  | 
-[`std`](#std) |  | 
-[`sum`](#sum) |  | 
-[`tanh`](#tanh) |  | 
-[`unique`](#unique) |  | 
-
-
-
-######### Attributes####
-
-###### `abs`
-
-```python
-abs = torch.abs
-```
-
-########## `all`
-
-```python
-all = torch.all
-```
-
-########## `any`
-
-```python
-any = torch.any
-```
-
-########## `arange`
-
-```python
-arange = torch.arange
-```
-
-########## `argmax`
-
-```python
-argmax = torch.argmax
-```
-
-########## `bool`
-
-```python
-bool = torch.bool
-```
-
-########## `clip`
-
-```python
-clip = torch.clamp
-```
-
-########## `concatenate`
-
-```python
-concatenate = torch.cat
-```
-
-########## `eigh`
-
-```python
-eigh = torch.linalg.eigh
-```
-
-########## `einsum`
-
-```python
-einsum = torch.einsum
-```
-
-########## `exp`
-
-```python
-exp = torch.exp
-```
-
-########## `expand_dims`
-
-```python
-expand_dims = torch.unsqueeze
-```
-
-########## `eye`
-
-```python
-eye = torch.eye
-```
-
-########## `finfo`
-
-```python
-finfo = torch.finfo
-```
-
-########## `float32`
-
-```python
-float32 = torch.float32
-```
-
-########## `float64`
-
-```python
-float64 = torch.float64
-```
-
-########## `full`
-
-```python
-full = torch.full
-```
-
-########## `inf`
-
-```python
-inf = torch.tensor(float('inf'))
-```
-
-########## `int32`
-
-```python
-int32 = torch.int32
-```
-
-########## `isinf`
-
-```python
-isinf = torch.isinf
-```
-
-########## `isnan`
-
-```python
-isnan = torch.isnan
-```
-
-########## `log`
-
-```python
-log = torch.log
-```
-
-########## `logspace`
-
-```python
-logspace = torch.logspace
-```
-
-########## `matmul`
-
-```python
-matmul = torch.matmul
-```
-
-########## `mean`
-
-```python
-mean = torch.mean
-```
-
-########## `name`
-
-```python
-name = 'torch_cuda'
-```
-
-########## `nan`
-
-```python
-nan = torch.tensor(float('nan'))
-```
-
-########## `power`
-
-```python
-power = torch.pow
-```
-
-########## `prod`
-
-```python
-prod = torch.prod
-```
-
-########## `sign`
-
-```python
-sign = torch.sign
-```
-
-########## `sqrt`
-
-```python
-sqrt = torch.sqrt
-```
-
-########## `stack`
-
-```python
-stack = torch.stack
-```
-
-########## `std`
-
-```python
-std = torch.std
-```
-
-########## `sum`
-
-```python
-sum = torch.sum
-```
-
-########## `tanh`
-
-```python
-tanh = torch.tanh
-```
-
-########## `unique`
-
-```python
-unique = torch.unique
-```
-
-
-
-######### Functions####
-
-###### `asarray`
-
-```python
-asarray(x, dtype = None, device = 'cuda')
-```
-
-Convert input to CUDA tensor.
-
-Universal converter that handles numpy arrays, lists, torch tensors, and
-other array types. By default, places tensors on CUDA device.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`x` |  | Input data (array-like). Can be numpy array, list, torch tensor, or other array-like object. | *required*
-`dtype` |  | Desired data type. If None, inferred from input. | <code>None</code>
-`device` |  | Device to place tensor on (default: "cuda"). | <code>'cuda'</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | CUDA tensor representation of input.
-
-**Examples:**
-
-```pycon
->>> import numpy as np
->>> arr = np.array([1, 2, 3])
->>> tensor = asarray(arr)
->>> tensor.device.type
-'cuda'
-```
-
-########## `asarray_like`
-
-```python
-asarray_like(x, ref)
-```
-
-Convert x to tensor with same dtype and device as ref.
-
-Convenience function to ensure dtype and device consistency with a
-reference tensor.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`x` |  | Input data (array-like). | *required*
-`ref` |  | Reference tensor for dtype and device inference. | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Tensor with same dtype and device as ref.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> ref = torch.tensor([1, 2, 3], dtype=torch.float32)
->>> asarray_like([4, 5, 6], ref).dtype
-torch.float32
-```
-
-########## `atleast_1d`
-
-```python
-atleast_1d(array)
-```
-
-Ensure array is at least 1D.
-
-Converts 0D scalars to 1D arrays. Higher-dimensional arrays are unchanged.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Input tensor (can be 0D scalar or higher). | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Tensor with at least 1 dimension.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> atleast_1d(torch.tensor(5.0)).shape
-torch.Size([1])
-```
-
-########## `check_arrays`
-
-```python
-check_arrays(*all_inputs)
-```
-
-Convert all inputs to CUDA tensors with consistent dtype and device.
-
-Changes all inputs into CUDA Tensors (or list of Tensors) using the same
-precision and device as the first input. Some tensors can be None.
-
-Warns if inputs are not float32 (GPU is faster with float32).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`*all_inputs` |  | Input arrays or lists of arrays. Can include None values. | <code>()</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`list` |  | List of CUDA tensors with consistent dtype and device.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> arr1 = torch.tensor([1, 2], dtype=torch.float32)
->>> arr2 = torch.tensor([3, 4], dtype=torch.float64)
->>> result = check_arrays(arr1, arr2)
->>> result[0].device.type  # All on CUDA
-'cuda'
-```
-
-########## `copy`
-
-```python
-copy(x)
-```
-
-Create a copy of tensor.
-
-Creates a deep copy of the tensor with independent memory.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`x` |  | Input tensor. | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Copy of input tensor.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> arr = torch.tensor([1, 2, 3])
->>> arr_copy = copy(arr)
->>> arr_copy[0] = 99
->>> arr[0]  # Original unchanged
-tensor(1)
-```
-
-########## `flatnonzero`
-
-```python
-flatnonzero(x)
-```
-
-Return indices of non-zero elements in flattened array.
-
-Finds all non-zero elements in the flattened version of the tensor.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`x` |  | Input tensor. | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | 1D tensor containing indices of non-zero elements.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> arr = torch.tensor([[0, 1, 0], [2, 0, 3]])
->>> flatnonzero(arr)
-tensor([1, 3, 5])
-```
-
-########## `flip`
-
-```python
-flip(array, axis = 0)
-```
-
-Flip array along specified axis.
-
-Reverses the order of elements along the given axis.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Input tensor. | *required*
-`axis` |  | Axis along which to flip (default: 0). | <code>0</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Flipped tensor.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> arr = torch.tensor([[1, 2], [3, 4]])
->>> flip(arr, axis=0)
-tensor([[3, 4],
-        [1, 2]])
-```
-
-########## `full_like`
-
-```python
-full_like(array, fill_value, shape = None, dtype = None, device = None)
-```
-
-Create tensor filled with value, with same properties as reference.
-
-Extended version of torch.full_like with additional shape parameter.
-Allows creating tensors with different shape but same dtype and device.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Reference tensor for dtype and device inference. | *required*
-`fill_value` |  | Scalar value to fill tensor with. | *required*
-`shape` |  | Shape of output. If None, uses array.shape. | <code>None</code>
-`dtype` |  | Data type. If None, uses array.dtype. | <code>None</code>
-`device` |  | Device. If None, uses array.device. | <code>None</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Tensor filled with fill_value, with specified shape, dtype, and device.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> ref = torch.tensor([1, 2, 3])
->>> full_like(ref, 42, shape=(2, 2))
-tensor([[42., 42.],
-        [42., 42.]])
-```
-
-########## `is_in_gpu`
-
-```python
-is_in_gpu(array)
-```
-
-Check if tensor is on GPU.
-
-Determines whether tensor is located on a CUDA device.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Input tensor (PyTorch Tensor). | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`bool` |  | True if tensor is on CUDA device, False otherwise.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> cpu_tensor = torch.tensor([1, 2, 3])
->>> is_in_gpu(cpu_tensor)
-False
-```
-
-########## `isin`
-
-```python
-isin(x, y)
-```
-
-Element-wise test for membership.
-
-Tests whether each element of x is in y. Returns boolean tensor.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`x` |  | Input tensor to test. | *required*
-`y` |  | Set of values to test membership against. | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Boolean tensor indicating membership.
-
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
-
-Currently uses NumPy for computation (may be optimized in future).
-
-</details>
-
-########## `max`
-
-```python
-max(*args, **kwargs)
-```
-
-Compute maximum.
-
-Computes maximum value, returning only the values (not indices).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`*args` |  | Positional arguments passed to torch.max. | <code>()</code>
-`**kwargs` |  | Keyword arguments passed to torch.max. | <code>{}</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Maximum values (not indices).
-
-**Examples:**
-
-```pycon
->>> import torch
->>> arr = torch.tensor([[1, 5], [3, 2]])
->>> max(arr, dim=0)
-tensor([3, 5])
-```
-
-########## `min`
-
-```python
-min(*args, **kwargs)
-```
-
-Compute minimum.
-
-Computes minimum value, returning only the values (not indices).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`*args` |  | Positional arguments passed to torch.min. | <code>()</code>
-`**kwargs` |  | Keyword arguments passed to torch.min. | <code>{}</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Minimum values (not indices).
-
-**Examples:**
-
-```pycon
->>> import torch
->>> arr = torch.tensor([[1, 5], [3, 2]])
->>> min(arr, dim=0)
-tensor([1, 2])
-```
-
-########## `norm`
-
-```python
-norm(x, ord = 'fro', axis = None, keepdims = False)
-```
-
-Compute matrix or vector norm.
-
-Computes various types of norms (Frobenius, vector norms, etc.) along
-specified axes.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`x` |  | Input tensor. | *required*
-`ord` |  | Order of norm. Can be "fro" (Frobenius), int (vector norm), etc. | <code>'fro'</code>
-`axis` |  | Axis or axes along which to compute norm. If None, computes overall norm. | <code>None</code>
-`keepdims` |  | Whether to keep dimensions in result. | <code>False</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Norm of x.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> arr = torch.tensor([[1, 2], [3, 4]])
->>> norm(arr, ord="fro")
-tensor(5.4772)
-```
-
-########## `ones_like`
-
-```python
-ones_like(array, shape = None, dtype = None, device = None)
-```
-
-Create tensor of ones with same properties as reference.
-
-Extended version of torch.ones_like with additional shape parameter.
-Allows creating tensors with different shape but same dtype and device.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Reference tensor for dtype and device inference. | *required*
-`shape` |  | Shape of output. If None, uses array.shape. | <code>None</code>
-`dtype` |  | Data type. If None, uses array.dtype. | <code>None</code>
-`device` |  | Device. If None, uses array.device. | <code>None</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Tensor of ones with specified shape, dtype, and device.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> ref = torch.tensor([1, 2, 3])
->>> ones_like(ref, shape=(2, 3))
-tensor([[1., 1., 1.],
-        [1., 1., 1.]])
-```
-
-########## `rand`
-
-```python
-rand(*args, **kwargs)
-```
-
-Create random tensor on CUDA.
-
-Creates tensor filled with random values from uniform distribution [0, 1)
-and places it on CUDA device.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`*args` |  | Positional arguments passed to torch.rand (shape). | <code>()</code>
-`**kwargs` |  | Keyword arguments passed to torch.rand. | <code>{}</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | CUDA tensor filled with random values.
-
-**Examples:**
-
-```pycon
->>> rand(2, 3).device.type
-'cuda'
-```
-
-########## `randn`
-
-```python
-randn(*args, **kwargs)
-```
-
-Create random tensor on CUDA.
-
-Creates tensor filled with random values from standard normal distribution
-and places it on CUDA device.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`*args` |  | Positional arguments passed to torch.randn (shape). | <code>()</code>
-`**kwargs` |  | Keyword arguments passed to torch.randn. | <code>{}</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | CUDA tensor filled with random values.
-
-**Examples:**
-
-```pycon
->>> randn(2, 3).device.type
-'cuda'
-```
-
-########## `searchsorted`
-
-```python
-searchsorted(x, y)
-```
-
-Find indices where elements should be inserted to maintain order.
-
-Finds insertion points for elements of y into sorted array x.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`x` |  | Sorted 1D tensor. | *required*
-`y` |  | Values to find insertion points for. | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Indices where elements should be inserted.
-
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
-
-Currently uses NumPy for computation (may be optimized in future).
-
-</details>
-
-########## `sort`
-
-```python
-sort(array, axis = -1)
-```
-
-Sort array along specified axis.
-
-Sorts elements along the given axis in ascending order.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Input tensor. | *required*
-`axis` |  | Axis along which to sort (default: -1, last axis). | <code>-1</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Sorted tensor (values only, not indices).
-
-**Examples:**
-
-```pycon
->>> import torch
->>> arr = torch.tensor([3, 1, 2])
->>> sort(arr)
-tensor([1, 2, 3])
-```
-
-########## `svd`
-
-```python
-svd(X, full_matrices = True)
-```
-
-Compute SVD (backward compatible).
-
-Computes singular value decomposition for PyTorch versions < 1.8.
-Uses torch.svd instead of torch.linalg.svd.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` |  | Input tensor (2D). | *required*
-`full_matrices` |  | Whether to compute full U and V matrices. | <code>True</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`tuple` |  | (U, s, Vh) where: - U: Left singular vectors. - s: Singular values. - Vh: Right singular vectors (transposed).
-
-########## `to_cpu`
-
-```python
-to_cpu(array)
-```
-
-Transfer tensor from GPU to CPU.
-
-Moves CUDA tensor to CPU. If already on CPU, returns unchanged.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Input CUDA tensor (PyTorch Tensor). | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Tensor on CPU device.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> tensor = torch.tensor([1, 2, 3], device="cuda")
->>> cpu_tensor = to_cpu(tensor)
->>> cpu_tensor.device.type
-'cpu'
-```
-
-########## `to_gpu`
-
-```python
-to_gpu(array, device = 'cuda')
-```
-
-Transfer tensor to GPU.
-
-Moves tensor or numpy array to CUDA device. If already on GPU, returns
-unchanged.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Input tensor or numpy array. | *required*
-`device` |  | CUDA device (default: "cuda"). | <code>'cuda'</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Tensor on CUDA device.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> tensor = torch.tensor([1, 2, 3])
->>> gpu_tensor = to_gpu(tensor)
->>> gpu_tensor.device.type
-'cuda'
-```
-
-########## `to_numpy`
-
-```python
-to_numpy(array)
-```
-
-Convert tensor to numpy array.
-
-Transfers tensor to CPU and converts to NumPy array. If input is already
-a NumPy array, returns it unchanged.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Input tensor (PyTorch Tensor). | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`ndarray` |  | NumPy array representation of tensor.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> tensor = torch.tensor([1, 2, 3])
->>> arr = to_numpy(tensor)
->>> type(arr)
-<class 'numpy.ndarray'>
-```
-
-########## `transpose`
-
-```python
-transpose(a, axes = None)
-```
-
-Transpose tensor.
-
-Transposes tensor along specified axes or swaps last two dimensions if
-axes is None.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`a` |  | Input tensor. | *required*
-`axes` |  | Permutation of axes. If None, swaps last two dimensions. | <code>None</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Transposed tensor.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> arr = torch.tensor([[1, 2], [3, 4]])
->>> transpose(arr)
-tensor([[1, 3],
-        [2, 4]])
-```
-
-########## `zeros`
-
-```python
-zeros(shape, dtype = 'float32', device = 'cuda')
-```
-
-Create tensor of zeros on CUDA.
-
-Creates a new tensor filled with zeros on CUDA device.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`shape` |  | Shape of output tensor. Can be int or tuple. | *required*
-`dtype` |  | Data type (default: "float32"). | <code>'float32'</code>
-`device` |  | Device to place tensor on (default: "cuda"). | <code>'cuda'</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | CUDA tensor filled with zeros.
-
-**Examples:**
-
-```pycon
->>> zeros((2, 3)).device.type
-'cuda'
-```
-
-########## `zeros_like`
-
-```python
-zeros_like(array, shape = None, dtype = None, device = None)
-```
-
-Create tensor of zeros with same properties as reference.
-
-Extended version of torch.zeros_like with additional shape parameter.
-Allows creating tensors with different shape but same dtype and device.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` |  | Reference tensor for dtype and device inference. | *required*
-`shape` |  | Shape of output. If None, uses array.shape. | <code>None</code>
-`dtype` |  | Data type. If None, uses array.dtype. | <code>None</code>
-`device` |  | Device. If None, uses array.device. | <code>None</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Tensor` |  | Tensor of zeros with specified shape, dtype, and device.
-
-**Examples:**
-
-```pycon
->>> import torch
->>> ref = torch.tensor([1, 2, 3])
->>> zeros_like(ref, shape=(2, 3))
-tensor([[0., 0., 0.],
-        [0., 0., 0.]])
-```
-
-######## `utils`
-
-Backend utilities for ridge regression.
-
-Provides backend switching and utility functions following himalaya's approach.
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`get_backend`](#get_backend) | Get the current backend module.
-[`set_backend`](#set_backend) | Set the backend using a global variable, and return the backend module.
-[`warn_if_not_float32`](#warn_if_not_float32) | Warn if dtype is not float32.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`ALL_BACKENDS`](#ALL_BACKENDS) |  | 
-[`CURRENT_BACKEND`](#CURRENT_BACKEND) |  | 
-
-
-
-######### Attributes####
-
-###### `ALL_BACKENDS`
-
-```python
-ALL_BACKENDS = ['numpy', 'torch', 'torch_cuda']
-```
-
-########## `CURRENT_BACKEND`
-
-```python
-CURRENT_BACKEND = 'numpy'
-```
-
-
-
-######### Functions####
-
-###### `get_backend`
-
-```python
-get_backend()
-```
-
-Get the current backend module.
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`module` |  | Module of the backend (e.g., numpy, torch backend module).
-
-**Examples:**
-
-```pycon
->>> from nltools.algorithms.ridge.backends import get_backend
->>> backend = get_backend()
->>> backend.name
-'numpy'
-```
-
-########## `set_backend`
-
-```python
-set_backend(backend, on_error = 'raise')
-```
-
-Set the backend using a global variable, and return the backend module.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`backend` |  | Name or module of the backend. Must be one of: "numpy", "torch", "torch_cuda". | *required*
-`on_error` |  | What to do if backend fails to load. Options: - "raise": Raise an exception (default). - "warn": Warn and keep previous backend. | <code>'raise'</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`module` |  | Module of the backend (e.g., numpy, torch backend module).
-
-**Examples:**
-
-```pycon
->>> from nltools.algorithms.ridge.backends import set_backend
->>> backend = set_backend("numpy")
->>> backend.name
-'numpy'
-```
-
-########## `warn_if_not_float32`
-
-```python
-warn_if_not_float32(dtype)
-```
-
-Warn if dtype is not float32.
-
-GPU backends are much faster with single precision (float32). This function
-warns the user once if they are using a different dtype, encouraging them
-to cast to float32 for better performance.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dtype` |  | Data type to check. Can be any dtype object or string. | *required*
-
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
-
-- Warning is only shown once per session (uses internal flag).
-- Only warns for GPU backends (checked via get_backend()).
-- Warning is suppressed if dtype is already float32.
-
-</details>
 
 ###### `core`
 
@@ -8825,6 +6852,8 @@ Name | Description
 
 
 
+####### Classes
+
 ####### Functions##
 
 ###### `generate_dirichlet_samples`
@@ -9047,369 +7076,4 @@ array([[8, 6, 7],
        [2, 0, 1],
        [5, 3, 4]])
 ```
-
-#### `srm`
-
-Shared Response Model (SRM) for multi-subject fMRI alignment.
-
-SRM finds a shared low-dimensional representation across subjects while
-allowing subject-specific transformations. This enables cross-subject
-analyses while preserving individual variability.
-
-<details class="algorithm-overview" open markdown="1">
-<summary>Algorithm overview</summary>
-
-1. Initialize subject-specific transforms W_i (random orthogonal matrices)
-2. Iteratively optimize using Expectation-Maximization (EM):
-   - E-step: Update shared response S (group average in shared space)
-   - M-step: Update subject transforms W_i (solve Procrustes problem)
-   - Update noise variance rho_i^2 per subject
-   - Compute likelihood (measure of fit)
-3. Converge when likelihood stabilizes or max iterations reached
-
-</details>
-
-<details class="performance" open markdown="1">
-<summary>Performance</summary>
-
-- Time complexity: O(n_iter × (n_subjects × n_voxels × n_features × n_samples + n_features^3))
-- Memory complexity: O(n_subjects × n_voxels × n_features)
-- Parallelization: ~4-8× speedup with CPU-parallel (parallel="cpu")
-- GPU acceleration: Falls back to CPU (not yet implemented)
-
-</details>
-
-<details class="when-to-use-srm" open markdown="1">
-<summary>When to use SRM</summary>
-
-- Multi-subject alignment preserving representational structure
-- Cross-subject analysis requiring shared response space
-- Alternative to hyperalignment when spatial structure is less important
-- See `nltools.algorithms.hyperalignment.HyperAlignment` for spatial-preserving alignment
-
-</details>
-
-The implementations are based on the following publications:
-
-Chen, P. H. C., Chen, J., Yeshurun, Y., Hasson, U., Haxby, J., & Ramadge,
-P. J. (2015). A reduced-dimension fMRI shared response model. In Advances
-in Neural Information Processing Systems (pp. 460-468).
-
-Anderson, M. J., Capota, M., Turek, J. S., Zhu, X., Willke, T. L., Wang,
-Y., & Norman, K. A. (2016, December). Enabling factor analysis on
-thousand-subject neuroimaging datasets. In Big Data (Big Data),
-2016 IEEE International Conference on (pp. 1151-1160). IEEE.
-
-References
-----------
-.. [Chen2015] Chen, P. H. C., Chen, J., Yeshurun, Y., Hasson, U., Haxby, J.,
-   & Ramadge, P. J. (2015). A reduced-dimension fMRI shared response model.
-   In Advances in Neural Information Processing Systems (pp. 460-468).
-
-.. [Anderson2016] Anderson, M. J., Capota, M., Turek, J. S., Zhu, X.,
-   Willke, T. L., Wang, Y., & Norman, K. A. (2016, December). Enabling
-   factor analysis on thousand-subject neuroimaging datasets. In Big Data
-   (Big Data), 2016 IEEE International Conference on (pp. 1151-1160). IEEE.
-
-Copyright 2016 Intel Corporation
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-**Classes:**
-
-Name | Description
----- | -----------
-[`DetSRM`](#DetSRM) | Deterministic Shared Response Model (DetSRM)
-[`SRM`](#SRM) | Probabilistic Shared Response Model (SRM)
-
-##### Methods
-
-###### `validate_alpha`
-
-```python
-validate_alpha(alpha: float, name: str = 'alpha') -> None
-```
-
-Validate regularization parameter alpha.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`alpha` | <code>[float](#float)</code> | Regularization parameter | *required*
-`name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'alpha'</code>
-
-###### `validate_array_shape`
-
-```python
-validate_array_shape(array: np.ndarray, expected_ndim: int, name: str = 'array') -> None
-```
-
-Validate array dimensionality.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` | <code>[ndarray](#numpy.ndarray)</code> | Array to validate | *required*
-`expected_ndim` | <code>[int](#int)</code> | Expected number of dimensions | *required*
-`name` | <code>[str](#str)</code> | Name of array for error message | <code>'array'</code>
-
-###### `validate_array_shape_range`
-
-```python
-validate_array_shape_range(array: np.ndarray, min_ndim: int, max_ndim: int, name: str = 'array') -> None
-```
-
-Validate array dimensionality is within a range.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` | <code>[ndarray](#numpy.ndarray)</code> | Array to validate | *required*
-`min_ndim` | <code>[int](#int)</code> | Minimum number of dimensions (inclusive) | *required*
-`max_ndim` | <code>[int](#int)</code> | Maximum number of dimensions (inclusive) | *required*
-`name` | <code>[str](#str)</code> | Name of array for error message | <code>'array'</code>
-
-###### `validate_bootstrap_data`
-
-```python
-validate_bootstrap_data(data: np.ndarray, method: str) -> None
-```
-
-Validate input data for bootstrapping.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>[ndarray](#numpy.ndarray)</code> | Data to validate | *required*
-`method` | <code>[str](#str)</code> | Bootstrap method | *required*
-
-###### `validate_bootstrap_method`
-
-```python
-validate_bootstrap_method(method: str, simple_methods: list[str], fitted_methods: list[str]) -> None
-```
-
-Validate bootstrap method name.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`method` | <code>[str](#str)</code> | Method name to validate | *required*
-`simple_methods` | <code>[list](#list)[[str](#str)]</code> | List of simple method names | *required*
-`fitted_methods` | <code>[list](#list)[[str](#str)]</code> | List of fitted method names | *required*
-
-###### `validate_how_parameter`
-
-```python
-validate_how_parameter(how: str) -> None
-```
-
-Validate 'how' parameter for matrix operations.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`how` | <code>[str](#str)</code> | How parameter value | *required*
-
-###### `validate_isc_parameters`
-
-```python
-validate_isc_parameters(metric: str, summary_statistic: str, method: Optional[str] = None) -> None
-```
-
-Validate ISC parameter values.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`metric` | <code>[str](#str)</code> | Summary statistic metric | *required*
-`summary_statistic` | <code>[str](#str)</code> | ISC computation method | *required*
-`method` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Resampling method (optional) | <code>None</code>
-
-###### `validate_metric_parameter`
-
-```python
-validate_metric_parameter(metric: str, allowed: list[str], name: str = 'metric') -> None
-```
-
-Validate metric parameter.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`metric` | <code>[str](#str)</code> | Metric parameter value | *required*
-`allowed` | <code>[list](#list)[[str](#str)]</code> | List of allowed metric values | *required*
-`name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'metric'</code>
-
-###### `validate_n_samples`
-
-```python
-validate_n_samples(n_samples: int, min_samples: int = 2, name: str = 'n_samples') -> None
-```
-
-Validate number of samples.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`n_samples` | <code>[int](#int)</code> | Number of samples | *required*
-`min_samples` | <code>[int](#int)</code> | Minimum required samples | <code>2</code>
-`name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'n_samples'</code>
-
-###### `validate_parallel_parameter`
-
-```python
-validate_parallel_parameter(parallel: Optional[str]) -> None
-```
-
-Validate parallel parameter.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallel parameter value | *required*
-
-###### `validate_parallel_parameter_matrix`
-
-```python
-validate_parallel_parameter_matrix(parallel: Optional[str]) -> None
-```
-
-Validate parallel parameter for matrix operations.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallel parameter value | *required*
-
-###### `validate_percentiles`
-
-```python
-validate_percentiles(percentiles: Tuple[float, float]) -> None
-```
-
-Validate percentile values for confidence intervals.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`percentiles` | <code>[Tuple](#typing.Tuple)[[float](#float), [float](#float)]</code> | Percentile values (lower, upper) | *required*
-
-###### `validate_same_first_dimension`
-
-```python
-validate_same_first_dimension(array1: np.ndarray, array2: np.ndarray, name1: str = 'array1', name2: str = 'array2') -> None
-```
-
-Validate two arrays have same first dimension.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array1` | <code>[ndarray](#numpy.ndarray)</code> | First array | *required*
-`array2` | <code>[ndarray](#numpy.ndarray)</code> | Second array | *required*
-`name1` | <code>[str](#str)</code> | Name of first array for error message | <code>'array1'</code>
-`name2` | <code>[str](#str)</code> | Name of second array for error message | <code>'array2'</code>
-
-###### `validate_same_shape`
-
-```python
-validate_same_shape(array1: np.ndarray, array2: np.ndarray, name1: str = 'array1', name2: str = 'array2') -> None
-```
-
-Validate two arrays have same shape.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array1` | <code>[ndarray](#numpy.ndarray)</code> | First array | *required*
-`array2` | <code>[ndarray](#numpy.ndarray)</code> | Second array | *required*
-`name1` | <code>[str](#str)</code> | Name of first array for error message | <code>'array1'</code>
-`name2` | <code>[str](#str)</code> | Name of second array for error message | <code>'array2'</code>
-
-###### `validate_shape_compatibility`
-
-```python
-validate_shape_compatibility(X: np.ndarray, y: np.ndarray, X_name: str = 'X', y_name: str = 'y') -> None
-```
-
-Validate that X and y have compatible shapes for regression.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>[ndarray](#numpy.ndarray)</code> | Feature matrix | *required*
-`y` | <code>[ndarray](#numpy.ndarray)</code> | Target vector or matrix | *required*
-`X_name` | <code>[str](#str)</code> | Name of X for error message | <code>'X'</code>
-`y_name` | <code>[str](#str)</code> | Name of y for error message | <code>'y'</code>
-
-###### `validate_square_matrix`
-
-```python
-validate_square_matrix(matrix: np.ndarray, name: str = 'matrix') -> None
-```
-
-Validate matrix is square.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`matrix` | <code>[ndarray](#numpy.ndarray)</code> | Matrix to validate | *required*
-`name` | <code>[str](#str)</code> | Name of matrix for error message | <code>'matrix'</code>
-
-###### `validate_tail_parameter`
-
-```python
-validate_tail_parameter(tail: int | str) -> str
-```
-
-Validate and normalize tail parameter.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`tail` | <code>[int](#int) \| [str](#str)</code> | Tail parameter value. Can be: - 'two' or 2: Two-tailed test (|obs| > |null|) - 'upper' or 1: One-tailed upper (obs > null, for testing positive effects) - 'lower' or -1: One-tailed lower (obs < null, for testing negative effects) | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[str](#str)</code> | Normalized tail string: 'two', 'upper', or 'lower'
-
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
-
-For multiple comparisons correction (FDR, Bonferroni), use 'upper' or 'lower'
-to ensure consistent direction across all tests. The old tail=1 behavior
-(auto-detecting direction per test based on sign) can lead to incorrect
-MCP-adjusted p-values. See GH #315.
-
-</details>
 
