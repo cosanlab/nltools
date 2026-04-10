@@ -180,58 +180,70 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
 
 
 def roi_to_brain(data, mask_x):
-    """This function will create convert an expanded binary mask of ROIs
-    (see expand_mask) based on a vector of of values. The dataframe of values
-    must correspond to ROI numbers.
+    """Populate an expanded binary ROI mask with a vector or matrix of per-ROI values.
 
-    This is useful for populating a parcellation scheme by a vector of Values
+    Accepts lists, numpy arrays, polars DataFrame/Series, or pandas
+    DataFrame/Series. Internally coerces to a numpy array and operates on
+    it — 1-D input produces a single BrainData image; 2-D input (ROIs by
+    observations) produces a stack of BrainData images, one per
+    observation.
 
     Args:
-        data: Pandas series, dataframe, list, np.array of ROI by observation
-        mask_x: an expanded binary mask
+        data: ROI values. 1-D length must equal len(mask_x);
+            2-D shape must be (n_rois, n_obs) or (n_obs, n_rois).
+        mask_x: An expanded binary mask (BrainData) with one row per ROI.
 
     Returns:
-        out: (BrainData) BrainData instance where each ROI is now populated
-             with a value
+        BrainData: A BrainData instance with each ROI populated by the
+        provided value(s).
     """
-    import pandas as pd
+    import polars as pl
 
-    if not isinstance(data, (pd.Series, pd.DataFrame)):
-        if isinstance(data, list):
-            data = pd.Series(data)
-        elif isinstance(data, np.ndarray):
-            if len(data.shape) == 1:
-                data = pd.Series(data)
-            elif len(data.shape) == 2:
-                data = pd.DataFrame(data)
-                if data.shape[0] != len(mask_x):
-                    if data.shape[1] == len(mask_x):
-                        data = data.T
-                    else:
-                        raise ValueError(
-                            "Data must have the same number of rows as rois in mask"
-                        )
-            else:
-                raise NotImplementedError
-
+    if isinstance(data, (pl.DataFrame, pl.Series)):
+        arr = data.to_numpy()
+    elif isinstance(data, np.ndarray):
+        arr = data
+    elif isinstance(data, list):
+        arr = np.asarray(data)
+    else:
+        try:
+            import pandas as pd
+        except ImportError:
+            pd = None
+        if pd is not None and isinstance(data, (pd.Series, pd.DataFrame)):
+            arr = np.asarray(data)
         else:
-            raise ValueError("Data must be a pandas series or data frame.")
+            raise ValueError(
+                "Data must be a list, numpy array, polars DataFrame/Series, "
+                "or pandas DataFrame/Series."
+            )
 
-    if len(mask_x) != data.shape[0]:
-        raise ValueError("Data must have the same number of rows as mask has ROIs.")
-
-    if isinstance(data, pd.Series):
+    if arr.ndim == 1:
+        if len(arr) != len(mask_x):
+            raise ValueError(
+                "Data must have the same number of rows as mask has ROIs."
+            )
         out = mask_x[0].copy()
         out.data = np.zeros(out.data.shape)
         for roi in range(len(mask_x)):
-            out.data[np.where(mask_x.data[roi, :])] = data[roi]
+            out.data[np.where(mask_x.data[roi, :])] = arr[roi]
         return out
-    else:
+
+    if arr.ndim == 2:
+        if arr.shape[0] != len(mask_x):
+            if arr.shape[1] == len(mask_x):
+                arr = arr.T
+            else:
+                raise ValueError(
+                    "Data must have the same number of rows as rois in mask"
+                )
         out = mask_x.copy()
-        out.data = np.ones((data.shape[1], out.data.shape[1]))
+        out.data = np.ones((arr.shape[1], out.data.shape[1]))
         for roi in range(len(mask_x)):
-            roi_data = np.reshape(data.iloc[roi, :].values, (-1, 1))
+            roi_data = arr[roi, :].reshape(-1, 1)
             out.data[:, mask_x[roi].data == 1] = np.repeat(
                 roi_data.T, np.sum(mask_x[roi].data == 1), axis=0
             ).T
         return out
+
+    raise NotImplementedError("Only 1-D and 2-D data are supported.")

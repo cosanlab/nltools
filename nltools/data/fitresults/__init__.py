@@ -48,11 +48,10 @@ Examples
 >>> if 'cv_scores' in fit.available():
 ...     print(f"CV R² range: [{fit.cv_mean_score.min():.3f}, {fit.cv_mean_score.max():.3f}]")
 >>>
->>> # Get as dict for pandas DataFrame
->>> import pandas as pd
+>>> # Get as dict and convert to a polars DataFrame (for scalar and 1D arrays)
+>>> import polars as pl
 >>> results_dict = fit.asdict()
->>> # Convert to DataFrame (for scalar and 1D arrays)
->>> df = pd.DataFrame({k: v for k, v in results_dict.items() if v.ndim <= 1})
+>>> df = pl.DataFrame({k: v for k, v in results_dict.items() if v.ndim <= 1})
 """
 
 from dataclasses import asdict as dataclass_asdict

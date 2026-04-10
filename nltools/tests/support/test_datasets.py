@@ -8,7 +8,7 @@ This test file covers:
 """
 
 import pytest
-import pandas as pd
+import polars as pl
 import tempfile
 import os
 from unittest.mock import patch, MagicMock
@@ -78,7 +78,7 @@ class TestFetchNeurovaultCollection:
         metadata, files = fetch_neurovault_collection(123)
 
         # Check results
-        assert isinstance(metadata, pd.DataFrame)
+        assert isinstance(metadata, pl.DataFrame)
         assert len(metadata) == 2
         assert files == ["file1.nii.gz", "file2.nii.gz"]
 
@@ -107,7 +107,7 @@ class TestIntegration:
             metadata, files = fetch_neurovault_collection(collection_id=2099, verbose=0)
 
             # Basic checks
-            assert isinstance(metadata, pd.DataFrame)
+            assert isinstance(metadata, pl.DataFrame)
             assert len(metadata) > 0
             assert isinstance(files, list)
             assert len(files) == len(metadata)

@@ -41,14 +41,11 @@ class KFoldStratified(_BaseKFold):
         )
 
     def _make_test_folds(self, X, y=None, groups=None):
-        import pandas as pd
-
-        y = pd.DataFrame(y)
-        y_sort = y.sort_values(0)
-        test_folds = np.nan * np.ones(len(y_sort))
+        y_arr = np.asarray(y).ravel()
+        order = np.argsort(y_arr, kind="stable")
+        test_folds = np.full(len(y_arr), np.nan)
         for k in range(self.n_splits):
-            test_idx = y_sort.index[np.arange(k, len(y_sort), self.n_splits)]
-            test_folds[y_sort.iloc[test_idx].index] = k
+            test_folds[order[np.arange(k, len(y_arr), self.n_splits)]] = k
         return test_folds
 
     def _iter_test_masks(self, X=None, y=None, groups=None):

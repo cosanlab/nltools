@@ -16,13 +16,18 @@ from nilearn.glm.first_level import make_first_level_design_matrix as make_dm
 
 if TYPE_CHECKING:
     import pandas as pd
+    import polars as pl
 
 from nltools.algorithms import glover_hrf
 from nltools.data import DesignMatrix
 
 
 def onsets_to_dm(
-    timings: str | Path | pd.DataFrame | list[str | Path | pd.DataFrame],
+    timings: str
+    | Path
+    | pd.DataFrame
+    | pl.DataFrame
+    | list[str | Path | pd.DataFrame | pl.DataFrame],
     run_length: int | list[int],
     TR: float,
     hrf_model: str | Callable | None = "glover",
@@ -73,8 +78,14 @@ def onsets_to_dm(
         if hrf_model == "glover":
             hrf_model = lambda arg1, oversampling: glover_hrf(TR, oversampling)
 
+    import polars as pl
+
     out = []
     for file, run in zip(timings, run_length):
+        if isinstance(file, pl.DataFrame):
+            import pandas as pd
+
+            file = pd.DataFrame(file.to_dict(as_series=False))
         frame_times = np.arange(run) * TR
         dm = make_dm(
             frame_times,

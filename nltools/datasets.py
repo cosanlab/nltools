@@ -90,13 +90,13 @@ def fetch_neurovault_collection(collection_id, data_dir=None, verbose=1):
         verbose (int, optional): Verbosity level. Default: 1
 
     Returns:
-        tuple: (metadata DataFrame, list of image file paths)
+        tuple: (metadata polars.DataFrame, list of image file paths)
 
     Raises:
         ValueError: If collection_id is invalid
         RuntimeError: If download fails
     """
-    import pandas as pd
+    import polars as pl
 
     if not isinstance(collection_id, int) or collection_id <= 0:
         raise ValueError("collection_id must be a positive integer")
@@ -107,7 +107,7 @@ def fetch_neurovault_collection(collection_id, data_dir=None, verbose=1):
         )
 
         files = nv_data["images"]
-        metadata = pd.DataFrame(nv_data["images_meta"])
+        metadata = pl.DataFrame(nv_data["images_meta"])
 
         return metadata, files
 
@@ -239,63 +239,6 @@ def fetch_haxby(
     # Haxby dataset TR is 2.5 seconds
     TR = 2.5
 
-    # Helper function to convert Haxby labels to events format
-    def _haxby_labels_to_events(labels_file, run_length):
-        """Convert Haxby labels file to events DataFrame."""
-        events_list = []
-
-        # Read labels file
-        with open(labels_file, "r") as f:
-            lines = f.readlines()
-
-        # Parse labels per chunk (run)
-        chunks = {}
-        for line in lines[1:]:  # Skip header 'labels chunks'
-            parts = line.strip().split()
-            if len(parts) >= 2:
-                label = parts[0]
-                chunk_num = int(parts[1])
-                if chunk_num not in chunks:
-                    chunks[chunk_num] = []
-                chunks[chunk_num].append(label)
-
-        # Convert each chunk to events (group consecutive TRs with same label)
-        for chunk_num in sorted(chunks.keys()):
-            labels = chunks[chunk_num]
-            current_label = None
-            start_idx = None
-
-            for tr_idx, label in enumerate(labels):
-                if label != current_label:
-                    # End previous event (if exists and not rest)
-                    if current_label is not None and current_label != "rest":
-                        events_list.append(
-                            {
-                                "onset": start_idx * TR,
-                                "duration": (tr_idx - start_idx) * TR,
-                                "trial_type": current_label,
-                            }
-                        )
-                    # Start new event
-                    current_label = label
-                    start_idx = tr_idx
-
-            # Handle last event
-            if current_label is not None and current_label != "rest":
-                events_list.append(
-                    {
-                        "onset": start_idx * TR,
-                        "duration": (len(labels) - start_idx) * TR,
-                        "trial_type": current_label,
-                    }
-                )
-
-        return (
-            pd.DataFrame(events_list)
-            if events_list
-            else pd.DataFrame(columns=["onset", "duration", "trial_type"])
-        )
-
     # Process each subject
     all_subjects_brain_data = []
     all_subjects_design_matrix = []
@@ -374,12 +317,7 @@ def fetch_haxby(
             # For now, let's create events for this chunk and use onsets_to_dm
             # Then we'll match the BrainData accordingly
 
-            # Convert labels to events for this chunk
-            events_df = _haxby_labels_to_events(labels_file, run_length)
-            # Filter events for this chunk only (we need to track which chunk each event belongs to)
-            # Actually, the helper function processes all chunks, so we need to filter by chunk
-
-            # Better approach: process one chunk at a time
+            # Build events for this chunk
             events_list = []
             current_label = None
             start_idx = None

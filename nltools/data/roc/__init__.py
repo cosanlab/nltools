@@ -40,8 +40,6 @@ class Roc(object):
         forced_choice=None,
         **kwargs,
     ):
-        import pandas as pd
-
         if len(input_values) != len(binary_outcome):
             raise ValueError(
                 "Data Problem: input_value and binary_outcomeare different lengths."
@@ -58,13 +56,9 @@ class Roc(object):
             )
 
         self.input_values = deepcopy(input_values)
-        self.binary_outcome = deepcopy(binary_outcome)
         self.threshold_type = deepcopy(threshold_type)
         self.forced_choice = deepcopy(forced_choice)
-        if isinstance(self.binary_outcome, pd.DataFrame):
-            self.binary_outcome = np.array(self.binary_outcome).flatten()
-        else:
-            self.binary_outcome = deepcopy(binary_outcome)
+        self.binary_outcome = np.asarray(binary_outcome).flatten()
 
     def calculate(
         self,

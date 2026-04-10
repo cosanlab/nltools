@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import pandas as pd
+import polars as pl
 import pytest
 
 from nltools.data import DesignMatrix
@@ -55,3 +56,11 @@ class TestOnsetsToDm:
         """Mismatched timings/run_length lists raise ValueError."""
         with pytest.raises(ValueError, match="same length"):
             onsets_to_dm([onsets_path, onsets_path], [100], TR=2.0)
+
+    def test_accepts_polars_dataframe(self, onsets_data):
+        """onsets_to_dm should accept a polars DataFrame (nilearn requires pandas internally)."""
+        onsets_pl = pl.DataFrame(
+            {col: onsets_data[col].tolist() for col in onsets_data.columns}
+        )
+        dm = onsets_to_dm(onsets_pl, run_length=1364, TR=2.0, hrf_model=None)
+        assert isinstance(dm, DesignMatrix)
