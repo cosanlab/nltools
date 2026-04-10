@@ -8,7 +8,6 @@ __all__ = [
 ]
 
 import numpy as np
-import pandas as pd
 import polars as pl
 from scipy.interpolate import interp1d
 from scipy.signal import butter, filtfilt
@@ -44,6 +43,8 @@ def downsample(
     Returns:
         out: (pl.DataFrame, pl.Series) downsampled data (same type as input)
     """
+    import pandas as pd
+
     # Convert pandas to Polars if needed (for backward compatibility)
     if isinstance(data, pd.DataFrame):
         df = pl.from_pandas(data)
@@ -124,6 +125,8 @@ def upsample(
     Returns:
         upsampled Polars DataFrame or Series (same type as input)
     """
+    import pandas as pd
+
     # Convert pandas to Polars if needed (for backward compatibility)
     if isinstance(data, pd.DataFrame):
         df = pl.from_pandas(data)

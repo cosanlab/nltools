@@ -7,7 +7,6 @@ machine-learning analyses on imaging data
 
 __all__ = ["Roc"]
 
-import pandas as pd
 import numpy as np
 from nltools.plotting import roc_plot
 from scipy.stats import norm, binomtest
@@ -41,6 +40,8 @@ class Roc(object):
         forced_choice=None,
         **kwargs,
     ):
+        import pandas as pd
+
         if len(input_values) != len(binary_outcome):
             raise ValueError(
                 "Data Problem: input_value and binary_outcomeare different lengths."

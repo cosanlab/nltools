@@ -13,7 +13,6 @@ Shape semantics: (n_images, n_observations, n_voxels)
 from __future__ import annotations
 
 import numpy as np
-import pandas as pd
 import nibabel as nib
 from pathlib import Path
 from collections.abc import Callable
@@ -37,6 +36,8 @@ from .pipeline import (  # noqa: F401
 )
 
 if TYPE_CHECKING:
+    import pandas as pd
+
     from ..braindata import BrainData
 
 # Lazy imports for optional dependencies
@@ -127,6 +128,8 @@ class BrainCollection:
             metadata: Optional per-image metadata DataFrame.
             lazy: If True, paths are loaded on demand.
         """
+        import pandas as pd
+
         from ..braindata import BrainData
 
         if not items:

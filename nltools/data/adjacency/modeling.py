@@ -5,7 +5,6 @@ Each function takes an Adjacency instance as its first argument (`adj`).
 """
 
 import numpy as np
-import pandas as pd
 
 
 def bootstrap(
@@ -306,6 +305,8 @@ def social_relations_model(adj, summarize_results=True, nan_replace=True):
     Returns:
         estimated effects: (pd.Series/pd.DataFrame) All of the effects estimated using SRM
     """
+    import pandas as pd
+
     from nltools.data.adjacency import Adjacency
     from scipy.spatial.distance import squareform
     import scipy.stats as scipy_stats

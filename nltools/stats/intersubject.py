@@ -3,7 +3,6 @@
 __all__ = ["isc", "isc_group", "isfc", "isps"]
 
 import numpy as np
-import pandas as pd
 from scipy.signal import hilbert
 from sklearn.metrics import pairwise_distances
 from sklearn.utils import check_random_state
@@ -133,6 +132,8 @@ def isc(
     for GPU operations. See `nltools.algorithms.inference.isc.isc_permutation_test` for details.
 
     """
+    import pandas as pd
+
     # Convert data to numpy array if needed
     if isinstance(data, pd.DataFrame):
         data = data.values
@@ -183,6 +184,7 @@ def _compute_isc_group(group1, group2, metric="median"):
         isc: (float) intersubject correlation coefficient difference across groups
 
     """
+    import pandas as pd
 
     from nltools.data import Adjacency
 
@@ -352,6 +354,8 @@ def isc_group(
     - 10-30× speedup with GPU backend for voxel-wise LOO computation
     - More memory efficient (no Adjacency object overhead)
     """
+    import pandas as pd
+
     from nltools.algorithms.inference.isc import isc_group_permutation_test
 
     # Convert to numpy arrays if needed
@@ -524,6 +528,7 @@ def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5, pairwise
         dictionary with mean phase angle, vector length, and rayleigh statistic
 
     """
+    import pandas as pd
 
     if not isinstance(data, (pd.DataFrame, np.ndarray)):
         raise ValueError(

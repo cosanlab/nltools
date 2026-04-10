@@ -4,14 +4,18 @@ NeuroLearn File Reading Tools
 
 """
 
+from __future__ import annotations
+
 __all__ = ["onsets_to_dm"]
 
 from pathlib import Path
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 import numpy as np
-import pandas as pd
 from nilearn.glm.first_level import make_first_level_design_matrix as make_dm
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 from nltools.algorithms import glover_hrf
 from nltools.data import DesignMatrix

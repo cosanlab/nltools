@@ -1,6 +1,5 @@
 """I/O functions for Adjacency objects."""
 
-import pandas as pd
 from pathlib import Path
 
 
@@ -13,6 +12,8 @@ def write(adj, file_name, method="long"):
         method (str):     method to write out data ['long','square']
 
     """
+    import pandas as pd
+
     from nltools.io import is_h5_path, to_h5
 
     if method not in ["long", "square"]:

@@ -8,7 +8,6 @@ from copy import deepcopy
 
 import nibabel as nib
 import numpy as np
-import pandas as pd
 
 
 def check_brain_data(data, mask=None):
@@ -144,6 +143,8 @@ def apply_func(bd, stat_func, axis=0):
     if axis == 1:
         return stat_func(bd.data, axis=1)
     elif axis == 0:
+        import pandas as pd
+
         out = shallow_copy(bd)
         out.data = stat_func(bd.data, axis=0)
         out.X = pd.DataFrame()

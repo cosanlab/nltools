@@ -12,7 +12,6 @@ __all__ = ["Simulator", "SimulateGrid"]
 import os
 import numpy as np
 import nibabel as nib
-import pandas as pd
 import matplotlib.pyplot as plt
 from nilearn.maskers import NiftiMasker
 from scipy.stats import multivariate_normal, binom, ttest_1samp
@@ -208,6 +207,7 @@ class Simulator:
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
 
         """
+        import pandas as pd
 
         # Create reps
         nlevels = len(levels)

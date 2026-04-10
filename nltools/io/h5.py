@@ -8,7 +8,6 @@ __all__ = ["is_h5_path", "to_h5", "load_brain_data_h5"]
 
 import nibabel as nib
 import numpy as np
-import pandas as pd
 from h5py import File as h5File
 
 
@@ -47,6 +46,8 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
         obj_type: Type of object ('brain_data' or 'adjacency').
         h5_compression: Compression type for h5py datasets.
     """
+    import pandas as pd
+
     if obj_type not in ["brain_data", "adjacency"]:
         raise TypeError("obj_type must be one of 'brain_data' or 'adjacency'")
 
@@ -108,6 +109,7 @@ def load_brain_data_h5(file_path, mask=None):
     Returns:
         dict: Dictionary containing loaded data, X, Y, and optionally mask info.
     """
+    import pandas as pd
 
     result = {}
 
@@ -145,6 +147,8 @@ def load_brain_data_h5(file_path, mask=None):
 
 def _load_legacy_brain_data_h5(file_path, mask=None):
     """Load BrainData from legacy HDF5 format (pre-0.4.8)."""
+    import pandas as pd
+
     from nltools.utils import attempt_to_import
 
     tables_mod = attempt_to_import("tables")

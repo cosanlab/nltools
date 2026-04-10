@@ -10,7 +10,6 @@ import os
 import warnings  # noqa: F401
 
 import numpy as np
-import pandas as pd
 from copy import deepcopy
 from nltools.utils import attempt_to_import
 from .utils import check_brain_data
@@ -205,6 +204,8 @@ class BrainData(object):
                 index = np.array(index).flatten()
                 new.data = np.array(self.data[index, :]).squeeze()
         if hasattr(self, "Y") and self.Y is not None and not self.Y.empty:
+            import pandas as pd
+
             new.Y = self.Y.iloc[index]
             if isinstance(new.Y, pd.Series):
                 new.Y.reset_index(inplace=True, drop=True)
@@ -403,6 +404,8 @@ class BrainData(object):
             out.data = np.vstack([self.data, data.data])
 
             if not ignore_attrs:
+                import pandas as pd
+
                 if (
                     hasattr(self, "X")
                     and self.X is not None

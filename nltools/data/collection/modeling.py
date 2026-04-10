@@ -8,12 +8,13 @@ All BrainCollection methods converted to functions taking `bc` as first argument
 from __future__ import annotations
 
 import numpy as np
-import pandas as pd
 
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    import pandas as pd
+
     from nltools.data.braindata import BrainData
     from nltools.data.collection import BrainCollection
     from nltools.data.collection.pipeline import (
@@ -61,6 +62,8 @@ def _build_subject_design_matrix(
         >>> print(task_cols)
         ['face', 'house']
     """
+    import pandas as pd
+
     from nilearn.glm.first_level import make_first_level_design_matrix
 
     # Create frame times
@@ -545,6 +548,8 @@ def fit_glm(
         ...     confound_columns=['trans_x', 'trans_y', 'trans_z', 'rot_x', 'rot_y', 'rot_z']
         ... )
     """
+    import pandas as pd
+
     from nltools.data.collection import BrainCollection
     from nltools.utils import attempt_to_import
 
@@ -875,6 +880,8 @@ def fit_glm_internal(
     Returns:
         BrainCollection of betas, or dict with betas + requested stats.
     """
+    import pandas as pd
+
     from nltools.data.collection import BrainCollection
     from nltools.utils import attempt_to_import
 
@@ -1057,6 +1064,8 @@ def load_design_matrix(bc, path: str | Path) -> pd.DataFrame:
     Returns:
         DataFrame with design matrix contents.
     """
+    import pandas as pd
+
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(f"Design matrix file not found: {path}")
@@ -1130,6 +1139,8 @@ def fit_ridge(
         >>> # Get weights only (no CV needed)
         >>> weights = bc.fit_ridge(X=features, alpha=1.0, output='weights', cv=None)
     """
+    import pandas as pd
+
     from nltools.data.collection import BrainCollection
     from nltools.utils import attempt_to_import
 
@@ -1306,6 +1317,8 @@ def resolve_X(
         list | None: Per-subject list if X varies by subject, None if shared.
             Caller should use: `X_subj = X_list[i] if X_list else X`
     """
+    import pandas as pd
+
     if X is None:
         raise ValueError("X must be provided")
 
@@ -1358,6 +1371,8 @@ def load_features(bc, path: str | Path) -> np.ndarray:
     Returns:
         NumPy array of feature values.
     """
+    import pandas as pd
+
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(f"Feature file not found: {path}")

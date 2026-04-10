@@ -14,7 +14,6 @@ __all__ = [
     "fetch_haxby",
 ]
 
-import pandas as pd
 import os
 import sys
 import logging
@@ -97,6 +96,8 @@ def fetch_neurovault_collection(collection_id, data_dir=None, verbose=1):
         ValueError: If collection_id is invalid
         RuntimeError: If download fails
     """
+    import pandas as pd
+
     if not isinstance(collection_id, int) or collection_id <= 0:
         raise ValueError("collection_id must be a positive integer")
 
@@ -218,6 +219,8 @@ def fetch_haxby(
         >>> len(brain_data_nested)  # Number of subjects
         >>> len(brain_data_nested[0])  # Number of runs for first subject
     """
+    import pandas as pd
+
     if nilearn_fetch_haxby is None:
         raise ImportError("nilearn package is required for fetch_haxby")
 

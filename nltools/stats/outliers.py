@@ -1,7 +1,6 @@
 """Outlier detection, robust statistics, and data normalization."""
 
 import numpy as np
-import pandas as pd
 import polars as pl
 import nibabel as nib
 
@@ -17,6 +16,7 @@ def zscore(df):
     Returns:
         z_data: (pd.DataFrame) z-scored pandas DataFrame or series instance
     """
+    import pandas as pd
 
     if isinstance(df, pd.DataFrame):
         return df.apply(lambda x: (x - x.mean()) / x.std())
@@ -76,6 +76,8 @@ def _transform_outliers(data, cutoff, replace_with_cutoff, method):
     Returns:
         out: (pl.DataFrame, pl.Series) transformed data
     """
+    import pandas as pd
+
     # Convert pandas to Polars if needed (for backward compatibility)
     return_series = False
     if isinstance(data, pd.DataFrame):

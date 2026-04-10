@@ -7,7 +7,6 @@ from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 from h5py import File as h5File
 from scipy.spatial.distance import squareform
 from sklearn.metrics.pairwise import pairwise_distances
@@ -50,6 +49,8 @@ class Adjacency(object):
     """
 
     def __init__(self, data=None, Y=None, matrix_type=None, labels=None, **kwargs):
+        import pandas as pd
+
         if matrix_type is not None and matrix_type.lower() not in [
             "distance",
             "similarity",
@@ -386,6 +387,7 @@ class Adjacency(object):
             out: (Adjacency) new appended Adjacency instance
 
         """
+        import pandas as pd
 
         if not isinstance(data, Adjacency):
             raise ValueError("Make sure data is a Adjacency instance.")

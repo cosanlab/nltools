@@ -12,7 +12,6 @@ __all__ = ["KFoldStratified"]
 from sklearn.model_selection._split import _BaseKFold
 from sklearn.utils.validation import check_array
 import numpy as np
-import pandas as pd
 
 
 class KFoldStratified(_BaseKFold):
@@ -42,6 +41,8 @@ class KFoldStratified(_BaseKFold):
         )
 
     def _make_test_folds(self, X, y=None, groups=None):
+        import pandas as pd
+
         y = pd.DataFrame(y)
         y_sort = y.sort_values(0)
         test_folds = np.nan * np.ones(len(y_sort))

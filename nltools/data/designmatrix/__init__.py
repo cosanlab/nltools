@@ -7,15 +7,28 @@ Provides HRF convolution, resampling, polynomial regressors, and diagnostic tool
 Uses composition pattern (wrapping pl.DataFrame) for clean metadata preservation.
 """
 
+from __future__ import annotations
+
 __all__ = ["DesignMatrix"]
 
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 import numpy as np
-import pandas as pd
 import polars as pl
 
 from .utils import copy_with
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+
+def _is_pandas_dataframe(obj) -> bool:
+    """Duck-type check for pandas DataFrame without importing pandas."""
+    cls = type(obj)
+    module = cls.__module__
+    return cls.__name__ == "DataFrame" and (
+        module == "pandas" or module.startswith("pandas.")
+    )
 
 
 class DesignMatrix:
@@ -89,11 +102,6 @@ class DesignMatrix:
             # Polars DataFrame - zero copy, just ensure string column names
             self._df = data.rename({col: str(col) for col in data.columns})
 
-        elif isinstance(data, pd.DataFrame):
-            # pandas DataFrame - convert to Polars, ensure string column names
-            self._df = pl.from_pandas(data)
-            self._df = self._df.rename({col: str(col) for col in self._df.columns})
-
         elif isinstance(data, dict):
             # Dictionary - let Polars handle it, ensure string column names
             self._df = pl.DataFrame(data)
@@ -109,6 +117,11 @@ class DesignMatrix:
                 n_cols = data.shape[1] if data.ndim > 1 else 1
                 auto_columns = [str(i) for i in range(n_cols)]
                 self._df = pl.DataFrame(data, schema=auto_columns)
+
+        elif _is_pandas_dataframe(data):
+            # pandas DataFrame - convert to Polars, ensure string column names
+            self._df = pl.from_pandas(data)
+            self._df = self._df.rename({col: str(col) for col in self._df.columns})
 
         else:
             raise TypeError(

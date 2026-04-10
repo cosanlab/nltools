@@ -11,7 +11,6 @@ __all__ = ["create_sphere", "expand_mask", "collapse_mask", "roi_to_brain"]
 import os
 import nibabel as nib
 from nltools.templates import get_brainspace
-import pandas as pd
 import numpy as np
 import warnings
 from nilearn.masking import intersect_masks
@@ -195,6 +194,7 @@ def roi_to_brain(data, mask_x):
         out: (BrainData) BrainData instance where each ROI is now populated
              with a value
     """
+    import pandas as pd
 
     if not isinstance(data, (pd.Series, pd.DataFrame)):
         if isinstance(data, list):

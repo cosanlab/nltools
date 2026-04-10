@@ -5,10 +5,10 @@ This module contains helper functions for validating inputs, shapes, and
 compatibility between BrainData objects and other data types.
 """
 
-import numpy as np
-import pandas as pd
 from pathlib import Path
+
 import nibabel as nib
+import numpy as np
 
 
 def validate_frame(frame, data_shape=None, frame_type="DataFrame"):
@@ -26,6 +26,8 @@ def validate_frame(frame, data_shape=None, frame_type="DataFrame"):
         TypeError: If frame is not a valid type.
         ValueError: If frame does not match data shape.
     """
+    import pandas as pd
+
     if frame is not None and not isinstance(frame, (str, Path, pd.DataFrame)):
         raise TypeError(
             f"{frame_type} must be a filepath (str/Path) or pandas DataFrame. "

@@ -9,7 +9,6 @@ from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 from scipy.spatial.distance import squareform
 
 
@@ -39,6 +38,8 @@ def import_single_data(data, matrix_type=None):
     Returns:
         tuple: (data, issymmetric, matrix_type, is_single_matrix)
     """
+    import pandas as pd
+
     if isinstance(data, (str, Path)):
         if os.path.isfile(data):
             data = pd.read_csv(data)
