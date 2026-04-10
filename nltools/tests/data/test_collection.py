@@ -18,6 +18,8 @@ from nltools.data import BrainData, BrainCollection
 from nltools.data.collection import FittedBrainCollection
 from nltools.tests.conftest import HAS_PYBIDS
 
+pytestmark = pytest.mark.slow
+
 
 # =============================================================================
 # Fixtures
@@ -1521,7 +1523,6 @@ class TestBrainCollectionISC:
         assert isinstance(result["p"], BrainData)
         assert len(result["ci"]) == 2
 
-    @pytest.mark.slow
     def test_isc_test_returns_correct_keys(self, sample_mask):
         """Test isc_test returns all expected keys."""
         n_voxels = int(sample_mask.get_fdata().sum())
@@ -1558,7 +1559,6 @@ class TestBrainCollectionISC:
         assert isinstance(result["ci"][0], BrainData)
         assert isinstance(result["ci"][1], BrainData)
 
-    @pytest.mark.slow
     def test_isc_test_correlated_significant(self, sample_mask):
         """Test that correlated subjects produce significant ISC."""
         n_voxels = int(sample_mask.get_fdata().sum())
@@ -1585,7 +1585,6 @@ class TestBrainCollectionISC:
         total_voxels = n_voxels
         assert sig_voxels / total_voxels > 0.9  # >90% significant
 
-    @pytest.mark.slow
     def test_isc_test_uncorrelated_not_significant(self, sample_mask):
         """Test that uncorrelated subjects produce non-significant ISC."""
         np.random.seed(42)  # Fixed seed for reproducibility
@@ -1611,7 +1610,6 @@ class TestBrainCollectionISC:
         total_voxels = n_voxels
         assert sig_voxels / total_voxels < 0.15  # <15% (allow some slack)
 
-    @pytest.mark.slow
     def test_isc_test_permutation_methods(self, sample_mask):
         """Test that all permutation methods run without error."""
         n_voxels = int(sample_mask.get_fdata().sum())
@@ -1639,7 +1637,6 @@ class TestBrainCollectionISC:
             assert isinstance(result["isc"], BrainData)
             assert isinstance(result["p"], BrainData)
 
-    @pytest.mark.slow
     def test_isc_test_return_null(self, sample_mask):
         """Test that return_null includes null distribution."""
         n_voxels = int(sample_mask.get_fdata().sum())
@@ -1666,7 +1663,6 @@ class TestBrainCollectionISC:
         assert result["null_dist"] is not None
         assert result["null_dist"].shape[0] == 100  # n_permute
 
-    @pytest.mark.slow
     def test_isc_test_pairwise_method(self, sample_mask):
         """Test isc_test with pairwise method."""
         n_voxels = int(sample_mask.get_fdata().sum())
