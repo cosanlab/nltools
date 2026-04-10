@@ -184,13 +184,13 @@ class BrainCollection:
         elif isinstance(mask, (str, Path)):
             path = Path(mask)
             if path.exists():
-                return nib.load(path)  # type: ignore[return-value]
+                return nib.Nifti1Image.from_filename(str(path))
             # Try as template name
             try:
                 from nltools.prefs import resolve_template_name
 
                 mask_path = resolve_template_name(str(mask), file_type="mask")
-                return nib.load(mask_path)  # type: ignore[return-value]
+                return nib.Nifti1Image.from_filename(str(mask_path))
             except (ValueError, FileNotFoundError):
                 raise ValueError(
                     f"mask must be a path to a nifti file or a valid template name. "
@@ -713,9 +713,13 @@ class BrainCollection:
                 )
             return _AXIS_NAMES[axis.lower()]
         if isinstance(axis, tuple):
-            return tuple(  # type: ignore[return-value]
-                self._normalize_axis(a) for a in axis
-            )
+            normalized: list[int] = []
+            for a in axis:
+                result = self._normalize_axis(a)
+                if isinstance(result, tuple):
+                    raise ValueError("Nested tuple axes are not supported")
+                normalized.append(result)
+            return tuple(normalized)
         return axis
 
     def _aggregate_axis0(
@@ -1174,7 +1178,9 @@ class BrainCollection:
                 start = batch_idx * batch_size
                 end = min(start + batch_size, n_obs)
                 # Slice observations for each image
-                yield self[:, start:end]
+                batch = self[:, start:end]
+                assert isinstance(batch, BrainCollection)
+                yield batch
 
         else:
             raise ValueError(f"Cannot batch over axis {axis}. Use axis=0 or axis=1.")

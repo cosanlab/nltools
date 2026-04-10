@@ -91,7 +91,7 @@ parameter-already-assigned = "ignore"  # *args forwarding (MDS, sklearn) confuse
 
 # --- Ignore: too noisy, mostly third-party type mismatches ---
 unsupported-operator = "ignore"          # Operators on Optional types from third-party unions
-non-subscriptable = "ignore"             # Indexing Optional without narrowing (third-party)
+not-subscriptable = "ignore"             # Indexing Optional without narrowing (third-party)
 invalid-argument-type = "ignore"         # Dominated by numpy/nibabel/sklearn stub gaps
 invalid-assignment = "ignore"            # Mixed real and third-party
 too-many-positional-arguments = "ignore" # seaborn deprecated positional args

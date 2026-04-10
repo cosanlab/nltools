@@ -467,11 +467,22 @@ class FittedBrainCollection:
         Raises:
             ValueError: If model is not GLM or betas not available.
         """
+        from nltools.data.collection import BrainCollection as _BC
+
         if isinstance(self._fitted, dict):
             if "betas" in self._fitted:
-                return self._fitted["betas"]
+                betas = self._fitted["betas"]
+                if not isinstance(betas, _BC):
+                    raise ValueError(
+                        f"Expected BrainCollection betas, got {type(betas).__name__}"
+                    )
+                return betas
             raise ValueError("No 'betas' key in fitted results dict")
         if self._model == "glm":
+            if not isinstance(self._fitted, _BC):
+                raise ValueError(
+                    f"Expected BrainCollection betas, got {type(self._fitted).__name__}"
+                )
             return self._fitted
         raise ValueError(f"'betas' not available for model='{self._model}'")
 

@@ -247,7 +247,7 @@ def _select_best_alphas(
 
     if local_alpha:
         # Select best alpha independently for each target
-        alphas_argmax = backend.xp.argmax(scores_mean, axis=0)
+        alphas_argmax = backend.xp.argmax(scores_mean, axis=0)  # ty: ignore[unknown-argument]
 
         if conservative:
             # Conservative: take largest alpha within 1 std of best
@@ -264,7 +264,7 @@ def _select_best_alphas(
                 beats_threshold.astype(np.float32)
                 + backend.xp.log(alphas)[:, None] * 1e-4
             )
-            alphas_argmax = backend.xp.argmax(beats_threshold, axis=0)
+            alphas_argmax = backend.xp.argmax(beats_threshold, axis=0)  # ty: ignore[unknown-argument]
 
     else:
         # Global: select single best alpha for all targets
@@ -285,11 +285,11 @@ def _select_best_alphas(
     # Get best scores for selected alphas
     best_scores_mean = scores_mean[alphas_argmax, np.arange(scores_mean.shape[1])]
 
-    return alphas_argmax, best_scores_mean
+    return alphas_argmax, best_scores_mean  # ty: ignore[invalid-return-type]
 
 
 def _r2_score(
-    y_true: np.ndarray, y_pred: np.ndarray, backend: Backend = None
+    y_true: np.ndarray, y_pred: np.ndarray, backend: Backend | None = None
 ) -> np.ndarray:
     """Compute R² score (coefficient of determination).
 

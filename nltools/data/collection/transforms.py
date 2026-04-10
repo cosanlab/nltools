@@ -243,15 +243,17 @@ def filter_collection(
     """
     import pandas as pd
 
-    if callable(predicate):
+    if isinstance(predicate, pd.Series):
+        mask = predicate.values.astype(bool)
+    elif isinstance(predicate, (list, np.ndarray)):
+        mask = np.asarray(predicate, dtype=bool)
+    elif callable(predicate):
         # Apply predicate to each image
-        mask = []
+        mask_list: list[bool] = []
         for i in range(bc.n_images):
             bd = bc._load_item(i)
-            mask.append(bool(predicate(bd)))
-        mask = np.array(mask)
-    elif isinstance(predicate, pd.Series):
-        mask = predicate.values.astype(bool)
+            mask_list.append(bool(predicate(bd)))
+        mask = np.array(mask_list)
     else:
         mask = np.asarray(predicate, dtype=bool)
 

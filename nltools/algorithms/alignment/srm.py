@@ -305,7 +305,7 @@ class SRM(BaseEstimator, TransformerMixin):
         y: Optional[Any] = None,
         parallel: Optional[str] = "cpu",
         n_jobs: int = -1,
-    ) -> List[np.ndarray]:
+    ) -> List[Optional[np.ndarray]]:
         """Use the model to transform matrix to Shared Response space
 
         Args:
@@ -384,7 +384,7 @@ class SRM(BaseEstimator, TransformerMixin):
                 if X[subject] is not None:
                     s[subject] = self.w_[subject].T.dot(X[subject])
 
-        return s  # type: ignore[return-value]
+        return s
 
     def _init_structures(self, data, subjects):
         """Initializes data structures for SRM and preprocess the data.
@@ -923,11 +923,9 @@ class DetSRM(BaseEstimator, TransformerMixin):
             )
         else:
             # Single-threaded transform
-            s: list[np.ndarray | None] = [None] * len(X)
-            for subject in range(len(X)):
-                s[subject] = self.w_[subject].T.dot(X[subject])
+            s = [self.w_[subject].T.dot(X[subject]) for subject in range(len(X))]
 
-        return s  # type: ignore[return-value]
+        return s
 
     def _objective_function(self, data, w, s):
         """Calculate the objective function
