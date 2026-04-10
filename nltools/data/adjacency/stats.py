@@ -402,12 +402,11 @@ def plot_silhouette(
     Returns:
         dict: Silhouette plot results including scores and optional permutation p-value.
     """
-    import pandas as pd
     from copy import deepcopy
 
     from nltools.plotting import plot_silhouette as _plot_silhouette
 
-    distance = pd.DataFrame(adj.squareform())
+    distance = adj.squareform()
 
     if labels is None:
         labels = np.array(deepcopy(adj.labels))
@@ -417,7 +416,7 @@ def plot_silhouette(
 
     return _plot_silhouette(
         distance,
-        pd.Series(labels),
+        np.asarray(labels),
         ax=ax,
         permutation_test=permutation_test,
         n_permute=n_permute,
