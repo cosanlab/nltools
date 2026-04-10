@@ -7,23 +7,46 @@ import nibabel as nib
 __all__ = ["zscore", "winsorize", "trim", "find_spikes"]
 
 
-def zscore(df):
-    """zscore every column in a pandas dataframe or series.
+def zscore(data):
+    """Z-score every column of a Polars or pandas DataFrame/Series.
+
+    Accepts pandas inputs at the boundary for convenience and converts to
+    Polars internally. Always returns Polars output (DataFrame or Series,
+    matching the input shape).
 
     Args:
-        df: (pd.DataFrame) Pandas DataFrame instance
+        data: pl.DataFrame, pl.Series, pd.DataFrame, or pd.Series.
 
     Returns:
-        z_data: (pd.DataFrame) z-scored pandas DataFrame or series instance
+        pl.DataFrame or pl.Series with each column z-scored using sample
+        standard deviation (ddof=1), matching the input shape.
     """
     import pandas as pd
 
-    if isinstance(df, pd.DataFrame):
-        return df.apply(lambda x: (x - x.mean()) / x.std())
-    elif isinstance(df, pd.Series):
-        return (df - np.mean(df)) / np.std(df)
+    return_series = False
+    if isinstance(data, pd.DataFrame):
+        df = pl.from_pandas(data)
+    elif isinstance(data, pd.Series):
+        df = pl.DataFrame({data.name or "0": data})
+        return_series = True
+    elif isinstance(data, pl.DataFrame):
+        df = data
+    elif isinstance(data, pl.Series):
+        df = pl.DataFrame({data.name or "0": data})
+        return_series = True
     else:
-        raise ValueError("Data is not a Pandas DataFrame or Series instance")
+        raise ValueError("Data must be a Polars or pandas DataFrame or Series")
+
+    result = df.select(
+        [
+            ((pl.col(c) - pl.col(c).mean()) / pl.col(c).std()).alias(c)
+            for c in df.columns
+        ]
+    )
+
+    if return_series:
+        return result.to_series(0)
+    return result
 
 
 def winsorize(data, cutoff=None, replace_with_cutoff=True):

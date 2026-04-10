@@ -3,6 +3,7 @@
 __all__ = ["isc", "isc_group", "isfc", "isps"]
 
 import numpy as np
+import polars as pl
 from scipy.signal import hilbert
 from sklearn.metrics import pairwise_distances
 from sklearn.utils import check_random_state
@@ -16,6 +17,23 @@ from .timeseries import (
     _phase_rayleigh_p,
     _phase_vector_length,
 )
+
+
+def _as_ndarray(data, name="data"):
+    """Coerce a numpy array, polars DataFrame, or pandas DataFrame to a numpy array."""
+    if isinstance(data, np.ndarray):
+        return data
+    if isinstance(data, pl.DataFrame):
+        return data.to_numpy()
+    try:
+        import pandas as pd
+    except ImportError:
+        pd = None
+    if pd is not None and isinstance(data, pd.DataFrame):
+        return data.values
+    raise ValueError(
+        f"{name} must be a numpy array, polars DataFrame, or pandas DataFrame"
+    )
 
 
 def _bootstrap_isc(
@@ -132,14 +150,7 @@ def isc(
     for GPU operations. See `nltools.algorithms.inference.isc.isc_permutation_test` for details.
 
     """
-    import pandas as pd
-
-    # Convert data to numpy array if needed
-    if isinstance(data, pd.DataFrame):
-        data = data.values
-
-    if not isinstance(data, np.ndarray):
-        raise ValueError("data must be a pandas dataframe or numpy array")
+    data = _as_ndarray(data)
 
     if metric not in ["mean", "median"]:
         raise ValueError("metric must be ['mean', 'median']")
@@ -184,13 +195,22 @@ def _compute_isc_group(group1, group2, metric="median"):
         isc: (float) intersubject correlation coefficient difference across groups
 
     """
-    import pandas as pd
-
     from nltools.data import Adjacency
 
-    if isinstance(group1, (pd.DataFrame, np.ndarray)) and isinstance(
-        group2, (pd.DataFrame, np.ndarray)
-    ):
+    def _is_matrix_like(x):
+        if isinstance(x, np.ndarray):
+            return True
+        if isinstance(x, pl.DataFrame):
+            return True
+        try:
+            import pandas as pd
+        except ImportError:
+            return False
+        return isinstance(x, pd.DataFrame)
+
+    if _is_matrix_like(group1) and _is_matrix_like(group2):
+        group1 = _as_ndarray(group1, name="group1")
+        group2 = _as_ndarray(group2, name="group2")
         if group1.shape[0] != group2.shape[0]:
             raise ValueError(
                 "group1 has a different number of observations from group2."
@@ -354,20 +374,10 @@ def isc_group(
     - 10-30× speedup with GPU backend for voxel-wise LOO computation
     - More memory efficient (no Adjacency object overhead)
     """
-    import pandas as pd
-
     from nltools.algorithms.inference.isc import isc_group_permutation_test
 
-    # Convert to numpy arrays if needed
-    if isinstance(group1, pd.DataFrame):
-        group1 = group1.values
-    if isinstance(group2, pd.DataFrame):
-        group2 = group2.values
-
-    # Validate inputs (matching old behavior)
-    for group_data in [group1, group2]:
-        if not isinstance(group_data, np.ndarray):
-            raise ValueError("group data must be a pandas dataframe or numpy array")
+    group1 = _as_ndarray(group1, name="group1")
+    group2 = _as_ndarray(group2, name="group2")
 
     if metric not in ["mean", "median"]:
         raise ValueError("metric must be ['mean', 'median']")
@@ -528,15 +538,7 @@ def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5, pairwise
         dictionary with mean phase angle, vector length, and rayleigh statistic
 
     """
-    import pandas as pd
-
-    if not isinstance(data, (pd.DataFrame, np.ndarray)):
-        raise ValueError(
-            "data must be a pandas dataframe or numpy array (observations by subjects)"
-        )
-
-    # Convert to numpy array (avoid pandas conversion overhead)
-    data_array = np.asarray(data)
+    data_array = _as_ndarray(data)
     phase = np.angle(
         hilbert(
             _butter_bandpass_filter(

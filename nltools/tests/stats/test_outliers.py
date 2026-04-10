@@ -116,19 +116,46 @@ class TestWinsorize:
 class TestZscore:
     """Test z-score normalization."""
 
-    def test_zscore_series(self):
-        """Z-scoring a pandas Series should produce mean~0, std~1."""
-        data = pd.Series(np.random.randn(100) * 5 + 10)
+    def test_zscore_pandas_series_returns_polars(self):
+        """Z-scoring a pandas Series returns a polars Series with mean~0, std~1."""
+        data = pd.Series(np.random.randn(100) * 5 + 10, name="x")
         result = zscore(data)
-        np.testing.assert_almost_equal(np.mean(result), 0, decimal=10)
-        np.testing.assert_almost_equal(np.std(result), 1, decimal=10)
+        assert isinstance(result, pl.Series)
+        np.testing.assert_almost_equal(result.mean(), 0, decimal=10)
+        np.testing.assert_almost_equal(result.std(), 1, decimal=10)
 
-    def test_zscore_dataframe(self):
-        """Z-scoring a DataFrame should normalize each column."""
-        data = pd.DataFrame(np.random.randn(100, 3) * 5 + 10)
+    def test_zscore_pandas_dataframe_returns_polars(self):
+        """Z-scoring a pandas DataFrame returns a polars DataFrame with each column normalized."""
+        data = pd.DataFrame(np.random.randn(100, 3) * 5 + 10, columns=["a", "b", "c"])
         result = zscore(data)
+        assert isinstance(result, pl.DataFrame)
         for col in result.columns:
-            np.testing.assert_almost_equal(np.mean(result[col]), 0, decimal=10)
+            np.testing.assert_almost_equal(result[col].mean(), 0, decimal=10)
+            np.testing.assert_almost_equal(result[col].std(), 1, decimal=10)
+
+    def test_zscore_polars_series(self):
+        """Z-scoring a polars Series returns a polars Series."""
+        data = pl.Series("x", np.random.randn(100) * 5 + 10)
+        result = zscore(data)
+        assert isinstance(result, pl.Series)
+        np.testing.assert_almost_equal(result.mean(), 0, decimal=10)
+        np.testing.assert_almost_equal(result.std(), 1, decimal=10)
+
+    def test_zscore_polars_dataframe(self):
+        """Z-scoring a polars DataFrame returns a polars DataFrame."""
+        data = pl.DataFrame(
+            {"a": np.random.randn(100), "b": np.random.randn(100) * 2 + 5}
+        )
+        result = zscore(data)
+        assert isinstance(result, pl.DataFrame)
+        for col in result.columns:
+            np.testing.assert_almost_equal(result[col].mean(), 0, decimal=10)
+            np.testing.assert_almost_equal(result[col].std(), 1, decimal=10)
+
+    def test_zscore_rejects_invalid_input(self):
+        """Z-scoring a non-DataFrame/Series input raises."""
+        with pytest.raises(ValueError, match="Polars or pandas"):
+            zscore([1, 2, 3])
 
 
 class TestFindSpikes:

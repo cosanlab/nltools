@@ -1,6 +1,7 @@
 """Tests for nltools.stats.intersubject — ISC, ISFC, ISPS."""
 
 import numpy as np
+import polars as pl
 from numpy import sin, pi, arange
 import pytest
 
@@ -27,6 +28,16 @@ class TestISC:
         assert -1 < stats["isc"] < 1
         assert 0 < stats["p"] < 1
         assert len(stats["null_distribution"]) == 100
+
+    def test_isc_accepts_polars_dataframe(self, multisubject_correlated_data):
+        """ISC should accept a polars DataFrame and produce the same result as numpy."""
+        np_result = isc(multisubject_correlated_data, n_samples=50, random_state=1)
+        pl_df = pl.DataFrame(
+            multisubject_correlated_data,
+            schema=[f"s{i}" for i in range(multisubject_correlated_data.shape[1])],
+        )
+        pl_result = isc(pl_df, n_samples=50, random_state=1)
+        np.testing.assert_allclose(pl_result["isc"], np_result["isc"])
 
 
 class TestISCGroup:
@@ -69,6 +80,19 @@ class TestISCGroup:
         assert 0 < stats["p"] < 1
         assert len(stats["null_distribution"]) <= n_samples
         assert len(stats["null_distribution"]) >= n_samples * 0.95
+
+    def test_isc_group_accepts_polars_dataframe(self):
+        """isc_group should accept polars DataFrames for group1/group2."""
+        rng = np.random.RandomState(0)
+        g1 = rng.randn(100, 5)
+        g2 = rng.randn(100, 5)
+        g1_pl = pl.DataFrame(g1, schema=[f"s{i}" for i in range(5)])
+        g2_pl = pl.DataFrame(g2, schema=[f"s{i}" for i in range(5)])
+        out_np = isc_group(g1, g2, n_samples=50, random_state=1)
+        out_pl = isc_group(g1_pl, g2_pl, n_samples=50, random_state=1)
+        np.testing.assert_allclose(
+            out_pl["isc_group_difference"], out_np["isc_group_difference"]
+        )
 
 
 class TestISFC:
@@ -151,3 +175,12 @@ class TestISPS:
         assert stats["vector_length"][50:150].mean() < np.mean(
             [stats["vector_length"][:50].mean(), stats["vector_length"][150:].mean()]
         )
+
+    def test_isps_accepts_polars_dataframe(self):
+        """isps should accept a polars DataFrame."""
+        sampling_freq = 0.5
+        time = arange(0, 50, 1)
+        sim = np.array([sin(2 * pi * 0.1 * time)] * 5).T
+        sim_pl = pl.DataFrame(sim, schema=[f"s{i}" for i in range(5)])
+        out = isps(sim_pl, low_cut=0.05, high_cut=0.2, sampling_freq=sampling_freq)
+        assert out["average_angle"].shape == time.shape
