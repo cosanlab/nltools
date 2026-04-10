@@ -12,13 +12,9 @@ __all__ = [
     "fetch_emotion_ratings",
     "fetch_pain",
     "fetch_haxby",
-    # Deprecated functions - kept for backward compatibility
-    "get_collection_image_metadata",
-    "download_collection",
 ]
 
 import pandas as pd
-import warnings
 import os
 import sys
 import logging
@@ -440,41 +436,3 @@ def fetch_haxby(
     else:
         # Multiple subjects: return nested lists
         return all_subjects_brain_data, all_subjects_design_matrix
-
-
-# Deprecated functions - kept for backward compatibility but issue warnings
-def get_collection_image_metadata(collection=None, data_dir=None, limit=10):
-    """Get image metadata associated with collection.
-
-    .. deprecated::
-        This function is deprecated and will be removed in a future version.
-        Please use fetch_neurovault_collection instead.
-    """
-    warnings.warn(
-        "get_collection_image_metadata is deprecated and will be removed in a future version. "
-        "Please use fetch_neurovault_collection instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-
-    metadata, _ = fetch_neurovault_collection(collection, data_dir)
-    return metadata
-
-
-def download_collection(
-    collection=None, data_dir=None, overwrite=False, resume=True, verbose=1
-):
-    """Download images and metadata from Neurovault collection.
-
-    .. deprecated::
-        This function is deprecated and will be removed in a future version.
-        Please use fetch_neurovault_collection instead.
-    """
-    warnings.warn(
-        "download_collection is deprecated and will be removed in a future version. "
-        "Please use fetch_neurovault_collection instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-
-    return fetch_neurovault_collection(collection, data_dir, verbose)

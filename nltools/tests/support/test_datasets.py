@@ -4,7 +4,6 @@ Tests for nltools.datasets module
 This test file covers:
 - download_nifti: Basic file downloading functionality
 - fetch_neurovault_collection: Main collection fetching function
-- Deprecated functions: Ensure they still work but show warnings
 - Integration test: Real network test (marked as slow)
 """
 
@@ -13,13 +12,10 @@ import pandas as pd
 import tempfile
 import os
 from unittest.mock import patch, MagicMock
-import warnings
 
 from nltools.datasets import (
     download_nifti,
     fetch_neurovault_collection,
-    download_collection,  # deprecated
-    get_collection_image_metadata,  # deprecated
 )
 from nltools.data import BrainData, DesignMatrix
 
@@ -98,54 +94,6 @@ class TestFetchNeurovaultCollection:
 
         with pytest.raises(RuntimeError, match="Failed to download collection 123"):
             fetch_neurovault_collection(123)
-
-
-class TestDeprecatedFunctions:
-    """Test that deprecated functions still work but show warnings"""
-
-    @patch("nltools.datasets.fetch_neurovault_collection")
-    def test_download_collection_shows_warning(self, mock_fetch_collection):
-        """Should show deprecation warning for download_collection"""
-        # Setup mock
-        mock_metadata = pd.DataFrame({"id": [1]})
-        mock_files = ["file1.nii.gz"]
-        mock_fetch_collection.return_value = (mock_metadata, mock_files)
-
-        # Test with warning capture
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            result = download_collection(collection=123)
-
-            # Check warning was issued
-            assert len(w) == 1
-            assert issubclass(w[0].category, DeprecationWarning)
-            assert "download_collection is deprecated" in str(w[0].message)
-
-            # Check function still works
-            metadata, files = result
-            assert len(metadata) == 1
-            assert files == mock_files
-
-    @patch("nltools.datasets.fetch_neurovault_collection")
-    def test_get_collection_image_metadata_shows_warning(self, mock_fetch_collection):
-        """Should show deprecation warning for get_collection_image_metadata"""
-        # Setup mock
-        mock_metadata = pd.DataFrame({"id": [1]})
-        mock_files = ["file1.nii.gz"]
-        mock_fetch_collection.return_value = (mock_metadata, mock_files)
-
-        # Test with warning capture
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            result = get_collection_image_metadata(collection=123)
-
-            # Check warning was issued
-            assert len(w) == 1
-            assert issubclass(w[0].category, DeprecationWarning)
-            assert "get_collection_image_metadata is deprecated" in str(w[0].message)
-
-            # Check function still works
-            assert len(result) == 1
 
 
 class TestIntegration:
