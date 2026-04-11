@@ -207,7 +207,7 @@ class Simulator:
             **kwargs: Additional keyword arguments to pass to the prediction algorithm
 
         """
-        import pandas as pd
+        import polars as pl
 
         # Create reps
         nlevels = len(levels)
@@ -239,8 +239,8 @@ class Simulator:
 
         # Assign variables to object
         self.data = NF_list
-        self.y = pd.DataFrame(data=y)
-        self.rep_id = pd.DataFrame(data=rep_id)
+        self.y = pl.DataFrame({"y": y})
+        self.rep_id = pl.DataFrame({"rep_id": rep_id})
 
         dat = self.data
         dat.Y = self.y
@@ -248,9 +248,11 @@ class Simulator:
         # Write Data to files if requested
         if output_dir is not None and isinstance(output_dir, str):
             NF_list.write(os.path.join(output_dir, "data.nii.gz"))
-            self.y.to_csv(os.path.join(output_dir, "y.csv"), index=None, header=False)
-            self.rep_id.to_csv(
-                os.path.join(output_dir, "rep_id.csv"), index=None, header=False
+            self.y.write_csv(
+                os.path.join(output_dir, "y.csv"), include_header=False
+            )
+            self.rep_id.write_csv(
+                os.path.join(output_dir, "rep_id.csv"), include_header=False
             )
         return dat
 
