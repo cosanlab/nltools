@@ -6,6 +6,7 @@ import warnings
 from copy import deepcopy
 from pathlib import Path
 
+import h5py
 import numpy as np
 import polars as pl
 from h5py import File as h5File
@@ -116,25 +117,25 @@ class Adjacency(object):
             # HDF5
             if is_h5_path(to_load):
                 try:
-                    # Load X and Y attributes
-                    import pandas as pd
+                    from nltools.io.h5 import _read_polars_frame
 
-                    with pd.HDFStore(to_load, "r") as f:
-                        self.Y = f["Y"]
-
-                    # Load other attributes
                     with h5File(to_load, "r") as f:
+                        if "Y" not in f or "data" not in f:
+                            raise KeyError("missing expected datasets")
                         self.data = np.array(f["data"])
                         self.matrix_type = f["matrix_type"][()].decode()
                         self.is_single_matrix = f["is_single_matrix"][()]
                         self.issymmetric = f["issymmetric"][()]
-                        # Deepdish saved empty label lists as np arrays of length 1
-                        if len(f["labels"]) == 1:
-                            self.labels = list(f["labels"])
-                        elif len(f["labels"]) > 1:
-                            self.labels = list(f["labels"].asstr())
-                        else:
+                        self.Y = _read_polars_frame(f, "Y")
+                        # labels: variable-length utf-8 if non-empty,
+                        # empty float64 dataset otherwise
+                        labels_ds = f["labels"]
+                        if len(labels_ds) == 0:
                             self.labels = []
+                        elif h5py.check_string_dtype(labels_ds.dtype) is not None:
+                            self.labels = list(labels_ds.asstr())
+                        else:
+                            self.labels = list(labels_ds)
 
                     # Done initializing
                     return

@@ -70,8 +70,8 @@ def _read_polars_frame(h5_file, name):
 def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
     """Save BrainData or Adjacency objects to HDF5 files.
 
-    Uses h5py for brain_data (X/Y stored as polars-compatible groups) and
-    pandas HDFStore for adjacency (pending Chunk B migration).
+    Uses h5py for both types; X/Y (BrainData) and Y (Adjacency) are stored
+    as polars-compatible groups with ``columns`` and ``values`` datasets.
 
     Args:
         obj: Object to save (BrainData or Adjacency).
@@ -95,23 +95,20 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
             _write_polars_frame(f, "X", obj.X, h5_compression)
             _write_polars_frame(f, "Y", obj.Y, h5_compression)
     else:
-        import pandas as pd
-        import warnings
-
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=UserWarning, module="tables")
-            warnings.filterwarnings(
-                "ignore", message=".*performance.*", module="tables"
-            )
-            with pd.HDFStore(file_name, "w") as f:
-                f["Y"] = obj.Y
-
-        with h5File(file_name, "a") as f:
+        with h5File(file_name, "w") as f:
             f.create_dataset("data", data=obj.data, compression=h5_compression)
             f.create_dataset("matrix_type", data=obj.matrix_type)
             f.create_dataset("issymmetric", data=obj.issymmetric)
-            f.create_dataset("labels", data=obj.labels)
             f.create_dataset("is_single_matrix", data=obj.is_single_matrix)
+            if obj.labels:
+                f.create_dataset(
+                    "labels",
+                    data=np.array(obj.labels, dtype=object),
+                    dtype=h5py.string_dtype(encoding="utf-8"),
+                )
+            else:
+                f.create_dataset("labels", data=np.array([], dtype="float64"))
+            _write_polars_frame(f, "Y", obj.Y, h5_compression)
 
 
 def load_brain_data_h5(file_path, mask=None):

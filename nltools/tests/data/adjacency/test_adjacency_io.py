@@ -22,19 +22,32 @@ class TestAdjacencyIO:
         )
         assert np.all(np.isclose(sim_adjacency_multiple.data, dat_multiple2.data))
 
-        # Test i/o for hdf5 (deprecated - requires PyTables)
-        pytest.importorskip(
-            "tables", reason="HDF5 support deprecated, requires PyTables"
-        )
+        # Test i/o for hdf5 (h5py + polars layout — no PyTables required)
         sim_adjacency_multiple.write(os.path.join(str(tmpdir.join("test_write.h5"))))
         b = Adjacency(os.path.join(tmpdir.join("test_write.h5")))
-        for k in ["Y", "matrix_type", "is_single_matrix", "issymmetric", "data"]:
-            if k == "data":
-                assert np.allclose(b.__dict__[k], sim_adjacency_multiple.__dict__[k])
-            elif k == "Y":
-                assert all(b.__dict__[k].eq(sim_adjacency_multiple.__dict__[k]).values)
-            else:
-                assert b.__dict__[k] == sim_adjacency_multiple.__dict__[k]
+        assert np.allclose(b.data, sim_adjacency_multiple.data)
+        assert b.matrix_type == sim_adjacency_multiple.matrix_type
+        assert b.is_single_matrix == sim_adjacency_multiple.is_single_matrix
+        assert b.issymmetric == sim_adjacency_multiple.issymmetric
+        assert b.Y.equals(sim_adjacency_multiple.Y)
+        assert b.labels == sim_adjacency_multiple.labels
+
+    def test_h5_roundtrip_y(self, sim_adjacency_multiple, tmpdir):
+        """Y round-trips through the new h5py + polars layout."""
+        import polars as pl
+
+        n = len(sim_adjacency_multiple)
+        adj = sim_adjacency_multiple.copy()
+        adj.Y = pl.DataFrame({"label": np.arange(n, dtype=np.int64)})
+
+        path = os.path.join(str(tmpdir.join("roundtrip_y.h5")))
+        adj.write(path)
+
+        loaded = Adjacency(path)
+        assert isinstance(loaded.Y, pl.DataFrame)
+        assert loaded.Y.shape == (n, 1)
+        assert loaded.Y.columns == ["label"]
+        assert loaded.Y.equals(adj.Y)
 
     def test_read_and_write_directed(self, sim_adjacency_directed, tmpdir):
         """Test reading and writing directed matrices with Path support."""
