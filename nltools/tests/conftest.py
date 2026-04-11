@@ -21,7 +21,7 @@ This module provides common fixtures used across test modules.
 
 import pytest
 import numpy as np
-import pandas as pd
+import polars as pl
 from sklearn.metrics import pairwise_distances
 from nltools.data.simulator import Simulator
 from nltools.data import Adjacency, DesignMatrix, BrainData
@@ -60,8 +60,8 @@ def _sim_brain_data_source(request):
     y = [0, 1]
     n_reps = 3
     dat = sim.create_data(y, sigma, reps=n_reps)
-    dat.X = pd.DataFrame(
-        {"Intercept": np.ones(len(dat.Y)), "X1": np.array(dat.Y).flatten()}, index=None
+    dat.X = pl.DataFrame(
+        {"Intercept": np.ones(len(dat.Y)), "X1": np.array(dat.Y).flatten()}
     )
     return dat
 
@@ -127,8 +127,8 @@ def minimal_brain_data():
 
     # Create BrainData
     dat = BrainData(nifti_img, mask=mask_img)
-    dat.X = pd.DataFrame(
-        {"Intercept": np.ones(n_samples), "X1": np.random.randn(n_samples)}, index=None
+    dat.X = pl.DataFrame(
+        {"Intercept": np.ones(n_samples), "X1": np.random.randn(n_samples)}
     )
     return dat
 

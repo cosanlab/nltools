@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 import nibabel as nib
-import pandas as pd
+import polars as pl
 import pytest
 
 from nltools.data import BrainData
@@ -28,8 +28,8 @@ class TestBrainDataIO:
         # 2mm: shape_3d = (91, 109, 91), shape_2d = (6, 238955)
         # 3mm: shape_3d = (60, 72, 60), shape_2d = (6, 71020)
 
-        y = pd.read_csv(
-            os.path.join(str(tmpdir.join("y.csv"))), header=None, index_col=None
+        y = pl.read_csv(
+            os.path.join(str(tmpdir.join("y.csv"))), has_header=False
         )
 
         # Test load list of 4D images
@@ -79,8 +79,6 @@ class TestBrainDataIO:
 
     def test_h5_roundtrip_x_y(self, tmpdir):
         """X and Y polars frames survive h5 round-trip."""
-        import polars as pl
-
         mask_img = nib.load(get_brainspace().mask)
         source_data = nib.Nifti1Image(
             np.random.randn(*mask_img.shape + (4,)), affine=mask_img.affine
@@ -250,8 +248,8 @@ class TestBrainDataIO:
         source_data = nib.Nifti1Image(
             np.random.randn(*mask_img.shape + (5,)), affine=mask_img.affine
         )
-        X = pd.DataFrame({"cond1": [1, 2, 3, 4, 5]})
-        Y = pd.DataFrame({"outcome": [0, 1, 0, 1, 0]})
+        X = pl.DataFrame({"cond1": [1, 2, 3, 4, 5]})
+        Y = pl.DataFrame({"outcome": [0, 1, 0, 1, 0]})
 
         brain_source = BrainData(source_data, X=X, Y=Y, resample=False)
         brain_resampled = brain_source.resample_to(resolution=3.0)

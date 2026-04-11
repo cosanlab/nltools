@@ -1,5 +1,5 @@
 import numpy as np
-import pandas as pd
+import polars as pl
 import pytest
 
 from nltools.data import BrainData
@@ -63,7 +63,7 @@ class TestBrainDataPrediction:
         # Need to set up minimal data for the test
         sim = Simulator()
         dat = sim.create_data([0, 1], sigma=1, reps=5, output_dir=".")
-        y = pd.read_csv("y.csv", header=None, index_col=None)
+        y = pl.read_csv("y.csv", has_header=False)
         dat = BrainData("data.nii.gz", Y=y)
 
         with pytest.raises(
