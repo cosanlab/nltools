@@ -88,6 +88,46 @@ class TestAdjacencyCore:
         assert a.shape == (2, 4, 4)
         assert a.vector_shape == (2, 6)
 
+    def test_Y_is_polars(self, sim_adjacency_multiple):
+        """Adjacency.Y is always a polars DataFrame (possibly empty)."""
+        import pandas as pd
+        import polars as pl
+
+        # Empty constructor -> empty polars frame
+        a = Adjacency()
+        assert isinstance(a.Y, pl.DataFrame)
+        assert a.Y.is_empty()
+
+        # Fixture without Y -> empty polars frame
+        assert isinstance(sim_adjacency_multiple.Y, pl.DataFrame)
+        assert sim_adjacency_multiple.Y.is_empty()
+
+        # Pandas Y accepted, stored as polars
+        n = len(sim_adjacency_multiple)
+        adj = sim_adjacency_multiple.copy()
+        adj.Y = pd.DataFrame({"label": np.arange(n)})
+        assert isinstance(adj.Y, pl.DataFrame)
+        assert adj.Y.shape == (n, 1)
+
+        # Polars Y accepted on the setter
+        adj.Y = pl.DataFrame({"label": np.arange(n)})
+        assert isinstance(adj.Y, pl.DataFrame)
+
+        # Indexing preserves polars
+        sliced = adj[0]
+        assert isinstance(sliced.Y, pl.DataFrame)
+        assert sliced.Y.shape[0] == 1
+
+        # Slice indexing preserves polars
+        sliced2 = adj[0:2]
+        assert isinstance(sliced2.Y, pl.DataFrame)
+        assert sliced2.Y.shape[0] == 2
+
+        # Append concatenates polars
+        combined = adj.append(adj)
+        assert isinstance(combined.Y, pl.DataFrame)
+        assert combined.Y.shape[0] == 2 * n
+
     def test_mean(self, sim_adjacency_multiple):
         """Test mean aggregation across adjacency matrices."""
         assert isinstance(sim_adjacency_multiple.mean(axis=0), Adjacency)

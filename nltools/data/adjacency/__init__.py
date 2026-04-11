@@ -7,10 +7,13 @@ from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
+import polars as pl
 from h5py import File as h5File
 from scipy.spatial.distance import squareform
 from sklearn.metrics.pairwise import pairwise_distances
 
+from nltools.data.braindata.utils import _polars_row_select
+from nltools.data.braindata.validation import validate_frame
 from nltools.io import is_h5_path
 from nltools.utils import (
     all_same,
@@ -49,8 +52,6 @@ class Adjacency(object):
     """
 
     def __init__(self, data=None, Y=None, matrix_type=None, labels=None, **kwargs):
-        import pandas as pd
-
         if matrix_type is not None and matrix_type.lower() not in [
             "distance",
             "similarity",
@@ -116,6 +117,8 @@ class Adjacency(object):
             if is_h5_path(to_load):
                 try:
                     # Load X and Y attributes
+                    import pandas as pd
+
                     with pd.HDFStore(to_load, "r") as f:
                         self.Y = f["Y"]
 
@@ -145,21 +148,18 @@ class Adjacency(object):
                         # Setup data
                         self.data = np.array(f.root["data"])
 
-                        # Setup Y
+                        # Setup Y (legacy PyTables format stored column names)
                         if len(list(f.root["Y_columns"])):
-                            self.Y = pd.DataFrame(
-                                np.array(f.root["Y"]).squeeze(),
-                                columns=[
-                                    e.decode("utf-8") if isinstance(e, bytes) else e
-                                    for e in np.array(f.root["Y_columns"])
-                                ],
-                                index=[
-                                    e.decode("utf-8") if isinstance(e, bytes) else e
-                                    for e in np.array(f.root["Y_index"])
-                                ],
-                            )
+                            y_values = np.array(f.root["Y"]).squeeze()
+                            if y_values.ndim == 1:
+                                y_values = y_values.reshape(-1, 1)
+                            y_columns = [
+                                e.decode("utf-8") if isinstance(e, bytes) else e
+                                for e in np.array(f.root["Y_columns"])
+                            ]
+                            self.Y = pl.DataFrame(y_values, schema=list(y_columns))
                         else:
-                            self.Y = pd.DataFrame()
+                            self.Y = None
 
                         # Setup other attributes
                         if "matrix_type" in f.root:
@@ -205,20 +205,15 @@ class Adjacency(object):
                 self.is_single_matrix,
             ) = import_single_data(data, matrix_type=matrix_type)
 
-        # Setup Y dataframe
-        if Y is None:
-            self.Y = pd.DataFrame()
-
-        elif isinstance(Y, (str, Path)):
-            self.Y = pd.read_csv(Y, header=None, index_col=None)
-
-        elif isinstance(Y, pd.DataFrame):
-            self.Y = Y
-        else:
-            raise TypeError("Make sure Y filepath or pandas data frame.")
+        # Setup Y dataframe — setter validates + converts to polars
+        self.Y = Y
 
         # Ensure consistency
-        if not self.Y.empty and self.data.shape[0] != self.Y.shape[0]:
+        if (
+            not self.Y.is_empty()
+            and not self.is_single_matrix
+            and self.data.shape[0] != self.Y.shape[0]
+        ):
             raise ValueError(
                 f"Y rows ({self.Y.shape[0]}) do not match data rows ({self.data.shape[0]})"
             )
@@ -266,8 +261,8 @@ class Adjacency(object):
         else:
             new.data = np.array(self.data[index, :]).squeeze()
             new.is_single_matrix = test_is_single_matrix(new.data)
-        if not self.Y.empty:
-            new.Y = self.Y.iloc[index]
+        if not self.Y.is_empty():
+            new.Y = _polars_row_select(self.Y, index)
         return new
 
     def __iter__(self):
@@ -309,6 +304,15 @@ class Adjacency(object):
         return perform_arithmetic(self, y, np.divide, "divide")
 
     # ── Properties (alphabetical) ───────────────────────────────────────
+
+    @property
+    def Y(self) -> pl.DataFrame:
+        """Training labels as a polars DataFrame (possibly empty)."""
+        return self._Y
+
+    @Y.setter
+    def Y(self, value) -> None:
+        self._Y = validate_frame(value, frame_type="Y")
 
     @property
     def is_empty(self) -> bool:
@@ -387,8 +391,6 @@ class Adjacency(object):
             out: (Adjacency) new appended Adjacency instance
 
         """
-        import pandas as pd
-
         if not isinstance(data, Adjacency):
             raise ValueError("Make sure data is a Adjacency instance.")
 
@@ -401,8 +403,8 @@ class Adjacency(object):
 
             out.data = np.vstack([self.data, data.data])
             out.is_single_matrix = False
-            if out.Y.size:
-                out.Y = pd.concat([self.Y, data.Y], ignore_index=True)
+            if not out.Y.is_empty():
+                out.Y = pl.concat([self.Y, data.Y], how="vertical_relaxed")
 
         return out
 
