@@ -9,6 +9,7 @@ from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
+import polars as pl
 from scipy.spatial.distance import squareform
 
 
@@ -38,44 +39,50 @@ def import_single_data(data, matrix_type=None):
     Returns:
         tuple: (data, issymmetric, matrix_type, is_single_matrix)
     """
-    import pandas as pd
-
     if isinstance(data, (str, Path)):
         if os.path.isfile(data):
-            data = pd.read_csv(data)
+            data = pl.read_csv(str(data)).to_numpy()
         else:
             raise ValueError("Make sure you have specified a valid file path.")
+
+    # Accept pandas DataFrame at the boundary for user convenience
+    try:
+        import pandas as pd
+
+        if isinstance(data, pd.DataFrame):
+            data = data.values
+    except ImportError:
+        pass
+    if isinstance(data, pl.DataFrame):
+        data = data.to_numpy()
 
     if matrix_type is not None:
         if matrix_type.lower() == "distance_flat":
             matrix_type = "distance"
-            data = np.array(data)
+            data = np.asarray(data)
             issymmetric = True
             is_single_matrix = test_is_single_matrix(data)
         elif matrix_type.lower() == "similarity_flat":
             matrix_type = "similarity"
-            data = np.array(data)
+            data = np.asarray(data)
             issymmetric = True
             is_single_matrix = test_is_single_matrix(data)
         elif matrix_type.lower() == "directed_flat":
             matrix_type = "directed"
-            data = np.array(data).flatten()
+            data = np.asarray(data).flatten()
             issymmetric = False
             is_single_matrix = test_is_single_matrix(data)
         elif matrix_type.lower() in ["distance", "similarity", "directed"]:
+            data = np.asarray(data)
             if data.shape[0] != data.shape[1]:
                 raise ValueError("Data matrix must be square")
-            data = np.array(data)
             matrix_type = matrix_type.lower()
             if matrix_type in ["distance", "similarity"]:
                 issymmetric = True
                 data = data[np.triu_indices(data.shape[0], k=1)]
             else:
                 issymmetric = False
-                if isinstance(data, pd.DataFrame):
-                    data = data.values.flatten()
-                elif isinstance(data, np.ndarray):
-                    data = data.flatten()
+                data = data.flatten()
             is_single_matrix = True
     else:
         if len(data.shape) == 1:  # Single Vector

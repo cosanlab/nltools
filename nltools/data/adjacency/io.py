@@ -2,6 +2,9 @@
 
 from pathlib import Path
 
+import numpy as np
+import polars as pl
+
 
 def write(adj, file_name, method="long"):
     """Write out Adjacency object to csv file.
@@ -12,8 +15,6 @@ def write(adj, file_name, method="long"):
         method (str):     method to write out data ['long','square']
 
     """
-    import pandas as pd
-
     from nltools.io import is_h5_path, to_h5
 
     if method not in ["long", "square"]:
@@ -28,13 +29,26 @@ def write(adj, file_name, method="long"):
         to_h5(adj, file_name, obj_type="adjacency")
     else:
         if method == "long":
-            pd.DataFrame(adj.data).to_csv(file_name, index=None)
+            _write_2d_csv(adj.data, file_name)
         elif adj.is_single_matrix and method == "square":
-            pd.DataFrame(adj.squareform()).to_csv(file_name, index=None)
+            _write_2d_csv(np.asarray(adj.squareform()), file_name)
         elif not adj.is_single_matrix and method == "square":
             raise NotImplementedError(
                 "Need to decide how we should write out multiple matrices. As separate files?"
             )
+
+
+def _write_2d_csv(arr: np.ndarray, file_name: str) -> None:
+    """Write an array to CSV via polars with numeric-index column names.
+
+    Matches the pandas ``pd.DataFrame(arr).to_csv(index=None)`` layout:
+    1-D arrays become a single-column frame with ``len(arr)`` rows.
+    """
+    arr = np.asarray(arr)
+    if arr.ndim == 1:
+        arr = arr.reshape(-1, 1)
+    schema = [str(i) for i in range(arr.shape[1])]
+    pl.DataFrame(arr, schema=schema).write_csv(file_name)
 
 
 def to_graph(adj):
