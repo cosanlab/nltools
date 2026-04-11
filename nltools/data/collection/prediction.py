@@ -87,7 +87,7 @@ def predict(
         >>> weights = bc.fit_ridge(X=features, output='weights')
         >>> predictions = weights.predict(X=new_features)
     """
-    import pandas as pd
+    import polars as pl
     from nltools.data.collection import BrainCollection
     from nltools.data.collection.modeling import resolve_X, load_features
     from nltools.utils import attempt_to_import
@@ -181,7 +181,7 @@ def predict(
     result_collection = BrainCollection(
         result_data_list,
         mask=bc.mask,
-        metadata=pd.DataFrame(result_metadata),
+        metadata=pl.DataFrame(result_metadata),
     )
 
     return result_collection

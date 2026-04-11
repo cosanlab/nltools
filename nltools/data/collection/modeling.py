@@ -549,6 +549,7 @@ def fit_glm(
         ... )
     """
     import pandas as pd
+    import polars as pl
 
     from nltools.data.collection import BrainCollection
     from nltools.utils import attempt_to_import
@@ -725,7 +726,7 @@ def fit_glm(
     beta_collection = BrainCollection(
         beta_data_list,
         mask=bc.mask,
-        metadata=pd.DataFrame(beta_metadata),
+        metadata=pl.DataFrame(beta_metadata),
     )
     beta_collection._design_columns = task_columns
 
@@ -741,7 +742,7 @@ def fit_glm(
             stat_collection = BrainCollection(
                 stat_data[stat],
                 mask=bc.mask,
-                metadata=pd.DataFrame(beta_metadata),
+                metadata=pl.DataFrame(beta_metadata),
             )
             result[stat] = stat_collection
         return result
@@ -883,6 +884,7 @@ def fit_glm_internal(
         BrainCollection of betas, or dict with betas + requested stats.
     """
     import pandas as pd
+    import polars as pl
 
     from nltools.data.collection import BrainCollection
     from nltools.utils import attempt_to_import
@@ -995,7 +997,7 @@ def fit_glm_internal(
                 stat_data[stat].append(stat_bd)
 
     # Build result collection
-    result_metadata = pd.DataFrame(beta_metadata)
+    result_metadata = pl.DataFrame(beta_metadata)
     beta_collection = BrainCollection(
         beta_data_list, mask=bc._mask, metadata=result_metadata, lazy=False
     )
@@ -1143,7 +1145,7 @@ def fit_ridge(
         >>> # Get weights only (no CV needed)
         >>> weights = bc.fit_ridge(X=features, alpha=1.0, output='weights', cv=None)
     """
-    import pandas as pd
+    import polars as pl
 
     from nltools.data.collection import BrainCollection
     from nltools.utils import attempt_to_import
@@ -1252,7 +1254,7 @@ def fit_ridge(
         bc.unload([i])
 
     # Build result collection(s)
-    result_meta_df = pd.DataFrame(result_metadata)
+    result_meta_df = pl.DataFrame(result_metadata)
 
     if output == "weights":
         weight_collection = BrainCollection(
