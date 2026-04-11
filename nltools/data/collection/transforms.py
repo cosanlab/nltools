@@ -225,7 +225,7 @@ def filter_collection(
         predicate: Filter condition. Can be:
             - callable: fn(BrainData) -> bool
             - list/ndarray: Boolean mask of length n_images
-            - pd.Series: Boolean series (index ignored)
+            - pl.Series / pd.Series: Boolean series
 
     Returns:
         BrainCollection with subset of images matching predicate.
@@ -241,14 +241,20 @@ def filter_collection(
         >>> # Filter by metadata condition
         >>> bc.filter(bc.metadata['group'] == 'control')
     """
-    import pandas as pd
+    import polars as pl
 
-    if isinstance(predicate, pd.Series):
+    try:
+        import pandas as pd
+    except ImportError:
+        pd = None
+
+    if isinstance(predicate, pl.Series):
+        mask = predicate.to_numpy().astype(bool)
+    elif pd is not None and isinstance(predicate, pd.Series):
         mask = predicate.values.astype(bool)
     elif isinstance(predicate, (list, np.ndarray)):
         mask = np.asarray(predicate, dtype=bool)
     elif callable(predicate):
-        # Apply predicate to each image
         mask_list: list[bool] = []
         for i in range(bc.n_images):
             bd = bc._load_item(i)
@@ -389,7 +395,7 @@ def align(
         aligned_items.append(new_bd)
 
     aligned_collection = BrainCollection(
-        aligned_items, mask=bc._mask, metadata=bc._metadata.copy()
+        aligned_items, mask=bc._mask, metadata=bc._metadata.clone()
     )
 
     if return_model:

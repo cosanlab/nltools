@@ -9,14 +9,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    import pandas as pd
-
     from nltools.data.collection import BrainCollection
 
 
 def _resolve_save_path(
     template: str,
-    metadata_row: "pd.Series",
+    metadata_row: dict,
     idx: int,
 ) -> "Path":
     """Resolve a template path using metadata values.
@@ -26,7 +24,7 @@ def _resolve_save_path(
 
     Args:
         template: Path template with {placeholders}, e.g., 'output/{subject}_betas.nii.gz'
-        metadata_row: Series with metadata for this subject
+        metadata_row: Dict of metadata for this subject (e.g. from ``pl.DataFrame.row(i, named=True)``)
         idx: Subject index (used for {idx} placeholder)
 
     Returns:
@@ -36,7 +34,7 @@ def _resolve_save_path(
         KeyError: If placeholder not found in metadata and not 'idx'
 
     Example:
-        >>> row = pd.Series({'subject': 'sub-01', 'session': 'ses-01'})
+        >>> row = {'subject': 'sub-01', 'session': 'ses-01'}
         >>> _resolve_save_path('out/{subject}_{session}.nii.gz', row, 0)
         PosixPath('out/sub-01_ses-01.nii.gz')
     """
@@ -45,16 +43,15 @@ def _resolve_save_path(
 
     result = template
 
-    # Find all {placeholder} patterns
     placeholders = re.findall(r"\{(\w+)\}", template)
 
     for placeholder in placeholders:
         if placeholder == "idx":
             value = str(idx)
-        elif placeholder in metadata_row.index:
+        elif placeholder in metadata_row:
             value = str(metadata_row[placeholder])
         else:
-            available = list(metadata_row.index) + ["idx"]
+            available = list(metadata_row.keys()) + ["idx"]
             raise KeyError(
                 f"Placeholder '{{{placeholder}}}' not found in metadata. "
                 f"Available: {available}"
@@ -116,10 +113,12 @@ def write(
         written_paths.append(file_path)
 
     # Write metadata if requested
-    if metadata_file is not None and not bc._metadata.empty:
-        # Add file paths to metadata
-        metadata_out = bc._metadata.copy()
-        metadata_out["file_path"] = [str(p) for p in written_paths]
-        metadata_out.to_csv(directory / metadata_file, index=False)
+    if metadata_file is not None and not bc._metadata.is_empty():
+        import polars as pl
+
+        metadata_out = bc._metadata.with_columns(
+            pl.Series("file_path", [str(p) for p in written_paths])
+        )
+        metadata_out.write_csv(directory / metadata_file)
 
     return written_paths

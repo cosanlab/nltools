@@ -203,8 +203,40 @@ class TestBrainCollectionProperties:
         assert sample_collection.mask.shape == sample_mask.shape
 
     def test_metadata_default(self, sample_collection):
-        """Test default metadata is empty DataFrame with correct length."""
-        assert len(sample_collection.metadata) == 3
+        """Default metadata is an empty polars DataFrame (0x0)."""
+        import polars as pl
+
+        assert isinstance(sample_collection.metadata, pl.DataFrame)
+        assert sample_collection.metadata.is_empty()
+        # Row count is still reflected by the collection itself
+        assert sample_collection.n_images == 3
+
+    def test_metadata_is_polars(self, sample_brain_data_list, sample_mask):
+        """Metadata is always a polars DataFrame regardless of ingress type."""
+        import polars as pl
+
+        # Default (None) → empty polars frame (0x0); n_images reflects length
+        bc = BrainCollection(sample_brain_data_list, mask=sample_mask)
+        assert isinstance(bc.metadata, pl.DataFrame)
+        assert bc.metadata.is_empty()
+        assert bc.n_images == 3
+
+        # pandas ingress → polars egress
+        pd_md = pd.DataFrame({"subject": ["01", "02", "03"], "group": ["a", "b", "a"]})
+        bc_pd = BrainCollection(
+            sample_brain_data_list, mask=sample_mask, metadata=pd_md
+        )
+        assert isinstance(bc_pd.metadata, pl.DataFrame)
+        assert bc_pd.metadata.columns == ["subject", "group"]
+        assert bc_pd.metadata["subject"].to_list() == ["01", "02", "03"]
+
+        # polars ingress → polars egress (identity)
+        pl_md = pl.DataFrame({"subject": ["01", "02", "03"]})
+        bc_pl = BrainCollection(
+            sample_brain_data_list, mask=sample_mask, metadata=pl_md
+        )
+        assert isinstance(bc_pl.metadata, pl.DataFrame)
+        assert bc_pl.metadata["subject"].to_list() == ["01", "02", "03"]
 
     def test_is_loaded(self, temp_nifti_files):
         """Test is_loaded property."""
@@ -433,7 +465,7 @@ class TestBrainCollectionFromBIDS:
         assert "subject" in bc.metadata.columns
         assert "task" in bc.metadata.columns
         # Check subject values
-        subjects = sorted(bc.metadata["subject"].tolist())
+        subjects = sorted(bc.metadata["subject"].to_list())
         assert subjects == ["01", "02"]
 
     @pytest.mark.skipif(not HAS_PYBIDS, reason="pybids not installed")
@@ -448,7 +480,7 @@ class TestBrainCollectionFromBIDS:
 
         # Should find only 1 subject
         assert len(bc) == 1
-        assert bc.metadata["subject"].iloc[0] == "01"
+        assert bc.metadata["subject"][0] == "01"
 
     @pytest.mark.skipif(not HAS_PYBIDS, reason="pybids not installed")
     def test_from_bids_no_matches_raises(self, minimal_bids_dataset, minimal_bids_mask):
@@ -2708,7 +2740,11 @@ class TestBrainCollectionFitRidge:
     def test_resolve_X_metadata_column(self, small_collection):
         """Test that string column name returns list of values."""
         # Add a feature column to metadata
-        small_collection._metadata["features"] = [f"feat_{i}.npy" for i in range(3)]
+        import polars as pl
+
+        small_collection._metadata = small_collection._metadata.with_columns(
+            pl.Series("features", [f"feat_{i}.npy" for i in range(3)])
+        )
         result = small_collection._resolve_X("features")
         assert result == ["feat_0.npy", "feat_1.npy", "feat_2.npy"]
 

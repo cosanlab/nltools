@@ -322,8 +322,8 @@ def cv(
 
     # Handle split_by -> groups conversion from metadata
     if groups is None and split_by is not None:
-        if bc.metadata is not None and split_by in bc.metadata.columns:
-            groups = np.array(bc.metadata[split_by])
+        if split_by in bc.metadata.columns:
+            groups = bc.metadata[split_by].to_numpy()
 
     # Create CV scheme
     cv_scheme = CVScheme(
@@ -606,7 +606,9 @@ def fit_glm(
     for i in iterator:
         # Load subject data
         bd = bc._load_item(i)
-        metadata_row = bc._metadata.iloc[i]
+        metadata_row = (
+            bc._metadata.row(i, named=True) if not bc._metadata.is_empty() else {}
+        )
         n_scans = bd.shape[0]
 
         # Get subject-specific confounds
@@ -688,7 +690,7 @@ def fit_glm(
             task_betas.write(str(save_path))
 
         beta_data_list.append(task_betas)
-        beta_metadata.append(metadata_row.to_dict())
+        beta_metadata.append(dict(metadata_row))
 
         # Extract optional stats (standard mode only, validated earlier)
         if return_stats:
@@ -913,7 +915,9 @@ def fit_glm_internal(
     for i in iterator:
         # Load subject data
         bd = bc._load_item(i)
-        metadata_row = bc._metadata.iloc[i]
+        metadata_row = (
+            bc._metadata.row(i, named=True) if not bc._metadata.is_empty() else {}
+        )
 
         # Get subject-specific design matrix
         X_subj = X_list[i] if X_list else X
@@ -959,7 +963,7 @@ def fit_glm_internal(
             betas.write(str(save_path))
 
         beta_data_list.append(betas)
-        beta_metadata.append(metadata_row.to_dict())
+        beta_metadata.append(dict(metadata_row))
 
         # Extract optional stats
         if return_stats:
@@ -1180,7 +1184,9 @@ def fit_ridge(
     for i in iterator:
         # Load subject data
         bd = bc._load_item(i)
-        metadata_row = bc._metadata.iloc[i]
+        metadata_row = (
+            bc._metadata.row(i, named=True) if not bc._metadata.is_empty() else {}
+        )
 
         # Get subject features
         X_subj = X_list[i] if X_list else X
@@ -1200,7 +1206,7 @@ def fit_ridge(
         # Fit ridge
         bd.fit(model="ridge", X=X_subj, alpha=alpha, cv=cv, **ridge_kwargs)
 
-        result_metadata.append(metadata_row.to_dict())
+        result_metadata.append(dict(metadata_row))
 
         # Store CV results if available
         cv_result = None

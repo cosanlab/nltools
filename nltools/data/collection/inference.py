@@ -404,7 +404,7 @@ def anova(
                 f"Column '{groups}' not found in metadata. "
                 f"Available: {list(bc._metadata.columns)}"
             )
-        group_labels = bc._metadata[groups].values
+        group_labels = bc._metadata[groups].to_numpy()
     else:
         group_labels = np.asarray(groups)
         if len(group_labels) != bc.n_images:

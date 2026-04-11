@@ -141,7 +141,9 @@ def predict(
     for i in iterator:
         # Load subject data
         bd = bc._load_item(i)
-        metadata_row = bc._metadata.iloc[i]
+        metadata_row = (
+            bc._metadata.row(i, named=True) if not bc._metadata.is_empty() else {}
+        )
 
         if X is not None:
             # Timeseries prediction mode
@@ -170,7 +172,7 @@ def predict(
             )
 
         result_data_list.append(result)
-        result_metadata.append(metadata_row.to_dict())
+        result_metadata.append(dict(metadata_row))
 
         # Unload to free memory
         bc.unload([i])
@@ -302,7 +304,7 @@ def compute_single_contrast(
     return BrainCollection(
         contrast_data_list,
         mask=bc.mask,
-        metadata=bc._metadata.copy(),
+        metadata=bc._metadata.clone(),
     )
 
 
@@ -443,5 +445,5 @@ def select_feature(
     return BrainCollection(
         feature_data_list,
         mask=bc.mask,
-        metadata=bc._metadata.copy(),
+        metadata=bc._metadata.clone(),
     )

@@ -59,7 +59,7 @@ def from_bids(
         ...     space='MNI152NLin2009cAsym'
         ... )
     """
-    import pandas as pd
+    import polars as pl
     from pathlib import Path
 
     from nltools.data.collection import BrainCollection
@@ -111,7 +111,9 @@ def from_bids(
             }
         )
 
-    metadata = pd.DataFrame(metadata_rows)
+    # Build per-column dict so polars handles None uniformly
+    cols = ["subject", "session", "run", "task", "space"]
+    metadata = pl.DataFrame({c: [row[c] for row in metadata_rows] for c in cols})
     return BrainCollection(files, mask=mask, metadata=metadata)
 
 
@@ -145,7 +147,7 @@ def from_glob(
     import glob
     import re
 
-    import pandas as pd
+    import polars as pl
 
     from nltools.data.collection import BrainCollection
 
@@ -164,11 +166,17 @@ def from_glob(
             metadata_rows = []
             for f in files:
                 match = regex.search(f)
-                if match:
-                    metadata_rows.append(match.groupdict())
-                else:
-                    metadata_rows.append({})
-            metadata = pd.DataFrame(metadata_rows)
+                metadata_rows.append(match.groupdict() if match else {})
+            # Union of keys across rows; missing values become None
+            keys: list[str] = []
+            for row in metadata_rows:
+                for k in row:
+                    if k not in keys:
+                        keys.append(k)
+            if keys:
+                metadata = pl.DataFrame(
+                    {k: [row.get(k) for row in metadata_rows] for k in keys}
+                )
 
     return BrainCollection(files, mask=mask, metadata=metadata)
 

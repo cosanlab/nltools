@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import numpy as np
 import nibabel as nib
+import polars as pl
 from pathlib import Path
 from collections.abc import Callable
 from typing import (
@@ -39,6 +40,46 @@ if TYPE_CHECKING:
     import pandas as pd
 
     from ..braindata import BrainData
+
+
+def _coerce_metadata(
+    metadata: "pl.DataFrame | pd.DataFrame | dict | None",
+    n_items: int,
+) -> pl.DataFrame:
+    """Coerce metadata input to a polars DataFrame.
+
+    Accepts polars/pandas DataFrame, dict-of-columns, or None (→ empty frame
+    of length ``n_items``). Pandas is taken at the boundary as a convenience
+    affordance; internal state is always polars.
+    """
+    if metadata is None:
+        return pl.DataFrame()
+
+    if isinstance(metadata, pl.DataFrame):
+        out = metadata
+    elif isinstance(metadata, dict):
+        out = pl.DataFrame(metadata)
+    else:
+        try:
+            import pandas as pd
+        except ImportError:
+            pd = None
+        if pd is not None and isinstance(metadata, pd.DataFrame):
+            out = pl.DataFrame(
+                {str(c): metadata[c].to_numpy() for c in metadata.columns}
+            )
+        else:
+            raise TypeError(
+                "metadata must be a polars/pandas DataFrame, dict, or None. "
+                f"Received {type(metadata).__name__}"
+            )
+
+    if not out.is_empty() and out.height != n_items:
+        raise ValueError(
+            f"metadata length ({out.height}) must match items length ({n_items})"
+        )
+    return out
+
 
 # Lazy imports for optional dependencies
 tqdm = attempt_to_import("tqdm", "tqdm")
@@ -117,7 +158,7 @@ class BrainCollection:
         self,
         items: list[Path | str | "BrainData"],
         mask: nib.Nifti1Image | Path | str,
-        metadata: pd.DataFrame | None = None,
+        metadata: "pl.DataFrame | pd.DataFrame | dict | None" = None,
         lazy: bool = True,
     ):
         """Initialize BrainCollection.
@@ -125,11 +166,10 @@ class BrainCollection:
         Args:
             items: List of paths or BrainData objects.
             mask: Shared mask (required). Path, nibabel image, or template name.
-            metadata: Optional per-image metadata DataFrame.
+            metadata: Optional per-image metadata. Accepts polars/pandas
+                DataFrame or dict-of-columns; stored as polars.
             lazy: If True, paths are loaded on demand.
         """
-        import pandas as pd
-
         from ..braindata import BrainData
 
         if not items:
@@ -169,16 +209,8 @@ class BrainCollection:
                     f"Expected path or BrainData, got {type(item).__name__}"
                 )
 
-        # Metadata
-        if metadata is not None:
-            if len(metadata) != len(self._items):
-                raise ValueError(
-                    f"metadata length ({len(metadata)}) must match "
-                    f"items length ({len(self._items)})"
-                )
-            self._metadata = metadata.reset_index(drop=True)
-        else:
-            self._metadata = pd.DataFrame(index=range(len(self._items)))
+        # Metadata — always polars internally; accepts pandas/dict at ingress
+        self._metadata = _coerce_metadata(metadata, len(self._items))
 
     def _resolve_mask(self, mask: nib.Nifti1Image | Path | str) -> nib.Nifti1Image:
         """Resolve mask to nibabel image."""
@@ -259,8 +291,8 @@ class BrainCollection:
         return self._mask
 
     @property
-    def metadata(self) -> pd.DataFrame:
-        """Per-image metadata DataFrame."""
+    def metadata(self) -> pl.DataFrame:
+        """Per-image metadata as a polars DataFrame."""
         return self._metadata
 
     @property
@@ -440,13 +472,13 @@ class BrainCollection:
 
     def _getitem_by_metadata(self, key: str) -> "BrainData":
         """Get item by metadata value (e.g., subject ID)."""
-        # Try common columns
         for col in ["subject", "subject_id", "sub", "id"]:
             if col in self._metadata.columns:
-                matches = self._metadata[self._metadata[col] == key].index
-                if len(matches) == 1:
-                    return self._load_item(matches[0])
-                elif len(matches) > 1:
+                mask = (self._metadata[col] == key).to_numpy()
+                match_idx = np.flatnonzero(mask)
+                if len(match_idx) == 1:
+                    return self._load_item(int(match_idx[0]))
+                elif len(match_idx) > 1:
                     raise KeyError(
                         f"Multiple images match '{key}' in column '{col}'. "
                         "Use integer indexing or more specific key."
@@ -563,7 +595,10 @@ class BrainCollection:
     def _subset(self, indices: list[int]) -> "BrainCollection":
         """Create a new BrainCollection with subset of items."""
         new_items = [self._items[i] for i in indices]
-        new_metadata = self._metadata.iloc[indices].reset_index(drop=True)
+        if self._metadata.is_empty():
+            new_metadata = self._metadata
+        else:
+            new_metadata = self._metadata[list(indices)]
 
         # Create new collection without re-validating
         new_bc = object.__new__(BrainCollection)
@@ -1486,7 +1521,7 @@ class BrainCollection:
 
     def filter(
         self,
-        predicate: Callable | list | np.ndarray | "pd.Series",
+        predicate: "Callable | list | np.ndarray | pl.Series | pd.Series",
     ) -> "BrainCollection":
         """
         Filter collection by predicate.
@@ -1495,7 +1530,7 @@ class BrainCollection:
             predicate: Filter condition. Can be:
                 - callable: fn(BrainData) → bool
                 - list/ndarray: Boolean mask of length n_images
-                - pd.Series: Boolean series (index ignored)
+                - pl.Series / pd.Series: Boolean series
 
         Returns:
             BrainCollection with subset of images matching predicate.
