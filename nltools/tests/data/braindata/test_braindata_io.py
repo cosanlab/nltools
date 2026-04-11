@@ -11,9 +11,6 @@ from nltools.tests.conftest import _tables_available
 
 
 class TestBrainDataIO:
-    @pytest.mark.skipif(
-        not _tables_available(), reason="HDF5 support deprecated, requires PyTables"
-    )
     def test_load(self, tmpdir):
         """Test loading BrainData from various sources and formats."""
         from nltools.data.simulator import Simulator
@@ -79,6 +76,27 @@ class TestBrainDataIO:
             assert os.path.abspath(bb.mask.get_filename()) == os.path.abspath(
                 get_brainspace().mask
             )
+
+    def test_h5_roundtrip_x_y(self, tmpdir):
+        """X and Y polars frames survive h5 round-trip."""
+        import polars as pl
+
+        mask_img = nib.load(get_brainspace().mask)
+        source_data = nib.Nifti1Image(
+            np.random.randn(*mask_img.shape + (4,)), affine=mask_img.affine
+        )
+        X = pl.DataFrame({"cond": [1.0, 2.0, 3.0, 4.0], "drift": [0.0, 0.1, 0.2, 0.3]})
+        Y = pl.DataFrame({"outcome": [0.0, 1.0, 0.0, 1.0]})
+        brain = BrainData(source_data, X=X, Y=Y)
+
+        path = str(tmpdir.join("rt.h5"))
+        brain.write(path)
+        loaded = BrainData(path)
+
+        assert loaded.X.columns == ["cond", "drift"]
+        assert loaded.Y.columns == ["outcome"]
+        assert np.allclose(loaded.X.to_numpy(), X.to_numpy())
+        assert np.allclose(loaded.Y.to_numpy(), Y.to_numpy())
 
     @pytest.mark.skipif(
         not _tables_available(), reason="HDF5 support deprecated, requires PyTables"
