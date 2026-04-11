@@ -112,18 +112,20 @@ class BrainData(object):
             if 1 in self.data.shape:
                 self.data = self.data.squeeze()
 
-        # Set X and Y if provided (override copied values if explicitly provided)
+        # Set X and Y. Invariant: .X and .Y are always polars DataFrames
+        # (possibly empty). Assignment goes through the property setter,
+        # which pipes through validate_frame for pandas/numpy/csv ingress.
         if X is not None:
             self.X = X
-        elif data_type == "brain_data" and hasattr(data, "X") and data.X is not None:
-            self.X = data.X.copy() if hasattr(data.X, "copy") else data.X
+        elif data_type == "brain_data" and hasattr(data, "X"):
+            self.X = data.X
         else:
             self.X = None
 
         if Y is not None:
             self.Y = Y
-        elif data_type == "brain_data" and hasattr(data, "Y") and data.Y is not None:
-            self.Y = data.Y.copy() if hasattr(data.Y, "copy") else data.Y
+        elif data_type == "brain_data" and hasattr(data, "Y"):
+            self.Y = data.Y
         else:
             self.Y = None
 
@@ -165,20 +167,8 @@ class BrainData(object):
             return False
 
         eq_data = np.all(self.data == other.data)
-
-        if self.X is None and other.X is None:
-            eq_X = True
-        elif self.X is None or other.X is None:
-            eq_X = False
-        else:
-            eq_X = self.X.equals(other.X)
-
-        if self.Y is None and other.Y is None:
-            eq_Y = True
-        elif self.Y is None or other.Y is None:
-            eq_Y = False
-        else:
-            eq_Y = self.Y.equals(other.Y)
+        eq_X = self.X.equals(other.X)
+        eq_Y = self.Y.equals(other.Y)
 
         if self.mask is None and other.mask is None:
             eq_mask = True
@@ -192,27 +182,21 @@ class BrainData(object):
         return eq_data and eq_X and eq_Y and eq_mask
 
     def __getitem__(self, index):
-        from .utils import shallow_copy
+        from .utils import _polars_row_select, shallow_copy
 
         new = shallow_copy(self)
         if isinstance(index, (int, np.integer)):
             new.data = np.array(self.data[index, :]).squeeze()
+        elif isinstance(index, slice):
+            new.data = self.data[index, :]
         else:
-            if isinstance(index, slice):
-                new.data = self.data[index, :]
-            else:
-                index = np.array(index).flatten()
-                new.data = np.array(self.data[index, :]).squeeze()
-        if hasattr(self, "Y") and self.Y is not None and not self.Y.empty:
-            import pandas as pd
+            index = np.array(index).flatten()
+            new.data = np.array(self.data[index, :]).squeeze()
 
-            new.Y = self.Y.iloc[index]
-            if isinstance(new.Y, pd.Series):
-                new.Y.reset_index(inplace=True, drop=True)
-        if hasattr(self, "X") and self.X is not None and not self.X.empty:
-            new.X = self.X.iloc[index]
-            if len(new.X) > 1:
-                new.X.reset_index(inplace=True, drop=True)
+        if not self.Y.is_empty():
+            new.Y = _polars_row_select(self.Y, index)
+        if not self.X.is_empty():
+            new.X = _polars_row_select(self.X, index)
         return new
 
     def __iadd__(self, y):
@@ -299,21 +283,27 @@ class BrainData(object):
         return perform_arithmetic(self, y, np.subtract, "subtract", reverse=True)
 
     def __setitem__(self, index, value):
+        import polars as pl
+
         if not isinstance(value, BrainData):
             raise ValueError(
                 "Make sure the value you are trying to set is a BrainData() instance."
             )
         self.data[index, :] = value.data
-        if hasattr(value, "Y") and value.Y is not None and not value.Y.empty:
-            if not hasattr(self, "Y") or self.Y is None:
-                raise ValueError("Cannot set Y values: self.Y does not exist.")
-            self.Y.values[index] = value.Y
-        if hasattr(value, "X") and value.X is not None and not value.X.empty:
-            if not hasattr(self, "X") or self.X is None:
-                raise ValueError("Cannot set X values: self.X does not exist.")
+        if not value.Y.is_empty():
+            if self.Y.is_empty():
+                raise ValueError("Cannot set Y values: self.Y is empty.")
+            arr = self.Y.to_numpy()
+            arr[index] = value.Y.to_numpy()
+            self.Y = pl.DataFrame(arr, schema=self.Y.columns)
+        if not value.X.is_empty():
+            if self.X.is_empty():
+                raise ValueError("Cannot set X values: self.X is empty.")
             if self.X.shape[1] != value.X.shape[1]:
                 raise ValueError("Make sure self.X is the same size as value.X.")
-            self.X.values[index] = value.X
+            arr = self.X.to_numpy()
+            arr[index] = value.X.to_numpy()
+            self.X = pl.DataFrame(arr, schema=self.X.columns)
 
     def __sub__(self, y):
         """Subtract from BrainData."""
@@ -350,6 +340,28 @@ class BrainData(object):
     def shape(self):
         """Get images by voxels shape."""
         return self.data.shape
+
+    @property
+    def X(self):
+        """Design matrix / per-image covariates as a polars DataFrame."""
+        return self._X
+
+    @X.setter
+    def X(self, value):
+        from .validation import validate_frame
+
+        self._X = validate_frame(value, frame_type="X")
+
+    @property
+    def Y(self):
+        """Per-image targets as a polars DataFrame."""
+        return self._Y
+
+    @Y.setter
+    def Y(self, value):
+        from .validation import validate_frame
+
+        self._Y = validate_frame(value, frame_type="Y")
 
     # =========================================================================
     # Public methods (alphabetical)
@@ -404,27 +416,17 @@ class BrainData(object):
             out.data = np.vstack([self.data, data.data])
 
             if not ignore_attrs:
-                import pandas as pd
+                import polars as pl
 
-                if (
-                    hasattr(self, "X")
-                    and self.X is not None
-                    and hasattr(data, "X")
-                    and data.X is not None
-                ):
-                    out.X = pd.concat([self.X, data.X], ignore_index=True, **kwargs)
-                elif hasattr(data, "X") and data.X is not None:
-                    out.X = data.X.copy()
+                if not self.X.is_empty() and not data.X.is_empty():
+                    out.X = pl.concat([self.X, data.X], how="vertical_relaxed")
+                elif not data.X.is_empty():
+                    out.X = data.X
 
-                if (
-                    hasattr(self, "Y")
-                    and self.Y is not None
-                    and hasattr(data, "Y")
-                    and data.Y is not None
-                ):
-                    out.Y = pd.concat([self.Y, data.Y], ignore_index=True, **kwargs)
-                elif hasattr(data, "Y") and data.Y is not None:
-                    out.Y = data.Y.copy()
+                if not self.Y.is_empty() and not data.Y.is_empty():
+                    out.Y = pl.concat([self.Y, data.Y], how="vertical_relaxed")
+                elif not data.Y.is_empty():
+                    out.Y = data.Y
             else:
                 out.X = None
                 out.Y = None

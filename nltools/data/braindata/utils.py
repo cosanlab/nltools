@@ -60,7 +60,11 @@ def shallow_copy(bd):
             new.data = bd.data  # reference only
         elif key in ("mask", "nifti_masker", "masker"):
             setattr(new, key, value)
-        elif key in ("X", "Y", "design_matrix"):
+        elif key in ("_X", "_Y"):
+            import polars as pl
+
+            setattr(new, key, value.clone() if isinstance(value, pl.DataFrame) else value)
+        elif key == "design_matrix":
             if value is not None:
                 if hasattr(value, "copy"):
                     setattr(new, key, value.copy())
@@ -143,12 +147,32 @@ def apply_func(bd, stat_func, axis=0):
     if axis == 1:
         return stat_func(bd.data, axis=1)
     elif axis == 0:
-        import pandas as pd
+        import polars as pl
 
         out = shallow_copy(bd)
         out.data = stat_func(bd.data, axis=0)
-        out.X = pd.DataFrame()
-        out.Y = pd.DataFrame()
+        out.X = pl.DataFrame()
+        out.Y = pl.DataFrame()
         return out
     else:
         raise ValueError("axis must be 0 or 1")
+
+
+def _polars_row_select(df, index):
+    """Row-select a polars DataFrame by int / slice / int-array index.
+
+    Polars has no ``.iloc`` — this helper normalizes the three index
+    shapes BrainData's ``__getitem__`` hands it (pandas parity).
+    """
+    import polars as pl
+
+    if df.is_empty():
+        return df
+    if isinstance(index, (int, np.integer)):
+        return df.slice(int(index), 1)
+    if isinstance(index, slice):
+        return df[index]
+    idx = np.asarray(index).flatten()
+    if idx.dtype == bool:
+        return df.filter(pl.Series(idx))
+    return df[idx.tolist()]

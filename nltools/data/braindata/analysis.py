@@ -816,15 +816,14 @@ def transform_pairwise_data(bd):
     Returns:
         BrainData: BrainData instance transformed into pairwise comparisons.
     """
-    import pandas as pd
+    import polars as pl
 
     from nltools.stats import transform_pairwise
 
-    # Optimized: Use shallow copy instead of deepcopy
     out = shallow_copy(bd)
-    out.data, new_Y = transform_pairwise(bd.data, bd.Y)
-    out.Y = pd.DataFrame(new_Y)
-    out.Y.replace(-1, 0, inplace=True)
+    out.data, new_Y = transform_pairwise(bd.data, bd.Y.to_numpy())
+    new_Y = np.where(np.asarray(new_Y) == -1, 0, new_Y)
+    out.Y = pl.DataFrame(new_Y)
     return out
 
 

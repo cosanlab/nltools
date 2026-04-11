@@ -968,14 +968,14 @@ def upload_neurovault(
         """
         if (len(dat.shape) > 1) & (dat.shape[0] > 1):
             raise ValueError('"dat" must be a single image.')
-        if not dat.X.empty and isinstance(dat.X.name, str):
-            img_name = dat.X.name
-        else:
-            img_name = collection["name"] + "_" + str(index_id) + ".nii.gz"
+        img_name = collection["name"] + "_" + str(index_id) + ".nii.gz"
         f_path = os.path.join(tmp_dir, img_name)
         dat.write(f_path)
-        if not dat.X.empty:
-            kwargs.update(dict([(k, dat.X.loc[k]) for k in dat.X.keys()]))
+        if not dat.X.is_empty():
+            # .X is a 1-row polars DataFrame of per-image metadata; expand
+            # its columns into the Neurovault upload kwargs.
+            row = dat.X.row(0)
+            kwargs.update(dict(zip(dat.X.columns, row)))
         api.add_image(
             collection["id"],
             f_path,
