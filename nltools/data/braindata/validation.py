@@ -9,52 +9,67 @@ from pathlib import Path
 
 import nibabel as nib
 import numpy as np
+import polars as pl
 
 
 def validate_frame(frame, data_shape=None, frame_type="DataFrame"):
     """Validate and process X or Y dataframes for BrainData.
 
+    Accepts pandas DataFrames for user convenience but always returns a
+    polars DataFrame. Internal BrainData state should be polars-only.
+
     Args:
-        frame: Input to validate. Can be str, Path, pd.DataFrame, or None.
-        data_shape: Optional tuple of data shape to validate against.
+        frame: Input to validate. Can be ``None``, a ``str``/``Path`` pointing
+            to a CSV, a polars or pandas DataFrame, or a 1D/2D numpy array.
+        data_shape: Optional tuple of data shape to validate row count against.
         frame_type: Type of frame for error messages (e.g., "X", "Y").
 
     Returns:
-        pd.DataFrame: Validated and processed dataframe.
+        pl.DataFrame: Validated frame as polars. Empty ``pl.DataFrame()`` when
+        ``frame`` is ``None``.
 
     Raises:
-        TypeError: If frame is not a valid type.
-        ValueError: If frame does not match data shape.
+        TypeError: If frame is not a supported type.
+        ValueError: If frame rows do not match ``data_shape[0]`` or CSV read fails.
     """
-    import pandas as pd
+    if frame is None:
+        return pl.DataFrame()
 
-    if frame is not None and not isinstance(frame, (str, Path, pd.DataFrame)):
-        raise TypeError(
-            f"{frame_type} must be a filepath (str/Path) or pandas DataFrame. "
-            f"Received {type(frame).__name__}"
-        )
-
-    if isinstance(frame, (str, Path)):
+    if isinstance(frame, pl.DataFrame):
+        out = frame
+    elif isinstance(frame, (str, Path)):
         try:
-            frame = pd.read_csv(frame, header=None, index_col=None)
+            out = pl.read_csv(frame, has_header=False)
         except Exception as e:
             raise ValueError(
                 f"Could not read {frame_type} from file '{frame}'. "
                 f"Make sure the file exists and is a valid CSV. Error: {e}"
             )
-    elif frame is None:
-        frame = pd.DataFrame()
+    elif isinstance(frame, np.ndarray):
+        arr = frame if frame.ndim == 2 else frame.reshape(-1, 1)
+        out = pl.DataFrame(arr)
+    else:
+        try:
+            import pandas as pd
+        except ImportError:
+            pd = None
+        if pd is not None and isinstance(frame, pd.DataFrame):
+            out = pl.DataFrame({str(c): frame[c].to_numpy() for c in frame.columns})
+        else:
+            raise TypeError(
+                f"{frame_type} must be a filepath (str/Path), numpy array, or "
+                f"polars/pandas DataFrame. Received {type(frame).__name__}"
+            )
 
-    # Validate shape if data_shape is provided
-    if not frame.empty and data_shape is not None:
-        if frame.shape[0] != data_shape[0]:
+    if not out.is_empty() and data_shape is not None:
+        if out.shape[0] != data_shape[0]:
             raise ValueError(
-                f"{frame_type} rows ({frame.shape[0]}) do not match "
+                f"{frame_type} rows ({out.shape[0]}) do not match "
                 f"data rows ({data_shape[0]}). Each row in {frame_type} should "
                 f"correspond to an image in the data."
             )
 
-    return frame
+    return out
 
 
 def validate_brain_data_shapes(brain1, brain2, operation="operation"):
