@@ -282,6 +282,40 @@ def ttest(adj, permutation=False, **kwargs):
     return {"t": t, "p": p}
 
 
+def _label_distance_long(adj, labels):
+    """Build long-format within/between distance arrays for a labelled adjacency.
+
+    Returns:
+        dict with keys ``Distance`` (1-D float array), ``Type`` (1-D object
+        array of "Within"/"Between"), ``Group`` (1-D array of label values).
+    """
+    distance = np.asarray(adj.squareform())
+    labels = np.asarray(labels)
+    if len(labels) != distance.shape[0]:
+        raise ValueError("Labels must be same length as distance matrix")
+
+    dist_parts, type_parts, group_parts = [], [], []
+    for i in np.unique(labels):
+        mask_i = labels == i
+        sub = distance[np.ix_(mask_i, mask_i)]
+        within_vals = sub[np.triu_indices(mask_i.sum(), k=1)]
+        between_vals = distance[np.ix_(mask_i, ~mask_i)].ravel()
+
+        dist_parts.append(within_vals)
+        type_parts.append(np.full(within_vals.shape, "Within", dtype=object))
+        group_parts.append(np.full(within_vals.shape, i))
+
+        dist_parts.append(between_vals)
+        type_parts.append(np.full(between_vals.shape, "Between", dtype=object))
+        group_parts.append(np.full(between_vals.shape, i))
+
+    return {
+        "Distance": np.concatenate(dist_parts),
+        "Type": np.concatenate(type_parts),
+        "Group": np.concatenate(group_parts),
+    }
+
+
 def plot_label_distance(adj, labels=None, ax=None):
     """Create a violin plot indicating within and between label distance
 
@@ -293,33 +327,20 @@ def plot_label_distance(adj, labels=None, ax=None):
         None
 
     """
+    from copy import deepcopy
+
     import pandas as pd
     import seaborn as sns
-    from copy import deepcopy
 
     if not adj.is_single_matrix:
         raise ValueError("This function only works on single adjacency matrices.")
 
-    distance = pd.DataFrame(adj.squareform())
-
     if labels is None:
         labels = np.array(deepcopy(adj.labels))
-    else:
-        if len(labels) != distance.shape[0]:
-            raise ValueError("Labels must be same length as distance matrix")
 
-    frames = []
-    for i in np.unique(labels):
-        # Within-group distances (upper triangle of group i x group i)
-        within_vals = distance.loc[labels == i, labels == i].values[
-            np.triu_indices(sum(labels == i), k=1)
-        ]
-        tmp_w = pd.DataFrame({"Distance": within_vals, "Type": "Within", "Group": i})
-        # Between-group distances (group i to all other groups)
-        between_vals = distance.loc[labels == i, labels != i].values.flatten()
-        tmp_b = pd.DataFrame({"Distance": between_vals, "Type": "Between", "Group": i})
-        frames.extend([tmp_w, tmp_b])
-    out = pd.concat(frames, ignore_index=True)
+    long = _label_distance_long(adj, labels)
+    # Pandas boundary: seaborn requires a pandas DataFrame input.
+    out = pd.DataFrame(long)
     f = sns.violinplot(
         x="Group",
         y="Distance",
@@ -348,7 +369,6 @@ def stats_label_distance(adj, labels=None, n_permute=5000, n_jobs=-1):
                 and p-values
 
     """
-    import pandas as pd
     from copy import deepcopy
 
     from nltools.stats import two_sample_permutation_test
@@ -356,33 +376,20 @@ def stats_label_distance(adj, labels=None, n_permute=5000, n_jobs=-1):
     if not adj.is_single_matrix:
         raise ValueError("This function only works on single adjacency matrices.")
 
-    distance = pd.DataFrame(adj.squareform())
-
     if labels is None:
         labels = deepcopy(adj.labels)
-    else:
-        if len(labels) != distance.shape[0]:
-            raise ValueError("Labels must be same length as distance matrix")
 
-    frames = []
-    for i in np.unique(labels):
-        # Within-group distances (upper triangle of group i x group i)
-        within_vals = distance.loc[labels == i, labels == i].values[
-            np.triu_indices(sum(labels == i), k=1)
-        ]
-        tmp_w = pd.DataFrame({"Distance": within_vals, "Type": "Within", "Group": i})
-        # Between-group distances (group i to all other groups)
-        between_vals = distance.loc[labels == i, labels != i].values.flatten()
-        tmp_b = pd.DataFrame({"Distance": between_vals, "Type": "Between", "Group": i})
-        frames.extend([tmp_w, tmp_b])
-    out = pd.concat(frames, ignore_index=True)
+    long = _label_distance_long(adj, labels)
+    distances = long["Distance"]
+    types = long["Type"]
+    groups = long["Group"]
+
     stats = {}
-    for i in np.unique(labels):
-        # Within group test
-        tmp1 = out.loc[(out["Group"] == i) & (out["Type"] == "Within"), "Distance"]
-        tmp2 = out.loc[(out["Group"] == i) & (out["Type"] == "Between"), "Distance"]
+    for i in np.unique(groups):
+        within = distances[(groups == i) & (types == "Within")]
+        between = distances[(groups == i) & (types == "Between")]
         stats[str(i)] = two_sample_permutation_test(
-            tmp1, tmp2, n_permute=n_permute, n_jobs=n_jobs
+            within, between, n_permute=n_permute, n_jobs=n_jobs
         )
     return stats
 
@@ -440,41 +447,34 @@ def cluster_summary(adj, clusters=None, metric="mean", summary="within"):
         dict: (dict) within cluster means
 
     """
-    import pandas as pd
-
     if metric not in ["mean", "median", None]:
         raise ValueError("metric must be ['mean','median', None]")
 
-    distance = pd.DataFrame(adj.squareform())
-    clusters = np.array(clusters)
+    distance = np.asarray(adj.squareform())
+    clusters = np.asarray(clusters)
 
     if len(clusters) != distance.shape[0]:
         raise ValueError("Cluster labels must be same length as distance matrix")
 
     out = {}
-    for i in list(set(clusters)):
+    for i in list(set(clusters.tolist())):
+        mask_i = clusters == i
         if summary == "within":
+            within_vals = distance[np.ix_(mask_i, mask_i)][
+                np.triu_indices(mask_i.sum(), k=1)
+            ]
             if metric == "mean":
-                out[i] = np.mean(
-                    distance.loc[clusters == i, clusters == i].values[
-                        np.triu_indices(sum(clusters == i), k=1)
-                    ]
-                )
+                out[i] = float(np.mean(within_vals))
             elif metric == "median":
-                out[i] = np.median(
-                    distance.loc[clusters == i, clusters == i].values[
-                        np.triu_indices(sum(clusters == i), k=1)
-                    ]
-                )
-            elif metric is None:
-                out[i] = distance.loc[clusters == i, clusters == i].values[
-                    np.triu_indices(sum(clusters == i), k=1)
-                ]
+                out[i] = float(np.median(within_vals))
+            else:
+                out[i] = within_vals
         elif summary == "between":
+            between_block = distance[np.ix_(mask_i, ~mask_i)]
             if metric == "mean":
-                out[i] = distance.loc[clusters == i, clusters != i].mean().mean()
+                out[i] = float(np.mean(between_block))
             elif metric == "median":
-                out[i] = distance.loc[clusters == i, clusters != i].median().median()
-            elif metric is None:
-                out[i] = distance.loc[clusters == i, clusters != i]
+                out[i] = float(np.median(between_block))
+            else:
+                out[i] = between_block
     return out

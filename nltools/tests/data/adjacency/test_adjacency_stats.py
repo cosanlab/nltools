@@ -182,9 +182,9 @@ class TestAdjacencyStats:
         assert isinstance(results, dict)
         assert set(results.keys()) == {"0", "1", "2"}
         for group_key in results:
-            assert "mean" in results[group_key]
+            assert "mean_diff" in results[group_key]
             assert "p" in results[group_key]
-            assert results[group_key]["mean"] < 0
+            assert results[group_key]["mean_diff"] < 0
             assert results[group_key]["p"] < 0.05
 
         multi_adj = Adjacency([dist_matrix, dist_matrix], matrix_type="distance")
