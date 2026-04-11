@@ -772,18 +772,13 @@ def parse_contrast_string(bd, contrast_str):
         ValueError: If column name not found in design_matrix
     """
     import re
-    import pandas as pd
 
-    if not hasattr(bd, "design_matrix"):
+    if getattr(bd, "design_matrix", None) is None:
         raise RuntimeError(
             "No design matrix found. Run .fit(model='glm', X=design_matrix) first."
         )
 
-    # Get column names from design matrix
-    if isinstance(bd.design_matrix, pd.DataFrame):
-        col_names = list(bd.design_matrix.columns)
-    else:
-        col_names = list(bd.design_matrix.columns)
+    col_names = list(bd.design_matrix.columns)
 
     # Initialize contrast vector
     contrast_vector = np.zeros(len(col_names))
