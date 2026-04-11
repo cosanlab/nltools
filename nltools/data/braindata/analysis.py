@@ -7,6 +7,7 @@ alignment, smoothing, and other analytical operations.
 """
 
 import numpy as np
+import polars as pl
 
 from .utils import shallow_copy
 
@@ -402,8 +403,6 @@ def icc(
         Images should be ordered as: [subject1_session1, subject1_session2, ...,
         subject2_session1, ...]
     """
-    import pandas as pd
-
     from nltools.algorithms.inference.icc import compute_icc_voxelwise
 
     # Validate data shape
@@ -431,8 +430,8 @@ def icc(
     # Return as BrainData object (shape: (1, n_voxels))
     out = shallow_copy(bd)
     out.data = icc_map[np.newaxis, :]  # (1, n_voxels)
-    out.X = pd.DataFrame()
-    out.Y = pd.DataFrame()
+    out.X = pl.DataFrame()
+    out.Y = pl.DataFrame()
     return out
 
 
@@ -816,8 +815,6 @@ def transform_pairwise_data(bd):
     Returns:
         BrainData: BrainData instance transformed into pairwise comparisons.
     """
-    import polars as pl
-
     from nltools.stats import transform_pairwise
 
     out = shallow_copy(bd)
@@ -1015,7 +1012,7 @@ def find_spikes_data(bd, global_spike_cutoff=3, diff_spike_cutoff=3):
                              in standard deviations, None indicates do not calculate.
 
     Returns:
-        pd.DataFrame: DataFrame with spikes as indicator variables.
+        pl.DataFrame: DataFrame with spikes as indicator variables.
     """
     from nltools.stats import find_spikes
 
