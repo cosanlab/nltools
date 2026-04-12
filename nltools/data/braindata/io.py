@@ -131,6 +131,24 @@ def get_interpolation(bd, img):
     return bd._interpolation
 
 
+def _resample_to_mask(bd, data_img, context=""):
+    """Resample data_img to bd.mask if spaces differ and bd._resample is True.
+
+    Returns data_img unchanged if spaces already match or resampling is disabled.
+    """
+    from nilearn.image import resample_to_img
+
+    if check_space_match(data_img, bd.mask) or not bd._resample:
+        return data_img
+
+    warn_if_resampling(bd, context)
+    return resample_to_img(
+        data_img,
+        bd.mask,
+        interpolation=get_interpolation(bd, data_img),
+    )
+
+
 def detect_and_update_mask(bd, data_img):
     """Detect best matching template from data and update mask if mask was None.
 
@@ -151,151 +169,52 @@ def detect_and_update_mask(bd, data_img):
     from nilearn.maskers import NiftiMasker
 
     if not bd._mask_was_none:
-        # Mask was explicitly provided, don't auto-detect
-        # Still check if resampling is needed based on resample kwarg
-        if not check_space_match(data_img, bd.mask):
-            if bd._resample:
-                # Warn about resampling
-                warn_if_resampling(bd)
-                # Resample data to mask space
-                from nilearn.image import resample_to_img
-                from contextlib import redirect_stdout
-
-                if not bd.verbose:
-                    with open(os.devnull, "w") as devnull:
-                        with redirect_stdout(devnull):
-                            data_img = resample_to_img(
-                                data_img,
-                                bd.mask,
-                                interpolation=get_interpolation(bd, data_img),
-                                copy_header=True,
-                                force_resample=True,
-                            )
-                else:
-                    data_img = resample_to_img(
-                        data_img,
-                        bd.mask,
-                        interpolation=get_interpolation(bd, data_img),
-                        copy_header=True,
-                    )
-        return data_img
+        return _resample_to_mask(bd, data_img)
 
     try:
         from nltools.templates import match_resolution
 
-        # Detect template from data
         template_info = match_resolution(
             data_img.affine,
             prefer_exact=True,
             warn_resample=bd._resample,
         )
-
-        # Store detected template info
         bd._detected_template = template_info
 
-        # Load detected template mask
         detected_mask = nib.load(template_info.mask_path)
-
-        # Check if detected mask differs from current mask
         current_mask_path = bd.mask.get_filename()
         detected_mask_path = template_info.mask_path
 
         if current_mask_path != detected_mask_path:
-            # Update mask to detected template
             bd.mask = detected_mask
-
-            # Re-initialize masker with new mask
             bd.nifti_masker = NiftiMasker(
                 mask_img=bd.mask,
                 verbose=getattr(bd, "verbose", False),
             )
             bd.nifti_masker.fit()
-
-            # Update voxel resolution
             affine = bd.mask.affine
             bd._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
-
-            # Update space detection
             bd._space = detect_space(bd, bd.mask)
 
-        # Always check if resampling is needed (regardless of whether mask changed)
-        # Data might be in different space even if template matches
-        if not check_space_match(data_img, bd.mask):
-            if bd._resample:
-                # Warn about resampling
-                warn_if_resampling(
-                    bd,
-                    f"Detected template ({template_info.template} {template_info.resolution}mm) differs from data resolution.",
-                )
-                # Resample data to detected mask space
-                from nilearn.image import resample_to_img
-                from contextlib import redirect_stdout
-
-                if not bd.verbose:
-                    with open(os.devnull, "w") as devnull:
-                        with redirect_stdout(devnull):
-                            data_img = resample_to_img(
-                                data_img,
-                                bd.mask,
-                                interpolation=get_interpolation(bd, data_img),
-                                copy_header=True,
-                                force_resample=True,
-                            )
-                else:
-                    data_img = resample_to_img(
-                        data_img,
-                        bd.mask,
-                        interpolation=get_interpolation(bd, data_img),
-                        copy_header=True,
-                    )
-            else:
-                # resample=False but spaces don't match - error will be raised in caller
-                pass
+        return _resample_to_mask(
+            bd,
+            data_img,
+            f"Detected template ({template_info.template} "
+            f"{template_info.resolution}mm) differs from data resolution.",
+        )
 
     except Exception as e:
-        # If detection fails, fall back to default template
-        # This maintains backward compatibility
         warnings.warn(
             f"Failed to auto-detect template from data: {e}. "
             f"Using default template (get_brainspace().mask).",
             UserWarning,
             stacklevel=3,
         )
-
-        # After falling back to default template, check if resampling is needed
-        if not check_space_match(data_img, bd.mask):
-            if bd._resample:
-                # Warn about resampling
-                warn_if_resampling(
-                    bd,
-                    "Template auto-detection failed; using default template.",
-                )
-                # Resample data to default mask space
-                from nilearn.image import resample_to_img
-                from contextlib import redirect_stdout
-
-                if not bd.verbose:
-                    with open(os.devnull, "w") as devnull:
-                        with redirect_stdout(devnull):
-                            data_img = resample_to_img(
-                                data_img,
-                                bd.mask,
-                                interpolation=get_interpolation(bd, data_img),
-                                copy_header=True,
-                                force_resample=True,
-                            )
-                else:
-                    data_img = resample_to_img(
-                        data_img,
-                        bd.mask,
-                        interpolation=get_interpolation(bd, data_img),
-                        copy_header=True,
-                    )
-            else:
-                # resample=False but spaces don't match - error will be raised in caller
-                pass
-
-    return data_img
+        return _resample_to_mask(
+            bd,
+            data_img,
+            "Template auto-detection failed; using default template.",
+        )
 
 
 def detect_space(bd, mask):
@@ -390,120 +309,62 @@ def load_from_list(bd, data_list):
         data_list: List of BrainData objects or file paths.
     """
     import nibabel as nib
-    from nilearn.image import resample_to_img
-    from contextlib import redirect_stdout
     from nltools.utils import concatenate
     from nltools.data.braindata.validation import validate_list_data
 
     list_type = validate_list_data(data_list)
 
     if list_type == "brain_data":
-        # Concatenate BrainData objects
         tmp = concatenate(data_list)
         for item in ["data", "mask", "nifti_masker"]:
             setattr(bd, item, getattr(tmp, item))
-    else:
-        # Load files
-        bd.data = []
+        return
 
-        # Auto-detect template from first item if mask was None
-        if bd._mask_was_none and len(data_list) > 0:
-            first_item = data_list[0]
-            if isinstance(first_item, (str, Path)):
-                first_img = nib.load(str(first_item))
-            elif isinstance(first_item, nib.Nifti1Image):
-                first_img = first_item
-            else:
-                # For BrainData objects, skip detection (will be handled in concatenate)
-                first_img = None
+    bd.data = []
 
-            if first_img is not None:
-                # Detect template and handle resampling if needed
-                first_img = detect_and_update_mask(bd, first_img)
-
-        if not bd.verbose:
-            with open(os.devnull, "w") as devnull:
-                with redirect_stdout(devnull):
-                    for item in data_list:
-                        # Load nibabel image if file path
-                        if isinstance(item, (str, Path)):
-                            item_img = nib.load(str(item))
-                        elif isinstance(item, nib.Nifti1Image):
-                            item_img = item
-                        else:
-                            raise TypeError(
-                                f"List items must be file paths or nibabel Nifti1Image. "
-                                f"Received {type(item).__name__}"
-                            )
-
-                        # Check if resampling is needed
-                        if bd._resample:
-                            if not check_space_match(item_img, bd.mask):
-                                # Warn about resampling (only once for first item)
-                                if item == data_list[0]:
-                                    warn_if_resampling(bd)
-                                item_img = resample_to_img(
-                                    item_img,
-                                    bd.mask,
-                                    interpolation=get_interpolation(bd, item_img),
-                                    copy_header=True,
-                                    force_resample=True,
-                                )
-                        else:
-                            # Check if spaces match when resample=False
-                            if not check_space_match(item_img, bd.mask):
-                                raise ValueError(
-                                    f"Data item and mask are in different spaces. "
-                                    f"Set resample=True to automatically resample data to mask space, "
-                                    f"or ensure all data items are already in the same space as the mask.\n"
-                                    f"Item affine:\n{item_img.affine}\n"
-                                    f"Mask affine:\n{bd.mask.affine}\n"
-                                    f"Item shape: {item_img.shape[:3]}\n"
-                                    f"Mask shape: {bd.mask.shape[:3]}"
-                                )
-
-                        bd.data.append(bd.nifti_masker.transform(item_img))
+    # Auto-detect template from first item if mask was None
+    if bd._mask_was_none and len(data_list) > 0:
+        first_item = data_list[0]
+        if isinstance(first_item, (str, Path)):
+            first_img = nib.load(str(first_item))
+        elif isinstance(first_item, nib.Nifti1Image):
+            first_img = first_item
         else:
-            for item in data_list:
-                # Load nibabel image if file path
-                if isinstance(item, (str, Path)):
-                    item_img = nib.load(str(item))
-                elif isinstance(item, nib.Nifti1Image):
-                    item_img = item
-                else:
-                    raise TypeError(
-                        f"List items must be file paths or nibabel Nifti1Image. "
-                        f"Received {type(item).__name__}"
-                    )
+            first_img = None
 
-                # Check if resampling is needed
-                if bd._resample:
-                    if not check_space_match(item_img, bd.mask):
-                        # Warn about resampling (only once for first item)
-                        if item == data_list[0]:
-                            warn_if_resampling(bd)
-                        item_img = resample_to_img(
-                            item_img,
-                            bd.mask,
-                            interpolation=get_interpolation(bd, item_img),
-                            copy_header=True,
-                        )
-                else:
-                    # Check if spaces match when resample=False
-                    if not check_space_match(item_img, bd.mask):
-                        raise ValueError(
-                            f"Data item and mask are in different spaces. "
-                            f"Set resample=True to automatically resample data to mask space, "
-                            f"or ensure all data items are already in the same space as the mask.\n"
-                            f"Item affine:\n{item_img.affine}\n"
-                            f"Mask affine:\n{bd.mask.affine}\n"
-                            f"Item shape: {item_img.shape[:3]}\n"
-                            f"Mask shape: {bd.mask.shape[:3]}"
-                        )
+        if first_img is not None:
+            detect_and_update_mask(bd, first_img)
 
-                bd.data.append(bd.nifti_masker.transform(item_img))
-        # Use vstack for nilearn 0.12+ compatibility (transforms 3D -> 1D instead of 3D -> 2D)
-        bd.data = np.vstack(bd.data)
+    for idx, item in enumerate(data_list):
+        if isinstance(item, (str, Path)):
+            item_img = nib.load(str(item))
+        elif isinstance(item, nib.Nifti1Image):
+            item_img = item
+        else:
+            raise TypeError(
+                f"List items must be file paths or nibabel Nifti1Image. "
+                f"Received {type(item).__name__}"
+            )
+
+        if not check_space_match(item_img, bd.mask):
+            if not bd._resample:
+                raise ValueError(
+                    f"Data item and mask are in different spaces. "
+                    f"Set resample=True to automatically resample data to mask space, "
+                    f"or ensure all data items are already in the same space as the mask.\n"
+                    f"Item affine:\n{item_img.affine}\n"
+                    f"Mask affine:\n{bd.mask.affine}\n"
+                    f"Item shape: {item_img.shape[:3]}\n"
+                    f"Mask shape: {bd.mask.shape[:3]}"
+                )
+            if idx == 0:
+                warn_if_resampling(bd)
+            item_img = _resample_to_mask(bd, item_img)
+
+        bd.data.append(bd.nifti_masker.transform(item_img))
+
+    # vstack for nilearn 0.12+ compat (transforms 3D -> 1D instead of 3D -> 2D)
+    bd.data = np.vstack(bd.data)
 
 
 def load_from_brain_data(bd, brain_data, mask=None):
@@ -549,16 +410,12 @@ def load_from_brain_data(bd, brain_data, mask=None):
         if not check_space_match(brain_data.mask, new_mask):
             # Need to resample data to new mask space
             if bd._resample:
-                # Warn about resampling
                 warn_if_resampling(bd, "New mask differs from source BrainData mask.")
-                # Convert data back to nifti, resample, then mask
                 source_nifti = brain_data.to_nifti()
                 resampled_nifti = resample_to_img(
                     source_nifti,
                     new_mask,
                     interpolation=get_interpolation(bd, source_nifti),
-                    copy_header=True,
-                    force_resample=True,
                 )
                 # Update mask
                 bd.mask = new_mask
@@ -662,9 +519,7 @@ def load_from_file(bd, data):
     """
     import nibabel as nib
     from nilearn.image import resample_to_img
-    from contextlib import redirect_stdout
 
-    # Load nibabel image if file path
     if isinstance(data, (str, Path)):
         data_img = nib.load(str(data))
     elif isinstance(data, nib.Nifti1Image):
@@ -675,55 +530,32 @@ def load_from_file(bd, data):
             f"Received {type(data).__name__}"
         )
 
-    # Auto-detect template from data if mask was None
-    # This also handles resampling if needed
+    # Auto-detect template from data if mask was None; also handles resampling.
     data_img = detect_and_update_mask(bd, data_img)
 
-    # Check if resampling is needed (for resample=False case)
-    if not bd._resample:
-        # Check if spaces match when resample=False
-        if not check_space_match(data_img, bd.mask):
-            # Warn instead of raising error, but still resample to avoid data corruption
-            if bd.verbose:
-                warnings.warn(
-                    f"Data and mask are in different spaces (affine or shape mismatch). "
-                    f"Resampling data to match mask space despite resample=False. "
-                    f"Set resample=True to explicitly enable resampling, or ensure data "
-                    f"is already in the same space as the mask.\n"
-                    f"Data affine:\n{data_img.affine}\n"
-                    f"Mask affine:\n{bd.mask.affine}\n"
-                    f"Data shape: {data_img.shape[:3]}\n"
-                    f"Mask shape: {bd.mask.shape[:3]}",
-                    UserWarning,
-                    stacklevel=2,
-                )
+    # When resample=False but spaces still mismatch, warn and resample anyway
+    # (required for correct masking).
+    if not bd._resample and not check_space_match(data_img, bd.mask):
+        if bd.verbose:
+            warnings.warn(
+                f"Data and mask are in different spaces (affine or shape mismatch). "
+                f"Resampling data to match mask space despite resample=False. "
+                f"Set resample=True to explicitly enable resampling, or ensure data "
+                f"is already in the same space as the mask.\n"
+                f"Data affine:\n{data_img.affine}\n"
+                f"Mask affine:\n{bd.mask.affine}\n"
+                f"Data shape: {data_img.shape[:3]}\n"
+                f"Mask shape: {bd.mask.shape[:3]}",
+                UserWarning,
+                stacklevel=2,
+            )
+        data_img = resample_to_img(
+            data_img,
+            bd.mask,
+            interpolation=get_interpolation(bd, data_img),
+        )
 
-            # Resample data to mask space (required for correct processing)
-            if not bd.verbose:
-                with open(os.devnull, "w") as devnull:
-                    with redirect_stdout(devnull):
-                        data_img = resample_to_img(
-                            data_img,
-                            bd.mask,
-                            interpolation=get_interpolation(bd, data_img),
-                            copy_header=True,
-                            force_resample=True,
-                        )
-            else:
-                data_img = resample_to_img(
-                    data_img,
-                    bd.mask,
-                    interpolation=get_interpolation(bd, data_img),
-                    copy_header=True,
-                )
-
-    # Transform data using masker
-    if not bd.verbose:
-        with open(os.devnull, "w") as devnull:
-            with redirect_stdout(devnull):
-                bd.data = bd.nifti_masker.transform(data_img)
-    else:
-        bd.data = bd.nifti_masker.transform(data_img)
+    bd.data = bd.nifti_masker.transform(data_img)
 
 
 def to_nifti(bd):
@@ -813,8 +645,6 @@ def resample_to(bd, img=None, resolution=None, interpolation=None):
             source_nifti,
             img,  # Can be file path or nibabel image
             interpolation=interpolation,
-            copy_header=True,
-            force_resample=True,
         )
 
         # For mask, we need to load the image if it's a file path
@@ -852,9 +682,6 @@ def resample_to(bd, img=None, resolution=None, interpolation=None):
             source_nifti,
             target_affine=target_affine,
             interpolation=interpolation,
-            copy=True,
-            copy_header=True,
-            force_resample=True,
         )
 
         # Resample mask with nearest interpolation (preserves binary nature)
@@ -866,10 +693,7 @@ def resample_to(bd, img=None, resolution=None, interpolation=None):
         resampled_mask = resample_img(
             bd.mask,
             target_affine=target_affine,
-            interpolation="nearest",  # Use nearest for binary masks
-            copy=True,
-            copy_header=True,
-            force_resample=True,
+            interpolation="nearest",
         )
 
         # Preserve X and Y metadata if present

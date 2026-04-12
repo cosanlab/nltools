@@ -12,6 +12,7 @@ __all__ = [
     "spm_time_derivative",
     "glover_time_derivative",
     "spm_dispersion_derivative",
+    "glover_dispersion_derivative",
     "ridge_svd",
     "ridge_cv",
     "one_sample_permutation_test",
@@ -25,6 +26,7 @@ from .hrf import (
     spm_time_derivative,
     glover_time_derivative,
     spm_dispersion_derivative,
+    glover_dispersion_derivative,
 )
 from .ridge import ridge_svd, ridge_cv
 from .inference import one_sample_permutation_test
