@@ -13,7 +13,7 @@ import os
 import numpy as np
 import nibabel as nib
 import matplotlib.pyplot as plt
-from nilearn.maskers import NiftiMasker
+from nilearn.masking import apply_mask, unmask
 from scipy.stats import multivariate_normal, binom, ttest_1samp
 from nltools.data import BrainData
 from nltools.stats import fdr
@@ -41,7 +41,6 @@ class Simulator:
 
     Attributes:
         brain_mask: The brain mask image used for simulation.
-        nifti_masker: Fitted NiftiMasker for converting between 4D data and 2D arrays.
         output_dir: Output directory path.
         random_state: Random state for reproducible simulations.
 
@@ -68,8 +67,6 @@ class Simulator:
         elif ~isinstance(brain_mask, nib.nifti1.Nifti1Image):
             raise ValueError("brain_mask is not a string or a nibabel instance")
         self.brain_mask = brain_mask
-        self.nifti_masker = NiftiMasker(mask_img=self.brain_mask)
-        self.nifti_masker.fit()  # Fit once with pre-specified mask
         self.random_state = check_random_state(random_state)
 
     def gaussian(self, mu, sigma, i_tot):
@@ -137,7 +134,7 @@ class Simulator:
             n = self.random_state.normal(mu, sigma, vlength)
         else:
             n = [mu] * vlength
-        m = self.nifti_masker.inverse_transform(n)
+        m = unmask(n, self.brain_mask)
 
         # return the 3D numpy matrix of zeros containing the brain mask filled with noise produced over a normal distribution
         return m.get_fdata()
@@ -281,7 +278,7 @@ class Simulator:
 
         # Create n_reps with cov for each voxel within sphere
         # Build covariance matrix with each variable correlated with y amount 'cor' and each other amount 'cov'
-        flat_sphere = self.nifti_masker.transform(mask)
+        flat_sphere = apply_mask(mask, self.brain_mask)
 
         n_vox = np.sum(flat_sphere == 1)
         cov_matrix = np.ones([n_vox + 1, n_vox + 1]) * cov
@@ -297,10 +294,11 @@ class Simulator:
         mv_sim = mv_sim[:, 1:]
         new_dat = np.ones([mv_sim.shape[0], flat_sphere.shape[1]])
         new_dat[:, np.where(flat_sphere == 1)[1]] = mv_sim
-        self.data = self.nifti_masker.inverse_transform(
+        self.data = unmask(
             np.add(
                 new_dat, self.random_state.standard_normal(size=new_dat.shape) * sigma
-            )
+            ),
+            self.brain_mask,
         )  # add noise scaled by sigma
         self.rep_id = [1] * len(y)
         if n_sub > 1:
@@ -309,12 +307,13 @@ class Simulator:
                 self.data = nib.concat_images(
                     [
                         self.data,
-                        self.nifti_masker.inverse_transform(
+                        unmask(
                             np.add(
                                 new_dat,
                                 self.random_state.standard_normal(size=new_dat.shape)
                                 * sigma,
-                            )
+                            ),
+                            self.brain_mask,
                         ),
                     ],
                     axis=3,
@@ -412,7 +411,7 @@ class Simulator:
 
         # Create n_reps with cov for each voxel within sphere
         # Build covariance matrix with each variable correlated with y amount 'cor' and each other amount 'cov'
-        flat_masks = self.nifti_masker.transform(masks)
+        flat_masks = apply_mask(masks, self.brain_mask)
 
         print("Building correlation/covariation matrix...")
         n_vox = np.sum(
@@ -460,8 +459,8 @@ class Simulator:
                 ]
 
         noise = self.random_state.standard_normal(size=new_dats.shape[1]) * sigma
-        self.data = self.nifti_masker.inverse_transform(
-            np.add(new_dats, noise)
+        self.data = unmask(
+            np.add(new_dats, noise), self.brain_mask
         )  # append 3d simulated data to list
         self.rep_id = [1] * len(self.y)
 
@@ -475,7 +474,7 @@ class Simulator:
                 noise = (
                     self.random_state.standard_normal(size=new_dats.shape[1]) * sigma
                 )
-                next_subj = self.nifti_masker.inverse_transform(np.add(new_dats, noise))
+                next_subj = unmask(np.add(new_dats, noise), self.brain_mask)
                 self.data = nib.concat_images([self.data, next_subj], axis=3)
 
                 y += list(self.y + self.random_state.randn(len(self.y)) * sigma)
