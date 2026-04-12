@@ -8,7 +8,7 @@ machine-learning analyses on imaging data
 __all__ = ["Roc"]
 
 import numpy as np
-from nltools.plotting import roc_plot
+from nltools.plotting import plot_roc
 from scipy.stats import norm, binomtest
 from sklearn.metrics import auc
 from copy import deepcopy
@@ -295,10 +295,10 @@ class Roc(object):
                 self.fpr_smooth = 1 - (norm.cdf(x, z_false, 1))
 
             self.aucn = auc(self.fpr_smooth, self.tpr_smooth)
-            fig = roc_plot(self.fpr_smooth, self.tpr_smooth)
+            fig = plot_roc(self.fpr_smooth, self.tpr_smooth)
 
         elif plot_method == "observed":
-            fig = roc_plot(self.fpr, self.tpr)
+            fig = plot_roc(self.fpr, self.tpr)
         else:
             raise ValueError("plot_method must be 'gaussian' or 'observed'")
         return fig

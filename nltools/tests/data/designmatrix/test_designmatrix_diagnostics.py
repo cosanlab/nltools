@@ -257,9 +257,9 @@ class TestDesignMatrixUtilities:
             _ = dm.replace_data(new_data, column_names=["x"])
 
     # NOTE: since polars dataframes don't have comprehensive plotting abilities like pandas and we don't want additional dependencies, the method should use seaborn heatmap + matplotlib under-the-hood
-    def test_heatmap_visualization(self):
+    def test_plot_visualization(self):
         """
-        .heatmap() should create matplotlib visualization.
+        .plot() should create matplotlib visualization.
 
         Expected behavior:
         - Creates plot without error
@@ -274,9 +274,9 @@ class TestDesignMatrixUtilities:
 
         # Should not raise error
         try:
-            dm.heatmap()
+            dm.plot()
             import matplotlib.pyplot as plt
 
             plt.close("all")  # Clean up
         except Exception as e:
-            pytest.fail(f"heatmap() raised unexpected error: {e}")
+            pytest.fail(f"plot() raised unexpected error: {e}")

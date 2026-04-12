@@ -1,17 +1,17 @@
 """Model output visualization — ROC, SVM margin, regression, and logistic plots."""
 
 __all__ = [
-    "dist_from_hyperplane_plot",
-    "scatterplot",
-    "probability_plot",
-    "roc_plot",
+    "plot_dist_from_hyperplane",
+    "plot_scatter",
+    "plot_probability",
+    "plot_roc",
 ]
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-def dist_from_hyperplane_plot(stats_output):
+def plot_dist_from_hyperplane(stats_output):
     """Plot SVM Classification Distance from Hyperplane
 
     Args:
@@ -44,7 +44,7 @@ def dist_from_hyperplane_plot(stats_output):
     return
 
 
-def scatterplot(stats_output):
+def plot_scatter(stats_output):
     """Plot Prediction Scatterplot
 
     Args:
@@ -65,7 +65,7 @@ def scatterplot(stats_output):
     return
 
 
-def probability_plot(stats_output):
+def plot_probability(stats_output):
     """Plot Classification Probability
 
     Args:
@@ -85,7 +85,7 @@ def probability_plot(stats_output):
     return
 
 
-def roc_plot(fpr, tpr):
+def plot_roc(fpr, tpr):
     """Plot 1-Specificity by Sensitivity
 
     Args:

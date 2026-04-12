@@ -3,7 +3,7 @@
 import numpy as np
 
 
-def plot(adj, limit=3, axes=None, *args, **kwargs):
+def plot_adjacency(adj, limit=3, axes=None, *args, **kwargs):
     """Create Heatmap of Adjacency Matrix.
 
     Can pass in any ``sns.heatmap`` argument.

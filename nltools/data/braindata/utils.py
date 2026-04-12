@@ -63,7 +63,9 @@ def shallow_copy(bd):
         elif key in ("_X", "_Y"):
             import polars as pl
 
-            setattr(new, key, value.clone() if isinstance(value, pl.DataFrame) else value)
+            setattr(
+                new, key, value.clone() if isinstance(value, pl.DataFrame) else value
+            )
         elif key == "design_matrix":
             if value is not None:
                 if hasattr(value, "copy"):

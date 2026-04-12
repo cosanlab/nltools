@@ -11,12 +11,12 @@ focused submodules:
 
 All public functions are re-exported here for convenience::
 
-    from nltools.plotting import surface_plot, roc_plot, component_viewer  # all work
+    from nltools.plotting import plot_surface, plot_roc, component_viewer  # all work
 """
 
 from .brain import (
     plot_interactive_brain,
-    surface_plot,
+    plot_surface,
     plot_flatmap,
     _get_surface_paths as _get_surface_paths,
     _resolve_brain_input as _resolve_brain_input,
@@ -29,17 +29,17 @@ from .adjacency import (
     plot_silhouette,
 )
 from .prediction import (
-    dist_from_hyperplane_plot,
-    scatterplot,
-    probability_plot,
-    roc_plot,
+    plot_dist_from_hyperplane,
+    plot_scatter,
+    plot_probability,
+    plot_roc,
 )
 from .decomposition import component_viewer
 
 __all__ = [
     # brain
     "plot_interactive_brain",
-    "surface_plot",
+    "plot_surface",
     "plot_flatmap",
     # adjacency
     "plot_stacked_adjacency",
@@ -47,10 +47,10 @@ __all__ = [
     "plot_between_label_distance",
     "plot_silhouette",
     # prediction
-    "dist_from_hyperplane_plot",
-    "scatterplot",
-    "probability_plot",
-    "roc_plot",
+    "plot_dist_from_hyperplane",
+    "plot_scatter",
+    "plot_probability",
+    "plot_roc",
     # decomposition
     "component_viewer",
 ]

@@ -2,7 +2,7 @@
 
 __all__ = [
     "plot_interactive_brain",
-    "surface_plot",
+    "plot_surface",
     "plot_flatmap",
 ]
 
@@ -249,7 +249,7 @@ def _get_background_map(bg_map, hemi):
     return paths[key]
 
 
-def surface_plot(
+def plot_surface(
     brain,
     surface="inflated",
     bg_map="curvature",
@@ -325,22 +325,22 @@ def surface_plot(
     Examples:
         Plot BrainData with default 2x2 montage:
 
-        >>> from nltools.plotting import surface_plot
+        >>> from nltools.plotting import plot_surface
         >>> from nltools.data import BrainData
         >>> brain = BrainData('data.nii.gz')
-        >>> fig = surface_plot(brain)
+        >>> fig = plot_surface(brain)
 
         Single hemisphere, lateral view:
 
-        >>> fig = surface_plot(brain, hemi='left', view='lateral')
+        >>> fig = plot_surface(brain, hemi='left', view='lateral')
 
         Custom colormap and threshold:
 
-        >>> fig = surface_plot(brain, cmap='hot', threshold=0.5)
+        >>> fig = plot_surface(brain, cmap='hot', threshold=0.5)
 
         Percentile threshold with custom background:
 
-        >>> fig = surface_plot(brain, threshold='95%', bg_map='sulc')
+        >>> fig = plot_surface(brain, threshold='95%', bg_map='sulc')
     """
     # Resolve input to nibabel image
     nifti_img = _resolve_brain_input(brain)

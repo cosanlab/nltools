@@ -31,7 +31,7 @@ print(f"Conditions: {list(dm.columns)}")
 # ## Visualize Design Matrix
 
 # %%
-dm.heatmap(figsize=(12, 6))
+dm.plot(figsize=(12, 6))
 plt.title("Design Matrix")
 
 # %% [markdown]

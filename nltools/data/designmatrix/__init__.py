@@ -402,7 +402,7 @@ class DesignMatrix:
         filled_df = self._df.fill_null(value).fill_nan(value)
         return copy_with(self, filled_df)
 
-    def heatmap(self, figsize: tuple = (8, 6), **kwargs):
+    def plot(self, figsize: tuple = (8, 6), **kwargs):
         """
         Visualize design matrix as heatmap (SPM-style).
 
@@ -413,9 +413,9 @@ class DesignMatrix:
         Returns:
             matplotlib.axes.Axes: The axes object containing the heatmap
         """
-        from .io import heatmap
+        from .io import plot_designmatrix
 
-        return heatmap(self, figsize, **kwargs)
+        return plot_designmatrix(self, figsize, **kwargs)
 
     def replace_data(
         self,

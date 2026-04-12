@@ -64,10 +64,10 @@ print(f"Conditions: {list(dm.columns)}")
 
 ## Step 2: Inspect the Design Matrix
 
-Before fitting, it's always a good idea to visualize the design matrix. The `heatmap()` method shows a traditional SPM-style view where rows are timepoints and columns are regressors:
+Before fitting, it's always a good idea to visualize the design matrix. The `plot()` method shows a traditional SPM-style view where rows are timepoints and columns are regressors:
 
 ```{code-cell} python3
-dm.heatmap(figsize=(10, 6))
+dm.plot(figsize=(10, 6))
 plt.title("Design Matrix (task regressors only)")
 plt.show()
 ```

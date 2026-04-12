@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from nltools.data.designmatrix import DesignMatrix
 
 
-def heatmap(dm: DesignMatrix, figsize: tuple = (8, 6), **kwargs):
+def plot_designmatrix(dm: DesignMatrix, figsize: tuple = (8, 6), **kwargs):
     """
     Visualize design matrix as heatmap (SPM-style).
 
@@ -32,7 +32,7 @@ def heatmap(dm: DesignMatrix, figsize: tuple = (8, 6), **kwargs):
 
     Examples:
         >>> dm = DesignMatrix(np.random.randn(100, 3), columns=['a', 'b', 'c'])
-        >>> heatmap(dm)
+        >>> plot_designmatrix(dm)
     """
     import matplotlib.pyplot as plt
     import seaborn as sns

@@ -70,7 +70,7 @@ def plot_brain(
 
     # Handle matplotlib-based plots (timeseries, histogram)
     if kind in ["timeseries", "histogram"]:
-        return plot_matplotlib(bd, kind=kind, stat=stat, ax=ax, title=title, save=save)
+        return _plot_matplotlib(bd, kind=kind, stat=stat, ax=ax, title=title, save=save)
 
     # Handle thresholding
     if thr_upper or thr_lower:
@@ -244,7 +244,7 @@ def plot_flatmap_brain(
     )
 
 
-def plot_matplotlib(bd, kind, stat="mean", ax=None, title=None, save=None):
+def _plot_matplotlib(bd, kind, stat="mean", ax=None, title=None, save=None):
     """Plot using matplotlib (timeseries or histogram).
 
     Args:

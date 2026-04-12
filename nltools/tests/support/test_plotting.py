@@ -1,5 +1,5 @@
 """
-Test suite for surface_plot() and plot_flatmap() functions.
+Test suite for plot_surface() and plot_flatmap() functions.
 
 Tests follow TDD approach: write tests first, then implement functionality.
 Focuses on surface plotting functionality with intelligent hemisphere parsing.
@@ -10,7 +10,7 @@ import pytest
 import numpy as np
 import matplotlib.pyplot as plt
 from nltools.data import BrainData
-from nltools.plotting import surface_plot, plot_flatmap
+from nltools.plotting import plot_surface, plot_flatmap
 
 
 def _surfaces_available():
@@ -30,7 +30,7 @@ def _surfaces_available():
     reason="Surface files not available (nltools/resources/surfaces/)",
 )
 class TestSurfacePlot:
-    """Test surface_plot() function"""
+    """Test plot_surface() function"""
 
     def test_surface_resource_paths(self):
         """Test that surface files can be located and paths are valid"""
@@ -54,19 +54,19 @@ class TestSurfacePlot:
 
     @pytest.mark.parametrize("input_type", ["brain_data", "nibabel", "file_path"])
     def test_surface_plot_input_types(self, sim_brain_data, tmpdir, input_type):
-        """Test surface_plot accepts BrainData, nibabel image, or file path"""
+        """Test plot_surface accepts BrainData, nibabel image, or file path"""
         import nibabel as nib
 
         single_image = sim_brain_data[0]
 
         if input_type == "brain_data":
-            fig = surface_plot(single_image)
+            fig = plot_surface(single_image)
         elif input_type == "nibabel":
-            fig = surface_plot(single_image.to_nifti())
+            fig = plot_surface(single_image.to_nifti())
         elif input_type == "file_path":
             test_file = str(tmpdir / "test.nii.gz")
             nib.save(single_image.to_nifti(), test_file)
-            fig = surface_plot(test_file)
+            fig = plot_surface(test_file)
 
         assert fig is not None
         plt.close(fig)
@@ -74,16 +74,16 @@ class TestSurfacePlot:
     def test_surface_plot_invalid_input(self):
         """Test error handling for invalid input types"""
         with pytest.raises((ValueError, TypeError)):
-            surface_plot("nonexistent.nii.gz")
+            plot_surface("nonexistent.nii.gz")
         with pytest.raises((ValueError, TypeError)):
-            surface_plot([1, 2, 3])
+            plot_surface([1, 2, 3])
         with pytest.raises((ValueError, TypeError)):
-            surface_plot(None)
+            plot_surface(None)
 
     def test_default_montage_layout(self, sim_brain_data):
         """Test default 2×2 montage structure"""
         single_image = sim_brain_data[0]
-        fig = surface_plot(single_image)
+        fig = plot_surface(single_image)
 
         assert fig is not None
         assert hasattr(fig, "axes")
@@ -123,7 +123,7 @@ class TestSurfacePlot:
         single_image = sim_brain_data[0]
 
         # Test various parameters
-        fig = surface_plot(
+        fig = plot_surface(
             single_image,
             cmap="hot",
             threshold=0.5,
@@ -135,7 +135,7 @@ class TestSurfacePlot:
         plt.close(fig)
 
         # Test percentile threshold
-        fig = surface_plot(single_image, threshold="95%")
+        fig = plot_surface(single_image, threshold="95%")
         assert fig is not None
         plt.close(fig)
 
@@ -143,7 +143,7 @@ class TestSurfacePlot:
     def test_background_map_options(self, sim_brain_data, bg_map):
         """Test different background map options"""
         single_image = sim_brain_data[0]
-        fig = surface_plot(single_image, bg_map=bg_map)
+        fig = plot_surface(single_image, bg_map=bg_map)
         assert fig is not None
         plt.close(fig)
 
@@ -159,7 +159,7 @@ class TestSurfacePlot:
     def test_single_hemisphere_view(self, sim_brain_data, hemi, view):
         """Test plotting single hemisphere and view combinations"""
         single_image = sim_brain_data[0]
-        fig = surface_plot(single_image, hemi=hemi, view=view)
+        fig = plot_surface(single_image, hemi=hemi, view=view)
         assert fig is not None
         plt.close(fig)
 
@@ -167,7 +167,7 @@ class TestSurfacePlot:
     def test_surface_mesh_types(self, sim_brain_data, surface):
         """Test different surface mesh types"""
         single_image = sim_brain_data[0]
-        fig = surface_plot(single_image, surface=surface, hemi="left", view="lateral")
+        fig = plot_surface(single_image, surface=surface, hemi="left", view="lateral")
         assert fig is not None
         plt.close(fig)
 
@@ -175,18 +175,18 @@ class TestSurfacePlot:
         """Test error handling for invalid surface type"""
         single_image = sim_brain_data[0]
         with pytest.raises(ValueError):
-            surface_plot(single_image, surface="invalid")
+            plot_surface(single_image, surface="invalid")
 
     def test_empty_brain_data(self):
         """Test error handling for empty BrainData"""
         empty_brain = BrainData()
         with pytest.raises(ValueError, match="empty|Empty"):
-            surface_plot(empty_brain)
+            plot_surface(empty_brain)
 
     def test_multi_image_brain_data(self, sim_brain_data):
         """Test handling BrainData with multiple images"""
         # Should plot first image or mean
-        fig = surface_plot(sim_brain_data)
+        fig = plot_surface(sim_brain_data)
         assert fig is not None
         plt.close(fig)
 
@@ -198,7 +198,7 @@ class TestSurfacePlot:
             single_image.data[1] = np.inf
 
         # Should handle gracefully with thresholding
-        fig = surface_plot(single_image, threshold=0.5)
+        fig = plot_surface(single_image, threshold=0.5)
         assert fig is not None
         plt.close(fig)
 
@@ -208,9 +208,9 @@ class TestSurfacePlot:
         import os
 
         single_image = sim_brain_data[0]
-        save_path = str(tmpdir / "surface_plot.png")
+        save_path = str(tmpdir / "plot_surface.png")
 
-        fig = surface_plot(single_image, save=save_path)
+        fig = plot_surface(single_image, save=save_path)
         assert os.path.exists(save_path)
         plt.close(fig)
 
@@ -219,13 +219,13 @@ class TestSurfacePlot:
         single_image = sim_brain_data[0]
 
         # Custom figure size
-        fig = surface_plot(single_image, figsize=(12, 12))
+        fig = plot_surface(single_image, figsize=(12, 12))
         assert fig.get_size_inches()[0] == 12
         plt.close(fig)
 
         # Custom axes
         fig, axes = plt.subplots(2, 2, subplot_kw={"projection": "3d"})
-        result = surface_plot(single_image, axes=axes)
+        result = plot_surface(single_image, axes=axes)
         assert result is not None
         plt.close(fig)
 
@@ -233,7 +233,7 @@ class TestSurfacePlot:
         """Test custom vol_to_surf parameters"""
         single_image = sim_brain_data[0]
 
-        fig = surface_plot(
+        fig = plot_surface(
             single_image,
             n_samples=5,
             radius=2.0,

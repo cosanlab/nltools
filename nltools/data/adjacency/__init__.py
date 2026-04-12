@@ -586,9 +586,9 @@ class Adjacency(object):
             limit: (int) number of heatmaps to plot if object contains multiple adjacencies (default: 3)
             axes: matplotlib axis handle
         """
-        from .plotting import plot
+        from .plotting import plot_adjacency
 
-        return plot(self, limit, axes, *args, **kwargs)
+        return plot_adjacency(self, limit, axes, *args, **kwargs)
 
     def plot_label_distance(self, labels=None, ax=None):
         """Create a violin plot indicating within and between label distance
