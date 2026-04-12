@@ -22,20 +22,16 @@ def check_masks(bd, image):
     Returns:
         tuple: (data2, image2) arrays with compatible masks
     """
-    from nilearn.maskers import NiftiMasker
-    from nilearn.masking import intersect_masks
+    from nilearn.masking import apply_mask, intersect_masks
 
-    if np.sum(bd.nifti_masker.mask_img.get_fdata() == 1) != np.sum(
-        image.nifti_masker.mask_img.get_fdata() == 1
-    ):
+    if np.sum(bd.mask.get_fdata() == 1) != np.sum(image.mask.get_fdata() == 1):
         new_mask = intersect_masks(
-            [bd.nifti_masker.mask_img, image.nifti_masker.mask_img],
+            [bd.mask, image.mask],
             threshold=1,
             connected=False,
         )
-        new_nifti_masker = NiftiMasker(mask_img=new_mask)
-        data2 = new_nifti_masker.fit_transform(bd.to_nifti())
-        image2 = new_nifti_masker.fit_transform(image.to_nifti())
+        data2 = apply_mask(bd.to_nifti(), new_mask)
+        image2 = apply_mask(image.to_nifti(), new_mask)
     else:
         data2 = bd.data
         image2 = image.data
@@ -155,7 +151,6 @@ def apply_mask(bd, mask, resample_mask_to_brain=False):
 
     """
     from nilearn.image import resample_to_img
-    from nilearn.maskers import NiftiMasker
     from nilearn.masking import apply_mask as nilearn_apply_mask
 
     from .utils import check_brain_data, check_brain_data_is_single
@@ -178,9 +173,6 @@ def apply_mask(bd, mask, resample_mask_to_brain=False):
 
     # Use nilearn's apply_mask for efficient masking (C-optimized, single path, memory efficient)
     masked.data = nilearn_apply_mask(masked.to_nifti(), mask_img)
-
-    # Create masker for the masked space
-    masked.nifti_masker = NiftiMasker(mask_img=mask_img).fit()
 
     # Update mask, voxel resolution, and space
     masked.mask = mask_img
@@ -726,7 +718,7 @@ def threshold_data(
         )
 
         # Convert back to data array
-        out.data = nilearn_apply_mask(thresholded_img, bd.nifti_masker.mask_img_)
+        out.data = nilearn_apply_mask(thresholded_img, bd.mask)
 
         if binarize:
             out.data = (out.data != 0).astype(float)
@@ -981,6 +973,7 @@ def smooth(bd, fwhm):
         BrainData instance (copy with smoothed data)
     """
     from nilearn.image import smooth_img
+    from nilearn.masking import apply_mask as nilearn_apply_mask
 
     from .utils import check_brain_data_is_single
 
@@ -990,7 +983,7 @@ def smooth(bd, fwhm):
     # Single conversion: data -> nifti -> smooth -> data
     nifti = bd.to_nifti()
     smoothed_nifti = smooth_img(nifti, fwhm)
-    smoothed_data = bd.nifti_masker.transform(smoothed_nifti)
+    smoothed_data = nilearn_apply_mask(smoothed_nifti, bd.mask)
 
     # Ensure single images remain 1D
     if check_brain_data_is_single(bd):

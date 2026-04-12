@@ -23,9 +23,8 @@ def test_shallow_copy_with_data(sim_brain_data):
     # Create shallow copy
     copied = shallow_copy(sim_brain_data)
 
-    # Should share mask and nifti_masker
+    # Should share mask
     assert copied.mask is sim_brain_data.mask
-    assert copied.nifti_masker is sim_brain_data.nifti_masker
 
     # Should initially share data array
     assert copied.data is sim_brain_data.data
@@ -54,7 +53,6 @@ def test_scale_efficient(sim_brain_data):
 
     # Verify mask sharing (efficient)
     assert scaled.mask is sim_brain_data.mask
-    assert scaled.nifti_masker is sim_brain_data.nifti_masker
 
     # Original should be unchanged
     original_mean = sim_brain_data.data.mean()
@@ -148,9 +146,6 @@ def test_shallow_copy_is_truly_shallow(sim_brain_data):
 
     # These should be SHARED (same object in memory)
     assert id(copied.mask) == id(sim_brain_data.mask), "mask should be shared"
-    assert id(copied.nifti_masker) == id(sim_brain_data.nifti_masker), (
-        "nifti_masker should be shared"
-    )
     assert id(copied.data) == id(sim_brain_data.data), "data should initially be shared"
 
     # These should be COPIED (different objects)
@@ -254,11 +249,8 @@ def test_getitem_efficiency(sim_brain_data):
     # Test that indexing preserves object sharing
     indexed = sim_brain_data[0]
 
-    # Should share mask and nifti_masker
+    # Should share mask
     assert id(indexed.mask) == id(sim_brain_data.mask), "Indexing should share mask"
-    assert id(indexed.nifti_masker) == id(sim_brain_data.nifti_masker), (
-        "Indexing should share masker"
-    )
 
     # Data should be different (it's a slice/subset)
     assert indexed.data.shape != sim_brain_data.data.shape, (
@@ -268,18 +260,12 @@ def test_getitem_efficiency(sim_brain_data):
     # Test slicing
     sliced = sim_brain_data[0:2]
     assert id(sliced.mask) == id(sim_brain_data.mask), "Slicing should share mask"
-    assert id(sliced.nifti_masker) == id(sim_brain_data.nifti_masker), (
-        "Slicing should share masker"
-    )
 
     # Test fancy indexing
     if len(sim_brain_data) >= 3:
         fancy = sim_brain_data[[0, 2]]
         assert id(fancy.mask) == id(sim_brain_data.mask), (
             "Fancy indexing should share mask"
-        )
-        assert id(fancy.nifti_masker) == id(sim_brain_data.nifti_masker), (
-            "Fancy indexing should share masker"
         )
 
 
@@ -325,12 +311,9 @@ def test_append_correctness():
         "Last image should match brain2 last image"
     )
 
-    # Verify efficient copying: should share mask and nifti_masker
+    # Verify efficient copying: should share mask
     assert id(appended.mask) == id(brain1.mask), (
         "Append should share mask object (efficient)"
-    )
-    assert id(appended.nifti_masker) == id(brain1.nifti_masker), (
-        "Append should share nifti_masker (efficient)"
     )
 
     # Verify data independence: new data array
@@ -368,9 +351,6 @@ def test_no_accidental_deep_copies():
     # Verify object sharing behavior
     assert id(scaled) != id(brain), "Should be a new object"
     assert id(scaled.mask) == id(brain.mask), "Should share mask object"
-    assert id(scaled.nifti_masker) == id(brain.nifti_masker), (
-        "Should share nifti_masker"
-    )
 
     # Verify custom attributes were copied correctly
     assert hasattr(scaled, "_custom_tracking_attribute"), (
@@ -403,11 +383,8 @@ def test_chained_operations_preserve_efficiency():
     # Test a long chain of operations
     result = brain.scale(100.0).r_to_z().z_to_r().scale(50.0)
 
-    # Verify that mask and nifti_masker are still shared after chain
+    # Verify that mask is still shared after chain
     assert id(result.mask) == id(brain.mask), "Chain should preserve mask sharing"
-    assert id(result.nifti_masker) == id(brain.nifti_masker), (
-        "Chain should preserve masker sharing"
-    )
 
     # Verify data is independent
     assert id(result.data) != id(brain.data), "Data should be new after chain"

@@ -50,7 +50,7 @@ class TestBrainDataInit:
 
         # Should be resampled to 2mm mask space
         assert brain.shape[1] == 238955  # 2mm voxel count
-        assert np.allclose(brain.nifti_masker.affine_, mask_img.affine, rtol=1e-2)
+        assert np.allclose(brain.mask.affine, mask_img.affine, rtol=1e-2)
 
     def test_init_resample_false_matched_spaces(self):
         """Test no resampling when resample=False and spaces match."""
@@ -766,9 +766,7 @@ class TestBrainDataInit:
 
         # Should be identical
         assert np.allclose(brain_default.data, brain_explicit.data)
-        assert np.allclose(
-            brain_default.nifti_masker.affine_, brain_explicit.nifti_masker.affine_
-        )
+        assert np.allclose(brain_default.mask.affine, brain_explicit.mask.affine)
 
     @pytest.mark.slow
     def test_init_resample_preserves_data_integrity(self):

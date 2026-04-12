@@ -53,18 +53,16 @@ def _detect_interpolation(img):
     return "continuous"
 
 
-def initialize_mask(bd, mask, **kwargs):
-    """Initialize the mask and NiftiMasker.
+def initialize_mask(bd, mask):
+    """Initialize the mask image.
 
     Args:
         bd: BrainData instance.
         mask: Brain mask as nibabel object, file path, template name string, or None.
             Template name strings supported: '{res}mm-MNI152-2009{version}'
             (e.g., '2mm-MNI152-2009c', '3mm-MNI152-2009a', '2mm-MNI152-2009fsl')
-        **kwargs: Additional arguments passed to NiftiMasker.
     """
     import nibabel as nib
-    from nilearn.maskers import NiftiMasker
     from nltools.templates import get_brainspace
 
     # Store whether mask was None (for auto-detection later)
@@ -96,12 +94,6 @@ def initialize_mask(bd, mask, **kwargs):
             f"mask must be a nibabel instance, file path, template name string, or None. "
             f"Received {type(mask).__name__}"
         )
-
-    # Learn 3d/4d -> 1d/2d transform on template/mask
-    bd.nifti_masker = NiftiMasker(
-        mask_img=bd.mask, verbose=kwargs.get("verbose", 0), **kwargs
-    )
-    bd.nifti_masker.fit()
 
     # Extract voxel resolution from mask affine matrix
     # The diagonal elements of the affine matrix (excluding translation) give voxel sizes
@@ -166,7 +158,6 @@ def detect_and_update_mask(bd, data_img):
         nibabel.Nifti1Image: The data_img, possibly resampled to match the mask
     """
     import nibabel as nib
-    from nilearn.maskers import NiftiMasker
 
     if not bd._mask_was_none:
         return _resample_to_mask(bd, data_img)
@@ -187,11 +178,6 @@ def detect_and_update_mask(bd, data_img):
 
         if current_mask_path != detected_mask_path:
             bd.mask = detected_mask
-            bd.nifti_masker = NiftiMasker(
-                mask_img=bd.mask,
-                verbose=getattr(bd, "verbose", False),
-            )
-            bd.nifti_masker.fit()
             affine = bd.mask.affine
             bd._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
             bd._space = detect_space(bd, bd.mask)
@@ -309,6 +295,7 @@ def load_from_list(bd, data_list):
         data_list: List of BrainData objects or file paths.
     """
     import nibabel as nib
+    from nilearn.masking import apply_mask as nilearn_apply_mask
     from nltools.utils import concatenate
     from nltools.data.braindata.validation import validate_list_data
 
@@ -316,7 +303,7 @@ def load_from_list(bd, data_list):
 
     if list_type == "brain_data":
         tmp = concatenate(data_list)
-        for item in ["data", "mask", "nifti_masker"]:
+        for item in ["data", "mask"]:
             setattr(bd, item, getattr(tmp, item))
         return
 
@@ -361,7 +348,7 @@ def load_from_list(bd, data_list):
                 warn_if_resampling(bd)
             item_img = _resample_to_mask(bd, item_img)
 
-        bd.data.append(bd.nifti_masker.transform(item_img))
+        bd.data.append(nilearn_apply_mask(item_img, bd.mask))
 
     # vstack for nilearn 0.12+ compat (transforms 3D -> 1D instead of 3D -> 2D)
     bd.data = np.vstack(bd.data)
@@ -377,7 +364,7 @@ def load_from_brain_data(bd, brain_data, mask=None):
     """
     import nibabel as nib
     from nilearn.image import resample_to_img
-    from nilearn.maskers import NiftiMasker
+    from nilearn.masking import apply_mask as nilearn_apply_mask
 
     # Copy data array
     bd.data = brain_data.data.copy() if brain_data.data is not None else np.array([])
@@ -419,9 +406,8 @@ def load_from_brain_data(bd, brain_data, mask=None):
                 )
                 # Update mask
                 bd.mask = new_mask
-                bd.nifti_masker = NiftiMasker(mask_img=bd.mask).fit()
-                # Extract and transform data
-                bd.data = bd.nifti_masker.transform(resampled_nifti)
+                # Extract data via functional apply_mask
+                bd.data = nilearn_apply_mask(resampled_nifti, bd.mask)
                 # Update voxel resolution and space
                 affine = bd.mask.affine
                 bd._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
@@ -434,14 +420,12 @@ def load_from_brain_data(bd, brain_data, mask=None):
         else:
             # Masks match - just update mask reference
             bd.mask = new_mask
-            bd.nifti_masker = NiftiMasker(mask_img=bd.mask).fit()
             affine = bd.mask.affine
             bd._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
             bd._space = detect_space(bd, bd.mask)
     else:
-        # Use source mask - copy mask and masker
+        # Use source mask
         bd.mask = brain_data.mask
-        bd.nifti_masker = brain_data.nifti_masker
         bd._voxel_resolution = brain_data._voxel_resolution
         bd._space = brain_data._space
 
@@ -460,7 +444,6 @@ def load_from_h5(bd, file_path, mask):
         file_path: Path to HDF5 file.
         mask: User-specified mask (to determine if we should load mask from file).
     """
-    from nilearn.maskers import NiftiMasker
     from nltools.io import load_brain_data_h5
 
     # Load data using utility function
@@ -476,7 +459,6 @@ def load_from_h5(bd, file_path, mask):
     # Handle mask if loaded from file
     if h5_data.get("load_mask", False):
         bd.mask = h5_data["mask"]
-        bd.nifti_masker = NiftiMasker(bd.mask).fit(bd.mask)
         # Extract voxel resolution from mask affine matrix
         affine = bd.mask.affine
         bd._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
@@ -519,6 +501,7 @@ def load_from_file(bd, data):
     """
     import nibabel as nib
     from nilearn.image import resample_to_img
+    from nilearn.masking import apply_mask as nilearn_apply_mask
 
     if isinstance(data, (str, Path)):
         data_img = nib.load(str(data))
@@ -555,7 +538,7 @@ def load_from_file(bd, data):
             interpolation=get_interpolation(bd, data_img),
         )
 
-    bd.data = bd.nifti_masker.transform(data_img)
+    bd.data = nilearn_apply_mask(data_img, bd.mask)
 
 
 def to_nifti(bd):
@@ -567,7 +550,9 @@ def to_nifti(bd):
     Returns:
         nibabel.Nifti1Image: Brain data in volumetric NIfTI format.
     """
-    return bd.nifti_masker.inverse_transform(bd.data)
+    from nilearn.masking import unmask
+
+    return unmask(bd.data, bd.mask)
 
 
 def resample_to(bd, img=None, resolution=None, interpolation=None):

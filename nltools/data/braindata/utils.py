@@ -41,9 +41,9 @@ def check_brain_data_is_single(data):
 def shallow_copy(bd):
     """Create a shallow copy of a BrainData for efficient method chaining.
 
-    Creates a new BrainData instance that shares immutable objects (mask,
-    nifti_masker) but copies mutable attributes.  The data array is NOT
-    copied — callers should handle data copying as needed.
+    Creates a new BrainData instance that shares immutable objects (mask)
+    but copies mutable attributes.  The data array is NOT copied — callers
+    should handle data copying as needed.
 
     Args:
         bd: BrainData instance to copy.
@@ -58,7 +58,7 @@ def shallow_copy(bd):
     for key, value in bd.__dict__.items():
         if key == "data":
             new.data = bd.data  # reference only
-        elif key in ("mask", "nifti_masker", "masker"):
+        elif key in ("mask", "masker"):
             setattr(new, key, value)
         elif key in ("_X", "_Y"):
             import polars as pl

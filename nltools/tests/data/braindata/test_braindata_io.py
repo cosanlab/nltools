@@ -49,7 +49,7 @@ class TestBrainDataIO:
         dat.write(os.path.join(str(tmpdir.join("test_write.h5"))))
         b = BrainData(os.path.join(tmpdir.join("test_write.h5")))
         # Note: X and Y attributes removed in v0.6.0, skip checking them
-        for k in ["mask", "nifti_masker", "data"]:
+        for k in ["mask", "data"]:
             if k == "data":
                 assert np.allclose(b.__dict__[k], dat.__dict__[k])
             elif k == "mask":
@@ -58,14 +58,6 @@ class TestBrainDataIO:
                     b.__dict__[k].get_fdata(), dat.__dict__[k].get_fdata()
                 )
                 assert b.__dict__[k].get_filename() == dat.__dict__[k].get_filename()
-            elif k == "nifti_masker":
-                assert np.allclose(b.__dict__[k].affine_, dat.__dict__[k].affine_)
-                assert np.allclose(
-                    b.__dict__[k].mask_img.get_fdata(),
-                    dat.__dict__[k].mask_img.get_fdata(),
-                )
-            else:
-                assert b.__dict__[k] == dat.__dict__[k]
         # Test situation where we present a user warning when they're trying to load an .h5
         # file that includes a mask AND they pass in value for the mask argument. In this
         # case the mask argument takes precedence so we warn the user
@@ -146,9 +138,7 @@ class TestBrainDataIO:
 
         # Should match target space
         assert brain_resampled.shape[1] == 238955  # 2mm voxel count
-        assert np.allclose(
-            brain_resampled.nifti_masker.affine_, mask_img.affine, rtol=1e-2
-        )
+        assert np.allclose(brain_resampled.mask.affine, mask_img.affine, rtol=1e-2)
         assert (
             brain_resampled.shape[0] == brain_source.shape[0]
         )  # Same number of images

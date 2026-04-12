@@ -133,7 +133,7 @@ def plot_brain(
         # Background image selection (respects current brain space)
         if bg_img is None:
             try:
-                bg_img = get_bg_image(obj.nifti_masker.affine_)
+                bg_img = get_bg_image(obj.mask.affine)
             except ValueError as e:
                 # Handle non-isometric voxels gracefully
                 if "isotropic" in str(e).lower() or "isometric" in str(e).lower():

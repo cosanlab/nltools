@@ -58,10 +58,20 @@ class BrainData(object):
             'nearest' (nearest-neighbor, preserves discrete values),
             'linear' (linear interpolation),
             'continuous' (higher-order spline, use for stat maps).
-        **kwargs: Additional arguments passed to NiftiMasker.
     """
 
-    def __init__(self, data=None, Y=None, X=None, mask=None, masker=None, **kwargs):
+    def __init__(
+        self,
+        data=None,
+        Y=None,
+        X=None,
+        mask=None,
+        masker=None,
+        h5_compression="gzip",
+        verbose=False,
+        resample=True,
+        interpolation="auto",
+    ):
         from .validation import validate_data_type
         from .io import (
             initialize_mask,
@@ -73,10 +83,10 @@ class BrainData(object):
         )
 
         # Initialize attributes
-        self._h5_compression = kwargs.pop("h5_compression", "gzip")
-        self.verbose = kwargs.pop("verbose", False)
-        self._resample = kwargs.pop("resample", True)
-        self._interpolation = kwargs.pop("interpolation", "auto")
+        self._h5_compression = h5_compression
+        self.verbose = verbose
+        self._resample = resample
+        self._interpolation = interpolation
         valid_interpolations = ("auto", "nearest", "linear", "continuous")
         if self._interpolation not in valid_interpolations:
             raise ValueError(
@@ -88,7 +98,7 @@ class BrainData(object):
         self._labels = None
 
         # Initialize mask
-        initialize_mask(self, mask, **kwargs)
+        initialize_mask(self, mask)
 
         # Initialize data based on type
         data_type = validate_data_type(data)
@@ -150,7 +160,7 @@ class BrainData(object):
         memo[id(self)] = new
 
         for key, value in self.__dict__.items():
-            if key in ("mask", "nifti_masker", "masker"):
+            if key in ("mask", "masker"):
                 setattr(new, key, value)
             elif key in ("model_", "X_"):
                 setattr(new, key, value)
