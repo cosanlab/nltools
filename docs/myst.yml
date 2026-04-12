@@ -12,6 +12,27 @@ project:
         - file: migration-guide.md
         - file: dartbrains-migration.md
     - file: tutorials/index
+      children:
+        - title: Basics
+          hidden: true
+          children:
+            - file: tutorials/basics/01_brain_data.md
+            - file: tutorials/basics/02_design_matrix.md
+            - file: tutorials/basics/03_adjacency.md
+            - file: tutorials/basics/04_brain_collection.md
+        - title: Workflows
+          hidden: true
+          children:
+            - file: tutorials/workflows/01_glm.md
+            - file: tutorials/workflows/02_group_analysis.md
+            - file: tutorials/workflows/04_rsa.md
+            - file: tutorials/workflows/05_decoding.md
+            - file: tutorials/workflows/06_pipeline_basics.md
+            - file: tutorials/workflows/07_two_stage_glm.md
+            - file: tutorials/workflows/08_encoding_models.md
+            - file: tutorials/workflows/08_multi_subject_decoding.md
+            - file: tutorials/workflows/09_isc_analysis.md
+            - file: tutorials/workflows/10_rsa_analysis.md
     - file: api/data/index.md
     - title: API Class Modules
       children:
