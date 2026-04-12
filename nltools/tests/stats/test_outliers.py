@@ -16,10 +16,7 @@ class TestWinsorize:
         out = winsorize(
             outlier_data, cutoff={"quantile": [0.05, 0.95]}, replace_with_cutoff=False
         )
-        if isinstance(out, pl.DataFrame):
-            out = out.to_numpy().squeeze()
-        else:
-            out = out.values.squeeze()
+        out = out.to_numpy().squeeze()
         expected = np.array(
             [
                 92,
@@ -49,10 +46,7 @@ class TestWinsorize:
     def test_std_replace_with_nearest(self, outlier_data):
         """Winsorize by std, replacing outliers with nearest non-outlier."""
         out = winsorize(outlier_data, cutoff={"std": [2, 2]}, replace_with_cutoff=False)
-        if isinstance(out, pl.DataFrame):
-            out = out.to_numpy().squeeze()
-        else:
-            out = out.values.squeeze()
+        out = out.to_numpy().squeeze()
         expected = np.array(
             [
                 92,
@@ -82,10 +76,7 @@ class TestWinsorize:
     def test_std_replace_with_cutoff(self, outlier_data):
         """Winsorize by std, replacing outliers with cutoff values."""
         out = winsorize(outlier_data, cutoff={"std": [2, 2]}, replace_with_cutoff=True)
-        if isinstance(out, pl.DataFrame):
-            out = out.to_numpy().squeeze()
-        else:
-            out = out.values.squeeze()
+        out = out.to_numpy().squeeze()
         expected = np.array(
             [
                 92.0,

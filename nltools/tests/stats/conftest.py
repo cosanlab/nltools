@@ -7,7 +7,7 @@ in this directory and subdirectories.
 
 import pytest
 import numpy as np
-import pandas as pd
+import polars as pl
 
 
 @pytest.fixture
@@ -45,29 +45,31 @@ def multisubject_correlated_data():
 @pytest.fixture
 def outlier_data():
     """DataFrame with known outlier values for winsorize/trim tests."""
-    return pd.DataFrame(
-        [
-            92,
-            19,
-            101,
-            58,
-            1053,
-            91,
-            26,
-            78,
-            10,
-            13,
-            -40,
-            101,
-            86,
-            85,
-            15,
-            89,
-            89,
-            28,
-            -5,
-            41,
-        ]
+    return pl.DataFrame(
+        {
+            "x": [
+                92,
+                19,
+                101,
+                58,
+                1053,
+                91,
+                26,
+                78,
+                10,
+                13,
+                -40,
+                101,
+                86,
+                85,
+                15,
+                89,
+                89,
+                28,
+                -5,
+                41,
+            ]
+        }
     )
 
 

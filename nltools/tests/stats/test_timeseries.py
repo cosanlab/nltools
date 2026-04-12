@@ -1,7 +1,6 @@
 """Tests for nltools.stats.timeseries — temporal signal processing."""
 
 import numpy as np
-import pandas as pd
 import polars as pl
 
 from nltools.stats.timeseries import downsample, upsample, calc_bpm, make_cosine_basis
@@ -12,34 +11,30 @@ class TestDownsample:
 
     def test_downsample_mean(self):
         """Downsample with mean aggregation."""
-        dat = pd.DataFrame()
-        dat["x"] = range(0, 100)
-        dat["y"] = np.repeat(range(1, 11), 10)
+        x = pl.Series("x", list(range(0, 100)))
+        y = np.repeat(range(1, 11), 10)
 
         result = downsample(
-            data=dat["x"], sampling_freq=10, target=1, target_type="hz", method="mean"
+            data=x, sampling_freq=10, target=1, target_type="hz", method="mean"
         )
-        if isinstance(result, pl.Series):
-            result_values = result.to_numpy()
-        else:
-            result_values = result.values
-        expected = dat.groupby("y").mean().values.ravel()
+        result_values = result.to_numpy()
+        expected = np.array(
+            [np.mean([v for v, g in zip(x.to_numpy(), y) if g == k]) for k in range(1, 11)]
+        )
         assert (result_values == expected).all()
 
     def test_downsample_median(self):
         """Downsample with median aggregation."""
-        dat = pd.DataFrame()
-        dat["x"] = range(0, 100)
-        dat["y"] = np.repeat(range(1, 11), 10)
+        x = pl.Series("x", list(range(0, 100)))
+        y = np.repeat(range(1, 11), 10)
 
         result = downsample(
-            data=dat["x"], sampling_freq=10, target=1, target_type="hz", method="median"
+            data=x, sampling_freq=10, target=1, target_type="hz", method="median"
         )
-        if isinstance(result, pl.Series):
-            result_values = result.to_numpy()
-        else:
-            result_values = result.values
-        expected = dat.groupby("y").median().values.ravel()
+        result_values = result.to_numpy()
+        expected = np.array(
+            [np.median([v for v, g in zip(x.to_numpy(), y) if g == k]) for k in range(1, 11)]
+        )
         assert (result_values == expected).all()
 
 
@@ -48,18 +43,18 @@ class TestUpsample:
 
     def test_upsample_2x(self):
         """Upsample by factor of 2."""
-        dat = pd.DataFrame()
-        dat["x"] = range(0, 100)
-        dat["y"] = np.repeat(range(1, 11), 10)
+        dat = pl.DataFrame(
+            {"x": list(range(0, 100)), "y": np.repeat(range(1, 11), 10)}
+        )
         fs = 2
         us = upsample(dat, sampling_freq=1, target=fs, target_type="hz")
         assert dat.shape[0] * fs - fs == us.shape[0]
 
     def test_upsample_3x(self):
         """Upsample by factor of 3."""
-        dat = pd.DataFrame()
-        dat["x"] = range(0, 100)
-        dat["y"] = np.repeat(range(1, 11), 10)
+        dat = pl.DataFrame(
+            {"x": list(range(0, 100)), "y": np.repeat(range(1, 11), 10)}
+        )
         fs = 3
         us = upsample(dat, sampling_freq=1, target=fs, target_type="hz")
         assert dat.shape[0] * fs - fs == us.shape[0]
@@ -84,7 +79,7 @@ class TestCalcBpm:
     def test_basic_bpm(self):
         """Calculate BPM from beat intervals."""
         # Beat intervals: 0.833 seconds between beats = 72 BPM
-        beat_interval = pd.Series([0.833, 0.833, 0.833, 0.833, 0.833])
+        beat_interval = pl.Series("ibi", [0.833, 0.833, 0.833, 0.833, 0.833])
         result = calc_bpm(beat_interval, sampling_freq=1)
         # Each interval should map to ~72 BPM
         bpm_values = result.to_numpy() if hasattr(result, "to_numpy") else result.values

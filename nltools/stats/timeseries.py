@@ -30,10 +30,10 @@ def calc_bpm(beat_interval, sampling_freq):
 def downsample(
     data, sampling_freq=None, target=None, target_type="samples", method="mean"
 ):
-    """Downsample Polars or pandas DataFrame/Series to a new target frequency or number of samples using averaging.
+    """Downsample a Polars DataFrame/Series to a new target frequency or number of samples using averaging.
 
     Args:
-        data: (pl.DataFrame, pl.Series, pd.DataFrame, pd.Series) data to downsample
+        data: (pl.DataFrame, pl.Series) data to downsample
         sampling_freq:  (float) Sampling frequency of data in hertz
         target: (float) downsampling target
         target_type: type of target can be [samples,seconds,hz]
@@ -43,25 +43,14 @@ def downsample(
     Returns:
         out: (pl.DataFrame, pl.Series) downsampled data (same type as input)
     """
-    import pandas as pd
-
-    # Convert pandas to Polars if needed (for backward compatibility)
-    if isinstance(data, pd.DataFrame):
-        df = pl.from_pandas(data)
-        return_series = False
-    elif isinstance(data, pd.Series):
-        df = pl.DataFrame({data.name or "0": data})
-        return_series = True
-    elif isinstance(data, pl.DataFrame):
+    if isinstance(data, pl.DataFrame):
         df = data.clone()
         return_series = False
     elif isinstance(data, pl.Series):
         df = pl.DataFrame({data.name or "0": data})
         return_series = True
     else:
-        raise ValueError(
-            "Data must be a Polars or pandas DataFrame or Series instance."
-        )
+        raise ValueError("Data must be a Polars DataFrame or Series instance.")
 
     if method not in ("mean", "median"):
         raise ValueError("Metric must be either 'mean' or 'median'")
@@ -110,10 +99,10 @@ def downsample(
 def upsample(
     data, sampling_freq=None, target=None, target_type="samples", method="linear"
 ):
-    """Upsample Polars or pandas DataFrame/Series to a new target frequency or number of samples using interpolation.
+    """Upsample a Polars DataFrame/Series to a new target frequency or number of samples using interpolation.
 
     Args:
-        data: (pl.DataFrame, pl.Series, pd.DataFrame, pd.Series) data to upsample
+        data: (pl.DataFrame, pl.Series) data to upsample
               (Note: will drop non-numeric columns from DataFrame)
         sampling_freq:  Sampling frequency of data in hertz
         target: (float) upsampling target
@@ -125,25 +114,14 @@ def upsample(
     Returns:
         upsampled Polars DataFrame or Series (same type as input)
     """
-    import pandas as pd
-
-    # Convert pandas to Polars if needed (for backward compatibility)
-    if isinstance(data, pd.DataFrame):
-        df = pl.from_pandas(data)
-        return_series = False
-    elif isinstance(data, pd.Series):
-        df = pl.DataFrame({data.name or "0": data})
-        return_series = True
-    elif isinstance(data, pl.DataFrame):
+    if isinstance(data, pl.DataFrame):
         df = data.clone()
         return_series = False
     elif isinstance(data, pl.Series):
         df = pl.DataFrame({data.name or "0": data})
         return_series = True
     else:
-        raise ValueError(
-            "Data must be a Polars or pandas DataFrame or Series instance."
-        )
+        raise ValueError("Data must be a Polars DataFrame or Series instance.")
 
     methods = ["linear", "nearest", "zero", "slinear", "quadratic", "cubic"]
     if method not in methods:

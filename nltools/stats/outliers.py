@@ -50,10 +50,10 @@ def zscore(data):
 
 
 def winsorize(data, cutoff=None, replace_with_cutoff=True):
-    """Winsorize a Polars or pandas DataFrame/Series with the largest/lowest value not considered outlier.
+    """Winsorize a Polars DataFrame/Series with the largest/lowest value not considered outlier.
 
     Args:
-        data: (pl.DataFrame, pl.Series, pd.DataFrame, pd.Series) data to winsorize
+        data: (pl.DataFrame, pl.Series) data to winsorize
         cutoff: (dict) a dictionary with keys {'std':[low,high]} or
                 {'quantile':[low,high]}
         replace_with_cutoff: (bool) If True, replace outliers with cutoff.
@@ -68,10 +68,10 @@ def winsorize(data, cutoff=None, replace_with_cutoff=True):
 
 
 def trim(data, cutoff=None):
-    """Trim a Polars or pandas DataFrame/Series by replacing outlier values with NaNs.
+    """Trim a Polars DataFrame/Series by replacing outlier values with NaNs.
 
     Args:
-        data: (pl.DataFrame, pl.Series, pd.DataFrame, pd.Series) data to trim
+        data: (pl.DataFrame, pl.Series) data to trim
         cutoff: (dict) a dictionary with keys {'std':[low,high]} or
                 {'quantile':[low,high]}
     Returns:
@@ -81,14 +81,13 @@ def trim(data, cutoff=None):
 
 
 def _transform_outliers(data, cutoff, replace_with_cutoff, method):
-    """Transform outliers in Polars or pandas DataFrame/Series using winsorize or trim.
+    """Transform outliers in a Polars DataFrame/Series using winsorize or trim.
 
     This function is not exposed to user but is called by either trim
-    or winsorize. Accepts pandas/polars inputs, converts to Polars internally,
-    and returns Polars output.
+    or winsorize.
 
     Args:
-        data: (pl.DataFrame, pl.Series, pd.DataFrame, pd.Series) data to transform
+        data: (pl.DataFrame, pl.Series) data to transform
         cutoff: (dict) a dictionary with keys {'std':[low,high]} or
                 {'quantile':[low,high]}
         replace_with_cutoff: (bool) If True, replace outliers with cutoff.
@@ -99,22 +98,14 @@ def _transform_outliers(data, cutoff, replace_with_cutoff, method):
     Returns:
         out: (pl.DataFrame, pl.Series) transformed data
     """
-    import pandas as pd
-
-    # Convert pandas to Polars if needed (for backward compatibility)
     return_series = False
-    if isinstance(data, pd.DataFrame):
-        df = pl.from_pandas(data)
-    elif isinstance(data, pd.Series):
-        df = pl.DataFrame({data.name or "0": data})
-        return_series = True
-    elif isinstance(data, pl.DataFrame):
+    if isinstance(data, pl.DataFrame):
         df = data.clone()
     elif isinstance(data, pl.Series):
         df = pl.DataFrame({data.name or "0": data})
         return_series = True
     else:
-        raise ValueError("Data must be a Polars or pandas DataFrame or Series")
+        raise ValueError("Data must be a Polars DataFrame or Series")
 
     # Transform each column if a DataFrame, if Series just transform data
     if isinstance(df, pl.DataFrame):

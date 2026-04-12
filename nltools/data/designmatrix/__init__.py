@@ -458,20 +458,6 @@ class DesignMatrix:
 
         return copy_with(self, combined_df)
 
-    def reset_index(self, drop: bool = True) -> "DesignMatrix":
-        """
-        Reset index (pandas compatibility method).
-
-        Polars DataFrames don't have row indexes, so this is a no-op.
-
-        Args:
-            drop (bool, default=True): Ignored. Kept for API compatibility.
-
-        Returns:
-            DesignMatrix: Returns self unchanged
-        """
-        return self
-
     def standardize(
         self, method: str = "zscore", columns: Optional[List[str]] = None
     ) -> "DesignMatrix":
