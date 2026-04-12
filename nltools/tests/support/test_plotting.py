@@ -16,7 +16,7 @@ from nltools.plotting import plot_surface, plot_flatmap
 def _surfaces_available():
     """Check if surface files are available for testing."""
     try:
-        from nltools.plotting import _get_surface_paths
+        from nltools.plotting.brain import _get_surface_paths
 
         paths = _get_surface_paths()
         return os.path.exists(paths.get("pial_left", ""))
@@ -34,7 +34,7 @@ class TestSurfacePlot:
 
     def test_surface_resource_paths(self):
         """Test that surface files can be located and paths are valid"""
-        from nltools.plotting import _get_surface_paths
+        from nltools.plotting.brain import _get_surface_paths
         import os
 
         paths = _get_surface_paths()
@@ -93,7 +93,7 @@ class TestSurfacePlot:
     def test_bilateral_surface_projection(self, sim_brain_data):
         """Test that volume projects correctly to both hemispheres"""
         from nilearn.surface import vol_to_surf
-        from nltools.plotting import _get_surface_paths
+        from nltools.plotting.brain import _get_surface_paths
 
         single_image = sim_brain_data[0]
         nifti_img = single_image.to_nifti()

@@ -9,15 +9,6 @@ import pytest
 from nltools.io import is_h5_path, load_brain_data_h5, to_h5
 
 
-def _tables_available():
-    try:
-        import tables  # noqa: F401
-
-        return True
-    except ImportError:
-        return False
-
-
 class TestIsH5Path:
     """Tests for is_h5_path."""
 
@@ -42,12 +33,6 @@ class TestIsH5Path:
         assert is_h5_path(Path("results.csv")) is False
 
 
-_needs_tables = pytest.mark.skipif(
-    not _tables_available(), reason="HDF5 support requires PyTables"
-)
-
-
-@_needs_tables
 class TestToH5BrainData:
     """Tests for to_h5 with brain_data type (round-trip via fixtures)."""
 
@@ -76,7 +61,6 @@ class TestToH5BrainData:
         assert np.allclose(result["mask"].get_fdata(), sim_brain_data.mask.get_fdata())
 
 
-@_needs_tables
 class TestToH5Adjacency:
     """Tests for to_h5 with adjacency type."""
 
@@ -85,18 +69,3 @@ class TestToH5Adjacency:
         path = str(tmp_path / "adj.h5")
         to_h5(sim_adjacency_single, path, obj_type="adjacency")
         assert os.path.exists(path)
-
-
-@_needs_tables
-class TestLoadLegacyH5:
-    """Tests for loading legacy (pre-0.4.8) HDF5 files."""
-
-    def test_load_old_brain_h5(self, old_h5_brain, new_h5_brain):
-        """Old and new brain h5 files produce equivalent data."""
-        with pytest.warns(UserWarning):
-            result_old = load_brain_data_h5(old_h5_brain)
-        result_new = load_brain_data_h5(new_h5_brain)
-
-        assert np.allclose(result_old["data"], result_new["data"])
-        assert result_old["X"].shape == result_new["X"].shape
-        assert result_old["Y"].shape == result_new["Y"].shape

@@ -18,9 +18,6 @@ from .brain import (
     plot_interactive_brain,
     plot_surface,
     plot_flatmap,
-    _get_surface_paths as _get_surface_paths,
-    _resolve_brain_input as _resolve_brain_input,
-    _get_background_map as _get_background_map,
 )
 from .adjacency import (
     plot_stacked_adjacency,

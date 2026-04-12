@@ -7,7 +7,6 @@ import pytest
 
 from nltools.data import BrainData
 from nltools.templates import get_brainspace
-from nltools.tests.conftest import _tables_available
 
 
 class TestBrainDataIO:
@@ -28,9 +27,7 @@ class TestBrainDataIO:
         # 2mm: shape_3d = (91, 109, 91), shape_2d = (6, 238955)
         # 3mm: shape_3d = (60, 72, 60), shape_2d = (6, 71020)
 
-        y = pl.read_csv(
-            os.path.join(str(tmpdir.join("y.csv"))), has_header=False
-        )
+        y = pl.read_csv(os.path.join(str(tmpdir.join("y.csv"))), has_header=False)
 
         # Test load list of 4D images
         file_list = [str(tmpdir.join("data.nii.gz")), str(tmpdir.join("data.nii.gz"))]
@@ -87,33 +84,6 @@ class TestBrainDataIO:
         assert loaded.Y.columns == ["outcome"]
         assert np.allclose(loaded.X.to_numpy(), X.to_numpy())
         assert np.allclose(loaded.Y.to_numpy(), Y.to_numpy())
-
-    @pytest.mark.skipif(
-        not _tables_available(), reason="HDF5 support deprecated, requires PyTables"
-    )
-    def test_load_legacy_h5(self, old_h5_brain, new_h5_brain, tmpdir):
-        """Test loading old HDF5 format (backward compatibility)."""
-        from pathlib import Path
-
-        with pytest.warns(UserWarning):
-            # With verbosity on we should see a warning about the old h5 file format
-            b_old = BrainData(old_h5_brain, verbose=True)
-        b_new = BrainData(new_h5_brain)
-        assert b_old.shape == b_new.shape
-        assert np.allclose(b_old.data, b_new.data)
-        # NOTE: We lose pandas column dtype information between old and new h5 files
-        # so we can't use .equals()
-        assert b_old.X.shape == b_new.X.shape
-        assert b_old.Y.shape == b_new.Y.shape
-        assert np.allclose(b_old.mask.affine, b_new.mask.affine)
-        assert np.allclose(b_old.mask.get_fdata(), b_new.mask.get_fdata())
-
-        new_file = Path(tmpdir) / "tmp.h5"
-        b_new.write(new_file)
-        b_new_written = BrainData(new_file)
-        assert b_new.shape == b_new_written.shape
-        assert np.allclose(b_new.data, b_new_written.data)
-        new_file.unlink()
 
     # ==================== Resampling Methods ====================
 

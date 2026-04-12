@@ -114,10 +114,6 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
 def load_brain_data_h5(file_path, mask=None):
     """Load BrainData from HDF5 file.
 
-    Handles the v0.6 h5py layout (X/Y as groups with columns + values) and
-    falls back to the pre-0.4.8 PyTables layout if the modern groups are
-    missing.
-
     Args:
         file_path: Path to HDF5 file.
         mask: Optional mask to use. If None, loads mask from file if available.
@@ -127,80 +123,18 @@ def load_brain_data_h5(file_path, mask=None):
     """
     result = {}
 
-    try:
-        with h5File(file_path, "r") as f:
-            if "X" not in f or "Y" not in f or "data" not in f:
-                raise KeyError("missing expected groups")
-            result["data"] = np.array(f["data"])
-            result["X"] = _read_polars_frame(f, "X")
-            result["Y"] = _read_polars_frame(f, "Y")
+    with h5File(file_path, "r") as f:
+        result["data"] = np.array(f["data"])
+        result["X"] = _read_polars_frame(f, "X")
+        result["Y"] = _read_polars_frame(f, "Y")
 
-            if mask is None and "mask_data" in f:
-                result["mask"] = nib.Nifti1Image(
-                    np.array(f["mask_data"]),
-                    affine=np.array(f["mask_affine"]),
-                    file_map={
-                        "image": nib.FileHolder(
-                            filename=f["mask_file_name"][()].decode()
-                        )
-                    },
-                )
-                result["load_mask"] = True
-            else:
-                result["load_mask"] = False
-
-    except (OSError, KeyError):
-        result = _load_legacy_brain_data_h5(file_path, mask)
-        result["legacy_format"] = True
-
-    return result
-
-
-def _load_legacy_brain_data_h5(file_path, mask=None):
-    """Load BrainData from legacy HDF5 format (pre-0.4.8)."""
-    from nltools.utils import attempt_to_import
-
-    tables_mod = attempt_to_import("tables")
-    if tables_mod is None:
-        raise ImportError("tables package required for legacy h5 format")
-
-    result = {}
-
-    with tables_mod.open_file(file_path, mode="r") as f:
-        result["data"] = np.array(f.root["data"])
-
-        if len(list(f.root["X_columns"])):
-            result["X"] = pl.DataFrame(
-                np.array(f.root["X"]).squeeze(),
-                schema=[
-                    e.decode("utf-8") if isinstance(e, bytes) else e
-                    for e in np.array(f.root["X_columns"])
-                ],
-            )
-        else:
-            result["X"] = pl.DataFrame()
-
-        if len(list(f.root["Y_columns"])):
-            result["Y"] = pl.DataFrame(
-                np.array(f.root["Y"]).squeeze(),
-                schema=[
-                    e.decode("utf-8") if isinstance(e, bytes) else e
-                    for e in np.array(f.root["Y_columns"])
-                ],
-            )
-        else:
-            result["Y"] = pl.DataFrame()
-
-        if mask is None and "mask_data" in f.root:
-            filename = (
-                f.root["mask_file_name"]
-                if "mask_file_name" in f.root
-                else "mask.nii.gz"
-            )
+        if mask is None and "mask_data" in f:
             result["mask"] = nib.Nifti1Image(
-                np.array(f.root["mask_data"]),
-                affine=np.array(f.root["mask_affine"]),
-                file_map={"image": nib.FileHolder(filename=filename)},
+                np.array(f["mask_data"]),
+                affine=np.array(f["mask_affine"]),
+                file_map={
+                    "image": nib.FileHolder(filename=f["mask_file_name"][()].decode())
+                },
             )
             result["load_mask"] = True
         else:

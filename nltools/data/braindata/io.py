@@ -471,10 +471,6 @@ def load_from_h5(bd, file_path, mask):
             "mask in the HDF5 file"
         )
 
-    # Log if we used legacy format
-    if h5_data.get("legacy_format", False) and bd.verbose:
-        warnings.warn("Loaded data using legacy HDF5 format")
-
 
 def load_from_url(bd, url):
     """Load data from URL.

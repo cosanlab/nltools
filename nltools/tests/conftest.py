@@ -25,7 +25,6 @@ import polars as pl
 from sklearn.metrics import pairwise_distances
 from nltools.data.simulator import Simulator
 from nltools.data import Adjacency, DesignMatrix, BrainData
-import os
 import importlib.util
 
 
@@ -40,15 +39,6 @@ def _pybids_available():
 
 
 HAS_PYBIDS = _pybids_available()
-
-
-def _tables_available():
-    """Check if PyTables is installed (for HDF5 support via pandas).
-
-    Note: HDF5 support is being deprecated in favor of more modern formats.
-    Tests requiring PyTables will be skipped when it's not available.
-    """
-    return importlib.util.find_spec("tables") is not None
 
 
 @pytest.fixture(scope="session", params=["2mm"])
@@ -199,54 +189,6 @@ def sim_adjacency_directed():
     )
     labels = ["v_%s" % (x + 1) for x in range(sim_directed.shape[1])]
     return Adjacency(sim_directed, matrix_type="directed", labels=labels)
-
-
-# ============================================================================
-# H5 Test Data Path Fixtures
-# ============================================================================
-# Helper to reduce path resolution boilerplate
-
-
-def _get_test_data_path(request, filename):
-    """Get path to test fixture file in nltools/tests/fixtures/."""
-    tests_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(tests_dir, "fixtures", filename)
-
-
-@pytest.fixture(scope="module")
-def old_h5_brain(request):
-    """Path to old-format brain H5 file."""
-    return _get_test_data_path(request, "old_brain.h5")
-
-
-@pytest.fixture(scope="module")
-def new_h5_brain(request):
-    """Path to new-format brain H5 file."""
-    return _get_test_data_path(request, "new_brain.h5")
-
-
-@pytest.fixture(scope="module")
-def old_h5_adj_single(request):
-    """Path to old-format single adjacency H5 file."""
-    return _get_test_data_path(request, "old_single.h5")
-
-
-@pytest.fixture(scope="module")
-def new_h5_adj_single(request):
-    """Path to new-format single adjacency H5 file."""
-    return _get_test_data_path(request, "new_single.h5")
-
-
-@pytest.fixture(scope="module")
-def old_h5_adj_double(request):
-    """Path to old-format double adjacency H5 file."""
-    return _get_test_data_path(request, "old_double.h5")
-
-
-@pytest.fixture(scope="module")
-def new_h5_adj_double(request):
-    """Path to new-format double adjacency H5 file."""
-    return _get_test_data_path(request, "new_double.h5")
 
 
 # ============================================================================

@@ -2,7 +2,6 @@
 This data class is for working with similarity/dissimilarity matrices
 """
 
-import warnings
 from copy import deepcopy
 from pathlib import Path
 
@@ -31,7 +30,6 @@ from .utils import (
 
 # Optional dependencies
 nx = attempt_to_import("networkx", "nx")
-tables = attempt_to_import("tables")
 
 MAX_INT = np.iinfo(np.int32).max
 
@@ -66,8 +64,6 @@ class Adjacency(object):
                 "'similarity','directed','distance_flat', "
                 "'similarity_flat','directed_flat']"
             )
-
-        verbose = kwargs.pop("verbose", False)
 
         # Setup data
         if data is None:
@@ -116,77 +112,23 @@ class Adjacency(object):
 
             # HDF5
             if is_h5_path(to_load):
-                try:
-                    from nltools.io.h5 import _read_polars_frame
+                from nltools.io.h5 import _read_polars_frame
 
-                    with h5File(to_load, "r") as f:
-                        if "Y" not in f or "data" not in f:
-                            raise KeyError("missing expected datasets")
-                        self.data = np.array(f["data"])
-                        self.matrix_type = f["matrix_type"][()].decode()
-                        self.is_single_matrix = f["is_single_matrix"][()]
-                        self.issymmetric = f["issymmetric"][()]
-                        self.Y = _read_polars_frame(f, "Y")
-                        # labels: variable-length utf-8 if non-empty,
-                        # empty float64 dataset otherwise
-                        labels_ds = f["labels"]
-                        if len(labels_ds) == 0:
-                            self.labels = []
-                        elif h5py.check_string_dtype(labels_ds.dtype) is not None:
-                            self.labels = list(labels_ds.asstr())
-                        else:
-                            self.labels = list(labels_ds)
+                with h5File(to_load, "r") as f:
+                    self.data = np.array(f["data"])
+                    self.matrix_type = f["matrix_type"][()].decode()
+                    self.is_single_matrix = f["is_single_matrix"][()]
+                    self.issymmetric = f["issymmetric"][()]
+                    self.Y = _read_polars_frame(f, "Y")
+                    labels_ds = f["labels"]
+                    if len(labels_ds) == 0:
+                        self.labels = []
+                    elif h5py.check_string_dtype(labels_ds.dtype) is not None:
+                        self.labels = list(labels_ds.asstr())
+                    else:
+                        self.labels = list(labels_ds)
 
-                    # Done initializing
-                    return
-                except Exception as e:
-                    if verbose:
-                        warnings.warn(
-                            f"Falling back to legacy h5 loading due to error: {e}"
-                        )
-
-                    with tables.open_file(to_load, mode="r") as f:
-                        # Setup data
-                        self.data = np.array(f.root["data"])
-
-                        # Setup Y (legacy PyTables format stored column names)
-                        if len(list(f.root["Y_columns"])):
-                            y_values = np.array(f.root["Y"]).squeeze()
-                            if y_values.ndim == 1:
-                                y_values = y_values.reshape(-1, 1)
-                            y_columns = [
-                                e.decode("utf-8") if isinstance(e, bytes) else e
-                                for e in np.array(f.root["Y_columns"])
-                            ]
-                            self.Y = pl.DataFrame(y_values, schema=list(y_columns))
-                        else:
-                            self.Y = None
-
-                        # Setup other attributes
-                        if "matrix_type" in f.root:
-                            self.matrix_type = list(f.root["matrix_type"])[0]
-                        else:
-                            warnings.warn(
-                                "Loading legacy h5 file: matrix_type field missing, assuming 'distance'. "
-                                "Consider re-saving the file to update to current format.",
-                                UserWarning,
-                            )
-                            self.matrix_type = "distance_flat"
-
-                        if "labels" in f.root:
-                            self.labels = list(f.root["labels"])
-                        else:
-                            self.labels = None
-
-                        # Compute other properties from data and matrix type
-                        (
-                            self.data,
-                            self.issymmetric,
-                            self.matrix_type,
-                            self.is_single_matrix,
-                        ) = import_single_data(self.data, matrix_type=self.matrix_type)
-
-                        return
+                return
 
             # CSV or array/dataframe
             else:

@@ -23,7 +23,6 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, module="nilearn")
 
 # Optional dependencies
 nx = attempt_to_import("networkx", "nx")
-tables = attempt_to_import("tables")
 MAX_INT = np.iinfo(np.int32).max
 
 __all__ = ["BrainData"]
