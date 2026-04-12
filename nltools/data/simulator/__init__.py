@@ -245,9 +245,7 @@ class Simulator:
         # Write Data to files if requested
         if output_dir is not None and isinstance(output_dir, str):
             NF_list.write(os.path.join(output_dir, "data.nii.gz"))
-            self.y.write_csv(
-                os.path.join(output_dir, "y.csv"), include_header=False
-            )
+            self.y.write_csv(os.path.join(output_dir, "y.csv"), include_header=False)
             self.rep_id.write_csv(
                 os.path.join(output_dir, "rep_id.csv"), include_header=False
             )

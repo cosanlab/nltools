@@ -19,7 +19,10 @@ class TestDownsample:
         )
         result_values = result.to_numpy()
         expected = np.array(
-            [np.mean([v for v, g in zip(x.to_numpy(), y) if g == k]) for k in range(1, 11)]
+            [
+                np.mean([v for v, g in zip(x.to_numpy(), y) if g == k])
+                for k in range(1, 11)
+            ]
         )
         assert (result_values == expected).all()
 
@@ -33,7 +36,10 @@ class TestDownsample:
         )
         result_values = result.to_numpy()
         expected = np.array(
-            [np.median([v for v, g in zip(x.to_numpy(), y) if g == k]) for k in range(1, 11)]
+            [
+                np.median([v for v, g in zip(x.to_numpy(), y) if g == k])
+                for k in range(1, 11)
+            ]
         )
         assert (result_values == expected).all()
 
@@ -43,18 +49,14 @@ class TestUpsample:
 
     def test_upsample_2x(self):
         """Upsample by factor of 2."""
-        dat = pl.DataFrame(
-            {"x": list(range(0, 100)), "y": np.repeat(range(1, 11), 10)}
-        )
+        dat = pl.DataFrame({"x": list(range(0, 100)), "y": np.repeat(range(1, 11), 10)})
         fs = 2
         us = upsample(dat, sampling_freq=1, target=fs, target_type="hz")
         assert dat.shape[0] * fs - fs == us.shape[0]
 
     def test_upsample_3x(self):
         """Upsample by factor of 3."""
-        dat = pl.DataFrame(
-            {"x": list(range(0, 100)), "y": np.repeat(range(1, 11), 10)}
-        )
+        dat = pl.DataFrame({"x": list(range(0, 100)), "y": np.repeat(range(1, 11), 10)})
         fs = 3
         us = upsample(dat, sampling_freq=1, target=fs, target_type="hz")
         assert dat.shape[0] * fs - fs == us.shape[0]
