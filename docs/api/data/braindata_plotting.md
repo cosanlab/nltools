@@ -9,7 +9,6 @@ Name | Description
 [`auto_select_colormap`](#auto_select_colormap) | Auto-select colormap based on data characteristics.
 [`plot_brain`](#plot_brain) | Plot BrainData instance using nilearn visualization or matplotlib.
 [`plot_flatmap_brain`](#plot_flatmap_brain) | Plot brain data on cortical flatmap.
-[`plot_matplotlib`](#plot_matplotlib) | Plot using matplotlib (timeseries or histogram).
 [`prepare_save_paths`](#prepare_save_paths) | Prepare save paths for multiple plot outputs.
 
 
@@ -98,31 +97,6 @@ Name | Type | Description | Default
 `interpolation` | <code>[str](#str)</code> | Interpolation for vol_to_surf. Default: 'linear'. | <code>'linear'</code>
 `axes` | <code>[Axes](#matplotlib.axes.Axes)</code> | Existing axes to plot on. | <code>None</code>
 `save` | <code>[str](#str)</code> | File path to save figure. | <code>None</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
- | matplotlib.figure.Figure
-
-#### `plot_matplotlib`
-
-```python
-plot_matplotlib(bd, kind, stat = 'mean', ax = None, title = None, save = None)
-```
-
-Plot using matplotlib (timeseries or histogram).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`kind` | <code>[str](#str)</code> | 'timeseries' or 'histogram' | *required*
-`stat` | <code>[str](#str)</code> | Statistic for timeseries ('mean', 'median', 'std') | <code>'mean'</code>
-`ax` |  | Matplotlib axis. | <code>None</code>
-`title` | <code>[str](#str)</code> | Plot title. | <code>None</code>
-`save` | <code>[str](#str)</code> | Path to save figure. | <code>None</code>
 
 **Returns:**
 

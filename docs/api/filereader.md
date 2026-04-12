@@ -18,7 +18,7 @@ Name | Description
 #### `onsets_to_dm`
 
 ```python
-onsets_to_dm(timings: str | Path | pd.DataFrame | list[str | Path | pd.DataFrame], run_length: int | list[int], TR: float, hrf_model: str | Callable | None = 'glover', drift_model: str | None = None, high_pass: float = 0.01, drift_order: int = 0, fill_na: Any = None, **kwargs: Any) -> DesignMatrix | list[DesignMatrix]
+onsets_to_dm(timings: str | Path | pd.DataFrame | pl.DataFrame | list[str | Path | pd.DataFrame | pl.DataFrame], run_length: int | list[int], TR: float, hrf_model: str | Callable | None = 'glover', drift_model: str | None = None, high_pass: float = 0.01, drift_order: int = 0, fill_na: Any = None, **kwargs: Any) -> DesignMatrix | list[DesignMatrix]
 ```
 
 Read 1 or more file paths and return 1 or more design matrices.

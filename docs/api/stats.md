@@ -67,7 +67,7 @@ Name | Description
 [`u_center`](#u_center) | U-center a distance matrix.
 [`upsample`](#upsample) | Upsample Polars or pandas DataFrame/Series to a new target frequency or number of samples using interpolation.
 [`winsorize`](#winsorize) | Winsorize a Polars or pandas DataFrame/Series with the largest/lowest value not considered outlier.
-[`zscore`](#zscore) | zscore every column in a pandas dataframe or series.
+[`zscore`](#zscore) | Z-score every column of a Polars or pandas DataFrame/Series.
 
 
 
@@ -1184,22 +1184,27 @@ Returns:
 #### `zscore`
 
 ```python
-zscore(df)
+zscore(data)
 ```
 
-zscore every column in a pandas dataframe or series.
+Z-score every column of a Polars or pandas DataFrame/Series.
+
+Accepts pandas inputs at the boundary for convenience and converts to
+Polars internally. Always returns Polars output (DataFrame or Series,
+matching the input shape).
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`df` |  | (pd.DataFrame) Pandas DataFrame instance | *required*
+`data` |  | pl.DataFrame, pl.Series, pd.DataFrame, or pd.Series. | *required*
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`z_data` |  | (pd.DataFrame) z-scored pandas DataFrame or series instance
+Type | Description
+---- | -----------
+ | pl.DataFrame or pl.Series with each column z-scored using sample
+ | standard deviation (ddof=1), matching the input shape.
 
 
 
@@ -1925,7 +1930,7 @@ Name | Description
 [`find_spikes`](#find_spikes) | Function to identify spikes from fMRI Time Series Data
 [`trim`](#trim) | Trim a Polars or pandas DataFrame/Series by replacing outlier values with NaNs.
 [`winsorize`](#winsorize) | Winsorize a Polars or pandas DataFrame/Series with the largest/lowest value not considered outlier.
-[`zscore`](#zscore) | zscore every column in a pandas dataframe or series.
+[`zscore`](#zscore) | Z-score every column of a Polars or pandas DataFrame/Series.
 
 
 
@@ -1990,22 +1995,27 @@ Returns:
 ###### `zscore`
 
 ```python
-zscore(df)
+zscore(data)
 ```
 
-zscore every column in a pandas dataframe or series.
+Z-score every column of a Polars or pandas DataFrame/Series.
+
+Accepts pandas inputs at the boundary for convenience and converts to
+Polars internally. Always returns Polars output (DataFrame or Series,
+matching the input shape).
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`df` |  | (pd.DataFrame) Pandas DataFrame instance | *required*
+`data` |  | pl.DataFrame, pl.Series, pd.DataFrame, or pd.Series. | *required*
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`z_data` |  | (pd.DataFrame) z-scored pandas DataFrame or series instance
+Type | Description
+---- | -----------
+ | pl.DataFrame or pl.Series with each column z-scored using sample
+ | standard deviation (ddof=1), matching the input shape.
 
 #### `permutation`
 

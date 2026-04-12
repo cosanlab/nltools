@@ -54,7 +54,7 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`Y`](#Y) |  | 
+[`Y`](#Y) | <code>[DataFrame](#polars.DataFrame)</code> | Training labels as a polars DataFrame (possibly empty).
 [`data`](#data) |  | 
 [`is_empty`](#is_empty) | <code>[bool](#bool)</code> | Check if Adjacency object is empty.
 [`is_single_matrix`](#is_single_matrix) |  | 

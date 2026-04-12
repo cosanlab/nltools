@@ -137,7 +137,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`tuple` |  | (metadata DataFrame, list of image file paths)
+`tuple` |  | (metadata polars.DataFrame, list of image file paths)
 
 #### `fetch_pain`
 

@@ -6,17 +6,17 @@ Plotting functions for Adjacency matrices.
 
 Name | Description
 ---- | -----------
-[`plot`](#plot) | Create Heatmap of Adjacency Matrix.
+[`plot_adjacency`](#plot_adjacency) | Create Heatmap of Adjacency Matrix.
 [`plot_mds`](#plot_mds) | Plot Multidimensional Scaling.
 
 
 
 ### Methods
 
-#### `plot`
+#### `plot_adjacency`
 
 ```python
-plot(adj, limit = 3, axes = None, *args, **kwargs)
+plot_adjacency(adj, limit = 3, axes = None, *args, **kwargs)
 ```
 
 Create Heatmap of Adjacency Matrix.

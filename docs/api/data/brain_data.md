@@ -1,7 +1,7 @@
 ## `BrainData`
 
 ```python
-BrainData(data = None, Y = None, X = None, mask = None, masker = None, **kwargs)
+BrainData(data = None, Y = None, X = None, mask = None, masker = None, h5_compression = 'gzip', verbose = False, resample = True, interpolation = 'auto')
 ```
 
 
@@ -16,9 +16,8 @@ Name | Type | Description | Default
 `data` |  | Neuroimaging data. Can be: - None (empty BrainData) - BrainData object - List of BrainData objects or file paths - File path (str/Path) to .nii/.nii.gz/.h5/.hdf5 - nibabel Nifti1Image object - URL to download data from | <code>None</code>
 `mask` |  | Brain mask. Can be None (uses MNI template), a nibabel Nifti1Image, a file path (str/Path) to a mask file, or a template name string like ``'2mm-MNI152-2009c'`` (version: 'fsl' for default/, 'a' for nilearn/, 'c' for fmriprep/). | <code>None</code>
 `masker` |  | nilearn masker object (e.g. ROI or searchlight extractor). Default will load data as voxels. | <code>None</code>
-`resample` | <code>bool, default=True</code> | Whether to automatically resample data to mask space. If True, data is resampled to match mask spatial characteristics. If False, data must already be in mask space. Default True preserves backward compatibility with v0.5.1. | *required*
-`interpolation` | <code>str, default='auto'</code> | Interpolation method for resampling. Options: 'auto' (detect based on data type; uses 'nearest' for discrete data like atlases/masks and 'continuous' for stat maps), 'nearest' (nearest-neighbor, preserves discrete values), 'linear' (linear interpolation), 'continuous' (higher-order spline, use for stat maps). | *required*
-`**kwargs` |  | Additional arguments passed to NiftiMasker. | <code>{}</code>
+`resample` | <code>bool, default=True</code> | Whether to automatically resample data to mask space. If True, data is resampled to match mask spatial characteristics. If False, data must already be in mask space. Default True preserves backward compatibility with v0.5.1. | <code>True</code>
+`interpolation` | <code>str, default='auto'</code> | Interpolation method for resampling. Options: 'auto' (detect based on data type; uses 'nearest' for discrete data like atlases/masks and 'continuous' for stat maps), 'nearest' (nearest-neighbor, preserves discrete values), 'linear' (linear interpolation), 'continuous' (higher-order spline, use for stat maps). | <code>'auto'</code>
 
 **Methods:**
 
@@ -69,8 +68,8 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`X`](#X) |  | 
-[`Y`](#Y) |  | 
+[`X`](#X) |  | Design matrix / per-image covariates as a polars DataFrame.
+[`Y`](#Y) |  | Per-image targets as a polars DataFrame.
 [`data`](#data) |  | 
 [`design_matrix`](#design_matrix) |  | 
 [`dtype`](#dtype) |  | Get data type of BrainData.data.

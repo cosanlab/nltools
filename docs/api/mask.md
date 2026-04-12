@@ -12,7 +12,7 @@ Name | Description
 [`collapse_mask`](#collapse_mask) | collapse separate masks into one mask with multiple integers
 [`create_sphere`](#create_sphere) | Generate a set of spheres in the brain mask space
 [`expand_mask`](#expand_mask) | expand a mask with multiple integers into separate binary masks
-[`roi_to_brain`](#roi_to_brain) | This function will create convert an expanded binary mask of ROIs
+[`roi_to_brain`](#roi_to_brain) | Populate an expanded binary ROI mask with a vector or matrix of per-ROI values.
 
 
 
@@ -82,22 +82,25 @@ Name | Type | Description
 roi_to_brain(data, mask_x)
 ```
 
-This function will create convert an expanded binary mask of ROIs
-(see expand_mask) based on a vector of of values. The dataframe of values
-must correspond to ROI numbers.
+Populate an expanded binary ROI mask with a vector or matrix of per-ROI values.
 
-This is useful for populating a parcellation scheme by a vector of Values
+Accepts lists, numpy arrays, polars DataFrame/Series, or pandas
+DataFrame/Series. Internally coerces to a numpy array and operates on
+it — 1-D input produces a single BrainData image; 2-D input (ROIs by
+observations) produces a stack of BrainData images, one per
+observation.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` |  | Pandas series, dataframe, list, np.array of ROI by observation | *required*
-`mask_x` |  | an expanded binary mask | *required*
+`data` |  | ROI values. 1-D length must equal len(mask_x); 2-D shape must be (n_rois, n_obs) or (n_obs, n_rois). | *required*
+`mask_x` |  | An expanded binary mask (BrainData) with one row per ROI. | *required*
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`out` |  | (BrainData) BrainData instance where each ROI is now populated  with a value
+`BrainData` |  | A BrainData instance with each ROI populated by the
+ |  | provided value(s).
 

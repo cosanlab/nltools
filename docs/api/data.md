@@ -87,7 +87,7 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`Y`](#Y) |  | 
+[`Y`](#Y) | <code>[DataFrame](#polars.DataFrame)</code> | Training labels as a polars DataFrame (possibly empty).
 [`data`](#data) |  | 
 [`is_empty`](#is_empty) | <code>[bool](#bool)</code> | Check if Adjacency object is empty.
 [`is_single_matrix`](#is_single_matrix) |  | 
@@ -635,7 +635,7 @@ Convert z score back into r value for each element of data object
 #### `BrainCollection`
 
 ```python
-BrainCollection(items: list[Path | str | 'BrainData'], mask: nib.Nifti1Image | Path | str, metadata: pd.DataFrame | None = None, lazy: bool = True)
+BrainCollection(items: list[Path | str | 'BrainData'], mask: nib.Nifti1Image | Path | str, metadata: 'pl.DataFrame | pd.DataFrame | dict | None' = None, lazy: bool = True)
 ```
 
 Collection of brain images with tensor-like operations.
@@ -659,7 +659,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `items` | <code>[list](#list)[[Path](#pathlib.Path) \| [str](#str) \| 'BrainData']</code> | List of file paths, BrainData objects, or mix of both. Paths are loaded lazily by default. | *required*
 `mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str)</code> | Brain mask. Required. Can be: - nibabel Nifti1Image - Path to mask file - Template name (e.g., '2mm-MNI152-2009c') | *required*
-`metadata` | <code>[DataFrame](#pandas.DataFrame) \| None</code> | Optional DataFrame with per-image metadata (subject, session, etc.). Index should match items order. | <code>None</code>
+`metadata` | <code>'pl.DataFrame \| pd.DataFrame \| dict \| None'</code> | Optional DataFrame with per-image metadata (subject, session, etc.). Index should match items order. | <code>None</code>
 `lazy` | <code>[bool](#bool)</code> | If True (default), paths are not loaded until accessed. | <code>True</code>
 
 **Examples:**
@@ -753,7 +753,7 @@ Name | Type | Description
 ---- | ---- | -----------
 [`is_loaded`](#is_loaded) | <code>[list](#list)[[bool](#bool)]</code> | List indicating which images are currently in memory.
 [`mask`](#mask) | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | Shared NIfTI brain mask image used to define the voxel space for the collection.
-[`metadata`](#metadata) | <code>[DataFrame](#pandas.DataFrame)</code> | Per-image metadata DataFrame.
+[`metadata`](#metadata) | <code>[DataFrame](#polars.DataFrame)</code> | Per-image metadata as a polars DataFrame.
 [`n_images`](#n_images) | <code>[int](#int)</code> | Number of images in collection.
 [`n_voxels`](#n_voxels) | <code>[int](#int)</code> | Number of voxels (from mask).
 [`shape`](#shape) | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | Shape as (n_images, n_observations, n_voxels).
@@ -764,7 +764,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `items` | <code>[list](#list)[[Path](#pathlib.Path) \| [str](#str) \| 'BrainData']</code> | List of paths or BrainData objects. | *required*
 `mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str)</code> | Shared mask (required). Path, nibabel image, or template name. | *required*
-`metadata` | <code>[DataFrame](#pandas.DataFrame) \| None</code> | Optional per-image metadata DataFrame. | <code>None</code>
+`metadata` | <code>'pl.DataFrame \| pd.DataFrame \| dict \| None'</code> | Optional per-image metadata. Accepts polars/pandas DataFrame or dict-of-columns; stored as polars. | <code>None</code>
 `lazy` | <code>[bool](#bool)</code> | If True, paths are loaded on demand. | <code>True</code>
 
 ##### Methods
@@ -1021,7 +1021,7 @@ Type | Description
 ###### `filter`
 
 ```python
-filter(predicate: Callable | list | np.ndarray | 'pd.Series') -> 'BrainCollection'
+filter(predicate: 'Callable | list | np.ndarray | pl.Series | pd.Series') -> 'BrainCollection'
 ```
 
 Filter collection by predicate.
@@ -1030,7 +1030,7 @@ Filter collection by predicate.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`predicate` | <code>[Callable](#collections.abc.Callable) \| [list](#list) \| [ndarray](#numpy.ndarray) \| 'pd.Series'</code> | Filter condition. Can be: - callable: fn(BrainData) → bool - list/ndarray: Boolean mask of length n_images - pd.Series: Boolean series (index ignored) | *required*
+`predicate` | <code>'Callable \| list \| np.ndarray \| pl.Series \| pd.Series'</code> | Filter condition. Can be: - callable: fn(BrainData) → bool - list/ndarray: Boolean mask of length n_images - pl.Series / pd.Series: Boolean series | *required*
 
 **Returns:**
 
@@ -2260,7 +2260,7 @@ Type | Description
 #### `BrainData`
 
 ```python
-BrainData(data = None, Y = None, X = None, mask = None, masker = None, **kwargs)
+BrainData(data = None, Y = None, X = None, mask = None, masker = None, h5_compression = 'gzip', verbose = False, resample = True, interpolation = 'auto')
 ```
 
 
@@ -2275,9 +2275,8 @@ Name | Type | Description | Default
 `data` |  | Neuroimaging data. Can be: - None (empty BrainData) - BrainData object - List of BrainData objects or file paths - File path (str/Path) to .nii/.nii.gz/.h5/.hdf5 - nibabel Nifti1Image object - URL to download data from | <code>None</code>
 `mask` |  | Brain mask. Can be None (uses MNI template), a nibabel Nifti1Image, a file path (str/Path) to a mask file, or a template name string like ``'2mm-MNI152-2009c'`` (version: 'fsl' for default/, 'a' for nilearn/, 'c' for fmriprep/). | <code>None</code>
 `masker` |  | nilearn masker object (e.g. ROI or searchlight extractor). Default will load data as voxels. | <code>None</code>
-`resample` | <code>bool, default=True</code> | Whether to automatically resample data to mask space. If True, data is resampled to match mask spatial characteristics. If False, data must already be in mask space. Default True preserves backward compatibility with v0.5.1. | *required*
-`interpolation` | <code>str, default='auto'</code> | Interpolation method for resampling. Options: 'auto' (detect based on data type; uses 'nearest' for discrete data like atlases/masks and 'continuous' for stat maps), 'nearest' (nearest-neighbor, preserves discrete values), 'linear' (linear interpolation), 'continuous' (higher-order spline, use for stat maps). | *required*
-`**kwargs` |  | Additional arguments passed to NiftiMasker. | <code>{}</code>
+`resample` | <code>bool, default=True</code> | Whether to automatically resample data to mask space. If True, data is resampled to match mask spatial characteristics. If False, data must already be in mask space. Default True preserves backward compatibility with v0.5.1. | <code>True</code>
+`interpolation` | <code>str, default='auto'</code> | Interpolation method for resampling. Options: 'auto' (detect based on data type; uses 'nearest' for discrete data like atlases/masks and 'continuous' for stat maps), 'nearest' (nearest-neighbor, preserves discrete values), 'linear' (linear interpolation), 'continuous' (higher-order spline, use for stat maps). | <code>'auto'</code>
 
 **Methods:**
 
@@ -2328,8 +2327,8 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`X`](#X) |  | 
-[`Y`](#Y) |  | 
+[`X`](#X) |  | Design matrix / per-image covariates as a polars DataFrame.
+[`Y`](#Y) |  | Per-image targets as a polars DataFrame.
 [`data`](#data) |  | 
 [`design_matrix`](#design_matrix) |  | 
 [`dtype`](#dtype) |  | Get data type of BrainData.data.
@@ -3365,7 +3364,7 @@ Name | Description
 [`downsample`](#downsample) | Reduce temporal resolution to target frequency using Polars-native operations.
 [`drop`](#drop) | Drop specified columns.
 [`fillna`](#fillna) | Fill NaN/null values with specified value.
-[`heatmap`](#heatmap) | Visualize design matrix as heatmap (SPM-style).
+[`plot`](#plot) | Visualize design matrix as heatmap (SPM-style).
 [`replace_data`](#replace_data) | Replace data columns while preserving polynomials and metadata.
 [`reset_index`](#reset_index) | Reset index (pandas compatibility method).
 [`standardize`](#standardize) | Standardize columns using the specified method.
@@ -3382,7 +3381,7 @@ Name | Description
 ###### `add_dct_basis`
 
 ```python
-add_dct_basis(duration: float = 180, drop: int = 0) -> DesignMatrix
+add_dct_basis(duration: float = 180, drop: int = 0) -> 'DesignMatrix'
 ```
 
 Add discrete cosine transform basis functions (high-pass filter).
@@ -3398,12 +3397,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with DCT basis columns appended.
+`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with DCT basis columns appended.
 
 ###### `add_poly`
 
 ```python
-add_poly(order: int = 0, include_lower: bool = True) -> DesignMatrix
+add_poly(order: int = 0, include_lower: bool = True) -> 'DesignMatrix'
 ```
 
 Add Legendre polynomial drift terms.
@@ -3419,12 +3418,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with polynomial columns appended.
+`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with polynomial columns appended.
 
 ###### `append`
 
 ```python
-append(dm: Union[DesignMatrix, List[DesignMatrix]], axis: int = 0, keep_separate: bool = True, unique_cols: Optional[List[str]] = None, fill_na: Union[int, float] = 0, verbose: bool = False) -> DesignMatrix
+append(dm: Union['DesignMatrix', List['DesignMatrix']], axis: int = 0, keep_separate: bool = True, unique_cols: Optional[List[str]] = None, fill_na: Union[int, float] = 0, verbose: bool = False) -> 'DesignMatrix'
 ```
 
 Concatenate design matrices.
@@ -3444,12 +3443,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Concatenated design matrix.
+`DesignMatrix` | <code>'DesignMatrix'</code> | Concatenated design matrix.
 
 ###### `clean`
 
 ```python
-clean(fill_na: Union[int, float, None] = 0, exclude_polys: bool = False, thresh: float = 0.95, verbose: bool = True) -> DesignMatrix
+clean(fill_na: Union[int, float, None] = 0, exclude_polys: bool = False, thresh: float = 0.95, verbose: bool = True) -> 'DesignMatrix'
 ```
 
 Remove highly correlated columns.
@@ -3467,12 +3466,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Cleaned matrix with highly correlated columns removed
+`DesignMatrix` | <code>'DesignMatrix'</code> | Cleaned matrix with highly correlated columns removed
 
 ###### `convolve`
 
 ```python
-convolve(conv_func: Union[str, np.ndarray] = 'hrf', columns: Optional[List[str]] = None) -> DesignMatrix
+convolve(conv_func: Union[str, np.ndarray] = 'hrf', columns: Optional[List[str]] = None) -> 'DesignMatrix'
 ```
 
 Convolve columns with HRF or custom kernel.
@@ -3488,12 +3487,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with convolved columns
+`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with convolved columns
 
 ###### `copy`
 
 ```python
-copy() -> DesignMatrix
+copy() -> 'DesignMatrix'
 ```
 
 Create a deep copy of the DesignMatrix.
@@ -3502,7 +3501,7 @@ Create a deep copy of the DesignMatrix.
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Copy of the current DesignMatrix
+`DesignMatrix` | <code>'DesignMatrix'</code> | Copy of the current DesignMatrix
 
 ###### `details`
 
@@ -3521,7 +3520,7 @@ Name | Type | Description
 ###### `downsample`
 
 ```python
-downsample(target: float, method: str = 'mean', **kwargs: str) -> DesignMatrix
+downsample(target: float, method: str = 'mean', **kwargs: str) -> 'DesignMatrix'
 ```
 
 Reduce temporal resolution to target frequency using Polars-native operations.
@@ -3537,12 +3536,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Downsampled DesignMatrix with updated sampling_freq
+`DesignMatrix` | <code>'DesignMatrix'</code> | Downsampled DesignMatrix with updated sampling_freq
 
 ###### `drop`
 
 ```python
-drop(columns: List[str]) -> DesignMatrix
+drop(columns: List[str]) -> 'DesignMatrix'
 ```
 
 Drop specified columns.
@@ -3557,12 +3556,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix without the specified columns.
+`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix without the specified columns.
 
 ###### `fillna`
 
 ```python
-fillna(value: Union[int, float]) -> DesignMatrix
+fillna(value: Union[int, float]) -> 'DesignMatrix'
 ```
 
 Fill NaN/null values with specified value.
@@ -3577,12 +3576,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with NaN/null values replaced.
+`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with NaN/null values replaced.
 
-###### `heatmap`
+###### `plot`
 
 ```python
-heatmap(figsize: tuple = (8, 6), **kwargs: tuple)
+plot(figsize: tuple = (8, 6), **kwargs: tuple)
 ```
 
 Visualize design matrix as heatmap (SPM-style).
@@ -3603,7 +3602,7 @@ Type | Description
 ###### `replace_data`
 
 ```python
-replace_data(data: np.ndarray, column_names: Optional[List[str]] = None) -> DesignMatrix
+replace_data(data: np.ndarray, column_names: Optional[List[str]] = None) -> 'DesignMatrix'
 ```
 
 Replace data columns while preserving polynomials and metadata.
@@ -3619,12 +3618,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with replaced data columns, preserved polynomials
+`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with replaced data columns, preserved polynomials
 
 ###### `reset_index`
 
 ```python
-reset_index(drop: bool = True) -> DesignMatrix
+reset_index(drop: bool = True) -> 'DesignMatrix'
 ```
 
 Reset index (pandas compatibility method).
@@ -3641,12 +3640,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Returns self unchanged
+`DesignMatrix` | <code>'DesignMatrix'</code> | Returns self unchanged
 
 ###### `standardize`
 
 ```python
-standardize(method: str = 'zscore', columns: Optional[List[str]] = None) -> DesignMatrix
+standardize(method: str = 'zscore', columns: Optional[List[str]] = None) -> 'DesignMatrix'
 ```
 
 Standardize columns using the specified method.
@@ -3662,7 +3661,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with standardized columns.
+`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with standardized columns.
 
 ###### `sum`
 
@@ -3715,7 +3714,7 @@ Type | Description
 ###### `upsample`
 
 ```python
-upsample(target: float, method: str = 'linear', **kwargs: str) -> DesignMatrix
+upsample(target: float, method: str = 'linear', **kwargs: str) -> 'DesignMatrix'
 ```
 
 Increase temporal resolution to target frequency.
@@ -3731,7 +3730,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Upsampled DesignMatrix with updated sampling_freq
+`DesignMatrix` | <code>'DesignMatrix'</code> | Upsampled DesignMatrix with updated sampling_freq
 
 ###### `vif`
 
@@ -3774,7 +3773,7 @@ Name | Type | Description | Default
 ###### `zscore`
 
 ```python
-zscore(columns: Optional[List[str]] = None) -> DesignMatrix
+zscore(columns: Optional[List[str]] = None) -> 'DesignMatrix'
 ```
 
 Z-score standardize columns (mean=0, std=1).
@@ -3789,7 +3788,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with standardized columns
+`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with standardized columns
 
 #### `Fit`
 
@@ -4704,17 +4703,17 @@ Plotting functions for Adjacency matrices.
 
 Name | Description
 ---- | -----------
-[`plot`](#plot) | Create Heatmap of Adjacency Matrix.
+[`plot_adjacency`](#plot_adjacency) | Create Heatmap of Adjacency Matrix.
 [`plot_mds`](#plot_mds) | Plot Multidimensional Scaling.
 
 
 
 ####### Functions##
 
-###### `plot`
+###### `plot_adjacency`
 
 ```python
-plot(adj, limit = 3, axes = None, *args, **kwargs)
+plot_adjacency(adj, limit = 3, axes = None, *args, **kwargs)
 ```
 
 Create Heatmap of Adjacency Matrix.
@@ -5433,7 +5432,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | pd.DataFrame: DataFrame with spikes as indicator variables.
+ | pl.DataFrame: DataFrame with spikes as indicator variables.
 
 ######## `icc`
 
@@ -6259,7 +6258,7 @@ Name | Description
 [`detect_and_update_mask`](#detect_and_update_mask) | Detect best matching template from data and update mask if mask was None.
 [`detect_space`](#detect_space) | Detect if mask is in MNI space or native space.
 [`get_interpolation`](#get_interpolation) | Get the interpolation method to use for a given image.
-[`initialize_mask`](#initialize_mask) | Initialize the mask and NiftiMasker.
+[`initialize_mask`](#initialize_mask) | Initialize the mask image.
 [`load_from_brain_data`](#load_from_brain_data) | Load data from another BrainData object.
 [`load_from_file`](#load_from_file) | Load data from file path or nibabel object.
 [`load_from_h5`](#load_from_h5) | Load data from HDF5 file.
@@ -6370,10 +6369,10 @@ Name | Type | Description
 ######## `initialize_mask`
 
 ```python
-initialize_mask(bd, mask, **kwargs)
+initialize_mask(bd, mask)
 ```
 
-Initialize the mask and NiftiMasker.
+Initialize the mask image.
 
 **Parameters:**
 
@@ -6381,7 +6380,6 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
 `mask` |  | Brain mask as nibabel object, file path, template name string, or None. Template name strings supported: '{res}mm-MNI152-2009{version}' (e.g., '2mm-MNI152-2009c', '3mm-MNI152-2009a', '2mm-MNI152-2009fsl') | *required*
-`**kwargs` |  | Additional arguments passed to NiftiMasker. | <code>{}</code>
 
 ######## `load_from_brain_data`
 
@@ -7454,7 +7452,6 @@ Name | Description
 [`auto_select_colormap`](#auto_select_colormap) | Auto-select colormap based on data characteristics.
 [`plot_brain`](#plot_brain) | Plot BrainData instance using nilearn visualization or matplotlib.
 [`plot_flatmap_brain`](#plot_flatmap_brain) | Plot brain data on cortical flatmap.
-[`plot_matplotlib`](#plot_matplotlib) | Plot using matplotlib (timeseries or histogram).
 [`prepare_save_paths`](#prepare_save_paths) | Prepare save paths for multiple plot outputs.
 
 
@@ -7543,31 +7540,6 @@ Name | Type | Description | Default
 `interpolation` | <code>[str](#str)</code> | Interpolation for vol_to_surf. Default: 'linear'. | <code>'linear'</code>
 `axes` | <code>[Axes](#matplotlib.axes.Axes)</code> | Existing axes to plot on. | <code>None</code>
 `save` | <code>[str](#str)</code> | File path to save figure. | <code>None</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
- | matplotlib.figure.Figure
-
-######## `plot_matplotlib`
-
-```python
-plot_matplotlib(bd, kind, stat = 'mean', ax = None, title = None, save = None)
-```
-
-Plot using matplotlib (timeseries or histogram).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`kind` | <code>[str](#str)</code> | 'timeseries' or 'histogram' | *required*
-`stat` | <code>[str](#str)</code> | Statistic for timeseries ('mean', 'median', 'std') | <code>'mean'</code>
-`ax` |  | Matplotlib axis. | <code>None</code>
-`title` | <code>[str](#str)</code> | Plot title. | <code>None</code>
-`save` | <code>[str](#str)</code> | Path to save figure. | <code>None</code>
 
 **Returns:**
 
@@ -7977,9 +7949,9 @@ shallow_copy(bd)
 
 Create a shallow copy of a BrainData for efficient method chaining.
 
-Creates a new BrainData instance that shares immutable objects (mask,
-nifti_masker) but copies mutable attributes.  The data array is NOT
-copied — callers should handle data copying as needed.
+Creates a new BrainData instance that shares immutable objects (mask)
+but copies mutable attributes.  The data array is NOT copied — callers
+should handle data copying as needed.
 
 **Parameters:**
 
@@ -8102,19 +8074,23 @@ validate_frame(frame, data_shape = None, frame_type = 'DataFrame')
 
 Validate and process X or Y dataframes for BrainData.
 
+Accepts pandas DataFrames for user convenience but always returns a
+polars DataFrame. Internal BrainData state should be polars-only.
+
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`frame` |  | Input to validate. Can be str, Path, pd.DataFrame, or None. | *required*
-`data_shape` |  | Optional tuple of data shape to validate against. | <code>None</code>
+`frame` |  | Input to validate. Can be ``None``, a ``str``/``Path`` pointing to a CSV, a polars or pandas DataFrame, or a 1D/2D numpy array. | *required*
+`data_shape` |  | Optional tuple of data shape to validate row count against. | <code>None</code>
 `frame_type` |  | Type of frame for error messages (e.g., "X", "Y"). | <code>'DataFrame'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | pd.DataFrame: Validated and processed dataframe.
+ | pl.DataFrame: Validated frame as polars. Empty ``pl.DataFrame()`` when
+ | ``frame`` is ``None``.
 
 ######## `validate_index_operations`
 
@@ -10071,7 +10047,7 @@ Filter collection by predicate.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bc` | <code>'BrainCollection'</code> | BrainCollection to filter. | *required*
-`predicate` | <code>'Callable \| list \| np.ndarray'</code> | Filter condition. Can be: - callable: fn(BrainData) -> bool - list/ndarray: Boolean mask of length n_images - pd.Series: Boolean series (index ignored) | *required*
+`predicate` | <code>'Callable \| list \| np.ndarray'</code> | Filter condition. Can be: - callable: fn(BrainData) -> bool - list/ndarray: Boolean mask of length n_images - pl.Series / pd.Series: Boolean series | *required*
 
 **Returns:**
 
@@ -10371,7 +10347,7 @@ Name | Description
 [`downsample`](#downsample) | Reduce temporal resolution to target frequency using Polars-native operations.
 [`drop`](#drop) | Drop specified columns.
 [`fillna`](#fillna) | Fill NaN/null values with specified value.
-[`heatmap`](#heatmap) | Visualize design matrix as heatmap (SPM-style).
+[`plot`](#plot) | Visualize design matrix as heatmap (SPM-style).
 [`replace_data`](#replace_data) | Replace data columns while preserving polynomials and metadata.
 [`reset_index`](#reset_index) | Reset index (pandas compatibility method).
 [`standardize`](#standardize) | Standardize columns using the specified method.
@@ -10448,7 +10424,7 @@ Return (n_rows, n_cols) tuple.
 ###### `add_dct_basis`
 
 ```python
-add_dct_basis(duration: float = 180, drop: int = 0) -> DesignMatrix
+add_dct_basis(duration: float = 180, drop: int = 0) -> 'DesignMatrix'
 ```
 
 Add discrete cosine transform basis functions (high-pass filter).
@@ -10464,12 +10440,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with DCT basis columns appended.
+`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with DCT basis columns appended.
 
 ######## `add_poly`
 
 ```python
-add_poly(order: int = 0, include_lower: bool = True) -> DesignMatrix
+add_poly(order: int = 0, include_lower: bool = True) -> 'DesignMatrix'
 ```
 
 Add Legendre polynomial drift terms.
@@ -10485,12 +10461,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with polynomial columns appended.
+`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with polynomial columns appended.
 
 ######## `append`
 
 ```python
-append(dm: Union[DesignMatrix, List[DesignMatrix]], axis: int = 0, keep_separate: bool = True, unique_cols: Optional[List[str]] = None, fill_na: Union[int, float] = 0, verbose: bool = False) -> DesignMatrix
+append(dm: Union['DesignMatrix', List['DesignMatrix']], axis: int = 0, keep_separate: bool = True, unique_cols: Optional[List[str]] = None, fill_na: Union[int, float] = 0, verbose: bool = False) -> 'DesignMatrix'
 ```
 
 Concatenate design matrices.
@@ -10510,12 +10486,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Concatenated design matrix.
+`DesignMatrix` | <code>'DesignMatrix'</code> | Concatenated design matrix.
 
 ######## `clean`
 
 ```python
-clean(fill_na: Union[int, float, None] = 0, exclude_polys: bool = False, thresh: float = 0.95, verbose: bool = True) -> DesignMatrix
+clean(fill_na: Union[int, float, None] = 0, exclude_polys: bool = False, thresh: float = 0.95, verbose: bool = True) -> 'DesignMatrix'
 ```
 
 Remove highly correlated columns.
@@ -10533,12 +10509,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Cleaned matrix with highly correlated columns removed
+`DesignMatrix` | <code>'DesignMatrix'</code> | Cleaned matrix with highly correlated columns removed
 
 ######## `convolve`
 
 ```python
-convolve(conv_func: Union[str, np.ndarray] = 'hrf', columns: Optional[List[str]] = None) -> DesignMatrix
+convolve(conv_func: Union[str, np.ndarray] = 'hrf', columns: Optional[List[str]] = None) -> 'DesignMatrix'
 ```
 
 Convolve columns with HRF or custom kernel.
@@ -10554,12 +10530,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with convolved columns
+`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with convolved columns
 
 ######## `copy`
 
 ```python
-copy() -> DesignMatrix
+copy() -> 'DesignMatrix'
 ```
 
 Create a deep copy of the DesignMatrix.
@@ -10568,7 +10544,7 @@ Create a deep copy of the DesignMatrix.
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Copy of the current DesignMatrix
+`DesignMatrix` | <code>'DesignMatrix'</code> | Copy of the current DesignMatrix
 
 ######## `details`
 
@@ -10587,7 +10563,7 @@ Name | Type | Description
 ######## `downsample`
 
 ```python
-downsample(target: float, method: str = 'mean', **kwargs: str) -> DesignMatrix
+downsample(target: float, method: str = 'mean', **kwargs: str) -> 'DesignMatrix'
 ```
 
 Reduce temporal resolution to target frequency using Polars-native operations.
@@ -10603,12 +10579,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Downsampled DesignMatrix with updated sampling_freq
+`DesignMatrix` | <code>'DesignMatrix'</code> | Downsampled DesignMatrix with updated sampling_freq
 
 ######## `drop`
 
 ```python
-drop(columns: List[str]) -> DesignMatrix
+drop(columns: List[str]) -> 'DesignMatrix'
 ```
 
 Drop specified columns.
@@ -10623,12 +10599,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix without the specified columns.
+`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix without the specified columns.
 
 ######## `fillna`
 
 ```python
-fillna(value: Union[int, float]) -> DesignMatrix
+fillna(value: Union[int, float]) -> 'DesignMatrix'
 ```
 
 Fill NaN/null values with specified value.
@@ -10643,12 +10619,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with NaN/null values replaced.
+`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with NaN/null values replaced.
 
-######## `heatmap`
+######## `plot`
 
 ```python
-heatmap(figsize: tuple = (8, 6), **kwargs: tuple)
+plot(figsize: tuple = (8, 6), **kwargs: tuple)
 ```
 
 Visualize design matrix as heatmap (SPM-style).
@@ -10669,7 +10645,7 @@ Type | Description
 ######## `replace_data`
 
 ```python
-replace_data(data: np.ndarray, column_names: Optional[List[str]] = None) -> DesignMatrix
+replace_data(data: np.ndarray, column_names: Optional[List[str]] = None) -> 'DesignMatrix'
 ```
 
 Replace data columns while preserving polynomials and metadata.
@@ -10685,12 +10661,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with replaced data columns, preserved polynomials
+`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with replaced data columns, preserved polynomials
 
 ######## `reset_index`
 
 ```python
-reset_index(drop: bool = True) -> DesignMatrix
+reset_index(drop: bool = True) -> 'DesignMatrix'
 ```
 
 Reset index (pandas compatibility method).
@@ -10707,12 +10683,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Returns self unchanged
+`DesignMatrix` | <code>'DesignMatrix'</code> | Returns self unchanged
 
 ######## `standardize`
 
 ```python
-standardize(method: str = 'zscore', columns: Optional[List[str]] = None) -> DesignMatrix
+standardize(method: str = 'zscore', columns: Optional[List[str]] = None) -> 'DesignMatrix'
 ```
 
 Standardize columns using the specified method.
@@ -10728,7 +10704,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with standardized columns.
+`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with standardized columns.
 
 ######## `sum`
 
@@ -10781,7 +10757,7 @@ Type | Description
 ######## `upsample`
 
 ```python
-upsample(target: float, method: str = 'linear', **kwargs: str) -> DesignMatrix
+upsample(target: float, method: str = 'linear', **kwargs: str) -> 'DesignMatrix'
 ```
 
 Increase temporal resolution to target frequency.
@@ -10797,7 +10773,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Upsampled DesignMatrix with updated sampling_freq
+`DesignMatrix` | <code>'DesignMatrix'</code> | Upsampled DesignMatrix with updated sampling_freq
 
 ######## `vif`
 
@@ -10840,7 +10816,7 @@ Name | Type | Description | Default
 ######## `zscore`
 
 ```python
-zscore(columns: Optional[List[str]] = None) -> DesignMatrix
+zscore(columns: Optional[List[str]] = None) -> 'DesignMatrix'
 ```
 
 Z-score standardize columns (mean=0, std=1).
@@ -10855,7 +10831,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with standardized columns
+`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with standardized columns
 
 
 
@@ -11151,7 +11127,7 @@ Each takes a DesignMatrix instance (`dm`) as its first argument.
 
 Name | Description
 ---- | -----------
-[`heatmap`](#heatmap) | Visualize design matrix as heatmap (SPM-style).
+[`plot_designmatrix`](#plot_designmatrix) | Visualize design matrix as heatmap (SPM-style).
 [`to_numpy`](#to_numpy) | Convert DesignMatrix to numpy array.
 [`to_pandas`](#to_pandas) | Convert DesignMatrix to pandas DataFrame.
 [`write`](#write) | Write DesignMatrix to file.
@@ -11163,10 +11139,10 @@ Name | Description
 
 ####### Functions##
 
-###### `heatmap`
+###### `plot_designmatrix`
 
 ```python
-heatmap(dm: DesignMatrix, figsize: tuple = (8, 6), **kwargs: tuple)
+plot_designmatrix(dm: DesignMatrix, figsize: tuple = (8, 6), **kwargs: tuple)
 ```
 
 Visualize design matrix as heatmap (SPM-style).
@@ -11192,7 +11168,7 @@ Type | Description
 
 ```pycon
 >>> dm = DesignMatrix(np.random.randn(100, 3), columns=['a', 'b', 'c'])
->>> heatmap(dm)
+>>> plot_designmatrix(dm)
 ```
 
 ######## `to_numpy`
@@ -11705,11 +11681,10 @@ Examples
 >>> if 'cv_scores' in fit.available():
 ...     print(f"CV R² range: [{fit.cv_mean_score.min():.3f}, {fit.cv_mean_score.max():.3f}]")
 >>>
->>> # Get as dict for pandas DataFrame
->>> import pandas as pd
+>>> # Get as dict and convert to a polars DataFrame (for scalar and 1D arrays)
+>>> import polars as pl
 >>> results_dict = fit.asdict()
->>> # Convert to DataFrame (for scalar and 1D arrays)
->>> df = pd.DataFrame({k: v for k, v in results_dict.items() if v.ndim <= 1})
+>>> df = pl.DataFrame({k: v for k, v in results_dict.items() if v.ndim <= 1})
 
 **Classes:**
 
@@ -12106,7 +12081,7 @@ Name | Type | Description
 ###### `binary_outcome`
 
 ```python
-binary_outcome = deepcopy(binary_outcome)
+binary_outcome = np.asarray(binary_outcome).flatten()
 ```
 
 ######## `forced_choice`

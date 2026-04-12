@@ -150,7 +150,7 @@ Filter collection by predicate.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bc` | <code>'BrainCollection'</code> | BrainCollection to filter. | *required*
-`predicate` | <code>'Callable \| list \| np.ndarray'</code> | Filter condition. Can be: - callable: fn(BrainData) -> bool - list/ndarray: Boolean mask of length n_images - pd.Series: Boolean series (index ignored) | *required*
+`predicate` | <code>'Callable \| list \| np.ndarray'</code> | Filter condition. Can be: - callable: fn(BrainData) -> bool - list/ndarray: Boolean mask of length n_images - pl.Series / pd.Series: Boolean series | *required*
 
 **Returns:**
 

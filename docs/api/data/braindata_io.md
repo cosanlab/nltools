@@ -14,7 +14,7 @@ Name | Description
 [`detect_and_update_mask`](#detect_and_update_mask) | Detect best matching template from data and update mask if mask was None.
 [`detect_space`](#detect_space) | Detect if mask is in MNI space or native space.
 [`get_interpolation`](#get_interpolation) | Get the interpolation method to use for a given image.
-[`initialize_mask`](#initialize_mask) | Initialize the mask and NiftiMasker.
+[`initialize_mask`](#initialize_mask) | Initialize the mask image.
 [`load_from_brain_data`](#load_from_brain_data) | Load data from another BrainData object.
 [`load_from_file`](#load_from_file) | Load data from file path or nibabel object.
 [`load_from_h5`](#load_from_h5) | Load data from HDF5 file.
@@ -125,10 +125,10 @@ Name | Type | Description
 #### `initialize_mask`
 
 ```python
-initialize_mask(bd, mask, **kwargs)
+initialize_mask(bd, mask)
 ```
 
-Initialize the mask and NiftiMasker.
+Initialize the mask image.
 
 **Parameters:**
 
@@ -136,7 +136,6 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
 `mask` |  | Brain mask as nibabel object, file path, template name string, or None. Template name strings supported: '{res}mm-MNI152-2009{version}' (e.g., '2mm-MNI152-2009c', '3mm-MNI152-2009a', '2mm-MNI152-2009fsl') | *required*
-`**kwargs` |  | Additional arguments passed to NiftiMasker. | <code>{}</code>
 
 #### `load_from_brain_data`
 

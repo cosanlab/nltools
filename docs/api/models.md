@@ -417,7 +417,7 @@ Name | Type | Description
 [`alpha_`](#alpha_) | <code>[float](#float) or [ndarray](#ndarray)</code> | Alpha value(s) used (selected via CV if alpha='auto')
 [`cv_scores_`](#cv_scores_) | <code>[ndarray](#ndarray)</code> | Cross-validation scores (only if alpha='auto')
 [`deltas_`](#deltas_) | <code>[ndarray](#ndarray) or None</code> | Feature space weights (only if X was a list) Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
-[`backend_`](#backend_) | <code>[Backend](#nltools.backends.Backend)</code> | Backend instance used for computation
+[`backend_`](#backend_) | <code>[Backend](#Backend)</code> | Backend instance used for computation
 
 **Examples:**
 
@@ -1079,7 +1079,7 @@ Name | Type | Description
 [`alpha_`](#alpha_) | <code>[float](#float) or [ndarray](#ndarray)</code> | Alpha value(s) used (selected via CV if alpha='auto')
 [`cv_scores_`](#cv_scores_) | <code>[ndarray](#ndarray)</code> | Cross-validation scores (only if alpha='auto')
 [`deltas_`](#deltas_) | <code>[ndarray](#ndarray) or None</code> | Feature space weights (only if X was a list) Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
-[`backend_`](#backend_) | <code>[Backend](#nltools.backends.Backend)</code> | Backend instance used for computation
+[`backend_`](#backend_) | <code>[Backend](#Backend)</code> | Backend instance used for computation
 
 **Examples:**
 

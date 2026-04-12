@@ -9,7 +9,7 @@ Each takes a DesignMatrix instance (`dm`) as its first argument.
 
 Name | Description
 ---- | -----------
-[`heatmap`](#heatmap) | Visualize design matrix as heatmap (SPM-style).
+[`plot_designmatrix`](#plot_designmatrix) | Visualize design matrix as heatmap (SPM-style).
 [`to_numpy`](#to_numpy) | Convert DesignMatrix to numpy array.
 [`to_pandas`](#to_pandas) | Convert DesignMatrix to pandas DataFrame.
 [`write`](#write) | Write DesignMatrix to file.
@@ -21,10 +21,10 @@ Name | Description
 
 ### Methods
 
-#### `heatmap`
+#### `plot_designmatrix`
 
 ```python
-heatmap(dm: DesignMatrix, figsize: tuple = (8, 6), **kwargs: tuple)
+plot_designmatrix(dm: DesignMatrix, figsize: tuple = (8, 6), **kwargs: tuple)
 ```
 
 Visualize design matrix as heatmap (SPM-style).
@@ -50,7 +50,7 @@ Type | Description
 
 ```pycon
 >>> dm = DesignMatrix(np.random.randn(100, 3), columns=['a', 'b', 'c'])
->>> heatmap(dm)
+>>> plot_designmatrix(dm)
 ```
 
 #### `to_numpy`

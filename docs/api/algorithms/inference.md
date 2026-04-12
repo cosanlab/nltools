@@ -317,7 +317,7 @@ Name | Type | Description | Default
 `Note` |  | For large voxel counts (>10K), vectorized computation (parallel=None) is | *required*
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores (-1 = all cores) Only used when parallel='cpu' | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB Only used when parallel='gpu' | <code>4.0</code>
-`backend` | <code>[Optional](#typing.Optional)[[Backend](#nltools.backends.Backend)]</code> | Backend instance (auto-detected if None) | <code>None</code>
+`backend` | <code>[Optional](#typing.Optional)[[Backend](#nltools.algorithms.backends.Backend)]</code> | Backend instance (auto-detected if None) | <code>None</code>
 
 **Returns:**
 
@@ -1235,7 +1235,7 @@ Name | Type | Description | Default
 `Note` |  | For large voxel counts (>10K), vectorized computation (parallel=None) is | *required*
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores (-1 = all cores) Only used when parallel='cpu' | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB Only used when parallel='gpu' | <code>4.0</code>
-`backend` | <code>[Optional](#typing.Optional)[[Backend](#nltools.backends.Backend)]</code> | Backend instance (auto-detected if None) | <code>None</code>
+`backend` | <code>[Optional](#typing.Optional)[[Backend](#nltools.algorithms.backends.Backend)]</code> | Backend instance (auto-detected if None) | <code>None</code>
 
 **Returns:**
 

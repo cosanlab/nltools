@@ -291,7 +291,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | pd.DataFrame: DataFrame with spikes as indicator variables.
+ | pl.DataFrame: DataFrame with spikes as indicator variables.
 
 #### `icc`
 

@@ -1,7 +1,7 @@
 ## `BrainCollection`
 
 ```python
-BrainCollection(items: list[Path | str | 'BrainData'], mask: nib.Nifti1Image | Path | str, metadata: pd.DataFrame | None = None, lazy: bool = True)
+BrainCollection(items: list[Path | str | 'BrainData'], mask: nib.Nifti1Image | Path | str, metadata: 'pl.DataFrame | pd.DataFrame | dict | None' = None, lazy: bool = True)
 ```
 
 Collection of brain images with tensor-like operations.
@@ -25,7 +25,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `items` | <code>[list](#list)[[Path](#pathlib.Path) \| [str](#str) \| 'BrainData']</code> | List of file paths, BrainData objects, or mix of both. Paths are loaded lazily by default. | *required*
 `mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str)</code> | Brain mask. Required. Can be: - nibabel Nifti1Image - Path to mask file - Template name (e.g., '2mm-MNI152-2009c') | *required*
-`metadata` | <code>[DataFrame](#pandas.DataFrame) \| None</code> | Optional DataFrame with per-image metadata (subject, session, etc.). Index should match items order. | <code>None</code>
+`metadata` | <code>'pl.DataFrame \| pd.DataFrame \| dict \| None'</code> | Optional DataFrame with per-image metadata (subject, session, etc.). Index should match items order. | <code>None</code>
 `lazy` | <code>[bool](#bool)</code> | If True (default), paths are not loaded until accessed. | <code>True</code>
 
 **Examples:**
@@ -119,7 +119,7 @@ Name | Type | Description
 ---- | ---- | -----------
 [`is_loaded`](#is_loaded) | <code>[list](#list)[[bool](#bool)]</code> | List indicating which images are currently in memory.
 [`mask`](#mask) | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | Shared NIfTI brain mask image used to define the voxel space for the collection.
-[`metadata`](#metadata) | <code>[DataFrame](#pandas.DataFrame)</code> | Per-image metadata DataFrame.
+[`metadata`](#metadata) | <code>[DataFrame](#polars.DataFrame)</code> | Per-image metadata as a polars DataFrame.
 [`n_images`](#n_images) | <code>[int](#int)</code> | Number of images in collection.
 [`n_voxels`](#n_voxels) | <code>[int](#int)</code> | Number of voxels (from mask).
 [`shape`](#shape) | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | Shape as (n_images, n_observations, n_voxels).
@@ -130,7 +130,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `items` | <code>[list](#list)[[Path](#pathlib.Path) \| [str](#str) \| 'BrainData']</code> | List of paths or BrainData objects. | *required*
 `mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str)</code> | Shared mask (required). Path, nibabel image, or template name. | *required*
-`metadata` | <code>[DataFrame](#pandas.DataFrame) \| None</code> | Optional per-image metadata DataFrame. | <code>None</code>
+`metadata` | <code>'pl.DataFrame \| pd.DataFrame \| dict \| None'</code> | Optional per-image metadata. Accepts polars/pandas DataFrame or dict-of-columns; stored as polars. | <code>None</code>
 `lazy` | <code>[bool](#bool)</code> | If True, paths are loaded on demand. | <code>True</code>
 
 ### Methods
@@ -387,7 +387,7 @@ Type | Description
 #### `filter`
 
 ```python
-filter(predicate: Callable | list | np.ndarray | 'pd.Series') -> 'BrainCollection'
+filter(predicate: 'Callable | list | np.ndarray | pl.Series | pd.Series') -> 'BrainCollection'
 ```
 
 Filter collection by predicate.
@@ -396,7 +396,7 @@ Filter collection by predicate.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`predicate` | <code>[Callable](#collections.abc.Callable) \| [list](#list) \| [ndarray](#numpy.ndarray) \| 'pd.Series'</code> | Filter condition. Can be: - callable: fn(BrainData) → bool - list/ndarray: Boolean mask of length n_images - pd.Series: Boolean series (index ignored) | *required*
+`predicate` | <code>'Callable \| list \| np.ndarray \| pl.Series \| pd.Series'</code> | Filter condition. Can be: - callable: fn(BrainData) → bool - list/ndarray: Boolean mask of length n_images - pl.Series / pd.Series: Boolean series | *required*
 
 **Returns:**
 
