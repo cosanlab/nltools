@@ -10,6 +10,7 @@ from nltools.templates import get_brainspace
 
 
 class TestBrainDataIO:
+    @pytest.mark.slow
     def test_load(self, tmpdir):
         """Test loading BrainData from various sources and formats."""
         from nltools.data.simulator import Simulator

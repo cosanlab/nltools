@@ -65,13 +65,15 @@ ignore = ["W292","E501", "E731", "E741"]
 
 [tool.pytest.ini_options]
 markers = [
-    "slow: Tests taking >3s (skipped by default in CI)",
+    "slow: Tests taking >3s (skipped by default)",
+    "integration: End-to-end pipelines on real data (skipped by default)",
     "gpu: Tests requiring CUDA/GPU hardware",
 ]
-# Default: run all tests except slow ones for fast feedback
-# To run slow tests: pytest -m slow
-# To run everything: pytest -m ""
-addopts = "-m 'not slow'"
+# Default: fast unit tests only. Skip slow + integration for iteration speed.
+# Run slow tests:        pytest -m slow
+# Run integration tests: pytest -m integration
+# Run everything:        pytest -m ""
+addopts = "-m 'not slow and not integration'"
 
 [tool.ty.src]
 # Only check our code, not third-party

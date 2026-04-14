@@ -125,6 +125,7 @@ class TestISFC:
         for i in range(10):
             np.testing.assert_allclose(r1[i], r2[i], rtol=1e-10, atol=1e-10)
 
+    @pytest.mark.slow
     def test_isfc_different_njobs(self, sub_roi_data):
         """Different n_jobs values should produce identical results."""
         r1 = isfc(sub_roi_data, n_jobs=1)

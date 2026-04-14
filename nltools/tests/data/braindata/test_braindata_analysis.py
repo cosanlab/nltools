@@ -9,6 +9,7 @@ from nltools.stats import align
 
 
 class TestBrainDataAnalysis:
+    @pytest.mark.slow
     def test_apply_mask(self, sim_brain_data):
         """Test applying masks to BrainData."""
         s1 = create_sphere([12, 10, -8], radius=10)

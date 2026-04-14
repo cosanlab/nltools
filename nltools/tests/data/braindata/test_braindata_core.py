@@ -153,6 +153,7 @@ class TestBrainDataCore:
 
     # ==================== Indexing & Concatenation ====================
 
+    @pytest.mark.slow
     def test_indexing(self, minimal_brain_data):
         """Test indexing with lists, ranges, boolean masks, and slices."""
         index = [0, 3, 1]

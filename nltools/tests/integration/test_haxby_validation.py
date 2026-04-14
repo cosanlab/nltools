@@ -16,6 +16,8 @@ from nltools.data import BrainCollection
 from nltools.data.collection import FittedBrainCollection
 from nltools.datasets import fetch_haxby
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture(scope="module")
 def haxby_data():

@@ -249,6 +249,7 @@ class TestSurfacePlot:
 class TestPlotFlatmap:
     """Test plot_flatmap() function"""
 
+    @pytest.mark.slow
     def test_basic_flatmap(self, sim_brain_data):
         """Test basic flatmap rendering"""
         single_image = sim_brain_data[0]
