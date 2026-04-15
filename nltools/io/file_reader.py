@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     import pandas as pd
     import polars as pl
 
-from nltools.algorithms import glover_hrf
 from nltools.data import DesignMatrix
 
 
@@ -71,13 +70,6 @@ def onsets_to_dm(
     if len(timings) != len(run_length):
         raise ValueError("timings and run_length must have the same length")
 
-    # Nilearn auto-calculates approximate TR from diff-ing timings
-    # when passing a string name to hrf_model
-    # This approach gives us more control using the TR kwarg
-    if TR is not None:
-        if hrf_model == "glover":
-            hrf_model = lambda arg1, oversampling: glover_hrf(TR, oversampling)
-
     import polars as pl
 
     out = []
@@ -97,8 +89,6 @@ def onsets_to_dm(
             **kwargs,
         )
         dm = dm.fill_na(fill_na) if fill_na is not None else dm
-        if isinstance(hrf_model, Callable):
-            dm.columns = [c.rstrip("_<lambda>") for c in dm.columns]
         if hrf_model is not None:
             convolved = [
                 c for c in dm.columns if "drift" not in c and "constant" not in c
