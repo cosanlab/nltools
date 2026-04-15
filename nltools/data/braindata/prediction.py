@@ -504,58 +504,71 @@ def mvpa_searchlight(
 
 
 def mvpa_roi(bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, show_progress):
-    """ROI-based MVPA - accuracy per ROI.
+    """ROI-based MVPA - accuracy per ROI, projected to voxel space.
+
+    For each non-zero label in ``roi_mask``, uses all voxels within that ROI
+    as features for a cross-validated decoder. Returns a voxel-shaped array
+    where each voxel carries the accuracy of its containing ROI (voxels
+    outside any ROI are NaN).
 
     Args:
         bd: BrainData instance.
-        X: Feature matrix, shape (n_samples, n_voxels).
+        X: Feature matrix, shape (n_samples, n_voxels) — aligned to ``bd.mask``.
         y: Labels, shape (n_samples,).
         pipe: sklearn pipeline or estimator.
         cv: Cross-validation splitter.
         groups: Group labels for CV.
         scoring: Scoring metric string.
-        roi_mask: Atlas/parcellation image or path.
+        roi_mask: Atlas/parcellation image or path. Resampled to ``bd.mask``
+            space with nearest-neighbor interpolation if needed.
         n_jobs: Number of parallel jobs.
         show_progress: Whether to show progress bar.
 
     Returns:
-        np.ndarray of accuracy values per ROI.
+        np.ndarray of shape (n_voxels,) with per-voxel ROI accuracy.
     """
     from pathlib import Path
 
     import nibabel as nib
     from joblib import Parallel, delayed
-    from nilearn.maskers import NiftiLabelsMasker
+    from nilearn.image import resample_to_img
+    from nilearn.masking import apply_mask
     from sklearn.base import clone
     from sklearn.model_selection import cross_val_score
 
-    # Load ROI mask if path
     if isinstance(roi_mask, (str, Path)):
         roi_mask = nib.load(roi_mask)
 
-    # Get ROI labels
-    roi_data = roi_mask.get_fdata()
-    unique_labels = np.unique(roi_data)
-    unique_labels = unique_labels[unique_labels != 0]  # Exclude background
+    # Align roi_mask to bd.mask (nearest-neighbor for integer labels)
+    if roi_mask.shape != bd.mask.shape or not np.allclose(
+        roi_mask.affine, bd.mask.affine
+    ):
+        roi_mask = resample_to_img(
+            roi_mask,
+            bd.mask,
+            interpolation="nearest",
+            force_resample=True,
+            copy_header=True,
+        )
+
+    # Extract labels at the same voxels that bd.data indexes
+    label_vec = apply_mask(roi_mask, bd.mask).astype(np.int64)  # (n_voxels,)
+    unique_labels = np.unique(label_vec)
+    unique_labels = unique_labels[unique_labels != 0]
 
     def decode_roi(roi_label):
-        """Decode within a single ROI."""
+        cols = label_vec == roi_label
+        if not cols.any():
+            return np.nan
+        X_roi = X[:, cols]
         try:
-            masker = NiftiLabelsMasker(
-                labels_img=roi_mask,
-                labels=[roi_label],
-                standardize=False,
-            )
-            # Extract ROI mean for each sample
-            X_roi = masker.fit_transform(bd.to_nifti())
             scores = cross_val_score(
                 clone(pipe), X_roi, y, cv=cv, groups=groups, scoring=scoring
             )
-            return np.mean(scores)
+            return float(np.mean(scores))
         except Exception:
             return np.nan
 
-    # Progress bar
     iterator = unique_labels
     if show_progress:
         try:
@@ -565,12 +578,15 @@ def mvpa_roi(bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, show_progres
         except ImportError:
             pass
 
-    # Parallel execution
     if n_jobs == 1:
-        accuracies = [decode_roi(label) for label in iterator]
+        per_roi = [decode_roi(label) for label in iterator]
     else:
-        accuracies = Parallel(n_jobs=n_jobs)(
+        per_roi = Parallel(n_jobs=n_jobs)(
             delayed(decode_roi)(label) for label in iterator
         )
 
-    return np.array(accuracies)
+    # Project ROI accuracies back to voxel space
+    out = np.full(label_vec.shape, np.nan, dtype=float)
+    for roi_label, acc in zip(unique_labels, per_roi):
+        out[label_vec == roi_label] = acc
+    return out
