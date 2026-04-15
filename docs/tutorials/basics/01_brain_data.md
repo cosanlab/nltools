@@ -255,37 +255,13 @@ study_cols = ["SubjectID", "PainLevel", "Age", "Sex"]
 print(data.X[study_cols].head(10))
 ```
 
-You can add your own labels and use them for filtering:
-
-```{code-cell} python3
-# Add outcome labels
-labeled = data.copy()
-labeled.Y = pd.DataFrame({
-    "condition": np.where(data.X["PainLevel"] > data.X["PainLevel"].median(), "high", "low")
-})
-
-# Filter by condition
-high_pain = labeled[labeled.Y["condition"] == "high"]
-low_pain = labeled[labeled.Y["condition"] == "low"]
-print(f"High pain: {len(high_pain)}, Low pain: {len(low_pain)}")
-
-# Compare conditions
-contrast = high_pain.mean() - low_pain.mean()
-contrast.plot(title="High - Low Pain")
-```
-
 ## Concatenation
 
-Combine `BrainData` objects with `append` or `concatenate`:
+Combine `BrainData` objects with `append`:
 
 ```{code-cell} python3
 # Append one image to another
 combined = data[0].append(data[1])
-print(f"After append: {combined.shape}")
-
-# Concatenate a list of objects
-subset = concatenate([data[i] for i in range(5)])
-print(f"Concatenated: {subset.shape}")
 ```
 
 ## Summary

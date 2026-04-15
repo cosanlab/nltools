@@ -18,7 +18,7 @@ from nltools.datasets import fetch_haxby
 
 # %%
 # Load Haxby dataset (single subject)
-brain_data, design_matrices = fetch_haxby(n_subjects=1, verbose=1)
+brain_data, design_matrices = fetch_haxby(n_subjects=1, verbose=1, resample=True)
 
 data = brain_data[0]
 dm = design_matrices[0]

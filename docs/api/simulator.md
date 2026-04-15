@@ -160,7 +160,6 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 [`brain_mask`](#brain_mask) |  | The brain mask image used for simulation.
-[`nifti_masker`](#nifti_masker) |  | Fitted NiftiMasker for converting between 4D data and 2D arrays.
 [`output_dir`](#output_dir) |  | Output directory path.
 [`random_state`](#random_state) |  | Random state for reproducible simulations.
 

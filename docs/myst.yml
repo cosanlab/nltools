@@ -10,7 +10,6 @@ project:
     - title: Migration Guide v0.6
       children:
         - file: migration-guide.md
-        - file: dartbrains-migration.md
     - file: tutorials/index
       children:
         - title: Basics
@@ -33,7 +32,12 @@ project:
             - file: tutorials/workflows/08_multi_subject_decoding.md
             - file: tutorials/workflows/09_isc_analysis.md
             - file: tutorials/workflows/10_rsa_analysis.md
-    - file: api/data/index.md
+    - title: Data Classes
+      children:
+        - file: api/data/brain_data.md
+        - file: api/data/adjacency.md
+        - file: api/data/design_matrix.md
+        - file: api/data/brain_collection.md
     - title: API Class Modules
       children:
         - title: BrainData

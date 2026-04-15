@@ -26,6 +26,7 @@ Name | Description
 [`intersubject`](#intersubject) | Intersubject correlation, functional connectivity, and phase synchrony.
 [`outliers`](#outliers) | Outlier detection, robust statistics, and data normalization.
 [`permutation`](#permutation) | Permutation tests for statistical inference.
+[`regression`](#regression) | Standalone OLS regression on numpy arrays.
 [`timeseries`](#timeseries) | Temporal signal processing — resampling, filtering, and basis functions.
 
 **Methods:**
@@ -42,7 +43,7 @@ Name | Description
 [`correlation_permutation_test`](#correlation_permutation_test) | Correlation permutation test.
 [`distance_correlation`](#distance_correlation) | Distance correlation for multivariate dependence.
 [`double_center`](#double_center) | Double-center a distance matrix.
-[`downsample`](#downsample) | Downsample Polars or pandas DataFrame/Series to a new target frequency or number of samples using averaging.
+[`downsample`](#downsample) | Downsample a Polars DataFrame/Series to a new target frequency or number of samples using averaging.
 [`fdr`](#fdr) | Determine FDR threshold given a p value array and desired false
 [`find_spikes`](#find_spikes) | Function to identify spikes from fMRI Time Series Data
 [`fisher_r_to_z`](#fisher_r_to_z) | Use Fisher transformation to convert correlation to z score
@@ -59,14 +60,15 @@ Name | Description
 [`phase_randomize`](#phase_randomize) | FFT-based phase randomization for time-series data.
 [`procrustes`](#procrustes) | Procrustes analysis, a similarity test for two data sets. For more comprehensive procrustes-based alignment tasks, use `HyperAlignment` and `align()` instead.
 [`procrustes_distance`](#procrustes_distance) | Use procrustes super-position to perform a similarity test between 2 matrices. Matrices need to match in size on their first dimension only, as the smaller matrix on the second dimension will be padded with zeros. After aligning two matrices using the procrustes transformation, use the computed disparity between them (sum of squared error of elements) as a similarity metric. Shuffle the rows of one of the matrices and recompute the disparity to perform inference (Peres-Neto & Jackson, 2001).
+[`regress`](#regress) | Fit an OLS regression of ``Y`` on ``X``.
 [`threshold`](#threshold) | Threshold test image by p-value from p image.
 [`timeseries_correlation_permutation_test`](#timeseries_correlation_permutation_test) | Time-series correlation permutation test.
 [`transform_pairwise`](#transform_pairwise) | Transforms data into pairs with balanced labels for ranking
-[`trim`](#trim) | Trim a Polars or pandas DataFrame/Series by replacing outlier values with NaNs.
+[`trim`](#trim) | Trim a Polars DataFrame/Series by replacing outlier values with NaNs.
 [`two_sample_permutation_test`](#two_sample_permutation_test) | Two-sample permutation test using group label shuffling.
 [`u_center`](#u_center) | U-center a distance matrix.
-[`upsample`](#upsample) | Upsample Polars or pandas DataFrame/Series to a new target frequency or number of samples using interpolation.
-[`winsorize`](#winsorize) | Winsorize a Polars or pandas DataFrame/Series with the largest/lowest value not considered outlier.
+[`upsample`](#upsample) | Upsample a Polars DataFrame/Series to a new target frequency or number of samples using interpolation.
+[`winsorize`](#winsorize) | Winsorize a Polars DataFrame/Series with the largest/lowest value not considered outlier.
 [`zscore`](#zscore) | Z-score every column of a Polars or pandas DataFrame/Series.
 
 
@@ -396,13 +398,13 @@ Type | Description
 downsample(data, sampling_freq = None, target = None, target_type = 'samples', method = 'mean')
 ```
 
-Downsample Polars or pandas DataFrame/Series to a new target frequency or number of samples using averaging.
+Downsample a Polars DataFrame/Series to a new target frequency or number of samples using averaging.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` |  | (pl.DataFrame, pl.Series, pd.DataFrame, pd.Series) data to downsample | *required*
+`data` |  | (pl.DataFrame, pl.Series) data to downsample | *required*
 `sampling_freq` |  | (float) Sampling frequency of data in hertz | <code>None</code>
 `target` |  | (float) downsampling target | <code>None</code>
 `target_type` |  | type of target can be [samples,seconds,hz] | <code>'samples'</code>
@@ -546,6 +548,9 @@ Biometrics, 757-762.
 Lancaster, G., Iatsenko, D., Pidde, A., Ticcinelli, V., & Stefanovska, A. (2018).
 Surrogate data for hypothesis testing of physical systems. Physics Reports, 748, 1-60.
 
+This function is a wrapper around `isc_permutation_test` from the inference module,
+which provides optimized implementations with CPU-parallel and GPU acceleration support.
+
 **Parameters:**
 
 Name | Type | Description | Default
@@ -564,13 +569,6 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `stats` |  | (dict) dictionary of permutation results ['isc', 'p', 'ci', 'null_distribution']
-
-Notes
------
-This function is a wrapper around `isc_permutation_test` from the inference module,
-which provides optimized implementations with CPU-parallel and GPU acceleration support.
-Performance improvements: 4-8× speedup for CPU-parallel operations, 10-100× speedup
-for GPU operations. See `nltools.algorithms.inference.isc.isc_permutation_test` for details.
 
 #### `isc_group`
 
@@ -602,6 +600,10 @@ NeuroImage, 142, 248-259.
 Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap hypothesis testing.
 Biometrics, 757-762.
 
+This function is a wrapper around `nltools.algorithms.inference.isc.isc_group_permutation_test`
+for backward compatibility. The underlying implementation provides optimized CPU parallelization
+and optional GPU acceleration. For new code, consider using `isc_group_permutation_test` directly.
+
 **Parameters:**
 
 Name | Type | Description | Default
@@ -624,17 +626,6 @@ Name | Type | Description
 ---- | ---- | -----------
 `stats` |  | (dict) dictionary of permutation results with keys: - 'isc_group_difference': Observed ISC difference (float or array) - 'p': P-value (float or array) - 'ci': Confidence interval tuple (lower, upper) - 'null_distribution': Null distribution (if return_null=True)
 
-Notes
------
-This function is a wrapper around `nltools.algorithms.inference.isc.isc_group_permutation_test`
-for backward compatibility. The underlying implementation provides optimized CPU parallelization
-and optional GPU acceleration. For new code, consider using `isc_group_permutation_test` directly.
-
-Performance improvements:
-- 4-8× speedup with CPU-parallel backend (default)
-- 10-30× speedup with GPU backend for voxel-wise LOO computation
-- More memory efficient (no Adjacency object overhead)
-
 #### `isfc`
 
 ```python
@@ -654,6 +645,11 @@ Simony, E., Honey, C. J., Chen, J., Lositsky, O., Yeshurun, Y., Wiesel, A., & Ha
 Dynamic reconfiguration of the default mode network during narrative comprehension.
 Nature communications, 7, 12141.
 
+This function now uses the optimized implementation from the inference module,
+which provides efficient cross-correlation computation between matrix columns.
+CPU parallelization is available via joblib when n_jobs > 1 or n_jobs=-1.
+Each subject's ISFC computation is independent and can be parallelized efficiently.
+
 **Parameters:**
 
 Name | Type | Description | Default
@@ -667,15 +663,6 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
  | list of subject ISFC matrices
-
-Notes
------
-This function now uses the optimized implementation from the inference module,
-which provides efficient cross-correlation computation between matrix columns.
-
-CPU parallelization is available via joblib when n_jobs > 1 or n_jobs=-1,
-providing 4-8× speedup on multi-core machines. Each subject's ISFC computation
-is independent and can be parallelized efficiently.
 
 #### `isps`
 
@@ -956,6 +943,38 @@ Name | Type | Description
 `similarity` | <code>[float](#float)</code> | similarity between matrices bounded between 0 and 1
 `pval` | <code>[float](#float)</code> | permuted p-value
 
+#### `regress`
+
+```python
+regress(X, Y, mode: str = 'ols', stats: str = 'full')
+```
+
+Fit an OLS regression of ``Y`` on ``X``.
+
+Does not add an intercept — include one in ``X`` explicitly. If ``Y``
+is 2D, a separate regression is fit to each column.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` |  | Design matrix, shape ``(n_samples, n_regressors)``. | *required*
+`Y` |  | Response, shape ``(n_samples,)`` or ``(n_samples, n_targets)``. | *required*
+`mode` | <code>[str](#str)</code> | Only ``'ols'`` is supported in v0.6.0. The legacy ``'robust'`` and ``'arma'`` modes were dropped; use statsmodels or a dedicated package if you need them. | <code>'ols'</code>
+`stats` | <code>[str](#str)</code> | ``'full'`` returns the 6-tuple below; ``'betas'`` returns just ``b``; ``'tstats'`` returns ``(b, t)``. | <code>'full'</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`tuple` |  | ``(b, se, t, p, df, res)`` when ``stats='full'``:
+ |  | - ``b``: coefficients
+ |  | - ``se``: standard errors
+ |  | - ``t``: t-statistics
+ |  | - ``p``: two-tailed p-values
+ |  | - ``df``: residual degrees of freedom
+ |  | - ``res``: residuals
+
 #### `threshold`
 
 ```python
@@ -1074,13 +1093,13 @@ Name | Type | Description
 trim(data, cutoff = None)
 ```
 
-Trim a Polars or pandas DataFrame/Series by replacing outlier values with NaNs.
+Trim a Polars DataFrame/Series by replacing outlier values with NaNs.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` |  | (pl.DataFrame, pl.Series, pd.DataFrame, pd.Series) data to trim | *required*
+`data` |  | (pl.DataFrame, pl.Series) data to trim | *required*
 `cutoff` |  | (dict) a dictionary with keys {'std':[low,high]} or     {'quantile':[low,high]} | <code>None</code>
 
 Returns:
@@ -1147,13 +1166,13 @@ Type | Description
 upsample(data, sampling_freq = None, target = None, target_type = 'samples', method = 'linear')
 ```
 
-Upsample Polars or pandas DataFrame/Series to a new target frequency or number of samples using interpolation.
+Upsample a Polars DataFrame/Series to a new target frequency or number of samples using interpolation.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` |  | (pl.DataFrame, pl.Series, pd.DataFrame, pd.Series) data to upsample   (Note: will drop non-numeric columns from DataFrame) | *required*
+`data` |  | (pl.DataFrame, pl.Series) data to upsample   (Note: will drop non-numeric columns from DataFrame) | *required*
 `sampling_freq` |  | Sampling frequency of data in hertz | <code>None</code>
 `target` |  | (float) upsampling target | <code>None</code>
 `target_type` |  | (str) type of target can be [samples,seconds,hz] | <code>'samples'</code>
@@ -1168,13 +1187,13 @@ Returns:
 winsorize(data, cutoff = None, replace_with_cutoff = True)
 ```
 
-Winsorize a Polars or pandas DataFrame/Series with the largest/lowest value not considered outlier.
+Winsorize a Polars DataFrame/Series with the largest/lowest value not considered outlier.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` |  | (pl.DataFrame, pl.Series, pd.DataFrame, pd.Series) data to winsorize | *required*
+`data` |  | (pl.DataFrame, pl.Series) data to winsorize | *required*
 `cutoff` |  | (dict) a dictionary with keys {'std':[low,high]} or     {'quantile':[low,high]} | <code>None</code>
 `replace_with_cutoff` |  | (bool) If True, replace outliers with cutoff.                  If False, replaces outliers with closest                  existing values; (default: False) | <code>True</code>
 
@@ -1737,6 +1756,9 @@ Biometrics, 757-762.
 Lancaster, G., Iatsenko, D., Pidde, A., Ticcinelli, V., & Stefanovska, A. (2018).
 Surrogate data for hypothesis testing of physical systems. Physics Reports, 748, 1-60.
 
+This function is a wrapper around `isc_permutation_test` from the inference module,
+which provides optimized implementations with CPU-parallel and GPU acceleration support.
+
 **Parameters:**
 
 Name | Type | Description | Default
@@ -1755,13 +1777,6 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `stats` |  | (dict) dictionary of permutation results ['isc', 'p', 'ci', 'null_distribution']
-
-Notes
------
-This function is a wrapper around `isc_permutation_test` from the inference module,
-which provides optimized implementations with CPU-parallel and GPU acceleration support.
-Performance improvements: 4-8× speedup for CPU-parallel operations, 10-100× speedup
-for GPU operations. See `nltools.algorithms.inference.isc.isc_permutation_test` for details.
 
 ###### `isc_group`
 
@@ -1793,6 +1808,10 @@ NeuroImage, 142, 248-259.
 Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap hypothesis testing.
 Biometrics, 757-762.
 
+This function is a wrapper around `nltools.algorithms.inference.isc.isc_group_permutation_test`
+for backward compatibility. The underlying implementation provides optimized CPU parallelization
+and optional GPU acceleration. For new code, consider using `isc_group_permutation_test` directly.
+
 **Parameters:**
 
 Name | Type | Description | Default
@@ -1815,17 +1834,6 @@ Name | Type | Description
 ---- | ---- | -----------
 `stats` |  | (dict) dictionary of permutation results with keys: - 'isc_group_difference': Observed ISC difference (float or array) - 'p': P-value (float or array) - 'ci': Confidence interval tuple (lower, upper) - 'null_distribution': Null distribution (if return_null=True)
 
-Notes
------
-This function is a wrapper around `nltools.algorithms.inference.isc.isc_group_permutation_test`
-for backward compatibility. The underlying implementation provides optimized CPU parallelization
-and optional GPU acceleration. For new code, consider using `isc_group_permutation_test` directly.
-
-Performance improvements:
-- 4-8× speedup with CPU-parallel backend (default)
-- 10-30× speedup with GPU backend for voxel-wise LOO computation
-- More memory efficient (no Adjacency object overhead)
-
 ###### `isfc`
 
 ```python
@@ -1845,6 +1853,11 @@ Simony, E., Honey, C. J., Chen, J., Lositsky, O., Yeshurun, Y., Wiesel, A., & Ha
 Dynamic reconfiguration of the default mode network during narrative comprehension.
 Nature communications, 7, 12141.
 
+This function now uses the optimized implementation from the inference module,
+which provides efficient cross-correlation computation between matrix columns.
+CPU parallelization is available via joblib when n_jobs > 1 or n_jobs=-1.
+Each subject's ISFC computation is independent and can be parallelized efficiently.
+
 **Parameters:**
 
 Name | Type | Description | Default
@@ -1858,15 +1871,6 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
  | list of subject ISFC matrices
-
-Notes
------
-This function now uses the optimized implementation from the inference module,
-which provides efficient cross-correlation computation between matrix columns.
-
-CPU parallelization is available via joblib when n_jobs > 1 or n_jobs=-1,
-providing 4-8× speedup on multi-core machines. Each subject's ISFC computation
-is independent and can be parallelized efficiently.
 
 ###### `isps`
 
@@ -1928,8 +1932,8 @@ Outlier detection, robust statistics, and data normalization.
 Name | Description
 ---- | -----------
 [`find_spikes`](#find_spikes) | Function to identify spikes from fMRI Time Series Data
-[`trim`](#trim) | Trim a Polars or pandas DataFrame/Series by replacing outlier values with NaNs.
-[`winsorize`](#winsorize) | Winsorize a Polars or pandas DataFrame/Series with the largest/lowest value not considered outlier.
+[`trim`](#trim) | Trim a Polars DataFrame/Series by replacing outlier values with NaNs.
+[`winsorize`](#winsorize) | Winsorize a Polars DataFrame/Series with the largest/lowest value not considered outlier.
 [`zscore`](#zscore) | Z-score every column of a Polars or pandas DataFrame/Series.
 
 
@@ -1961,13 +1965,13 @@ Returns:
 trim(data, cutoff = None)
 ```
 
-Trim a Polars or pandas DataFrame/Series by replacing outlier values with NaNs.
+Trim a Polars DataFrame/Series by replacing outlier values with NaNs.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` |  | (pl.DataFrame, pl.Series, pd.DataFrame, pd.Series) data to trim | *required*
+`data` |  | (pl.DataFrame, pl.Series) data to trim | *required*
 `cutoff` |  | (dict) a dictionary with keys {'std':[low,high]} or     {'quantile':[low,high]} | <code>None</code>
 
 Returns:
@@ -1979,13 +1983,13 @@ Returns:
 winsorize(data, cutoff = None, replace_with_cutoff = True)
 ```
 
-Winsorize a Polars or pandas DataFrame/Series with the largest/lowest value not considered outlier.
+Winsorize a Polars DataFrame/Series with the largest/lowest value not considered outlier.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` |  | (pl.DataFrame, pl.Series, pd.DataFrame, pd.Series) data to winsorize | *required*
+`data` |  | (pl.DataFrame, pl.Series) data to winsorize | *required*
 `cutoff` |  | (dict) a dictionary with keys {'std':[low,high]} or     {'quantile':[low,high]} | <code>None</code>
 `replace_with_cutoff` |  | (bool) If True, replace outliers with cutoff.                  If False, replaces outliers with closest                  existing values; (default: False) | <code>True</code>
 
@@ -2350,6 +2354,57 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | U-centered matrix, same shape.
 
+#### `regression`
+
+Standalone OLS regression on numpy arrays.
+
+Pedagogical helper used in tutorials and notebooks where callers want a
+``(b, se, t, p, df, res)`` tuple from a design matrix ``X`` and response
+``Y`` without constructing a :class:`BrainData` or :class:`Glm`. For
+4D neuroimaging data use :meth:`BrainData.fit` with ``model='glm'``.
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`regress`](#regress) | Fit an OLS regression of ``Y`` on ``X``.
+
+
+
+##### Methods
+
+###### `regress`
+
+```python
+regress(X, Y, mode: str = 'ols', stats: str = 'full')
+```
+
+Fit an OLS regression of ``Y`` on ``X``.
+
+Does not add an intercept — include one in ``X`` explicitly. If ``Y``
+is 2D, a separate regression is fit to each column.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` |  | Design matrix, shape ``(n_samples, n_regressors)``. | *required*
+`Y` |  | Response, shape ``(n_samples,)`` or ``(n_samples, n_targets)``. | *required*
+`mode` | <code>[str](#str)</code> | Only ``'ols'`` is supported in v0.6.0. The legacy ``'robust'`` and ``'arma'`` modes were dropped; use statsmodels or a dedicated package if you need them. | <code>'ols'</code>
+`stats` | <code>[str](#str)</code> | ``'full'`` returns the 6-tuple below; ``'betas'`` returns just ``b``; ``'tstats'`` returns ``(b, t)``. | <code>'full'</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`tuple` |  | ``(b, se, t, p, df, res)`` when ``stats='full'``:
+ |  | - ``b``: coefficients
+ |  | - ``se``: standard errors
+ |  | - ``t``: t-statistics
+ |  | - ``p``: two-tailed p-values
+ |  | - ``df``: residual degrees of freedom
+ |  | - ``res``: residuals
+
 #### `timeseries`
 
 Temporal signal processing — resampling, filtering, and basis functions.
@@ -2359,9 +2414,9 @@ Temporal signal processing — resampling, filtering, and basis functions.
 Name | Description
 ---- | -----------
 [`calc_bpm`](#calc_bpm) | Calculate instantaneous BPM from beat to beat interval
-[`downsample`](#downsample) | Downsample Polars or pandas DataFrame/Series to a new target frequency or number of samples using averaging.
+[`downsample`](#downsample) | Downsample a Polars DataFrame/Series to a new target frequency or number of samples using averaging.
 [`make_cosine_basis`](#make_cosine_basis) | Create a series of cosine basis functions for a discrete cosine
-[`upsample`](#upsample) | Upsample Polars or pandas DataFrame/Series to a new target frequency or number of samples using interpolation.
+[`upsample`](#upsample) | Upsample a Polars DataFrame/Series to a new target frequency or number of samples using interpolation.
 
 
 
@@ -2394,13 +2449,13 @@ Name | Type | Description
 downsample(data, sampling_freq = None, target = None, target_type = 'samples', method = 'mean')
 ```
 
-Downsample Polars or pandas DataFrame/Series to a new target frequency or number of samples using averaging.
+Downsample a Polars DataFrame/Series to a new target frequency or number of samples using averaging.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` |  | (pl.DataFrame, pl.Series, pd.DataFrame, pd.Series) data to downsample | *required*
+`data` |  | (pl.DataFrame, pl.Series) data to downsample | *required*
 `sampling_freq` |  | (float) Sampling frequency of data in hertz | <code>None</code>
 `target` |  | (float) downsampling target | <code>None</code>
 `target_type` |  | type of target can be [samples,seconds,hz] | <code>'samples'</code>
@@ -2446,13 +2501,13 @@ Name | Type | Description
 upsample(data, sampling_freq = None, target = None, target_type = 'samples', method = 'linear')
 ```
 
-Upsample Polars or pandas DataFrame/Series to a new target frequency or number of samples using interpolation.
+Upsample a Polars DataFrame/Series to a new target frequency or number of samples using interpolation.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` |  | (pl.DataFrame, pl.Series, pd.DataFrame, pd.Series) data to upsample   (Note: will drop non-numeric columns from DataFrame) | *required*
+`data` |  | (pl.DataFrame, pl.Series) data to upsample   (Note: will drop non-numeric columns from DataFrame) | *required*
 `sampling_freq` |  | Sampling frequency of data in hertz | <code>None</code>
 `target` |  | (float) upsampling target | <code>None</code>
 `target_type` |  | (str) type of target can be [samples,seconds,hz] | <code>'samples'</code>

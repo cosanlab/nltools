@@ -108,6 +108,54 @@ too-many-positional-arguments = "ignore" # seaborn deprecated positional args
 help = "Lint project with ruff and ty"
 shell  = """ruff check nltools --fix && ty check nltools"""
 
+[tool.poe.tasks.test]
+help = "Run default fast test suite (parallel)"
+cmd = "pytest -n auto"
+
+[tool.poe.tasks.test-all]
+help = "Run all tests including slow and integration"
+cmd = "pytest -m '' -n auto"
+
+[tool.poe.tasks.test-braindata]
+help = "Test BrainData class"
+cmd = "pytest nltools/tests/data/braindata -n auto -x"
+
+[tool.poe.tasks.test-adjacency]
+help = "Test Adjacency class"
+cmd = "pytest nltools/tests/data/adjacency nltools/tests/plotting/test_adjacency.py -n auto -x"
+
+[tool.poe.tasks.test-designmatrix]
+help = "Test DesignMatrix class"
+cmd = "pytest nltools/tests/data/designmatrix -n auto -x"
+
+[tool.poe.tasks.test-collection]
+help = "Test BrainCollection class"
+cmd = "pytest nltools/tests/data/test_collection.py -n auto -x"
+
+[tool.poe.tasks.test-stats]
+help = "Test stats module"
+cmd = "pytest nltools/tests/stats -n auto -x"
+
+[tool.poe.tasks.test-core]
+help = "Test core algorithms"
+cmd = "pytest nltools/tests/core -n auto -x"
+
+[tool.poe.tasks.test-models]
+help = "Test models (GLM, ridge, base)"
+cmd = "pytest nltools/tests/models -n auto -x"
+
+[tool.poe.tasks.test-io]
+help = "Test IO (file reader, h5)"
+cmd = "pytest nltools/tests/io_tests -n auto -x"
+
+[tool.poe.tasks.test-plotting]
+help = "Test plotting"
+cmd = "pytest nltools/tests/plotting -n auto -x"
+
+[tool.poe.tasks.test-support]
+help = "Test support utilities"
+cmd = "pytest nltools/tests/support -n auto -x"
+
 [tool.poe.tasks.docs-clean]
 help = "Clean out built docs for debugging"
 shell = """rm -r docs/_build"""

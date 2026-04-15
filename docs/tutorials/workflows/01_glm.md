@@ -91,7 +91,7 @@ print(f"After adding nuisance: {dm_full.shape[1]}")
 ```
 
 ```{code-cell} python3
-dm_full.heatmap(figsize=(12, 8))
+dm_full.plot(figsize=(12, 8))
 plt.title("Complete Design Matrix (task + nuisance)")
 plt.show()
 ```

@@ -3366,7 +3366,6 @@ Name | Description
 [`fillna`](#fillna) | Fill NaN/null values with specified value.
 [`plot`](#plot) | Visualize design matrix as heatmap (SPM-style).
 [`replace_data`](#replace_data) | Replace data columns while preserving polynomials and metadata.
-[`reset_index`](#reset_index) | Reset index (pandas compatibility method).
 [`standardize`](#standardize) | Standardize columns using the specified method.
 [`sum`](#sum) | Compute sum along axis.
 [`to_numpy`](#to_numpy) | Convert DesignMatrix to numpy array.
@@ -3619,28 +3618,6 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with replaced data columns, preserved polynomials
-
-###### `reset_index`
-
-```python
-reset_index(drop: bool = True) -> 'DesignMatrix'
-```
-
-Reset index (pandas compatibility method).
-
-Polars DataFrames don't have row indexes, so this is a no-op.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`drop` | <code>bool, default=True</code> | Ignored. Kept for API compatibility. | <code>True</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>'DesignMatrix'</code> | Returns self unchanged
 
 ###### `standardize`
 
@@ -4255,7 +4232,6 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 [`brain_mask`](#brain_mask) |  | The brain mask image used for simulation.
-[`nifti_masker`](#nifti_masker) |  | Fitted NiftiMasker for converting between 4D data and 2D arrays.
 [`output_dir`](#output_dir) |  | Output directory path.
 [`random_state`](#random_state) |  | Random state for reproducible simulations.
 
@@ -4451,7 +4427,6 @@ Name | Type | Description
 ---- | ---- | -----------
 [`MAX_INT`](#MAX_INT) |  | 
 [`nx`](#nx) |  | 
-[`tables`](#tables) |  | 
 
 ##### Methods
 
@@ -10349,7 +10324,6 @@ Name | Description
 [`fillna`](#fillna) | Fill NaN/null values with specified value.
 [`plot`](#plot) | Visualize design matrix as heatmap (SPM-style).
 [`replace_data`](#replace_data) | Replace data columns while preserving polynomials and metadata.
-[`reset_index`](#reset_index) | Reset index (pandas compatibility method).
 [`standardize`](#standardize) | Standardize columns using the specified method.
 [`sum`](#sum) | Compute sum along axis.
 [`to_numpy`](#to_numpy) | Convert DesignMatrix to numpy array.
@@ -10662,28 +10636,6 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with replaced data columns, preserved polynomials
-
-######## `reset_index`
-
-```python
-reset_index(drop: bool = True) -> 'DesignMatrix'
-```
-
-Reset index (pandas compatibility method).
-
-Polars DataFrames don't have row indexes, so this is a no-op.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`drop` | <code>bool, default=True</code> | Ignored. Kept for API compatibility. | <code>True</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>'DesignMatrix'</code> | Returns self unchanged
 
 ######## `standardize`
 
@@ -12416,7 +12368,6 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 [`brain_mask`](#brain_mask) |  | The brain mask image used for simulation.
-[`nifti_masker`](#nifti_masker) |  | Fitted NiftiMasker for converting between 4D data and 2D arrays.
 [`output_dir`](#output_dir) |  | Output directory path.
 [`random_state`](#random_state) |  | Random state for reproducible simulations.
 
@@ -12450,12 +12401,6 @@ Name | Description
 
 ```python
 brain_mask = brain_mask
-```
-
-######## `nifti_masker`
-
-```python
-nifti_masker = NiftiMasker(mask_img=(self.brain_mask))
 ```
 
 ######## `output_dir`

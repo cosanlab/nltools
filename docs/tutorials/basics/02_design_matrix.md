@@ -228,10 +228,10 @@ print(f"Columns: {dm_full.columns}")
 
 ### Heatmap
 
-The `heatmap()` method shows the design matrix in SPM-style format:
+The `plot()` method shows the design matrix in SPM-style format:
 
 ```{code-cell} python3
-dm_full.heatmap(figsize=(8, 8))
+dm_full.plot(figsize=(8, 8))
 plt.title("Complete Design Matrix")
 plt.show()
 ```
@@ -248,25 +248,12 @@ print(dm_full.details())
 
 ### Variance Inflation Factor (VIF)
 
-VIF measures how much each regressor's variance is inflated by correlation with other regressors. VIF > 10 indicates problematic multicollinearity.
+VIF measures how much each regressor's variance is inflated by correlation with other regressors
 
 ```{code-cell} python3
 vif = dm_full.vif()
 print("Variance Inflation Factors:")
 print(vif)
-```
-
-```{code-cell} python3
-fig, ax = plt.subplots(figsize=(10, 5))
-cols = [c for c in dm_full.columns if not c.startswith("poly_")]
-ax.bar(cols, vif)
-ax.axhline(y=10, color="r", linestyle="--", label="VIF = 10 threshold")
-ax.set_ylabel("VIF")
-ax.set_title("Multicollinearity Check")
-ax.legend()
-plt.xticks(rotation=45, ha="right")
-plt.tight_layout()
-plt.show()
 ```
 
 ### Cleaning Correlated Columns
@@ -379,7 +366,7 @@ In this tutorial you learned:
 - **Task regressors**: Build boxcar stimuli and convolve with `convolve("hrf")`
 - **Parametric modulation**: Modulate stimulus amplitude by trial-level variables
 - **Drift modeling**: `add_poly()` for Legendre polynomials, `add_dct_basis()` for DCT high-pass
-- **Visualization**: `heatmap()` for SPM-style display, `details()` for a text summary
+- **Visualization**: `plot()` for SPM-style display, `details()` for a text summary
 - **Diagnostics**: `vif()` for multicollinearity, `clean()` to auto-remove correlated columns
 - **Multi-run**: `append(axis=0)` with automatic per-run polynomial separation
 

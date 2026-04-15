@@ -129,6 +129,9 @@ def isc(
     Lancaster, G., Iatsenko, D., Pidde, A., Ticcinelli, V., & Stefanovska, A. (2018).
     Surrogate data for hypothesis testing of physical systems. Physics Reports, 748, 1-60.
 
+    This function is a wrapper around `isc_permutation_test` from the inference module,
+    which provides optimized implementations with CPU-parallel and GPU acceleration support.
+
     Args:
         data: (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects
         n_samples: (int) number of random samples/bootstraps
@@ -141,13 +144,6 @@ def isc(
 
     Returns:
         stats: (dict) dictionary of permutation results ['isc', 'p', 'ci', 'null_distribution']
-
-    Notes
-    -----
-    This function is a wrapper around `isc_permutation_test` from the inference module,
-    which provides optimized implementations with CPU-parallel and GPU acceleration support.
-    Performance improvements: 4-8× speedup for CPU-parallel operations, 10-100× speedup
-    for GPU operations. See `nltools.algorithms.inference.isc.isc_permutation_test` for details.
 
     """
     data = _as_ndarray(data)
@@ -343,6 +339,10 @@ def isc_group(
     Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap hypothesis testing.
     Biometrics, 757-762.
 
+    This function is a wrapper around `nltools.algorithms.inference.isc.isc_group_permutation_test`
+    for backward compatibility. The underlying implementation provides optimized CPU parallelization
+    and optional GPU acceleration. For new code, consider using `isc_group_permutation_test` directly.
+
     Args:
         group1: (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects
         group2: (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects
@@ -363,16 +363,6 @@ def isc_group(
             - 'ci': Confidence interval tuple (lower, upper)
             - 'null_distribution': Null distribution (if return_null=True)
 
-    Notes
-    -----
-    This function is a wrapper around `nltools.algorithms.inference.isc.isc_group_permutation_test`
-    for backward compatibility. The underlying implementation provides optimized CPU parallelization
-    and optional GPU acceleration. For new code, consider using `isc_group_permutation_test` directly.
-
-    Performance improvements:
-    - 4-8× speedup with CPU-parallel backend (default)
-    - 10-30× speedup with GPU backend for voxel-wise LOO computation
-    - More memory efficient (no Adjacency object overhead)
     """
     from nltools.algorithms.inference.isc import isc_group_permutation_test
 
@@ -428,6 +418,11 @@ def isfc(data, method="average", n_jobs=-1):
     Dynamic reconfiguration of the default mode network during narrative comprehension.
     Nature communications, 7, 12141.
 
+    This function now uses the optimized implementation from the inference module,
+    which provides efficient cross-correlation computation between matrix columns.
+    CPU parallelization is available via joblib when n_jobs > 1 or n_jobs=-1.
+    Each subject's ISFC computation is independent and can be parallelized efficiently.
+
     Args:
         data: list of subject matrices (observations x voxels/rois)
         method: approach to computing ISFC. 'average' uses leave one out
@@ -436,15 +431,6 @@ def isfc(data, method="average", n_jobs=-1):
 
     Returns:
         list of subject ISFC matrices
-
-    Notes
-    -----
-    This function now uses the optimized implementation from the inference module,
-    which provides efficient cross-correlation computation between matrix columns.
-
-    CPU parallelization is available via joblib when n_jobs > 1 or n_jobs=-1,
-    providing 4-8× speedup on multi-core machines. Each subject's ISFC computation
-    is independent and can be parallelized efficiently.
 
     """
     if method != "average":

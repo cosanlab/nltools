@@ -73,7 +73,6 @@ Name | Description
 [`fillna`](#fillna) | Fill NaN/null values with specified value.
 [`plot`](#plot) | Visualize design matrix as heatmap (SPM-style).
 [`replace_data`](#replace_data) | Replace data columns while preserving polynomials and metadata.
-[`reset_index`](#reset_index) | Reset index (pandas compatibility method).
 [`standardize`](#standardize) | Standardize columns using the specified method.
 [`sum`](#sum) | Compute sum along axis.
 [`to_numpy`](#to_numpy) | Convert DesignMatrix to numpy array.
@@ -326,28 +325,6 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with replaced data columns, preserved polynomials
-
-#### `reset_index`
-
-```python
-reset_index(drop: bool = True) -> 'DesignMatrix'
-```
-
-Reset index (pandas compatibility method).
-
-Polars DataFrames don't have row indexes, so this is a no-op.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`drop` | <code>bool, default=True</code> | Ignored. Kept for API compatibility. | <code>True</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>'DesignMatrix'</code> | Returns self unchanged
 
 #### `standardize`
 
