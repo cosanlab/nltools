@@ -623,6 +623,91 @@ def to_fit_dataclass(bd, model):
         raise ValueError(f"Unknown model '{model}'. Must be 'ridge' or 'glm'")
 
 
+def ttest(bd, popmean=0.0, permutation=False, **kwargs):
+    """One-sample voxelwise t-test across images (axis 0).
+
+    For a BrainData stack of images (e.g. subject-level contrast maps with
+    shape ``(n_samples, n_voxels)``), test whether the per-voxel mean differs
+    from ``popmean``.
+
+    Args:
+        bd: BrainData instance (must contain multiple images).
+        popmean: Population mean to test against. Default 0.0.
+        permutation: If True, use sign-flip permutation test via
+            ``nltools.stats.one_sample_permutation_test``. ``**kwargs`` are
+            forwarded (e.g. ``n_permute``, ``tail``, ``parallel``,
+            ``random_state``).
+        **kwargs: Forwarded to the permutation test when ``permutation=True``.
+
+    Returns:
+        dict: ``{"t": BrainData, "p": BrainData}`` for the parametric case, or
+        ``{"mean": BrainData, "p": BrainData}`` when ``permutation=True``
+        (mirrors ``Adjacency.ttest``).
+
+    Raises:
+        ValueError: If ``bd`` contains fewer than 2 images.
+    """
+    from scipy.stats import ttest_1samp
+
+    from . import BrainData
+
+    if bd.data.ndim < 2 or bd.data.shape[0] < 2:
+        raise ValueError(
+            "t-test requires multiple images (got shape[0] < 2). "
+            "Stack subject-level maps into a single BrainData first."
+        )
+
+    if permutation:
+        from nltools.stats import one_sample_permutation_test
+
+        result = one_sample_permutation_test(bd.data, **kwargs)
+        mean_bd = BrainData(mask=bd.mask)
+        mean_bd.data = np.asarray(result["mean"])
+        p_bd = BrainData(mask=bd.mask)
+        p_bd.data = np.asarray(result["p"])
+        return {"mean": mean_bd, "p": p_bd}
+
+    t_arr, p_arr = ttest_1samp(bd.data, popmean, axis=0)
+    t_bd = BrainData(mask=bd.mask)
+    t_bd.data = np.asarray(t_arr)
+    p_bd = BrainData(mask=bd.mask)
+    p_bd.data = np.asarray(p_arr)
+    return {"t": t_bd, "p": p_bd}
+
+
+def ttest2(bd, other, equal_var=True):
+    """Two-sample voxelwise t-test between two BrainData stacks.
+
+    Args:
+        bd: First BrainData (shape ``(n1, n_voxels)``).
+        other: Second BrainData (shape ``(n2, n_voxels)``).
+        equal_var: If True (default), standard two-sample t-test. If False,
+            Welch's t-test.
+
+    Returns:
+        dict: ``{"t": BrainData, "p": BrainData}``.
+
+    Raises:
+        ValueError: If the two BrainData objects have mismatched n_voxels.
+    """
+    from scipy.stats import ttest_ind
+
+    from . import BrainData
+
+    if bd.data.shape[1] != other.data.shape[1]:
+        raise ValueError(
+            f"BrainData objects must have same n_voxels. "
+            f"Got {bd.data.shape[1]} and {other.data.shape[1]}."
+        )
+
+    t_arr, p_arr = ttest_ind(bd.data, other.data, axis=0, equal_var=equal_var)
+    t_bd = BrainData(mask=bd.mask)
+    t_bd.data = np.asarray(t_arr)
+    p_bd = BrainData(mask=bd.mask)
+    p_bd.data = np.asarray(p_arr)
+    return {"t": t_bd, "p": p_bd}
+
+
 def regress(bd, design_matrix=None, noise_model="ols", mode=None, **kwargs):
     """Deprecated: Use fit(model='glm', X=design_matrix) instead.
 

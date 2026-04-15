@@ -525,3 +525,89 @@ class TestBrainDataModeling:
         assert not np.allclose(
             train_predictions.data, brain_data.cv_results_["predictions"].data
         )
+
+
+class TestBrainDataTTest:
+    def test_ttest_one_sample(self, minimal_brain_data):
+        """One-sample voxelwise t-test against zero returns dict of BrainData."""
+        from scipy.stats import ttest_1samp
+
+        result = minimal_brain_data.ttest()
+
+        assert isinstance(result, dict)
+        assert set(result.keys()) == {"t", "p"}
+        assert isinstance(result["t"], BrainData)
+        assert isinstance(result["p"], BrainData)
+
+        expected_t, expected_p = ttest_1samp(minimal_brain_data.data, 0.0, axis=0)
+        np.testing.assert_allclose(result["t"].data, expected_t)
+        np.testing.assert_allclose(result["p"].data, expected_p)
+        assert result["t"].data.shape == (minimal_brain_data.data.shape[1],)
+
+    def test_ttest_popmean(self, minimal_brain_data):
+        """popmean kwarg tests against a non-zero null."""
+        from scipy.stats import ttest_1samp
+
+        result = minimal_brain_data.ttest(popmean=0.5)
+        expected_t, _ = ttest_1samp(minimal_brain_data.data, 0.5, axis=0)
+        np.testing.assert_allclose(result["t"].data, expected_t)
+
+    def test_ttest_single_image_raises(self, minimal_brain_data):
+        """t-test on a single image should raise."""
+        single = minimal_brain_data[0]
+        with pytest.raises(ValueError, match="multiple images"):
+            single.ttest()
+
+    def test_ttest_permutation(self, minimal_brain_data):
+        """permutation=True uses sign-flip test and returns mean instead of t."""
+        result = minimal_brain_data.ttest(
+            permutation=True, n_permute=50, random_state=0
+        )
+        assert set(result.keys()) == {"mean", "p"}
+        assert isinstance(result["mean"], BrainData)
+        assert isinstance(result["p"], BrainData)
+        np.testing.assert_allclose(
+            result["mean"].data, minimal_brain_data.data.mean(axis=0)
+        )
+
+    def test_ttest2_two_sample(self, minimal_brain_data):
+        """Two-sample voxelwise t-test returns dict of BrainData."""
+        from scipy.stats import ttest_ind
+
+        other = minimal_brain_data[:25]
+        subset = minimal_brain_data[25:]
+
+        result = subset.ttest2(other)
+
+        assert set(result.keys()) == {"t", "p"}
+        expected_t, expected_p = ttest_ind(subset.data, other.data, axis=0)
+        np.testing.assert_allclose(result["t"].data, expected_t)
+        np.testing.assert_allclose(result["p"].data, expected_p)
+
+    def test_ttest2_welch(self, minimal_brain_data):
+        """equal_var=False triggers Welch's t-test."""
+        from scipy.stats import ttest_ind
+
+        other = minimal_brain_data[:25]
+        subset = minimal_brain_data[25:]
+
+        result = subset.ttest2(other, equal_var=False)
+        expected_t, _ = ttest_ind(subset.data, other.data, axis=0, equal_var=False)
+        np.testing.assert_allclose(result["t"].data, expected_t)
+
+    def test_ttest2_mismatched_voxels_raises(self, minimal_brain_data):
+        """Mismatched n_voxels raises ValueError."""
+        import nibabel as nib
+
+        # Build a second BrainData with different n_voxels
+        spatial_shape = (2, 2, 1)
+        mask_data = np.zeros(spatial_shape, dtype=bool)
+        mask_data.flat[:3] = True
+        affine = np.eye(4)
+        volume_4d = np.random.randn(*spatial_shape, 10)
+        other = BrainData(
+            nib.Nifti1Image(volume_4d, affine),
+            mask=nib.Nifti1Image(mask_data.astype(np.float32), affine),
+        )
+        with pytest.raises(ValueError, match="n_voxels"):
+            minimal_brain_data.ttest2(other)

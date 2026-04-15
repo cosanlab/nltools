@@ -1311,6 +1311,62 @@ class BrainData(object):
 
         return transform_pairwise_data(self)
 
+    def ttest(self, popmean=0.0, permutation=False, **kwargs):
+        """One-sample voxelwise t-test across images (axis 0).
+
+        Tests whether the per-voxel mean across images differs from
+        ``popmean``. Operates on a stack of images (e.g. subject-level
+        contrast maps) with shape ``(n_samples, n_voxels)``.
+
+        Args:
+            popmean: Population mean to test against. Default 0.0.
+            permutation: If True, use sign-flip permutation test via
+                :func:`nltools.stats.one_sample_permutation_test`.
+                ``**kwargs`` are forwarded (e.g. ``n_permute``, ``tail``,
+                ``parallel``, ``random_state``).
+            **kwargs: Forwarded to the permutation test when
+                ``permutation=True``.
+
+        Returns:
+            dict: ``{"t": BrainData, "p": BrainData}`` for the parametric
+            case, or ``{"mean": BrainData, "p": BrainData}`` when
+            ``permutation=True``.
+
+        Raises:
+            ValueError: If this BrainData contains fewer than 2 images.
+
+        Examples:
+            >>> # Stack of subject-level contrast maps
+            >>> result = contrast_maps.ttest()
+            >>> sig = result["p"].data < 0.05
+
+            >>> # Permutation-based inference
+            >>> result = contrast_maps.ttest(permutation=True, n_permute=5000)
+        """
+        from .modeling import ttest
+
+        return ttest(self, popmean=popmean, permutation=permutation, **kwargs)
+
+    def ttest2(self, other, equal_var=True):
+        """Two-sample voxelwise t-test between two BrainData stacks.
+
+        Args:
+            other: BrainData to compare against. Must have the same
+                number of voxels.
+            equal_var: If True (default), standard two-sample t-test.
+                If False, Welch's t-test.
+
+        Returns:
+            dict: ``{"t": BrainData, "p": BrainData}``.
+
+        Raises:
+            ValueError: If the two BrainData objects have different
+                ``n_voxels``.
+        """
+        from .modeling import ttest2
+
+        return ttest2(self, other, equal_var=equal_var)
+
     def upload_neurovault(
         self,
         access_token=None,
