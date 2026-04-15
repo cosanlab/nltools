@@ -11,7 +11,7 @@ Benchmark Grid:
 - Num features: 50, 100 (typical design matrix sizes)
 - Estimation style: estimates-only (fixed alpha), fit-only (5-fold CV)
 
-Total: 2 × 2 × 2 × 2 = 16 conditions × 2 backends = 32 benchmarks
+Total: 2 × 2 × 2 × 2 = 16 conditions × 2 parallel modes (cpu, gpu) = 32 benchmarks
 
 Usage:
     # Dry run with defaults
@@ -38,7 +38,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from nltools.algorithms.ridge import ridge_svd, ridge_cv
-from nltools.algorithms.backends import Backend, check_gpu_available
+from nltools.algorithms.backends import check_gpu_available
 
 # Try to import tqdm for progress bars
 try:
@@ -56,7 +56,7 @@ def get_memory_mb() -> float:
 
 
 def benchmark_estimates_only(
-    X: np.ndarray, y: np.ndarray, backend: Backend, alpha: float = 1.0
+    X: np.ndarray, y: np.ndarray, parallel: str | None, alpha: float = 1.0
 ) -> Tuple[float, float]:
     """
     Benchmark ridge regression with fixed alpha (no CV).
@@ -72,7 +72,7 @@ def benchmark_estimates_only(
     mem_start = get_memory_mb()
 
     start = time.perf_counter()
-    _ = ridge_svd(X, y, alpha=alpha, backend=backend)
+    _ = ridge_svd(X, y, alpha=alpha, parallel=parallel)
     end = time.perf_counter()
 
     mem_end = get_memory_mb()
@@ -82,7 +82,7 @@ def benchmark_estimates_only(
 
 
 def benchmark_fit_only(
-    X: np.ndarray, y: np.ndarray, backend: Backend, cv: int = 5, n_alphas: int = 10
+    X: np.ndarray, y: np.ndarray, parallel: str | None, cv: int = 5, n_alphas: int = 10
 ) -> Tuple[float, float]:
     """
     Benchmark ridge regression with cross-validation (fit for prediction).
@@ -96,8 +96,8 @@ def benchmark_fit_only(
         Feature matrix
     y : np.ndarray
         Target vector
-    backend : Backend
-        Backend to use
+    parallel : str | None
+        Parallelization mode: None, 'cpu', or 'gpu'
     cv : int
         Number of CV folds
     n_alphas : int
@@ -111,7 +111,7 @@ def benchmark_fit_only(
     mem_start = get_memory_mb()
 
     start = time.perf_counter()
-    _ = ridge_cv(X, y, alphas=np.logspace(-2, 2, n_alphas), cv=cv, backend=backend)
+    _ = ridge_cv(X, y, alphas=np.logspace(-2, 2, n_alphas), cv=cv, parallel=parallel)
     end = time.perf_counter()
 
     mem_end = get_memory_mb()
@@ -319,12 +319,12 @@ def print_dry_run_summary(config):
                 for style in config["estimation_styles"]:
                     conditions.append((n_samples, n_voxels, n_features, style))
 
-    n_backends = 1 if config["no_gpu"] or not config["gpu_available"] else 2
-    total_runs = len(conditions) * n_backends
+    n_modes = 1 if config["no_gpu"] or not config["gpu_available"] else 2
+    total_runs = len(conditions) * n_modes
 
     print(f"\n{'=' * 80}")
     print(
-        f"Benchmark Grid ({len(conditions)} conditions × {n_backends} backend(s) = {total_runs} runs)"
+        f"Benchmark Grid ({len(conditions)} conditions × {n_modes} mode(s) = {total_runs} runs)"
     )
     print("=" * 80)
 
@@ -405,7 +405,7 @@ def run_systematic_benchmarks(config=None) -> pd.DataFrame:
     Returns
     -------
     results : pd.DataFrame
-        Columns: n_samples, n_voxels, estimation_style, backend,
+        Columns: n_samples, n_voxels, estimation_style, parallel,
                  time_seconds, memory_mb, speedup_vs_numpy
     """
     # Use default config if not provided (for backward compatibility)
@@ -531,20 +531,19 @@ def run_systematic_benchmarks(config=None) -> pd.DataFrame:
                         f"{samples_label}_{voxels_label}_{features_label}_{est_style}"
                     )
 
-                # Benchmark NumPy
+                # Benchmark CPU (parallel='cpu')
                 if not config.get("quiet", False) and not pbar:
-                    print("  Testing NumPy backend...", end=" ", flush=True)
-                backend_np = Backend("numpy")
+                    print("  Testing CPU (parallel='cpu')...", end=" ", flush=True)
 
                 if est_style == "estimates_only":
                     time_np, mem_np = benchmark_estimates_only(
-                        X, y, backend_np, alpha=1.0
+                        X, y, "cpu", alpha=1.0
                     )
                 else:  # fit_only
                     time_np, mem_np = benchmark_fit_only(
                         X,
                         y,
-                        backend_np,
+                        "cpu",
                         cv=config["cv_folds"],
                         n_alphas=config["cv_alphas"],
                     )
@@ -561,31 +560,30 @@ def run_systematic_benchmarks(config=None) -> pd.DataFrame:
                         "n_features": n_features,
                         "features_label": features_label,
                         "estimation_style": est_style,
-                        "backend": "numpy",
+                        "parallel": "cpu",
                         "time_seconds": time_np,
                         "memory_mb": mem_np,
-                        "speedup_vs_numpy": 1.0,
+                        "speedup_vs_cpu": 1.0,
                     }
                 )
 
                 numpy_baselines[condition_key] = time_np
 
-                # Benchmark PyTorch (if available and not disabled)
+                # Benchmark GPU (parallel='gpu') if available and not disabled
                 skip_gpu = config.get("no_gpu", False) or not gpu_available
                 if not skip_gpu:
                     if not config.get("quiet", False) and not pbar:
-                        print("  Testing PyTorch backend...", end=" ", flush=True)
-                    backend_torch = Backend("torch")
+                        print("  Testing GPU (parallel='gpu')...", end=" ", flush=True)
 
                     if est_style == "estimates_only":
                         time_torch, mem_torch = benchmark_estimates_only(
-                            X, y, backend_torch, alpha=1.0
+                            X, y, "gpu", alpha=1.0
                         )
                     else:  # fit_only
                         time_torch, mem_torch = benchmark_fit_only(
                             X,
                             y,
-                            backend_torch,
+                            "gpu",
                             cv=config["cv_folds"],
                             n_alphas=config["cv_alphas"],
                         )
@@ -605,17 +603,17 @@ def run_systematic_benchmarks(config=None) -> pd.DataFrame:
                             "n_features": n_features,
                             "features_label": features_label,
                             "estimation_style": est_style,
-                            "backend": backend_torch.name,
+                            "parallel": "gpu",
                             "time_seconds": time_torch,
                             "memory_mb": mem_torch,
-                            "speedup_vs_numpy": speedup,
+                            "speedup_vs_cpu": speedup,
                         }
                     )
                 elif not config.get("quiet", False) and not pbar:
                     if config.get("no_gpu", False):
-                        print("  Skipping PyTorch backend (--no-gpu flag)")
+                        print("  Skipping GPU (--no-gpu flag)")
                     else:
-                        print("  Skipping PyTorch backend (GPU not available)")
+                        print("  Skipping GPU (not available)")
 
                 # Update progress bar
                 if pbar:
@@ -643,7 +641,7 @@ def print_summary(df: pd.DataFrame):
     print(f"{'=' * 80}\n")
 
     # Group by conditions and show speedup
-    print("Speedup Summary (PyTorch vs NumPy):")
+    print("Speedup Summary (GPU vs CPU):")
     print(f"{'-' * 80}")
 
     # Get unique conditions
@@ -656,18 +654,18 @@ def print_summary(df: pd.DataFrame):
             & (df["estimation_style"] == cond["estimation_style"])
         ]
 
-        np_row = subset[subset["backend"] == "numpy"].iloc[0]
-        torch_rows = subset[subset["backend"] != "numpy"]
+        cpu_row = subset[subset["parallel"] == "cpu"].iloc[0]
+        gpu_rows = subset[subset["parallel"] == "gpu"]
 
-        if len(torch_rows) > 0:
-            torch_row = torch_rows.iloc[0]
-            speedup = torch_row["speedup_vs_numpy"]
+        if len(gpu_rows) > 0:
+            gpu_row = gpu_rows.iloc[0]
+            speedup = gpu_row["speedup_vs_cpu"]
 
             est_label = "Est" if cond["estimation_style"] == "estimates_only" else "CV"
             print(
                 f"n={cond['n_samples']:4d}, v={cond['n_voxels']:6d}, {est_label}: "
-                f"NumPy={np_row['time_seconds']:6.2f}s, "
-                f"Torch={torch_row['time_seconds']:6.2f}s, "
+                f"CPU={cpu_row['time_seconds']:6.2f}s, "
+                f"GPU={gpu_row['time_seconds']:6.2f}s, "
                 f"Speedup={speedup:.2f}x"
             )
 
@@ -675,24 +673,24 @@ def print_summary(df: pd.DataFrame):
     print("Key Findings:")
 
     # Best speedups
-    torch_results = df[df["backend"] != "numpy"]
-    if len(torch_results) > 0:
-        best_speedup = torch_results.loc[torch_results["speedup_vs_numpy"].idxmax()]
-        worst_speedup = torch_results.loc[torch_results["speedup_vs_numpy"].idxmin()]
+    gpu_results = df[df["parallel"] == "gpu"]
+    if len(gpu_results) > 0:
+        best_speedup = gpu_results.loc[gpu_results["speedup_vs_cpu"].idxmax()]
+        worst_speedup = gpu_results.loc[gpu_results["speedup_vs_cpu"].idxmin()]
 
-        print(f"  Best speedup: {best_speedup['speedup_vs_numpy']:.2f}x")
+        print(f"  Best speedup: {best_speedup['speedup_vs_cpu']:.2f}x")
         print(
             f"    (n={best_speedup['n_samples']}, v={best_speedup['n_voxels']}, "
             f"{best_speedup['estimation_style']})"
         )
-        print(f"  Worst speedup: {worst_speedup['speedup_vs_numpy']:.2f}x")
+        print(f"  Worst speedup: {worst_speedup['speedup_vs_cpu']:.2f}x")
         print(
             f"    (n={worst_speedup['n_samples']}, v={worst_speedup['n_voxels']}, "
             f"{worst_speedup['estimation_style']})"
         )
 
         # Average speedup
-        avg_speedup = torch_results["speedup_vs_numpy"].mean()
+        avg_speedup = gpu_results["speedup_vs_cpu"].mean()
         print(f"  Average speedup: {avg_speedup:.2f}x")
 
 

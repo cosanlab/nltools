@@ -2,7 +2,7 @@
 
 ## Overview
 
-This directory contains systematic benchmarks for ridge regression and inference algorithm performance across realistic neuroimaging workflows. The benchmarks compare CPU (NumPy), CPU-parallel (joblib), and GPU (PyTorch) backends across different problem sizes and use cases.
+This directory contains systematic benchmarks for ridge regression and inference algorithm performance across realistic neuroimaging workflows. The benchmarks compare `parallel=None` (single-threaded NumPy), `parallel='cpu'` (joblib), and `parallel='gpu'` (PyTorch) modes across different problem sizes and use cases.
 
 ---
 
@@ -38,12 +38,12 @@ This directory contains systematic benchmarks for ridge regression and inference
 3. **Estimation style**
    - **Estimates only**: Fixed α=1.0, no cross-validation
      - Use case: You only care about coefficient estimates/feature weights
-     - Function: `ridge_svd(X, y, alpha=1.0)`
+     - Function: `ridge_svd(X, y, alpha=1.0, parallel=...)`
    - **Fit only**: 5-fold CV with hyperparameter search
      - Use case: You care about out-of-sample prediction accuracy
-     - Function: `ridge_cv(X, y, cv=5, alphas=10 values)`
+     - Function: `ridge_cv(X, y, cv=5, alphas=10 values, parallel=...)`
 
-**Total:** 2 × 2 × 2 = 8 conditions × 2 backends (NumPy, PyTorch) = **16 benchmark runs**
+**Total:** 2 × 2 × 2 = 8 conditions × 2 modes (`'cpu'`, `'gpu'`) = **16 benchmark runs**
 
 ---
 
@@ -54,8 +54,8 @@ This directory contains systematic benchmarks for ridge regression and inference
 **Breakdown by condition type:**
 
 #### Estimates Only (Fast - 4 conditions, ~2 minutes total)
-| Condition | NumPy Time | PyTorch Time | Total |
-|-----------|------------|--------------|-------|
+| Condition | CPU Time | GPU Time | Total |
+|-----------|----------|----------|-------|
 | 500×50k   | ~1s        | ~1s          | ~2s   |
 | 500×230k  | ~10s       | ~15s         | ~25s  |
 | 1000×50k  | ~4s        | ~4s          | ~8s   |
@@ -64,8 +64,8 @@ This directory contains systematic benchmarks for ridge regression and inference
 **Subtotal:** ~115 seconds (~2 minutes)
 
 #### Fit Only with 5-Fold CV (Slow - 4 conditions, ~55 minutes total)
-| Condition | NumPy Time | PyTorch Time | Total |
-|-----------|------------|--------------|-------|
+| Condition | CPU Time | GPU Time | Total |
+|-----------|----------|----------|-------|
 | 500×50k   | ~120s      | ~60s         | ~180s (3 min)   |
 | 500×230k  | ~600s      | ~300s        | ~900s (15 min)  |
 | 1000×50k  | ~300s      | ~150s        | ~450s (7.5 min) |
@@ -128,7 +128,7 @@ uv run python benchmarks/benchmarking.py --help
 
 ### Key Metrics
 
-**Speedup vs NumPy:**
+**Speedup vs CPU (`parallel='cpu'`):**
 - `speedup > 1.0`: GPU is faster
 - `speedup < 1.0`: CPU is faster (GPU overhead dominates)
 - `speedup ≈ 1.0`: Similar performance
@@ -142,8 +142,8 @@ uv run python benchmarks/benchmarking.py --help
 
 Based on previous benchmarks, we expect:
 
-1. **Small problems (500×50k estimates)**: GPU overhead → NumPy faster
-2. **Large problems (1000×230k)**: GPU parallelism → PyTorch faster
+1. **Small problems (500×50k estimates)**: GPU overhead → CPU faster
+2. **Large problems (1000×230k)**: GPU parallelism → GPU faster
 3. **CV conditions**: GPU advantage increases (more compute per transfer)
 4. **MPS limitation**: Modest speedups (1.4-2.2x) due to SVD CPU fallback
 
@@ -256,7 +256,7 @@ memory_mb = mem_after - mem_before
 n_voxels_options = [(50000, "3mm_resolution")]  # Skip 230k
 ```
 
-**Solution 2:** Skip GPU backend
+**Solution 2:** Skip GPU
 ```python
 if est_style == "fit_only" and n_voxels > 100000:
     print("Skipping GPU for memory reasons")
@@ -268,10 +268,10 @@ if est_style == "fit_only" and n_voxels > 100000:
 **Solution:** Reduce CV complexity
 ```python
 # Fewer folds
-benchmark_fit_only(X, y, backend, cv=3)
+benchmark_fit_only(X, y, parallel, cv=3)
 
 # Fewer alpha values
-ridge_cv(X, y, alphas=np.logspace(-1, 1, 5), cv=5, backend=backend)
+ridge_cv(X, y, alphas=np.logspace(-1, 1, 5), cv=5, parallel=parallel)
 ```
 
 ### GPU Not Detected
