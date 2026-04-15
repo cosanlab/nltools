@@ -29,6 +29,7 @@ from .correlation import (
 )
 from .alignment import align, procrustes, procrustes_distance, align_states
 from .intersubject import isc, isc_group, isfc, isps
+from .regression import regress
 from .permutation import (
     one_sample_permutation_test,
     two_sample_permutation_test,
@@ -75,6 +76,8 @@ __all__ = [
     "isc_group",
     "isfc",
     "isps",
+    # regression
+    "regress",
     # permutation
     "one_sample_permutation_test",
     "two_sample_permutation_test",
