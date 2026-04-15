@@ -25,7 +25,7 @@ def predict(
     scoring="accuracy",
     standardize=True,
     n_jobs=-1,
-    show_progress=True,
+    progress_bar=False,
 ):
     """Generate predictions using fitted model OR classify patterns (MVPA).
 
@@ -68,7 +68,7 @@ def predict(
         standardize (bool): Z-score features before classification.
             Default: True.
         n_jobs (int): Number of parallel jobs for searchlight (-1 = all cores).
-        show_progress (bool): Show progress bar for searchlight.
+        progress_bar (bool): Show progress bar for searchlight.
 
     Returns:
         BrainData: For timeseries prediction, shape (n_samples, n_voxels).
@@ -109,7 +109,7 @@ def predict(
             scoring=scoring,
             standardize=standardize,
             n_jobs=n_jobs,
-            show_progress=show_progress,
+            progress_bar=progress_bar,
         )
     else:
         return predict_timeseries(bd, X=X)
@@ -212,7 +212,7 @@ def predict_mvpa(
     scoring="accuracy",
     standardize=True,
     n_jobs=-1,
-    show_progress=True,
+    progress_bar=False,
 ):
     """Perform MVPA decoding using cross-validation.
 
@@ -231,7 +231,7 @@ def predict_mvpa(
         scoring (str): Scoring metric.
         standardize (bool): Whether to z-score features.
         n_jobs (int): Parallel jobs for searchlight.
-        show_progress (bool): Show progress bar.
+        progress_bar (bool): Show progress bar.
 
     Returns:
         BrainData with accuracy values.
@@ -287,13 +287,13 @@ def predict_mvpa(
         accuracy = mvpa_whole_brain_pipeline(bd, y, estimator, cv, groups, standardize)
     elif method == "searchlight":
         accuracy = mvpa_searchlight(
-            bd, X_data, y, pipe, cv, groups, scoring, radius, n_jobs, show_progress
+            bd, X_data, y, pipe, cv, groups, scoring, radius, n_jobs, progress_bar
         )
     elif method == "roi":
         if roi_mask is None:
             raise ValueError("roi_mask required for method='roi'")
         accuracy = mvpa_roi(
-            bd, X_data, y, pipe, cv, groups, scoring, roi_mask, n_jobs, show_progress
+            bd, X_data, y, pipe, cv, groups, scoring, roi_mask, n_jobs, progress_bar
         )
 
     # Wrap in BrainData
@@ -430,9 +430,7 @@ def mvpa_whole_brain_pipeline(bd, y, estimator, cv, groups, standardize):
     return np.array([cv_result.mean_score])
 
 
-def mvpa_searchlight(
-    bd, X, y, pipe, cv, groups, scoring, radius, n_jobs, show_progress
-):
+def mvpa_searchlight(bd, X, y, pipe, cv, groups, scoring, radius, n_jobs, progress_bar):
     """Searchlight MVPA - accuracy per voxel neighborhood.
 
     Args:
@@ -445,7 +443,7 @@ def mvpa_searchlight(
         scoring: Scoring metric string.
         radius: Searchlight radius in mm.
         n_jobs: Number of parallel jobs.
-        show_progress: Whether to show progress bar.
+        progress_bar: Whether to show progress bar.
 
     Returns:
         np.ndarray of accuracy values per voxel.
@@ -478,7 +476,7 @@ def mvpa_searchlight(
     neighborhood_list = list(neighborhoods.iter_neighborhoods())
 
     # Progress bar setup
-    if show_progress:
+    if progress_bar:
         try:
             from tqdm import tqdm
 
@@ -503,7 +501,7 @@ def mvpa_searchlight(
     return np.array(accuracies)
 
 
-def mvpa_roi(bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, show_progress):
+def mvpa_roi(bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, progress_bar):
     """ROI-based MVPA - accuracy per ROI, projected to voxel space.
 
     For each non-zero label in ``roi_mask``, uses all voxels within that ROI
@@ -522,7 +520,7 @@ def mvpa_roi(bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, show_progres
         roi_mask: Atlas/parcellation image or path. Resampled to ``bd.mask``
             space with nearest-neighbor interpolation if needed.
         n_jobs: Number of parallel jobs.
-        show_progress: Whether to show progress bar.
+        progress_bar: Whether to show progress bar.
 
     Returns:
         np.ndarray of shape (n_voxels,) with per-voxel ROI accuracy.
@@ -570,7 +568,7 @@ def mvpa_roi(bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, show_progres
             return np.nan
 
     iterator = unique_labels
-    if show_progress:
+    if progress_bar:
         try:
             from tqdm import tqdm
 

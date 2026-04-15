@@ -1027,7 +1027,7 @@ class BrainData(object):
         scoring: str = "accuracy",
         standardize: bool = True,
         n_jobs: int = -1,
-        show_progress: bool = True,
+        progress_bar: bool = False,
     ):
         """Generate predictions using fitted model OR classify patterns (MVPA).
 
@@ -1047,7 +1047,7 @@ class BrainData(object):
             scoring: Metric for evaluation.
             standardize: Z-score features before classification (default True).
             n_jobs: Number of parallel jobs (-1 = all cores).
-            show_progress: Show progress bar for searchlight.
+            progress_bar: Show progress bar for searchlight.
 
         Returns:
             BrainData: Predicted timeseries or accuracy map.
@@ -1072,7 +1072,7 @@ class BrainData(object):
             scoring=scoring,
             standardize=standardize,
             n_jobs=n_jobs,
-            show_progress=show_progress,
+            progress_bar=progress_bar,
         )
 
     def r_to_z(self):

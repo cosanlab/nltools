@@ -632,9 +632,7 @@ class TestBrainCollectionIterBatches:
 
     def test_iter_batches_axis0(self, sample_collection):
         """Test iter_batches over images (axis=0)."""
-        batches = list(
-            sample_collection.iter_batches(batch_size=2, show_progress=False)
-        )
+        batches = list(sample_collection.iter_batches(batch_size=2, progress_bar=False))
         assert len(batches) == 2
         assert len(batches[0]) == 2
         assert len(batches[1]) == 1
@@ -642,7 +640,7 @@ class TestBrainCollectionIterBatches:
     def test_iter_batches_axis1(self, sample_collection):
         """Test iter_batches over observations (axis=1)."""
         batches = list(
-            sample_collection.iter_batches(batch_size=5, axis=1, show_progress=False)
+            sample_collection.iter_batches(batch_size=5, axis=1, progress_bar=False)
         )
         assert len(batches) == 4  # 20 obs / 5 per batch = 4 batches
         # Each batch should have all 3 images with 5 obs each
@@ -655,7 +653,7 @@ class TestBrainCollectionIterBatches:
         """Test iter_batches with named axis."""
         batches = list(
             sample_collection.iter_batches(
-                batch_size=2, axis="images", show_progress=False
+                batch_size=2, axis="images", progress_bar=False
             )
         )
         assert len(batches) == 2
@@ -671,7 +669,7 @@ class TestBrainCollectionIterBatches:
 
         bc = BrainCollection(bds, mask=sample_mask)
         with pytest.raises(ValueError, match="variable counts"):
-            list(bc.iter_batches(batch_size=5, axis=1, show_progress=False))
+            list(bc.iter_batches(batch_size=5, axis=1, progress_bar=False))
 
 
 # =============================================================================
@@ -1043,7 +1041,7 @@ class TestBrainCollectionTransformations:
             result.data = bd.data * 2
             return result
 
-        result = sample_collection.map(double_data, axis=0, show_progress=False)
+        result = sample_collection.map(double_data, axis=0, progress_bar=False)
 
         assert isinstance(result, BrainCollection)
         assert result.n_images == sample_collection.n_images
@@ -1063,7 +1061,7 @@ class TestBrainCollectionTransformations:
         metadata = pd.DataFrame({"subject": ["A", "B", "C"]})
         bc = BrainCollection(bds, mask=sample_mask, metadata=metadata)
 
-        result = bc.map(lambda bd: bd, axis=0, show_progress=False)
+        result = bc.map(lambda bd: bd, axis=0, progress_bar=False)
 
         assert list(result.metadata["subject"]) == ["A", "B", "C"]
 
@@ -1081,7 +1079,7 @@ class TestBrainCollectionTransformations:
 
         bc = BrainCollection([bd], mask=sample_mask)
 
-        result = bc.map(detrend, axis=2, show_progress=False)
+        result = bc.map(detrend, axis=2, progress_bar=False)
 
         # Detrended data should have near-zero mean per voxel
         assert result.n_images == 1
@@ -1091,7 +1089,7 @@ class TestBrainCollectionTransformations:
 
     def test_map_axis0_returns_braindata(self, sample_collection):
         """Test that map axis=0 function must return BrainData."""
-        result = sample_collection.map(lambda bd: bd, axis=0, show_progress=False)
+        result = sample_collection.map(lambda bd: bd, axis=0, progress_bar=False)
         assert all(isinstance(result[i], BrainData) for i in range(result.n_images))
 
     def test_map_axis1_over_timepoints(self, sample_mask):
@@ -1112,7 +1110,7 @@ class TestBrainCollectionTransformations:
         def mean_across_images(bc_slice):
             return bc_slice.mean(axis=0)
 
-        result = bc.map(mean_across_images, axis=1, show_progress=False)
+        result = bc.map(mean_across_images, axis=1, progress_bar=False)
 
         # Result should be a BrainCollection with same n_images
         assert isinstance(result, BrainCollection)
@@ -1131,7 +1129,7 @@ class TestBrainCollectionTransformations:
         bc = BrainCollection([bd1, bd2], mask=sample_mask)
 
         with pytest.raises(ValueError, match="uniform observation counts"):
-            bc.map(lambda x: x.mean(axis=0), axis=1, show_progress=False)
+            bc.map(lambda x: x.mean(axis=0), axis=1, progress_bar=False)
 
     def test_filter_callable(self, sample_mask):
         """Test filter with callable predicate."""
@@ -1178,7 +1176,7 @@ class TestBrainCollectionTransformations:
 
     def test_standardize_zscore(self, sample_collection):
         """Test standardize with zscore method."""
-        result = sample_collection.standardize(method="zscore", show_progress=False)
+        result = sample_collection.standardize(method="zscore", progress_bar=False)
 
         # Each image should be z-scored: mean ~0, std ~1 per voxel
         for i in range(result.n_images):
@@ -1196,7 +1194,7 @@ class TestBrainCollectionTransformations:
 
         bc = BrainCollection([bd], mask=sample_mask)
 
-        result = bc.standardize(axis=1, method="center", show_progress=False)
+        result = bc.standardize(axis=1, method="center", progress_bar=False)
 
         # Each observation should have mean ~0 across voxels
         data = result[0].data
@@ -1212,7 +1210,7 @@ class TestBrainCollectionTransformations:
         bc = BrainCollection([bd], mask=sample_mask)
 
         # upper=0 zeros values below 0, keeping positive values
-        result = bc.threshold(upper=0, show_progress=False)
+        result = bc.threshold(upper=0, progress_bar=False)
 
         data = result[0].data
         # Non-zero values should all be >= 0
@@ -1227,7 +1225,7 @@ class TestBrainCollectionTransformations:
         bc = BrainCollection([bd], mask=sample_mask)
 
         # upper=0 zeros values below 0, binarize makes remaining 1
-        result = bc.threshold(upper=0, binarize=True, show_progress=False)
+        result = bc.threshold(upper=0, binarize=True, progress_bar=False)
 
         # Should be binary
         data = result[0].data
@@ -1247,7 +1245,7 @@ class TestBrainCollectionTransformations:
 
         bc = BrainCollection([bd], mask=sample_mask)
 
-        result = bc.detrend(show_progress=False)
+        result = bc.detrend(progress_bar=False)
 
         # Trend should be removed
         data = result[0].data
@@ -1272,7 +1270,7 @@ class TestBrainCollectionTransformations:
         # Chain: filter -> standardize -> aggregate
         result = (
             bc.filter(lambda bd: bd.data.mean() > 0.5)
-            .standardize(method="zscore", show_progress=False)
+            .standardize(method="zscore", progress_bar=False)
             .mean(axis=0)
         )
 
@@ -1306,7 +1304,7 @@ class TestBrainCollectionISC:
 
         # Extract voxelwise
         extracted, info = bc._extract_for_isc(
-            roi_mask=None, radius=None, show_progress=False
+            roi_mask=None, radius=None, progress_bar=False
         )
 
         assert extracted.shape == (n_obs, n_subjects, n_voxels)
@@ -1329,7 +1327,7 @@ class TestBrainCollectionISC:
 
         # Extract with searchlight
         extracted, info = bc._extract_for_isc(
-            roi_mask=None, radius=5.0, show_progress=False
+            roi_mask=None, radius=5.0, progress_bar=False
         )
 
         assert extracted.shape == (n_obs, n_subjects, n_voxels)
@@ -1352,7 +1350,7 @@ class TestBrainCollectionISC:
         bc = BrainCollection(bds, mask=sample_mask)
 
         # Extract
-        _, info = bc._extract_for_isc(roi_mask=None, radius=None, show_progress=False)
+        _, info = bc._extract_for_isc(roi_mask=None, radius=None, progress_bar=False)
 
         # Project random values
         values = np.random.randn(n_voxels)
@@ -1393,7 +1391,7 @@ class TestBrainCollectionISC:
         roi_mask = nib.Nifti1Image(label_data, sample_mask.affine)
 
         # Run ISC with ROI mask
-        result = bc.isc(roi_mask=roi_mask, radius=None, show_progress=False)
+        result = bc.isc(roi_mask=roi_mask, radius=None, progress_bar=False)
 
         # Should return ISC per ROI
         assert "isc" in result
@@ -1415,7 +1413,7 @@ class TestBrainCollectionISC:
 
         bc = BrainCollection(bds, mask=sample_mask)
 
-        result = bc.isc(method="loo", radius=None, show_progress=False)
+        result = bc.isc(method="loo", radius=None, progress_bar=False)
 
         assert "isc" in result
         assert isinstance(result["isc"], BrainData)
@@ -1438,7 +1436,7 @@ class TestBrainCollectionISC:
 
         bc = BrainCollection(bds, mask=sample_mask)
 
-        result = bc.isc(method="pairwise", radius=None, show_progress=False)
+        result = bc.isc(method="pairwise", radius=None, progress_bar=False)
 
         assert result["method"] == "pairwise"
         assert isinstance(result["isc"], BrainData)
@@ -1461,7 +1459,7 @@ class TestBrainCollectionISC:
 
         bc = BrainCollection(bds, mask=sample_mask)
 
-        result = bc.isc(method="loo", radius=None, show_progress=False)
+        result = bc.isc(method="loo", radius=None, progress_bar=False)
 
         # ISC should be high (>0.8) for correlated subjects
         assert result["isc"].data.mean() > 0.8
@@ -1481,7 +1479,7 @@ class TestBrainCollectionISC:
 
         bc = BrainCollection(bds, mask=sample_mask)
 
-        result = bc.isc(method="loo", radius=None, show_progress=False)
+        result = bc.isc(method="loo", radius=None, progress_bar=False)
 
         # ISC should be near zero for uncorrelated subjects
         assert np.abs(result["isc"].data.mean()) < 0.3
@@ -1499,7 +1497,7 @@ class TestBrainCollectionISC:
         bc = BrainCollection(bds, mask=sample_mask)
 
         with pytest.raises(ValueError, match="uniform observation counts"):
-            bc.isc(radius=None, show_progress=False)
+            bc.isc(radius=None, progress_bar=False)
 
     def test_isc_mean_metric(self, sample_mask):
         """Test ISC with mean (Fisher z) metric."""
@@ -1516,8 +1514,8 @@ class TestBrainCollectionISC:
 
         bc = BrainCollection(bds, mask=sample_mask)
 
-        result_median = bc.isc(metric="median", radius=None, show_progress=False)
-        result_mean = bc.isc(metric="mean", radius=None, show_progress=False)
+        result_median = bc.isc(metric="median", radius=None, progress_bar=False)
+        result_mean = bc.isc(metric="mean", radius=None, progress_bar=False)
 
         # Both should give high ISC for correlated data
         assert result_median["isc"].data.mean() > 0.7
@@ -1541,7 +1539,7 @@ class TestBrainCollectionISC:
         result = bc.isc_test(
             radius=None,
             n_permute=10,
-            show_progress=False,
+            progress_bar=False,
             random_state=42,
         )
 
@@ -1568,7 +1566,7 @@ class TestBrainCollectionISC:
         bc = BrainCollection(bds, mask=sample_mask)
 
         result = bc.isc_test(
-            radius=None, n_permute=100, show_progress=False, random_state=42
+            radius=None, n_permute=100, progress_bar=False, random_state=42
         )
 
         # Check all expected keys
@@ -1607,7 +1605,7 @@ class TestBrainCollectionISC:
         bc = BrainCollection(bds, mask=sample_mask)
 
         result = bc.isc_test(
-            radius=None, n_permute=500, show_progress=False, random_state=42
+            radius=None, n_permute=500, progress_bar=False, random_state=42
         )
 
         # Most p-values should be significant for highly correlated data
@@ -1631,7 +1629,7 @@ class TestBrainCollectionISC:
         bc = BrainCollection(bds, mask=sample_mask)
 
         result = bc.isc_test(
-            radius=None, n_permute=500, show_progress=False, random_state=42
+            radius=None, n_permute=500, progress_bar=False, random_state=42
         )
 
         # Very few p-values should be significant for uncorrelated data
@@ -1660,7 +1658,7 @@ class TestBrainCollectionISC:
                 radius=None,
                 n_permute=50,
                 permutation_method=method,
-                show_progress=False,
+                progress_bar=False,
                 random_state=42,
             )
             assert result["permutation_method"] == method
@@ -1685,7 +1683,7 @@ class TestBrainCollectionISC:
             radius=None,
             n_permute=100,
             return_null=True,
-            show_progress=False,
+            progress_bar=False,
             random_state=42,
         )
 
@@ -1711,7 +1709,7 @@ class TestBrainCollectionISC:
             method="pairwise",
             radius=None,
             n_permute=100,
-            show_progress=False,
+            progress_bar=False,
             random_state=42,
         )
 
@@ -1955,7 +1953,7 @@ class TestBrainCollectionFitGLM:
         betas = small_collection.fit_glm(
             events=simple_events,
             t_r=2.0,
-            show_progress=False,
+            progress_bar=False,
         )
 
         # Should return BrainCollection
@@ -1970,7 +1968,7 @@ class TestBrainCollectionFitGLM:
         betas = small_collection.fit_from_events(
             events=simple_events,
             t_r=2.0,
-            show_progress=False,
+            progress_bar=False,
         )
 
         # Should return BrainCollection
@@ -1986,7 +1984,7 @@ class TestBrainCollectionFitGLM:
             events=simple_events,
             t_r=2.0,
             scale=False,
-            show_progress=False,
+            progress_bar=False,
         )
 
         assert isinstance(betas, BrainCollection)
@@ -1998,7 +1996,7 @@ class TestBrainCollectionFitGLM:
             events=simple_events,
             t_r=2.0,
             return_stats=["t", "r2"],
-            show_progress=False,
+            progress_bar=False,
         )
 
         # Should return dict
@@ -2023,7 +2021,7 @@ class TestBrainCollectionFitGLM:
             events=simple_events,
             t_r=2.0,
             return_residuals=True,
-            show_progress=False,
+            progress_bar=False,
         )
 
         assert isinstance(result, dict)
@@ -2043,7 +2041,7 @@ class TestBrainCollectionFitGLM:
             events=simple_events,
             t_r=2.0,
             confounds=confounds_list,
-            show_progress=False,
+            progress_bar=False,
         )
 
         assert isinstance(betas, BrainCollection)
@@ -2085,7 +2083,7 @@ class TestBrainCollectionFitGLM:
             events=simple_events,
             t_r=2.0,
             confounds="confound_file",
-            show_progress=False,
+            progress_bar=False,
         )
 
         assert isinstance(betas, BrainCollection)
@@ -2099,7 +2097,7 @@ class TestBrainCollectionFitGLM:
             events=simple_events,
             t_r=2.0,
             save={"betas": save_path},
-            show_progress=False,
+            progress_bar=False,
         )
 
         # Check result and files were created
@@ -2112,7 +2110,7 @@ class TestBrainCollectionFitGLM:
         betas = small_collection.fit_glm(
             events=simple_events,
             t_r=2.0,
-            show_progress=False,
+            progress_bar=False,
         )
 
         # Collection should have _design_columns
@@ -2130,7 +2128,7 @@ class TestBrainCollectionFitGLM:
                 events=simple_events,
                 t_r=2.0,
                 return_stats=["invalid_stat"],
-                show_progress=False,
+                progress_bar=False,
             )
 
     def test_resolve_confounds_missing_column(self, small_collection):
@@ -2160,7 +2158,7 @@ class TestBrainCollectionFitGLM:
             t_r=2.0,
             by_run=True,
             run_lengths=10,  # 10 TRs per run
-            show_progress=False,
+            progress_bar=False,
         )
 
         # Should return BrainCollection
@@ -2186,7 +2184,7 @@ class TestBrainCollectionFitGLM:
             t_r=2.0,
             by_run=True,
             run_lengths=10,
-            show_progress=False,
+            progress_bar=False,
         )
 
         # Should have _condition_labels and _run_labels
@@ -2208,7 +2206,7 @@ class TestBrainCollectionFitGLM:
                 events=simple_events,
                 t_r=2.0,
                 by_run=True,
-                show_progress=False,
+                progress_bar=False,
             )
 
     def test_fit_glm_by_run_return_stats_not_supported(self, small_collection):
@@ -2229,7 +2227,7 @@ class TestBrainCollectionFitGLM:
                 by_run=True,
                 run_lengths=10,
                 return_stats=["t"],
-                show_progress=False,
+                progress_bar=False,
             )
 
 
@@ -2271,7 +2269,7 @@ class TestBrainCollectionFit:
     def test_fit_glm_dispatches_correctly(self, small_collection, shared_design_matrix):
         """Test fit(model='glm') dispatches to _fit_glm."""
         result = small_collection.fit(
-            model="glm", X=shared_design_matrix, show_progress=False
+            model="glm", X=shared_design_matrix, progress_bar=False
         )
 
         assert isinstance(result, FittedBrainCollection)
@@ -2287,7 +2285,7 @@ class TestBrainCollectionFit:
             alpha=1.0,
             cv=3,
             output="scores",
-            show_progress=False,
+            progress_bar=False,
         )
 
         assert isinstance(result, FittedBrainCollection)
@@ -2300,7 +2298,7 @@ class TestBrainCollectionFit:
         """Test fit() raises for unknown model."""
         with pytest.raises(ValueError, match="Unknown model"):
             small_collection.fit(
-                model="unknown", X=shared_design_matrix, show_progress=False
+                model="unknown", X=shared_design_matrix, progress_bar=False
             )
 
     def test_fit_glm_with_return_stats(self, small_collection, shared_design_matrix):
@@ -2309,7 +2307,7 @@ class TestBrainCollectionFit:
             model="glm",
             X=shared_design_matrix,
             return_stats=["t", "p"],
-            show_progress=False,
+            progress_bar=False,
         )
 
         assert isinstance(result, FittedBrainCollection)
@@ -2322,7 +2320,7 @@ class TestBrainCollectionFit:
         """Test fit(model='glm') with numpy array input."""
         X = np.random.randn(20, 4)
 
-        result = small_collection.fit(model="glm", X=X, show_progress=False)
+        result = small_collection.fit(model="glm", X=X, progress_bar=False)
 
         assert isinstance(result, FittedBrainCollection)
         assert isinstance(result.results, BrainCollection)
@@ -2337,7 +2335,7 @@ class TestBrainCollectionFit:
             alpha=1.0,
             output="weights",
             cv=None,
-            show_progress=False,
+            progress_bar=False,
         )
 
         assert isinstance(result, FittedBrainCollection)
@@ -2354,7 +2352,7 @@ class TestBrainCollectionFit:
             alpha=1.0,
             output="both",
             cv=3,
-            show_progress=False,
+            progress_bar=False,
         )
 
         assert isinstance(result, FittedBrainCollection)
@@ -2368,7 +2366,7 @@ class TestBrainCollectionFit:
         """Test fit() scale parameter is passed through."""
         # Just verify it doesn't error - scale=False
         result = small_collection.fit(
-            model="glm", X=shared_design_matrix, scale=False, show_progress=False
+            model="glm", X=shared_design_matrix, scale=False, progress_bar=False
         )
         assert isinstance(result, FittedBrainCollection)
 
@@ -2378,7 +2376,7 @@ class TestBrainCollectionFit:
             X=shared_design_matrix,
             scale=True,
             scale_value=1000.0,
-            show_progress=False,
+            progress_bar=False,
         )
         assert isinstance(result2, FittedBrainCollection)
 
@@ -2406,7 +2404,7 @@ class TestBrainCollectionInternalFitGlm:
         """Test _fit_glm with numpy array input (auto-converted to DataFrame)."""
         X = np.random.randn(20, 3)
 
-        result = small_collection._fit_glm(X=X, show_progress=False)
+        result = small_collection._fit_glm(X=X, progress_bar=False)
 
         assert isinstance(result, BrainCollection)
         assert len(result) == 3
@@ -2428,7 +2426,7 @@ class TestBrainCollectionInternalFitGlm:
     def test_internal_fit_glm_shared_dm(self, small_collection, shared_design_matrix):
         """Test _fit_glm with shared design matrix."""
         result = small_collection._fit_glm(
-            X=shared_design_matrix, scale=True, show_progress=False
+            X=shared_design_matrix, scale=True, progress_bar=False
         )
 
         assert isinstance(result, BrainCollection)
@@ -2448,7 +2446,7 @@ class TestBrainCollectionInternalFitGlm:
             for _ in range(3)
         ]
 
-        result = small_collection._fit_glm(X=dm_list, scale=True, show_progress=False)
+        result = small_collection._fit_glm(X=dm_list, scale=True, progress_bar=False)
 
         assert isinstance(result, BrainCollection)
         assert len(result) == 3
@@ -2457,7 +2455,7 @@ class TestBrainCollectionInternalFitGlm:
     def test_internal_fit_glm_no_scale(self, small_collection, shared_design_matrix):
         """Test _fit_glm with scale=False runs without error."""
         result = small_collection._fit_glm(
-            X=shared_design_matrix, scale=False, show_progress=False
+            X=shared_design_matrix, scale=False, progress_bar=False
         )
 
         assert isinstance(result, BrainCollection)
@@ -2470,7 +2468,7 @@ class TestBrainCollectionInternalFitGlm:
         result = small_collection._fit_glm(
             X=shared_design_matrix,
             return_stats=["t", "p"],
-            show_progress=False,
+            progress_bar=False,
         )
 
         assert isinstance(result, dict)
@@ -2485,7 +2483,7 @@ class TestBrainCollectionInternalFitGlm:
         self, small_collection, shared_design_matrix
     ):
         """Test that design columns are stored on result."""
-        result = small_collection._fit_glm(X=shared_design_matrix, show_progress=False)
+        result = small_collection._fit_glm(X=shared_design_matrix, progress_bar=False)
 
         assert hasattr(result, "_design_columns")
         assert result._design_columns == ["face", "house", "constant"]
@@ -2500,7 +2498,7 @@ class TestBrainCollectionInternalFitGlm:
         )
 
         with pytest.raises(ValueError, match="samples"):
-            small_collection._fit_glm(X=wrong_dm, show_progress=False)
+            small_collection._fit_glm(X=wrong_dm, progress_bar=False)
 
 
 class TestBrainCollectionFitRidge:
@@ -2532,7 +2530,7 @@ class TestBrainCollectionFitRidge:
         scores = small_collection.fit_ridge(
             X=shared_features,
             alpha=1.0,
-            show_progress=False,
+            progress_bar=False,
         )
 
         # Should return BrainCollection of scores
@@ -2549,7 +2547,7 @@ class TestBrainCollectionFitRidge:
             alpha=1.0,
             output="weights",
             cv=None,  # CV not required for weights-only
-            show_progress=False,
+            progress_bar=False,
         )
 
         # Should return BrainCollection
@@ -2565,7 +2563,7 @@ class TestBrainCollectionFitRidge:
             X=shared_features,
             alpha=1.0,
             scale=False,
-            show_progress=False,
+            progress_bar=False,
         )
 
         assert isinstance(scores, BrainCollection)
@@ -2577,7 +2575,7 @@ class TestBrainCollectionFitRidge:
             X=shared_features,
             alpha=1.0,
             output="both",
-            show_progress=False,
+            progress_bar=False,
         )
 
         # Should return dict
@@ -2600,7 +2598,7 @@ class TestBrainCollectionFitRidge:
             X=shared_features,
             alpha=1.0,
             cv=3,
-            show_progress=False,
+            progress_bar=False,
         )
 
         assert isinstance(scores, BrainCollection)
@@ -2619,7 +2617,7 @@ class TestBrainCollectionFitRidge:
         scores = small_collection.fit_ridge(
             X=features_list,
             alpha=1.0,
-            show_progress=False,
+            progress_bar=False,
         )
 
         assert isinstance(scores, BrainCollection)
@@ -2659,7 +2657,7 @@ class TestBrainCollectionFitRidge:
         scores = bc.fit_ridge(
             X="features_file",
             alpha=1.0,
-            show_progress=False,
+            progress_bar=False,
         )
 
         assert isinstance(scores, BrainCollection)
@@ -2675,7 +2673,7 @@ class TestBrainCollectionFitRidge:
             alpha=1.0,
             output="both",
             save={"weights": weights_path, "scores": scores_path},
-            show_progress=False,
+            progress_bar=False,
         )
 
         # Check result and files were created
@@ -2692,7 +2690,7 @@ class TestBrainCollectionFitRidge:
                 X=shared_features,
                 alpha=1.0,
                 output="invalid_output",
-                show_progress=False,
+                progress_bar=False,
             )
 
     def test_fit_ridge_scores_require_cv(self, small_collection, shared_features):
@@ -2703,7 +2701,7 @@ class TestBrainCollectionFitRidge:
                 alpha=1.0,
                 output="scores",
                 cv=None,
-                show_progress=False,
+                progress_bar=False,
             )
 
     def test_resolve_X_missing_column(self, small_collection):
@@ -2778,7 +2776,7 @@ class TestBrainCollectionPredict:
             y=y,
             method="whole_brain",
             cv=2,
-            show_progress=False,
+            progress_bar=False,
         )
 
         # Should return BrainCollection
@@ -2794,7 +2792,7 @@ class TestBrainCollectionPredict:
             y=None,
             method="whole_brain",
             cv=2,
-            show_progress=False,
+            progress_bar=False,
         )
 
         assert isinstance(accuracy, BrainCollection)
@@ -2807,7 +2805,7 @@ class TestBrainCollectionPredict:
             y=None,  # Uses _condition_labels
             method="whole_brain",
             cv=2,
-            show_progress=False,
+            progress_bar=False,
         )
 
         assert isinstance(accuracy, BrainCollection)
@@ -2819,7 +2817,7 @@ class TestBrainCollectionPredict:
         y = np.array([0, 1, 0, 1])
 
         with pytest.raises(ValueError, match="Cannot specify both X and y"):
-            mvpa_collection.predict(X=X, y=y, show_progress=False)
+            mvpa_collection.predict(X=X, y=y, progress_bar=False)
 
     def test_predict_requires_x_or_y(self, sample_brain_data, sample_mask):
         """Test error when neither X nor y provided and no _condition_labels."""
@@ -2837,7 +2835,7 @@ class TestBrainCollectionPredict:
         )
 
         with pytest.raises(ValueError, match="Must provide X for timeseries"):
-            bc.predict(show_progress=False)
+            bc.predict(progress_bar=False)
 
 
 class TestBrainCollectionComputeContrasts:

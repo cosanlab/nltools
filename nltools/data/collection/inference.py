@@ -473,7 +473,7 @@ def isc(
     metric: str = "median",
     device: str = "cpu",
     n_jobs: int = -1,
-    show_progress: bool = True,
+    progress_bar: bool = False,
 ) -> dict:
     """
     Compute intersubject correlation (ISC) across the collection.
@@ -496,7 +496,7 @@ def isc(
             - 'mean': Fisher z-transformed mean
         device: Compute device: 'cpu' (default) or 'gpu' (via PyTorch).
         n_jobs: Number of CPU jobs (-1 = all cores, 1 = single-threaded).
-        show_progress: Show progress bar during extraction.
+        progress_bar: Show progress bar during extraction.
 
     Returns:
         Dictionary with:
@@ -531,7 +531,7 @@ def isc(
         bc,
         roi_mask=roi_mask,
         radius=radius,
-        show_progress=show_progress,
+        progress_bar=progress_bar,
     )
 
     # Data is (n_obs, n_subjects, n_features)
@@ -594,7 +594,7 @@ def isc_test(
     return_null: bool = False,
     n_jobs: int = -1,
     random_state: int | None = None,
-    show_progress: bool = True,
+    progress_bar: bool = False,
 ) -> dict:
     """
     Compute ISC with permutation testing for statistical inference.
@@ -631,7 +631,7 @@ def isc_test(
         n_jobs: Number of CPU jobs (-1 = all cores, 1 = single-threaded).
         random_state: Random seed for reproducibility.
         return_null: If True, include null distribution in results.
-        show_progress: Show progress bar during extraction and permutation.
+        progress_bar: Show progress bar during extraction and permutation.
 
     Returns:
         Dictionary with:
@@ -689,7 +689,7 @@ def isc_test(
         bc,
         roi_mask=roi_mask,
         radius=radius,
-        show_progress=show_progress,
+        progress_bar=progress_bar,
     )
 
     # Run permutation test
@@ -702,7 +702,7 @@ def isc_test(
         ci_percentile=ci_percentile,
         tail=tail,
         return_null=return_null,
-        progress_bar=show_progress,
+        progress_bar=progress_bar,
         parallel=parallel,
         n_jobs=n_jobs,
         random_state=random_state,
@@ -735,7 +735,7 @@ def extract_for_isc(
     bc: "BrainCollection",
     roi_mask: "nib.Nifti1Image | Path | str | None" = None,
     radius: float | None = 6.0,
-    show_progress: bool = True,
+    progress_bar: bool = False,
 ) -> tuple[np.ndarray, dict]:
     """
     Extract data for ISC computation.
@@ -750,7 +750,7 @@ def extract_for_isc(
             - Path to parcellation file
         radius: Searchlight radius in mm. If None, use voxelwise mode.
             Ignored if roi_mask is provided.
-        show_progress: Show progress bar during extraction.
+        progress_bar: Show progress bar during extraction.
 
     Returns:
         Tuple of:
@@ -770,17 +770,17 @@ def extract_for_isc(
 
     # Determine extraction mode
     if roi_mask is not None:
-        return extract_roi(bc, roi_mask, show_progress)
+        return extract_roi(bc, roi_mask, progress_bar)
     elif radius is not None:
-        return extract_searchlight(bc, radius, show_progress)
+        return extract_searchlight(bc, radius, progress_bar)
     else:
-        return extract_voxelwise(bc, show_progress)
+        return extract_voxelwise(bc, progress_bar)
 
 
 def extract_roi(
     bc: "BrainCollection",
     roi_mask: "nib.Nifti1Image | Path | str",
-    show_progress: bool = True,
+    progress_bar: bool = False,
 ) -> tuple[np.ndarray, dict]:
     """Extract mean signal per ROI."""
     import nibabel as nib
@@ -814,7 +814,7 @@ def extract_roi(
 
     # Extract remaining subjects
     iterator = range(1, n_subjects)
-    if show_progress and tqdm is not None:
+    if progress_bar and tqdm is not None:
         iterator = tqdm.tqdm(iterator, desc="Extracting ROIs", unit="subjects")
 
     for i in iterator:
@@ -835,7 +835,7 @@ def extract_roi(
 def extract_searchlight(
     bc: "BrainCollection",
     radius: float,
-    show_progress: bool = True,
+    progress_bar: bool = False,
 ) -> tuple[np.ndarray, dict]:
     """Extract mean signal per searchlight sphere."""
     from nltools.data.braindata.neighborhoods import compute_searchlight_neighborhoods
@@ -857,7 +857,7 @@ def extract_searchlight(
 
     # Extract each subject
     iterator = range(n_subjects)
-    if show_progress and tqdm is not None:
+    if progress_bar and tqdm is not None:
         iterator = tqdm.tqdm(iterator, desc="Extracting searchlight", unit="subjects")
 
     for subj_idx in iterator:
@@ -880,7 +880,7 @@ def extract_searchlight(
 
 def extract_voxelwise(
     bc: "BrainCollection",
-    show_progress: bool = True,
+    progress_bar: bool = False,
 ) -> tuple[np.ndarray, dict]:
     """Extract raw voxel data."""
     from nltools.utils import attempt_to_import
@@ -896,7 +896,7 @@ def extract_voxelwise(
 
     # Extract each subject
     iterator = range(n_subjects)
-    if show_progress and tqdm is not None:
+    if progress_bar and tqdm is not None:
         iterator = tqdm.tqdm(iterator, desc="Extracting voxels", unit="subjects")
 
     for subj_idx in iterator:

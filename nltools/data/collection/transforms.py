@@ -21,7 +21,7 @@ def map_collection(
     fn: Callable,
     axis: int | str = 0,
     n_jobs: int = 1,
-    show_progress: bool = True,
+    progress_bar: bool = False,
 ) -> "BrainCollection":
     """
     Apply function across specified axis.
@@ -40,7 +40,7 @@ def map_collection(
             - 1 or 'time': Apply fn to each timepoint across images
             - 2 or 'voxels': Apply fn to each voxel timeseries per image
         n_jobs: Number of parallel jobs. -1 for all cores. Default 1.
-        show_progress: Show tqdm progress bar. Default True.
+        progress_bar: Show tqdm progress bar. Default True.
 
     Returns:
         BrainCollection with transformed data.
@@ -59,11 +59,11 @@ def map_collection(
     axis = bc._normalize_axis(axis)
 
     if axis == 0:
-        return map_axis0(bc, fn, n_jobs, show_progress)
+        return map_axis0(bc, fn, n_jobs, progress_bar)
     elif axis == 1:
-        return map_axis1(bc, fn, n_jobs, show_progress)
+        return map_axis1(bc, fn, n_jobs, progress_bar)
     elif axis == 2:
-        return map_axis2(bc, fn, n_jobs, show_progress)
+        return map_axis2(bc, fn, n_jobs, progress_bar)
     else:
         raise ValueError(f"Invalid axis: {axis}. Must be 0, 1, or 2.")
 
@@ -72,7 +72,7 @@ def map_axis0(
     bc: "BrainCollection",
     fn: Callable,
     n_jobs: int,
-    show_progress: bool,
+    progress_bar: bool,
 ) -> "BrainCollection":
     """Map function over images (axis=0)."""
     from joblib import Parallel, delayed
@@ -85,7 +85,7 @@ def map_axis0(
 
     if n_jobs == 1:
         # Sequential processing
-        if show_progress and tqdm is not None:
+        if progress_bar and tqdm is not None:
             indices = tqdm.tqdm(indices, desc="Mapping over images")
 
         results = []
@@ -98,7 +98,7 @@ def map_axis0(
             bd = bc._load_item(i)
             return fn(bd)
 
-        if show_progress and tqdm is not None:
+        if progress_bar and tqdm is not None:
             indices = tqdm.tqdm(indices, desc="Mapping over images")
 
         results = Parallel(n_jobs=n_jobs)(delayed(_process)(i) for i in indices)
@@ -110,7 +110,7 @@ def map_axis1(
     bc: "BrainCollection",
     fn: Callable,
     n_jobs: int,
-    show_progress: bool,
+    progress_bar: bool,
 ) -> "BrainCollection":
     """Map function over timepoints (axis=1)."""
     from ..braindata import BrainData
@@ -134,7 +134,7 @@ def map_axis1(
     n_obs = bc._sample_counts[0]
     indices = range(n_obs)
 
-    if show_progress and tqdm is not None:
+    if progress_bar and tqdm is not None:
         indices = tqdm.tqdm(indices, desc="Mapping over timepoints")
 
     # For each timepoint, create a BrainCollection slice and apply fn
@@ -176,7 +176,7 @@ def map_axis2(
     bc: "BrainCollection",
     fn: Callable,
     n_jobs: int,
-    show_progress: bool,
+    progress_bar: bool,
 ) -> "BrainCollection":
     """Map function over voxels (axis=2) per image."""
     from ..braindata import BrainData
@@ -186,7 +186,7 @@ def map_axis2(
     tqdm = attempt_to_import("tqdm", "tqdm")
 
     indices = range(bc.n_images)
-    if show_progress and tqdm is not None:
+    if progress_bar and tqdm is not None:
         indices = tqdm.tqdm(indices, desc="Mapping over voxels")
 
     results = []
@@ -283,7 +283,7 @@ def align(
     device: str = "cpu",
     return_model: bool = False,
     n_jobs: int = -1,
-    show_progress: bool = True,
+    progress_bar: bool = False,
 ) -> "BrainCollection | tuple[BrainCollection, object]":
     """
     Align subjects using local functional alignment.
@@ -310,7 +310,7 @@ def align(
         return_model: If True, return (aligned_collection, model) tuple for
             fit/transform workflow with new data.
         n_jobs: Number of CPU jobs (-1 = all cores, 1 = single-threaded).
-        show_progress: Show progress bar during fitting.
+        progress_bar: Show progress bar during fitting.
 
     Returns:
         BrainCollection with aligned data. If return_model=True, returns
@@ -408,7 +408,7 @@ def standardize(
     axis: int = 0,
     method: str = "center",
     n_jobs: int = 1,
-    show_progress: bool = True,
+    progress_bar: bool = False,
     verbose: bool = True,
 ) -> "BrainCollection":
     """
@@ -423,7 +423,7 @@ def standardize(
             - 1: Standardize across voxels per observation
         method: 'center' (subtract mean) or 'zscore' (subtract mean, divide std)
         n_jobs: Number of parallel jobs.
-        show_progress: Show progress bar.
+        progress_bar: Show progress bar.
         verbose: If False, suppress sklearn numerical warnings. Default: True.
 
     Returns:
@@ -438,7 +438,7 @@ def standardize(
         lambda bd: bd.standardize(axis=axis, method=method, verbose=verbose),
         axis=0,
         n_jobs=n_jobs,
-        show_progress=show_progress,
+        progress_bar=progress_bar,
     )
 
 
@@ -446,7 +446,7 @@ def smooth(
     bc: "BrainCollection",
     fwhm: float,
     n_jobs: int = 1,
-    show_progress: bool = True,
+    progress_bar: bool = False,
 ) -> "BrainCollection":
     """
     Spatially smooth each image.
@@ -457,7 +457,7 @@ def smooth(
         bc: BrainCollection to smooth.
         fwhm: Full width at half maximum of Gaussian kernel in mm.
         n_jobs: Number of parallel jobs.
-        show_progress: Show progress bar.
+        progress_bar: Show progress bar.
 
     Returns:
         BrainCollection with smoothed images.
@@ -469,7 +469,7 @@ def smooth(
         lambda bd: bd.smooth(fwhm),
         axis=0,
         n_jobs=n_jobs,
-        show_progress=show_progress,
+        progress_bar=progress_bar,
     )
 
 
@@ -480,7 +480,7 @@ def threshold(
     binarize: bool = False,
     coerce_nan: bool = True,
     n_jobs: int = 1,
-    show_progress: bool = True,
+    progress_bar: bool = False,
 ) -> "BrainCollection":
     """
     Threshold each image.
@@ -494,7 +494,7 @@ def threshold(
         binarize: Return binary mask.
         coerce_nan: Replace NaN with 0.
         n_jobs: Number of parallel jobs.
-        show_progress: Show progress bar.
+        progress_bar: Show progress bar.
 
     Returns:
         BrainCollection with thresholded images.
@@ -510,7 +510,7 @@ def threshold(
         ),
         axis=0,
         n_jobs=n_jobs,
-        show_progress=show_progress,
+        progress_bar=progress_bar,
     )
 
 
@@ -518,7 +518,7 @@ def detrend(
     bc: "BrainCollection",
     method: str = "linear",
     n_jobs: int = 1,
-    show_progress: bool = True,
+    progress_bar: bool = False,
 ) -> "BrainCollection":
     """
     Remove trend from each image.
@@ -529,7 +529,7 @@ def detrend(
         bc: BrainCollection to detrend.
         method: 'linear' or 'constant'.
         n_jobs: Number of parallel jobs.
-        show_progress: Show progress bar.
+        progress_bar: Show progress bar.
 
     Returns:
         BrainCollection with detrended images.
@@ -542,5 +542,5 @@ def detrend(
         lambda bd: bd.detrend(method=method),
         axis=0,
         n_jobs=n_jobs,
-        show_progress=show_progress,
+        progress_bar=progress_bar,
     )

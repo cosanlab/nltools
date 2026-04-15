@@ -15,7 +15,7 @@ class TestBrainDataPrediction:
 
         # Run whole-brain MVPA
         accuracy = sim_brain_data.predict(
-            y=y, method="whole_brain", cv=3, show_progress=False
+            y=y, method="whole_brain", cv=3, progress_bar=False
         )
 
         # Should return BrainData with single accuracy value
@@ -51,7 +51,7 @@ class TestBrainDataPrediction:
             method="whole_brain",
             estimator=LogisticRegression(max_iter=1000),
             cv=3,
-            show_progress=False,
+            progress_bar=False,
         )
 
         assert isinstance(accuracy, BrainData)

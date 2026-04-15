@@ -29,7 +29,7 @@ def predict(
     scoring: str = "accuracy",
     standardize: bool = True,
     n_jobs: int = -1,
-    show_progress: bool = True,
+    progress_bar: bool = False,
 ) -> "BrainCollection":
     """
     Generate predictions for each subject in collection.
@@ -67,7 +67,7 @@ def predict(
         scoring: Scoring metric (default 'accuracy').
         standardize: If True, standardize features before classification.
         n_jobs: Parallel jobs for searchlight (-1 = all cores).
-        show_progress: Show progress bar during fitting.
+        progress_bar: Show progress bar during fitting.
 
     Returns:
         BrainCollection with prediction results:
@@ -119,7 +119,7 @@ def predict(
 
     # Progress bar setup
     iterator = range(len(bc))
-    if show_progress and tqdm is not None:
+    if progress_bar and tqdm is not None:
         desc = "Predicting (MVPA)" if y is not None else "Predicting (timeseries)"
         iterator = tqdm.tqdm(iterator, desc=desc, unit="subject")
 
@@ -168,7 +168,7 @@ def predict(
                 scoring=scoring,
                 standardize=standardize,
                 n_jobs=n_jobs,
-                show_progress=False,  # Disable per-subject progress
+                progress_bar=False,  # Disable per-subject progress
             )
 
         result_data_list.append(result)

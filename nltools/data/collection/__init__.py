@@ -1151,7 +1151,7 @@ class BrainCollection:
         self,
         batch_size: int,
         axis: int = 0,
-        show_progress: bool = True,
+        progress_bar: bool = False,
     ) -> Generator["BrainCollection", None, None]:
         """
         Iterate in batches along axis.
@@ -1161,7 +1161,7 @@ class BrainCollection:
             axis: Axis to batch along:
                 - 0: Batches of images (default)
                 - 1: Batches of timepoints (within each image)
-            show_progress: Show tqdm progress bar.
+            progress_bar: Show tqdm progress bar.
 
         Yields:
             BrainCollection for each batch.
@@ -1182,7 +1182,7 @@ class BrainCollection:
             n_batches = int(np.ceil(self.n_images / batch_size))
             iterator = range(n_batches)
 
-            if show_progress and tqdm is not None:
+            if progress_bar and tqdm is not None:
                 iterator = tqdm.tqdm(iterator, desc="Batching images", total=n_batches)
 
             for batch_idx in iterator:
@@ -1207,7 +1207,7 @@ class BrainCollection:
             n_batches = int(np.ceil(n_obs / batch_size))
             iterator = range(n_batches)
 
-            if show_progress and tqdm is not None:
+            if progress_bar and tqdm is not None:
                 iterator = tqdm.tqdm(
                     iterator, desc="Batching observations", total=n_batches
                 )
@@ -1445,7 +1445,7 @@ class BrainCollection:
         fn: Callable,
         axis: int | str = 0,
         n_jobs: int = 1,
-        show_progress: bool = True,
+        progress_bar: bool = False,
     ) -> "BrainCollection":
         """
         Apply function across specified axis.
@@ -1463,7 +1463,7 @@ class BrainCollection:
                 - 1 or 'time': Apply fn to each timepoint across images
                 - 2 or 'voxels': Apply fn to each voxel timeseries per image
             n_jobs: Number of parallel jobs. -1 for all cores. Default 1.
-            show_progress: Show tqdm progress bar. Default True.
+            progress_bar: Show tqdm progress bar. Default True.
 
         Returns:
             BrainCollection with transformed data.
@@ -1481,40 +1481,40 @@ class BrainCollection:
         """
         from .transforms import map_collection
 
-        return map_collection(self, fn, axis, n_jobs, show_progress)
+        return map_collection(self, fn, axis, n_jobs, progress_bar)
 
     def _map_axis0(
         self,
         fn: Callable,
         n_jobs: int,
-        show_progress: bool,
+        progress_bar: bool,
     ) -> "BrainCollection":
         """Map function over images (axis=0)."""
         from .transforms import map_axis0
 
-        return map_axis0(self, fn, n_jobs, show_progress)
+        return map_axis0(self, fn, n_jobs, progress_bar)
 
     def _map_axis1(
         self,
         fn: Callable,
         n_jobs: int,
-        show_progress: bool,
+        progress_bar: bool,
     ) -> "BrainCollection":
         """Map function over timepoints (axis=1)."""
         from .transforms import map_axis1
 
-        return map_axis1(self, fn, n_jobs, show_progress)
+        return map_axis1(self, fn, n_jobs, progress_bar)
 
     def _map_axis2(
         self,
         fn: Callable,
         n_jobs: int,
-        show_progress: bool,
+        progress_bar: bool,
     ) -> "BrainCollection":
         """Map function over voxels (axis=2) per image."""
         from .transforms import map_axis2
 
-        return map_axis2(self, fn, n_jobs, show_progress)
+        return map_axis2(self, fn, n_jobs, progress_bar)
 
     def filter(
         self,
@@ -1558,7 +1558,7 @@ class BrainCollection:
         device: str = "cpu",
         return_model: bool = False,
         n_jobs: int = -1,
-        show_progress: bool = True,
+        progress_bar: bool = False,
     ) -> "BrainCollection | tuple[BrainCollection, object]":
         """
         Align subjects using local functional alignment.
@@ -1584,7 +1584,7 @@ class BrainCollection:
             return_model: If True, return (aligned_collection, model) tuple for
                 fit/transform workflow with new data.
             n_jobs: Number of CPU jobs (-1 = all cores, 1 = single-threaded).
-            show_progress: Show progress bar during fitting.
+            progress_bar: Show progress bar during fitting.
 
         Returns:
             BrainCollection with aligned data. If return_model=True, returns
@@ -1630,7 +1630,7 @@ class BrainCollection:
             device,
             return_model,
             n_jobs,
-            show_progress,
+            progress_bar,
         )
 
     # =========================================================================
@@ -1642,7 +1642,7 @@ class BrainCollection:
         axis: int = 0,
         method: str = "center",
         n_jobs: int = 1,
-        show_progress: bool = True,
+        progress_bar: bool = False,
         verbose: bool = True,
     ) -> "BrainCollection":
         """
@@ -1656,7 +1656,7 @@ class BrainCollection:
                 - 1: Standardize across voxels per observation
             method: 'center' (subtract mean) or 'zscore' (subtract mean, divide std)
             n_jobs: Number of parallel jobs.
-            show_progress: Show progress bar.
+            progress_bar: Show progress bar.
             verbose: If False, suppress sklearn numerical warnings that occur
                 when voxels have near-zero variance. Default: True.
 
@@ -1670,13 +1670,13 @@ class BrainCollection:
         """
         from .transforms import standardize
 
-        return standardize(self, axis, method, n_jobs, show_progress, verbose)
+        return standardize(self, axis, method, n_jobs, progress_bar, verbose)
 
     def smooth(
         self,
         fwhm: float,
         n_jobs: int = 1,
-        show_progress: bool = True,
+        progress_bar: bool = False,
     ) -> "BrainCollection":
         """
         Spatially smooth each image.
@@ -1686,7 +1686,7 @@ class BrainCollection:
         Args:
             fwhm: Full width at half maximum of Gaussian kernel in mm.
             n_jobs: Number of parallel jobs.
-            show_progress: Show progress bar.
+            progress_bar: Show progress bar.
 
         Returns:
             BrainCollection with smoothed images.
@@ -1696,7 +1696,7 @@ class BrainCollection:
         """
         from .transforms import smooth
 
-        return smooth(self, fwhm, n_jobs, show_progress)
+        return smooth(self, fwhm, n_jobs, progress_bar)
 
     def threshold(
         self,
@@ -1705,7 +1705,7 @@ class BrainCollection:
         binarize: bool = False,
         coerce_nan: bool = True,
         n_jobs: int = 1,
-        show_progress: bool = True,
+        progress_bar: bool = False,
     ) -> "BrainCollection":
         """
         Threshold each image.
@@ -1718,7 +1718,7 @@ class BrainCollection:
             binarize: Return binary mask.
             coerce_nan: Replace NaN with 0.
             n_jobs: Number of parallel jobs.
-            show_progress: Show progress bar.
+            progress_bar: Show progress bar.
 
         Returns:
             BrainCollection with thresholded images.
@@ -1730,15 +1730,13 @@ class BrainCollection:
         """
         from .transforms import threshold
 
-        return threshold(
-            self, upper, lower, binarize, coerce_nan, n_jobs, show_progress
-        )
+        return threshold(self, upper, lower, binarize, coerce_nan, n_jobs, progress_bar)
 
     def detrend(
         self,
         method: str = "linear",
         n_jobs: int = 1,
-        show_progress: bool = True,
+        progress_bar: bool = False,
     ) -> "BrainCollection":
         """
         Remove trend from each image.
@@ -1748,7 +1746,7 @@ class BrainCollection:
         Args:
             method: 'linear' or 'constant'.
             n_jobs: Number of parallel jobs.
-            show_progress: Show progress bar.
+            progress_bar: Show progress bar.
 
         Returns:
             BrainCollection with detrended images.
@@ -1759,7 +1757,7 @@ class BrainCollection:
         """
         from .transforms import detrend
 
-        return detrend(self, method, n_jobs, show_progress)
+        return detrend(self, method, n_jobs, progress_bar)
 
     # =========================================================================
     # ISC (Intersubject Correlation) Methods
@@ -1769,7 +1767,7 @@ class BrainCollection:
         self,
         roi_mask: "nib.Nifti1Image | Path | str | None" = None,
         radius: float | None = 6.0,
-        show_progress: bool = True,
+        progress_bar: bool = False,
     ) -> tuple[np.ndarray, dict]:
         """
         Extract data for ISC computation.
@@ -1783,7 +1781,7 @@ class BrainCollection:
                 - Path to parcellation file
             radius: Searchlight radius in mm. If None, use voxelwise mode.
                 Ignored if roi_mask is provided.
-            show_progress: Show progress bar during extraction.
+            progress_bar: Show progress bar during extraction.
 
         Returns:
             Tuple of:
@@ -1796,36 +1794,36 @@ class BrainCollection:
         """
         from .inference import extract_for_isc
 
-        return extract_for_isc(self, roi_mask, radius, show_progress)
+        return extract_for_isc(self, roi_mask, radius, progress_bar)
 
     def _extract_roi(
         self,
         roi_mask: "nib.Nifti1Image | Path | str",
-        show_progress: bool = True,
+        progress_bar: bool = False,
     ) -> tuple[np.ndarray, dict]:
         """Extract mean signal per ROI."""
         from .inference import extract_roi
 
-        return extract_roi(self, roi_mask, show_progress)
+        return extract_roi(self, roi_mask, progress_bar)
 
     def _extract_searchlight(
         self,
         radius: float,
-        show_progress: bool = True,
+        progress_bar: bool = False,
     ) -> tuple[np.ndarray, dict]:
         """Extract mean signal per searchlight sphere."""
         from .inference import extract_searchlight
 
-        return extract_searchlight(self, radius, show_progress)
+        return extract_searchlight(self, radius, progress_bar)
 
     def _extract_voxelwise(
         self,
-        show_progress: bool = True,
+        progress_bar: bool = False,
     ) -> tuple[np.ndarray, dict]:
         """Extract raw voxel data."""
         from .inference import extract_voxelwise
 
-        return extract_voxelwise(self, show_progress)
+        return extract_voxelwise(self, progress_bar)
 
     def _project_to_brain(
         self,
@@ -1856,7 +1854,7 @@ class BrainCollection:
         metric: str = "median",
         device: str = "cpu",
         n_jobs: int = -1,
-        show_progress: bool = True,
+        progress_bar: bool = False,
     ) -> dict:
         """
         Compute intersubject correlation (ISC) across the collection.
@@ -1878,7 +1876,7 @@ class BrainCollection:
                 - 'mean': Fisher z-transformed mean
             device: Compute device: 'cpu' (default) or 'gpu' (via PyTorch).
             n_jobs: Number of CPU jobs (-1 = all cores, 1 = single-threaded).
-            show_progress: Show progress bar during extraction.
+            progress_bar: Show progress bar during extraction.
 
         Returns:
             Dictionary with:
@@ -1905,9 +1903,7 @@ class BrainCollection:
         """
         from .inference import isc
 
-        return isc(
-            self, method, roi_mask, radius, metric, device, n_jobs, show_progress
-        )
+        return isc(self, method, roi_mask, radius, metric, device, n_jobs, progress_bar)
 
     def isc_test(
         self,
@@ -1923,7 +1919,7 @@ class BrainCollection:
         return_null: bool = False,
         n_jobs: int = -1,
         random_state: int | None = None,
-        show_progress: bool = True,
+        progress_bar: bool = False,
     ) -> dict:
         """
         Compute ISC with permutation testing for statistical inference.
@@ -1959,7 +1955,7 @@ class BrainCollection:
             n_jobs: Number of CPU jobs (-1 = all cores, 1 = single-threaded).
             random_state: Random seed for reproducibility.
             return_null: If True, include null distribution in results.
-            show_progress: Show progress bar during extraction and permutation.
+            progress_bar: Show progress bar during extraction and permutation.
 
         Returns:
             Dictionary with:
@@ -2022,7 +2018,7 @@ class BrainCollection:
             return_null,
             n_jobs,
             random_state,
-            show_progress,
+            progress_bar,
         )
 
     def cv(
@@ -2084,7 +2080,7 @@ class BrainCollection:
         cv: int | None = None,
         scale: bool = True,
         scale_value: float = 100.0,
-        show_progress: bool = True,
+        progress_bar: bool = False,
         **kwargs,
     ) -> "FittedBrainCollection":
         """
@@ -2105,7 +2101,7 @@ class BrainCollection:
                 5 for Ridge when output='scores'.
             scale: If True, apply percent signal change scaling before fitting.
             scale_value: Scaling value (default 100.0 for percent signal change).
-            show_progress: Show progress bar during fitting.
+            progress_bar: Show progress bar during fitting.
             **kwargs: Model-specific arguments passed to _fit_glm or _fit_ridge:
                 - GLM: return_stats, save
                 - Ridge: alpha, output, save, backend, random_state
@@ -2147,7 +2143,7 @@ class BrainCollection:
         """
         from .modeling import fit
 
-        return fit(self, model, X, cv, scale, scale_value, show_progress, **kwargs)
+        return fit(self, model, X, cv, scale, scale_value, progress_bar, **kwargs)
 
     def fit_glm(
         self,
@@ -2163,7 +2159,7 @@ class BrainCollection:
         return_stats: list[str] | None = None,
         return_residuals: bool = False,
         save: dict[str, str] | None = None,
-        show_progress: bool = True,
+        progress_bar: bool = False,
         by_run: bool = False,
         run_column: str = "run",
         run_lengths: int | list[int] | None = None,
@@ -2198,7 +2194,7 @@ class BrainCollection:
                 ``{'betas': 'output/{subject}_betas.nii.gz',
                 't': 'output/{subject}_tstat.nii.gz'}``.
                 Supports {subject}, {session}, {idx}, and other metadata columns.
-            show_progress: Show progress bar during fitting.
+            progress_bar: Show progress bar during fitting.
             by_run: If True, fit GLM separately per run and return run-level betas.
                 This enables MVPA decoding with leave-one-run-out CV.
                 Each subject will have (n_runs * n_conditions, n_voxels) betas.
@@ -2255,7 +2251,7 @@ class BrainCollection:
             return_stats,
             return_residuals,
             save,
-            show_progress,
+            progress_bar,
             by_run,
             run_column,
             run_lengths,
@@ -2275,7 +2271,7 @@ class BrainCollection:
         return_stats: list[str] | None = None,
         return_residuals: bool = False,
         save: dict[str, str] | None = None,
-        show_progress: bool = True,
+        progress_bar: bool = False,
         by_run: bool = False,
         run_column: str = "run",
         run_lengths: int | list[int] | None = None,
@@ -2311,7 +2307,7 @@ class BrainCollection:
                 BrainCollections. Options: 't', 'r2', 'p', 'se', 'residual'.
             return_residuals: If True, return residuals (same as return_stats=['residual']).
             save: Dict mapping output type to path template.
-            show_progress: Show progress bar during fitting.
+            progress_bar: Show progress bar during fitting.
             by_run: If True, fit GLM separately per run and return run-level betas.
                 This enables MVPA decoding with leave-one-run-out CV.
             run_column: Column name in events identifying runs (default 'run').
@@ -2357,7 +2353,7 @@ class BrainCollection:
             return_stats,
             return_residuals,
             save,
-            show_progress,
+            progress_bar,
             by_run,
             run_column,
             run_lengths,
@@ -2389,7 +2385,7 @@ class BrainCollection:
         scale_value: float = 100.0,
         return_stats: list[str] | None = None,
         save: dict[str, str] | None = None,
-        show_progress: bool = True,
+        progress_bar: bool = False,
     ) -> "BrainCollection | dict[str, BrainCollection]":
         """Internal GLM fitting with design matrix input.
 
@@ -2407,7 +2403,7 @@ class BrainCollection:
             return_stats: Optional list of statistics to return as separate
                 BrainCollections. Options: 't', 'r2', 'p', 'se', 'residual'.
             save: Dict mapping output type to path template.
-            show_progress: Show progress bar during fitting.
+            progress_bar: Show progress bar during fitting.
 
         Returns:
             BrainCollection of betas, or dict with betas + requested stats.
@@ -2415,7 +2411,7 @@ class BrainCollection:
         from .modeling import fit_glm_internal
 
         return fit_glm_internal(
-            self, X, scale, scale_value, return_stats, save, show_progress
+            self, X, scale, scale_value, return_stats, save, progress_bar
         )
 
     def _load_design_matrix(self, path: str | Path) -> pd.DataFrame:
@@ -2436,7 +2432,7 @@ class BrainCollection:
         scale_value: float = 100.0,
         output: str = "scores",
         save: dict[str, str] | None = None,
-        show_progress: bool = True,
+        progress_bar: bool = False,
         **ridge_kwargs,
     ) -> "BrainCollection | dict[str, BrainCollection]":
         """
@@ -2467,7 +2463,7 @@ class BrainCollection:
                 ``{'weights': 'output/{subject}_weights.nii.gz',
                 'scores': 'output/{subject}_scores.nii.gz'}``.
                 Supports {subject}, {session}, {idx}, and other metadata columns.
-            show_progress: Show progress bar during fitting.
+            progress_bar: Show progress bar during fitting.
             **ridge_kwargs: Additional arguments passed to Ridge model
                 (e.g., backend='torch', random_state=42).
 
@@ -2502,7 +2498,7 @@ class BrainCollection:
             scale_value,
             output,
             save,
-            show_progress,
+            progress_bar,
             **ridge_kwargs,
         )
 
@@ -2556,7 +2552,7 @@ class BrainCollection:
         scoring: str = "accuracy",
         standardize: bool = True,
         n_jobs: int = -1,
-        show_progress: bool = True,
+        progress_bar: bool = False,
     ) -> "BrainCollection":
         """
         Generate predictions for each subject in collection.
@@ -2593,7 +2589,7 @@ class BrainCollection:
             scoring: Scoring metric (default 'accuracy').
             standardize: If True, standardize features before classification.
             n_jobs: Parallel jobs for searchlight (-1 = all cores).
-            show_progress: Show progress bar during fitting.
+            progress_bar: Show progress bar during fitting.
 
         Returns:
             BrainCollection with prediction results:
@@ -2628,7 +2624,7 @@ class BrainCollection:
             scoring,
             standardize,
             n_jobs,
-            show_progress,
+            progress_bar,
         )
 
     def compute_contrasts(

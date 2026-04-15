@@ -92,7 +92,7 @@ class PiecewiseNeighborhoods:
     n_parcels: int
 
     def iter_neighborhoods(
-        self, show_progress: bool = False
+        self, progress_bar: bool = False
     ) -> Iterator[tuple[int, np.ndarray]]:
         """Iterate over all parcels.
 
@@ -101,7 +101,7 @@ class PiecewiseNeighborhoods:
         """
         iterator = self.parcel_to_voxels.items()
 
-        if show_progress:
+        if progress_bar:
             from tqdm import tqdm
 
             iterator = tqdm(list(iterator), desc="Piecewise", unit="parcels")
@@ -483,7 +483,7 @@ class LocalAlignment:
             Lists of (region_id, voxel_indices) tuples, one batch at a time
         """
         # Collect all neighborhoods
-        all_neighborhoods = list(neighborhoods.iter_neighborhoods(show_progress=False))
+        all_neighborhoods = list(neighborhoods.iter_neighborhoods(progress_bar=False))
 
         # Calculate batch size
         if self.n_neighborhoods_batch is not None:
@@ -686,7 +686,7 @@ class LocalAlignment:
                 result = np.zeros((n_voxels, n_samples))
 
                 for region_id, voxel_indices in self.neighborhoods_.iter_neighborhoods(
-                    show_progress=False
+                    progress_bar=False
                 ):
                     transforms = self.transforms_[region_id]
                     local_data = subj_data[voxel_indices, :]
@@ -718,7 +718,7 @@ class LocalAlignment:
             aligned = [np.zeros((n_voxels, n_samples)) for _ in range(n_subjects)]
 
             for region_id, voxel_indices in self.neighborhoods_.iter_neighborhoods(
-                show_progress=True
+                progress_bar=True
             ):
                 transforms = self.transforms_[region_id]
 

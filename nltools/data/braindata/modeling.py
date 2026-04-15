@@ -246,7 +246,7 @@ def fit(
 
     # Create model based on string
     if model == "ridge":
-        # Pass progress_bar to Ridge model
+        # Forward progress_bar to Ridge model's progress_bar kwarg
         ridge_kwargs = kwargs.copy()
         if "progress_bar" not in ridge_kwargs:
             ridge_kwargs["progress_bar"] = progress_bar
@@ -262,7 +262,7 @@ def fit(
         glm_kwargs = kwargs.copy()
         if "mask" not in glm_kwargs:
             glm_kwargs["mask"] = target.mask
-        # Pass progress_bar to GLM (not verbose - we use tqdm progress bar)
+        # Forward progress_bar to GLM's progress_bar kwarg
         if "progress_bar" not in glm_kwargs:
             glm_kwargs["progress_bar"] = progress_bar
         target.model_ = Glm(**glm_kwargs)

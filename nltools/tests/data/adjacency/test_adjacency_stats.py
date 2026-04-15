@@ -23,7 +23,8 @@ class TestAdjacencyStats:
             ) == len(sim_adjacency_multiple)
 
         data2 = sim_adjacency_multiple[0].copy()
-        data2.data = data2.data + np.random.randn(len(data2.data)) * 0.1
+        rng = np.random.default_rng(seed=0)
+        data2.data = data2.data + rng.standard_normal(len(data2.data)) * 0.1
         for perm_type in [None, "1d", "2d"]:
             assert (
                 sim_adjacency_multiple[0].similarity(

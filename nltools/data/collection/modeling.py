@@ -344,7 +344,7 @@ def fit(
     cv: int | None = None,
     scale: bool = True,
     scale_value: float = 100.0,
-    show_progress: bool = True,
+    progress_bar: bool = False,
     **kwargs,
 ) -> "FittedBrainCollection":
     """
@@ -366,7 +366,7 @@ def fit(
             5 for Ridge when output='scores'.
         scale: If True, apply percent signal change scaling before fitting.
         scale_value: Scaling value (default 100.0 for percent signal change).
-        show_progress: Show progress bar during fitting.
+        progress_bar: Show progress bar during fitting.
         **kwargs: Model-specific arguments passed to _fit_glm or _fit_ridge:
             - GLM: return_stats, save
             - Ridge: alpha, output, save, backend, random_state
@@ -414,7 +414,7 @@ def fit(
             X=X,
             scale=scale,
             scale_value=scale_value,
-            show_progress=show_progress,
+            progress_bar=progress_bar,
             **kwargs,
         )
         # Extract condition names from results
@@ -444,7 +444,7 @@ def fit(
             cv=cv,
             scale=scale,
             scale_value=scale_value,
-            show_progress=show_progress,
+            progress_bar=progress_bar,
             **kwargs,
         )
         return FittedBrainCollection(
@@ -471,7 +471,7 @@ def fit_glm(
     return_stats: list[str] | None = None,
     return_residuals: bool = False,
     save: dict[str, str] | None = None,
-    show_progress: bool = True,
+    progress_bar: bool = False,
     by_run: bool = False,
     run_column: str = "run",
     run_lengths: int | list[int] | None = None,
@@ -507,7 +507,7 @@ def fit_glm(
             ``{'betas': 'output/{subject}_betas.nii.gz',
             't': 'output/{subject}_tstat.nii.gz'}``.
             Supports {subject}, {session}, {idx}, and other metadata columns.
-        show_progress: Show progress bar during fitting.
+        progress_bar: Show progress bar during fitting.
         by_run: If True, fit GLM separately per run and return run-level betas.
             This enables MVPA decoding with leave-one-run-out CV.
             Each subject will have (n_runs * n_conditions, n_voxels) betas.
@@ -592,7 +592,7 @@ def fit_glm(
 
     # Progress bar setup
     iterator = range(len(bc))
-    if show_progress and tqdm is not None:
+    if progress_bar and tqdm is not None:
         iterator = tqdm.tqdm(iterator, desc="Fitting GLM", unit="subject")
 
     # Storage for results
@@ -764,7 +764,7 @@ def fit_from_events(
     return_stats: list[str] | None = None,
     return_residuals: bool = False,
     save: dict[str, str] | None = None,
-    show_progress: bool = True,
+    progress_bar: bool = False,
     by_run: bool = False,
     run_column: str = "run",
     run_lengths: int | list[int] | None = None,
@@ -801,7 +801,7 @@ def fit_from_events(
             BrainCollections. Options: 't', 'r2', 'p', 'se', 'residual'.
         return_residuals: If True, return residuals (same as return_stats=['residual']).
         save: Dict mapping output type to path template.
-        show_progress: Show progress bar during fitting.
+        progress_bar: Show progress bar during fitting.
         by_run: If True, fit GLM separately per run and return run-level betas.
             This enables MVPA decoding with leave-one-run-out CV.
         run_column: Column name in events identifying runs (default 'run').
@@ -845,7 +845,7 @@ def fit_from_events(
         return_stats=return_stats,
         return_residuals=return_residuals,
         save=save,
-        show_progress=show_progress,
+        progress_bar=progress_bar,
         by_run=by_run,
         run_column=run_column,
         run_lengths=run_lengths,
@@ -859,7 +859,7 @@ def fit_glm_internal(
     scale_value: float = 100.0,
     return_stats: list[str] | None = None,
     save: dict[str, str] | None = None,
-    show_progress: bool = True,
+    progress_bar: bool = False,
 ) -> "BrainCollection | dict[str, BrainCollection]":
     """Internal GLM fitting with design matrix input.
 
@@ -878,7 +878,7 @@ def fit_glm_internal(
         return_stats: Optional list of statistics to return as separate
             BrainCollections. Options: 't', 'r2', 'p', 'se', 'residual'.
         save: Dict mapping output type to path template.
-        show_progress: Show progress bar during fitting.
+        progress_bar: Show progress bar during fitting.
 
     Returns:
         BrainCollection of betas, or dict with betas + requested stats.
@@ -905,7 +905,7 @@ def fit_glm_internal(
 
     # Progress bar setup
     iterator = range(len(bc))
-    if show_progress and tqdm is not None:
+    if progress_bar and tqdm is not None:
         iterator = tqdm.tqdm(iterator, desc="Fitting GLM", unit="subject")
 
     # Storage for results
@@ -1089,7 +1089,7 @@ def fit_ridge(
     scale_value: float = 100.0,
     output: str = "scores",
     save: dict[str, str] | None = None,
-    show_progress: bool = True,
+    progress_bar: bool = False,
     **ridge_kwargs,
 ) -> "BrainCollection | dict[str, BrainCollection]":
     """
@@ -1121,7 +1121,7 @@ def fit_ridge(
             ``{'weights': 'output/{subject}_weights.nii.gz',
             'scores': 'output/{subject}_scores.nii.gz'}``.
             Supports {subject}, {session}, {idx}, and other metadata columns.
-        show_progress: Show progress bar during fitting.
+        progress_bar: Show progress bar during fitting.
         **ridge_kwargs: Additional arguments passed to Ridge model
             (e.g., backend='torch', random_state=42).
 
@@ -1170,7 +1170,7 @@ def fit_ridge(
 
     # Progress bar setup
     iterator = range(len(bc))
-    if show_progress and tqdm is not None:
+    if progress_bar and tqdm is not None:
         iterator = tqdm.tqdm(iterator, desc="Fitting Ridge", unit="subject")
 
     # Storage for results based on output type

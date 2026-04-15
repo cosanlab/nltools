@@ -89,7 +89,7 @@ class SphereNeighborhoods:
         return self.adjacency[voxel_idx].nnz
 
     def iter_neighborhoods(
-        self, show_progress: bool = False
+        self, progress_bar: bool = False
     ) -> Iterator[tuple[int, np.ndarray]]:
         """Iterate over all neighborhoods.
 
@@ -97,11 +97,11 @@ class SphereNeighborhoods:
             Tuple of (center_voxel_idx, neighbor_indices) for each voxel
 
         Args:
-            show_progress: If True, wrap iterator with tqdm progress bar
+            progress_bar: If True, wrap iterator with tqdm progress bar
         """
         iterator = range(self.n_voxels)
 
-        if show_progress:
+        if progress_bar:
             from tqdm import tqdm
 
             iterator = tqdm(iterator, desc="Searchlight", unit="voxels")
