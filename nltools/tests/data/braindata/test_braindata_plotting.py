@@ -29,13 +29,13 @@ class TestBrainDataPlotting:
     @pytest.mark.slow
     def test_plot_glass_brain(self, minimal_brain_data):
         """Test glass brain visualization"""
-        result = minimal_brain_data[0].plot(kind="glass")
+        result = minimal_brain_data[0].plot(method="glass")
         assert result is not None
 
     @pytest.mark.slow
     def test_plot_multi_slice(self, minimal_brain_data):
         """Test multi-slice visualization"""
-        result = minimal_brain_data[0].plot(kind="slices")
+        result = minimal_brain_data[0].plot(method="slices")
         assert result is not None
 
     @pytest.mark.parametrize(
@@ -80,7 +80,7 @@ class TestBrainDataPlotting:
     def test_plot_invalid_kind(self, minimal_brain_data, kind):
         """Test error handling for invalid 'kind' parameter"""
         with pytest.raises(ValueError):
-            minimal_brain_data[0].plot(kind=kind)
+            minimal_brain_data[0].plot(method=kind)
 
     def test_plot_handle_nan_values(self, minimal_brain_data):
         """Test handling of NaN/Inf values"""
@@ -137,7 +137,7 @@ class TestBrainDataPlotting:
         """Test save functionality"""
         single_image = minimal_brain_data[0]
         save_path = str(tmpdir / "test_plot.png")
-        result = single_image.plot(kind="glass", save=save_path)
+        result = single_image.plot(method="glass", save=save_path)
         assert result is not None
         import os
 
@@ -149,14 +149,14 @@ class TestBrainDataPlotting:
     @pytest.mark.parametrize("stat", ["mean", "median", "std"])
     def test_plot_timeseries(self, minimal_brain_data, stat):
         """Test timeseries plotting with various aggregation stats."""
-        result = minimal_brain_data.plot(kind="timeseries", stat=stat)
+        result = minimal_brain_data.plot(method="timeseries", stat=stat)
         assert result is not None
 
     def test_plot_histogram(self, minimal_brain_data):
         """Test histogram plotting for single and multiple images."""
-        result = minimal_brain_data[0].plot(kind="histogram")
+        result = minimal_brain_data[0].plot(method="histogram")
         assert result is not None
-        result = minimal_brain_data.plot(kind="histogram")
+        result = minimal_brain_data.plot(method="histogram")
         assert result is not None
 
     def test_plot_threshold_convenience(self, minimal_brain_data):
@@ -176,11 +176,11 @@ class TestBrainDataPlotting:
         import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots()
-        result = minimal_brain_data.plot(kind="timeseries", ax=ax)
+        result = minimal_brain_data.plot(method="timeseries", ax=ax)
         assert result is not None
         plt.close(fig)
 
         fig, ax = plt.subplots()
-        result = minimal_brain_data[0].plot(kind="histogram", ax=ax)
+        result = minimal_brain_data[0].plot(method="histogram", ax=ax)
         assert result is not None
         plt.close(fig)

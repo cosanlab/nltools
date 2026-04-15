@@ -12,7 +12,7 @@ def similarity(
     adj,
     data,
     plot=False,
-    perm_type="2d",
+    permutation_method="2d",
     n_permute=5000,
     metric="spearman",
     ignore_diagonal=False,
@@ -27,11 +27,11 @@ def similarity(
         adj (Adjacency): Adjacency instance.
         data (Adjacency or array): Adjacency data, or 1-d array same size as adj.data.
         plot (bool): If True, plot stacked adjacency matrices. Default False.
-        perm_type (str): '1d', '2d', or None.
+        permutation_method (str): '1d', '2d', or None.
         n_permute (int): Number of permutations. Default 5000.
         metric (str): 'spearman', 'pearson', or 'kendall'.
         ignore_diagonal (bool): Only applies to 'directed' Adjacency types using
-            perm_type=None or perm_type='1d'.
+            permutation_method=None or permutation_method='1d'.
         nan_policy (str): How to handle NaN values. Options:
             - 'omit': Remove NaN values pairwise before computing correlation (default)
             - 'propagate': Allow NaN to propagate through calculations
@@ -84,8 +84,8 @@ def similarity(
             # Instead, we warn and use propagate for 2D.
             if arr1.ndim == 2:
                 warnings.warn(
-                    "NaN values detected in 2D matrix data. For perm_type='2d', "
-                    "NaN handling is limited. Consider using perm_type='1d' or None, "
+                    "NaN values detected in 2D matrix data. For permutation_method='2d', "
+                    "NaN handling is limited. Consider using permutation_method='1d' or None, "
                     "or removing NaN values before calling similarity().",
                     UserWarning,
                 )
@@ -107,38 +107,38 @@ def similarity(
     else:
         data2 = data.copy()
 
-    if perm_type is None:
+    if permutation_method is None:
         n_permute = 0
         similarity_func = correlation_permutation_test
-    elif perm_type == "1d":
+    elif permutation_method == "1d":
         similarity_func = correlation_permutation_test
-    elif perm_type == "2d":
+    elif permutation_method == "2d":
         similarity_func = matrix_permutation_test
     else:
-        raise ValueError("perm_type must be ['1d','2d', or None']")
+        raise ValueError("permutation_method must be ['1d','2d', or None']")
 
-    def _convert_data_similarity(data, perm_type=None, ignore_diagonal=ignore_diagonal):
+    def _convert_data_similarity(data, permutation_method=None, ignore_diagonal=ignore_diagonal):
         """Helper function to convert data correctly"""
-        if (perm_type is None) or (perm_type == "1d"):
+        if (permutation_method is None) or (permutation_method == "1d"):
             if ignore_diagonal and (not data.issymmetric):
                 d = data.squareform()
                 data = d[~np.eye(d.shape[0]).astype(bool)]
             else:
                 data = data.data
-        elif perm_type == "2d":
+        elif permutation_method == "2d":
             if not data.issymmetric:
-                raise TypeError(f"data must be symmetric to do {perm_type} permutation")
+                raise TypeError(f"data must be symmetric to do {permutation_method} permutation")
             else:
                 data = data.squareform()
         else:
-            raise ValueError("perm_type must be ['1d','2d', or None']")
+            raise ValueError("permutation_method must be ['1d','2d', or None']")
         return data
 
     if adj.is_single_matrix:
         if plot:
             plot_stacked_adjacency(adj, data)
-        arr1 = _convert_data_similarity(data1, perm_type=perm_type)
-        arr2 = _convert_data_similarity(data2, perm_type=perm_type)
+        arr1 = _convert_data_similarity(data1, permutation_method=permutation_method)
+        arr2 = _convert_data_similarity(data2, permutation_method=permutation_method)
         arr1, arr2 = _handle_nans(arr1, arr2, nan_policy)
         return similarity_func(
             arr1,
@@ -155,9 +155,9 @@ def similarity(
             for i in a:
                 plot_stacked_adjacency(adj, data, ax=i)
         results = []
-        arr2_base = _convert_data_similarity(data2, perm_type=perm_type)
+        arr2_base = _convert_data_similarity(data2, permutation_method=permutation_method)
         for x in adj:
-            arr1 = _convert_data_similarity(x, perm_type=perm_type)
+            arr1 = _convert_data_similarity(x, permutation_method=permutation_method)
             arr1_clean, arr2_clean = _handle_nans(arr1, arr2_base, nan_policy)
             results.append(
                 similarity_func(

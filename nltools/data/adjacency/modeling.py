@@ -115,7 +115,7 @@ def convert_bootstrap_results_to_adjacency(adj, result, save_boots=False):
     return out
 
 
-def regress(adj, X, mode="ols", **kwargs):
+def regress(adj, X, method="ols", **kwargs):
     """Run a regression on an adjacency instance.
     You can decompose an adjacency instance with another adjacency instance.
     You can also decompose each pixel by passing a design_matrix instance.
@@ -123,7 +123,7 @@ def regress(adj, X, mode="ols", **kwargs):
     Args:
         adj: (Adjacency) Adjacency instance
         X: Design matrix can be an Adjacency or DesignMatrix instance
-        mode: type of regression (default: ols) - only 'ols' is currently supported
+        method: type of regression (default: ols) - only 'ols' is currently supported
 
     Returns:
         stats: (dict) dictionary of stats outputs.
@@ -132,9 +132,9 @@ def regress(adj, X, mode="ols", **kwargs):
     from nltools.data.designmatrix import DesignMatrix
     from scipy.stats import t as t_dist
 
-    if mode != "ols":
+    if method != "ols":
         raise ValueError(
-            "Only 'ols' mode is currently supported for Adjacency.regress()"
+            "Only 'ols' method is currently supported for Adjacency.regress()"
         )
 
     stats = {}

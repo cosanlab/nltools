@@ -259,7 +259,7 @@ def extract_roi(bd, mask, metric="mean", n_components=None):
                     "No voxels remain after masking - mask may not overlap with data"
                 )
             output = decompose(
-                masked, algorithm="pca", n_components=n_components, axis="images"
+                masked, method="pca", n_components=n_components, axis="images"
             )
             out = output["weights"].T
 
@@ -325,7 +325,7 @@ def extract_roi(bd, mask, metric="mean", n_components=None):
 
                 # Apply PCA
                 output = decompose(
-                    masked, algorithm="pca", n_components=n_components, axis="images"
+                    masked, method="pca", n_components=n_components, axis="images"
                 )
                 out.append(output["weights"].T)
 
@@ -345,7 +345,7 @@ def icc(
     bd,
     n_subjects,
     n_sessions,
-    icc_type="icc2",
+    method="icc2",
     parallel=None,
     n_jobs=-1,
     max_gpu_memory_gb=4.0,
@@ -367,7 +367,7 @@ def icc(
         bd: BrainData instance.
         n_subjects: Number of subjects in the data
         n_sessions: Number of sessions per subject
-        icc_type: Type of ICC to calculate
+        method: Type of ICC to calculate
                 - 'icc1': One-way random effects (subjects random, sessions treated as interchangeable)
                 - 'icc2': Two-way random effects (subjects and sessions random) (default)
                 - 'icc3': Two-way mixed effects (subjects random, sessions fixed)
@@ -384,7 +384,7 @@ def icc(
     Examples:
         >>> # Typical test-retest reliability analysis
         >>> data = BrainData(...)  # Shape: (60, 238955) = 20 subjects x 3 sessions
-        >>> icc_map = data.icc(n_subjects=20, n_sessions=3, icc_type='icc2')
+        >>> icc_map = data.icc(n_subjects=20, n_sessions=3, method='icc2')
         >>> icc_map.shape
         (1, 238955)
         >>> # Visualize ICC map
@@ -413,7 +413,7 @@ def icc(
         bd.data,
         n_subjects=n_subjects,
         n_sessions=n_sessions,
-        icc_type=icc_type,
+        icc_type=method,
         parallel=parallel,
         n_jobs=n_jobs,
         max_gpu_memory_gb=max_gpu_memory_gb,
@@ -757,7 +757,7 @@ def threshold_data(
 def regions(
     bd,
     min_region_size=1350,
-    extract_type="local_regions",
+    method="local_regions",
     smoothing_fwhm=6,
     is_mask=False,
 ):
@@ -767,7 +767,7 @@ def regions(
         bd: BrainData instance.
         min_region_size (int): Minimum volume in mm3 for a region to be
                             kept.
-        extract_type (str): Type of extraction method
+        method (str): Type of extraction method
                             ['connected_components', 'local_regions'].
                             If 'connected_components', each component/region
                             in the image is extracted automatically by
@@ -779,8 +779,7 @@ def regions(
                             walker segementation algorithm on these
                             markers for region separation.
         smoothing_fwhm (scalar): Smooth an image to extract more sparser
-                            regions. Only works for extract_type
-                            'local_regions'.
+                            regions. Only works for method='local_regions'.
         is_mask (bool): Whether the BrainData instance should be treated
                         as a boolean mask and if so, calls
                         connected_label_regions instead. Default: False.
@@ -796,7 +795,7 @@ def regions(
         region_imgs, _ = connected_label_regions(bd.to_nifti())
     else:
         region_imgs, _ = connected_regions(
-            bd.to_nifti(), min_region_size, extract_type, smoothing_fwhm
+            bd.to_nifti(), min_region_size, method, smoothing_fwhm
         )
 
     return BrainData(region_imgs, mask=bd.mask)
@@ -820,12 +819,12 @@ def transform_pairwise_data(bd):
     return out
 
 
-def decompose(bd, algorithm="pca", axis="voxels", n_components=None, *args, **kwargs):
+def decompose(bd, method="pca", axis="voxels", n_components=None, *args, **kwargs):
     """Decompose BrainData object
 
     Args:
         bd: BrainData instance.
-        algorithm: (str) Algorithm to perform decomposition
+        method: (str) Algorithm to perform decomposition
                     types=['pca','ica','nnmf','fa','dictionary','kernelpca']
         axis: dimension to decompose ['voxels','images']
         n_components: (int) number of components. If None then retain
@@ -845,12 +844,12 @@ def decompose(bd, algorithm="pca", axis="voxels", n_components=None, *args, **kw
         "dictionary": "sklearn.decomposition.DictionaryLearning",
         "kernelpca": "sklearn.decomposition.KernelPCA",
     }
-    if algorithm not in _decomposition_algs:
+    if method not in _decomposition_algs:
         raise ValueError(
-            f"Invalid decomposition algorithm '{algorithm}'. "
+            f"Invalid decomposition method '{method}'. "
             f"Valid options: {list(_decomposition_algs)}"
         )
-    module_path, class_name = _decomposition_algs[algorithm].rsplit(".", 1)
+    module_path, class_name = _decomposition_algs[method].rsplit(".", 1)
     alg_class = getattr(importlib.import_module(module_path), class_name)
 
     out = {"decomposition_object": alg_class(n_components, **kwargs)}

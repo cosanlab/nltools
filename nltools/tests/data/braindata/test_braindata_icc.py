@@ -53,7 +53,7 @@ class TestBrainDataICC:
     def test_icc_types(self, minimal_brain_data, icc_type):
         """Test that all ICC types work and return valid results."""
         bd = _make_icc_brain_data(minimal_brain_data)
-        icc_map = bd.icc(n_subjects=5, n_sessions=3, icc_type=icc_type, parallel=None)
+        icc_map = bd.icc(n_subjects=5, n_sessions=3, method=icc_type, parallel=None)
 
         assert isinstance(icc_map, BrainData)
         assert icc_map.shape == (1, minimal_brain_data.shape[1])

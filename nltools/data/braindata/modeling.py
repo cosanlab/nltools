@@ -13,7 +13,7 @@ from .utils import shallow_copy
 def cv(
     bd,
     k=None,
-    scheme="kfold",
+    method="kfold",
     split_by=None,
     groups=None,
     random_state=None,
@@ -27,8 +27,8 @@ def cv(
 
     Args:
         bd: BrainData instance.
-        k: Number of folds (for kfold scheme). Defaults to 5.
-        scheme: CV scheme type. Options:
+        k: Number of folds (for kfold method). Defaults to 5.
+        method: CV scheme type. Options:
             - 'kfold': k-fold cross-validation (default)
             - 'loro': leave-one-run-out (requires split_by='runs' or groups)
             - 'bootstrap': bootstrap with out-of-bag test sets
@@ -55,7 +55,7 @@ def cv(
         ...     .predict(y))
 
         >>> # Leave-one-run-out CV
-        >>> result = brain.cv(scheme='loro', groups=run_labels).predict(y)
+        >>> result = brain.cv(method='loro', groups=run_labels).predict(y)
 
     See Also:
         BrainDataPipeline: For available transforms and terminal methods.
@@ -70,10 +70,10 @@ def cv(
             if hasattr(bd.X, "__getitem__") and split_by in bd.X:
                 groups = np.array(bd.X[split_by])
 
-    # Create CV scheme
+    # Create CV scheme (CVScheme retains internal `scheme=` parameter name)
     cv_scheme = CVScheme(
         k=k,
-        scheme=scheme,
+        scheme=method,
         split_by=split_by,
         random_state=random_state,
         **kwargs,
@@ -708,13 +708,13 @@ def ttest2(bd, other, equal_var=True):
     return {"t": t_bd, "p": p_bd}
 
 
-def regress(bd, design_matrix=None, noise_model="ols", mode=None, **kwargs):
+def regress(bd, design_matrix=None, method="ols", mode=None, **kwargs):
     """Deprecated: Use fit(model='glm', X=design_matrix) instead.
 
     Args:
         bd: BrainData instance.
         design_matrix: Design matrix (unused, raises error).
-        noise_model: Noise model (unused, raises error).
+        method: Noise model (unused, raises error).
         mode: Mode (unused, raises error).
         **kwargs: Additional arguments (unused, raises error).
     """

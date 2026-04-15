@@ -8,7 +8,7 @@ import numpy as np
 
 def plot_brain(
     bd,
-    kind="glass",
+    method="glass",
     thr_upper=None,
     thr_lower=None,
     threshold=None,
@@ -26,7 +26,7 @@ def plot_brain(
 
     Args:
         bd: BrainData instance.
-        kind (str): Visualization type ('glass', 'slices', 'timeseries', 'histogram').
+        method (str): Visualization type ('glass', 'slices', 'timeseries', 'histogram').
         thr_upper (str/float, optional): Upper threshold.
         thr_lower (str/float, optional): Lower threshold.
         threshold (float, optional): Convenience parameter. If positive,
@@ -61,16 +61,18 @@ def plot_brain(
         else:
             thr_lower = threshold
 
-    # Validate 'kind' parameter
-    valid_kinds = ["glass", "slices", "timeseries", "histogram"]
-    if kind not in valid_kinds:
+    # Validate 'method' parameter
+    valid_methods = ["glass", "slices", "timeseries", "histogram"]
+    if method not in valid_methods:
         raise ValueError(
-            f"Invalid 'kind' parameter: '{kind}'. Must be one of: {valid_kinds}. "
+            f"Invalid 'method' parameter: '{method}'. Must be one of: {valid_methods}. "
         )
 
     # Handle matplotlib-based plots (timeseries, histogram)
-    if kind in ["timeseries", "histogram"]:
-        return _plot_matplotlib(bd, kind=kind, stat=stat, ax=ax, title=title, save=save)
+    if method in ["timeseries", "histogram"]:
+        return _plot_matplotlib(
+            bd, method=method, stat=stat, ax=ax, title=title, save=save
+        )
 
     # Handle thresholding
     if thr_upper or thr_lower:
@@ -106,7 +108,7 @@ def plot_brain(
     except Exception as e:
         raise RuntimeError(f"Failed to convert BrainData to NIfTI: {e}") from e
 
-    # Plot based on 'kind' parameter
+    # Plot based on 'method' parameter
     display_objects = []
 
     # Prepare kwargs with title if provided
@@ -116,7 +118,7 @@ def plot_brain(
     if title:
         plot_kwargs["title"] = title
 
-    if kind == "glass":
+    if method == "glass":
         display_glass = plot_glass_brain(
             nifti_img,
             display_mode="lzry",
@@ -129,7 +131,7 @@ def plot_brain(
         if save_paths:
             plt.savefig(save_paths["glass"], bbox_inches="tight")
 
-    elif kind == "slices":
+    elif method == "slices":
         # Background image selection (respects current brain space)
         if bg_img is None:
             try:
@@ -244,12 +246,12 @@ def plot_flatmap_brain(
     )
 
 
-def _plot_matplotlib(bd, kind, stat="mean", ax=None, title=None, save=None):
+def _plot_matplotlib(bd, method, stat="mean", ax=None, title=None, save=None):
     """Plot using matplotlib (timeseries or histogram).
 
     Args:
         bd: BrainData instance.
-        kind (str): 'timeseries' or 'histogram'
+        method (str): 'timeseries' or 'histogram'
         stat (str): Statistic for timeseries ('mean', 'median', 'std')
         ax: Matplotlib axis.
         title (str, optional): Plot title.
@@ -266,7 +268,7 @@ def _plot_matplotlib(bd, kind, stat="mean", ax=None, title=None, save=None):
     else:
         fig = ax.figure
 
-    if kind == "timeseries":
+    if method == "timeseries":
         # For single image, raise informative error
         if len(bd.shape) == 1 or (len(bd.shape) > 1 and bd.shape[0] == 1):
             raise ValueError(
@@ -301,7 +303,7 @@ def _plot_matplotlib(bd, kind, stat="mean", ax=None, title=None, save=None):
         ax.set_title(title, fontsize=14)
         ax.grid(True, alpha=0.3)
 
-    elif kind == "histogram":
+    elif method == "histogram":
         # Flatten data for histogram
         if len(bd.shape) == 1:
             data_flat = bd.data

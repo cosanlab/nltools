@@ -2024,7 +2024,7 @@ class BrainCollection:
     def cv(
         self,
         k: int | None = None,
-        scheme: str = "kfold",
+        method: str = "kfold",
         split_by: str | None = None,
         groups: np.ndarray | None = None,
         random_state: int | None = None,
@@ -2036,8 +2036,8 @@ class BrainCollection:
         with cross-validation across subjects or runs.
 
         Args:
-            k: Number of folds (for kfold scheme). Defaults to 5.
-            scheme: CV scheme type. Options:
+            k: Number of folds (for kfold method). Defaults to 5.
+            method: CV scheme type. Options:
                 - 'kfold': k-fold cross-validation on pooled data
                 - 'loso': leave-one-subject-out (one image held out per fold)
                 - 'loro': leave-one-run-out (requires groups)
@@ -2052,18 +2052,18 @@ class BrainCollection:
 
         Examples:
             >>> # Leave-one-subject-out classification
-            >>> result = bc.cv(scheme='loso').normalize().predict(subject_labels, algorithm='svm')
+            >>> result = bc.cv(method='loso').normalize().predict(subject_labels, algorithm='svm')
             >>> print(f"Mean accuracy: {result.mean_score:.2%}")
 
             >>> # With preprocessing
             >>> result = (bc
-            ...     .cv(scheme='loso')
+            ...     .cv(method='loso')
             ...     .normalize()
             ...     .reduce(n_components=50)
             ...     .predict(labels))
 
             >>> # Run-based CV with metadata
-            >>> result = bc.cv(scheme='loro', split_by='run').predict(y)
+            >>> result = bc.cv(method='loro', split_by='run').predict(y)
 
         See Also:
             BrainCollectionPipeline: For available transforms and terminals.
@@ -2071,7 +2071,7 @@ class BrainCollection:
         """
         from .modeling import cv
 
-        return cv(self, k, scheme, split_by, groups, random_state, **kwargs)
+        return cv(self, k, method, split_by, groups, random_state, **kwargs)
 
     def fit(
         self,

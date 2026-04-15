@@ -16,7 +16,7 @@ class TestAdjacencyStats:
             assert len(
                 sim_adjacency_multiple.similarity(
                     sim_adjacency_multiple[0].squareform(),
-                    perm_type="1d",
+                    permutation_method="1d",
                     metric=metric,
                     n_permute=n_permute,
                 )
@@ -28,7 +28,7 @@ class TestAdjacencyStats:
         for perm_type in [None, "1d", "2d"]:
             assert (
                 sim_adjacency_multiple[0].similarity(
-                    data2.squareform(), perm_type=perm_type, n_permute=n_permute
+                    data2.squareform(), permutation_method=perm_type, n_permute=n_permute
                 )["correlation"]
                 > 0.5
             )
@@ -41,29 +41,29 @@ class TestAdjacencyStats:
         dat = np.random.multivariate_normal([2, 6], cov_matrix, 190)
         x = Adjacency(dat[:, 0])
         y = Adjacency(dat[:, 1])
-        stats = x.similarity(y, perm_type="2d", n_permute=100)
+        stats = x.similarity(y, permutation_method="2d", n_permute=100)
         assert (
             (stats["correlation"] > 0.4)
             & (stats["correlation"] < 0.85)
             & (stats["p"] < 0.05)
         )
-        stats = x.similarity(y, perm_type=None)
+        stats = x.similarity(y, permutation_method=None)
         assert (stats["correlation"] > 0.4) & (stats["correlation"] < 0.85)
 
         # Directed matrices
         dat = np.random.multivariate_normal([2, 6], cov_matrix, 400)
         x = Adjacency(dat[:, 0].reshape(20, 20), matrix_type="directed")
         y = Adjacency(dat[:, 1].reshape(20, 20), matrix_type="directed")
-        stats = x.similarity(y, perm_type="1d", ignore_diagonal=True, n_permute=100)
+        stats = x.similarity(y, permutation_method="1d", ignore_diagonal=True, n_permute=100)
         assert (
             (stats["correlation"] > 0.4)
             & (stats["correlation"] < 0.85)
             & (stats["p"] < 0.05)
         )
-        stats = x.similarity(y, perm_type=None, ignore_diagonal=False)
+        stats = x.similarity(y, permutation_method=None, ignore_diagonal=False)
         assert (stats["correlation"] > 0.4) & (stats["correlation"] < 0.85)
         try:
-            x.similarity(y, perm_type="2d")
+            x.similarity(y, permutation_method="2d")
         except TypeError:
             pass
 
@@ -76,7 +76,7 @@ class TestAdjacencyStats:
         x = Adjacency(data[:, 0])
         y = Adjacency(data[:, 1])
 
-        stats_clean = x.similarity(y, perm_type=None, nan_policy="omit")
+        stats_clean = x.similarity(y, permutation_method=None, nan_policy="omit")
 
         x_nan = x.copy()
         y_nan = y.copy()
@@ -84,21 +84,21 @@ class TestAdjacencyStats:
         y_nan.data[20] = np.nan
 
         # omit policy
-        stats_omit = x_nan.similarity(y_nan, perm_type=None, nan_policy="omit")
+        stats_omit = x_nan.similarity(y_nan, permutation_method=None, nan_policy="omit")
         assert not np.isnan(stats_omit["correlation"])
         assert abs(stats_omit["correlation"] - stats_clean["correlation"]) < 0.15
 
         # propagate policy
-        stats_prop = x_nan.similarity(y_nan, perm_type=None, nan_policy="propagate")
+        stats_prop = x_nan.similarity(y_nan, permutation_method=None, nan_policy="propagate")
         assert np.isnan(stats_prop["correlation"])
 
         # raise policy
         with pytest.raises(ValueError, match="Input contains NaN"):
-            x_nan.similarity(y_nan, perm_type=None, nan_policy="raise")
+            x_nan.similarity(y_nan, permutation_method=None, nan_policy="raise")
 
         # invalid policy
         with pytest.raises(ValueError, match="nan_policy must be"):
-            x.similarity(y, perm_type=None, nan_policy="invalid")
+            x.similarity(y, permutation_method=None, nan_policy="invalid")
 
         # NaN with 1d perm_type
         n = 10
@@ -113,7 +113,7 @@ class TestAdjacencyStats:
         adj2 = Adjacency(data2, matrix_type="similarity")
 
         result_1d = adj1.similarity(
-            adj2, perm_type="1d", n_permute=100, nan_policy="omit"
+            adj2, permutation_method="1d", n_permute=100, nan_policy="omit"
         )
         assert not np.isnan(result_1d["correlation"])
         assert "p" in result_1d
@@ -121,7 +121,7 @@ class TestAdjacencyStats:
         # NaN with 2d perm_type
         with pytest.warns(UserWarning, match="NaN values detected in 2D matrix"):
             result_2d = adj1.similarity(
-                adj2, perm_type="2d", n_permute=100, nan_policy="omit"
+                adj2, permutation_method="2d", n_permute=100, nan_policy="omit"
             )
         assert "p" in result_2d
         assert 0 <= result_2d["p"] <= 1

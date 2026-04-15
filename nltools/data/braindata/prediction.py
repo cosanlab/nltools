@@ -417,7 +417,7 @@ def mvpa_whole_brain_pipeline(bd, y, estimator, cv, groups, standardize):
         k = getattr(cv, "n_splits", 5)
 
     # Build and execute pipeline
-    pipeline = bd.cv(k=k, scheme="kfold", groups=groups)
+    pipeline = bd.cv(k=k, method="kfold", groups=groups)
 
     # Add normalization if requested
     if standardize:

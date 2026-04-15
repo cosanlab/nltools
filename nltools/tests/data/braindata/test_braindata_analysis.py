@@ -266,9 +266,9 @@ class TestBrainDataAnalysis:
     def test_decompose(self, sim_brain_data):
         """Test decomposition with PCA, ICA, NMF, and Factor Analysis."""
         n_components = 3
-        for algorithm in ["pca", "ica", "fa"]:
+        for method in ["pca", "ica", "fa"]:
             stats = sim_brain_data.decompose(
-                algorithm=algorithm, axis="voxels", n_components=n_components
+                method=method, axis="voxels", n_components=n_components
             )
             assert n_components == len(stats["components"])
             assert stats["weights"].shape == (len(sim_brain_data), n_components)
@@ -277,12 +277,12 @@ class TestBrainDataAnalysis:
         bd = sim_brain_data.copy()
         bd.data = bd.data + 2
         bd.data[bd.data < 0] = 0
-        stats = bd.decompose(algorithm="nnmf", axis="voxels", n_components=n_components)
+        stats = bd.decompose(method="nnmf", axis="voxels", n_components=n_components)
         assert n_components == len(stats["components"])
 
         # Test axis="images"
         stats = sim_brain_data.decompose(
-            algorithm="pca", axis="images", n_components=n_components
+            method="pca", axis="images", n_components=n_components
         )
         assert n_components == len(stats["components"])
         assert stats["weights"].shape == (len(sim_brain_data), n_components)

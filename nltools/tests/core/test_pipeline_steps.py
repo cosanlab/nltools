@@ -260,7 +260,7 @@ class TestBrainDataPipe:
         """Test BrainData.pipe() with StandardScaler transformer."""
         from sklearn.preprocessing import StandardScaler
 
-        pipeline = brain_data.cv(scheme="kfold", k=3).pipe(StandardScaler())
+        pipeline = brain_data.cv(method="kfold", k=3).pipe(StandardScaler())
 
         # Verify pipe step was added
         assert pipeline.n_steps == 1
@@ -270,7 +270,7 @@ class TestBrainDataPipe:
         from sklearn.preprocessing import StandardScaler
 
         pipeline = (
-            brain_data.cv(scheme="kfold", k=3)
+            brain_data.cv(method="kfold", k=3)
             .normalize()
             .pipe(StandardScaler())
             .reduce(n_components=5)
@@ -283,7 +283,7 @@ class TestBrainDataPipe:
         """Test BrainData.pipe() with PCA transformer."""
         from sklearn.decomposition import PCA
 
-        pipeline = brain_data.cv(scheme="kfold", k=3).pipe(PCA(n_components=5))
+        pipeline = brain_data.cv(method="kfold", k=3).pipe(PCA(n_components=5))
 
         # Verify step was added
         assert pipeline.n_steps == 1

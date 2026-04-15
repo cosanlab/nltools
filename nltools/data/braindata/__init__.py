@@ -597,7 +597,7 @@ class BrainData(object):
     def cv(
         self,
         k: int | None = None,
-        scheme: str = "kfold",
+        method: str = "kfold",
         split_by: str | None = None,
         groups: np.ndarray | None = None,
         random_state: int | None = None,
@@ -610,8 +610,8 @@ class BrainData(object):
         pipeline and return results.
 
         Args:
-            k: Number of folds (for kfold scheme). Defaults to 5.
-            scheme: CV scheme type. Options:
+            k: Number of folds (for kfold method). Defaults to 5.
+            method: CV scheme type. Options:
                 - 'kfold': k-fold cross-validation (default)
                 - 'loro': leave-one-run-out (requires split_by='runs' or groups)
                 - 'bootstrap': bootstrap with out-of-bag test sets
@@ -625,14 +625,14 @@ class BrainData(object):
 
         Examples:
             >>> result = brain.cv(k=5).predict(y, algorithm='ridge')
-            >>> result = brain.cv(scheme='loro', groups=run_labels).predict(y)
+            >>> result = brain.cv(method='loro', groups=run_labels).predict(y)
         """
         from .modeling import cv
 
         return cv(
             self,
             k=k,
-            scheme=scheme,
+            method=method,
             split_by=split_by,
             groups=groups,
             random_state=random_state,
@@ -640,12 +640,12 @@ class BrainData(object):
         )
 
     def decompose(
-        self, algorithm="pca", axis="voxels", n_components=None, *args, **kwargs
+        self, method="pca", axis="voxels", n_components=None, *args, **kwargs
     ):
         """Decompose BrainData object.
 
         Args:
-            algorithm: (str) Algorithm to perform decomposition
+            method: (str) Algorithm to perform decomposition
                         types=['pca','ica','nnmf','fa','dictionary','kernelpca']
             axis: dimension to decompose ['voxels','images']
             n_components: (int) number of components. If None then retain
@@ -658,7 +658,7 @@ class BrainData(object):
 
         return decompose(
             self,
-            algorithm=algorithm,
+            method=method,
             axis=axis,
             n_components=n_components,
             *args,
@@ -816,7 +816,7 @@ class BrainData(object):
         self,
         n_subjects,
         n_sessions,
-        icc_type="icc2",
+        method="icc2",
         parallel=None,
         n_jobs=-1,
         max_gpu_memory_gb=4.0,
@@ -828,7 +828,7 @@ class BrainData(object):
         Args:
             n_subjects: Number of subjects in the data
             n_sessions: Number of sessions per subject
-            icc_type: Type of ICC ('icc1', 'icc2', 'icc3'). Default: 'icc2'
+            method: Type of ICC ('icc1', 'icc2', 'icc3'). Default: 'icc2'
             parallel: Parallelization method (None, 'cpu', 'gpu')
             n_jobs: Number of CPU cores (-1 = all cores)
             max_gpu_memory_gb: GPU memory budget in GB
@@ -837,7 +837,7 @@ class BrainData(object):
             BrainData: BrainData instance with ICC map (shape: (1, n_voxels))
 
         Examples:
-            >>> icc_map = data.icc(n_subjects=20, n_sessions=3, icc_type='icc2')
+            >>> icc_map = data.icc(n_subjects=20, n_sessions=3, method='icc2')
         """
         from .analysis import icc
 
@@ -845,7 +845,7 @@ class BrainData(object):
             self,
             n_subjects,
             n_sessions,
-            icc_type=icc_type,
+            method=method,
             parallel=parallel,
             n_jobs=n_jobs,
             max_gpu_memory_gb=max_gpu_memory_gb,
@@ -897,7 +897,7 @@ class BrainData(object):
 
     def plot(
         self,
-        kind="glass",
+        method="glass",
         thr_upper=None,
         thr_lower=None,
         threshold=None,
@@ -914,7 +914,7 @@ class BrainData(object):
         """Plot BrainData instance using nilearn visualization or matplotlib.
 
         Args:
-            kind (str): Visualization type: 'glass', 'slices', 'timeseries', 'histogram'
+            method (str): Visualization type: 'glass', 'slices', 'timeseries', 'histogram'
             thr_upper (str/float, optional): Upper threshold.
             thr_lower (str/float, optional): Lower threshold.
             threshold (float, optional): Convenience parameter for thresholding.
@@ -935,7 +935,7 @@ class BrainData(object):
 
         return plot_brain(
             self,
-            kind=kind,
+            method=method,
             thr_upper=thr_upper,
             thr_lower=thr_lower,
             threshold=threshold,
@@ -1085,7 +1085,7 @@ class BrainData(object):
     def regions(
         self,
         min_region_size=1350,
-        extract_type="local_regions",
+        method="local_regions",
         smoothing_fwhm=6,
         is_mask=False,
     ):
@@ -1093,7 +1093,7 @@ class BrainData(object):
 
         Args:
             min_region_size (int): Minimum volume in mm3 for a region to be kept.
-            extract_type (str): Type of extraction method
+            method (str): Type of extraction method
                                 ['connected_components', 'local_regions'].
             smoothing_fwhm (scalar): Smooth an image to extract more sparser regions.
             is_mask (bool): Whether to treat as boolean mask.
@@ -1106,12 +1106,12 @@ class BrainData(object):
         return regions(
             self,
             min_region_size=min_region_size,
-            extract_type=extract_type,
+            method=method,
             smoothing_fwhm=smoothing_fwhm,
             is_mask=is_mask,
         )
 
-    def regress(self, design_matrix=None, noise_model="ols", mode=None, **kwargs):
+    def regress(self, design_matrix=None, method="ols", mode=None, **kwargs):
         """Deprecated: Use fit(model='glm', X=design_matrix) instead.
 
         .. deprecated:: 0.6.0
@@ -1122,7 +1122,7 @@ class BrainData(object):
         return regress(
             self,
             design_matrix=design_matrix,
-            noise_model=noise_model,
+            method=method,
             mode=mode,
             **kwargs,
         )

@@ -606,27 +606,27 @@ class Adjacency(object):
 
         return r_to_z(self)
 
-    def regress(self, X, mode="ols", **kwargs):
+    def regress(self, X, method="ols", **kwargs):
         """Run a regression on an adjacency instance.
         You can decompose an adjacency instance with another adjacency instance.
         You can also decompose each pixel by passing a design_matrix instance.
 
         Args:
             X: Design matrix can be an Adjacency or DesignMatrix instance
-            mode: type of regression (default: ols) - only 'ols' is currently supported
+            method: type of regression (default: ols) - only 'ols' is currently supported
 
         Returns:
             stats: (dict) dictionary of stats outputs.
         """
         from .modeling import regress
 
-        return regress(self, X, mode, **kwargs)
+        return regress(self, X, method, **kwargs)
 
     def similarity(
         self,
         data,
         plot=False,
-        perm_type="2d",
+        permutation_method="2d",
         n_permute=5000,
         metric="spearman",
         ignore_diagonal=False,
@@ -639,10 +639,10 @@ class Adjacency(object):
 
         Args:
             data (Adjacency or array): Adjacency data, or 1-d array same size as self.data
-            perm_type: (str) '1d','2d', or None
+            permutation_method: (str) '1d','2d', or None
             metric: (str) 'spearman','pearson','kendall'
             ignore_diagonal: (bool) only applies to 'directed' Adjacency types using
-                perm_type=None or perm_type='1d'
+                permutation_method=None or permutation_method='1d'
             nan_policy: (str) How to handle NaN values. Options:
                 - 'omit': Remove NaN values pairwise before computing correlation (default)
                 - 'propagate': Allow NaN to propagate through calculations
@@ -655,7 +655,7 @@ class Adjacency(object):
             self,
             data,
             plot=plot,
-            perm_type=perm_type,
+            permutation_method=permutation_method,
             n_permute=n_permute,
             metric=metric,
             ignore_diagonal=ignore_diagonal,
