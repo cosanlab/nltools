@@ -1295,11 +1295,11 @@ class BrainCollection:
         self,
         n_permute: int = 5000,
         tail: int = 2,
-        parallel: str | None = "cpu",
-        n_jobs: int = -1,
+        device: str = "cpu",
         max_gpu_memory_gb: float = 4.0,
-        random_state: int | None = None,
         return_null: bool = False,
+        n_jobs: int = -1,
+        random_state: int | None = None,
     ) -> dict:
         """
         One-sample permutation test across images (sign-flipping).
@@ -1314,21 +1314,18 @@ class BrainCollection:
         Args:
             n_permute: Number of permutations (default: 5000).
             tail: Test type - 1 for one-tailed, 2 for two-tailed (default).
-            parallel: Parallelization method:
-                - 'cpu': CPU parallelization via joblib (default)
-                - 'gpu': GPU acceleration via PyTorch
-                - None: Single-threaded (for debugging)
-            n_jobs: Number of CPU cores (default: -1 = all cores).
+            device: Compute device: 'cpu' (default) or 'gpu' (via PyTorch).
             max_gpu_memory_gb: GPU memory budget (default: 4.0 GB).
-            random_state: Random seed for reproducibility.
             return_null: If True, include null distribution in result.
+            n_jobs: Number of CPU jobs (-1 = all cores, 1 = single-threaded).
+            random_state: Random seed for reproducibility.
 
         Returns:
             dict with keys:
                 - 'mean': BrainData with observed mean across images
                 - 'p': BrainData with p-values
                 - 'null_dist': np.ndarray (if return_null=True)
-                - 'parallel': parallelization method used
+                - 'device': compute device used
 
         Raises:
             ValueError: If images have variable observation counts.
@@ -1338,7 +1335,7 @@ class BrainCollection:
             >>> mean_bd, p_bd = result['mean'], result['p']
 
             >>> # With GPU acceleration
-            >>> result = bc.permutation_test(parallel='gpu')
+            >>> result = bc.permutation_test(device='gpu')
         """
         from .inference import permutation_test
 
@@ -1346,11 +1343,11 @@ class BrainCollection:
             self,
             n_permute,
             tail,
-            parallel,
-            n_jobs,
+            device,
             max_gpu_memory_gb,
-            random_state,
             return_null,
+            n_jobs,
+            random_state,
         )
 
     def permutation_test2(
@@ -1358,11 +1355,11 @@ class BrainCollection:
         other: "BrainCollection",
         n_permute: int = 5000,
         tail: int = 2,
-        parallel: str | None = "cpu",
-        n_jobs: int = -1,
+        device: str = "cpu",
         max_gpu_memory_gb: float = 4.0,
-        random_state: int | None = None,
         return_null: bool = False,
+        n_jobs: int = -1,
+        random_state: int | None = None,
     ) -> dict:
         """
         Two-sample permutation test between collections.
@@ -1374,18 +1371,18 @@ class BrainCollection:
             other: Another BrainCollection to compare against.
             n_permute: Number of permutations (default: 5000).
             tail: Test type - 1 for one-tailed, 2 for two-tailed (default).
-            parallel: Parallelization method ('cpu', 'gpu', or None).
-            n_jobs: Number of CPU cores (default: -1 = all cores).
+            device: Compute device: 'cpu' (default) or 'gpu' (via PyTorch).
             max_gpu_memory_gb: GPU memory budget (default: 4.0 GB).
-            random_state: Random seed for reproducibility.
             return_null: If True, include null distribution in result.
+            n_jobs: Number of CPU jobs (-1 = all cores, 1 = single-threaded).
+            random_state: Random seed for reproducibility.
 
         Returns:
             dict with keys:
                 - 'mean_diff': BrainData with observed mean difference
                 - 'p': BrainData with p-values
                 - 'null_dist': np.ndarray (if return_null=True)
-                - 'parallel': parallelization method used
+                - 'device': compute device used
 
         Examples:
             >>> result = patients.permutation_test2(controls)
@@ -1398,11 +1395,11 @@ class BrainCollection:
             other,
             n_permute,
             tail,
-            parallel,
-            n_jobs,
+            device,
             max_gpu_memory_gb,
-            random_state,
             return_null,
+            n_jobs,
+            random_state,
         )
 
     def anova(
@@ -1558,9 +1555,9 @@ class BrainCollection:
         parcellation: "nib.Nifti1Image | None" = None,
         n_features: int | None = None,
         n_iter: int = 3,
-        parallel: str | None = "cpu",
-        n_jobs: int = -1,
+        device: str = "cpu",
         return_model: bool = False,
+        n_jobs: int = -1,
         show_progress: bool = True,
     ) -> "BrainCollection | tuple[BrainCollection, object]":
         """
@@ -1583,13 +1580,10 @@ class BrainCollection:
                 scheme='piecewise').
             n_features: Number of features for SRM. None uses full dimensions.
             n_iter: Number of iterations for alignment refinement.
-            parallel: Parallelization mode. Options:
-                - None: Single-threaded
-                - 'cpu': CPU parallelization with joblib
-                - 'gpu': GPU acceleration via PyTorch
-            n_jobs: Number of parallel jobs for CPU mode (-1 = auto).
+            device: Compute device: 'cpu' (default) or 'gpu' (via PyTorch).
             return_model: If True, return (aligned_collection, model) tuple for
                 fit/transform workflow with new data.
+            n_jobs: Number of CPU jobs (-1 = all cores, 1 = single-threaded).
             show_progress: Show progress bar during fitting.
 
         Returns:
@@ -1613,7 +1607,7 @@ class BrainCollection:
             >>> aligned_test = model.transform(test_data_list)
 
             >>> # GPU-accelerated alignment
-            >>> aligned_bc = bc.align(parallel='gpu')
+            >>> aligned_bc = bc.align(device='gpu')
 
         Notes:
             Based on Bazeille et al. 2021 "An empirical evaluation of functional
@@ -1633,9 +1627,9 @@ class BrainCollection:
             parcellation,
             n_features,
             n_iter,
-            parallel,
-            n_jobs,
+            device,
             return_model,
+            n_jobs,
             show_progress,
         )
 
@@ -1860,7 +1854,7 @@ class BrainCollection:
         roi_mask: "nib.Nifti1Image | Path | str | None" = None,
         radius: float | None = 6.0,
         metric: str = "median",
-        parallel: str = "cpu",
+        device: str = "cpu",
         n_jobs: int = -1,
         show_progress: bool = True,
     ) -> dict:
@@ -1882,8 +1876,8 @@ class BrainCollection:
             metric: Summary statistic for aggregating ISC values:
                 - 'median': Robust to outliers (default)
                 - 'mean': Fisher z-transformed mean
-            parallel: Parallelization method ('cpu', 'gpu', or None).
-            n_jobs: Number of parallel jobs (-1 = all cores).
+            device: Compute device: 'cpu' (default) or 'gpu' (via PyTorch).
+            n_jobs: Number of CPU jobs (-1 = all cores, 1 = single-threaded).
             show_progress: Show progress bar during extraction.
 
         Returns:
@@ -1912,7 +1906,7 @@ class BrainCollection:
         from .inference import isc
 
         return isc(
-            self, method, roi_mask, radius, metric, parallel, n_jobs, show_progress
+            self, method, roi_mask, radius, metric, device, n_jobs, show_progress
         )
 
     def isc_test(
@@ -1925,10 +1919,10 @@ class BrainCollection:
         metric: str = "median",
         tail: int = 2,
         ci_percentile: float = 95,
-        parallel: str = "cpu",
+        device: str = "cpu",
+        return_null: bool = False,
         n_jobs: int = -1,
         random_state: int | None = None,
-        return_null: bool = False,
         show_progress: bool = True,
     ) -> dict:
         """
@@ -1961,8 +1955,8 @@ class BrainCollection:
                 - 'mean': Fisher z-transformed mean
             tail: One-tailed (1) or two-tailed (2) test. Default 2.
             ci_percentile: Confidence interval percentile (e.g., 95). Default 95.
-            parallel: Parallelization method ('cpu', 'gpu', or None).
-            n_jobs: Number of parallel jobs (-1 = all cores).
+            device: Compute device: 'cpu' (default) or 'gpu' (via PyTorch).
+            n_jobs: Number of CPU jobs (-1 = all cores, 1 = single-threaded).
             random_state: Random seed for reproducibility.
             return_null: If True, include null distribution in results.
             show_progress: Show progress bar during extraction and permutation.
@@ -1994,7 +1988,7 @@ class BrainCollection:
             >>> result = bc.isc_test(
             ...     radius=None,
             ...     permutation_method='phase_randomize',
-            ...     parallel='gpu'
+            ...     device='gpu'
             ... )
 
         Notes:
@@ -2024,10 +2018,10 @@ class BrainCollection:
             metric,
             tail,
             ci_percentile,
-            parallel,
+            device,
+            return_null,
             n_jobs,
             random_state,
-            return_null,
             show_progress,
         )
 

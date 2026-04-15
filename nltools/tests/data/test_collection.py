@@ -978,7 +978,7 @@ class TestBrainCollectionInference:
         bc = BrainCollection(bds, mask=sample_mask)
 
         # Use small n_permute for speed
-        result = bc.permutation_test(n_permute=10, parallel=None)
+        result = bc.permutation_test(n_permute=10, n_jobs=1)
 
         assert "mean" in result
         assert "p" in result
@@ -998,9 +998,7 @@ class TestBrainCollectionInference:
 
         bc = BrainCollection(bds, mask=sample_mask)
 
-        result = bc.permutation_test(
-            n_permute=n_permute, parallel=None, return_null=True
-        )
+        result = bc.permutation_test(n_permute=n_permute, n_jobs=1, return_null=True)
 
         assert "null_dist" in result
         # Shape: (n_obs, n_permute, n_voxels)
@@ -1025,7 +1023,7 @@ class TestBrainCollectionInference:
         bc1 = BrainCollection(bds1, mask=sample_mask)
         bc2 = BrainCollection(bds2, mask=sample_mask)
 
-        result = bc1.permutation_test2(bc2, n_permute=10, parallel=None)
+        result = bc1.permutation_test2(bc2, n_permute=10, n_jobs=1)
 
         assert "mean_diff" in result
         assert "p" in result
@@ -3035,7 +3033,7 @@ class TestBrainCollectionAlign:
             method="procrustes",
             radius_mm=5.0,
             n_iter=1,
-            parallel=None,
+            n_jobs=1,
         )
 
         assert isinstance(aligned, BrainCollection)
@@ -3051,7 +3049,7 @@ class TestBrainCollectionAlign:
             method="procrustes",
             radius_mm=5.0,
             n_iter=1,
-            parallel=None,
+            n_jobs=1,
         )
 
         assert "subject" in aligned.metadata.columns
@@ -3065,7 +3063,7 @@ class TestBrainCollectionAlign:
             method="procrustes",
             radius_mm=5.0,
             n_iter=1,
-            parallel=None,
+            n_jobs=1,
             return_model=True,
         )
 
@@ -3084,7 +3082,7 @@ class TestBrainCollectionAlign:
             radius_mm=5.0,
             n_iter=1,
             n_features=5,
-            parallel=None,
+            n_jobs=1,
         )
 
         assert isinstance(aligned, BrainCollection)
@@ -3096,7 +3094,7 @@ class TestBrainCollectionAlign:
             method="hyperalignment",
             radius_mm=5.0,
             n_iter=1,
-            parallel=None,
+            n_jobs=1,
         )
 
         assert isinstance(aligned, BrainCollection)
@@ -3107,7 +3105,7 @@ class TestBrainCollectionAlign:
         with pytest.raises(ValueError, match="parcellation is required"):
             multisubject_collection.align(
                 scheme="piecewise",
-                parallel=None,
+                n_jobs=1,
             )
 
     def test_align_piecewise_with_parcellation(
@@ -3129,7 +3127,7 @@ class TestBrainCollectionAlign:
             scheme="piecewise",
             parcellation=parcellation,
             n_iter=1,
-            parallel=None,
+            n_jobs=1,
         )
 
         assert isinstance(aligned, BrainCollection)
@@ -3141,7 +3139,7 @@ class TestBrainCollectionAlign:
             method="procrustes",
             radius_mm=5.0,
             n_iter=2,
-            parallel=None,
+            n_jobs=1,
         )
 
         for i in range(len(aligned)):
@@ -3155,7 +3153,6 @@ class TestBrainCollectionAlign:
             method="procrustes",
             radius_mm=5.0,
             n_iter=1,
-            parallel="cpu",
             n_jobs=2,
         )
 

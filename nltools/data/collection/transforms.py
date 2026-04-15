@@ -280,9 +280,9 @@ def align(
     parcellation: "nib.Nifti1Image | None" = None,
     n_features: int | None = None,
     n_iter: int = 3,
-    parallel: str | None = "cpu",
-    n_jobs: int = -1,
+    device: str = "cpu",
     return_model: bool = False,
+    n_jobs: int = -1,
     show_progress: bool = True,
 ) -> "BrainCollection | tuple[BrainCollection, object]":
     """
@@ -306,13 +306,10 @@ def align(
             scheme='piecewise').
         n_features: Number of features for SRM. None uses full dimensions.
         n_iter: Number of iterations for alignment refinement.
-        parallel: Parallelization mode. Options:
-            - None: Single-threaded
-            - 'cpu': CPU parallelization with joblib
-            - 'gpu': GPU acceleration via PyTorch
-        n_jobs: Number of parallel jobs for CPU mode (-1 = auto).
+        device: Compute device: 'cpu' (default) or 'gpu' (via PyTorch).
         return_model: If True, return (aligned_collection, model) tuple for
             fit/transform workflow with new data.
+        n_jobs: Number of CPU jobs (-1 = all cores, 1 = single-threaded).
         show_progress: Show progress bar during fitting.
 
     Returns:
@@ -336,7 +333,7 @@ def align(
         >>> aligned_test = model.transform(test_data_list)
 
         >>> # GPU-accelerated alignment
-        >>> aligned_bc = bc.align(parallel='gpu')
+        >>> aligned_bc = bc.align(device='gpu')
 
     Notes:
         Based on Bazeille et al. 2021 "An empirical evaluation of functional
@@ -349,10 +346,13 @@ def align(
     from nltools.algorithms.alignment import LocalAlignment
     from ..braindata import BrainData
     from . import BrainCollection
+    from .inference import _device_to_parallel
 
     # Validate inputs
     if scheme == "piecewise" and parcellation is None:
         raise ValueError("parcellation is required for piecewise scheme")
+
+    parallel = _device_to_parallel(device, n_jobs)
 
     # Extract data from collection as list of (n_voxels, n_samples) arrays
     # BrainData.data is (n_samples, n_voxels), LocalAlignment expects (n_voxels, n_samples)

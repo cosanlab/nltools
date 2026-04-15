@@ -16,6 +16,20 @@ if TYPE_CHECKING:
     from . import BrainCollection
 
 
+def _device_to_parallel(device: str, n_jobs: int) -> str | None:
+    """Map user-facing ``device`` + ``n_jobs`` to algorithm-level ``parallel``.
+
+    - device='gpu' -> 'gpu'
+    - device='cpu', n_jobs == 1 -> None  (single-threaded)
+    - device='cpu', n_jobs != 1 -> 'cpu'
+    """
+    if device == "gpu":
+        return "gpu"
+    if device == "cpu":
+        return None if n_jobs == 1 else "cpu"
+    raise ValueError(f"device must be 'cpu' or 'gpu', got {device!r}")
+
+
 def ttest(
     bc: "BrainCollection",
     popmean: float = 0.0,
@@ -140,11 +154,11 @@ def permutation_test(
     bc: "BrainCollection",
     n_permute: int = 5000,
     tail: int = 2,
-    parallel: str | None = "cpu",
-    n_jobs: int = -1,
+    device: str = "cpu",
     max_gpu_memory_gb: float = 4.0,
-    random_state: int | None = None,
     return_null: bool = False,
+    n_jobs: int = -1,
+    random_state: int | None = None,
 ) -> dict:
     """
     One-sample permutation test across images (sign-flipping).
@@ -160,21 +174,18 @@ def permutation_test(
         bc: BrainCollection to test.
         n_permute: Number of permutations (default: 5000).
         tail: Test type - 1 for one-tailed, 2 for two-tailed (default).
-        parallel: Parallelization method:
-            - 'cpu': CPU parallelization via joblib (default)
-            - 'gpu': GPU acceleration via PyTorch
-            - None: Single-threaded (for debugging)
-        n_jobs: Number of CPU cores (default: -1 = all cores).
+        device: Compute device: 'cpu' (default) or 'gpu' (via PyTorch).
         max_gpu_memory_gb: GPU memory budget (default: 4.0 GB).
-        random_state: Random seed for reproducibility.
         return_null: If True, include null distribution in result.
+        n_jobs: Number of CPU jobs (-1 = all cores, 1 = single-threaded).
+        random_state: Random seed for reproducibility.
 
     Returns:
         dict with keys:
             - 'mean': BrainData with observed mean across images
             - 'p': BrainData with p-values
             - 'null_dist': np.ndarray (if return_null=True)
-            - 'parallel': parallelization method used
+            - 'device': compute device used
 
     Raises:
         ValueError: If images have variable observation counts.
@@ -184,8 +195,9 @@ def permutation_test(
         >>> mean_bd, p_bd = result['mean'], result['p']
 
         >>> # With GPU acceleration
-        >>> result = bc.permutation_test(parallel='gpu')
+        >>> result = bc.permutation_test(device='gpu')
     """
+    parallel = _device_to_parallel(device, n_jobs)
     from nltools.stats import one_sample_permutation_test
     from nltools.utils import attempt_to_import
     from ..braindata import BrainData
@@ -239,7 +251,7 @@ def permutation_test(
     result_dict = {
         "mean": mean_bd,
         "p": p_bd,
-        "parallel": parallel,
+        "device": device,
     }
 
     if return_null:
@@ -253,11 +265,11 @@ def permutation_test2(
     other: "BrainCollection",
     n_permute: int = 5000,
     tail: int = 2,
-    parallel: str | None = "cpu",
-    n_jobs: int = -1,
+    device: str = "cpu",
     max_gpu_memory_gb: float = 4.0,
-    random_state: int | None = None,
     return_null: bool = False,
+    n_jobs: int = -1,
+    random_state: int | None = None,
 ) -> dict:
     """
     Two-sample permutation test between collections.
@@ -270,23 +282,24 @@ def permutation_test2(
         other: Another BrainCollection to compare against.
         n_permute: Number of permutations (default: 5000).
         tail: Test type - 1 for one-tailed, 2 for two-tailed (default).
-        parallel: Parallelization method ('cpu', 'gpu', or None).
-        n_jobs: Number of CPU cores (default: -1 = all cores).
+        device: Compute device: 'cpu' (default) or 'gpu' (via PyTorch).
         max_gpu_memory_gb: GPU memory budget (default: 4.0 GB).
-        random_state: Random seed for reproducibility.
         return_null: If True, include null distribution in result.
+        n_jobs: Number of CPU jobs (-1 = all cores, 1 = single-threaded).
+        random_state: Random seed for reproducibility.
 
     Returns:
         dict with keys:
             - 'mean_diff': BrainData with observed mean difference
             - 'p': BrainData with p-values
             - 'null_dist': np.ndarray (if return_null=True)
-            - 'parallel': parallelization method used
+            - 'device': compute device used
 
     Examples:
         >>> result = patients.permutation_test2(controls)
         >>> diff_bd, p_bd = result['mean_diff'], result['p']
     """
+    parallel = _device_to_parallel(device, n_jobs)
     from nltools.stats import two_sample_permutation_test
     from nltools.utils import attempt_to_import
     from ..braindata import BrainData
@@ -354,7 +367,7 @@ def permutation_test2(
     result_dict = {
         "mean_diff": diff_bd,
         "p": p_bd,
-        "parallel": parallel,
+        "device": device,
     }
 
     if return_null:
@@ -458,7 +471,7 @@ def isc(
     roi_mask: "nib.Nifti1Image | Path | str | None" = None,
     radius: float | None = 6.0,
     metric: str = "median",
-    parallel: str = "cpu",
+    device: str = "cpu",
     n_jobs: int = -1,
     show_progress: bool = True,
 ) -> dict:
@@ -481,8 +494,8 @@ def isc(
         metric: Summary statistic for aggregating ISC values:
             - 'median': Robust to outliers (default)
             - 'mean': Fisher z-transformed mean
-        parallel: Parallelization method ('cpu', 'gpu', or None).
-        n_jobs: Number of parallel jobs (-1 = all cores).
+        device: Compute device: 'cpu' (default) or 'gpu' (via PyTorch).
+        n_jobs: Number of CPU jobs (-1 = all cores, 1 = single-threaded).
         show_progress: Show progress bar during extraction.
 
     Returns:
@@ -527,7 +540,7 @@ def isc(
     # Compute ISC
     if method == "loo":
         # LOO ISC: (n_subjects, n_features)
-        backend = "torch" if parallel == "gpu" else "numpy"
+        backend = "torch" if device == "gpu" else "numpy"
         loo_values = _compute_loo_isc(extracted, backend=backend)
 
         # Aggregate across subjects
@@ -577,10 +590,10 @@ def isc_test(
     metric: str = "median",
     tail: int = 2,
     ci_percentile: float = 95,
-    parallel: str = "cpu",
+    device: str = "cpu",
+    return_null: bool = False,
     n_jobs: int = -1,
     random_state: int | None = None,
-    return_null: bool = False,
     show_progress: bool = True,
 ) -> dict:
     """
@@ -614,8 +627,8 @@ def isc_test(
             - 'mean': Fisher z-transformed mean
         tail: One-tailed (1) or two-tailed (2) test. Default 2.
         ci_percentile: Confidence interval percentile (e.g., 95). Default 95.
-        parallel: Parallelization method ('cpu', 'gpu', or None).
-        n_jobs: Number of parallel jobs (-1 = all cores).
+        device: Compute device: 'cpu' (default) or 'gpu' (via PyTorch).
+        n_jobs: Number of CPU jobs (-1 = all cores, 1 = single-threaded).
         random_state: Random seed for reproducibility.
         return_null: If True, include null distribution in results.
         show_progress: Show progress bar during extraction and permutation.
@@ -647,7 +660,7 @@ def isc_test(
         >>> result = bc.isc_test(
         ...     radius=None,
         ...     permutation_method='phase_randomize',
-        ...     parallel='gpu'
+        ...     device='gpu'
         ... )
 
     Notes:
@@ -667,6 +680,7 @@ def isc_test(
     """
     from nltools.algorithms.inference.isc import isc_permutation_test
 
+    parallel = _device_to_parallel(device, n_jobs)
     # Map method names
     summary_statistic = "leave-one-out" if method == "loo" else method
 
