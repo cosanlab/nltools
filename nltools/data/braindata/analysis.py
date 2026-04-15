@@ -618,7 +618,11 @@ def scale_data(bd, scale_val=100.0, axis=None):
 
     if axis is None:
         # Grand-mean scaling: divide by global mean
-        out.data = out.data / out.data.mean() * scale_val
+        grand_mean = out.data.mean()
+        if np.abs(grand_mean) < np.finfo(float).eps:
+            out.data = np.zeros_like(out.data)
+        else:
+            out.data = out.data / grand_mean * scale_val
     elif axis == 0:
         # Voxel-wise scaling: divide each voxel by its temporal mean
         # Compute mean along time axis (axis=0), keeping dims for broadcasting
