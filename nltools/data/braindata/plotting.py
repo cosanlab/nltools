@@ -9,8 +9,8 @@ import numpy as np
 def plot_brain(
     bd,
     method="glass",
-    thr_upper=None,
-    thr_lower=None,
+    upper=None,
+    lower=None,
     threshold=None,
     cut_coords=None,
     cmap=None,
@@ -27,11 +27,11 @@ def plot_brain(
     Args:
         bd: BrainData instance.
         method (str): Visualization type ('glass', 'slices', 'timeseries', 'histogram').
-        thr_upper (str/float, optional): Upper threshold.
-        thr_lower (str/float, optional): Lower threshold.
+        upper (str/float, optional): Upper threshold.
+        lower (str/float, optional): Lower threshold.
         threshold (float, optional): Convenience parameter. If positive,
-            sets thr_upper (shows values above threshold). If negative,
-            sets thr_lower (shows values below threshold).
+            sets upper (shows values above threshold). If negative,
+            sets lower (shows values below threshold).
         cut_coords (list, optional): Cut coordinates for multi-slice views.
         cmap (str, optional): Colormap name.
         bg_img (Nifti1Image or str, optional): Background image for slice views.
@@ -57,9 +57,9 @@ def plot_brain(
     # Handle convenience threshold parameter
     if threshold is not None:
         if threshold >= 0:
-            thr_upper = threshold
+            upper = threshold
         else:
-            thr_lower = threshold
+            lower = threshold
 
     # Validate 'method' parameter
     valid_methods = ["glass", "slices", "timeseries", "histogram"]
@@ -75,8 +75,8 @@ def plot_brain(
         )
 
     # Handle thresholding
-    if thr_upper or thr_lower:
-        obj = bd.threshold(upper=thr_upper, lower=thr_lower)
+    if upper or lower:
+        obj = bd.threshold(upper=upper, lower=lower)
     else:
         obj = bd
 

@@ -898,8 +898,8 @@ class BrainData(object):
     def plot(
         self,
         method="glass",
-        thr_upper=None,
-        thr_lower=None,
+        upper=None,
+        lower=None,
         threshold=None,
         cut_coords=None,
         cmap=None,
@@ -915,8 +915,8 @@ class BrainData(object):
 
         Args:
             method (str): Visualization type: 'glass', 'slices', 'timeseries', 'histogram'
-            thr_upper (str/float, optional): Upper threshold.
-            thr_lower (str/float, optional): Lower threshold.
+            upper (str/float, optional): Upper threshold.
+            lower (str/float, optional): Lower threshold.
             threshold (float, optional): Convenience parameter for thresholding.
             cut_coords (list, optional): Cut coordinates for multi-slice views.
             cmap (str, optional): Colormap name.
@@ -936,8 +936,8 @@ class BrainData(object):
         return plot_brain(
             self,
             method=method,
-            thr_upper=thr_upper,
-            thr_lower=thr_lower,
+            upper=upper,
+            lower=lower,
             threshold=threshold,
             cut_coords=cut_coords,
             cmap=cmap,

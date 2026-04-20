@@ -41,10 +41,10 @@ class TestBrainDataPlotting:
     @pytest.mark.parametrize(
         "kwargs",
         [
-            {"thr_upper": 0.5},
-            {"thr_upper": "95%"},
-            {"thr_lower": -0.5},
-            {"thr_upper": "90%", "thr_lower": "10%"},
+            {"upper": 0.5},
+            {"upper": "95%"},
+            {"lower": -0.5},
+            {"upper": "90%", "lower": "10%"},
         ],
         ids=["float", "percentile", "lower", "bandpass"],
     )
@@ -92,7 +92,7 @@ class TestBrainDataPlotting:
         else:
             single_image.data[0, 0] = np.nan
             single_image.data[0, 1] = np.inf
-        result = single_image.plot(thr_upper=0.5)
+        result = single_image.plot(upper=0.5)
         assert result is not None
 
     def test_plot_single_voxel(self, minimal_brain_data):
