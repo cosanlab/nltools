@@ -629,7 +629,7 @@ class Adjacency(object):
         permutation_method="2d",
         n_permute=5000,
         metric="spearman",
-        ignore_diagonal=False,
+        include_diag=False,
         nan_policy="omit",
         **kwargs,
     ):
@@ -641,8 +641,10 @@ class Adjacency(object):
             data (Adjacency or array): Adjacency data, or 1-d array same size as self.data
             permutation_method: (str) '1d','2d', or None
             metric: (str) 'spearman','pearson','kendall'
-            ignore_diagonal: (bool) only applies to 'directed' Adjacency types using
-                permutation_method=None or permutation_method='1d'
+            include_diag: (bool) only applies to 'directed' Adjacency types using
+                permutation_method=None or permutation_method='1d'. Default False
+                (self-similarity is uninformative). Symmetric matrices never store
+                the diagonal, so this flag is a no-op for them.
             nan_policy: (str) How to handle NaN values. Options:
                 - 'omit': Remove NaN values pairwise before computing correlation (default)
                 - 'propagate': Allow NaN to propagate through calculations
@@ -658,7 +660,7 @@ class Adjacency(object):
             permutation_method=permutation_method,
             n_permute=n_permute,
             metric=metric,
-            ignore_diagonal=ignore_diagonal,
+            include_diag=include_diag,
             nan_policy=nan_policy,
             **kwargs,
         )

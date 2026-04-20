@@ -15,7 +15,7 @@ def similarity(
     permutation_method="2d",
     n_permute=5000,
     metric="spearman",
-    ignore_diagonal=False,
+    include_diag=False,
     nan_policy="omit",
     **kwargs,
 ):
@@ -30,8 +30,10 @@ def similarity(
         permutation_method (str): '1d', '2d', or None.
         n_permute (int): Number of permutations. Default 5000.
         metric (str): 'spearman', 'pearson', or 'kendall'.
-        ignore_diagonal (bool): Only applies to 'directed' Adjacency types using
-            permutation_method=None or permutation_method='1d'.
+        include_diag (bool): Only applies to 'directed' Adjacency types using
+            permutation_method=None or permutation_method='1d'. Default False
+            (self-similarity is uninformative). Symmetric matrices never store
+            the diagonal, so this flag is a no-op for them.
         nan_policy (str): How to handle NaN values. Options:
             - 'omit': Remove NaN values pairwise before computing correlation (default)
             - 'propagate': Allow NaN to propagate through calculations
@@ -117,10 +119,10 @@ def similarity(
     else:
         raise ValueError("permutation_method must be ['1d','2d', or None']")
 
-    def _convert_data_similarity(data, permutation_method=None, ignore_diagonal=ignore_diagonal):
+    def _convert_data_similarity(data, permutation_method=None, include_diag=include_diag):
         """Helper function to convert data correctly"""
         if (permutation_method is None) or (permutation_method == "1d"):
-            if ignore_diagonal and (not data.issymmetric):
+            if not include_diag and (not data.issymmetric):
                 d = data.squareform()
                 data = d[~np.eye(d.shape[0]).astype(bool)]
             else:
