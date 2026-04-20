@@ -112,7 +112,25 @@ class Adjacency(object):
 
             # HDF5
             if is_h5_path(to_load):
-                from nltools.io.h5 import _read_polars_frame
+                from nltools.io.h5 import (
+                    _read_polars_frame,
+                    is_legacy_adjacency_h5,
+                    load_legacy_adjacency_h5,
+                )
+
+                if is_legacy_adjacency_h5(to_load):
+                    legacy = load_legacy_adjacency_h5(to_load, matrix_type=matrix_type)
+                    (
+                        self.data,
+                        self.issymmetric,
+                        self.matrix_type,
+                        self.is_single_matrix,
+                    ) = import_single_data(
+                        legacy["data"], matrix_type=legacy["matrix_type"]
+                    )
+                    self.Y = legacy["Y"]
+                    self.labels = legacy["labels"]
+                    return
 
                 with h5File(to_load, "r") as f:
                     self.data = np.array(f["data"])
