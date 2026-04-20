@@ -264,7 +264,7 @@ def plot_surface(
     colorbar=False,
     figsize=(10, 10),
     n_samples=1,
-    radius=0.0,
+    radius_mm=0.0,
     interpolation="linear",
     engine="matplotlib",
     axes=None,
@@ -301,8 +301,8 @@ def plot_surface(
             Defaults to (10, 10).
         n_samples (int, optional): Number of samples for vol_to_surf projection.
             Defaults to 1.
-        radius (float, optional): Sampling radius for vol_to_surf projection.
-            Defaults to 0.0.
+        radius_mm (float, optional): Sampling radius in mm for vol_to_surf
+            projection. Defaults to 0.0.
         interpolation (str, optional): Interpolation method for projection.
             Options: 'linear', 'nearest_most_frequent'. Defaults to 'linear'.
         engine (str, optional): Rendering engine. Options: 'matplotlib',
@@ -393,7 +393,7 @@ def plot_surface(
             paths[surface_key],
             interpolation=interpolation,
             n_samples=n_samples,
-            radius=radius,
+            radius=radius_mm,
         )
 
     # Prepare background maps
@@ -498,7 +498,7 @@ def plot_flatmap(
     colorbar_orientation="horizontal",
     figsize=(12, 6),
     title=None,
-    radius=3.0,
+    radius_mm=3.0,
     interpolation="linear",
     axes=None,
     save=None,
@@ -540,7 +540,7 @@ def plot_flatmap(
         figsize (tuple, optional): Figure size (width, height).
             Defaults to (12, 6).
         title (str, optional): Figure title. Defaults to None.
-        radius (float, optional): Sampling radius in mm for vol_to_surf
+        radius_mm (float, optional): Sampling radius in mm for vol_to_surf
             projection. Larger values provide smoother projections.
             Defaults to 3.0.
         interpolation (str, optional): Interpolation for vol_to_surf.
@@ -596,13 +596,13 @@ def plot_flatmap(
     texture_left = surface.vol_to_surf(
         nifti_img,
         fs["pial_left"],
-        radius=radius,
+        radius=radius_mm,
         interpolation=interpolation,
     )
     texture_right = surface.vol_to_surf(
         nifti_img,
         fs["pial_right"],
-        radius=radius,
+        radius=radius_mm,
         interpolation=interpolation,
     )
 

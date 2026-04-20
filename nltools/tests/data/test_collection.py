@@ -1304,7 +1304,7 @@ class TestBrainCollectionISC:
 
         # Extract voxelwise
         extracted, info = bc._extract_for_isc(
-            roi_mask=None, radius=None, progress_bar=False
+            roi_mask=None, radius_mm=None, progress_bar=False
         )
 
         assert extracted.shape == (n_obs, n_subjects, n_voxels)
@@ -1327,12 +1327,12 @@ class TestBrainCollectionISC:
 
         # Extract with searchlight
         extracted, info = bc._extract_for_isc(
-            roi_mask=None, radius=5.0, progress_bar=False
+            roi_mask=None, radius_mm=5.0, progress_bar=False
         )
 
         assert extracted.shape == (n_obs, n_subjects, n_voxels)
         assert info["mode"] == "searchlight"
-        assert info["radius"] == 5.0
+        assert info["radius_mm"] == 5.0
         assert "neighborhoods" in info
 
     def test_project_to_brain_voxelwise(self, sample_mask):
@@ -1350,7 +1350,7 @@ class TestBrainCollectionISC:
         bc = BrainCollection(bds, mask=sample_mask)
 
         # Extract
-        _, info = bc._extract_for_isc(roi_mask=None, radius=None, progress_bar=False)
+        _, info = bc._extract_for_isc(roi_mask=None, radius_mm=None, progress_bar=False)
 
         # Project random values
         values = np.random.randn(n_voxels)
@@ -1391,7 +1391,7 @@ class TestBrainCollectionISC:
         roi_mask = nib.Nifti1Image(label_data, sample_mask.affine)
 
         # Run ISC with ROI mask
-        result = bc.isc(roi_mask=roi_mask, radius=None, progress_bar=False)
+        result = bc.isc(roi_mask=roi_mask, radius_mm=None, progress_bar=False)
 
         # Should return ISC per ROI
         assert "isc" in result
@@ -1413,7 +1413,7 @@ class TestBrainCollectionISC:
 
         bc = BrainCollection(bds, mask=sample_mask)
 
-        result = bc.isc(method="loo", radius=None, progress_bar=False)
+        result = bc.isc(method="loo", radius_mm=None, progress_bar=False)
 
         assert "isc" in result
         assert isinstance(result["isc"], BrainData)
@@ -1436,7 +1436,7 @@ class TestBrainCollectionISC:
 
         bc = BrainCollection(bds, mask=sample_mask)
 
-        result = bc.isc(method="pairwise", radius=None, progress_bar=False)
+        result = bc.isc(method="pairwise", radius_mm=None, progress_bar=False)
 
         assert result["method"] == "pairwise"
         assert isinstance(result["isc"], BrainData)
@@ -1459,7 +1459,7 @@ class TestBrainCollectionISC:
 
         bc = BrainCollection(bds, mask=sample_mask)
 
-        result = bc.isc(method="loo", radius=None, progress_bar=False)
+        result = bc.isc(method="loo", radius_mm=None, progress_bar=False)
 
         # ISC should be high (>0.8) for correlated subjects
         assert result["isc"].data.mean() > 0.8
@@ -1479,7 +1479,7 @@ class TestBrainCollectionISC:
 
         bc = BrainCollection(bds, mask=sample_mask)
 
-        result = bc.isc(method="loo", radius=None, progress_bar=False)
+        result = bc.isc(method="loo", radius_mm=None, progress_bar=False)
 
         # ISC should be near zero for uncorrelated subjects
         assert np.abs(result["isc"].data.mean()) < 0.3
@@ -1497,7 +1497,7 @@ class TestBrainCollectionISC:
         bc = BrainCollection(bds, mask=sample_mask)
 
         with pytest.raises(ValueError, match="uniform observation counts"):
-            bc.isc(radius=None, progress_bar=False)
+            bc.isc(radius_mm=None, progress_bar=False)
 
     def test_isc_mean_metric(self, sample_mask):
         """Test ISC with mean (Fisher z) metric."""
@@ -1514,8 +1514,8 @@ class TestBrainCollectionISC:
 
         bc = BrainCollection(bds, mask=sample_mask)
 
-        result_median = bc.isc(metric="median", radius=None, progress_bar=False)
-        result_mean = bc.isc(metric="mean", radius=None, progress_bar=False)
+        result_median = bc.isc(metric="median", radius_mm=None, progress_bar=False)
+        result_mean = bc.isc(metric="mean", radius_mm=None, progress_bar=False)
 
         # Both should give high ISC for correlated data
         assert result_median["isc"].data.mean() > 0.7
@@ -1537,7 +1537,7 @@ class TestBrainCollectionISC:
 
         # Use very small n_permute for speed
         result = bc.isc_test(
-            radius=None,
+            radius_mm=None,
             n_permute=10,
             progress_bar=False,
             random_state=42,
@@ -1566,7 +1566,7 @@ class TestBrainCollectionISC:
         bc = BrainCollection(bds, mask=sample_mask)
 
         result = bc.isc_test(
-            radius=None, n_permute=100, progress_bar=False, random_state=42
+            radius_mm=None, n_permute=100, progress_bar=False, random_state=42
         )
 
         # Check all expected keys
@@ -1605,7 +1605,7 @@ class TestBrainCollectionISC:
         bc = BrainCollection(bds, mask=sample_mask)
 
         result = bc.isc_test(
-            radius=None, n_permute=500, progress_bar=False, random_state=42
+            radius_mm=None, n_permute=500, progress_bar=False, random_state=42
         )
 
         # Most p-values should be significant for highly correlated data
@@ -1629,7 +1629,7 @@ class TestBrainCollectionISC:
         bc = BrainCollection(bds, mask=sample_mask)
 
         result = bc.isc_test(
-            radius=None, n_permute=500, progress_bar=False, random_state=42
+            radius_mm=None, n_permute=500, progress_bar=False, random_state=42
         )
 
         # Very few p-values should be significant for uncorrelated data
@@ -1655,7 +1655,7 @@ class TestBrainCollectionISC:
 
         for method in ["bootstrap", "circle_shift", "phase_randomize"]:
             result = bc.isc_test(
-                radius=None,
+                radius_mm=None,
                 n_permute=50,
                 permutation_method=method,
                 progress_bar=False,
@@ -1680,7 +1680,7 @@ class TestBrainCollectionISC:
         bc = BrainCollection(bds, mask=sample_mask)
 
         result = bc.isc_test(
-            radius=None,
+            radius_mm=None,
             n_permute=100,
             return_null=True,
             progress_bar=False,
@@ -1707,7 +1707,7 @@ class TestBrainCollectionISC:
 
         result = bc.isc_test(
             method="pairwise",
-            radius=None,
+            radius_mm=None,
             n_permute=100,
             progress_bar=False,
             random_state=42,

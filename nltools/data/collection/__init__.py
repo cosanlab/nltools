@@ -1575,7 +1575,7 @@ class BrainCollection:
             scheme: Spatial scheme. Options:
                 - 'searchlight': Overlapping spheres with center-only aggregation
                 - 'piecewise': Non-overlapping parcels (requires parcellation)
-            radius_mm: Sphere radius in millimeters for searchlight scheme.
+            radius_mm: sphere radius in millimeters for searchlight scheme.
             parcellation: Parcellation image for piecewise scheme (required if
                 scheme='piecewise').
             n_features: Number of features for SRM. None uses full dimensions.
@@ -1766,7 +1766,7 @@ class BrainCollection:
     def _extract_for_isc(
         self,
         roi_mask: "nib.Nifti1Image | Path | str | None" = None,
-        radius: float | None = 6.0,
+        radius_mm: float | None = 6.0,
         progress_bar: bool = False,
     ) -> tuple[np.ndarray, dict]:
         """
@@ -1779,7 +1779,7 @@ class BrainCollection:
             roi_mask: If provided, extract mean per ROI. Can be:
                 - NIfTI image with integer labels (atlas/parcellation)
                 - Path to parcellation file
-            radius: Searchlight radius in mm. If None, use voxelwise mode.
+            radius_mm: searchlight radius in mm. If None, use voxelwise mode.
                 Ignored if roi_mask is provided.
             progress_bar: Show progress bar during extraction.
 
@@ -1794,7 +1794,7 @@ class BrainCollection:
         """
         from .inference import extract_for_isc
 
-        return extract_for_isc(self, roi_mask, radius, progress_bar)
+        return extract_for_isc(self, roi_mask, radius_mm, progress_bar)
 
     def _extract_roi(
         self,
@@ -1808,13 +1808,13 @@ class BrainCollection:
 
     def _extract_searchlight(
         self,
-        radius: float,
+        radius_mm: float,
         progress_bar: bool = False,
     ) -> tuple[np.ndarray, dict]:
         """Extract mean signal per searchlight sphere."""
         from .inference import extract_searchlight
 
-        return extract_searchlight(self, radius, progress_bar)
+        return extract_searchlight(self, radius_mm, progress_bar)
 
     def _extract_voxelwise(
         self,
@@ -1850,7 +1850,7 @@ class BrainCollection:
         self,
         method: str = "loo",
         roi_mask: "nib.Nifti1Image | Path | str | None" = None,
-        radius: float | None = 6.0,
+        radius_mm: float | None = 6.0,
         metric: str = "median",
         device: str = "cpu",
         n_jobs: int = -1,
@@ -1869,7 +1869,7 @@ class BrainCollection:
             roi_mask: If provided, compute ISC per ROI. Can be:
                 - NIfTI image with integer labels (atlas/parcellation)
                 - Path to parcellation file
-            radius: Searchlight radius in mm. If None, use voxelwise mode.
+            radius_mm: searchlight radius in mm. If None, use voxelwise mode.
                 Ignored if roi_mask is provided.
             metric: Summary statistic for aggregating ISC values:
                 - 'median': Robust to outliers (default)
@@ -1892,10 +1892,10 @@ class BrainCollection:
             >>> result['isc'].plot()
 
             >>> # Searchlight ISC
-            >>> result = bc.isc(radius=10.0)
+            >>> result = bc.isc(radius_mm=10.0)
 
             >>> # Voxelwise ISC
-            >>> result = bc.isc(radius=None)
+            >>> result = bc.isc(radius_mm=None)
 
         Notes:
             For permutation testing, see BrainCollection.isc_test() (requires
@@ -1903,13 +1903,13 @@ class BrainCollection:
         """
         from .inference import isc
 
-        return isc(self, method, roi_mask, radius, metric, device, n_jobs, progress_bar)
+        return isc(self, method, roi_mask, radius_mm, metric, device, n_jobs, progress_bar)
 
     def isc_test(
         self,
         method: str = "loo",
         roi_mask: "nib.Nifti1Image | Path | str | None" = None,
-        radius: float | None = 6.0,
+        radius_mm: float | None = 6.0,
         n_permute: int = 5000,
         permutation_method: str = "bootstrap",
         metric: str = "median",
@@ -1935,7 +1935,7 @@ class BrainCollection:
             roi_mask: If provided, compute ISC per ROI. Can be:
                 - NIfTI image with integer labels (atlas/parcellation)
                 - Path to parcellation file
-            radius: Searchlight radius in mm. If None, use voxelwise mode.
+            radius_mm: searchlight radius in mm. If None, use voxelwise mode.
                 Ignored if roi_mask is provided.
             n_permute: Number of permutations/bootstrap iterations. Default 5000.
             permutation_method: Method for null distribution:
@@ -1976,13 +1976,13 @@ class BrainCollection:
             >>> print(f"Significant ROIs: {sig_mask.sum()}")
 
             >>> # Searchlight ISC testing
-            >>> result = bc.isc_test(radius=10.0)
+            >>> result = bc.isc_test(radius_mm=10.0)
             >>> result['isc'].plot()  # Show ISC values
             >>> result['p'].plot()    # Show p-values
 
             >>> # Voxelwise with phase randomization (tests temporal coupling)
             >>> result = bc.isc_test(
-            ...     radius=None,
+            ...     radius_mm=None,
             ...     permutation_method='phase_randomize',
             ...     device='gpu'
             ... )
@@ -2008,7 +2008,7 @@ class BrainCollection:
             self,
             method,
             roi_mask,
-            radius,
+            radius_mm,
             n_permute,
             permutation_method,
             metric,
@@ -2548,7 +2548,7 @@ class BrainCollection:
         cv=5,
         groups: "np.ndarray | None" = None,
         roi_mask=None,
-        radius: float = 10.0,
+        radius_mm: float = 10.0,
         scoring: str = "accuracy",
         standardize: bool = True,
         n_jobs: int = -1,
@@ -2585,7 +2585,7 @@ class BrainCollection:
             groups: Group labels for GroupKFold/LeaveOneGroupOut. If None
                 and _run_labels exists, uses stored run labels.
             roi_mask: Mask for ROI-based MVPA. Required if method='roi'.
-            radius: Searchlight radius in mm (default 10.0).
+            radius_mm: searchlight radius in mm (default 10.0).
             scoring: Scoring metric (default 'accuracy').
             standardize: If True, standardize features before classification.
             n_jobs: Parallel jobs for searchlight (-1 = all cores).
@@ -2620,7 +2620,7 @@ class BrainCollection:
             cv,
             groups,
             roi_mask,
-            radius,
+            radius_mm,
             scoring,
             standardize,
             n_jobs,

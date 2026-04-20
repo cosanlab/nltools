@@ -186,7 +186,7 @@ def plot_flatmap_brain(
     colorbar_orientation="horizontal",
     figsize=(12, 6),
     title=None,
-    radius=3.0,
+    radius_mm=3.0,
     interpolation="linear",
     axes=None,
     save=None,
@@ -210,7 +210,7 @@ def plot_flatmap_brain(
             Default: 'horizontal'.
         figsize (tuple): Figure size. Default: (12, 6).
         title (str, optional): Figure title.
-        radius (float): Sampling radius in mm for vol_to_surf.
+        radius_mm (float): sampling radius in mm for vol_to_surf.
             Default: 3.0.
         interpolation (str): Interpolation for vol_to_surf.
             Default: 'linear'.
@@ -239,7 +239,7 @@ def plot_flatmap_brain(
         colorbar_orientation=colorbar_orientation,
         figsize=figsize,
         title=title,
-        radius=radius,
+        radius_mm=radius_mm,
         interpolation=interpolation,
         axes=axes,
         save=save,

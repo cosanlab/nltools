@@ -964,7 +964,7 @@ class BrainData(object):
         colorbar_orientation="horizontal",
         figsize=(12, 6),
         title=None,
-        radius=3.0,
+        radius_mm=3.0,
         interpolation="linear",
         axes=None,
         save=None,
@@ -984,7 +984,7 @@ class BrainData(object):
             colorbar_orientation (str): 'horizontal' or 'vertical'. Default: 'horizontal'.
             figsize (tuple): Figure size as (width, height). Default: (12, 6).
             title (str, optional): Figure title.
-            radius (float): Sampling radius in mm. Default: 3.0.
+            radius_mm (float): Sampling radius in mm. Default: 3.0.
             interpolation (str): Interpolation method. Default: 'linear'.
             axes (matplotlib.axes.Axes, optional): Existing axes to plot on.
             save (str, optional): File path to save figure.
@@ -1008,7 +1008,7 @@ class BrainData(object):
             colorbar_orientation=colorbar_orientation,
             figsize=figsize,
             title=title,
-            radius=radius,
+            radius_mm=radius_mm,
             interpolation=interpolation,
             axes=axes,
             save=save,
@@ -1023,7 +1023,7 @@ class BrainData(object):
         cv=5,
         groups: "np.ndarray | None" = None,
         roi_mask=None,
-        radius: float = 10.0,
+        radius_mm: float = 10.0,
         scoring: str = "accuracy",
         standardize: bool = True,
         n_jobs: int = -1,
@@ -1043,7 +1043,7 @@ class BrainData(object):
             cv: Cross-validation specification.
             groups: Group labels for CV.
             roi_mask: Atlas/parcellation for ROI-based decoding.
-            radius: Searchlight radius in mm (default 10.0).
+            radius_mm: Searchlight radius in mm (default 10.0).
             scoring: Metric for evaluation.
             standardize: Z-score features before classification (default True).
             n_jobs: Number of parallel jobs (-1 = all cores).
@@ -1068,7 +1068,7 @@ class BrainData(object):
             cv=cv,
             groups=groups,
             roi_mask=roi_mask,
-            radius=radius,
+            radius_mm=radius_mm,
             scoring=scoring,
             standardize=standardize,
             n_jobs=n_jobs,

@@ -25,7 +25,7 @@ def predict(
     cv=5,
     groups: "np.ndarray | None" = None,
     roi_mask=None,
-    radius: float = 10.0,
+    radius_mm: float = 10.0,
     scoring: str = "accuracy",
     standardize: bool = True,
     n_jobs: int = -1,
@@ -63,7 +63,7 @@ def predict(
         groups: Group labels for GroupKFold/LeaveOneGroupOut. If None
             and _run_labels exists, uses stored run labels.
         roi_mask: Mask for ROI-based MVPA. Required if method='roi'.
-        radius: Searchlight radius in mm (default 10.0).
+        radius_mm: searchlight radius in mm (default 10.0).
         scoring: Scoring metric (default 'accuracy').
         standardize: If True, standardize features before classification.
         n_jobs: Parallel jobs for searchlight (-1 = all cores).
@@ -164,7 +164,7 @@ def predict(
                 cv=cv,
                 groups=groups,
                 roi_mask=roi_mask,
-                radius=radius,
+                radius_mm=radius_mm,
                 scoring=scoring,
                 standardize=standardize,
                 n_jobs=n_jobs,

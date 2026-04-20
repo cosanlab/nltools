@@ -236,7 +236,7 @@ class TestSurfacePlot:
         fig = plot_surface(
             single_image,
             n_samples=5,
-            radius=2.0,
+            radius_mm=2.0,
             interpolation="linear",
             hemi="left",
             view="lateral",
@@ -393,7 +393,7 @@ class TestPlotFlatmap:
         single_image = sim_brain_data[0]
         fig = plot_flatmap(
             single_image,
-            radius=5.0,
+            radius_mm=5.0,
             interpolation="nearest_most_frequent",
         )
         assert fig is not None

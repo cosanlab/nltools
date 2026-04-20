@@ -21,7 +21,7 @@ def predict(
     cv=5,
     groups=None,
     roi_mask=None,
-    radius=10.0,
+    radius_mm=10.0,
     scoring="accuracy",
     standardize=True,
     n_jobs=-1,
@@ -62,7 +62,7 @@ def predict(
             for leave-one-run-out).
         roi_mask (Nifti1Image or str, optional): Atlas/parcellation for
             ROI-based decoding.
-        radius (float): Searchlight radius in mm. Default: 10.0.
+        radius_mm (float): searchlight radius in mm. Default: 10.0.
         scoring (str): Metric for evaluation ('accuracy',
             'balanced_accuracy', 'roc_auc').
         standardize (bool): Z-score features before classification.
@@ -105,7 +105,7 @@ def predict(
             cv=cv,
             groups=groups,
             roi_mask=roi_mask,
-            radius=radius,
+            radius_mm=radius_mm,
             scoring=scoring,
             standardize=standardize,
             n_jobs=n_jobs,
@@ -208,7 +208,7 @@ def predict_mvpa(
     cv=5,
     groups=None,
     roi_mask=None,
-    radius=10.0,
+    radius_mm=10.0,
     scoring="accuracy",
     standardize=True,
     n_jobs=-1,
@@ -227,7 +227,7 @@ def predict_mvpa(
         cv (int or sklearn CV splitter): Cross-validation specification.
         groups (array-like, optional): Group labels for CV.
         roi_mask (Nifti1Image or str, optional): Atlas for ROI-based decoding.
-        radius (float): Searchlight radius in mm.
+        radius_mm (float): searchlight radius in mm.
         scoring (str): Scoring metric.
         standardize (bool): Whether to z-score features.
         n_jobs (int): Parallel jobs for searchlight.
@@ -287,7 +287,7 @@ def predict_mvpa(
         accuracy = mvpa_whole_brain_pipeline(bd, y, estimator, cv, groups, standardize)
     elif method == "searchlight":
         accuracy = mvpa_searchlight(
-            bd, X_data, y, pipe, cv, groups, scoring, radius, n_jobs, progress_bar
+            bd, X_data, y, pipe, cv, groups, scoring, radius_mm, n_jobs, progress_bar
         )
     elif method == "roi":
         if roi_mask is None:
@@ -430,7 +430,7 @@ def mvpa_whole_brain_pipeline(bd, y, estimator, cv, groups, standardize):
     return np.array([cv_result.mean_score])
 
 
-def mvpa_searchlight(bd, X, y, pipe, cv, groups, scoring, radius, n_jobs, progress_bar):
+def mvpa_searchlight(bd, X, y, pipe, cv, groups, scoring, radius_mm, n_jobs, progress_bar):
     """Searchlight MVPA - accuracy per voxel neighborhood.
 
     Args:
@@ -441,7 +441,7 @@ def mvpa_searchlight(bd, X, y, pipe, cv, groups, scoring, radius, n_jobs, progre
         cv: Cross-validation splitter.
         groups: Group labels for CV.
         scoring: Scoring metric string.
-        radius: Searchlight radius in mm.
+        radius_mm: searchlight radius in mm.
         n_jobs: Number of parallel jobs.
         progress_bar: Whether to show progress bar.
 
@@ -456,7 +456,7 @@ def mvpa_searchlight(bd, X, y, pipe, cv, groups, scoring, radius, n_jobs, progre
 
     # Get neighborhoods
     neighborhoods = compute_searchlight_neighborhoods(
-        bd.mask, radius_mm=radius, use_cache=True
+        bd.mask, radius_mm=radius_mm, use_cache=True
     )
 
     def decode_sphere(center_idx, neighbor_indices):

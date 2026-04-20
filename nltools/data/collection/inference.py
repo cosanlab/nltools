@@ -469,7 +469,7 @@ def isc(
     bc: "BrainCollection",
     method: str = "loo",
     roi_mask: "nib.Nifti1Image | Path | str | None" = None,
-    radius: float | None = 6.0,
+    radius_mm: float | None = 6.0,
     metric: str = "median",
     device: str = "cpu",
     n_jobs: int = -1,
@@ -489,7 +489,7 @@ def isc(
         roi_mask: If provided, compute ISC per ROI. Can be:
             - NIfTI image with integer labels (atlas/parcellation)
             - Path to parcellation file
-        radius: Searchlight radius in mm. If None, use voxelwise mode.
+        radius_mm: searchlight radius in mm. If None, use voxelwise mode.
             Ignored if roi_mask is provided.
         metric: Summary statistic for aggregating ISC values:
             - 'median': Robust to outliers (default)
@@ -512,10 +512,10 @@ def isc(
         >>> result['isc'].plot()
 
         >>> # Searchlight ISC
-        >>> result = bc.isc(radius=10.0)
+        >>> result = bc.isc(radius_mm=10.0)
 
         >>> # Voxelwise ISC
-        >>> result = bc.isc(radius=None)
+        >>> result = bc.isc(radius_mm=None)
 
     Notes:
         For permutation testing, see BrainCollection.isc_test() (requires
@@ -530,7 +530,7 @@ def isc(
     extracted, extraction_info = extract_for_isc(
         bc,
         roi_mask=roi_mask,
-        radius=radius,
+        radius_mm=radius_mm,
         progress_bar=progress_bar,
     )
 
@@ -584,7 +584,7 @@ def isc_test(
     bc: "BrainCollection",
     method: str = "loo",
     roi_mask: "nib.Nifti1Image | Path | str | None" = None,
-    radius: float | None = 6.0,
+    radius_mm: float | None = 6.0,
     n_permute: int = 5000,
     permutation_method: str = "bootstrap",
     metric: str = "median",
@@ -611,7 +611,7 @@ def isc_test(
         roi_mask: If provided, compute ISC per ROI. Can be:
             - NIfTI image with integer labels (atlas/parcellation)
             - Path to parcellation file
-        radius: Searchlight radius in mm. If None, use voxelwise mode.
+        radius_mm: searchlight radius in mm. If None, use voxelwise mode.
             Ignored if roi_mask is provided.
         n_permute: Number of permutations/bootstrap iterations. Default 5000.
         permutation_method: Method for null distribution:
@@ -652,13 +652,13 @@ def isc_test(
         >>> print(f"Significant ROIs: {sig_mask.sum()}")
 
         >>> # Searchlight ISC testing
-        >>> result = bc.isc_test(radius=10.0)
+        >>> result = bc.isc_test(radius_mm=10.0)
         >>> result['isc'].plot()  # Show ISC values
         >>> result['p'].plot()    # Show p-values
 
         >>> # Voxelwise with phase randomization (tests temporal coupling)
         >>> result = bc.isc_test(
-        ...     radius=None,
+        ...     radius_mm=None,
         ...     permutation_method='phase_randomize',
         ...     device='gpu'
         ... )
@@ -688,7 +688,7 @@ def isc_test(
     extracted, extraction_info = extract_for_isc(
         bc,
         roi_mask=roi_mask,
-        radius=radius,
+        radius_mm=radius_mm,
         progress_bar=progress_bar,
     )
 
@@ -734,7 +734,7 @@ def isc_test(
 def extract_for_isc(
     bc: "BrainCollection",
     roi_mask: "nib.Nifti1Image | Path | str | None" = None,
-    radius: float | None = 6.0,
+    radius_mm: float | None = 6.0,
     progress_bar: bool = False,
 ) -> tuple[np.ndarray, dict]:
     """
@@ -748,7 +748,7 @@ def extract_for_isc(
         roi_mask: If provided, extract mean per ROI. Can be:
             - NIfTI image with integer labels (atlas/parcellation)
             - Path to parcellation file
-        radius: Searchlight radius in mm. If None, use voxelwise mode.
+        radius_mm: searchlight radius in mm. If None, use voxelwise mode.
             Ignored if roi_mask is provided.
         progress_bar: Show progress bar during extraction.
 
@@ -771,8 +771,8 @@ def extract_for_isc(
     # Determine extraction mode
     if roi_mask is not None:
         return extract_roi(bc, roi_mask, progress_bar)
-    elif radius is not None:
-        return extract_searchlight(bc, radius, progress_bar)
+    elif radius_mm is not None:
+        return extract_searchlight(bc, radius_mm, progress_bar)
     else:
         return extract_voxelwise(bc, progress_bar)
 
@@ -834,7 +834,7 @@ def extract_roi(
 
 def extract_searchlight(
     bc: "BrainCollection",
-    radius: float,
+    radius_mm: float,
     progress_bar: bool = False,
 ) -> tuple[np.ndarray, dict]:
     """Extract mean signal per searchlight sphere."""
@@ -849,7 +849,7 @@ def extract_searchlight(
 
     # Get cached neighborhoods
     neighborhoods = compute_searchlight_neighborhoods(
-        bc._mask, radius_mm=radius, use_cache=True
+        bc._mask, radius_mm=radius_mm, use_cache=True
     )
 
     # Preallocate output: (n_obs, n_subjects, n_voxels)
@@ -871,7 +871,7 @@ def extract_searchlight(
     extraction_info = {
         "mode": "searchlight",
         "n_features": n_voxels,
-        "radius": radius,
+        "radius_mm": radius_mm,
         "neighborhoods": neighborhoods,
     }
 
