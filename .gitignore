@@ -81,3 +81,4 @@ nltools/tests/data/haxby/
 *.db
 old-tutorials/
 dartbrains/
+scripts/sub-*
