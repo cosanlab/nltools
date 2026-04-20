@@ -28,7 +28,9 @@ class TestAdjacencyStats:
         for perm_type in [None, "1d", "2d"]:
             assert (
                 sim_adjacency_multiple[0].similarity(
-                    data2.squareform(), permutation_method=perm_type, n_permute=n_permute
+                    data2.squareform(),
+                    permutation_method=perm_type,
+                    n_permute=n_permute,
                 )["correlation"]
                 > 0.5
             )
@@ -54,7 +56,9 @@ class TestAdjacencyStats:
         dat = np.random.multivariate_normal([2, 6], cov_matrix, 400)
         x = Adjacency(dat[:, 0].reshape(20, 20), matrix_type="directed")
         y = Adjacency(dat[:, 1].reshape(20, 20), matrix_type="directed")
-        stats = x.similarity(y, permutation_method="1d", include_diag=False, n_permute=100)
+        stats = x.similarity(
+            y, permutation_method="1d", include_diag=False, n_permute=100
+        )
         assert (
             (stats["correlation"] > 0.4)
             & (stats["correlation"] < 0.85)
@@ -89,7 +93,9 @@ class TestAdjacencyStats:
         assert abs(stats_omit["correlation"] - stats_clean["correlation"]) < 0.15
 
         # propagate policy
-        stats_prop = x_nan.similarity(y_nan, permutation_method=None, nan_policy="propagate")
+        stats_prop = x_nan.similarity(
+            y_nan, permutation_method=None, nan_policy="propagate"
+        )
         assert np.isnan(stats_prop["correlation"])
 
         # raise policy

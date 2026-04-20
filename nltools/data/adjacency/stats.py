@@ -126,7 +126,9 @@ def similarity(
     else:
         raise ValueError("permutation_method must be ['1d','2d', or None']")
 
-    def _convert_data_similarity(data, permutation_method=None, include_diag=include_diag):
+    def _convert_data_similarity(
+        data, permutation_method=None, include_diag=include_diag
+    ):
         """Helper function to convert data correctly"""
         if (permutation_method is None) or (permutation_method == "1d"):
             if not include_diag and (not data.issymmetric):
@@ -136,7 +138,9 @@ def similarity(
                 data = data.data
         elif permutation_method == "2d":
             if not data.issymmetric:
-                raise TypeError(f"data must be symmetric to do {permutation_method} permutation")
+                raise TypeError(
+                    f"data must be symmetric to do {permutation_method} permutation"
+                )
             else:
                 data = data.squareform()
         else:
@@ -167,7 +171,9 @@ def similarity(
             for i in a:
                 plot_stacked_adjacency(adj, data, ax=i)
         results = []
-        arr2_base = _convert_data_similarity(data2, permutation_method=permutation_method)
+        arr2_base = _convert_data_similarity(
+            data2, permutation_method=permutation_method
+        )
         for x in adj:
             arr1 = _convert_data_similarity(x, permutation_method=permutation_method)
             arr1_clean, arr2_clean = _handle_nans(arr1, arr2_base, nan_policy)

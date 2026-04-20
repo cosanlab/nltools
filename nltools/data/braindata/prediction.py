@@ -430,7 +430,9 @@ def mvpa_whole_brain_pipeline(bd, y, estimator, cv, groups, standardize):
     return np.array([cv_result.mean_score])
 
 
-def mvpa_searchlight(bd, X, y, pipe, cv, groups, scoring, radius_mm, n_jobs, progress_bar):
+def mvpa_searchlight(
+    bd, X, y, pipe, cv, groups, scoring, radius_mm, n_jobs, progress_bar
+):
     """Searchlight MVPA - accuracy per voxel neighborhood.
 
     Args:

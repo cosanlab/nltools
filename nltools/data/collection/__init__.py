@@ -1904,7 +1904,9 @@ class BrainCollection:
         """
         from .inference import isc
 
-        return isc(self, method, roi_mask, radius_mm, metric, device, n_jobs, progress_bar)
+        return isc(
+            self, method, roi_mask, radius_mm, metric, device, n_jobs, progress_bar
+        )
 
     def isc_test(
         self,
