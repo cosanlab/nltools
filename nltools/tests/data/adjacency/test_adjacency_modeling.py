@@ -69,13 +69,13 @@ class TestAdjacencyModeling:
 
     def test_generate_permutations(self, sim_adjacency_single):
         """Test lazy generation of permuted adjacency matrices."""
-        n_perm = 10
+        n_permute = 10
         original_data = sim_adjacency_single.data.copy()
 
         perms = list(
-            sim_adjacency_single.generate_permutations(n_perm, random_state=42)
+            sim_adjacency_single.generate_permutations(n_permute, random_state=42)
         )
-        assert len(perms) == n_perm
+        assert len(perms) == n_permute
 
         for perm in perms:
             assert isinstance(perm, Adjacency)

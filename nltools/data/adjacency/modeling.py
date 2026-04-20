@@ -610,13 +610,13 @@ def social_relations_model(adj, summarize_results=True, nan_replace=True):
     return results
 
 
-def generate_permutations(adj, n_perm, random_state=None):
+def generate_permutations(adj, n_permute, random_state=None):
     """
-    Generate n_perm permutated versions of Adjacency in a lazy fashion. Useful for iterating against.
+    Generate n_permute permutated versions of Adjacency in a lazy fashion. Useful for iterating against.
 
     Args:
         adj: (Adjacency) Adjacency instance
-        n_perm (int): number of permutations
+        n_permute (int): number of permutations
         random_state (int or np.random.RandomState, optional): random seed for reproducibility. Defaults to None.
 
     Examples:
@@ -632,7 +632,7 @@ def generate_permutations(adj, n_perm, random_state=None):
 
     random_state = check_random_state(random_state)
 
-    for _ in range(n_perm):
+    for _ in range(n_permute):
         # Get squareform as numpy array (no pandas conversion needed)
         dat = adj.squareform()
         # Generate random permutation indices

@@ -477,12 +477,12 @@ class Adjacency(object):
         else:
             raise ValueError("Matrix is not a distance matrix.")
 
-    def generate_permutations(self, n_perm, random_state=None):
+    def generate_permutations(self, n_permute, random_state=None):
         """
-        Generate n_perm permutated versions of Adjacency in a lazy fashion.
+        Generate n_permute permutated versions of Adjacency in a lazy fashion.
 
         Args:
-            n_perm (int): number of permutations
+            n_permute (int): number of permutations
             random_state (int, np.random.seed, optional): random seed for reproducibility.
 
         Examples:
@@ -495,7 +495,7 @@ class Adjacency(object):
         """
         from .modeling import generate_permutations
 
-        return generate_permutations(self, n_perm, random_state)
+        return generate_permutations(self, n_permute, random_state)
 
     def mean(self, axis=0):
         """Calculate mean of Adjacency.
