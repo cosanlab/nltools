@@ -600,8 +600,8 @@ class BrainData(object):
         method: str = "kfold",
         split_by: str | None = None,
         groups: np.ndarray | None = None,
+        n: int = 1000,
         random_state: int | None = None,
-        **kwargs,
     ) -> "BrainDataPipeline":
         """Create a cross-validation pipeline for this BrainData.
 
@@ -615,10 +615,11 @@ class BrainData(object):
                 - 'kfold': k-fold cross-validation (default)
                 - 'loro': leave-one-run-out (requires split_by='runs' or groups)
                 - 'bootstrap': bootstrap with out-of-bag test sets
+                - 'permutation': permutation testing (shuffles targets)
             split_by: Attribute name for group splits (e.g., 'runs').
             groups: Explicit group labels for CV splits.
+            n: Number of iterations for bootstrap/permutation methods. Default 1000.
             random_state: Random seed for reproducibility.
-            **kwargs: Additional arguments passed to CVScheme.
 
         Returns:
             BrainDataPipeline: A pipeline object for method chaining.
@@ -635,8 +636,8 @@ class BrainData(object):
             method=method,
             split_by=split_by,
             groups=groups,
+            n=n,
             random_state=random_state,
-            **kwargs,
         )
 
     def decompose(
@@ -1111,7 +1112,7 @@ class BrainData(object):
             is_mask=is_mask,
         )
 
-    def regress(self, design_matrix=None, method="ols", mode=None, **kwargs):
+    def regress(self, design_matrix=None, method="ols", mode=None):
         """Deprecated: Use fit(model='glm', X=design_matrix) instead.
 
         .. deprecated:: 0.6.0
@@ -1124,7 +1125,6 @@ class BrainData(object):
             design_matrix=design_matrix,
             method=method,
             mode=mode,
-            **kwargs,
         )
 
     def resample_to(self, img=None, resolution=None, interpolation=None):

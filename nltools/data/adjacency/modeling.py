@@ -115,7 +115,7 @@ def convert_bootstrap_results_to_adjacency(adj, result, save_boots=False):
     return out
 
 
-def regress(adj, X, method="ols", **kwargs):
+def regress(adj, X, method="ols"):
     """Run a regression on an adjacency instance.
     You can decompose an adjacency instance with another adjacency instance.
     You can also decompose each pixel by passing a design_matrix instance.

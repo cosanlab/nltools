@@ -606,7 +606,7 @@ class Adjacency(object):
 
         return r_to_z(self)
 
-    def regress(self, X, method="ols", **kwargs):
+    def regress(self, X, method="ols"):
         """Run a regression on an adjacency instance.
         You can decompose an adjacency instance with another adjacency instance.
         You can also decompose each pixel by passing a design_matrix instance.
@@ -620,7 +620,7 @@ class Adjacency(object):
         """
         from .modeling import regress
 
-        return regress(self, X, method, **kwargs)
+        return regress(self, X, method)
 
     def similarity(
         self,
@@ -631,7 +631,10 @@ class Adjacency(object):
         metric="spearman",
         include_diag=False,
         nan_policy="omit",
-        **kwargs,
+        tail=2,
+        return_null=False,
+        n_jobs=-1,
+        random_state=None,
     ):
         """
         Calculate similarity between two Adjacency matrices. Default is to use spearman
@@ -649,6 +652,10 @@ class Adjacency(object):
                 - 'omit': Remove NaN values pairwise before computing correlation (default)
                 - 'propagate': Allow NaN to propagate through calculations
                 - 'raise': Raise an error if NaN values are present
+            tail: (int) Tail of the test (1 or 2). Default 2.
+            return_null: (bool) If True, also return the null distribution. Default False.
+            n_jobs: (int) Number of parallel jobs. Default -1 (all cores).
+            random_state: (int, optional) Random seed for reproducibility.
 
         """
         from .stats import similarity
@@ -662,7 +669,10 @@ class Adjacency(object):
             metric=metric,
             include_diag=include_diag,
             nan_policy=nan_policy,
-            **kwargs,
+            tail=tail,
+            return_null=return_null,
+            n_jobs=n_jobs,
+            random_state=random_state,
         )
 
     def social_relations_model(self, summarize_results=True, nan_replace=True):

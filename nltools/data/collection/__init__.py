@@ -2027,8 +2027,8 @@ class BrainCollection:
         method: str = "kfold",
         split_by: str | None = None,
         groups: np.ndarray | None = None,
+        n: int = 1000,
         random_state: int | None = None,
-        **kwargs,
     ) -> "BrainCollectionPipeline":
         """Create a cross-validation pipeline for multi-subject analysis.
 
@@ -2041,11 +2041,13 @@ class BrainCollection:
                 - 'kfold': k-fold cross-validation on pooled data
                 - 'loso': leave-one-subject-out (one image held out per fold)
                 - 'loro': leave-one-run-out (requires groups)
+                - 'bootstrap': bootstrap with out-of-bag test sets
+                - 'permutation': permutation testing (shuffles targets)
             split_by: Metadata column for group splits.
                 If provided and groups is None, gets groups from self.metadata[split_by].
             groups: Explicit group labels for CV splits.
+            n: Number of iterations for bootstrap/permutation methods. Default 1000.
             random_state: Random seed for reproducibility.
-            **kwargs: Additional arguments passed to CVScheme.
 
         Returns:
             BrainCollectionPipeline: Pipeline for method chaining.
@@ -2071,7 +2073,7 @@ class BrainCollection:
         """
         from .modeling import cv
 
-        return cv(self, k, method, split_by, groups, random_state, **kwargs)
+        return cv(self, k, method, split_by, groups, n, random_state)
 
     def fit(
         self,

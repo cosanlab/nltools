@@ -17,7 +17,10 @@ def similarity(
     metric="spearman",
     include_diag=False,
     nan_policy="omit",
-    **kwargs,
+    tail=2,
+    return_null=False,
+    n_jobs=-1,
+    random_state=None,
 ):
     """
     Calculate similarity between two Adjacency matrices. Default is to use spearman
@@ -38,6 +41,10 @@ def similarity(
             - 'omit': Remove NaN values pairwise before computing correlation (default)
             - 'propagate': Allow NaN to propagate through calculations
             - 'raise': Raise an error if NaN values are present
+        tail (int): Tail of the test (1 or 2). Default 2.
+        return_null (bool): If True, also return the null distribution. Default False.
+        n_jobs (int): Number of parallel jobs. -1 means all cores. Default -1.
+        random_state (int, optional): Random seed for reproducibility.
 
     Returns:
         dict or list: Correlation result dict with keys 'r' and 'p', or a list of
@@ -147,7 +154,10 @@ def similarity(
             arr2,
             metric=metric,
             n_permute=n_permute,
-            **kwargs,
+            tail=tail,
+            return_null=return_null,
+            n_jobs=n_jobs,
+            random_state=random_state,
         )
     else:
         if plot:
@@ -167,7 +177,10 @@ def similarity(
                     arr2_clean,
                     metric=metric,
                     n_permute=n_permute,
-                    **kwargs,
+                    tail=tail,
+                    return_null=return_null,
+                    n_jobs=n_jobs,
+                    random_state=random_state,
                 )
             )
         return results

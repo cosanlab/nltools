@@ -16,8 +16,8 @@ def cv(
     method="kfold",
     split_by=None,
     groups=None,
+    n=1000,
     random_state=None,
-    **kwargs,
 ):
     """Create a cross-validation pipeline for this BrainData.
 
@@ -36,8 +36,8 @@ def cv(
             If provided and groups is None, will try to get groups from
             bd.X[split_by] if bd.X is a DataFrame.
         groups: Explicit group labels for CV splits.
+        n: Number of iterations for bootstrap/permutation methods. Default 1000.
         random_state: Random seed for reproducibility.
-        **kwargs: Additional arguments passed to CVScheme.
 
     Returns:
         BrainDataPipeline: A pipeline object for method chaining.
@@ -75,8 +75,8 @@ def cv(
         k=k,
         scheme=method,
         split_by=split_by,
+        n=n,
         random_state=random_state,
-        **kwargs,
     )
 
     # Create and return pipeline
@@ -708,7 +708,7 @@ def ttest2(bd, other, equal_var=True):
     return {"t": t_bd, "p": p_bd}
 
 
-def regress(bd, design_matrix=None, method="ols", mode=None, **kwargs):
+def regress(bd, design_matrix=None, method="ols", mode=None):
     """Deprecated: Use fit(model='glm', X=design_matrix) instead.
 
     Args:
@@ -716,7 +716,6 @@ def regress(bd, design_matrix=None, method="ols", mode=None, **kwargs):
         design_matrix: Design matrix (unused, raises error).
         method: Noise model (unused, raises error).
         mode: Mode (unused, raises error).
-        **kwargs: Additional arguments (unused, raises error).
     """
     raise NotImplementedError(
         "The regress() method has been removed in v0.6.0. "

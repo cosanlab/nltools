@@ -274,8 +274,8 @@ def cv(
     method: str = "kfold",
     split_by: str | None = None,
     groups: np.ndarray | None = None,
+    n: int = 1000,
     random_state: int | None = None,
-    **kwargs,
 ) -> "BrainCollectionPipeline":
     """Create a cross-validation pipeline for multi-subject analysis.
 
@@ -292,8 +292,8 @@ def cv(
         split_by: Metadata column for group splits.
             If provided and groups is None, gets groups from bc.metadata[split_by].
         groups: Explicit group labels for CV splits.
+        n: Number of iterations for bootstrap/permutation methods. Default 1000.
         random_state: Random seed for reproducibility.
-        **kwargs: Additional arguments passed to CVScheme.
 
     Returns:
         BrainCollectionPipeline: Pipeline for method chaining.
@@ -330,8 +330,8 @@ def cv(
         k=k,
         scheme=method,
         split_by=split_by,
+        n=n,
         random_state=random_state,
-        **kwargs,
     )
 
     return BrainCollectionPipeline(bc, cv=cv_scheme, groups=groups)
