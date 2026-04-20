@@ -62,10 +62,10 @@ def plot_mds(
     labels=None,
     labels_color=None,
     cmap=None,
-    n_jobs=-1,
     view=(30, 20),
     figsize=None,
     ax=None,
+    n_jobs=-1,
     *args,
     **kwargs,
 ):
@@ -78,10 +78,10 @@ def plot_mds(
         labels (list): Can override labels stored in Adjacency Class.
         labels_color (list): List of colors for labels.
         cmap: Colormap instance (default: ``plt.cm.hot_r``).
-        n_jobs (int): Number of parallel jobs.
         view (tuple): View for 3-Dimensional plot. Default (30, 20).
         figsize (list): Figure size. Default [12, 8].
         ax: Matplotlib axis handle.
+        n_jobs (int): Number of parallel jobs.
 
     Returns:
         None

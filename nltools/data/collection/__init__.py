@@ -1641,9 +1641,9 @@ class BrainCollection:
         self,
         axis: int = 0,
         method: str = "center",
+        verbose: bool = True,
         n_jobs: int = 1,
         progress_bar: bool = False,
-        verbose: bool = True,
     ) -> "BrainCollection":
         """
         Standardize each image.
@@ -1655,10 +1655,10 @@ class BrainCollection:
                 - 0: Standardize across observations (time) per voxel
                 - 1: Standardize across voxels per observation
             method: 'center' (subtract mean) or 'zscore' (subtract mean, divide std)
-            n_jobs: Number of parallel jobs.
-            progress_bar: Show progress bar.
             verbose: If False, suppress sklearn numerical warnings that occur
                 when voxels have near-zero variance. Default: True.
+            n_jobs: Number of parallel jobs.
+            progress_bar: Show progress bar.
 
         Returns:
             BrainCollection with standardized images.
@@ -1670,7 +1670,7 @@ class BrainCollection:
         """
         from .transforms import standardize
 
-        return standardize(self, axis, method, n_jobs, progress_bar, verbose)
+        return standardize(self, axis, method, verbose, n_jobs, progress_bar)
 
     def smooth(
         self,

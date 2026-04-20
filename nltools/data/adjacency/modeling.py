@@ -12,9 +12,9 @@ def bootstrap(
     stat,
     n_samples=5000,
     save_boots=False,
+    percentiles=(2.5, 97.5),
     n_jobs=-1,
     random_state=None,
-    percentiles=(2.5, 97.5),
 ):
     """Bootstrap statistics using efficient online algorithms.
 
@@ -28,9 +28,9 @@ def bootstrap(
         n_samples: (int) Number of bootstrap iterations. Default: 5000
         save_boots: (bool) If True, store all bootstrap samples (memory intensive).
                    Default: False
+        percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
         n_jobs: (int) Number of CPU cores for parallelization. -1 means all CPUs.
         random_state: (int, optional) Random seed for reproducibility
-        percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
 
     Returns:
         dict: Dictionary with keys: 'Z', 'p', 'mean', 'std', 'ci_lower', 'ci_upper'

@@ -479,10 +479,10 @@ class BrainData(object):
         stat,
         n_samples=5000,
         save_boots=False,
-        n_jobs=-1,
-        random_state=None,
         percentiles=(2.5, 97.5),
         X_test=None,
+        n_jobs=-1,
+        random_state=None,
         **kwargs,
     ):
         """Bootstrap statistics using efficient online algorithms.
@@ -496,10 +496,10 @@ class BrainData(object):
                 'predict' requires fitted Ridge model + X_test).
             n_samples: (int) Number of bootstrap iterations. Default: 5000
             save_boots: (bool) If True, store all bootstrap samples. Default: False
-            n_jobs: (int) Number of CPU cores for parallelization. -1 means all CPUs.
-            random_state: (int, optional) Random seed for reproducibility
             percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
             X_test: (np.ndarray, optional) Test features for 'predict' bootstrap.
+            n_jobs: (int) Number of CPU cores for parallelization. -1 means all CPUs.
+            random_state: (int, optional) Random seed for reproducibility
             **kwargs: Additional parameters (backend, max_gpu_memory_gb, etc.)
 
         Returns:
@@ -768,9 +768,9 @@ class BrainData(object):
         X=None,
         cv=None,
         inplace=True,
-        progress_bar=None,
         scale=True,
         scale_value=100.0,
+        progress_bar=None,
         **kwargs,
     ):
         """Fit a model to brain imaging data.
@@ -785,9 +785,9 @@ class BrainData(object):
             cv (int, 'auto', or sklearn CV splitter, optional): Cross-validation specification (Ridge only)
             inplace (bool, default=True): If True, mutate self and return self.
                 If False, return Fit dataclass with results (self unchanged).
-            progress_bar (bool, optional): Display progress bar during fitting.
             scale (bool, default=True): Apply grand-mean scaling before fitting.
             scale_value (float, default=100.0): Target value for mean after scaling.
+            progress_bar (bool, optional): Display progress bar during fitting.
             **kwargs (dict): Additional arguments passed to model constructor
 
         Returns:
@@ -806,9 +806,9 @@ class BrainData(object):
             X=X,
             cv=cv,
             inplace=inplace,
-            progress_bar=progress_bar,
             scale=scale,
             scale_value=scale_value,
+            progress_bar=progress_bar,
             **kwargs,
         )
 

@@ -356,9 +356,9 @@ class Adjacency(object):
         stat,
         n_samples=5000,
         save_boots=False,
+        percentiles=(2.5, 97.5),
         n_jobs=-1,
         random_state=None,
-        percentiles=(2.5, 97.5),
     ):
         """Bootstrap statistics using efficient online algorithms.
 
@@ -371,9 +371,9 @@ class Adjacency(object):
             n_samples: (int) Number of bootstrap iterations. Default: 5000
             save_boots: (bool) If True, store all bootstrap samples (memory intensive).
                        Default: False
+            percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
             n_jobs: (int) Number of CPU cores for parallelization. -1 means all CPUs.
             random_state: (int, optional) Random seed for reproducibility
-            percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
 
         Returns:
             dict: Dictionary with keys: 'Z', 'p', 'mean', 'std', 'ci_lower', 'ci_upper'
@@ -388,7 +388,7 @@ class Adjacency(object):
         from .modeling import bootstrap
 
         return bootstrap(
-            self, stat, n_samples, save_boots, n_jobs, random_state, percentiles
+            self, stat, n_samples, save_boots, percentiles, n_jobs, random_state
         )
 
     def cluster_summary(self, clusters=None, metric="mean", summary="within"):
@@ -553,10 +553,10 @@ class Adjacency(object):
         labels=None,
         labels_color=None,
         cmap=None,
-        n_jobs=-1,
         view=(30, 20),
         figsize=None,
         ax=None,
+        n_jobs=-1,
         *args,
         **kwargs,
     ):
@@ -568,10 +568,10 @@ class Adjacency(object):
             labels: (list) Can override labels stored in Adjacency Class
             labels_color: (str) list of colors for labels, if len(1) then make all same color
             cmap: colormap instance (default: plt.cm.hot_r)
-            n_jobs: (int) Number of parallel jobs
             view: (tuple) view for 3-Dimensional plot; default (30,20)
             figsize: (list) figure size; default [12, 8]
             ax: matplotlib axis handle
+            n_jobs: (int) Number of parallel jobs
 
         """
         from .plotting import plot_mds
@@ -583,10 +583,10 @@ class Adjacency(object):
             labels,
             labels_color,
             cmap,
-            n_jobs,
             view,
             figsize,
             ax,
+            n_jobs,
             *args,
             **kwargs,
         )
