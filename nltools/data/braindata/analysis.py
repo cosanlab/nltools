@@ -867,7 +867,7 @@ def decompose(bd, method="pca", axis="voxels", n_components=None, *args, **kwarg
     return out
 
 
-def align(bd, target, method="procrustes", axis=0, *args, **kwargs):
+def align(bd, target, method="procrustes", axis=0):
     """Align BrainData instance to target object using functional alignment
 
     Alignment type can be hyperalignment or Shared Response Model. When
@@ -884,7 +884,6 @@ def align(bd, target, method="procrustes", axis=0, *args, **kwargs):
         method: (str) alignment method to use
             ['probabilistic_srm','deterministic_srm','procrustes']
         axis: (int) axis to align on (default: 0)
-        **kwargs: Additional keyword arguments passed to the alignment function.
 
     Returns:
         out: (dict) a dictionary containing transformed object,

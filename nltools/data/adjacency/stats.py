@@ -258,12 +258,26 @@ def threshold(adj, upper=None, lower=None, binarize=False):
     return b
 
 
-def ttest(adj, permutation=False, **kwargs):
+def ttest(
+    adj,
+    permutation=False,
+    n_permute=5000,
+    tail=2,
+    return_null=False,
+    n_jobs=-1,
+    random_state=None,
+):
     """Calculate ttest across samples.
 
     Args:
         adj (Adjacency): Adjacency instance (must contain multiple matrices)
         permutation: (bool) Run ttest as permutation. Note this can be very slow.
+        n_permute: Number of permutations (used only when
+            ``permutation=True``). Default 5000.
+        tail: Tail of the test (1 or 2). Default 2.
+        return_null: If True, also return the null distribution. Default False.
+        n_jobs: Number of parallel jobs. Default -1 (all cores).
+        random_state: Random seed for reproducibility.
 
     Returns:
         out: (dict) contains Adjacency instances of t values (or mean if
@@ -282,7 +296,14 @@ def ttest(adj, permutation=False, **kwargs):
         t = []
         p = []
         for i in range(adj.data.shape[1]):
-            stats = one_sample_permutation_test(adj.data[:, i], **kwargs)
+            stats = one_sample_permutation_test(
+                adj.data[:, i],
+                n_permute=n_permute,
+                tail=tail,
+                return_null=return_null,
+                n_jobs=n_jobs,
+                random_state=random_state,
+            )
             t.append(stats["mean"])
             p.append(stats["p"])
         t = Adjacency(np.array(t))

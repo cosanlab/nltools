@@ -376,7 +376,7 @@ class BrainData(object):
     # Public methods (alphabetical)
     # =========================================================================
 
-    def align(self, target, method="procrustes", axis=0, *args, **kwargs):
+    def align(self, target, method="procrustes", axis=0):
         """Align BrainData instance to target object using functional alignment.
 
         Args:
@@ -391,11 +391,11 @@ class BrainData(object):
 
         Examples:
             >>> out = data.align(target, method='procrustes')
-            >>> out = data.align(target, method='probabilistic_srm', n_features=None)
+            >>> out = data.align(target, method='probabilistic_srm')
         """
         from .analysis import align
 
-        return align(self, target, method=method, axis=axis, *args, **kwargs)
+        return align(self, target, method=method, axis=axis)
 
     def append(self, data, ignore_attrs=False, **kwargs):
         """Append data to BrainData instance.
@@ -481,9 +481,10 @@ class BrainData(object):
         save_boots=False,
         percentiles=(2.5, 97.5),
         X_test=None,
+        backend=None,
+        max_gpu_memory_gb=4.0,
         n_jobs=-1,
         random_state=None,
-        **kwargs,
     ):
         """Bootstrap statistics using efficient online algorithms.
 
@@ -498,9 +499,12 @@ class BrainData(object):
             save_boots: (bool) If True, store all bootstrap samples. Default: False
             percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
             X_test: (np.ndarray, optional) Test features for 'predict' bootstrap.
+            backend: (str, optional) Backend for Ridge bootstrap: None (CPU), 'torch'
+                (GPU if available), or 'auto' (auto-select). Ignored for simple stats.
+            max_gpu_memory_gb: (float) Maximum GPU memory to use when backend is 'torch'
+                or 'auto'. Default: 4.0
             n_jobs: (int) Number of CPU cores for parallelization. -1 means all CPUs.
             random_state: (int, optional) Random seed for reproducibility
-            **kwargs: Additional parameters (backend, max_gpu_memory_gb, etc.)
 
         Returns:
             BrainData or dict:
@@ -521,11 +525,12 @@ class BrainData(object):
             stat,
             n_samples=n_samples,
             save_boots=save_boots,
-            n_jobs=n_jobs,
-            random_state=random_state,
             percentiles=percentiles,
             X_test=X_test,
-            **kwargs,
+            backend=backend,
+            max_gpu_memory_gb=max_gpu_memory_gb,
+            n_jobs=n_jobs,
+            random_state=random_state,
         )
 
     def compute_contrasts(self, contrasts, contrast_type="t"):
@@ -1311,7 +1316,16 @@ class BrainData(object):
 
         return transform_pairwise_data(self)
 
-    def ttest(self, popmean=0.0, permutation=False, **kwargs):
+    def ttest(
+        self,
+        popmean=0.0,
+        permutation=False,
+        n_permute=5000,
+        tail=2,
+        return_null=False,
+        n_jobs=-1,
+        random_state=None,
+    ):
         """One-sample voxelwise t-test across images (axis 0).
 
         Tests whether the per-voxel mean across images differs from
@@ -1322,10 +1336,13 @@ class BrainData(object):
             popmean: Population mean to test against. Default 0.0.
             permutation: If True, use sign-flip permutation test via
                 :func:`nltools.stats.one_sample_permutation_test`.
-                ``**kwargs`` are forwarded (e.g. ``n_permute``, ``tail``,
-                ``parallel``, ``random_state``).
-            **kwargs: Forwarded to the permutation test when
-                ``permutation=True``.
+            n_permute: Number of permutations (used only when
+                ``permutation=True``). Default 5000.
+            tail: Tail of the test (1 or 2). Default 2.
+            return_null: If True, also return the null distribution.
+                Default False.
+            n_jobs: Number of parallel jobs. Default -1 (all cores).
+            random_state: Random seed for reproducibility.
 
         Returns:
             dict: ``{"t": BrainData, "p": BrainData}`` for the parametric
@@ -1345,7 +1362,16 @@ class BrainData(object):
         """
         from .modeling import ttest
 
-        return ttest(self, popmean=popmean, permutation=permutation, **kwargs)
+        return ttest(
+            self,
+            popmean=popmean,
+            permutation=permutation,
+            n_permute=n_permute,
+            tail=tail,
+            return_null=return_null,
+            n_jobs=n_jobs,
+            random_state=random_state,
+        )
 
     def ttest2(self, other, equal_var=True):
         """Two-sample voxelwise t-test between two BrainData stacks.

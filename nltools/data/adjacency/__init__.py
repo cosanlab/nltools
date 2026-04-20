@@ -813,11 +813,25 @@ class Adjacency(object):
         """
         return self.squareform()
 
-    def ttest(self, permutation=False, **kwargs):
+    def ttest(
+        self,
+        permutation=False,
+        n_permute=5000,
+        tail=2,
+        return_null=False,
+        n_jobs=-1,
+        random_state=None,
+    ):
         """Calculate ttest across samples.
 
         Args:
             permutation: (bool) Run ttest as permutation. Note this can be very slow.
+            n_permute: Number of permutations (used only when
+                ``permutation=True``). Default 5000.
+            tail: Tail of the test (1 or 2). Default 2.
+            return_null: If True, also return the null distribution. Default False.
+            n_jobs: Number of parallel jobs. Default -1 (all cores).
+            random_state: Random seed for reproducibility.
 
         Returns:
             out: (dict) contains Adjacency instances of t values (or mean if
@@ -826,7 +840,15 @@ class Adjacency(object):
         """
         from .stats import ttest
 
-        return ttest(self, permutation, **kwargs)
+        return ttest(
+            self,
+            permutation=permutation,
+            n_permute=n_permute,
+            tail=tail,
+            return_null=return_null,
+            n_jobs=n_jobs,
+            random_state=random_state,
+        )
 
     def write(self, file_name, method="long"):
         """Write out Adjacency object to csv file.

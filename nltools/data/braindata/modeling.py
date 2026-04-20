@@ -623,7 +623,16 @@ def to_fit_dataclass(bd, model):
         raise ValueError(f"Unknown model '{model}'. Must be 'ridge' or 'glm'")
 
 
-def ttest(bd, popmean=0.0, permutation=False, **kwargs):
+def ttest(
+    bd,
+    popmean=0.0,
+    permutation=False,
+    n_permute=5000,
+    tail=2,
+    return_null=False,
+    n_jobs=-1,
+    random_state=None,
+):
     """One-sample voxelwise t-test across images (axis 0).
 
     For a BrainData stack of images (e.g. subject-level contrast maps with
@@ -634,10 +643,13 @@ def ttest(bd, popmean=0.0, permutation=False, **kwargs):
         bd: BrainData instance (must contain multiple images).
         popmean: Population mean to test against. Default 0.0.
         permutation: If True, use sign-flip permutation test via
-            ``nltools.stats.one_sample_permutation_test``. ``**kwargs`` are
-            forwarded (e.g. ``n_permute``, ``tail``, ``parallel``,
-            ``random_state``).
-        **kwargs: Forwarded to the permutation test when ``permutation=True``.
+            ``nltools.stats.one_sample_permutation_test``.
+        n_permute: Number of permutations (used only when
+            ``permutation=True``). Default 5000.
+        tail: Tail of the test (1 or 2). Default 2.
+        return_null: If True, also return the null distribution. Default False.
+        n_jobs: Number of parallel jobs. Default -1 (all cores).
+        random_state: Random seed for reproducibility.
 
     Returns:
         dict: ``{"t": BrainData, "p": BrainData}`` for the parametric case, or
@@ -660,7 +672,14 @@ def ttest(bd, popmean=0.0, permutation=False, **kwargs):
     if permutation:
         from nltools.stats import one_sample_permutation_test
 
-        result = one_sample_permutation_test(bd.data, **kwargs)
+        result = one_sample_permutation_test(
+            bd.data,
+            n_permute=n_permute,
+            tail=tail,
+            return_null=return_null,
+            n_jobs=n_jobs,
+            random_state=random_state,
+        )
         mean_bd = BrainData(mask=bd.mask)
         mean_bd.data = np.asarray(result["mean"])
         p_bd = BrainData(mask=bd.mask)

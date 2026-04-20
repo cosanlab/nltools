@@ -10,11 +10,12 @@ def bootstrap(
     stat,
     n_samples=5000,
     save_boots=False,
-    n_jobs=-1,
-    random_state=None,
     percentiles=(2.5, 97.5),
     X_test=None,
-    **kwargs,
+    backend=None,
+    max_gpu_memory_gb=4.0,
+    n_jobs=-1,
+    random_state=None,
 ):
     """Bootstrap statistics using efficient online algorithms.
 
@@ -29,18 +30,16 @@ def bootstrap(
         n_samples: (int) Number of bootstrap iterations. Default: 5000
         save_boots: (bool) If True, store all bootstrap samples (memory intensive).
                    Default: False
-        n_jobs: (int) Number of CPU cores for parallelization. Default: -1 (all CPUs).
-        random_state: (int, optional) Random seed for reproducibility
         percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
         X_test: (np.ndarray, optional) Test features for 'predict' bootstrap.
                Required if stat='predict'
-        backend: (str, optional) Backend for computation ('numpy', 'torch', 'auto').
-                If 'torch' and GPU available, uses optimized GPU acceleration with
-                inline Ridge computation (no CPU round-trips). Default: None (CPU).
-        max_gpu_memory_gb: (float) Maximum GPU memory to use in GB. Default: 4.0
-        **kwargs: Additional keyword arguments passed to the underlying bootstrap
-            computation functions. Also accepts ``backend`` (str) and
-            ``max_gpu_memory_gb`` (float).
+        backend: (str, optional) Backend for Ridge bootstrap: None (CPU), 'torch'
+            (GPU if available), or 'auto' (auto-select). Ignored for simple stats.
+            Default: None
+        max_gpu_memory_gb: (float) Maximum GPU memory to use when backend is 'torch'
+            or 'auto'. Default: 4.0
+        n_jobs: (int) Number of CPU cores for parallelization. Default: -1 (all CPUs).
+        random_state: (int, optional) Random seed for reproducibility
 
     Returns:
         BrainData or dict:
@@ -107,10 +106,6 @@ def bootstrap(
         check_gpu_available,
         auto_select_backend,
     )
-
-    # Extract backend parameter from kwargs
-    backend = kwargs.pop("backend", None)
-    max_gpu_memory_gb = kwargs.pop("max_gpu_memory_gb", 4.0)
 
     # Determine if we should use GPU
     use_gpu = False
@@ -194,7 +189,6 @@ def bootstrap(
                     max_gpu_memory_gb=max_gpu_memory_gb,
                     random_state=random_state,
                     percentiles=percentiles,
-                    **kwargs,
                 )
             else:
                 result = _bootstrap_ridge_weights_cpu_parallel(
@@ -206,7 +200,6 @@ def bootstrap(
                     n_jobs=n_jobs,
                     random_state=random_state,
                     percentiles=percentiles,
-                    **kwargs,
                 )
 
             # Convert results to BrainData format
@@ -236,7 +229,6 @@ def bootstrap(
                     max_gpu_memory_gb=max_gpu_memory_gb,
                     random_state=random_state,
                     percentiles=percentiles,
-                    **kwargs,
                 )
             else:
                 result = _bootstrap_ridge_predict_cpu_parallel(
@@ -249,7 +241,6 @@ def bootstrap(
                     n_jobs=n_jobs,
                     random_state=random_state,
                     percentiles=percentiles,
-                    **kwargs,
                 )
 
             # Convert results to BrainData format
