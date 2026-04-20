@@ -19,6 +19,7 @@ If `symbex` is not found, prompt the user to install it: `uv tool install symbex
 ## Project Context
 - **Branch:** `uv-cleanup` → **v0.6.0** (breaking release; API changes allowed)
 - **Task tracking**: Linear (project: `nltools`, team: `Ejolly`)
+- **Breaking commits**: use `!` in the type (e.g. `feat(data)!:`, `refactor!:`) and include a `BREAKING:` line in the body describing the API change.
 
 ## Architecture: Functional Core, Imperative Shell
 
@@ -32,6 +33,32 @@ Classes are **facades and glue** — all real logic lives in pure functions.
 - Use frozen dataclasses for immutable state containers. Prefer modern Python (type hints, `@dataclass(frozen=True)`, `|` unions, etc.).
 - Don't repeat logic — extract shared helpers as functions where most useful and import them. Prefer a single source of truth over duplicated code.
 - **No underscore-prefixed module names** (e.g. `validation.py` not `_validation.py`). Leading underscores are fine for internal functions/methods, just not filenames.
+
+## API Conventions (v0.6.0)
+
+Canonical kwarg names across the four data-class facades:
+
+| Concept | Canonical kwarg | Notes |
+|---|---|---|
+| Algorithm/variant choice | `method` | not `algorithm`, `scheme`, `kind`, `estimator`, `icc_type`, `extract_type`, `perm_type`, `mode` |
+| Distance/similarity metric | `metric` | kept separate from `method` |
+| Parallel execution | `n_jobs: int = -1` | not `parallel=` (stats-layer internals still use `parallel=` but facades translate) |
+| GPU/CPU selection | `device: str = "cpu"` | BrainCollection only; separate from `n_jobs` |
+| Progress indicator | `progress_bar: bool = False` | not `show_progress`, `verbose` (`verbose` reserved for log-level only) |
+| Threshold pair | `lower`, `upper`, `binarize` | plus convenience `threshold: float` where bidirectional |
+| Permutation count | `n_permute` | not `n_perm`, `n_iter` |
+| Bootstrap sample count | `n_samples` | semantically distinct from `n_permute` |
+| Diagonal flag | `include_diag: bool` | not `ignore_diagonal` |
+| Radius (mm) | `radius_mm: float` | units in the name |
+
+**Canonical trailing kwarg order** (when any apply):
+`..., domain_kwargs, return_flags, n_jobs=-1, random_state=None, progress_bar=False`
+
+**`**kwargs` rule**: permitted **only** when forwarding to an external third-party API (sklearn estimator, matplotlib, nilearn, nibabel, seaborn, pandas). Internal delegation between nltools modules must use explicit signatures.
+
+**Keyword-only `*` marker**: required in `__init__` after the primary data arg, and in any public method with 3+ kwargs.
+
+**Facade translation**: internal algorithm-layer APIs (e.g. `CVScheme.scheme`, `LocalAlignment.scheme`, `Glm.noise_model`) may keep legacy names; the class facade translates at the boundary.
 
 ## Documentation
 
