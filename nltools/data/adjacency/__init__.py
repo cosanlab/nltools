@@ -46,11 +46,11 @@ class Adjacency(object):
                     ['distance','similarity','directed','distance_flat',
                     'similarity_flat','directed_flat']
         Y: Pandas DataFrame of training labels
-        **kwargs: Additional keyword arguments
+        labels: (list) optional node labels
 
     """
 
-    def __init__(self, data=None, Y=None, matrix_type=None, labels=None, **kwargs):
+    def __init__(self, data=None, *, Y=None, matrix_type=None, labels=None):
         if matrix_type is not None and matrix_type.lower() not in [
             "distance",
             "similarity",
@@ -354,6 +354,7 @@ class Adjacency(object):
     def bootstrap(
         self,
         stat,
+        *,
         n_samples=5000,
         save_boots=False,
         percentiles=(2.5, 97.5),

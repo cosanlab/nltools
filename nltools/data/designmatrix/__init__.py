@@ -268,6 +268,7 @@ class DesignMatrix:
     def append(
         self,
         dm: Union["DesignMatrix", List["DesignMatrix"]],
+        *,
         axis: int = 0,
         keep_separate: bool = True,
         unique_cols: Optional[List[str]] = None,

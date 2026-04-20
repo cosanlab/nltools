@@ -158,6 +158,7 @@ class BrainCollection:
         self,
         items: list[Path | str | "BrainData"],
         mask: nib.Nifti1Image | Path | str,
+        *,
         metadata: "pl.DataFrame | pd.DataFrame | dict | None" = None,
         lazy: bool = True,
     ):
@@ -2079,6 +2080,7 @@ class BrainCollection:
         self,
         model: str,
         X: "pd.DataFrame | np.ndarray | str | list",
+        *,
         cv: int | None = None,
         scale: bool = True,
         scale_value: float = 100.0,
@@ -2545,6 +2547,7 @@ class BrainCollection:
         self,
         X: "np.ndarray | str | list | None" = None,
         y: "np.ndarray | None" = None,
+        *,
         method: str = "whole_brain",
         estimator="svm",
         cv=5,

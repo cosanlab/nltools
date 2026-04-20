@@ -62,6 +62,7 @@ class BrainData(object):
     def __init__(
         self,
         data=None,
+        *,
         Y=None,
         X=None,
         mask=None,
@@ -1024,6 +1025,7 @@ class BrainData(object):
         self,
         X: "np.ndarray | None" = None,
         y: "np.ndarray | None" = None,
+        *,
         method: str = "whole_brain",
         estimator="svm",
         cv=5,
