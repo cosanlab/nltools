@@ -39,7 +39,7 @@ Name | Description
 #### `align`
 
 ```python
-align(bd, target, method = 'procrustes', axis = 0, *args, **kwargs)
+align(bd, target, method = 'procrustes', axis = 0)
 ```
 
 Align BrainData instance to target object using functional alignment
@@ -60,7 +60,6 @@ Name | Type | Description | Default
 `target` |  | (BrainData) object to align to. | *required*
 `method` |  | (str) alignment method to use ['probabilistic_srm','deterministic_srm','procrustes'] | <code>'procrustes'</code>
 `axis` |  | (int) axis to align on (default: 0) | <code>0</code>
-`**kwargs` |  | Additional keyword arguments passed to the alignment function. | <code>{}</code>
 
 **Returns:**
 
@@ -135,7 +134,7 @@ Name | Type | Description
 #### `decompose`
 
 ```python
-decompose(bd, algorithm = 'pca', axis = 'voxels', n_components = None, *args, **kwargs)
+decompose(bd, method = 'pca', axis = 'voxels', n_components = None, *args, **kwargs)
 ```
 
 Decompose BrainData object
@@ -145,7 +144,7 @@ Decompose BrainData object
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
-`algorithm` |  | (str) Algorithm to perform decomposition         types=['pca','ica','nnmf','fa','dictionary','kernelpca'] | <code>'pca'</code>
+`method` |  | (str) Algorithm to perform decomposition         types=['pca','ica','nnmf','fa','dictionary','kernelpca'] | <code>'pca'</code>
 `axis` |  | dimension to decompose ['voxels','images'] | <code>'voxels'</code>
 `n_components` |  | (int) number of components. If None then retain         as many as possible (default: None). | <code>None</code>
 `**kwargs` |  | Additional keyword arguments passed to the decomposition algorithm. | <code>{}</code>
@@ -296,7 +295,7 @@ Type | Description
 #### `icc`
 
 ```python
-icc(bd, n_subjects, n_sessions, icc_type = 'icc2', parallel = None, n_jobs = -1, max_gpu_memory_gb = 4.0)
+icc(bd, n_subjects, n_sessions, method = 'icc2', parallel = None, n_jobs = -1, max_gpu_memory_gb = 4.0)
 ```
 
 Calculate voxel-wise intraclass correlation coefficient for data within
@@ -319,7 +318,7 @@ Name | Type | Description | Default
 `bd` |  | BrainData instance. | *required*
 `n_subjects` |  | Number of subjects in the data | *required*
 `n_sessions` |  | Number of sessions per subject | *required*
-`icc_type` |  | Type of ICC to calculate     - 'icc1': One-way random effects (subjects random, sessions treated as interchangeable)     - 'icc2': Two-way random effects (subjects and sessions random) (default)     - 'icc3': Two-way mixed effects (subjects random, sessions fixed) | <code>'icc2'</code>
+`method` |  | Type of ICC to calculate     - 'icc1': One-way random effects (subjects random, sessions treated as interchangeable)     - 'icc2': Two-way random effects (subjects and sessions random) (default)     - 'icc3': Two-way mixed effects (subjects random, sessions fixed) | <code>'icc2'</code>
 `parallel` |  | Parallelization method     - None: Single-threaded vectorized NumPy (default, memory efficient)     - 'cpu': CPU parallelization via joblib (for medium-sized problems, 1K-10K voxels)     - 'gpu': GPU acceleration via PyTorch (recommended for large voxel counts >10K, 10-50x speedup) | <code>None</code>
 `n_jobs` |  | Number of CPU cores (-1 = all cores). Only used when parallel='cpu' | <code>-1</code>
 `max_gpu_memory_gb` |  | GPU memory budget in GB. Only used when parallel='gpu' | <code>4.0</code>
@@ -335,7 +334,7 @@ Name | Type | Description
 ```pycon
 >>> # Typical test-retest reliability analysis
 >>> data = BrainData(...)  # Shape: (60, 238955) = 20 subjects x 3 sessions
->>> icc_map = data.icc(n_subjects=20, n_sessions=3, icc_type='icc2')
+>>> icc_map = data.icc(n_subjects=20, n_sessions=3, method='icc2')
 >>> icc_map.shape
 (1, 238955)
 >>> # Visualize ICC map
@@ -398,7 +397,7 @@ Name | Type | Description
 #### `regions`
 
 ```python
-regions(bd, min_region_size = 1350, extract_type = 'local_regions', smoothing_fwhm = 6, is_mask = False)
+regions(bd, min_region_size = 1350, method = 'local_regions', smoothing_fwhm = 6, is_mask = False)
 ```
 
 Extract brain connected regions into separate regions.
@@ -409,8 +408,8 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
 `min_region_size` | <code>[int](#int)</code> | Minimum volume in mm3 for a region to be                 kept. | <code>1350</code>
-`extract_type` | <code>[str](#str)</code> | Type of extraction method                 ['connected_components', 'local_regions'].                 If 'connected_components', each component/region                 in the image is extracted automatically by                 labelling each region based upon the presence of                 unique features in their respective regions.                 If 'local_regions', each component/region is                 extracted based on their maximum peak value to                 define a seed marker and then using random                 walker segementation algorithm on these                 markers for region separation. | <code>'local_regions'</code>
-`smoothing_fwhm` | <code>[scalar](#scalar)</code> | Smooth an image to extract more sparser                 regions. Only works for extract_type                 'local_regions'. | <code>6</code>
+`method` | <code>[str](#str)</code> | Type of extraction method                 ['connected_components', 'local_regions'].                 If 'connected_components', each component/region                 in the image is extracted automatically by                 labelling each region based upon the presence of                 unique features in their respective regions.                 If 'local_regions', each component/region is                 extracted based on their maximum peak value to                 define a seed marker and then using random                 walker segementation algorithm on these                 markers for region separation. | <code>'local_regions'</code>
+`smoothing_fwhm` | <code>[scalar](#scalar)</code> | Smooth an image to extract more sparser                 regions. Only works for method='local_regions'. | <code>6</code>
 `is_mask` | <code>[bool](#bool)</code> | Whether the BrainData instance should be treated             as a boolean mask and if so, calls             connected_label_regions instead. Default: False. | <code>False</code>
 
 **Returns:**

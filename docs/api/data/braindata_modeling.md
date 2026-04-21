@@ -18,6 +18,8 @@ Name | Description
 [`parse_contrast_string`](#parse_contrast_string) | Parse a contrast string into a numeric contrast vector.
 [`regress`](#regress) | Deprecated: Use fit(model='glm', X=design_matrix) instead.
 [`to_fit_dataclass`](#to_fit_dataclass) | Convert BrainData fit results to Fit dataclass.
+[`ttest`](#ttest) | One-sample voxelwise t-test across images (axis 0).
+[`ttest2`](#ttest2) | Two-sample voxelwise t-test between two BrainData stacks.
 
 
 
@@ -113,7 +115,7 @@ Name | Type | Description
 #### `cv`
 
 ```python
-cv(bd, k = None, scheme = 'kfold', split_by = None, groups = None, random_state = None, **kwargs)
+cv(bd, k = None, method = 'kfold', split_by = None, groups = None, n = 1000, random_state = None)
 ```
 
 Create a cross-validation pipeline for this BrainData.
@@ -127,12 +129,12 @@ pipeline and return results.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
-`k` |  | Number of folds (for kfold scheme). Defaults to 5. | <code>None</code>
-`scheme` |  | CV scheme type. Options: - 'kfold': k-fold cross-validation (default) - 'loro': leave-one-run-out (requires split_by='runs' or groups) - 'bootstrap': bootstrap with out-of-bag test sets | <code>'kfold'</code>
+`k` |  | Number of folds (for kfold method). Defaults to 5. | <code>None</code>
+`method` |  | CV scheme type. Options: - 'kfold': k-fold cross-validation (default) - 'loro': leave-one-run-out (requires split_by='runs' or groups) - 'bootstrap': bootstrap with out-of-bag test sets | <code>'kfold'</code>
 `split_by` |  | Attribute name for group splits (e.g., 'runs'). If provided and groups is None, will try to get groups from bd.X[split_by] if bd.X is a DataFrame. | <code>None</code>
 `groups` |  | Explicit group labels for CV splits. | <code>None</code>
+`n` |  | Number of iterations for bootstrap/permutation methods. Default 1000. | <code>1000</code>
 `random_state` |  | Random seed for reproducibility. | <code>None</code>
-`**kwargs` |  | Additional arguments passed to CVScheme. | <code>{}</code>
 
 **Returns:**
 
@@ -159,7 +161,7 @@ Name | Type | Description
 
 ```pycon
 >>> # Leave-one-run-out CV
->>> result = brain.cv(scheme='loro', groups=run_labels).predict(y)
+>>> result = brain.cv(method='loro', groups=run_labels).predict(y)
 ```
 
 <details class="see-also" open markdown="1">
@@ -314,7 +316,7 @@ Type | Description
 #### `regress`
 
 ```python
-regress(bd, design_matrix = None, noise_model = 'ols', mode = None, **kwargs)
+regress(bd, design_matrix = None, method = 'ols', mode = None)
 ```
 
 Deprecated: Use fit(model='glm', X=design_matrix) instead.
@@ -325,9 +327,8 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
 `design_matrix` |  | Design matrix (unused, raises error). | <code>None</code>
-`noise_model` |  | Noise model (unused, raises error). | <code>'ols'</code>
+`method` |  | Noise model (unused, raises error). | <code>'ols'</code>
 `mode` |  | Mode (unused, raises error). | <code>None</code>
-`**kwargs` |  | Additional arguments (unused, raises error). | <code>{}</code>
 
 #### `to_fit_dataclass`
 
@@ -349,4 +350,59 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `Fit` |  | Dataclass containing fit results
+
+#### `ttest`
+
+```python
+ttest(bd, popmean = 0.0, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
+```
+
+One-sample voxelwise t-test across images (axis 0).
+
+For a BrainData stack of images (e.g. subject-level contrast maps with
+shape ``(n_samples, n_voxels)``), test whether the per-voxel mean differs
+from ``popmean``.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance (must contain multiple images). | *required*
+`popmean` |  | Population mean to test against. Default 0.0. | <code>0.0</code>
+`permutation` |  | If True, use sign-flip permutation test via ``nltools.stats.one_sample_permutation_test``. | <code>False</code>
+`n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
+`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
+`return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
+`random_state` |  | Random seed for reproducibility. | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dict` |  | ``{"t": BrainData, "p": BrainData}`` for the parametric case, or
+ |  | ``{"mean": BrainData, "p": BrainData}`` when ``permutation=True``
+ |  | (mirrors ``Adjacency.ttest``).
+
+#### `ttest2`
+
+```python
+ttest2(bd, other, equal_var = True)
+```
+
+Two-sample voxelwise t-test between two BrainData stacks.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | First BrainData (shape ``(n1, n_voxels)``). | *required*
+`other` |  | Second BrainData (shape ``(n2, n_voxels)``). | *required*
+`equal_var` |  | If True (default), standard two-sample t-test. If False, Welch's t-test. | <code>True</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dict` |  | ``{"t": BrainData, "p": BrainData}``.
 

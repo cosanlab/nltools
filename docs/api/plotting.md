@@ -113,7 +113,7 @@ Name | Type | Description
 #### `plot_flatmap`
 
 ```python
-plot_flatmap(brain, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius = 3.0, interpolation = 'linear', axes = None, save = None)
+plot_flatmap(brain, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
 ```
 
 Plot brain data on cortical flatmap.
@@ -142,7 +142,7 @@ Name | Type | Description | Default
 `colorbar_orientation` | <code>[str](#str)</code> | 'horizontal' or 'vertical'. Defaults to 'horizontal'. | <code>'horizontal'</code>
 `figsize` | <code>[tuple](#tuple)</code> | Figure size (width, height). Defaults to (12, 6). | <code>(12, 6)</code>
 `title` | <code>[str](#str)</code> | Figure title. Defaults to None. | <code>None</code>
-`radius` | <code>[float](#float)</code> | Sampling radius in mm for vol_to_surf projection. Larger values provide smoother projections. Defaults to 3.0. | <code>3.0</code>
+`radius_mm` | <code>[float](#float)</code> | Sampling radius in mm for vol_to_surf projection. Larger values provide smoother projections. Defaults to 3.0. | <code>3.0</code>
 `interpolation` | <code>[str](#str)</code> | Interpolation for vol_to_surf. Options: 'linear', 'nearest_most_frequent'. Defaults to 'linear'. | <code>'linear'</code>
 `axes` | <code>[Axes](#matplotlib.axes.Axes)</code> | Existing axes to plot on. If None, creates new figure. Defaults to None. | <code>None</code>
 `save` | <code>[str](#str)</code> | File path to save figure. Defaults to None. | <code>None</code>
@@ -365,7 +365,7 @@ Type | Description
 #### `plot_surface`
 
 ```python
-plot_surface(brain, surface = 'inflated', bg_map = 'curvature', hemi = 'both', view = 'montage', threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, darkness = None, bg_on_data = False, colorbar = False, figsize = (10, 10), n_samples = 1, radius = 0.0, interpolation = 'linear', engine = 'matplotlib', axes = None, save = None, **kwargs)
+plot_surface(brain, surface = 'inflated', bg_map = 'curvature', hemi = 'both', view = 'montage', threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, darkness = None, bg_on_data = False, colorbar = False, figsize = (10, 10), n_samples = 1, radius_mm = 0.0, interpolation = 'linear', engine = 'matplotlib', axes = None, save = None, **kwargs)
 ```
 
 Plot neuroimaging data on cortical surface.
@@ -392,7 +392,7 @@ Name | Type | Description | Default
 `colorbar` | <code>[bool](#bool)</code> | Show colorbar. Defaults to False. | <code>False</code>
 `figsize` | <code>[tuple](#tuple)</code> | Figure size tuple (width, height). Defaults to (10, 10). | <code>(10, 10)</code>
 `n_samples` | <code>[int](#int)</code> | Number of samples for vol_to_surf projection. Defaults to 1. | <code>1</code>
-`radius` | <code>[float](#float)</code> | Sampling radius for vol_to_surf projection. Defaults to 0.0. | <code>0.0</code>
+`radius_mm` | <code>[float](#float)</code> | Sampling radius in mm for vol_to_surf projection. Defaults to 0.0. | <code>0.0</code>
 `interpolation` | <code>[str](#str)</code> | Interpolation method for projection. Options: 'linear', 'nearest_most_frequent'. Defaults to 'linear'. | <code>'linear'</code>
 `engine` | <code>[str](#str)</code> | Rendering engine. Options: 'matplotlib', 'plotly'. Defaults to 'matplotlib'. | <code>'matplotlib'</code>
 `axes` | <code>[Axes](#matplotlib.axes.Axes) or [list](#list)</code> | Custom matplotlib axes for montage layout. If None, creates new figure. Defaults to None. | <code>None</code>
@@ -586,7 +586,7 @@ Name | Description
 ###### `plot_flatmap`
 
 ```python
-plot_flatmap(brain, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius = 3.0, interpolation = 'linear', axes = None, save = None)
+plot_flatmap(brain, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
 ```
 
 Plot brain data on cortical flatmap.
@@ -615,7 +615,7 @@ Name | Type | Description | Default
 `colorbar_orientation` | <code>[str](#str)</code> | 'horizontal' or 'vertical'. Defaults to 'horizontal'. | <code>'horizontal'</code>
 `figsize` | <code>[tuple](#tuple)</code> | Figure size (width, height). Defaults to (12, 6). | <code>(12, 6)</code>
 `title` | <code>[str](#str)</code> | Figure title. Defaults to None. | <code>None</code>
-`radius` | <code>[float](#float)</code> | Sampling radius in mm for vol_to_surf projection. Larger values provide smoother projections. Defaults to 3.0. | <code>3.0</code>
+`radius_mm` | <code>[float](#float)</code> | Sampling radius in mm for vol_to_surf projection. Larger values provide smoother projections. Defaults to 3.0. | <code>3.0</code>
 `interpolation` | <code>[str](#str)</code> | Interpolation for vol_to_surf. Options: 'linear', 'nearest_most_frequent'. Defaults to 'linear'. | <code>'linear'</code>
 `axes` | <code>[Axes](#matplotlib.axes.Axes)</code> | Existing axes to plot on. If None, creates new figure. Defaults to None. | <code>None</code>
 `save` | <code>[str](#str)</code> | File path to save figure. Defaults to None. | <code>None</code>
@@ -695,7 +695,7 @@ Type | Description
 ###### `plot_surface`
 
 ```python
-plot_surface(brain, surface = 'inflated', bg_map = 'curvature', hemi = 'both', view = 'montage', threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, darkness = None, bg_on_data = False, colorbar = False, figsize = (10, 10), n_samples = 1, radius = 0.0, interpolation = 'linear', engine = 'matplotlib', axes = None, save = None, **kwargs)
+plot_surface(brain, surface = 'inflated', bg_map = 'curvature', hemi = 'both', view = 'montage', threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, darkness = None, bg_on_data = False, colorbar = False, figsize = (10, 10), n_samples = 1, radius_mm = 0.0, interpolation = 'linear', engine = 'matplotlib', axes = None, save = None, **kwargs)
 ```
 
 Plot neuroimaging data on cortical surface.
@@ -722,7 +722,7 @@ Name | Type | Description | Default
 `colorbar` | <code>[bool](#bool)</code> | Show colorbar. Defaults to False. | <code>False</code>
 `figsize` | <code>[tuple](#tuple)</code> | Figure size tuple (width, height). Defaults to (10, 10). | <code>(10, 10)</code>
 `n_samples` | <code>[int](#int)</code> | Number of samples for vol_to_surf projection. Defaults to 1. | <code>1</code>
-`radius` | <code>[float](#float)</code> | Sampling radius for vol_to_surf projection. Defaults to 0.0. | <code>0.0</code>
+`radius_mm` | <code>[float](#float)</code> | Sampling radius in mm for vol_to_surf projection. Defaults to 0.0. | <code>0.0</code>
 `interpolation` | <code>[str](#str)</code> | Interpolation method for projection. Options: 'linear', 'nearest_most_frequent'. Defaults to 'linear'. | <code>'linear'</code>
 `engine` | <code>[str](#str)</code> | Rendering engine. Options: 'matplotlib', 'plotly'. Defaults to 'matplotlib'. | <code>'matplotlib'</code>
 `axes` | <code>[Axes](#matplotlib.axes.Axes) or [list](#list)</code> | Custom matplotlib axes for montage layout. If None, creates new figure. Defaults to None. | <code>None</code>

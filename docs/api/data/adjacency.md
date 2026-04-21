@@ -1,7 +1,7 @@
 ## `Adjacency`
 
 ```python
-Adjacency(data = None, Y = None, matrix_type = None, labels = None, **kwargs)
+Adjacency(data = None, *, Y = None, matrix_type = None, labels = None)
 ```
 
 
@@ -16,7 +16,7 @@ Name | Type | Description | Default
 `data` |  | pandas data instance or list of files | <code>None</code>
 `matrix_type` |  | (str) type of matrix.  Possible values include:         ['distance','similarity','directed','distance_flat',         'similarity_flat','directed_flat'] | <code>None</code>
 `Y` |  | Pandas DataFrame of training labels | <code>None</code>
-`**kwargs` |  | Additional keyword arguments | <code>{}</code>
+`labels` |  | (list) optional node labels | <code>None</code>
 
 **Methods:**
 
@@ -28,7 +28,7 @@ Name | Description
 [`copy`](#copy) | Create a copy of Adjacency object.
 [`distance`](#distance) | Calculate distance between images within an Adjacency() instance.
 [`distance_to_similarity`](#distance_to_similarity) | Convert distance matrix to similarity matrix.
-[`generate_permutations`](#generate_permutations) | Generate n_perm permutated versions of Adjacency in a lazy fashion.
+[`generate_permutations`](#generate_permutations) | Generate n_permute permutated versions of Adjacency in a lazy fashion.
 [`mean`](#mean) | Calculate mean of Adjacency.
 [`median`](#median) | Calculate median of Adjacency.
 [`plot`](#plot) | Create Heatmap of Adjacency Matrix
@@ -90,7 +90,7 @@ Name | Type | Description
 #### `bootstrap`
 
 ```python
-bootstrap(stat, n_samples = 5000, save_boots = False, n_jobs = -1, random_state = None, percentiles = (2.5, 97.5))
+bootstrap(stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), n_jobs = -1, random_state = None)
 ```
 
 Bootstrap statistics using efficient online algorithms.
@@ -105,9 +105,9 @@ Name | Type | Description | Default
 `stat` |  | (str) Statistic to bootstrap. Options: - Simple stats: 'mean', 'median', 'std', 'sum', 'min', 'max' | *required*
 `n_samples` |  | (int) Number of bootstrap iterations. Default: 5000 | <code>5000</code>
 `save_boots` |  | (bool) If True, store all bootstrap samples (memory intensive).        Default: False | <code>False</code>
+`percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
 `n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
-`percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
 
 **Returns:**
 
@@ -204,16 +204,16 @@ Name | Type | Description
 #### `generate_permutations`
 
 ```python
-generate_permutations(n_perm, random_state = None)
+generate_permutations(n_permute, random_state = None)
 ```
 
-Generate n_perm permutated versions of Adjacency in a lazy fashion.
+Generate n_permute permutated versions of Adjacency in a lazy fashion.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`n_perm` | <code>[int](#int)</code> | number of permutations | *required*
+`n_permute` | <code>[int](#int)</code> | number of permutations | *required*
 `random_state` | <code>([int](#int), [seed](#numpy.random.seed))</code> | random seed for reproducibility. | <code>None</code>
 
 **Examples:**
@@ -310,7 +310,7 @@ Name | Type | Description
 #### `plot_mds`
 
 ```python
-plot_mds(n_components = 2, metric = True, labels = None, labels_color = None, cmap = None, n_jobs = -1, view = (30, 20), figsize = None, ax = None, *args, **kwargs)
+plot_mds(n_components = 2, metric = True, labels = None, labels_color = None, cmap = None, view = (30, 20), figsize = None, ax = None, n_jobs = -1, *args, **kwargs)
 ```
 
 Plot Multidimensional Scaling
@@ -324,10 +324,10 @@ Name | Type | Description | Default
 `labels` |  | (list) Can override labels stored in Adjacency Class | <code>None</code>
 `labels_color` |  | (str) list of colors for labels, if len(1) then make all same color | <code>None</code>
 `cmap` |  | colormap instance (default: plt.cm.hot_r) | <code>None</code>
-`n_jobs` |  | (int) Number of parallel jobs | <code>-1</code>
 `view` |  | (tuple) view for 3-Dimensional plot; default (30,20) | <code>(30, 20)</code>
 `figsize` |  | (list) figure size; default [12, 8] | <code>None</code>
 `ax` |  | matplotlib axis handle | <code>None</code>
+`n_jobs` |  | (int) Number of parallel jobs | <code>-1</code>
 
 #### `plot_silhouette`
 
@@ -349,7 +349,7 @@ object.
 #### `regress`
 
 ```python
-regress(X, mode = 'ols', **kwargs)
+regress(X, method = 'ols')
 ```
 
 Run a regression on an adjacency instance.
@@ -361,7 +361,7 @@ You can also decompose each pixel by passing a design_matrix instance.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` |  | Design matrix can be an Adjacency or DesignMatrix instance | *required*
-`mode` |  | type of regression (default: ols) - only 'ols' is currently supported | <code>'ols'</code>
+`method` |  | type of regression (default: ols) - only 'ols' is currently supported | <code>'ols'</code>
 
 **Returns:**
 
@@ -372,7 +372,7 @@ Name | Type | Description
 #### `similarity`
 
 ```python
-similarity(data, plot = False, perm_type = '2d', n_permute = 5000, metric = 'spearman', ignore_diagonal = False, nan_policy = 'omit', **kwargs)
+similarity(data, plot = False, permutation_method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None)
 ```
 
 Calculate similarity between two Adjacency matrices. Default is to use spearman
@@ -383,10 +383,14 @@ correlation and permutation test.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Adjacency](#nltools.data.adjacency.Adjacency) or [array](#array)</code> | Adjacency data, or 1-d array same size as self.data | *required*
-`perm_type` |  | (str) '1d','2d', or None | <code>'2d'</code>
+`permutation_method` |  | (str) '1d','2d', or None | <code>'2d'</code>
 `metric` |  | (str) 'spearman','pearson','kendall' | <code>'spearman'</code>
-`ignore_diagonal` |  | (bool) only applies to 'directed' Adjacency types using perm_type=None or perm_type='1d' | <code>False</code>
+`include_diag` |  | (bool) only applies to 'directed' Adjacency types using permutation_method=None or permutation_method='1d'. Default False (self-similarity is uninformative). Symmetric matrices never store the diagonal, so this flag is a no-op for them. | <code>False</code>
 `nan_policy` |  | (str) How to handle NaN values. Options: - 'omit': Remove NaN values pairwise before computing correlation (default) - 'propagate': Allow NaN to propagate through calculations - 'raise': Raise an error if NaN values are present | <code>'omit'</code>
+`tail` |  | (int) Tail of the test (1 or 2). Default 2. | <code>2</code>
+`return_null` |  | (bool) If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` |  | (int) Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
+`random_state` |  | (int, optional) Random seed for reproducibility. | <code>None</code>
 
 #### `social_relations_model`
 
@@ -559,7 +563,7 @@ Type | Description
 #### `ttest`
 
 ```python
-ttest(permutation = False, **kwargs)
+ttest(permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
 ```
 
 Calculate ttest across samples.
@@ -569,6 +573,11 @@ Calculate ttest across samples.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `permutation` |  | (bool) Run ttest as permutation. Note this can be very slow. | <code>False</code>
+`n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
+`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
+`return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
+`random_state` |  | Random seed for reproducibility. | <code>None</code>
 
 **Returns:**
 

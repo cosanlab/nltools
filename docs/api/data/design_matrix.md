@@ -129,7 +129,7 @@ Name | Type | Description
 #### `append`
 
 ```python
-append(dm: Union['DesignMatrix', List['DesignMatrix']], axis: int = 0, keep_separate: bool = True, unique_cols: Optional[List[str]] = None, fill_na: Union[int, float] = 0, verbose: bool = False) -> 'DesignMatrix'
+append(dm: Union['DesignMatrix', List['DesignMatrix']], *, axis: int = 0, keep_separate: bool = True, unique_cols: Optional[List[str]] = None, fill_na: Union[int, float] = 0, verbose: bool = False) -> 'DesignMatrix'
 ```
 
 Concatenate design matrices.

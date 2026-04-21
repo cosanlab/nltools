@@ -34,7 +34,7 @@ Name | Description
 #### `Adjacency`
 
 ```python
-Adjacency(data = None, Y = None, matrix_type = None, labels = None, **kwargs)
+Adjacency(data = None, *, Y = None, matrix_type = None, labels = None)
 ```
 
 
@@ -49,7 +49,7 @@ Name | Type | Description | Default
 `data` |  | pandas data instance or list of files | <code>None</code>
 `matrix_type` |  | (str) type of matrix.  Possible values include:         ['distance','similarity','directed','distance_flat',         'similarity_flat','directed_flat'] | <code>None</code>
 `Y` |  | Pandas DataFrame of training labels | <code>None</code>
-`**kwargs` |  | Additional keyword arguments | <code>{}</code>
+`labels` |  | (list) optional node labels | <code>None</code>
 
 **Methods:**
 
@@ -61,7 +61,7 @@ Name | Description
 [`copy`](#copy) | Create a copy of Adjacency object.
 [`distance`](#distance) | Calculate distance between images within an Adjacency() instance.
 [`distance_to_similarity`](#distance_to_similarity) | Convert distance matrix to similarity matrix.
-[`generate_permutations`](#generate_permutations) | Generate n_perm permutated versions of Adjacency in a lazy fashion.
+[`generate_permutations`](#generate_permutations) | Generate n_permute permutated versions of Adjacency in a lazy fashion.
 [`mean`](#mean) | Calculate mean of Adjacency.
 [`median`](#median) | Calculate median of Adjacency.
 [`plot`](#plot) | Create Heatmap of Adjacency Matrix
@@ -123,7 +123,7 @@ Name | Type | Description
 ###### `bootstrap`
 
 ```python
-bootstrap(stat, n_samples = 5000, save_boots = False, n_jobs = -1, random_state = None, percentiles = (2.5, 97.5))
+bootstrap(stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), n_jobs = -1, random_state = None)
 ```
 
 Bootstrap statistics using efficient online algorithms.
@@ -138,9 +138,9 @@ Name | Type | Description | Default
 `stat` |  | (str) Statistic to bootstrap. Options: - Simple stats: 'mean', 'median', 'std', 'sum', 'min', 'max' | *required*
 `n_samples` |  | (int) Number of bootstrap iterations. Default: 5000 | <code>5000</code>
 `save_boots` |  | (bool) If True, store all bootstrap samples (memory intensive).        Default: False | <code>False</code>
+`percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
 `n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
-`percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
 
 **Returns:**
 
@@ -237,16 +237,16 @@ Name | Type | Description
 ###### `generate_permutations`
 
 ```python
-generate_permutations(n_perm, random_state = None)
+generate_permutations(n_permute, random_state = None)
 ```
 
-Generate n_perm permutated versions of Adjacency in a lazy fashion.
+Generate n_permute permutated versions of Adjacency in a lazy fashion.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`n_perm` | <code>[int](#int)</code> | number of permutations | *required*
+`n_permute` | <code>[int](#int)</code> | number of permutations | *required*
 `random_state` | <code>([int](#int), [seed](#numpy.random.seed))</code> | random seed for reproducibility. | <code>None</code>
 
 **Examples:**
@@ -343,7 +343,7 @@ Name | Type | Description
 ###### `plot_mds`
 
 ```python
-plot_mds(n_components = 2, metric = True, labels = None, labels_color = None, cmap = None, n_jobs = -1, view = (30, 20), figsize = None, ax = None, *args, **kwargs)
+plot_mds(n_components = 2, metric = True, labels = None, labels_color = None, cmap = None, view = (30, 20), figsize = None, ax = None, n_jobs = -1, *args, **kwargs)
 ```
 
 Plot Multidimensional Scaling
@@ -357,10 +357,10 @@ Name | Type | Description | Default
 `labels` |  | (list) Can override labels stored in Adjacency Class | <code>None</code>
 `labels_color` |  | (str) list of colors for labels, if len(1) then make all same color | <code>None</code>
 `cmap` |  | colormap instance (default: plt.cm.hot_r) | <code>None</code>
-`n_jobs` |  | (int) Number of parallel jobs | <code>-1</code>
 `view` |  | (tuple) view for 3-Dimensional plot; default (30,20) | <code>(30, 20)</code>
 `figsize` |  | (list) figure size; default [12, 8] | <code>None</code>
 `ax` |  | matplotlib axis handle | <code>None</code>
+`n_jobs` |  | (int) Number of parallel jobs | <code>-1</code>
 
 ###### `plot_silhouette`
 
@@ -382,7 +382,7 @@ object.
 ###### `regress`
 
 ```python
-regress(X, mode = 'ols', **kwargs)
+regress(X, method = 'ols')
 ```
 
 Run a regression on an adjacency instance.
@@ -394,7 +394,7 @@ You can also decompose each pixel by passing a design_matrix instance.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` |  | Design matrix can be an Adjacency or DesignMatrix instance | *required*
-`mode` |  | type of regression (default: ols) - only 'ols' is currently supported | <code>'ols'</code>
+`method` |  | type of regression (default: ols) - only 'ols' is currently supported | <code>'ols'</code>
 
 **Returns:**
 
@@ -405,7 +405,7 @@ Name | Type | Description
 ###### `similarity`
 
 ```python
-similarity(data, plot = False, perm_type = '2d', n_permute = 5000, metric = 'spearman', ignore_diagonal = False, nan_policy = 'omit', **kwargs)
+similarity(data, plot = False, permutation_method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None)
 ```
 
 Calculate similarity between two Adjacency matrices. Default is to use spearman
@@ -416,10 +416,14 @@ correlation and permutation test.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Adjacency](#nltools.data.adjacency.Adjacency) or [array](#array)</code> | Adjacency data, or 1-d array same size as self.data | *required*
-`perm_type` |  | (str) '1d','2d', or None | <code>'2d'</code>
+`permutation_method` |  | (str) '1d','2d', or None | <code>'2d'</code>
 `metric` |  | (str) 'spearman','pearson','kendall' | <code>'spearman'</code>
-`ignore_diagonal` |  | (bool) only applies to 'directed' Adjacency types using perm_type=None or perm_type='1d' | <code>False</code>
+`include_diag` |  | (bool) only applies to 'directed' Adjacency types using permutation_method=None or permutation_method='1d'. Default False (self-similarity is uninformative). Symmetric matrices never store the diagonal, so this flag is a no-op for them. | <code>False</code>
 `nan_policy` |  | (str) How to handle NaN values. Options: - 'omit': Remove NaN values pairwise before computing correlation (default) - 'propagate': Allow NaN to propagate through calculations - 'raise': Raise an error if NaN values are present | <code>'omit'</code>
+`tail` |  | (int) Tail of the test (1 or 2). Default 2. | <code>2</code>
+`return_null` |  | (bool) If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` |  | (int) Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
+`random_state` |  | (int, optional) Random seed for reproducibility. | <code>None</code>
 
 ###### `social_relations_model`
 
@@ -592,7 +596,7 @@ Type | Description
 ###### `ttest`
 
 ```python
-ttest(permutation = False, **kwargs)
+ttest(permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
 ```
 
 Calculate ttest across samples.
@@ -602,6 +606,11 @@ Calculate ttest across samples.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `permutation` |  | (bool) Run ttest as permutation. Note this can be very slow. | <code>False</code>
+`n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
+`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
+`return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
+`random_state` |  | Random seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
@@ -635,7 +644,7 @@ Convert z score back into r value for each element of data object
 #### `BrainCollection`
 
 ```python
-BrainCollection(items: list[Path | str | 'BrainData'], mask: nib.Nifti1Image | Path | str, metadata: 'pl.DataFrame | pd.DataFrame | dict | None' = None, lazy: bool = True)
+BrainCollection(items: list[Path | str | 'BrainData'], mask: nib.Nifti1Image | Path | str, *, metadata: 'pl.DataFrame | pd.DataFrame | dict | None' = None, lazy: bool = True)
 ```
 
 Collection of brain images with tensor-like operations.
@@ -772,7 +781,7 @@ Name | Type | Description | Default
 ###### `align`
 
 ```python
-align(method: str = 'procrustes', scheme: str = 'searchlight', radius_mm: float = 10.0, parcellation: 'nib.Nifti1Image | None' = None, n_features: int | None = None, n_iter: int = 3, parallel: str | None = 'cpu', n_jobs: int = -1, return_model: bool = False, show_progress: bool = True) -> 'BrainCollection | tuple[BrainCollection, object]'
+align(method: str = 'procrustes', scheme: str = 'searchlight', radius_mm: float = 10.0, parcellation: 'nib.Nifti1Image | None' = None, n_features: int | None = None, n_iter: int = 3, device: str = 'cpu', return_model: bool = False, n_jobs: int = -1, progress_bar: bool = False) -> 'BrainCollection | tuple[BrainCollection, object]'
 ```
 
 Align subjects using local functional alignment.
@@ -787,14 +796,14 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `method` | <code>[str](#str)</code> | Alignment method. Options: - 'procrustes': Orthogonal Procrustes (default, preserves dimensions) - 'srm': Shared Response Model (dimensionality reduction) - 'hyperalignment': Hyperalignment (iterative Procrustes) | <code>'procrustes'</code>
 `scheme` | <code>[str](#str)</code> | Spatial scheme. Options: - 'searchlight': Overlapping spheres with center-only aggregation - 'piecewise': Non-overlapping parcels (requires parcellation) | <code>'searchlight'</code>
-`radius_mm` | <code>[float](#float)</code> | Sphere radius in millimeters for searchlight scheme. | <code>10.0</code>
+`radius_mm` | <code>[float](#float)</code> | sphere radius in millimeters for searchlight scheme. | <code>10.0</code>
 `parcellation` | <code>'nib.Nifti1Image \| None'</code> | Parcellation image for piecewise scheme (required if scheme='piecewise'). | <code>None</code>
 `n_features` | <code>[int](#int) \| None</code> | Number of features for SRM. None uses full dimensions. | <code>None</code>
 `n_iter` | <code>[int](#int)</code> | Number of iterations for alignment refinement. | <code>3</code>
-`parallel` | <code>[str](#str) \| None</code> | Parallelization mode. Options: - None: Single-threaded - 'cpu': CPU parallelization with joblib - 'gpu': GPU acceleration via PyTorch | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs for CPU mode (-1 = auto). | <code>-1</code>
+`device` | <code>[str](#str)</code> | Compute device: 'cpu' (default) or 'gpu' (via PyTorch). | <code>'cpu'</code>
 `return_model` | <code>[bool](#bool)</code> | If True, return (aligned_collection, model) tuple for fit/transform workflow with new data. | <code>False</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>True</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU jobs (-1 = all cores, 1 = single-threaded). | <code>-1</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>False</code>
 
 **Returns:**
 
@@ -828,7 +837,7 @@ Type | Description
 
 ```pycon
 >>> # GPU-accelerated alignment
->>> aligned_bc = bc.align(parallel='gpu')
+>>> aligned_bc = bc.align(device='gpu')
 ```
 
 <details class="notes" open markdown="1">
@@ -932,7 +941,7 @@ Type | Description
 ###### `cv`
 
 ```python
-cv(k: int | None = None, scheme: str = 'kfold', split_by: str | None = None, groups: np.ndarray | None = None, random_state: int | None = None, **kwargs: int | None) -> 'BrainCollectionPipeline'
+cv(k: int | None = None, method: str = 'kfold', split_by: str | None = None, groups: np.ndarray | None = None, n: int = 1000, random_state: int | None = None) -> 'BrainCollectionPipeline'
 ```
 
 Create a cross-validation pipeline for multi-subject analysis.
@@ -944,12 +953,12 @@ with cross-validation across subjects or runs.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`k` | <code>[int](#int) \| None</code> | Number of folds (for kfold scheme). Defaults to 5. | <code>None</code>
-`scheme` | <code>[str](#str)</code> | CV scheme type. Options: - 'kfold': k-fold cross-validation on pooled data - 'loso': leave-one-subject-out (one image held out per fold) - 'loro': leave-one-run-out (requires groups) | <code>'kfold'</code>
+`k` | <code>[int](#int) \| None</code> | Number of folds (for kfold method). Defaults to 5. | <code>None</code>
+`method` | <code>[str](#str)</code> | CV scheme type. Options: - 'kfold': k-fold cross-validation on pooled data - 'loso': leave-one-subject-out (one image held out per fold) - 'loro': leave-one-run-out (requires groups) - 'bootstrap': bootstrap with out-of-bag test sets - 'permutation': permutation testing (shuffles targets) | <code>'kfold'</code>
 `split_by` | <code>[str](#str) \| None</code> | Metadata column for group splits. If provided and groups is None, gets groups from self.metadata[split_by]. | <code>None</code>
 `groups` | <code>[ndarray](#numpy.ndarray) \| None</code> | Explicit group labels for CV splits. | <code>None</code>
+`n` | <code>[int](#int)</code> | Number of iterations for bootstrap/permutation methods. Default 1000. | <code>1000</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
-`**kwargs` |  | Additional arguments passed to CVScheme. | <code>{}</code>
 
 **Returns:**
 
@@ -961,14 +970,14 @@ Name | Type | Description
 
 ```pycon
 >>> # Leave-one-subject-out classification
->>> result = bc.cv(scheme='loso').normalize().predict(subject_labels, algorithm='svm')
+>>> result = bc.cv(method='loso').normalize().predict(subject_labels, algorithm='svm')
 >>> print(f"Mean accuracy: {result.mean_score:.2%}")
 ```
 
 ```pycon
 >>> # With preprocessing
 >>> result = (bc
-...     .cv(scheme='loso')
+...     .cv(method='loso')
 ...     .normalize()
 ...     .reduce(n_components=50)
 ...     .predict(labels))
@@ -976,7 +985,7 @@ Name | Type | Description
 
 ```pycon
 >>> # Run-based CV with metadata
->>> result = bc.cv(scheme='loro', split_by='run').predict(y)
+>>> result = bc.cv(method='loro', split_by='run').predict(y)
 ```
 
 <details class="see-also" open markdown="1">
@@ -990,7 +999,7 @@ CVScheme: For CV scheme configuration details.
 ###### `detrend`
 
 ```python
-detrend(method: str = 'linear', n_jobs: int = 1, show_progress: bool = True) -> 'BrainCollection'
+detrend(method: str = 'linear', n_jobs: int = 1, progress_bar: bool = False) -> 'BrainCollection'
 ```
 
 Remove trend from each image.
@@ -1003,7 +1012,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `method` | <code>[str](#str)</code> | 'linear' or 'constant'. | <code>'linear'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar. | <code>False</code>
 
 **Returns:**
 
@@ -1059,7 +1068,7 @@ Type | Description
 ###### `fit`
 
 ```python
-fit(model: str, X: 'pd.DataFrame | np.ndarray | str | list', cv: int | None = None, scale: bool = True, scale_value: float = 100.0, show_progress: bool = True, **kwargs: bool) -> 'FittedBrainCollection'
+fit(model: str, X: 'pd.DataFrame | np.ndarray | str | list', *, cv: int | None = None, scale: bool = True, scale_value: float = 100.0, progress_bar: bool = False, **kwargs: bool) -> 'FittedBrainCollection'
 ```
 
 Fit a model to each subject in the collection.
@@ -1077,7 +1086,7 @@ Name | Type | Description | Default
 `cv` | <code>[int](#int) \| None</code> | Cross-validation folds (Ridge only). Default is None for GLM, 5 for Ridge when output='scores'. | <code>None</code>
 `scale` | <code>[bool](#bool)</code> | If True, apply percent signal change scaling before fitting. | <code>True</code>
 `scale_value` | <code>[float](#float)</code> | Scaling value (default 100.0 for percent signal change). | <code>100.0</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>False</code>
 `**kwargs` |  | Model-specific arguments passed to _fit_glm or _fit_ridge: - GLM: return_stats, save - Ridge: alpha, output, save, backend, random_state | <code>{}</code>
 
 **Returns:**
@@ -1124,7 +1133,7 @@ fit_ridge: Legacy Ridge fitting (use fit(..., model='ridge') instead)
 ###### `fit_from_events`
 
 ```python
-fit_from_events(events: pd.DataFrame, t_r: float, confounds: str | list[pd.DataFrame | Path | str] | None = None, confound_columns: list[str] | None = None, hrf_model: str = 'spm', drift_model: str = 'cosine', high_pass: float = 0.01, scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, return_residuals: bool = False, save: dict[str, str] | None = None, show_progress: bool = True, by_run: bool = False, run_column: str = 'run', run_lengths: int | list[int] | None = None) -> 'BrainCollection | dict[str, BrainCollection]'
+fit_from_events(events: pd.DataFrame, t_r: float, confounds: str | list[pd.DataFrame | Path | str] | None = None, confound_columns: list[str] | None = None, hrf_model: str = 'spm', drift_model: str = 'cosine', high_pass: float = 0.01, scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, return_residuals: bool = False, save: dict[str, str] | None = None, progress_bar: bool = False, by_run: bool = False, run_column: str = 'run', run_lengths: int | list[int] | None = None) -> 'BrainCollection | dict[str, BrainCollection]'
 ```
 
 Build design matrices from events and fit GLM to each subject.
@@ -1153,7 +1162,7 @@ Name | Type | Description | Default
 `return_stats` | <code>[list](#list)[[str](#str)] \| None</code> | Optional list of statistics to return as separate BrainCollections. Options: 't', 'r2', 'p', 'se', 'residual'. | <code>None</code>
 `return_residuals` | <code>[bool](#bool)</code> | If True, return residuals (same as return_stats=['residual']). | <code>False</code>
 `save` | <code>[dict](#dict)[[str](#str), [str](#str)] \| None</code> | Dict mapping output type to path template. | <code>None</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>False</code>
 `by_run` | <code>[bool](#bool)</code> | If True, fit GLM separately per run and return run-level betas. This enables MVPA decoding with leave-one-run-out CV. | <code>False</code>
 `run_column` | <code>[str](#str)</code> | Column name in events identifying runs (default 'run'). | <code>'run'</code>
 `run_lengths` | <code>[int](#int) \| [list](#list)[[int](#int)] \| None</code> | Number of TRs per run. Required when by_run=True. | <code>None</code>
@@ -1195,7 +1204,7 @@ _fit_glm: Internal method for design matrix-based fitting
 ###### `fit_glm`
 
 ```python
-fit_glm(events: pd.DataFrame, t_r: float, confounds: str | list[pd.DataFrame | Path | str] | None = None, confound_columns: list[str] | None = None, hrf_model: str = 'spm', drift_model: str = 'cosine', high_pass: float = 0.01, scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, return_residuals: bool = False, save: dict[str, str] | None = None, show_progress: bool = True, by_run: bool = False, run_column: str = 'run', run_lengths: int | list[int] | None = None) -> 'BrainCollection | dict[str, BrainCollection]'
+fit_glm(events: pd.DataFrame, t_r: float, confounds: str | list[pd.DataFrame | Path | str] | None = None, confound_columns: list[str] | None = None, hrf_model: str = 'spm', drift_model: str = 'cosine', high_pass: float = 0.01, scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, return_residuals: bool = False, save: dict[str, str] | None = None, progress_bar: bool = False, by_run: bool = False, run_column: str = 'run', run_lengths: int | list[int] | None = None) -> 'BrainCollection | dict[str, BrainCollection]'
 ```
 
 Fit GLM to each subject in collection.
@@ -1220,7 +1229,7 @@ Name | Type | Description | Default
 `return_stats` | <code>[list](#list)[[str](#str)] \| None</code> | Optional list of statistics to return as separate BrainCollections. Options: 't', 'r2', 'p', 'se', 'residual'. | <code>None</code>
 `return_residuals` | <code>[bool](#bool)</code> | If True, return residuals (same as return_stats=['residual']). | <code>False</code>
 `save` | <code>[dict](#dict)[[str](#str), [str](#str)] \| None</code> | Dict mapping output type to path template, e.g. ``{'betas': 'output/{subject}_betas.nii.gz', 't': 'output/{subject}_tstat.nii.gz'}``. Supports {subject}, {session}, {idx}, and other metadata columns. | <code>None</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>False</code>
 `by_run` | <code>[bool](#bool)</code> | If True, fit GLM separately per run and return run-level betas. This enables MVPA decoding with leave-one-run-out CV. Each subject will have (n_runs * n_conditions, n_voxels) betas. | <code>False</code>
 `run_column` | <code>[str](#str)</code> | Column name in events identifying runs (default 'run'). | <code>'run'</code>
 `run_lengths` | <code>[int](#int) \| [list](#list)[[int](#int)] \| None</code> | Number of TRs per run. Required when by_run=True.<br>- int: All runs have same length - list of int: Different length per run - None: Will attempt to infer equal-length runs from total scans | <code>None</code>
@@ -1266,7 +1275,7 @@ Type | Description
 ###### `fit_ridge`
 
 ```python
-fit_ridge(X: 'np.ndarray | str | list', alpha: float | str = 1.0, cv: int | None = 5, scale: bool = True, scale_value: float = 100.0, output: str = 'scores', save: dict[str, str] | None = None, show_progress: bool = True, **ridge_kwargs: bool) -> 'BrainCollection | dict[str, BrainCollection]'
+fit_ridge(X: 'np.ndarray | str | list', alpha: float | str = 1.0, cv: int | None = 5, scale: bool = True, scale_value: float = 100.0, output: str = 'scores', save: dict[str, str] | None = None, progress_bar: bool = False, **ridge_kwargs: bool) -> 'BrainCollection | dict[str, BrainCollection]'
 ```
 
 Fit ridge regression to each subject in collection.
@@ -1286,7 +1295,7 @@ Name | Type | Description | Default
 `scale_value` | <code>[float](#float)</code> | Scaling value (default 100.0 for percent signal change). | <code>100.0</code>
 `output` | <code>[str](#str)</code> | What to return. Options: - 'scores': CV R² scores per voxel (default, for encoding workflow) - 'weights': Model weights (n_features, n_voxels) - 'both': Dict with both 'scores' and 'weights' | <code>'scores'</code>
 `save` | <code>[dict](#dict)[[str](#str), [str](#str)] \| None</code> | Dict mapping output type to path template, e.g. ``{'weights': 'output/{subject}_weights.nii.gz', 'scores': 'output/{subject}_scores.nii.gz'}``. Supports {subject}, {session}, {idx}, and other metadata columns. | <code>None</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>False</code>
 `**ridge_kwargs` |  | Additional arguments passed to Ridge model (e.g., backend='torch', random_state=42). | <code>{}</code>
 
 **Returns:**
@@ -1433,7 +1442,7 @@ Type | Description
 ###### `isc`
 
 ```python
-isc(method: str = 'loo', roi_mask: 'nib.Nifti1Image | Path | str | None' = None, radius: float | None = 6.0, metric: str = 'median', parallel: str = 'cpu', n_jobs: int = -1, show_progress: bool = True) -> dict
+isc(method: str = 'loo', roi_mask: 'nib.Nifti1Image | Path | str | None' = None, radius_mm: float | None = 6.0, metric: str = 'median', device: str = 'cpu', n_jobs: int = -1, progress_bar: bool = False) -> dict
 ```
 
 Compute intersubject correlation (ISC) across the collection.
@@ -1447,11 +1456,11 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `method` | <code>[str](#str)</code> | ISC computation method: - 'loo': Leave-one-out (correlate each subject with mean of others) - 'pairwise': All pairwise correlations between subjects | <code>'loo'</code>
 `roi_mask` | <code>'nib.Nifti1Image \| Path \| str \| None'</code> | If provided, compute ISC per ROI. Can be: - NIfTI image with integer labels (atlas/parcellation) - Path to parcellation file | <code>None</code>
-`radius` | <code>[float](#float) \| None</code> | Searchlight radius in mm. If None, use voxelwise mode. Ignored if roi_mask is provided. | <code>6.0</code>
+`radius_mm` | <code>[float](#float) \| None</code> | searchlight radius in mm. If None, use voxelwise mode. Ignored if roi_mask is provided. | <code>6.0</code>
 `metric` | <code>[str](#str)</code> | Summary statistic for aggregating ISC values: - 'median': Robust to outliers (default) - 'mean': Fisher z-transformed mean | <code>'median'</code>
-`parallel` | <code>[str](#str)</code> | Parallelization method ('cpu', 'gpu', or None). | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs (-1 = all cores). | <code>-1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during extraction. | <code>True</code>
+`device` | <code>[str](#str)</code> | Compute device: 'cpu' (default) or 'gpu' (via PyTorch). | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU jobs (-1 = all cores, 1 = single-threaded). | <code>-1</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during extraction. | <code>False</code>
 
 **Returns:**
 
@@ -1469,12 +1478,12 @@ Type | Description
 
 ```pycon
 >>> # Searchlight ISC
->>> result = bc.isc(radius=10.0)
+>>> result = bc.isc(radius_mm=10.0)
 ```
 
 ```pycon
 >>> # Voxelwise ISC
->>> result = bc.isc(radius=None)
+>>> result = bc.isc(radius_mm=None)
 ```
 
 <details class="notes" open markdown="1">
@@ -1488,7 +1497,7 @@ discussion of statistical methodology first).
 ###### `isc_test`
 
 ```python
-isc_test(method: str = 'loo', roi_mask: 'nib.Nifti1Image | Path | str | None' = None, radius: float | None = 6.0, n_permute: int = 5000, permutation_method: str = 'bootstrap', metric: str = 'median', tail: int = 2, ci_percentile: float = 95, parallel: str = 'cpu', n_jobs: int = -1, random_state: int | None = None, return_null: bool = False, show_progress: bool = True) -> dict
+isc_test(method: str = 'loo', roi_mask: 'nib.Nifti1Image | Path | str | None' = None, radius_mm: float | None = 6.0, n_permute: int = 5000, permutation_method: str = 'bootstrap', metric: str = 'median', tail: int = 2, ci_percentile: float = 95, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False) -> dict
 ```
 
 Compute ISC with permutation testing for statistical inference.
@@ -1503,17 +1512,17 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `method` | <code>[str](#str)</code> | ISC computation method: - 'loo': Leave-one-out (correlate each subject with mean of others) - 'pairwise': All pairwise correlations between subjects | <code>'loo'</code>
 `roi_mask` | <code>'nib.Nifti1Image \| Path \| str \| None'</code> | If provided, compute ISC per ROI. Can be: - NIfTI image with integer labels (atlas/parcellation) - Path to parcellation file | <code>None</code>
-`radius` | <code>[float](#float) \| None</code> | Searchlight radius in mm. If None, use voxelwise mode. Ignored if roi_mask is provided. | <code>6.0</code>
+`radius_mm` | <code>[float](#float) \| None</code> | searchlight radius in mm. If None, use voxelwise mode. Ignored if roi_mask is provided. | <code>6.0</code>
 `n_permute` | <code>[int](#int)</code> | Number of permutations/bootstrap iterations. Default 5000. | <code>5000</code>
 `permutation_method` | <code>[str](#str)</code> | Method for null distribution:<br>- 'bootstrap': Subject-wise bootstrap (default, Chen et al. 2016).   Tests whether observed ISC differs from random groupings. - 'circle_shift': Circular time-shift (preserves autocorrelation).   Tests for temporally-locked shared signal. - 'phase_randomize': FFT phase randomization (preserves power spectrum).   Tests for nonlinear temporal coupling. | <code>'bootstrap'</code>
 `metric` | <code>[str](#str)</code> | Summary statistic for aggregating ISC values: - 'median': Robust to outliers (default) - 'mean': Fisher z-transformed mean | <code>'median'</code>
 `tail` | <code>[int](#int)</code> | One-tailed (1) or two-tailed (2) test. Default 2. | <code>2</code>
 `ci_percentile` | <code>[float](#float)</code> | Confidence interval percentile (e.g., 95). Default 95. | <code>95</code>
-`parallel` | <code>[str](#str)</code> | Parallelization method ('cpu', 'gpu', or None). | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs (-1 = all cores). | <code>-1</code>
+`device` | <code>[str](#str)</code> | Compute device: 'cpu' (default) or 'gpu' (via PyTorch). | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU jobs (-1 = all cores, 1 = single-threaded). | <code>-1</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include null distribution in results. | <code>False</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during extraction and permutation. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during extraction and permutation. | <code>False</code>
 
 **Returns:**
 
@@ -1532,7 +1541,7 @@ Type | Description
 
 ```pycon
 >>> # Searchlight ISC testing
->>> result = bc.isc_test(radius=10.0)
+>>> result = bc.isc_test(radius_mm=10.0)
 >>> result['isc'].plot()  # Show ISC values
 >>> result['p'].plot()    # Show p-values
 ```
@@ -1540,9 +1549,9 @@ Type | Description
 ```pycon
 >>> # Voxelwise with phase randomization (tests temporal coupling)
 >>> result = bc.isc_test(
-...     radius=None,
+...     radius_mm=None,
 ...     permutation_method='phase_randomize',
-...     parallel='gpu'
+...     device='gpu'
 ... )
 ```
 
@@ -1572,7 +1581,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 ###### `iter_batches`
 
 ```python
-iter_batches(batch_size: int, axis: int = 0, show_progress: bool = True) -> Generator['BrainCollection', None, None]
+iter_batches(batch_size: int, axis: int = 0, progress_bar: bool = False) -> Generator['BrainCollection', None, None]
 ```
 
 Iterate in batches along axis.
@@ -1583,7 +1592,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `batch_size` | <code>[int](#int)</code> | Number of items per batch. | *required*
 `axis` | <code>[int](#int)</code> | Axis to batch along: - 0: Batches of images (default) - 1: Batches of timepoints (within each image) | <code>0</code>
-`show_progress` | <code>[bool](#bool)</code> | Show tqdm progress bar. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show tqdm progress bar. | <code>False</code>
 
 **Yields:**
 
@@ -1628,7 +1637,7 @@ Type | Description
 ###### `map`
 
 ```python
-map(fn: Callable, axis: int | str = 0, n_jobs: int = 1, show_progress: bool = True) -> 'BrainCollection'
+map(fn: Callable, axis: int | str = 0, n_jobs: int = 1, progress_bar: bool = False) -> 'BrainCollection'
 ```
 
 Apply function across specified axis.
@@ -1643,7 +1652,7 @@ Name | Type | Description | Default
 `fn` | <code>[Callable](#collections.abc.Callable)</code> | Function to apply. Signature depends on axis: - axis=0: fn(BrainData) → BrainData (per image) - axis=1: fn(BrainData) → BrainData (per timepoint slice) - axis=2: fn(ndarray[n_obs]) → ndarray (per voxel timeseries) | *required*
 `axis` | <code>[int](#int) \| [str](#str)</code> | Axis to iterate over: - 0 or 'images': Apply fn to each image independently - 1 or 'time': Apply fn to each timepoint across images - 2 or 'voxels': Apply fn to each voxel timeseries per image | <code>0</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. -1 for all cores. Default 1. | <code>1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show tqdm progress bar. Default True. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show tqdm progress bar. Default True. | <code>False</code>
 
 **Returns:**
 
@@ -1740,7 +1749,7 @@ Compute minimum along axis. See mean() for details.
 ###### `permutation_test`
 
 ```python
-permutation_test(n_permute: int = 5000, tail: int = 2, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None, return_null: bool = False) -> dict
+permutation_test(n_permute: int = 5000, tail: int = 2, device: str = 'cpu', max_gpu_memory_gb: float = 4.0, return_null: bool = False, n_jobs: int = -1, random_state: int | None = None) -> dict
 ```
 
 One-sample permutation test across images (sign-flipping).
@@ -1758,17 +1767,17 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000). | <code>5000</code>
 `tail` | <code>[int](#int)</code> | Test type - 1 for one-tailed, 2 for two-tailed (default). | <code>2</code>
-`parallel` | <code>[str](#str) \| None</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default) - 'gpu': GPU acceleration via PyTorch - None: Single-threaded (for debugging) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores (default: -1 = all cores). | <code>-1</code>
+`device` | <code>[str](#str)</code> | Compute device: 'cpu' (default) or 'gpu' (via PyTorch). | <code>'cpu'</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget (default: 4.0 GB). | <code>4.0</code>
-`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include null distribution in result. | <code>False</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU jobs (-1 = all cores, 1 = single-threaded). | <code>-1</code>
+`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | dict with keys: - 'mean': BrainData with observed mean across images - 'p': BrainData with p-values - 'null_dist': np.ndarray (if return_null=True) - 'parallel': parallelization method used
+<code>[dict](#dict)</code> | dict with keys: - 'mean': BrainData with observed mean across images - 'p': BrainData with p-values - 'null_dist': np.ndarray (if return_null=True) - 'device': compute device used
 
 **Examples:**
 
@@ -1779,13 +1788,13 @@ Type | Description
 
 ```pycon
 >>> # With GPU acceleration
->>> result = bc.permutation_test(parallel='gpu')
+>>> result = bc.permutation_test(device='gpu')
 ```
 
 ###### `permutation_test2`
 
 ```python
-permutation_test2(other: 'BrainCollection', n_permute: int = 5000, tail: int = 2, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None, return_null: bool = False) -> dict
+permutation_test2(other: 'BrainCollection', n_permute: int = 5000, tail: int = 2, device: str = 'cpu', max_gpu_memory_gb: float = 4.0, return_null: bool = False, n_jobs: int = -1, random_state: int | None = None) -> dict
 ```
 
 Two-sample permutation test between collections.
@@ -1800,17 +1809,17 @@ Name | Type | Description | Default
 `other` | <code>'BrainCollection'</code> | Another BrainCollection to compare against. | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000). | <code>5000</code>
 `tail` | <code>[int](#int)</code> | Test type - 1 for one-tailed, 2 for two-tailed (default). | <code>2</code>
-`parallel` | <code>[str](#str) \| None</code> | Parallelization method ('cpu', 'gpu', or None). | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores (default: -1 = all cores). | <code>-1</code>
+`device` | <code>[str](#str)</code> | Compute device: 'cpu' (default) or 'gpu' (via PyTorch). | <code>'cpu'</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget (default: 4.0 GB). | <code>4.0</code>
-`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include null distribution in result. | <code>False</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU jobs (-1 = all cores, 1 = single-threaded). | <code>-1</code>
+`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | dict with keys: - 'mean_diff': BrainData with observed mean difference - 'p': BrainData with p-values - 'null_dist': np.ndarray (if return_null=True) - 'parallel': parallelization method used
+<code>[dict](#dict)</code> | dict with keys: - 'mean_diff': BrainData with observed mean difference - 'p': BrainData with p-values - 'null_dist': np.ndarray (if return_null=True) - 'device': compute device used
 
 **Examples:**
 
@@ -1822,7 +1831,7 @@ Type | Description
 ###### `predict`
 
 ```python
-predict(X: 'np.ndarray | str | list | None' = None, y: 'np.ndarray | None' = None, method: str = 'whole_brain', estimator: str = 'svm', cv: str = 5, groups: 'np.ndarray | None' = None, roi_mask: 'np.ndarray | None' = None, radius: float = 10.0, scoring: str = 'accuracy', standardize: bool = True, n_jobs: int = -1, show_progress: bool = True) -> 'BrainCollection'
+predict(X: 'np.ndarray | str | list | None' = None, y: 'np.ndarray | None' = None, *, method: str = 'whole_brain', estimator: str = 'svm', cv: str = 5, groups: 'np.ndarray | None' = None, roi_mask: 'np.ndarray | None' = None, radius_mm: float = 10.0, scoring: str = 'accuracy', standardize: bool = True, n_jobs: int = -1, progress_bar: bool = False) -> 'BrainCollection'
 ```
 
 Generate predictions for each subject in collection.
@@ -1851,11 +1860,11 @@ Name | Type | Description | Default
 `cv` |  | Cross-validation strategy. If None and _run_labels exists, uses leave-one-group-out with run labels. | <code>5</code>
 `groups` | <code>'np.ndarray \| None'</code> | Group labels for GroupKFold/LeaveOneGroupOut. If None and _run_labels exists, uses stored run labels. | <code>None</code>
 `roi_mask` |  | Mask for ROI-based MVPA. Required if method='roi'. | <code>None</code>
-`radius` | <code>[float](#float)</code> | Searchlight radius in mm (default 10.0). | <code>10.0</code>
+`radius_mm` | <code>[float](#float)</code> | searchlight radius in mm (default 10.0). | <code>10.0</code>
 `scoring` | <code>[str](#str)</code> | Scoring metric (default 'accuracy'). | <code>'accuracy'</code>
 `standardize` | <code>[bool](#bool)</code> | If True, standardize features before classification. | <code>True</code>
 `n_jobs` | <code>[int](#int)</code> | Parallel jobs for searchlight (-1 = all cores). | <code>-1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>False</code>
 
 **Returns:**
 
@@ -1930,7 +1939,7 @@ Type | Description
 ###### `smooth`
 
 ```python
-smooth(fwhm: float, n_jobs: int = 1, show_progress: bool = True) -> 'BrainCollection'
+smooth(fwhm: float, n_jobs: int = 1, progress_bar: bool = False) -> 'BrainCollection'
 ```
 
 Spatially smooth each image.
@@ -1943,7 +1952,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `fwhm` | <code>[float](#float)</code> | Full width at half maximum of Gaussian kernel in mm. | *required*
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar. | <code>False</code>
 
 **Returns:**
 
@@ -1960,7 +1969,7 @@ Type | Description
 ###### `standardize`
 
 ```python
-standardize(axis: int = 0, method: str = 'center', n_jobs: int = 1, show_progress: bool = True, verbose: bool = True) -> 'BrainCollection'
+standardize(axis: int = 0, method: str = 'center', verbose: bool = True, n_jobs: int = 1, progress_bar: bool = False) -> 'BrainCollection'
 ```
 
 Standardize each image.
@@ -1973,9 +1982,9 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `axis` | <code>[int](#int)</code> | Axis for standardization within each image: - 0: Standardize across observations (time) per voxel - 1: Standardize across voxels per observation | <code>0</code>
 `method` | <code>[str](#str)</code> | 'center' (subtract mean) or 'zscore' (subtract mean, divide std) | <code>'center'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar. | <code>True</code>
 `verbose` | <code>[bool](#bool)</code> | If False, suppress sklearn numerical warnings that occur when voxels have near-zero variance. Default: True. | <code>True</code>
+`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>1</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar. | <code>False</code>
 
 **Returns:**
 
@@ -2010,7 +2019,7 @@ Compute sum along axis. See mean() for details.
 ###### `threshold`
 
 ```python
-threshold(upper: float | str | None = None, lower: float | str | None = None, binarize: bool = False, coerce_nan: bool = True, n_jobs: int = 1, show_progress: bool = True) -> 'BrainCollection'
+threshold(upper: float | str | None = None, lower: float | str | None = None, binarize: bool = False, coerce_nan: bool = True, n_jobs: int = 1, progress_bar: bool = False) -> 'BrainCollection'
 ```
 
 Threshold each image.
@@ -2026,7 +2035,7 @@ Name | Type | Description | Default
 `binarize` | <code>[bool](#bool)</code> | Return binary mask. | <code>False</code>
 `coerce_nan` | <code>[bool](#bool)</code> | Replace NaN with 0. | <code>True</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar. | <code>False</code>
 
 **Returns:**
 
@@ -2260,7 +2269,7 @@ Type | Description
 #### `BrainData`
 
 ```python
-BrainData(data = None, Y = None, X = None, mask = None, masker = None, h5_compression = 'gzip', verbose = False, resample = True, interpolation = 'auto')
+BrainData(data = None, *, Y = None, X = None, mask = None, masker = None, h5_compression = 'gzip', verbose = False, resample = True, interpolation = 'auto')
 ```
 
 
@@ -2319,6 +2328,8 @@ Name | Description
 [`threshold`](#threshold) | Threshold BrainData instance with optional cluster filtering.
 [`to_nifti`](#to_nifti) | Convert BrainData Instance into Nifti Object.
 [`transform_pairwise`](#transform_pairwise) | Transform data into pairwise comparisons.
+[`ttest`](#ttest) | One-sample voxelwise t-test across images (axis 0).
+[`ttest2`](#ttest2) | Two-sample voxelwise t-test between two BrainData stacks.
 [`upload_neurovault`](#upload_neurovault) | Upload Data to Neurovault.  Will add any columns in self.X to image
 [`write`](#write) | Write out BrainData object to Nifti or HDF5 File.
 [`z_to_r`](#z_to_r) | Convert z score back into r value for each element of data object.
@@ -2342,7 +2353,7 @@ Name | Type | Description
 ###### `align`
 
 ```python
-align(target, method = 'procrustes', axis = 0, *args, **kwargs)
+align(target, method = 'procrustes', axis = 0)
 ```
 
 Align BrainData instance to target object using functional alignment.
@@ -2365,7 +2376,7 @@ Name | Type | Description
 
 ```pycon
 >>> out = data.align(target, method='procrustes')
->>> out = data.align(target, method='probabilistic_srm', n_features=None)
+>>> out = data.align(target, method='probabilistic_srm')
 ```
 
 ###### `append`
@@ -2437,7 +2448,7 @@ Name | Type | Description
 ###### `bootstrap`
 
 ```python
-bootstrap(stat, n_samples = 5000, save_boots = False, n_jobs = -1, random_state = None, percentiles = (2.5, 97.5), X_test = None, **kwargs)
+bootstrap(stat, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, backend = None, max_gpu_memory_gb = 4.0, n_jobs = -1, random_state = None)
 ```
 
 Bootstrap statistics using efficient online algorithms.
@@ -2452,11 +2463,12 @@ Name | Type | Description | Default
 `stat` |  | (str) Statistic to bootstrap. Options: Simple stats ('mean', 'median', 'std', 'sum', 'min', 'max') or Model stats ('weights' requires fitted Ridge model, 'predict' requires fitted Ridge model + X_test). | *required*
 `n_samples` |  | (int) Number of bootstrap iterations. Default: 5000 | <code>5000</code>
 `save_boots` |  | (bool) If True, store all bootstrap samples. Default: False | <code>False</code>
-`n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
-`random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
 `percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
 `X_test` |  | (np.ndarray, optional) Test features for 'predict' bootstrap. | <code>None</code>
-`**kwargs` |  | Additional parameters (backend, max_gpu_memory_gb, etc.) | <code>{}</code>
+`backend` |  | (str, optional) Backend for Ridge bootstrap: None (CPU), 'torch' (GPU if available), or 'auto' (auto-select). Ignored for simple stats. | <code>None</code>
+`max_gpu_memory_gb` |  | (float) Maximum GPU memory to use when backend is 'torch' or 'auto'. Default: 4.0 | <code>4.0</code>
+`n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
+`random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
 
 **Returns:**
 
@@ -2551,7 +2563,7 @@ Name | Type | Description
 ###### `cv`
 
 ```python
-cv(k: int | None = None, scheme: str = 'kfold', split_by: str | None = None, groups: np.ndarray | None = None, random_state: int | None = None, **kwargs: int | None) -> BrainDataPipeline
+cv(k: int | None = None, method: str = 'kfold', split_by: str | None = None, groups: np.ndarray | None = None, n: int = 1000, random_state: int | None = None) -> BrainDataPipeline
 ```
 
 Create a cross-validation pipeline for this BrainData.
@@ -2564,12 +2576,12 @@ pipeline and return results.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`k` | <code>[int](#int) \| None</code> | Number of folds (for kfold scheme). Defaults to 5. | <code>None</code>
-`scheme` | <code>[str](#str)</code> | CV scheme type. Options: - 'kfold': k-fold cross-validation (default) - 'loro': leave-one-run-out (requires split_by='runs' or groups) - 'bootstrap': bootstrap with out-of-bag test sets | <code>'kfold'</code>
+`k` | <code>[int](#int) \| None</code> | Number of folds (for kfold method). Defaults to 5. | <code>None</code>
+`method` | <code>[str](#str)</code> | CV scheme type. Options: - 'kfold': k-fold cross-validation (default) - 'loro': leave-one-run-out (requires split_by='runs' or groups) - 'bootstrap': bootstrap with out-of-bag test sets - 'permutation': permutation testing (shuffles targets) | <code>'kfold'</code>
 `split_by` | <code>[str](#str) \| None</code> | Attribute name for group splits (e.g., 'runs'). | <code>None</code>
 `groups` | <code>[ndarray](#numpy.ndarray) \| None</code> | Explicit group labels for CV splits. | <code>None</code>
+`n` | <code>[int](#int)</code> | Number of iterations for bootstrap/permutation methods. Default 1000. | <code>1000</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
-`**kwargs` |  | Additional arguments passed to CVScheme. | <code>{}</code>
 
 **Returns:**
 
@@ -2581,13 +2593,13 @@ Name | Type | Description
 
 ```pycon
 >>> result = brain.cv(k=5).predict(y, algorithm='ridge')
->>> result = brain.cv(scheme='loro', groups=run_labels).predict(y)
+>>> result = brain.cv(method='loro', groups=run_labels).predict(y)
 ```
 
 ###### `decompose`
 
 ```python
-decompose(algorithm = 'pca', axis = 'voxels', n_components = None, *args, **kwargs)
+decompose(method = 'pca', axis = 'voxels', n_components = None, *args, **kwargs)
 ```
 
 Decompose BrainData object.
@@ -2596,7 +2608,7 @@ Decompose BrainData object.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`algorithm` |  | (str) Algorithm to perform decomposition         types=['pca','ica','nnmf','fa','dictionary','kernelpca'] | <code>'pca'</code>
+`method` |  | (str) Algorithm to perform decomposition         types=['pca','ica','nnmf','fa','dictionary','kernelpca'] | <code>'pca'</code>
 `axis` |  | dimension to decompose ['voxels','images'] | <code>'voxels'</code>
 `n_components` |  | (int) number of components. If None then retain         as many as possible. | <code>None</code>
 
@@ -2732,7 +2744,7 @@ Type | Description
 ###### `fit`
 
 ```python
-fit(model = None, X = None, cv = None, inplace = True, progress_bar = None, scale = True, scale_value = 100.0, **kwargs)
+fit(model = None, X = None, cv = None, inplace = True, scale = True, scale_value = 100.0, progress_bar = None, **kwargs)
 ```
 
 Fit a model to brain imaging data.
@@ -2749,9 +2761,9 @@ Name | Type | Description | Default
 `X` | <code>[array](#array) - [like](#like) or [DataFrame](#DataFrame)</code> | Design matrix or feature matrix | <code>None</code>
 `cv` | <code>int, 'auto', or sklearn CV splitter</code> | Cross-validation specification (Ridge only) | <code>None</code>
 `inplace` | <code>bool, default=True</code> | If True, mutate self and return self. If False, return Fit dataclass with results (self unchanged). | <code>True</code>
-`progress_bar` | <code>[bool](#bool)</code> | Display progress bar during fitting. | <code>None</code>
 `scale` | <code>bool, default=True</code> | Apply grand-mean scaling before fitting. | <code>True</code>
 `scale_value` | <code>float, default=100.0</code> | Target value for mean after scaling. | <code>100.0</code>
+`progress_bar` | <code>[bool](#bool)</code> | Display progress bar during fitting. | <code>None</code>
 `**kwargs` | <code>[dict](#dict)</code> | Additional arguments passed to model constructor | <code>{}</code>
 
 **Returns:**
@@ -2770,7 +2782,7 @@ Type | Description
 ###### `icc`
 
 ```python
-icc(n_subjects, n_sessions, icc_type = 'icc2', parallel = None, n_jobs = -1, max_gpu_memory_gb = 4.0)
+icc(n_subjects, n_sessions, method = 'icc2', parallel = None, n_jobs = -1, max_gpu_memory_gb = 4.0)
 ```
 
 Calculate voxel-wise intraclass correlation coefficient.
@@ -2783,7 +2795,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `n_subjects` |  | Number of subjects in the data | *required*
 `n_sessions` |  | Number of sessions per subject | *required*
-`icc_type` |  | Type of ICC ('icc1', 'icc2', 'icc3'). Default: 'icc2' | <code>'icc2'</code>
+`method` |  | Type of ICC ('icc1', 'icc2', 'icc3'). Default: 'icc2' | <code>'icc2'</code>
 `parallel` |  | Parallelization method (None, 'cpu', 'gpu') | <code>None</code>
 `n_jobs` |  | Number of CPU cores (-1 = all cores) | <code>-1</code>
 `max_gpu_memory_gb` |  | GPU memory budget in GB | <code>4.0</code>
@@ -2797,7 +2809,7 @@ Name | Type | Description
 **Examples:**
 
 ```pycon
->>> icc_map = data.icc(n_subjects=20, n_sessions=3, icc_type='icc2')
+>>> icc_map = data.icc(n_subjects=20, n_sessions=3, method='icc2')
 ```
 
 ###### `mean`
@@ -2865,7 +2877,7 @@ Name | Type | Description
 ###### `plot`
 
 ```python
-plot(kind = 'glass', thr_upper = None, thr_lower = None, threshold = None, cut_coords = None, cmap = None, bg_img = None, ax = None, title = None, colorbar = True, save = None, stat = 'mean', **kwargs)
+plot(method = 'glass', upper = None, lower = None, threshold = None, cut_coords = None, cmap = None, bg_img = None, ax = None, title = None, colorbar = True, save = None, stat = 'mean', **kwargs)
 ```
 
 Plot BrainData instance using nilearn visualization or matplotlib.
@@ -2874,9 +2886,9 @@ Plot BrainData instance using nilearn visualization or matplotlib.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`kind` | <code>[str](#str)</code> | Visualization type: 'glass', 'slices', 'timeseries', 'histogram' | <code>'glass'</code>
-`thr_upper` | <code>[str](#str) / [float](#float)</code> | Upper threshold. | <code>None</code>
-`thr_lower` | <code>[str](#str) / [float](#float)</code> | Lower threshold. | <code>None</code>
+`method` | <code>[str](#str)</code> | Visualization type: 'glass', 'slices', 'timeseries', 'histogram' | <code>'glass'</code>
+`upper` | <code>[str](#str) / [float](#float)</code> | Upper threshold. | <code>None</code>
+`lower` | <code>[str](#str) / [float](#float)</code> | Lower threshold. | <code>None</code>
 `threshold` | <code>[float](#float)</code> | Convenience parameter for thresholding. | <code>None</code>
 `cut_coords` | <code>[list](#list)</code> | Cut coordinates for multi-slice views. | <code>None</code>
 `cmap` | <code>[str](#str)</code> | Colormap name. | <code>None</code>
@@ -2897,7 +2909,7 @@ Type | Description
 ###### `plot_flatmap`
 
 ```python
-plot_flatmap(threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius = 3.0, interpolation = 'linear', axes = None, save = None)
+plot_flatmap(threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
 ```
 
 Plot brain data on cortical flatmap.
@@ -2918,7 +2930,7 @@ Name | Type | Description | Default
 `colorbar_orientation` | <code>[str](#str)</code> | 'horizontal' or 'vertical'. Default: 'horizontal'. | <code>'horizontal'</code>
 `figsize` | <code>[tuple](#tuple)</code> | Figure size as (width, height). Default: (12, 6). | <code>(12, 6)</code>
 `title` | <code>[str](#str)</code> | Figure title. | <code>None</code>
-`radius` | <code>[float](#float)</code> | Sampling radius in mm. Default: 3.0. | <code>3.0</code>
+`radius_mm` | <code>[float](#float)</code> | Sampling radius in mm. Default: 3.0. | <code>3.0</code>
 `interpolation` | <code>[str](#str)</code> | Interpolation method. Default: 'linear'. | <code>'linear'</code>
 `axes` | <code>[Axes](#matplotlib.axes.Axes)</code> | Existing axes to plot on. | <code>None</code>
 `save` | <code>[str](#str)</code> | File path to save figure. | <code>None</code>
@@ -2932,7 +2944,7 @@ Type | Description
 ###### `predict`
 
 ```python
-predict(X: np.ndarray | None = None, y: np.ndarray | None = None, method: str = 'whole_brain', estimator: str = 'svm', cv: str = 5, groups: np.ndarray | None = None, roi_mask: np.ndarray | None = None, radius: float = 10.0, scoring: str = 'accuracy', standardize: bool = True, n_jobs: int = -1, show_progress: bool = True)
+predict(X: np.ndarray | None = None, y: np.ndarray | None = None, *, method: str = 'whole_brain', estimator: str = 'svm', cv: str = 5, groups: np.ndarray | None = None, roi_mask: np.ndarray | None = None, radius_mm: float = 10.0, scoring: str = 'accuracy', standardize: bool = True, n_jobs: int = -1, progress_bar: bool = False)
 ```
 
 Generate predictions using fitted model OR classify patterns (MVPA).
@@ -2952,11 +2964,11 @@ Name | Type | Description | Default
 `cv` |  | Cross-validation specification. | <code>5</code>
 `groups` | <code>[ndarray](#numpy.ndarray) \| None</code> | Group labels for CV. | <code>None</code>
 `roi_mask` |  | Atlas/parcellation for ROI-based decoding. | <code>None</code>
-`radius` | <code>[float](#float)</code> | Searchlight radius in mm (default 10.0). | <code>10.0</code>
+`radius_mm` | <code>[float](#float)</code> | Searchlight radius in mm (default 10.0). | <code>10.0</code>
 `scoring` | <code>[str](#str)</code> | Metric for evaluation. | <code>'accuracy'</code>
 `standardize` | <code>[bool](#bool)</code> | Z-score features before classification (default True). | <code>True</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs (-1 = all cores). | <code>-1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar for searchlight. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar for searchlight. | <code>False</code>
 
 **Returns:**
 
@@ -2984,7 +2996,7 @@ object.
 ###### `regions`
 
 ```python
-regions(min_region_size = 1350, extract_type = 'local_regions', smoothing_fwhm = 6, is_mask = False)
+regions(min_region_size = 1350, method = 'local_regions', smoothing_fwhm = 6, is_mask = False)
 ```
 
 Extract brain connected regions into separate regions.
@@ -2994,7 +3006,7 @@ Extract brain connected regions into separate regions.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `min_region_size` | <code>[int](#int)</code> | Minimum volume in mm3 for a region to be kept. | <code>1350</code>
-`extract_type` | <code>[str](#str)</code> | Type of extraction method                 ['connected_components', 'local_regions']. | <code>'local_regions'</code>
+`method` | <code>[str](#str)</code> | Type of extraction method                 ['connected_components', 'local_regions']. | <code>'local_regions'</code>
 `smoothing_fwhm` | <code>[scalar](#scalar)</code> | Smooth an image to extract more sparser regions. | <code>6</code>
 `is_mask` | <code>[bool](#bool)</code> | Whether to treat as boolean mask. | <code>False</code>
 
@@ -3007,7 +3019,7 @@ Name | Type | Description
 ###### `regress`
 
 ```python
-regress(design_matrix = None, noise_model = 'ols', mode = None, **kwargs)
+regress(design_matrix = None, method = 'ols', mode = None)
 ```
 
 Deprecated: Use fit(model='glm', X=design_matrix) instead.
@@ -3244,6 +3256,72 @@ Name | Type | Description
 ---- | ---- | -----------
 `BrainData` |  | BrainData instance transformed into pairwise comparisons
 
+###### `ttest`
+
+```python
+ttest(popmean = 0.0, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
+```
+
+One-sample voxelwise t-test across images (axis 0).
+
+Tests whether the per-voxel mean across images differs from
+``popmean``. Operates on a stack of images (e.g. subject-level
+contrast maps) with shape ``(n_samples, n_voxels)``.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`popmean` |  | Population mean to test against. Default 0.0. | <code>0.0</code>
+`permutation` |  | If True, use sign-flip permutation test via :func:`nltools.stats.one_sample_permutation_test`. | <code>False</code>
+`n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
+`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
+`return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
+`random_state` |  | Random seed for reproducibility. | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dict` |  | ``{"t": BrainData, "p": BrainData}`` for the parametric
+ |  | case, or ``{"mean": BrainData, "p": BrainData}`` when
+ |  | ``permutation=True``.
+
+**Examples:**
+
+```pycon
+>>> # Stack of subject-level contrast maps
+>>> result = contrast_maps.ttest()
+>>> sig = result["p"].data < 0.05
+```
+
+```pycon
+>>> # Permutation-based inference
+>>> result = contrast_maps.ttest(permutation=True, n_permute=5000)
+```
+
+###### `ttest2`
+
+```python
+ttest2(other, equal_var = True)
+```
+
+Two-sample voxelwise t-test between two BrainData stacks.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`other` |  | BrainData to compare against. Must have the same number of voxels. | *required*
+`equal_var` |  | If True (default), standard two-sample t-test. If False, Welch's t-test. | <code>True</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dict` |  | ``{"t": BrainData, "p": BrainData}``.
+
 ###### `upload_neurovault`
 
 ```python
@@ -3422,7 +3500,7 @@ Name | Type | Description
 ###### `append`
 
 ```python
-append(dm: Union['DesignMatrix', List['DesignMatrix']], axis: int = 0, keep_separate: bool = True, unique_cols: Optional[List[str]] = None, fill_na: Union[int, float] = 0, verbose: bool = False) -> 'DesignMatrix'
+append(dm: Union['DesignMatrix', List['DesignMatrix']], *, axis: int = 0, keep_separate: bool = True, unique_cols: Optional[List[str]] = None, fill_na: Union[int, float] = 0, verbose: bool = False) -> 'DesignMatrix'
 ```
 
 Concatenate design matrices.
@@ -4497,7 +4575,7 @@ Name | Description
 ---- | -----------
 [`bootstrap`](#bootstrap) | Bootstrap statistics using efficient online algorithms.
 [`convert_bootstrap_results_to_adjacency`](#convert_bootstrap_results_to_adjacency) | Convert bootstrap results dictionary to Adjacency format.
-[`generate_permutations`](#generate_permutations) | Generate n_perm permutated versions of Adjacency in a lazy fashion. Useful for iterating against.
+[`generate_permutations`](#generate_permutations) | Generate n_permute permutated versions of Adjacency in a lazy fashion. Useful for iterating against.
 [`regress`](#regress) | Run a regression on an adjacency instance.
 [`social_relations_model`](#social_relations_model) | Estimate the social relations model from a matrix for a round-robin design.
 
@@ -4508,7 +4586,7 @@ Name | Description
 ###### `bootstrap`
 
 ```python
-bootstrap(adj, stat, n_samples = 5000, save_boots = False, n_jobs = -1, random_state = None, percentiles = (2.5, 97.5))
+bootstrap(adj, stat, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), n_jobs = -1, random_state = None)
 ```
 
 Bootstrap statistics using efficient online algorithms.
@@ -4524,9 +4602,9 @@ Name | Type | Description | Default
 `stat` |  | (str) Statistic to bootstrap. Options: - Simple stats: 'mean', 'median', 'std', 'sum', 'min', 'max' | *required*
 `n_samples` |  | (int) Number of bootstrap iterations. Default: 5000 | <code>5000</code>
 `save_boots` |  | (bool) If True, store all bootstrap samples (memory intensive).        Default: False | <code>False</code>
+`percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
 `n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
-`percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
 
 **Returns:**
 
@@ -4571,17 +4649,17 @@ Name | Type | Description
 ######## `generate_permutations`
 
 ```python
-generate_permutations(adj, n_perm, random_state = None)
+generate_permutations(adj, n_permute, random_state = None)
 ```
 
-Generate n_perm permutated versions of Adjacency in a lazy fashion. Useful for iterating against.
+Generate n_permute permutated versions of Adjacency in a lazy fashion. Useful for iterating against.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `adj` |  | (Adjacency) Adjacency instance | *required*
-`n_perm` | <code>[int](#int)</code> | number of permutations | *required*
+`n_permute` | <code>[int](#int)</code> | number of permutations | *required*
 `random_state` | <code>[int](#int) or [RandomState](#numpy.random.RandomState)</code> | random seed for reproducibility. Defaults to None. | <code>None</code>
 
 **Examples:**
@@ -4601,7 +4679,7 @@ Name | Type | Description
 ######## `regress`
 
 ```python
-regress(adj, X, mode = 'ols', **kwargs)
+regress(adj, X, method = 'ols')
 ```
 
 Run a regression on an adjacency instance.
@@ -4614,7 +4692,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `adj` |  | (Adjacency) Adjacency instance | *required*
 `X` |  | Design matrix can be an Adjacency or DesignMatrix instance | *required*
-`mode` |  | type of regression (default: ols) - only 'ols' is currently supported | <code>'ols'</code>
+`method` |  | type of regression (default: ols) - only 'ols' is currently supported | <code>'ols'</code>
 
 **Returns:**
 
@@ -4712,7 +4790,7 @@ Type | Description
 ######## `plot_mds`
 
 ```python
-plot_mds(adj, n_components = 2, metric = True, labels = None, labels_color = None, cmap = None, n_jobs = -1, view = (30, 20), figsize = None, ax = None, *args, **kwargs)
+plot_mds(adj, n_components = 2, metric = True, labels = None, labels_color = None, cmap = None, view = (30, 20), figsize = None, ax = None, n_jobs = -1, *args, **kwargs)
 ```
 
 Plot Multidimensional Scaling.
@@ -4727,10 +4805,10 @@ Name | Type | Description | Default
 `labels` | <code>[list](#list)</code> | Can override labels stored in Adjacency Class. | <code>None</code>
 `labels_color` | <code>[list](#list)</code> | List of colors for labels. | <code>None</code>
 `cmap` |  | Colormap instance (default: ``plt.cm.hot_r``). | <code>None</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>-1</code>
 `view` | <code>[tuple](#tuple)</code> | View for 3-Dimensional plot. Default (30, 20). | <code>(30, 20)</code>
 `figsize` | <code>[list](#list)</code> | Figure size. Default [12, 8]. | <code>None</code>
 `ax` |  | Matplotlib axis handle. | <code>None</code>
+`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>-1</code>
 
 **Returns:**
 
@@ -4856,7 +4934,7 @@ Name | Type | Description
 ######## `similarity`
 
 ```python
-similarity(adj, data, plot = False, perm_type = '2d', n_permute = 5000, metric = 'spearman', ignore_diagonal = False, nan_policy = 'omit', **kwargs)
+similarity(adj, data, plot = False, permutation_method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None)
 ```
 
 Calculate similarity between two Adjacency matrices. Default is to use spearman
@@ -4869,11 +4947,15 @@ Name | Type | Description | Default
 `adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency instance. | *required*
 `data` | <code>[Adjacency](#nltools.data.adjacency.Adjacency) or [array](#array)</code> | Adjacency data, or 1-d array same size as adj.data. | *required*
 `plot` | <code>[bool](#bool)</code> | If True, plot stacked adjacency matrices. Default False. | <code>False</code>
-`perm_type` | <code>[str](#str)</code> | '1d', '2d', or None. | <code>'2d'</code>
+`permutation_method` | <code>[str](#str)</code> | '1d', '2d', or None. | <code>'2d'</code>
 `n_permute` | <code>[int](#int)</code> | Number of permutations. Default 5000. | <code>5000</code>
 `metric` | <code>[str](#str)</code> | 'spearman', 'pearson', or 'kendall'. | <code>'spearman'</code>
-`ignore_diagonal` | <code>[bool](#bool)</code> | Only applies to 'directed' Adjacency types using perm_type=None or perm_type='1d'. | <code>False</code>
+`include_diag` | <code>[bool](#bool)</code> | Only applies to 'directed' Adjacency types using permutation_method=None or permutation_method='1d'. Default False (self-similarity is uninformative). Symmetric matrices never store the diagonal, so this flag is a no-op for them. | <code>False</code>
 `nan_policy` | <code>[str](#str)</code> | How to handle NaN values. Options: - 'omit': Remove NaN values pairwise before computing correlation (default) - 'propagate': Allow NaN to propagate through calculations - 'raise': Raise an error if NaN values are present | <code>'omit'</code>
+`tail` | <code>[int](#int)</code> | Tail of the test (1 or 2). Default 2. | <code>2</code>
+`return_null` | <code>[bool](#bool)</code> | If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. -1 means all cores. Default -1. | <code>-1</code>
+`random_state` | <code>[int](#int)</code> | Random seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
@@ -4932,7 +5014,7 @@ Name | Type | Description
 ######## `ttest`
 
 ```python
-ttest(adj, permutation = False, **kwargs)
+ttest(adj, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
 ```
 
 Calculate ttest across samples.
@@ -4943,6 +5025,11 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency instance (must contain multiple matrices) | *required*
 `permutation` |  | (bool) Run ttest as permutation. Note this can be very slow. | <code>False</code>
+`n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
+`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
+`return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
+`random_state` |  | Random seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
@@ -5155,7 +5242,7 @@ Name | Description
 ###### `align`
 
 ```python
-align(bd, target, method = 'procrustes', axis = 0, *args, **kwargs)
+align(bd, target, method = 'procrustes', axis = 0)
 ```
 
 Align BrainData instance to target object using functional alignment
@@ -5176,7 +5263,6 @@ Name | Type | Description | Default
 `target` |  | (BrainData) object to align to. | *required*
 `method` |  | (str) alignment method to use ['probabilistic_srm','deterministic_srm','procrustes'] | <code>'procrustes'</code>
 `axis` |  | (int) axis to align on (default: 0) | <code>0</code>
-`**kwargs` |  | Additional keyword arguments passed to the alignment function. | <code>{}</code>
 
 **Returns:**
 
@@ -5251,7 +5337,7 @@ Name | Type | Description
 ######## `decompose`
 
 ```python
-decompose(bd, algorithm = 'pca', axis = 'voxels', n_components = None, *args, **kwargs)
+decompose(bd, method = 'pca', axis = 'voxels', n_components = None, *args, **kwargs)
 ```
 
 Decompose BrainData object
@@ -5261,7 +5347,7 @@ Decompose BrainData object
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
-`algorithm` |  | (str) Algorithm to perform decomposition         types=['pca','ica','nnmf','fa','dictionary','kernelpca'] | <code>'pca'</code>
+`method` |  | (str) Algorithm to perform decomposition         types=['pca','ica','nnmf','fa','dictionary','kernelpca'] | <code>'pca'</code>
 `axis` |  | dimension to decompose ['voxels','images'] | <code>'voxels'</code>
 `n_components` |  | (int) number of components. If None then retain         as many as possible (default: None). | <code>None</code>
 `**kwargs` |  | Additional keyword arguments passed to the decomposition algorithm. | <code>{}</code>
@@ -5412,7 +5498,7 @@ Type | Description
 ######## `icc`
 
 ```python
-icc(bd, n_subjects, n_sessions, icc_type = 'icc2', parallel = None, n_jobs = -1, max_gpu_memory_gb = 4.0)
+icc(bd, n_subjects, n_sessions, method = 'icc2', parallel = None, n_jobs = -1, max_gpu_memory_gb = 4.0)
 ```
 
 Calculate voxel-wise intraclass correlation coefficient for data within
@@ -5435,7 +5521,7 @@ Name | Type | Description | Default
 `bd` |  | BrainData instance. | *required*
 `n_subjects` |  | Number of subjects in the data | *required*
 `n_sessions` |  | Number of sessions per subject | *required*
-`icc_type` |  | Type of ICC to calculate     - 'icc1': One-way random effects (subjects random, sessions treated as interchangeable)     - 'icc2': Two-way random effects (subjects and sessions random) (default)     - 'icc3': Two-way mixed effects (subjects random, sessions fixed) | <code>'icc2'</code>
+`method` |  | Type of ICC to calculate     - 'icc1': One-way random effects (subjects random, sessions treated as interchangeable)     - 'icc2': Two-way random effects (subjects and sessions random) (default)     - 'icc3': Two-way mixed effects (subjects random, sessions fixed) | <code>'icc2'</code>
 `parallel` |  | Parallelization method     - None: Single-threaded vectorized NumPy (default, memory efficient)     - 'cpu': CPU parallelization via joblib (for medium-sized problems, 1K-10K voxels)     - 'gpu': GPU acceleration via PyTorch (recommended for large voxel counts >10K, 10-50x speedup) | <code>None</code>
 `n_jobs` |  | Number of CPU cores (-1 = all cores). Only used when parallel='cpu' | <code>-1</code>
 `max_gpu_memory_gb` |  | GPU memory budget in GB. Only used when parallel='gpu' | <code>4.0</code>
@@ -5451,7 +5537,7 @@ Name | Type | Description
 ```pycon
 >>> # Typical test-retest reliability analysis
 >>> data = BrainData(...)  # Shape: (60, 238955) = 20 subjects x 3 sessions
->>> icc_map = data.icc(n_subjects=20, n_sessions=3, icc_type='icc2')
+>>> icc_map = data.icc(n_subjects=20, n_sessions=3, method='icc2')
 >>> icc_map.shape
 (1, 238955)
 >>> # Visualize ICC map
@@ -5514,7 +5600,7 @@ Name | Type | Description
 ######## `regions`
 
 ```python
-regions(bd, min_region_size = 1350, extract_type = 'local_regions', smoothing_fwhm = 6, is_mask = False)
+regions(bd, min_region_size = 1350, method = 'local_regions', smoothing_fwhm = 6, is_mask = False)
 ```
 
 Extract brain connected regions into separate regions.
@@ -5525,8 +5611,8 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
 `min_region_size` | <code>[int](#int)</code> | Minimum volume in mm3 for a region to be                 kept. | <code>1350</code>
-`extract_type` | <code>[str](#str)</code> | Type of extraction method                 ['connected_components', 'local_regions'].                 If 'connected_components', each component/region                 in the image is extracted automatically by                 labelling each region based upon the presence of                 unique features in their respective regions.                 If 'local_regions', each component/region is                 extracted based on their maximum peak value to                 define a seed marker and then using random                 walker segementation algorithm on these                 markers for region separation. | <code>'local_regions'</code>
-`smoothing_fwhm` | <code>[scalar](#scalar)</code> | Smooth an image to extract more sparser                 regions. Only works for extract_type                 'local_regions'. | <code>6</code>
+`method` | <code>[str](#str)</code> | Type of extraction method                 ['connected_components', 'local_regions'].                 If 'connected_components', each component/region                 in the image is extracted automatically by                 labelling each region based upon the presence of                 unique features in their respective regions.                 If 'local_regions', each component/region is                 extracted based on their maximum peak value to                 define a seed marker and then using random                 walker segementation algorithm on these                 markers for region separation. | <code>'local_regions'</code>
+`smoothing_fwhm` | <code>[scalar](#scalar)</code> | Smooth an image to extract more sparser                 regions. Only works for method='local_regions'. | <code>6</code>
 `is_mask` | <code>[bool](#bool)</code> | Whether the BrainData instance should be treated             as a boolean mask and if so, calls             connected_label_regions instead. Default: False. | <code>False</code>
 
 **Returns:**
@@ -5771,7 +5857,7 @@ Name | Description
 ###### `bootstrap`
 
 ```python
-bootstrap(bd, stat, n_samples = 5000, save_boots = False, n_jobs = -1, random_state = None, percentiles = (2.5, 97.5), X_test = None, **kwargs)
+bootstrap(bd, stat, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, backend = None, max_gpu_memory_gb = 4.0, n_jobs = -1, random_state = None)
 ```
 
 Bootstrap statistics using efficient online algorithms.
@@ -5787,13 +5873,12 @@ Name | Type | Description | Default
 `stat` |  | (str) Statistic to bootstrap. Options: Simple stats ('mean', 'median', 'std', 'sum', 'min', 'max') or Model stats ('weights' requires fitted Ridge model, 'predict' requires fitted Ridge model + X_test). | *required*
 `n_samples` |  | (int) Number of bootstrap iterations. Default: 5000 | <code>5000</code>
 `save_boots` |  | (bool) If True, store all bootstrap samples (memory intensive).        Default: False | <code>False</code>
-`n_jobs` |  | (int) Number of CPU cores for parallelization. Default: -1 (all CPUs). | <code>-1</code>
-`random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
 `percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
 `X_test` |  | (np.ndarray, optional) Test features for 'predict' bootstrap.    Required if stat='predict' | <code>None</code>
-`backend` |  | (str, optional) Backend for computation ('numpy', 'torch', 'auto').     If 'torch' and GPU available, uses optimized GPU acceleration with     inline Ridge computation (no CPU round-trips). Default: None (CPU). | *required*
-`max_gpu_memory_gb` |  | (float) Maximum GPU memory to use in GB. Default: 4.0 | *required*
-`**kwargs` |  | Additional keyword arguments passed to the underlying bootstrap computation functions. Also accepts ``backend`` (str) and ``max_gpu_memory_gb`` (float). | <code>{}</code>
+`backend` |  | (str, optional) Backend for Ridge bootstrap: None (CPU), 'torch' (GPU if available), or 'auto' (auto-select). Ignored for simple stats. Default: None | <code>None</code>
+`max_gpu_memory_gb` |  | (float) Maximum GPU memory to use when backend is 'torch' or 'auto'. Default: 4.0 | <code>4.0</code>
+`n_jobs` |  | (int) Number of CPU cores for parallelization. Default: -1 (all CPUs). | <code>-1</code>
+`random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
 
 **Returns:**
 
@@ -6554,6 +6639,8 @@ Name | Description
 [`parse_contrast_string`](#parse_contrast_string) | Parse a contrast string into a numeric contrast vector.
 [`regress`](#regress) | Deprecated: Use fit(model='glm', X=design_matrix) instead.
 [`to_fit_dataclass`](#to_fit_dataclass) | Convert BrainData fit results to Fit dataclass.
+[`ttest`](#ttest) | One-sample voxelwise t-test across images (axis 0).
+[`ttest2`](#ttest2) | Two-sample voxelwise t-test between two BrainData stacks.
 
 
 
@@ -6649,7 +6736,7 @@ Name | Type | Description
 ######## `cv`
 
 ```python
-cv(bd, k = None, scheme = 'kfold', split_by = None, groups = None, random_state = None, **kwargs)
+cv(bd, k = None, method = 'kfold', split_by = None, groups = None, n = 1000, random_state = None)
 ```
 
 Create a cross-validation pipeline for this BrainData.
@@ -6663,12 +6750,12 @@ pipeline and return results.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
-`k` |  | Number of folds (for kfold scheme). Defaults to 5. | <code>None</code>
-`scheme` |  | CV scheme type. Options: - 'kfold': k-fold cross-validation (default) - 'loro': leave-one-run-out (requires split_by='runs' or groups) - 'bootstrap': bootstrap with out-of-bag test sets | <code>'kfold'</code>
+`k` |  | Number of folds (for kfold method). Defaults to 5. | <code>None</code>
+`method` |  | CV scheme type. Options: - 'kfold': k-fold cross-validation (default) - 'loro': leave-one-run-out (requires split_by='runs' or groups) - 'bootstrap': bootstrap with out-of-bag test sets | <code>'kfold'</code>
 `split_by` |  | Attribute name for group splits (e.g., 'runs'). If provided and groups is None, will try to get groups from bd.X[split_by] if bd.X is a DataFrame. | <code>None</code>
 `groups` |  | Explicit group labels for CV splits. | <code>None</code>
+`n` |  | Number of iterations for bootstrap/permutation methods. Default 1000. | <code>1000</code>
 `random_state` |  | Random seed for reproducibility. | <code>None</code>
-`**kwargs` |  | Additional arguments passed to CVScheme. | <code>{}</code>
 
 **Returns:**
 
@@ -6695,7 +6782,7 @@ Name | Type | Description
 
 ```pycon
 >>> # Leave-one-run-out CV
->>> result = brain.cv(scheme='loro', groups=run_labels).predict(y)
+>>> result = brain.cv(method='loro', groups=run_labels).predict(y)
 ```
 
 <details class="see-also" open markdown="1">
@@ -6850,7 +6937,7 @@ Type | Description
 ######## `regress`
 
 ```python
-regress(bd, design_matrix = None, noise_model = 'ols', mode = None, **kwargs)
+regress(bd, design_matrix = None, method = 'ols', mode = None)
 ```
 
 Deprecated: Use fit(model='glm', X=design_matrix) instead.
@@ -6861,9 +6948,8 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
 `design_matrix` |  | Design matrix (unused, raises error). | <code>None</code>
-`noise_model` |  | Noise model (unused, raises error). | <code>'ols'</code>
+`method` |  | Noise model (unused, raises error). | <code>'ols'</code>
 `mode` |  | Mode (unused, raises error). | <code>None</code>
-`**kwargs` |  | Additional arguments (unused, raises error). | <code>{}</code>
 
 ######## `to_fit_dataclass`
 
@@ -6885,6 +6971,61 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `Fit` |  | Dataclass containing fit results
+
+######## `ttest`
+
+```python
+ttest(bd, popmean = 0.0, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
+```
+
+One-sample voxelwise t-test across images (axis 0).
+
+For a BrainData stack of images (e.g. subject-level contrast maps with
+shape ``(n_samples, n_voxels)``), test whether the per-voxel mean differs
+from ``popmean``.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance (must contain multiple images). | *required*
+`popmean` |  | Population mean to test against. Default 0.0. | <code>0.0</code>
+`permutation` |  | If True, use sign-flip permutation test via ``nltools.stats.one_sample_permutation_test``. | <code>False</code>
+`n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
+`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
+`return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
+`random_state` |  | Random seed for reproducibility. | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dict` |  | ``{"t": BrainData, "p": BrainData}`` for the parametric case, or
+ |  | ``{"mean": BrainData, "p": BrainData}`` when ``permutation=True``
+ |  | (mirrors ``Adjacency.ttest``).
+
+######## `ttest2`
+
+```python
+ttest2(bd, other, equal_var = True)
+```
+
+Two-sample voxelwise t-test between two BrainData stacks.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | First BrainData (shape ``(n1, n_voxels)``). | *required*
+`other` |  | Second BrainData (shape ``(n2, n_voxels)``). | *required*
+`equal_var` |  | If True (default), standard two-sample t-test. If False, Welch's t-test. | <code>True</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dict` |  | ``{"t": BrainData, "p": BrainData}``.
 
 ###### `neighborhoods`
 
@@ -7070,7 +7211,7 @@ Type | Description
 ########## `iter_neighborhoods`
 
 ```python
-iter_neighborhoods(show_progress: bool = False) -> Iterator[tuple[int, np.ndarray]]
+iter_neighborhoods(progress_bar: bool = False) -> Iterator[tuple[int, np.ndarray]]
 ```
 
 Iterate over all neighborhoods.
@@ -7085,7 +7226,7 @@ Type | Description
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`show_progress` | <code>[bool](#bool)</code> | If True, wrap iterator with tqdm progress bar | <code>False</code>
+`progress_bar` | <code>[bool](#bool)</code> | If True, wrap iterator with tqdm progress bar | <code>False</code>
 
 
 
@@ -7456,7 +7597,7 @@ Name | Type | Description
 ######## `plot_brain`
 
 ```python
-plot_brain(bd, kind = 'glass', thr_upper = None, thr_lower = None, threshold = None, cut_coords = None, cmap = None, bg_img = None, ax = None, title = None, colorbar = True, save = None, stat = 'mean', **kwargs)
+plot_brain(bd, method = 'glass', upper = None, lower = None, threshold = None, cut_coords = None, cmap = None, bg_img = None, ax = None, title = None, colorbar = True, save = None, stat = 'mean', **kwargs)
 ```
 
 Plot BrainData instance using nilearn visualization or matplotlib.
@@ -7466,10 +7607,10 @@ Plot BrainData instance using nilearn visualization or matplotlib.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
-`kind` | <code>[str](#str)</code> | Visualization type ('glass', 'slices', 'timeseries', 'histogram'). | <code>'glass'</code>
-`thr_upper` | <code>[str](#str) / [float](#float)</code> | Upper threshold. | <code>None</code>
-`thr_lower` | <code>[str](#str) / [float](#float)</code> | Lower threshold. | <code>None</code>
-`threshold` | <code>[float](#float)</code> | Convenience parameter. If positive, sets thr_upper (shows values above threshold). If negative, sets thr_lower (shows values below threshold). | <code>None</code>
+`method` | <code>[str](#str)</code> | Visualization type ('glass', 'slices', 'timeseries', 'histogram'). | <code>'glass'</code>
+`upper` | <code>[str](#str) / [float](#float)</code> | Upper threshold. | <code>None</code>
+`lower` | <code>[str](#str) / [float](#float)</code> | Lower threshold. | <code>None</code>
+`threshold` | <code>[float](#float)</code> | Convenience parameter. If positive, sets upper (shows values above threshold). If negative, sets lower (shows values below threshold). | <code>None</code>
 `cut_coords` | <code>[list](#list)</code> | Cut coordinates for multi-slice views. | <code>None</code>
 `cmap` | <code>[str](#str)</code> | Colormap name. | <code>None</code>
 `bg_img` | <code>[Nifti1Image](#Nifti1Image) or [str](#str)</code> | Background image for slice views. | <code>None</code>
@@ -7489,7 +7630,7 @@ Type | Description
 ######## `plot_flatmap_brain`
 
 ```python
-plot_flatmap_brain(bd, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius = 3.0, interpolation = 'linear', axes = None, save = None)
+plot_flatmap_brain(bd, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
 ```
 
 Plot brain data on cortical flatmap.
@@ -7511,7 +7652,7 @@ Name | Type | Description | Default
 `colorbar_orientation` | <code>[str](#str)</code> | 'horizontal' or 'vertical'. Default: 'horizontal'. | <code>'horizontal'</code>
 `figsize` | <code>[tuple](#tuple)</code> | Figure size. Default: (12, 6). | <code>(12, 6)</code>
 `title` | <code>[str](#str)</code> | Figure title. | <code>None</code>
-`radius` | <code>[float](#float)</code> | Sampling radius in mm for vol_to_surf. Default: 3.0. | <code>3.0</code>
+`radius_mm` | <code>[float](#float)</code> | sampling radius in mm for vol_to_surf. Default: 3.0. | <code>3.0</code>
 `interpolation` | <code>[str](#str)</code> | Interpolation for vol_to_surf. Default: 'linear'. | <code>'linear'</code>
 `axes` | <code>[Axes](#matplotlib.axes.Axes)</code> | Existing axes to plot on. | <code>None</code>
 `save` | <code>[str](#str)</code> | File path to save figure. | <code>None</code>
@@ -7553,7 +7694,7 @@ prediction (encoding models) and MVPA decoding (pattern classification).
 
 Name | Description
 ---- | -----------
-[`mvpa_roi`](#mvpa_roi) | ROI-based MVPA - accuracy per ROI.
+[`mvpa_roi`](#mvpa_roi) | ROI-based MVPA - accuracy per ROI, projected to voxel space.
 [`mvpa_searchlight`](#mvpa_searchlight) | Searchlight MVPA - accuracy per voxel neighborhood.
 [`mvpa_whole_brain`](#mvpa_whole_brain) | Whole-brain MVPA - single accuracy across all voxels.
 [`mvpa_whole_brain_pipeline`](#mvpa_whole_brain_pipeline) | Whole-brain MVPA using Pipeline infrastructure.
@@ -7569,36 +7710,41 @@ Name | Description
 ###### `mvpa_roi`
 
 ```python
-mvpa_roi(bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, show_progress)
+mvpa_roi(bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, progress_bar)
 ```
 
-ROI-based MVPA - accuracy per ROI.
+ROI-based MVPA - accuracy per ROI, projected to voxel space.
+
+For each non-zero label in ``roi_mask``, uses all voxels within that ROI
+as features for a cross-validated decoder. Returns a voxel-shaped array
+where each voxel carries the accuracy of its containing ROI (voxels
+outside any ROI are NaN).
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
-`X` |  | Feature matrix, shape (n_samples, n_voxels). | *required*
+`X` |  | Feature matrix, shape (n_samples, n_voxels) — aligned to ``bd.mask``. | *required*
 `y` |  | Labels, shape (n_samples,). | *required*
 `pipe` |  | sklearn pipeline or estimator. | *required*
 `cv` |  | Cross-validation splitter. | *required*
 `groups` |  | Group labels for CV. | *required*
 `scoring` |  | Scoring metric string. | *required*
-`roi_mask` |  | Atlas/parcellation image or path. | *required*
+`roi_mask` |  | Atlas/parcellation image or path. Resampled to ``bd.mask`` space with nearest-neighbor interpolation if needed. | *required*
 `n_jobs` |  | Number of parallel jobs. | *required*
-`show_progress` |  | Whether to show progress bar. | *required*
+`progress_bar` |  | Whether to show progress bar. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | np.ndarray of accuracy values per ROI.
+ | np.ndarray of shape (n_voxels,) with per-voxel ROI accuracy.
 
 ######## `mvpa_searchlight`
 
 ```python
-mvpa_searchlight(bd, X, y, pipe, cv, groups, scoring, radius, n_jobs, show_progress)
+mvpa_searchlight(bd, X, y, pipe, cv, groups, scoring, radius_mm, n_jobs, progress_bar)
 ```
 
 Searchlight MVPA - accuracy per voxel neighborhood.
@@ -7614,9 +7760,9 @@ Name | Type | Description | Default
 `cv` |  | Cross-validation splitter. | *required*
 `groups` |  | Group labels for CV. | *required*
 `scoring` |  | Scoring metric string. | *required*
-`radius` |  | Searchlight radius in mm. | *required*
+`radius_mm` |  | searchlight radius in mm. | *required*
 `n_jobs` |  | Number of parallel jobs. | *required*
-`show_progress` |  | Whether to show progress bar. | *required*
+`progress_bar` |  | Whether to show progress bar. | *required*
 
 **Returns:**
 
@@ -7684,7 +7830,7 @@ Type | Description
 ######## `predict`
 
 ```python
-predict(bd, X = None, y = None, method = 'whole_brain', estimator = 'svm', cv = 5, groups = None, roi_mask = None, radius = 10.0, scoring = 'accuracy', standardize = True, n_jobs = -1, show_progress = True)
+predict(bd, X = None, y = None, method = 'whole_brain', estimator = 'svm', cv = 5, groups = None, roi_mask = None, radius_mm = 10.0, scoring = 'accuracy', standardize = True, n_jobs = -1, progress_bar = False)
 ```
 
 Generate predictions using fitted model OR classify patterns (MVPA).
@@ -7711,11 +7857,11 @@ Name | Type | Description | Default
 `cv` | <code>int or sklearn CV splitter</code> | Cross-validation specification. Int for k-fold or sklearn CV object. | <code>5</code>
 `groups` | <code>[array](#array) - [like](#like)</code> | Group labels for CV (e.g., run IDs for leave-one-run-out). | <code>None</code>
 `roi_mask` | <code>[Nifti1Image](#Nifti1Image) or [str](#str)</code> | Atlas/parcellation for ROI-based decoding. | <code>None</code>
-`radius` | <code>[float](#float)</code> | Searchlight radius in mm. Default: 10.0. | <code>10.0</code>
+`radius_mm` | <code>[float](#float)</code> | searchlight radius in mm. Default: 10.0. | <code>10.0</code>
 `scoring` | <code>[str](#str)</code> | Metric for evaluation ('accuracy', 'balanced_accuracy', 'roc_auc'). | <code>'accuracy'</code>
 `standardize` | <code>[bool](#bool)</code> | Z-score features before classification. Default: True. | <code>True</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs for searchlight (-1 = all cores). | <code>-1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar for searchlight. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar for searchlight. | <code>False</code>
 
 **Returns:**
 
@@ -7741,7 +7887,7 @@ Name | Type | Description
 ######## `predict_mvpa`
 
 ```python
-predict_mvpa(bd, y, method = 'whole_brain', estimator = 'svm', cv = 5, groups = None, roi_mask = None, radius = 10.0, scoring = 'accuracy', standardize = True, n_jobs = -1, show_progress = True)
+predict_mvpa(bd, y, method = 'whole_brain', estimator = 'svm', cv = 5, groups = None, roi_mask = None, radius_mm = 10.0, scoring = 'accuracy', standardize = True, n_jobs = -1, progress_bar = False)
 ```
 
 Perform MVPA decoding using cross-validation.
@@ -7759,11 +7905,11 @@ Name | Type | Description | Default
 `cv` | <code>int or sklearn CV splitter</code> | Cross-validation specification. | <code>5</code>
 `groups` | <code>[array](#array) - [like](#like)</code> | Group labels for CV. | <code>None</code>
 `roi_mask` | <code>[Nifti1Image](#Nifti1Image) or [str](#str)</code> | Atlas for ROI-based decoding. | <code>None</code>
-`radius` | <code>[float](#float)</code> | Searchlight radius in mm. | <code>10.0</code>
+`radius_mm` | <code>[float](#float)</code> | searchlight radius in mm. | <code>10.0</code>
 `scoring` | <code>[str](#str)</code> | Scoring metric. | <code>'accuracy'</code>
 `standardize` | <code>[bool](#bool)</code> | Whether to z-score features. | <code>True</code>
 `n_jobs` | <code>[int](#int)</code> | Parallel jobs for searchlight. | <code>-1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar. | <code>False</code>
 
 **Returns:**
 
@@ -8353,7 +8499,7 @@ Type | Description
 ######## `extract_for_isc`
 
 ```python
-extract_for_isc(bc: 'BrainCollection', roi_mask: 'nib.Nifti1Image | Path | str | None' = None, radius: float | None = 6.0, show_progress: bool = True) -> tuple[np.ndarray, dict]
+extract_for_isc(bc: 'BrainCollection', roi_mask: 'nib.Nifti1Image | Path | str | None' = None, radius_mm: float | None = 6.0, progress_bar: bool = False) -> tuple[np.ndarray, dict]
 ```
 
 Extract data for ISC computation.
@@ -8367,8 +8513,8 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bc` | <code>'BrainCollection'</code> | BrainCollection to extract from. | *required*
 `roi_mask` | <code>'nib.Nifti1Image \| Path \| str \| None'</code> | If provided, extract mean per ROI. Can be: - NIfTI image with integer labels (atlas/parcellation) - Path to parcellation file | <code>None</code>
-`radius` | <code>[float](#float) \| None</code> | Searchlight radius in mm. If None, use voxelwise mode. Ignored if roi_mask is provided. | <code>6.0</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during extraction. | <code>True</code>
+`radius_mm` | <code>[float](#float) \| None</code> | searchlight radius in mm. If None, use voxelwise mode. Ignored if roi_mask is provided. | <code>6.0</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during extraction. | <code>False</code>
 
 **Returns:**
 
@@ -8379,7 +8525,7 @@ Type | Description
 ######## `extract_roi`
 
 ```python
-extract_roi(bc: 'BrainCollection', roi_mask: 'nib.Nifti1Image | Path | str', show_progress: bool = True) -> tuple[np.ndarray, dict]
+extract_roi(bc: 'BrainCollection', roi_mask: 'nib.Nifti1Image | Path | str', progress_bar: bool = False) -> tuple[np.ndarray, dict]
 ```
 
 Extract mean signal per ROI.
@@ -8387,7 +8533,7 @@ Extract mean signal per ROI.
 ######## `extract_searchlight`
 
 ```python
-extract_searchlight(bc: 'BrainCollection', radius: float, show_progress: bool = True) -> tuple[np.ndarray, dict]
+extract_searchlight(bc: 'BrainCollection', radius_mm: float, progress_bar: bool = False) -> tuple[np.ndarray, dict]
 ```
 
 Extract mean signal per searchlight sphere.
@@ -8395,7 +8541,7 @@ Extract mean signal per searchlight sphere.
 ######## `extract_voxelwise`
 
 ```python
-extract_voxelwise(bc: 'BrainCollection', show_progress: bool = True) -> tuple[np.ndarray, dict]
+extract_voxelwise(bc: 'BrainCollection', progress_bar: bool = False) -> tuple[np.ndarray, dict]
 ```
 
 Extract raw voxel data.
@@ -8403,7 +8549,7 @@ Extract raw voxel data.
 ######## `isc`
 
 ```python
-isc(bc: 'BrainCollection', method: str = 'loo', roi_mask: 'nib.Nifti1Image | Path | str | None' = None, radius: float | None = 6.0, metric: str = 'median', parallel: str = 'cpu', n_jobs: int = -1, show_progress: bool = True) -> dict
+isc(bc: 'BrainCollection', method: str = 'loo', roi_mask: 'nib.Nifti1Image | Path | str | None' = None, radius_mm: float | None = 6.0, metric: str = 'median', device: str = 'cpu', n_jobs: int = -1, progress_bar: bool = False) -> dict
 ```
 
 Compute intersubject correlation (ISC) across the collection.
@@ -8418,11 +8564,11 @@ Name | Type | Description | Default
 `bc` | <code>'BrainCollection'</code> | BrainCollection to compute ISC on. | *required*
 `method` | <code>[str](#str)</code> | ISC computation method: - 'loo': Leave-one-out (correlate each subject with mean of others) - 'pairwise': All pairwise correlations between subjects | <code>'loo'</code>
 `roi_mask` | <code>'nib.Nifti1Image \| Path \| str \| None'</code> | If provided, compute ISC per ROI. Can be: - NIfTI image with integer labels (atlas/parcellation) - Path to parcellation file | <code>None</code>
-`radius` | <code>[float](#float) \| None</code> | Searchlight radius in mm. If None, use voxelwise mode. Ignored if roi_mask is provided. | <code>6.0</code>
+`radius_mm` | <code>[float](#float) \| None</code> | searchlight radius in mm. If None, use voxelwise mode. Ignored if roi_mask is provided. | <code>6.0</code>
 `metric` | <code>[str](#str)</code> | Summary statistic for aggregating ISC values: - 'median': Robust to outliers (default) - 'mean': Fisher z-transformed mean | <code>'median'</code>
-`parallel` | <code>[str](#str)</code> | Parallelization method ('cpu', 'gpu', or None). | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs (-1 = all cores). | <code>-1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during extraction. | <code>True</code>
+`device` | <code>[str](#str)</code> | Compute device: 'cpu' (default) or 'gpu' (via PyTorch). | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU jobs (-1 = all cores, 1 = single-threaded). | <code>-1</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during extraction. | <code>False</code>
 
 **Returns:**
 
@@ -8440,12 +8586,12 @@ Type | Description
 
 ```pycon
 >>> # Searchlight ISC
->>> result = bc.isc(radius=10.0)
+>>> result = bc.isc(radius_mm=10.0)
 ```
 
 ```pycon
 >>> # Voxelwise ISC
->>> result = bc.isc(radius=None)
+>>> result = bc.isc(radius_mm=None)
 ```
 
 <details class="notes" open markdown="1">
@@ -8459,7 +8605,7 @@ discussion of statistical methodology first).
 ######## `isc_test`
 
 ```python
-isc_test(bc: 'BrainCollection', method: str = 'loo', roi_mask: 'nib.Nifti1Image | Path | str | None' = None, radius: float | None = 6.0, n_permute: int = 5000, permutation_method: str = 'bootstrap', metric: str = 'median', tail: int = 2, ci_percentile: float = 95, parallel: str = 'cpu', n_jobs: int = -1, random_state: int | None = None, return_null: bool = False, show_progress: bool = True) -> dict
+isc_test(bc: 'BrainCollection', method: str = 'loo', roi_mask: 'nib.Nifti1Image | Path | str | None' = None, radius_mm: float | None = 6.0, n_permute: int = 5000, permutation_method: str = 'bootstrap', metric: str = 'median', tail: int = 2, ci_percentile: float = 95, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False) -> dict
 ```
 
 Compute ISC with permutation testing for statistical inference.
@@ -8475,17 +8621,17 @@ Name | Type | Description | Default
 `bc` | <code>'BrainCollection'</code> | BrainCollection to test. | *required*
 `method` | <code>[str](#str)</code> | ISC computation method: - 'loo': Leave-one-out (correlate each subject with mean of others) - 'pairwise': All pairwise correlations between subjects | <code>'loo'</code>
 `roi_mask` | <code>'nib.Nifti1Image \| Path \| str \| None'</code> | If provided, compute ISC per ROI. Can be: - NIfTI image with integer labels (atlas/parcellation) - Path to parcellation file | <code>None</code>
-`radius` | <code>[float](#float) \| None</code> | Searchlight radius in mm. If None, use voxelwise mode. Ignored if roi_mask is provided. | <code>6.0</code>
+`radius_mm` | <code>[float](#float) \| None</code> | searchlight radius in mm. If None, use voxelwise mode. Ignored if roi_mask is provided. | <code>6.0</code>
 `n_permute` | <code>[int](#int)</code> | Number of permutations/bootstrap iterations. Default 5000. | <code>5000</code>
 `permutation_method` | <code>[str](#str)</code> | Method for null distribution:<br>- 'bootstrap': Subject-wise bootstrap (default, Chen et al. 2016).   Tests whether observed ISC differs from random groupings. - 'circle_shift': Circular time-shift (preserves autocorrelation).   Tests for temporally-locked shared signal. - 'phase_randomize': FFT phase randomization (preserves power spectrum).   Tests for nonlinear temporal coupling. | <code>'bootstrap'</code>
 `metric` | <code>[str](#str)</code> | Summary statistic for aggregating ISC values: - 'median': Robust to outliers (default) - 'mean': Fisher z-transformed mean | <code>'median'</code>
 `tail` | <code>[int](#int)</code> | One-tailed (1) or two-tailed (2) test. Default 2. | <code>2</code>
 `ci_percentile` | <code>[float](#float)</code> | Confidence interval percentile (e.g., 95). Default 95. | <code>95</code>
-`parallel` | <code>[str](#str)</code> | Parallelization method ('cpu', 'gpu', or None). | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs (-1 = all cores). | <code>-1</code>
+`device` | <code>[str](#str)</code> | Compute device: 'cpu' (default) or 'gpu' (via PyTorch). | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU jobs (-1 = all cores, 1 = single-threaded). | <code>-1</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include null distribution in results. | <code>False</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during extraction and permutation. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during extraction and permutation. | <code>False</code>
 
 **Returns:**
 
@@ -8504,7 +8650,7 @@ Type | Description
 
 ```pycon
 >>> # Searchlight ISC testing
->>> result = bc.isc_test(radius=10.0)
+>>> result = bc.isc_test(radius_mm=10.0)
 >>> result['isc'].plot()  # Show ISC values
 >>> result['p'].plot()    # Show p-values
 ```
@@ -8512,9 +8658,9 @@ Type | Description
 ```pycon
 >>> # Voxelwise with phase randomization (tests temporal coupling)
 >>> result = bc.isc_test(
-...     radius=None,
+...     radius_mm=None,
 ...     permutation_method='phase_randomize',
-...     parallel='gpu'
+...     device='gpu'
 ... )
 ```
 
@@ -8544,7 +8690,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 ######## `permutation_test`
 
 ```python
-permutation_test(bc: 'BrainCollection', n_permute: int = 5000, tail: int = 2, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None, return_null: bool = False) -> dict
+permutation_test(bc: 'BrainCollection', n_permute: int = 5000, tail: int = 2, device: str = 'cpu', max_gpu_memory_gb: float = 4.0, return_null: bool = False, n_jobs: int = -1, random_state: int | None = None) -> dict
 ```
 
 One-sample permutation test across images (sign-flipping).
@@ -8563,17 +8709,17 @@ Name | Type | Description | Default
 `bc` | <code>'BrainCollection'</code> | BrainCollection to test. | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000). | <code>5000</code>
 `tail` | <code>[int](#int)</code> | Test type - 1 for one-tailed, 2 for two-tailed (default). | <code>2</code>
-`parallel` | <code>[str](#str) \| None</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default) - 'gpu': GPU acceleration via PyTorch - None: Single-threaded (for debugging) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores (default: -1 = all cores). | <code>-1</code>
+`device` | <code>[str](#str)</code> | Compute device: 'cpu' (default) or 'gpu' (via PyTorch). | <code>'cpu'</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget (default: 4.0 GB). | <code>4.0</code>
-`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include null distribution in result. | <code>False</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU jobs (-1 = all cores, 1 = single-threaded). | <code>-1</code>
+`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | dict with keys: - 'mean': BrainData with observed mean across images - 'p': BrainData with p-values - 'null_dist': np.ndarray (if return_null=True) - 'parallel': parallelization method used
+<code>[dict](#dict)</code> | dict with keys: - 'mean': BrainData with observed mean across images - 'p': BrainData with p-values - 'null_dist': np.ndarray (if return_null=True) - 'device': compute device used
 
 **Examples:**
 
@@ -8584,13 +8730,13 @@ Type | Description
 
 ```pycon
 >>> # With GPU acceleration
->>> result = bc.permutation_test(parallel='gpu')
+>>> result = bc.permutation_test(device='gpu')
 ```
 
 ######## `permutation_test2`
 
 ```python
-permutation_test2(bc: 'BrainCollection', other: 'BrainCollection', n_permute: int = 5000, tail: int = 2, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None, return_null: bool = False) -> dict
+permutation_test2(bc: 'BrainCollection', other: 'BrainCollection', n_permute: int = 5000, tail: int = 2, device: str = 'cpu', max_gpu_memory_gb: float = 4.0, return_null: bool = False, n_jobs: int = -1, random_state: int | None = None) -> dict
 ```
 
 Two-sample permutation test between collections.
@@ -8606,17 +8752,17 @@ Name | Type | Description | Default
 `other` | <code>'BrainCollection'</code> | Another BrainCollection to compare against. | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000). | <code>5000</code>
 `tail` | <code>[int](#int)</code> | Test type - 1 for one-tailed, 2 for two-tailed (default). | <code>2</code>
-`parallel` | <code>[str](#str) \| None</code> | Parallelization method ('cpu', 'gpu', or None). | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores (default: -1 = all cores). | <code>-1</code>
+`device` | <code>[str](#str)</code> | Compute device: 'cpu' (default) or 'gpu' (via PyTorch). | <code>'cpu'</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget (default: 4.0 GB). | <code>4.0</code>
-`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include null distribution in result. | <code>False</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU jobs (-1 = all cores, 1 = single-threaded). | <code>-1</code>
+`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | dict with keys: - 'mean_diff': BrainData with observed mean difference - 'p': BrainData with p-values - 'null_dist': np.ndarray (if return_null=True) - 'parallel': parallelization method used
+<code>[dict](#dict)</code> | dict with keys: - 'mean_diff': BrainData with observed mean difference - 'p': BrainData with p-values - 'null_dist': np.ndarray (if return_null=True) - 'device': compute device used
 
 **Examples:**
 
@@ -8811,7 +8957,7 @@ Name | Description
 ###### `cv`
 
 ```python
-cv(bc, k: int | None = None, scheme: str = 'kfold', split_by: str | None = None, groups: np.ndarray | None = None, random_state: int | None = None, **kwargs: int | None) -> 'BrainCollectionPipeline'
+cv(bc, k: int | None = None, method: str = 'kfold', split_by: str | None = None, groups: np.ndarray | None = None, n: int = 1000, random_state: int | None = None) -> 'BrainCollectionPipeline'
 ```
 
 Create a cross-validation pipeline for multi-subject analysis.
@@ -8824,12 +8970,12 @@ with cross-validation across subjects or runs.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bc` |  | BrainCollection instance. | *required*
-`k` | <code>[int](#int) \| None</code> | Number of folds (for kfold scheme). Defaults to 5. | <code>None</code>
-`scheme` | <code>[str](#str)</code> | CV scheme type. Options: - 'kfold': k-fold cross-validation on pooled data - 'loso': leave-one-subject-out (one image held out per fold) - 'loro': leave-one-run-out (requires groups) | <code>'kfold'</code>
+`k` | <code>[int](#int) \| None</code> | Number of folds (for kfold method). Defaults to 5. | <code>None</code>
+`method` | <code>[str](#str)</code> | CV scheme type. Options: - 'kfold': k-fold cross-validation on pooled data - 'loso': leave-one-subject-out (one image held out per fold) - 'loro': leave-one-run-out (requires groups) | <code>'kfold'</code>
 `split_by` | <code>[str](#str) \| None</code> | Metadata column for group splits. If provided and groups is None, gets groups from bc.metadata[split_by]. | <code>None</code>
 `groups` | <code>[ndarray](#numpy.ndarray) \| None</code> | Explicit group labels for CV splits. | <code>None</code>
+`n` | <code>[int](#int)</code> | Number of iterations for bootstrap/permutation methods. Default 1000. | <code>1000</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
-`**kwargs` |  | Additional arguments passed to CVScheme. | <code>{}</code>
 
 **Returns:**
 
@@ -8841,14 +8987,14 @@ Name | Type | Description
 
 ```pycon
 >>> # Leave-one-subject-out classification
->>> result = bc.cv(scheme='loso').normalize().predict(subject_labels, algorithm='svm')
+>>> result = bc.cv(method='loso').normalize().predict(subject_labels, algorithm='svm')
 >>> print(f"Mean accuracy: {result.mean_score:.2%}")
 ```
 
 ```pycon
 >>> # With preprocessing
 >>> result = (bc
-...     .cv(scheme='loso')
+...     .cv(method='loso')
 ...     .normalize()
 ...     .reduce(n_components=50)
 ...     .predict(labels))
@@ -8856,7 +9002,7 @@ Name | Type | Description
 
 ```pycon
 >>> # Run-based CV with metadata
->>> result = bc.cv(scheme='loro', split_by='run').predict(y)
+>>> result = bc.cv(method='loro', split_by='run').predict(y)
 ```
 
 <details class="see-also" open markdown="1">
@@ -8870,7 +9016,7 @@ CVScheme: For CV scheme configuration details.
 ######## `fit`
 
 ```python
-fit(bc, model: str, X: 'pd.DataFrame | np.ndarray | str | list', cv: int | None = None, scale: bool = True, scale_value: float = 100.0, show_progress: bool = True, **kwargs: bool) -> 'FittedBrainCollection'
+fit(bc, model: str, X: 'pd.DataFrame | np.ndarray | str | list', cv: int | None = None, scale: bool = True, scale_value: float = 100.0, progress_bar: bool = False, **kwargs: bool) -> 'FittedBrainCollection'
 ```
 
 Fit a model to each subject in the collection.
@@ -8889,7 +9035,7 @@ Name | Type | Description | Default
 `cv` | <code>[int](#int) \| None</code> | Cross-validation folds (Ridge only). Default is None for GLM, 5 for Ridge when output='scores'. | <code>None</code>
 `scale` | <code>[bool](#bool)</code> | If True, apply percent signal change scaling before fitting. | <code>True</code>
 `scale_value` | <code>[float](#float)</code> | Scaling value (default 100.0 for percent signal change). | <code>100.0</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>False</code>
 `**kwargs` |  | Model-specific arguments passed to _fit_glm or _fit_ridge: - GLM: return_stats, save - Ridge: alpha, output, save, backend, random_state | <code>{}</code>
 
 **Returns:**
@@ -8936,7 +9082,7 @@ fit_ridge: Legacy Ridge fitting (use fit(..., model='ridge') instead)
 ######## `fit_from_events`
 
 ```python
-fit_from_events(bc, events: pd.DataFrame, t_r: float, confounds: str | list[pd.DataFrame | Path | str] | None = None, confound_columns: list[str] | None = None, hrf_model: str = 'spm', drift_model: str = 'cosine', high_pass: float = 0.01, scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, return_residuals: bool = False, save: dict[str, str] | None = None, show_progress: bool = True, by_run: bool = False, run_column: str = 'run', run_lengths: int | list[int] | None = None) -> 'BrainCollection | dict[str, BrainCollection]'
+fit_from_events(bc, events: pd.DataFrame, t_r: float, confounds: str | list[pd.DataFrame | Path | str] | None = None, confound_columns: list[str] | None = None, hrf_model: str = 'spm', drift_model: str = 'cosine', high_pass: float = 0.01, scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, return_residuals: bool = False, save: dict[str, str] | None = None, progress_bar: bool = False, by_run: bool = False, run_column: str = 'run', run_lengths: int | list[int] | None = None) -> 'BrainCollection | dict[str, BrainCollection]'
 ```
 
 Build design matrices from events and fit GLM to each subject.
@@ -8966,7 +9112,7 @@ Name | Type | Description | Default
 `return_stats` | <code>[list](#list)[[str](#str)] \| None</code> | Optional list of statistics to return as separate BrainCollections. Options: 't', 'r2', 'p', 'se', 'residual'. | <code>None</code>
 `return_residuals` | <code>[bool](#bool)</code> | If True, return residuals (same as return_stats=['residual']). | <code>False</code>
 `save` | <code>[dict](#dict)[[str](#str), [str](#str)] \| None</code> | Dict mapping output type to path template. | <code>None</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>False</code>
 `by_run` | <code>[bool](#bool)</code> | If True, fit GLM separately per run and return run-level betas. This enables MVPA decoding with leave-one-run-out CV. | <code>False</code>
 `run_column` | <code>[str](#str)</code> | Column name in events identifying runs (default 'run'). | <code>'run'</code>
 `run_lengths` | <code>[int](#int) \| [list](#list)[[int](#int)] \| None</code> | Number of TRs per run. Required when by_run=True. | <code>None</code>
@@ -9008,7 +9154,7 @@ _fit_glm: Internal method for design matrix-based fitting
 ######## `fit_glm`
 
 ```python
-fit_glm(bc, events: pd.DataFrame, t_r: float, confounds: str | list[pd.DataFrame | Path | str] | None = None, confound_columns: list[str] | None = None, hrf_model: str = 'spm', drift_model: str = 'cosine', high_pass: float = 0.01, scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, return_residuals: bool = False, save: dict[str, str] | None = None, show_progress: bool = True, by_run: bool = False, run_column: str = 'run', run_lengths: int | list[int] | None = None) -> 'BrainCollection | dict[str, BrainCollection]'
+fit_glm(bc, events: pd.DataFrame, t_r: float, confounds: str | list[pd.DataFrame | Path | str] | None = None, confound_columns: list[str] | None = None, hrf_model: str = 'spm', drift_model: str = 'cosine', high_pass: float = 0.01, scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, return_residuals: bool = False, save: dict[str, str] | None = None, progress_bar: bool = False, by_run: bool = False, run_column: str = 'run', run_lengths: int | list[int] | None = None) -> 'BrainCollection | dict[str, BrainCollection]'
 ```
 
 Fit GLM to each subject in collection.
@@ -9034,7 +9180,7 @@ Name | Type | Description | Default
 `return_stats` | <code>[list](#list)[[str](#str)] \| None</code> | Optional list of statistics to return as separate BrainCollections. Options: 't', 'r2', 'p', 'se', 'residual'. | <code>None</code>
 `return_residuals` | <code>[bool](#bool)</code> | If True, return residuals (same as return_stats=['residual']). | <code>False</code>
 `save` | <code>[dict](#dict)[[str](#str), [str](#str)] \| None</code> | Dict mapping output type to path template, e.g. ``{'betas': 'output/{subject}_betas.nii.gz', 't': 'output/{subject}_tstat.nii.gz'}``. Supports {subject}, {session}, {idx}, and other metadata columns. | <code>None</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>False</code>
 `by_run` | <code>[bool](#bool)</code> | If True, fit GLM separately per run and return run-level betas. This enables MVPA decoding with leave-one-run-out CV. Each subject will have (n_runs * n_conditions, n_voxels) betas. | <code>False</code>
 `run_column` | <code>[str](#str)</code> | Column name in events identifying runs (default 'run'). | <code>'run'</code>
 `run_lengths` | <code>[int](#int) \| [list](#list)[[int](#int)] \| None</code> | Number of TRs per run. Required when by_run=True.<br>- int: All runs have same length - list of int: Different length per run - None: Will attempt to infer equal-length runs from total scans | <code>None</code>
@@ -9080,7 +9226,7 @@ Type | Description
 ######## `fit_glm_internal`
 
 ```python
-fit_glm_internal(bc, X: 'pd.DataFrame | np.ndarray | str | list', scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, save: dict[str, str] | None = None, show_progress: bool = True) -> 'BrainCollection | dict[str, BrainCollection]'
+fit_glm_internal(bc, X: 'pd.DataFrame | np.ndarray | str | list', scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, save: dict[str, str] | None = None, progress_bar: bool = False) -> 'BrainCollection | dict[str, BrainCollection]'
 ```
 
 Internal GLM fitting with design matrix input.
@@ -9098,7 +9244,7 @@ Name | Type | Description | Default
 `scale_value` | <code>[float](#float)</code> | Scaling value (default 100.0 for percent signal change). | <code>100.0</code>
 `return_stats` | <code>[list](#list)[[str](#str)] \| None</code> | Optional list of statistics to return as separate BrainCollections. Options: 't', 'r2', 'p', 'se', 'residual'. | <code>None</code>
 `save` | <code>[dict](#dict)[[str](#str), [str](#str)] \| None</code> | Dict mapping output type to path template. | <code>None</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>False</code>
 
 **Returns:**
 
@@ -9109,7 +9255,7 @@ Type | Description
 ######## `fit_ridge`
 
 ```python
-fit_ridge(bc, X: 'np.ndarray | str | list', alpha: float | str = 1.0, cv: int | None = 5, scale: bool = True, scale_value: float = 100.0, output: str = 'scores', save: dict[str, str] | None = None, show_progress: bool = True, **ridge_kwargs: bool) -> 'BrainCollection | dict[str, BrainCollection]'
+fit_ridge(bc, X: 'np.ndarray | str | list', alpha: float | str = 1.0, cv: int | None = 5, scale: bool = True, scale_value: float = 100.0, output: str = 'scores', save: dict[str, str] | None = None, progress_bar: bool = False, **ridge_kwargs: bool) -> 'BrainCollection | dict[str, BrainCollection]'
 ```
 
 Fit ridge regression to each subject in collection.
@@ -9130,7 +9276,7 @@ Name | Type | Description | Default
 `scale_value` | <code>[float](#float)</code> | Scaling value (default 100.0 for percent signal change). | <code>100.0</code>
 `output` | <code>[str](#str)</code> | What to return. Options: - 'scores': CV R-squared scores per voxel (default, for encoding workflow) - 'weights': Model weights (n_features, n_voxels) - 'both': Dict with both 'scores' and 'weights' | <code>'scores'</code>
 `save` | <code>[dict](#dict)[[str](#str), [str](#str)] \| None</code> | Dict mapping output type to path template, e.g. ``{'weights': 'output/{subject}_weights.nii.gz', 'scores': 'output/{subject}_scores.nii.gz'}``. Supports {subject}, {session}, {idx}, and other metadata columns. | <code>None</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>False</code>
 `**ridge_kwargs` |  | Additional arguments passed to Ridge model (e.g., backend='torch', random_state=42). | <code>{}</code>
 
 **Returns:**
@@ -9763,7 +9909,7 @@ Type | Description
 ######## `predict`
 
 ```python
-predict(bc, X: 'np.ndarray | str | list | None' = None, y: 'np.ndarray | None' = None, method: str = 'whole_brain', estimator: str = 'svm', cv: str = 5, groups: 'np.ndarray | None' = None, roi_mask: 'np.ndarray | None' = None, radius: float = 10.0, scoring: str = 'accuracy', standardize: bool = True, n_jobs: int = -1, show_progress: bool = True) -> 'BrainCollection'
+predict(bc, X: 'np.ndarray | str | list | None' = None, y: 'np.ndarray | None' = None, method: str = 'whole_brain', estimator: str = 'svm', cv: str = 5, groups: 'np.ndarray | None' = None, roi_mask: 'np.ndarray | None' = None, radius_mm: float = 10.0, scoring: str = 'accuracy', standardize: bool = True, n_jobs: int = -1, progress_bar: bool = False) -> 'BrainCollection'
 ```
 
 Generate predictions for each subject in collection.
@@ -9793,11 +9939,11 @@ Name | Type | Description | Default
 `cv` |  | Cross-validation strategy. If None and _run_labels exists, uses leave-one-group-out with run labels. | <code>5</code>
 `groups` | <code>'np.ndarray \| None'</code> | Group labels for GroupKFold/LeaveOneGroupOut. If None and _run_labels exists, uses stored run labels. | <code>None</code>
 `roi_mask` |  | Mask for ROI-based MVPA. Required if method='roi'. | <code>None</code>
-`radius` | <code>[float](#float)</code> | Searchlight radius in mm (default 10.0). | <code>10.0</code>
+`radius_mm` | <code>[float](#float)</code> | searchlight radius in mm (default 10.0). | <code>10.0</code>
 `scoring` | <code>[str](#str)</code> | Scoring metric (default 'accuracy'). | <code>'accuracy'</code>
 `standardize` | <code>[bool](#bool)</code> | If True, standardize features before classification. | <code>True</code>
 `n_jobs` | <code>[int](#int)</code> | Parallel jobs for searchlight (-1 = all cores). | <code>-1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>False</code>
 
 **Returns:**
 
@@ -9901,7 +10047,7 @@ Name | Description
 ###### `align`
 
 ```python
-align(bc: 'BrainCollection', method: str = 'procrustes', scheme: str = 'searchlight', radius_mm: float = 10.0, parcellation: 'nib.Nifti1Image | None' = None, n_features: int | None = None, n_iter: int = 3, parallel: str | None = 'cpu', n_jobs: int = -1, return_model: bool = False, show_progress: bool = True) -> 'BrainCollection | tuple[BrainCollection, object]'
+align(bc: 'BrainCollection', method: str = 'procrustes', scheme: str = 'searchlight', radius_mm: float = 10.0, parcellation: 'nib.Nifti1Image | None' = None, n_features: int | None = None, n_iter: int = 3, device: str = 'cpu', return_model: bool = False, n_jobs: int = -1, progress_bar: bool = False) -> 'BrainCollection | tuple[BrainCollection, object]'
 ```
 
 Align subjects using local functional alignment.
@@ -9921,10 +10067,10 @@ Name | Type | Description | Default
 `parcellation` | <code>'nib.Nifti1Image \| None'</code> | Parcellation image for piecewise scheme (required if scheme='piecewise'). | <code>None</code>
 `n_features` | <code>[int](#int) \| None</code> | Number of features for SRM. None uses full dimensions. | <code>None</code>
 `n_iter` | <code>[int](#int)</code> | Number of iterations for alignment refinement. | <code>3</code>
-`parallel` | <code>[str](#str) \| None</code> | Parallelization mode. Options: - None: Single-threaded - 'cpu': CPU parallelization with joblib - 'gpu': GPU acceleration via PyTorch | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs for CPU mode (-1 = auto). | <code>-1</code>
+`device` | <code>[str](#str)</code> | Compute device: 'cpu' (default) or 'gpu' (via PyTorch). | <code>'cpu'</code>
 `return_model` | <code>[bool](#bool)</code> | If True, return (aligned_collection, model) tuple for fit/transform workflow with new data. | <code>False</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>True</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU jobs (-1 = all cores, 1 = single-threaded). | <code>-1</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>False</code>
 
 **Returns:**
 
@@ -9958,7 +10104,7 @@ Type | Description
 
 ```pycon
 >>> # GPU-accelerated alignment
->>> aligned_bc = bc.align(parallel='gpu')
+>>> aligned_bc = bc.align(device='gpu')
 ```
 
 <details class="notes" open markdown="1">
@@ -9980,7 +10126,7 @@ nltools.algorithms.alignment.LocalAlignment: Underlying alignment class.
 ######## `detrend`
 
 ```python
-detrend(bc: 'BrainCollection', method: str = 'linear', n_jobs: int = 1, show_progress: bool = True) -> 'BrainCollection'
+detrend(bc: 'BrainCollection', method: str = 'linear', n_jobs: int = 1, progress_bar: bool = False) -> 'BrainCollection'
 ```
 
 Remove trend from each image.
@@ -9994,7 +10140,7 @@ Name | Type | Description | Default
 `bc` | <code>'BrainCollection'</code> | BrainCollection to detrend. | *required*
 `method` | <code>[str](#str)</code> | 'linear' or 'constant'. | <code>'linear'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar. | <code>False</code>
 
 **Returns:**
 
@@ -10051,7 +10197,7 @@ Type | Description
 ######## `map_axis0`
 
 ```python
-map_axis0(bc: 'BrainCollection', fn: Callable, n_jobs: int, show_progress: bool) -> 'BrainCollection'
+map_axis0(bc: 'BrainCollection', fn: Callable, n_jobs: int, progress_bar: bool) -> 'BrainCollection'
 ```
 
 Map function over images (axis=0).
@@ -10059,7 +10205,7 @@ Map function over images (axis=0).
 ######## `map_axis1`
 
 ```python
-map_axis1(bc: 'BrainCollection', fn: Callable, n_jobs: int, show_progress: bool) -> 'BrainCollection'
+map_axis1(bc: 'BrainCollection', fn: Callable, n_jobs: int, progress_bar: bool) -> 'BrainCollection'
 ```
 
 Map function over timepoints (axis=1).
@@ -10067,7 +10213,7 @@ Map function over timepoints (axis=1).
 ######## `map_axis2`
 
 ```python
-map_axis2(bc: 'BrainCollection', fn: Callable, n_jobs: int, show_progress: bool) -> 'BrainCollection'
+map_axis2(bc: 'BrainCollection', fn: Callable, n_jobs: int, progress_bar: bool) -> 'BrainCollection'
 ```
 
 Map function over voxels (axis=2) per image.
@@ -10075,7 +10221,7 @@ Map function over voxels (axis=2) per image.
 ######## `map_collection`
 
 ```python
-map_collection(bc: 'BrainCollection', fn: Callable, axis: int | str = 0, n_jobs: int = 1, show_progress: bool = True) -> 'BrainCollection'
+map_collection(bc: 'BrainCollection', fn: Callable, axis: int | str = 0, n_jobs: int = 1, progress_bar: bool = False) -> 'BrainCollection'
 ```
 
 Apply function across specified axis.
@@ -10091,7 +10237,7 @@ Name | Type | Description | Default
 `fn` | <code>[Callable](#collections.abc.Callable)</code> | Function to apply. Signature depends on axis: - axis=0: fn(BrainData) -> BrainData (per image) - axis=1: fn(BrainData) -> BrainData (per timepoint slice) - axis=2: fn(ndarray[n_obs]) -> ndarray (per voxel timeseries) | *required*
 `axis` | <code>[int](#int) \| [str](#str)</code> | Axis to iterate over: - 0 or 'images': Apply fn to each image independently - 1 or 'time': Apply fn to each timepoint across images - 2 or 'voxels': Apply fn to each voxel timeseries per image | <code>0</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. -1 for all cores. Default 1. | <code>1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show tqdm progress bar. Default True. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show tqdm progress bar. Default True. | <code>False</code>
 
 **Returns:**
 
@@ -10120,7 +10266,7 @@ Type | Description
 ######## `smooth`
 
 ```python
-smooth(bc: 'BrainCollection', fwhm: float, n_jobs: int = 1, show_progress: bool = True) -> 'BrainCollection'
+smooth(bc: 'BrainCollection', fwhm: float, n_jobs: int = 1, progress_bar: bool = False) -> 'BrainCollection'
 ```
 
 Spatially smooth each image.
@@ -10134,7 +10280,7 @@ Name | Type | Description | Default
 `bc` | <code>'BrainCollection'</code> | BrainCollection to smooth. | *required*
 `fwhm` | <code>[float](#float)</code> | Full width at half maximum of Gaussian kernel in mm. | *required*
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar. | <code>False</code>
 
 **Returns:**
 
@@ -10151,7 +10297,7 @@ Type | Description
 ######## `standardize`
 
 ```python
-standardize(bc: 'BrainCollection', axis: int = 0, method: str = 'center', n_jobs: int = 1, show_progress: bool = True, verbose: bool = True) -> 'BrainCollection'
+standardize(bc: 'BrainCollection', axis: int = 0, method: str = 'center', verbose: bool = True, n_jobs: int = 1, progress_bar: bool = False) -> 'BrainCollection'
 ```
 
 Standardize each image.
@@ -10165,9 +10311,9 @@ Name | Type | Description | Default
 `bc` | <code>'BrainCollection'</code> | BrainCollection to standardize. | *required*
 `axis` | <code>[int](#int)</code> | Axis for standardization within each image: - 0: Standardize across observations (time) per voxel - 1: Standardize across voxels per observation | <code>0</code>
 `method` | <code>[str](#str)</code> | 'center' (subtract mean) or 'zscore' (subtract mean, divide std) | <code>'center'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar. | <code>True</code>
 `verbose` | <code>[bool](#bool)</code> | If False, suppress sklearn numerical warnings. Default: True. | <code>True</code>
+`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>1</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar. | <code>False</code>
 
 **Returns:**
 
@@ -10186,7 +10332,7 @@ Type | Description
 ######## `threshold`
 
 ```python
-threshold(bc: 'BrainCollection', upper: float | str | None = None, lower: float | str | None = None, binarize: bool = False, coerce_nan: bool = True, n_jobs: int = 1, show_progress: bool = True) -> 'BrainCollection'
+threshold(bc: 'BrainCollection', upper: float | str | None = None, lower: float | str | None = None, binarize: bool = False, coerce_nan: bool = True, n_jobs: int = 1, progress_bar: bool = False) -> 'BrainCollection'
 ```
 
 Threshold each image.
@@ -10203,7 +10349,7 @@ Name | Type | Description | Default
 `binarize` | <code>[bool](#bool)</code> | Return binary mask. | <code>False</code>
 `coerce_nan` | <code>[bool](#bool)</code> | Replace NaN with 0. | <code>True</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar. | <code>False</code>
 
 **Returns:**
 
@@ -10440,7 +10586,7 @@ Name | Type | Description
 ######## `append`
 
 ```python
-append(dm: Union['DesignMatrix', List['DesignMatrix']], axis: int = 0, keep_separate: bool = True, unique_cols: Optional[List[str]] = None, fill_na: Union[int, float] = 0, verbose: bool = False) -> 'DesignMatrix'
+append(dm: Union['DesignMatrix', List['DesignMatrix']], *, axis: int = 0, keep_separate: bool = True, unique_cols: Optional[List[str]] = None, fill_na: Union[int, float] = 0, verbose: bool = False) -> 'DesignMatrix'
 ```
 
 Concatenate design matrices.

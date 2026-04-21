@@ -115,7 +115,7 @@ Type | Description
 #### `predict`
 
 ```python
-predict(bc, X: 'np.ndarray | str | list | None' = None, y: 'np.ndarray | None' = None, method: str = 'whole_brain', estimator: str = 'svm', cv: str = 5, groups: 'np.ndarray | None' = None, roi_mask: 'np.ndarray | None' = None, radius: float = 10.0, scoring: str = 'accuracy', standardize: bool = True, n_jobs: int = -1, show_progress: bool = True) -> 'BrainCollection'
+predict(bc, X: 'np.ndarray | str | list | None' = None, y: 'np.ndarray | None' = None, method: str = 'whole_brain', estimator: str = 'svm', cv: str = 5, groups: 'np.ndarray | None' = None, roi_mask: 'np.ndarray | None' = None, radius_mm: float = 10.0, scoring: str = 'accuracy', standardize: bool = True, n_jobs: int = -1, progress_bar: bool = False) -> 'BrainCollection'
 ```
 
 Generate predictions for each subject in collection.
@@ -145,11 +145,11 @@ Name | Type | Description | Default
 `cv` |  | Cross-validation strategy. If None and _run_labels exists, uses leave-one-group-out with run labels. | <code>5</code>
 `groups` | <code>'np.ndarray \| None'</code> | Group labels for GroupKFold/LeaveOneGroupOut. If None and _run_labels exists, uses stored run labels. | <code>None</code>
 `roi_mask` |  | Mask for ROI-based MVPA. Required if method='roi'. | <code>None</code>
-`radius` | <code>[float](#float)</code> | Searchlight radius in mm (default 10.0). | <code>10.0</code>
+`radius_mm` | <code>[float](#float)</code> | searchlight radius in mm (default 10.0). | <code>10.0</code>
 `scoring` | <code>[str](#str)</code> | Scoring metric (default 'accuracy'). | <code>'accuracy'</code>
 `standardize` | <code>[bool](#bool)</code> | If True, standardize features before classification. | <code>True</code>
 `n_jobs` | <code>[int](#int)</code> | Parallel jobs for searchlight (-1 = all cores). | <code>-1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>False</code>
 
 **Returns:**
 

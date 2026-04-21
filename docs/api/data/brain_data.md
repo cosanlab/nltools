@@ -1,7 +1,7 @@
 ## `BrainData`
 
 ```python
-BrainData(data = None, Y = None, X = None, mask = None, masker = None, h5_compression = 'gzip', verbose = False, resample = True, interpolation = 'auto')
+BrainData(data = None, *, Y = None, X = None, mask = None, masker = None, h5_compression = 'gzip', verbose = False, resample = True, interpolation = 'auto')
 ```
 
 
@@ -60,6 +60,8 @@ Name | Description
 [`threshold`](#threshold) | Threshold BrainData instance with optional cluster filtering.
 [`to_nifti`](#to_nifti) | Convert BrainData Instance into Nifti Object.
 [`transform_pairwise`](#transform_pairwise) | Transform data into pairwise comparisons.
+[`ttest`](#ttest) | One-sample voxelwise t-test across images (axis 0).
+[`ttest2`](#ttest2) | Two-sample voxelwise t-test between two BrainData stacks.
 [`upload_neurovault`](#upload_neurovault) | Upload Data to Neurovault.  Will add any columns in self.X to image
 [`write`](#write) | Write out BrainData object to Nifti or HDF5 File.
 [`z_to_r`](#z_to_r) | Convert z score back into r value for each element of data object.
@@ -83,7 +85,7 @@ Name | Type | Description
 #### `align`
 
 ```python
-align(target, method = 'procrustes', axis = 0, *args, **kwargs)
+align(target, method = 'procrustes', axis = 0)
 ```
 
 Align BrainData instance to target object using functional alignment.
@@ -106,7 +108,7 @@ Name | Type | Description
 
 ```pycon
 >>> out = data.align(target, method='procrustes')
->>> out = data.align(target, method='probabilistic_srm', n_features=None)
+>>> out = data.align(target, method='probabilistic_srm')
 ```
 
 #### `append`
@@ -178,7 +180,7 @@ Name | Type | Description
 #### `bootstrap`
 
 ```python
-bootstrap(stat, n_samples = 5000, save_boots = False, n_jobs = -1, random_state = None, percentiles = (2.5, 97.5), X_test = None, **kwargs)
+bootstrap(stat, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, backend = None, max_gpu_memory_gb = 4.0, n_jobs = -1, random_state = None)
 ```
 
 Bootstrap statistics using efficient online algorithms.
@@ -193,11 +195,12 @@ Name | Type | Description | Default
 `stat` |  | (str) Statistic to bootstrap. Options: Simple stats ('mean', 'median', 'std', 'sum', 'min', 'max') or Model stats ('weights' requires fitted Ridge model, 'predict' requires fitted Ridge model + X_test). | *required*
 `n_samples` |  | (int) Number of bootstrap iterations. Default: 5000 | <code>5000</code>
 `save_boots` |  | (bool) If True, store all bootstrap samples. Default: False | <code>False</code>
-`n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
-`random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
 `percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
 `X_test` |  | (np.ndarray, optional) Test features for 'predict' bootstrap. | <code>None</code>
-`**kwargs` |  | Additional parameters (backend, max_gpu_memory_gb, etc.) | <code>{}</code>
+`backend` |  | (str, optional) Backend for Ridge bootstrap: None (CPU), 'torch' (GPU if available), or 'auto' (auto-select). Ignored for simple stats. | <code>None</code>
+`max_gpu_memory_gb` |  | (float) Maximum GPU memory to use when backend is 'torch' or 'auto'. Default: 4.0 | <code>4.0</code>
+`n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
+`random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
 
 **Returns:**
 
@@ -292,7 +295,7 @@ Name | Type | Description
 #### `cv`
 
 ```python
-cv(k: int | None = None, scheme: str = 'kfold', split_by: str | None = None, groups: np.ndarray | None = None, random_state: int | None = None, **kwargs: int | None) -> BrainDataPipeline
+cv(k: int | None = None, method: str = 'kfold', split_by: str | None = None, groups: np.ndarray | None = None, n: int = 1000, random_state: int | None = None) -> BrainDataPipeline
 ```
 
 Create a cross-validation pipeline for this BrainData.
@@ -305,12 +308,12 @@ pipeline and return results.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`k` | <code>[int](#int) \| None</code> | Number of folds (for kfold scheme). Defaults to 5. | <code>None</code>
-`scheme` | <code>[str](#str)</code> | CV scheme type. Options: - 'kfold': k-fold cross-validation (default) - 'loro': leave-one-run-out (requires split_by='runs' or groups) - 'bootstrap': bootstrap with out-of-bag test sets | <code>'kfold'</code>
+`k` | <code>[int](#int) \| None</code> | Number of folds (for kfold method). Defaults to 5. | <code>None</code>
+`method` | <code>[str](#str)</code> | CV scheme type. Options: - 'kfold': k-fold cross-validation (default) - 'loro': leave-one-run-out (requires split_by='runs' or groups) - 'bootstrap': bootstrap with out-of-bag test sets - 'permutation': permutation testing (shuffles targets) | <code>'kfold'</code>
 `split_by` | <code>[str](#str) \| None</code> | Attribute name for group splits (e.g., 'runs'). | <code>None</code>
 `groups` | <code>[ndarray](#numpy.ndarray) \| None</code> | Explicit group labels for CV splits. | <code>None</code>
+`n` | <code>[int](#int)</code> | Number of iterations for bootstrap/permutation methods. Default 1000. | <code>1000</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
-`**kwargs` |  | Additional arguments passed to CVScheme. | <code>{}</code>
 
 **Returns:**
 
@@ -322,13 +325,13 @@ Name | Type | Description
 
 ```pycon
 >>> result = brain.cv(k=5).predict(y, algorithm='ridge')
->>> result = brain.cv(scheme='loro', groups=run_labels).predict(y)
+>>> result = brain.cv(method='loro', groups=run_labels).predict(y)
 ```
 
 #### `decompose`
 
 ```python
-decompose(algorithm = 'pca', axis = 'voxels', n_components = None, *args, **kwargs)
+decompose(method = 'pca', axis = 'voxels', n_components = None, *args, **kwargs)
 ```
 
 Decompose BrainData object.
@@ -337,7 +340,7 @@ Decompose BrainData object.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`algorithm` |  | (str) Algorithm to perform decomposition         types=['pca','ica','nnmf','fa','dictionary','kernelpca'] | <code>'pca'</code>
+`method` |  | (str) Algorithm to perform decomposition         types=['pca','ica','nnmf','fa','dictionary','kernelpca'] | <code>'pca'</code>
 `axis` |  | dimension to decompose ['voxels','images'] | <code>'voxels'</code>
 `n_components` |  | (int) number of components. If None then retain         as many as possible. | <code>None</code>
 
@@ -473,7 +476,7 @@ Type | Description
 #### `fit`
 
 ```python
-fit(model = None, X = None, cv = None, inplace = True, progress_bar = None, scale = True, scale_value = 100.0, **kwargs)
+fit(model = None, X = None, cv = None, inplace = True, scale = True, scale_value = 100.0, progress_bar = None, **kwargs)
 ```
 
 Fit a model to brain imaging data.
@@ -490,9 +493,9 @@ Name | Type | Description | Default
 `X` | <code>[array](#array) - [like](#like) or [DataFrame](#DataFrame)</code> | Design matrix or feature matrix | <code>None</code>
 `cv` | <code>int, 'auto', or sklearn CV splitter</code> | Cross-validation specification (Ridge only) | <code>None</code>
 `inplace` | <code>bool, default=True</code> | If True, mutate self and return self. If False, return Fit dataclass with results (self unchanged). | <code>True</code>
-`progress_bar` | <code>[bool](#bool)</code> | Display progress bar during fitting. | <code>None</code>
 `scale` | <code>bool, default=True</code> | Apply grand-mean scaling before fitting. | <code>True</code>
 `scale_value` | <code>float, default=100.0</code> | Target value for mean after scaling. | <code>100.0</code>
+`progress_bar` | <code>[bool](#bool)</code> | Display progress bar during fitting. | <code>None</code>
 `**kwargs` | <code>[dict](#dict)</code> | Additional arguments passed to model constructor | <code>{}</code>
 
 **Returns:**
@@ -511,7 +514,7 @@ Type | Description
 #### `icc`
 
 ```python
-icc(n_subjects, n_sessions, icc_type = 'icc2', parallel = None, n_jobs = -1, max_gpu_memory_gb = 4.0)
+icc(n_subjects, n_sessions, method = 'icc2', parallel = None, n_jobs = -1, max_gpu_memory_gb = 4.0)
 ```
 
 Calculate voxel-wise intraclass correlation coefficient.
@@ -524,7 +527,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `n_subjects` |  | Number of subjects in the data | *required*
 `n_sessions` |  | Number of sessions per subject | *required*
-`icc_type` |  | Type of ICC ('icc1', 'icc2', 'icc3'). Default: 'icc2' | <code>'icc2'</code>
+`method` |  | Type of ICC ('icc1', 'icc2', 'icc3'). Default: 'icc2' | <code>'icc2'</code>
 `parallel` |  | Parallelization method (None, 'cpu', 'gpu') | <code>None</code>
 `n_jobs` |  | Number of CPU cores (-1 = all cores) | <code>-1</code>
 `max_gpu_memory_gb` |  | GPU memory budget in GB | <code>4.0</code>
@@ -538,7 +541,7 @@ Name | Type | Description
 **Examples:**
 
 ```pycon
->>> icc_map = data.icc(n_subjects=20, n_sessions=3, icc_type='icc2')
+>>> icc_map = data.icc(n_subjects=20, n_sessions=3, method='icc2')
 ```
 
 #### `mean`
@@ -606,7 +609,7 @@ Name | Type | Description
 #### `plot`
 
 ```python
-plot(kind = 'glass', thr_upper = None, thr_lower = None, threshold = None, cut_coords = None, cmap = None, bg_img = None, ax = None, title = None, colorbar = True, save = None, stat = 'mean', **kwargs)
+plot(method = 'glass', upper = None, lower = None, threshold = None, cut_coords = None, cmap = None, bg_img = None, ax = None, title = None, colorbar = True, save = None, stat = 'mean', **kwargs)
 ```
 
 Plot BrainData instance using nilearn visualization or matplotlib.
@@ -615,9 +618,9 @@ Plot BrainData instance using nilearn visualization or matplotlib.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`kind` | <code>[str](#str)</code> | Visualization type: 'glass', 'slices', 'timeseries', 'histogram' | <code>'glass'</code>
-`thr_upper` | <code>[str](#str) / [float](#float)</code> | Upper threshold. | <code>None</code>
-`thr_lower` | <code>[str](#str) / [float](#float)</code> | Lower threshold. | <code>None</code>
+`method` | <code>[str](#str)</code> | Visualization type: 'glass', 'slices', 'timeseries', 'histogram' | <code>'glass'</code>
+`upper` | <code>[str](#str) / [float](#float)</code> | Upper threshold. | <code>None</code>
+`lower` | <code>[str](#str) / [float](#float)</code> | Lower threshold. | <code>None</code>
 `threshold` | <code>[float](#float)</code> | Convenience parameter for thresholding. | <code>None</code>
 `cut_coords` | <code>[list](#list)</code> | Cut coordinates for multi-slice views. | <code>None</code>
 `cmap` | <code>[str](#str)</code> | Colormap name. | <code>None</code>
@@ -638,7 +641,7 @@ Type | Description
 #### `plot_flatmap`
 
 ```python
-plot_flatmap(threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius = 3.0, interpolation = 'linear', axes = None, save = None)
+plot_flatmap(threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
 ```
 
 Plot brain data on cortical flatmap.
@@ -659,7 +662,7 @@ Name | Type | Description | Default
 `colorbar_orientation` | <code>[str](#str)</code> | 'horizontal' or 'vertical'. Default: 'horizontal'. | <code>'horizontal'</code>
 `figsize` | <code>[tuple](#tuple)</code> | Figure size as (width, height). Default: (12, 6). | <code>(12, 6)</code>
 `title` | <code>[str](#str)</code> | Figure title. | <code>None</code>
-`radius` | <code>[float](#float)</code> | Sampling radius in mm. Default: 3.0. | <code>3.0</code>
+`radius_mm` | <code>[float](#float)</code> | Sampling radius in mm. Default: 3.0. | <code>3.0</code>
 `interpolation` | <code>[str](#str)</code> | Interpolation method. Default: 'linear'. | <code>'linear'</code>
 `axes` | <code>[Axes](#matplotlib.axes.Axes)</code> | Existing axes to plot on. | <code>None</code>
 `save` | <code>[str](#str)</code> | File path to save figure. | <code>None</code>
@@ -673,7 +676,7 @@ Type | Description
 #### `predict`
 
 ```python
-predict(X: np.ndarray | None = None, y: np.ndarray | None = None, method: str = 'whole_brain', estimator: str = 'svm', cv: str = 5, groups: np.ndarray | None = None, roi_mask: np.ndarray | None = None, radius: float = 10.0, scoring: str = 'accuracy', standardize: bool = True, n_jobs: int = -1, show_progress: bool = True)
+predict(X: np.ndarray | None = None, y: np.ndarray | None = None, *, method: str = 'whole_brain', estimator: str = 'svm', cv: str = 5, groups: np.ndarray | None = None, roi_mask: np.ndarray | None = None, radius_mm: float = 10.0, scoring: str = 'accuracy', standardize: bool = True, n_jobs: int = -1, progress_bar: bool = False)
 ```
 
 Generate predictions using fitted model OR classify patterns (MVPA).
@@ -693,11 +696,11 @@ Name | Type | Description | Default
 `cv` |  | Cross-validation specification. | <code>5</code>
 `groups` | <code>[ndarray](#numpy.ndarray) \| None</code> | Group labels for CV. | <code>None</code>
 `roi_mask` |  | Atlas/parcellation for ROI-based decoding. | <code>None</code>
-`radius` | <code>[float](#float)</code> | Searchlight radius in mm (default 10.0). | <code>10.0</code>
+`radius_mm` | <code>[float](#float)</code> | Searchlight radius in mm (default 10.0). | <code>10.0</code>
 `scoring` | <code>[str](#str)</code> | Metric for evaluation. | <code>'accuracy'</code>
 `standardize` | <code>[bool](#bool)</code> | Z-score features before classification (default True). | <code>True</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs (-1 = all cores). | <code>-1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar for searchlight. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar for searchlight. | <code>False</code>
 
 **Returns:**
 
@@ -725,7 +728,7 @@ object.
 #### `regions`
 
 ```python
-regions(min_region_size = 1350, extract_type = 'local_regions', smoothing_fwhm = 6, is_mask = False)
+regions(min_region_size = 1350, method = 'local_regions', smoothing_fwhm = 6, is_mask = False)
 ```
 
 Extract brain connected regions into separate regions.
@@ -735,7 +738,7 @@ Extract brain connected regions into separate regions.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `min_region_size` | <code>[int](#int)</code> | Minimum volume in mm3 for a region to be kept. | <code>1350</code>
-`extract_type` | <code>[str](#str)</code> | Type of extraction method                 ['connected_components', 'local_regions']. | <code>'local_regions'</code>
+`method` | <code>[str](#str)</code> | Type of extraction method                 ['connected_components', 'local_regions']. | <code>'local_regions'</code>
 `smoothing_fwhm` | <code>[scalar](#scalar)</code> | Smooth an image to extract more sparser regions. | <code>6</code>
 `is_mask` | <code>[bool](#bool)</code> | Whether to treat as boolean mask. | <code>False</code>
 
@@ -748,7 +751,7 @@ Name | Type | Description
 #### `regress`
 
 ```python
-regress(design_matrix = None, noise_model = 'ols', mode = None, **kwargs)
+regress(design_matrix = None, method = 'ols', mode = None)
 ```
 
 Deprecated: Use fit(model='glm', X=design_matrix) instead.
@@ -984,6 +987,72 @@ Transform data into pairwise comparisons.
 Name | Type | Description
 ---- | ---- | -----------
 `BrainData` |  | BrainData instance transformed into pairwise comparisons
+
+#### `ttest`
+
+```python
+ttest(popmean = 0.0, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
+```
+
+One-sample voxelwise t-test across images (axis 0).
+
+Tests whether the per-voxel mean across images differs from
+``popmean``. Operates on a stack of images (e.g. subject-level
+contrast maps) with shape ``(n_samples, n_voxels)``.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`popmean` |  | Population mean to test against. Default 0.0. | <code>0.0</code>
+`permutation` |  | If True, use sign-flip permutation test via :func:`nltools.stats.one_sample_permutation_test`. | <code>False</code>
+`n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
+`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
+`return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
+`random_state` |  | Random seed for reproducibility. | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dict` |  | ``{"t": BrainData, "p": BrainData}`` for the parametric
+ |  | case, or ``{"mean": BrainData, "p": BrainData}`` when
+ |  | ``permutation=True``.
+
+**Examples:**
+
+```pycon
+>>> # Stack of subject-level contrast maps
+>>> result = contrast_maps.ttest()
+>>> sig = result["p"].data < 0.05
+```
+
+```pycon
+>>> # Permutation-based inference
+>>> result = contrast_maps.ttest(permutation=True, n_permute=5000)
+```
+
+#### `ttest2`
+
+```python
+ttest2(other, equal_var = True)
+```
+
+Two-sample voxelwise t-test between two BrainData stacks.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`other` |  | BrainData to compare against. Must have the same number of voxels. | *required*
+`equal_var` |  | If True (default), standard two-sample t-test. If False, Welch's t-test. | <code>True</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dict` |  | ``{"t": BrainData, "p": BrainData}``.
 
 #### `upload_neurovault`
 

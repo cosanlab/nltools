@@ -16,7 +16,7 @@ Name | Description
 #### `bootstrap`
 
 ```python
-bootstrap(bd, stat, n_samples = 5000, save_boots = False, n_jobs = -1, random_state = None, percentiles = (2.5, 97.5), X_test = None, **kwargs)
+bootstrap(bd, stat, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, backend = None, max_gpu_memory_gb = 4.0, n_jobs = -1, random_state = None)
 ```
 
 Bootstrap statistics using efficient online algorithms.
@@ -32,13 +32,12 @@ Name | Type | Description | Default
 `stat` |  | (str) Statistic to bootstrap. Options: Simple stats ('mean', 'median', 'std', 'sum', 'min', 'max') or Model stats ('weights' requires fitted Ridge model, 'predict' requires fitted Ridge model + X_test). | *required*
 `n_samples` |  | (int) Number of bootstrap iterations. Default: 5000 | <code>5000</code>
 `save_boots` |  | (bool) If True, store all bootstrap samples (memory intensive).        Default: False | <code>False</code>
-`n_jobs` |  | (int) Number of CPU cores for parallelization. Default: -1 (all CPUs). | <code>-1</code>
-`random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
 `percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
 `X_test` |  | (np.ndarray, optional) Test features for 'predict' bootstrap.    Required if stat='predict' | <code>None</code>
-`backend` |  | (str, optional) Backend for computation ('numpy', 'torch', 'auto').     If 'torch' and GPU available, uses optimized GPU acceleration with     inline Ridge computation (no CPU round-trips). Default: None (CPU). | *required*
-`max_gpu_memory_gb` |  | (float) Maximum GPU memory to use in GB. Default: 4.0 | *required*
-`**kwargs` |  | Additional keyword arguments passed to the underlying bootstrap computation functions. Also accepts ``backend`` (str) and ``max_gpu_memory_gb`` (float). | <code>{}</code>
+`backend` |  | (str, optional) Backend for Ridge bootstrap: None (CPU), 'torch' (GPU if available), or 'auto' (auto-select). Ignored for simple stats. Default: None | <code>None</code>
+`max_gpu_memory_gb` |  | (float) Maximum GPU memory to use when backend is 'torch' or 'auto'. Default: 4.0 | <code>4.0</code>
+`n_jobs` |  | (int) Number of CPU cores for parallelization. Default: -1 (all CPUs). | <code>-1</code>
+`random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
 
 **Returns:**
 

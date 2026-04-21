@@ -29,7 +29,7 @@ Name | Description
 #### `cv`
 
 ```python
-cv(bc, k: int | None = None, scheme: str = 'kfold', split_by: str | None = None, groups: np.ndarray | None = None, random_state: int | None = None, **kwargs: int | None) -> 'BrainCollectionPipeline'
+cv(bc, k: int | None = None, method: str = 'kfold', split_by: str | None = None, groups: np.ndarray | None = None, n: int = 1000, random_state: int | None = None) -> 'BrainCollectionPipeline'
 ```
 
 Create a cross-validation pipeline for multi-subject analysis.
@@ -42,12 +42,12 @@ with cross-validation across subjects or runs.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bc` |  | BrainCollection instance. | *required*
-`k` | <code>[int](#int) \| None</code> | Number of folds (for kfold scheme). Defaults to 5. | <code>None</code>
-`scheme` | <code>[str](#str)</code> | CV scheme type. Options: - 'kfold': k-fold cross-validation on pooled data - 'loso': leave-one-subject-out (one image held out per fold) - 'loro': leave-one-run-out (requires groups) | <code>'kfold'</code>
+`k` | <code>[int](#int) \| None</code> | Number of folds (for kfold method). Defaults to 5. | <code>None</code>
+`method` | <code>[str](#str)</code> | CV scheme type. Options: - 'kfold': k-fold cross-validation on pooled data - 'loso': leave-one-subject-out (one image held out per fold) - 'loro': leave-one-run-out (requires groups) | <code>'kfold'</code>
 `split_by` | <code>[str](#str) \| None</code> | Metadata column for group splits. If provided and groups is None, gets groups from bc.metadata[split_by]. | <code>None</code>
 `groups` | <code>[ndarray](#numpy.ndarray) \| None</code> | Explicit group labels for CV splits. | <code>None</code>
+`n` | <code>[int](#int)</code> | Number of iterations for bootstrap/permutation methods. Default 1000. | <code>1000</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
-`**kwargs` |  | Additional arguments passed to CVScheme. | <code>{}</code>
 
 **Returns:**
 
@@ -59,14 +59,14 @@ Name | Type | Description
 
 ```pycon
 >>> # Leave-one-subject-out classification
->>> result = bc.cv(scheme='loso').normalize().predict(subject_labels, algorithm='svm')
+>>> result = bc.cv(method='loso').normalize().predict(subject_labels, algorithm='svm')
 >>> print(f"Mean accuracy: {result.mean_score:.2%}")
 ```
 
 ```pycon
 >>> # With preprocessing
 >>> result = (bc
-...     .cv(scheme='loso')
+...     .cv(method='loso')
 ...     .normalize()
 ...     .reduce(n_components=50)
 ...     .predict(labels))
@@ -74,7 +74,7 @@ Name | Type | Description
 
 ```pycon
 >>> # Run-based CV with metadata
->>> result = bc.cv(scheme='loro', split_by='run').predict(y)
+>>> result = bc.cv(method='loro', split_by='run').predict(y)
 ```
 
 <details class="see-also" open markdown="1">
@@ -88,7 +88,7 @@ CVScheme: For CV scheme configuration details.
 #### `fit`
 
 ```python
-fit(bc, model: str, X: 'pd.DataFrame | np.ndarray | str | list', cv: int | None = None, scale: bool = True, scale_value: float = 100.0, show_progress: bool = True, **kwargs: bool) -> 'FittedBrainCollection'
+fit(bc, model: str, X: 'pd.DataFrame | np.ndarray | str | list', cv: int | None = None, scale: bool = True, scale_value: float = 100.0, progress_bar: bool = False, **kwargs: bool) -> 'FittedBrainCollection'
 ```
 
 Fit a model to each subject in the collection.
@@ -107,7 +107,7 @@ Name | Type | Description | Default
 `cv` | <code>[int](#int) \| None</code> | Cross-validation folds (Ridge only). Default is None for GLM, 5 for Ridge when output='scores'. | <code>None</code>
 `scale` | <code>[bool](#bool)</code> | If True, apply percent signal change scaling before fitting. | <code>True</code>
 `scale_value` | <code>[float](#float)</code> | Scaling value (default 100.0 for percent signal change). | <code>100.0</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>False</code>
 `**kwargs` |  | Model-specific arguments passed to _fit_glm or _fit_ridge: - GLM: return_stats, save - Ridge: alpha, output, save, backend, random_state | <code>{}</code>
 
 **Returns:**
@@ -154,7 +154,7 @@ fit_ridge: Legacy Ridge fitting (use fit(..., model='ridge') instead)
 #### `fit_from_events`
 
 ```python
-fit_from_events(bc, events: pd.DataFrame, t_r: float, confounds: str | list[pd.DataFrame | Path | str] | None = None, confound_columns: list[str] | None = None, hrf_model: str = 'spm', drift_model: str = 'cosine', high_pass: float = 0.01, scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, return_residuals: bool = False, save: dict[str, str] | None = None, show_progress: bool = True, by_run: bool = False, run_column: str = 'run', run_lengths: int | list[int] | None = None) -> 'BrainCollection | dict[str, BrainCollection]'
+fit_from_events(bc, events: pd.DataFrame, t_r: float, confounds: str | list[pd.DataFrame | Path | str] | None = None, confound_columns: list[str] | None = None, hrf_model: str = 'spm', drift_model: str = 'cosine', high_pass: float = 0.01, scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, return_residuals: bool = False, save: dict[str, str] | None = None, progress_bar: bool = False, by_run: bool = False, run_column: str = 'run', run_lengths: int | list[int] | None = None) -> 'BrainCollection | dict[str, BrainCollection]'
 ```
 
 Build design matrices from events and fit GLM to each subject.
@@ -184,7 +184,7 @@ Name | Type | Description | Default
 `return_stats` | <code>[list](#list)[[str](#str)] \| None</code> | Optional list of statistics to return as separate BrainCollections. Options: 't', 'r2', 'p', 'se', 'residual'. | <code>None</code>
 `return_residuals` | <code>[bool](#bool)</code> | If True, return residuals (same as return_stats=['residual']). | <code>False</code>
 `save` | <code>[dict](#dict)[[str](#str), [str](#str)] \| None</code> | Dict mapping output type to path template. | <code>None</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>False</code>
 `by_run` | <code>[bool](#bool)</code> | If True, fit GLM separately per run and return run-level betas. This enables MVPA decoding with leave-one-run-out CV. | <code>False</code>
 `run_column` | <code>[str](#str)</code> | Column name in events identifying runs (default 'run'). | <code>'run'</code>
 `run_lengths` | <code>[int](#int) \| [list](#list)[[int](#int)] \| None</code> | Number of TRs per run. Required when by_run=True. | <code>None</code>
@@ -226,7 +226,7 @@ _fit_glm: Internal method for design matrix-based fitting
 #### `fit_glm`
 
 ```python
-fit_glm(bc, events: pd.DataFrame, t_r: float, confounds: str | list[pd.DataFrame | Path | str] | None = None, confound_columns: list[str] | None = None, hrf_model: str = 'spm', drift_model: str = 'cosine', high_pass: float = 0.01, scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, return_residuals: bool = False, save: dict[str, str] | None = None, show_progress: bool = True, by_run: bool = False, run_column: str = 'run', run_lengths: int | list[int] | None = None) -> 'BrainCollection | dict[str, BrainCollection]'
+fit_glm(bc, events: pd.DataFrame, t_r: float, confounds: str | list[pd.DataFrame | Path | str] | None = None, confound_columns: list[str] | None = None, hrf_model: str = 'spm', drift_model: str = 'cosine', high_pass: float = 0.01, scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, return_residuals: bool = False, save: dict[str, str] | None = None, progress_bar: bool = False, by_run: bool = False, run_column: str = 'run', run_lengths: int | list[int] | None = None) -> 'BrainCollection | dict[str, BrainCollection]'
 ```
 
 Fit GLM to each subject in collection.
@@ -252,7 +252,7 @@ Name | Type | Description | Default
 `return_stats` | <code>[list](#list)[[str](#str)] \| None</code> | Optional list of statistics to return as separate BrainCollections. Options: 't', 'r2', 'p', 'se', 'residual'. | <code>None</code>
 `return_residuals` | <code>[bool](#bool)</code> | If True, return residuals (same as return_stats=['residual']). | <code>False</code>
 `save` | <code>[dict](#dict)[[str](#str), [str](#str)] \| None</code> | Dict mapping output type to path template, e.g. ``{'betas': 'output/{subject}_betas.nii.gz', 't': 'output/{subject}_tstat.nii.gz'}``. Supports {subject}, {session}, {idx}, and other metadata columns. | <code>None</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>False</code>
 `by_run` | <code>[bool](#bool)</code> | If True, fit GLM separately per run and return run-level betas. This enables MVPA decoding with leave-one-run-out CV. Each subject will have (n_runs * n_conditions, n_voxels) betas. | <code>False</code>
 `run_column` | <code>[str](#str)</code> | Column name in events identifying runs (default 'run'). | <code>'run'</code>
 `run_lengths` | <code>[int](#int) \| [list](#list)[[int](#int)] \| None</code> | Number of TRs per run. Required when by_run=True.<br>- int: All runs have same length - list of int: Different length per run - None: Will attempt to infer equal-length runs from total scans | <code>None</code>
@@ -298,7 +298,7 @@ Type | Description
 #### `fit_glm_internal`
 
 ```python
-fit_glm_internal(bc, X: 'pd.DataFrame | np.ndarray | str | list', scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, save: dict[str, str] | None = None, show_progress: bool = True) -> 'BrainCollection | dict[str, BrainCollection]'
+fit_glm_internal(bc, X: 'pd.DataFrame | np.ndarray | str | list', scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, save: dict[str, str] | None = None, progress_bar: bool = False) -> 'BrainCollection | dict[str, BrainCollection]'
 ```
 
 Internal GLM fitting with design matrix input.
@@ -316,7 +316,7 @@ Name | Type | Description | Default
 `scale_value` | <code>[float](#float)</code> | Scaling value (default 100.0 for percent signal change). | <code>100.0</code>
 `return_stats` | <code>[list](#list)[[str](#str)] \| None</code> | Optional list of statistics to return as separate BrainCollections. Options: 't', 'r2', 'p', 'se', 'residual'. | <code>None</code>
 `save` | <code>[dict](#dict)[[str](#str), [str](#str)] \| None</code> | Dict mapping output type to path template. | <code>None</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>False</code>
 
 **Returns:**
 
@@ -327,7 +327,7 @@ Type | Description
 #### `fit_ridge`
 
 ```python
-fit_ridge(bc, X: 'np.ndarray | str | list', alpha: float | str = 1.0, cv: int | None = 5, scale: bool = True, scale_value: float = 100.0, output: str = 'scores', save: dict[str, str] | None = None, show_progress: bool = True, **ridge_kwargs: bool) -> 'BrainCollection | dict[str, BrainCollection]'
+fit_ridge(bc, X: 'np.ndarray | str | list', alpha: float | str = 1.0, cv: int | None = 5, scale: bool = True, scale_value: float = 100.0, output: str = 'scores', save: dict[str, str] | None = None, progress_bar: bool = False, **ridge_kwargs: bool) -> 'BrainCollection | dict[str, BrainCollection]'
 ```
 
 Fit ridge regression to each subject in collection.
@@ -348,7 +348,7 @@ Name | Type | Description | Default
 `scale_value` | <code>[float](#float)</code> | Scaling value (default 100.0 for percent signal change). | <code>100.0</code>
 `output` | <code>[str](#str)</code> | What to return. Options: - 'scores': CV R-squared scores per voxel (default, for encoding workflow) - 'weights': Model weights (n_features, n_voxels) - 'both': Dict with both 'scores' and 'weights' | <code>'scores'</code>
 `save` | <code>[dict](#dict)[[str](#str), [str](#str)] \| None</code> | Dict mapping output type to path template, e.g. ``{'weights': 'output/{subject}_weights.nii.gz', 'scores': 'output/{subject}_scores.nii.gz'}``. Supports {subject}, {session}, {idx}, and other metadata columns. | <code>None</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>False</code>
 `**ridge_kwargs` |  | Additional arguments passed to Ridge model (e.g., backend='torch', random_state=42). | <code>{}</code>
 
 **Returns:**

@@ -38,7 +38,7 @@ Name | Type | Description
 #### `plot_brain`
 
 ```python
-plot_brain(bd, kind = 'glass', thr_upper = None, thr_lower = None, threshold = None, cut_coords = None, cmap = None, bg_img = None, ax = None, title = None, colorbar = True, save = None, stat = 'mean', **kwargs)
+plot_brain(bd, method = 'glass', upper = None, lower = None, threshold = None, cut_coords = None, cmap = None, bg_img = None, ax = None, title = None, colorbar = True, save = None, stat = 'mean', **kwargs)
 ```
 
 Plot BrainData instance using nilearn visualization or matplotlib.
@@ -48,10 +48,10 @@ Plot BrainData instance using nilearn visualization or matplotlib.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
-`kind` | <code>[str](#str)</code> | Visualization type ('glass', 'slices', 'timeseries', 'histogram'). | <code>'glass'</code>
-`thr_upper` | <code>[str](#str) / [float](#float)</code> | Upper threshold. | <code>None</code>
-`thr_lower` | <code>[str](#str) / [float](#float)</code> | Lower threshold. | <code>None</code>
-`threshold` | <code>[float](#float)</code> | Convenience parameter. If positive, sets thr_upper (shows values above threshold). If negative, sets thr_lower (shows values below threshold). | <code>None</code>
+`method` | <code>[str](#str)</code> | Visualization type ('glass', 'slices', 'timeseries', 'histogram'). | <code>'glass'</code>
+`upper` | <code>[str](#str) / [float](#float)</code> | Upper threshold. | <code>None</code>
+`lower` | <code>[str](#str) / [float](#float)</code> | Lower threshold. | <code>None</code>
+`threshold` | <code>[float](#float)</code> | Convenience parameter. If positive, sets upper (shows values above threshold). If negative, sets lower (shows values below threshold). | <code>None</code>
 `cut_coords` | <code>[list](#list)</code> | Cut coordinates for multi-slice views. | <code>None</code>
 `cmap` | <code>[str](#str)</code> | Colormap name. | <code>None</code>
 `bg_img` | <code>[Nifti1Image](#Nifti1Image) or [str](#str)</code> | Background image for slice views. | <code>None</code>
@@ -71,7 +71,7 @@ Type | Description
 #### `plot_flatmap_brain`
 
 ```python
-plot_flatmap_brain(bd, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius = 3.0, interpolation = 'linear', axes = None, save = None)
+plot_flatmap_brain(bd, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
 ```
 
 Plot brain data on cortical flatmap.
@@ -93,7 +93,7 @@ Name | Type | Description | Default
 `colorbar_orientation` | <code>[str](#str)</code> | 'horizontal' or 'vertical'. Default: 'horizontal'. | <code>'horizontal'</code>
 `figsize` | <code>[tuple](#tuple)</code> | Figure size. Default: (12, 6). | <code>(12, 6)</code>
 `title` | <code>[str](#str)</code> | Figure title. | <code>None</code>
-`radius` | <code>[float](#float)</code> | Sampling radius in mm for vol_to_surf. Default: 3.0. | <code>3.0</code>
+`radius_mm` | <code>[float](#float)</code> | sampling radius in mm for vol_to_surf. Default: 3.0. | <code>3.0</code>
 `interpolation` | <code>[str](#str)</code> | Interpolation for vol_to_surf. Default: 'linear'. | <code>'linear'</code>
 `axes` | <code>[Axes](#matplotlib.axes.Axes)</code> | Existing axes to plot on. | <code>None</code>
 `save` | <code>[str](#str)</code> | File path to save figure. | <code>None</code>

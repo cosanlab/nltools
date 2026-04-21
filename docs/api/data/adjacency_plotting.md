@@ -40,7 +40,7 @@ Type | Description
 #### `plot_mds`
 
 ```python
-plot_mds(adj, n_components = 2, metric = True, labels = None, labels_color = None, cmap = None, n_jobs = -1, view = (30, 20), figsize = None, ax = None, *args, **kwargs)
+plot_mds(adj, n_components = 2, metric = True, labels = None, labels_color = None, cmap = None, view = (30, 20), figsize = None, ax = None, n_jobs = -1, *args, **kwargs)
 ```
 
 Plot Multidimensional Scaling.
@@ -55,10 +55,10 @@ Name | Type | Description | Default
 `labels` | <code>[list](#list)</code> | Can override labels stored in Adjacency Class. | <code>None</code>
 `labels_color` | <code>[list](#list)</code> | List of colors for labels. | <code>None</code>
 `cmap` |  | Colormap instance (default: ``plt.cm.hot_r``). | <code>None</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>-1</code>
 `view` | <code>[tuple](#tuple)</code> | View for 3-Dimensional plot. Default (30, 20). | <code>(30, 20)</code>
 `figsize` | <code>[list](#list)</code> | Figure size. Default [12, 8]. | <code>None</code>
 `ax` |  | Matplotlib axis handle. | <code>None</code>
+`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>-1</code>
 
 **Returns:**
 

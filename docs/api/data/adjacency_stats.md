@@ -116,7 +116,7 @@ Name | Type | Description
 #### `similarity`
 
 ```python
-similarity(adj, data, plot = False, perm_type = '2d', n_permute = 5000, metric = 'spearman', ignore_diagonal = False, nan_policy = 'omit', **kwargs)
+similarity(adj, data, plot = False, permutation_method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None)
 ```
 
 Calculate similarity between two Adjacency matrices. Default is to use spearman
@@ -129,11 +129,15 @@ Name | Type | Description | Default
 `adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency instance. | *required*
 `data` | <code>[Adjacency](#nltools.data.adjacency.Adjacency) or [array](#array)</code> | Adjacency data, or 1-d array same size as adj.data. | *required*
 `plot` | <code>[bool](#bool)</code> | If True, plot stacked adjacency matrices. Default False. | <code>False</code>
-`perm_type` | <code>[str](#str)</code> | '1d', '2d', or None. | <code>'2d'</code>
+`permutation_method` | <code>[str](#str)</code> | '1d', '2d', or None. | <code>'2d'</code>
 `n_permute` | <code>[int](#int)</code> | Number of permutations. Default 5000. | <code>5000</code>
 `metric` | <code>[str](#str)</code> | 'spearman', 'pearson', or 'kendall'. | <code>'spearman'</code>
-`ignore_diagonal` | <code>[bool](#bool)</code> | Only applies to 'directed' Adjacency types using perm_type=None or perm_type='1d'. | <code>False</code>
+`include_diag` | <code>[bool](#bool)</code> | Only applies to 'directed' Adjacency types using permutation_method=None or permutation_method='1d'. Default False (self-similarity is uninformative). Symmetric matrices never store the diagonal, so this flag is a no-op for them. | <code>False</code>
 `nan_policy` | <code>[str](#str)</code> | How to handle NaN values. Options: - 'omit': Remove NaN values pairwise before computing correlation (default) - 'propagate': Allow NaN to propagate through calculations - 'raise': Raise an error if NaN values are present | <code>'omit'</code>
+`tail` | <code>[int](#int)</code> | Tail of the test (1 or 2). Default 2. | <code>2</code>
+`return_null` | <code>[bool](#bool)</code> | If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. -1 means all cores. Default -1. | <code>-1</code>
+`random_state` | <code>[int](#int)</code> | Random seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
@@ -192,7 +196,7 @@ Name | Type | Description
 #### `ttest`
 
 ```python
-ttest(adj, permutation = False, **kwargs)
+ttest(adj, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
 ```
 
 Calculate ttest across samples.
@@ -203,6 +207,11 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency instance (must contain multiple matrices) | *required*
 `permutation` |  | (bool) Run ttest as permutation. Note this can be very slow. | <code>False</code>
+`n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
+`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
+`return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
+`random_state` |  | Random seed for reproducibility. | <code>None</code>
 
 **Returns:**
 

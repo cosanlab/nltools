@@ -29,7 +29,7 @@ Name | Description
 #### `align`
 
 ```python
-align(bc: 'BrainCollection', method: str = 'procrustes', scheme: str = 'searchlight', radius_mm: float = 10.0, parcellation: 'nib.Nifti1Image | None' = None, n_features: int | None = None, n_iter: int = 3, parallel: str | None = 'cpu', n_jobs: int = -1, return_model: bool = False, show_progress: bool = True) -> 'BrainCollection | tuple[BrainCollection, object]'
+align(bc: 'BrainCollection', method: str = 'procrustes', scheme: str = 'searchlight', radius_mm: float = 10.0, parcellation: 'nib.Nifti1Image | None' = None, n_features: int | None = None, n_iter: int = 3, device: str = 'cpu', return_model: bool = False, n_jobs: int = -1, progress_bar: bool = False) -> 'BrainCollection | tuple[BrainCollection, object]'
 ```
 
 Align subjects using local functional alignment.
@@ -49,10 +49,10 @@ Name | Type | Description | Default
 `parcellation` | <code>'nib.Nifti1Image \| None'</code> | Parcellation image for piecewise scheme (required if scheme='piecewise'). | <code>None</code>
 `n_features` | <code>[int](#int) \| None</code> | Number of features for SRM. None uses full dimensions. | <code>None</code>
 `n_iter` | <code>[int](#int)</code> | Number of iterations for alignment refinement. | <code>3</code>
-`parallel` | <code>[str](#str) \| None</code> | Parallelization mode. Options: - None: Single-threaded - 'cpu': CPU parallelization with joblib - 'gpu': GPU acceleration via PyTorch | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs for CPU mode (-1 = auto). | <code>-1</code>
+`device` | <code>[str](#str)</code> | Compute device: 'cpu' (default) or 'gpu' (via PyTorch). | <code>'cpu'</code>
 `return_model` | <code>[bool](#bool)</code> | If True, return (aligned_collection, model) tuple for fit/transform workflow with new data. | <code>False</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>True</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU jobs (-1 = all cores, 1 = single-threaded). | <code>-1</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during fitting. | <code>False</code>
 
 **Returns:**
 
@@ -86,7 +86,7 @@ Type | Description
 
 ```pycon
 >>> # GPU-accelerated alignment
->>> aligned_bc = bc.align(parallel='gpu')
+>>> aligned_bc = bc.align(device='gpu')
 ```
 
 <details class="notes" open markdown="1">
@@ -108,7 +108,7 @@ nltools.algorithms.alignment.LocalAlignment: Underlying alignment class.
 #### `detrend`
 
 ```python
-detrend(bc: 'BrainCollection', method: str = 'linear', n_jobs: int = 1, show_progress: bool = True) -> 'BrainCollection'
+detrend(bc: 'BrainCollection', method: str = 'linear', n_jobs: int = 1, progress_bar: bool = False) -> 'BrainCollection'
 ```
 
 Remove trend from each image.
@@ -122,7 +122,7 @@ Name | Type | Description | Default
 `bc` | <code>'BrainCollection'</code> | BrainCollection to detrend. | *required*
 `method` | <code>[str](#str)</code> | 'linear' or 'constant'. | <code>'linear'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar. | <code>False</code>
 
 **Returns:**
 
@@ -179,7 +179,7 @@ Type | Description
 #### `map_axis0`
 
 ```python
-map_axis0(bc: 'BrainCollection', fn: Callable, n_jobs: int, show_progress: bool) -> 'BrainCollection'
+map_axis0(bc: 'BrainCollection', fn: Callable, n_jobs: int, progress_bar: bool) -> 'BrainCollection'
 ```
 
 Map function over images (axis=0).
@@ -187,7 +187,7 @@ Map function over images (axis=0).
 #### `map_axis1`
 
 ```python
-map_axis1(bc: 'BrainCollection', fn: Callable, n_jobs: int, show_progress: bool) -> 'BrainCollection'
+map_axis1(bc: 'BrainCollection', fn: Callable, n_jobs: int, progress_bar: bool) -> 'BrainCollection'
 ```
 
 Map function over timepoints (axis=1).
@@ -195,7 +195,7 @@ Map function over timepoints (axis=1).
 #### `map_axis2`
 
 ```python
-map_axis2(bc: 'BrainCollection', fn: Callable, n_jobs: int, show_progress: bool) -> 'BrainCollection'
+map_axis2(bc: 'BrainCollection', fn: Callable, n_jobs: int, progress_bar: bool) -> 'BrainCollection'
 ```
 
 Map function over voxels (axis=2) per image.
@@ -203,7 +203,7 @@ Map function over voxels (axis=2) per image.
 #### `map_collection`
 
 ```python
-map_collection(bc: 'BrainCollection', fn: Callable, axis: int | str = 0, n_jobs: int = 1, show_progress: bool = True) -> 'BrainCollection'
+map_collection(bc: 'BrainCollection', fn: Callable, axis: int | str = 0, n_jobs: int = 1, progress_bar: bool = False) -> 'BrainCollection'
 ```
 
 Apply function across specified axis.
@@ -219,7 +219,7 @@ Name | Type | Description | Default
 `fn` | <code>[Callable](#collections.abc.Callable)</code> | Function to apply. Signature depends on axis: - axis=0: fn(BrainData) -> BrainData (per image) - axis=1: fn(BrainData) -> BrainData (per timepoint slice) - axis=2: fn(ndarray[n_obs]) -> ndarray (per voxel timeseries) | *required*
 `axis` | <code>[int](#int) \| [str](#str)</code> | Axis to iterate over: - 0 or 'images': Apply fn to each image independently - 1 or 'time': Apply fn to each timepoint across images - 2 or 'voxels': Apply fn to each voxel timeseries per image | <code>0</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. -1 for all cores. Default 1. | <code>1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show tqdm progress bar. Default True. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show tqdm progress bar. Default True. | <code>False</code>
 
 **Returns:**
 
@@ -248,7 +248,7 @@ Type | Description
 #### `smooth`
 
 ```python
-smooth(bc: 'BrainCollection', fwhm: float, n_jobs: int = 1, show_progress: bool = True) -> 'BrainCollection'
+smooth(bc: 'BrainCollection', fwhm: float, n_jobs: int = 1, progress_bar: bool = False) -> 'BrainCollection'
 ```
 
 Spatially smooth each image.
@@ -262,7 +262,7 @@ Name | Type | Description | Default
 `bc` | <code>'BrainCollection'</code> | BrainCollection to smooth. | *required*
 `fwhm` | <code>[float](#float)</code> | Full width at half maximum of Gaussian kernel in mm. | *required*
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar. | <code>False</code>
 
 **Returns:**
 
@@ -279,7 +279,7 @@ Type | Description
 #### `standardize`
 
 ```python
-standardize(bc: 'BrainCollection', axis: int = 0, method: str = 'center', n_jobs: int = 1, show_progress: bool = True, verbose: bool = True) -> 'BrainCollection'
+standardize(bc: 'BrainCollection', axis: int = 0, method: str = 'center', verbose: bool = True, n_jobs: int = 1, progress_bar: bool = False) -> 'BrainCollection'
 ```
 
 Standardize each image.
@@ -293,9 +293,9 @@ Name | Type | Description | Default
 `bc` | <code>'BrainCollection'</code> | BrainCollection to standardize. | *required*
 `axis` | <code>[int](#int)</code> | Axis for standardization within each image: - 0: Standardize across observations (time) per voxel - 1: Standardize across voxels per observation | <code>0</code>
 `method` | <code>[str](#str)</code> | 'center' (subtract mean) or 'zscore' (subtract mean, divide std) | <code>'center'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar. | <code>True</code>
 `verbose` | <code>[bool](#bool)</code> | If False, suppress sklearn numerical warnings. Default: True. | <code>True</code>
+`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>1</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar. | <code>False</code>
 
 **Returns:**
 
@@ -314,7 +314,7 @@ Type | Description
 #### `threshold`
 
 ```python
-threshold(bc: 'BrainCollection', upper: float | str | None = None, lower: float | str | None = None, binarize: bool = False, coerce_nan: bool = True, n_jobs: int = 1, show_progress: bool = True) -> 'BrainCollection'
+threshold(bc: 'BrainCollection', upper: float | str | None = None, lower: float | str | None = None, binarize: bool = False, coerce_nan: bool = True, n_jobs: int = 1, progress_bar: bool = False) -> 'BrainCollection'
 ```
 
 Threshold each image.
@@ -331,7 +331,7 @@ Name | Type | Description | Default
 `binarize` | <code>[bool](#bool)</code> | Return binary mask. | <code>False</code>
 `coerce_nan` | <code>[bool](#bool)</code> | Replace NaN with 0. | <code>True</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar. | <code>False</code>
 
 **Returns:**
 

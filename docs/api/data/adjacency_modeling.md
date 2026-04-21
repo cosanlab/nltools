@@ -10,7 +10,7 @@ Name | Description
 ---- | -----------
 [`bootstrap`](#bootstrap) | Bootstrap statistics using efficient online algorithms.
 [`convert_bootstrap_results_to_adjacency`](#convert_bootstrap_results_to_adjacency) | Convert bootstrap results dictionary to Adjacency format.
-[`generate_permutations`](#generate_permutations) | Generate n_perm permutated versions of Adjacency in a lazy fashion. Useful for iterating against.
+[`generate_permutations`](#generate_permutations) | Generate n_permute permutated versions of Adjacency in a lazy fashion. Useful for iterating against.
 [`regress`](#regress) | Run a regression on an adjacency instance.
 [`social_relations_model`](#social_relations_model) | Estimate the social relations model from a matrix for a round-robin design.
 
@@ -21,7 +21,7 @@ Name | Description
 #### `bootstrap`
 
 ```python
-bootstrap(adj, stat, n_samples = 5000, save_boots = False, n_jobs = -1, random_state = None, percentiles = (2.5, 97.5))
+bootstrap(adj, stat, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), n_jobs = -1, random_state = None)
 ```
 
 Bootstrap statistics using efficient online algorithms.
@@ -37,9 +37,9 @@ Name | Type | Description | Default
 `stat` |  | (str) Statistic to bootstrap. Options: - Simple stats: 'mean', 'median', 'std', 'sum', 'min', 'max' | *required*
 `n_samples` |  | (int) Number of bootstrap iterations. Default: 5000 | <code>5000</code>
 `save_boots` |  | (bool) If True, store all bootstrap samples (memory intensive).        Default: False | <code>False</code>
+`percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
 `n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
-`percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
 
 **Returns:**
 
@@ -84,17 +84,17 @@ Name | Type | Description
 #### `generate_permutations`
 
 ```python
-generate_permutations(adj, n_perm, random_state = None)
+generate_permutations(adj, n_permute, random_state = None)
 ```
 
-Generate n_perm permutated versions of Adjacency in a lazy fashion. Useful for iterating against.
+Generate n_permute permutated versions of Adjacency in a lazy fashion. Useful for iterating against.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `adj` |  | (Adjacency) Adjacency instance | *required*
-`n_perm` | <code>[int](#int)</code> | number of permutations | *required*
+`n_permute` | <code>[int](#int)</code> | number of permutations | *required*
 `random_state` | <code>[int](#int) or [RandomState](#numpy.random.RandomState)</code> | random seed for reproducibility. Defaults to None. | <code>None</code>
 
 **Examples:**
@@ -114,7 +114,7 @@ Name | Type | Description
 #### `regress`
 
 ```python
-regress(adj, X, mode = 'ols', **kwargs)
+regress(adj, X, method = 'ols')
 ```
 
 Run a regression on an adjacency instance.
@@ -127,7 +127,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `adj` |  | (Adjacency) Adjacency instance | *required*
 `X` |  | Design matrix can be an Adjacency or DesignMatrix instance | *required*
-`mode` |  | type of regression (default: ols) - only 'ols' is currently supported | <code>'ols'</code>
+`method` |  | type of regression (default: ols) - only 'ols' is currently supported | <code>'ols'</code>
 
 **Returns:**
 

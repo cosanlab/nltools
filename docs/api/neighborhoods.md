@@ -128,7 +128,7 @@ Type | Description
 ###### `iter_neighborhoods`
 
 ```python
-iter_neighborhoods(show_progress: bool = False) -> Iterator[tuple[int, np.ndarray]]
+iter_neighborhoods(progress_bar: bool = False) -> Iterator[tuple[int, np.ndarray]]
 ```
 
 Iterate over all neighborhoods.
@@ -143,7 +143,7 @@ Type | Description
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`show_progress` | <code>[bool](#bool)</code> | If True, wrap iterator with tqdm progress bar | <code>False</code>
+`progress_bar` | <code>[bool](#bool)</code> | If True, wrap iterator with tqdm progress bar | <code>False</code>
 
 
 

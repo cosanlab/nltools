@@ -9,7 +9,7 @@ prediction (encoding models) and MVPA decoding (pattern classification).
 
 Name | Description
 ---- | -----------
-[`mvpa_roi`](#mvpa_roi) | ROI-based MVPA - accuracy per ROI.
+[`mvpa_roi`](#mvpa_roi) | ROI-based MVPA - accuracy per ROI, projected to voxel space.
 [`mvpa_searchlight`](#mvpa_searchlight) | Searchlight MVPA - accuracy per voxel neighborhood.
 [`mvpa_whole_brain`](#mvpa_whole_brain) | Whole-brain MVPA - single accuracy across all voxels.
 [`mvpa_whole_brain_pipeline`](#mvpa_whole_brain_pipeline) | Whole-brain MVPA using Pipeline infrastructure.
@@ -25,36 +25,41 @@ Name | Description
 #### `mvpa_roi`
 
 ```python
-mvpa_roi(bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, show_progress)
+mvpa_roi(bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, progress_bar)
 ```
 
-ROI-based MVPA - accuracy per ROI.
+ROI-based MVPA - accuracy per ROI, projected to voxel space.
+
+For each non-zero label in ``roi_mask``, uses all voxels within that ROI
+as features for a cross-validated decoder. Returns a voxel-shaped array
+where each voxel carries the accuracy of its containing ROI (voxels
+outside any ROI are NaN).
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
-`X` |  | Feature matrix, shape (n_samples, n_voxels). | *required*
+`X` |  | Feature matrix, shape (n_samples, n_voxels) — aligned to ``bd.mask``. | *required*
 `y` |  | Labels, shape (n_samples,). | *required*
 `pipe` |  | sklearn pipeline or estimator. | *required*
 `cv` |  | Cross-validation splitter. | *required*
 `groups` |  | Group labels for CV. | *required*
 `scoring` |  | Scoring metric string. | *required*
-`roi_mask` |  | Atlas/parcellation image or path. | *required*
+`roi_mask` |  | Atlas/parcellation image or path. Resampled to ``bd.mask`` space with nearest-neighbor interpolation if needed. | *required*
 `n_jobs` |  | Number of parallel jobs. | *required*
-`show_progress` |  | Whether to show progress bar. | *required*
+`progress_bar` |  | Whether to show progress bar. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | np.ndarray of accuracy values per ROI.
+ | np.ndarray of shape (n_voxels,) with per-voxel ROI accuracy.
 
 #### `mvpa_searchlight`
 
 ```python
-mvpa_searchlight(bd, X, y, pipe, cv, groups, scoring, radius, n_jobs, show_progress)
+mvpa_searchlight(bd, X, y, pipe, cv, groups, scoring, radius_mm, n_jobs, progress_bar)
 ```
 
 Searchlight MVPA - accuracy per voxel neighborhood.
@@ -70,9 +75,9 @@ Name | Type | Description | Default
 `cv` |  | Cross-validation splitter. | *required*
 `groups` |  | Group labels for CV. | *required*
 `scoring` |  | Scoring metric string. | *required*
-`radius` |  | Searchlight radius in mm. | *required*
+`radius_mm` |  | searchlight radius in mm. | *required*
 `n_jobs` |  | Number of parallel jobs. | *required*
-`show_progress` |  | Whether to show progress bar. | *required*
+`progress_bar` |  | Whether to show progress bar. | *required*
 
 **Returns:**
 
@@ -140,7 +145,7 @@ Type | Description
 #### `predict`
 
 ```python
-predict(bd, X = None, y = None, method = 'whole_brain', estimator = 'svm', cv = 5, groups = None, roi_mask = None, radius = 10.0, scoring = 'accuracy', standardize = True, n_jobs = -1, show_progress = True)
+predict(bd, X = None, y = None, method = 'whole_brain', estimator = 'svm', cv = 5, groups = None, roi_mask = None, radius_mm = 10.0, scoring = 'accuracy', standardize = True, n_jobs = -1, progress_bar = False)
 ```
 
 Generate predictions using fitted model OR classify patterns (MVPA).
@@ -167,11 +172,11 @@ Name | Type | Description | Default
 `cv` | <code>int or sklearn CV splitter</code> | Cross-validation specification. Int for k-fold or sklearn CV object. | <code>5</code>
 `groups` | <code>[array](#array) - [like](#like)</code> | Group labels for CV (e.g., run IDs for leave-one-run-out). | <code>None</code>
 `roi_mask` | <code>[Nifti1Image](#Nifti1Image) or [str](#str)</code> | Atlas/parcellation for ROI-based decoding. | <code>None</code>
-`radius` | <code>[float](#float)</code> | Searchlight radius in mm. Default: 10.0. | <code>10.0</code>
+`radius_mm` | <code>[float](#float)</code> | searchlight radius in mm. Default: 10.0. | <code>10.0</code>
 `scoring` | <code>[str](#str)</code> | Metric for evaluation ('accuracy', 'balanced_accuracy', 'roc_auc'). | <code>'accuracy'</code>
 `standardize` | <code>[bool](#bool)</code> | Z-score features before classification. Default: True. | <code>True</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs for searchlight (-1 = all cores). | <code>-1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar for searchlight. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar for searchlight. | <code>False</code>
 
 **Returns:**
 
@@ -197,7 +202,7 @@ Name | Type | Description
 #### `predict_mvpa`
 
 ```python
-predict_mvpa(bd, y, method = 'whole_brain', estimator = 'svm', cv = 5, groups = None, roi_mask = None, radius = 10.0, scoring = 'accuracy', standardize = True, n_jobs = -1, show_progress = True)
+predict_mvpa(bd, y, method = 'whole_brain', estimator = 'svm', cv = 5, groups = None, roi_mask = None, radius_mm = 10.0, scoring = 'accuracy', standardize = True, n_jobs = -1, progress_bar = False)
 ```
 
 Perform MVPA decoding using cross-validation.
@@ -215,11 +220,11 @@ Name | Type | Description | Default
 `cv` | <code>int or sklearn CV splitter</code> | Cross-validation specification. | <code>5</code>
 `groups` | <code>[array](#array) - [like](#like)</code> | Group labels for CV. | <code>None</code>
 `roi_mask` | <code>[Nifti1Image](#Nifti1Image) or [str](#str)</code> | Atlas for ROI-based decoding. | <code>None</code>
-`radius` | <code>[float](#float)</code> | Searchlight radius in mm. | <code>10.0</code>
+`radius_mm` | <code>[float](#float)</code> | searchlight radius in mm. | <code>10.0</code>
 `scoring` | <code>[str](#str)</code> | Scoring metric. | <code>'accuracy'</code>
 `standardize` | <code>[bool](#bool)</code> | Whether to z-score features. | <code>True</code>
 `n_jobs` | <code>[int](#int)</code> | Parallel jobs for searchlight. | <code>-1</code>
-`show_progress` | <code>[bool](#bool)</code> | Show progress bar. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar. | <code>False</code>
 
 **Returns:**
 
