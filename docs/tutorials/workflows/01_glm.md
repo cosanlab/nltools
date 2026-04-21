@@ -38,15 +38,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from nltools.data import BrainData, DesignMatrix
-from nltools.datasets import fetch_haxby
+from nltools.datasets import load_haxby_example
 ```
 
 ## Step 1: Load Data
 
-We'll use the Haxby visual object recognition dataset. `fetch_haxby` returns paired `BrainData` and `DesignMatrix` objects --- one per run --- with the design matrices already HRF-convolved.
+We'll use a small synthetic dataset modeled on the Haxby visual object recognition experiment. `load_haxby_example` returns paired `BrainData` and `DesignMatrix` objects --- one per run --- with the design matrices already HRF-convolved. The real dataset is available via `nltools.datasets.fetch_haxby`; the example version is designed to run quickly and work offline, so it's ideal for demos.
 
 ```{code-cell} python3
-brain_data, design_matrices = fetch_haxby(n_subjects=1, verbose=0)
+brain_data, design_matrices = load_haxby_example()
 
 # Grab the first run
 data = brain_data[0]
@@ -192,7 +192,7 @@ Here's the complete workflow in a compact form:
 
 ```{code-cell} python3
 # 1. Load data
-brain_data, design_matrices = fetch_haxby(n_subjects=1, verbose=0)
+brain_data, design_matrices = load_haxby_example()
 data, dm = brain_data[0], design_matrices[0]
 
 # 2. Add nuisance regressors
@@ -207,7 +207,7 @@ face_vs_house = data.compute_contrasts("face - house")
 
 | Step | What it does | Key method |
 |------|-------------|------------|
-| Load data | Get paired BrainData + DesignMatrix | `fetch_haxby()` |
+| Load data | Get paired BrainData + DesignMatrix | `load_haxby_example()` (or `fetch_haxby()` for real data) |
 | Nuisance regressors | Model scanner drift and noise | `dm.add_dct_basis().add_poly()` |
 | Fit model | Estimate betas at every voxel | `data.fit(model="glm", X=dm)` |
 | Contrasts | Test differences between conditions | `data.compute_contrasts("A - B")` |
