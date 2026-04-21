@@ -1533,6 +1533,7 @@ wheels = [
 
 [[package]]
 name = "nltools"
+version = "0.5.1"
 source = { editable = "." }
 dependencies = [
     { name = "nilearn" },
@@ -1580,8 +1581,8 @@ requires-dist = [
     { name = "hdf5plugin", marker = "extra == 'h5'", specifier = ">=6.0.0" },
     { name = "networkx", marker = "extra == 'graph'", specifier = ">=3.5" },
     { name = "nilearn", specifier = ">=0.12" },
-    { name = "nltools", extras = ["graph", "h5"], marker = "extra == 'all'" },
-    { name = "polars", specifier = ">=1.35" },
+    { name = "nltools", extras = ["h5", "graph"], marker = "extra == 'all'" },
+    { name = "polars", specifier = ">=1.18" },
     { name = "pynv", specifier = ">=0.3" },
     { name = "seaborn", specifier = ">=0.13.2" },
 ]
