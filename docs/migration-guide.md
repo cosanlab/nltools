@@ -1325,6 +1325,27 @@ t_stat, p_val = contrast.ttest()
 | `BrainCollection.from_bids(layout, mask)` | From pybids BIDSLayout |
 | `BrainCollection.from_stacked(brain_data, axis)` | Split stacked BrainData |
 
+### Niimg-like inputs in analysis functions
+
+**Status**: ✅ NEW (v0.6.0) — additive, no migration required
+
+Analysis entry points that take a "brain-like" argument — `similarity`, `multivariate_similarity`, `apply_mask`, `extract_roi`, `forecast` — now accept anything `BrainData(...)` accepts. This matches nilearn's Niimg-like convention at the API boundary.
+
+Accepted inputs: `BrainData`, `nib.Nifti1Image`, file path (`str` / `Path`), list of paths, URL, `.h5`.
+
+```python
+# Previously: only BrainData or Nifti1Image worked
+sim = brain_data.similarity(other_brain_data)
+sim = brain_data.similarity(nib.load("image.nii.gz"))
+
+# Now: file paths, Path objects, and lists also work
+sim = brain_data.similarity("image.nii.gz")
+sim = brain_data.similarity(Path("image.nii.gz"))
+roi = brain_data.extract_roi(mask="atlas.nii.gz")
+```
+
+Unsupported types now raise `TypeError` (with a clearer message) instead of the previous generic `ValueError("Make sure data is a BrainData instance.")`.
+
 ---
 
 ## Compatibility & Warnings

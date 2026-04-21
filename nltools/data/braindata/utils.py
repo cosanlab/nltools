@@ -6,23 +6,25 @@ public API.
 
 from copy import deepcopy
 
-import nibabel as nib
 import numpy as np
 
 
 def check_brain_data(data, mask=None):
-    """Check if data is a BrainData Instance, coercing Nifti1Image if needed."""
+    """Return *data* as a BrainData, coercing Niimg-like inputs if needed.
+
+    If *data* is already a BrainData, the optional *mask* is applied via
+    :meth:`BrainData.apply_mask`.  Otherwise *data* is passed through
+    :class:`BrainData`, which dispatches on type (file path, list of paths,
+    URL, h5, ``nib.Nifti1Image``).  Unsupported types raise ``TypeError`` from
+    :func:`validate_data_type`.
+    """
     from . import BrainData
 
-    if not isinstance(data, BrainData):
-        if isinstance(data, nib.Nifti1Image):
-            data = BrainData(data, mask=mask)
-        else:
-            raise ValueError("Make sure data is a BrainData instance.")
-    else:
+    if isinstance(data, BrainData):
         if mask is not None:
             data = data.apply_mask(mask)
-    return data
+        return data
+    return BrainData(data, mask=mask)
 
 
 def check_brain_data_is_single(data):
