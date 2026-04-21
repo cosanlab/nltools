@@ -162,6 +162,10 @@ cmd = "pytest nltools/tests/plotting -n auto -x"
 help = "Test support utilities"
 cmd = "pytest nltools/tests/support -n auto -x"
 
+[tool.poe.tasks.test-pyodide]
+help = "Build wheel and run Pyodide/WASM smoke tests (requires node)"
+shell = "uv build --wheel && cd nltools/tests/pyodide && npm install --silent && node test_runner.mjs"
+
 [tool.poe.tasks.docs-clean]
 help = "Clean out built docs for debugging"
 shell = """rm -r docs/_build"""

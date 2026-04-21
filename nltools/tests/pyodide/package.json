@@ -1,0 +1,13 @@
+{
+  "name": "nltools-pyodide-tests",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Pyodide smoke tests for nltools",
+  "scripts": {
+    "test": "node test_runner.mjs"
+  },
+  "dependencies": {
+    "pyodide": "^0.27.0"
+  }
+}
