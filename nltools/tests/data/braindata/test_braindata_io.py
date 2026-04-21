@@ -222,6 +222,31 @@ class TestBrainDataIO:
             brain_resampled.shape[0] == brain_source.shape[0]
         )  # Same number of images
 
+    def test_resample_to_does_not_mutate_caller_headers(self):
+        """resample_to must not touch bd.mask or a caller-supplied target img."""
+        # Build a source with sform_code=0 on its mask
+        mask_3mm = nib.Nifti1Image(
+            np.ones((60, 72, 60), dtype=np.float32), affine=np.eye(4) * 3
+        )
+        mask_3mm.header.set_sform(mask_3mm.affine, code=0)
+        source_data = nib.Nifti1Image(
+            np.random.randn(60, 72, 60, 4), affine=np.eye(4) * 3
+        )
+        brain = BrainData(source_data, mask=mask_3mm, resample=False)
+        assert brain.mask.header.get_sform(coded=True)[1] == 0
+
+        # Resample by resolution — must not mutate brain.mask
+        brain.resample_to(resolution=4.0)
+        assert brain.mask.header.get_sform(coded=True)[1] == 0
+
+        # Resample by target img — must not mutate the caller's target
+        target = nib.Nifti1Image(
+            np.ones((45, 54, 45), dtype=np.float32), affine=np.eye(4) * 4
+        )
+        target.header.set_sform(target.affine, code=0)
+        brain.resample_to(img=target)
+        assert target.header.get_sform(coded=True)[1] == 0
+
     def test_resample_to_same_space_identity(self):
         """Test resampling to same space produces similar results."""
 

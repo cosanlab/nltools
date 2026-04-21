@@ -83,6 +83,17 @@ class TestBrainDataAnalysis:
             n_images,
         )
 
+        # PCA on labeled atlas: n_components > 1 → list of per-ROI arrays
+        pca_multi = sim_brain_data.extract_roi(mask, metric="pca", n_components=2)
+        assert isinstance(pca_multi, list)
+        assert len(pca_multi) == len(masks)
+        assert all(comp.shape == (2, n_images) for comp in pca_multi)
+
+        # n_components == 1 → stacked ndarray
+        pca_single = sim_brain_data.extract_roi(mask, metric="pca", n_components=1)
+        assert isinstance(pca_single, np.ndarray)
+        assert pca_single.shape == (len(masks), 1, n_images)
+
     # ==================== Transform Methods ====================
 
     def test_r_to_z(self, minimal_brain_data):

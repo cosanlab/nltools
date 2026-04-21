@@ -551,6 +551,23 @@ def to_nifti(bd):
     return unmask(bd.data, bd.mask)
 
 
+def _ensure_sform(img):
+    """Return a Nifti1Image with sform_code set, copying first if needed.
+
+    nilearn emits a warning during resampling when sform_code==0. We set
+    code=2 (NIFTI_XFORM_ALIGNED_ANAT) — the same value nilearn assigns to
+    resampled outputs. The copy avoids mutating caller-owned objects
+    (e.g. ``bd.mask`` or an image passed in by the user).
+    """
+    import nibabel as nib
+
+    if img.header.get_sform(coded=True)[1] != 0:
+        return img
+    out = nib.Nifti1Image(img.dataobj, img.affine, img.header.copy())
+    out.header.set_sform(img.affine, code=2)
+    return out
+
+
 def resample_to(bd, img=None, resolution=None, interpolation=None):
     """Resample BrainData to match target image or resolution.
 
@@ -602,15 +619,7 @@ def resample_to(bd, img=None, resolution=None, interpolation=None):
     if interpolation is None:
         interpolation = get_interpolation(bd, source_nifti)
 
-    # Ensure source image has proper sform/qform in header (fixes nilearn warning)
-    # If sform is not set (code=0), set it from affine to ensure correct resampling
-    # Note: We use code=2 (NIFTI_XFORM_ALIGNED_ANAT) because:
-    # 1. We're resampling/aligning to another image or resolution
-    # 2. Nilearn always sets sform_code=2 during resampling anyway
-    # 3. This matches NIfTI best practices for aligned anatomical images
-    sform_code = source_nifti.header.get_sform(coded=True)[1]
-    if sform_code == 0:
-        source_nifti.header.set_sform(source_nifti.affine, code=2)
+    source_nifti = _ensure_sform(source_nifti)
 
     if img is not None:
         # Resample to target image
@@ -635,12 +644,8 @@ def resample_to(bd, img=None, resolution=None, interpolation=None):
         else:
             target_img = img
 
-        # Ensure target image has proper sform if it's a nibabel object
-        # Use code=2 (NIFTI_XFORM_ALIGNED_ANAT) as per nilearn's behavior
         if isinstance(target_img, nib.Nifti1Image):
-            target_sform_code = target_img.header.get_sform(coded=True)[1]
-            if target_sform_code == 0:
-                target_img.header.set_sform(target_img.affine, code=2)
+            target_img = _ensure_sform(target_img)
 
         # Lazy import to avoid circular dependency
         from nltools.data.braindata import BrainData
@@ -665,14 +670,10 @@ def resample_to(bd, img=None, resolution=None, interpolation=None):
             interpolation=interpolation,
         )
 
-        # Resample mask with nearest interpolation (preserves binary nature)
-        # Ensure mask has proper sform before resampling (code=2 matches nilearn)
-        mask_sform_code = bd.mask.header.get_sform(coded=True)[1]
-        if mask_sform_code == 0:
-            bd.mask.header.set_sform(bd.mask.affine, code=2)
-
+        # Resample mask with nearest interpolation (preserves binary nature).
+        # Copy-on-write via _ensure_sform avoids mutating bd.mask's header.
         resampled_mask = resample_img(
-            bd.mask,
+            _ensure_sform(bd.mask),
             target_affine=target_affine,
             interpolation="nearest",
         )

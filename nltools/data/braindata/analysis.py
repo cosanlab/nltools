@@ -293,43 +293,29 @@ def extract_roi(bd, mask, metric="mean", n_components=None):
                 out = out.T
 
         elif metric == "pca":
-            # For PCA, we need to extract raw data and then apply PCA
-            from .utils import check_brain_data_is_single
-
+            # Extract voxels from the whole atlas once, then slice by label in
+            # numpy. This avoids rebuilding the nifti and re-resampling per ROI.
             if check_brain_data_is_single(bd):
                 raise ValueError("Cannot run PCA on a single image")
 
-            # Use mean strategy to get the regions, then extract raw data
-            labels_masker = NiftiLabelsMasker(
-                labels_img=mask_img,
-                strategy="mean",  # Just to get regions
-                mask_img=bd.mask,
-                standardize=False,
-                resampling_target="data" if hasattr(bd, "mask") else None,
-            )
+            atlas_mask = mask_brain.copy()
+            atlas_mask.data = (mask_brain.data > 0).astype(float)
+            all_masked = apply_mask(bd, atlas_mask)
 
-            # Fit to get regions
-            labels_masker.fit(bd.to_nifti())
+            # apply_mask preserves voxel ordering relative to the mask, so the
+            # label vector lines up with the columns of all_masked.data.
+            labels_flat = mask_brain.data[mask_brain.data > 0]
+            unique_labels = np.unique(labels_flat)
 
-            # Extract data for each region and apply PCA
             out = []
-            unique_labels = np.unique(mask_brain.data[mask_brain.data != 0])
-
             for label in unique_labels:
-                # Create binary mask for this label
-                label_mask = mask_brain.copy()
-                label_mask.data = (mask_brain.data == label).astype(float)
-
-                # Extract data for this ROI
-                masked = apply_mask(bd, label_mask)
-
-                # Apply PCA
+                roi = shallow_copy(all_masked)
+                roi.data = all_masked.data[:, labels_flat == label]
                 output = decompose(
-                    masked, method="pca", n_components=n_components, axis="images"
+                    roi, method="pca", n_components=n_components, axis="images"
                 )
                 out.append(output["weights"].T)
 
-            # Stack results
             if len(out) > 0:
                 out = np.array(out) if n_components == 1 else out
 
