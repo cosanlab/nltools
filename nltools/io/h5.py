@@ -8,12 +8,29 @@ __all__ = ["is_h5_path", "to_h5", "load_brain_data_h5"]
 
 import warnings
 
-import h5py
-import hdf5plugin  # noqa: F401  -- registers blosc/zstd/lz4 filters with h5py
 import nibabel as nib
 import numpy as np
 import polars as pl
-from h5py import File as h5File
+
+try:
+    import h5py
+    import hdf5plugin  # noqa: F401  -- registers blosc/zstd/lz4 filters with h5py
+    from h5py import File as h5File
+except ImportError as _h5_import_error:
+    h5py = None  # type: ignore[assignment]
+    h5File = None  # type: ignore[assignment]
+    _H5_IMPORT_ERROR: ImportError | None = _h5_import_error
+else:
+    _H5_IMPORT_ERROR = None
+
+
+def _require_h5():
+    """Raise a friendly error if h5py/hdf5plugin aren't installed."""
+    if _H5_IMPORT_ERROR is not None:
+        raise ImportError(
+            "HDF5 I/O requires h5py and hdf5plugin. "
+            "Install with: pip install 'nltools[h5]'"
+        ) from _H5_IMPORT_ERROR
 
 
 def is_h5_path(file_name) -> bool:
@@ -82,6 +99,7 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
         obj_type: Type of object ('brain_data' or 'adjacency').
         h5_compression: Compression type for h5py datasets.
     """
+    _require_h5()
     if obj_type not in ["brain_data", "adjacency"]:
         raise TypeError("obj_type must be one of 'brain_data' or 'adjacency'")
 
@@ -128,6 +146,7 @@ def load_brain_data_h5(file_path, mask=None):
     Returns:
         dict: Dictionary containing loaded data, X, Y, and optionally mask info.
     """
+    _require_h5()
     with h5File(file_path, "r") as f:
         if _is_legacy_brain_data_layout(f):
             return _load_legacy_brain_data_h5(f, mask)
@@ -251,6 +270,7 @@ def load_legacy_adjacency_h5(file_path, mask=None, matrix_type=None):
             If None and the file is missing the field, defaults to
             ``"distance_flat"`` and emits a UserWarning.
     """
+    _require_h5()
     with h5File(file_path, "r") as f:
         result = {
             "data": np.asarray(f["data"]),
@@ -302,5 +322,6 @@ def is_legacy_adjacency_h5(file_path) -> bool:
     Modern files have Y as a Group containing ``columns``/``values`` children.
     Legacy files have Y as a flat Dataset with a sibling ``Y_columns`` node.
     """
+    _require_h5()
     with h5File(file_path, "r") as f:
         return "Y_columns" in f

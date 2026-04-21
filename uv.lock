@@ -1535,17 +1535,31 @@ wheels = [
 name = "nltools"
 source = { editable = "." }
 dependencies = [
-    { name = "h5py" },
-    { name = "hdf5plugin" },
     { name = "nilearn" },
     { name = "polars" },
     { name = "pynv" },
     { name = "seaborn" },
 ]
 
+[package.optional-dependencies]
+all = [
+    { name = "h5py" },
+    { name = "hdf5plugin" },
+    { name = "networkx" },
+]
+graph = [
+    { name = "networkx" },
+]
+h5 = [
+    { name = "h5py" },
+    { name = "hdf5plugin" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "griffe2md" },
+    { name = "h5py" },
+    { name = "hdf5plugin" },
     { name = "ipywidgets" },
     { name = "jupyter-book" },
     { name = "jupytext" },
@@ -1562,17 +1576,22 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "h5py", specifier = ">=3.15" },
-    { name = "hdf5plugin", specifier = ">=6.0.0" },
+    { name = "h5py", marker = "extra == 'h5'", specifier = ">=3.15" },
+    { name = "hdf5plugin", marker = "extra == 'h5'", specifier = ">=6.0.0" },
+    { name = "networkx", marker = "extra == 'graph'", specifier = ">=3.5" },
     { name = "nilearn", specifier = ">=0.12" },
+    { name = "nltools", extras = ["graph", "h5"], marker = "extra == 'all'" },
     { name = "polars", specifier = ">=1.35" },
     { name = "pynv", specifier = ">=0.3" },
     { name = "seaborn", specifier = ">=0.13.2" },
 ]
+provides-extras = ["h5", "graph", "all"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "griffe2md", specifier = ">=1.3.0" },
+    { name = "h5py", specifier = ">=3.15" },
+    { name = "hdf5plugin", specifier = ">=6.0.0" },
     { name = "ipywidgets", specifier = ">=8.1.7" },
     { name = "jupyter-book", specifier = ">=2.1.4" },
     { name = "jupytext", specifier = ">=1.18.1" },

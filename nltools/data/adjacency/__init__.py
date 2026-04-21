@@ -5,10 +5,8 @@ This data class is for working with similarity/dissimilarity matrices
 from copy import deepcopy
 from pathlib import Path
 
-import h5py
 import numpy as np
 import polars as pl
-from h5py import File as h5File
 from scipy.spatial.distance import squareform
 from sklearn.metrics.pairwise import pairwise_distances
 
@@ -114,9 +112,14 @@ class Adjacency(object):
             if is_h5_path(to_load):
                 from nltools.io.h5 import (
                     _read_polars_frame,
+                    _require_h5,
                     is_legacy_adjacency_h5,
                     load_legacy_adjacency_h5,
                 )
+
+                _require_h5()
+                import h5py
+                from h5py import File as h5File
 
                 if is_legacy_adjacency_h5(to_load):
                     legacy = load_legacy_adjacency_h5(to_load, matrix_type=matrix_type)
