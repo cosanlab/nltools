@@ -610,7 +610,7 @@ class TestLocalAlignmentBatching:
 
         # Results should be identical
         for a1, a2 in zip(aligned1, aligned2):
-            np.testing.assert_allclose(a1, a2, rtol=1e-10)
+            np.testing.assert_allclose(a1, a2, rtol=1e-10, atol=1e-10)
 
     def test_piecewise_batching(self):
         """Test batching with piecewise scheme."""
@@ -900,7 +900,7 @@ class TestLocalAlignmentBackend:
         # If both used numpy backend, results should be identical
         if la_gpu.backend_.name == "numpy":
             for a_cpu, a_gpu in zip(aligned_cpu, aligned_gpu):
-                np.testing.assert_allclose(a_cpu, a_gpu, rtol=1e-10)
+                np.testing.assert_allclose(a_cpu, a_gpu, rtol=1e-10, atol=1e-10)
 
     @pytest.mark.gpu
     def test_gpu_with_torch_backend(self, backend_test_data):

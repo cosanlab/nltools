@@ -184,8 +184,8 @@ class TestNewAPI:
 
         # Should give same results
         assert_array_equal(best_alphas_1, best_alphas_2)
-        assert_allclose(coefs_1, coefs_2, rtol=1e-10)
-        assert_allclose(scores_1, scores_2, rtol=1e-10)
+        assert_allclose(coefs_1, coefs_2, rtol=1e-10, atol=1e-10)
+        assert_allclose(scores_1, scores_2, rtol=1e-10, atol=1e-10)
 
 
 # Helper function

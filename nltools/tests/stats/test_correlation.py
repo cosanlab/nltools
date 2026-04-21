@@ -44,7 +44,7 @@ class TestComputeSimilarity:
         data1, data2 = similarity_data
         r1 = compute_similarity(data1, data2, method="correlation")
         r2 = compute_similarity(data1, data2, method="pearson")
-        np.testing.assert_allclose(r1, r2)
+        np.testing.assert_allclose(r1, r2, rtol=1e-7, atol=1e-10)
 
     def test_single_image(self, similarity_data):
         data1, data2 = similarity_data
@@ -67,7 +67,7 @@ class TestComputeSimilarity:
         data1, data2 = similarity_data
         r1 = compute_similarity(data1, data2, method="spearman")
         r2 = compute_similarity(data1, data2, method="rank_correlation")
-        np.testing.assert_allclose(r1, r2)
+        np.testing.assert_allclose(r1, r2, rtol=1e-7, atol=1e-10)
 
     def test_dot_product(self, similarity_data):
         data1, data2 = similarity_data

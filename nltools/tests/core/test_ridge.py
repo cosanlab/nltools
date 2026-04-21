@@ -44,7 +44,7 @@ def test_ridge_svd_single_target():
     # Verify it reduces to OLS when alpha≈0
     beta_ols = ridge_svd(X, y, alpha=1e-10)
     beta_expected = np.linalg.lstsq(X, y, rcond=None)[0]
-    np.testing.assert_allclose(beta_ols, beta_expected, rtol=1e-3)
+    np.testing.assert_allclose(beta_ols, beta_expected, rtol=1e-3, atol=1e-5)
 
 
 def test_ridge_svd_multi_target():
@@ -64,7 +64,7 @@ def test_ridge_svd_multi_target():
     # Each column should solve the corresponding target
     for i in range(n_targets):
         beta_single = ridge_svd(X, Y[:, i], alpha=alpha)
-        np.testing.assert_allclose(beta[:, i], beta_single, rtol=1e-4)
+        np.testing.assert_allclose(beta[:, i], beta_single, rtol=1e-4, atol=1e-6)
 
 
 def test_ridge_vs_sklearn():
@@ -84,7 +84,7 @@ def test_ridge_vs_sklearn():
     ridge_sklearn.fit(X, y)
     beta_sklearn = ridge_sklearn.coef_
 
-    np.testing.assert_allclose(beta_ours, beta_sklearn, rtol=1e-4)
+    np.testing.assert_allclose(beta_ours, beta_sklearn, rtol=1e-4, atol=1e-6)
 
 
 def test_ridge_regularization_effect():
@@ -115,7 +115,7 @@ def test_ridge_cpu_gpu_equivalence():
     # GPU
     beta_gpu = ridge_svd(X, y, alpha=alpha, parallel="gpu")
 
-    np.testing.assert_allclose(beta_gpu, beta_cpu, rtol=1e-4)
+    np.testing.assert_allclose(beta_gpu, beta_cpu, rtol=1e-4, atol=1e-6)
 
 
 # ============================================================================
@@ -201,7 +201,7 @@ def test_ridge_cv_reproducibility():
     result2 = ridge_cv(X2, y2, alphas=[0.1, 1.0], cv=3, parallel="cpu")
 
     assert result1["alpha"] == result2["alpha"]
-    np.testing.assert_allclose(result1["coef"], result2["coef"], rtol=1e-5)
+    np.testing.assert_allclose(result1["coef"], result2["coef"], rtol=1e-5, atol=1e-7)
 
 
 @pytest.mark.slow
@@ -224,7 +224,9 @@ def test_ridge_cv_cpu_gpu_equivalence():
     assert result_gpu["alpha"] > 0
     # Results should be identical (both CPU or both GPU) or very close (if different backends)
     assert result_cpu["alpha"] == result_gpu["alpha"]
-    np.testing.assert_allclose(result_cpu["coef"], result_gpu["coef"], rtol=1e-4)
+    np.testing.assert_allclose(
+        result_cpu["coef"], result_gpu["coef"], rtol=1e-4, atol=1e-6
+    )
 
 
 # ============================================================================

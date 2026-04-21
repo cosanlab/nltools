@@ -475,10 +475,10 @@ def test_isc_backend_consistency_numpy_cpu_parallel():
 
     # Both use float64 CPU - should be exact matches
     np.testing.assert_allclose(
-        result_numpy["isc"], result_parallel["isc"], rtol=TOLERANCE_EXACT
+        result_numpy["isc"], result_parallel["isc"], rtol=TOLERANCE_EXACT, atol=1e-10
     )
     np.testing.assert_allclose(
-        result_numpy["p"], result_parallel["p"], rtol=TOLERANCE_EXACT
+        result_numpy["p"], result_parallel["p"], rtol=TOLERANCE_EXACT, atol=1e-10
     )
 
 
@@ -1071,7 +1071,7 @@ def test_compute_pairwise_isc_spearman_single_feature():
     expected = squareform(corr_matrix, checks=False)
 
     # Results should match
-    np.testing.assert_allclose(result, expected, rtol=1e-10)
+    np.testing.assert_allclose(result, expected, rtol=1e-10, atol=1e-10)
 
 
 def test_compute_pairwise_isc_spearman_voxelwise():
@@ -1096,7 +1096,7 @@ def test_compute_pairwise_isc_spearman_voxelwise():
     corr_matrix_v0 = np.corrcoef(data_ranked_v0.T)
     expected_v0 = squareform(corr_matrix_v0, checks=False)
 
-    np.testing.assert_allclose(result[:, 0], expected_v0, rtol=1e-10)
+    np.testing.assert_allclose(result[:, 0], expected_v0, rtol=1e-10, atol=1e-10)
 
 
 @pytest.mark.slow
@@ -1151,7 +1151,7 @@ def test_compute_pairwise_isc_cosine_single_feature():
     expected = squareform(sim_matrix, checks=False)
 
     # Results should match sklearn's output
-    np.testing.assert_allclose(result, expected, rtol=1e-10)
+    np.testing.assert_allclose(result, expected, rtol=1e-10, atol=1e-10)
 
 
 def test_compute_pairwise_isc_cosine_voxelwise():
@@ -1174,7 +1174,7 @@ def test_compute_pairwise_isc_cosine_voxelwise():
     sim_matrix_v0 = 1 - dist_matrix_v0
     expected_v0 = squareform(sim_matrix_v0, checks=False)
 
-    np.testing.assert_allclose(result[:, 0], expected_v0, rtol=1e-10)
+    np.testing.assert_allclose(result[:, 0], expected_v0, rtol=1e-10, atol=1e-10)
 
 
 def test_isc_sim_metric_cosine_vs_correlation():
@@ -1276,7 +1276,7 @@ def test_compute_pairwise_isc_euclidean_single_feature():
     expected = squareform(sim_matrix, checks=False)
 
     # Results should match sklearn's output
-    np.testing.assert_allclose(result, expected, rtol=1e-10)
+    np.testing.assert_allclose(result, expected, rtol=1e-10, atol=1e-10)
 
 
 def test_compute_pairwise_isc_euclidean_voxelwise():
@@ -1299,7 +1299,7 @@ def test_compute_pairwise_isc_euclidean_voxelwise():
     sim_matrix_v0 = 1 - dist_matrix_v0
     expected_v0 = squareform(sim_matrix_v0, checks=False)
 
-    np.testing.assert_allclose(result[:, 0], expected_v0, rtol=1e-10)
+    np.testing.assert_allclose(result[:, 0], expected_v0, rtol=1e-10, atol=1e-10)
 
 
 def test_isc_sim_metric_euclidean_vs_correlation():

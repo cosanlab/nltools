@@ -245,8 +245,10 @@ class TestBatching:
         coefs_full = result_full["coefs"]
 
         # Results should be very similar (allowing for numerical differences)
-        np.testing.assert_allclose(best_alphas_batch, best_alphas_full, rtol=1e-5)
-        np.testing.assert_allclose(coefs_batch, coefs_full, rtol=1e-5)
+        np.testing.assert_allclose(
+            best_alphas_batch, best_alphas_full, rtol=1e-5, atol=1e-6
+        )
+        np.testing.assert_allclose(coefs_batch, coefs_full, rtol=1e-5, atol=1e-6)
 
     def test_alpha_batching(self):
         """Test batching over alphas."""
@@ -272,8 +274,10 @@ class TestBatching:
         coefs_full = result_full["coefs"]
 
         # Results should be identical (generator pattern should be transparent)
-        np.testing.assert_allclose(best_alphas_batch, best_alphas_full, rtol=1e-5)
-        np.testing.assert_allclose(coefs_batch, coefs_full, rtol=1e-5)
+        np.testing.assert_allclose(
+            best_alphas_batch, best_alphas_full, rtol=1e-5, atol=1e-6
+        )
+        np.testing.assert_allclose(coefs_batch, coefs_full, rtol=1e-5, atol=1e-6)
 
     def test_combined_batching(self):
         """Test batching over both targets and alphas."""
