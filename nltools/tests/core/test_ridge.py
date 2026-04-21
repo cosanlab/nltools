@@ -385,23 +385,3 @@ def test_ridge_converges_to_ols_when_alpha_near_zero():
 
     # Should be very close to OLS (within numerical precision)
     np.testing.assert_allclose(beta_ridge_small, beta_ols, rtol=1e-4, atol=1e-4)
-
-
-def test_ridge_predictions_match_fitted_values():
-    """Test that Ridge predictions match fitted values (statistical correctness)."""
-    np.random.seed(42)
-    X = np.random.randn(100, 50).astype(np.float32)
-    y = np.random.randn(100).astype(np.float32)
-    alpha = 1.0
-
-    # Fit Ridge
-    beta = ridge_svd(X, y, alpha=alpha, parallel=None)
-
-    # Predictions should match X @ beta
-    predictions = X @ beta
-
-    # Predictions should match fitted values (within numerical precision)
-    # Note: For Ridge, fitted values are X @ beta (no intercept)
-    # We verify this matches the mathematical relationship
-    expected = X @ beta
-    np.testing.assert_allclose(predictions, expected, rtol=1e-6)
