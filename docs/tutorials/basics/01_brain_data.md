@@ -180,7 +180,7 @@ print(f"Chained result: {result.shape}")
 
 ## Visualization
 
-`BrainData.plot()` supports several visualization types via the `kind` parameter.
+`BrainData.plot()` supports several visualization types via the `method` parameter.
 
 ### Glass Brain (default)
 
@@ -193,13 +193,13 @@ mean_brain.plot(title="Mean Activation")
 For multi-image `BrainData`, plot the mean signal over time:
 
 ```{code-cell} python3
-data.plot(kind="timeseries")
+data.plot(method="timeseries")
 ```
 
 ### Voxel Distribution
 
 ```{code-cell} python3
-mean_brain.plot(kind="histogram", title="Voxel Intensity Distribution")
+mean_brain.plot(method="histogram", title="Voxel Intensity Distribution")
 ```
 
 ## Working with Masks

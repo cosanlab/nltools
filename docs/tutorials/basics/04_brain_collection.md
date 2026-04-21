@@ -181,11 +181,11 @@ Apply preprocessing to all subjects at once:
 
 ```{code-cell} python3
 # Standardize each subject (mean-center per voxel)
-bc_centered = bc.standardize(axis=0, method="center", show_progress=False, verbose=False)
+bc_centered = bc.standardize(axis=0, method="center", progress_bar=False, verbose=False)
 print(f"Centered: {bc_centered.shape}")
 
 # Smooth all subjects
-bc_smooth = bc.smooth(fwhm=6, show_progress=False)
+bc_smooth = bc.smooth(fwhm=6, progress_bar=False)
 print(f"Smoothed: {bc_smooth.shape}")
 ```
 
@@ -198,7 +198,7 @@ Apply any function to each subject:
 bc_zscored = bc.map(
     lambda bd: bd.standardize(method="zscore", verbose=False),
     axis=0,
-    show_progress=False,
+    progress_bar=False,
 )
 print(f"Z-scored: {bc_zscored.shape}")
 ```
@@ -240,7 +240,7 @@ For large datasets, use batch processing:
 
 ```{code-cell} python3
 # Process in batches of 2
-for i, batch in enumerate(bc.iter_batches(batch_size=2, axis=0, show_progress=False)):
+for i, batch in enumerate(bc.iter_batches(batch_size=2, axis=0, progress_bar=False)):
     print(f"Batch {i}: {batch.shape}")
 ```
 
