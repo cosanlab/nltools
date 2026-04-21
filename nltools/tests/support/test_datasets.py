@@ -342,3 +342,84 @@ class TestFetchHaxby:
         with patch("nltools.datasets.nilearn_fetch_haxby", None):
             with pytest.raises(ImportError):
                 fetch_haxby(n_subjects=1)
+
+
+class TestLoadHaxbyExample:
+    """Offline synthetic Haxby dataset for tutorials / Pyodide."""
+
+    def test_return_shape_matches_fetch_haxby(self):
+        from nltools.datasets import load_haxby_example
+
+        brain_data, dms = load_haxby_example()
+        assert isinstance(brain_data, list) and isinstance(dms, list)
+        assert len(brain_data) == 1 and len(dms) == 1
+        assert isinstance(brain_data[0], BrainData)
+        assert isinstance(dms[0], DesignMatrix)
+        assert brain_data[0].shape[0] == dms[0].shape[0]
+
+    def test_design_matrix_has_haxby_conditions(self):
+        from nltools.datasets import load_haxby_example
+
+        _, dms = load_haxby_example()
+        cols = set(dms[0].columns)
+        for cond in (
+            "face",
+            "house",
+            "cat",
+            "bottle",
+            "scissors",
+            "shoe",
+            "chair",
+            "scrambledpix",
+        ):
+            assert cond in cols, f"missing condition {cond}"
+
+    def test_multiple_runs(self):
+        from nltools.datasets import load_haxby_example
+
+        brain_data, dms = load_haxby_example(n_runs=3)
+        assert len(brain_data) == 3 and len(dms) == 3
+        for bd, dm in zip(brain_data, dms):
+            assert bd.shape[0] == dm.shape[0]
+
+    def test_reproducible_with_seed(self):
+        import numpy as np
+        from nltools.datasets import load_haxby_example
+
+        bd1, _ = load_haxby_example(random_state=0)
+        bd2, _ = load_haxby_example(random_state=0)
+        np.testing.assert_array_equal(bd1[0].data, bd2[0].data)
+
+    def test_glm_fit_end_to_end(self):
+        import warnings
+        from nltools.datasets import load_haxby_example
+
+        brain_data, dms = load_haxby_example()
+        data, dm = brain_data[0], dms[0]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            dm_full = dm.add_dct_basis(duration=128).add_poly(
+                order=2, include_lower=True
+            )
+            data.fit(model="glm", X=dm_full)
+        assert data.glm_betas.shape[0] == dm_full.shape[1]
+        assert data.glm_betas.shape[1] == data.shape[1]
+
+    def test_contrast_signal_is_recoverable(self):
+        """Injected signal should produce non-trivial contrast t-stats."""
+        import warnings
+        import numpy as np
+        from nltools.datasets import load_haxby_example
+
+        brain_data, dms = load_haxby_example()
+        data, dm = brain_data[0], dms[0]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            dm_full = dm.add_dct_basis(duration=128).add_poly(
+                order=2, include_lower=True
+            )
+            data.fit(model="glm", X=dm_full)
+            face_vs_house = data.compute_contrasts("face - house")
+        # signal clusters were disjoint, so the face-house map should have
+        # clearly significant voxels in both directions.
+        assert np.abs(face_vs_house.data).max() > 3.0

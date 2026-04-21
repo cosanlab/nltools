@@ -14,6 +14,7 @@ Name | Description
 [`fetch_haxby`](#fetch_haxby) | Download and load Haxby2001 dataset from nilearn.
 [`fetch_neurovault_collection`](#fetch_neurovault_collection) | Download images and metadata from a Neurovault collection.
 [`fetch_pain`](#fetch_pain) | Download and load pain dataset from Neurovault.
+[`load_haxby_example`](#load_haxby_example) | Load a small synthetic Haxby-like dataset, entirely in-memory.
 
 
 
@@ -170,4 +171,49 @@ A sensitive and specific neural signature for picture-induced negative affect.
 PLoS biology, 13(6), e1002180.
 
 </details>
+
+#### `load_haxby_example`
+
+```python
+load_haxby_example(n_runs = 1, random_state = 42)
+```
+
+Load a small synthetic Haxby-like dataset, entirely in-memory.
+
+Matches the return shape of `fetch_haxby(n_subjects=1)` — paired lists of
+`BrainData` and `DesignMatrix`, one entry per run — but generates a tiny
+synthetic volume (10 x 10 x 5 = 500 voxels) with condition-specific signal
+injected into disjoint voxel clusters. No network I/O, no disk I/O, no
+nilearn fetcher dependency. Runs in well under a second.
+
+Intended for tutorials, documentation examples, and Pyodide / in-browser
+environments where `fetch_haxby` cannot download the real dataset. The
+eight conditions match the real Haxby object-recognition experiment
+(face, house, cat, bottle, scissors, shoe, chair, scrambledpix), arranged
+in a randomized 9-TR block design with TR=2.5s.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_runs` | <code>[int](#int)</code> | Number of runs to generate. Default 1. | <code>1</code>
+`random_state` | <code>[int](#int) \| None</code> | Seed for reproducible output. Default 42. | <code>42</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`tuple` |  | `(list[BrainData], list[DesignMatrix])`, each of length n_runs. The DesignMatrix columns are the eight condition names plus a "constant" column, matching `fetch_haxby`'s output shape.
+
+**Examples:**
+
+```pycon
+>>> from nltools.datasets import load_haxby_example
+>>> brain_data, design_matrices = load_haxby_example()
+>>> data, dm = brain_data[0], design_matrices[0]
+>>> data.shape
+(72, 500)
+>>> "face" in dm.columns
+True
+```
 
