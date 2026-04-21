@@ -1,6 +1,6 @@
 [project]
 name = "nltools"
-dynamic = ["version"]
+version = "0.5.1"
 requires-python = ">=3.11"
 description = "A Python package to analyze neuroimaging data"
 readme = "README.md"
@@ -20,7 +20,7 @@ classifiers = [
 keywords=["neuroimaging", "preprocessing", "analysis", "machine-learning"]
 dependencies = [
     "nilearn>=0.12",
-    "polars>=1.35",
+    "polars>=1.18",
     "pynv>=0.3",
     "seaborn>=0.13.2",
 ]
@@ -54,17 +54,33 @@ dev = [
 Homepage = "https://nltools.org"
 
 [build-system]
-requires = ["setuptools>=61.0.0", "setuptools-scm", "hatchling"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.setuptools.packages.find]
-exclude = ["nltools/tests"]
+[tool.hatch.build.targets.wheel]
+packages = ["nltools"]
+# Drop anything that bloats the wheel without being used at runtime: tests,
+# the 1mm MNI templates (~30 MB; 2mm/3mm cover the common cases), and macOS
+# filesystem detritus.
+exclude = [
+  "nltools/tests",
+  "nltools/tests/**",
+  "nltools/resources/**/1mm-*.nii.gz",
+  "nltools/resources/**/.DS_Store",
+]
 
-[tool.setuptools]
-package-data = {"nltools" = ["resources/*"]}
-
-[tool.setuptools.dynamic]
-version = {attr = "nltools.version.__version__"}
+[tool.hatch.build.targets.sdist]
+include = [
+  "nltools/**",
+  "README.md",
+  "LICENSE",
+  "pyproject.toml",
+]
+exclude = [
+  "nltools/resources/**/1mm-*.nii.gz",
+  "nltools/resources/**/.DS_Store",
+  "nltools/tests/data/**",
+]
 
 [tool.ruff.lint]
 ignore = ["W292","E501", "E731", "E741"]
@@ -179,8 +195,13 @@ help = "Generate API docs then build MyST site"
 shell = """python scripts/build_api_docs.py && cd docs && myst build --site --execute"""
 
 [tool.poe.tasks.docs-preview]
-help = "Live preview docs"
-shell = """cd docs && myst start --execute"""
+help = "Live preview docs (myst start + CORS wheel server for in-browser Pyodide)"
+shell = """
+python scripts/serve_wheel.py --port 8080 &
+WHEEL_PID=$!
+trap "kill $WHEEL_PID 2>/dev/null" EXIT INT TERM
+cd docs && myst start --execute
+"""
 
 [tool.griffe2md]
 docstring_style = "google"
