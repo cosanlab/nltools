@@ -2,11 +2,29 @@
 title: Tutorials
 ---
 
-# Tutorials
+# Learning Resources
+
+## Comprehensive Courses
+
+### [Dartbrains](https://dartbrains.org)
+
+A fundamentals of neuroimaging undergraduate level course
+
+### [Naturalistic Data](https://naturalistic-data.org)
+
+A more advanced neuroimaging course for working with *naturalistic* datasets (e.g. watching movies, playing games, etc).
+
+### [Discourse Community](https://www.askpbs.org/c/nltools/13)
+
+A Stack Overflow like forum where you can view, contribute, and vote on FAQs regarding `nltools`. Please ask questions here *first* so that other users can benefit from the answers!
+
+---
+
+## Tutorials
 
 Learn how to use nltools through hands-on examples. Start with the **Basics** to understand core data structures, then explore **Workflows** for complete analysis pipelines.
 
-## Basics
+### Basics
 
 These tutorials introduce the four core data classes in nltools. Each one covers creation, manipulation, and common operations.
 
@@ -35,7 +53,7 @@ Creating BrainCollection objects, 3-axis indexing, and group-level aggregations.
 
 ::::
 
-## Workflows
+### Workflows
 
 End-to-end analysis workflows that demonstrate how nltools classes and functions work together for real neuroimaging analyses.
 

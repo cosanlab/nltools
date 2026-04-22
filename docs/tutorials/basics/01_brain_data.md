@@ -7,17 +7,6 @@ kernelspec:
 
 # BrainData Basics
 
-## Learning Objectives
-
-By the end of this tutorial, you will be able to:
-- Load neuroimaging data into `BrainData` objects
-- Perform basic operations (indexing, slicing, arithmetic)
-- Compute summary statistics across images and voxels
-- Apply common preprocessing steps (smoothing, standardization)
-- Visualize brain images and timeseries
-- Save and load data in different formats
-- Work with masks and metadata
-
 ## Introduction
 
 The `BrainData` class is the core data structure in nltools for working with neuroimaging data. It stores data as 2D arrays (images x voxels) for efficient computation, automatically handles resampling to standard MNI space, and supports standard Python operations like indexing, arithmetic, and iteration.
@@ -34,41 +23,53 @@ from nltools.utils import concatenate
 
 ## Loading Data
 
-The simplest way to get started is with a built-in dataset. `fetch_pain` downloads a pain perception study (Chang et al. 2015) with 28 subjects x 3 conditions = 84 images.
+The simplest way to get started is with a built-in dataset. `fetch_pain()` downloads a pain perception study (Chang et al. 2015) with 28 subjects x 3 conditions = 84 images.
 
 ```{code-cell} python3
 data = fetch_pain()
-print(data)
 ```
 
-The `BrainData` repr shows the shape (images x voxels), and whether metadata (X, Y) is attached.
-
-You can also create `BrainData` from NIfTI files, nibabel objects, numpy arrays, or lists of file paths:
+The `BrainData` repr shows the shape (images x voxels), and whether metadata `polars` Dataframes (X, Y) are attached.
 
 ```{code-cell} python3
-# From a nibabel Nifti1Image
-nifti_img = data[0].to_nifti()
-from_nifti = BrainData(nifti_img)
-print(f"From nibabel: {from_nifti.shape}")
+data
+```
 
+You can also create `BrainData` from NIfTI files, nibabel objects, numpy arrays, or lists of file paths. You can access the underlying numpy data with the `.data` attribute:
+
+```{code-cell} python3
 # Access the underlying numpy array
 print(f"Raw data shape: {data.data.shape}")  # (images, voxels)
-print(f"Data type: {data.data.dtype}")
+```
+
+`BrainData` carries two DataFrame _attributes_:
+
+- **X**: Design matrix / covariates for modeling
+- **Y**: Outcome variables or labels
+
+```{code-cell} python3
+# The pain dataset comes with metadata in X; show just the study-specific columns
+study_cols = ["SubjectID", "PainLevel", "Age", "Sex"]
+
+data.X[study_cols].head(10)
 ```
 
 ## Indexing and Slicing
 
-`BrainData` supports standard Python indexing. All indexing preserves metadata (X and Y dataframes).
+`BrainData` supports standard Python-style indexing. All indexing preserves metadata (X and Y dataframes).
 
 ```{code-cell} python3
 # Single image
-first_image = data[0]
-print(f"Single image: {first_image.shape}")
+data[0]
+```
 
+```{code-cell} python3
 # Slicing
 first_five = data[:5]
 print(f"Sliced: {first_five.shape}")
+```
 
+```{code-cell} python3
 # List indexing
 selected = data[[0, 10, 20, 30]]
 print(f"Selected: {selected.shape}")
@@ -78,41 +79,20 @@ Boolean indexing lets you filter images based on computed properties:
 
 ```{code-cell} python3
 global_mean = data.mean(axis=1)
-threshold = np.median(global_mean)
+threshold = global_mean * 2
+
 high_intensity = data[global_mean > threshold]
-print(f"Images above median intensity: {len(high_intensity)}")
+
+print(f"Images above threshold: {len(high_intensity)}")
 ```
 
-## Basic Statistics
-
-Compute statistics across images (`axis=0`, the default) or within images across voxels (`axis=1`):
+Combine `BrainData` objects with `append`:
 
 ```{code-cell} python3
-# Mean across all images → single brain map
-mean_brain = data.mean()
-print(f"Mean brain: {mean_brain.shape}")
+# Append one image to another
+combined = data[0].append(data[1])
 
-# Standard deviation across images
-std_brain = data.std()
-
-# Temporal signal-to-noise ratio
-tsnr = mean_brain.data / std_brain.data
-print(f"Median tSNR: {np.nanmedian(tsnr):.2f}")
-```
-
-Statistics within each image give you a timeseries:
-
-```{code-cell} python3
-# Global signal: mean intensity per image
-global_signal = data.mean(axis=1)
-
-fig, ax = plt.subplots(figsize=(10, 3))
-ax.plot(global_signal)
-ax.set_xlabel("Image Number")
-ax.set_ylabel("Mean Intensity")
-ax.set_title("Global Signal Across Images")
-plt.tight_layout()
-plt.show()
+combined
 ```
 
 ## Arithmetic Operations
@@ -120,71 +100,86 @@ plt.show()
 `BrainData` supports element-wise arithmetic with scalars and other `BrainData` objects:
 
 ```{code-cell} python3
-# Scalar operations
-scaled = data * 2
-shifted = data + 100
-
-# Mean-centering
-centered = data - data.mean()
-print(f"Mean of centered data: {centered.mean().data.mean():.10f}")
-
-# Difference between images
-difference = data[1] - data[0]
-print(f"Difference map: {difference.shape}")
+# Addition
+data + 100
 ```
 
-## Preprocessing
-
-### Standardization
-
-`standardize()` operates per-voxel across images by default. Use `method='zscore'` for full z-scoring (subtract mean and divide by std), or `method='center'` (default) for mean-centering only.
+```{code-cell} python3
+# Multiplication
+data * 2
+```
 
 ```{code-cell} python3
+# Subtraction of first 2 time-points (images) → single brain map
+data[1] - data[0]
+```
+
+```{code-cell} python3
+# Addition of all images and time-points
+data_doubled = data + data
+data_doubled
+```
+
+## Statistical Operations
+
+`BrainData` supports a wide variety of [statistical methods](/api/data/brain-data) that work across images (`axis=0`) or across voxels (`axis=1`):
+
+```{code-cell} python3
+# Mean across all images → single brain map
+data.mean()
+```
+
+```{code-cell} python3
+# Standard deviation across images → single brain map
+data.std()
+```
+
+```{code-cell} python3
+# Temporal signal-to-noise ratio → simple division
+tsnr = data.mean() / data.std()
+
+# Visualize it
+tsnr.plot()
+```
+
+```{code-cell} python3
+# Standardization/z-scoring
 z_scored = data.standardize(method="zscore", verbose=False)
+
 print(f"Z-scored mean: {z_scored.mean().data.mean():.6f}")
+
 print(f"Z-scored std: {z_scored.std().data.mean():.4f}")
 ```
 
-### Spatial Smoothing
-
-Apply a Gaussian spatial filter with a specified FWHM (in mm):
-
 ```{code-cell} python3
+# Apply a Gaussian spatial filter with a specified FWHM (in mm):
 smoothed = data[0].smooth(fwhm=6)
 print(f"Original range: [{data[0].data.min():.2f}, {data[0].data.max():.2f}]")
 print(f"Smoothed range: [{smoothed.data.min():.2f}, {smoothed.data.max():.2f}]")
 ```
 
-### Thresholding
-
 Threshold by absolute value or percentile. Optionally binarize for mask creation:
 
 ```{code-cell} python3
 # Keep only voxels in the top 5%
-top_5 = mean_brain.threshold(upper="95%")
-print(f"Voxels in top 5%: {(top_5.data != 0).sum()}")
-
-# Binarize for use as a mask
-binary_mask = mean_brain.threshold(upper="95%", binarize=True)
-print(f"Mask voxels: {binary_mask.data.sum():.0f}")
+data.mean().threshold(upper="95%").plot()
 ```
 
-### Chaining Operations
-
-Preprocessing methods return new `BrainData` objects, so you can chain them:
-
 ```{code-cell} python3
-result = data.smooth(fwhm=6).standardize(method="zscore", verbose=False).mean().threshold(upper="95%")
-print(f"Chained result: {result.shape}")
+# Binarize for use as a mask
+binary_mask = data.mean().threshold(upper="95%", binarize=True)
+print(f"Mask voxels: {binary_mask.data.sum():.0f}")
 ```
 
 ## Visualization
 
-`BrainData.plot()` supports several visualization types via the `method` parameter.
+`BrainData.plot()` supports several visualization types via the `method` parameter. Most are just convenience wrappers around [`nilearn.plotting`](https://nilearn.github.io/dev/modules/plotting.html#module-nilearn.plotting), which means you can always use `BrainData.to_nifti()` to work directly with `nilearn`'s plotting functions:
 
 ### Glass Brain (default)
 
 ```{code-cell} python3
+mean_brain = data.mean()
+
 mean_brain.plot(title="Mean Activation")
 ```
 
@@ -193,88 +188,56 @@ mean_brain.plot(title="Mean Activation")
 For multi-image `BrainData`, plot the mean signal over time:
 
 ```{code-cell} python3
-data.plot(method="timeseries")
+data.plot(method="timeseries", figsize=(6,4));
 ```
 
 ### Voxel Distribution
 
 ```{code-cell} python3
-mean_brain.plot(method="histogram", title="Voxel Intensity Distribution")
+mean_brain.plot(method="histogram", title="Voxel Intensity Distribution", figsize=(6,4));
 ```
 
-## Working with Masks
+<!--TODO: Update this section with included ROI masks-->
 
-### Applying Masks
+## Masking
 
 Use `apply_mask` to restrict your data to a region of interest:
 
 ```{code-cell} python3
+# Original data
+# Get original data bounds to keep color bars consistent
+vmin, vmax = mean_brain.data.min(), mean_brain.data.max()
+
+# Plot it
+mean_brain.plot(vmin=vmin, vmax=vmax)
+```
+
+```{code-cell} python3
 # Create a mask from the top 10% of mean activation
 roi_mask = mean_brain.threshold(upper="90%", binarize=True)
-masked_data = data.apply_mask(roi_mask)
-print(f"Original: {data.shape}")
-print(f"After masking: {masked_data.shape}")
+
+# Plot the mask
+roi_mask.plot(vmin=0, vmax=1, cmap='gray_r')
+```
+
+```{code-cell} python3
+# Apply it
+masked_data = mean_brain.apply_mask(roi_mask)
+
+# Plot it
+masked_data.plot(vmin=vmin, vmax=vmax, cmap="RdBu_r", threshold=0)
 ```
 
 ## File I/O
 
-`BrainData` can be saved as NIfTI (`.nii.gz`) or HDF5 (`.h5`). HDF5 preserves metadata (X, Y).
+`BrainData` can be saved as NIfTI (`.nii.gz`) or HDF5 (`.h5`). HDF5 preserves metadata (X, Y), masks, and produces smaller file sizes:
 
 ```{code-cell} python3
-import os
-import tempfile
-
-with tempfile.TemporaryDirectory() as tmpdir:
-    # Save and reload NIfTI
-    nifti_path = os.path.join(tmpdir, "mean_brain.nii.gz")
-    mean_brain.write(nifti_path)
-    loaded = BrainData(nifti_path, mask=data.mask)
-    print(f"Loaded NIfTI: {loaded.shape}")
-    assert np.allclose(mean_brain.data, loaded.data, rtol=1e-5)
-    print("NIfTI round-trip verified")
+# Save nifti
+data.write("data.nii.gz")
 ```
 
-HDF5 (`.h5`) format additionally preserves metadata (X, Y DataFrames). It requires the optional `pytables` dependency:
-
-```python
-# Save with metadata (requires pytables)
+```{code-cell} python3
+# Save hdf5, with X, Y, mask, etc
 data.write("data.h5")
-loaded = BrainData("data.h5")
 ```
-
-## Metadata (X and Y)
-
-`BrainData` carries two metadata DataFrames:
-- **X**: Design matrix / covariates for modeling
-- **Y**: Outcome variables or labels
-
-```{code-cell} python3
-# The pain dataset comes with metadata in X
-# Show just the study-specific columns
-study_cols = ["SubjectID", "PainLevel", "Age", "Sex"]
-print(data.X[study_cols].head(10))
-```
-
-## Concatenation
-
-Combine `BrainData` objects with `append`:
-
-```{code-cell} python3
-# Append one image to another
-combined = data[0].append(data[1])
-```
-
-## Summary
-
-In this tutorial you learned the core `BrainData` operations:
-- **Loading**: from files, nibabel objects, or built-in datasets
-- **Indexing**: integer, slice, list, and boolean indexing
-- **Statistics**: `mean()`, `std()`, `sum()` with axis control
-- **Arithmetic**: element-wise operations between objects and scalars
-- **Preprocessing**: `standardize()`, `smooth()`, `threshold()`
-- **Visualization**: `plot()` with glass brain, timeseries, and histogram views
-- **Masks**: `apply_mask()` and `threshold(binarize=True)` for ROI analysis
-- **I/O**: NIfTI and HDF5 read/write
-- **Metadata**: X and Y DataFrames for experimental designs
-
-Next, explore [DesignMatrix](02_design_matrix.md) for building experimental design matrices, or [Adjacency](03_adjacency.md) for connectivity analysis.

@@ -16,6 +16,7 @@ def plot_brain(
     cmap=None,
     bg_img=None,
     ax=None,
+    figsize=(8, 6),
     title=None,
     colorbar=True,
     save=None,
@@ -36,6 +37,7 @@ def plot_brain(
         cmap (str, optional): Colormap name.
         bg_img (Nifti1Image or str, optional): Background image for slice views.
         ax (matplotlib.axes.Axes, optional): Matplotlib axis to plot on.
+        figsize (tuple, optional): default figure size if no axis (8, 6)
         title (str, optional): Plot title.
         colorbar (bool): Whether to show colorbar. Default: True.
         save (str, optional): Path to save figure(s).
@@ -46,9 +48,10 @@ def plot_brain(
     Returns:
         Display or matplotlib Figure.
     """
-    from nilearn.plotting import plot_glass_brain, plot_stat_map
-    from nltools.templates import get_bg_image, get_brainspace
     import matplotlib.pyplot as plt
+    from nilearn.plotting import plot_glass_brain, plot_stat_map
+
+    from nltools.templates import get_bg_image, get_brainspace
 
     # Validate inputs
     if bd.is_empty:
@@ -71,7 +74,7 @@ def plot_brain(
     # Handle matplotlib-based plots (timeseries, histogram)
     if method in ["timeseries", "histogram"]:
         return _plot_matplotlib(
-            bd, method=method, stat=stat, ax=ax, title=title, save=save
+            bd, method=method, stat=stat, ax=ax, figsize=figsize, title=title, save=save
         )
 
     # Handle thresholding
@@ -246,13 +249,16 @@ def plot_flatmap_brain(
     )
 
 
-def _plot_matplotlib(bd, method, stat="mean", ax=None, title=None, save=None):
+def _plot_matplotlib(
+    bd, method, stat="mean", figsize=(8, 6), ax=None, title=None, save=None
+):
     """Plot using matplotlib (timeseries or histogram).
 
     Args:
         bd: BrainData instance.
         method (str): 'timeseries' or 'histogram'
         stat (str): Statistic for timeseries ('mean', 'median', 'std')
+        figsize (tuple, optional): default figure size if no axis (8, 6)
         ax: Matplotlib axis.
         title (str, optional): Plot title.
         save (str, optional): Path to save figure.
@@ -264,7 +270,7 @@ def _plot_matplotlib(bd, method, stat="mean", ax=None, title=None, save=None):
 
     # Create axis if not provided
     if ax is None:
-        fig, ax = plt.subplots(figsize=(8, 6))
+        fig, ax = plt.subplots(figsize=figsize)
     else:
         fig = ax.figure
 

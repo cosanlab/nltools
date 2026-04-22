@@ -8,12 +8,14 @@ Classes to represent brain image data.
 
 import os
 import warnings  # noqa: F401
+from copy import deepcopy
+from typing import TYPE_CHECKING
 
 import numpy as np
-from copy import deepcopy
+
 from nltools.utils import attempt_to_import
+
 from .utils import check_brain_data
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .pipeline import BrainDataPipeline
@@ -72,15 +74,15 @@ class BrainData:
         resample=True,
         interpolation="auto",
     ):
-        from .validation import validate_data_type
         from .io import (
             initialize_mask,
-            load_from_list,
             load_from_brain_data,
-            load_from_h5,
-            load_from_url,
             load_from_file,
+            load_from_h5,
+            load_from_list,
+            load_from_url,
         )
+        from .validation import validate_data_type
 
         # Initialize attributes
         self._h5_compression = h5_compression
@@ -404,8 +406,8 @@ class BrainData:
         Returns:
             BrainData: New appended BrainData instance.
         """
-        from .validation import validate_append_shapes
         from .utils import shallow_copy
+        from .validation import validate_append_shapes
 
         data = check_brain_data(data)
 
@@ -905,6 +907,7 @@ class BrainData:
         cmap=None,
         bg_img=None,
         ax=None,
+        figsize=(8, 6),
         title=None,
         colorbar=True,
         save=None,
@@ -922,6 +925,7 @@ class BrainData:
             cmap (str, optional): Colormap name.
             bg_img (str/nibabel image, optional): Background image.
             ax (matplotlib.axes.Axes, optional): Matplotlib axis.
+            figsize (tuple, optional): default figure size if no axis (8, 6)
             title (str, optional): Plot title.
             colorbar (bool): Whether to show colorbar. Default: True.
             save (str, optional): Path to save figure(s).
@@ -943,6 +947,7 @@ class BrainData:
             cmap=cmap,
             bg_img=bg_img,
             ax=ax,
+            figsize=figsize,
             title=title,
             colorbar=colorbar,
             save=save,

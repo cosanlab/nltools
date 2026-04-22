@@ -198,8 +198,12 @@ help = "Build wheel and run Pyodide/WASM smoke tests (requires node)"
 shell = "uv build --wheel && cd nltools/tests/pyodide && npm install --silent && node test_runner.mjs"
 
 [tool.poe.tasks.docs-clean]
-help = "Clean out built docs for debugging"
-shell = """rm -r docs/_build"""
+help = "Clean built docs (preserves execute cache so unchanged cells don't re-run)"
+shell = """cd docs && myst clean --site --html --temp --logs --cache --exports --templates -y"""
+
+[tool.poe.tasks.docs-clean-cache]
+help = "Clear MyST execute cache to force re-running all code cells on next build"
+shell = """cd docs && myst clean --execute -y"""
 
 [tool.poe.tasks.docs-generate]
 help = "Generate API docs from source with griffe2md"
