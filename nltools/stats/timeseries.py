@@ -184,7 +184,7 @@ def make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale=True, d
     """
 
     # Figure out number of basis functions to create
-    order = int(np.fix(2 * (nsamples * sampling_freq) / filter_length + 1))
+    order = int(np.trunc(2 * (nsamples * sampling_freq) / filter_length + 1))
 
     n = np.arange(nsamples)
 
